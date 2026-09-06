@@ -118,6 +118,65 @@ test("slice55 malformed nested frozen context preserves FrozenReadError", async 
   }
 });
 
+const malformedFrozenCases: Array<[
+  string,
+  (context: Record<string, any>) => void,
+  string,
+  string,
+]> = [
+  ["token", (context) => { context.token = 7; }, "token_malformed", "/context/token"],
+  [
+    "effective instant",
+    (context) => { context.effectiveValidAt = true; },
+    "context_invalid",
+    "/context/effectiveValidAt",
+  ],
+  ["context container", (context) => { context.context = []; }, "context_invalid", "/context/context"],
+  [
+    "view container",
+    (context) => { context.context.view = []; },
+    "context_invalid",
+    "/context/context/view",
+  ],
+  [
+    "eligibility container",
+    (context) => { context.context.eligibility = []; },
+    "context_invalid",
+    "/context/context/eligibility",
+  ],
+  [
+    "view boolean",
+    (context) => { context.context.view.includeSuperseded = 1; },
+    "context_invalid",
+    "/context/context/view/includeSuperseded",
+  ],
+  [
+    "attribute pair",
+    (context) => { context.context.eligibility.attributes = [["missing-value"]]; },
+    "context_invalid",
+    "/context/context/eligibility/attributes/0",
+  ],
+];
+
+for (const [name, mutate, reason, fieldPath] of malformedFrozenCases) {
+  test(`slice55 validates complete frozen shape: ${name}`, async () => {
+    const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+    try {
+      const context = await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+      mutate(context as unknown as Record<string, any>);
+      await assert.rejects(
+        engine.traceDependency(malformedRequest({ context })),
+        (error: unknown) =>
+          error instanceof FrozenReadError &&
+          error.reason === reason &&
+          error.fieldPath === fieldPath,
+      );
+    } finally {
+      await engine.close();
+    }
+  });
+}
+
 test("slice55 TypeScript rejects unknown arms and nonfinite explanation scores", () => {
   const native = {
     id: 1,

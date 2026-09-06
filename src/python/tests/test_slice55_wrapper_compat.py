@@ -51,6 +51,16 @@ def test_slice55_absent_native_fields_use_legacy_defaults() -> None:
     assert _map_per_hit_explain(native).structural is None
 
 
+def test_slice55_full_search_mapper_accepts_absent_additive_native_fields() -> None:
+    native = _candidate_native_search_result()
+    del native.explanation.correlation_id
+    del native.explanation.per_hit[0].structural
+    mapped = _map_native_search_result(native)
+    assert mapped.explanation is not None
+    assert mapped.explanation.correlation_id == ""
+    assert mapped.explanation.per_hit[0].structural is None
+
+
 def test_slice55_direct_candidate_native_presence_fixture() -> None:
     native = SimpleNamespace(
         id=1,

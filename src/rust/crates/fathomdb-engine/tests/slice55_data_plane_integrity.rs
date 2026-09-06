@@ -619,6 +619,30 @@ fn slice55_integrity_plan_hook_covers_dense_generation_and_receipts() {
 }
 
 #[test]
+fn slice55_projection_generation_aggregates_physical_source_work() {
+    let (_dir, opened) = opened();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT INTO _fathomdb_projection_terminal(write_cursor,state) \
+             VALUES(900,'up_to_date'); \
+             INSERT INTO _fathomdb_vector_rows(rowid,kind,write_cursor) \
+             VALUES(900,'doc',900)",
+        )
+        .unwrap();
+    let error = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ProjectionGeneration, 3))
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::DataPlaneIntegrity(ref value)
+            if value.reason == DataPlaneIntegrityErrorReasonV1::IntegrityBoundExceeded
+                && value.field_path == "/maxWorkUnits"
+    ));
+}
+
+#[test]
 fn slice55_completed_closure_excludes_pruned_body_members() {
     let (_dir, opened) = dependency_seeded();
     opened
@@ -650,6 +674,96 @@ fn slice55_completed_closure_excludes_pruned_body_members() {
         }),
         "completed closure was treated as retained authority: {result:#?}"
     );
+}
+
+#[test]
+fn slice55_completed_closure_physical_residue_is_outside_membership() {
+    let (_dir, opened) = dependency_seeded();
+    opened
+        .engine
+        .write(&[canonical("integrity-source-r2", "source", "slice55 integrity replacement")])
+        .unwrap();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT INTO search_index(rowid,body,kind,write_cursor) \
+             VALUES(900,'slice55 integrity derived','fact',2); \
+             INSERT INTO search_index_v2(rowid,kind,body,status,write_cursor) \
+             VALUES(900,'fact','slice55 integrity derived','',2)",
+        )
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            10_000,
+        ))
+        .unwrap();
+    let residue = result
+        .findings
+        .iter()
+        .filter(|finding| finding.write_cursor == Some(2))
+        .collect::<Vec<_>>();
+    assert_eq!(residue.len(), 2, "{result:#?}");
+    assert!(residue.iter().all(|finding| {
+        finding.code == DataPlaneIntegrityFindingCodeV1::SearchProjectionOutsideMembership
+            && finding.artifact_revision_ids == ["integrity-derived-r1"]
+    }));
+}
+
+#[test]
+fn slice55_physical_body_findings_follow_rowid_order() {
+    let (_dir, opened) = opened();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT INTO search_index(rowid,body,kind,write_cursor) VALUES \
+             (900,'first-rowid','doc',100),(901,'second-rowid','doc',50)",
+        )
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            10_000,
+        ))
+        .unwrap();
+    let cursors = result
+        .findings
+        .iter()
+        .filter(|finding| {
+            finding.code == DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing
+        })
+        .map(|finding| finding.write_cursor)
+        .collect::<Vec<_>>();
+    assert_eq!(cursors, [Some(100), Some(50)]);
+}
+
+#[test]
+fn slice55_malformed_optional_revision_id_is_omitted() {
+    let (_dir, opened) = opened();
+    opened.engine.write(&[canonical("optional-id-r1", "optional-id", "body")]).unwrap();
+    opened
+        .engine
+        .execute_for_test(
+            "PRAGMA foreign_keys=OFF; \
+             UPDATE _fathomdb_artifact_revisions SET revision_id='!' WHERE write_cursor=1; \
+             DELETE FROM search_index WHERE write_cursor=1",
+        )
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            10_000,
+        ))
+        .unwrap();
+    let finding = result
+        .findings
+        .iter()
+        .find(|finding| finding.code == DataPlaneIntegrityFindingCodeV1::NodeBodyFtsMissing)
+        .unwrap_or_else(|| panic!("missing node body finding: {result:#?}"));
+    assert!(finding.artifact_revision_ids.is_empty(), "{finding:#?}");
 }
 
 #[test]

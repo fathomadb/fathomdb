@@ -244,6 +244,68 @@ def test_slice55_python_malformed_nested_frozen_context_is_frozen_error(tmp_path
         engine.close()
 
 
+@pytest.mark.parametrize(
+    ("mutate", "reason", "path"),
+    [
+        (
+            lambda frozen: object.__setattr__(frozen, "token", 7),
+            "token_malformed",
+            "/context/token",
+        ),
+        (
+            lambda frozen: object.__setattr__(frozen, "effective_valid_at", True),
+            "context_invalid",
+            "/context/effectiveValidAt",
+        ),
+        (
+            lambda frozen: object.__setattr__(frozen, "context", []),
+            "context_invalid",
+            "/context/context",
+        ),
+        (
+            lambda frozen: object.__setattr__(frozen.context, "view", []),
+            "context_invalid",
+            "/context/context/view",
+        ),
+        (
+            lambda frozen: object.__setattr__(frozen.context, "eligibility", []),
+            "context_invalid",
+            "/context/context/eligibility",
+        ),
+        (
+            lambda frozen: object.__setattr__(
+                frozen.context.view, "include_superseded", 1
+            ),
+            "context_invalid",
+            "/context/context/view/includeSuperseded",
+        ),
+        (
+            lambda frozen: object.__setattr__(
+                frozen.context.eligibility, "attributes", [["missing-value"]]
+            ),
+            "context_invalid",
+            "/context/context/eligibility/attributes/0",
+        ),
+    ],
+)
+def test_slice55_python_validates_complete_frozen_shape(
+    tmp_path, mutate: Any, reason: str, path: str
+) -> None:
+    engine = fathomdb.Engine.open(str(tmp_path / "full-frozen.fathom"), use_default_embedder=False)
+    try:
+        context = engine.freeze_read_context(fathomdb.ReadContextV1())
+        mutate(context)
+        request = fathomdb.DependencyTraceRequestV1(
+            root_revision_id="source-r1", direction="to_dependents", context=context
+        )
+        with pytest.raises(fathomdb.errors.FrozenReadError) as caught:
+            engine.trace_dependency(request)
+        assert caught.value.reason == reason
+        assert caught.value.field_path == path
+    finally:
+        engine.close()
+
+
 def test_slice55_python_noncanonical_bound_never_leaks_native_type_error(tmp_path) -> None:
     engine = fathomdb.Engine.open(
         str(tmp_path / "slice55-bound-error.fathom"), use_default_embedder=False

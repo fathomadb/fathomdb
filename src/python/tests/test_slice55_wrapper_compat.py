@@ -2,6 +2,8 @@
 
 from types import SimpleNamespace
 
+import pytest
+
 from fathomdb.engine import _map_per_hit_explain
 from fathomdb.types import Explanation, PerHitExplain, QueryTrace
 
@@ -71,3 +73,61 @@ def test_slice55_direct_candidate_native_presence_fixture() -> None:
     mapped = _map_per_hit_explain(native)
     assert mapped.structural is not None
     assert mapped.structural.schema_version == 1
+
+
+@pytest.mark.parametrize(
+    ("structural", "path"),
+    [
+        (
+            SimpleNamespace(
+                schema_version=2,
+                inclusion_state="included",
+                projection_origin="synchronous_body_fts",
+                dependency_state="not_applicable",
+                lifecycle_state="node_active",
+                degradation_codes=[],
+            ),
+            "/structural/schemaVersion",
+        ),
+        (
+            SimpleNamespace(
+                schema_version=1,
+                inclusion_state="included",
+                projection_origin="synchronous_body_fts",
+                dependency_state="not_applicable",
+                lifecycle_state="node_active",
+                degradation_codes=["projection_blocked"],
+            ),
+            "/structural/inclusionState",
+        ),
+        (
+            SimpleNamespace(
+                schema_version=1,
+                inclusion_state="degraded",
+                projection_origin="synchronous_body_fts",
+                dependency_state="not_applicable",
+                lifecycle_state="node_active",
+                degradation_codes=["projection_blocked", "projection_blocked"],
+            ),
+            "/structural/degradationCodes/1",
+        ),
+    ],
+)
+def test_slice55_python_recursively_validates_structural_explanation(
+    structural: SimpleNamespace, path: str
+) -> None:
+    native = SimpleNamespace(
+        id=1,
+        arm="text",
+        vector_rank=None,
+        text_rank=0,
+        graph_rank=None,
+        fused_score=1.0,
+        ce_score=None,
+        blended=1.0,
+        importance=None,
+        confidence=None,
+        structural=structural,
+    )
+    with pytest.raises(ValueError, match=f"invalid explanation response at {path}"):
+        _map_per_hit_explain(native)

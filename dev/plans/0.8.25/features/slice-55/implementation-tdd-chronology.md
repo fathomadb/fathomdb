@@ -633,3 +633,10 @@ ordinary searches at one barrier against an enabled real JSONL sink, then
 requires exactly two events, the exact identity set `q0-0`/`q0-1`, and the
 explained result's identity in that set. It exercises the mixed finalization
 path without accepting alternate event counts or identifier shapes.
+
+Recursive structural-explanation SDK RED adds Python and TypeScript cases for
+unsupported nested schema, included/nonempty-degradation incoherence, and
+duplicate degradation codes at their exact nested paths. The direct TypeScript
+run failed both behavioral cases with `Missing expected exception`; Python
+source lint passed, while runtime remains reserved for the exact disposable
+candidate because the preserved worktree native module is stale.

@@ -67,8 +67,9 @@ fn corrupt(value: &serde_json::Value) -> fathomdb_engine::DependencyTraceErrorV1
 #[test]
 fn slice55_wire_v1_canonical_bytes() {
     let bytes = encode_dependency_trace_result_v1(&result()).unwrap();
-    assert!(bytes.starts_with(br#"{"schemaVersion":1,"rootRevisionId":"source-r1""#));
-    assert_eq!(decode_dependency_trace_result_v1(&bytes).unwrap(), result());
+    let fixture = include_bytes!("fixtures/slice55/trace-v1.json");
+    assert_eq!(bytes, fixture);
+    assert_eq!(decode_dependency_trace_result_v1(fixture).unwrap(), result());
 }
 
 #[test]

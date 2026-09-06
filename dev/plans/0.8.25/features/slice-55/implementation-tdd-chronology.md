@@ -257,6 +257,18 @@ interrupted with exit 130. The exact environment diagnostics remain in
 `/tmp/fathomdb-agent-test-*.log`; the unchanged gate is rerun outside the
 restricted sandbox after the product commit and approved pin reissue.
 
-GREEN implementation commit: pending until commit completes. The governed
-surface pin will be reissued in a separate, reviewable follow-up from the exact
-committed allowlist bytes, matching the established Slice 50 mechanism.
+GREEN implementation commit:
+`f97abd0c5b09c7fba1cbb071f15e56974156c5de`.
+
+The governed-surface pin was reissued in a separate, reviewable follow-up from
+the exact committed allowlist bytes, matching the established Slice 50
+mechanism. Product-commit allowlist identity:
+
+```text
+git blob 0cac3a1b9a66e6c5e7b337c08d52f60f332abed4
+sha256 fd01c7c44d0eecfc4b8842450bb3506b1fc66f3344ec71b86e459e8d00814b7a
+```
+
+The reissued pin records 66 allowlist, 5 core, and 5 recovery-denylist members;
+`./scripts/check-governed-surface-pin.sh` passed. The pin/chronology follow-up
+commit is recorded after commit completion.

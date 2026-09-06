@@ -13,8 +13,8 @@ facade separation, CLI separation, bounded/property seams, and versioned
 fault/wire fixtures. No production, binding, interface, ADR, schema, or
 governed-surface implementation was present.
 
-RED commit: pending at the time this chronology entry was authored; replaced
-with the exact SHA immediately after the test-only commit.
+RED commit:
+`3adedd9e804ce3e26d4ad3c4433615aae5c3044c`.
 
 Command (exit 101):
 
@@ -84,6 +84,66 @@ variants, and additive explanation members. The existing APIs compiled far
 enough to establish that the fixtures use the current public write,
 dependency-registration, frozen-context, search, telemetry, facade, and CLI
 contracts.
+
+## Binding and codec test-only RED witness
+
+The second test-only increment adds the plan-required canonical trace codec
+property, Python old-construction and absent-native compatibility checks,
+Python public trace/doctor-absence checks, TypeScript old-object-literal and
+absent-native compatibility checks, and direct candidate-native structural
+presence fixtures. It precedes every binding, wrapper, and codec production
+edit.
+
+Second RED commit: pending until this test-only commit completes.
+
+Python source-only command (exit 1):
+
+```text
+.venv/bin/pyright src/python/tests/test_slice55_wrapper_compat.py src/python/tests/test_slice55_trace_explanation.py
+```
+
+First intended diagnostics, verbatim:
+
+```text
+src/python/tests/test_slice55_trace_explanation.py:7:24 - error: "DependencyTraceRequestV1" is not a known attribute of module "fathomdb" (reportAttributeAccessIssue)
+src/python/tests/test_slice55_trace_explanation.py:17:21 - error: "DependencyTraceError" is not a known attribute of module "fathomdb" (reportAttributeAccessIssue)
+src/python/tests/test_slice55_wrapper_compat.py:30:24 - error: Cannot access attribute "correlation_id" for class "Explanation"
+  Attribute "correlation_id" is unknown (reportAttributeAccessIssue)
+```
+
+The source-wrapper pytest route was also attempted but was not a valid RED
+oracle: the shared worktree extension predates Slice 40 and fails collection
+while importing `ProjectionGenerationError`. Per
+`agent-worktree-stale-base-trap.md`, it was not rebuilt or repointed from this
+worktree. Pyright supplies source-only RED evidence; installed behavior is
+reserved for the exact-candidate disposable wheel route.
+
+TypeScript command from `src/ts` (exit 2):
+
+```text
+npm run typecheck
+```
+
+First intended diagnostics, verbatim:
+
+```text
+tests/slice55-absent-native-fields-use-legacy-defaults.test.ts(21,41): error TS2339: Property 'structural' does not exist on type 'PerHitExplain'.
+tests/slice55-absent-native-fields-use-legacy-defaults.test.ts(39,41): error TS2339: Property 'structural' does not exist on type 'PerHitExplain'.
+tests/slice55-old-object-literals.test.ts(20,28): error TS2339: Property 'correlationId' does not exist on type 'Explanation'.
+tests/slice55-old-object-literals.test.ts(21,20): error TS2339: Property 'structural' does not exist on type 'PerHitExplain'.
+```
+
+Canonical codec command (exit 101):
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_wire
+```
+
+First intended diagnostic, verbatim:
+
+```text
+error[E0432]: unresolved imports `fathomdb_engine::decode_dependency_trace_result_v1`, `fathomdb_engine::encode_dependency_trace_result_v1`, `fathomdb_engine::DependencyTraceDirectionV1`, `fathomdb_engine::DependencyTraceEdgeV1`, `fathomdb_engine::DependencyTraceNodeV1`, `fathomdb_engine::DependencyTraceResultV1`, `fathomdb_engine::TraceArtifactClassV1`, `fathomdb_engine::TraceArtifactRoleV1`, `fathomdb_engine::TraceNodeLifecycleV1`, `fathomdb_engine::TraceReadBoundaryV1`
+```
 
 ## Verification measurement mechanism (Cycle 4 P3)
 

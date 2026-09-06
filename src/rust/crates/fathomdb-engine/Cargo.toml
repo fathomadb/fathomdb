@@ -204,6 +204,10 @@ required-features = ["test-hooks"]
 name = "slice55_data_plane_integrity"
 required-features = ["operator", "test-hooks"]
 
+[[test]]
+name = "slice55_wire"
+required-features = ["operator", "test-hooks"]
+
 [dev-dependencies]
 libc = "0.2"
 proptest = "1"

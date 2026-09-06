@@ -394,3 +394,182 @@ The default-feature all-target Clippy route then identified that the
 the ignored performance witness. With orchestrator authorization, the helper
 received the matching compile-time gate; no case, assertion, fixture value, or
 oracle changed.
+
+## FIX-1 GREEN chronology
+
+Authenticated trace authority and strict recursive codec GREEN landed at
+`34f22226156562a1074562e6c027a204f6000060`. Schema-first Python/TypeScript
+validation and the actual native Python exception identity landed at
+`c77b9e5d140e816fab119e72f4614a26cb865438`. The latter exposed Cargo feature
+unification in workspace-wide checking: the operator-enabled facade caused
+the PyO3 and N-API matches to see the operator-only engine variant even though
+neither SDK exposes the operator API. The final binding arms are explicitly
+operator-only/unreachable and retain no SDK doctor surface; the unchanged
+workspace typecheck passed after this correction.
+
+The real 50,000-hidden-dependent performance GREEN is
+`7d336c2423a4aef11bbea55fbcb5f1e2e3650033`. Its release-mode ignored witness
+passed with the following exact observation after fixture construction had
+completed outside the measured window:
+
+```text
+cargo test --release -p fathomdb-engine --features test-hooks \
+  --test slice55_dependency_trace \
+  slice55_trace_hidden_dependents_performance_ceiling \
+  -- --ignored --exact --nocapture
+slice55 trace measurement: hidden_rows=50000 vm_steps=600000 elapsed_ms=780 peak_rss_delta_bytes=0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out
+```
+
+The progress handler aborts above 10,000 callbacks at the 1,000-instruction
+cadence, providing the required greater-than-10-million-VM-step fail-closed
+ceiling. Peak RSS is sampled from `getrusage(RUSAGE_SELF).ru_maxrss` around the
+measured call. The test proves byte-identical responses against the same closed
+database image without hidden rows and proves absence of a bound refusal.
+Rusqlite hook APIs are enabled only by `test-hooks`; libc is optional in the
+library and selected by that feature, with a dev dependency for the integration
+test compile surface. No production-default hook API was added.
+
+Structural explanation GREEN landed at
+`e4fd954ca4c48dcda97b410f67a45842a4991603`. The engine derives projection
+readiness, lifecycle, dependency registration, edge validity, degradation,
+and per-search correlation from the authenticated search transaction. The
+focused explanation suite passed 11 tests, including the concurrent unique
+correlation witness. Installed/package smoke extensions landed at
+`bb32310a8ba9ed2a0599ba80996eaeab83e93d10`.
+
+## FIX-1 projection authority follow-up
+
+The first package-installed smoke reached the intended real database
+corruption refusal but expected `/dependencyEdges`. The accepted
+nondisclosure contract returns `trace_corrupt` with an empty storage-corruption
+path. With orchestrator authorization, only that newly added smoke expectation
+changed; error class, reason, scenario, and refusal assertion remain intact.
+The transparent test-only correction is
+`bd026abfe5d8dd7439b1ef3f60b16255ad4b6f7c`, and the unchanged rerun passed:
+
+```text
+env -u PYTHONPATH /tmp/fathomdb-s55-fix1.7ziHuf/venv/bin/python \
+  src/python/tests/smoke_slice55_installed.py
+slice55 installed native smoke: ok
+```
+
+Review-cycle-1's plan-named projection tests were then found to be clean-empty
+placeholders rather than real corruption fixtures. The test-only RED increment
+`0c9dc9aea4deb1641f31fe4adae3577e30ae3b69` replaced them with public-write,
+real-database deletion fixtures. The focused failures were:
+
+```text
+test slice55_missing_edge_body_fts ... FAILED
+  left: []
+ right: [EdgeBodyFtsMissing]
+test slice55_missing_canonical_attribute ... FAILED
+  left: []
+ right: [CanonicalAttributeMissing]
+test slice55_missing_property_fts ... FAILED
+  left: []
+ right: [PropertyFtsMissing]
+```
+
+The separate dense-classifier RED is
+`a3f27f1382e117be0ab276f8ccf02791b0cc572c`:
+
+```text
+test slice55_dense_state_reuses_slice40_classifier ... FAILED
+  left: []
+ right: [DenseProjectionPartial]
+```
+
+The separate receipt-point classifier RED is
+`4641937b4301c057aa5aaec8b276e30f7f6300e1`:
+
+```text
+test slice55_mutation_readiness_receipt_matrix ... FAILED
+  left: []
+ right: [MutationReadinessCorrupt]
+```
+
+Integrity GREEN is
+`c4085cc03177002459255d144daed29fab783886`. It adds cap-plus-one expected and
+physical scans for node/edge body FTS, registry-derived canonical attributes
+and property FTS, content-free missing/orphan/identity findings, normalized
+source-link hash/self-link verification, generation-wide Slice 40 status
+validation, and direct reuse of the Slice 40 physical completion classifier
+for dense tuples and receipt points. The first aggregate focused run revealed
+that a terminal-only row belongs to the synchronous projector even when no
+dense projection is declared; dense physical candidates were therefore
+correctly restricted to sidecar/vector membership. The unchanged full focused
+suite then passed, so no retry-budget stop was activated:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+cargo test -p fathomdb-cli --test slice55_data_plane_integrity_cli
+test result: ok. 2 passed; 0 failed
+
+cargo test -p fathomdb-engine --features operator,test-hooks --test check_integrity
+test result: ok. 3 passed; 0 failed
+
+cargo test -p fathomdb-engine --features operator,test-hooks --test trace_source_ref
+test result: ok. 3 passed; 0 failed
+
+cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_wire
+test result: ok. 5 passed; 0 failed
+
+cargo clippy -p fathomdb-engine --features operator,test-hooks \
+  --all-targets -- -D warnings
+Finished `dev` profile
+```
+
+## Final exact-candidate artifact evidence
+
+The disposable wheel was rebuilt from exact product commit
+`c4085cc03177002459255d144daed29fab783886`; version `0.8.24` remains the
+expected pre-release package version and was not mechanically bumped.
+
+```text
+env -u PYTHONPATH ./scripts/verify-release-python-wheel.sh \
+  --python /usr/bin/python3 \
+  --wheel-dir /tmp/fathomdb-s55-fix1-final.fCFxfd/dist \
+  --venv-dir /tmp/fathomdb-s55-fix1-final.fCFxfd/venv
+wheel smoke: ok
+ba13892fecb445e8f2083b146fe0a864b7543afd36ae7e8aa82862b7938ba27d  /tmp/fathomdb-s55-fix1-final.fCFxfd/dist/fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl
+module=/tmp/fathomdb-s55-fix1-final.fCFxfd/venv/lib/python3.12/site-packages/fathomdb/__init__.py
+native=/tmp/fathomdb-s55-fix1-final.fCFxfd/venv/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+
+env -u PYTHONPATH /tmp/fathomdb-s55-fix1-final.fCFxfd/venv/bin/python \
+  src/python/tests/smoke_slice55_installed.py
+slice55 installed native smoke: ok
+```
+
+The isolated installed candidate, with the repository Python source excluded
+from import resolution, passed both Slice 55 binding files: `8 passed in
+0.23s`. The exact N-API debug build plus the three focused Slice 55 runtime
+files passed `5` tests. The durable smoke scripts and installed Python smoke
+also passed their syntax/Ruff checks:
+
+```text
+bash -n scripts/release/smoke/smoke-pypi-wheel.sh \
+  scripts/release/smoke/smoke-npm-package.sh \
+  scripts/release/smoke/smoke-crates-cli.sh
+.venv/bin/ruff check src/python/tests/smoke_slice55_installed.py
+All checks passed!
+```
+
+Final writer gates from the clean product commit plus this evidence-only
+chronology update:
+
+```text
+./scripts/agent-lint.sh
+exit 0
+./scripts/agent-typecheck.sh
+exit 0
+```
+
+Per the orchestrator's explicit direction, the 13-minute aggregate
+`agent-test.sh` was not repeated in this writer turn; independent verification
+owns the final aggregate gate. No source test required a skip or weakening, no
+worktree Python native artifact was changed, and no package was staged,
+uploaded, tagged, or published.

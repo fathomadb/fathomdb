@@ -283,3 +283,19 @@ test("slice55 TypeScript rejects noncanonical trace integers at exact paths", ()
       error.fieldPath === "/dependencyEdges/0/registeredDependencyGeneration",
   );
 });
+
+test("slice55 TypeScript rejects edge generation outside the read boundary", () => {
+  assert.doesNotThrow(() => validateDependencyTraceResponse(response()));
+  for (const generation of ["0", "2"]) {
+    const value = response();
+    const edges = value.dependencyEdges as Array<Record<string, unknown>>;
+    edges[0]!.registeredDependencyGeneration = generation;
+    assert.throws(
+      () => validateDependencyTraceResponse(value),
+      (error: unknown) =>
+        error instanceof DependencyTraceError &&
+        error.reason === "trace_corrupt" &&
+        error.fieldPath === "/dependencyEdges/0/registeredDependencyGeneration",
+    );
+  }
+});

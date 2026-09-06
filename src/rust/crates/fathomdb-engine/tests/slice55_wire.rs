@@ -2,9 +2,9 @@
 
 use fathomdb_engine::{
     decode_dependency_trace_result_v1, encode_dependency_trace_result_v1,
-    DependencyTraceDirectionV1, DependencyTraceEdgeV1, DependencyTraceNodeV1,
-    DependencyTraceResultV1, TraceArtifactClassV1, TraceArtifactRoleV1, TraceNodeLifecycleV1,
-    TraceReadBoundaryV1,
+    DependencyTraceDirectionV1, DependencyTraceEdgeV1, DependencyTraceErrorReasonV1,
+    DependencyTraceNodeV1, DependencyTraceResultV1, TraceArtifactClassV1, TraceArtifactRoleV1,
+    TraceNodeLifecycleV1, TraceReadBoundaryV1,
 };
 use proptest::prelude::*;
 
@@ -81,6 +81,29 @@ fn slice55_wire_rejects_noncanonical_u64_at_exact_nested_path() {
 }
 
 #[test]
+fn slice55_wire_encoder_rejects_edge_generation_outside_read_boundary() {
+    for generation in [0, 2] {
+        let mut value = result();
+        value.dependency_edges[0].registered_dependency_generation = generation;
+        let error = encode_dependency_trace_result_v1(&value).unwrap_err();
+        assert_eq!(error.reason, DependencyTraceErrorReasonV1::TraceCorrupt);
+        assert_eq!(error.field_path, "/dependencyEdges/0/registeredDependencyGeneration");
+    }
+}
+
+#[test]
+fn slice55_wire_decoder_rejects_edge_generation_outside_read_boundary() {
+    for generation in ["0", "2"] {
+        let mut value: serde_json::Value =
+            serde_json::from_slice(include_bytes!("fixtures/slice55/trace-v1.json")).unwrap();
+        value["dependencyEdges"][0]["registeredDependencyGeneration"] = generation.into();
+        let error = corrupt(&value);
+        assert_eq!(error.reason, DependencyTraceErrorReasonV1::TraceCorrupt);
+        assert_eq!(error.field_path, "/dependencyEdges/0/registeredDependencyGeneration");
+    }
+}
+
+#[test]
 fn slice55_wire_rejects_incoherent_lifecycle_union_at_exact_path() {
     let bytes = encode_dependency_trace_result_v1(&result()).unwrap();
     let mut value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
@@ -131,6 +154,14 @@ fn slice55_wire_rejects_duplicate_dependency_ids_and_noncanonical_order() {
     value["nodes"].as_array_mut().unwrap().push(second_node);
     value["dependencyEdges"].as_array_mut().unwrap().push(second_edge);
     value["checkedWorkUnits"] = 3.into();
+    decode_dependency_trace_result_v1(&serde_json::to_vec(&value).unwrap()).unwrap();
+
+    let mut invalid_second_generation = value.clone();
+    invalid_second_generation["dependencyEdges"][1]["registeredDependencyGeneration"] = "0".into();
+    assert_eq!(
+        corrupt(&invalid_second_generation).field_path,
+        "/dependencyEdges/1/registeredDependencyGeneration"
+    );
 
     let mut duplicate = value.clone();
     duplicate["dependencyEdges"][1]["dependencyId"] = "dep-1".into();
@@ -151,11 +182,17 @@ fn slice55_wire_errors_carry_schema_version() {
 
 proptest! {
     #[test]
-    fn slice55_trace_codec_round_trip(revision in "[A-Za-z0-9][A-Za-z0-9._:-]{0,31}") {
+    fn slice55_trace_codec_round_trip(
+        revision in "[A-Za-z0-9][A-Za-z0-9._:-]{0,31}",
+        registered_generation in 1_u64..=1_024,
+        boundary_delta in 0_u64..=1_024,
+    ) {
         let mut value = result();
         value.root_revision_id = revision.clone();
         value.nodes[0].artifact_revision_id = revision.clone();
         value.dependency_edges[0].source_revision_id = revision;
+        value.dependency_edges[0].registered_dependency_generation = registered_generation;
+        value.read_boundary.dependency_generation = registered_generation + boundary_delta;
         let bytes = encode_dependency_trace_result_v1(&value).unwrap();
         prop_assert_eq!(decode_dependency_trace_result_v1(&bytes).unwrap(), value);
     }

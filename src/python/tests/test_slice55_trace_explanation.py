@@ -212,6 +212,29 @@ def test_slice55_python_recursively_validates_trace_responses(
     assert caught.value.field_path == path
 
 
+@pytest.mark.parametrize("generation", ["0", "2"])
+def test_slice55_python_rejects_edge_generation_outside_read_boundary(
+    generation: str,
+) -> None:
+    value = _trace_response()
+    value["dependencyEdges"][0]["registeredDependencyGeneration"] = generation
+    with pytest.raises(fathomdb.DependencyTraceError) as caught:
+        engine_module._decode_dependency_trace_response(json.dumps(value))
+    assert caught.value.reason == "trace_corrupt"
+    assert (
+        caught.value.field_path
+        == "/dependencyEdges/0/registeredDependencyGeneration"
+    )
+
+
+def test_slice55_python_accepts_valid_trace_generation_boundary() -> None:
+    decoded = engine_module._decode_dependency_trace_response(
+        json.dumps(_trace_response())
+    )
+    assert decoded.dependency_edges[0].registered_dependency_generation == 1
+    assert decoded.read_boundary.dependency_generation == 1
+
+
 def test_slice55_python_malformed_trace_json_never_leaks_decoder_errors() -> None:
     with pytest.raises(fathomdb.DependencyTraceError) as caught:
         engine_module._decode_dependency_trace_response("{")

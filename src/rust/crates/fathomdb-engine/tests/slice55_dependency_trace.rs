@@ -1,10 +1,11 @@
 //! Slice 55 RED contract for reciprocal, frozen dependency tracing.
 
 use fathomdb_engine::{
-    ArtifactRevisionId, CanonicalHash, DependencyTraceDirectionV1, DependencyTraceErrorReasonV1,
-    DependencyTraceRequestV1, Engine, EngineError, InitialState, PreparedWrite, ProvenancedNodeV1,
-    ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator,
-    SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    encode_dependency_trace_result_v1, ArtifactRevisionId, CanonicalHash,
+    DependencyTraceDirectionV1, DependencyTraceErrorReasonV1, DependencyTraceRequestV1, Engine,
+    EngineError, InitialState, PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView,
+    SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
+    SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 #[cfg(feature = "test-hooks")]
@@ -75,6 +76,23 @@ fn seeded() -> (TempDir, fathomdb_engine::OpenedEngine) {
 
 fn read_context() -> ReadContextV1 {
     ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap()
+}
+
+fn fixed_read_context() -> ReadContextV1 {
+    ReadContextV1::new(
+        ReadView { valid_as_of: Some(1), ..ReadView::default() },
+        SearchFilter::default(),
+    )
+    .unwrap()
+}
+
+fn fixed_trace(
+    engine: &Engine,
+    root: &str,
+    direction: DependencyTraceDirectionV1,
+) -> Result<fathomdb_engine::DependencyTraceResultV1, EngineError> {
+    let context = engine.freeze_read_context(&fixed_read_context()).unwrap();
+    engine.trace_dependency(DependencyTraceRequestV1::new(root, direction, context).unwrap())
 }
 
 fn trace(
@@ -169,6 +187,94 @@ fn slice55_trace_hidden_relations_do_not_trip_caps() {
 fn slice55_trace_corrupt_requires_two_eligible_endpoints() {
     let (_dir, opened) = seeded();
     assert!(trace(&opened.engine, "derived-r1", DependencyTraceDirectionV1::ToSource).is_ok());
+}
+
+#[test]
+fn slice55_trace_hidden_chain_corruption_is_byte_equal_to_absence() {
+    let (dir, seeded) = seeded();
+    let original = dir.path().join(format!("trace{SQLITE_SUFFIX}"));
+    seeded.engine.close().unwrap();
+    let absence_path = dir.path().join(format!("absence{SQLITE_SUFFIX}"));
+    let hidden_path = dir.path().join(format!("hidden{SQLITE_SUFFIX}"));
+    std::fs::copy(&original, &absence_path).unwrap();
+    std::fs::copy(&original, &hidden_path).unwrap();
+    let absence = Engine::open(absence_path).unwrap();
+    absence
+        .engine
+        .execute_for_test("DELETE FROM _fathomdb_source_dependencies WHERE dependency_id='dep-1'")
+        .unwrap();
+    let absent =
+        fixed_trace(&absence.engine, "source-r1", DependencyTraceDirectionV1::ToDependents)
+            .unwrap();
+
+    let hidden = Engine::open(hidden_path).unwrap();
+    hidden
+        .engine
+        .execute_for_test("DELETE FROM _fathomdb_artifact_revisions WHERE revision_id='derived-r1'")
+        .unwrap();
+    let hidden =
+        fixed_trace(&hidden.engine, "source-r1", DependencyTraceDirectionV1::ToDependents).unwrap();
+
+    assert_eq!(
+        encode_dependency_trace_result_v1(&hidden),
+        encode_dependency_trace_result_v1(&absent)
+    );
+    assert_eq!(hidden.checked_work_units, 1);
+}
+
+#[test]
+fn slice55_trace_requires_complete_source_provenance_chain() {
+    let (_dir, opened) = seeded();
+    opened
+        .engine
+        .execute_for_test(
+            "DELETE FROM _fathomdb_source_versions WHERE source_revision_id='source-r1'",
+        )
+        .unwrap();
+    let result =
+        fixed_trace(&opened.engine, "derived-r1", DependencyTraceDirectionV1::ToSource).unwrap();
+    assert!(result.dependency_edges.is_empty());
+    assert_eq!(result.nodes.len(), 1);
+    assert_eq!(result.checked_work_units, 1);
+}
+
+#[test]
+fn slice55_trace_rejects_wrong_counterpart_role_without_disclosure() {
+    let (_dir, opened) = seeded();
+    opened
+        .engine
+        .execute_for_test(
+            "UPDATE _fathomdb_artifact_revisions SET artifact_role='canonical_source' \
+             WHERE revision_id='derived-r1'",
+        )
+        .unwrap();
+    let result =
+        fixed_trace(&opened.engine, "source-r1", DependencyTraceDirectionV1::ToDependents).unwrap();
+    assert!(result.dependency_edges.is_empty());
+    assert_eq!(result.nodes.len(), 1);
+}
+
+#[test]
+fn slice55_trace_reports_corrupt_only_after_both_endpoints_are_authorized() {
+    let (_dir, opened) = seeded();
+    opened
+        .engine
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_source_dependencies SET schema_version=2 \
+             WHERE dependency_id='dep-1'",
+        )
+        .unwrap();
+    assert!(matches!(
+        fixed_trace(
+            &opened.engine,
+            "source-r1",
+            DependencyTraceDirectionV1::ToDependents,
+        ),
+        Err(EngineError::DependencyTrace(ref error))
+            if error.reason == DependencyTraceErrorReasonV1::TraceCorrupt
+                && error.field_path.is_empty()
+    ));
 }
 
 #[test]

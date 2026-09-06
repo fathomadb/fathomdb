@@ -621,8 +621,8 @@ Production edits remained unstaged while this correction was committed.
 
 The serialized hook tests still allowed unrelated parallel explained searches
 to consume the process-global one-shot. At the retry-cap rethink, the HITL
-authorized a thread-targeted test hook and moving arming into the intended
-search thread. The new test-only RED records the failure directly: the
+authorized a thread-targeted rendezvous and moving arming into the intended
+search thread. The new RED records the failure directly: the
 unrelated search ran on `ThreadId(2)`, consumed a hook armed by `ThreadId(14)`,
 and failed with `an unrelated thread consumed the armed hook`. Assertions and
 the telemetry/explanation race outcomes remain unchanged.
@@ -819,3 +819,18 @@ test result: FAILED. 0 passed; 1 failed
 The compile-surface command required an unconfined rerun after the sandbox
 could not extract a cached Cargo dependency into the read-only registry. The
 unchanged unconfined run produced the intended product failure above.
+
+The exact test-only RED commit is
+`7a5ea4b99535d2d83d87b2eb60a7d39946bfa841`. GREEN gates the module, public
+arm functions, and finalization callsites with `test-hooks`; the after-hook now
+runs only after the telemetry mutex guard has left scope. The explanation test
+target explicitly requires that private feature. Focused results:
+
+```text
+cargo test -p fathomdb-engine --test slice55_explanation_hook_surface
+test result: ok. 1 passed; 0 failed
+
+cargo test -p fathomdb-engine --features test-hooks \
+  --test slice55_explanation
+test result: ok. 16 passed; 0 failed
+```

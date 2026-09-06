@@ -2946,6 +2946,7 @@ pub fn arm_evidence_before_resolve_return_hook_for_test(hook: Box<dyn Fn() + Sen
     evidence_linearization_hooks::arm_before_resolve_return(hook);
 }
 
+#[cfg(feature = "test-hooks")]
 mod explanation_finalization_hooks {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
@@ -3006,12 +3007,14 @@ mod explanation_finalization_hooks {
 }
 
 /// Arm a one-shot test rendezvous immediately before explanation finalization locks telemetry.
+#[cfg(feature = "test-hooks")]
 #[doc(hidden)]
 pub fn arm_explanation_before_telemetry_lock_hook_for_test(hook: Box<dyn Fn() + Send>) {
     explanation_finalization_hooks::arm_before(hook);
 }
 
-/// Arm a one-shot test rendezvous while explanation finalization holds the telemetry lock.
+/// Arm a one-shot test rendezvous after explanation finalization releases the telemetry lock.
+#[cfg(feature = "test-hooks")]
 #[doc(hidden)]
 pub fn arm_explanation_after_telemetry_lock_hook_for_test(hook: Box<dyn Fn() + Send>) {
     explanation_finalization_hooks::arm_after(hook);
@@ -10947,9 +10950,9 @@ impl Engine {
             return;
         }
 
+        #[cfg(feature = "test-hooks")]
         explanation_finalization_hooks::fire_before();
         let correlation_id = if let Ok(mut guard) = self.telemetry.lock() {
-            explanation_finalization_hooks::fire_after();
             if let Some(sink) = guard.as_mut() {
                 Self::capture_telemetry_with_sink(query, result, sink)
             } else {
@@ -10958,6 +10961,8 @@ impl Engine {
         } else {
             self.mint_explanation_correlation_id()
         };
+        #[cfg(feature = "test-hooks")]
+        explanation_finalization_hooks::fire_after();
         if let Some(explanation) = result.explanation.as_mut() {
             explanation.correlation_id = correlation_id;
         }

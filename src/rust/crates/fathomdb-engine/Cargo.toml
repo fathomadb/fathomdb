@@ -210,6 +210,10 @@ required-features = ["operator", "test-hooks"]
 name = "slice55_wire"
 required-features = ["operator", "test-hooks"]
 
+[[test]]
+name = "slice55_explanation"
+required-features = ["test-hooks"]
+
 [dev-dependencies]
 libc = "0.2"
 proptest = "1"

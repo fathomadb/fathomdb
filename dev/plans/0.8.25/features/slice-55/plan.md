@@ -104,7 +104,7 @@ agent-generated golden oracle.
 ```text
 cargo test -p fathomdb-engine --test slice55_dependency_trace
 cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_data_plane_integrity
-cargo test -p fathomdb-engine --test slice55_explanation
+cargo test -p fathomdb-engine --features test-hooks --test slice55_explanation
 cargo test -p fathomdb --test slice55_governed_surface
 cargo test -p fathomdb-cli --test slice55_data_plane_integrity_cli
 cargo test -p fathomdb-engine --features operator,test-hooks --test check_integrity

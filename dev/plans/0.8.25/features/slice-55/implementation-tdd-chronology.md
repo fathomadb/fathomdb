@@ -618,3 +618,11 @@ depth-truncated chain to a star rooted at the first resolved seed. The latter
 makes the real max-depth-three traversal exceed its existing cap and can
 therefore exercise `graph_bound_reached`; no traversal limit was reduced.
 Production edits remained unstaged while this correction was committed.
+
+The serialized hook tests still allowed unrelated parallel explained searches
+to consume the process-global one-shot. At the retry-cap rethink, the HITL
+authorized a thread-targeted test hook and moving arming into the intended
+search thread. The new test-only RED records the failure directly: the
+unrelated search ran on `ThreadId(2)`, consumed a hook armed by `ThreadId(14)`,
+and failed with `an unrelated thread consumed the armed hook`. Assertions and
+the telemetry/explanation race outcomes remain unchanged.

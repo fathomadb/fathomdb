@@ -1,6 +1,7 @@
 //! Slice 55 RED contract for structural explained-search metadata.
 
 use std::collections::BTreeSet;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Barrier, Mutex, OnceLock};
 
 use fathomdb_engine::{
@@ -297,17 +298,15 @@ fn slice55_enable_before_finalization_uses_only_telemetry_identity() {
     let engine = Arc::new(opened.engine);
     let ready = Arc::new(Barrier::new(2));
     let release = Arc::new(Barrier::new(2));
-    arm_explanation_before_telemetry_lock_hook_for_test(Box::new({
-        let ready = Arc::clone(&ready);
-        let release = Arc::clone(&release);
-        move || {
-            ready.wait();
-            release.wait();
-        }
-    }));
     let search = {
         let engine = Arc::clone(&engine);
+        let ready = Arc::clone(&ready);
+        let release = Arc::clone(&release);
         std::thread::spawn(move || {
+            arm_explanation_before_telemetry_lock_hook_for_test(Box::new(move || {
+                ready.wait();
+                release.wait();
+            }));
             engine.search_explained("slice55", None, 0, false, 0.3, 0).unwrap()
         })
     };
@@ -328,17 +327,15 @@ fn slice55_enable_after_finalization_uses_only_explanation_identity() {
     let engine = Arc::new(opened.engine);
     let ready = Arc::new(Barrier::new(2));
     let release = Arc::new(Barrier::new(2));
-    arm_explanation_after_telemetry_lock_hook_for_test(Box::new({
-        let ready = Arc::clone(&ready);
-        let release = Arc::clone(&release);
-        move || {
-            ready.wait();
-            release.wait();
-        }
-    }));
     let search = {
         let engine = Arc::clone(&engine);
+        let ready = Arc::clone(&ready);
+        let release = Arc::clone(&release);
         std::thread::spawn(move || {
+            arm_explanation_after_telemetry_lock_hook_for_test(Box::new(move || {
+                ready.wait();
+                release.wait();
+            }));
             engine.search_explained("slice55", None, 0, false, 0.3, 0).unwrap()
         })
     };
@@ -354,6 +351,41 @@ fn slice55_enable_after_finalization_uses_only_explanation_identity() {
     assert!(id.starts_with('x'));
     assert!(engine.last_telemetry_query_id().is_none());
     assert!(std::fs::read_to_string(sink).unwrap().is_empty());
+}
+
+#[test]
+fn slice55_explanation_hook_is_consumed_only_by_its_armed_thread() {
+    let _serial = explanation_hook_test_mutex().lock().unwrap_or_else(|error| error.into_inner());
+    let (_dir, opened, _first) = explained();
+    let engine = Arc::new(opened.engine);
+    let armed = Arc::new(Barrier::new(2));
+    let start_target = Arc::new(Barrier::new(2));
+    let fired = Arc::new(AtomicBool::new(false));
+    let target = {
+        let engine = Arc::clone(&engine);
+        let armed = Arc::clone(&armed);
+        let start_target = Arc::clone(&start_target);
+        let fired = Arc::clone(&fired);
+        std::thread::spawn(move || {
+            let target_id = std::thread::current().id();
+            arm_explanation_before_telemetry_lock_hook_for_test(Box::new(move || {
+                assert_eq!(std::thread::current().id(), target_id);
+                fired.store(true, Ordering::Release);
+            }));
+            armed.wait();
+            start_target.wait();
+            engine.search_explained("slice55", None, 0, false, 0.3, 0).unwrap()
+        })
+    };
+    armed.wait();
+    let unrelated = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        engine.search_explained("slice55", None, 0, false, 0.3, 0)
+    }));
+    start_target.wait();
+    let target_result = target.join().unwrap();
+    assert!(unrelated.is_ok(), "an unrelated thread consumed the armed hook");
+    assert!(target_result.explanation.is_some());
+    assert!(fired.load(Ordering::Acquire));
 }
 
 #[test]

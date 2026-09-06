@@ -189,6 +189,74 @@ fn slice55_integrity_check_order_is_canonical() {
 }
 
 #[test]
+fn slice55_integrity_execution_boundary_revalidates_public_struct_literals() {
+    let (_dir, opened) = opened();
+    let cases = [
+        (
+            DataPlaneIntegrityRequestV1 {
+                schema_version: 2,
+                checks: vec![DataPlaneIntegrityCheckV1::DependencyChain],
+                max_work_units: 1,
+                max_findings: 1,
+            },
+            DataPlaneIntegrityErrorReasonV1::UnsupportedSchemaVersion,
+            "/schemaVersion",
+        ),
+        (
+            DataPlaneIntegrityRequestV1 {
+                schema_version: 1,
+                checks: vec![],
+                max_work_units: 1,
+                max_findings: 1,
+            },
+            DataPlaneIntegrityErrorReasonV1::ChecksEmpty,
+            "/checks",
+        ),
+        (
+            DataPlaneIntegrityRequestV1 {
+                schema_version: 1,
+                checks: vec![
+                    DataPlaneIntegrityCheckV1::DependencyChain,
+                    DataPlaneIntegrityCheckV1::DependencyChain,
+                ],
+                max_work_units: 1,
+                max_findings: 1,
+            },
+            DataPlaneIntegrityErrorReasonV1::DuplicateCheck,
+            "/checks/1",
+        ),
+        (
+            DataPlaneIntegrityRequestV1 {
+                schema_version: 1,
+                checks: vec![DataPlaneIntegrityCheckV1::DependencyChain],
+                max_work_units: 10_001,
+                max_findings: 1,
+            },
+            DataPlaneIntegrityErrorReasonV1::IntegrityLimitInvalid,
+            "/maxWorkUnits",
+        ),
+        (
+            DataPlaneIntegrityRequestV1 {
+                schema_version: 1,
+                checks: vec![DataPlaneIntegrityCheckV1::DependencyChain],
+                max_work_units: 1,
+                max_findings: 101,
+            },
+            DataPlaneIntegrityErrorReasonV1::IntegrityLimitInvalid,
+            "/maxFindings",
+        ),
+    ];
+    for (request, reason, path) in cases {
+        let error = opened.engine.check_data_plane_integrity(request).unwrap_err();
+        assert!(matches!(
+            error,
+            EngineError::DataPlaneIntegrity(ref value)
+                if value.reason == reason && value.field_path == path
+        ));
+    }
+}
+
+#[test]
 fn slice55_dependency_chain_fault_matrix() {
     let (_dir, opened) = dependency_seeded();
     opened

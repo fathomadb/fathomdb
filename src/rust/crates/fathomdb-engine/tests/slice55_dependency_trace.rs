@@ -170,6 +170,70 @@ fn slice55_trace_invisible_roots_are_nondisclosing() {
 }
 
 #[test]
+fn slice55_trace_execution_boundary_revalidates_public_struct_literals() {
+    let (_dir, opened) = seeded();
+    let context = opened.engine.freeze_read_context(&read_context()).unwrap();
+    let cases = [
+        (
+            DependencyTraceRequestV1 {
+                schema_version: 2,
+                root_revision_id: "source-r1".into(),
+                direction: DependencyTraceDirectionV1::ToDependents,
+                context: context.clone(),
+                max_relations: 1,
+                max_work_units: 2,
+            },
+            DependencyTraceErrorReasonV1::UnsupportedSchemaVersion,
+            "/schemaVersion",
+        ),
+        (
+            DependencyTraceRequestV1 {
+                schema_version: 1,
+                root_revision_id: "!".into(),
+                direction: DependencyTraceDirectionV1::ToDependents,
+                context: context.clone(),
+                max_relations: 1,
+                max_work_units: 2,
+            },
+            DependencyTraceErrorReasonV1::TraceRootInvalid,
+            "/rootRevisionId",
+        ),
+        (
+            DependencyTraceRequestV1 {
+                schema_version: 1,
+                root_revision_id: "source-r1".into(),
+                direction: DependencyTraceDirectionV1::ToDependents,
+                context: context.clone(),
+                max_relations: 101,
+                max_work_units: 2,
+            },
+            DependencyTraceErrorReasonV1::TraceLimitInvalid,
+            "/maxRelations",
+        ),
+        (
+            DependencyTraceRequestV1 {
+                schema_version: 1,
+                root_revision_id: "source-r1".into(),
+                direction: DependencyTraceDirectionV1::ToDependents,
+                context,
+                max_relations: 1,
+                max_work_units: 102,
+            },
+            DependencyTraceErrorReasonV1::TraceLimitInvalid,
+            "/maxWorkUnits",
+        ),
+    ];
+    for (request, reason, path) in cases {
+        let error = opened.engine.trace_dependency(request).unwrap_err();
+        assert!(matches!(
+            error,
+            EngineError::DependencyTrace(ref value)
+                if value.reason == reason && value.field_path == path
+        ));
+    }
+}
+
+#[test]
 fn slice55_trace_hidden_relations_match_absence() {
     let (_dir, opened) = seeded();
     let source_only =

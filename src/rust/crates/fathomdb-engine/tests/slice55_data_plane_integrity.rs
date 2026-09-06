@@ -441,6 +441,27 @@ fn slice55_mutation_readiness_receipt_matrix_reports_guarded_corruption() {
 #[test]
 fn slice55_projection_scan_plans_use_indexed_order() {
     let (_dir, opened) = opened();
+    let candidates = opened.engine.data_plane_integrity_candidate_queries_for_test();
+    assert_eq!(candidates.len(), 7);
+    for (table, index) in [
+        ("canonical_nodes", "canonical_nodes_write_cursor_idx"),
+        ("canonical_edges", "canonical_edges_write_cursor_idx"),
+        ("search_index", "search_index"),
+        ("search_index_v2", "search_index_v2"),
+        ("search_index_edges", "search_index_edges"),
+        ("canonical_attributes", "canonical_attributes"),
+        ("property_search_index", "property_search_index"),
+    ] {
+        let sql = candidates
+            .iter()
+            .find(|sql| sql.contains(&format!("FROM {table}")))
+            .unwrap_or_else(|| panic!("missing production candidate query for {table}"));
+        assert!(sql.contains(">?1"), "missing after-key bound: {sql}");
+        assert!(sql.contains("LIMIT ?2"), "missing remaining+1 bound: {sql}");
+        if table.starts_with("canonical_") && !table.ends_with("attributes") {
+            assert!(sql.contains(&format!("INDEXED BY {index}")), "missing {index}: {sql}");
+        }
+    }
     let plans = opened.engine.data_plane_integrity_query_plans_for_test().unwrap();
     for required in [
         "canonical_nodes_write_cursor_idx",

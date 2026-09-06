@@ -884,3 +884,14 @@ cargo clippy -p fathomdb-engine --features operator,test-hooks \
   --test slice55_data_plane_integrity -- -D warnings
 Finished `dev` profile
 ```
+
+The next integrity RED binds the plan oracle to execution-owned candidate SQL,
+rather than allowing the test hook to explain unrelated hand-written
+statements. It requires all seven synchronous owner/physical scans to expose
+their indexed after-key and aggregate remaining-cap-plus-one query. Before the
+production query set existed, the focused target failed to compile with:
+
+```text
+error[E0599]: no method named `data_plane_integrity_candidate_queries_for_test`
+found for struct `Engine` in the current scope
+```

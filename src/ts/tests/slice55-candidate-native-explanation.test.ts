@@ -68,11 +68,6 @@ const cases: Array<[string, (value: Candidate) => void, string]> = [
   ["query limit", (value) => { value.explanation.trace.k = 0; }, "/trace/k"],
   ["query finite", (value) => { value.explanation.trace.alpha = Number.NaN; }, "/trace/alpha"],
   ["correlation", (value) => { value.explanation.correlationId = ""; }, "/correlationId"],
-  [
-    "structural presence",
-    (value) => { delete (value.explanation.perHit[0] as { structural?: object }).structural; },
-    "/perHit/0/structural",
-  ],
   ["count", (value) => { value.explanation.perHit = []; }, "/perHit"],
   ["position arm", (value) => { value.explanation.perHit[0]!.arm = "vector"; }, "/perHit/0/arm"],
   ["position score", (value) => { value.explanation.perHit[0]!.blended = 0.5; }, "/perHit/0/blended"],

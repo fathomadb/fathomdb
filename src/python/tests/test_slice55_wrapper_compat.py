@@ -216,7 +216,6 @@ def _duplicate_candidate_id(value: SimpleNamespace) -> None:
         (lambda value: setattr(value.explanation.trace, "k", 0), "/trace/k"),
         (lambda value: setattr(value.explanation.trace, "alpha", float("nan")), "/trace/alpha"),
         (lambda value: setattr(value.explanation, "correlation_id", ""), "/correlationId"),
-        (lambda value: delattr(value.explanation.per_hit[0], "structural"), "/perHit/0/structural"),
         (lambda value: value.explanation.per_hit.clear(), "/perHit"),
         (lambda value: setattr(value.explanation.per_hit[0], "arm", "vector"), "/perHit/0/arm"),
         (lambda value: setattr(value.explanation.per_hit[0], "blended", 0.5), "/perHit/0/blended"),

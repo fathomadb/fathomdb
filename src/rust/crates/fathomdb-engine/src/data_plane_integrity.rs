@@ -17,6 +17,8 @@ use crate::{current_epoch_seconds, load_next_cursor, EngineError};
 const SCHEMA_VERSION: u32 = 1;
 const MAX_WORK_UNITS: u32 = 10_000;
 const MAX_FINDINGS: u32 = 100;
+#[cfg(feature = "operator")]
+const FIRST_SQLITE_ROWID: i64 = i64::MIN;
 
 #[cfg(feature = "operator")]
 const NODE_BODY_OWNER_QUERY: &str =
@@ -35,22 +37,22 @@ const EDGE_BODY_OWNER_QUERY: &str =
      WHERE e.write_cursor>?1 ORDER BY e.write_cursor LIMIT ?2";
 #[cfg(feature = "operator")]
 const SEARCH_V1_MEMBER_QUERY: &str = "SELECT rowid,write_cursor,body,kind FROM search_index \
-     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+     WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
 const SEARCH_V2_MEMBER_QUERY: &str = "SELECT rowid,write_cursor,body,kind FROM search_index_v2 \
-     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+     WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
 const EDGE_SEARCH_MEMBER_QUERY: &str =
     "SELECT rowid,write_cursor,body,kind FROM search_index_edges \
-     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+     WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
 const ATTRIBUTE_MEMBER_QUERY: &str =
     "SELECT rowid,write_cursor,attr_name,attr_value FROM canonical_attributes \
-     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+     WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
 const PROPERTY_MEMBER_QUERY: &str =
     "SELECT rowid,write_cursor,attr_name,attr_value FROM property_search_index \
-     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+     WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
 const ATTRIBUTE_OWNER_QUERY: &str =
     "SELECT n.write_cursor,r.revision_id,n.body,n.state,n.superseded_at FROM canonical_nodes n \
@@ -61,13 +63,13 @@ const ATTRIBUTE_OWNER_QUERY: &str =
 #[cfg(feature = "operator")]
 const DENSE_TERMINAL_MEMBER_QUERY: &str =
     "SELECT rowid,write_cursor FROM _fathomdb_projection_terminal \
-     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+     WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
 const DENSE_SIDECAR_MEMBER_QUERY: &str = "SELECT rowid,write_cursor FROM _fathomdb_vector_rows \
-     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+     WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
 const DENSE_VECTOR_MEMBER_QUERY: &str =
-    "SELECT rowid,rowid FROM vector_default WHERE rowid>?1 LIMIT ?2";
+    "SELECT rowid,rowid FROM vector_default WHERE rowid>=?1 LIMIT ?2";
 #[cfg(feature = "operator")]
 const CURRENT_GENERATION_QUERY: &str =
     "SELECT c.generation_id,g.schema_version,g.role,g.retired_boundary,g.transition_boundary,\
@@ -99,7 +101,7 @@ const RECEIPT_GUARD_QUERY: &str = "SELECT rowid, \
             CASE WHEN json_valid(pending_projection_write_cursors_json) \
                  AND json_type(pending_projection_write_cursors_json)='array' \
                  THEN json_array_length(pending_projection_write_cursors_json) END \
-     FROM _fathomdb_actuation_receipts WHERE rowid>?1 \
+     FROM _fathomdb_actuation_receipts WHERE rowid>=?1 \
      ORDER BY rowid LIMIT ?2";
 
 #[cfg(feature = "operator")]
@@ -190,15 +192,17 @@ fn physical_dense_candidates(
         let remaining = max_work_units.saturating_sub(*aggregate_checked);
         let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
         let rows = statement
-            .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
-                Ok(integer_value(row, 1))
+            .query_map(rusqlite::params![FIRST_SQLITE_ROWID, i64::from(remaining) + 1], |row| {
+                Ok((integer_value(row, 0), integer_value(row, 1)))
             })
             .map_err(|_| EngineError::Storage)?;
-        for cursor in rows {
+        for candidate in rows {
             take_work(aggregate_checked, max_work_units)?;
-            if let Some(cursor) = cursor
-                .map_err(|_| EngineError::Storage)?
-                .and_then(|value| u64::try_from(value).ok())
+            let (rowid, cursor) = candidate.map_err(|_| EngineError::Storage)?;
+            if let Some(cursor) = rowid
+                .zip(cursor)
+                .filter(|(rowid, cursor)| rowid == cursor)
+                .and_then(|(_, cursor)| u64::try_from(cursor).ok())
             {
                 candidates.insert(cursor);
             } else {
@@ -278,6 +282,82 @@ struct StoredSourceLink {
     end: NullableValue<i64>,
     algorithm: Option<String>,
     digest: Option<String>,
+}
+
+#[cfg(feature = "operator")]
+struct StoredArtifactOwner {
+    class: Option<String>,
+    role: Option<String>,
+    completeness: Option<String>,
+    cursor: Option<i64>,
+}
+
+#[cfg(feature = "operator")]
+struct StoredCanonicalNode {
+    source_id: Option<String>,
+    body: Option<String>,
+}
+
+#[cfg(feature = "operator")]
+fn load_artifact_owner(
+    connection: &Connection,
+    revision_id: &str,
+) -> Result<Option<StoredArtifactOwner>, EngineError> {
+    connection
+        .query_row(
+            "SELECT artifact_class,artifact_role,completeness,write_cursor \
+             FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
+            [revision_id],
+            |row| {
+                Ok(StoredArtifactOwner {
+                    class: text_value(row, 0),
+                    role: text_value(row, 1),
+                    completeness: text_value(row, 2),
+                    cursor: integer_value(row, 3),
+                })
+            },
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)
+}
+
+#[cfg(feature = "operator")]
+fn load_canonical_node(
+    connection: &Connection,
+    cursor: i64,
+) -> Result<Option<StoredCanonicalNode>, EngineError> {
+    connection
+        .query_row(
+            "SELECT source_id,body FROM canonical_nodes WHERE write_cursor=?1",
+            [cursor],
+            |row| {
+                Ok(StoredCanonicalNode { source_id: text_value(row, 0), body: text_value(row, 1) })
+            },
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)
+}
+
+#[cfg(feature = "operator")]
+fn load_canonical_self_link(
+    connection: &Connection,
+    source_revision: &str,
+) -> Result<Option<[Option<String>; 4]>, EngineError> {
+    connection
+        .query_row(
+            "SELECT source_id,source_version_id,hash_algorithm,hash_digest \
+             FROM _fathomdb_source_links \
+             WHERE artifact_revision_id=?1 AND source_revision_id=?1 \
+             AND schema_version=1 \
+             AND locator_kind='whole_body' AND start_byte IS NULL \
+             AND end_byte IS NULL",
+            [source_revision],
+            |row| {
+                Ok([text_value(row, 0), text_value(row, 1), text_value(row, 2), text_value(row, 3)])
+            },
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)
 }
 
 /// Closed set of operator integrity checks.
@@ -665,7 +745,7 @@ fn dependency_findings(
         if schema != Some(1)
             || dependency_id.is_none()
             || derived_revision.is_none()
-            || registered_generation.is_none_or(|value| value <= 0)
+            || registered_generation.is_none_or(|value| value < 0)
         {
             let mut item = finding(
                 DataPlaneIntegrityFindingCodeV1::DependencyRowInvalid,
@@ -679,15 +759,7 @@ fn dependency_findings(
         let derived_revision = derived_revision.expect("validated derived revision");
         let registered_generation = registered_generation.expect("validated generation");
         let mut item = None;
-        let derived_owner: Option<(String, String, String, i64)> = connection
-            .query_row(
-                "SELECT artifact_class,artifact_role,completeness,write_cursor \
-                 FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
-                [&derived_revision],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-            )
-            .optional()
-            .map_err(|_| EngineError::Storage)?;
+        let derived_owner = load_artifact_owner(connection, &derived_revision)?;
         if item.is_none() && derived_owner.is_none() {
             item = Some(finding(
                 DataPlaneIntegrityFindingCodeV1::DependencyDerivedOwnerMissing,
@@ -695,24 +767,32 @@ fn dependency_findings(
             ));
         }
         if item.is_none() {
-            let (class, role, completeness, cursor) = derived_owner.as_ref().unwrap();
-            let owner_exists: bool = connection
-                .query_row(
-                    if class == "node" {
-                        "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1)"
-                    } else {
-                        "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)"
-                    },
-                    [cursor],
-                    |row| row.get(0),
-                )
-                .map_err(|_| EngineError::Storage)?;
-            if !matches!(class.as_str(), "node" | "edge") || !owner_exists {
+            let owner = derived_owner.as_ref().expect("owner presence checked");
+            let owner_exists = match (owner.class.as_deref(), owner.cursor) {
+                (Some("node"), Some(cursor)) => connection
+                    .query_row(
+                        "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1)",
+                        [cursor],
+                        |row| row.get(0),
+                    )
+                    .map_err(|_| EngineError::Storage)?,
+                (Some("edge"), Some(cursor)) => connection
+                    .query_row(
+                        "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)",
+                        [cursor],
+                        |row| row.get(0),
+                    )
+                    .map_err(|_| EngineError::Storage)?,
+                _ => false,
+            };
+            if !owner_exists {
                 item = Some(finding(
                     DataPlaneIntegrityFindingCodeV1::DependencyDerivedOwnerMissing,
                     DataPlaneIntegritySeverityV1::Critical,
                 ));
-            } else if role != "derived_semantic" || completeness != "complete" {
+            } else if owner.role.as_deref() != Some("derived_semantic")
+                || owner.completeness.as_deref() != Some("complete")
+            {
                 item = Some(finding(
                     DataPlaneIntegrityFindingCodeV1::DependencyDerivedRoleInvalid,
                     DataPlaneIntegritySeverityV1::Error,
@@ -796,110 +876,93 @@ fn dependency_findings(
                     NullableValue::Null | NullableValue::Invalid => None,
                 };
                 let digest = link.digest.as_ref().expect("validated digest");
-                let source_owner: Option<(String, String, String, i64)> = connection
-                    .query_row(
-                        "SELECT artifact_class,artifact_role,completeness,write_cursor \
-                         FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
-                        [source_revision],
-                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-                    )
-                    .optional()
-                    .map_err(|_| EngineError::Storage)?;
-                if let Some((class, role, completeness, cursor)) = source_owner {
-                    let canonical_node: Option<(String, String)> = connection
-                        .query_row(
-                            "SELECT source_id,body FROM canonical_nodes WHERE write_cursor=?1",
-                            [cursor],
-                            |row| Ok((row.get(0)?, row.get(1)?)),
-                        )
-                        .optional()
-                        .map_err(|_| EngineError::Storage)?;
-                    if class != "node" || canonical_node.is_none() {
+                let source_owner = load_artifact_owner(connection, source_revision)?;
+                if let Some(owner) = source_owner {
+                    let canonical_node = match (owner.class.as_deref(), owner.cursor) {
+                        (Some("node"), Some(cursor)) => load_canonical_node(connection, cursor)?,
+                        _ => None,
+                    };
+                    if let Some(canonical_node) = canonical_node {
+                        if owner.role.as_deref() != Some("canonical_source")
+                            || owner.completeness.as_deref() != Some("complete")
+                        {
+                            item = Some(finding(
+                                DataPlaneIntegrityFindingCodeV1::DependencySourceRoleInvalid,
+                                DataPlaneIntegritySeverityV1::Error,
+                            ));
+                        } else {
+                            let selected_digest = canonical_node.body.as_ref().and_then(|body| {
+                                let selected = match (locator, start, end) {
+                                    ("whole_body", None, None) => Some(body.as_bytes()),
+                                    ("utf8_bytes", Some(start), Some(end)) => {
+                                        usize::try_from(start)
+                                            .ok()
+                                            .zip(usize::try_from(end).ok())
+                                            .and_then(|(start, end)| {
+                                                (body.is_char_boundary(start)
+                                                    && body.is_char_boundary(end))
+                                                .then(|| body.as_bytes().get(start..end))
+                                                .flatten()
+                                            })
+                                    }
+                                    _ => None,
+                                };
+                                selected.map(|bytes| {
+                                    Sha256::digest(bytes)
+                                        .iter()
+                                        .map(|byte| format!("{byte:02x}"))
+                                        .collect::<String>()
+                                })
+                            });
+                            if canonical_node.source_id.as_deref() != Some(source_id)
+                                || selected_digest.as_deref() != Some(digest.as_str())
+                            {
+                                item = Some(finding(
+                                    DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMismatch,
+                                    DataPlaneIntegritySeverityV1::Critical,
+                                ));
+                            }
+                            let version_matches: bool = connection
+                                .query_row(
+                                    "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_versions \
+                                     WHERE source_revision_id=?1 AND source_id=?2 AND source_version_id=?3 \
+                                     AND schema_version=1)",
+                                    rusqlite::params![source_revision, source_id, version_id],
+                                    |row| row.get(0),
+                                )
+                                .map_err(|_| EngineError::Storage)?;
+                            if item.is_none() && !version_matches {
+                                item = Some(finding(
+                                    DataPlaneIntegrityFindingCodeV1::DependencySourceVersionMismatch,
+                                    DataPlaneIntegritySeverityV1::Critical,
+                                ));
+                            } else if item.is_none() {
+                                let self_link =
+                                    load_canonical_self_link(connection, source_revision)?;
+                                let canonical_digest = canonical_node.body.as_ref().map(|body| {
+                                    Sha256::digest(body.as_bytes())
+                                        .iter()
+                                        .map(|byte| format!("{byte:02x}"))
+                                        .collect::<String>()
+                                });
+                                if !self_link.is_some_and(|values| {
+                                    values[0].as_deref() == Some(source_id)
+                                        && values[1].as_deref() == Some(version_id)
+                                        && values[2].as_deref() == Some("sha256")
+                                        && values[3].as_ref() == canonical_digest.as_ref()
+                                }) {
+                                    item = Some(finding(
+                                        DataPlaneIntegrityFindingCodeV1::DependencySourceSelfLinkMismatch,
+                                        DataPlaneIntegritySeverityV1::Critical,
+                                    ));
+                                }
+                            }
+                        }
+                    } else {
                         item = Some(finding(
                             DataPlaneIntegrityFindingCodeV1::DependencySourceOwnerMissing,
                             DataPlaneIntegritySeverityV1::Critical,
                         ));
-                    } else if role != "canonical_source" || completeness != "complete" {
-                        item = Some(finding(
-                            DataPlaneIntegrityFindingCodeV1::DependencySourceRoleInvalid,
-                            DataPlaneIntegritySeverityV1::Error,
-                        ));
-                    } else {
-                        let (canonical_source_id, canonical_body) =
-                            canonical_node.ok_or(EngineError::Storage)?;
-                        let selected = match (locator, start, end) {
-                            ("whole_body", None, None) => Some(canonical_body.as_bytes()),
-                            ("utf8_bytes", Some(start), Some(end)) => usize::try_from(start)
-                                .ok()
-                                .zip(usize::try_from(end).ok())
-                                .and_then(|(start, end)| {
-                                    (canonical_body.is_char_boundary(start)
-                                        && canonical_body.is_char_boundary(end))
-                                    .then(|| canonical_body.as_bytes().get(start..end))
-                                    .flatten()
-                                }),
-                            _ => None,
-                        };
-                        let selected_digest = selected.map(|bytes| {
-                            Sha256::digest(bytes)
-                                .iter()
-                                .map(|byte| format!("{byte:02x}"))
-                                .collect::<String>()
-                        });
-                        if canonical_source_id != *source_id
-                            || selected_digest.as_deref() != Some(digest)
-                        {
-                            item = Some(finding(
-                                DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMismatch,
-                                DataPlaneIntegritySeverityV1::Critical,
-                            ));
-                        }
-                        let version_matches: bool = connection
-                            .query_row(
-                                "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_versions \
-                                 WHERE source_revision_id=?1 AND source_id=?2 AND source_version_id=?3 \
-                                 AND schema_version=1)",
-                                rusqlite::params![source_revision, source_id, version_id],
-                                |row| row.get(0),
-                            )
-                            .map_err(|_| EngineError::Storage)?;
-                        if item.is_none() && !version_matches {
-                            item = Some(finding(
-                                DataPlaneIntegrityFindingCodeV1::DependencySourceVersionMismatch,
-                                DataPlaneIntegritySeverityV1::Critical,
-                            ));
-                        } else if item.is_none() {
-                            let self_link: Option<(String, String, String, String)> = connection
-                                .query_row(
-                                    "SELECT source_id,source_version_id,hash_algorithm,hash_digest \
-                                     FROM _fathomdb_source_links \
-                                     WHERE artifact_revision_id=?1 AND source_revision_id=?1 \
-                                     AND schema_version=1 \
-                                     AND locator_kind='whole_body' AND start_byte IS NULL \
-                                     AND end_byte IS NULL",
-                                    [source_revision],
-                                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-                                )
-                                .optional()
-                                .map_err(|_| EngineError::Storage)?;
-                            let canonical_digest = Sha256::digest(canonical_body.as_bytes())
-                                .iter()
-                                .map(|byte| format!("{byte:02x}"))
-                                .collect::<String>();
-                            if !self_link.is_some_and(
-                                |(self_source, self_version, algorithm, self_digest)| {
-                                    self_source == *source_id
-                                        && self_version == *version_id
-                                        && algorithm == "sha256"
-                                        && self_digest == canonical_digest
-                                },
-                            ) {
-                                item = Some(finding(
-                                    DataPlaneIntegrityFindingCodeV1::DependencySourceSelfLinkMismatch,
-                                    DataPlaneIntegritySeverityV1::Critical,
-                                ));
-                            }
-                        }
                     }
                 } else {
                     item = Some(finding(
@@ -911,7 +974,9 @@ fn dependency_findings(
         }
         if item.is_none()
             && generation.is_some_and(|generation| {
-                u64::try_from(registered_generation).ok().is_none_or(|value| value > generation)
+                u64::try_from(registered_generation)
+                    .ok()
+                    .is_none_or(|value| value == 0 || value > generation)
             })
         {
             item = Some(finding(
@@ -923,23 +988,42 @@ fn dependency_findings(
             if crate::valid_caller_identity(&dependency_id) {
                 item.dependency_id = Some(dependency_id);
             }
-            if crate::valid_caller_identity(&derived_revision) {
-                item.artifact_revision_ids.push(derived_revision);
-            }
-            if matches!(
-                item.code,
-                DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMissing
-                    | DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMismatch
-                    | DataPlaneIntegrityFindingCodeV1::DependencySourceOwnerMissing
-                    | DataPlaneIntegrityFindingCodeV1::DependencySourceRoleInvalid
-                    | DataPlaneIntegrityFindingCodeV1::DependencySourceVersionMismatch
-                    | DataPlaneIntegrityFindingCodeV1::DependencySourceSelfLinkMismatch
-            ) {
-                if let Some(source_revision) =
-                    link.as_ref().and_then(|stored| stored.source_revision.as_ref())
-                {
-                    item.artifact_revision_ids.push(source_revision.clone());
+            let source_revision = link.as_ref().and_then(|stored| stored.source_revision.as_ref());
+            match item.code {
+                DataPlaneIntegrityFindingCodeV1::DependencyDerivedOwnerMissing
+                | DataPlaneIntegrityFindingCodeV1::DependencyDerivedRoleInvalid
+                | DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMissing => {
+                    item.artifact_revision_ids.push(derived_revision);
                 }
+                DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMismatch => {
+                    item.artifact_revision_ids.push(derived_revision);
+                    item.artifact_revision_ids.extend(source_revision.cloned());
+                }
+                DataPlaneIntegrityFindingCodeV1::DependencySourceOwnerMissing
+                | DataPlaneIntegrityFindingCodeV1::DependencySourceRoleInvalid
+                | DataPlaneIntegrityFindingCodeV1::DependencySourceVersionMismatch
+                | DataPlaneIntegrityFindingCodeV1::DependencySourceSelfLinkMismatch => {
+                    item.artifact_revision_ids.extend(source_revision.cloned());
+                }
+                DataPlaneIntegrityFindingCodeV1::DependencyGenerationMismatch
+                | DataPlaneIntegrityFindingCodeV1::DependencyRowInvalid
+                | DataPlaneIntegrityFindingCodeV1::NodeBodyFtsMissing
+                | DataPlaneIntegrityFindingCodeV1::NodeBodyFtsV2Missing
+                | DataPlaneIntegrityFindingCodeV1::EdgeBodyFtsMissing
+                | DataPlaneIntegrityFindingCodeV1::CanonicalAttributeMissing
+                | DataPlaneIntegrityFindingCodeV1::PropertyFtsMissing
+                | DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing
+                | DataPlaneIntegrityFindingCodeV1::SearchProjectionOutsideMembership
+                | DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch
+                | DataPlaneIntegrityFindingCodeV1::DenseProjectionOwnerMissing
+                | DataPlaneIntegrityFindingCodeV1::DenseProjectionPartial
+                | DataPlaneIntegrityFindingCodeV1::DenseProjectionIdentityMismatch
+                | DataPlaneIntegrityFindingCodeV1::DenseProjectionOutsideMembership
+                | DataPlaneIntegrityFindingCodeV1::ProjectionGenerationCorrupt
+                | DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt
+                | DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt
+                | DataPlaneIntegrityFindingCodeV1::MutationReadinessUnavailable
+                | DataPlaneIntegrityFindingCodeV1::MutationReadinessCorrupt => {}
             }
             push_finding(findings, item, max_findings)?;
         }
@@ -1272,7 +1356,7 @@ fn active_projection_findings(
         let mut physical_statement =
             connection.prepare(physical_query).map_err(|_| EngineError::Storage)?;
         let physical = physical_statement
-            .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
+            .query_map(rusqlite::params![FIRST_SQLITE_ROWID, i64::from(remaining) + 1], |row| {
                 Ok((
                     integer_value(row, 0),
                     integer_value(row, 1),
@@ -1395,7 +1479,7 @@ fn active_projection_findings(
     let mut edge_physical_statement =
         connection.prepare(EDGE_SEARCH_MEMBER_QUERY).map_err(|_| EngineError::Storage)?;
     let edge_physical = edge_physical_statement
-        .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
+        .query_map(rusqlite::params![FIRST_SQLITE_ROWID, i64::from(remaining) + 1], |row| {
             Ok((
                 integer_value(row, 0),
                 integer_value(row, 1),
@@ -1694,7 +1778,7 @@ fn active_projection_findings(
         let mut physical_statement =
             connection.prepare(physical_query).map_err(|_| EngineError::Storage)?;
         let physical = physical_statement
-            .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
+            .query_map(rusqlite::params![FIRST_SQLITE_ROWID, i64::from(remaining) + 1], |row| {
                 Ok((
                     integer_value(row, 0),
                     integer_value(row, 1),
@@ -1984,7 +2068,7 @@ fn mutation_readiness_findings(
     let mut statement =
         connection.prepare(RECEIPT_GUARD_QUERY).map_err(|_| EngineError::Storage)?;
     let guarded = statement
-        .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
+        .query_map(rusqlite::params![FIRST_SQLITE_ROWID, i64::from(remaining) + 1], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, bool>(1)?,

@@ -601,6 +601,58 @@ fn slice55_projection_scan_plans_use_indexed_order() {
 }
 
 #[test]
+fn slice55_integrity_plan_hook_covers_dense_generation_and_receipts() {
+    let (_dir, opened) = opened();
+    let candidates = opened.engine.data_plane_integrity_candidate_queries_for_test();
+    for authority in [
+        "_fathomdb_projection_terminal",
+        "_fathomdb_vector_rows",
+        "_fathomdb_projection_generations",
+        "_fathomdb_actuation_receipts",
+    ] {
+        let sql = candidates
+            .iter()
+            .find(|sql| sql.contains(authority))
+            .unwrap_or_else(|| panic!("missing production candidate query for {authority}"));
+        assert!(sql.contains("LIMIT"), "missing bounded limit: {sql}");
+    }
+}
+
+#[test]
+fn slice55_completed_closure_excludes_pruned_body_members() {
+    let (_dir, opened) = dependency_seeded();
+    opened
+        .engine
+        .write(&[canonical("integrity-source-r2", "source", "slice55 integrity replacement")])
+        .unwrap();
+    opened
+        .engine
+        .execute_for_test(
+            "DELETE FROM search_index WHERE write_cursor=2; \
+             DELETE FROM search_index_v2 WHERE write_cursor=2",
+        )
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            10_000,
+        ))
+        .unwrap();
+    assert!(
+        result.findings.iter().all(|finding| {
+            finding.write_cursor != Some(2)
+                || !matches!(
+                    finding.code,
+                    DataPlaneIntegrityFindingCodeV1::NodeBodyFtsMissing
+                        | DataPlaneIntegrityFindingCodeV1::NodeBodyFtsV2Missing
+                )
+        }),
+        "completed closure was treated as retained authority: {result:#?}"
+    );
+}
+
+#[test]
 fn slice55_projection_registry_cap_precedes_unselected_row_decode() {
     let (_dir, opened) = opened();
     opened
@@ -1014,6 +1066,20 @@ fn slice55_receipt_generation_must_be_current_authority() {
         finding_codes(&opened, DataPlaneIntegrityCheckV1::MutationReadiness),
         [DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt]
     );
+}
+
+#[test]
+fn slice55_receipt_rejects_retired_generation_even_with_historical_boundary() {
+    let (_dir, opened) = opened();
+    actuate_pending(&opened, "retired-generation-receipt", "retired-generation-r1");
+    opened.engine.configure_vector_kind_for_test("note").unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::MutationReadiness, 10))
+        .unwrap();
+    assert_eq!(result.findings.len(), 1, "{result:#?}");
+    assert_eq!(result.findings[0].code, DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt);
+    assert_eq!(result.findings[0].operation_id.as_deref(), Some("retired-generation-receipt"));
 }
 
 #[test]

@@ -1257,3 +1257,21 @@ The exact RED commit is
 validation precedence, reports the later duplicate index, separates work and
 finding bound paths, carries both dependency endpoint revisions, and keys
 sparse findings by declaration name then cursor. All four focused cases pass.
+
+The second integrity RED binds the production-plan hook to dense, generation,
+and receipt authorities; completes a real source supersession before pruning
+the derived body members; and transitions the receipt's genuine generation to
+retired. Intended failures were:
+
+```text
+slice55_integrity_plan_hook_covers_dense_generation_and_receipts
+missing production candidate query for _fathomdb_projection_terminal
+
+slice55_completed_closure_excludes_pruned_body_members
+completed closure was treated as retained authority
+findings: [NodeBodyFtsMissing, NodeBodyFtsV2Missing]
+
+slice55_receipt_rejects_retired_generation_even_with_historical_boundary
+left: 0
+right: 1
+```

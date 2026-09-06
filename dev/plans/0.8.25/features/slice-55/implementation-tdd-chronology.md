@@ -795,6 +795,13 @@ slice55_graph_bound_is_absent_at_exact_eligible_cap
 assertion failed: ... !...contains(&GraphBoundReached)
 ```
 
+The initial GREEN rerun reproduced the assertion because the fixture itself
+had 51 eligible candidates: the matched edge emits both endpoints as seeds,
+then 49 additional nodes. Per the retry rule, work stopped for HITL review.
+The authorized mechanical correction uses 50 nodes and 49 edges, preserving
+the assertion and production cap, so two seeds plus 48 reached nodes is exactly
+50 eligible candidates.
+
 Full writer gates passed at the same product commit:
 
 ```text

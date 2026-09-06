@@ -336,7 +336,7 @@ fn slice55_graph_bound_is_absent_at_exact_eligible_cap() {
     let path = dir.path().join(format!("explanation-graph-exact-cap{SQLITE_SUFFIX}"));
     let opened = Engine::open(&path).unwrap();
     let mut writes = Vec::new();
-    for index in 0..51 {
+    for index in 0..50 {
         writes.push(PreparedWrite::Node {
             logical_id: Some(format!("exact-cap-node-{index:02}")),
             kind: "entity".into(),
@@ -348,7 +348,7 @@ fn slice55_graph_bound_is_absent_at_exact_eligible_cap() {
             valid_until: None,
         });
     }
-    for index in 0..50 {
+    for index in 0..49 {
         writes.push(PreparedWrite::Edge {
             kind: "linked".into(),
             from: if index == 0 { "exact-cap-node-00".into() } else { "exact-cap-node-01".into() },

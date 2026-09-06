@@ -300,3 +300,61 @@ All check-governed-surface-pin tests passed
 ./scripts/check-governed-surface-pin.sh
 ok governed-surface-pin (66 allowlist / 5 core / 5 recovery_denylist)
 ```
+
+Approved oracle-update commit:
+`396de2bc49e6ec86f93838df25f36a8127bcc630`.
+
+## Exact-candidate Python installation evidence
+
+Candidate commit:
+`396de2bc49e6ec86f93838df25f36a8127bcc630`. The worktree was clean before
+the build. Version `0.8.24` is the unchanged current workspace/package version
+at this Slice 55 CI boundary; no release version bump was performed.
+
+```text
+env -u PYTHONPATH ./scripts/verify-release-python-wheel.sh \
+  --python /usr/bin/python3 \
+  --wheel-dir /tmp/fathomdb-s55-wheel.zcwF30/dist \
+  --venv-dir /tmp/fathomdb-s55-wheel.zcwF30/venv
+
+wheel smoke: ok
+sha256 f1154a70d505d1244d954eb7ae8f547c75683e1107a94d94dfb91436acc8c2f6
+module=/tmp/fathomdb-s55-wheel.zcwF30/venv/lib/python3.12/site-packages/fathomdb/__init__.py
+native=/tmp/fathomdb-s55-wheel.zcwF30/venv/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+editable=false
+```
+
+The plan-named `src/python/tests/smoke_slice55_installed.py` was absent from
+the candidate. A verification-only script under the disposable wheel root
+therefore exercised a real SQLite database through the installed module:
+canonical and derived provenance writes, dependency registration, frozen
+context, reciprocal `trace_dependency`, explained-search structural presence
+and correlation, and continued absence of Python doctor methods. It passed:
+
+```text
+env -u PYTHONPATH /tmp/fathomdb-s55-wheel.zcwF30/venv/bin/python \
+  /tmp/fathomdb-s55-wheel.zcwF30/smoke_slice55_installed.py
+slice55 installed native smoke: ok
+```
+
+Byte-identical disposable copies of the two checked-in Slice 55 Python test
+files were used to prevent repository pytest path injection from selecting the
+stale worktree extension. Their source/copy SHA-256 pairs were identical:
+`fe64413f...bdc` and `a95e0a84...87dc`; 5 tests passed. The installed-candidate
+Slice binding regression suite then passed:
+
+```text
+PYTHONPATH=<candidate-site-packages>:<source-support>:<repo-root>:<tool-site-packages> \
+  /tmp/fathomdb-s55-wheel.zcwF30/venv/bin/python -P -m pytest \
+  -o pythonpath= src/python/tests/test_slice*.py -q
+265 passed, 2 skipped in 26.26s
+```
+
+For completeness, an attempted entire Python tree against this release-wheel
+feature set reported 1435 passed, 16 skipped, and two unrelated failures. The
+cwd-sensitive graph receipt test passed when rerun from the repository. The
+remaining M1 eval assertion requires the development-only default reranker,
+which the repository wheel verifier intentionally omits through its explicit
+feature list; it reproduced alone and is not a Slice 55 installed-binding
+failure. No worktree native binary was modified, and no artifact was staged,
+uploaded, tagged, or published.

@@ -523,6 +523,12 @@ cargo clippy -p fathomdb-engine --features operator,test-hooks \
 Finished `dev` profile
 ```
 
+The SDK strictness RED covers Python's bool-as-schema, invalid root,
+direction, and context construction in declaration order; TypeScript's null
+context; and unknown explanation arms/nonfinite or invalid scalar fields in
+both wrappers. The old paths either accepted the value, leaked `AttributeError`
+or native `TypeError`, defaulted an unknown arm to text, or propagated NaN.
+
 The trace-authorization RED places a malformed BLOB dependency identity on an
 inactive derived endpoint that sorts before the one eligible relation, then
 runs with exactly one relation and two work units. Because the old query

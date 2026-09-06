@@ -2,6 +2,7 @@
 
 import copy
 import json
+from types import SimpleNamespace
 from typing import Any
 
 import fathomdb
@@ -106,6 +107,34 @@ def test_slice55_python_request_rejects_schema_before_semantics() -> None:
     assert caught.value.field_path == "/schemaVersion"
 
 
+@pytest.mark.parametrize(
+    ("overrides", "reason", "path"),
+    [
+        ({"schema_version": True}, "unsupported_schema_version", "/schemaVersion"),
+        ({"root_revision_id": "!"}, "trace_root_invalid", "/rootRevisionId"),
+        ({"direction": "sideways"}, "trace_direction_invalid", "/direction"),
+        ({"context": None}, "trace_corrupt", "/context"),
+    ],
+)
+def test_slice55_python_request_validates_declared_fields_in_order(
+    overrides: dict[str, Any], reason: str, path: str
+) -> None:
+    values: dict[str, Any] = {
+        "root_revision_id": "source-r1",
+        "direction": "to_dependents",
+        "context": fathomdb.FrozenReadContextV1(
+            effective_valid_at=1,
+            context=fathomdb.ReadContextV1(),
+            token="opaque",
+        ),
+    }
+    values.update(overrides)
+    with pytest.raises(fathomdb.DependencyTraceError) as caught:
+        fathomdb.DependencyTraceRequestV1(**values)
+    assert caught.value.reason == reason
+    assert caught.value.field_path == path
+
+
 def test_slice55_python_catches_actual_native_trace_refusal(tmp_path) -> None:
     engine = fathomdb.Engine.open(
         str(tmp_path / "slice55-native-error.fathom"), use_default_embedder=False
@@ -187,3 +216,33 @@ def test_slice55_python_noncanonical_bound_never_leaks_native_type_error(tmp_pat
         assert caught.value.field_path == "/maxRelations"
     finally:
         engine.close()
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "path"),
+    [
+        ("id", True, "/id"),
+        ("arm", "unknown", "/arm"),
+        ("text_rank", -1, "/textRank"),
+        ("fused_score", float("nan"), "/fusedScore"),
+    ],
+)
+def test_slice55_python_rejects_malformed_explanation_scalars(
+    field: str, value: Any, path: str
+) -> None:
+    native = SimpleNamespace(
+        id=1,
+        arm="text",
+        vector_rank=None,
+        text_rank=0,
+        graph_rank=None,
+        fused_score=1.0,
+        ce_score=None,
+        blended=1.0,
+        importance=None,
+        confidence=None,
+        structural=None,
+    )
+    setattr(native, field, value)
+    with pytest.raises(ValueError, match=f"invalid explanation response at {path}"):
+        engine_module._map_per_hit_explain(native)

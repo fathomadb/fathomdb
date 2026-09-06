@@ -6,6 +6,7 @@ import {
   Engine,
   type DependencyTraceRequestV1,
   validateDependencyTraceResponse,
+  mapPerHitExplain,
 } from "../src/index.js";
 import { freshDbPath } from "./helpers.js";
 
@@ -73,6 +74,46 @@ test("slice55 unknown trace request fields use escaped RFC 6901 paths", async ()
   } finally {
     await engine.close();
   }
+});
+
+test("slice55 null trace context is typed at the declared request path", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    await assert.rejects(
+      engine.traceDependency(malformedRequest({ context: null })),
+      (error: unknown) =>
+        error instanceof DependencyTraceError &&
+        error.reason === "trace_corrupt" &&
+        error.fieldPath === "/context",
+    );
+  } finally {
+    await engine.close();
+  }
+});
+
+test("slice55 TypeScript rejects unknown arms and nonfinite explanation scores", () => {
+  const native = {
+    id: 1,
+    arm: "unknown",
+    vectorRank: null,
+    textRank: 0,
+    graphRank: null,
+    fusedScore: 1,
+    ceScore: null,
+    blended: 1,
+    importance: null,
+    confidence: null,
+  } as Parameters<typeof mapPerHitExplain>[0];
+  assert.throws(
+    () => mapPerHitExplain(native),
+    (error: unknown) => error instanceof Error && error.message.endsWith("/arm"),
+  );
+  native.arm = "text";
+  native.fusedScore = Number.NaN;
+  assert.throws(
+    () => mapPerHitExplain(native),
+    (error: unknown) => error instanceof Error && error.message.endsWith("/fusedScore"),
+  );
 });
 
 function response(): Record<string, unknown> {

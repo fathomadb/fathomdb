@@ -866,3 +866,21 @@ minimal failing input: count = 1, boundary = 0
 left: 0
 right: 1
 ```
+
+The exact integrity RED commit is
+`c26410f23eb06e666f0418f17ecc4d734a62fa60`. The first GREEN increment adds
+terminal-only residue enumeration without misclassifying legitimate
+synchronous terminals, guards operation identity entirely in the first SQL
+pass, reserves work before guarded row fetch, enforces committed boundary and
+generation authority, and handles the valid legacy-null-generation path as
+unavailable. Focused results:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity
+test result: ok. 33 passed; 0 failed
+
+cargo clippy -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity -- -D warnings
+Finished `dev` profile
+```

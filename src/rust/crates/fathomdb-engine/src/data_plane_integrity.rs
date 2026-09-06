@@ -863,9 +863,11 @@ fn active_projection_findings(
         }
     }
     let mut physical_dense = BTreeSet::new();
-    for (table, cursor_column) in
-        [("_fathomdb_vector_rows", "write_cursor"), ("vector_default", "rowid")]
-    {
+    for (table, cursor_column) in [
+        ("_fathomdb_projection_terminal", "write_cursor"),
+        ("_fathomdb_vector_rows", "write_cursor"),
+        ("vector_default", "rowid"),
+    ] {
         let remaining = max_work_units.saturating_sub(*aggregate_checked);
         let sql = format!("SELECT {cursor_column} FROM {table} ORDER BY {cursor_column} LIMIT ?1");
         let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
@@ -882,14 +884,21 @@ fn active_projection_findings(
         take_work(aggregate_checked, max_work_units)?;
         if !expected_dense.contains_key(&cursor) {
             let cursor_i64 = i64::try_from(cursor).map_err(|_| EngineError::Storage)?;
-            let owner_exists: bool = connection
+            let (owner_exists, terminal, sidecar, vector): (bool, bool, bool, bool) = connection
                 .query_row(
-                    "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1) \
-                     OR EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)",
+                    "SELECT \
+                       EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1) \
+                         OR EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1), \
+                       EXISTS(SELECT 1 FROM _fathomdb_projection_terminal WHERE write_cursor=?1), \
+                       EXISTS(SELECT 1 FROM _fathomdb_vector_rows WHERE write_cursor=?1), \
+                       EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1)",
                     [cursor_i64],
-                    |row| row.get(0),
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
                 )
                 .map_err(|_| EngineError::Storage)?;
+            if owner_exists && terminal && !sidecar && !vector {
+                continue;
+            }
             let mut item = finding(
                 if owner_exists {
                     DataPlaneIntegrityFindingCodeV1::DenseProjectionOutsideMembership
@@ -1075,6 +1084,7 @@ fn projection_generation_findings(
             for (table, column) in [
                 ("canonical_nodes", "write_cursor"),
                 ("canonical_edges", "write_cursor"),
+                ("_fathomdb_projection_terminal", "write_cursor"),
                 ("_fathomdb_vector_rows", "write_cursor"),
                 ("vector_default", "rowid"),
             ] {
@@ -1094,15 +1104,23 @@ fn projection_generation_findings(
                 cursor_u64,
                 effective_at_epoch_s,
             )?;
-            let physical: bool = connection
+            let (terminal, sidecar, vector, owner_exists): (bool, bool, bool, bool) = connection
                 .query_row(
-                    "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows WHERE write_cursor=?1) \
-                     OR EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1)",
+                    "SELECT \
+                       EXISTS(SELECT 1 FROM _fathomdb_projection_terminal WHERE write_cursor=?1), \
+                       EXISTS(SELECT 1 FROM _fathomdb_vector_rows WHERE write_cursor=?1), \
+                       EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1), \
+                       EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1) \
+                         OR EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)",
                     [cursor],
-                    |row| row.get(0),
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
                 )
                 .map_err(|_| EngineError::Storage)?;
+            let physical = terminal || sidecar || vector;
             if expected.is_none() && !physical {
+                continue;
+            }
+            if expected.is_none() && owner_exists && terminal && !sidecar && !vector {
                 continue;
             }
             take_work(aggregate_checked, max_work_units)?;
@@ -1151,7 +1169,12 @@ fn mutation_readiness_findings(
     let remaining = max_work_units.saturating_sub(*aggregate_checked);
     let mut statement = connection
         .prepare(
-            "SELECT rowid,operation_id, \
+            "SELECT rowid, \
+                    typeof(operation_id)='text' \
+                      AND length(CAST(operation_id AS BLOB)) BETWEEN 1 AND 128 \
+                      AND operation_id NOT GLOB '_fdb:*' \
+                      AND substr(operation_id,1,1) GLOB '[A-Za-z0-9]' \
+                      AND operation_id NOT GLOB '*[^A-Za-z0-9._:-]*', \
                     typeof(schema_version)='integer' AND schema_version=1, \
                     typeof(operations_count) IN ('integer','null'), \
                     typeof(outcome)='text' AND length(outcome)<=25 \
@@ -1176,7 +1199,7 @@ fn mutation_readiness_findings(
         .query_map([i64::from(remaining) + 1], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
-                row.get::<_, String>(1)?,
+                row.get::<_, bool>(1)?,
                 row.get::<_, bool>(2)?,
                 row.get::<_, bool>(3)?,
                 row.get::<_, bool>(4)?,
@@ -1191,7 +1214,7 @@ fn mutation_readiness_findings(
         .map_err(|_| EngineError::Storage)?;
     for (
         rowid,
-        operation_id,
+        operation_id_ok,
         schema_ok,
         count_ok,
         outcome_ok,
@@ -1202,20 +1225,27 @@ fn mutation_readiness_findings(
     ) in guarded
     {
         take_work(aggregate_checked, max_work_units)?;
-        if !(schema_ok
+        if !(operation_id_ok
+            && schema_ok
             && count_ok
             && outcome_ok
             && boundary_ok
             && json_ok
-            && gen_ok
-            && crate::valid_caller_identity(&operation_id))
+            && gen_ok)
         {
             let mut item = finding(
                 DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt,
                 DataPlaneIntegritySeverityV1::Error,
             );
-            if crate::valid_caller_identity(&operation_id) {
-                item.operation_id = Some(operation_id);
+            if operation_id_ok {
+                item.operation_id = connection
+                    .query_row(
+                        "SELECT operation_id FROM _fathomdb_actuation_receipts WHERE rowid=?1",
+                        [rowid],
+                        |row| row.get(0),
+                    )
+                    .optional()
+                    .map_err(|_| EngineError::Storage)?;
             }
             push_finding(findings, item, max_findings)?;
             continue;
@@ -1225,7 +1255,8 @@ fn mutation_readiness_findings(
         if pending_count > max_work_units.saturating_sub(*aggregate_checked) {
             return Err(bound_error());
         }
-        let (operations_count, outcome, boundary, json, generation): (
+        let (operation_id, operations_count, outcome, boundary, json, generation): (
+            String,
             Option<i64>,
             String,
             Option<i64>,
@@ -1233,14 +1264,34 @@ fn mutation_readiness_findings(
             Option<String>,
         ) = connection
             .query_row(
-                "SELECT operations_count,outcome,resulting_write_boundary,\
+                "SELECT operation_id,operations_count,outcome,resulting_write_boundary,\
                         pending_projection_write_cursors_json,projection_generation_id \
                  FROM _fathomdb_actuation_receipts WHERE rowid=?1",
                 [rowid],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                    ))
+                },
             )
             .map_err(|_| EngineError::Storage)?;
-        let values: Vec<String> = serde_json::from_str(&json).map_err(|_| EngineError::Storage)?;
+        let values: Vec<String> = match serde_json::from_str(&json) {
+            Ok(values) => values,
+            Err(_) => {
+                let mut item = finding(
+                    DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt,
+                    DataPlaneIntegritySeverityV1::Error,
+                );
+                item.operation_id = Some(operation_id);
+                push_finding(findings, item, max_findings)?;
+                continue;
+            }
+        };
         let cursors = values.iter().map(|value| canonical_u64(value)).collect::<Option<Vec<_>>>();
         let coherent = operations_count.is_some_and(|value| (1..=128).contains(&value))
             || (outcome == "erased" && operations_count.is_none());
@@ -1250,16 +1301,48 @@ fn mutation_readiness_findings(
                     && items.iter().all(|cursor| *cursor > 0)
                     && operations_count.is_none_or(|count| items.len() <= count as usize)
             })
-            && if values.is_empty() {
-                generation.is_none()
-            } else {
-                generation.as_deref().is_some_and(valid_generation_id)
-            }
             && if matches!(outcome.as_str(), "refused" | "erased") {
-                values.is_empty() && boundary.is_none()
+                values.is_empty() && boundary.is_none() && generation.is_none()
             } else {
-                boundary.is_some_and(|value| value >= 0)
+                boundary.is_some_and(|value| {
+                    value >= 0
+                        && cursors.as_ref().and_then(|items| items.last()).is_none_or(|cursor| {
+                            u64::try_from(value).ok().is_some_and(|v| v >= *cursor)
+                        })
+                })
             };
+        let max_pending = cursors.as_ref().and_then(|items| items.last()).copied();
+        let generation_coherent = match (max_pending, generation.as_deref()) {
+            (None, None) => true,
+            (None, Some(_)) => false,
+            (Some(max_pending), None) => connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM _fathomdb_projection_generations \
+                     WHERE origin='legacy_unverified' AND transition_boundary>=?1)",
+                    [i64::try_from(max_pending).map_err(|_| EngineError::Storage)?],
+                    |row| row.get(0),
+                )
+                .map_err(|_| EngineError::Storage)?,
+            (Some(_), Some(generation_id)) if valid_generation_id(generation_id) => {
+                let receipt_boundary = boundary.and_then(|value| u64::try_from(value).ok());
+                connection
+                    .query_row(
+                        "SELECT transition_boundary,retired_boundary \
+                         FROM _fathomdb_projection_generations WHERE generation_id=?1",
+                        [generation_id],
+                        |row| Ok((row.get::<_, u64>(0)?, row.get::<_, Option<u64>>(1)?)),
+                    )
+                    .optional()
+                    .map_err(|_| EngineError::Storage)?
+                    .is_some_and(|(transition, retired)| {
+                        receipt_boundary.is_some_and(|value| {
+                            value >= transition && retired.is_none_or(|end| value <= end)
+                        })
+                    })
+            }
+            (Some(_), Some(_)) => false,
+        };
+        let coherent = coherent && generation_coherent;
         if !coherent {
             let mut item = finding(
                 DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt,
@@ -1271,6 +1354,16 @@ fn mutation_readiness_findings(
         }
         for cursor in cursors.unwrap_or_default() {
             take_work(aggregate_checked, max_work_units)?;
+            if generation.is_none() {
+                let mut item = finding(
+                    DataPlaneIntegrityFindingCodeV1::MutationReadinessUnavailable,
+                    DataPlaneIntegritySeverityV1::Error,
+                );
+                item.operation_id = Some(operation_id.clone());
+                item.write_cursor = Some(cursor);
+                push_finding(findings, item, max_findings)?;
+                continue;
+            }
             let owner_exists: bool = connection
                 .query_row(
                     "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions \

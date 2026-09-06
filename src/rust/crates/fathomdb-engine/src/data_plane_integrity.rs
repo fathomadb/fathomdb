@@ -4,13 +4,15 @@ use std::fmt::{Display, Formatter};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[cfg(feature = "operator")]
+use rusqlite::types::ValueRef;
+#[cfg(feature = "operator")]
 use rusqlite::{Connection, OptionalExtension};
 
 #[cfg(feature = "operator")]
 use sha2::{Digest, Sha256};
 
 #[cfg(feature = "operator")]
-use crate::{current_epoch_seconds, load_dependency_generation, load_next_cursor, EngineError};
+use crate::{current_epoch_seconds, load_next_cursor, EngineError};
 
 const SCHEMA_VERSION: u32 = 1;
 const MAX_WORK_UNITS: u32 = 10_000;
@@ -57,13 +59,15 @@ const ATTRIBUTE_OWNER_QUERY: &str =
        ON r.artifact_class='node' AND r.write_cursor=n.write_cursor \
      WHERE n.write_cursor>?1 ORDER BY n.write_cursor LIMIT ?2";
 #[cfg(feature = "operator")]
-const DENSE_TERMINAL_MEMBER_QUERY: &str = "SELECT write_cursor FROM _fathomdb_projection_terminal \
-     WHERE write_cursor>?1 ORDER BY write_cursor LIMIT ?2";
+const DENSE_TERMINAL_MEMBER_QUERY: &str =
+    "SELECT rowid,write_cursor FROM _fathomdb_projection_terminal \
+     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
-const DENSE_SIDECAR_MEMBER_QUERY: &str = "SELECT write_cursor FROM _fathomdb_vector_rows \
-     WHERE write_cursor>?1 ORDER BY write_cursor LIMIT ?2";
+const DENSE_SIDECAR_MEMBER_QUERY: &str = "SELECT rowid,write_cursor FROM _fathomdb_vector_rows \
+     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
-const DENSE_VECTOR_MEMBER_QUERY: &str = "SELECT rowid FROM vector_default WHERE rowid>?1 LIMIT ?2";
+const DENSE_VECTOR_MEMBER_QUERY: &str =
+    "SELECT rowid,rowid FROM vector_default WHERE rowid>?1 LIMIT ?2";
 #[cfg(feature = "operator")]
 const CURRENT_GENERATION_QUERY: &str =
     "SELECT c.generation_id,g.schema_version,g.role,g.retired_boundary,g.transition_boundary,\
@@ -95,8 +99,53 @@ const RECEIPT_GUARD_QUERY: &str = "SELECT rowid, \
             CASE WHEN json_valid(pending_projection_write_cursors_json) \
                  AND json_type(pending_projection_write_cursors_json)='array' \
                  THEN json_array_length(pending_projection_write_cursors_json) END \
-     FROM _fathomdb_actuation_receipts WHERE operation_id>?1 \
-     ORDER BY operation_id LIMIT ?2";
+     FROM _fathomdb_actuation_receipts WHERE rowid>?1 \
+     ORDER BY rowid LIMIT ?2";
+
+#[cfg(feature = "operator")]
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum NullableValue<T> {
+    Null,
+    Value(T),
+    Invalid,
+}
+
+#[cfg(feature = "operator")]
+fn integer_value(row: &rusqlite::Row<'_>, index: usize) -> Option<i64> {
+    match row.get_ref(index).ok()? {
+        ValueRef::Integer(value) => Some(value),
+        _ => None,
+    }
+}
+
+#[cfg(feature = "operator")]
+fn text_value(row: &rusqlite::Row<'_>, index: usize) -> Option<String> {
+    match row.get_ref(index).ok()? {
+        ValueRef::Text(value) => std::str::from_utf8(value).ok().map(ToOwned::to_owned),
+        _ => None,
+    }
+}
+
+#[cfg(feature = "operator")]
+fn nullable_integer_value(row: &rusqlite::Row<'_>, index: usize) -> NullableValue<i64> {
+    match row.get_ref(index) {
+        Ok(ValueRef::Null) => NullableValue::Null,
+        Ok(ValueRef::Integer(value)) => NullableValue::Value(value),
+        _ => NullableValue::Invalid,
+    }
+}
+
+#[cfg(feature = "operator")]
+fn nullable_text_value(row: &rusqlite::Row<'_>, index: usize) -> NullableValue<String> {
+    match row.get_ref(index) {
+        Ok(ValueRef::Null) => NullableValue::Null,
+        Ok(ValueRef::Text(value)) => std::str::from_utf8(value)
+            .ok()
+            .map(|value| NullableValue::Value(value.to_owned()))
+            .unwrap_or(NullableValue::Invalid),
+        _ => NullableValue::Invalid,
+    }
+}
 
 #[cfg(all(feature = "operator", feature = "test-hooks"))]
 pub(crate) fn candidate_queries_for_test() -> [&'static str; 12] {
@@ -117,30 +166,47 @@ pub(crate) fn candidate_queries_for_test() -> [&'static str; 12] {
 }
 
 #[cfg(feature = "operator")]
+struct DenseCandidates {
+    valid: BTreeSet<u64>,
+    invalid: usize,
+}
+
+#[cfg(feature = "operator")]
+type PhysicalBodyMembers = BTreeMap<i64, Vec<(i64, Option<String>, Option<String>)>>;
+
+#[cfg(feature = "operator")]
+type PhysicalAttributeMembers = BTreeMap<(String, i64), Vec<(i64, Option<String>)>>;
+
+#[cfg(feature = "operator")]
 fn physical_dense_candidates(
     connection: &Connection,
     max_work_units: u32,
     aggregate_checked: &mut u32,
-) -> Result<BTreeSet<u64>, EngineError> {
+) -> Result<DenseCandidates, EngineError> {
     let mut candidates = BTreeSet::new();
+    let mut invalid = 0usize;
     for sql in [DENSE_TERMINAL_MEMBER_QUERY, DENSE_SIDECAR_MEMBER_QUERY, DENSE_VECTOR_MEMBER_QUERY]
     {
         let remaining = max_work_units.saturating_sub(*aggregate_checked);
         let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
         let rows = statement
             .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
-                row.get::<_, i64>(0)
+                Ok(integer_value(row, 1))
             })
             .map_err(|_| EngineError::Storage)?;
         for cursor in rows {
             take_work(aggregate_checked, max_work_units)?;
-            candidates.insert(
-                u64::try_from(cursor.map_err(|_| EngineError::Storage)?)
-                    .map_err(|_| EngineError::Storage)?,
-            );
+            if let Some(cursor) = cursor
+                .map_err(|_| EngineError::Storage)?
+                .and_then(|value| u64::try_from(value).ok())
+            {
+                candidates.insert(cursor);
+            } else {
+                invalid = invalid.saturating_add(1);
+            }
         }
     }
-    Ok(candidates)
+    Ok(DenseCandidates { valid: candidates, invalid })
 }
 
 #[cfg(feature = "operator")]
@@ -202,8 +268,17 @@ fn expected_attribute_members(
 }
 
 #[cfg(feature = "operator")]
-type StoredSourceLink =
-    (i64, String, String, String, String, Option<i64>, Option<i64>, String, String);
+struct StoredSourceLink {
+    schema: Option<i64>,
+    source_id: Option<String>,
+    version_id: Option<String>,
+    source_revision: Option<String>,
+    locator: Option<String>,
+    start: NullableValue<i64>,
+    end: NullableValue<i64>,
+    algorithm: Option<String>,
+    digest: Option<String>,
+}
 
 /// Closed set of operator integrity checks.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -543,6 +618,20 @@ fn canonical_u64(value: &str) -> Option<u64> {
 }
 
 #[cfg(feature = "operator")]
+fn integrity_dependency_generation(connection: &Connection) -> Result<Option<u64>, EngineError> {
+    connection
+        .query_row(
+            "SELECT value FROM _fathomdb_open_state \
+             WHERE key='_fathomdb_dependency_generation'",
+            [],
+            |row| Ok(text_value(row, 0).and_then(|value| canonical_u64(&value))),
+        )
+        .optional()
+        .map(|value| value.flatten())
+        .map_err(|_| EngineError::Storage)
+}
+
+#[cfg(feature = "operator")]
 fn dependency_findings(
     connection: &Connection,
     max_work_units: u32,
@@ -552,7 +641,14 @@ fn dependency_findings(
 ) -> Result<u32, EngineError> {
     let start = *aggregate_checked;
     take_work(aggregate_checked, max_work_units)?;
-    let generation = load_dependency_generation(connection)?;
+    let generation = integrity_dependency_generation(connection)?;
+    if generation.is_none() {
+        let item = finding(
+            DataPlaneIntegrityFindingCodeV1::DependencyGenerationMismatch,
+            DataPlaneIntegritySeverityV1::Critical,
+        );
+        push_finding(findings, item, max_findings)?;
+    }
     let remaining = max_work_units.saturating_sub(*aggregate_checked);
     let sql =
         "SELECT schema_version,dependency_id,derived_revision_id,registered_dependency_generation \
@@ -561,21 +657,28 @@ fn dependency_findings(
     let mut rows = statement.query([i64::from(remaining) + 1]).map_err(|_| EngineError::Storage)?;
     while let Some(row) = rows.next().map_err(|_| EngineError::Storage)? {
         take_work(aggregate_checked, max_work_units)?;
-        let schema: i64 = row.get(0).map_err(|_| EngineError::Storage)?;
-        let dependency_id: String = row.get(1).map_err(|_| EngineError::Storage)?;
-        let derived_revision: String = row.get(2).map_err(|_| EngineError::Storage)?;
-        let registered_generation: i64 = row.get(3).map_err(|_| EngineError::Storage)?;
-        let mut item = if schema != 1
-            || !crate::valid_caller_identity(&dependency_id)
-            || registered_generation <= 0
+        let schema = integer_value(row, 0);
+        let dependency_id = text_value(row, 1).filter(|value| crate::valid_caller_identity(value));
+        let derived_revision =
+            text_value(row, 2).filter(|value| crate::valid_caller_identity(value));
+        let registered_generation = integer_value(row, 3);
+        if schema != Some(1)
+            || dependency_id.is_none()
+            || derived_revision.is_none()
+            || registered_generation.is_none_or(|value| value <= 0)
         {
-            Some(finding(
+            let mut item = finding(
                 DataPlaneIntegrityFindingCodeV1::DependencyRowInvalid,
                 DataPlaneIntegritySeverityV1::Error,
-            ))
-        } else {
-            None
-        };
+            );
+            item.dependency_id = dependency_id;
+            push_finding(findings, item, max_findings)?;
+            continue;
+        }
+        let dependency_id = dependency_id.expect("validated dependency id");
+        let derived_revision = derived_revision.expect("validated derived revision");
+        let registered_generation = registered_generation.expect("validated generation");
+        let mut item = None;
         let derived_owner: Option<(String, String, String, i64)> = connection
             .query_row(
                 "SELECT artifact_class,artifact_role,completeness,write_cursor \
@@ -623,10 +726,20 @@ fn dependency_findings(
                      FROM _fathomdb_source_links WHERE artifact_revision_id=?1",
                     [&derived_revision],
                     |row| {
-                        Ok((
-                            row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?,
-                            row.get(5)?, row.get(6)?, row.get(7)?, row.get(8)?,
-                        ))
+                        Ok(StoredSourceLink {
+                            schema: integer_value(row, 0),
+                            source_id: text_value(row, 1)
+                                .filter(|value| crate::valid_caller_identity(value)),
+                            version_id: text_value(row, 2)
+                                .filter(|value| crate::valid_caller_identity(value)),
+                            source_revision: text_value(row, 3)
+                                .filter(|value| crate::valid_caller_identity(value)),
+                            locator: text_value(row, 4),
+                            start: nullable_integer_value(row, 5),
+                            end: nullable_integer_value(row, 6),
+                            algorithm: text_value(row, 7),
+                            digest: text_value(row, 8),
+                        })
                     },
                 )
                 .optional()
@@ -638,38 +751,51 @@ fn dependency_findings(
             ));
         }
         if item.is_none() {
-            let (
-                link_schema,
-                source_id,
-                version_id,
-                source_revision,
-                locator,
-                start,
-                end,
-                algo,
-                digest,
-            ) = link.as_ref().unwrap();
-            let link_valid = *link_schema == 1
-                && crate::valid_caller_identity(source_id)
-                && crate::valid_caller_identity(version_id)
-                && crate::valid_caller_identity(source_revision)
-                && ((*locator == "whole_body" && start.is_none() && end.is_none())
-                    || (*locator == "utf8_bytes"
-                        && start.is_some_and(|value| value >= 0)
-                        && end.is_some_and(|value| value >= 0)
-                        && start < end))
-                && algo == "sha256"
-                && digest.len() == 64
-                && digest
-                    .bytes()
-                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-                && source_revision != &derived_revision;
+            let link = link.as_ref().unwrap();
+            let whole_body = link.locator.as_deref() == Some("whole_body")
+                && link.start == NullableValue::Null
+                && link.end == NullableValue::Null;
+            let byte_range = matches!(
+                (&link.locator, &link.start, &link.end),
+                (
+                    Some(locator),
+                    NullableValue::Value(start),
+                    NullableValue::Value(end)
+                ) if locator == "utf8_bytes" && *start >= 0 && *end > *start
+            );
+            let link_valid = link.schema == Some(1)
+                && link.source_id.is_some()
+                && link.version_id.is_some()
+                && link.source_revision.is_some()
+                && (whole_body || byte_range)
+                && link.algorithm.as_deref() == Some("sha256")
+                && link.digest.as_ref().is_some_and(|digest| digest.len() == 64)
+                && link.digest.as_ref().is_some_and(|digest| {
+                    digest
+                        .bytes()
+                        .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+                })
+                && link.source_revision.as_deref() != Some(derived_revision.as_str());
             if !link_valid {
                 item = Some(finding(
                     DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMismatch,
                     DataPlaneIntegritySeverityV1::Critical,
                 ));
             } else {
+                let source_id = link.source_id.as_ref().expect("validated source id");
+                let version_id = link.version_id.as_ref().expect("validated source version");
+                let source_revision =
+                    link.source_revision.as_ref().expect("validated source revision");
+                let locator = link.locator.as_deref().expect("validated locator");
+                let start = match link.start {
+                    NullableValue::Value(value) => Some(value),
+                    NullableValue::Null | NullableValue::Invalid => None,
+                };
+                let end = match link.end {
+                    NullableValue::Value(value) => Some(value),
+                    NullableValue::Null | NullableValue::Invalid => None,
+                };
+                let digest = link.digest.as_ref().expect("validated digest");
                 let source_owner: Option<(String, String, String, i64)> = connection
                     .query_row(
                         "SELECT artifact_class,artifact_role,completeness,write_cursor \
@@ -701,7 +827,7 @@ fn dependency_findings(
                     } else {
                         let (canonical_source_id, canonical_body) =
                             canonical_node.ok_or(EngineError::Storage)?;
-                        let selected = match (locator.as_str(), *start, *end) {
+                        let selected = match (locator, start, end) {
                             ("whole_body", None, None) => Some(canonical_body.as_bytes()),
                             ("utf8_bytes", Some(start), Some(end)) => usize::try_from(start)
                                 .ok()
@@ -784,7 +910,9 @@ fn dependency_findings(
             }
         }
         if item.is_none()
-            && u64::try_from(registered_generation).ok().is_none_or(|value| value > generation)
+            && generation.is_some_and(|generation| {
+                u64::try_from(registered_generation).ok().is_none_or(|value| value > generation)
+            })
         {
             item = Some(finding(
                 DataPlaneIntegrityFindingCodeV1::DependencyGenerationMismatch,
@@ -807,10 +935,8 @@ fn dependency_findings(
                     | DataPlaneIntegrityFindingCodeV1::DependencySourceVersionMismatch
                     | DataPlaneIntegrityFindingCodeV1::DependencySourceSelfLinkMismatch
             ) {
-                if let Some(source_revision) = link
-                    .as_ref()
-                    .map(|stored| &stored.3)
-                    .filter(|value| crate::valid_caller_identity(value))
+                if let Some(source_revision) =
+                    link.as_ref().and_then(|stored| stored.source_revision.as_ref())
                 {
                     item.artifact_revision_ids.push(source_revision.clone());
                 }
@@ -822,74 +948,253 @@ fn dependency_findings(
 }
 
 #[cfg(feature = "operator")]
-fn body_residue_finding(
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum OwnerRetention {
+    RequiredMembership,
+    LegitimateRetained,
+    GovernedPruningResidue,
+    CanonicalOwnerMissing,
+}
+
+#[cfg(feature = "operator")]
+#[derive(Clone, Copy)]
+enum RetentionPurpose {
+    Body,
+    Dense { required: bool },
+}
+
+#[cfg(feature = "operator")]
+fn owner_retention_at(
     connection: &Connection,
     artifact_class: &str,
     cursor: i64,
     effective_at_epoch_s: i64,
-) -> Result<DataPlaneIntegrityFindingV1, EngineError> {
-    let revision: Option<String> = connection
+    purpose: RetentionPurpose,
+) -> Result<OwnerRetention, EngineError> {
+    let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
+    if artifact_class == "node" {
+        let owner = connection
+            .query_row(
+                "SELECT kind,state,superseded_at FROM canonical_nodes WHERE write_cursor=?1",
+                [cursor],
+                |row| Ok((text_value(row, 0), text_value(row, 1), nullable_integer_value(row, 2))),
+            )
+            .optional()
+            .map_err(|_| EngineError::Storage)?;
+        let Some((kind, state, superseded)) = owner else {
+            return Ok(OwnerRetention::CanonicalOwnerMissing);
+        };
+        let eligible = crate::dependency_closure::projection_owner_is_eligible_at(
+            connection,
+            cursor_u64,
+            effective_at_epoch_s,
+        )?;
+        if !eligible {
+            return Ok(OwnerRetention::GovernedPruningResidue);
+        }
+        return Ok(match purpose {
+            RetentionPurpose::Body => OwnerRetention::RequiredMembership,
+            RetentionPurpose::Dense { required } => {
+                if state.as_deref() == Some("deleted") || !matches!(superseded, NullableValue::Null)
+                {
+                    OwnerRetention::GovernedPruningResidue
+                } else if required {
+                    OwnerRetention::RequiredMembership
+                } else if kind.as_deref().is_some_and(crate::kind_is_vector_committable) {
+                    OwnerRetention::LegitimateRetained
+                } else {
+                    OwnerRetention::GovernedPruningResidue
+                }
+            }
+        });
+    }
+    let owner = connection
+        .query_row(
+            "SELECT body,superseded_at,t_invalid FROM canonical_edges WHERE write_cursor=?1",
+            [cursor],
+            |row| {
+                Ok((
+                    nullable_text_value(row, 0),
+                    nullable_integer_value(row, 1),
+                    nullable_integer_value(row, 2),
+                ))
+            },
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some((body, superseded, t_invalid)) = owner else {
+        return Ok(OwnerRetention::CanonicalOwnerMissing);
+    };
+    let eligible = crate::dependency_closure::projection_owner_is_eligible_at(
+        connection,
+        cursor_u64,
+        effective_at_epoch_s,
+    )?;
+    if !eligible
+        || !matches!(body, NullableValue::Value(_))
+        || !matches!(superseded, NullableValue::Null)
+    {
+        return Ok(OwnerRetention::GovernedPruningResidue);
+    }
+    if matches!(t_invalid, NullableValue::Value(end) if end <= effective_at_epoch_s) {
+        return Ok(OwnerRetention::LegitimateRetained);
+    }
+    if !matches!(t_invalid, NullableValue::Null | NullableValue::Value(_)) {
+        return Ok(OwnerRetention::GovernedPruningResidue);
+    }
+    Ok(match purpose {
+        RetentionPurpose::Body => OwnerRetention::RequiredMembership,
+        RetentionPurpose::Dense { required: true } => OwnerRetention::RequiredMembership,
+        RetentionPurpose::Dense { required: false } => OwnerRetention::LegitimateRetained,
+    })
+}
+
+#[cfg(feature = "operator")]
+fn revision_for_owner(
+    connection: &Connection,
+    artifact_class: &str,
+    cursor: i64,
+) -> Result<Option<String>, EngineError> {
+    connection
         .query_row(
             "SELECT revision_id FROM _fathomdb_artifact_revisions \
              WHERE artifact_class=?1 AND write_cursor=?2",
             rusqlite::params![artifact_class, cursor],
-            |row| row.get(0),
+            |row| Ok(text_value(row, 0)),
+        )
+        .optional()
+        .map(|value| value.flatten().filter(|value| crate::valid_caller_identity(value)))
+        .map_err(|_| EngineError::Storage)
+}
+
+#[cfg(feature = "operator")]
+fn revision_for_cursor(
+    connection: &Connection,
+    cursor: i64,
+) -> Result<Option<String>, EngineError> {
+    connection
+        .query_row(
+            "SELECT revision_id FROM _fathomdb_artifact_revisions \
+             WHERE write_cursor=?1 ORDER BY artifact_class LIMIT 1",
+            [cursor],
+            |row| Ok(text_value(row, 0)),
+        )
+        .optional()
+        .map(|value| value.flatten().filter(|value| crate::valid_caller_identity(value)))
+        .map_err(|_| EngineError::Storage)
+}
+
+#[cfg(feature = "operator")]
+struct DensePhysicalShape {
+    present_count: u8,
+    complete: bool,
+    terminal_only: bool,
+}
+
+#[cfg(feature = "operator")]
+fn dense_physical_shape(
+    connection: &Connection,
+    cursor: i64,
+    expected_kind: &str,
+) -> Result<DensePhysicalShape, EngineError> {
+    let terminal = connection
+        .query_row(
+            "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
+            [cursor],
+            |row| Ok(text_value(row, 0)),
         )
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
-    let in_membership = if artifact_class == "node" {
-        let exists: bool = connection
+    let sidecar = connection
+        .query_row(
+            "SELECT rowid,kind FROM _fathomdb_vector_rows WHERE write_cursor=?1",
+            [cursor],
+            |row| Ok((integer_value(row, 0), text_value(row, 1))),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let vector = connection
+        .query_row("SELECT source_type,kind FROM vector_default WHERE rowid=?1", [cursor], |row| {
+            Ok((text_value(row, 0), text_value(row, 1)))
+        })
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let present_count =
+        u8::from(terminal.is_some()) + u8::from(sidecar.is_some()) + u8::from(vector.is_some());
+    let expected_source_type = crate::resolve_source_type(expected_kind)?;
+    let complete = terminal.as_ref().is_some_and(|state| state.as_deref() == Some("up_to_date"))
+        && sidecar.as_ref().is_some_and(|(rowid, kind)| {
+            rowid.is_some_and(|rowid| rowid == cursor) && kind.as_deref() == Some(expected_kind)
+        })
+        && vector.as_ref().is_some_and(|(source_type, kind)| {
+            source_type.as_deref() == Some(expected_source_type)
+                && kind.as_deref() == Some(expected_kind)
+        });
+    Ok(DensePhysicalShape {
+        present_count,
+        complete,
+        terminal_only: terminal.is_some() && sidecar.is_none() && vector.is_none(),
+    })
+}
+
+#[cfg(feature = "operator")]
+fn body_residue_finding(
+    connection: &Connection,
+    artifact_class: &str,
+    cursor: i64,
+    physical_body: Option<&str>,
+    physical_kind: Option<&str>,
+    effective_at_epoch_s: i64,
+) -> Result<Option<DataPlaneIntegrityFindingV1>, EngineError> {
+    let revision = revision_for_owner(connection, artifact_class, cursor)?;
+    let retention = owner_retention_at(
+        connection,
+        artifact_class,
+        cursor,
+        effective_at_epoch_s,
+        RetentionPurpose::Body,
+    )?;
+    if retention == OwnerRetention::LegitimateRetained {
+        let canonical = connection
             .query_row(
-                "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1)",
+                "SELECT body,kind FROM canonical_edges WHERE write_cursor=?1",
                 [cursor],
-                |row| row.get(0),
-            )
-            .map_err(|_| EngineError::Storage)?;
-        exists
-            && crate::dependency_closure::projection_owner_is_eligible_at(
-                connection,
-                cursor_u64,
-                effective_at_epoch_s,
-            )?
-    } else {
-        let owner: Option<(Option<String>, Option<i64>, Option<i64>)> = connection
-            .query_row(
-                "SELECT body,superseded_at,t_invalid FROM canonical_edges WHERE write_cursor=?1",
-                [cursor],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                |row| Ok((nullable_text_value(row, 0), text_value(row, 1))),
             )
             .optional()
             .map_err(|_| EngineError::Storage)?;
-        owner.is_some_and(|(body, superseded, t_invalid)| {
-            body.is_some()
-                && superseded.is_none()
-                && t_invalid.is_none_or(|end| end > effective_at_epoch_s)
-        }) && crate::dependency_closure::projection_owner_is_eligible_at(
-            connection,
-            cursor_u64,
-            effective_at_epoch_s,
-        )?
-    };
+        if canonical.is_some_and(|(body, kind)| {
+            matches!(body, NullableValue::Value(value) if Some(value.as_str()) == physical_body)
+                && kind.as_deref() == physical_kind
+        }) {
+            return Ok(None);
+        }
+    }
+    let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
     let mut item = finding(
-        if revision.is_some() {
-            if in_membership {
+        match retention {
+            OwnerRetention::RequiredMembership | OwnerRetention::LegitimateRetained => {
                 DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch
-            } else {
+            }
+            OwnerRetention::GovernedPruningResidue => {
                 DataPlaneIntegrityFindingCodeV1::SearchProjectionOutsideMembership
             }
-        } else {
-            DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing
+            OwnerRetention::CanonicalOwnerMissing => {
+                DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing
+            }
         },
-        if revision.is_some() && in_membership {
-            DataPlaneIntegritySeverityV1::Error
-        } else {
-            DataPlaneIntegritySeverityV1::Critical
+        match retention {
+            OwnerRetention::RequiredMembership | OwnerRetention::LegitimateRetained => {
+                DataPlaneIntegritySeverityV1::Error
+            }
+            OwnerRetention::GovernedPruningResidue | OwnerRetention::CanonicalOwnerMissing => {
+                DataPlaneIntegritySeverityV1::Critical
+            }
         },
     );
     item.write_cursor = Some(cursor_u64);
     item.artifact_revision_ids = revision.into_iter().collect();
-    Ok(item)
+    Ok(Some(item))
 }
 
 #[cfg(feature = "operator")]
@@ -931,10 +1236,10 @@ fn active_projection_findings(
         let entries = expected
             .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
                 Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, Option<String>>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
+                    integer_value(row, 0),
+                    text_value(row, 1),
+                    text_value(row, 2),
+                    text_value(row, 3),
                 ))
             })
             .map_err(|_| EngineError::Storage)?
@@ -943,11 +1248,22 @@ fn active_projection_findings(
         let mut expected_by_cursor = BTreeMap::new();
         for (cursor, revision, body, kind) in entries {
             take_work(aggregate_checked, max_work_units)?;
-            if !crate::dependency_closure::projection_owner_is_eligible_at(
+            let Some(cursor) = cursor else {
+                let item = finding(
+                    DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
+                    DataPlaneIntegritySeverityV1::Error,
+                );
+                push_finding(findings, item, max_findings)?;
+                continue;
+            };
+            if owner_retention_at(
                 connection,
-                u64::try_from(cursor).map_err(|_| EngineError::Storage)?,
+                "node",
+                cursor,
                 effective_at_epoch_s,
-            )? {
+                RetentionPurpose::Body,
+            )? != OwnerRetention::RequiredMembership
+            {
                 continue;
             }
             expected_by_cursor.insert(cursor, (revision, body, kind));
@@ -958,19 +1274,26 @@ fn active_projection_findings(
         let physical = physical_statement
             .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
                 Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, i64>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
+                    integer_value(row, 0),
+                    integer_value(row, 1),
+                    text_value(row, 2),
+                    text_value(row, 3),
                 ))
             })
             .map_err(|_| EngineError::Storage)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;
-        let mut physical_by_cursor: BTreeMap<i64, Vec<(i64, String, String)>> = BTreeMap::new();
+        let mut physical_by_cursor = PhysicalBodyMembers::new();
+        let mut invalid_physical = Vec::new();
         for (rowid, cursor, body, kind) in physical {
             take_work(aggregate_checked, max_work_units)?;
-            physical_by_cursor.entry(cursor).or_default().push((rowid, body, kind));
+            match (rowid, cursor) {
+                (Some(rowid), Some(cursor)) if cursor >= 0 => {
+                    physical_by_cursor.entry(cursor).or_default().push((rowid, body, kind));
+                }
+                (Some(rowid), _) => invalid_physical.push(rowid),
+                (None, _) => invalid_physical.push(i64::MAX),
+            }
         }
         for (cursor, (revision, body, kind)) in &expected_by_cursor {
             let candidates = physical_by_cursor.get(cursor);
@@ -979,9 +1302,13 @@ fn active_projection_findings(
                 item.write_cursor = u64::try_from(*cursor).ok();
                 item.artifact_revision_ids = revision.iter().cloned().collect();
                 push_finding(findings, item, max_findings)?;
-            } else if candidates
-                .is_none_or(|rows| rows.len() != 1 || rows[0].1 != *body || rows[0].2 != *kind)
-            {
+            } else if candidates.is_none_or(|rows| {
+                rows.len() != 1
+                    || rows[0].1.as_ref() != body.as_ref()
+                    || rows[0].2.as_ref() != kind.as_ref()
+                    || body.is_none()
+                    || kind.is_none()
+            }) {
                 let mut item = finding(
                     DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
                     DataPlaneIntegritySeverityV1::Error,
@@ -994,11 +1321,24 @@ fn active_projection_findings(
         let mut residue = physical_by_cursor
             .iter()
             .filter(|(cursor, _)| !expected_by_cursor.contains_key(cursor))
-            .flat_map(|(cursor, rows)| rows.iter().map(move |row| (row.0, *cursor)))
+            .flat_map(|(cursor, rows)| {
+                rows.iter().map(move |row| (row.0, *cursor, row.1.as_deref(), row.2.as_deref()))
+            })
             .collect::<Vec<_>>();
-        residue.sort_unstable();
-        for (_, cursor) in residue {
-            let item = body_residue_finding(connection, "node", cursor, effective_at_epoch_s)?;
+        residue.sort_unstable_by_key(|row| row.0);
+        for (_, cursor, body, kind) in residue {
+            if let Some(item) =
+                body_residue_finding(connection, "node", cursor, body, kind, effective_at_epoch_s)?
+            {
+                push_finding(findings, item, max_findings)?;
+            }
+        }
+        invalid_physical.sort_unstable();
+        for _ in invalid_physical {
+            let item = finding(
+                DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
+                DataPlaneIntegritySeverityV1::Error,
+            );
             push_finding(findings, item, max_findings)?;
         }
     }
@@ -1009,32 +1349,47 @@ fn active_projection_findings(
     let edge_entries = edge_statement
         .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
             Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, Option<String>>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, Option<i64>>(4)?,
-                row.get::<_, Option<i64>>(5)?,
+                integer_value(row, 0),
+                text_value(row, 1),
+                nullable_text_value(row, 2),
+                text_value(row, 3),
             ))
         })
         .map_err(|_| EngineError::Storage)?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(|_| EngineError::Storage)?;
     let mut expected_edges = BTreeMap::new();
-    for (cursor, revision, body, kind, superseded_at, t_invalid) in edge_entries {
+    for (cursor, revision, body, kind) in edge_entries {
         take_work(aggregate_checked, max_work_units)?;
-        if body.is_none()
-            || superseded_at.is_some()
-            || t_invalid.is_some_and(|end| end <= effective_at_epoch_s)
-            || !crate::dependency_closure::projection_owner_is_eligible_at(
-                connection,
-                u64::try_from(cursor).map_err(|_| EngineError::Storage)?,
-                effective_at_epoch_s,
-            )?
+        let Some(cursor) = cursor else {
+            let item = finding(
+                DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
+                DataPlaneIntegritySeverityV1::Error,
+            );
+            push_finding(findings, item, max_findings)?;
+            continue;
+        };
+        if owner_retention_at(
+            connection,
+            "edge",
+            cursor,
+            effective_at_epoch_s,
+            RetentionPurpose::Body,
+        )? != OwnerRetention::RequiredMembership
         {
             continue;
         }
-        expected_edges.insert(cursor, (revision, body.expect("checked above"), kind));
+        let NullableValue::Value(body) = body else {
+            let mut item = finding(
+                DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
+                DataPlaneIntegritySeverityV1::Error,
+            );
+            item.write_cursor = u64::try_from(cursor).ok();
+            item.artifact_revision_ids = revision.into_iter().collect();
+            push_finding(findings, item, max_findings)?;
+            continue;
+        };
+        expected_edges.insert(cursor, (revision, body, kind));
     }
     let remaining = max_work_units.saturating_sub(*aggregate_checked);
     let mut edge_physical_statement =
@@ -1042,19 +1397,26 @@ fn active_projection_findings(
     let edge_physical = edge_physical_statement
         .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
             Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, i64>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
+                integer_value(row, 0),
+                integer_value(row, 1),
+                text_value(row, 2),
+                text_value(row, 3),
             ))
         })
         .map_err(|_| EngineError::Storage)?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(|_| EngineError::Storage)?;
-    let mut physical_edges: BTreeMap<i64, Vec<(i64, String, String)>> = BTreeMap::new();
+    let mut physical_edges = PhysicalBodyMembers::new();
+    let mut invalid_edge_physical = Vec::new();
     for (rowid, cursor, body, kind) in edge_physical {
         take_work(aggregate_checked, max_work_units)?;
-        physical_edges.entry(cursor).or_default().push((rowid, body, kind));
+        match (rowid, cursor) {
+            (Some(rowid), Some(cursor)) if cursor >= 0 => {
+                physical_edges.entry(cursor).or_default().push((rowid, body, kind));
+            }
+            (Some(rowid), _) => invalid_edge_physical.push(rowid),
+            (None, _) => invalid_edge_physical.push(i64::MAX),
+        }
     }
     for (cursor, (revision, body, kind)) in &expected_edges {
         match physical_edges.get(cursor) {
@@ -1067,7 +1429,12 @@ fn active_projection_findings(
                 item.artifact_revision_ids = revision.iter().cloned().collect();
                 push_finding(findings, item, max_findings)?;
             }
-            Some(rows) if rows.len() != 1 || rows[0].1 != *body || rows[0].2 != *kind => {
+            Some(rows)
+                if rows.len() != 1
+                    || rows[0].1.as_deref() != Some(body.as_str())
+                    || rows[0].2.as_ref() != kind.as_ref()
+                    || kind.is_none() =>
+            {
                 let mut item = finding(
                     DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
                     DataPlaneIntegritySeverityV1::Error,
@@ -1082,11 +1449,24 @@ fn active_projection_findings(
     let mut edge_residue = physical_edges
         .iter()
         .filter(|(cursor, _)| !expected_edges.contains_key(cursor))
-        .flat_map(|(cursor, rows)| rows.iter().map(move |row| (row.0, *cursor)))
+        .flat_map(|(cursor, rows)| {
+            rows.iter().map(move |row| (row.0, *cursor, row.1.as_deref(), row.2.as_deref()))
+        })
         .collect::<Vec<_>>();
-    edge_residue.sort_unstable();
-    for (_, cursor) in edge_residue {
-        let item = body_residue_finding(connection, "edge", cursor, effective_at_epoch_s)?;
+    edge_residue.sort_unstable_by_key(|row| row.0);
+    for (_, cursor, body, kind) in edge_residue {
+        if let Some(item) =
+            body_residue_finding(connection, "edge", cursor, body, kind, effective_at_epoch_s)?
+        {
+            push_finding(findings, item, max_findings)?;
+        }
+    }
+    invalid_edge_physical.sort_unstable();
+    for _ in invalid_edge_physical {
+        let item = finding(
+            DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
+            DataPlaneIntegritySeverityV1::Error,
+        );
         push_finding(findings, item, max_findings)?;
     }
 
@@ -1113,22 +1493,21 @@ fn active_projection_findings(
         for cursor in cursors {
             take_work(aggregate_checked, max_work_units)?;
             let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
-            if crate::projection_generation::dense_member_kind_at(
+            let required = crate::projection_generation::dense_member_kind_at(
                 connection,
                 cursor_u64,
                 effective_at_epoch_s,
             )?
-            .is_some()
+            .is_some();
+            if owner_retention_at(
+                connection,
+                class,
+                cursor,
+                effective_at_epoch_s,
+                RetentionPurpose::Dense { required },
+            )? == OwnerRetention::RequiredMembership
             {
-                let revision: Option<String> = connection
-                    .query_row(
-                        "SELECT revision_id FROM _fathomdb_artifact_revisions \
-                         WHERE artifact_class=?1 AND write_cursor=?2",
-                        rusqlite::params![class, cursor],
-                        |row| row.get(0),
-                    )
-                    .optional()
-                    .map_err(|_| EngineError::Storage)?;
+                let revision = revision_for_owner(connection, class, cursor)?;
                 expected_dense.insert(cursor_u64, revision);
             }
         }
@@ -1168,47 +1547,103 @@ fn active_projection_findings(
         }
     }
     let physical_dense = physical_dense_candidates(connection, max_work_units, aggregate_checked)?;
-    for cursor in physical_dense {
+    for cursor in physical_dense.valid {
         if !expected_dense.contains_key(&cursor) {
             let cursor_i64 = i64::try_from(cursor).map_err(|_| EngineError::Storage)?;
-            let (owner_exists, terminal, sidecar, vector): (bool, bool, bool, bool) = connection
+            let (node_exists, edge_exists): (bool, bool) = connection
                 .query_row(
                     "SELECT \
-                       EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1) \
-                         OR EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1), \
-                       EXISTS(SELECT 1 FROM _fathomdb_projection_terminal WHERE write_cursor=?1), \
-                       EXISTS(SELECT 1 FROM _fathomdb_vector_rows WHERE write_cursor=?1), \
-                       EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1)",
+                       EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1), \
+                       EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)",
                     [cursor_i64],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                    |row| Ok((row.get(0)?, row.get(1)?)),
                 )
                 .map_err(|_| EngineError::Storage)?;
-            if owner_exists && terminal && !sidecar && !vector {
+            let artifact_class = if node_exists {
+                Some("node")
+            } else if edge_exists {
+                Some("edge")
+            } else {
+                None
+            };
+            let expected_kind = if artifact_class == Some("edge") {
+                "edge_fact".to_string()
+            } else if artifact_class == Some("node") {
+                connection
+                    .query_row(
+                        "SELECT kind FROM canonical_nodes WHERE write_cursor=?1",
+                        [cursor_i64],
+                        |row| Ok(text_value(row, 0)),
+                    )
+                    .map_err(|_| EngineError::Storage)?
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
+            let retention = if let Some(class) = artifact_class {
+                owner_retention_at(
+                    connection,
+                    class,
+                    cursor_i64,
+                    effective_at_epoch_s,
+                    RetentionPurpose::Dense { required: false },
+                )?
+            } else {
+                OwnerRetention::CanonicalOwnerMissing
+            };
+            let shape = matches!(
+                retention,
+                OwnerRetention::RequiredMembership | OwnerRetention::LegitimateRetained
+            )
+            .then(|| dense_physical_shape(connection, cursor_i64, &expected_kind))
+            .transpose()?;
+            if retention == OwnerRetention::LegitimateRetained
+                && shape.as_ref().is_some_and(|shape| shape.complete || shape.terminal_only)
+            {
                 continue;
             }
             let mut item = finding(
-                if owner_exists {
-                    DataPlaneIntegrityFindingCodeV1::DenseProjectionOutsideMembership
-                } else {
-                    DataPlaneIntegrityFindingCodeV1::DenseProjectionOwnerMissing
+                match retention {
+                    OwnerRetention::CanonicalOwnerMissing => {
+                        DataPlaneIntegrityFindingCodeV1::DenseProjectionOwnerMissing
+                    }
+                    OwnerRetention::GovernedPruningResidue => {
+                        DataPlaneIntegrityFindingCodeV1::DenseProjectionOutsideMembership
+                    }
+                    OwnerRetention::RequiredMembership | OwnerRetention::LegitimateRetained => {
+                        if shape.as_ref().is_some_and(|shape| {
+                            shape.present_count == 1 || shape.present_count == 2
+                        }) {
+                            DataPlaneIntegrityFindingCodeV1::DenseProjectionPartial
+                        } else {
+                            DataPlaneIntegrityFindingCodeV1::DenseProjectionIdentityMismatch
+                        }
+                    }
                 },
-                DataPlaneIntegritySeverityV1::Critical,
+                match retention {
+                    OwnerRetention::CanonicalOwnerMissing
+                    | OwnerRetention::GovernedPruningResidue => {
+                        DataPlaneIntegritySeverityV1::Critical
+                    }
+                    OwnerRetention::RequiredMembership | OwnerRetention::LegitimateRetained => {
+                        DataPlaneIntegritySeverityV1::Error
+                    }
+                },
             );
             item.write_cursor = Some(cursor);
-            if owner_exists {
-                let revision: Option<String> = connection
-                    .query_row(
-                        "SELECT revision_id FROM _fathomdb_artifact_revisions \
-                         WHERE write_cursor=?1 ORDER BY artifact_class LIMIT 1",
-                        [cursor_i64],
-                        |row| row.get(0),
-                    )
-                    .optional()
-                    .map_err(|_| EngineError::Storage)?;
+            if let Some(class) = artifact_class {
+                let revision = revision_for_owner(connection, class, cursor_i64)?;
                 item.artifact_revision_ids = revision.into_iter().collect();
             }
             push_finding(findings, item, max_findings)?;
         }
+    }
+    for _ in 0..physical_dense.invalid {
+        let item = finding(
+            DataPlaneIntegrityFindingCodeV1::DenseProjectionIdentityMismatch,
+            DataPlaneIntegritySeverityV1::Error,
+        );
+        push_finding(findings, item, max_findings)?;
     }
 
     let mut expected_attributes = BTreeMap::new();
@@ -1261,19 +1696,26 @@ fn active_projection_findings(
         let physical = physical_statement
             .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
                 Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, i64>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
+                    integer_value(row, 0),
+                    integer_value(row, 1),
+                    text_value(row, 2),
+                    text_value(row, 3),
                 ))
             })
             .map_err(|_| EngineError::Storage)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;
-        let mut physical_members: BTreeMap<(String, i64), Vec<(i64, String)>> = BTreeMap::new();
+        let mut physical_members = PhysicalAttributeMembers::new();
+        let mut invalid_physical = Vec::new();
         for (rowid, cursor, name, value) in physical {
             take_work(aggregate_checked, max_work_units)?;
-            physical_members.entry((name, cursor)).or_default().push((rowid, value));
+            match (rowid, cursor, name) {
+                (Some(rowid), Some(cursor), Some(name)) if cursor >= 0 => {
+                    physical_members.entry((name, cursor)).or_default().push((rowid, value));
+                }
+                (Some(rowid), _, _) => invalid_physical.push(rowid),
+                (None, _, _) => invalid_physical.push(i64::MAX),
+            }
         }
         for ((name, cursor), (expected_value, revision)) in expected_members {
             match physical_members.get(&((*name).clone(), *cursor)) {
@@ -1283,7 +1725,10 @@ fn active_projection_findings(
                     item.artifact_revision_ids = revision.iter().cloned().collect();
                     push_finding(findings, item, max_findings)?;
                 }
-                Some(values) if values.len() != 1 || values[0].1 != *expected_value => {
+                Some(values)
+                    if values.len() != 1
+                        || values[0].1.as_deref() != Some(expected_value.as_str()) =>
+                {
                     let mut item = finding(
                         DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
                         DataPlaneIntegritySeverityV1::Error,
@@ -1321,17 +1766,17 @@ fn active_projection_findings(
             );
             item.write_cursor = u64::try_from(cursor).ok();
             if owner_exists {
-                let revision: Option<String> = connection
-                    .query_row(
-                        "SELECT revision_id FROM _fathomdb_artifact_revisions \
-                             WHERE artifact_class='node' AND write_cursor=?1",
-                        [cursor],
-                        |row| row.get(0),
-                    )
-                    .optional()
-                    .map_err(|_| EngineError::Storage)?;
+                let revision = revision_for_owner(connection, "node", cursor)?;
                 item.artifact_revision_ids = revision.into_iter().collect();
             }
+            push_finding(findings, item, max_findings)?;
+        }
+        invalid_physical.sort_unstable();
+        for _ in invalid_physical {
+            let item = finding(
+                DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
+                DataPlaneIntegritySeverityV1::Error,
+            );
             push_finding(findings, item, max_findings)?;
         }
     }
@@ -1350,26 +1795,39 @@ fn projection_generation_findings(
 ) -> Result<(u32, String), EngineError> {
     let start = *aggregate_checked;
     take_work(aggregate_checked, max_work_units)?;
-    let current_record: Option<(String, i64, String, Option<i64>, i64, String)> = connection
+    let current_record = connection
         .query_row(CURRENT_GENERATION_QUERY, rusqlite::params![0_i64, 2_i64], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?))
+            Ok((
+                text_value(row, 0),
+                integer_value(row, 1),
+                text_value(row, 2),
+                nullable_integer_value(row, 3),
+                integer_value(row, 4),
+                text_value(row, 5),
+            ))
         })
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let current = current_record.as_ref().map(|record| record.0.clone());
+    let current = current_record.as_ref().and_then(|record| record.0.clone());
     let mut valid =
         current_record.as_ref().is_some_and(|(id, schema, role, retired, transition, digest)| {
-            valid_generation_id(id)
-                && *schema == 1
-                && role == "serving"
-                && retired.is_none()
-                && *transition >= 0
-                && digest.len() == 64
-                && digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            id.as_deref().is_some_and(valid_generation_id)
+                && *schema == Some(1)
+                && role.as_deref() == Some("serving")
+                && *retired == NullableValue::Null
+                && transition.is_some_and(|value| value >= 0)
+                && digest.as_ref().is_some_and(|digest| {
+                    digest.len() == 64
+                        && digest
+                            .bytes()
+                            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                })
         });
-    if current.is_some() {
+    if current_record.is_some() {
         take_work(aggregate_checked, max_work_units)?;
-        valid &= crate::projection_generation::current_generation_id(connection).is_ok();
+    }
+    if valid {
+        valid = crate::projection_generation::current_generation_id(connection).is_ok();
     }
     if !valid {
         let mut item = finding(
@@ -1380,8 +1838,10 @@ fn projection_generation_findings(
         push_finding(findings, item, max_findings)?;
     } else {
         let generation_id = current.as_ref().expect("validated current generation");
-        let mut candidates =
+        let physical_dense =
             physical_dense_candidates(connection, max_work_units, aggregate_checked)?;
+        let invalid_dense = physical_dense.invalid;
+        let mut candidates = physical_dense.valid;
         let dense_authority_enabled = crate::vector_projection_declared(connection)
             .map_err(|_| EngineError::Storage)?
             || connection
@@ -1414,24 +1874,69 @@ fn projection_generation_findings(
                 cursor_u64,
                 effective_at_epoch_s,
             )?;
-            let (terminal, sidecar, vector, owner_exists): (bool, bool, bool, bool) = connection
+            let (terminal, sidecar, vector, node_exists, edge_exists): (
+                bool,
+                bool,
+                bool,
+                bool,
+                bool,
+            ) = connection
                 .query_row(
                     "SELECT \
                        EXISTS(SELECT 1 FROM _fathomdb_projection_terminal WHERE write_cursor=?1), \
                        EXISTS(SELECT 1 FROM _fathomdb_vector_rows WHERE write_cursor=?1), \
                        EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1), \
-                       EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1) \
-                         OR EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)",
+                       EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1), \
+                       EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)",
                     [cursor],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
                 )
                 .map_err(|_| EngineError::Storage)?;
             let physical = terminal || sidecar || vector;
             if expected.is_none() && !physical {
                 continue;
             }
-            if expected.is_none() && owner_exists && terminal && !sidecar && !vector {
-                continue;
+            let artifact_class = if node_exists {
+                Some("node")
+            } else if edge_exists {
+                Some("edge")
+            } else {
+                None
+            };
+            if expected.is_none() {
+                let retention = if let Some(class) = artifact_class {
+                    owner_retention_at(
+                        connection,
+                        class,
+                        cursor,
+                        effective_at_epoch_s,
+                        RetentionPurpose::Dense { required: false },
+                    )?
+                } else {
+                    OwnerRetention::CanonicalOwnerMissing
+                };
+                let expected_kind = if artifact_class == Some("edge") {
+                    Some("edge_fact".to_string())
+                } else if artifact_class == Some("node") {
+                    connection
+                        .query_row(
+                            "SELECT kind FROM canonical_nodes WHERE write_cursor=?1",
+                            [cursor],
+                            |row| Ok(text_value(row, 0)),
+                        )
+                        .map_err(|_| EngineError::Storage)?
+                } else {
+                    None
+                };
+                let accepted_retained = retention == OwnerRetention::LegitimateRetained
+                    && expected_kind
+                        .as_deref()
+                        .map(|kind| dense_physical_shape(connection, cursor, kind))
+                        .transpose()?
+                        .is_some_and(|shape| shape.complete || shape.terminal_only);
+                if accepted_retained {
+                    continue;
+                }
             }
             let member_valid = expected.is_some()
                 && crate::projection_generation::physical_member_completion_at(
@@ -1442,15 +1947,7 @@ fn projection_generation_findings(
                 )
                 .is_ok();
             if !member_valid {
-                let revision: Option<String> = connection
-                    .query_row(
-                        "SELECT revision_id FROM _fathomdb_artifact_revisions \
-                         WHERE write_cursor=?1 ORDER BY artifact_class LIMIT 1",
-                        [cursor],
-                        |row| row.get(0),
-                    )
-                    .optional()
-                    .map_err(|_| EngineError::Storage)?;
+                let revision = revision_for_cursor(connection, cursor)?;
                 let mut item = finding(
                     DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt,
                     DataPlaneIntegritySeverityV1::Error,
@@ -1460,6 +1957,14 @@ fn projection_generation_findings(
                 item.write_cursor = Some(cursor_u64);
                 push_finding(findings, item, max_findings)?;
             }
+        }
+        for _ in 0..invalid_dense {
+            let mut item = finding(
+                DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt,
+                DataPlaneIntegritySeverityV1::Error,
+            );
+            item.projection_generation_id = Some(generation_id.clone());
+            push_finding(findings, item, max_findings)?;
         }
     }
     Ok((*aggregate_checked - start, current.unwrap_or_default()))
@@ -1479,7 +1984,7 @@ fn mutation_readiness_findings(
     let mut statement =
         connection.prepare(RECEIPT_GUARD_QUERY).map_err(|_| EngineError::Storage)?;
     let guarded = statement
-        .query_map(rusqlite::params!["", i64::from(remaining) + 1], |row| {
+        .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, bool>(1)?,
@@ -1764,15 +2269,16 @@ pub(crate) fn execute(
     let transaction = connection.transaction().map_err(|_| EngineError::Storage)?;
     let effective_at_epoch_s = current_epoch_seconds();
     let observed_write_boundary = load_next_cursor(&transaction);
-    let dependency_generation = load_dependency_generation(&transaction)?;
-    let mut projection_generation_id: String = transaction
+    let dependency_generation = integrity_dependency_generation(&transaction)?.unwrap_or(0);
+    let mut projection_generation_id = transaction
         .query_row(
             "SELECT generation_id FROM _fathomdb_projection_generation_current WHERE singleton=1",
             [],
-            |row| row.get(0),
+            |row| Ok(text_value(row, 0).filter(|value| valid_generation_id(value))),
         )
         .optional()
         .map_err(|_| EngineError::Storage)?
+        .flatten()
         .unwrap_or_default();
 
     let mut checked_count = 0u32;

@@ -100,6 +100,24 @@ fn slice55_wire_rejects_u32_overflow_and_count_disagreement() {
     assert_eq!(corrupt(&value).field_path, "/checkedWorkUnits");
 }
 
+#[test]
+fn slice55_wire_rejects_role_endpoint_and_uniqueness_invariants() {
+    let fixture: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/slice55/trace-v1.json")).unwrap();
+
+    let mut value = fixture.clone();
+    value["nodes"][0]["role"] = "derived".into();
+    assert_eq!(corrupt(&value).field_path, "/nodes/0/role");
+
+    let mut value = fixture.clone();
+    value["dependencyEdges"][0]["sourceRevisionId"] = "other-r1".into();
+    assert_eq!(corrupt(&value).field_path, "/dependencyEdges/0/sourceRevisionId");
+
+    let mut value = fixture;
+    value["nodes"][1]["artifactRevisionId"] = "source-r1".into();
+    assert_eq!(corrupt(&value).field_path, "/nodes/1/artifactRevisionId");
+}
+
 proptest! {
     #[test]
     fn slice55_trace_codec_round_trip(revision in "[A-Za-z0-9][A-Za-z0-9._:-]{0,31}") {

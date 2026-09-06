@@ -91,6 +91,16 @@ fn property_spec() -> ProjectionSpec {
     }
 }
 
+fn filter_spec(name: &str) -> ProjectionSpec {
+    ProjectionSpec {
+        name: name.into(),
+        roles: BTreeSet::from([ProjectionRole::Filterable]),
+        fts: None,
+        vector: None,
+        source: None,
+    }
+}
+
 fn dependency_seeded() -> (TempDir, fathomdb_engine::OpenedEngine) {
     let (dir, opened) = opened();
     opened
@@ -272,6 +282,62 @@ fn slice55_integrity_execution_boundary_revalidates_public_struct_literals() {
 }
 
 #[test]
+fn slice55_integrity_constructor_uses_declared_precedence_and_duplicate_path() {
+    let error = DataPlaneIntegrityRequestV1::new(
+        vec![
+            DataPlaneIntegrityCheckV1::DependencyChain,
+            DataPlaneIntegrityCheckV1::DependencyChain,
+        ],
+        1,
+        1,
+    )
+    .unwrap_err();
+    assert_eq!(error.reason, DataPlaneIntegrityErrorReasonV1::DuplicateCheck);
+    assert_eq!(error.field_path, "/checks/1");
+
+    let error = DataPlaneIntegrityRequestV1::new(
+        vec![
+            DataPlaneIntegrityCheckV1::DependencyChain,
+            DataPlaneIntegrityCheckV1::DependencyChain,
+        ],
+        0,
+        1,
+    )
+    .unwrap_err();
+    assert_eq!(error.reason, DataPlaneIntegrityErrorReasonV1::IntegrityLimitInvalid);
+    assert_eq!(error.field_path, "/maxWorkUnits");
+}
+
+#[test]
+fn slice55_integrity_finding_overflow_names_max_findings() {
+    let (_dir, opened) = opened();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT INTO search_index(rowid,body,kind,write_cursor) VALUES \
+             (900,'one','doc',900),(901,'two','doc',901)",
+        )
+        .unwrap();
+    let error = opened
+        .engine
+        .check_data_plane_integrity(
+            DataPlaneIntegrityRequestV1::new(
+                vec![DataPlaneIntegrityCheckV1::ActiveSearchableOrphans],
+                10_000,
+                1,
+            )
+            .unwrap(),
+        )
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::DataPlaneIntegrity(ref value)
+            if value.reason == DataPlaneIntegrityErrorReasonV1::IntegrityBoundExceeded
+                && value.field_path == "/maxFindings"
+    ));
+}
+
+#[test]
 fn slice55_dependency_chain_fault_matrix() {
     let (_dir, opened) = dependency_seeded();
     opened
@@ -302,6 +368,61 @@ fn slice55_dependency_chain_missing_owner_is_critical() {
         finding_codes(&opened, DataPlaneIntegrityCheckV1::DependencyChain),
         [DataPlaneIntegrityFindingCodeV1::DependencyDerivedOwnerMissing]
     );
+}
+
+#[test]
+fn slice55_dependency_source_finding_names_both_revisions() {
+    let (_dir, opened) = dependency_seeded();
+    opened
+        .engine
+        .execute_for_test(
+            "DELETE FROM _fathomdb_artifact_revisions \
+             WHERE revision_id='integrity-source-r1'",
+        )
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::DependencyChain, 10_000))
+        .unwrap();
+    assert_eq!(result.findings.len(), 1);
+    assert_eq!(
+        result.findings[0].code,
+        DataPlaneIntegrityFindingCodeV1::DependencySourceOwnerMissing
+    );
+    assert_eq!(
+        result.findings[0].artifact_revision_ids,
+        ["integrity-derived-r1", "integrity-source-r1"]
+    );
+}
+
+#[test]
+fn slice55_attribute_findings_follow_declaration_then_cursor_order() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_projections(&[filter_spec("zeta"), filter_spec("alpha")], &[]).unwrap();
+    opened
+        .engine
+        .write(&[
+            canonical("zeta-r1", "zeta", r#"{"zeta":"one"}"#),
+            canonical("alpha-r1", "alpha", r#"{"alpha":"two"}"#),
+        ])
+        .unwrap();
+    opened.engine.execute_for_test("DELETE FROM canonical_attributes").unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            10_000,
+        ))
+        .unwrap();
+    let missing = result
+        .findings
+        .iter()
+        .filter(|finding| {
+            finding.code == DataPlaneIntegrityFindingCodeV1::CanonicalAttributeMissing
+        })
+        .map(|finding| finding.artifact_revision_ids.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(missing, [vec!["alpha-r1".to_owned()], vec!["zeta-r1".to_owned()]]);
 }
 
 #[test]

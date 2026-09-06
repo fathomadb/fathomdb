@@ -1224,3 +1224,30 @@ npm run build:debug
 node --test --test-name-pattern slice55 dist/tests/*.test.js
 tests 73; pass 73; fail 0
 ```
+
+## Implementation review FIX-4 chronology
+
+Cycle-4 verdict `FAIL` is recorded in docs-only commit
+`d2d8f4d497334cdedbc7e7c8e2f9cbb0e4c45050`.
+
+The first test-only RED increment covers exact request precedence and indexed
+duplicate paths, finding-cap attribution, both source and derived revision
+identities, and declaration-name-before-cursor sparse finding order. Intended
+diagnostics were:
+
+```text
+slice55_integrity_constructor_uses_declared_precedence_and_duplicate_path
+  left: "/checks"
+ right: "/checks/1"
+
+slice55_integrity_finding_overflow_names_max_findings
+assertion failed: value.field_path == "/maxFindings"
+
+slice55_dependency_source_finding_names_both_revisions
+  left: ["integrity-derived-r1"]
+ right: ["integrity-derived-r1", "integrity-source-r1"]
+
+slice55_attribute_findings_follow_declaration_then_cursor_order
+  left: [["zeta-r1"], ["alpha-r1"]]
+ right: [["alpha-r1"], ["zeta-r1"]]
+```

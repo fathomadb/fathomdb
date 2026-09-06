@@ -13,21 +13,42 @@ fn result() -> DependencyTraceResultV1 {
         schema_version: 1,
         root_revision_id: "source-r1".into(),
         direction: DependencyTraceDirectionV1::ToDependents,
-        nodes: vec![DependencyTraceNodeV1 {
-            schema_version: 1,
-            artifact_revision_id: "source-r1".into(),
-            artifact_class: TraceArtifactClassV1::Node,
-            role: TraceArtifactRoleV1::CanonicalSource,
-            depth: 0,
-            lifecycle: TraceNodeLifecycleV1::Node {
+        nodes: vec![
+            DependencyTraceNodeV1 {
                 schema_version: 1,
-                state: fathomdb_engine::LifecycleState::Active,
-                superseded: false,
-                valid_at_effective: true,
+                artifact_revision_id: "source-r1".into(),
+                artifact_class: TraceArtifactClassV1::Node,
+                role: TraceArtifactRoleV1::CanonicalSource,
+                depth: 0,
+                lifecycle: TraceNodeLifecycleV1::Node {
+                    schema_version: 1,
+                    state: fathomdb_engine::LifecycleState::Active,
+                    superseded: false,
+                    valid_at_effective: true,
+                },
             },
+            DependencyTraceNodeV1 {
+                schema_version: 1,
+                artifact_revision_id: "derived-r1".into(),
+                artifact_class: TraceArtifactClassV1::Node,
+                role: TraceArtifactRoleV1::Derived,
+                depth: 1,
+                lifecycle: TraceNodeLifecycleV1::Node {
+                    schema_version: 1,
+                    state: fathomdb_engine::LifecycleState::Active,
+                    superseded: false,
+                    valid_at_effective: true,
+                },
+            },
+        ],
+        dependency_edges: vec![DependencyTraceEdgeV1 {
+            schema_version: 1,
+            dependency_id: "dep-1".into(),
+            source_revision_id: "source-r1".into(),
+            derived_revision_id: "derived-r1".into(),
+            registered_dependency_generation: 1,
         }],
-        dependency_edges: Vec::<DependencyTraceEdgeV1>::new(),
-        checked_work_units: 1,
+        checked_work_units: 2,
         complete: true,
         read_boundary: TraceReadBoundaryV1 {
             schema_version: 1,
@@ -39,11 +60,43 @@ fn result() -> DependencyTraceResultV1 {
     }
 }
 
+fn corrupt(value: &serde_json::Value) -> fathomdb_engine::DependencyTraceErrorV1 {
+    decode_dependency_trace_result_v1(&serde_json::to_vec(value).unwrap()).unwrap_err()
+}
+
 #[test]
 fn slice55_wire_v1_canonical_bytes() {
     let bytes = encode_dependency_trace_result_v1(&result()).unwrap();
     assert!(bytes.starts_with(br#"{"schemaVersion":1,"rootRevisionId":"source-r1""#));
     assert_eq!(decode_dependency_trace_result_v1(&bytes).unwrap(), result());
+}
+
+#[test]
+fn slice55_wire_rejects_noncanonical_u64_at_exact_nested_path() {
+    let bytes = encode_dependency_trace_result_v1(&result()).unwrap();
+    let mut value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    value["dependencyEdges"][0]["registeredDependencyGeneration"] = "01".into();
+    assert_eq!(corrupt(&value).field_path, "/dependencyEdges/0/registeredDependencyGeneration");
+}
+
+#[test]
+fn slice55_wire_rejects_incoherent_lifecycle_union_at_exact_path() {
+    let bytes = encode_dependency_trace_result_v1(&result()).unwrap();
+    let mut value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    value["nodes"][1]["lifecycle"]["artifactClass"] = "edge".into();
+    assert_eq!(corrupt(&value).field_path, "/nodes/1/lifecycle/artifactClass");
+}
+
+#[test]
+fn slice55_wire_rejects_u32_overflow_and_count_disagreement() {
+    let bytes = encode_dependency_trace_result_v1(&result()).unwrap();
+    let mut value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    value["nodes"][1]["depth"] = serde_json::json!(4_294_967_296_u64);
+    assert_eq!(corrupt(&value).field_path, "/nodes/1/depth");
+
+    let mut value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    value["checkedWorkUnits"] = serde_json::json!(1);
+    assert_eq!(corrupt(&value).field_path, "/checkedWorkUnits");
 }
 
 proptest! {

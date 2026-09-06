@@ -379,6 +379,31 @@ clean_projection_case!(
 );
 
 #[test]
+fn slice55_projection_registry_cap_precedes_unselected_row_decode() {
+    let (_dir, opened) = opened();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT INTO _fathomdb_projection_registry(\
+               name,roles,fts_tokenizer,vector_embedder,vector_declared,source) \
+             VALUES('a','rankable',NULL,NULL,0,NULL); \
+             INSERT INTO _fathomdb_projection_registry(\
+               name,roles,fts_tokenizer,vector_embedder,vector_declared,source) \
+             VALUES('z','rankable',NULL,NULL,0,'not-json')",
+        )
+        .unwrap();
+    let error = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ActiveSearchableOrphans, 1))
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::DataPlaneIntegrity(ref value)
+            if value.reason == DataPlaneIntegrityErrorReasonV1::IntegrityBoundExceeded
+    ));
+}
+
+#[test]
 fn slice55_missing_node_body_fts() {
     let (_dir, opened) = opened();
     opened.engine.write(&[canonical("node-fts-r1", "node-fts", "node fts")]).unwrap();

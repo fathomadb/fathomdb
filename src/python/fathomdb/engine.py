@@ -276,10 +276,12 @@ def _trace_i64(value: object, path: str) -> int:
 
 
 def _trace_u64(value: object, path: str) -> str:
+    maximum = "18446744073709551615"
     if (
         not isinstance(value, str)
         or re.fullmatch(r"0|[1-9][0-9]*", value) is None
-        or int(value) > 2**64 - 1
+        or len(value) > len(maximum)
+        or (len(value) == len(maximum) and value > maximum)
     ):
         _trace_response_error("trace_corrupt", path)
     return value

@@ -898,6 +898,29 @@ fn slice55_sparse_attribute_owners_cannot_hide_later_required_members() {
 }
 
 #[test]
+fn slice55_non_scalar_attribute_owner_scans_consume_aggregate_work() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_projections(&[property_spec()], &[]).unwrap();
+    opened
+        .engine
+        .write(&[
+            canonical("non-scalar-a-r1", "non-scalar-a", "{}"),
+            canonical("non-scalar-b-r1", "non-scalar-b", r#"{"title":[]}"#),
+        ])
+        .unwrap();
+    let error = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ActiveSearchableOrphans, 11))
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::DataPlaneIntegrity(ref value)
+            if value.reason == DataPlaneIntegrityErrorReasonV1::IntegrityBoundExceeded
+                && value.field_path == "/maxWorkUnits"
+    ));
+}
+
+#[test]
 fn slice55_projection_residue_reports_resolvable_revision_in_class_order() {
     let (_dir, opened) = opened();
     opened.engine.configure_projections(&[property_spec()], &[]).unwrap();

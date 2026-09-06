@@ -640,3 +640,149 @@ duplicate degradation codes at their exact nested paths. The direct TypeScript
 run failed both behavioral cases with `Missing expected exception`; Python
 source lint passed, while runtime remains reserved for the exact disposable
 candidate because the preserved worktree native module is stale.
+
+### FIX-2 completion from the clean checkpoint
+
+Physical projection-generation-member RED
+`66b9d5d7191ce73ffa62af4e8150169d40aada50` requires every physical dense
+member to be counted, attributed to its revision and serving generation, and
+classified as `ProjectionMemberCorrupt` when its terminal is missing. It also
+requires cap-plus-one to fail atomically. GREEN
+`682ba1f1a3740fab9007cfed2446f0f891797f35` implements the bounded physical
+enumeration. Query-plan RED
+`905e02b003b5c20fbad5944a781b97c2614f22ff` replaced an empty happy-path
+oracle with exact index and no-materialization assertions; test-hook GREEN
+`9f1f4931f3367b3e87f88b440432b3fc0c80a21c` exposes the production plans.
+
+Endpoint-closure RED `d1b900afe2b94cf33fc4d73f9df369de8802db46`
+proved an unrelated active closure incorrectly hid a valid relation and
+required either relation endpoint's closure to fence both directions. GREEN
+`93ddd5368f4a98114fc22882fa9b9fa609fb6761` applies those endpoint-specific
+fences. Bounded-paging RED
+`a645e2d5b09c3b8f1820d68d65e947d5668fe81a` uses genuine hidden rows before
+and after the visible row, requires exact-byte absence parity, pins the
+after-key SQL, and rejects a temp B-tree or materialization. GREEN
+`a295e150875e1cb129f4de98d7fbc603c8bddcf0` pages authorized candidates by
+after-key with remaining-plus-one accounting.
+
+Recursive trace SDK RED
+`1b168bbdd86336ac31cf4beb4ac386cc97be70cb` covers nested lifecycle schemas,
+duplicate revision IDs, canonical integers, escaped RFC 6901 paths, malformed
+JSON, and noninteger public bounds without native `TypeError` leakage. GREEN
+`da19eb1c8685295e456da239850a064d38bc4e20` supplies schema-first Python and
+TypeScript validation and the CLI `/checks/<index>` path.
+
+Live-explanation RED
+`e4c80aa9a250a28a333f0741e951b19f6c4032d8`, authorized fixture-mechanics
+commit `dc0f3bbbb1a215bfb51a7b01c42a1e804959b635`, thread-isolation RED
+`ff4a632ee7be9c9d82d21b50508a5c45f1f8c38e`, genuine mixed-telemetry RED
+`c4515d8862af26be8a7fe4e0a0a7f2082f4e7381`, and recursive structural SDK RED
+`3a83eae889030643cb7d5d0a072a775e66a463cb` all precede product GREEN
+`ee196c6c0ef3c4a4891d02d17cd0189375837032`. The GREEN validates the full
+registered dependency/source/hash/closure chain from the search snapshot,
+loads lifecycle state from live records, emits `GraphBoundReached` from real
+traversal state, targets one-shot test hooks to the arming thread, and validates
+nested Python and TypeScript structural responses.
+
+Focused product results at that exact GREEN commit were:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity
+test result: ok. 30 passed; 0 failed
+
+cargo test -p fathomdb-engine --features test-hooks \
+  --test slice55_dependency_trace
+test result: ok. 18 passed; 0 failed; 1 ignored
+
+cargo test -p fathomdb-engine --test slice55_explanation
+test result: ok. 15 passed; 0 failed
+
+cargo clippy -p fathomdb-engine --features operator,test-hooks \
+  --all-targets -- -D warnings
+Finished `dev` profile
+
+.venv/bin/ruff check src/python/fathomdb/engine.py \
+  src/python/tests/test_slice55_trace_explanation.py
+All checks passed!
+
+cd src/ts && npm run typecheck
+tsc --noEmit -p tsconfig.json
+```
+
+The first operator clippy run found the restored point-registry helper absent
+and two tuple-key inference errors. The second run reduced this to one tuple-key
+error. At the two-attempt boundary, implementation stopped, reread the physical
+member test, the design's exact member authority, and the Slice 40 and Slice 50
+memory lessons, then used explicit owned key clones. The next run exposed a
+different type-complexity lint in the new hook and passed after a named alias;
+the retry budget was not exceeded.
+
+The release-mode performance witness used the real 50,000-row hidden fixture
+outside the measured window. Its progress-handler interrupt remained armed at
+10,000,000 VM steps, and the measured response was byte-identical to the
+source-only baseline with no bound refusal:
+
+```text
+cargo test --release -p fathomdb-engine --features test-hooks \
+  --test slice55_dependency_trace \
+  slice55_trace_hidden_dependents_performance_ceiling \
+  -- --ignored --exact --nocapture
+slice55 trace measurement: hidden_rows=50000 vm_steps=1000000 \
+  elapsed_ms=1156 peak_rss_delta_bytes=0
+test result: ok. 1 passed; 0 failed
+```
+
+Full writer gates passed at the same product commit:
+
+```text
+./scripts/agent-lint.sh
+exit 0
+./scripts/agent-typecheck.sh
+exit 0
+```
+
+The exact-source N-API build initially failed in the sandbox with
+`Type Error: Could not parse the Cargo.toml: Error: spawnSync /bin/sh EPERM`.
+The unchanged package-local command was rerun unconfined under the standing
+authorization and passed. The plan's root `--workspace fathomdb` spelling is
+not executable because the repository root declares no npm workspaces, so the
+equivalent package-local command was used:
+
+```text
+cd src/ts
+npm run build:debug
+./node_modules/.bin/tsc -p tsconfig.json
+node --test --test-name-pattern slice55 dist/tests/*.test.js
+tests 64; pass 64; fail 0
+```
+
+### FIX-2 exact installed-candidate evidence
+
+The disposable wheel was built from exact product commit
+`ee196c6c0ef3c4a4891d02d17cd0189375837032`. Version `0.8.24` remains the
+expected pre-release package version.
+
+```text
+env -u PYTHONPATH ./scripts/verify-release-python-wheel.sh \
+  --python /usr/bin/python3 \
+  --wheel-dir /tmp/fathomdb-s55-fix2-final.dfnM1W/dist \
+  --venv-dir /tmp/fathomdb-s55-fix2-final.dfnM1W/venv
+wheel smoke: ok
+4adb9ee31162c08ec997b51c6c55fdd8bc36818749eb6db4a3e25b523b361819  \
+  fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl
+module=/tmp/fathomdb-s55-fix2-final.dfnM1W/venv/lib/python3.12/site-packages/fathomdb/__init__.py
+native=/tmp/fathomdb-s55-fix2-final.dfnM1W/venv/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+
+env -u PYTHONPATH /tmp/fathomdb-s55-fix2-final.dfnM1W/venv/bin/python \
+  src/python/tests/smoke_slice55_installed.py
+slice55 installed native smoke: ok
+```
+
+Direct pytest invocation by repository path twice demonstrated pytest's known
+root insertion shadowing the installed candidate with the preserved stale
+worktree extension. That extension was not changed. At the retry boundary, the
+unchanged two test files were copied to the disposable directory and run there
+with no repository package path; the installed candidate then passed all 16
+cases in 0.23 seconds. No local artifact was staged, uploaded, tagged, or
+published.

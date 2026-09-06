@@ -1026,8 +1026,53 @@ pub fn decode_dependency_trace_result_v1(
     if nodes[0].artifact_revision_id != root_revision_id || nodes[0].depth != 0 {
         return Err(corrupt("/nodes/0"));
     }
+    let expected_root_role = match direction {
+        DependencyTraceDirectionV1::ToSource => TraceArtifactRoleV1::Derived,
+        DependencyTraceDirectionV1::ToDependents => TraceArtifactRoleV1::CanonicalSource,
+    };
+    if nodes[0].role != expected_root_role {
+        return Err(corrupt("/nodes/0/role"));
+    }
     if nodes.iter().skip(1).any(|node| node.depth != 1) {
         return Err(corrupt("/nodes"));
+    }
+    if dependency_edges.len() > DEFAULT_MAX_RELATIONS as usize
+        || checked_work_units > DEFAULT_MAX_WORK_UNITS
+    {
+        return Err(corrupt("/dependencyEdges"));
+    }
+    let mut revision_ids = std::collections::BTreeSet::new();
+    for (index, node) in nodes.iter().enumerate() {
+        if !revision_ids.insert(&node.artifact_revision_id) {
+            return Err(corrupt(format!("/nodes/{index}/artifactRevisionId")));
+        }
+    }
+    for (index, (node, edge)) in nodes.iter().skip(1).zip(&dependency_edges).enumerate() {
+        let edge_base = format!("/dependencyEdges/{index}");
+        match direction {
+            DependencyTraceDirectionV1::ToDependents => {
+                if node.role != TraceArtifactRoleV1::Derived {
+                    return Err(corrupt(format!("/nodes/{}/role", index + 1)));
+                }
+                if edge.source_revision_id != root_revision_id {
+                    return Err(corrupt(format!("{edge_base}/sourceRevisionId")));
+                }
+                if edge.derived_revision_id != node.artifact_revision_id {
+                    return Err(corrupt(format!("{edge_base}/derivedRevisionId")));
+                }
+            }
+            DependencyTraceDirectionV1::ToSource => {
+                if node.role != TraceArtifactRoleV1::CanonicalSource {
+                    return Err(corrupt(format!("/nodes/{}/role", index + 1)));
+                }
+                if edge.derived_revision_id != root_revision_id {
+                    return Err(corrupt(format!("{edge_base}/derivedRevisionId")));
+                }
+                if edge.source_revision_id != node.artifact_revision_id {
+                    return Err(corrupt(format!("{edge_base}/sourceRevisionId")));
+                }
+            }
+        }
     }
 
     let boundary = object(required(root, "readBoundary", "/readBoundary")?, "/readBoundary")?;

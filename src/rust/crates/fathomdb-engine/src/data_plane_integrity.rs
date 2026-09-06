@@ -1027,7 +1027,7 @@ fn active_projection_findings(
 fn projection_generation_findings(
     connection: &Connection,
     effective_at_epoch_s: i64,
-    observed_write_boundary: u64,
+    _observed_write_boundary: u64,
     max_work_units: u32,
     max_findings: u32,
     aggregate_checked: &mut u32,
@@ -1057,18 +1057,8 @@ fn projection_generation_findings(
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
-        valid &= generation_valid;
-        if valid
-            && crate::projection_generation::status_in_snapshot(
-                connection,
-                crate::ProjectionRuntimeStateV1::Absent,
-                effective_at_epoch_s,
-                observed_write_boundary,
-            )
-            .is_err()
-        {
-            valid = false;
-        }
+        valid &= generation_valid
+            && crate::projection_generation::current_generation_id(connection).is_ok();
     }
     if !valid {
         let mut item = finding(
@@ -1077,6 +1067,73 @@ fn projection_generation_findings(
         );
         item.projection_generation_id = current.clone().filter(|id| valid_generation_id(id));
         push_finding(findings, item, max_findings)?;
+    } else {
+        let generation_id = current.as_ref().expect("validated current generation");
+        let mut after_cursor = 0i64;
+        loop {
+            let mut next_cursor: Option<i64> = None;
+            for (table, column) in [
+                ("canonical_nodes", "write_cursor"),
+                ("canonical_edges", "write_cursor"),
+                ("_fathomdb_vector_rows", "write_cursor"),
+                ("vector_default", "rowid"),
+            ] {
+                let sql = format!("SELECT MIN({column}) FROM {table} WHERE {column}>?1");
+                let candidate: Option<i64> = connection
+                    .query_row(&sql, [after_cursor], |row| row.get(0))
+                    .map_err(|_| EngineError::Storage)?;
+                if let Some(candidate) = candidate {
+                    next_cursor = Some(next_cursor.map_or(candidate, |seen| seen.min(candidate)));
+                }
+            }
+            let Some(cursor) = next_cursor else { break };
+            after_cursor = cursor;
+            let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
+            let expected = crate::projection_generation::dense_member_kind_at(
+                connection,
+                cursor_u64,
+                effective_at_epoch_s,
+            )?;
+            let physical: bool = connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows WHERE write_cursor=?1) \
+                     OR EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1)",
+                    [cursor],
+                    |row| row.get(0),
+                )
+                .map_err(|_| EngineError::Storage)?;
+            if expected.is_none() && !physical {
+                continue;
+            }
+            take_work(aggregate_checked, max_work_units)?;
+            let member_valid = expected.is_some()
+                && crate::projection_generation::physical_member_completion_at(
+                    connection,
+                    cursor_u64,
+                    effective_at_epoch_s,
+                    crate::ProjectionRuntimeStateV1::Absent,
+                )
+                .is_ok();
+            if !member_valid {
+                let revision: Option<String> = connection
+                    .query_row(
+                        "SELECT revision_id FROM _fathomdb_artifact_revisions \
+                         WHERE write_cursor=?1 ORDER BY artifact_class LIMIT 1",
+                        [cursor],
+                        |row| row.get(0),
+                    )
+                    .optional()
+                    .map_err(|_| EngineError::Storage)?;
+                let mut item = finding(
+                    DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt,
+                    DataPlaneIntegritySeverityV1::Error,
+                );
+                item.projection_generation_id = Some(generation_id.clone());
+                item.artifact_revision_ids = revision.into_iter().collect();
+                item.write_cursor = Some(cursor_u64);
+                push_finding(findings, item, max_findings)?;
+            }
+        }
     }
     Ok((*aggregate_checked - start, current.unwrap_or_default()))
 }

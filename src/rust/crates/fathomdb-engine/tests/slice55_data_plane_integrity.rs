@@ -498,9 +498,9 @@ fn slice55_projection_generation_enumerates_and_attributes_corrupt_members() {
         .unwrap();
     let result = opened
         .engine
-        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ProjectionGeneration, 3))
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ProjectionGeneration, 4))
         .unwrap();
-    assert_eq!(result.checked_count, 3);
+    assert_eq!(result.checked_count, 4);
     assert_eq!(result.findings.len(), 1);
     let finding = &result.findings[0];
     assert_eq!(finding.code, DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt);
@@ -881,7 +881,7 @@ fn slice55_sparse_attribute_owners_cannot_hide_later_required_members() {
         .engine
         .check_data_plane_integrity(request(
             DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
-            1_100,
+            10_000,
         ))
         .unwrap();
     assert_eq!(

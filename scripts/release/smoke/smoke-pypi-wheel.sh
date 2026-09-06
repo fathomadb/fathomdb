@@ -74,5 +74,7 @@ e.close()
 print("ok")
 PY
 
-printf 'smoke-pypi-wheel: ok — fathomdb %s installed + open/write/search/close + process exit clean\n' \
+env -u PYTHONPATH python3 "$REPO_ROOT/src/python/tests/smoke_slice55_installed.py"
+
+printf 'smoke-pypi-wheel: ok — fathomdb %s installed + Slice 55 native trace/explain/refusals + process exit clean\n' \
   "$VERSION"

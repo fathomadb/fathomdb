@@ -35,6 +35,9 @@ cargo install fathomdb-cli --version "$VERSION" --root "$WORK" --locked
 DB="$WORK/smoke.fdb"
 OUT="$("$WORK/bin/fathomdb" doctor check-integrity --json "$DB")"
 printf '%s\n' "$OUT" | jq -e . >/dev/null
+SLICE55_OUT="$("$WORK/bin/fathomdb" doctor data-plane-integrity --json "$DB")"
+printf '%s\n' "$SLICE55_OUT" | jq -e \
+  '.schemaVersion == "fathomdb.doctor.data-plane-integrity.v1" and .status == "clean"' >/dev/null
 
-printf 'smoke-crates-cli: ok — fathomdb-cli %s installed + check-integrity returned valid JSON\n' \
+printf 'smoke-crates-cli: ok — fathomdb-cli %s installed + legacy and Slice 55 integrity returned valid JSON\n' \
   "$VERSION"

@@ -61,15 +61,80 @@ fi
 
 DB="$WORK/smoke.fdb"
 cat > smoke.mjs <<'JS'
-import { Engine } from "fathomdb";
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { DependencyTraceError, Engine } from "fathomdb";
 const dbPath = process.argv[2];
-const e = await Engine.open(dbPath);
-await e.write([{ kind: "doc", body: "{}", sourceId: "smoke:npm-package" }]);
-await e.search("smoke");
+const e = await Engine.open(dbPath, { useDefaultEmbedder: false });
+const sourceBody = "slice55 npm source";
+await e.write([
+  {
+    kind: "doc",
+    body: sourceBody,
+    sourceId: "smoke:npm-package",
+    logicalId: "source",
+    provenance: {
+      schemaVersion: 1,
+      role: "canonical",
+      artifactRevisionId: "source-r1",
+      sourceVersionId: "v1",
+    },
+  },
+  {
+    kind: "fact",
+    body: "slice55 npm derived",
+    sourceId: "smoke:npm-package",
+    logicalId: "derived",
+    provenance: {
+      schemaVersion: 1,
+      role: "derived",
+      artifactRevisionId: "derived-r1",
+      sourceVersionId: "v1",
+      sourceRevisionId: "source-r1",
+      sourceLocator: { kind: "whole_body" },
+      canonicalSourceHash: {
+        algorithm: "sha256",
+        digestHex: createHash("sha256").update(sourceBody).digest("hex"),
+      },
+    },
+  },
+]);
+await e.registerSourceDependency({
+  schemaVersion: 1,
+  dependencyId: "dep-1",
+  sourceRevisionId: "source-r1",
+  derivedRevisionId: "derived-r1",
+});
+const context = await e.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+const trace = await e.traceDependency({
+  schemaVersion: 1,
+  rootRevisionId: "source-r1",
+  direction: "to_dependents",
+  context,
+});
+assert.equal(trace.complete, true);
+assert.equal(trace.dependencyEdges.length, 1);
+const explained = await e.search("slice55", undefined, 0, false, 0.3, 0, true);
+assert.ok(explained.explanation?.correlationId);
+assert.ok(explained.explanation.perHit.every((item) => item.structural !== undefined));
+await assert.rejects(
+  e.traceDependency({
+    schemaVersion: 1,
+    rootRevisionId: "source-r1",
+    direction: "invalid",
+    context,
+  }),
+  (error) =>
+    error instanceof DependencyTraceError &&
+    error.reason === "trace_direction_invalid" &&
+    error.fieldPath === "/direction",
+);
+assert.equal("checkDataPlaneIntegrity" in e, false);
+assert.equal("doctor" in e, false);
 await e.close();
-console.log("ok");
+console.log("slice55 npm native smoke: ok");
 JS
 node smoke.mjs "$DB"
 
-printf 'smoke-npm-package: ok — fathomdb %s installed + open/write/search/close + process exit clean\n' \
+printf 'smoke-npm-package: ok — fathomdb %s installed + Slice 55 native trace/explain/refusal + process exit clean\n' \
   "$VERSION"

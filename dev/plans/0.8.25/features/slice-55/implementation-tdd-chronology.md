@@ -523,6 +523,22 @@ cargo clippy -p fathomdb-engine --features operator,test-hooks \
 Finished `dev` profile
 ```
 
+The first SDK FIX-4 RED uses an exact disposable candidate wheel so the stale
+worktree extension remains untouched. Python accepted boolean `true` as trace
+response schema 1 and surfaced malformed nested frozen context through the
+wrong exception boundary:
+
+```text
+test_slice55_python_rejects_boolean_response_schema
+Failed: DID NOT RAISE <class '_fathomdb.DependencyTraceError'>
+
+test_slice55_python_malformed_nested_frozen_context_is_frozen_error
+expected FrozenReadError
+```
+
+The equivalent TypeScript nested-context case already preserved
+`FrozenReadError`; it is retained as an explicit cross-SDK nonregression case.
+
 The SDK strictness RED covers Python's bool-as-schema, invalid root,
 direction, and context construction in declaration order; TypeScript's null
 context; and unknown explanation arms/nonfinite or invalid scalar fields in

@@ -219,6 +219,31 @@ def test_slice55_python_malformed_trace_json_never_leaks_decoder_errors() -> Non
     assert caught.value.field_path == ""
 
 
+def test_slice55_python_rejects_boolean_response_schema() -> None:
+    value = _trace_response()
+    value["schemaVersion"] = True
+    with pytest.raises(fathomdb.DependencyTraceError) as caught:
+        engine_module._decode_dependency_trace_response(json.dumps(value))
+    assert caught.value.reason == "unsupported_schema_version"
+    assert caught.value.field_path == "/schemaVersion"
+
+
+def test_slice55_python_malformed_nested_frozen_context_is_frozen_error(tmp_path) -> None:
+    engine = fathomdb.Engine.open(str(tmp_path / "nested-context.fathom"), use_default_embedder=False)
+    try:
+        context = engine.freeze_read_context(fathomdb.ReadContextV1())
+        object.__setattr__(context.context, "schema_version", 2)
+        request = fathomdb.DependencyTraceRequestV1(
+            root_revision_id="source-r1", direction="to_dependents", context=context
+        )
+        with pytest.raises(fathomdb.errors.FrozenReadError) as caught:
+            engine.trace_dependency(request)
+        assert caught.value.reason == "unsupported_schema_version"
+        assert caught.value.field_path == "/context/context/schemaVersion"
+    finally:
+        engine.close()
+
+
 def test_slice55_python_noncanonical_bound_never_leaks_native_type_error(tmp_path) -> None:
     engine = fathomdb.Engine.open(
         str(tmp_path / "slice55-bound-error.fathom"), use_default_embedder=False

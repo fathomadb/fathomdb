@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   DependencyTraceError,
   Engine,
+  FrozenReadError,
   type DependencyTraceRequestV1,
   validateDependencyTraceResponse,
   mapPerHitExplain,
@@ -85,6 +86,32 @@ test("slice55 null trace context is typed at the declared request path", async (
         error instanceof DependencyTraceError &&
         error.reason === "trace_corrupt" &&
         error.fieldPath === "/context",
+    );
+  } finally {
+    await engine.close();
+  }
+});
+
+test("slice55 malformed nested frozen context preserves FrozenReadError", async () => {
+  const engine = await Engine.open("slice55-malformed-frozen-context", { useDefaultEmbedder: false });
+  try {
+    const context = await engine.freezeReadContext({
+      schemaVersion: 1,
+      view: { schemaVersion: 1 },
+      eligibility: {},
+    });
+    (context.context as { schemaVersion: number }).schemaVersion = 2;
+    await assert.rejects(
+      engine.traceDependency({
+        schemaVersion: 1,
+        rootRevisionId: "source-r1",
+        direction: "to_dependents",
+        context,
+      }),
+      (error: unknown) =>
+        error instanceof FrozenReadError &&
+        error.reason === "unsupported_schema_version" &&
+        error.fieldPath === "/context/context/schemaVersion",
     );
   } finally {
     await engine.close();

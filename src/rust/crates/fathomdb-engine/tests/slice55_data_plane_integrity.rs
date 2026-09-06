@@ -335,6 +335,53 @@ fn slice55_projection_generation_matrix_reports_missing_current_authority() {
 }
 
 #[test]
+fn slice55_projection_generation_enumerates_and_attributes_corrupt_members() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened.engine.write(&[canonical("generation-member-r1", "generation-member", "body")]).unwrap();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT OR REPLACE INTO _fathomdb_vector_rows(rowid,kind,write_cursor) \
+             VALUES(1,'doc',1); DELETE FROM _fathomdb_projection_terminal WHERE write_cursor=1",
+        )
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ProjectionGeneration, 3))
+        .unwrap();
+    assert_eq!(result.checked_count, 3);
+    assert_eq!(result.findings.len(), 1);
+    let finding = &result.findings[0];
+    assert_eq!(finding.code, DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt);
+    assert_eq!(finding.write_cursor, Some(1));
+    assert_eq!(finding.artifact_revision_ids, ["generation-member-r1"]);
+    assert!(finding.projection_generation_id.as_deref().is_some_and(|id| id.starts_with("pgen1:")));
+}
+
+#[test]
+fn slice55_projection_generation_member_cap_is_all_or_error() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened
+        .engine
+        .write(&[
+            canonical("generation-cap-r1", "generation-cap-1", "one"),
+            canonical("generation-cap-r2", "generation-cap-2", "two"),
+        ])
+        .unwrap();
+    let error = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ProjectionGeneration, 3))
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::DataPlaneIntegrity(ref value)
+            if value.reason == DataPlaneIntegrityErrorReasonV1::IntegrityBoundExceeded
+    ));
+}
+
+#[test]
 fn slice55_mutation_readiness_receipt_matrix_reports_guarded_corruption() {
     let (_dir, opened) = opened();
     let batch = ActuationBatchV1::new(

@@ -1,8 +1,8 @@
 ---
 title: 0.8.25 Slice 55 — basic tracing, explanation, and integrity design
-status: DRAFT_FIX_2_REVIEW_REQUIRED
-design_version: 7
-review_fix: 2
+status: DRAFT_FIX_3_REVIEW_REQUIRED
+design_version: 8
+review_fix: 3
 target_release: 0.8.25
 depends_on: 50
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -26,8 +26,8 @@ repair plans, reverse-index construction, and repair orchestration. Slice 55
 is read-only and adds no schema migration or persistent state.
 
 All prerequisites through Slice 50, including Slice 7 architecture activation,
-are complete. This FIX-2 draft is not READY: an independent cycle-3 design
-re-review must close every Cycle 2 P1/P2 finding first.
+are complete. This FIX-3 draft is not READY: an independent cycle-4 design
+re-review must close every Cycle 3 P1/P2 finding first.
 
 ## Requirements and acceptance
 
@@ -38,8 +38,9 @@ re-review must close every Cycle 2 P1/P2 finding first.
   and derived-to-source reads return the same registered Slice 20 relation and
   endpoints in opposite traversal directions.
 - **S55-R3 — bounded snapshot.** Trace and integrity each linearize in one
-  SQLite reader transaction, use deterministic order, and enforce both output
-  and counted-work caps with cap-plus-one detection.
+  SQLite reader transaction and use deterministic order. Trace caps eligible
+  output classification; integrity caps all counted candidate classification.
+  Both use cap-plus-one detection for their declared units.
 - **S55-R4 — real dependency authority.** Validate Slice 20's normalized
   dependency row and complete Slice 15 provenance chain; never assume a
   separately stored reverse row or reverse index.
@@ -206,14 +207,15 @@ only the two bound fields; omission selects those same defaults. `null` never
 means omission.
 
 `max_relations` is `1..=100`; `max_work_units` is `1..=101`. The fixed hard
-ceilings are not configurable. A work unit is one eligible root or one
-registered relation whose two endpoints have already independently passed the
-authenticated eligibility selection. Each selected relation may touch only the
-dependency row, derived owner, derived source link, canonical owner/node,
-source-version row, canonical self-link, and singleton generation. Internal
-SQLite virtual-machine steps are not the unit. Indexed statements apply
-authorization and eligibility before their stable-key `LIMIT remaining+1`, so
-the Engine detects overflow without scanning or counting inaccessible rows.
+ceilings are not configurable. A trace work unit bounds authorized output
+classification only: one eligible root or one registered relation whose two
+endpoints have independently passed the authenticated eligibility selection.
+Each classified relation may load only the dependency row, derived owner,
+derived source link, canonical owner/node, source-version row, canonical
+self-link, and singleton generation. Internal SQLite virtual-machine steps and
+physical rows examined while proving eligibility are deliberately not trace
+work units. The Engine detects only eligible-output overflow with
+`LIMIT remaining+1`; it makes no strict physical rows-visited bound for trace.
 
 ### Direction, inclusion, ordering, and one snapshot
 
@@ -239,16 +241,29 @@ attribute eligibility, lifecycle/currentness, temporal validity, erasure, and
 physical closure fences.
 
 The indexed candidate statement performs endpoint authorization in its `JOIN`
-and `WHERE` clauses before ordering, `LIMIT`, work accounting, bound detection,
-or corruption classification. It first proves each endpoint from independently
-valid owner/lifecycle rows; it does not trust the relation row to establish an
-endpoint's visibility. Only then may it validate the registered relation's
-schema, dependency identity/generation, and cross-row agreement. An
+and `WHERE` clauses before eligible-output `LIMIT`, work accounting, bound
+detection, or corruption classification. It first proves each endpoint from
+independently valid owner/lifecycle rows; it does not trust the relation row to
+establish an endpoint's visibility. Only then may it validate the registered
+relation's schema, dependency identity/generation, and cross-row agreement. An
 ineligible endpoint or a malformed chain that cannot independently prove both
 endpoints eligible is indistinguishable from no relation: it contributes no
 edge, node, work unit, count, bound error, or `trace_corrupt` result. The
 operator-only integrity check remains the path that diagnoses such hidden
-state.
+state. Hidden physical candidates may increase internal query work, but never
+change response bytes, errors, counts, or bound outcomes.
+
+The lookup must use existing schema indexes and adds no migration. `to_source`
+starts with `_fathomdb_source_dependencies`' unique
+`derived_revision_id` index. `to_dependents` walks
+`_fathomdb_source_links_source_derived_idx(source_revision_id,
+artifact_revision_id)` and joins the dependency row by its unique derived key.
+Owner/revision and closure lookups use their existing primary/lookup indexes.
+After-key query pages follow index order; the at-most-100 eligible relations
+are canonically sorted in bounded Rust memory. `EXPLAIN QUERY PLAN` must show
+the named source/derived indexes and must contain neither `USE TEMP B-TREE` nor
+`MATERIALIZE`. Trace must not build a full candidate vector or SQL temporary
+sort, even though its public work counter does not bound index entries visited.
 
 `trace_corrupt` is permitted only after both independently resolved endpoints
 passed the authenticated eligibility envelope and the remaining relation
@@ -281,6 +296,19 @@ also races eligibility loss before the reader transaction. Every case is
 observationally identical to no relation. Separate fixtures prove
 `trace_corrupt` only when both endpoints remain eligible and an independently
 non-authorizing relation field is corrupt.
+
+A preregistered performance fixture gives one visible source 50,000 registered
+dependents, all hidden by the authenticated context, and calls the one-page API
+with `maxRelations=1` and `maxWorkUnits=2`. The response must equal the
+no-relation fixture and must not return a bound error. On the release-mode
+`ubuntu-latest` x86-64 reference job, the candidate statement is limited to
+10,000,000 SQLite VM steps, 5.0 seconds elapsed, and 64 MiB peak-RSS delta.
+Fixture construction is excluded; measurement brackets only the trace call.
+The VM-step ceiling is the deterministic regression gate; elapsed/RSS are
+recorded platform ceilings. These numbers are fixed before implementation and
+may not be relaxed after observation. This is a measured performance guard,
+not a claim that `maxWorkUnits` bounds hidden physical rows. Trace remains one
+page, has no continuation token, and never traverses beyond depth 1.
 
 ## Bounded data-plane integrity
 
@@ -373,25 +401,48 @@ classified by a check:
   for each pending-cursor element in that row. An empty pending array costs the
   receipt-row unit and zero pair units.
 
-Each check uses stable primary-key order and an indexed remaining-cap-plus-one
-query. The aggregate remaining cap is passed into each later check; there is no
-independent per-check allowance that can exceed the aggregate. A candidate
-increments its check and aggregate `checked_count` exactly once after its
-fixed-width joined state has been loaded, whether clean or a finding. The same
-candidate may legitimately be classified by two requested checks and then
-costs one unit in each, because the checks make different assertions.
+Each check uses the index-supported stable order specified below and an indexed
+remaining-cap-plus-one query. The aggregate remaining cap is passed into each
+later check; there is no independent per-check allowance that can exceed the
+aggregate. A candidate increments its check and aggregate `checked_count`
+exactly once after its bounded joined state has been loaded, whether clean or a
+finding. The same candidate may legitimately be classified by two requested
+checks and then costs one unit in each, because the checks make different
+assertions.
 
 Singletons are real units even when the corresponding collection is empty.
-For each receipt, a first SQL metadata probe selects byte length,
-`json_valid`, JSON type, and guarded array length without returning the pending
-JSON to Rust. The maximum accepted byte length is 2,945: 128 quoted 20-digit
-`u64` strings, 127 commas, and two brackets. Invalid type/JSON, more than 128
-members, or a larger byte length becomes `mutation_receipt_corrupt` without
-allocating or deserializing the text. If the declared array length would exceed
-the aggregate remaining work budget, cap-plus-one fails before a second SQL
-statement fetches the bounded text. Only a valid, size-bounded array is then
-read and decoded; canonical decimal, strict ascending order, uniqueness, and
-receipt coherence are validated one pair at a time.
+`mutation_readiness` does not call `load_receipt` and is not a whole-receipt
+validator. It selects exactly these columns:
+`operation_id`, `schema_version`, `operations_count`, `outcome`,
+`resulting_write_boundary`, `pending_projection_write_cursors_json`, and
+`projection_generation_id`. It does not select or validate `request_sha256`,
+refusal fields, `reason_codes_json`, `affected_revision_ids_json`,
+`resulting_dependency_generation`, `closure_operation_ids_json`, or receipt
+source-reference rows.
+
+The first bounded SQL pass returns only rowid plus type/byte-length/JSON
+metadata, ordered through the receipt primary-key index; it does not return a
+variable field to Rust. Every selected variable field has an existing-grammar
+guard: `operation_id` is ASCII caller identity of 1..=128 bytes; `outcome` is
+one of the four schema values and at most 25 bytes;
+`projection_generation_id` is null or exactly the 38-byte
+`pgen1:<32-lower-hex>` form; and pending JSON is an array of at most 128 values
+and at most 2,945 bytes (128 quoted 20-digit `u64` strings, 127 commas, and two
+brackets). Fixed columns must have SQLite integer/null types and their existing
+schema ranges. A failed guard produces `mutation_receipt_corrupt` without
+fetching, allocating, or deserializing the variable value.
+
+If pending array length would exceed aggregate remaining work, cap-plus-one
+fails before the second rowid lookup fetches the guarded minimal columns. Only
+a valid, bounded array is decoded. Its strings must be canonical nonzero
+decimal `u64`, strictly ascending and unique; its length must not exceed
+`operations_count`; committed outcomes require a nonnegative write boundary
+not below any pending cursor; refused/erased rows require an empty pending
+array and null boundary/generation; and an empty pending array requires a null
+generation. For nonempty pending arrays, a valid generation is required except
+for a pre-step-32 receipt covered by a valid `legacy_unverified` generation
+through its maximum pending cursor; that legacy pair classifies as unavailable,
+not corrupt. Empty arrays cost the receipt-row unit and zero pair units.
 
 The operation opens one SQLite deferred reader transaction, resolves exactly
 one effective instant, captures the boundary, and executes all selected checks
@@ -453,7 +504,8 @@ directions are mandatory.
 
 The exact synchronous authorities and member classes, in execution order, are:
 
-1. each `_fathomdb_projection_registry` row, ordered by `CAST(name AS BLOB)`;
+1. each `_fathomdb_projection_registry` row in its binary `name` primary-key
+   order;
 2. `node_body_fts_v1`: every canonical node for which the shared synchronous
    projector-retention predicate requires one `search_index` row;
 3. `node_body_fts_v2`: the same owner set requiring one `search_index_v2` row;
@@ -469,14 +521,30 @@ The exact synchronous authorities and member classes, in execution order, are:
    `_fathomdb_vector_rows`, `vector_default`, and
    `_fathomdb_projection_terminal`.
 
-Expected-member stable keys are `(member_class_ordinal, write_cursor,
-CAST(attr_name AS BLOB))`; body classes use an empty attribute-name component.
-Physical-scan keys append the table's stable `rowid` so duplicates are counted
-and ordered rather than collapsed. Each registry row, expected member, scanned
-physical row, and dense tuple costs one work unit. Per-class indexed/cursor
-statements receive the aggregate remaining cap plus one before constructing
-any body/attribute value. Matched physical rows still count: this makes actual
-scan cost explicit instead of hiding it behind an unmatched-only query.
+The fixed member-class ordinal is the first ordering component. Physical scans
+of `search_index`, `search_index_v2`, `search_index_edges`, and
+`property_search_index` use each FTS5 table's indexed implicit `rowid` as the
+only within-class key. The ordinary `canonical_attributes` physical scan also
+uses its indexed rowid. Duplicate rows are therefore counted and never
+collapsed. Expected body-owner scans use
+`canonical_nodes_write_cursor_idx` or `canonical_edges_write_cursor_idx`.
+Expected attribute/property scans loop declarations in the registry's binary
+`name` primary-key order and walk canonical owners through
+`canonical_nodes_write_cursor_idx`; their stable key is
+`(member_class_ordinal, declaration_name, write_cursor)`. They never issue
+`ORDER BY write_cursor, attr_name` or any other order unsupported by an
+existing index.
+
+Each registry row, expected member, scanned physical row, and dense tuple costs
+one work unit. Per-class after-key statements receive aggregate remaining cap
+plus one before constructing a body/attribute value. Matched physical rows
+still count, making actual scan cost explicit. Only after both bounded
+directions complete does Rust reconcile their at-most-10,000-member keyed sets;
+it never performs a per-owner lookup on an FTS `write_cursor`/`attr_name`
+column declared `UNINDEXED`. Exact `EXPLAIN QUERY PLAN` RED tests require the
+named canonical indexes or FTS rowid lookup and reject `USE TEMP B-TREE`,
+`MATERIALIZE`, and an unbounded full-result materialization. No index or schema
+migration is permitted.
 
 | Authority/candidate | Legitimate exclusion | Finding code | Severity / IDs |
 |---|---|---|---|
@@ -489,7 +557,7 @@ scan cost explicit instead of hiding it behind an unmatched-only query.
 | `_fathomdb_vector_rows`, `vector_default`, and terminal tuple | A complete node tuple may remain after enrolment changes; node `legitimate-stranded`, scheduler-pending all-missing state, clean failed all-missing state, and Slice 40 dormant expired-edge state are accepted exactly as classified there. | `dense_projection_owner_missing`, `dense_projection_partial`, `dense_projection_identity_mismatch`, or `dense_projection_outside_membership`. | critical for missing/outside; error for partial/mismatch; artifact revision when resolvable plus cursor. |
 | Current generation row/singleton/declaration | No legacy exception beyond Slice 40's valid `legacy_unverified` degraded generation. | `projection_generation_corrupt`. | critical; generation ID only when valid. |
 | Current-generation physical member | Slice 40 `complete`, `scheduler-pending`, `legitimate-stranded`, and clean `failed` states. | `projection_member_corrupt`. | error; generation ID, artifact revision when resolvable, and cursor. |
-| Actuation receipt row and each pending-cursor pair | Redacted/erased and pre-step-32 null-generation receipts are valid rows but still cost one row unit; they have zero classified pairs. A valid pair may now be ready, processing, blocked, deferred, or degraded. | `mutation_receipt_corrupt`, `mutation_readiness_unavailable`, or `mutation_readiness_corrupt`. | error; operation ID only for operator output, generation ID when valid, and cursor. |
+| Actuation receipt row and each pending-cursor pair | Refused/erased receipts are valid rows that cost one row unit and have zero pairs. A pre-step-32 null-generation pending pair covered by `legacy_unverified` is valid but unavailable. Other valid pairs may be ready, processing, blocked, deferred, or degraded. | `mutation_receipt_corrupt`, `mutation_readiness_unavailable`, or `mutation_readiness_corrupt`. | error; operation ID only for operator output, generation ID when valid, and cursor. |
 
 Deletion RED fixtures remove exactly one expected `search_index`,
 `search_index_v2`, `search_index_edges`, `canonical_attributes`, or
@@ -498,26 +566,31 @@ fixture proves the corresponding missing-row code, stable key/order, work
 count, no false orphan for the explicitly legitimate exclusions, and no
 automatic repair.
 
-`mutation_readiness` scans the persisted bounded pending-cursor arrays of
-non-erased receipts; it does not scan all canonical cursors or infer pending
-work. It invokes the Slice 40 point classifier with the receipt's exact
-operation ID, cursor, and expected generation. `ProjectionGenerationError`
-maps as follows inside integrity only:
+`mutation_readiness` scans only the minimal guarded readiness subset above; it
+does not scan all canonical cursors, infer pending work, call whole-receipt
+loading, or diagnose unrelated receipt JSON. For each valid pending pair it
+invokes the private shared Slice 40 physical point classifier in the same
+transaction with the receipt's operation ID, cursor, and expected generation;
+it does not call the public method that reloads the full receipt.
+`ProjectionGenerationError` maps as follows inside integrity only:
 
 - `projection_generation_corrupt` becomes `projection_generation_corrupt` for
   generation-wide classification or `mutation_readiness_corrupt` for a receipt
   point;
 - `projection_generation_unavailable` becomes
   `mutation_readiness_unavailable` for a valid retained receipt;
-- `mutation_not_tracked`, `wrong_projection_generation`, invalid persisted
-  IDs/cursors, or a receipt/pending-list disagreement becomes
-  `mutation_receipt_corrupt`; and
+- invalid selected readiness fields, a selected-field disagreement, a pending
+  cursor absent from canonical revision authority, or wrong stored projection
+  generation becomes `mutation_receipt_corrupt`; and
 - request-construction errors are implementation defects and fail the whole
   operation as `integrity_corrupt`; they are never silently skipped.
 
 Normal public Slice 40 methods retain their original typed
 `ProjectionGenerationError`; only this operator report translates a fully
-classified fault into a finding.
+classified readiness fault into a finding. `mutation_receipt_corrupt` means
+only that the selected readiness subset is malformed or incoherent. Corruption
+confined to reason, affected-revision, closure, refusal, digest, dependency, or
+source-reference fields is outside this check and must not produce that code.
 
 ### Finding order and privacy
 
@@ -675,19 +748,23 @@ dataclass field-order rules. `Explanation` appends
 legacy/local-construction sentinel and is never emitted by a new Engine.
 `PerHitExplain` appends
 `structural: StructuralInclusionV1 | None = None` after the existing defaulted
-`importance` and `confidence`. The wrapper maps an older native object with no
-member to those safe defaults via checked `getattr`; it requires and validates
-the populated value from a native object advertising Slice 55 response
-support. No required field follows a defaulted field.
+`importance` and `confidence`. The wrapper always maps a native object with an
+absent member to those safe defaults via checked `getattr`; there is no runtime
+capability discriminator and absence is never interpreted as an
+advertised-version violation. Direct candidate-native conformance tests,
+rather than wrapper inference, require and validate populated values on new
+Engine responses. No required field follows a defaulted field.
 
 TypeScript keeps existing object literals source compatible by declaring
 `Explanation.correlationId?: string` and
 `PerHitExplain.structural?: StructuralInclusionV1`. The mapper includes each
-property with its validated value for a Slice 55 native response and omits it
-for an older native object; it never invents an empty correlation ID or a
-default structural classification. New Engine method return documentation
-narrows the runtime guarantee to present/nonempty even though the
-user-constructible interface remains optional.
+property when present and valid and otherwise omits it for any native object;
+it does not consult or invent a capability/version discriminator, an empty
+correlation ID, or a default structural classification. Direct candidate
+native conformance fixtures require presence on every new Engine response.
+New Engine method return documentation narrows the runtime guarantee to
+present/nonempty even though the user-constructible interface remains
+optional.
 
 Rust's `#[non_exhaustive]` response structs remain externally
 non-constructible by field literal; in-crate constructors and matches are
@@ -808,9 +885,8 @@ identical with explanation off.
 
 ## Readiness rule
 
-Design v7/FIX-2 resolves the six Cycle 2 findings by proposal. It remains
-`DRAFT_FIX_2_REVIEW_REQUIRED` until an independent cycle-3 reviewer verifies
-the authorization-before-bounds rule, missing-member scans, SDK construction
-compatibility, complete work accounting, telemetry reset/concurrency contract,
-and exact-candidate installed-wheel proof and records PASS. A P1 or P2 finding
-blocks READY and implementation.
+Design v8/FIX-3 resolves the four Cycle 3 findings by proposal. It remains
+`DRAFT_FIX_3_REVIEW_REQUIRED` until an independent cycle-4 reviewer verifies
+the trace output-bound/performance split, index-supported member ordering,
+minimal receipt-readiness scope, and discriminator-free SDK compatibility and
+records PASS. A P1 or P2 finding blocks READY and implementation.

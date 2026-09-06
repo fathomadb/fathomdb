@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 55 — basic tracing and integrity
-status: DRAFT_FIX_2_REVIEW_REQUIRED
+status: DRAFT_FIX_3_REVIEW_REQUIRED
 depends_on: 50
 design: design.md
-design_status: DRAFT_FIX_2_REVIEW_REQUIRED
+design_status: DRAFT_FIX_3_REVIEW_REQUIRED
 ---
 
 # Slice 55 plan
@@ -56,12 +56,12 @@ mock the database or derive expected output from product code.
 | Requirement | Acceptance | Named RED tests and fixtures | Focused command | Durable evidence |
 |---|---|---|---|---|
 | S55-R1 non-colliding surfaces | S55-AC7 | `slice55_existing_operator_contracts_are_unchanged`; `slice55_governed_and_operator_surfaces_are_separate`; fixture: current accepted `TraceReport`/`IntegrityReport` JSON | `cargo test -p fathomdb-cli --test slice55_data_plane_integrity_cli` and `cargo test -p fathomdb --test slice55_governed_surface` | `implementation-tdd-chronology.md`, `implementation-review-cycleN.md` |
-| S55-R2 reciprocal trace | S55-AC1/S55-AC2 | `slice55_trace_reciprocal_same_context`; `slice55_trace_root_and_counterpart_order`; `slice55_trace_invisible_roots_are_nondisclosing`; `slice55_trace_hidden_relations_match_absence`; `slice55_trace_hidden_relations_do_not_trip_caps`; `slice55_trace_corrupt_requires_two_eligible_endpoints`; fixture: `tests/fixtures/slice55/trace-v1.json` | `cargo test -p fathomdb-engine --test slice55_dependency_trace` | `implementation-tdd-chronology.md`, `verification-review.md` |
-| S55-R3 bounded snapshot | S55-AC1/S55-AC3 | `slice55_trace_cap_plus_one_is_all_or_error`; `slice55_integrity_work_cap_counts_authority_rows`; `slice55_integrity_empty_receipt_counts_one_row`; `slice55_integrity_receipt_length_precedes_allocation`; `slice55_integrity_receipt_malformed_oversized_and_cap_plus_one`; `slice55_integrity_uses_one_reader_snapshot`; `slice55_integrity_check_order_is_canonical` | `cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_data_plane_integrity` | `implementation-tdd-chronology.md`, `verification-review.md` |
+| S55-R2 reciprocal trace | S55-AC1/S55-AC2 | `slice55_trace_reciprocal_same_context`; `slice55_trace_root_and_counterpart_order`; `slice55_trace_invisible_roots_are_nondisclosing`; `slice55_trace_hidden_relations_match_absence`; `slice55_trace_hidden_relations_do_not_trip_caps`; `slice55_trace_corrupt_requires_two_eligible_endpoints`; `slice55_trace_query_plans_use_existing_indexes`; ignored `slice55_trace_hidden_dependents_performance_ceiling`; fixture: `tests/fixtures/slice55/trace-v1.json` | `cargo test -p fathomdb-engine --test slice55_dependency_trace` plus the preregistered release-mode command below | `implementation-tdd-chronology.md`, `verification-review.md` |
+| S55-R3 bounded snapshot | S55-AC1/S55-AC3 | `slice55_trace_cap_plus_one_is_all_or_error`; `slice55_integrity_work_cap_counts_authority_rows`; `slice55_integrity_empty_receipt_counts_one_row`; `slice55_mutation_readiness_selects_only_bounded_subset`; `slice55_receipt_variable_field_guards_precede_fetch`; `slice55_unrelated_receipt_json_is_out_of_scope`; `slice55_integrity_receipt_malformed_oversized_and_cap_plus_one`; `slice55_integrity_uses_one_reader_snapshot`; `slice55_integrity_check_order_is_canonical` | `cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_data_plane_integrity` | `implementation-tdd-chronology.md`, `verification-review.md` |
 | S55-R4 real dependency authority | S55-AC4 | `slice55_dependency_chain_fault_matrix`; `slice55_no_reverse_row_contract`; proptest `slice55_normalized_chain_round_trip`; fixture: `tests/fixtures/slice55/dependency-corruption-v1.json` | `cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_data_plane_integrity dependency` | `implementation-tdd-chronology.md`, `verification-review.md` |
-| S55-R5 projection/orphan/readiness authority | S55-AC4 | `slice55_searchable_orphan_finding_matrix`; `slice55_missing_synchronous_projection_matrix`; `slice55_missing_node_body_fts`; `slice55_missing_node_body_fts_v2`; `slice55_missing_edge_body_fts`; `slice55_missing_canonical_attribute`; `slice55_missing_property_fts`; `slice55_dense_state_reuses_slice40_classifier`; `slice55_projection_generation_error_mapping`; `slice55_mutation_readiness_receipt_matrix`; fixture: `tests/fixtures/slice55/projection-corruption-v1.json` | `cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_data_plane_integrity projection` | `implementation-tdd-chronology.md`, `verification-review.md` |
+| S55-R5 projection/orphan/readiness authority | S55-AC4 | `slice55_searchable_orphan_finding_matrix`; `slice55_missing_synchronous_projection_matrix`; `slice55_projection_scan_plans_use_indexed_order`; `slice55_missing_node_body_fts`; `slice55_missing_node_body_fts_v2`; `slice55_missing_edge_body_fts`; `slice55_missing_canonical_attribute`; `slice55_missing_property_fts`; `slice55_dense_state_reuses_slice40_classifier`; `slice55_projection_generation_error_mapping`; `slice55_mutation_readiness_receipt_matrix`; fixture: `tests/fixtures/slice55/projection-corruption-v1.json` | `cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_data_plane_integrity projection` | `implementation-tdd-chronology.md`, `verification-review.md` |
 | S55-R6 explanation successor | S55-AC5/S55-AC7 | `slice55_explanation_is_positional_and_structural`; `slice55_one_correlation_id_with_telemetry`; `slice55_explain_telemetry_reenable_bytes_unchanged`; `slice55_explain_enable_race_has_one_id_source`; `slice55_concurrent_explain_telemetry_ids_unique`; `slice55_telemetry_off_writes_nothing`; `slice55_default_search_is_unchanged`; fixture: `tests/fixtures/slice55/explanation-v1.json` | `cargo test -p fathomdb-engine --test slice55_explanation` | `implementation-tdd-chronology.md`, `verification-review.md` |
-| S55-R7 wire/nondisclosure | S55-AC2/S55-AC6 | `slice55_wire_v1_canonical_bytes`; proptest `slice55_trace_codec_round_trip`; `test_slice55_old_python_construction.py`; `test_slice55_older_native_decode.py`; `slice55-old-object-literals.test.ts`; `slice55-older-native-decode.test.ts`; new-response presence plus nested invalid-response and RFC 6901 cases; successor ADR fixture | Commands in the SDK/wire routes below | `implementation-tdd-chronology.md`, `verification-review.md` |
+| S55-R7 wire/nondisclosure | S55-AC2/S55-AC6 | `slice55_wire_v1_canonical_bytes`; proptest `slice55_trace_codec_round_trip`; `test_slice55_old_python_construction.py`; `test_slice55_absent_native_fields_use_legacy_defaults.py`; `slice55-old-object-literals.test.ts`; `slice55-absent-native-fields-use-legacy-defaults.test.ts`; direct candidate-native presence fixtures; new-response presence plus nested invalid-response and RFC 6901 cases; successor ADR fixture | Commands in the SDK/wire routes below | `implementation-tdd-chronology.md`, `verification-review.md` |
 
 `N` in review filenames is the actual review cycle. No evidence record may use
 an unreviewed working-tree claim; it names the exact Git commit and complete
@@ -81,8 +81,11 @@ generation, derived owner, derived source link, canonical owner/node,
 source-version row, canonical self-link, deletion or duplication of each
 required synchronous `search_index`, `search_index_v2`, `search_index_edges`,
 `canonical_attributes`, or `property_search_index` member, dense
-sidecar/vec0/terminal tuple, generation authority, and actuation receipt
-pending entry. There is no reverse-row or reverse-index primitive. After each
+sidecar/vec0/terminal tuple, generation authority, and only the receipt
+readiness subset (`operation_id`, schema/count/outcome/boundary, pending JSON,
+and projection generation). An unrelated reason/affected/closure/refusal/
+digest/source-reference corruption fixture proves this check stays silent.
+There is no reverse-row or reverse-index primitive. After each
 fault, the test proves the normal public read fails closed where relevant and
 the operator finding is exact. Trace fixtures separately prove that hidden,
 ineligible, or independently unverifiable relations match the no-relation
@@ -106,10 +109,15 @@ cargo test -p fathomdb --test slice55_governed_surface
 cargo test -p fathomdb-cli --test slice55_data_plane_integrity_cli
 cargo test -p fathomdb-engine --features operator,test-hooks --test check_integrity
 cargo test -p fathomdb-engine --features operator,test-hooks --test trace_source_ref
+cargo test --release -p fathomdb-engine --features test-hooks \
+  --test slice55_dependency_trace \
+  slice55_trace_hidden_dependents_performance_ceiling -- --ignored --exact
 ```
 
-The last two commands are legacy nonregression, not evidence that the new
-surface exists.
+The two legacy `check_integrity`/`trace_source_ref` commands are nonregression,
+not evidence that the new surface exists. The ignored release-mode test creates
+50,000 hidden dependents and enforces the preregistered 10,000,000-VM-step,
+5.0-second, and 64-MiB ceilings from the design.
 
 ### Source-wrapper compatibility, TypeScript, and canonical codec
 
@@ -122,10 +130,12 @@ node --test --test-name-pattern slice55 src/ts/dist/tests/*.test.js
 cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_wire
 ```
 
-The `PYTHONPATH` command is source-wrapper compatibility evidence only. It may
-exercise safe-default construction and simulated older-native decoding, but it
-is not native or installed-behavior evidence. The TypeScript command must load
-the exact-source debug native binary built by its package script.
+The `PYTHONPATH` command is source-wrapper compatibility evidence only. It
+proves absent native additions always map to legacy defaults without a runtime
+capability discriminator; it is not native or installed-behavior evidence.
+The TypeScript command must load the exact-source debug native binary built by
+its package script, whose direct conformance fixture requires both additions
+on every candidate-native response.
 
 ### Exact-candidate Python wheel
 
@@ -223,14 +233,20 @@ S55-AC7 requires an exact before/after comparison for:
 - database, WAL, and SHM bytes around trace and integrity reads;
 - existing `TraceReport` and three-section `IntegrityReport` canonical JSON;
 - Python/TypeScript doctor-method absence; and
-- `trace_dependency`/integrity cap-plus-one query plans showing indexed bounded
-  access rather than an unbounded materialization or sort.
+- trace plans using the existing named source/derived lookup indexes with no
+  temp B-tree, materialization, or full candidate vector;
+- integrity physical scans in fixed class/rowid order and expected-owner scans
+  through their named canonical indexes, with no unsupported `ORDER BY`; and
+- the 50,000-hidden-dependent trace fixture's VM steps, elapsed time, peak RSS,
+  byte-identical response, and absence of a hidden-row-induced bound error.
 
-The verifier records counts, limits, query plans, file hashes, elapsed time,
-peak RSS, candidate commit, and toolchain in `verification-review.md`. There is
-no post-observation threshold rewrite. A query plan that materializes the full
-candidate set, any write caused by a diagnostic, or any default-search hot-path
-allocation blocks closeout.
+The verifier records counts, limits, query plans, VM steps, file hashes,
+elapsed time, peak RSS, candidate commit, and toolchain in
+`verification-review.md`. There is no post-observation threshold rewrite.
+Trace `maxWorkUnits` is reported only as an authorized-output classification
+bound, never as physical rows visited. A query plan that uses a temp sort or
+materializes the full candidate set, any write caused by a diagnostic, or any
+default-search hot-path allocation blocks closeout.
 
 ## Evidence records and closeout
 
@@ -255,5 +271,8 @@ Stop on a public-name collision; SDK doctor exposure; work bounded only by
 trace/integrity success; endpoint identity disclosure before authorization;
 telemetry of caller IDs/content; a second explanation correlation identity;
 default-search cost/shape change; repair or persistent state; schema migration;
-unbounded scan/sort; public-interface drift without parity; or test-oracle
+claiming trace work units bound hidden physical rows; trace temp sorting/full
+materialization; an unindexed projection ordering; whole-receipt loading or
+unbounded variable-field allocation in `mutation_readiness`; a runtime native
+capability discriminator; public-interface drift without parity; or test-oracle
 relaxation.

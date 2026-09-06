@@ -825,6 +825,27 @@ carry their version discriminator. Before production changes, the targets fail
 to compile on the absent `schema_version` fields and the decoder accepts both
 duplicate and reordered relation arrays.
 
+The exact strict-wire RED is
+`ec83ce9666c39cc748be63cf9747409792f65872`. GREEN adds `schema_version=1` to
+both typed error records and validates dependency-ID uniqueness plus canonical
+relation/node order before accepting a decoded response. Results:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_wire slice55_wire -- --nocapture
+test result: ok. 7 passed; 0 failed
+
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity \
+  slice55_integrity_execution_boundary_revalidates_public_struct_literals \
+  -- --exact --nocapture
+test result: ok. 1 passed; 0 failed
+
+cargo clippy -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_wire --test slice55_data_plane_integrity -- -D warnings
+Finished `dev` profile
+```
+
 Full writer gates passed at the same product commit:
 
 ```text

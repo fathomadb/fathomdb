@@ -285,13 +285,14 @@ impl DependencyTraceErrorReasonV1 {
 /// Privacy-safe typed trace error.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DependencyTraceErrorV1 {
+    pub schema_version: u32,
     pub reason: DependencyTraceErrorReasonV1,
     pub field_path: String,
 }
 
 impl DependencyTraceErrorV1 {
     pub(crate) fn new(reason: DependencyTraceErrorReasonV1, path: impl Into<String>) -> Self {
-        Self { reason, field_path: path.into() }
+        Self { schema_version: SCHEMA_VERSION, reason, field_path: path.into() }
     }
 }
 
@@ -1234,6 +1235,26 @@ pub fn decode_dependency_trace_result_v1(
     let mut revision_ids = std::collections::BTreeSet::new();
     for (index, node) in nodes.iter().enumerate() {
         if !revision_ids.insert(&node.artifact_revision_id) {
+            return Err(corrupt(format!("/nodes/{index}/artifactRevisionId")));
+        }
+    }
+    let mut dependency_ids = std::collections::BTreeSet::new();
+    for (index, edge) in dependency_edges.iter().enumerate() {
+        if !dependency_ids.insert(&edge.dependency_id) {
+            return Err(corrupt(format!("/dependencyEdges/{index}/dependencyId")));
+        }
+    }
+    for index in 1..dependency_edges.len() {
+        let previous = &dependency_edges[index - 1];
+        let current = &dependency_edges[index];
+        if (&previous.derived_revision_id, &previous.dependency_id)
+            >= (&current.derived_revision_id, &current.dependency_id)
+        {
+            return Err(corrupt(format!("/dependencyEdges/{index}")));
+        }
+    }
+    for index in 2..nodes.len() {
+        if nodes[index - 1].artifact_revision_id >= nodes[index].artifact_revision_id {
             return Err(corrupt(format!("/nodes/{index}/artifactRevisionId")));
         }
     }

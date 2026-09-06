@@ -361,13 +361,14 @@ impl DataPlaneIntegrityErrorReasonV1 {
 /// Typed, privacy-safe operator integrity error.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DataPlaneIntegrityErrorV1 {
+    pub schema_version: u32,
     pub reason: DataPlaneIntegrityErrorReasonV1,
     pub field_path: String,
 }
 
 impl DataPlaneIntegrityErrorV1 {
     pub(crate) fn new(reason: DataPlaneIntegrityErrorReasonV1, path: impl Into<String>) -> Self {
-        Self { reason, field_path: path.into() }
+        Self { schema_version: SCHEMA_VERSION, reason, field_path: path.into() }
     }
 }
 

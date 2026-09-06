@@ -523,6 +523,17 @@ cargo clippy -p fathomdb-engine --features operator,test-hooks \
 Finished `dev` profile
 ```
 
+The trace-authorization RED places a malformed BLOB dependency identity on an
+inactive derived endpoint that sorts before the one eligible relation, then
+runs with exactly one relation and two work units. Because the old query
+decoded the unfiltered row before checking endpoint visibility, it leaked a
+storage failure instead of returning the eligible relation:
+
+```text
+slice55_trace_hidden_corruption_is_filtered_before_decode_and_limit
+called `Result::unwrap()` on an `Err` value: Storage
+```
+
 ## Final exact-candidate artifact evidence
 
 The disposable wheel was rebuilt from exact product commit

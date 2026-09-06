@@ -326,6 +326,33 @@ fn slice55_trace_hidden_relations_do_not_trip_caps() {
 }
 
 #[test]
+fn slice55_trace_hidden_corruption_is_filtered_before_decode_and_limit() {
+    let (_dir, opened) = seeded();
+    add_hidden_dependent(&opened.engine, "aaa-hidden-r1", "aaa-hidden", "aaa-hidden-dep");
+    opened
+        .engine
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_source_dependencies SET dependency_id=zeroblob(32) \
+             WHERE derived_revision_id='aaa-hidden-r1'",
+        )
+        .unwrap();
+    let context = opened.engine.freeze_read_context(&read_context()).unwrap();
+    let request = DependencyTraceRequestV1::new(
+        "source-r1",
+        DependencyTraceDirectionV1::ToDependents,
+        context,
+    )
+    .unwrap()
+    .with_bounds(1, 2)
+    .unwrap();
+    let result = opened.engine.trace_dependency(request).unwrap();
+    assert_eq!(result.dependency_edges.len(), 1);
+    assert_eq!(result.dependency_edges[0].dependency_id, "dep-1");
+    assert_eq!(result.checked_work_units, 2);
+}
+
+#[test]
 fn slice55_trace_corrupt_requires_two_eligible_endpoints() {
     let (_dir, opened) = seeded();
     assert!(trace(&opened.engine, "derived-r1", DependencyTraceDirectionV1::ToSource).is_ok());

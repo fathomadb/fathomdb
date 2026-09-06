@@ -271,4 +271,4 @@ sha256 fd01c7c44d0eecfc4b8842450bb3506b1fc66f3344ec71b86e459e8d00814b7a
 
 The reissued pin records 66 allowlist, 5 core, and 5 recovery-denylist members;
 `./scripts/check-governed-surface-pin.sh` passed. The pin/chronology follow-up
-commit is recorded after commit completion.
+commit is `9f70e79b5bc9bfc635e3ec4351d5d3cab0f9121b`.

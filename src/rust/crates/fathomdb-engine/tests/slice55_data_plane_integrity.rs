@@ -1,11 +1,15 @@
 //! Slice 55 RED contract for bounded operator data-plane integrity.
 
 use fathomdb_engine::{
-    DataPlaneIntegrityCheckV1, DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityRequestV1,
-    Engine, EngineError,
+    ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, CanonicalHash,
+    DataPlaneIntegrityCheckV1, DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityFindingCodeV1,
+    DataPlaneIntegrityRequestV1, Engine, EngineError, InitialState, PreparedWrite,
+    ProvenancedNodeV1, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
+    SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use proptest::prelude::*;
+use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
 fn opened() -> (TempDir, fathomdb_engine::OpenedEngine) {
@@ -17,6 +21,89 @@ fn opened() -> (TempDir, fathomdb_engine::OpenedEngine) {
 
 fn request(check: DataPlaneIntegrityCheckV1, max_work: u32) -> DataPlaneIntegrityRequestV1 {
     DataPlaneIntegrityRequestV1::new(vec![check], max_work, 100).unwrap()
+}
+
+fn digest(body: &str) -> String {
+    Sha256::digest(body.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn canonical(revision: &str, logical: &str, body: &str) -> PreparedWrite {
+    PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "doc".into(),
+        body: body.into(),
+        source_id: SourceId::new("slice55-integrity-source").unwrap(),
+        logical_id: Some(logical.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        provenance: WriteProvenanceV1::canonical(
+            ArtifactRevisionId::new(revision).unwrap(),
+            SourceVersionId::new(format!("version-{revision}")).unwrap(),
+        ),
+    })
+}
+
+fn derived(revision: &str, logical: &str, source_revision: &str, body: &str) -> PreparedWrite {
+    PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "fact".into(),
+        body: body.into(),
+        source_id: SourceId::new("slice55-integrity-source").unwrap(),
+        logical_id: Some(logical.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        provenance: WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(revision).unwrap(),
+            SourceVersionId::new(format!("version-{source_revision}")).unwrap(),
+            SourceRevisionId::new(source_revision).unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(digest("slice55 integrity canonical")).unwrap(),
+        ),
+    })
+}
+
+fn dependency_seeded() -> (TempDir, fathomdb_engine::OpenedEngine) {
+    let (dir, opened) = opened();
+    opened
+        .engine
+        .write(&[
+            canonical("integrity-source-r1", "source", "slice55 integrity canonical"),
+            derived(
+                "integrity-derived-r1",
+                "derived",
+                "integrity-source-r1",
+                "slice55 integrity derived",
+            ),
+        ])
+        .unwrap();
+    opened
+        .engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new(
+                "integrity-dep-1",
+                "integrity-source-r1",
+                "integrity-derived-r1",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    (dir, opened)
+}
+
+fn finding_codes(
+    opened: &fathomdb_engine::OpenedEngine,
+    check: DataPlaneIntegrityCheckV1,
+) -> Vec<DataPlaneIntegrityFindingCodeV1> {
+    opened
+        .engine
+        .check_data_plane_integrity(request(check, 10_000))
+        .unwrap()
+        .findings
+        .into_iter()
+        .map(|finding| finding.code)
+        .collect()
 }
 
 #[test]
@@ -76,12 +163,35 @@ fn slice55_integrity_check_order_is_canonical() {
 
 #[test]
 fn slice55_dependency_chain_fault_matrix() {
-    let (_dir, opened) = opened();
-    let result = opened
+    let (_dir, opened) = dependency_seeded();
+    opened
         .engine
-        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::DependencyChain, 10_000))
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_source_dependencies SET schema_version=2 \
+             WHERE dependency_id='integrity-dep-1'",
+        )
         .unwrap();
-    assert!(result.findings.is_empty());
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::DependencyChain),
+        [DataPlaneIntegrityFindingCodeV1::DependencyRowInvalid]
+    );
+}
+
+#[test]
+fn slice55_dependency_chain_missing_owner_is_critical() {
+    let (_dir, opened) = dependency_seeded();
+    opened
+        .engine
+        .execute_for_test(
+            "DELETE FROM _fathomdb_artifact_revisions \
+             WHERE revision_id='integrity-derived-r1'",
+        )
+        .unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::DependencyChain),
+        [DataPlaneIntegrityFindingCodeV1::DependencyDerivedOwnerMissing]
+    );
 }
 
 #[test]
@@ -111,14 +221,50 @@ fn slice55_searchable_orphan_finding_matrix() {
 #[test]
 fn slice55_missing_synchronous_projection_matrix() {
     let (_dir, opened) = opened();
-    let result = opened
+    opened.engine.write(&[canonical("missing-fts-r1", "missing-fts", "missing fts body")]).unwrap();
+    opened.engine.execute_for_test("DELETE FROM search_index WHERE write_cursor=1").unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::ActiveSearchableOrphans),
+        [DataPlaneIntegrityFindingCodeV1::NodeBodyFtsMissing]
+    );
+}
+
+#[test]
+fn slice55_projection_generation_matrix_reports_missing_current_authority() {
+    let (_dir, opened) = opened();
+    opened.engine.execute_for_test("DELETE FROM _fathomdb_projection_generation_current").unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::ProjectionGeneration),
+        [DataPlaneIntegrityFindingCodeV1::ProjectionGenerationCorrupt]
+    );
+}
+
+#[test]
+fn slice55_mutation_readiness_receipt_matrix_reports_guarded_corruption() {
+    let (_dir, opened) = opened();
+    let batch = ActuationBatchV1::new(
+        "slice55-readiness",
+        vec![ActuationOperationV1::PutCanonicalNode(
+            match canonical("receipt-r1", "receipt", "receipt body") {
+                PreparedWrite::ProvenancedNode(node) => node,
+                _ => unreachable!(),
+            },
+        )],
+    )
+    .unwrap();
+    opened.engine.actuate(batch).unwrap();
+    opened
         .engine
-        .check_data_plane_integrity(request(
-            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
-            10_000,
-        ))
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_actuation_receipts SET outcome='not-an-outcome' \
+             WHERE operation_id='slice55-readiness'",
+        )
         .unwrap();
-    assert!(result.complete);
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::MutationReadiness),
+        [DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt]
+    );
 }
 
 macro_rules! clean_projection_case {

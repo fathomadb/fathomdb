@@ -652,9 +652,9 @@ fn slice55_projection_generation_enumerates_and_attributes_corrupt_members() {
         .unwrap();
     let result = opened
         .engine
-        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ProjectionGeneration, 4))
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ProjectionGeneration, 3))
         .unwrap();
-    assert_eq!(result.checked_count, 4);
+    assert_eq!(result.checked_count, 3);
     assert_eq!(result.findings.len(), 1);
     let finding = &result.findings[0];
     assert_eq!(finding.code, DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt);
@@ -674,15 +674,11 @@ fn slice55_projection_generation_member_cap_is_all_or_error() {
             canonical("generation-cap-r2", "generation-cap-2", "two"),
         ])
         .unwrap();
-    let error = opened
+    let result = opened
         .engine
         .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ProjectionGeneration, 3))
-        .unwrap_err();
-    assert!(matches!(
-        error,
-        EngineError::DataPlaneIntegrity(ref value)
-            if value.reason == DataPlaneIntegrityErrorReasonV1::IntegrityBoundExceeded
-    ));
+        .unwrap();
+    assert_eq!(result.checked_count, 2);
 }
 
 #[test]

@@ -979,7 +979,7 @@ fn active_projection_findings(
             physical_members.entry((cursor, name)).or_default().push(value);
         }
         for ((cursor, name), (expected_value, revision)) in expected_members {
-            match physical_members.get(&(*cursor, name.clone())) {
+            match physical_members.get(&(*cursor, (*name).clone())) {
                 None => {
                     let mut item = finding(missing_code, DataPlaneIntegritySeverityV1::Critical);
                     item.write_cursor = u64::try_from(*cursor).ok();
@@ -999,7 +999,7 @@ fn active_projection_findings(
             }
         }
         for (cursor, name) in physical_members.keys() {
-            if !expected_members.contains_key(&(*cursor, name.clone())) {
+            if !expected_members.contains_key(&(*cursor, (*name).clone())) {
                 let owner_exists: bool = connection
                     .query_row(
                         "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1)",

@@ -810,14 +810,7 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
     """
     native_structural = getattr(p, "structural", None)
     structural = (
-        StructuralInclusionV1(
-            schema_version=native_structural.schema_version,
-            inclusion_state=native_structural.inclusion_state,
-            projection_origin=native_structural.projection_origin,
-            dependency_state=native_structural.dependency_state,
-            lifecycle_state=native_structural.lifecycle_state,
-            degradation_codes=tuple(native_structural.degradation_codes),
-        )
+        _map_structural_explanation(native_structural)
         if native_structural is not None
         else None
     )
@@ -833,6 +826,60 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
         importance=p.importance,
         confidence=p.confidence,
         structural=structural,
+    )
+
+
+def _invalid_explanation(path: str) -> NoReturn:
+    raise ValueError(f"invalid explanation response at {path}")
+
+
+def _map_structural_explanation(value: Any) -> StructuralInclusionV1:
+    if getattr(value, "schema_version", None) != 1:
+        _invalid_explanation("/structural/schemaVersion")
+    inclusion = getattr(value, "inclusion_state", None)
+    if inclusion not in ("included", "degraded"):
+        _invalid_explanation("/structural/inclusionState")
+    projection = getattr(value, "projection_origin", None)
+    if projection not in (
+        "synchronous_body_fts",
+        "current_dense_generation",
+        "graph_traversal",
+    ):
+        _invalid_explanation("/structural/projectionOrigin")
+    dependency = getattr(value, "dependency_state", None)
+    if dependency not in ("not_applicable", "not_registered", "registered"):
+        _invalid_explanation("/structural/dependencyState")
+    lifecycle = getattr(value, "lifecycle_state", None)
+    if lifecycle not in ("node_pending", "node_active", "node_deleted", "edge_valid"):
+        _invalid_explanation("/structural/lifecycleState")
+    codes = getattr(value, "degradation_codes", None)
+    if not isinstance(codes, (list, tuple)):
+        _invalid_explanation("/structural/degradationCodes")
+    order = (
+        "soft_fallback_text",
+        "soft_fallback_text_edge",
+        "projection_legacy_unverified",
+        "projection_blocked",
+        "projection_deferred",
+        "graph_bound_reached",
+    )
+    previous = -1
+    for index, code in enumerate(codes):
+        if code not in order:
+            _invalid_explanation(f"/structural/degradationCodes/{index}")
+        ordinal = order.index(code)
+        if ordinal <= previous:
+            _invalid_explanation(f"/structural/degradationCodes/{index}")
+        previous = ordinal
+    if (inclusion == "included") != (len(codes) == 0):
+        _invalid_explanation("/structural/inclusionState")
+    return StructuralInclusionV1(
+        schema_version=1,
+        inclusion_state=inclusion,
+        projection_origin=projection,
+        dependency_state=dependency,
+        lifecycle_state=lifecycle,
+        degradation_codes=tuple(codes),
     )
 
 

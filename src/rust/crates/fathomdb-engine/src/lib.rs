@@ -2946,6 +2946,77 @@ pub fn arm_evidence_before_resolve_return_hook_for_test(hook: Box<dyn Fn() + Sen
     evidence_linearization_hooks::arm_before_resolve_return(hook);
 }
 
+mod explanation_finalization_hooks {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Mutex;
+
+    type ArmedHook = (std::thread::ThreadId, Box<dyn Fn() + Send>);
+
+    struct OneShotHook {
+        armed: AtomicBool,
+        hook: Mutex<Option<ArmedHook>>,
+    }
+
+    impl OneShotHook {
+        const fn new() -> Self {
+            Self { armed: AtomicBool::new(false), hook: Mutex::new(None) }
+        }
+
+        fn arm(&self, hook: Box<dyn Fn() + Send>) {
+            *self.hook.lock().expect("explanation finalization hook mutex") =
+                Some((std::thread::current().id(), hook));
+            self.armed.store(true, Ordering::SeqCst);
+        }
+
+        fn fire(&self) {
+            if !self.armed.load(Ordering::SeqCst) {
+                return;
+            }
+            let mut guard = self.hook.lock().expect("explanation finalization hook mutex");
+            if guard.as_ref().is_none_or(|(thread_id, _)| *thread_id != std::thread::current().id())
+            {
+                return;
+            }
+            self.armed.store(false, Ordering::SeqCst);
+            if let Some((_, hook)) = guard.take() {
+                drop(guard);
+                hook();
+            }
+        }
+    }
+
+    static BEFORE_TELEMETRY_LOCK: OneShotHook = OneShotHook::new();
+    static AFTER_TELEMETRY_LOCK: OneShotHook = OneShotHook::new();
+
+    pub(crate) fn arm_before(hook: Box<dyn Fn() + Send>) {
+        BEFORE_TELEMETRY_LOCK.arm(hook);
+    }
+
+    pub(crate) fn arm_after(hook: Box<dyn Fn() + Send>) {
+        AFTER_TELEMETRY_LOCK.arm(hook);
+    }
+
+    pub(crate) fn fire_before() {
+        BEFORE_TELEMETRY_LOCK.fire();
+    }
+
+    pub(crate) fn fire_after() {
+        AFTER_TELEMETRY_LOCK.fire();
+    }
+}
+
+/// Arm a one-shot test rendezvous immediately before explanation finalization locks telemetry.
+#[doc(hidden)]
+pub fn arm_explanation_before_telemetry_lock_hook_for_test(hook: Box<dyn Fn() + Send>) {
+    explanation_finalization_hooks::arm_before(hook);
+}
+
+/// Arm a one-shot test rendezvous while explanation finalization holds the telemetry lock.
+#[doc(hidden)]
+pub fn arm_explanation_after_telemetry_lock_hook_for_test(hook: Box<dyn Fn() + Send>) {
+    explanation_finalization_hooks::arm_after(hook);
+}
+
 impl ProjectionRuntime {
     fn new(
         path: PathBuf,
@@ -3796,6 +3867,8 @@ pub struct GraphFrontierStats {
     pub frontier_nonempty: bool,
     /// Number of graph-arm `SearchHit`s emitted (reachable, not already in the two-arm result).
     pub graph_candidates_emitted: u32,
+    /// Whether a further eligible graph candidate was suppressed by the fixed frontier cap.
+    pub bound_reached: bool,
 }
 
 impl GraphFrontierStats {
@@ -10874,7 +10947,9 @@ impl Engine {
             return;
         }
 
+        explanation_finalization_hooks::fire_before();
         let correlation_id = if let Ok(mut guard) = self.telemetry.lock() {
+            explanation_finalization_hooks::fire_after();
             if let Some(sink) = guard.as_mut() {
                 Self::capture_telemetry_with_sink(query, result, sink)
             } else {
@@ -17173,6 +17248,7 @@ fn begin_attributed_reader_tx<'a>(
 fn structural_dependency_state(
     tx: &Connection,
     write_cursor: u64,
+    effective_at: i64,
 ) -> rusqlite::Result<StructuralDependencyStateV1> {
     let owner: Option<(String, String)> = tx
         .query_row(
@@ -17188,18 +17264,39 @@ fn structural_dependency_state(
     if role != "derived_semantic" || completeness != "complete" {
         return Ok(StructuralDependencyStateV1::NotApplicable);
     }
-    let registered = tx.query_row(
-        "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies d \
-         JOIN _fathomdb_artifact_revisions r ON r.revision_id=d.derived_revision_id \
-         WHERE r.write_cursor=?1)",
-        [i64::try_from(write_cursor).map_err(|_| rusqlite::Error::InvalidQuery)?],
-        |row| row.get::<_, bool>(0),
-    )?;
+    let registered =
+        dependency_trace::registered_dependency_for_cursor(tx, write_cursor, effective_at)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
     Ok(if registered {
         StructuralDependencyStateV1::Registered
     } else {
         StructuralDependencyStateV1::NotRegistered
     })
+}
+
+fn structural_lifecycle_state(
+    tx: &Connection,
+    write_cursor: u64,
+) -> rusqlite::Result<StructuralLifecycleStateV1> {
+    let cursor = i64::try_from(write_cursor).map_err(|_| rusqlite::Error::InvalidQuery)?;
+    let edge_exists: bool = tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)",
+        [cursor],
+        |row| row.get(0),
+    )?;
+    if edge_exists {
+        return Ok(StructuralLifecycleStateV1::EdgeValid);
+    }
+    let state: String =
+        tx.query_row("SELECT state FROM canonical_nodes WHERE write_cursor=?1", [cursor], |row| {
+            row.get(0)
+        })?;
+    match state.as_str() {
+        "pending" => Ok(StructuralLifecycleStateV1::NodePending),
+        "active" => Ok(StructuralLifecycleStateV1::NodeActive),
+        "deleted" => Ok(StructuralLifecycleStateV1::NodeDeleted),
+        _ => Err(rusqlite::Error::InvalidQuery),
+    }
 }
 
 /// Read projection cursor and matching body rows inside one read tx.
@@ -18330,11 +18427,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                                 StructuralProjectionOriginV1::SynchronousBodyFts
                             }
                         };
-                        let lifecycle_state = if h.branch == SoftFallbackBranch::TextEdge {
-                            StructuralLifecycleStateV1::EdgeValid
-                        } else {
-                            StructuralLifecycleStateV1::NodeActive
-                        };
+                        let lifecycle_state = structural_lifecycle_state(&tx, h.write_cursor)?;
                         let mut degradation_codes = match (&soft_fallback, h.branch) {
                             (Some(_), SoftFallbackBranch::Text) => {
                                 vec![StructuralDegradationCodeV1::SoftFallbackText]
@@ -18364,6 +18457,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                                 degradation_codes.push(code);
                             }
                         }
+                        if graph_stats.bound_reached {
+                            degradation_codes.push(StructuralDegradationCodeV1::GraphBoundReached);
+                        }
                         degradation_codes.sort_unstable();
                         degradation_codes.dedup();
                         StructuralInclusionV1 {
@@ -18374,7 +18470,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                                 StructuralInclusionStateV1::Degraded
                             },
                             projection_origin,
-                            dependency_state: structural_dependency_state(&tx, h.write_cursor)?,
+                            dependency_state: structural_dependency_state(
+                                &tx,
+                                h.write_cursor,
+                                view.edge_now(),
+                            )?,
                             lifecycle_state,
                             degradation_codes,
                         }
@@ -19002,6 +19102,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                         ce_score: None,
                     });
                     if candidates.len() >= cap {
+                        stats.bound_reached = true;
                         break;
                     }
                 }
@@ -26498,6 +26599,7 @@ fn load_projection_registry(
     Ok(out)
 }
 
+#[cfg(feature = "operator")]
 fn load_projection_registry_row(
     conn: &Connection,
     name: &str,

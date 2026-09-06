@@ -30,6 +30,7 @@ import {
   DependencyError,
   DependencyTraceError,
   EvidenceError,
+  FathomDbError,
   FrozenReadError,
   InvalidArgumentError,
   InvalidFilterError,
@@ -1756,8 +1757,62 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
   };
   if (p.structural !== undefined) {
     const structural = p.structural;
+    const invalid = (path: string): never => {
+      throw new FathomDbError(`invalid explanation response at ${path}`);
+    };
+    if (structural.schemaVersion !== 1) invalid("/structural/schemaVersion");
+    if (structural.inclusionState !== "included" && structural.inclusionState !== "degraded") {
+      invalid("/structural/inclusionState");
+    }
+    if (
+      structural.projectionOrigin !== "synchronous_body_fts" &&
+      structural.projectionOrigin !== "current_dense_generation" &&
+      structural.projectionOrigin !== "graph_traversal"
+    ) {
+      invalid("/structural/projectionOrigin");
+    }
+    if (
+      structural.dependencyState !== "not_applicable" &&
+      structural.dependencyState !== "not_registered" &&
+      structural.dependencyState !== "registered"
+    ) {
+      invalid("/structural/dependencyState");
+    }
+    if (
+      structural.lifecycleState !== "node_pending" &&
+      structural.lifecycleState !== "node_active" &&
+      structural.lifecycleState !== "node_deleted" &&
+      structural.lifecycleState !== "edge_valid"
+    ) {
+      invalid("/structural/lifecycleState");
+    }
+    if (!Array.isArray(structural.degradationCodes)) {
+      invalid("/structural/degradationCodes");
+    }
+    const degradationOrder = [
+      "soft_fallback_text",
+      "soft_fallback_text_edge",
+      "projection_legacy_unverified",
+      "projection_blocked",
+      "projection_deferred",
+      "graph_bound_reached",
+    ] as const;
+    let previous = -1;
+    structural.degradationCodes.forEach((code, index) => {
+      const ordinal = degradationOrder.indexOf(code as (typeof degradationOrder)[number]);
+      if (ordinal < 0 || ordinal <= previous) {
+        invalid(`/structural/degradationCodes/${index}`);
+      }
+      previous = ordinal;
+    });
+    if (
+      (structural.inclusionState === "included") !==
+      (structural.degradationCodes.length === 0)
+    ) {
+      invalid("/structural/inclusionState");
+    }
     result.structural = {
-      schemaVersion: structural.schemaVersion as 1,
+      schemaVersion: 1,
       inclusionState: structural.inclusionState as StructuralInclusionStateV1,
       projectionOrigin: structural.projectionOrigin as StructuralProjectionOriginV1,
       dependencyState: structural.dependencyState as StructuralDependencyStateV1,

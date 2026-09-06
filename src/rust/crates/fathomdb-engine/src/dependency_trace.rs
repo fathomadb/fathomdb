@@ -376,7 +376,7 @@ fn valid_hash(value: &str) -> bool {
         && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
-fn source_link_valid(
+pub(crate) fn source_link_valid(
     connection: &Connection,
     artifact_revision_id: &str,
     expected_source_revision_id: Option<&str>,
@@ -469,7 +469,7 @@ fn source_link_valid(
     }))
 }
 
-fn canonical_source_chain_valid(
+pub(crate) fn canonical_source_chain_valid(
     connection: &Connection,
     source_revision_id: &str,
 ) -> Result<bool, EngineError> {
@@ -490,6 +490,57 @@ fn canonical_source_chain_valid(
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)
+}
+
+pub(crate) fn registered_dependency_for_cursor(
+    connection: &Connection,
+    write_cursor: u64,
+    effective_at: i64,
+) -> Result<bool, EngineError> {
+    let cursor = i64::try_from(write_cursor).map_err(|_| EngineError::Storage)?;
+    let derived_revision_id: Option<String> = connection
+        .query_row(
+            "SELECT revision_id FROM _fathomdb_artifact_revisions \
+             WHERE write_cursor=?1 AND schema_version=1 \
+               AND artifact_role='derived_semantic' AND completeness='complete'",
+            [cursor],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some(derived_revision_id) = derived_revision_id else { return Ok(false) };
+    let dependency: Option<(i64, String, String, i64)> = connection
+        .query_row(
+            "SELECT d.schema_version,d.dependency_id,l.source_revision_id,\
+                    d.registered_dependency_generation \
+             FROM _fathomdb_source_dependencies d \
+             JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
+             WHERE d.derived_revision_id=?1",
+            [&derived_revision_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some((schema, dependency_id, source_revision_id, generation)) = dependency else {
+        return Ok(false);
+    };
+    let current_generation = load_dependency_generation(connection)?;
+    if schema != 1
+        || !valid_caller_identity(&dependency_id)
+        || generation <= 0
+        || u64::try_from(generation).ok().is_none_or(|value| value > current_generation)
+        || !source_link_valid(connection, &derived_revision_id, Some(&source_revision_id))?
+        || !canonical_source_chain_valid(connection, &source_revision_id)?
+        || crate::dependency_closure::active_barrier_for_source(connection, &source_revision_id)?
+        || !crate::dependency_closure::source_revision_is_strictly_eligible(
+            connection,
+            &source_revision_id,
+            effective_at,
+        )?
+    {
+        return Ok(false);
+    }
+    Ok(true)
 }
 
 fn endpoint_closure_fenced(

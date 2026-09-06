@@ -298,17 +298,19 @@ fn publication_holding_write_lock_linearizes_before_transition() {
     )
     .unwrap();
     opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
-    let (transaction_ready, release) =
+    let mut transaction_pause =
         opened.engine.pause_projection_worker_after_wal_transaction_for_test();
     let receipt = actuate_race_node(&opened.engine, "publication-transition");
     let cursor = receipt.pending_projection_write_cursors[0];
     let old_generation = receipt.projection_generation_id.unwrap();
-    transaction_ready.wait();
+    transaction_pause
+        .wait_ready(std::time::Duration::from_secs(30))
+        .expect("projection worker reaches its WAL transaction under loaded CI");
     assert!(!opened.engine.has_vector_for_cursor_for_test(cursor).unwrap());
     let new_generation = thread::scope(|scope| {
         let transition =
             scope.spawn(|| opened.engine.transition_projection_generation_for_test().unwrap());
-        release.wait();
+        transaction_pause.release();
         transition.join().unwrap()
     });
     opened.engine.drain(5_000).unwrap();

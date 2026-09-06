@@ -247,7 +247,8 @@ fn worker_publication_never_repairs_a_partial_projection_tuple() {
     let path = dir.path().join(format!("partial-publication{SQLITE_SUFFIX}"));
     let opened = open(&path);
     opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
-    let (ready, release) = opened.engine.pause_projection_worker_after_wal_transaction_for_test();
+    let mut transaction_pause =
+        opened.engine.pause_projection_worker_after_wal_transaction_for_test();
     let failure_reported = Arc::new(Barrier::new(2));
     let failure_release = Arc::new(Barrier::new(2));
     opened.engine.pause_projection_commit_failure_cleanup_for_test(
@@ -260,8 +261,10 @@ fn worker_publication_never_repairs_a_partial_projection_tuple() {
         .unwrap();
     let cursor = opened.engine.write(&[node("partial-before-publication")]).unwrap().row_cursors[0];
     assert_eq!(cursor, 1);
-    ready.wait();
-    release.wait();
+    transaction_pause
+        .wait_ready(Duration::from_secs(30))
+        .expect("projection worker reaches its WAL transaction under loaded CI");
+    transaction_pause.release();
     failure_reported.wait();
 
     let connection = Connection::open(&path).unwrap();

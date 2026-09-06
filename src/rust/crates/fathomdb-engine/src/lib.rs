@@ -30948,7 +30948,7 @@ mod tests {
         )
         .expect("open");
         opened.engine.configure_vector_kind_for_test("doc").expect("vector kind");
-        let (ready, release) =
+        let mut transaction_pause =
             opened.engine.pause_projection_worker_after_wal_transaction_for_test();
         opened
             .engine
@@ -30963,7 +30963,9 @@ mod tests {
                 valid_until: None,
             }])
             .expect("write");
-        ready.wait();
+        transaction_pause
+            .wait_ready(Duration::from_secs(30))
+            .expect("projection worker reaches its WAL transaction under loaded CI");
         let active = opened.engine.wal_attribution_snapshot();
         assert_eq!(
             opened.engine.wal_attribution.classification(&active, false),
@@ -30987,7 +30989,7 @@ mod tests {
             busy.len()
         );
 
-        release.wait();
+        transaction_pause.release();
         opened.engine.drain(5_000).expect("projection settles");
         let runtime = opened
             .engine
@@ -31047,6 +31049,79 @@ mod tests {
             log_frames,
             checkpointed_frames,
         );
+    }
+
+    #[test]
+    fn projection_transaction_pause_ready_timeout_cancels_before_worker_arrival() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened = Engine::open_with_embedder_for_test(
+            dir.path().join("projection-pause-ready-timeout.sqlite"),
+            Arc::new(Slice65ProjectionEmbedder),
+        )
+        .expect("open");
+        opened.engine.configure_vector_kind_for_test("doc").expect("vector kind");
+        opened.engine.set_projection_scheduler_frozen_for_test(true);
+        let mut transaction_pause =
+            opened.engine.pause_projection_worker_after_wal_transaction_for_test();
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "projection pause cancelled before arrival".to_string(),
+                source_id: SourceId::new("projection-pause-timeout-source").expect("source"),
+                logical_id: Some("projection-pause-timeout".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write");
+
+        let timeout = Duration::from_millis(25);
+        let error =
+            transaction_pause.wait_ready(timeout).expect_err("frozen scheduler cannot arrive");
+        assert_eq!(
+            error.to_string(),
+            "projection worker did not reach transaction pause within 25ms"
+        );
+        drop(transaction_pause);
+
+        opened.engine.set_projection_scheduler_frozen_for_test(false);
+        opened.engine.drain(5_000).expect("cancelled pause cannot strand projection drain");
+        opened.engine.close().expect("cancelled pause cannot strand Engine close");
+    }
+
+    #[test]
+    fn projection_transaction_pause_drop_releases_worker_after_ready() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened = Engine::open_with_embedder_for_test(
+            dir.path().join("projection-pause-drop-release.sqlite"),
+            Arc::new(Slice65ProjectionEmbedder),
+        )
+        .expect("open");
+        opened.engine.configure_vector_kind_for_test("doc").expect("vector kind");
+        let mut transaction_pause =
+            opened.engine.pause_projection_worker_after_wal_transaction_for_test();
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "projection pause released by drop".to_string(),
+                source_id: SourceId::new("projection-pause-drop-source").expect("source"),
+                logical_id: Some("projection-pause-drop".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write");
+        transaction_pause
+            .wait_ready(Duration::from_secs(30))
+            .expect("projection worker reaches its WAL transaction under loaded CI");
+        drop(transaction_pause);
+
+        opened.engine.drain(5_000).expect("Drop release cannot strand projection drain");
+        opened.engine.close().expect("Drop release cannot strand Engine close");
     }
 
     /// 0.8.20 Slice 5a (R-20-E1, work item 2) — the registry GUARD.

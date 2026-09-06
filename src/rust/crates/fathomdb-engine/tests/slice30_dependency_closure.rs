@@ -759,9 +759,11 @@ fn projection_worker_before_admission_cannot_publish_dependency_residue() {
     )
     .unwrap();
     opened.engine.configure_vector_kind_for_test("doc").unwrap();
-    let (ready, release) = opened.engine.pause_projection_worker_after_wal_transaction_for_test();
+    let mut pause = opened.engine.pause_projection_worker_after_wal_transaction_for_test();
     seed_projection_race(&opened.engine);
-    ready.wait();
+    pause
+        .wait_ready(Duration::from_secs(30))
+        .expect("projection worker reaches its WAL transaction under loaded CI");
 
     let (sent, received) = mpsc::sync_channel(1);
     std::thread::scope(|scope| {
@@ -770,7 +772,7 @@ fn projection_worker_before_admission_cannot_publish_dependency_residue() {
                 .unwrap();
         });
         assert!(received.recv_timeout(Duration::from_millis(50)).is_err());
-        release.wait();
+        pause.release();
         received.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
     });
     opened.engine.drain(5_000).unwrap();

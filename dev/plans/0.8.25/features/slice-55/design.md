@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 55 — basic tracing, explanation, and integrity design
-status: DRAFT_FIX_3_REVIEW_REQUIRED
+status: READY
 design_version: 8
 review_fix: 3
 target_release: 0.8.25
@@ -26,8 +26,8 @@ repair plans, reverse-index construction, and repair orchestration. Slice 55
 is read-only and adds no schema migration or persistent state.
 
 All prerequisites through Slice 50, including Slice 7 architecture activation,
-are complete. This FIX-3 draft is not READY: an independent cycle-4 design
-re-review must close every Cycle 3 P1/P2 finding first.
+are complete. Independent design review Cycle 4 passed at design v8/FIX-3
+with no unresolved P1/P2 finding. This design is READY for TDD implementation.
 
 ## Requirements and acceptance
 
@@ -885,8 +885,9 @@ identical with explanation off.
 
 ## Readiness rule
 
-Design v8/FIX-3 resolves the four Cycle 3 findings by proposal. It remains
-`DRAFT_FIX_3_REVIEW_REQUIRED` until an independent cycle-4 reviewer verifies
-the trace output-bound/performance split, index-supported member ordering,
-minimal receipt-readiness scope, and discriminator-free SDK compatibility and
-records PASS. A P1 or P2 finding blocks READY and implementation.
+Independent Cycle 4 review passed design v8/FIX-3 at
+`4a5ec9b4dd7854986ab19f5f5d9f1510fc737148`, verified C3-55-01 through
+C3-55-04 resolved, and found no unresolved P1/P2 issue. The design is `READY`.
+The nonblocking P3 review note requires implementation verification evidence
+to name the exact SQLite VM-step and RSS measurement mechanism used for the
+preregistered performance ceiling; it does not alter the approved contract.

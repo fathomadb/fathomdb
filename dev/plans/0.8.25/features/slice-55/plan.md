@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 55 — basic tracing and integrity
-status: DRAFT_FIX_3_REVIEW_REQUIRED
+status: READY
 depends_on: 50
 design: design.md
-design_status: DRAFT_FIX_3_REVIEW_REQUIRED
+design_status: READY_REVIEW_PASS_CYCLE_4
 ---
 
 # Slice 55 plan

@@ -272,3 +272,31 @@ sha256 fd01c7c44d0eecfc4b8842450bb3506b1fc66f3344ec71b86e459e8d00814b7a
 The reissued pin records 66 allowlist, 5 core, and 5 recovery-denylist members;
 `./scripts/check-governed-surface-pin.sh` passed. The pin/chronology follow-up
 commit is `9f70e79b5bc9bfc635e3ec4351d5d3cab0f9121b`.
+
+## Approved governed-pin oracle rollover
+
+The first complete unconfined repository-test observation at chronology commit
+`eb4a0f1e` ran all 106 registered suites: 104 passed and 2 failed. The governed
+pin fixture retained five expectations for the previously approved 64-member
+shape after the Slice 55 pin had correctly advanced to 66. The orchestrator
+authorized only those exact shape/count expectations to roll forward: the
+explicit oracle now includes `trace_dependency` and `traceDependency`, the
+base count is 66, and its added/removed fixtures expect 67/65. Pin hashes,
+provenance logic, checker behavior, denylist expectations, and product code are
+unchanged.
+
+The other failing suite was the known worktree-native trap: source Python
+resolved the stale checked-out `_fathomdb.abi3.so`, which predates the already
+landed `ProjectionGenerationError`. That binary was not mutated, deleted, or
+replaced. Candidate-native Python verification uses the isolated disposable
+wheel workflow below.
+
+Focused rollover verification:
+
+```text
+bash scripts/tests/test_check_governed_surface_pin.sh
+All check-governed-surface-pin tests passed
+
+./scripts/check-governed-surface-pin.sh
+ok governed-surface-pin (66 allowlist / 5 core / 5 recovery_denylist)
+```

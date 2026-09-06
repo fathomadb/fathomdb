@@ -746,6 +746,22 @@ left: []
 right: [CanonicalAttributeMissing, PropertyFtsMissing]
 ```
 
+The exact sparse-owner RED commit is
+`e29df0b496b7e3476dfbcd348c09cdebbbac9fb7`. GREEN walks each declaration's
+active owners with an indexed after-key query until all fully classified scalar
+members are found, invokes the shared closure-eligibility classifier, and keeps
+canonical-attribute work ahead of property-FTS work. Results:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity
+test result: ok. 34 passed; 0 failed
+
+cargo clippy -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity -- -D warnings
+Finished `dev` profile
+```
+
 Full writer gates passed at the same product commit:
 
 ```text

@@ -48,6 +48,14 @@ const ATTRIBUTE_MEMBER_QUERY: &str =
 const PROPERTY_MEMBER_QUERY: &str =
     "SELECT rowid,write_cursor,attr_name,attr_value FROM property_search_index \
      WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+#[cfg(feature = "operator")]
+const ATTRIBUTE_OWNER_QUERY: &str =
+    "SELECT n.write_cursor,r.revision_id,n.body FROM canonical_nodes n \
+     INDEXED BY canonical_nodes_write_cursor_idx \
+     LEFT JOIN _fathomdb_artifact_revisions r \
+       ON r.artifact_class='node' AND r.write_cursor=n.write_cursor \
+     WHERE n.write_cursor>?1 AND n.state='active' AND n.superseded_at IS NULL \
+     ORDER BY n.write_cursor LIMIT ?2";
 
 #[cfg(all(feature = "operator", feature = "test-hooks"))]
 pub(crate) fn candidate_queries_for_test() -> [&'static str; 7] {
@@ -60,6 +68,59 @@ pub(crate) fn candidate_queries_for_test() -> [&'static str; 7] {
         ATTRIBUTE_MEMBER_QUERY,
         PROPERTY_MEMBER_QUERY,
     ]
+}
+
+#[cfg(feature = "operator")]
+fn expected_attribute_members(
+    connection: &Connection,
+    name: &str,
+    stored: &crate::StoredProjection,
+    effective_at_epoch_s: i64,
+    max_work_units: u32,
+    aggregate_checked: &mut u32,
+) -> Result<Vec<(i64, Option<String>, String)>, EngineError> {
+    let mut members = Vec::new();
+    let mut after_cursor = 0_i64;
+    loop {
+        let remaining = max_work_units.saturating_sub(*aggregate_checked);
+        let limit = i64::from(remaining) + 1;
+        let mut statement =
+            connection.prepare(ATTRIBUTE_OWNER_QUERY).map_err(|_| EngineError::Storage)?;
+        let owners = statement
+            .query_map(rusqlite::params![after_cursor, limit], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .map_err(|_| EngineError::Storage)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|_| EngineError::Storage)?;
+        let exhausted = owners.len() < usize::try_from(limit).unwrap_or(usize::MAX);
+        for (cursor, revision, body) in owners {
+            after_cursor = cursor;
+            let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
+            if !crate::dependency_closure::projection_owner_is_eligible_at(
+                connection,
+                cursor_u64,
+                effective_at_epoch_s,
+            )? {
+                continue;
+            }
+            let Some(value) = crate::extract_scalar_attribute(connection, &body, name, stored)
+                .map_err(|_| EngineError::Storage)?
+            else {
+                continue;
+            };
+            take_work(aggregate_checked, max_work_units)?;
+            members.push((cursor, revision, value));
+        }
+        if exhausted {
+            break;
+        }
+    }
+    Ok(members)
 }
 
 #[cfg(feature = "operator")]
@@ -947,39 +1008,30 @@ fn active_projection_findings(
         if !stored.wants_eav() {
             continue;
         }
-        let remaining = max_work_units.saturating_sub(*aggregate_checked);
-        let mut owner_statement = connection
-            .prepare(
-                "SELECT n.write_cursor,r.revision_id,n.body FROM canonical_nodes n \
-                 LEFT JOIN _fathomdb_artifact_revisions r \
-                   ON r.artifact_class='node' AND r.write_cursor=n.write_cursor \
-                 WHERE n.state='active' AND n.superseded_at IS NULL \
-                 ORDER BY n.write_cursor LIMIT ?1",
-            )
-            .map_err(|_| EngineError::Storage)?;
-        let owners = owner_statement
-            .query_map([i64::from(remaining) + 1], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, Option<String>>(1)?,
-                    row.get::<_, String>(2)?,
-                ))
-            })
-            .map_err(|_| EngineError::Storage)?
-            .collect::<rusqlite::Result<Vec<_>>>()
-            .map_err(|_| EngineError::Storage)?;
-        for (cursor, revision, body) in owners {
-            let Some(value) = crate::extract_scalar_attribute(connection, &body, name, stored)
-                .map_err(|_| EngineError::Storage)?
-            else {
-                continue;
-            };
-            take_work(aggregate_checked, max_work_units)?;
-            expected_attributes.insert((cursor, name.clone()), (value.clone(), revision.clone()));
-            if stored.wants_property_fts() {
-                take_work(aggregate_checked, max_work_units)?;
-                expected_properties.insert((cursor, name.clone()), (value, revision));
-            }
+        for (cursor, revision, value) in expected_attribute_members(
+            connection,
+            name,
+            stored,
+            effective_at_epoch_s,
+            max_work_units,
+            aggregate_checked,
+        )? {
+            expected_attributes.insert((cursor, name.clone()), (value, revision));
+        }
+    }
+    for (name, stored) in &registry_snapshot {
+        if !stored.wants_property_fts() {
+            continue;
+        }
+        for (cursor, revision, value) in expected_attribute_members(
+            connection,
+            name,
+            stored,
+            effective_at_epoch_s,
+            max_work_units,
+            aggregate_checked,
+        )? {
+            expected_properties.insert((cursor, name.clone()), (value, revision));
         }
     }
     for (physical_query, missing_code, expected_members) in [

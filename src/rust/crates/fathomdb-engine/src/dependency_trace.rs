@@ -17,6 +17,22 @@ const SCHEMA_VERSION: u32 = 1;
 const DEFAULT_MAX_RELATIONS: u32 = 100;
 const DEFAULT_MAX_WORK_UNITS: u32 = 101;
 
+const TO_SOURCE_CANDIDATE_QUERY: &str =
+    "SELECT d.dependency_id,l.source_revision_id,d.derived_revision_id,\
+            d.registered_dependency_generation,d.schema_version \
+     FROM _fathomdb_source_dependencies d \
+     JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
+     WHERE d.derived_revision_id=?1 \
+     ORDER BY d.derived_revision_id,d.dependency_id LIMIT ?2";
+
+const TO_DEPENDENTS_CANDIDATE_QUERY: &str =
+    "SELECT d.dependency_id,l.source_revision_id,d.derived_revision_id,\
+            d.registered_dependency_generation,d.schema_version \
+     FROM _fathomdb_source_links l INDEXED BY _fathomdb_source_links_source_derived_idx \
+     JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=l.artifact_revision_id \
+     WHERE l.source_revision_id=?1 AND l.artifact_revision_id>?2 \
+     ORDER BY l.source_revision_id,l.artifact_revision_id LIMIT ?3";
+
 type StoredNodeLifecycle = (String, String, Option<i64>, Option<i64>, Option<i64>);
 type StoredEdgeLifecycle = (String, Option<i64>, Option<i64>, Option<i64>);
 type StoredSourceLink =
@@ -350,6 +366,11 @@ fn visible_artifact(
 
 type StoredDependencyCandidate = (String, String, String, i64, i64);
 
+#[cfg(feature = "test-hooks")]
+pub(crate) fn candidate_queries_for_test() -> [&'static str; 2] {
+    [TO_SOURCE_CANDIDATE_QUERY, TO_DEPENDENTS_CANDIDATE_QUERY]
+}
+
 fn valid_hash(value: &str) -> bool {
     value.len() == 64
         && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
@@ -627,12 +648,8 @@ pub(crate) fn execute(
         DependencyTraceDirectionV1::ToSource => {
             let candidate = tx
                 .query_row(
-                    "SELECT d.dependency_id,l.source_revision_id,d.derived_revision_id,\
-                            d.registered_dependency_generation,d.schema_version \
-                     FROM _fathomdb_source_dependencies d \
-                     JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
-                     WHERE d.derived_revision_id=?1 LIMIT 2",
-                    [&request.root_revision_id],
+                    TO_SOURCE_CANDIDATE_QUERY,
+                    rusqlite::params![&request.root_revision_id, 2],
                     |row| {
                         Ok((
                             row.get::<_, String>(0)?,
@@ -658,35 +675,47 @@ pub(crate) fn execute(
             }
         }
         DependencyTraceDirectionV1::ToDependents => {
-            let mut statement = tx
-                .prepare(
-                    "SELECT d.dependency_id,l.source_revision_id,d.derived_revision_id,\
-                            d.registered_dependency_generation,d.schema_version \
-                     FROM _fathomdb_source_links l INDEXED BY _fathomdb_source_links_source_derived_idx \
-                     JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=l.artifact_revision_id \
-                     WHERE l.source_revision_id=?1 \
-                     ORDER BY l.source_revision_id,l.artifact_revision_id",
-                )
-                .map_err(|_| EngineError::Storage)?;
-            let mut rows =
-                statement.query([&request.root_revision_id]).map_err(|_| EngineError::Storage)?;
-            while let Some(row) = rows.next().map_err(|_| EngineError::Storage)? {
-                let candidate = (
-                    row.get::<_, String>(0).map_err(|_| EngineError::Storage)?,
-                    row.get::<_, String>(1).map_err(|_| EngineError::Storage)?,
-                    row.get::<_, String>(2).map_err(|_| EngineError::Storage)?,
-                    row.get::<_, i64>(3).map_err(|_| EngineError::Storage)?,
-                    row.get::<_, i64>(4).map_err(|_| EngineError::Storage)?,
-                );
-                include_candidate(
-                    &tx,
-                    &request,
-                    effective,
-                    dependency_generation,
-                    candidate,
-                    &mut nodes,
-                    &mut edges,
-                )?;
+            let mut after_key = String::new();
+            loop {
+                let remaining = request
+                    .max_relations
+                    .saturating_sub(u32::try_from(edges.len()).unwrap_or(request.max_relations));
+                let page_limit = i64::from(remaining.saturating_add(1));
+                let page = {
+                    let mut statement = tx
+                        .prepare_cached(TO_DEPENDENTS_CANDIDATE_QUERY)
+                        .map_err(|_| EngineError::Storage)?;
+                    let rows = statement
+                        .query_map(
+                            rusqlite::params![&request.root_revision_id, &after_key, page_limit],
+                            |row| {
+                                Ok((
+                                    row.get::<_, String>(0)?,
+                                    row.get::<_, String>(1)?,
+                                    row.get::<_, String>(2)?,
+                                    row.get::<_, i64>(3)?,
+                                    row.get::<_, i64>(4)?,
+                                ))
+                            },
+                        )
+                        .map_err(|_| EngineError::Storage)?;
+                    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
+                };
+                if page.is_empty() {
+                    break;
+                }
+                for candidate in page {
+                    after_key = candidate.2.clone();
+                    include_candidate(
+                        &tx,
+                        &request,
+                        effective,
+                        dependency_generation,
+                        candidate,
+                        &mut nodes,
+                        &mut edges,
+                    )?;
+                }
             }
         }
     }

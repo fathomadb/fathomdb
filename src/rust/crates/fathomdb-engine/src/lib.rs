@@ -13794,22 +13794,38 @@ impl Engine {
         self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let statements = [
-            ("EXPLAIN QUERY PLAN SELECT dependency_id FROM _fathomdb_source_dependencies WHERE derived_revision_id=?1 ORDER BY derived_revision_id, dependency_id LIMIT 2", "derived-r1"),
-            ("EXPLAIN QUERY PLAN SELECT artifact_revision_id FROM _fathomdb_source_links WHERE source_revision_id=?1 ORDER BY artifact_revision_id LIMIT 2", "source-r1"),
-        ];
+        let candidate_queries = dependency_trace::candidate_queries_for_test();
         let mut plans = Vec::new();
-        for (sql, parameter) in statements {
-            let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
+        {
+            let sql = format!("EXPLAIN QUERY PLAN {}", candidate_queries[0]);
+            let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
             plans.extend(
                 statement
-                    .query_map([parameter], |row| row.get::<_, String>(3))
+                    .query_map(rusqlite::params!["derived-r1", 2], |row| row.get::<_, String>(3))
+                    .map_err(|_| EngineError::Storage)?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(|_| EngineError::Storage)?,
+            );
+        }
+        {
+            let sql = format!("EXPLAIN QUERY PLAN {}", candidate_queries[1]);
+            let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
+            plans.extend(
+                statement
+                    .query_map(rusqlite::params!["source-r1", "", 2], |row| row.get::<_, String>(3))
                     .map_err(|_| EngineError::Storage)?
                     .collect::<rusqlite::Result<Vec<_>>>()
                     .map_err(|_| EngineError::Storage)?,
             );
         }
         Ok(plans)
+    }
+
+    /// Candidate SQL used by both bounded dependency-trace directions.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn dependency_trace_candidate_queries_for_test(&self) -> [&'static str; 2] {
+        dependency_trace::candidate_queries_for_test()
     }
 
     /// Query-plan details for bounded Slice 55 integrity owner and physical scans.

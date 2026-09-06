@@ -175,21 +175,30 @@ origin mismatch invalidates the result; no registry artifact is fetched.
 cargo test -p fathomdb-engine \
   --features operator,test-hooks,default-embedder,default-reranker \
   -- --test-threads=1
-cargo test --workspace --all-targets
+bash scripts/test-rust-workspace.sh --serial
+bash scripts/test-rust-workspace.sh --parallel-report
 cargo clippy --workspace --all-targets -- -D warnings -A missing-docs
 cargo check --workspace --all-targets
 ```
 
 The full applicable-feature route runs serially if the documented shared
 projection/WAL race fixtures interfere under the parallel harness. The exact
-focused oracle must pass unchanged before serialization is accepted. A ptrace
-denial is rerun unchanged outside the sandbox; no gate is disabled.
+focused oracle must pass unchanged before serialization is accepted. Per the
+temporary TC-72/TC-74 control in
+`dev/design/temporary-serial-rust-workspace-release-gate.md`, the canonical
+`--serial` runner is the release-gating workspace result. The equivalent
+`--parallel-report` runner remains a required non-gating diagnostic: an
+ordinary known concurrency-race failure is retained and classified rather
+than promoted to a gate failure, while a timeout or hang still blocks
+verification until its liveness cause is classified. A ptrace denial is rerun
+unchanged outside the sandbox; no gate is disabled.
 
-The workspace commands above are the cross-platform default-feature gate.
-CUDA and Metal remain separate platform routes, exactly as in Slice 40; a
-single `--all-features` command is invalid because it selects both backends.
-Neither platform backend is a Slice 55 acceptance route because this slice
-does not alter embedding, reranking, dense dispatch, or model loading.
+The serial workspace command above is the cross-platform default-feature
+gate; the parallel command reports race evidence without gating. CUDA and
+Metal remain separate platform routes, exactly as in Slice 40; a single
+`--all-features` command is invalid because it selects both backends. Neither
+platform backend is a Slice 55 acceptance route because this slice does not
+alter embedding, reranking, dense dispatch, or model loading.
 
 ### Fresh Linux packages
 

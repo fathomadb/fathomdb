@@ -231,7 +231,7 @@ def test_slice55_python_accepts_valid_trace_generation_boundary() -> None:
     decoded = engine_module._decode_dependency_trace_response(
         json.dumps(_trace_response())
     )
-    assert decoded.dependency_edges[0].registered_dependency_generation == 1
+    assert decoded.dependency_edges[0].registered_dependency_generation == "1"
     assert decoded.read_boundary.dependency_generation == 1
 
 

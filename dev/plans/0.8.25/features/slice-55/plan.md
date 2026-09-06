@@ -125,8 +125,9 @@ not evidence that the new surface exists. The ignored release-mode test creates
 PYTHONPATH=src/python .venv/bin/python -m pytest src/python/tests/test_slice55_wrapper_compat.py -q
 .venv/bin/ruff check src/python/fathomdb src/python/tests/test_slice55_trace_explanation.py
 .venv/bin/pyright src/python/fathomdb src/python/tests/test_slice55_trace_explanation.py
-npm run build:debug --workspace fathomdb
-node --test --test-name-pattern slice55 src/ts/dist/tests/*.test.js
+cd src/ts
+npm run build:debug
+node --test --test-name-pattern slice55 dist/tests/*.test.js
 cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_wire
 ```
 

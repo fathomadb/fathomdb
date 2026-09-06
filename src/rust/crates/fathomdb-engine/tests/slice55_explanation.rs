@@ -1,7 +1,7 @@
 //! Slice 55 RED contract for structural explained-search metadata.
 
 use std::collections::BTreeSet;
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Barrier, Mutex, OnceLock};
 
 use fathomdb_engine::{
     arm_explanation_after_telemetry_lock_hook_for_test,
@@ -48,6 +48,11 @@ fn vector_spec() -> ProjectionSpec {
 
 fn digest(body: &str) -> String {
     Sha256::digest(body.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn explanation_hook_test_mutex() -> &'static Mutex<()> {
+    static MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
+    MUTEX.get_or_init(|| Mutex::new(()))
 }
 
 fn provenance_node(
@@ -264,7 +269,7 @@ fn slice55_graph_bound_reached_is_produced_by_live_traversal() {
     for index in 0..63 {
         writes.push(PreparedWrite::Edge {
             kind: "linked".into(),
-            from: format!("graph-node-{index:02}"),
+            from: if index == 0 { "graph-node-00".into() } else { "graph-node-01".into() },
             to: format!("graph-node-{:02}", index + 1),
             source_id: SourceId::new("slice55-graph-bound").unwrap(),
             logical_id: Some(format!("graph-edge-{index:02}")),
@@ -286,6 +291,7 @@ fn slice55_graph_bound_reached_is_produced_by_live_traversal() {
 
 #[test]
 fn slice55_enable_before_finalization_uses_only_telemetry_identity() {
+    let _serial = explanation_hook_test_mutex().lock().unwrap();
     let (_dir, opened, _first) = explained();
     let sink = opened.engine.path().with_extension("before-finalize.jsonl");
     let engine = Arc::new(opened.engine);
@@ -316,6 +322,7 @@ fn slice55_enable_before_finalization_uses_only_telemetry_identity() {
 
 #[test]
 fn slice55_enable_after_finalization_uses_only_explanation_identity() {
+    let _serial = explanation_hook_test_mutex().lock().unwrap();
     let (_dir, opened, _first) = explained();
     let sink = opened.engine.path().with_extension("after-finalize.jsonl");
     let engine = Arc::new(opened.engine);

@@ -608,3 +608,13 @@ nested `serde_json::Value` maps with explicit declaration-order serializers.
 Semantic RED `cdb4bca2` then covered root role, edge endpoint, and revision
 uniqueness; GREEN `f8e19639` enforces those invariants and hard response maxima.
 Focused wire result: 6 passed.
+
+The FIX-2 live-explanation RED `e4c80aa9` initially reached 12 of 14 GREEN
+cases. Two remaining failures were fixture mechanics, and the HITL authorized
+only these test-only corrections with every assertion and threshold preserved:
+serialize the two process-global one-shot finalization hooks through a test
+mutex, and change the 64-node/63-edge graph fixture's non-seed topology from a
+depth-truncated chain to a star rooted at the first resolved seed. The latter
+makes the real max-depth-three traversal exceed its existing cap and can
+therefore exercise `graph_bound_reached`; no traversal limit was reduced.
+Production edits remained unstaged while this correction was committed.

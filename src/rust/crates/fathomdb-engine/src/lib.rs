@@ -19059,10 +19059,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
          LIMIT 1"
     ))?;
 
-    while let Some((lid, depth)) = frontier.pop_front() {
-        if candidates.len() >= cap {
-            break;
-        }
+    'frontier: while let Some((lid, depth)) = frontier.pop_front() {
         if depth >= max_depth {
             continue;
         }
@@ -19109,6 +19106,10 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
             if let Some((kind, body, write_cursor)) = row {
                 // Skip bodies already covered by the two-arm result.
                 if !seed_bodies.contains(body.as_str()) {
+                    if candidates.len() >= cap {
+                        stats.bound_reached = true;
+                        break 'frontier;
+                    }
                     let hop_score = 1.0 / (1.0 + (depth + 1) as f64);
                     let score =
                         if kind == "unknown" { hop_score * SYNTHESIZED_PENALTY } else { hop_score };
@@ -19136,10 +19137,6 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                         source_id: edge_source_id.clone(),
                         ce_score: None,
                     });
-                    if candidates.len() >= cap {
-                        stats.bound_reached = true;
-                        break;
-                    }
                 }
                 // Always push neighbor to frontier for further BFS expansion.
                 frontier.push_back((neighbor, depth + 1));

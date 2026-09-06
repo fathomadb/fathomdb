@@ -802,6 +802,22 @@ The authorized mechanical correction uses 50 nodes and 49 edges, preserving
 the assertion and production cap, so two seeds plus 48 reached nodes is exactly
 50 eligible candidates.
 
+The exact graph-bound RED is
+`82cf64038f8c4a7e117e281d48ac1dcec68c934f`; the authorized fixture-only
+correction is `9a8bdc0c1bd5e4fbd3b8f4c620729ea6c8bedaf7`. GREEN continues traversal after
+accepting the cap-th candidate and reports `graph_bound_reached` only upon
+classifying one additional eligible candidate that must be omitted. Results:
+
+```text
+cargo test -p fathomdb-engine --features test-hooks \
+  --test slice55_explanation slice55_graph_bound -- --nocapture
+test result: ok. 2 passed; 0 failed
+
+cargo test -p fathomdb-engine --features test-hooks \
+  --test slice55_explanation
+test result: ok. 17 passed; 0 failed
+```
+
 Full writer gates passed at the same product commit:
 
 ```text

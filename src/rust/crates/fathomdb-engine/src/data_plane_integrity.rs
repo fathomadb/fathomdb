@@ -56,9 +56,50 @@ const ATTRIBUTE_OWNER_QUERY: &str =
        ON r.artifact_class='node' AND r.write_cursor=n.write_cursor \
      WHERE n.write_cursor>?1 AND n.state='active' AND n.superseded_at IS NULL \
      ORDER BY n.write_cursor LIMIT ?2";
+#[cfg(feature = "operator")]
+const DENSE_TERMINAL_MEMBER_QUERY: &str = "SELECT write_cursor FROM _fathomdb_projection_terminal \
+     WHERE write_cursor>?1 ORDER BY write_cursor LIMIT ?2";
+#[cfg(feature = "operator")]
+const DENSE_SIDECAR_MEMBER_QUERY: &str = "SELECT write_cursor FROM _fathomdb_vector_rows \
+     WHERE write_cursor>?1 ORDER BY write_cursor LIMIT ?2";
+#[cfg(feature = "operator")]
+const DENSE_VECTOR_MEMBER_QUERY: &str = "SELECT rowid FROM vector_default WHERE rowid>?1 LIMIT ?2";
+#[cfg(feature = "operator")]
+const CURRENT_GENERATION_QUERY: &str =
+    "SELECT c.generation_id,g.schema_version,g.role,g.retired_boundary,g.transition_boundary,\
+            g.declaration_sha256 \
+     FROM _fathomdb_projection_generation_current c \
+     CROSS JOIN _fathomdb_projection_generations g ON g.generation_id=c.generation_id \
+     WHERE c.singleton>?1 LIMIT ?2";
+#[cfg(feature = "operator")]
+const RECEIPT_GUARD_QUERY: &str = "SELECT rowid, \
+            typeof(operation_id)='text' \
+              AND length(CAST(operation_id AS BLOB)) BETWEEN 1 AND 128 \
+              AND operation_id NOT GLOB '_fdb:*' \
+              AND substr(operation_id,1,1) GLOB '[A-Za-z0-9]' \
+              AND operation_id NOT GLOB '*[^A-Za-z0-9._:-]*', \
+            typeof(schema_version)='integer' AND schema_version=1, \
+            typeof(operations_count) IN ('integer','null'), \
+            typeof(outcome)='text' AND length(outcome)<=25 \
+              AND outcome IN ('committed','committed_closure_pending','refused','erased'), \
+            typeof(resulting_write_boundary) IN ('integer','null'), \
+            typeof(pending_projection_write_cursors_json)='text' \
+              AND length(pending_projection_write_cursors_json)<=2945 \
+              AND json_valid(pending_projection_write_cursors_json) \
+              AND json_type(pending_projection_write_cursors_json)='array' \
+              AND json_array_length(pending_projection_write_cursors_json)<=128, \
+            typeof(projection_generation_id) IN ('text','null') \
+              AND (projection_generation_id IS NULL OR \
+                   (length(projection_generation_id)=38 \
+                    AND projection_generation_id GLOB 'pgen1:[0-9a-f]*')), \
+            CASE WHEN json_valid(pending_projection_write_cursors_json) \
+                 AND json_type(pending_projection_write_cursors_json)='array' \
+                 THEN json_array_length(pending_projection_write_cursors_json) END \
+     FROM _fathomdb_actuation_receipts WHERE operation_id>?1 \
+     ORDER BY operation_id LIMIT ?2";
 
 #[cfg(all(feature = "operator", feature = "test-hooks"))]
-pub(crate) fn candidate_queries_for_test() -> [&'static str; 7] {
+pub(crate) fn candidate_queries_for_test() -> [&'static str; 12] {
     [
         NODE_BODY_OWNER_QUERY,
         EDGE_BODY_OWNER_QUERY,
@@ -67,7 +108,36 @@ pub(crate) fn candidate_queries_for_test() -> [&'static str; 7] {
         EDGE_SEARCH_MEMBER_QUERY,
         ATTRIBUTE_MEMBER_QUERY,
         PROPERTY_MEMBER_QUERY,
+        DENSE_TERMINAL_MEMBER_QUERY,
+        DENSE_SIDECAR_MEMBER_QUERY,
+        DENSE_VECTOR_MEMBER_QUERY,
+        CURRENT_GENERATION_QUERY,
+        RECEIPT_GUARD_QUERY,
     ]
+}
+
+#[cfg(feature = "operator")]
+fn physical_dense_candidates(
+    connection: &Connection,
+    remaining: u32,
+) -> Result<BTreeSet<u64>, EngineError> {
+    let mut candidates = BTreeSet::new();
+    for sql in [DENSE_TERMINAL_MEMBER_QUERY, DENSE_SIDECAR_MEMBER_QUERY, DENSE_VECTOR_MEMBER_QUERY]
+    {
+        let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
+                row.get::<_, i64>(0)
+            })
+            .map_err(|_| EngineError::Storage)?;
+        for cursor in rows {
+            candidates.insert(
+                u64::try_from(cursor.map_err(|_| EngineError::Storage)?)
+                    .map_err(|_| EngineError::Storage)?,
+            );
+        }
+    }
+    Ok(candidates)
 }
 
 #[cfg(feature = "operator")]
@@ -788,6 +858,13 @@ fn active_projection_findings(
         let mut expected_by_cursor = BTreeMap::new();
         for (cursor, revision, body, kind) in entries {
             take_work(aggregate_checked, max_work_units)?;
+            if !crate::dependency_closure::projection_owner_is_eligible_at(
+                connection,
+                u64::try_from(cursor).map_err(|_| EngineError::Storage)?,
+                effective_at_epoch_s,
+            )? {
+                continue;
+            }
             expected_by_cursor.insert(cursor, (revision, body, kind));
         }
         let remaining = max_work_units.saturating_sub(*aggregate_checked);
@@ -859,6 +936,13 @@ fn active_projection_findings(
     let mut expected_edges = BTreeMap::new();
     for (cursor, revision, body, kind) in edge_entries {
         take_work(aggregate_checked, max_work_units)?;
+        if !crate::dependency_closure::projection_owner_is_eligible_at(
+            connection,
+            u64::try_from(cursor).map_err(|_| EngineError::Storage)?,
+            effective_at_epoch_s,
+        )? {
+            continue;
+        }
         expected_edges.insert(cursor, (revision, body, kind));
     }
     let remaining = max_work_units.saturating_sub(*aggregate_checked);
@@ -916,7 +1000,16 @@ fn active_projection_findings(
     }
 
     let mut expected_dense = BTreeMap::new();
-    for (table, class) in [("canonical_nodes", "node"), ("canonical_edges", "edge")] {
+    let dense_authority_enabled = crate::vector_projection_declared(connection)
+        .map_err(|_| EngineError::Storage)?
+        || connection
+            .query_row("SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_kinds)", [], |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?;
+    for (table, class) in if dense_authority_enabled {
+        &[("canonical_nodes", "node"), ("canonical_edges", "edge")][..]
+    } else {
+        &[]
+    } {
         let remaining = max_work_units.saturating_sub(*aggregate_checked);
         let sql = format!("SELECT write_cursor FROM {table} ORDER BY write_cursor LIMIT ?1");
         let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
@@ -926,6 +1019,7 @@ fn active_projection_findings(
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;
         for cursor in cursors {
+            take_work(aggregate_checked, max_work_units)?;
             let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
             if crate::projection_generation::dense_member_kind_at(
                 connection,
@@ -934,7 +1028,6 @@ fn active_projection_findings(
             )?
             .is_some()
             {
-                take_work(aggregate_checked, max_work_units)?;
                 let revision: Option<String> = connection
                     .query_row(
                         "SELECT revision_id FROM _fathomdb_artifact_revisions \
@@ -982,24 +1075,8 @@ fn active_projection_findings(
             push_finding(findings, item, max_findings)?;
         }
     }
-    let mut physical_dense = BTreeSet::new();
-    for (table, cursor_column) in [
-        ("_fathomdb_projection_terminal", "write_cursor"),
-        ("_fathomdb_vector_rows", "write_cursor"),
-        ("vector_default", "rowid"),
-    ] {
-        let remaining = max_work_units.saturating_sub(*aggregate_checked);
-        let sql = format!("SELECT {cursor_column} FROM {table} ORDER BY {cursor_column} LIMIT ?1");
-        let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
-        let cursors = statement
-            .query_map([i64::from(remaining) + 1], |row| row.get::<_, i64>(0))
-            .map_err(|_| EngineError::Storage)?
-            .collect::<rusqlite::Result<Vec<_>>>()
-            .map_err(|_| EngineError::Storage)?;
-        for cursor in cursors {
-            physical_dense.insert(u64::try_from(cursor).map_err(|_| EngineError::Storage)?);
-        }
-    }
+    let remaining = max_work_units.saturating_sub(*aggregate_checked);
+    let physical_dense = physical_dense_candidates(connection, remaining)?;
     for cursor in physical_dense {
         take_work(aggregate_checked, max_work_units)?;
         if !expected_dense.contains_key(&cursor) {
@@ -1177,30 +1254,26 @@ fn projection_generation_findings(
 ) -> Result<(u32, String), EngineError> {
     let start = *aggregate_checked;
     take_work(aggregate_checked, max_work_units)?;
-    let current: Option<String> = connection
-        .query_row(
-            "SELECT generation_id FROM _fathomdb_projection_generation_current WHERE singleton=1",
-            [],
-            |row| row.get(0),
-        )
+    let current_record: Option<(String, i64, String, Option<i64>, i64, String)> = connection
+        .query_row(CURRENT_GENERATION_QUERY, rusqlite::params![0_i64, 2_i64], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?))
+        })
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let mut valid = current.as_deref().is_some_and(valid_generation_id);
-    if let Some(id) = current.as_ref() {
+    let current = current_record.as_ref().map(|record| record.0.clone());
+    let mut valid =
+        current_record.as_ref().is_some_and(|(id, schema, role, retired, transition, digest)| {
+            valid_generation_id(id)
+                && *schema == 1
+                && role == "serving"
+                && retired.is_none()
+                && *transition >= 0
+                && digest.len() == 64
+                && digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        });
+    if current.is_some() {
         take_work(aggregate_checked, max_work_units)?;
-        let generation_valid: bool = connection
-            .query_row(
-                "SELECT EXISTS(SELECT 1 FROM _fathomdb_projection_generations \
-                 WHERE generation_id=?1 AND schema_version=1 AND role='serving' \
-                 AND retired_boundary IS NULL AND transition_boundary>=0 \
-                 AND length(declaration_sha256)=64 \
-                 AND declaration_sha256 NOT GLOB '*[^0-9a-f]*')",
-                [id],
-                |row| row.get(0),
-            )
-            .map_err(|_| EngineError::Storage)?;
-        valid &= generation_valid
-            && crate::projection_generation::current_generation_id(connection).is_ok();
+        valid &= crate::projection_generation::current_generation_id(connection).is_ok();
     }
     if !valid {
         let mut item = finding(
@@ -1211,27 +1284,34 @@ fn projection_generation_findings(
         push_finding(findings, item, max_findings)?;
     } else {
         let generation_id = current.as_ref().expect("validated current generation");
-        let mut after_cursor = 0i64;
-        loop {
-            let mut next_cursor: Option<i64> = None;
-            for (table, column) in [
-                ("canonical_nodes", "write_cursor"),
-                ("canonical_edges", "write_cursor"),
-                ("_fathomdb_projection_terminal", "write_cursor"),
-                ("_fathomdb_vector_rows", "write_cursor"),
-                ("vector_default", "rowid"),
-            ] {
-                let sql = format!("SELECT MIN({column}) FROM {table} WHERE {column}>?1");
-                let candidate: Option<i64> = connection
-                    .query_row(&sql, [after_cursor], |row| row.get(0))
+        let remaining = max_work_units.saturating_sub(*aggregate_checked);
+        let mut candidates = physical_dense_candidates(connection, remaining)?;
+        let dense_authority_enabled = crate::vector_projection_declared(connection)
+            .map_err(|_| EngineError::Storage)?
+            || connection
+                .query_row("SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_kinds)", [], |row| {
+                    row.get(0)
+                })
+                .map_err(|_| EngineError::Storage)?;
+        if dense_authority_enabled {
+            for sql in [NODE_BODY_OWNER_QUERY, EDGE_BODY_OWNER_QUERY] {
+                let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
+                let rows = statement
+                    .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
+                        row.get::<_, i64>(0)
+                    })
                     .map_err(|_| EngineError::Storage)?;
-                if let Some(candidate) = candidate {
-                    next_cursor = Some(next_cursor.map_or(candidate, |seen| seen.min(candidate)));
+                for cursor in rows {
+                    candidates.insert(
+                        u64::try_from(cursor.map_err(|_| EngineError::Storage)?)
+                            .map_err(|_| EngineError::Storage)?,
+                    );
                 }
             }
-            let Some(cursor) = next_cursor else { break };
-            after_cursor = cursor;
-            let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
+        }
+        for cursor_u64 in candidates {
+            take_work(aggregate_checked, max_work_units)?;
+            let cursor = i64::try_from(cursor_u64).map_err(|_| EngineError::Storage)?;
             let expected = crate::projection_generation::dense_member_kind_at(
                 connection,
                 cursor_u64,
@@ -1256,7 +1336,6 @@ fn projection_generation_findings(
             if expected.is_none() && owner_exists && terminal && !sidecar && !vector {
                 continue;
             }
-            take_work(aggregate_checked, max_work_units)?;
             let member_valid = expected.is_some()
                 && crate::projection_generation::physical_member_completion_at(
                     connection,
@@ -1300,36 +1379,10 @@ fn mutation_readiness_findings(
 ) -> Result<u32, EngineError> {
     let start = *aggregate_checked;
     let remaining = max_work_units.saturating_sub(*aggregate_checked);
-    let mut statement = connection
-        .prepare(
-            "SELECT rowid, \
-                    typeof(operation_id)='text' \
-                      AND length(CAST(operation_id AS BLOB)) BETWEEN 1 AND 128 \
-                      AND operation_id NOT GLOB '_fdb:*' \
-                      AND substr(operation_id,1,1) GLOB '[A-Za-z0-9]' \
-                      AND operation_id NOT GLOB '*[^A-Za-z0-9._:-]*', \
-                    typeof(schema_version)='integer' AND schema_version=1, \
-                    typeof(operations_count) IN ('integer','null'), \
-                    typeof(outcome)='text' AND length(outcome)<=25 \
-                      AND outcome IN ('committed','committed_closure_pending','refused','erased'), \
-                    typeof(resulting_write_boundary) IN ('integer','null'), \
-                    typeof(pending_projection_write_cursors_json)='text' \
-                      AND length(pending_projection_write_cursors_json)<=2945 \
-                      AND json_valid(pending_projection_write_cursors_json) \
-                      AND json_type(pending_projection_write_cursors_json)='array' \
-                      AND json_array_length(pending_projection_write_cursors_json)<=128, \
-                    typeof(projection_generation_id) IN ('text','null') \
-                      AND (projection_generation_id IS NULL OR \
-                           (length(projection_generation_id)=38 \
-                            AND projection_generation_id GLOB 'pgen1:[0-9a-f]*')), \
-                    CASE WHEN json_valid(pending_projection_write_cursors_json) \
-                         AND json_type(pending_projection_write_cursors_json)='array' \
-                         THEN json_array_length(pending_projection_write_cursors_json) END \
-             FROM _fathomdb_actuation_receipts ORDER BY operation_id LIMIT ?1",
-        )
-        .map_err(|_| EngineError::Storage)?;
+    let mut statement =
+        connection.prepare(RECEIPT_GUARD_QUERY).map_err(|_| EngineError::Storage)?;
     let guarded = statement
-        .query_map([i64::from(remaining) + 1], |row| {
+        .query_map(rusqlite::params!["", i64::from(remaining) + 1], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, bool>(1)?,
@@ -1445,6 +1498,9 @@ fn mutation_readiness_findings(
                 })
             };
         let max_pending = cursors.as_ref().and_then(|items| items.last()).copied();
+        let current_generation = crate::projection_generation::current_generation_id(connection)
+            .map(|id| id.as_str().to_owned())
+            .ok();
         let generation_coherent = match (max_pending, generation.as_deref()) {
             (None, None) => true,
             (None, Some(_)) => false,
@@ -1457,21 +1513,7 @@ fn mutation_readiness_findings(
                 )
                 .map_err(|_| EngineError::Storage)?,
             (Some(_), Some(generation_id)) if valid_generation_id(generation_id) => {
-                let receipt_boundary = boundary.and_then(|value| u64::try_from(value).ok());
-                connection
-                    .query_row(
-                        "SELECT transition_boundary,retired_boundary \
-                         FROM _fathomdb_projection_generations WHERE generation_id=?1",
-                        [generation_id],
-                        |row| Ok((row.get::<_, u64>(0)?, row.get::<_, Option<u64>>(1)?)),
-                    )
-                    .optional()
-                    .map_err(|_| EngineError::Storage)?
-                    .is_some_and(|(transition, retired)| {
-                        receipt_boundary.is_some_and(|value| {
-                            value >= transition && retired.is_none_or(|end| value <= end)
-                        })
-                    })
+                current_generation.as_deref() == Some(generation_id)
             }
             (Some(_), Some(_)) => false,
         };

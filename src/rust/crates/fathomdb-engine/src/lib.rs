@@ -13965,7 +13965,7 @@ impl Engine {
     /// Candidate SQL executed by the bounded Slice 55 integrity scans.
     #[cfg(all(feature = "operator", feature = "test-hooks"))]
     #[doc(hidden)]
-    pub fn data_plane_integrity_candidate_queries_for_test(&self) -> [&'static str; 7] {
+    pub fn data_plane_integrity_candidate_queries_for_test(&self) -> [&'static str; 12] {
         data_plane_integrity::candidate_queries_for_test()
     }
 

@@ -1289,3 +1289,30 @@ only that setup call with public `configure_projections`, which performs a real
 generation transition. The receipt and expected corruption assertions were
 unchanged; the test-and-chronology correction was committed separately while
 production remained unstaged.
+
+The exact second RED commit is
+`ca032c098d0121369a36d2f46bdfb60faba90005`; authorized test-only corrections
+are `4720f8ab9e471de61920032a94ae2b803158243d` and
+`7381279b2c542725364f9aea07aa351e15d223b2`. GREEN uses the shared closure
+classifier for synchronous owners, charges dense authority candidates before
+classification, scans the three physical tuple components with bounded
+after-key production SQL, joins current generation authority, rejects retired
+receipt generations, and exposes those exact statements to the plan hook.
+
+The first aggregate run exposed three residuals: generation candidates omitted
+all-missing enrolled owners, the vec0 virtual table requested an unsupported
+ordered rowid scan that produced `USE TEMP B-TREE`, and non-dense sparse owners
+were unnecessarily charged. After the required retry-boundary rethink, GREEN
+adds bounded enrolled-owner candidates, skips owner enumeration when no dense
+authority exists, and uses vec0's constrained rowid traversal without a
+temporary sort. The unchanged aggregate and lint target pass:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity
+test result: ok. 43 passed; 0 failed
+
+cargo clippy -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity -- -D warnings
+Finished `dev` profile
+```

@@ -51,3 +51,9 @@ or memory threshold, and the results are essentially scale-flat from 10k to
 
 All Slice 45 acceptance, review, cross-SDK, platform, and performance gates
 pass. Release state advances to Slice 50.
+
+During the Slice 50 repository-gate audit, the shared governed-surface
+allowlist was corrected to include the six already-approved Slice 45
+pagination and operational-state Python/TypeScript spellings. The correction
+changes governance metadata only; independent review at `3a3b1571` confirmed
+that no Slice 45 product, API, schema, or runtime behavior changed.

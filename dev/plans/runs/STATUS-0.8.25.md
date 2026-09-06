@@ -12,11 +12,11 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 50 (EVIDENCE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 55 (TRACE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
-Prework and Slices 10 through 45 are complete on the durable `release/0.8.25`
-worktree. Slice 45 closed with stable frozen pagination, cross-SDK and Windows
-verification, and a preregistered 10k/50k latency and memory receipt. The
+Prework and Slices 10 through 50 are complete on the durable `release/0.8.25`
+worktree. Slice 50 closed with stateless compact evidence, eligibility-bound
+exact source resolution, cross-SDK parity, and Linux/Windows verification. The
 owner-approved 2026-09-02
 scope adjustment removes Slices 65/70 and narrows the retained implementation
 ladder. Direct agents execute this release without Steward or Orchestrator
@@ -42,7 +42,7 @@ roles.
 | 35 | Eligibility and optional frozen reads | Complete on release branch (`071ff7d1`) |
 | 40 | Core projection generation/readiness | Complete on release branch (`ccf7c695`) |
 | 45 | Minimal pagination and operational state | Complete on release branch (`2f48e657`) |
-| 50 | Compact source-complete evidence | Not started |
+| 50 | Compact source-complete evidence | Complete on release branch (`e741542d`) |
 | 55 | Basic tracing and integrity | Not started |
 | 60 | Minimal constrained graph parity | Not started |
 | 75 | Trimmed trustworthy release verification | Not started |
@@ -70,7 +70,7 @@ roles.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 50 (EVIDENCE)** — compact source-complete evidence. **Remaining ladder:** 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 55 (TRACE)** — basic provenance tracing and integrity. **Remaining ladder:** 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 
@@ -124,6 +124,11 @@ lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
   registered 10k/50k receipt finds no material latency or memory effect; the
   largest steady p95 increase is 0.116 ms and the largest median peak-RSS
   increase is 1.17 MiB. The final unconfined fast gate passes 103/103 suites.
+- Slice 50 passes independent design and implementation review at cycle 4.
+  Its stateless content-free evidence reference, exact eligibility-bound
+  resolver, nondisclosure matrix, and unchanged ordinary-search path pass
+  focused Rust/Python/TypeScript, property, Linux package, Windows native,
+  optional-reranker feature, and repository gates.
 - A diagnostic release-wide long gate exposed the pre-existing AC-013 vector
   latency failure and was stopped after that failure. It is release debt, not
   a Slice 10 regression.

@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 50 — compact source-complete evidence
-status: IMPLEMENTATION_PENDING
+status: COMPLETE
 depends_on: 45
 design: design.md
 design_status: READY

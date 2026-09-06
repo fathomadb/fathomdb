@@ -205,14 +205,14 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 50** (`EVIDENCE`) — compact source-complete evidence
+**IMMEDIATE NEXT: Slice 55** (`TRACE`) — basic provenance tracing and integrity
 
-**Remaining ladder:** 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Slice 45 is durably closed. Reconcile Slice 50's compact evidence design
+Slice 50 is durably closed. Reconcile Slice 55's tracing and integrity design
 against the implemented provenance, dependency, lifecycle, eligibility,
-generation, frozen-read, and pagination contracts before beginning its RED
-tests.
+generation, pagination, and compact-evidence contracts before beginning its
+RED tests.
 
 ## Stop gates
 

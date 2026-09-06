@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 55 — basic tracing and integrity
-status: DRAFT_FIX_1_REVIEW_REQUIRED
+status: DRAFT_FIX_2_REVIEW_REQUIRED
 depends_on: 50
 design: design.md
-design_status: DRAFT_FIX_1_REVIEW_REQUIRED
+design_status: DRAFT_FIX_2_REVIEW_REQUIRED
 ---
 
 # Slice 55 plan
@@ -56,12 +56,12 @@ mock the database or derive expected output from product code.
 | Requirement | Acceptance | Named RED tests and fixtures | Focused command | Durable evidence |
 |---|---|---|---|---|
 | S55-R1 non-colliding surfaces | S55-AC7 | `slice55_existing_operator_contracts_are_unchanged`; `slice55_governed_and_operator_surfaces_are_separate`; fixture: current accepted `TraceReport`/`IntegrityReport` JSON | `cargo test -p fathomdb-cli --test slice55_data_plane_integrity_cli` and `cargo test -p fathomdb --test slice55_governed_surface` | `implementation-tdd-chronology.md`, `implementation-review-cycleN.md` |
-| S55-R2 reciprocal trace | S55-AC1/S55-AC2 | `slice55_trace_reciprocal_same_context`; `slice55_trace_root_and_counterpart_order`; `slice55_trace_invisible_roots_are_nondisclosing`; `slice55_trace_counterpart_eligibility`; fixture: `tests/fixtures/slice55/trace-v1.json` | `cargo test -p fathomdb-engine --test slice55_dependency_trace` | `implementation-tdd-chronology.md`, `verification-review.md` |
-| S55-R3 bounded snapshot | S55-AC1/S55-AC3 | `slice55_trace_cap_plus_one_is_all_or_error`; `slice55_integrity_work_cap_counts_exact_units`; `slice55_integrity_uses_one_reader_snapshot`; `slice55_integrity_check_order_is_canonical` | `cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_data_plane_integrity` | `implementation-tdd-chronology.md`, `verification-review.md` |
+| S55-R2 reciprocal trace | S55-AC1/S55-AC2 | `slice55_trace_reciprocal_same_context`; `slice55_trace_root_and_counterpart_order`; `slice55_trace_invisible_roots_are_nondisclosing`; `slice55_trace_hidden_relations_match_absence`; `slice55_trace_hidden_relations_do_not_trip_caps`; `slice55_trace_corrupt_requires_two_eligible_endpoints`; fixture: `tests/fixtures/slice55/trace-v1.json` | `cargo test -p fathomdb-engine --test slice55_dependency_trace` | `implementation-tdd-chronology.md`, `verification-review.md` |
+| S55-R3 bounded snapshot | S55-AC1/S55-AC3 | `slice55_trace_cap_plus_one_is_all_or_error`; `slice55_integrity_work_cap_counts_authority_rows`; `slice55_integrity_empty_receipt_counts_one_row`; `slice55_integrity_receipt_length_precedes_allocation`; `slice55_integrity_receipt_malformed_oversized_and_cap_plus_one`; `slice55_integrity_uses_one_reader_snapshot`; `slice55_integrity_check_order_is_canonical` | `cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_data_plane_integrity` | `implementation-tdd-chronology.md`, `verification-review.md` |
 | S55-R4 real dependency authority | S55-AC4 | `slice55_dependency_chain_fault_matrix`; `slice55_no_reverse_row_contract`; proptest `slice55_normalized_chain_round_trip`; fixture: `tests/fixtures/slice55/dependency-corruption-v1.json` | `cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_data_plane_integrity dependency` | `implementation-tdd-chronology.md`, `verification-review.md` |
-| S55-R5 projection/orphan/readiness authority | S55-AC4 | `slice55_searchable_orphan_finding_matrix`; `slice55_dense_state_reuses_slice40_classifier`; `slice55_projection_generation_error_mapping`; `slice55_mutation_readiness_receipt_matrix`; fixture: `tests/fixtures/slice55/projection-corruption-v1.json` | `cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_data_plane_integrity projection` | `implementation-tdd-chronology.md`, `verification-review.md` |
-| S55-R6 explanation successor | S55-AC5/S55-AC7 | `slice55_explanation_is_positional_and_structural`; `slice55_one_correlation_id_with_telemetry`; `slice55_telemetry_off_writes_nothing`; `slice55_default_search_is_unchanged`; fixture: `tests/fixtures/slice55/explanation-v1.json` | `cargo test -p fathomdb-engine --test slice55_explanation` | `implementation-tdd-chronology.md`, `verification-review.md` |
-| S55-R7 wire/nondisclosure | S55-AC2/S55-AC6 | `slice55_wire_v1_canonical_bytes`; proptest `slice55_trace_codec_round_trip`; `test_slice55_trace_explanation.py`; `slice55-trace-explanation.test.ts`; nested invalid-response and RFC 6901 fixture cases | Commands in the SDK/wire routes below | `implementation-tdd-chronology.md`, `verification-review.md` |
+| S55-R5 projection/orphan/readiness authority | S55-AC4 | `slice55_searchable_orphan_finding_matrix`; `slice55_missing_synchronous_projection_matrix`; `slice55_missing_node_body_fts`; `slice55_missing_node_body_fts_v2`; `slice55_missing_edge_body_fts`; `slice55_missing_canonical_attribute`; `slice55_missing_property_fts`; `slice55_dense_state_reuses_slice40_classifier`; `slice55_projection_generation_error_mapping`; `slice55_mutation_readiness_receipt_matrix`; fixture: `tests/fixtures/slice55/projection-corruption-v1.json` | `cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_data_plane_integrity projection` | `implementation-tdd-chronology.md`, `verification-review.md` |
+| S55-R6 explanation successor | S55-AC5/S55-AC7 | `slice55_explanation_is_positional_and_structural`; `slice55_one_correlation_id_with_telemetry`; `slice55_explain_telemetry_reenable_bytes_unchanged`; `slice55_explain_enable_race_has_one_id_source`; `slice55_concurrent_explain_telemetry_ids_unique`; `slice55_telemetry_off_writes_nothing`; `slice55_default_search_is_unchanged`; fixture: `tests/fixtures/slice55/explanation-v1.json` | `cargo test -p fathomdb-engine --test slice55_explanation` | `implementation-tdd-chronology.md`, `verification-review.md` |
+| S55-R7 wire/nondisclosure | S55-AC2/S55-AC6 | `slice55_wire_v1_canonical_bytes`; proptest `slice55_trace_codec_round_trip`; `test_slice55_old_python_construction.py`; `test_slice55_older_native_decode.py`; `slice55-old-object-literals.test.ts`; `slice55-older-native-decode.test.ts`; new-response presence plus nested invalid-response and RFC 6901 cases; successor ADR fixture | Commands in the SDK/wire routes below | `implementation-tdd-chronology.md`, `verification-review.md` |
 
 `N` in review filenames is the actual review cycle. No evidence record may use
 an unreviewed working-tree claim; it names the exact Git commit and complete
@@ -78,11 +78,15 @@ to create exactly one real fault from the design matrix.
 
 Required fault primitives target the actual rows: dependency row schema/ID/
 generation, derived owner, derived source link, canonical owner/node,
-source-version row, canonical self-link, synchronous FTS/attribute owner,
-dense sidecar/vec0/terminal tuple, generation authority, and actuation receipt
+source-version row, canonical self-link, deletion or duplication of each
+required synchronous `search_index`, `search_index_v2`, `search_index_edges`,
+`canonical_attributes`, or `property_search_index` member, dense
+sidecar/vec0/terminal tuple, generation authority, and actuation receipt
 pending entry. There is no reverse-row or reverse-index primitive. After each
 fault, the test proves the normal public read fails closed where relevant and
-the operator finding is exact.
+the operator finding is exact. Trace fixtures separately prove that hidden,
+ineligible, or independently unverifiable relations match the no-relation
+response byte for byte and cannot affect either bound.
 
 The property suites generate bounded valid source/derived registrations, apply
 zero or one enumerated corruption, and assert round-trip reciprocity or the
@@ -107,10 +111,10 @@ cargo test -p fathomdb-engine --features operator,test-hooks --test trace_source
 The last two commands are legacy nonregression, not evidence that the new
 surface exists.
 
-### Python, TypeScript, and canonical codec
+### Source-wrapper compatibility, TypeScript, and canonical codec
 
 ```text
-PYTHONPATH=src/python .venv/bin/python -m pytest src/python/tests/test_slice55_trace_explanation.py -q
+PYTHONPATH=src/python .venv/bin/python -m pytest src/python/tests/test_slice55_wrapper_compat.py -q
 .venv/bin/ruff check src/python/fathomdb src/python/tests/test_slice55_trace_explanation.py
 .venv/bin/pyright src/python/fathomdb src/python/tests/test_slice55_trace_explanation.py
 npm run build:debug --workspace fathomdb
@@ -118,9 +122,38 @@ node --test --test-name-pattern slice55 src/ts/dist/tests/*.test.js
 cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_wire
 ```
 
-The Python runtime result is valid only against a wheel built from the exact
-candidate, not a stale editable worktree extension. The TypeScript command
-must load the exact-source debug native binary built by its package script.
+The `PYTHONPATH` command is source-wrapper compatibility evidence only. It may
+exercise safe-default construction and simulated older-native decoding, but it
+is not native or installed-behavior evidence. The TypeScript command must load
+the exact-source debug native binary built by its package script.
+
+### Exact-candidate Python wheel
+
+The focused installed-behavior proof is the repository's fail-closed wheel
+verifier, extended by Slice 55 to exercise `trace_dependency`, explained
+search presence/normalization, and continued absence of Python doctor methods.
+Run it from a clean exact candidate with no `PYTHONPATH`:
+
+```text
+test -z "$(git status --porcelain)"
+test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+wheel_root="$(mktemp -d /tmp/fathomdb-s55-wheel.XXXXXX)"
+env -u PYTHONPATH ./scripts/verify-release-python-wheel.sh \
+  --python "$(command -v python3)" \
+  --wheel-dir "$wheel_root/dist" \
+  --venv-dir "$wheel_root/venv"
+sha256sum "$wheel_root"/dist/*.whl
+env -u PYTHONPATH "$wheel_root/venv/bin/python" -c \
+  'import pathlib, fathomdb; p=pathlib.Path(fathomdb.__file__).resolve(); assert "site-packages" in p.parts; print(p)'
+env -u PYTHONPATH "$wheel_root/venv/bin/python" \
+  src/python/tests/smoke_slice55_installed.py
+```
+
+`CANDIDATE_SHA`, the single candidate wheel's SHA-256, the installed module and
+native-extension origins emitted by the verifier, and the smoke result are
+recorded together. `pip install --no-index --no-deps` inside the verifier and
+the origin assertion exclude an editable/source-tree import. A wheel hash or
+origin mismatch invalidates the result; no registry artifact is fetched.
 
 ### Repository and applicable features
 
@@ -141,21 +174,22 @@ denial is rerun unchanged outside the sandbox; no gate is disabled.
 
 ### Fresh Linux packages
 
-From an exact-source disposable checkout/environment, build a wheel and packed
-N-API package, record their SHA-256 values, install offline, and run:
+From an exact-source disposable checkout/environment, retain the wheel result
+from the exact-candidate command above, then build a packed N-API package,
+record its SHA-256, install offline, and run the local artifact smokes:
 
 ```text
-./scripts/release/smoke/smoke-pypi-wheel.sh <wheel>
 ./scripts/release/smoke/smoke-npm-package.sh <package.tgz>
 ./scripts/release/smoke/smoke-crates-cli.sh
 ```
 
-The package-specific smoke additionally opens a real database and exercises
+The package-specific smokes open a real database and exercise
 `trace_dependency`, explain correlation/structure, typed trace refusal, and
-`doctor data-plane-integrity --json`. The SDK package smokes must also prove
-that Python/TypeScript still have no doctor integrity method. Package hashes,
+`doctor data-plane-integrity --json`. The SDK package smokes also prove that
+Python/TypeScript still have no doctor integrity method. Package hashes,
 source archive hash, toolchain versions, commands, and results are recorded in
-`verification-review.md`.
+`verification-review.md`. These are local ephemeral artifacts only; no release
+packaging, registry staging, tag, or publication occurs.
 
 ### Windows jobs and native artifacts
 

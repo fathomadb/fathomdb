@@ -1,8 +1,8 @@
 ---
 title: 0.8.25 Slice 55 — basic tracing, explanation, and integrity design
-status: DRAFT_FIX_1_REVIEW_REQUIRED
-design_version: 6
-review_fix: 1
+status: DRAFT_FIX_2_REVIEW_REQUIRED
+design_version: 7
+review_fix: 2
 target_release: 0.8.25
 depends_on: 50
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -26,8 +26,8 @@ repair plans, reverse-index construction, and repair orchestration. Slice 55
 is read-only and adds no schema migration or persistent state.
 
 All prerequisites through Slice 50, including Slice 7 architecture activation,
-are complete. This FIX-1 draft is not READY: an independent design re-review
-must close every Cycle 1 P1/P2 finding first.
+are complete. This FIX-2 draft is not READY: an independent cycle-3 design
+re-review must close every Cycle 2 P1/P2 finding first.
 
 ## Requirements and acceptance
 
@@ -82,7 +82,7 @@ The corresponding acceptance rows are:
 | Dependency authority | `_fathomdb_source_dependencies` stores dependency ID, derived revision, and registered generation; `_fathomdb_source_links` stores the authoritative source revision. Both lookup directions join them. | Validate this one normalized chain. Add no reverse row/index/table. |
 | Read authority | `FrozenReadContextV1` authenticates database, visibility/filter envelope, effective instant, write/dependency/projection state. | Require it on every application trace. One existing reader transaction owns validation and collection. |
 | Explanation | `SearchResult.explanation: Option<Explanation>`; `Explanation` contains `QueryTrace` plus one positional `PerHitExplain` per result. | Add one content-free correlation ID and one versioned structural-inclusion object per `PerHitExplain`. |
-| Telemetry correlation | Opt-in local telemetry mints a content-free `query_id`; telemetry is off by default. | Mint one correlation identity for a search and reuse it as telemetry `query_id` when telemetry is on. No second `operation_id`. |
+| Telemetry correlation | Opt-in local telemetry mints `q0-<seq>` under the sink lock; every enable/re-enable resets `nonce=0`, `seq=0`, and `last_query_id=None`. There is no public disable operation. | An explained search uses the telemetry ID only when the sink is enabled at finalization; otherwise it uses a separate explanation-only ID allocator. Non-explain telemetry bytes and re-enable reset remain unchanged. |
 | Projection authority | Slice 40 owns generation identity, physical membership, dense completion, and `ProjectionGenerationError`. | Call the shared classifiers. Integrity translates classified corruption to findings; it does not copy their SQL or redefine readiness. |
 
 ## Exact public ownership and naming
@@ -206,13 +206,14 @@ only the two bound fields; omission selects those same defaults. `null` never
 means omission.
 
 `max_relations` is `1..=100`; `max_work_units` is `1..=101`. The fixed hard
-ceilings are not configurable. A work unit is one root artifact candidate or
-one registered dependency candidate read from the normalized, fixed-width
-joined relation. Each joined candidate may touch only the dependency row,
-derived owner, derived source link, canonical owner/node, source-version row,
-canonical self-link, and singleton generation. Internal SQLite virtual-machine
-steps are not the unit. Indexed statements use the remaining cap plus one, so
-the Engine can detect overflow without scanning the remainder.
+ceilings are not configurable. A work unit is one eligible root or one
+registered relation whose two endpoints have already independently passed the
+authenticated eligibility selection. Each selected relation may touch only the
+dependency row, derived owner, derived source link, canonical owner/node,
+source-version row, canonical self-link, and singleton generation. Internal
+SQLite virtual-machine steps are not the unit. Indexed statements apply
+authorization and eligibility before their stable-key `LIMIT remaining+1`, so
+the Engine detects overflow without scanning or counting inaccessible rows.
 
 ### Direction, inclusion, ordering, and one snapshot
 
@@ -235,25 +236,51 @@ The relation itself has no active/inactive state. Eligibility applies to the
 registered relation's two endpoints and all Slice 30 closure barriers. The
 root and counterpart must independently satisfy the exact authenticated view,
 attribute eligibility, lifecycle/currentness, temporal validity, erasure, and
-physical closure fences. An ineligible counterpart is omitted, not returned
-with `visible=false`. Thus, under the same context, any returned edge is
-reciprocal: tracing its source `to_dependents` and derived endpoint `to_source`
-returns the same `SourceDependencyV1` identity.
+physical closure fences.
 
-An eligible derived root without a registered Slice 20 relation returns only
-the root. An eligible source with no eligible registered dependents does the
-same. Missing, erased, superseded, closure-fenced, or ineligible roots all
-return `trace_unavailable` at `/rootRevisionId`. That nondisclosing outcome
-precedes role and corruption detail. A visible root whose registered chain is
-malformed returns `trace_corrupt` without endpoint IDs. Trace returns no source
-body, payload, query, predicate value, `source_id`, source version, locator, or
-hash; Slice 50 remains the authorized exact-source path.
+The indexed candidate statement performs endpoint authorization in its `JOIN`
+and `WHERE` clauses before ordering, `LIMIT`, work accounting, bound detection,
+or corruption classification. It first proves each endpoint from independently
+valid owner/lifecycle rows; it does not trust the relation row to establish an
+endpoint's visibility. Only then may it validate the registered relation's
+schema, dependency identity/generation, and cross-row agreement. An
+ineligible endpoint or a malformed chain that cannot independently prove both
+endpoints eligible is indistinguishable from no relation: it contributes no
+edge, node, work unit, count, bound error, or `trace_corrupt` result. The
+operator-only integrity check remains the path that diagnoses such hidden
+state.
 
-If either cap-plus-one probe observes excess work/relations, the call returns
-`trace_bound_exceeded`, no result, and no partial IDs. `checked_work_units`
-therefore appears only on complete success and equals one plus the number of
-registered relation candidates fully classified, including candidates omitted
-because their counterpart was ineligible.
+`trace_corrupt` is permitted only after both independently resolved endpoints
+passed the authenticated eligibility envelope and the remaining relation
+metadata is contradictory. It carries no endpoint IDs. Thus, under the same
+context, any returned edge is reciprocal: tracing its source `to_dependents`
+and derived endpoint `to_source` returns the same `SourceDependencyV1`
+identity.
+
+An eligible derived root without an eligible, independently verifiable
+registered relation returns only the root. An eligible source with no eligible,
+independently verifiable registered dependents does the same. Missing, erased,
+superseded, closure-fenced, or ineligible roots all return `trace_unavailable`
+at `/rootRevisionId`. That nondisclosing outcome precedes role and corruption
+detail. Trace returns no source body, payload, query, predicate value,
+`source_id`, source version, locator, or hash; Slice 50 remains the authorized
+exact-source path.
+
+If either post-eligibility cap-plus-one probe observes excess work/relations,
+the call returns `trace_bound_exceeded`, no result, and no partial IDs.
+`checked_work_units` therefore appears only on complete success and equals one
+plus the number of eligible registered relations fully classified. Hidden,
+ineligible, or unverifiable candidates never influence it.
+
+The nondisclosure fixture compares canonical response/error bytes and work
+counts across databases containing: no relation; an ineligible counterpart;
+an erased/superseded/closure-fenced counterpart; a malformed dependency row;
+a missing derived owner; a source-link mismatch that prevents independent
+source authorization; and more than either caller cap of hidden relations. It
+also races eligibility loss before the reader transaction. Every case is
+observationally identical to no relation. Separate fixtures prove
+`trace_corrupt` only when both endpoints remain eligible and an independently
+non-authorizing relation field is corrupt.
 
 ## Bounded data-plane integrity
 
@@ -279,6 +306,9 @@ DataPlaneIntegrityFindingCodeV1 =
   dependency_source_link_mismatch | dependency_source_owner_missing |
   dependency_source_role_invalid | dependency_source_version_mismatch |
   dependency_source_self_link_mismatch | dependency_generation_mismatch |
+  node_body_fts_missing | node_body_fts_v2_missing |
+  edge_body_fts_missing | canonical_attribute_missing |
+  property_fts_missing |
   search_projection_owner_missing | search_projection_outside_membership |
   search_projection_identity_mismatch | dense_projection_owner_missing |
   dense_projection_partial | dense_projection_identity_mismatch |
@@ -328,14 +358,20 @@ but execution and `check_counts` always use the closed order shown in the enum.
 `1..=100`. The CLI default is `max_work_units=10_000` and
 `max_findings=100`. These hard ceilings cannot be raised.
 
-One work unit is one candidate authority object fully classified by a check:
+One work unit is one authority row or member candidate loaded and fully
+classified by a check:
 
-- `dependency_chain`: one `_fathomdb_source_dependencies` row;
-- `active_searchable_orphans`: one synchronous FTS/attribute owner candidate
-  or one dense owner tuple keyed by `(artifact_class, write_cursor, kind)`;
-- `projection_generation`: one current generation authority row plus one
-  physical member classified through the shared Slice 40 classifier; and
-- `mutation_readiness`: one non-erased receipt pending-cursor pair.
+- `dependency_chain`: one dependency-generation singleton row, then one
+  `_fathomdb_source_dependencies` row;
+- `active_searchable_orphans`: one projection-registry authority row, one
+  expected synchronous member, one scanned physical member, or one dense
+  owner tuple keyed by `(artifact_class, write_cursor, kind)`;
+- `projection_generation`: one current-generation singleton row, one current
+  generation record, then one physical member classified through the shared
+  Slice 40 classifier; and
+- `mutation_readiness`: one `_fathomdb_actuation_receipts` row, then one unit
+  for each pending-cursor element in that row. An empty pending array costs the
+  receipt-row unit and zero pair units.
 
 Each check uses stable primary-key order and an indexed remaining-cap-plus-one
 query. The aggregate remaining cap is passed into each later check; there is no
@@ -344,6 +380,18 @@ increments its check and aggregate `checked_count` exactly once after its
 fixed-width joined state has been loaded, whether clean or a finding. The same
 candidate may legitimately be classified by two requested checks and then
 costs one unit in each, because the checks make different assertions.
+
+Singletons are real units even when the corresponding collection is empty.
+For each receipt, a first SQL metadata probe selects byte length,
+`json_valid`, JSON type, and guarded array length without returning the pending
+JSON to Rust. The maximum accepted byte length is 2,945: 128 quoted 20-digit
+`u64` strings, 127 commas, and two brackets. Invalid type/JSON, more than 128
+members, or a larger byte length becomes `mutation_receipt_corrupt` without
+allocating or deserializing the text. If the declared array length would exceed
+the aggregate remaining work budget, cap-plus-one fails before a second SQL
+statement fetches the bounded text. Only a valid, size-bounded array is then
+read and decoded; canonical decimal, strict ascending order, uniqueness, and
+receipt coherence are validated one pair at a time.
 
 The operation opens one SQLite deferred reader transaction, resolves exactly
 one effective instant, captures the boundary, and executes all selected checks
@@ -396,13 +444,59 @@ SQL. Strict-current source eligibility, Slice 30 physical closure fences,
 node lifecycle/currentness, edge currentness/validity, registered-source
 validity, and generation membership are evaluated at that instant.
 
+The synchronous check has two bounded directions. The expected-owner direction
+derives every required member from canonical authority and reports a missing
+row. The physical direction scans every stored member and reports an absent,
+ineligible, duplicate, or mismatched owner. A check that only scanned physical
+rows could never detect false-negative retrieval caused by deletion, so both
+directions are mandatory.
+
+The exact synchronous authorities and member classes, in execution order, are:
+
+1. each `_fathomdb_projection_registry` row, ordered by `CAST(name AS BLOB)`;
+2. `node_body_fts_v1`: every canonical node for which the shared synchronous
+   projector-retention predicate requires one `search_index` row;
+3. `node_body_fts_v2`: the same owner set requiring one `search_index_v2` row;
+4. `edge_body_fts`: every body-bearing canonical edge for which the shared
+   edge projector-retention predicate requires one `search_index_edges` row;
+5. `canonical_attribute`: each active, non-superseded node and registry
+   declaration whose configured source path resolves to a supported scalar and
+   whose roles require EAV, requiring one exact `(write_cursor, attr_name,
+   attr_value)` row in `canonical_attributes`;
+6. `property_fts`: each such expected EAV member whose declaration requires
+   property FTS, requiring one identical tuple in `property_search_index`; and
+7. `dense_owner_tuple`: the Slice 40 physical-member tuple over
+   `_fathomdb_vector_rows`, `vector_default`, and
+   `_fathomdb_projection_terminal`.
+
+Expected-member stable keys are `(member_class_ordinal, write_cursor,
+CAST(attr_name AS BLOB))`; body classes use an empty attribute-name component.
+Physical-scan keys append the table's stable `rowid` so duplicates are counted
+and ordered rather than collapsed. Each registry row, expected member, scanned
+physical row, and dense tuple costs one work unit. Per-class indexed/cursor
+statements receive the aggregate remaining cap plus one before constructing
+any body/attribute value. Matched physical rows still count: this makes actual
+scan cost explicit instead of hiding it behind an unmatched-only query.
+
 | Authority/candidate | Legitimate exclusion | Finding code | Severity / IDs |
 |---|---|---|---|
-| Node/edge body FTS row or property-FTS/attribute row | Historical node rows retained for an accepted relaxed read; expired edge residue explicitly classified dormant by Slice 40. | `search_projection_owner_missing` when no canonical owner; `search_projection_outside_membership` when residue survives erasure, supersession, or completed closure that promised pruning; `search_projection_identity_mismatch` for wrong kind/row identity. | critical for missing/outside; error for mismatch; artifact revision when resolvable plus cursor. |
+| Required `search_index` member | A canonical owner outside the shared synchronous projector-retention predicate. Historical node rows retained for relaxed reads remain expected, not excluded. | `node_body_fts_missing` | critical; artifact revision and cursor. |
+| Required `search_index_v2` member | Same predicate as `search_index`. | `node_body_fts_v2_missing` | critical; artifact revision and cursor. |
+| Required `search_index_edges` member | Body-less edge; or an edge excluded by the shared governed synchronous-pruning predicate. Slice 40 dormant expired-edge retention remains expected when its physical row is retained. | `edge_body_fts_missing` | critical; artifact revision and cursor. |
+| Required `canonical_attributes` scalar member | Missing/null/object/array source-path terminal, non-EAV declaration, pending/deleted/superseded node, erased owner, or completed closure whose policy removes the member. | `canonical_attribute_missing` | critical; artifact revision and cursor; never attribute name/value. |
+| Required `property_search_index` member | Every EAV exclusion above plus a declaration without property FTS. | `property_fts_missing` | critical; artifact revision and cursor; never attribute name/value. |
+| Scanned node/edge body FTS or attribute/property row | Historical node and dormant expired-edge members accepted by the shared retention predicate. | `search_projection_owner_missing` for no canonical owner; `search_projection_outside_membership` for residue after erasure/supersession/completed closure promised pruning; `search_projection_identity_mismatch` for wrong body/kind/status/name/value, cursor, or duplicate cardinality. | critical for missing/outside; error for mismatch; artifact revision when resolvable plus cursor. |
 | `_fathomdb_vector_rows`, `vector_default`, and terminal tuple | A complete node tuple may remain after enrolment changes; node `legitimate-stranded`, scheduler-pending all-missing state, clean failed all-missing state, and Slice 40 dormant expired-edge state are accepted exactly as classified there. | `dense_projection_owner_missing`, `dense_projection_partial`, `dense_projection_identity_mismatch`, or `dense_projection_outside_membership`. | critical for missing/outside; error for partial/mismatch; artifact revision when resolvable plus cursor. |
 | Current generation row/singleton/declaration | No legacy exception beyond Slice 40's valid `legacy_unverified` degraded generation. | `projection_generation_corrupt`. | critical; generation ID only when valid. |
 | Current-generation physical member | Slice 40 `complete`, `scheduler-pending`, `legitimate-stranded`, and clean `failed` states. | `projection_member_corrupt`. | error; generation ID, artifact revision when resolvable, and cursor. |
-| Non-erased actuation receipt pending cursor | Redacted/erased receipts and pre-step-32 receipts with null generation are excluded; a valid pending cursor may now be ready, processing, blocked, deferred, or degraded. | `mutation_receipt_corrupt`, `mutation_readiness_unavailable`, or `mutation_readiness_corrupt`. | error; operation ID only for operator output, generation ID when valid, and cursor. |
+| Actuation receipt row and each pending-cursor pair | Redacted/erased and pre-step-32 null-generation receipts are valid rows but still cost one row unit; they have zero classified pairs. A valid pair may now be ready, processing, blocked, deferred, or degraded. | `mutation_receipt_corrupt`, `mutation_readiness_unavailable`, or `mutation_readiness_corrupt`. | error; operation ID only for operator output, generation ID when valid, and cursor. |
+
+Deletion RED fixtures remove exactly one expected `search_index`,
+`search_index_v2`, `search_index_edges`, `canonical_attributes`, or
+`property_search_index` row after creating it through a public write. Each
+fixture proves the corresponding missing-row code, stable key/order, work
+count, no false orphan for the explicitly legitimate exclusions, and no
+automatic repair.
 
 `mutation_readiness` scans the persisted bounded pending-cursor arrays of
 non-erased receipts; it does not scan all canonical cursors or infer pending
@@ -504,14 +598,43 @@ authenticated Slice 50 evidence entries remain the only path to exact source
 identity/bytes. The two surfaces do not copy evidence-only fields into
 `Explanation`.
 
-One Engine-minted content-free `correlation_id` identifies the search. It uses
-the existing canonical telemetry `query_id` grammar and one Engine-owned
-open-nonce/monotonic-sequence allocator. When local opt-in telemetry is on, the
-same value is written as `TelemetryEvent.query_id`; no `operation_id` or second
-join identity exists. When telemetry is off, explanation still returns the
-correlation ID but writes no event and opens no sink. When explanation is off,
-the default path allocates no structural objects or explanation-only ID; the
-existing telemetry-on path may mint its normal query ID.
+One Engine-minted content-free `correlation_id` identifies an explained search,
+but Slice 55 does not silently move the accepted telemetry counter into a
+shared allocator. Finalization chooses exactly one exclusive source while
+holding the existing telemetry mutex:
+
+1. If an enabled sink is present at that lock linearization point, the sink is
+   the sole source. It mints the exact existing `q{nonce}-{seq}` value, assigns
+   it to `Explanation.correlation_id`, writes that same value as
+   `TelemetryEvent.query_id`, increments the sink sequence once, and sets
+   `last_query_id` exactly as before.
+2. If no sink is present, a separate explanation-only atomic sequence plus the
+   Engine's content-free open nonce mints
+   `x<32-lower-hex-open-nonce>-<canonical-u64-seq>`. It does not read or advance
+   telemetry nonce, sequence, timestamp base, or `last_query_id`, and writes no
+   event.
+
+The result arrives from the reader with structural data but no correlation;
+one post-reader `finalize_search_observability(&mut SearchResult, query)`
+performs the selection before the result can escape. This avoids predicting
+telemetry state in the reader transaction and guarantees exactly one ID.
+Telemetry-enabled non-explain searches continue through the existing sink-only
+capture path byte-for-byte. Explain-disabled, telemetry-off searches never
+touch the explanation allocator or allocate structural objects.
+
+Current code has no public disable operation. The accepted transitions are
+initial disabled state and `enable_telemetry`, including idempotent re-enable.
+Every enable/re-enable still replaces the sink with `nonce=0`, `seq=0`, a new
+time base, and `last_query_id=None`; its next telemetry event remains `q0-0`
+with the existing canonical JSON bytes/order. Slice 55 adds no disable API. If
+enable races search finalization, the telemetry mutex orders them: enable
+before the finalization lock selects `q0-0` and writes one event; enable after
+it selects the `x...` explanation ID and leaves the newly reset sink untouched.
+Concurrent explained/non-explained searches serialize only telemetry ID/event
+assignment under the existing sink lock; each telemetry event gets the next
+unique unchanged `q0-N`, while telemetry-off explained searches use the
+independent atomic sequence. No search can consume both sequences or emit two
+events.
 
 Telemetry may contain only its accepted schema plus this safe structural
 subset if a later additive telemetry field is implemented here:
@@ -536,6 +659,45 @@ Every new object shown in this design carries `schema_version/schemaVersion =
 1`. Existing `Explanation`, `QueryTrace`, and `PerHitExplain` are not silently
 made closed or given a retroactive schema field; only the nested
 `StructuralInclusionV1` is a new versioned object.
+
+### Response presence versus construction compatibility
+
+Response-wire presence and user construction are separate evolution rules.
+Every response produced by a new Slice 55 Engine/native binding contains a
+nonempty valid `Explanation.correlation_id` and a populated
+`PerHitExplain.structural` for every explained hit. Canonical v1 response
+fixtures therefore require both members; omission from a new native response
+is a binding-contract failure.
+
+Python must remain source compatible with existing user/test construction and
+dataclass field-order rules. `Explanation` appends
+`correlation_id: str = ""` after the existing defaulted `per_hit`; empty is the
+legacy/local-construction sentinel and is never emitted by a new Engine.
+`PerHitExplain` appends
+`structural: StructuralInclusionV1 | None = None` after the existing defaulted
+`importance` and `confidence`. The wrapper maps an older native object with no
+member to those safe defaults via checked `getattr`; it requires and validates
+the populated value from a native object advertising Slice 55 response
+support. No required field follows a defaulted field.
+
+TypeScript keeps existing object literals source compatible by declaring
+`Explanation.correlationId?: string` and
+`PerHitExplain.structural?: StructuralInclusionV1`. The mapper includes each
+property with its validated value for a Slice 55 native response and omits it
+for an older native object; it never invents an empty correlation ID or a
+default structural classification. New Engine method return documentation
+narrows the runtime guarantee to present/nonempty even though the
+user-constructible interface remains optional.
+
+Rust's `#[non_exhaustive]` response structs remain externally
+non-constructible by field literal; in-crate constructors and matches are
+updated. PyO3 and N-API add tail fields only and retain all existing names and
+method ABIs. Tests compile unchanged pre-Slice-55 Rust readers, instantiate the
+old Python/TypeScript object literals, decode simulated older native objects,
+and assert new Engine responses populate/validate both additions. The required
+successor ADR records this additive construction/wire split and supersedes only
+the relevant 0.8.8 field-set evolution paragraph; it does not rewrite the
+ratified carrier or history.
 
 New Rust `u64` fields use `u64`. New Python, TypeScript, and JSON `u64` fields
 use canonical unsigned decimal strings, including zero. Signs, leading zeroes,
@@ -646,7 +808,9 @@ identical with explanation off.
 
 ## Readiness rule
 
-Design v6/FIX-1 resolves the nine Cycle 1 findings by proposal. It remains
-`DRAFT_FIX_1_REVIEW_REQUIRED` until an independent reviewer verifies the exact
-surface, bound, matrix, privacy, wire, and test contracts and records PASS. A
-P1 or P2 finding blocks READY and implementation.
+Design v7/FIX-2 resolves the six Cycle 2 findings by proposal. It remains
+`DRAFT_FIX_2_REVIEW_REQUIRED` until an independent cycle-3 reviewer verifies
+the authorization-before-bounds rule, missing-member scans, SDK construction
+compatibility, complete work accounting, telemetry reset/concurrency contract,
+and exact-candidate installed-wheel proof and records PASS. A P1 or P2 finding
+blocks READY and implementation.

@@ -1059,12 +1059,15 @@ fn incomplete_detail_is_disclosed_only_after_current_source_authorization() {
             context: visible_context,
         })
         .unwrap_err();
-    assert!(matches!(
-        visible,
-        EngineError::Evidence(ref error)
-            if error.reason == EvidenceErrorReasonV1::EvidenceIncomplete
-                && error.field_path == "/provenance"
-    ));
+    assert!(
+        matches!(
+            visible,
+            EngineError::Evidence(ref error)
+                if error.reason == EvidenceErrorReasonV1::EvidenceIncomplete
+                    && error.field_path == "/provenance"
+        ),
+        "unexpected visible-incomplete outcome: {visible:?}"
+    );
 }
 
 #[test]

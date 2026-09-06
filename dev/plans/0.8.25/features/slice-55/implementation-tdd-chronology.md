@@ -2147,3 +2147,149 @@ The N-API run generated only
 removed and were never staged. Available disk remained 171 GiB and `target/`
 remained at the 8.0-GiB cleanup target. These are focused FIX-8 writer checks,
 not a broad repository-gate or independent-review verdict.
+
+## 2026-09-06 — FIX-9: trace generation codec boundary
+
+Independent implementation review cycle 9 and its owner reproduction showed
+that every strict trace codec accepted edge generation zero or an edge
+generation above the decoded dependency-generation boundary. The reproduction
+also showed that the canonical trace fixture itself encoded edge generation 1
+with boundary 0. The owner authorized the first of two additional review-driven
+FIX cycles and bounded it to codec validation, the fixture, exact tests, the
+invalid TypeScript plan command, and evidence.
+
+### Authorized fixture correction and RED
+
+Test-only commit
+`6a4867e38a499632988b38427ef74e007a8d41bc` changes only the canonical
+fixture boundary and its mechanically dependent Rust value from 0 to 1. The
+fixture remains one-line canonical JSON without a trailing newline; its
+SHA-256 is
+`7553ca038fae62b397db385ef818044c535d394645d7b4caa33be50653700ad3`.
+The unchanged canonical-byte test passed.
+
+Test-only RED commit
+`fb638e3c471a2e686c4e43e3528f26812191f368` adds Rust encode and decode
+refusals for zero and above-boundary generations, an invalid second-edge check,
+a valid two-edge decode, and property-generated valid
+`1 <= registered generation <= boundary` round trips. It adds the same zero
+and above-boundary decoder refusals to Python and TypeScript at the exact path
+`/dependencyEdges/0/registeredDependencyGeneration`.
+
+Against unchanged production, the Rust target returned successful encode or
+decode values instead of errors in all three new refusal paths:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_wire -- --nocapture
+test result: FAILED. 7 passed; 3 failed
+```
+
+The installed FIX-8 Python package accepted both invalid values:
+
+```text
+pytest -o pythonpath= test_slice55_trace_explanation.py -q \
+  -k edge_generation_outside_read_boundary
+FAILED ...[0] - Failed: DID NOT RAISE DependencyTraceError
+FAILED ...[2] - Failed: DID NOT RAISE DependencyTraceError
+2 failed; 28 deselected
+```
+
+The directly compiled TypeScript target retained 15 passing cases and failed
+the new strict mapper case with `Missing expected exception`.
+
+### Production GREEN and exact public-type corrections
+
+Product commit `6d69eb2ec386d07794b3ce59824adf2281147242` validates every Rust edge
+before emitting canonical bytes and again after the decoder reads the complete
+boundary. Python and TypeScript likewise validate every edge only after their
+boundary decoders complete. All three use `trace_corrupt` and the indexed edge
+generation path. No integrity scanner, trace query, schema, or public shape
+changed.
+
+The first fresh wheel run then exposed that Python's already-established public
+u64 mapping is a canonical decimal string. The initial comparison therefore
+rejected `"2"` but not `"0"`, and the new valid-case assertions incorrectly
+expected integer values. With explicit owner authorization, isolated test-only
+commits `8d9b38515e07b29e93db56c391cfa5cccb899db4` and
+`a434a9f935e47b6100949af0aa87c829917db9ee` change only the edge and boundary
+valid-case expectations from integer `1` to canonical string `"1"`. Every
+zero/ahead refusal assertion and exact path remains unchanged. Product commit
+`80ac13636c92aadb7b6bbf09914d2bbf42894f6e` compares numeric values derived
+from those already-canonical strings without changing their public types.
+
+Documentation-only commit
+`9794467be4b7e177c7951b410bc1684db104ae11` replaces the invalid root npm
+workspace command in `plan.md` with the established package-local route:
+
+```text
+cd src/ts
+npm run build:debug
+node --test --test-name-pattern slice55 dist/tests/*.test.js
+```
+
+### Focused and nonregression evidence
+
+The complete focused Rust matrix passed serially:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity --test slice55_dependency_trace \
+  --test slice55_explanation --test slice55_wire --test check_integrity \
+  --test trace_source_ref -- --test-threads=1
+integrity: 66 passed
+dependency trace: 20 passed; 1 ignored
+explanation: 17 passed
+wire: 10 passed
+legacy check_integrity: 3 passed
+legacy trace_source_ref: 3 passed
+```
+
+The facade and CLI targets passed 2 and 3 tests respectively. Touched-engine
+Clippy passed with `operator,test-hooks` and all targets. The unchanged
+preregistered release ceiling also passed:
+
+```text
+cargo test --release -p fathomdb-engine --features test-hooks \
+  --test slice55_dependency_trace \
+  slice55_trace_hidden_dependents_performance_ceiling \
+  -- --ignored --exact --nocapture
+hidden_rows=50000 vm_steps=3200000 elapsed_ms=53 peak_rss_delta_bytes=0
+test result: ok. 1 passed; 0 failed
+```
+
+The exact fresh wheel was built from clean final product commit
+`80ac13636c92aadb7b6bbf09914d2bbf42894f6e` without `PYTHONPATH`:
+
+```text
+env -u PYTHONPATH ./scripts/verify-release-python-wheel.sh \
+  --python /usr/bin/python3 \
+  --wheel-dir /tmp/fathomdb-s55-fix9-wheel-final.lekElg/dist \
+  --venv-dir /tmp/fathomdb-s55-fix9-wheel-final.lekElg/venv
+wheel smoke: ok
+349ade9d33ea5e9e29f3405d758f004d201ee07a9a97c17f78bd1ee9a1503acf  \
+  fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl
+module=/tmp/fathomdb-s55-fix9-wheel-final.lekElg/venv/lib/python3.12/\
+  site-packages/fathomdb/__init__.py
+native=/tmp/fathomdb-s55-fix9-wheel-final.lekElg/venv/lib/python3.12/\
+  site-packages/fathomdb/_fathomdb.abi3.so
+```
+
+The installed smoke passed. Byte-identical copies of the two checked-in Slice
+55 Python modules ran with the candidate site-packages first and repository
+source excluded. Their final source/copy SHA-256 values matched
+`51104ee26a9bd4a04e6f5b0d6cffed7274b230b874d421f59d0173370a386fae`
+and `1463f7f5591eb6280ed4014c7595e8c2d7acd09934159815943e4bf4b97256dc`;
+all 46 tests passed in 0.66 seconds.
+
+The exact-source N-API build first hit restricted-sandbox
+`spawnSync /bin/sh EPERM`; the unchanged authorized unconfined retry passed.
+Package-local TypeScript compilation and the plan-corrected Slice 55 test route
+passed 65 tests. The native artifact SHA-256 is
+`9345716ec6def0d933c1d22db5bd3a51d715b32c2ed2d6c6965cb71776069267`.
+The run generated only `src/ts/slice55-malformed-frozen-context{,.lock}`; both
+files were removed and never staged.
+
+Available disk remained 170 GiB and `target/` remained 7.9 GiB. These are
+focused FIX-9 writer checks, not a broad repository-gate or independent-review
+verdict. No package was staged, tagged, uploaded, or published.

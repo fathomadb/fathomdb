@@ -1108,7 +1108,10 @@ fn mutation_readiness_findings(
                     typeof(projection_generation_id) IN ('text','null') \
                       AND (projection_generation_id IS NULL OR \
                            (length(projection_generation_id)=38 \
-                            AND projection_generation_id GLOB 'pgen1:[0-9a-f]*')) \
+                            AND projection_generation_id GLOB 'pgen1:[0-9a-f]*')), \
+                    CASE WHEN json_valid(pending_projection_write_cursors_json) \
+                         AND json_type(pending_projection_write_cursors_json)='array' \
+                         THEN json_array_length(pending_projection_write_cursors_json) END \
              FROM _fathomdb_actuation_receipts ORDER BY operation_id LIMIT ?1",
         )
         .map_err(|_| EngineError::Storage)?;
@@ -1123,13 +1126,23 @@ fn mutation_readiness_findings(
                 row.get::<_, bool>(5)?,
                 row.get::<_, bool>(6)?,
                 row.get::<_, bool>(7)?,
+                row.get::<_, Option<i64>>(8)?,
             ))
         })
         .map_err(|_| EngineError::Storage)?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(|_| EngineError::Storage)?;
-    for (rowid, operation_id, schema_ok, count_ok, outcome_ok, boundary_ok, json_ok, gen_ok) in
-        guarded
+    for (
+        rowid,
+        operation_id,
+        schema_ok,
+        count_ok,
+        outcome_ok,
+        boundary_ok,
+        json_ok,
+        gen_ok,
+        pending_count,
+    ) in guarded
     {
         take_work(aggregate_checked, max_work_units)?;
         if !(schema_ok
@@ -1149,6 +1162,11 @@ fn mutation_readiness_findings(
             }
             push_finding(findings, item, max_findings)?;
             continue;
+        }
+        let pending_count =
+            pending_count.and_then(|value| u32::try_from(value).ok()).ok_or_else(bound_error)?;
+        if pending_count > max_work_units.saturating_sub(*aggregate_checked) {
+            return Err(bound_error());
         }
         let (operations_count, outcome, boundary, json, generation): (
             Option<i64>,

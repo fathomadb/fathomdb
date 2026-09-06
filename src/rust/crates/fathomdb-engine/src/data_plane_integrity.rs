@@ -306,13 +306,16 @@ impl DataPlaneIntegrityRequestV1 {
                 "/maxFindings",
             ));
         }
-        checks.sort_unstable();
-        if checks.windows(2).any(|pair| pair[0] == pair[1]) {
-            return Err(DataPlaneIntegrityErrorV1::new(
-                DataPlaneIntegrityErrorReasonV1::DuplicateCheck,
-                "/checks",
-            ));
+        let mut seen = BTreeSet::new();
+        for (index, check) in checks.iter().copied().enumerate() {
+            if !seen.insert(check) {
+                return Err(DataPlaneIntegrityErrorV1::new(
+                    DataPlaneIntegrityErrorReasonV1::DuplicateCheck,
+                    format!("/checks/{index}"),
+                ));
+            }
         }
+        checks.sort_unstable();
         Ok(Self { schema_version: SCHEMA_VERSION, checks, max_work_units, max_findings })
     }
 
@@ -390,6 +393,15 @@ fn bound_error() -> EngineError {
 }
 
 #[cfg(feature = "operator")]
+fn finding_bound_error() -> EngineError {
+    DataPlaneIntegrityErrorV1::new(
+        DataPlaneIntegrityErrorReasonV1::IntegrityBoundExceeded,
+        "/maxFindings",
+    )
+    .into()
+}
+
+#[cfg(feature = "operator")]
 fn take_work(checked: &mut u32, limit: u32) -> Result<(), EngineError> {
     *checked = checked.checked_add(1).ok_or_else(bound_error)?;
     if *checked > limit {
@@ -405,7 +417,7 @@ fn push_finding(
     max_findings: u32,
 ) -> Result<(), EngineError> {
     if findings.len() >= max_findings as usize {
-        return Err(bound_error());
+        return Err(finding_bound_error());
     }
     findings.push(finding);
     Ok(())
@@ -701,6 +713,23 @@ fn dependency_findings(
             }
             if crate::valid_caller_identity(&derived_revision) {
                 item.artifact_revision_ids.push(derived_revision);
+            }
+            if matches!(
+                item.code,
+                DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMissing
+                    | DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMismatch
+                    | DataPlaneIntegrityFindingCodeV1::DependencySourceOwnerMissing
+                    | DataPlaneIntegrityFindingCodeV1::DependencySourceRoleInvalid
+                    | DataPlaneIntegrityFindingCodeV1::DependencySourceVersionMismatch
+                    | DataPlaneIntegrityFindingCodeV1::DependencySourceSelfLinkMismatch
+            ) {
+                if let Some(source_revision) = link
+                    .as_ref()
+                    .map(|stored| &stored.3)
+                    .filter(|value| crate::valid_caller_identity(value))
+                {
+                    item.artifact_revision_ids.push(source_revision.clone());
+                }
             }
             push_finding(findings, item, max_findings)?;
         }
@@ -1029,7 +1058,7 @@ fn active_projection_findings(
             max_work_units,
             aggregate_checked,
         )? {
-            expected_attributes.insert((cursor, name.clone()), (value, revision));
+            expected_attributes.insert((name.clone(), cursor), (value, revision));
         }
     }
     for (name, stored) in &registry_snapshot {
@@ -1044,7 +1073,7 @@ fn active_projection_findings(
             max_work_units,
             aggregate_checked,
         )? {
-            expected_properties.insert((cursor, name.clone()), (value, revision));
+            expected_properties.insert((name.clone(), cursor), (value, revision));
         }
     }
     for (physical_query, missing_code, expected_members) in [
@@ -1074,13 +1103,13 @@ fn active_projection_findings(
             .map_err(|_| EngineError::Storage)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;
-        let mut physical_members: BTreeMap<(i64, String), Vec<String>> = BTreeMap::new();
+        let mut physical_members: BTreeMap<(String, i64), Vec<String>> = BTreeMap::new();
         for (_rowid, cursor, name, value) in physical {
             take_work(aggregate_checked, max_work_units)?;
-            physical_members.entry((cursor, name)).or_default().push(value);
+            physical_members.entry((name, cursor)).or_default().push(value);
         }
-        for ((cursor, name), (expected_value, revision)) in expected_members {
-            match physical_members.get(&(*cursor, (*name).clone())) {
+        for ((name, cursor), (expected_value, revision)) in expected_members {
+            match physical_members.get(&((*name).clone(), *cursor)) {
                 None => {
                     let mut item = finding(missing_code, DataPlaneIntegritySeverityV1::Critical);
                     item.write_cursor = u64::try_from(*cursor).ok();
@@ -1099,8 +1128,8 @@ fn active_projection_findings(
                 Some(_) => {}
             }
         }
-        for (cursor, name) in physical_members.keys() {
-            if !expected_members.contains_key(&(*cursor, (*name).clone())) {
+        for (name, cursor) in physical_members.keys() {
+            if !expected_members.contains_key(&((*name).clone(), *cursor)) {
                 let owner_exists: bool = connection
                     .query_row(
                         "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1)",

@@ -1251,3 +1251,9 @@ slice55_attribute_findings_follow_declaration_then_cursor_order
   left: [["zeta-r1"], ["alpha-r1"]]
  right: [["alpha-r1"], ["zeta-r1"]]
 ```
+
+The exact RED commit is
+`c263c64cb0131a88c09dcc5799c6a4a646684d18`. GREEN preserves the declared
+validation precedence, reports the later duplicate index, separates work and
+finding bound paths, carries both dependency endpoint revisions, and keys
+sparse findings by declaration name then cursor. All four focused cases pass.

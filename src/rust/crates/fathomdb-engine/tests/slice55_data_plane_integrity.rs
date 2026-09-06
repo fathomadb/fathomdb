@@ -573,6 +573,43 @@ fn slice55_missing_property_fts() {
         [DataPlaneIntegrityFindingCodeV1::PropertyFtsMissing]
     );
 }
+
+#[test]
+fn slice55_sparse_attribute_owners_cannot_hide_later_required_members() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_projections(&[property_spec()], &[]).unwrap();
+    let mut writes = (0..200)
+        .map(|index| {
+            canonical(&format!("sparse-empty-{index}-r1"), &format!("sparse-empty-{index}"), "{}")
+        })
+        .collect::<Vec<_>>();
+    writes.push(canonical("sparse-required-r1", "sparse-required", r#"{"title":"required"}"#));
+    opened.engine.write(&writes).unwrap();
+    opened
+        .engine
+        .execute_for_test("DELETE FROM canonical_attributes; DELETE FROM property_search_index")
+        .unwrap();
+
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            1_100,
+        ))
+        .unwrap();
+    assert_eq!(
+        result.findings.iter().map(|finding| finding.code).collect::<Vec<_>>(),
+        [
+            DataPlaneIntegrityFindingCodeV1::CanonicalAttributeMissing,
+            DataPlaneIntegrityFindingCodeV1::PropertyFtsMissing,
+        ]
+    );
+    assert!(result
+        .findings
+        .iter()
+        .all(|finding| finding.artifact_revision_ids == ["sparse-required-r1"]));
+}
+
 #[test]
 fn slice55_dense_state_reuses_slice40_classifier() {
     let (_dir, opened) = opened();

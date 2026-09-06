@@ -733,6 +733,19 @@ slice55 trace measurement: hidden_rows=50000 vm_steps=1000000 \
 test result: ok. 1 passed; 0 failed
 ```
 
+The next RED creates 200 genuine active nodes whose configured attribute path
+does not resolve, followed by one node whose scalar attribute is required. It
+deletes only that final node's generated EAV and property-FTS members. With a
+bounded allowance smaller than the raw owner prefix but larger than the fully
+classified member set, the old pre-classification `LIMIT` hid the required
+owner and returned an empty finding set:
+
+```text
+slice55_sparse_attribute_owners_cannot_hide_later_required_members
+left: []
+right: [CanonicalAttributeMissing, PropertyFtsMissing]
+```
+
 Full writer gates passed at the same product commit:
 
 ```text

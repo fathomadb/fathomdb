@@ -1358,32 +1358,37 @@ fn slice55_fix6_deleted_canonical_owner_with_retained_revision_is_missing() {
 #[test]
 fn slice55_fix6_dependency_dynamic_types_map_to_invalid_without_identity_leakage() {
     let mut failures = Vec::new();
-    for (label, sql) in [
+    for (label, sql, expects_dependency_id) in [
         (
             "blob schema",
             "PRAGMA ignore_check_constraints=ON; UPDATE _fathomdb_source_dependencies \
              SET schema_version=zeroblob(1) WHERE dependency_id='integrity-dep-1'",
+            true,
         ),
         (
             "blob dependency id",
             "UPDATE _fathomdb_source_dependencies SET dependency_id=zeroblob(8) \
              WHERE dependency_id='integrity-dep-1'",
+            false,
         ),
         (
             "null dependency id",
             "UPDATE _fathomdb_source_dependencies SET dependency_id=NULL \
              WHERE dependency_id='integrity-dep-1'",
+            false,
         ),
         (
             "blob derived revision",
             "UPDATE _fathomdb_source_dependencies SET derived_revision_id=zeroblob(8) \
              WHERE dependency_id='integrity-dep-1'",
+            true,
         ),
         (
             "blob registered generation",
             "PRAGMA ignore_check_constraints=ON; UPDATE _fathomdb_source_dependencies \
              SET registered_dependency_generation=zeroblob(1) \
              WHERE dependency_id='integrity-dep-1'",
+            true,
         ),
     ] {
         let (_dir, opened) = dependency_seeded();
@@ -1397,7 +1402,7 @@ fn slice55_fix6_dependency_dynamic_types_map_to_invalid_without_identity_leakage
                 let valid = result.findings.len() == 1
                     && result.findings[0].code
                         == DataPlaneIntegrityFindingCodeV1::DependencyRowInvalid
-                    && result.findings[0].dependency_id.is_none()
+                    && result.findings[0].dependency_id.is_some() == expects_dependency_id
                     && result.findings[0].artifact_revision_ids.is_empty();
                 if !valid {
                     failures.push(format!("{label} returned {result:#?}"));

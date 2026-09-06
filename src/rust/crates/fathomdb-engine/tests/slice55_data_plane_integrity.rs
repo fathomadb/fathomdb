@@ -133,6 +133,21 @@ fn finding_codes(
         .collect()
 }
 
+fn actuate_pending(opened: &fathomdb_engine::OpenedEngine, operation_id: &str, revision: &str) {
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    let batch = ActuationBatchV1::new(
+        operation_id,
+        vec![ActuationOperationV1::PutCanonicalNode(
+            match canonical(revision, operation_id, "pending body") {
+                PreparedWrite::ProvenancedNode(node) => node,
+                _ => unreachable!(),
+            },
+        )],
+    )
+    .unwrap();
+    opened.engine.actuate(batch).unwrap();
+}
+
 #[test]
 fn slice55_integrity_work_cap_counts_authority_rows() {
     let (_dir, opened) = opened();
@@ -303,6 +318,13 @@ fn slice55_no_reverse_row_contract() {
 #[test]
 fn slice55_searchable_orphan_finding_matrix() {
     let (_dir, opened) = opened();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT INTO search_index(rowid,body,kind,write_cursor) \
+             VALUES(900,'orphan body','doc',900)",
+        )
+        .unwrap();
     let result = opened
         .engine
         .check_data_plane_integrity(request(
@@ -310,7 +332,14 @@ fn slice55_searchable_orphan_finding_matrix() {
             10_000,
         ))
         .unwrap();
-    assert!(result.findings.is_empty());
+    assert_eq!(result.checked_count, 1);
+    assert_eq!(result.findings.len(), 1);
+    assert_eq!(
+        result.findings[0].code,
+        DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing
+    );
+    assert_eq!(result.findings[0].write_cursor, Some(900));
+    assert!(result.findings[0].artifact_revision_ids.is_empty());
 }
 
 #[test]
@@ -407,17 +436,6 @@ fn slice55_mutation_readiness_receipt_matrix_reports_guarded_corruption() {
         finding_codes(&opened, DataPlaneIntegrityCheckV1::MutationReadiness),
         [DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt]
     );
-}
-
-macro_rules! clean_projection_case {
-    ($name:ident, $check:expr) => {
-        #[test]
-        fn $name() {
-            let (_dir, opened) = opened();
-            let result = opened.engine.check_data_plane_integrity(request($check, 10_000)).unwrap();
-            assert!(result.findings.is_empty());
-        }
-    };
 }
 
 #[test]
@@ -551,10 +569,51 @@ fn slice55_dense_state_reuses_slice40_classifier() {
         [DataPlaneIntegrityFindingCodeV1::DenseProjectionPartial]
     );
 }
-clean_projection_case!(
-    slice55_projection_generation_error_mapping,
-    DataPlaneIntegrityCheckV1::ProjectionGeneration
-);
+
+#[test]
+fn slice55_terminal_only_residue_is_enumerated_by_both_integrity_checks() {
+    let (_dir, opened) = opened();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT INTO _fathomdb_projection_terminal(write_cursor,state) \
+             VALUES(900,'up_to_date')",
+        )
+        .unwrap();
+    for (check, code) in [
+        (
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            DataPlaneIntegrityFindingCodeV1::DenseProjectionOwnerMissing,
+        ),
+        (
+            DataPlaneIntegrityCheckV1::ProjectionGeneration,
+            DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt,
+        ),
+    ] {
+        let result = opened.engine.check_data_plane_integrity(request(check, 10_000)).unwrap();
+        assert_eq!(result.findings.len(), 1, "{check:?}: {result:#?}");
+        assert_eq!(result.findings[0].code, code);
+        assert_eq!(result.findings[0].write_cursor, Some(900));
+    }
+}
+
+#[test]
+fn slice55_projection_generation_error_mapping_uses_real_corrupt_authority() {
+    let (_dir, opened) = opened();
+    opened
+        .engine
+        .execute_for_test(
+            "DROP TRIGGER _fathomdb_projection_generation_immutable; \
+             PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_projection_generations SET origin='invalid' \
+             WHERE role='serving'",
+        )
+        .unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::ProjectionGeneration),
+        [DataPlaneIntegrityFindingCodeV1::ProjectionGenerationCorrupt]
+    );
+}
 #[test]
 fn slice55_mutation_readiness_receipt_matrix() {
     let (_dir, opened) = opened();
@@ -615,25 +674,22 @@ fn slice55_receipt_reserves_pending_work_before_fetch_and_parse() {
             if value.reason == DataPlaneIntegrityErrorReasonV1::IntegrityBoundExceeded
     ));
 }
-clean_projection_case!(
-    slice55_mutation_readiness_selects_only_bounded_subset,
-    DataPlaneIntegrityCheckV1::MutationReadiness
-);
-clean_projection_case!(
-    slice55_receipt_variable_field_guards_precede_fetch,
-    DataPlaneIntegrityCheckV1::MutationReadiness
-);
-clean_projection_case!(
-    slice55_unrelated_receipt_json_is_out_of_scope,
-    DataPlaneIntegrityCheckV1::MutationReadiness
-);
-
 #[test]
-fn slice55_integrity_receipt_malformed_oversized_and_cap_plus_one() {
+fn slice55_mutation_readiness_selects_only_bounded_subset() {
     let (_dir, opened) = opened();
+    actuate_pending(&opened, "a-receipt", "bounded-a-r1");
+    actuate_pending(&opened, "z-receipt", "bounded-z-r1");
+    opened
+        .engine
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_actuation_receipts SET operation_id=zeroblob(129) \
+             WHERE operation_id='z-receipt'",
+        )
+        .unwrap();
     let error = opened
         .engine
-        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ProjectionGeneration, 1))
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::MutationReadiness, 1))
         .unwrap_err();
     assert!(matches!(
         error,
@@ -642,18 +698,150 @@ fn slice55_integrity_receipt_malformed_oversized_and_cap_plus_one() {
     ));
 }
 
+#[test]
+fn slice55_receipt_variable_field_guards_precede_fetch() {
+    let (_dir, opened) = opened();
+    actuate_pending(&opened, "guarded-operation", "guarded-r1");
+    opened
+        .engine
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_actuation_receipts SET operation_id=zeroblob(129) \
+             WHERE operation_id='guarded-operation'",
+        )
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::MutationReadiness, 10))
+        .unwrap();
+    assert_eq!(result.findings.len(), 1);
+    assert_eq!(result.findings[0].code, DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt);
+    assert!(result.findings[0].operation_id.is_none());
+}
+
+#[test]
+fn slice55_unrelated_receipt_json_is_out_of_scope() {
+    let (_dir, opened) = opened();
+    actuate_pending(&opened, "unrelated-json", "unrelated-r1");
+    opened
+        .engine
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_actuation_receipts SET reason_codes_json='not-json' \
+             WHERE operation_id='unrelated-json'",
+        )
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::MutationReadiness, 10))
+        .unwrap();
+    assert!(result.findings.is_empty(), "{result:#?}");
+}
+
+#[test]
+fn slice55_receipt_boundary_covers_every_pending_cursor() {
+    let (_dir, opened) = opened();
+    actuate_pending(&opened, "boundary-receipt", "boundary-r1");
+    opened
+        .engine
+        .execute_for_test(
+            "UPDATE _fathomdb_actuation_receipts \
+             SET resulting_write_boundary=0,pending_projection_write_cursors_json='[\"1\"]', \
+                 projection_generation_id=(SELECT generation_id \
+                   FROM _fathomdb_projection_generation_current WHERE singleton=1) \
+             WHERE operation_id='boundary-receipt'",
+        )
+        .unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::MutationReadiness),
+        [DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt]
+    );
+}
+
+#[test]
+fn slice55_receipt_generation_must_be_current_authority() {
+    let (_dir, opened) = opened();
+    actuate_pending(&opened, "generation-receipt", "generation-r1");
+    opened
+        .engine
+        .execute_for_test(
+            "UPDATE _fathomdb_actuation_receipts \
+             SET pending_projection_write_cursors_json='[\"1\"]', \
+                 projection_generation_id='pgen1:11111111111111111111111111111111' \
+             WHERE operation_id='generation-receipt'",
+        )
+        .unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::MutationReadiness),
+        [DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt]
+    );
+}
+
+#[test]
+fn slice55_integrity_receipt_malformed_oversized_and_cap_plus_one() {
+    let (_dir, opened) = opened();
+    actuate_pending(&opened, "oversized-receipt", "oversized-r1");
+    opened
+        .engine
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_actuation_receipts \
+             SET pending_projection_write_cursors_json='[' || quote(printf('%02950d',0)) || ']' \
+             WHERE operation_id='oversized-receipt'",
+        )
+        .unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::MutationReadiness),
+        [DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt]
+    );
+}
+
 proptest! {
+    #![proptest_config(ProptestConfig::with_cases(8))]
     #[test]
-    fn slice55_normalized_chain_round_trip(max_work in 1u32..=10_000) {
+    fn slice55_receipt_boundary_property(
+        count in 1u8..=4,
+        boundary in 0u8..4,
+    ) {
+        prop_assume!(boundary < count);
         let (_dir, opened) = opened();
+        opened.engine.configure_vector_kind_for_test("doc").unwrap();
+        let operations = (0..count)
+            .map(|index| {
+                let revision = format!("property-boundary-r{index}");
+                let logical = format!("property-boundary-{index}");
+                ActuationOperationV1::PutCanonicalNode(match canonical(
+                    &revision,
+                    &logical,
+                    "property pending body",
+                ) {
+                    PreparedWrite::ProvenancedNode(node) => node,
+                    _ => unreachable!(),
+                })
+            })
+            .collect();
+        opened.engine.actuate(
+            ActuationBatchV1::new("property-receipt", operations).unwrap()
+        ).unwrap();
+        let pending = (1..=count)
+            .map(|cursor| format!("\"{cursor}\""))
+            .collect::<Vec<_>>()
+            .join(",");
+        opened.engine.execute_for_test(&format!(
+            "UPDATE _fathomdb_actuation_receipts \
+             SET resulting_write_boundary={boundary}, \
+                 pending_projection_write_cursors_json='[{pending}]', \
+                 projection_generation_id=(SELECT generation_id \
+                   FROM _fathomdb_projection_generation_current WHERE singleton=1) \
+             WHERE operation_id='property-receipt'"
+        )).unwrap();
         let result = opened.engine.check_data_plane_integrity(request(
-            DataPlaneIntegrityCheckV1::DependencyChain,
-            max_work,
-        ));
-        prop_assert!(result.is_ok() || matches!(
-            result,
-            Err(EngineError::DataPlaneIntegrity(ref value))
-                if value.reason == DataPlaneIntegrityErrorReasonV1::IntegrityBoundExceeded
-        ));
+            DataPlaneIntegrityCheckV1::MutationReadiness, 10_000,
+        )).unwrap();
+        prop_assert_eq!(result.findings.len(), 1);
+        prop_assert_eq!(
+            result.findings[0].code,
+            DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt
+        );
     }
 }

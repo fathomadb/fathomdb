@@ -834,3 +834,35 @@ cargo test -p fathomdb-engine --features test-hooks \
   --test slice55_explanation
 test result: ok. 16 passed; 0 failed
 ```
+
+The next test-only integrity increment replaces the remaining empty and
+misdirected oracles with physical terminal residue, guarded receipt identity,
+committed-boundary, generation-authority, unrelated-field, oversized-field,
+and real corrupt-generation fixtures. Its bounded-subset fixture places a
+non-text operation identity after the selected row, so an implementation that
+decodes the raw cap-plus-one prefix returns `Storage` rather than the required
+bound. The nontrivial property generates one to four real pending writes and a
+committed boundary below the greatest pending cursor. Intended RED diagnostics
+included:
+
+```text
+slice55_terminal_only_residue_is_enumerated_by_both_integrity_checks
+left: 0
+right: 1
+
+slice55_receipt_boundary_covers_every_pending_cursor
+left: []
+right: [MutationReceiptCorrupt]
+
+slice55_receipt_generation_must_be_current_authority
+left: []
+right: [MutationReceiptCorrupt]
+
+slice55_receipt_variable_field_guards_precede_fetch
+called `Result::unwrap()` on an `Err` value: Storage
+
+slice55_receipt_boundary_property
+minimal failing input: count = 1, boundary = 0
+left: 0
+right: 1
+```

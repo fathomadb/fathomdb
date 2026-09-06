@@ -318,10 +318,17 @@ fn slice55_trace_query_plans_use_existing_indexes() {
 #[test]
 #[ignore = "release-mode hidden-row ceiling"]
 fn slice55_trace_hidden_dependents_performance_ceiling() {
-    let (_baseline_dir, baseline) = source_only();
-    let baseline_measurement = baseline.engine.measure_dependency_trace_for_test().unwrap();
+    let (fixture_dir, base) = source_only();
+    let base_path = base.engine.path().to_path_buf();
+    base.engine.close().unwrap();
+    let baseline_path = fixture_dir.path().join(format!("trace-baseline{SQLITE_SUFFIX}"));
+    let hidden_path = fixture_dir.path().join(format!("trace-hidden{SQLITE_SUFFIX}"));
+    std::fs::copy(&base_path, &baseline_path).unwrap();
+    std::fs::copy(&base_path, &hidden_path).unwrap();
 
-    let (_hidden_dir, hidden) = source_only();
+    let baseline = Engine::open(baseline_path).unwrap();
+    let baseline_measurement = baseline.engine.measure_dependency_trace_for_test().unwrap();
+    let hidden = Engine::open(hidden_path).unwrap();
     hidden.engine.seed_hidden_dependency_trace_fixture_for_test(50_000).unwrap();
     let measurement = hidden.engine.measure_dependency_trace_for_test().unwrap();
 

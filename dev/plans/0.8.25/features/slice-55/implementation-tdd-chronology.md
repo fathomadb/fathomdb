@@ -377,3 +377,14 @@ to use the same generated revision in those three linked fields. Assertions,
 expected results, generated domain, malformed matrices, and production codec
 semantics are unchanged. The untracked regression seed emitted by this failed
 run was removed and was never committed.
+
+The performance RED increment is `91fe3179`. Its first GREEN observation built
+the real 50,000-row fixture and measured 600,000 VM steps, 814 ms, and a zero
+peak-RSS delta, but correctly failed byte equality because its independently
+created databases had distinct Engine-minted generation identities and times.
+With orchestrator authorization, fixture topology was mechanically corrected:
+one closed source-only database is byte-copied to the baseline and hidden
+cases, both measurements use fixed effective time 1, and the test-only corrupt
+fixture seeder restores the pre-seed writer boundary. No response bytes are
+normalized or fabricated; the 50,000 count, assertions, ceilings, and trace
+production semantics are unchanged.

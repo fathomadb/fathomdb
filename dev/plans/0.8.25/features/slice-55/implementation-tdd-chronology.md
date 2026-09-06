@@ -1275,3 +1275,10 @@ slice55_receipt_rejects_retired_generation_even_with_historical_boundary
 left: 0
 right: 1
 ```
+
+The prior plan oracle's candidate-query count was mechanically updated from 7
+to the approved 12-query shape: the existing seven synchronous statements plus
+three dense member scans, joined current-generation authority, and receipt
+guard scan. No query-plan, index, after-key, or no-temporary-sort assertion was
+changed. This HITL-authorized test-only correction was committed separately
+while production remained unstaged.

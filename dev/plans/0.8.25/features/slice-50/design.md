@@ -383,8 +383,10 @@ may escape:
 - `evidence_incomplete` at `/provenance` for a visible
   `migrated_incomplete`/unlinked legacy artifact; and
 - `evidence_corrupt` at the failing structural field for an authenticated,
-  visible row whose persisted locator/hash/dependency/generation contract is
-  internally inconsistent.
+  visible row whose persisted locator/hash/dependency contract is internally
+  inconsistent. Projection-generation history is part of the frozen authority;
+  malformed generation storage therefore fails earlier as the same
+  nondisclosing `evidence_unavailable` outcome.
 
 Storage failure and Engine closing retain their existing top-level errors.
 
@@ -502,9 +504,9 @@ The preserved RED set includes:
    graph fixtures mutate the captured edge after mint through supersession,
    erasure, replacement, validity, endpoint eligibility, and closure and prove
    the same non-disclosure result;
-5. authorized locator/hash/link/dependency/generation corruption producing only
-   `evidence_corrupt`, and visible legacy rows producing
-   `evidence_incomplete`;
+5. authorized locator/hash/link/dependency corruption producing only
+   `evidence_corrupt`, malformed projection-generation history being denied by
+   frozen authority, and visible legacy rows producing `evidence_incomplete`;
 6. mutation races at post-search/pre-sidecar and pre-return boundaries proving
    same-snapshot result or whole-call refusal;
 7. default-search parity plus zero evidence-table query/persistence witness;

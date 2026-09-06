@@ -1389,10 +1389,9 @@ fn authorized_hash_locator_and_generation_corruption_is_typed() {
         ));
     }
 
-    // A generation selector is authorized by the reference, but the selected
-    // row must still satisfy the persisted generation grammar. Disable only
-    // the raw-fault visibility triggers so the originating frozen authority
-    // remains valid and the resolver reaches that structural check.
+    // Projection-generation storage is part of the frozen authority itself.
+    // A malformed row therefore fails closed before row-level evidence detail
+    // is authorized, even if the raw-fault visibility trigger is bypassed.
     {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join(format!("generation-corruption{SQLITE_SUFFIX}"));
@@ -1425,13 +1424,7 @@ fn authorized_hash_locator_and_generation_corruption_is_typed() {
                 context: frozen,
             })
             .unwrap_err();
-        assert!(matches!(
-            error,
-            EngineError::Evidence(ref evidence)
-                if evidence.reason == EvidenceErrorReasonV1::EvidenceCorrupt
-                    && evidence.field_path
-                        == "/projectionOrigin/projectionGenerationId"
-        ));
+        assert_unavailable(error);
     }
 }
 

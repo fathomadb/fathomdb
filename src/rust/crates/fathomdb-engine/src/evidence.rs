@@ -419,6 +419,12 @@ pub(crate) fn build_search_result(
             )
             .into());
         }
+        validate_source_bytes(&stored).map_err(|_| {
+            EngineError::Evidence(EvidenceErrorV1::new(
+                EvidenceErrorReasonV1::EvidenceCorrupt,
+                format!("/results/{index}/provenance"),
+            ))
+        })?;
         validate_full_provenance(connection, &stored).map_err(|_| {
             EngineError::Evidence(EvidenceErrorV1::new(
                 EvidenceErrorReasonV1::EvidenceCorrupt,
@@ -511,12 +517,6 @@ pub(crate) fn resolve(
     {
         return Err(EvidenceErrorV1::unavailable().into());
     }
-    let generation = resolve_generation(
-        connection,
-        &key,
-        &payload.generation_nonce,
-        &payload.generation_ciphertext,
-    )?;
     let (graph_origin, graph_provenance) =
         match (&payload.graph_origin, payload.graph_edge_commitment) {
             (None, None) if payload.arm != EvidenceArmV1::GraphArm => (None, None),
@@ -653,6 +653,19 @@ pub(crate) fn resolve(
             EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, "/provenance").into()
         );
     }
+    let canonical_source_hash =
+        CanonicalHash::sha256(stored.hash_digest.clone()).map_err(|_| {
+            EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceCorrupt, "/canonicalSourceHash")
+        })?;
+    let actual_hash = crate::canonical_body_hash(&stored.source_body);
+    if actual_hash != stored.hash_digest {
+        return Err(EvidenceErrorV1::new(
+            EvidenceErrorReasonV1::EvidenceCorrupt,
+            "/canonicalSourceHash",
+        )
+        .into());
+    }
+    let evidence_text = slice(&stored.source_body, &stored.locator)?;
     validate_full_provenance(connection, &stored)?;
     if let Some((edge_revision, source_revision)) = graph_provenance {
         crate::validate_dependency_chain(
@@ -668,19 +681,12 @@ pub(crate) fn resolve(
             ))
         })?;
     }
-    let canonical_source_hash =
-        CanonicalHash::sha256(stored.hash_digest.clone()).map_err(|_| {
-            EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceCorrupt, "/canonicalSourceHash")
-        })?;
-    let actual_hash = crate::canonical_body_hash(&stored.source_body);
-    if actual_hash != stored.hash_digest {
-        return Err(EvidenceErrorV1::new(
-            EvidenceErrorReasonV1::EvidenceCorrupt,
-            "/canonicalSourceHash",
-        )
-        .into());
-    }
-    let evidence_text = slice(&stored.source_body, &stored.locator)?;
+    let generation = resolve_generation(
+        connection,
+        &key,
+        &payload.generation_nonce,
+        &payload.generation_ciphertext,
+    )?;
     let dependency = load_dependency(connection, &stored.artifact_revision_id)?;
     Ok(ResolvedEvidenceV1 {
         schema_version: SCHEMA_VERSION,
@@ -970,6 +976,20 @@ fn resolve_generation(
         return Err(EvidenceErrorV1::unavailable().into());
     }
     Ok(generation)
+}
+
+fn validate_source_bytes(stored: &StoredEvidence) -> Result<(), EngineError> {
+    CanonicalHash::sha256(stored.hash_digest.clone()).map_err(|_| {
+        EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceCorrupt, "/canonicalSourceHash")
+    })?;
+    if crate::canonical_body_hash(&stored.source_body) != stored.hash_digest {
+        return Err(EvidenceErrorV1::new(
+            EvidenceErrorReasonV1::EvidenceCorrupt,
+            "/canonicalSourceHash",
+        )
+        .into());
+    }
+    slice(&stored.source_body, &stored.locator).map(|_| ())
 }
 
 fn protect_generation(key: &[u8], nonce: &[u8; 16], value: &[u8]) -> Vec<u8> {

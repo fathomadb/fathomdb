@@ -103,7 +103,9 @@ proptest! {
     #[test]
     fn slice55_trace_codec_round_trip(revision in "[A-Za-z0-9][A-Za-z0-9._:-]{0,31}") {
         let mut value = result();
-        value.root_revision_id = revision;
+        value.root_revision_id = revision.clone();
+        value.nodes[0].artifact_revision_id = revision.clone();
+        value.dependency_edges[0].source_revision_id = revision;
         let bytes = encode_dependency_trace_result_v1(&value).unwrap();
         prop_assert_eq!(decode_dependency_trace_result_v1(&bytes).unwrap(), value);
     }

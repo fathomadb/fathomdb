@@ -358,3 +358,22 @@ which the repository wheel verifier intentionally omits through its explicit
 feature list; it reproduced alone and is not a Slice 55 installed-binding
 failure. No worktree native binary was modified, and no artifact was staged,
 uploaded, tagged, or published.
+
+## Implementation review FIX-1
+
+The cycle-1 review record is committed at
+`7a2faee255afe2852e30ba918818c7442492ec11`. The first FIX-1 RED increment is
+`22c65c09`; corrective commit `f0ef98e3` restored the production source to its
+pre-RED state and moved the default-build absence oracle into the integration
+test surface. Further RED increments are `94953a28` for authenticated trace
+authority, `cf227299` for strict recursive wire decoding, and `df88627e` for
+Python/native-exception and TypeScript schema-first validation. Integrity and
+operator-boundary GREEN is `970aaef27d556c79e557a0a3d2177c2d2227888a`.
+
+The strict decoder correctly rejected the property fixture at `/nodes/0`
+because the generated `rootRevisionId` did not update its root node or outgoing
+edge. With orchestrator authorization, the fixture was mechanically corrected
+to use the same generated revision in those three linked fields. Assertions,
+expected results, generated domain, malformed matrices, and production codec
+semantics are unchanged. The untracked regression seed emitted by this failed
+run was removed and was never committed.

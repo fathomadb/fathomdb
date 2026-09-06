@@ -1,7 +1,10 @@
 use std::fmt::{Display, Formatter};
 
 use rusqlite::{Connection, OptionalExtension};
-use serde::ser::{SerializeMap, Serializer as _};
+use serde::{
+    ser::{SerializeMap, Serializer as _},
+    Serialize,
+};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -693,26 +696,78 @@ pub(crate) fn execute(
 pub fn encode_dependency_trace_result_v1(
     value: &DependencyTraceResultV1,
 ) -> Result<Vec<u8>, DependencyTraceErrorV1> {
-    fn lifecycle(value: &TraceNodeLifecycleV1) -> serde_json::Value {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct NodeLifecycleWire<'a> {
+        schema_version: u32,
+        artifact_class: &'static str,
+        state: &'a str,
+        superseded: bool,
+        valid_at_effective: bool,
+    }
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct EdgeLifecycleWire {
+        schema_version: u32,
+        artifact_class: &'static str,
+        superseded: bool,
+        valid_at_effective: bool,
+    }
+    #[derive(Serialize)]
+    #[serde(untagged)]
+    enum LifecycleWire<'a> {
+        Node(NodeLifecycleWire<'a>),
+        Edge(EdgeLifecycleWire),
+    }
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct NodeWire<'a> {
+        schema_version: u32,
+        artifact_revision_id: &'a str,
+        artifact_class: &'a str,
+        role: &'a str,
+        depth: u32,
+        lifecycle: LifecycleWire<'a>,
+    }
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct EdgeWire<'a> {
+        schema_version: u32,
+        dependency_id: &'a str,
+        source_revision_id: &'a str,
+        derived_revision_id: &'a str,
+        registered_dependency_generation: String,
+    }
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct BoundaryWire<'a> {
+        schema_version: u32,
+        effective_at_epoch_s: i64,
+        observed_write_boundary: String,
+        dependency_generation: String,
+        projection_generation_id: &'a str,
+    }
+
+    fn lifecycle(value: &TraceNodeLifecycleV1) -> LifecycleWire<'_> {
         match value {
             TraceNodeLifecycleV1::Node {
                 schema_version,
                 state,
                 superseded,
                 valid_at_effective,
-            } => serde_json::json!({
-                "schemaVersion": schema_version,
-                "artifactClass": "node",
-                "state": state.as_str(),
-                "superseded": superseded,
-                "validAtEffective": valid_at_effective,
+            } => LifecycleWire::Node(NodeLifecycleWire {
+                schema_version: *schema_version,
+                artifact_class: "node",
+                state: state.as_str(),
+                superseded: *superseded,
+                valid_at_effective: *valid_at_effective,
             }),
             TraceNodeLifecycleV1::Edge { schema_version, superseded, valid_at_effective } => {
-                serde_json::json!({
-                    "schemaVersion": schema_version,
-                    "artifactClass": "edge",
-                    "superseded": superseded,
-                    "validAtEffective": valid_at_effective,
+                LifecycleWire::Edge(EdgeLifecycleWire {
+                    schema_version: *schema_version,
+                    artifact_class: "edge",
+                    superseded: *superseded,
+                    valid_at_effective: *valid_at_effective,
                 })
             }
         }
@@ -720,28 +775,24 @@ pub fn encode_dependency_trace_result_v1(
     let nodes = value
         .nodes
         .iter()
-        .map(|node| {
-            serde_json::json!({
-                "schemaVersion": node.schema_version,
-                "artifactRevisionId": node.artifact_revision_id,
-                "artifactClass": node.artifact_class.as_str(),
-                "role": node.role.as_str(),
-                "depth": node.depth,
-                "lifecycle": lifecycle(&node.lifecycle),
-            })
+        .map(|node| NodeWire {
+            schema_version: node.schema_version,
+            artifact_revision_id: &node.artifact_revision_id,
+            artifact_class: node.artifact_class.as_str(),
+            role: node.role.as_str(),
+            depth: node.depth,
+            lifecycle: lifecycle(&node.lifecycle),
         })
         .collect::<Vec<_>>();
     let edges = value
         .dependency_edges
         .iter()
-        .map(|edge| {
-            serde_json::json!({
-                "schemaVersion": edge.schema_version,
-                "dependencyId": edge.dependency_id,
-                "sourceRevisionId": edge.source_revision_id,
-                "derivedRevisionId": edge.derived_revision_id,
-                "registeredDependencyGeneration": edge.registered_dependency_generation.to_string(),
-            })
+        .map(|edge| EdgeWire {
+            schema_version: edge.schema_version,
+            dependency_id: &edge.dependency_id,
+            source_revision_id: &edge.source_revision_id,
+            derived_revision_id: &edge.derived_revision_id,
+            registered_dependency_generation: edge.registered_dependency_generation.to_string(),
         })
         .collect::<Vec<_>>();
     let mut output = Vec::new();
@@ -773,13 +824,13 @@ pub fn encode_dependency_trace_result_v1(
     object
         .serialize_entry(
             "readBoundary",
-            &serde_json::json!({
-                "schemaVersion": value.read_boundary.schema_version,
-                "effectiveAtEpochS": value.read_boundary.effective_at_epoch_s,
-                "observedWriteBoundary": value.read_boundary.observed_write_boundary.to_string(),
-                "dependencyGeneration": value.read_boundary.dependency_generation.to_string(),
-                "projectionGenerationId": value.read_boundary.projection_generation_id,
-            }),
+            &BoundaryWire {
+                schema_version: value.read_boundary.schema_version,
+                effective_at_epoch_s: value.read_boundary.effective_at_epoch_s,
+                observed_write_boundary: value.read_boundary.observed_write_boundary.to_string(),
+                dependency_generation: value.read_boundary.dependency_generation.to_string(),
+                projection_generation_id: &value.read_boundary.projection_generation_id,
+            },
         )
         .map_err(|_| DependencyTraceErrorV1::new(DependencyTraceErrorReasonV1::TraceCorrupt, ""))?;
     object

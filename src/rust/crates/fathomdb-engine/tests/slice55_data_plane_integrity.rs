@@ -400,10 +400,33 @@ clean_projection_case!(
     slice55_projection_generation_error_mapping,
     DataPlaneIntegrityCheckV1::ProjectionGeneration
 );
-clean_projection_case!(
-    slice55_mutation_readiness_receipt_matrix,
-    DataPlaneIntegrityCheckV1::MutationReadiness
-);
+#[test]
+fn slice55_mutation_readiness_receipt_matrix() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    let batch = ActuationBatchV1::new(
+        "slice55-readiness-classifier",
+        vec![ActuationOperationV1::PutCanonicalNode(
+            match canonical("readiness-classifier-r1", "readiness-classifier", "body") {
+                PreparedWrite::ProvenancedNode(node) => node,
+                _ => unreachable!(),
+            },
+        )],
+    )
+    .unwrap();
+    opened.engine.actuate(batch).unwrap();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT OR REPLACE INTO _fathomdb_vector_rows(rowid,kind,write_cursor) \
+             VALUES(1,'doc',1); DELETE FROM _fathomdb_projection_terminal WHERE write_cursor=1",
+        )
+        .unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::MutationReadiness),
+        [DataPlaneIntegrityFindingCodeV1::MutationReadinessCorrupt]
+    );
+}
 clean_projection_case!(
     slice55_mutation_readiness_selects_only_bounded_subset,
     DataPlaneIntegrityCheckV1::MutationReadiness

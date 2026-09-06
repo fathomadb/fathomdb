@@ -74,6 +74,14 @@ fn seeded() -> (TempDir, fathomdb_engine::OpenedEngine) {
     (dir, opened)
 }
 
+fn source_only() -> (TempDir, fathomdb_engine::OpenedEngine) {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("trace-source-only{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    opened.engine.write(&[source("source-r1", "source", "canonical trace bytes")]).unwrap();
+    (dir, opened)
+}
+
 fn read_context() -> ReadContextV1 {
     ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap()
 }
@@ -310,8 +318,21 @@ fn slice55_trace_query_plans_use_existing_indexes() {
 #[test]
 #[ignore = "release-mode hidden-row ceiling"]
 fn slice55_trace_hidden_dependents_performance_ceiling() {
-    let (_dir, opened) = seeded();
-    let measurement = opened.engine.measure_dependency_trace_for_test().unwrap();
+    let (_baseline_dir, baseline) = source_only();
+    let baseline_measurement = baseline.engine.measure_dependency_trace_for_test().unwrap();
+
+    let (_hidden_dir, hidden) = source_only();
+    hidden.engine.seed_hidden_dependency_trace_fixture_for_test(50_000).unwrap();
+    let measurement = hidden.engine.measure_dependency_trace_for_test().unwrap();
+
+    eprintln!(
+        "slice55 trace measurement: hidden_rows=50000 vm_steps={} elapsed_ms={} peak_rss_delta_bytes={}",
+        measurement.vm_steps,
+        measurement.elapsed.as_millis(),
+        measurement.peak_rss_delta_bytes,
+    );
+    assert_eq!(measurement.response_bytes, baseline_measurement.response_bytes);
+    assert!(!measurement.bound_exceeded);
     assert!(measurement.vm_steps <= 10_000_000);
     assert!(measurement.elapsed.as_secs_f64() <= 5.0);
     assert!(measurement.peak_rss_delta_bytes <= 64 * 1024 * 1024);

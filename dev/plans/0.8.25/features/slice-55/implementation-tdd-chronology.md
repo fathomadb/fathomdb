@@ -388,3 +388,9 @@ cases, both measurements use fixed effective time 1, and the test-only corrupt
 fixture seeder restores the pre-seed writer boundary. No response bytes are
 normalized or fabricated; the 50,000 count, assertions, ceilings, and trace
 production semantics are unchanged.
+
+The default-feature all-target Clippy route then identified that the
+`source_only` helper is reachable only with the `test-hooks` feature used by
+the ignored performance witness. With orchestrator authorization, the helper
+received the matching compile-time gate; no case, assertion, fixture value, or
+oracle changed.

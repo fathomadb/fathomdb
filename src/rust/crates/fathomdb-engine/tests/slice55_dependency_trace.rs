@@ -74,6 +74,7 @@ fn seeded() -> (TempDir, fathomdb_engine::OpenedEngine) {
     (dir, opened)
 }
 
+#[cfg(feature = "test-hooks")]
 fn source_only() -> (TempDir, fathomdb_engine::OpenedEngine) {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("trace-source-only{SQLITE_SUFFIX}"));

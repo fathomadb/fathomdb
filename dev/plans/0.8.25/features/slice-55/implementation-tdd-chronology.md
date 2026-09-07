@@ -2728,3 +2728,155 @@ pause deadlock. Available disk was 140 GiB afterward, and no Cargo, workspace
 runner, or FathomDB test process remained. No package, registry artifact, tag,
 upload, publication, branch push, release-state, status, or review record was
 created or changed by FIX-13.
+
+## 2026-09-06 — FIX-14: two-phase projection-runtime service readiness
+
+Independent implementation review cycle 14 found that FIX-13's single setup
+report could be accepted after its sender had already exited. The report
+proved that each role opened and registered its connection, but did not prove
+that the role remained alive to enter its normal dispatcher or worker service
+loop.
+
+### RED
+
+Test commit `767e498f4d8f7dfddd51a61e76affe683bcc5847` adds the
+test-only `ExitAfterReport(Worker(1))` fault. The worker completes its ordinary
+phase-one setup, sends the same successful role-tagged report as the normal
+path, then exits. The regression requires construction to return
+`EngineOpenError::Io` within a bounded interval and leave the managed live set
+empty. The successful control also compares the immediately serviceable native
+inventory against the exact role set `dispatcher:0`, `worker:0`, and
+`worker:1`.
+
+The watchdoged RED command exited 101 with the other three startup controls
+green and this sole intended failure:
+
+```text
+cargo test -p fathomdb-engine --lib projection_runtime_startup_ \
+  -- --test-threads=1
+
+test tests::projection_runtime_startup_exit_after_report_is_rejected_and_cleans_up ... FAILED
+
+thread 'tests::projection_runtime_startup_exit_after_report_is_rejected_and_cleans_up' panicked:
+phase-one setup success must not accept worker:1 after it exits before service readiness
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored
+```
+
+The current one-phase constructor had incorrectly returned `Ok`. The RED
+fixture explicitly stopped that accepted runtime before asserting, so the
+failing test itself did not strand threads or connections. Tests were frozen
+after this commit.
+
+### GREEN
+
+Product commit `baec9d936cf108b816a091fd5ef8a20b447752b5` adds a
+two-phase private startup protocol without changing the public error surface.
+Every runtime role now owns a parent-addressed service-request receiver and
+uses one role-tagged protocol stream:
+
+1. each role completes the FIX-13 connection, partition, managed-registry, and
+   WAL-registry setup and sends its phase-one setup result;
+2. the parent accepts the exact unique setup role set;
+3. the parent sends one service request to each exact role; and
+4. each role crosses into the first iteration of its normal service loop and
+   sends a phase-two `ServiceReady(role)` acknowledgement.
+
+Both phases share the single absolute startup deadline computed by
+`await_startup`; phase two does not receive a fresh timeout allowance. Setup
+or service timeout, channel disconnection, phase mismatch, missing,
+unexpected, or duplicate role maps to the existing `EngineOpenError::Io`.
+Dropping the role-addressed request senders releases threads that are waiting
+between phases. The existing failure path then sets `stopping`, notifies both
+runtime condition variables, and joins every spawned dispatcher and worker.
+The `ExitAfterReport` receiver is already disconnected when phase two is
+issued, so its failure is immediate and cleanup remains bounded.
+
+The first GREEN run exposed one implementation-only fallthrough: the frozen
+`MissingReport` fault skipped its injected report and then sent the normal
+report. That run exited 101 with three of four tests green. The product helper
+was corrected to preserve a true absent setup report; no frozen test was
+edited. The next focused run passed all four startup controls.
+
+### Verification
+
+All commands were run under finite external watchdogs. Focused and pressure
+evidence:
+
+```text
+cargo test -p fathomdb-engine --lib projection_runtime_startup_ \
+  -- --test-threads=1
+4 passed
+
+tests::projection_runtime_startup_exit_after_report_is_rejected_and_cleans_up
+20/20 exact non-vacuous repetitions passed
+
+tests::projection_runtime_startup_returns_exact_live_roles_immediately
+20/20 exact repetitions passed
+
+8 concurrent projection_runtime_startup_ processes
+32/32 tests passed; every process terminated
+
+cargo test -p fathomdb-engine --features test-hooks --lib \
+  projection_transaction_pause_ -- --test-threads=1
+2 passed
+
+cargo test -p fathomdb-engine --features test-hooks --lib \
+  tests::wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded \
+  -- --exact
+1 passed; four concurrent exact processes also passed 4/4
+```
+
+The converted Slice 30 dependency-closure caller and both Slice 40 projection
+callers passed unchanged:
+
+```text
+slice30_dependency_closure::projection_worker_before_admission_cannot_publish_dependency_residue
+slice40_projection_completion::worker_publication_never_repairs_a_partial_projection_tuple
+slice40_projection_generation_races::publication_holding_write_lock_linearizes_before_transition
+```
+
+`cargo fmt --all -- --check`, touched all-target `cargo check`, and Clippy with
+`test-hooks`, `-D warnings`, and the repository's missing-docs allowance
+passed. `cargo check --release -p fathomdb-engine` passed; it printed only the
+pre-existing `ReaderWorkerPool::{worker_count,live_count}` and
+`SubscriberRegistry::dispatch_stress_failure` dead-code warnings.
+
+One attempted repetition initially combined an unqualified function filter
+with the harness `--exact` flag and therefore selected zero tests. That command
+is explicitly discarded as vacuous evidence. It was replaced immediately by
+the fully qualified function name, which produced the non-vacuous 20/20 result
+above.
+
+The exact canonical workspace commands ran unconfined because the repository
+contains ptrace-dependent tests. Both used 3,600-second external watchdogs:
+
+```text
+bash scripts/test-rust-workspace.sh --serial
+exit 0
+
+bash scripts/test-rust-workspace.sh --parallel-report
+exit 101; terminated normally without watchdog intervention
+```
+
+The TC-72/TC-74 canonical serial release gate was fully green. The required
+non-gating parallel reporter retained two ordinary concurrency-race failures:
+
+- the projection-worker WAL attribution witness observed two active owned
+  roles rather than its isolated expectation of one because the projection
+  dispatcher briefly held a snapshot concurrently with the intentionally
+  paused worker; and
+- `slice50_evidence::evidence_search_races_are_snapshot_atomic_or_wholly_refused`
+  observed a different concurrent-transition result than its one accepted
+  typed-refusal timing.
+
+The reporter completed every remaining target and exited 101 with those two
+targets named. It produced no projection-startup timeout or disconnection, no
+service-readiness protocol failure, no projection-pause timeout, and no
+deadlock. Under the retained TC-72/TC-74 policy these failures are diagnostic,
+not the release-gating result; no retry was used to turn them green.
+
+Available disk remained 140 GiB after verification, and no Cargo, workspace
+runner, or FathomDB test process remained. FIX-14 created no package, registry
+artifact, tag, upload, publication, branch push, release-state, status, or
+review change.

@@ -1,16 +1,15 @@
-//! Slice 60 FIX-4 RED: graph expansion observes real cross-owner closure barriers.
+//! Slice 60 FIX-4 RED: graph expansion observes real closure barriers.
 
 #![cfg(all(feature = "test-hooks", feature = "operator"))]
 
 use fathomdb_engine::{
-    ArtifactRevisionId, CanonicalHash, Engine, GraphExpandRequestV1, GraphReadContextV1,
-    GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView,
-    SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
-    SourceVersionId, StructuralDependencyStateV1, TraversalDirection, WriteProvenanceV1,
+    ArtifactRevisionId, Engine, GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1, IdSpace,
+    InitialState, PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
+    SourceDependencyRegistrationV1, SourceId, SourceVersionId, StructuralDependencyStateV1,
+    TraversalDirection, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
-use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
 fn request() -> GraphExpandRequestV1 {
@@ -36,10 +35,6 @@ fn request() -> GraphExpandRequestV1 {
         max_work_units: 10,
         include_explanation: true,
     }
-}
-
-fn digest(value: &str) -> String {
-    Sha256::digest(value.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 fn fixture(directory: &TempDir, name: &str) -> (std::path::PathBuf, Engine) {
@@ -88,7 +83,23 @@ fn fixture(directory: &TempDir, name: &str) -> (std::path::PathBuf, Engine) {
             },
         ])
         .unwrap();
-    opened.engine.seed_graph_expand_dependency_closure_for_test().unwrap();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT INTO canonical_nodes(\
+                write_cursor,kind,body,source_id,logical_id,row_kind,state,reason,valid_from,valid_until\
+             ) VALUES(4,'fact','derived','source-owner','derived','leaf','active',NULL,NULL,NULL); \
+             INSERT INTO _fathomdb_artifact_revisions(\
+                schema_version,revision_id,artifact_class,write_cursor,artifact_role,completeness\
+             ) VALUES(1,'derived-r1','node',4,'derived_semantic','complete'); \
+             INSERT INTO _fathomdb_source_links(\
+                schema_version,artifact_revision_id,source_id,source_version_id,source_revision_id,\
+                locator_kind,start_byte,end_byte,hash_algorithm,hash_digest\
+             ) SELECT schema_version,'derived-r1','source-owner',source_version_id,source_revision_id,\
+                      locator_kind,start_byte,end_byte,hash_algorithm,hash_digest \
+               FROM _fathomdb_source_links WHERE artifact_revision_id='source-r1'",
+        )
+        .unwrap();
     (path, opened.engine)
 }
 
@@ -97,7 +108,7 @@ fn dependency_state(engine: &Engine) -> StructuralDependencyStateV1 {
 }
 
 #[test]
-fn cross_owner_registered_closure_barrier_excludes_a_surviving_derived_target() {
+fn registered_closure_barrier_excludes_a_surviving_derived_target() {
     let directory = TempDir::new().unwrap();
     let (path, engine) = fixture(&directory, "closure-barrier");
     assert_eq!(dependency_state(&engine), StructuralDependencyStateV1::NotRegistered);
@@ -126,21 +137,18 @@ fn cross_owner_registered_closure_barrier_excludes_a_surviving_derived_target() 
             row.get(0)
         })
         .unwrap();
-    assert_eq!(
-        surviving, 1,
-        "the independently owned derived row must survive the closure barrier"
-    );
+    assert_eq!(surviving, 1, "the contract-valid derived row must survive the closure barrier");
     assert!(engine.graph_expand(&request()).unwrap().targets.is_empty());
 }
 
 #[test]
-fn erase_and_excise_remain_separate_cross_owner_disappearance_controls() {
+fn erase_and_excise_remain_separate_disappearance_controls() {
     let directory = TempDir::new().unwrap();
     let (_, erased) = fixture(&directory, "erase");
-    erased.erase_source("derived-owner").unwrap();
+    erased.erase_source("source-owner").unwrap();
     assert!(erased.graph_expand(&request()).unwrap().targets.is_empty());
 
     let (_, excised) = fixture(&directory, "excise");
-    excised.excise_source("derived-owner").unwrap();
+    excised.excise_source("source-owner").unwrap();
     assert!(excised.graph_expand(&request()).unwrap().targets.is_empty());
 }

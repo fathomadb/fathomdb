@@ -44,7 +44,7 @@ create or push a tag, upload an artifact, publish anything, or merge to main.
 
 ## Required next action
 
-Commit the Slice 60 closure and generated state views, push the explicit
-`release/0.8.25` ref, capture the between-slice memory checkpoint, and reclaim
-the proven disposable incremental cache. Then begin Slice 75 under its trimmed
-CI-only boundary.
+Slice 60 requires no further action. Begin Slice 75 by reconciling its design
+with the trimmed CI-only boundary. Keep package production, registry staging,
+tags, publication, post-publication smoke, and merge to main outside that
+slice.

@@ -661,8 +661,14 @@ preserving unordered endpoint SQL and Engine-side structural ordering.
 AC-050a forbids the public `legacy_` prefix. The sole frozen projection-state
 caller now names the audited replacement
 `projection_legacy_unverified_degraded`, retaining its exact tuple assertions.
-Its old hash is `6e57f78e7da8591e3b01d3c37c638fa5e9dcdb1f12bd13e89cd86666352f3`;
+Its old hash is
+`6e57f78e7da8591e3b01d3c37c638fa5e9dcdb1f12bd13e89cd86666352f3ffd`;
 the re-frozen caller hash is
 `861d90d89fb3d1debd2d1ca864f6412fb80e1115b0eb0608e9b4c2b82883aee3`.
 Before the production rename, the focused compile must fail with E0599 for the
 missing replacement method.
+
+Implementation-review cycle 7 independently recomputed the pre-correction Git
+object and found that the first record had truncated its old hash to 61
+hexadecimal characters. The corrected 64-character value above changes no
+test, implementation, or assertion.

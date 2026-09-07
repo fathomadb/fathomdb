@@ -1079,6 +1079,60 @@ struct ProjectionRuntime {
     workers: Mutex<Vec<JoinHandle<()>>>,
 }
 
+const PROJECTION_RUNTIME_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum ProjectionRuntimeStartupRole {
+    Dispatcher(usize),
+    Worker(usize),
+}
+
+impl ProjectionRuntimeStartupRole {
+    fn label(self) -> String {
+        match self {
+            Self::Dispatcher(index) => format!("dispatcher:{index}"),
+            Self::Worker(index) => format!("worker:{index}"),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ProjectionRuntimeStartupReport {
+    role: ProjectionRuntimeStartupRole,
+    stage: Result<(), &'static str>,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug)]
+enum ProjectionRuntimeStartupFaultForTest {
+    SetupFailure(ProjectionRuntimeStartupRole),
+    DuplicateReport {
+        role: ProjectionRuntimeStartupRole,
+        reported_as: ProjectionRuntimeStartupRole,
+    },
+    MissingReport(ProjectionRuntimeStartupRole),
+    StallUntilStop(ProjectionRuntimeStartupRole),
+}
+
+#[cfg(test)]
+impl ProjectionRuntimeStartupFaultForTest {
+    fn targets(self, role: ProjectionRuntimeStartupRole) -> bool {
+        match self {
+            Self::SetupFailure(target)
+            | Self::MissingReport(target)
+            | Self::StallUntilStop(target) => target == role,
+            Self::DuplicateReport { role: target, .. } => target == role,
+        }
+    }
+}
+
+fn missing_projection_runtime_roles(
+    expected: &BTreeSet<ProjectionRuntimeStartupRole>,
+    observed: &BTreeSet<ProjectionRuntimeStartupRole>,
+) -> String {
+    expected.difference(observed).map(|role| role.label()).collect::<Vec<_>>().join(",")
+}
+
 #[cfg(debug_assertions)]
 const PROJECTION_TRANSACTION_TEST_PAUSE_RELEASE_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -3121,7 +3175,62 @@ impl ProjectionRuntime {
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
             ManagedConnectionRegistry,
         >,
-    ) -> Self {
+    ) -> Result<Self, EngineOpenError> {
+        Self::new_with_startup_control(
+            path,
+            embedder,
+            embedder_identity,
+            mean_already_pinned,
+            subscribers,
+            wal_attribution,
+            #[cfg(any(test, feature = "test-hooks"))]
+            managed_connections,
+            PROJECTION_RUNTIME_STARTUP_TIMEOUT,
+            #[cfg(test)]
+            None,
+        )
+    }
+
+    #[cfg(test)]
+    #[allow(clippy::too_many_arguments)]
+    fn new_for_test(
+        path: PathBuf,
+        embedder: Option<Arc<dyn Embedder>>,
+        embedder_identity: EmbedderIdentity,
+        mean_already_pinned: bool,
+        subscribers: Arc<lifecycle::SubscriberRegistry>,
+        wal_attribution: Arc<WalAttributionCollector>,
+        managed_connections: Arc<ManagedConnectionRegistry>,
+        startup_timeout: Duration,
+        startup_fault: Option<ProjectionRuntimeStartupFaultForTest>,
+    ) -> Result<Self, EngineOpenError> {
+        Self::new_with_startup_control(
+            path,
+            embedder,
+            embedder_identity,
+            mean_already_pinned,
+            subscribers,
+            wal_attribution,
+            managed_connections,
+            startup_timeout,
+            startup_fault,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn new_with_startup_control(
+        path: PathBuf,
+        embedder: Option<Arc<dyn Embedder>>,
+        embedder_identity: EmbedderIdentity,
+        mean_already_pinned: bool,
+        subscribers: Arc<lifecycle::SubscriberRegistry>,
+        wal_attribution: Arc<WalAttributionCollector>,
+        #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
+            ManagedConnectionRegistry,
+        >,
+        startup_timeout: Duration,
+        #[cfg(test)] startup_fault: Option<ProjectionRuntimeStartupFaultForTest>,
+    ) -> Result<Self, EngineOpenError> {
         // EU-5b/EU-5f — only allocate the streaming accumulator when the
         // workspace's identity is MC-required AND no mean has been pinned
         // yet on disk. Allocating it for an already-pinned workspace would
@@ -3179,16 +3288,127 @@ impl ProjectionRuntime {
             projection_stop_ack: Mutex::new(None),
         });
 
+        let (startup_send, startup_receive) = mpsc::channel();
         let dispatcher_shared = Arc::clone(&shared);
-        let dispatcher = thread::spawn(move || projection_dispatcher_loop(dispatcher_shared, 0));
+        let dispatcher_startup = startup_send.clone();
+        let dispatcher = thread::Builder::new()
+            .name("fathomdb-projection-dispatcher-0".to_string())
+            .spawn(move || {
+                projection_dispatcher_loop(
+                    dispatcher_shared,
+                    0,
+                    dispatcher_startup,
+                    #[cfg(test)]
+                    startup_fault,
+                )
+            })
+            .map_err(|_| EngineOpenError::Io {
+                message: "could not start projection dispatcher".to_string(),
+            })?;
 
         let mut workers = Vec::with_capacity(PROJECTION_WORKERS);
         for worker_idx in 0..PROJECTION_WORKERS {
             let worker_shared = Arc::clone(&shared);
-            workers.push(thread::spawn(move || projection_worker_loop(worker_shared, worker_idx)));
+            let worker_startup = startup_send.clone();
+            let spawn_result = thread::Builder::new()
+                .name(format!("fathomdb-projection-worker-{worker_idx}"))
+                .spawn(move || {
+                    projection_worker_loop(
+                        worker_shared,
+                        worker_idx,
+                        worker_startup,
+                        #[cfg(test)]
+                        startup_fault,
+                    )
+                });
+            match spawn_result {
+                Ok(worker) => workers.push(worker),
+                Err(_) => {
+                    drop(startup_send);
+                    let runtime = Self {
+                        shared,
+                        dispatcher: Mutex::new(Some(dispatcher)),
+                        workers: Mutex::new(workers),
+                    };
+                    runtime.stop();
+                    return Err(EngineOpenError::Io {
+                        message: format!("could not start projection worker:{worker_idx}"),
+                    });
+                }
+            }
         }
+        drop(startup_send);
 
-        Self { shared, dispatcher: Mutex::new(Some(dispatcher)), workers: Mutex::new(workers) }
+        let runtime =
+            Self { shared, dispatcher: Mutex::new(Some(dispatcher)), workers: Mutex::new(workers) };
+        if let Err(error) = runtime.await_startup(startup_receive, startup_timeout) {
+            runtime.stop();
+            return Err(error);
+        }
+        Ok(runtime)
+    }
+
+    fn await_startup(
+        &self,
+        startup: Receiver<ProjectionRuntimeStartupReport>,
+        timeout: Duration,
+    ) -> Result<(), EngineOpenError> {
+        let expected = BTreeSet::from([
+            ProjectionRuntimeStartupRole::Dispatcher(0),
+            ProjectionRuntimeStartupRole::Worker(0),
+            ProjectionRuntimeStartupRole::Worker(1),
+        ]);
+        let mut observed = BTreeSet::new();
+        let deadline = Instant::now() + timeout;
+
+        while observed.len() < expected.len() {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            let report = match startup.recv_timeout(remaining) {
+                Ok(report) => report,
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    return Err(EngineOpenError::Io {
+                        message: format!(
+                            "projection runtime startup timed out after {}ms; missing roles: {}",
+                            timeout.as_millis(),
+                            missing_projection_runtime_roles(&expected, &observed)
+                        ),
+                    });
+                }
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    return Err(EngineOpenError::Io {
+                        message: format!(
+                            "projection runtime startup disconnected; missing roles: {}",
+                            missing_projection_runtime_roles(&expected, &observed)
+                        ),
+                    });
+                }
+            };
+            if !expected.contains(&report.role) {
+                return Err(EngineOpenError::Io {
+                    message: format!(
+                        "projection runtime startup reported unexpected role {}",
+                        report.role.label()
+                    ),
+                });
+            }
+            if !observed.insert(report.role) {
+                return Err(EngineOpenError::Io {
+                    message: format!(
+                        "projection runtime startup reported duplicate role {}",
+                        report.role.label()
+                    ),
+                });
+            }
+            if let Err(stage) = report.stage {
+                return Err(EngineOpenError::Io {
+                    message: format!(
+                        "projection runtime {} failed during {stage}",
+                        report.role.label()
+                    ),
+                });
+            }
+        }
+        Ok(())
     }
 
     fn notify_new_work(&self) {
@@ -8305,7 +8525,7 @@ impl Engine {
                     Arc::clone(&wal_attribution),
                     #[cfg(any(test, feature = "test-hooks"))]
                     Arc::clone(&managed_connections),
-                );
+                )?;
 
                 install_profile_callback(
                     &connection,
@@ -20281,7 +20501,75 @@ fn report_runtime_native_state_inventory_for_test(
     let _ = respond.send(native_connection_state_for_test(connection, role, index));
 }
 
-fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_idx: usize) {
+fn report_projection_runtime_startup_failure(
+    startup: &mpsc::Sender<ProjectionRuntimeStartupReport>,
+    role: ProjectionRuntimeStartupRole,
+    stage: &'static str,
+) {
+    let _ = startup.send(ProjectionRuntimeStartupReport { role, stage: Err(stage) });
+}
+
+#[cfg(test)]
+fn projection_runtime_injected_setup_failure(
+    startup: &mpsc::Sender<ProjectionRuntimeStartupReport>,
+    role: ProjectionRuntimeStartupRole,
+    fault: Option<ProjectionRuntimeStartupFaultForTest>,
+) -> bool {
+    if matches!(fault, Some(fault) if fault.targets(role))
+        && matches!(fault, Some(ProjectionRuntimeStartupFaultForTest::SetupFailure(_)))
+    {
+        report_projection_runtime_startup_failure(startup, role, "injected_setup");
+        return true;
+    }
+    false
+}
+
+fn complete_projection_runtime_startup(
+    _shared: &ProjectionRuntimeShared,
+    startup: mpsc::Sender<ProjectionRuntimeStartupReport>,
+    role: ProjectionRuntimeStartupRole,
+    #[cfg(test)] fault: Option<ProjectionRuntimeStartupFaultForTest>,
+) -> bool {
+    #[cfg(test)]
+    if let Some(fault) = fault.filter(|fault| fault.targets(role)) {
+        match fault {
+            ProjectionRuntimeStartupFaultForTest::SetupFailure(_) => unreachable!(),
+            ProjectionRuntimeStartupFaultForTest::DuplicateReport { reported_as, .. } => {
+                return startup
+                    .send(ProjectionRuntimeStartupReport { role: reported_as, stage: Ok(()) })
+                    .is_ok();
+            }
+            ProjectionRuntimeStartupFaultForTest::MissingReport(_) => return true,
+            ProjectionRuntimeStartupFaultForTest::StallUntilStop(_) => {
+                let mut state = match _shared.state.lock() {
+                    Ok(state) => state,
+                    Err(_) => return false,
+                };
+                while !state.stopping {
+                    state = match _shared.state_cvar.wait(state) {
+                        Ok(state) => state,
+                        Err(_) => return false,
+                    };
+                }
+                return false;
+            }
+        }
+    }
+
+    startup.send(ProjectionRuntimeStartupReport { role, stage: Ok(()) }).is_ok()
+}
+
+fn projection_dispatcher_loop(
+    shared: Arc<ProjectionRuntimeShared>,
+    dispatcher_idx: usize,
+    startup: mpsc::Sender<ProjectionRuntimeStartupReport>,
+    #[cfg(test)] startup_fault: Option<ProjectionRuntimeStartupFaultForTest>,
+) {
+    let startup_role = ProjectionRuntimeStartupRole::Dispatcher(dispatcher_idx);
+    #[cfg(test)]
+    if projection_runtime_injected_setup_failure(&startup, startup_role, startup_fault) {
+        return;
+    }
     let connection = match open_runtime_connection(
         &shared.path,
         #[cfg(any(test, feature = "test-hooks"))]
@@ -20290,7 +20578,10 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
         &shared.managed_connections,
     ) {
         Ok(connection) => connection,
-        Err(_) => return,
+        Err(_) => {
+            report_projection_runtime_startup_failure(&startup, startup_role, "connection_setup");
+            return;
+        }
     };
     #[cfg(any(test, feature = "test-hooks"))]
     let _connection_registration = shared
@@ -20300,6 +20591,7 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
     // 0.8.20 Slice 20c fix-4 (codex §9 round 3 [P1]) — read ONCE:
     // `ProjectionRuntimeShared::embedder` is fixed for the session's lifetime.
     let dense_arm_live = shared.embedder.is_some();
+    let mut startup = Some(startup);
     loop {
         #[cfg(any(test, feature = "test-hooks"))]
         report_runtime_connection_inventory_for_test(
@@ -20315,6 +20607,17 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
             WalAttributionRole::ProjectionDispatcher,
             dispatcher_idx,
         );
+        if let Some(startup) = startup.take() {
+            if !complete_projection_runtime_startup(
+                &shared,
+                startup,
+                startup_role,
+                #[cfg(test)]
+                startup_fault,
+            ) {
+                return;
+            }
+        }
         let in_flight = {
             let mut state = match shared.state.lock() {
                 Ok(state) => state,
@@ -20451,7 +20754,17 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
     }
 }
 
-fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usize) {
+fn projection_worker_loop(
+    shared: Arc<ProjectionRuntimeShared>,
+    worker_idx: usize,
+    startup: mpsc::Sender<ProjectionRuntimeStartupReport>,
+    #[cfg(test)] startup_fault: Option<ProjectionRuntimeStartupFaultForTest>,
+) {
+    let startup_role = ProjectionRuntimeStartupRole::Worker(worker_idx);
+    #[cfg(test)]
+    if projection_runtime_injected_setup_failure(&startup, startup_role, startup_fault) {
+        return;
+    }
     let mut connection = match open_runtime_connection(
         &shared.path,
         #[cfg(any(test, feature = "test-hooks"))]
@@ -20460,15 +20773,20 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usiz
         &shared.managed_connections,
     ) {
         Ok(connection) => connection,
-        Err(_) => return,
+        Err(_) => {
+            report_projection_runtime_startup_failure(&startup, startup_role, "connection_setup");
+            return;
+        }
     };
     if ensure_vector_partition(&mut connection, shared.embedder_identity.dimension).is_err() {
+        report_projection_runtime_startup_failure(&startup, startup_role, "vector_partition_setup");
         return;
     }
     #[cfg(any(test, feature = "test-hooks"))]
     let _connection_registration =
         shared.managed_connections.register(WalAttributionRole::ProjectionWorker, worker_idx);
     shared.wal_attribution.register(WalAttributionRole::ProjectionWorker, worker_idx);
+    let mut startup = Some(startup);
     loop {
         #[cfg(any(test, feature = "test-hooks"))]
         report_runtime_connection_inventory_for_test(
@@ -20484,6 +20802,17 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usiz
             WalAttributionRole::ProjectionWorker,
             worker_idx,
         );
+        if let Some(startup) = startup.take() {
+            if !complete_projection_runtime_startup(
+                &shared,
+                startup,
+                startup_role,
+                #[cfg(test)]
+                startup_fault,
+            ) {
+                return;
+            }
+        }
         let jobs = {
             let mut queue = match shared.queue.lock() {
                 Ok(queue) => queue,

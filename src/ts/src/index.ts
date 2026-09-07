@@ -3716,6 +3716,20 @@ export function validateGraphExpandResult(value: unknown): GraphExpandResultV1 {
   };
 }
 
+function graphRequestString(value: unknown, reason: string, path: string): asserts value is string {
+  if (typeof value !== "string" || value.includes("\0")) graphRefuse(reason, path);
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (next < 0xdc00 || next > 0xdfff) graphRefuse(reason, path);
+      index += 1;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      graphRefuse(reason, path);
+    }
+  }
+}
+
 function validateGraphExpandRequest(value: unknown): asserts value is GraphExpandRequestV1 {
   const root = graphObject(value, "");
   if (root.schemaVersion !== 1) graphRefuse("unsupported_schema_version", "/schemaVersion");
@@ -3757,16 +3771,18 @@ function validateGraphExpandRequest(value: unknown): asserts value is GraphExpan
 
   const seed = requestObject(root.seed, "graph_seed_invalid", "/seed");
   schema(seed, "/seed/schemaVersion");
+  close(seed, ["schemaVersion", "type", "text", "rankedLimit", "logicalIds"], "/seed");
   if (seed.type === "query") {
-    close(seed, ["schemaVersion", "type", "text", "rankedLimit"], "/seed");
+    if ("logicalIds" in seed) graphRefuse("graph_seed_invalid", "/seed");
     if (
       typeof seed.text !== "string" ||
       !Number.isInteger(seed.rankedLimit) ||
       typeof seed.rankedLimit !== "number"
     )
       graphRefuse("graph_seed_invalid", "/seed");
+    graphRequestString(seed.text, "graph_seed_invalid", "/seed/text");
   } else if (seed.type === "explicit") {
-    close(seed, ["schemaVersion", "type", "logicalIds"], "/seed");
+    if ("text" in seed || "rankedLimit" in seed) graphRefuse("graph_seed_invalid", "/seed");
     if (!Array.isArray(seed.logicalIds)) graphRefuse("graph_seed_invalid", "/seed/logicalIds");
     seed.logicalIds.forEach((id, index) => {
       const path = `/seed/logicalIds/${index}`;
@@ -3774,6 +3790,8 @@ function validateGraphExpandRequest(value: unknown): asserts value is GraphExpan
       close(object, ["space", "value"], path);
       if (typeof object.space !== "string" || typeof object.value !== "string")
         graphRefuse("graph_seed_invalid", path);
+      graphRequestString(object.space, "graph_seed_invalid", `${path}/space`);
+      graphRequestString(object.value, "graph_seed_invalid", `${path}/value`);
     });
   } else {
     graphRefuse("graph_seed_invalid", "/seed");
@@ -3796,6 +3814,7 @@ function validateGraphExpandRequest(value: unknown): asserts value is GraphExpan
       typeof readContext.effectiveValidAt !== "number"
     )
       graphRefuse("graph_context_invalid", "/context/context");
+    graphRequestString(readContext.token, "graph_context_invalid", "/context/context/token");
   } else if (context.type !== "current") {
     graphRefuse("graph_context_invalid", "/context/type");
   }
@@ -3832,12 +3851,32 @@ function validateGraphExpandRequest(value: unknown): asserts value is GraphExpan
     ["sourceType", "kind", "createdAfter", "status", "attributes"],
     `${currentBase}/eligibility`,
   );
+  for (const name of ["sourceType", "kind", "status"] as const) {
+    if (eligibility[name] !== undefined && eligibility[name] !== null) {
+      graphRequestString(eligibility[name], "graph_context_invalid", `${currentBase}/eligibility/${name}`);
+    }
+  }
+  if (
+    eligibility.createdAfter !== undefined &&
+    eligibility.createdAfter !== null &&
+    (!Number.isInteger(eligibility.createdAfter) || typeof eligibility.createdAfter !== "number")
+  ) graphRefuse("graph_context_invalid", `${currentBase}/eligibility/createdAfter`);
+  if (eligibility.attributes !== undefined) {
+    if (!Array.isArray(eligibility.attributes)) graphRefuse("graph_context_invalid", `${currentBase}/eligibility/attributes`);
+    eligibility.attributes.forEach((pair, index) => {
+      if (!Array.isArray(pair) || pair.length !== 2) graphRefuse("graph_context_invalid", `${currentBase}/eligibility/attributes/${index}`);
+      graphRequestString(pair[0], "graph_context_invalid", `${currentBase}/eligibility/attributes/${index}/0`);
+      graphRequestString(pair[1], "graph_context_invalid", `${currentBase}/eligibility/attributes/${index}/1`);
+    });
+  }
   if (!["incoming", "outgoing", "both"].includes(String(root.direction)))
     graphRefuse("graph_direction_invalid", "/direction");
   if (!Array.isArray(root.edgeKinds) || root.edgeKinds.some((item) => typeof item !== "string"))
     graphRefuse("graph_edge_kinds_invalid", "/edgeKinds");
+  root.edgeKinds.forEach((item, index) => graphRequestString(item, "graph_edge_kinds_invalid", `/edgeKinds/${index}`));
   if (!Array.isArray(root.targetKinds) || root.targetKinds.some((item) => typeof item !== "string"))
     graphRefuse("graph_target_kinds_invalid", "/targetKinds");
+  root.targetKinds.forEach((item, index) => graphRequestString(item, "graph_target_kinds_invalid", `/targetKinds/${index}`));
   if (!Number.isInteger(root.maxDepth) || typeof root.maxDepth !== "number")
     graphRefuse("graph_depth_invalid", "/maxDepth");
   if (!Number.isInteger(root.resultLimit) || typeof root.resultLimit !== "number")

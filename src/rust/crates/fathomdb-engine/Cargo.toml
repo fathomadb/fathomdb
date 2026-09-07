@@ -89,6 +89,10 @@ name = "check_integrity"
 required-features = ["operator"]
 
 [[test]]
+name = "slice60_graph_expand"
+required-features = ["test-hooks"]
+
+[[test]]
 name = "dump_profile"
 required-features = ["operator"]
 

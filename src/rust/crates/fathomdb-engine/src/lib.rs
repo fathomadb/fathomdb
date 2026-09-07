@@ -92,14 +92,18 @@ pub use evidence::{
     EvidenceSidecarEntryV1, ResolvedEvidenceV1,
 };
 pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};
+#[cfg(feature = "test-hooks")]
 pub use graph_expand::{
     arm_graph_expand_after_pin_hook_for_test, arm_graph_expand_before_pin_hook_for_test,
+    graph_expansion_degradation_codes_for_test, GraphExpandMeasurementForTest,
+};
+pub use graph_expand::{
     decode_graph_expand_request_v1, decode_graph_expand_result_v1, encode_graph_expand_request_v1,
-    encode_graph_expand_result_v1, graph_expansion_degradation_codes_for_test,
-    GraphExpandRequestV1, GraphExpandResultV1, GraphExpansionDegradationCodeV1,
-    GraphExpansionErrorReasonV1, GraphExpansionErrorV1, GraphExpansionExplanationV1, GraphOriginV1,
-    GraphProjectionOriginV1, GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1,
-    GraphSeedSourceV1, GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, ResolvedGraphSeedV1,
+    encode_graph_expand_result_v1, GraphExpandRequestV1, GraphExpandResultV1,
+    GraphExpansionDegradationCodeV1, GraphExpansionErrorReasonV1, GraphExpansionErrorV1,
+    GraphExpansionExplanationV1, GraphOriginV1, GraphProjectionOriginV1,
+    GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1, GraphSeedSourceV1,
+    GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, ResolvedGraphSeedV1,
 };
 pub use pagination::{PageCursor, PageError, PageErrorReason, PageRequestV1, PageV1};
 pub use projection_generation::{

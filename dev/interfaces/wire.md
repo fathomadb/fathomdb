@@ -27,7 +27,7 @@ The authoritative layout owner remains `architecture.md` § 5.
 ## Schema-version sentinel
 
 The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
-0.8.25 development line `fathomdb-schema::SCHEMA_VERSION` is **32**. Step 28
+0.8.25 development line `fathomdb-schema::SCHEMA_VERSION` is **33**. Step 28
 adds the source-dependency registry and generation singleton. Step 29 adds the
 bounded terminal actuation-receipt and source-reference tables without
 backfilling legacy rows. Actuation request bodies and source locators are never
@@ -44,6 +44,9 @@ Step 32 adds retained projection-generation metadata, its current-generation
 singleton, and the nullable actuation-receipt generation correlation. It does
 not rewrite canonical or projection content. The database-local generation ID
 has grammar `pgen1:<32-lower-hex>`.
+
+Step 33 adds only the endpoint indexes consumed by Slice 60 constrained graph
+expansion. It has no data migration or canonical/projection rewrite.
 
 Ownership split:
 

@@ -175,3 +175,55 @@ Python source-contract target fails because `graph.py` has no recursive
 pre-transport validator. TypeScript typecheck passes; its local N-API RED
 consumer requires the disposable native build route and is retained for the
 next verification window.
+
+## FIX-1 GREEN
+
+The FIX-1 implementation serializes the declaration-ordered request and
+result wire structs directly, closes the seed union before its discriminant,
+confines graph rendezvous helpers to `test-hooks`, and shares the production
+incident-edge SQL/bind builder with EXPLAIN. Python and TypeScript reject NULs,
+lone surrogates, and malformed recursive eligibility members before calling a
+native binding. `wire.md` now records schema 33's endpoint-index-only,
+no-migration sentinel.
+
+I60-01's malformed `serde_json::Value` byte oracle was corrected separately in
+`92b1637c` and its Clippy-only hygiene follow-up `ba5450ac`; the re-frozen wire
+oracle SHA-256 is
+`378f9ecd651d965f661365708d9fdc66353888e9bf93f7a3583ae781cd01a3f9`.
+The request fixture remains
+`5f6d1ad3b0b5fadd509c51db848cb31f976faf17d3560f9abe86d86cb24f985a` and
+the new declaration-order result fixture is
+`d1d267548d5e3028327223f22dd28444072c9c611ff36275027a59083baccb28`.
+
+Focused GREEN evidence:
+
+```text
+$ cargo test -p fathomdb-engine --features test-hooks \
+    --test slice60_graph_expand --test slice60_wire --test slice60_fix1_wire \
+    -- --test-threads=1
+slice60_graph_expand: 18 passed; slice60_wire: 7 passed; slice60_fix1_wire: 4 passed
+
+$ cargo test -p fathomdb --test slice60_governed_surface
+2 passed
+
+$ cargo test -p fathomdb-py
+13 passed
+
+$ cd src/ts && npm run --silent build:native:debug && npx tsc -p tsconfig.json \
+    && node --test dist/tests/slice60-graph-expand.test.js \
+       dist/tests/slice60-fix1-graph-expand.test.js
+13 passed
+
+$ ./scripts/agent-typecheck.sh
+PASS
+
+$ ./scripts/agent-lint.sh
+PASS
+```
+
+The original runtime bound oracle includes W=10,000 success and W=10,001
+typed rejection, plus exhaustive projection degradation composition. The
+fresh local Python consumer route was not rerun: source-tree collection stops
+at the pre-existing stale `_fathomdb.abi3.so` import mismatch for
+`ProjectionGenerationError`. The FIX-1 source-contract test passes and the
+PyO3 crate checks pass; no worktree Python extension was installed or replaced.

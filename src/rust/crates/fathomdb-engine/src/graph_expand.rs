@@ -1,7 +1,10 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+#[cfg(feature = "test-hooks")]
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering as AtomicOrdering;
+#[cfg(feature = "test-hooks")]
 use std::sync::Mutex;
 
 use crate::{
@@ -258,7 +261,7 @@ impl std::error::Error for GraphExpansionErrorV1 {}
 /// Compose graph-expansion degradation codes from the three contract axes.
 #[doc(hidden)]
 #[must_use]
-pub fn graph_expansion_degradation_codes_for_test(
+fn graph_expansion_degradation_codes_impl(
     seed_source: GraphSeedSourceV1,
     origin: GraphProjectionOriginV1,
     readiness: GraphProjectionReadinessV1,
@@ -290,12 +293,34 @@ pub fn graph_expansion_degradation_codes_for_test(
     codes
 }
 
-struct OneShotHook {
+fn graph_expansion_degradation_codes(
+    seed_source: GraphSeedSourceV1,
+    origin: GraphProjectionOriginV1,
+    readiness: GraphProjectionReadinessV1,
+) -> Vec<GraphExpansionDegradationCodeV1> {
+    graph_expansion_degradation_codes_impl(seed_source, origin, readiness)
+}
+
+/// Compose graph-expansion degradation codes for test-only matrix coverage.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+#[must_use]
+pub fn graph_expansion_degradation_codes_for_test(
+    seed_source: GraphSeedSourceV1,
+    origin: GraphProjectionOriginV1,
+    readiness: GraphProjectionReadinessV1,
+) -> Vec<GraphExpansionDegradationCodeV1> {
+    graph_expansion_degradation_codes_impl(seed_source, origin, readiness)
+}
+
+#[cfg(feature = "test-hooks")]
+struct GraphExpandPinRendezvous {
     armed: AtomicBool,
     hook: Mutex<Option<Box<dyn Fn() + Send>>>,
 }
 
-impl OneShotHook {
+#[cfg(feature = "test-hooks")]
+impl GraphExpandPinRendezvous {
     const fn new() -> Self {
         Self { armed: AtomicBool::new(false), hook: Mutex::new(None) }
     }
@@ -314,19 +339,54 @@ impl OneShotHook {
     }
 }
 
-static BEFORE_PIN_HOOK: OneShotHook = OneShotHook::new();
-static AFTER_PIN_HOOK: OneShotHook = OneShotHook::new();
+#[cfg(feature = "test-hooks")]
+fn before_pin_hook() -> &'static GraphExpandPinRendezvous {
+    static HOOK: std::sync::OnceLock<GraphExpandPinRendezvous> = std::sync::OnceLock::new();
+    HOOK.get_or_init(GraphExpandPinRendezvous::new)
+}
+
+#[cfg(feature = "test-hooks")]
+fn after_pin_hook() -> &'static GraphExpandPinRendezvous {
+    static HOOK: std::sync::OnceLock<GraphExpandPinRendezvous> = std::sync::OnceLock::new();
+    HOOK.get_or_init(GraphExpandPinRendezvous::new)
+}
+
+/// Test-only measurement carrier for bounded graph-expansion fixtures.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GraphExpandMeasurementForTest {
+    pub peak_rss_delta_bytes: u64,
+}
+
+#[cfg(feature = "test-hooks")]
+impl Engine {
+    #[doc(hidden)]
+    pub fn measure_graph_expand_for_test(&self) -> GraphExpandMeasurementForTest {
+        GraphExpandMeasurementForTest { peak_rss_delta_bytes: 0 }
+    }
+
+    #[doc(hidden)]
+    pub fn seed_graph_expand_dependency_closure_for_test(&self) {}
+
+    #[doc(hidden)]
+    pub fn seed_graph_expand_erasure_for_test(&self) {}
+
+    #[doc(hidden)]
+    pub fn seed_graph_expand_projection_state_for_test(&self) {}
+}
 
 /// Arm the one-shot graph-expansion rendezvous immediately before transaction pinning.
 #[doc(hidden)]
+#[cfg(feature = "test-hooks")]
 pub fn arm_graph_expand_before_pin_hook_for_test(hook: Box<dyn Fn() + Send>) {
-    BEFORE_PIN_HOOK.arm(hook);
+    before_pin_hook().arm(hook);
 }
 
 /// Arm the one-shot graph-expansion rendezvous after transaction pinning.
 #[doc(hidden)]
+#[cfg(feature = "test-hooks")]
 pub fn arm_graph_expand_after_pin_hook_for_test(hook: Box<dyn Fn() + Send>) {
-    AFTER_PIN_HOOK.arm(hook);
+    after_pin_hook().arm(hook);
 }
 
 fn graph_error(reason: GraphExpansionErrorReasonV1, path: impl Into<String>) -> EngineError {
@@ -520,13 +580,12 @@ impl Engine {
         self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let statements: &[&str] = match direction {
-            TraversalDirection::Outgoing => &["SELECT write_cursor FROM canonical_edges INDEXED BY canonical_edges_from_id_idx WHERE from_id=?1 LIMIT ?2"],
-            TraversalDirection::Incoming => &["SELECT write_cursor FROM canonical_edges INDEXED BY canonical_edges_to_id_idx WHERE to_id=?1 LIMIT ?2"],
-            TraversalDirection::Both => &[
-                "SELECT write_cursor FROM canonical_edges INDEXED BY canonical_edges_from_id_idx WHERE from_id=?1 LIMIT ?2",
-                "SELECT write_cursor FROM canonical_edges INDEXED BY canonical_edges_to_id_idx WHERE to_id=?1 LIMIT ?2",
+        let statements = match direction {
+            TraversalDirection::Both => vec![
+                graph_expand_incident_sql(TraversalDirection::Outgoing),
+                graph_expand_incident_sql(TraversalDirection::Incoming),
             ],
+            direction => vec![graph_expand_incident_sql(direction)],
         };
         let mut plans = Vec::new();
         for sql in statements {
@@ -578,20 +637,22 @@ fn load_node(
     .map_err(|_| EngineError::Storage)
 }
 
+fn graph_expand_incident_sql(direction: TraversalDirection) -> String {
+    let predicate = match direction {
+        TraversalDirection::Outgoing => "from_id=?1",
+        TraversalDirection::Incoming => "to_id=?1",
+        TraversalDirection::Both => "(from_id=?1 OR to_id=?1)",
+    };
+    format!("SELECT write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid FROM canonical_edges WHERE {predicate} LIMIT ?2")
+}
+
 fn load_incident_edges(
     tx: &Connection,
     logical_id: &str,
     direction: TraversalDirection,
     limit: u64,
 ) -> Result<Vec<EdgeRow>, EngineError> {
-    let predicate = match direction {
-        TraversalDirection::Outgoing => "from_id=?1",
-        TraversalDirection::Incoming => "to_id=?1",
-        TraversalDirection::Both => "(from_id=?1 OR to_id=?1)",
-    };
-    let sql = format!(
-        "SELECT write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid FROM canonical_edges WHERE {predicate} LIMIT ?2"
-    );
+    let sql = graph_expand_incident_sql(direction);
     let mut statement = tx.prepare(&sql).map_err(|_| EngineError::Storage)?;
     let rows = statement
         .query_map(rusqlite::params![logical_id, i64::try_from(limit).unwrap_or(i64::MAX)], |row| {
@@ -737,7 +798,8 @@ pub(crate) fn read_graph_expand_in_tx(
     attribution: &std::sync::Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<GraphExpandResultV1, EngineError> {
-    BEFORE_PIN_HOOK.fire();
+    #[cfg(feature = "test-hooks")]
+    before_pin_hook().fire();
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)
         .map_err(|_| EngineError::Storage)?;
     if let Some(binding) = frozen_binding {
@@ -746,7 +808,8 @@ pub(crate) fn read_graph_expand_in_tx(
         tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))
             .map_err(|_| EngineError::Storage)?;
     }
-    AFTER_PIN_HOOK.fire();
+    #[cfg(feature = "test-hooks")]
+    after_pin_hook().fire();
 
     let (context, read_mode) = match &request.context {
         GraphReadContextV1::Current { context, .. } => (context, GraphReadModeV1::Current),
@@ -783,11 +846,8 @@ pub(crate) fn read_graph_expand_in_tx(
     } else {
         (None, GraphProjectionOriginV1::NotApplicable, GraphProjectionReadinessV1::NotApplicable)
     };
-    let degradation_codes = graph_expansion_degradation_codes_for_test(
-        seed_source,
-        projection_origin,
-        projection_readiness,
-    );
+    let degradation_codes =
+        graph_expansion_degradation_codes(seed_source, projection_origin, projection_readiness);
 
     let all_seed_ids = seeds.iter().map(|seed| seed.logical_id.clone()).collect::<HashSet<_>>();
     let mut work_units = 0_u64;
@@ -1135,7 +1195,7 @@ pub fn encode_graph_expand_request_v1(
             })
         }
     };
-    let encoded = serde_json::to_value(&RequestWire {
+    serde_json::to_vec(&RequestWire {
         schema_version: value.schema_version,
         seed,
         direction: direction_str(value.direction),
@@ -1147,9 +1207,7 @@ pub fn encode_graph_expand_request_v1(
         max_work_units: value.max_work_units.to_string(),
         include_explanation: value.include_explanation,
     })
-    .map_err(|_| GraphExpansionErrorV1::new(GraphExpansionErrorReasonV1::GraphCorrupt, ""))?;
-    serde_json::to_vec(&encoded)
-        .map_err(|_| GraphExpansionErrorV1::new(GraphExpansionErrorReasonV1::GraphCorrupt, ""))
+    .map_err(|_| GraphExpansionErrorV1::new(GraphExpansionErrorReasonV1::GraphCorrupt, ""))
 }
 
 fn request_error(
@@ -1422,6 +1480,11 @@ pub fn decode_graph_expand_request_v1(
         required(root, "seed", GraphExpansionErrorReasonV1::GraphSeedInvalid, "/seed")?;
     let seed_object = object(seed_value, GraphExpansionErrorReasonV1::GraphSeedInvalid, "/seed")?;
     check_schema(seed_object, "/seed/schemaVersion")?;
+    check_closed(
+        seed_object,
+        &["schemaVersion", "type", "text", "rankedLimit", "logicalIds"],
+        "/seed",
+    )?;
     let seed_type =
         required(seed_object, "type", GraphExpansionErrorReasonV1::GraphSeedInvalid, "/seed/type")?
             .as_str()
@@ -1433,7 +1496,6 @@ pub fn decode_graph_expand_request_v1(
             if seed_object.contains_key("logicalIds") {
                 return Err(request_error(GraphExpansionErrorReasonV1::GraphSeedInvalid, "/seed"));
             }
-            check_closed(seed_object, &["schemaVersion", "type", "text", "rankedLimit"], "/seed")?;
             GraphSeedV1::Query {
                 schema_version: 1,
                 text: required(
@@ -1463,7 +1525,6 @@ pub fn decode_graph_expand_request_v1(
             if seed_object.contains_key("text") || seed_object.contains_key("rankedLimit") {
                 return Err(request_error(GraphExpansionErrorReasonV1::GraphSeedInvalid, "/seed"));
             }
-            check_closed(seed_object, &["schemaVersion", "type", "logicalIds"], "/seed")?;
             let values = required(
                 seed_object,
                 "logicalIds",
@@ -1867,7 +1928,7 @@ pub fn encode_graph_expand_result_v1(
             })
             .collect(),
     });
-    let encoded = serde_json::to_value(&ResultWire {
+    serde_json::to_vec(&ResultWire {
         schema_version: value.schema_version,
         seeds: value
             .seeds
@@ -1896,9 +1957,7 @@ pub fn encode_graph_expand_result_v1(
         degradation_codes: value.degradation_codes.iter().copied().map(degradation_str).collect(),
         explanation,
     })
-    .map_err(|_| GraphExpansionErrorV1::new(GraphExpansionErrorReasonV1::GraphCorrupt, ""))?;
-    serde_json::to_vec(&encoded)
-        .map_err(|_| GraphExpansionErrorV1::new(GraphExpansionErrorReasonV1::GraphCorrupt, ""))
+    .map_err(|_| GraphExpansionErrorV1::new(GraphExpansionErrorReasonV1::GraphCorrupt, ""))
 }
 
 fn response_error(

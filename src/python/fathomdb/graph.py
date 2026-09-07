@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import re
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, NoReturn, cast
 
 from fathomdb._fathomdb import NodeRecord as _NativeNodeRecord
 from fathomdb._fathomdb import SearchHit as _NativeSearchHit
@@ -218,6 +218,7 @@ def _read_context_wire(context: ReadContextV1) -> dict[str, object]:
 def _request_wire(request: GraphExpandRequestV1) -> dict[str, object]:
     if not isinstance(request, GraphExpandRequestV1):
         raise TypeError("graph.expand request must be GraphExpandRequestV1")
+    _validate_graph_expand_request(request)
     if isinstance(request.seed, GraphQuerySeedV1):
         seed: dict[str, object] = {
             "schemaVersion": request.seed.schema_version,
@@ -270,6 +271,53 @@ def _request_wire(request: GraphExpandRequestV1) -> dict[str, object]:
         "maxWorkUnits": request.max_work_units,
         "includeExplanation": request.include_explanation,
     }
+
+
+def _validate_graph_expand_request(request: GraphExpandRequestV1) -> None:
+    """Reject non-transportable recursive graph request strings locally."""
+
+    from fathomdb.errors import GraphExpansionError
+
+    def refuse(reason: str, path: str) -> NoReturn:
+        raise GraphExpansionError(f"{reason} at {path}", reason=reason, field_path=path)
+
+    def string(value: object, reason: str, path: str) -> None:
+        if not isinstance(value, str):
+            refuse(reason, path)
+        if "\x00" in value:  # embedded NUL
+            refuse(reason, path)
+        if any(0xD800 <= ord(char) <= 0xDFFF for char in value):  # lone surrogate
+            refuse(reason, path)
+
+    for index, value in enumerate(request.edge_kinds):
+        string(value, "graph_edge_kinds_invalid", f"/edgeKinds/{index}")
+    for index, value in enumerate(request.target_kinds):
+        string(value, "graph_target_kinds_invalid", f"/targetKinds/{index}")
+    if isinstance(request.seed, GraphQuerySeedV1):
+        string(request.seed.text, "graph_seed_invalid", "/seed/text")
+    elif isinstance(request.seed, GraphExplicitSeedV1):
+        for index, logical_id in enumerate(request.seed.logical_ids):
+            string(logical_id.space, "graph_seed_invalid", f"/seed/logicalIds/{index}/space")
+            string(logical_id.value, "graph_seed_invalid", f"/seed/logicalIds/{index}/value")
+    if isinstance(request.context, FrozenGraphReadContextV1):
+        string(request.context.context.token, "graph_context_invalid", "/context/context/token")
+        context = request.context.context.context
+        context_path = "/context/context/context"
+    else:
+        context = request.context.context
+        context_path = "/context/context"
+    eligibility = context.eligibility
+    for name, value in (("sourceType", eligibility.source_type), ("kind", eligibility.kind), ("status", eligibility.status)):
+        if value is not None:
+            string(value, "graph_context_invalid", f"{context_path}/eligibility/{name}")
+    if eligibility.created_after is not None and (type(eligibility.created_after) is not int):
+        refuse("graph_context_invalid", f"{context_path}/eligibility/createdAfter")
+    for index, pair in enumerate(eligibility.attributes):
+        if not isinstance(pair, tuple) or len(pair) != 2:
+            refuse("graph_context_invalid", f"{context_path}/eligibility/attributes/{index}")
+        string(pair[0], "graph_context_invalid", f"{context_path}/eligibility/attributes/{index}/0")
+        string(pair[1], "graph_context_invalid", f"{context_path}/eligibility/attributes/{index}/1")
+    string(request.max_work_units, "graph_work_limit_invalid", "/maxWorkUnits")
 
 
 def expand(engine: "Engine", request: GraphExpandRequestV1) -> GraphExpandResultV1:

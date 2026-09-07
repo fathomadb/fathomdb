@@ -39,8 +39,8 @@ shipped edge rule (`t_invalid` gates while `t_valid` is provenance), consistentl
 limits `include_out_of_window` to node validity, maps every malformed native
 response to the exact graph-expansion exception/code/reason/path, and confines
 the byte-identity oracle to edge-only insertion permutations over fixed node
-rows/cursors and explicit seeds. A fourth independent review—the final review
-under the four-cycle cap—must return READY before implementation.
+rows/cursors and explicit seeds. The fourth independent review—the final review
+under the four-cycle cap—returned READY with no findings.
 Then commit RED, freeze tests through GREEN, obtain independent implementation
 review and verification, and record closure. Stop on an ignored constraint,
 client-side/post-cap filtering, partial success at the work bound, unbounded

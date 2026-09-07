@@ -768,8 +768,7 @@ are outside this slice.
 
 ## Readiness rule
 
-This design is `FIX3_AWAITING_REVIEW`. Slice 7 and Slice 55 are complete, but a
-fourth independent design review—the final review allowed by the four-cycle
-cap—must verify that every Cycle 3 finding is closed before the design may
-become `READY`. No source or test implementation is authorized by this
-document's current status.
+This design is `READY`. Slice 7 and Slice 55 are complete, and the fourth
+independent design review—the final review allowed by the four-cycle cap—found
+no P0, P1, P2, or optional P3 findings. Implementation is authorized under the
+handoff's RED/GREEN, independent-review, and CI-only boundary.

@@ -1112,6 +1112,7 @@ enum ProjectionRuntimeStartupFaultForTest {
     },
     MissingReport(ProjectionRuntimeStartupRole),
     StallUntilStop(ProjectionRuntimeStartupRole),
+    ExitAfterReport(ProjectionRuntimeStartupRole),
 }
 
 #[cfg(test)]
@@ -1120,7 +1121,8 @@ impl ProjectionRuntimeStartupFaultForTest {
         match self {
             Self::SetupFailure(target)
             | Self::MissingReport(target)
-            | Self::StallUntilStop(target) => target == role,
+            | Self::StallUntilStop(target)
+            | Self::ExitAfterReport(target) => target == role,
             Self::DuplicateReport { role: target, .. } => target == role,
         }
     }
@@ -20553,6 +20555,10 @@ fn complete_projection_runtime_startup(
                 }
                 return false;
             }
+            ProjectionRuntimeStartupFaultForTest::ExitAfterReport(_) => {
+                let _ = startup.send(ProjectionRuntimeStartupReport { role, stage: Ok(()) });
+                return false;
+            }
         }
     }
 
@@ -30260,6 +30266,11 @@ mod tests {
             .report_runtime_native_state_inventory_for_test()
             .expect("runtime roles are immediately queryable");
         assert_eq!(facts.len(), 3);
+        assert_eq!(
+            facts.iter().map(|fact| (fact.role, fact.index)).collect::<BTreeSet<_>>(),
+            expected,
+            "successful startup must return the exact service-ready role set"
+        );
         assert!(facts.iter().all(|fact| {
             expected.contains(&(fact.role, fact.index))
                 && fact.autocommit == Some(true)
@@ -30268,6 +30279,34 @@ mod tests {
         }));
         runtime.stop();
         assert!(managed_connections.live.lock().expect("managed registry").is_empty());
+    }
+
+    #[test]
+    fn projection_runtime_startup_exit_after_report_is_rejected_and_cleans_up() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = initialized_projection_runtime_path(&dir, "runtime-startup-exit.sqlite");
+        let started = Instant::now();
+        let (result, managed_connections, _) = start_projection_runtime_for_test(
+            path,
+            Duration::from_millis(250),
+            Some(ProjectionRuntimeStartupFaultForTest::ExitAfterReport(
+                ProjectionRuntimeStartupRole::Worker(1),
+            )),
+        );
+        let incorrectly_accepted = result.is_ok();
+        if let Ok(runtime) = result {
+            runtime.stop();
+        }
+
+        assert!(
+            !incorrectly_accepted,
+            "phase-one setup success must not accept worker:1 after it exits before service readiness"
+        );
+        assert!(started.elapsed() < Duration::from_secs(2), "failed startup cleanup wedged");
+        assert!(
+            managed_connections.live.lock().expect("managed registry").is_empty(),
+            "exit-after-report left a live runtime connection"
+        );
     }
 
     #[test]

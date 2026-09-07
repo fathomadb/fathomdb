@@ -112,6 +112,7 @@ fn real_sqlite_exactly_w_and_w_plus_one_rows_have_typed_all_or_nothing_outcomes(
 }
 
 #[test]
+#[cfg(target_os = "linux")]
 fn measurement_is_observed_from_the_real_high_bound_execution_not_a_placeholder() {
     let directory = TempDir::new().unwrap();
     let (_, engine) = open_populated(&directory, "rss", 10_000);

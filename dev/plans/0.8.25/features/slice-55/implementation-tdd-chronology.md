@@ -2625,3 +2625,106 @@ the prescribed boundary: the runtime-startup handshake is the next authorized
 cycle rather than an unreviewed expansion of this correction. The worktree
 had 145 GiB available after the gates; `target/` occupied 27 GiB. No release
 artifact was staged, tagged, uploaded, or published.
+
+## 2026-09-06 — FIX-13: acknowledged and fallible projection-runtime startup
+
+Independent implementation review cycle 13 found that
+`ProjectionRuntime::new` returned before its dispatcher and two workers had
+opened and configured their SQLite connections. A dispatcher connection-open
+failure or worker connection/partition-setup failure silently ended that
+thread while `Engine::open` still returned success. The parallel reporter's
+immediate inventory timeout was the observable scheduling-race witness; merely
+increasing its 250 ms diagnostic deadline would not have corrected failed
+startup.
+
+### RED
+
+Test commit `648fb3f1cfef8fac7e6e454e3853dc8caa156a0c` removes the
+polling allowance from the existing open-time WAL-role witness and requires an
+immediately complete native inventory. Three additional real-SQLite unit
+witnesses require:
+
+- invalid runtime database setup to return `EngineOpenError::Io` and leave no
+  managed runtime connection live;
+- successful construction to expose exactly `dispatcher:0`, `worker:0`, and
+  `worker:1`, with all three autocommit and immediately queryable; and
+- injected setup failure, duplicate role, missing/disconnected role, and a
+  bounded startup timeout to stop and join every partial runtime within the
+  test's two-second outer bound.
+
+The committed compile RED failed with exit 101 solely on the deliberately
+absent startup contract:
+
+```text
+error[E0432]: unresolved imports
+`super::ProjectionRuntimeStartupFaultForTest`,
+`super::ProjectionRuntimeStartupRole`
+
+error[E0599]: no function or associated item named `new_for_test` found for
+struct `ProjectionRuntime`
+```
+
+The tests were frozen after this commit.
+
+### GREEN
+
+Product commit `2143c2632c2ba353cab694b6c8b1807dcbb1414c` makes the
+private `ProjectionRuntime::new` fallible without changing the public error
+surface. Each named runtime thread sends one role-tagged startup report. The
+dispatcher reports ready only after connection PRAGMAs, managed registration,
+WAL registration, and entry into its service loop. Each worker additionally
+completes vector-partition setup before reporting ready from its service loop.
+
+The parent accepts only the exact unique role set under one documented 30 s
+loaded-CI deadline. Thread-spawn failure, setup failure, an unexpected or
+duplicate role, timeout, or channel disconnection maps to the existing
+`EngineOpenError::Io`; the parent then sets `stopping`, notifies both runtime
+condition variables, and joins all partial dispatcher/worker handles before
+returning. `Engine::open` propagates that result and therefore cannot return a
+superficially live engine. The deterministic fault control is compiled only
+for in-crate tests.
+
+Focused evidence under external watchdogs:
+
+```text
+cargo test -p fathomdb-engine --lib projection_runtime_startup_ \
+  -- --test-threads=1
+3 passed; repeated 10/10 complete runs
+
+cargo test -p fathomdb-engine --lib \
+  tests::wal_attribution_registers_all_owned_roles_idle_at_open -- --exact
+1 passed; repeated in 8 concurrent processes
+
+cargo test -p fathomdb-engine --features test-hooks --lib \
+  projection_transaction_pause_ -- --test-threads=1
+2 passed
+
+cargo test -p fathomdb-engine --features test-hooks --lib \
+  tests::wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded \
+  -- --exact
+1 passed; the exact five BUSY classifications and post-release complete
+inventory remained intact; repeated in 4 concurrent processes
+```
+
+The converted Slice 30 dependency-closure caller and both Slice 40 projection
+race callers passed. Touched all-target Clippy and check passed with
+`test-hooks` and `-D warnings`.
+
+The exact canonical workspace commands were then run unconfined under 3,600 s
+external watchdogs because their ptrace-dependent routes must remain
+unchanged:
+
+```text
+bash scripts/test-rust-workspace.sh --serial
+exit 0
+
+bash scripts/test-rust-workspace.sh --parallel-report
+exit 0
+```
+
+Both complete runs terminated normally. The parallel reporter was fully green
+and reproduced neither the native-inventory startup timeout nor the projection
+pause deadlock. Available disk was 140 GiB afterward, and no Cargo, workspace
+runner, or FathomDB test process remained. No package, registry artifact, tag,
+upload, publication, branch push, release-state, status, or review record was
+created or changed by FIX-13.

@@ -390,3 +390,27 @@ the immediate graph-expand delta, not process-history peak, must stay bounded: 6
 
 No previous RED path or fixture changed. The next phase must implement the
 review findings without changing these FIX-3 RED oracles.
+
+## FIX-3 projection-state supplemental RED
+
+`slice60_fix3_projection_states.rs` closes the remaining state-evidence gap
+with a real SQLite graph fixture. It first executes an explicit graph expansion
+and observes its not-applicable projection fields. It then requires an owned
+`GraphExpandProjectionStateForTest` control to execute query graph expansion
+against the same database through fresh/ready, legacy-unverified/degraded,
+configuration/processing, configuration/blocked, and rebuild/deferred states.
+Every case asserts the actual result and explanation origin, readiness, and
+ordered degradation codes, rather than a helper output or source text.
+
+At the RED baseline the test fails to compile because the owned state control
+and `Engine::graph_expand_with_projection_state_for_test` do not exist; the
+only present similarly named product seam is the empty
+`seed_graph_expand_projection_state_for_test`. GREEN must replace that hollow
+seam with the request-scoped real-DB control required by this executable test.
+
+```text
+$ cargo test -p fathomdb-engine --features test-hooks \
+    --test slice60_fix3_projection_states -- --test-threads=1
+error[E0432]: unresolved import `fathomdb_engine::GraphExpandProjectionStateForTest`
+error[E0599]: no method named `graph_expand_with_projection_state_for_test`
+```

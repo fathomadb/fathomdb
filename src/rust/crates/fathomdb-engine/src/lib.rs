@@ -31701,6 +31701,31 @@ mod tests {
         report
     }
 
+    fn projection_worker_attribution_matches(
+        active_roles: &[(WalAttributionRole, usize)],
+        paused_worker: (WalAttributionRole, usize),
+    ) -> bool {
+        active_roles == [paused_worker]
+    }
+
+    #[test]
+    fn projection_worker_attribution_accepts_concurrent_dispatcher_snapshot() {
+        let paused_worker = (WalAttributionRole::ProjectionWorker, 1);
+        assert!(projection_worker_attribution_matches(&[paused_worker], paused_worker));
+        assert!(projection_worker_attribution_matches(
+            &[(WalAttributionRole::ProjectionDispatcher, 0), paused_worker],
+            paused_worker,
+        ));
+        assert!(!projection_worker_attribution_matches(
+            &[(WalAttributionRole::ProjectionWorker, 0), paused_worker],
+            paused_worker,
+        ));
+        assert!(!projection_worker_attribution_matches(
+            &[(WalAttributionRole::Writer, 0), paused_worker],
+            paused_worker,
+        ));
+    }
+
     /// Slice 65 projection-worker witness: preserve the original typed
     /// refusal, then observe post-finish connection state without retrying
     /// that erasure.
@@ -31736,9 +31761,15 @@ mod tests {
             opened.engine.wal_attribution.classification(&active, false),
             "owned_runtime_transaction"
         );
-        assert_eq!(active.active_roles.len(), 1);
-        assert_eq!(active.active_roles[0].0, WalAttributionRole::ProjectionWorker);
-        let exact_active_role = active.active_roles.clone();
+        let paused_workers = active
+            .active_roles
+            .iter()
+            .copied()
+            .filter(|(role, _)| *role == WalAttributionRole::ProjectionWorker)
+            .collect::<Vec<_>>();
+        assert_eq!(paused_workers.len(), 1);
+        let paused_worker = paused_workers[0];
+        assert!(projection_worker_attribution_matches(&active.active_roles, paused_worker));
         eprintln!("slice65_wal projection_worker_transaction_ready");
         let blocked = opened.engine.complete_erasure_at_rest("slice65-projection-checkpoint");
         let busy = opened.engine.wal_attribution_checkpoints_for_test();
@@ -31747,7 +31778,7 @@ mod tests {
         assert!(busy.iter().all(|record| {
             record.busy
                 && record.classification == "owned_runtime_transaction"
-                && record.active_roles == exact_active_role
+                && projection_worker_attribution_matches(&record.active_roles, paused_worker)
         }));
         eprintln!(
             "slice65_wal projection_worker_original_erase=typed_erasure_incomplete owned_busy_attempts={}",

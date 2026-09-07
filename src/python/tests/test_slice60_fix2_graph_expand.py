@@ -81,9 +81,6 @@ def _unicode_request(sdk_types):
 def test_python_request_and_native_result_transport_are_raw_utf8_fixture_bytes(monkeypatch) -> None:
     graph, sdk_types = _load_graph(monkeypatch)
     fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
-    request_json = json.dumps(graph._request_wire(_unicode_request(sdk_types)), separators=(",", ":"))
-    assert request_json.encode("utf-8") == fixture["request"].encode("utf-8")
-    assert "\\u00e9" not in request_json
 
     captured: list[str] = []
 
@@ -96,5 +93,6 @@ def test_python_request_and_native_result_transport_are_raw_utf8_fixture_bytes(m
     engine._map_native_graph_expand_result = lambda response: response
     monkeypatch.setitem(sys.modules, "fathomdb.engine", engine)
     result = graph.expand(types.SimpleNamespace(_native=Native()), _unicode_request(sdk_types))
-    assert captured == [fixture["request"]]
+    assert [request.encode("utf-8") for request in captured] == [fixture["request"].encode("utf-8")]
+    assert "\\u00e9" not in captured[0]
     assert result.seeds[0].logical_id == "café"

@@ -2486,3 +2486,142 @@ same immediate-unlink oracle. The only files changed since blocked baseline
 `ec07bf6174f7012f8d6c850a84088ceb562a258a` are the installed-candidate smoke,
 the verification plan, and this chronology. No production code, package,
 release staging, registry state, tag, upload, or publication changed.
+
+## 2026-09-06 — FIX-12: cancellation-safe projection transaction pause
+
+Independent FIX-11 verification reproduced an unbounded test-harness wait in
+the Slice 65 WAL-attribution witness under workspace parallelism. The owning
+test seam used two raw barriers: the test could wait forever if the worker did
+not arrive, while a panic or dropped test path could leave the worker holding
+an immediate WAL transaction forever. FIX-12 is limited to that test-only
+rendezvous and the Slice 55 workspace-gate policy correction; it does not
+change production behavior.
+
+### RED
+
+Test-only commit `decacd05b3847aabc73013bb13720ee20f34bbea`
+converts all four callers of
+`pause_projection_worker_after_wal_transaction_for_test` to a bounded pause
+handle contract and adds two unit witnesses:
+
+- with the scheduler frozen, a deterministic 25 ms readiness timeout followed
+  by handle drop must let unfreeze, bounded drain, and close complete; and
+- after readiness arrives within the loaded-CI 30 s budget, dropping the
+  handle without an explicit release must let bounded drain and close
+  complete.
+
+The caller conversions cover the Slice 65 unit witness, Slice 30 dependency
+closure, Slice 40 projection completion, and Slice 40 generation race. The
+committed compile-only RED failed before executing any potentially unbounded
+test:
+
+```text
+error[E0599]: no method named `wait_ready` found for tuple `(Arc<Barrier>, Arc<Barrier>)` in the current scope
+     --> src/rust/crates/fathomdb-engine/src/lib.rs:30967:14
+      |
+30966 | /         transaction_pause
+30967 | |             .wait_ready(Duration::from_secs(30))
+      | |             -^^^^^^^^^^ method not found in `(Arc<Barrier>, Arc<Barrier>)`
+      | |_____________|
+      |
+```
+
+The same compilation reported the expected missing `release` method and the
+two new witnesses' missing `wait_ready` method.
+
+### GREEN
+
+Test-harness commit `747c66f5b073414467c9290737f3666f5793a9bb`
+replaces only the projection-transaction pause's raw barriers with one-shot
+channels and a test-only `ProjectionWorkerTransactionPauseForTest` handle.
+`wait_ready(Duration)` returns a contextual timeout or disconnection error and
+cancels the pause on either error. `release()` consumes its sender and is
+idempotent; `Drop` performs the same best-effort release. The worker signals
+readiness and waits at most 30 seconds for release. If the readiness receiver
+has already vanished, the worker skips the release wait entirely. The hook
+therefore cannot retain its WAL transaction indefinitely even when the test
+path times out, drops, or disconnects.
+
+Focused checks all passed under external watchdogs:
+
+```text
+cargo test -p fathomdb-engine --features test-hooks --lib \
+  projection_transaction_pause_ -- --nocapture --test-threads=1
+test result: ok. 2 passed; 0 failed; finished in 0.20s
+
+cargo test -p fathomdb-engine --features test-hooks --lib \
+  tests::wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded \
+  -- --exact --nocapture
+test result: ok. 1 passed; 0 failed; finished in 0.19s
+
+cargo test -p fathomdb-engine --features test-hooks \
+  --test slice30_dependency_closure \
+  projection_worker_before_admission_cannot_publish_dependency_residue \
+  -- --exact --nocapture
+test result: ok. 1 passed; 0 failed
+
+cargo test -p fathomdb-engine --features test-hooks \
+  --test slice40_projection_completion \
+  worker_publication_never_repairs_a_partial_projection_tuple \
+  -- --exact --nocapture
+test result: ok. 1 passed; 0 failed
+
+cargo test -p fathomdb-engine --features test-hooks \
+  --test slice40_projection_generation_races \
+  publication_holding_write_lock_linearizes_before_transition \
+  -- --exact --nocapture
+test result: ok. 1 passed; 0 failed
+```
+
+The WAL witness retained its original oracle: exactly five BUSY checkpoint
+records were classified `owned_runtime_transaction`, followed by worker
+autocommit, complete native inventory, and a clean post-release sampler. Four
+simultaneous process-level executions of that exact test also passed under
+independent 180 s watchdogs. Touched-engine all-target Clippy and check passed
+with `test-hooks`.
+
+### Canonical workspace policy and evidence
+
+Documentation-only commit
+`22872079c4443b3dc6d6ca5cfb1745391e93a77c` replaces the stale direct parallel
+Cargo gate in the Slice 55 plan with the canonical commands from
+`dev/design/temporary-serial-rust-workspace-release-gate.md`:
+
+```text
+bash scripts/test-rust-workspace.sh --serial
+bash scripts/test-rust-workspace.sh --parallel-report
+```
+
+The first serial run in the restricted sandbox completed with exactly one
+failed target: the ptrace-dependent CLI doctor-GPU process matrix observed
+child exit 1 instead of 0. Its unchanged isolated control reproduced only in
+the sandbox, then passed 1/1 unconfined in 0.37 seconds. Per the ptrace gate
+contract, the unchanged complete canonical serial runner was rerun unconfined
+under a 3,600 s external watchdog and passed every workspace target.
+
+The required unconfined `--parallel-report` run terminated within its 3,600 s
+watchdog and returned nonzero with two diagnostic targets:
+
+1. `wal_attribution_native_state_inventory_requires_all_managed_roles_idle`
+   reported `runtime_native_reply_timeout` for the projection dispatcher and
+   both workers. Their `opened` events followed at 303–309 ms, proving a
+   bounded runtime-startup handshake race rather than a projection-transaction
+   pause hang.
+2. `slice50_evidence::evidence_search_races_are_snapshot_atomic_or_wholly_refused`
+   observed an outcome outside its expected wholly-refused branch under
+   workspace concurrency. This remains ordinary non-gating race evidence
+   under the temporary TC-72/TC-74 policy.
+
+The parallel runner's final diagnostic was:
+
+```text
+error: 2 targets failed:
+    `-p fathomdb-engine --lib`
+    `-p fathomdb-engine --test slice50_evidence`
+```
+
+No projection-pause readiness timeout or deadlock recurred. FIX-12 stops at
+the prescribed boundary: the runtime-startup handshake is the next authorized
+cycle rather than an unreviewed expansion of this correction. The worktree
+had 145 GiB available after the gates; `target/` occupied 27 GiB. No release
+artifact was staged, tagged, uploaded, or published.

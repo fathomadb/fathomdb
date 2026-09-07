@@ -655,3 +655,14 @@ portable counters report the maximum batch rows, current-plus-next frontier
 states, visited states, and candidates. Exact 10,000-work arms report equal
 counter tuples with and without the 100,000 unrelated-node control while
 preserving unordered endpoint SQL and Engine-side structural ordering.
+
+## Verification FIX-6 oracle correction 13
+
+AC-050a forbids the public `legacy_` prefix. The sole frozen projection-state
+caller now names the audited replacement
+`projection_legacy_unverified_degraded`, retaining its exact tuple assertions.
+Its old hash is `6e57f78e7da8591e3b01d3c37c638fa5e9dcdb1f12bd13e89cd86666352f3`;
+the re-frozen caller hash is
+`861d90d89fb3d1debd2d1ca864f6412fb80e1115b0eb0608e9b4c2b82883aee3`.
+Before the production rename, the focused compile must fail with E0599 for the
+missing replacement method.

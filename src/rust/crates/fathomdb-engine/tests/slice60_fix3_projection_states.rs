@@ -81,7 +81,7 @@ fn real_graph_expand_observes_every_projection_origin_readiness_degradation_comb
             vec![Code::QuerySeedTextFallback],
         ),
         (
-            GraphExpandProjectionStateForTest::legacy_unverified_degraded(),
+            GraphExpandProjectionStateForTest::projection_legacy_unverified_degraded(),
             Origin::LegacyUnverified,
             Readiness::Degraded,
             vec![

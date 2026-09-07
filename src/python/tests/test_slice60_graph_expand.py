@@ -69,13 +69,14 @@ def _edge(
     **extra: Any,
 ) -> dict[str, Any]:
     return {
-        "kind": kind,
-        "from": source,
-        "to": target,
-        "source_id": "test:slice60-python",
-        "logical_id": logical_id,
-        "edge": True,
-        **extra,
+        "edge": {
+            "kind": kind,
+            "from": source,
+            "to": target,
+            "source_id": "test:slice60-python",
+            "logical_id": logical_id,
+            **extra,
+        }
     }
 
 

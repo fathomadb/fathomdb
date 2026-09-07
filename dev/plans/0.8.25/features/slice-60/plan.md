@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 60 — minimal constrained graph parity
-status: FIX2_AWAITING_REVIEW
+status: FIX3_AWAITING_REVIEW
 depends_on: 55
 design: design.md
-design_status: FIX2_AWAITING_REVIEW
+design_status: FIX3_AWAITING_REVIEW
 ---
 
 # Slice 60 plan
@@ -34,13 +34,13 @@ post-publication routes are N/A.
 
 ## Draft-to-ready and delivery
 
-Cycle 2 found two P1s and three P2s after the broader FIX-1 closure. Design
-v4/FIX-2 now declines vector query seeding before embedding/KNN because schema
-33 cannot prove logical identity pre-KNN, makes temporal relaxation node-only,
-pins every public Rust derive/exhaustiveness and external request construction,
-fully specifies correlation and ordered projection-code composition, and closes
-response origin/seed/explanation coherence. A third independent review must
-return READY before implementation.
+Cycle 3 found one P1 and two P2s after FIX-2. Design v5/FIX-3 restores the
+shipped edge rule (`t_invalid` gates while `t_valid` is provenance), consistently
+limits `include_out_of_window` to node validity, maps every malformed native
+response to the exact graph-expansion exception/code/reason/path, and confines
+the byte-identity oracle to edge-only insertion permutations over fixed node
+rows/cursors and explicit seeds. A fourth independent review—the final review
+under the four-cycle cap—must return READY before implementation.
 Then commit RED, freeze tests through GREEN, obtain independent implementation
 review and verification, and record closure. Stop on an ignored constraint,
 client-side/post-cap filtering, partial success at the work bound, unbounded

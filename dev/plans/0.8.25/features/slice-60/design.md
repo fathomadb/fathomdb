@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 60 — minimal constrained combined-expansion design
-status: FIX2_AWAITING_REVIEW
-design_version: 4
+status: FIX3_AWAITING_REVIEW
+design_version: 5
 target_release: 0.8.25
 depends_on: 55
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -356,8 +356,28 @@ The exact failure paths are `/targets/<i>/origin/seedOrdinal`,
 `/explanation/perTarget/<i>/targetIndex`,
 `/explanation/perTarget/<i>/origin`, and
 `/explanation/degradationCodes`, respectively. These are binding-contract
-decode failures, not database graph-corruption errors. Canonical fixture field
-order is declaration order.
+decode failures, not evidence of stored database graph corruption. Their public
+mapping nevertheless reuses this operation's typed family, following Slice
+50's strict malformed-native-response precedent: an unsupported response
+schema raises reason `unsupported_schema_version` at that object's exact
+`/.../schemaVersion`; every other malformed native response raises reason
+`graph_corrupt` at the first exact camel-case path selected by the validation
+order above.
+
+Python raises exported `fathomdb.GraphExpansionError` with
+instance/class `.code == "FDB_GRAPH_EXPANSION"` plus
+`.reason`/`.field_path`; TypeScript raises exported `GraphExpansionError` with
+`static readonly code = "FDB_GRAPH_EXPANSION"` plus
+`.reason`/`.fieldPath`. This follows the shipped `DependencyTraceError`
+exception/code installation pattern. Native error translation and wrapper-side
+response validation therefore share stable code `FDB_GRAPH_EXPANSION`; the
+fixed message is `<reason> at <path>`. They never
+surface as Python `ValueError`/`TypeError`, a bare TypeScript `FathomDbError`,
+TypeScript `InvalidArgumentError`, a frozen-read error, or a storage error. Shared
+Rust-wire/Python/TypeScript malformed-native fixtures cover unsupported top and
+nested response schemas plus every coherence path above and assert exact
+exception class, code, reason, and path. Canonical fixture field order is
+declaration order.
 
 ## Request grammar and semantic validation
 
@@ -406,11 +426,13 @@ tokens, database identity, SQL, or candidate counts.
 
 Explicit inputs preserve caller order; `seed_ordinal` is the zero-based input
 index. Inside the pinned transaction every ID must resolve to one current,
-active, dependency-eligible, temporally eligible node satisfying the complete
-context eligibility filter. Resolution is all-or-nothing. An absent,
-superseded, inactive, erased, closure-fenced, out-of-window, or filter-mismatched
-seed returns `graph_seed_unavailable` at `/seed/logicalIds/<index>` and no
-partial result. `query_score` is null.
+active, dependency-eligible node satisfying the complete effective node
+`ReadView` and context eligibility filter. Node temporal eligibility is
+required when `include_out_of_window=false` and omitted when it is `true`.
+Resolution is all-or-nothing. An absent, superseded, inactive, erased,
+closure-fenced, filter-mismatched, or unrelaxed out-of-window seed returns
+`graph_seed_unavailable` at `/seed/logicalIds/<index>` and no partial result.
+`query_score` is null.
 
 ### Query-derived seeds
 
@@ -459,12 +481,14 @@ the read. There is no second search or expansion transaction.
 Node visibility uses the context `ReadView`, indexed `SearchFilter`, and
 dependency-closure eligibility for seeds, intermediate nodes, and outputs.
 Erased rows are absent. `include_out_of_window=true` drops only the node
-validity-window predicate for seeds, intermediate nodes, and outputs. Every
-edge always remains current/nonsuperseded and satisfies recency at the one
-effective instant: `t_valid <= instant` and
-`(t_invalid IS NULL OR instant < t_invalid)`. Thus no current or frozen request
-can traverse an expired/not-yet-valid edge through temporal relaxation;
-existence and dependency closure likewise cannot be relaxed.
+validity-window predicate for explicit/query seeds, intermediate nodes, and
+outputs; with `false`, each node must satisfy the effective `ReadView` window.
+Every edge always follows the accepted shipped graph admission rule: it is
+nonsuperseded and `t_invalid IS NULL OR t_invalid > effective_instant`.
+`t_valid` is retained provenance and never gates this operation, even when it
+is later than the effective instant. Thus temporal relaxation cannot restore
+an edge whose `t_invalid` is equal to or earlier than the instant; existence
+and dependency closure likewise cannot be relaxed.
 
 ## Deterministic traversal and result semantics
 
@@ -498,10 +522,12 @@ Each raw incident edge row is counted before edge-kind, edge liveness, endpoint
 visibility, and visited checks. A row may enqueue its endpoint only if:
 
 1. its kind matches `edge_kinds`, or the list is empty;
-2. the edge is active and temporally eligible at the effective instant,
-   regardless of `include_out_of_window`;
-3. its endpoint is current, active, dependency-eligible, temporally eligible,
-   and satisfies the context's complete indexed eligibility; and
+2. the edge is nonsuperseded, and its `t_invalid` is absent or strictly later
+   than the effective instant, regardless of its `t_valid` and
+   `include_out_of_window`;
+3. its endpoint is current, active, dependency-eligible, satisfies the
+   context's complete indexed eligibility, and satisfies node temporal
+   eligibility unless `include_out_of_window=true`; and
 4. that endpoint has not been visited for this seed.
 
 `target_kinds` is output-only. A visible eligible intermediate of another kind
@@ -692,8 +718,15 @@ frozen through GREEN.
    context eligibility axis below an unfiltered candidate cap.
 4. **Traversal matrix:** depth 0/1/2/3 and 4 refusal, global seed exclusion,
    self-loops, cycles, parallel edges, same target from multiple paths/seeds,
-   deterministic first origin, shuffled insertion batches, close/reopen, and
-   byte-identical canonical response digests across permutations.
+   deterministic first origin, and close/reopen. The byte-identity permutation
+   oracle uses explicit seeds, `include_explanation=false`, a fixed current
+   context with an explicit validity instant, and node rows inserted once in a
+   fixed order so their bodies and exposed write cursors are identical. Each
+   database copy then inserts only the same edge multiset in a different order,
+   with no subsequent node write. Canonical complete response bytes must match
+   across those edge-only permutations. Query-seed permutations and arbitrary
+   node insertion permutations are not byte-identity oracles; their exposed
+   node cursors and equal-score tie-break inputs may legitimately differ.
 5. **Bounds:** exact result limits 1/50 and 0/51 refusals; work limits 1/10,000
    and 0/10,001 refusals; high-degree exactly-W success and W+1 no-result
    failure for every direction; result-limit top-N after complete traversal;
@@ -707,9 +740,12 @@ frozen through GREEN.
    multi-code composition, correlation grammar/allocation/normalization,
    per-target association/cardinality, and explanation-off identical
    targets/work/database bytes. The temporal matrix fixes one instant and
-   crosses in-window/out-of-window nodes with live/expired/not-yet-valid edges:
-   `include_out_of_window=true` may restore only the node cases and never any
-   edge case, for current and frozen reads and every traversal direction.
+   crosses in-window/out-of-window nodes with edges whose `t_invalid` is null,
+   equal to, earlier than, or later than that instant. Null/later edges are
+   admitted and equal/earlier edges are excluded in both relaxation modes.
+   Separate rows set `t_valid` later than the instant and prove it never gates.
+   `include_out_of_window=true` may restore only the node cases, for current and
+   frozen reads and every traversal direction.
 8. **Plans/schema/nonregression:** exact endpoint-index query plans for incoming,
    outgoing, and both; no `SCAN canonical_edges`; schema stays 33 and migration
    manifest is unchanged; default search and existing graph methods retain
@@ -731,7 +767,8 @@ are outside this slice.
 
 ## Readiness rule
 
-This design is `FIX2_AWAITING_REVIEW`. Slice 7 and Slice 55 are complete, but a
-third independent design review must verify that every Cycle 2 finding is
-closed before the design may become `READY`. No source or test implementation
-is authorized by this document's current status.
+This design is `FIX3_AWAITING_REVIEW`. Slice 7 and Slice 55 are complete, but a
+fourth independent design review—the final review allowed by the four-cycle
+cap—must verify that every Cycle 3 finding is closed before the design may
+become `READY`. No source or test implementation is authorized by this
+document's current status.

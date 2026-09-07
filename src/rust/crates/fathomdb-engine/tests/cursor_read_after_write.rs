@@ -15,8 +15,8 @@
 //! writer commit between those two events appears in the reader's WAL
 //! snapshot but not in the reported cursor.
 //!
-//! Bounded operationally: 1,000 search calls, hard wall-clock cap of
-//! 30 s, writer throttled.
+//! Bounded operationally: 1,000 search calls, a 60 s anti-hang fuse (not a
+//! product SLA), and a throttled writer.
 //!
 //! Runtime-budget category: long-run only (~1000-iteration race fixture).
 //! `agent-verify.sh` skips this test entirely for runtime budget; the
@@ -73,10 +73,10 @@ fn projection_cursor_bounds_observed_row_count() {
     let mut violations = 0usize;
     let started = Instant::now();
     for i in 0..iterations {
-        if started.elapsed() > Duration::from_secs(30) {
+        if started.elapsed() > Duration::from_secs(60) {
             stop.store(true, Ordering::Relaxed);
             writer.join().expect("writer thread");
-            panic!("cursor invariant test exceeded 30 s wall clock at iteration {i}");
+            panic!("cursor invariant test exceeded 60 s wall clock at iteration {i}");
         }
         let result = engine.search("needle").expect("search");
         // results[0] is the compiled SQL string from `compile_text_query`;

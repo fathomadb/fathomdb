@@ -471,3 +471,38 @@ slice60_governed_surface` (2), `cargo test -p fathomdb-py` (13), `cargo check
 -p fathomdb-napi`, and the Slice 20/35 graph compatibility suite (24) also
 pass. The default non-test-hooks engine check, `./scripts/agent-lint.sh`, and
 `./scripts/agent-typecheck.sh` pass.
+
+## FIX-4 RED
+
+Cycle 4 adds new executable, additive RED targets. The cross-owner dependency
+fixture writes separate source and derived owners, executes graph expansion
+before and after registration, and requires a nonterminal closure barrier to
+exclude a derived target while its independently owned row survives. It keeps
+erase and excise as separate controls. At baseline the real database refuses
+the fixture before graph expansion with `source_mismatch` at
+`/provenance/sourceRevisionId`: ownership is incorrectly required to be the
+same, so the requested cross-owner closure cannot be represented.
+
+The source-projection matrix fixture drives every Slice-40 source
+`ProjectionGenerationOriginV1`/`ProjectionReadinessV1` pair through a missing
+owned graph-expansion control before the production mapping. It intentionally
+does not use the prior final-graph-enum replacement seam.
+
+```text
+$ cargo test -p fathomdb-engine --features test-hooks,operator \
+    --test slice60_fix4_dependency
+Provenance(SourceMismatch) at /provenance/sourceRevisionId
+
+$ cargo test -p fathomdb-engine --features test-hooks \
+    --test slice60_fix4_projection
+error[E0599]: no method named
+`graph_expand_with_projection_generation_for_test` found for `Engine`
+
+$ cargo test -p fathomdb-engine --features test-hooks --test slice60_fix4_rss
+error[E0599]: no function or associated item named
+`graph_expand_current_rss_samples_for_test` found for `Engine`
+```
+
+The next GREEN must provide a real owned source-generation control before
+mapping, a cross-owner closure barrier, and isolated current-RSS samples for
+small, exact-work, and unrelated-size controls. No existing oracle changed.

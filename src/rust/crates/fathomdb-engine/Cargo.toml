@@ -117,6 +117,18 @@ name = "slice60_fix3_runtime"
 required-features = ["test-hooks", "operator"]
 
 [[test]]
+name = "slice60_fix4_dependency"
+required-features = ["test-hooks", "operator"]
+
+[[test]]
+name = "slice60_fix4_projection"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice60_fix4_rss"
+required-features = ["test-hooks"]
+
+[[test]]
 name = "dump_profile"
 required-features = ["operator"]
 

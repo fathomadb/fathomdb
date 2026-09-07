@@ -1,0 +1,9 @@
+{
+  "states": [
+    {"origin": "fresh", "readiness": "ready", "codes": ["query_seed_text_fallback"]},
+    {"origin": "legacy_unverified", "readiness": "degraded", "codes": ["query_seed_text_fallback", "projection_legacy_unverified", "projection_degraded"]},
+    {"origin": "configuration", "readiness": "processing", "codes": ["query_seed_text_fallback", "projection_processing"]},
+    {"origin": "configuration", "readiness": "blocked", "codes": ["query_seed_text_fallback", "projection_blocked"]},
+    {"origin": "rebuild", "readiness": "deferred", "codes": ["query_seed_text_fallback", "projection_deferred"]}
+  ]
+}

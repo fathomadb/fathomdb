@@ -79,7 +79,7 @@ fn request_is_recursively_closed_with_version_then_unknown_precedence() {
         ),
         (
             "top unknown",
-            ("/schemaVersion", json!(1), "/a~1b~0c", json!(true)),
+            ("/schemaVersion", json!(1), "/a/b~c", json!(true)),
             GraphExpansionErrorReasonV1::UnknownField,
             "/a~1b~0c",
         ),

@@ -3,11 +3,12 @@
 #![cfg(feature = "test-hooks")]
 
 use fathomdb_engine::{
-    ArtifactRevisionId, CanonicalHash, DependencyTraceDirectionV1, DependencyTraceRequestV1,
-    Engine, GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1, IdSpace, InitialState,
-    PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
-    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    StructuralDependencyStateV1, TraversalDirection, WriteProvenanceV1,
+    ArtifactRevisionId, CanonicalHash, DependencyTraceDirectionV1, DependencyTraceErrorReasonV1,
+    DependencyTraceRequestV1, DependencyTraceResultV1, Engine, EngineError, GraphExpandRequestV1,
+    GraphReadContextV1, GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProvenancedNodeV1,
+    ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator,
+    SourceRevisionId, SourceVersionId, StructuralDependencyStateV1, TraversalDirection,
+    WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use serde::Deserialize;
@@ -22,6 +23,7 @@ struct Fixture {
 #[derive(Deserialize)]
 struct Fault {
     name: String,
+    outcome: String,
     sql: String,
 }
 
@@ -121,24 +123,20 @@ fn seeded() -> (TempDir, Engine) {
     (directory, opened.engine)
 }
 
-fn trace_edges(engine: &Engine) -> usize {
+fn trace(engine: &Engine) -> Result<DependencyTraceResultV1, EngineError> {
     let context = engine
         .freeze_read_context(
             &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
         )
         .unwrap();
-    engine
-        .trace_dependency(
-            DependencyTraceRequestV1::new(
-                "source-r1",
-                DependencyTraceDirectionV1::ToDependents,
-                context,
-            )
-            .unwrap(),
+    engine.trace_dependency(
+        DependencyTraceRequestV1::new(
+            "source-r1",
+            DependencyTraceDirectionV1::ToDependents,
+            context,
         )
-        .unwrap()
-        .dependency_edges
-        .len()
+        .unwrap(),
+    )
 }
 
 #[test]
@@ -159,6 +157,31 @@ fn persisted_source_id_and_link_mismatches_fail_closed_for_classification_and_tr
             "{} must not classify a corrupted relation as registered",
             fault.name
         );
-        assert_eq!(trace_edges(&engine), 0, "{} must not enter dependency trace", fault.name);
+        match fault.outcome.as_str() {
+            "root_only" => {
+                let trace = trace(&engine).unwrap();
+                assert_eq!(trace.nodes.len(), 1, "{} must retain only its root", fault.name);
+                assert!(
+                    trace.dependency_edges.is_empty(),
+                    "{} must reject its relation",
+                    fault.name
+                );
+                assert_eq!(
+                    trace.checked_work_units, 1,
+                    "{} must inspect only its root",
+                    fault.name
+                );
+            }
+            "trace_unavailable" => {
+                let error = trace(&engine).unwrap_err();
+                assert!(matches!(
+                    error,
+                    EngineError::DependencyTrace(ref value)
+                        if value.reason == DependencyTraceErrorReasonV1::TraceUnavailable
+                            && value.field_path == "/rootRevisionId"
+                ));
+            }
+            _ => panic!("unknown fixture outcome for {}", fault.name),
+        }
     }
 }

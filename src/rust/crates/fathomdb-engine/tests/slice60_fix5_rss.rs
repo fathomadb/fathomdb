@@ -11,7 +11,6 @@ use serde::Deserialize;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Fixture {
-    proportional_ceiling_bytes: u64,
     arms: Vec<Arm>,
 }
 
@@ -62,12 +61,28 @@ fn isolated_process_rss_captures_live_peak_for_small_exact_work_and_unrelated_co
     assert_eq!(samples[0].work_units, 1);
     assert_eq!(samples[1].work_units, 10_000);
     assert_eq!(samples[2].work_units, 10_000);
-    assert!(
-        samples[1].peak_rss_delta_bytes
-            <= samples[0].peak_rss_delta_bytes + fixture.proportional_ceiling_bytes
+    eprintln!(
+        "slice60 fix5 live RSS samples: {:?}",
+        samples.iter().map(|sample| sample.peak_rss_delta_bytes).collect::<Vec<_>>()
     );
-    assert!(
-        samples[2].peak_rss_delta_bytes
-            <= samples[1].peak_rss_delta_bytes + fixture.proportional_ceiling_bytes
+    for sample in &samples {
+        assert!(sample.retained_edge_batch_rows <= sample.work_units);
+        assert!(sample.frontier_states <= sample.work_units.saturating_add(1));
+        assert!(sample.visited_states <= sample.work_units.saturating_add(1));
+        assert!(sample.candidate_targets <= 1);
+    }
+    assert_eq!(
+        (
+            samples[1].retained_edge_batch_rows,
+            samples[1].frontier_states,
+            samples[1].visited_states,
+            samples[1].candidate_targets,
+        ),
+        (
+            samples[2].retained_edge_batch_rows,
+            samples[2].frontier_states,
+            samples[2].visited_states,
+            samples[2].candidate_targets,
+        )
     );
 }

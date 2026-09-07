@@ -624,3 +624,18 @@ The strict-Clippy failure is recorded as a gate diagnostic, not an artificial
 test. The next GREEN must restore all persisted equality checks, group the
 test-only graph-read controls, and supply the isolated live-process RSS
 witness without changing these RED oracles.
+
+## FIX-5 oracle correction 12
+
+Independent review separated relation corruption from canonical-root corruption:
+the former retains one authenticated root and no dependency edges, while the
+latter is `TraceUnavailable` at `/rootRevisionId`. The unified zero-edge trace
+assertion was corrected in the isolated, hash-recorded oracle correction 12.
+
+The same audit removed the platform-specific 4 MiB RSS comparison. The
+subprocess witness remains live current-RSS diagnostic evidence, while the
+portable acceptance gate now requires exact work and deterministic retained
+edge-batch, frontier, visited, and candidate counters within the READY
+structural bounds, including identical exact-W tuples with and without 100,000
+unrelated rows. The pre-counter RSS RED failed to compile exactly because those
+new counter fields were absent.

@@ -1,6 +1,5 @@
 {
   "schemaVersion": 1,
-  "proportionalCeilingBytes": 4194304,
   "arms": [
     { "name": "small", "workUnits": 1, "unrelatedNodes": 0 },
     { "name": "exact_w", "workUnits": 10000, "unrelatedNodes": 0 },

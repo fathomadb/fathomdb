@@ -3,14 +3,17 @@
   "faults": [
     {
       "name": "derived_canonical_source_id",
+      "outcome": "root_only",
       "sql": "UPDATE canonical_nodes SET source_id='other-owner' WHERE logical_id='derived'"
     },
     {
       "name": "derived_link_source_id",
+      "outcome": "root_only",
       "sql": "UPDATE _fathomdb_source_links SET source_id='other-owner' WHERE artifact_revision_id='derived-r1'"
     },
     {
       "name": "canonical_link_source_id",
+      "outcome": "trace_unavailable",
       "sql": "UPDATE _fathomdb_source_links SET source_id='other-owner' WHERE artifact_revision_id='source-r1'"
     }
   ]

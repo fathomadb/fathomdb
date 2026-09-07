@@ -12,11 +12,12 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 55 (TRACE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 60 (GRAPH), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
-Prework and Slices 10 through 50 are complete on the durable `release/0.8.25`
-worktree. Slice 50 closed with stateless compact evidence, eligibility-bound
-exact source resolution, cross-SDK parity, and Linux/Windows verification. The
+Prework and Slices 10 through 55 are complete on the durable `release/0.8.25`
+worktree. Slice 55 closed with source-complete tracing, integrity reporting,
+structured explanation, cancellation-safe WAL attribution, acknowledged
+runtime startup, cross-SDK parity, and Linux/Windows verification. The
 owner-approved 2026-09-02
 scope adjustment removes Slices 65/70 and narrows the retained implementation
 ladder. Direct agents execute this release without Steward or Orchestrator
@@ -43,7 +44,7 @@ roles.
 | 40 | Core projection generation/readiness | Complete on release branch (`ccf7c695`) |
 | 45 | Minimal pagination and operational state | Complete on release branch (`2f48e657`) |
 | 50 | Compact source-complete evidence | Complete on release branch (`e741542d`) |
-| 55 | Basic tracing and integrity | Not started |
+| 55 | Basic tracing and integrity | Complete on release branch (`5a6942bc`) |
 | 60 | Minimal constrained graph parity | Not started |
 | 75 | Trimmed trustworthy release verification | Not started |
 
@@ -70,7 +71,7 @@ roles.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 55 (TRACE)** — basic provenance tracing and integrity. **Remaining ladder:** 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 60 (GRAPH)** — minimal constrained graph parity. **Remaining ladder:** 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 
@@ -129,6 +130,12 @@ lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
   resolver, nondisclosure matrix, and unchanged ordinary-search path pass
   focused Rust/Python/TypeScript, property, Linux package, Windows native,
   optional-reranker feature, and repository gates.
+- Slice 55 passes design review at cycle 4 and implementation review at cycle
+  15. Separate exact Linux and Windows verification passes focused tracing,
+  integrity, explanation, startup, cancellation, WAL, package, cross-SDK,
+  performance, 103/103 fast, 3/3 heavy, 106/106 all, canonical serial
+  workspace, and terminating parallel-report routes without a startup or
+  pause deadlock.
 - A diagnostic release-wide long gate exposed the pre-existing AC-013 vector
   latency failure and was stopped after that failure. It is release debt, not
   a Slice 10 regression.

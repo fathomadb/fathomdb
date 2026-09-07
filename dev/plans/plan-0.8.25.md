@@ -205,14 +205,14 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 55** (`TRACE`) — basic provenance tracing and integrity
+**IMMEDIATE NEXT: Slice 60** (`GRAPH`) — minimal constrained graph parity
 
-**Remaining ladder:** 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Slice 50 is durably closed. Reconcile Slice 55's tracing and integrity design
+Slice 55 is durably closed. Reconcile Slice 60's constrained-graph design
 against the implemented provenance, dependency, lifecycle, eligibility,
-generation, pagination, and compact-evidence contracts before beginning its
-RED tests.
+generation, pagination, evidence, tracing, and integrity contracts before
+beginning its RED tests.
 
 ## Stop gates
 

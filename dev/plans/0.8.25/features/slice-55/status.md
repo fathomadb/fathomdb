@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 55 status
-status: REVIEWED_PENDING_VERIFICATION
+status: COMPLETE_ON_RELEASE_BRANCH
 slice: 55
 updated: 2026-09-06
 ---
@@ -9,16 +9,16 @@ updated: 2026-09-06
 
 ## Current state
 
-Slice 55 has passed independent implementation review cycle 15 on
-`release/0.8.25` at candidate
-`3dd10ca888f50038431e8483999b80a7286f7e0a`. Design review passed at cycle 4.
-FIX-14 adds the required second service-readiness acknowledgement and closes
-the final review finding. Final independent verification remains required.
+Slice 55 is complete on `release/0.8.25` at exact verified candidate
+`5a6942bcd34ef5211fc81d4f5a80241d66794c3f`. Design review passed at cycle 4,
+implementation review passed at cycle 15, and separate Linux and Windows
+verification passed.
 
-The release-state authority therefore remains unchanged: Slice 55 is not
-complete, `next_slice` remains 55, and Slice 60 must not start.
+The release-state authority advances to Slice 60. Slice 55 remains complete on
+the release branch and is not represented as main-reachable until the later
+integration boundary.
 
-## Closed review finding
+## Closed findings
 
 Projection startup now uses a two-phase setup and service-ready protocol under
 one absolute 30 s deadline. A role that reports setup and exits is rejected.
@@ -32,6 +32,9 @@ FIX-14 preserves the earlier corrections:
 - exact five-BUSY WAL attribution, post-release autocommit and inventory, and
   clean sampler assertions.
 
+FIX-11 also proved the earlier Windows close failure was a verifier-owned
+stdlib SQLite handle and corrected that fixture without masking cleanup.
+
 The canonical release gate is
 `bash scripts/test-rust-workspace.sh --serial`. The
 `bash scripts/test-rust-workspace.sh --parallel-report` route is diagnostic and
@@ -43,20 +46,20 @@ diagnostics and no startup timeout, pause timeout, or deadlock.
 - Final design review: `design-review-cycle4.md`.
 - Final implementation review: `implementation-review-cycle15.md` (PASS).
 - TDD chronology: `implementation-tdd-chronology.md`.
+- Final independent verification: `verification-final-review.md` (PASS).
 - Independent Linux focused, performance, wheel, N-API, fast, heavy, all,
   selected-feature, Clippy, and check gates pass.
 - Windows wheel, N-API, focused Rust, facade, and CLI routes pass.
 - The canonical serial workspace gate passes unconfined.
 - Parallel reporting terminates without reproducing the futex deadlock.
 
-The detailed evidence and retained failure traces are in
-`verification-fix11-review.md`, `verification-review.md`, and the two
-`verification-windows-wheel-failure*.log` files.
+The final evidence matrix and hashes are in `verification-final-review.md`.
+The corrected failure history remains in `verification-fix11-review.md`,
+`verification-review.md`, and the two retained Windows failure logs.
 
 ## Required next action
 
-Run final independent verification against the exact candidate, including the
-focused startup/failure/cancellation/WAL routes, canonical unconfined serial
-workspace gate, terminating parallel reporter, installed local artifacts, and
-platform evidence required by the Slice 55 plan. Do not push or start Slice 60
-until verification passes and Slice 55 is durably closed.
+Commit the Slice 55 closure and release-state views, push the explicit
+`release/0.8.25` ref, inspect the resulting CI state, and compact durable
+between-slice memory. Then begin Slice 60. Preserve the hard boundary against
+release packaging, registry staging, tags, uploads, and publication.

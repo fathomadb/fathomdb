@@ -31705,7 +31705,17 @@ mod tests {
         active_roles: &[(WalAttributionRole, usize)],
         paused_worker: (WalAttributionRole, usize),
     ) -> bool {
-        active_roles == [paused_worker]
+        active_roles.iter().filter(|role| **role == paused_worker).count() == 1
+            && active_roles
+                .iter()
+                .filter(|(role, index)| {
+                    *role == WalAttributionRole::ProjectionDispatcher && *index == 0
+                })
+                .count()
+                <= 1
+            && active_roles.iter().all(|role| {
+                *role == paused_worker || *role == (WalAttributionRole::ProjectionDispatcher, 0)
+            })
     }
 
     #[test]

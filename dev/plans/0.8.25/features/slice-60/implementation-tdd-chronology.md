@@ -151,3 +151,27 @@ Disk space was 172 GiB free before GREEN and 167 GiB after the final incremental
 debug native consumer rebuild. The disposable consumer copies were removed;
 reusable Cargo intermediates remain for the independent verifier. No release
 packaging, registry staging, tag, push, or publication operation was performed.
+
+## FIX-1 RED
+
+Implementation-review cycle 1 requires a separate RED commit. The dedicated
+`slice60_fix1*` fixture and Rust/Python/TypeScript tests are additive and leave
+the six original frozen RED artifacts byte-identical. They require raw
+declaration-order request bytes, nested union unknown-field precedence, a
+non-shipped owned bounded test rendezvous plus production-SQL EXPLAIN seam, and
+binding-local rejection of invalid nested strings and eligibility members before
+native transport. Its test-hook ownership contract also requires the dedicated
+real-database 10,000/10,001 work/RSS, dependency-closure, erasure, and every
+projection-state fixture seam before any GREEN implementation can claim those
+observations.
+
+Baseline controls at `4251d801f7dcd315da0b1bd1da943f7bf46ff9e9` remained
+green: the original engine runtime oracle passed 18/18 and the original wire
+oracle passed 7/7. The narrow Rust FIX-1 target compiles and fails on the
+intended candidate defects: map-ordered raw request bytes, `GraphSeedInvalid`
+instead of `unknown_field` at `/seed/a~1b~0c`, unconditional global hooks and
+substitute EXPLAIN SQL, and absent owned real-database measurement seams. The
+Python source-contract target fails because `graph.py` has no recursive
+pre-transport validator. TypeScript typecheck passes; its local N-API RED
+consumer requires the disposable native build route and is retained for the
+next verification window.

@@ -1,0 +1,3 @@
+{
+  "request": "{\"schemaVersion\":1,\"seed\":{\"schemaVersion\":1,\"type\":\"explicit\",\"logicalIds\":[{\"space\":\"logical\",\"value\":\"seed-a\"}]},\"direction\":\"outgoing\",\"edgeKinds\":[\"supports\"],\"targetKinds\":[\"fact\"],\"context\":{\"schemaVersion\":1,\"type\":\"current\",\"context\":{\"schemaVersion\":1,\"view\":{\"includeSuperseded\":false,\"includeInactive\":false,\"includeOutOfWindow\":false,\"validAsOf\":1700000000},\"eligibility\":{\"sourceType\":null,\"kind\":null,\"createdAfter\":null,\"status\":null,\"attributes\":[]}}},\"maxDepth\":2,\"resultLimit\":10,\"maxWorkUnits\":\"100\",\"includeExplanation\":true}"
+}

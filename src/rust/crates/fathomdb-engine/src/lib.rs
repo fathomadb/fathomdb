@@ -29714,11 +29714,12 @@ mod tests {
     use super::{
         derive_stable_id, legacy_revision_id, native_connection_state_for_test,
         resolve_source_type, retain_complete_rank_boundary_candidates, DeviceResolution,
-        EmbedderChoice, Engine, EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
-        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, ReaderRequest,
-        RuntimeProbeConnection, SearchHit, SoftFallbackBranch, SourceId, WalAttributionRole,
-        ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS,
-        READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+        EmbedderChoice, Engine, EngineError, EngineOpenError, IdSpace, IdSpaceKind, InitialState,
+        LoaderInfo, ManagedConnectionRegistry, NativeTransactionState, PreparedWrite,
+        ProjectionRuntime, ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole,
+        ReaderRequest, RuntimeProbeConnection, SearchHit, SoftFallbackBranch, SourceId,
+        WalAttributionCollector, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
+        KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
@@ -29828,22 +29829,13 @@ mod tests {
         let dir = TempDir::new().expect("temp dir");
         let opened = Engine::open(dir.path().join("wal-attribution.sqlite")).expect("open");
 
-        let mut snapshot = opened.engine.wal_attribution_snapshot();
+        let snapshot = opened.engine.wal_attribution_snapshot();
         assert_eq!(
             snapshot.roles.iter().filter(|role| role.role == "reader_worker").count(),
             READER_POOL_SIZE,
             "every reader worker must be registered before Engine::open returns"
         );
 
-        let deadline = Instant::now() + Duration::from_secs(2);
-        while (!snapshot.roles.iter().any(|role| role.role == "projection_dispatcher")
-            || snapshot.roles.iter().filter(|role| role.role == "projection_worker").count()
-                < PROJECTION_WORKERS)
-            && Instant::now() < deadline
-        {
-            thread::sleep(Duration::from_millis(5));
-            snapshot = opened.engine.wal_attribution_snapshot();
-        }
         assert!(snapshot.no_owned_snapshot, "fresh engine must be idle: {snapshot:?}");
         assert!(!snapshot.local_checkpoint_overlap, "open must not report a checkpoint overlap");
         assert!(snapshot.roles.iter().any(|role| role.role == "writer" && role.index == 0));
@@ -29859,6 +29851,131 @@ mod tests {
             PROJECTION_WORKERS,
             "every projection worker must be explicitly registered"
         );
+
+        let inventory = opened.engine.native_state_inventory_for_test();
+        assert!(inventory.complete, "runtime roles must be immediately queryable: {inventory:?}");
+    }
+
+    fn initialized_projection_runtime_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
+        let path = dir.path().join(name);
+        let opened = Engine::open(&path).expect("initialize runtime database");
+        opened.engine.close().expect("close initialization engine");
+        path
+    }
+
+    fn start_projection_runtime_for_test(
+        path: std::path::PathBuf,
+        timeout: Duration,
+        fault: Option<ProjectionRuntimeStartupFaultForTest>,
+    ) -> (
+        Result<ProjectionRuntime, EngineOpenError>,
+        Arc<ManagedConnectionRegistry>,
+        Arc<WalAttributionCollector>,
+    ) {
+        let managed_connections = Arc::new(ManagedConnectionRegistry::default());
+        let wal_attribution = Arc::new(WalAttributionCollector::new());
+        let result = ProjectionRuntime::new_for_test(
+            path,
+            None,
+            NoopEmbedder::default().identity(),
+            false,
+            Arc::new(super::lifecycle::SubscriberRegistry::new()),
+            Arc::clone(&wal_attribution),
+            Arc::clone(&managed_connections),
+            timeout,
+            fault,
+        );
+        (result, managed_connections, wal_attribution)
+    }
+
+    #[test]
+    fn projection_runtime_startup_invalid_path_is_fallible_and_cleans_up() {
+        let dir = TempDir::new().expect("temp dir");
+        let invalid_path = dir.path().join("missing-parent").join("runtime.sqlite");
+        let (result, managed_connections, _) =
+            start_projection_runtime_for_test(invalid_path, Duration::from_secs(30), None);
+
+        assert!(matches!(result, Err(EngineOpenError::Io { .. })));
+        assert!(
+            managed_connections.live.lock().expect("managed registry").is_empty(),
+            "failed startup must join every partial runtime connection"
+        );
+    }
+
+    #[test]
+    fn projection_runtime_startup_returns_exact_live_roles_immediately() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = initialized_projection_runtime_path(&dir, "runtime-startup-success.sqlite");
+        let (result, managed_connections, wal_attribution) =
+            start_projection_runtime_for_test(path, Duration::from_secs(30), None);
+        let runtime = result.expect("runtime startup");
+        let expected = BTreeSet::from([
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+        ]);
+
+        assert_eq!(*managed_connections.live.lock().expect("managed registry"), expected);
+        let snapshot = wal_attribution.snapshot();
+        let observed =
+            snapshot.roles.iter().map(|role| (role.role, role.index)).collect::<BTreeSet<_>>();
+        assert_eq!(
+            observed,
+            BTreeSet::from([
+                ("projection_dispatcher", 0),
+                ("projection_worker", 0),
+                ("projection_worker", 1)
+            ])
+        );
+        let facts = runtime
+            .report_runtime_native_state_inventory_for_test()
+            .expect("runtime roles are immediately queryable");
+        assert_eq!(facts.len(), 3);
+        assert!(facts.iter().all(|fact| {
+            expected.contains(&(fact.role, fact.index))
+                && fact.autocommit == Some(true)
+                && fact.transaction == NativeTransactionState::None
+                && fact.busy_statement == Some(false)
+        }));
+        runtime.stop();
+        assert!(managed_connections.live.lock().expect("managed registry").is_empty());
+    }
+
+    #[test]
+    fn projection_runtime_startup_protocol_faults_stop_and_join_partial_runtime() {
+        let cases = [
+            ProjectionRuntimeStartupFaultForTest::SetupFailure(
+                ProjectionRuntimeStartupRole::Worker(0),
+            ),
+            ProjectionRuntimeStartupFaultForTest::DuplicateReport {
+                role: ProjectionRuntimeStartupRole::Worker(1),
+                reported_as: ProjectionRuntimeStartupRole::Worker(0),
+            },
+            ProjectionRuntimeStartupFaultForTest::MissingReport(
+                ProjectionRuntimeStartupRole::Worker(1),
+            ),
+            ProjectionRuntimeStartupFaultForTest::StallUntilStop(
+                ProjectionRuntimeStartupRole::Worker(1),
+            ),
+        ];
+
+        for (index, fault) in cases.into_iter().enumerate() {
+            let dir = TempDir::new().expect("temp dir");
+            let path = initialized_projection_runtime_path(
+                &dir,
+                &format!("runtime-startup-fault-{index}.sqlite"),
+            );
+            let started = Instant::now();
+            let (result, managed_connections, _) =
+                start_projection_runtime_for_test(path, Duration::from_millis(50), Some(fault));
+
+            assert!(matches!(result, Err(EngineOpenError::Io { .. })), "fault {fault:?}");
+            assert!(started.elapsed() < Duration::from_secs(2), "fault {fault:?} cleanup wedged");
+            assert!(
+                managed_connections.live.lock().expect("managed registry").is_empty(),
+                "fault {fault:?} left a live runtime connection"
+            );
+        }
     }
 
     /// Slice 65 managed-reader witness: preserve the original typed refusal,

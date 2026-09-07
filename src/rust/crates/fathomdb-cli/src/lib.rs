@@ -1454,6 +1454,7 @@ fn engine_error_code(err: &EngineError) -> &'static str {
         EngineError::Page(_) => "PageError",
         EngineError::Evidence(_) => "EvidenceError",
         EngineError::DependencyTrace(_) => "FDB_DEPENDENCY_TRACE",
+        EngineError::GraphExpansion(_) => "GraphExpansionError",
         EngineError::DataPlaneIntegrity(_) => "FDB_DATA_PLANE_INTEGRITY",
         EngineError::InvalidArgument { .. } => "InvalidArgumentError",
         // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense refusal.

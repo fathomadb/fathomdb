@@ -32,6 +32,7 @@ import {
   EvidenceError,
   FathomDbError,
   FrozenReadError,
+  GraphExpansionError,
   InvalidArgumentError,
   InvalidFilterError,
   rethrowTyped,
@@ -168,9 +169,7 @@ export interface DerivedWriteProvenanceV1 {
 }
 
 /** Closed schema-version-1 provenance accepted by versioned writes. */
-export type WriteProvenanceV1 =
-  | CanonicalWriteProvenanceV1
-  | DerivedWriteProvenanceV1;
+export type WriteProvenanceV1 = CanonicalWriteProvenanceV1 | DerivedWriteProvenanceV1;
 
 /** Closed request registering one immutable source dependency. */
 export interface SourceDependencyRegistrationV1 {
@@ -288,7 +287,8 @@ export interface ActuationReceiptV1 {
 
 export type ProjectionReadinessV1 = "ready" | "processing" | "blocked" | "deferred" | "degraded";
 export type ProjectionRuntimeStateV1 = "absent" | "usable" | "refused";
-export type ProjectionGenerationOriginV1 = "fresh" | "legacy_unverified" | "configuration" | "rebuild";
+export type ProjectionGenerationOriginV1 =
+  "fresh" | "legacy_unverified" | "configuration" | "rebuild";
 
 export interface ProjectionGenerationStatusV1 {
   readonly schemaVersion: 1;
@@ -489,10 +489,7 @@ function closureResponse(value: unknown): ClosureStatusV1 {
   }
   const proof = status.proof === null ? null : closureProofResponse(status.proof);
   const physicalCause = cause === "purged" || cause === "source_erased";
-  if (
-    (phase === "proving" && physicalCause) ||
-    (phase === "at_rest_pending" && !physicalCause)
-  ) {
+  if ((phase === "proving" && physicalCause) || (phase === "at_rest_pending" && !physicalCause)) {
     closureResponseError("/phase");
   }
   if ((phase === "incomplete") !== (blockerCode !== null)) {
@@ -511,10 +508,7 @@ function closureResponse(value: unknown): ClosureStatusV1 {
     cause: cause as ClosureStatusV1["cause"],
     phase: phase as ClosureStatusV1["phase"],
     effectiveAtEpochS: closureDecimal(status.effectiveAtEpochS, "/effectiveAtEpochS", true),
-    admittedWriteBoundary: closureDecimal(
-      status.admittedWriteBoundary,
-      "/admittedWriteBoundary",
-    ),
+    admittedWriteBoundary: closureDecimal(status.admittedWriteBoundary, "/admittedWriteBoundary"),
     admittedDependencyGeneration: closureDecimal(
       status.admittedDependencyGeneration,
       "/admittedDependencyGeneration",
@@ -689,16 +683,10 @@ export interface ProjectionDelta {
 
 /** Reason an open engine session has no usable dense runtime. */
 export type ProjectionRuntimeUnavailabilityReason =
-  | "none"
-  | "no_runtime"
-  | "vector_equivalence_disabled";
+  "none" | "no_runtime" | "vector_equivalence_disabled";
 
 /** Dense status for one declared projection in {@link ProjectionRuntimeStatus}. */
-export type ProjectionStatusDenseReadiness =
-  | "not_declared"
-  | "unavailable"
-  | "embedding"
-  | "ready";
+export type ProjectionStatusDenseReadiness = "not_declared" | "unavailable" | "embedding" | "ready";
 
 /** One declared projection's current dense status. */
 export interface ProjectionRuntimeStatusEntry {
@@ -1002,8 +990,7 @@ export interface ResolvedEvidenceV1 {
   sourceVersionId: string;
   sourceRevisionId: string;
   locator:
-    | { kind: "whole_body" }
-    | { kind: "utf8_bytes"; startInclusive: string; endExclusive: string };
+    { kind: "whole_body" } | { kind: "utf8_bytes"; startInclusive: string; endExclusive: string };
   canonicalSourceBody: string;
   evidenceText: string;
   canonicalSourceHash: string;
@@ -1087,13 +1074,14 @@ function mapNativeEvidenceSearch(r: NativeEvidenceSearchResultV1): EvidenceSearc
 function mapNativeResolvedEvidence(r: NativeResolvedEvidenceV1): ResolvedEvidenceV1 {
   validateNativeResolvedEvidence(r);
   const graph = r.projectionOrigin.graphOrigin;
-  const locator: ResolvedEvidenceV1["locator"] = r.locator.kind === "utf8_bytes"
-    ? {
-        kind: "utf8_bytes",
-        startInclusive: r.locator.startInclusive!,
-        endExclusive: r.locator.endExclusive!,
-      }
-    : { kind: "whole_body" };
+  const locator: ResolvedEvidenceV1["locator"] =
+    r.locator.kind === "utf8_bytes"
+      ? {
+          kind: "utf8_bytes",
+          startInclusive: r.locator.startInclusive!,
+          endExclusive: r.locator.endExclusive!,
+        }
+      : { kind: "whole_body" };
   return {
     schemaVersion: r.schemaVersion as 1,
     logicalId: r.logicalId ?? null,
@@ -1150,7 +1138,9 @@ function mapNativeResolvedEvidence(r: NativeResolvedEvidenceV1): ResolvedEvidenc
 }
 
 function assertKnownKeys(value: object, allowed: readonly string[], name: string): void {
-  const unknown = Object.keys(value).filter((key) => !allowed.includes(key)).sort();
+  const unknown = Object.keys(value)
+    .filter((key) => !allowed.includes(key))
+    .sort();
   if (unknown.length > 0) {
     throw new InvalidArgumentError(`${name} has unknown field ${unknown[0]}`);
   }
@@ -1164,17 +1154,12 @@ function evidencePointerSegment(value: string): string {
   return value.replaceAll("~", "~0").replaceAll("/", "~1");
 }
 
-function assertKnownEvidenceKeys(
-  value: object,
-  allowed: readonly string[],
-  basePath = "",
-): void {
-  const unknown = Object.keys(value).filter((key) => !allowed.includes(key)).sort();
+function assertKnownEvidenceKeys(value: object, allowed: readonly string[], basePath = ""): void {
+  const unknown = Object.keys(value)
+    .filter((key) => !allowed.includes(key))
+    .sort();
   if (unknown.length > 0) {
-    evidenceRequestError(
-      "unknown_field",
-      `${basePath}/${evidencePointerSegment(unknown[0]!)}`,
-    );
+    evidenceRequestError("unknown_field", `${basePath}/${evidencePointerSegment(unknown[0]!)}`);
   }
 }
 
@@ -1242,12 +1227,11 @@ function validateFrozenTraceKeys(
   allowed: readonly string[],
   path: string,
 ): void {
-  const unknown = Object.keys(value).filter((key) => !allowed.includes(key)).sort()[0];
+  const unknown = Object.keys(value)
+    .filter((key) => !allowed.includes(key))
+    .sort()[0];
   if (unknown !== undefined) {
-    frozenTraceRequestError(
-      "context_invalid",
-      `${path}/${escapeTracePointerToken(unknown)}`,
-    );
+    frozenTraceRequestError("context_invalid", `${path}/${escapeTracePointerToken(unknown)}`);
   }
 }
 
@@ -1271,16 +1255,9 @@ function validateFrozenTraceContext(value: unknown): FrozenReadContextV1 {
     frozenTraceRequestError("token_too_large", "/context/token");
   }
   const context = frozenTraceRecord(frozen.context, "/context/context");
-  validateFrozenTraceKeys(
-    context,
-    ["schemaVersion", "view", "eligibility"],
-    "/context/context",
-  );
+  validateFrozenTraceKeys(context, ["schemaVersion", "view", "eligibility"], "/context/context");
   if (context.schemaVersion !== 1) {
-    frozenTraceRequestError(
-      "unsupported_schema_version",
-      "/context/context/schemaVersion",
-    );
+    frozenTraceRequestError("unsupported_schema_version", "/context/context/schemaVersion");
   }
   const view = frozenTraceRecord(context.view, "/context/context/view");
   validateFrozenTraceKeys(
@@ -1293,13 +1270,14 @@ function validateFrozenTraceContext(value: unknown): FrozenReadContextV1 {
       frozenTraceRequestError("context_invalid", `/context/context/view/${field}`);
     }
   }
-  if (view.validAsOf !== undefined && view.validAsOf !== null && !Number.isSafeInteger(view.validAsOf)) {
+  if (
+    view.validAsOf !== undefined &&
+    view.validAsOf !== null &&
+    !Number.isSafeInteger(view.validAsOf)
+  ) {
     frozenTraceRequestError("context_invalid", "/context/context/view/validAsOf");
   }
-  const eligibility = frozenTraceRecord(
-    context.eligibility,
-    "/context/context/eligibility",
-  );
+  const eligibility = frozenTraceRecord(context.eligibility, "/context/context/eligibility");
   validateFrozenTraceKeys(
     eligibility,
     ["sourceType", "kind", "createdAfter", "status", "attributes"],
@@ -1307,10 +1285,7 @@ function validateFrozenTraceContext(value: unknown): FrozenReadContextV1 {
   );
   for (const field of ["sourceType", "kind", "status"] as const) {
     if (eligibility[field] !== undefined && typeof eligibility[field] !== "string") {
-      frozenTraceRequestError(
-        "context_invalid",
-        `/context/context/eligibility/${field}`,
-      );
+      frozenTraceRequestError("context_invalid", `/context/context/eligibility/${field}`);
     }
   }
   if (
@@ -1413,11 +1388,7 @@ function traceArray(value: unknown, path: string): unknown[] {
   return value;
 }
 
-function traceField(
-  value: Record<string, unknown>,
-  name: string,
-  path: string,
-): unknown {
+function traceField(value: Record<string, unknown>, name: string, path: string): unknown {
   if (!(name in value)) dependencyTraceRequestError("trace_corrupt", path);
   return value[name];
 }
@@ -1510,7 +1481,9 @@ export function validateDependencyTraceResponse(value: unknown): DependencyTrace
     const lifecyclePath = `${base}/lifecycle`;
     const lifecycle = traceRecord(traceField(node, "lifecycle", lifecyclePath), lifecyclePath);
     traceSchema(lifecycle, `${lifecyclePath}/schemaVersion`);
-    if (traceField(lifecycle, "artifactClass", `${lifecyclePath}/artifactClass`) !== artifactClass) {
+    if (
+      traceField(lifecycle, "artifactClass", `${lifecyclePath}/artifactClass`) !== artifactClass
+    ) {
       dependencyTraceRequestError("trace_corrupt", `${lifecyclePath}/artifactClass`);
     }
     const state = lifecycle.state;
@@ -1585,7 +1558,10 @@ export function validateDependencyTraceResponse(value: unknown): DependencyTrace
     traceField(rootValue, "checkedWorkUnits", "/checkedWorkUnits"),
     "/checkedWorkUnits",
   );
-  if (checkedWorkUnits !== dependencyEdges.length + 1 || nodes.length !== dependencyEdges.length + 1) {
+  if (
+    checkedWorkUnits !== dependencyEdges.length + 1 ||
+    nodes.length !== dependencyEdges.length + 1
+  ) {
     dependencyTraceRequestError("trace_corrupt", "/checkedWorkUnits");
   }
   if (traceField(rootValue, "complete", "/complete") !== true) {
@@ -1603,13 +1579,19 @@ export function validateDependencyTraceResponse(value: unknown): DependencyTrace
     const edge = dependencyEdges[index]!;
     if (node.depth !== 1) dependencyTraceRequestError("trace_corrupt", `/nodes/${index + 1}/depth`);
     if (direction === "to_dependents") {
-      if (node.role !== "derived") dependencyTraceRequestError("trace_corrupt", `/nodes/${index + 1}/role`);
-      if (edge.sourceRevisionId !== rootRevisionId) dependencyTraceRequestError("trace_corrupt", `/dependencyEdges/${index}/sourceRevisionId`);
-      if (edge.derivedRevisionId !== node.artifactRevisionId) dependencyTraceRequestError("trace_corrupt", `/dependencyEdges/${index}/derivedRevisionId`);
+      if (node.role !== "derived")
+        dependencyTraceRequestError("trace_corrupt", `/nodes/${index + 1}/role`);
+      if (edge.sourceRevisionId !== rootRevisionId)
+        dependencyTraceRequestError("trace_corrupt", `/dependencyEdges/${index}/sourceRevisionId`);
+      if (edge.derivedRevisionId !== node.artifactRevisionId)
+        dependencyTraceRequestError("trace_corrupt", `/dependencyEdges/${index}/derivedRevisionId`);
     } else {
-      if (node.role !== "canonical_source") dependencyTraceRequestError("trace_corrupt", `/nodes/${index + 1}/role`);
-      if (edge.derivedRevisionId !== rootRevisionId) dependencyTraceRequestError("trace_corrupt", `/dependencyEdges/${index}/derivedRevisionId`);
-      if (edge.sourceRevisionId !== node.artifactRevisionId) dependencyTraceRequestError("trace_corrupt", `/dependencyEdges/${index}/sourceRevisionId`);
+      if (node.role !== "canonical_source")
+        dependencyTraceRequestError("trace_corrupt", `/nodes/${index + 1}/role`);
+      if (edge.derivedRevisionId !== rootRevisionId)
+        dependencyTraceRequestError("trace_corrupt", `/dependencyEdges/${index}/derivedRevisionId`);
+      if (edge.sourceRevisionId !== node.artifactRevisionId)
+        dependencyTraceRequestError("trace_corrupt", `/dependencyEdges/${index}/sourceRevisionId`);
     }
   }
   for (let index = 2; index < nodes.length; index += 1) {
@@ -1620,7 +1602,10 @@ export function validateDependencyTraceResponse(value: unknown): DependencyTrace
   for (let index = 1; index < dependencyEdges.length; index += 1) {
     const previous = dependencyEdges[index - 1]!;
     const current = dependencyEdges[index]!;
-    if (`${previous.derivedRevisionId}\0${previous.dependencyId}` > `${current.derivedRevisionId}\0${current.dependencyId}`) {
+    if (
+      `${previous.derivedRevisionId}\0${previous.dependencyId}` >
+      `${current.derivedRevisionId}\0${current.dependencyId}`
+    ) {
       dependencyTraceRequestError("trace_corrupt", "/dependencyEdges");
     }
   }
@@ -1809,15 +1794,10 @@ export interface PerHitExplain {
 
 export type StructuralInclusionStateV1 = "included" | "degraded";
 export type StructuralProjectionOriginV1 =
-  | "synchronous_body_fts"
-  | "current_dense_generation"
-  | "graph_traversal";
+  "synchronous_body_fts" | "current_dense_generation" | "graph_traversal";
 export type StructuralDependencyStateV1 = "not_applicable" | "not_registered" | "registered";
 export type StructuralLifecycleStateV1 =
-  | "node_pending"
-  | "node_active"
-  | "node_deleted"
-  | "edge_valid";
+  "node_pending" | "node_active" | "node_deleted" | "edge_valid";
 export type StructuralDegradationCodeV1 =
   | "soft_fallback_text"
   | "soft_fallback_text_edge"
@@ -1849,7 +1829,11 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
     throw new FathomDbError(`invalid explanation response at ${path}`);
   };
   const optionalU32 = (value: number | null | undefined, path: string): void => {
-    if (value !== null && value !== undefined && (!Number.isInteger(value) || value < 0 || value > 0xffff_ffff)) {
+    if (
+      value !== null &&
+      value !== undefined &&
+      (!Number.isInteger(value) || value < 0 || value > 0xffff_ffff)
+    ) {
       invalid(path);
     }
   };
@@ -1929,10 +1913,7 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
       }
       previous = ordinal;
     });
-    if (
-      (structural.inclusionState === "included") !==
-      (structural.degradationCodes.length === 0)
-    ) {
+    if ((structural.inclusionState === "included") !== (structural.degradationCodes.length === 0)) {
       invalid("/structural/inclusionState");
     }
     result.structural = {
@@ -2157,10 +2138,7 @@ export type EmbedderEvent =
  */
 export function isKnownEmbedderEvent(
   event: EmbedderEvent,
-): event is
-  | DefaultEmbedderDownloadEvent
-  | DefaultEmbedderCacheHitEvent
-  | MeanVecPinnedEvent {
+): event is DefaultEmbedderDownloadEvent | DefaultEmbedderCacheHitEvent | MeanVecPinnedEvent {
   return (
     event.kind === "DefaultEmbedderDownload" ||
     event.kind === "DefaultEmbedderCacheHit" ||
@@ -2362,9 +2340,7 @@ function mapEffectiveEmbedDevice(device: NativeEffectiveEmbedDevice): EffectiveE
   throw new Error(`invalid native embedder effective device: ${device.kind}`);
 }
 
-function mapDeviceResolution(
-  resolution: NativeEmbedderDeviceResolution,
-): DeviceResolution {
+function mapDeviceResolution(resolution: NativeEmbedderDeviceResolution): DeviceResolution {
   return {
     requestedPolicy: resolution.requestedPolicy,
     cudaCompiled: resolution.cudaCompiled,
@@ -2375,9 +2351,7 @@ function mapDeviceResolution(
   };
 }
 
-function mapGpuAllocationWitness(
-  witness: NativeGpuAllocationWitness,
-): GpuAllocationWitness {
+function mapGpuAllocationWitness(witness: NativeGpuAllocationWitness): GpuAllocationWitness {
   // Field-for-field, deliberately: R80-13 requires the record stay
   // re-derivable, so nothing here summarizes or drops a number.
   return {
@@ -2483,14 +2457,10 @@ function validateIdArray(name: string, value: number[]): void {
   }
   for (const item of value) {
     if (!Number.isInteger(item)) {
-      throw new RangeError(
-        `${name} must contain only integers, got ${typeof item}`,
-      );
+      throw new RangeError(`${name} must contain only integers, got ${typeof item}`);
     }
     if (item < 0) {
-      throw new RangeError(
-        `${name} must contain only non-negative integers, got ${item}`,
-      );
+      throw new RangeError(`${name} must contain only non-negative integers, got ${item}`);
     }
   }
 }
@@ -2565,9 +2535,7 @@ export class Engine {
   }
 
   /** Return at most 100 dependencies in stable derived-revision order. */
-  async dependenciesForSource(
-    request: DependencySourceLookupV1,
-  ): Promise<DependencyListV1> {
+  async dependenciesForSource(request: DependencySourceLookupV1): Promise<DependencyListV1> {
     const value = await intercept(() => this.#native.dependenciesForSource(request));
     if (value.schemaVersion !== 1) {
       throw new DependencyError(
@@ -2588,9 +2556,7 @@ export class Engine {
   }
 
   /** Return current closure status, or `null` for an absent opaque ID. */
-  async readDependencyClosure(
-    request: ClosureLookupV1,
-  ): Promise<ClosureStatusV1 | null> {
+  async readDependencyClosure(request: ClosureLookupV1): Promise<ClosureStatusV1 | null> {
     try {
       const value = await this.#native.readDependencyClosure(request);
       return value === null ? null : closureResponse(value);
@@ -2617,9 +2583,7 @@ export class Engine {
     if (reason !== undefined && reason !== null) {
       validateFfiString(reason);
     }
-    return intercept(() =>
-      this.#native.transition(logicalId, toState, reason ?? null),
-    );
+    return intercept(() => this.#native.transition(logicalId, toState, reason ?? null));
   }
 
   /**
@@ -2683,10 +2647,7 @@ export class Engine {
    *
    * Pair with `read.projections` to inspect current state first.
    */
-  async configureProjections(
-    specs: ProjectionSpec[],
-    drop?: string[],
-  ): Promise<ProjectionDelta> {
+  async configureProjections(specs: ProjectionSpec[], drop?: string[]): Promise<ProjectionDelta> {
     // TC-47 (keystone terminal codex P2) — every string in the spec/drop tree
     // (projection name, each role, ftsTokenizer, vectorEmbedder, each drop entry)
     // crosses to native. napi-rs silently replaces a lone UTF-16 surrogate with
@@ -2717,9 +2678,7 @@ export class Engine {
       vectorDenseReadiness: s.vectorDenseReadiness ?? undefined,
       source: s.source ?? undefined,
     }));
-    return intercept(() =>
-      this.#native.configureProjections(nativeSpecs, drop ?? null),
-    );
+    return intercept(() => this.#native.configureProjections(nativeSpecs, drop ?? null));
   }
 
   /** Mint a restart-stable read context bound to this database state. */
@@ -2754,9 +2713,7 @@ export class Engine {
   }
 
   /** Trace one reciprocal registered dependency under a frozen context. */
-  async traceDependency(
-    request: DependencyTraceRequestV1,
-  ): Promise<DependencyTraceResultV1> {
+  async traceDependency(request: DependencyTraceRequestV1): Promise<DependencyTraceResultV1> {
     validateDependencyTraceRequest(request);
     const encoded = await intercept(() =>
       this.#native.traceDependency(
@@ -2800,21 +2757,26 @@ export class Engine {
       if (options.rerankDepth < 0) {
         throw new InvalidArgumentError(`rerankDepth must be >= 0; got ${options.rerankDepth}`);
       }
-      if (!Number.isInteger(options.rerankDepth) || options.rerankDepth > 0xFFFFFFFF) {
-        throw new RangeError(`rerankDepth must be an integer in 0..=4294967295; got ${options.rerankDepth}`);
+      if (!Number.isInteger(options.rerankDepth) || options.rerankDepth > 0xffffffff) {
+        throw new RangeError(
+          `rerankDepth must be an integer in 0..=4294967295; got ${options.rerankDepth}`,
+        );
       }
     }
     if (options.useGraphArm !== undefined && typeof options.useGraphArm !== "boolean") {
       throw new TypeError(`useGraphArm must be a boolean, got ${typeof options.useGraphArm}`);
     }
-    if (options.alpha !== undefined && (typeof options.alpha !== "number" || !Number.isFinite(options.alpha))) {
+    if (
+      options.alpha !== undefined &&
+      (typeof options.alpha !== "number" || !Number.isFinite(options.alpha))
+    ) {
       throw new RangeError(`alpha must be a finite number, got ${options.alpha}`);
     }
     if (options.poolN !== undefined) {
       if (options.poolN < 0) {
         throw new InvalidArgumentError(`poolN must be >= 0; got ${options.poolN}`);
       }
-      if (!Number.isInteger(options.poolN) || options.poolN > 0xFFFFFFFF) {
+      if (!Number.isInteger(options.poolN) || options.poolN > 0xffffffff) {
         throw new RangeError(`poolN must be an integer in 0..=4294967295; got ${options.poolN}`);
       }
     }
@@ -2838,23 +2800,18 @@ export class Engine {
   }
 
   /** Search under a frozen context and attach one evidence reference per hit. */
-  async searchWithEvidence(
-    request: EvidenceSearchRequestV1,
-  ): Promise<EvidenceSearchResultV1> {
-    assertKnownEvidenceKeys(
-      request,
-      [
-        "schemaVersion",
-        "query",
-        "context",
-        "rerankDepth",
-        "useGraphArm",
-        "alpha",
-        "poolN",
-        "includeExplanation",
-        "limit",
-      ],
-    );
+  async searchWithEvidence(request: EvidenceSearchRequestV1): Promise<EvidenceSearchResultV1> {
+    assertKnownEvidenceKeys(request, [
+      "schemaVersion",
+      "query",
+      "context",
+      "rerankDepth",
+      "useGraphArm",
+      "alpha",
+      "poolN",
+      "includeExplanation",
+      "limit",
+    ]);
     if (request.schemaVersion !== 1) {
       evidenceRequestError("unsupported_schema_version", "/schemaVersion");
     }
@@ -2863,11 +2820,9 @@ export class Engine {
     const limit = validateRankedResultLimit("limit", request.limit);
     if (request.rerankDepth !== undefined) {
       if (request.rerankDepth < 0) {
-        throw new InvalidArgumentError(
-          `rerankDepth must be >= 0; got ${request.rerankDepth}`,
-        );
+        throw new InvalidArgumentError(`rerankDepth must be >= 0; got ${request.rerankDepth}`);
       }
-      if (!Number.isInteger(request.rerankDepth) || request.rerankDepth > 0xFFFFFFFF) {
+      if (!Number.isInteger(request.rerankDepth) || request.rerankDepth > 0xffffffff) {
         throw new RangeError(
           `rerankDepth must be an integer in 0..=4294967295; got ${request.rerankDepth}`,
         );
@@ -2886,10 +2841,8 @@ export class Engine {
       if (request.poolN < 0) {
         throw new InvalidArgumentError(`poolN must be >= 0; got ${request.poolN}`);
       }
-      if (!Number.isInteger(request.poolN) || request.poolN > 0xFFFFFFFF) {
-        throw new RangeError(
-          `poolN must be an integer in 0..=4294967295; got ${request.poolN}`,
-        );
+      if (!Number.isInteger(request.poolN) || request.poolN > 0xffffffff) {
+        throw new RangeError(`poolN must be an integer in 0..=4294967295; got ${request.poolN}`);
       }
     }
     if (
@@ -2917,10 +2870,7 @@ export class Engine {
 
   /** Resolve exact source bytes under an equivalent frozen context. */
   async resolveEvidence(request: EvidenceResolveRequestV1): Promise<ResolvedEvidenceV1> {
-    assertKnownEvidenceKeys(
-      request,
-      ["schemaVersion", "evidenceRef", "context"],
-    );
+    assertKnownEvidenceKeys(request, ["schemaVersion", "evidenceRef", "context"]);
     if (request.schemaVersion !== 1) {
       evidenceRequestError("unsupported_schema_version", "/schemaVersion");
     }
@@ -2928,10 +2878,7 @@ export class Engine {
     validateEvidenceFrozenContext(request.context);
     return mapNativeResolvedEvidence(
       await intercept(() =>
-        this.#native.resolveEvidence(
-          request.evidenceRef,
-          nativeFrozenContext(request.context),
-        ),
+        this.#native.resolveEvidence(request.evidenceRef, nativeFrozenContext(request.context)),
       ),
     );
   }
@@ -2960,12 +2907,7 @@ export class Engine {
     }
     validateRankedResultLimit("searchLimit", options.searchLimit);
     const result = await intercept(() =>
-      this.#native.searchExpandFrozen(
-        query,
-        nativeContext,
-        depth,
-        options.searchLimit,
-      ),
+      this.#native.searchExpandFrozen(query, nativeContext, depth, options.searchLimit),
     );
     return {
       searchHits: result.searchHits.map((hit) => ({
@@ -2973,9 +2915,10 @@ export class Engine {
         kind: hit.kind,
         body: hit.body,
         score: hit.score,
-        branch: (hit.branch === "vector" || hit.branch === "text_edge" || hit.branch === "graph_arm")
-          ? hit.branch
-          : "text",
+        branch:
+          hit.branch === "vector" || hit.branch === "text_edge" || hit.branch === "graph_arm"
+            ? hit.branch
+            : "text",
         sourceId: hit.sourceId ?? null,
         ceScore: hit.ceScore ?? null,
       })),
@@ -3024,7 +2967,9 @@ export class Engine {
       if (filter.attributes !== undefined) {
         for (const pair of filter.attributes) {
           if (!Array.isArray(pair) || pair.length !== 2) {
-            throw new InvalidFilterError("attribute predicates must be [name, canonicalText] pairs");
+            throw new InvalidFilterError(
+              "attribute predicates must be [name, canonicalText] pairs",
+            );
           }
           validateFfiString(pair[0]);
           validateFfiString(pair[1]);
@@ -3038,24 +2983,18 @@ export class Engine {
     // FIX-7: removed `?? undefined` no-op (rerankDepth is already `number | undefined`).
     if (rerankDepth !== undefined) {
       if (!Number.isInteger(rerankDepth)) {
-        throw new RangeError(
-          `rerankDepth must be an integer, got ${typeof rerankDepth}`,
-        );
+        throw new RangeError(`rerankDepth must be an integer, got ${typeof rerankDepth}`);
       }
       if (rerankDepth < 0) {
         throw new RangeError(`rerankDepth must be >= 0, got ${rerankDepth}`);
       }
-      if (rerankDepth > 0xFFFFFFFF) {
-        throw new RangeError(
-          `rerankDepth must be <= 4294967295 (u32 max), got ${rerankDepth}`,
-        );
+      if (rerankDepth > 0xffffffff) {
+        throw new RangeError(`rerankDepth must be <= 4294967295 (u32 max), got ${rerankDepth}`);
       }
     }
     // 0.8.1 R3 (Slice 30): useGraphArm validation.
     if (useGraphArm !== undefined && typeof useGraphArm !== "boolean") {
-      throw new TypeError(
-        `useGraphArm must be a boolean, got ${typeof useGraphArm}`,
-      );
+      throw new TypeError(`useGraphArm must be a boolean, got ${typeof useGraphArm}`);
     }
     // 0.8.5 (EXP-0): alpha is a finite number (clamped to [0,1] in the engine);
     // poolN is a non-negative integer <= u32::MAX (mirrors the rerankDepth guard).
@@ -3069,10 +3008,8 @@ export class Engine {
       if (poolN < 0) {
         throw new RangeError(`poolN must be >= 0, got ${poolN}`);
       }
-      if (poolN > 0xFFFFFFFF) {
-        throw new RangeError(
-          `poolN must be <= 4294967295 (u32 max), got ${poolN}`,
-        );
+      if (poolN > 0xffffffff) {
+        throw new RangeError(`poolN must be <= 4294967295 (u32 max), got ${poolN}`);
       }
     }
     // 0.8.8 EXP-OBS (Slice 10): explain validation (mirrors useGraphArm + the
@@ -3126,9 +3063,10 @@ export class Engine {
         kind: h.kind,
         body: h.body,
         score: h.score,
-        branch: (h.branch === "vector" || h.branch === "text_edge" || h.branch === "graph_arm")
-          ? (h.branch as SoftFallbackBranch)
-          : "text",
+        branch:
+          h.branch === "vector" || h.branch === "text_edge" || h.branch === "graph_arm"
+            ? (h.branch as SoftFallbackBranch)
+            : "text",
         sourceId: h.sourceId ?? null,
         ceScore: h.ceScore ?? null,
       })),
@@ -3159,7 +3097,13 @@ export class Engine {
     }
     const searchOptions = splitSearchOptions(view);
     const r = await intercept(() =>
-      this.#native.searchProjectedText(query, name, filter, searchOptions.view, searchOptions.limit),
+      this.#native.searchProjectedText(
+        query,
+        name,
+        filter,
+        searchOptions.view,
+        searchOptions.limit,
+      ),
     );
     return {
       projectionCursor: r.projectionCursor,
@@ -3394,7 +3338,600 @@ export interface SearchExpandResult {
 /** Direction to follow when traversing `canonical_edges`. */
 export type TraversalDirection = "outgoing" | "incoming" | "both";
 
+export interface GraphQuerySeedV1 {
+  schemaVersion: 1;
+  type: "query";
+  text: string;
+  rankedLimit: number;
+}
+
+export interface GraphExplicitSeedV1 {
+  schemaVersion: 1;
+  type: "explicit";
+  logicalIds: IdSpace[];
+}
+
+export type GraphSeedV1 = GraphQuerySeedV1 | GraphExplicitSeedV1;
+
+export interface CurrentGraphReadContextV1 {
+  schemaVersion: 1;
+  type: "current";
+  context: ReadContextV1;
+}
+
+export interface FrozenGraphReadContextV1 {
+  schemaVersion: 1;
+  type: "frozen";
+  context: FrozenReadContextV1;
+}
+
+export type GraphReadContextV1 = CurrentGraphReadContextV1 | FrozenGraphReadContextV1;
+
+export interface GraphExpandRequestV1 {
+  schemaVersion: 1;
+  seed: GraphSeedV1;
+  direction: TraversalDirection;
+  edgeKinds: string[];
+  targetKinds: string[];
+  context: GraphReadContextV1;
+  maxDepth: number;
+  resultLimit: number;
+  maxWorkUnits: string;
+  includeExplanation: boolean;
+}
+
+export interface ResolvedGraphSeedV1 {
+  schemaVersion: 1;
+  logicalId: string;
+  seedOrdinal: number;
+  queryScore: number | null;
+}
+
+export interface GraphOriginV1 {
+  schemaVersion: 1;
+  seedLogicalId: string;
+  seedOrdinal: number;
+  predecessorLogicalId: string;
+  targetLogicalId: string;
+  hopCount: number;
+  terminalEdgeKind: string;
+  terminalDirection: TraversalDirection;
+}
+
+export interface GraphTargetV1 {
+  schemaVersion: 1;
+  logicalId: string;
+  kind: string;
+  body: string;
+  writeCursor: string;
+  origin: GraphOriginV1;
+}
+
+export type GraphSeedSourceV1 = "query" | "explicit";
+export type GraphReadModeV1 = "current" | "frozen";
+export type GraphProjectionOriginV1 =
+  "not_applicable" | "fresh" | "legacy_unverified" | "configuration" | "rebuild";
+export type GraphProjectionReadinessV1 =
+  "not_applicable" | "ready" | "processing" | "blocked" | "deferred" | "degraded";
+export type GraphExpansionDegradationCodeV1 =
+  | "query_seed_text_fallback"
+  | "projection_legacy_unverified"
+  | "projection_processing"
+  | "projection_blocked"
+  | "projection_deferred"
+  | "projection_degraded";
+
+export interface GraphTargetExplanationV1 {
+  schemaVersion: 1;
+  targetIndex: number;
+  origin: GraphOriginV1;
+  lifecycleState: StructuralLifecycleStateV1;
+  dependencyState: StructuralDependencyStateV1;
+}
+
+export interface GraphExpansionExplanationV1 {
+  schemaVersion: 1;
+  correlationId: string;
+  seedSource: GraphSeedSourceV1;
+  readMode: GraphReadModeV1;
+  projectionGenerationId: string | null;
+  projectionOrigin: GraphProjectionOriginV1;
+  projectionReadiness: GraphProjectionReadinessV1;
+  degradationCodes: GraphExpansionDegradationCodeV1[];
+  perTarget: GraphTargetExplanationV1[];
+}
+
+export interface GraphExpandResultV1 {
+  schemaVersion: 1;
+  seeds: ResolvedGraphSeedV1[];
+  targets: GraphTargetV1[];
+  complete: true;
+  workUnits: string;
+  degradationCodes: GraphExpansionDegradationCodeV1[];
+  explanation: GraphExpansionExplanationV1 | null;
+}
+
+type GraphObject = Record<string, unknown>;
+
+function graphRefuse(reason: string, fieldPath: string): never {
+  throw new GraphExpansionError(`${reason} at ${fieldPath}`, reason, fieldPath);
+}
+
+function graphObject(value: unknown, path: string): GraphObject {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    graphRefuse("graph_corrupt", path);
+  }
+  return value as GraphObject;
+}
+
+function graphField(value: GraphObject, name: string, path: string): unknown {
+  if (!Object.hasOwn(value, name)) graphRefuse("graph_corrupt", path);
+  return value[name];
+}
+
+function graphSchema(value: GraphObject, path: string): void {
+  if (graphField(value, "schemaVersion", path) !== 1) {
+    graphRefuse("unsupported_schema_version", path);
+  }
+}
+
+function graphString(value: unknown, path: string): string {
+  if (typeof value !== "string") graphRefuse("graph_corrupt", path);
+  return value;
+}
+
+function graphU32(value: unknown, path: string): number {
+  if (!Number.isInteger(value) || typeof value !== "number" || value < 0 || value > 0xffff_ffff) {
+    graphRefuse("graph_corrupt", path);
+  }
+  return value;
+}
+
+function graphU64(value: unknown, path: string): string {
+  if (
+    typeof value !== "string" ||
+    !/^(?:0|[1-9][0-9]*)$/.test(value) ||
+    BigInt(value) > 0xffff_ffff_ffff_ffffn
+  ) {
+    graphRefuse("graph_corrupt", path);
+  }
+  return value;
+}
+
+function graphArray(value: unknown, path: string): unknown[] {
+  if (!Array.isArray(value)) graphRefuse("graph_corrupt", path);
+  return value;
+}
+
+function graphEnum<T extends string>(value: unknown, allowed: readonly T[], path: string): T {
+  if (typeof value !== "string" || !allowed.includes(value as T)) {
+    graphRefuse("graph_corrupt", path);
+  }
+  return value as T;
+}
+
+function validateGraphOrigin(value: unknown, base: string): GraphOriginV1 {
+  const object = graphObject(value, base);
+  graphSchema(object, `${base}/schemaVersion`);
+  return {
+    schemaVersion: 1,
+    seedLogicalId: graphString(
+      graphField(object, "seedLogicalId", `${base}/seedLogicalId`),
+      `${base}/seedLogicalId`,
+    ),
+    seedOrdinal: graphU32(
+      graphField(object, "seedOrdinal", `${base}/seedOrdinal`),
+      `${base}/seedOrdinal`,
+    ),
+    predecessorLogicalId: graphString(
+      graphField(object, "predecessorLogicalId", `${base}/predecessorLogicalId`),
+      `${base}/predecessorLogicalId`,
+    ),
+    targetLogicalId: graphString(
+      graphField(object, "targetLogicalId", `${base}/targetLogicalId`),
+      `${base}/targetLogicalId`,
+    ),
+    hopCount: graphU32(graphField(object, "hopCount", `${base}/hopCount`), `${base}/hopCount`),
+    terminalEdgeKind: graphString(
+      graphField(object, "terminalEdgeKind", `${base}/terminalEdgeKind`),
+      `${base}/terminalEdgeKind`,
+    ),
+    terminalDirection: graphEnum(
+      graphField(object, "terminalDirection", `${base}/terminalDirection`),
+      ["incoming", "outgoing", "both"] as const,
+      `${base}/terminalDirection`,
+    ),
+  };
+}
+
+const graphDegradationCodes = [
+  "query_seed_text_fallback",
+  "projection_legacy_unverified",
+  "projection_processing",
+  "projection_blocked",
+  "projection_deferred",
+  "projection_degraded",
+] as const;
+
+/** Validate an additive native graph-expansion response and its coherence. */
+export function validateGraphExpandResult(value: unknown): GraphExpandResultV1 {
+  const root = graphObject(value, "");
+  graphSchema(root, "/schemaVersion");
+  const seeds = graphArray(graphField(root, "seeds", "/seeds"), "/seeds").map((seed, index) => {
+    const base = `/seeds/${index}`;
+    const object = graphObject(seed, base);
+    graphSchema(object, `${base}/schemaVersion`);
+    const seedOrdinal = graphU32(
+      graphField(object, "seedOrdinal", `${base}/seedOrdinal`),
+      `${base}/seedOrdinal`,
+    );
+    if (seedOrdinal !== index) graphRefuse("graph_corrupt", `${base}/seedOrdinal`);
+    const queryScore = graphField(object, "queryScore", `${base}/queryScore`);
+    if (queryScore !== null && (typeof queryScore !== "number" || !Number.isFinite(queryScore))) {
+      graphRefuse("graph_corrupt", `${base}/queryScore`);
+    }
+    return {
+      schemaVersion: 1 as const,
+      logicalId: graphString(
+        graphField(object, "logicalId", `${base}/logicalId`),
+        `${base}/logicalId`,
+      ),
+      seedOrdinal,
+      queryScore: queryScore as number | null,
+    };
+  });
+  const targets = graphArray(graphField(root, "targets", "/targets"), "/targets").map(
+    (target, index) => {
+      const base = `/targets/${index}`;
+      const object = graphObject(target, base);
+      graphSchema(object, `${base}/schemaVersion`);
+      return {
+        schemaVersion: 1 as const,
+        logicalId: graphString(
+          graphField(object, "logicalId", `${base}/logicalId`),
+          `${base}/logicalId`,
+        ),
+        kind: graphString(graphField(object, "kind", `${base}/kind`), `${base}/kind`),
+        body: graphString(graphField(object, "body", `${base}/body`), `${base}/body`),
+        writeCursor: graphU64(
+          graphField(object, "writeCursor", `${base}/writeCursor`),
+          `${base}/writeCursor`,
+        ),
+        origin: validateGraphOrigin(
+          graphField(object, "origin", `${base}/origin`),
+          `${base}/origin`,
+        ),
+      };
+    },
+  );
+  if (graphField(root, "complete", "/complete") !== true) graphRefuse("graph_corrupt", "/complete");
+  const workUnits = graphU64(graphField(root, "workUnits", "/workUnits"), "/workUnits");
+  const degradationCodes = graphArray(
+    graphField(root, "degradationCodes", "/degradationCodes"),
+    "/degradationCodes",
+  ).map((code, index) => graphEnum(code, graphDegradationCodes, `/degradationCodes/${index}`));
+  targets.forEach((target, index) => {
+    const seed = seeds[target.origin.seedOrdinal];
+    if (seed === undefined) graphRefuse("graph_corrupt", `/targets/${index}/origin/seedOrdinal`);
+    if (target.origin.seedLogicalId !== seed.logicalId)
+      graphRefuse("graph_corrupt", `/targets/${index}/origin/seedLogicalId`);
+    if (target.origin.targetLogicalId !== target.logicalId)
+      graphRefuse("graph_corrupt", `/targets/${index}/origin/targetLogicalId`);
+  });
+
+  const rawExplanation = graphField(root, "explanation", "/explanation");
+  let explanation: GraphExpansionExplanationV1 | null = null;
+  if (rawExplanation !== null) {
+    const base = "/explanation";
+    const object = graphObject(rawExplanation, base);
+    graphSchema(object, `${base}/schemaVersion`);
+    const rawPerTarget = graphArray(
+      graphField(object, "perTarget", `${base}/perTarget`),
+      `${base}/perTarget`,
+    );
+    if (rawPerTarget.length !== targets.length) graphRefuse("graph_corrupt", `${base}/perTarget`);
+    const perTarget = rawPerTarget.map((item, index) => {
+      const itemBase = `${base}/perTarget/${index}`;
+      const itemObject = graphObject(item, itemBase);
+      graphSchema(itemObject, `${itemBase}/schemaVersion`);
+      const targetIndex = graphU32(
+        graphField(itemObject, "targetIndex", `${itemBase}/targetIndex`),
+        `${itemBase}/targetIndex`,
+      );
+      if (targetIndex !== index) graphRefuse("graph_corrupt", `${itemBase}/targetIndex`);
+      const origin = validateGraphOrigin(
+        graphField(itemObject, "origin", `${itemBase}/origin`),
+        `${itemBase}/origin`,
+      );
+      if (JSON.stringify(origin) !== JSON.stringify(targets[index]?.origin))
+        graphRefuse("graph_corrupt", `${itemBase}/origin`);
+      return {
+        schemaVersion: 1 as const,
+        targetIndex,
+        origin,
+        lifecycleState: graphEnum(
+          graphField(itemObject, "lifecycleState", `${itemBase}/lifecycleState`),
+          ["node_pending", "node_active", "node_deleted", "edge_valid"] as const,
+          `${itemBase}/lifecycleState`,
+        ),
+        dependencyState: graphEnum(
+          graphField(itemObject, "dependencyState", `${itemBase}/dependencyState`),
+          ["not_applicable", "not_registered", "registered"] as const,
+          `${itemBase}/dependencyState`,
+        ),
+      };
+    });
+    const explanationDegradations = graphArray(
+      graphField(object, "degradationCodes", `${base}/degradationCodes`),
+      `${base}/degradationCodes`,
+    );
+    if (JSON.stringify(explanationDegradations) !== JSON.stringify(degradationCodes))
+      graphRefuse("graph_corrupt", `${base}/degradationCodes`);
+    const projectionGenerationId = graphField(
+      object,
+      "projectionGenerationId",
+      `${base}/projectionGenerationId`,
+    );
+    if (projectionGenerationId !== null && typeof projectionGenerationId !== "string")
+      graphRefuse("graph_corrupt", `${base}/projectionGenerationId`);
+    explanation = {
+      schemaVersion: 1,
+      correlationId: graphString(
+        graphField(object, "correlationId", `${base}/correlationId`),
+        `${base}/correlationId`,
+      ),
+      seedSource: graphEnum(
+        graphField(object, "seedSource", `${base}/seedSource`),
+        ["query", "explicit"] as const,
+        `${base}/seedSource`,
+      ),
+      readMode: graphEnum(
+        graphField(object, "readMode", `${base}/readMode`),
+        ["current", "frozen"] as const,
+        `${base}/readMode`,
+      ),
+      projectionGenerationId,
+      projectionOrigin: graphEnum(
+        graphField(object, "projectionOrigin", `${base}/projectionOrigin`),
+        ["not_applicable", "fresh", "legacy_unverified", "configuration", "rebuild"] as const,
+        `${base}/projectionOrigin`,
+      ),
+      projectionReadiness: graphEnum(
+        graphField(object, "projectionReadiness", `${base}/projectionReadiness`),
+        ["not_applicable", "ready", "processing", "blocked", "deferred", "degraded"] as const,
+        `${base}/projectionReadiness`,
+      ),
+      degradationCodes,
+      perTarget,
+    };
+  }
+  return {
+    schemaVersion: 1,
+    seeds,
+    targets,
+    complete: true,
+    workUnits,
+    degradationCodes,
+    explanation,
+  };
+}
+
+function validateGraphExpandRequest(value: unknown): asserts value is GraphExpandRequestV1 {
+  const root = graphObject(value, "");
+  if (root.schemaVersion !== 1) graphRefuse("unsupported_schema_version", "/schemaVersion");
+  const allowed = new Set([
+    "schemaVersion",
+    "seed",
+    "direction",
+    "edgeKinds",
+    "targetKinds",
+    "context",
+    "maxDepth",
+    "resultLimit",
+    "maxWorkUnits",
+    "includeExplanation",
+  ]);
+  const unknown = Object.keys(root)
+    .filter((key) => !allowed.has(key))
+    .sort()[0];
+  if (unknown !== undefined)
+    graphRefuse("unknown_field", `/${unknown.replaceAll("~", "~0").replaceAll("/", "~1")}`);
+  const close = (object: GraphObject, fields: readonly string[], base: string): void => {
+    const extra = Object.keys(object)
+      .filter((key) => !fields.includes(key))
+      .sort()[0];
+    if (extra !== undefined) {
+      const escaped = extra.replaceAll("~", "~0").replaceAll("/", "~1");
+      graphRefuse("unknown_field", `${base}/${escaped}`);
+    }
+  };
+  const requestObject = (member: unknown, reason: string, path: string): GraphObject => {
+    if (member === null || typeof member !== "object" || Array.isArray(member)) {
+      graphRefuse(reason, path);
+    }
+    return member as GraphObject;
+  };
+  const schema = (object: GraphObject, path: string): void => {
+    if (object.schemaVersion !== 1) graphRefuse("unsupported_schema_version", path);
+  };
+
+  const seed = requestObject(root.seed, "graph_seed_invalid", "/seed");
+  schema(seed, "/seed/schemaVersion");
+  if (seed.type === "query") {
+    close(seed, ["schemaVersion", "type", "text", "rankedLimit"], "/seed");
+    if (
+      typeof seed.text !== "string" ||
+      !Number.isInteger(seed.rankedLimit) ||
+      typeof seed.rankedLimit !== "number"
+    )
+      graphRefuse("graph_seed_invalid", "/seed");
+  } else if (seed.type === "explicit") {
+    close(seed, ["schemaVersion", "type", "logicalIds"], "/seed");
+    if (!Array.isArray(seed.logicalIds)) graphRefuse("graph_seed_invalid", "/seed/logicalIds");
+    seed.logicalIds.forEach((id, index) => {
+      const path = `/seed/logicalIds/${index}`;
+      const object = requestObject(id, "graph_seed_invalid", path);
+      close(object, ["space", "value"], path);
+      if (typeof object.space !== "string" || typeof object.value !== "string")
+        graphRefuse("graph_seed_invalid", path);
+    });
+  } else {
+    graphRefuse("graph_seed_invalid", "/seed");
+  }
+
+  const context = requestObject(root.context, "graph_context_invalid", "/context");
+  schema(context, "/context/schemaVersion");
+  close(context, ["schemaVersion", "type", "context"], "/context");
+  const readContext = requestObject(context.context, "graph_context_invalid", "/context/context");
+  if (context.type === "frozen") {
+    schema(readContext, "/context/context/schemaVersion");
+    close(
+      readContext,
+      ["schemaVersion", "effectiveValidAt", "context", "token"],
+      "/context/context",
+    );
+    if (
+      typeof readContext.token !== "string" ||
+      !Number.isInteger(readContext.effectiveValidAt) ||
+      typeof readContext.effectiveValidAt !== "number"
+    )
+      graphRefuse("graph_context_invalid", "/context/context");
+  } else if (context.type !== "current") {
+    graphRefuse("graph_context_invalid", "/context/type");
+  }
+  const current =
+    context.type === "frozen"
+      ? requestObject(readContext.context, "graph_context_invalid", "/context/context/context")
+      : readContext;
+  const currentBase = context.type === "frozen" ? "/context/context/context" : "/context/context";
+  schema(current, `${currentBase}/schemaVersion`);
+  close(current, ["schemaVersion", "view", "eligibility"], currentBase);
+  const view = requestObject(current.view, "graph_context_invalid", `${currentBase}/view`);
+  close(
+    view,
+    ["includeSuperseded", "includeInactive", "includeOutOfWindow", "validAsOf"],
+    `${currentBase}/view`,
+  );
+  for (const name of ["includeSuperseded", "includeInactive", "includeOutOfWindow"] as const) {
+    if (view[name] !== undefined && typeof view[name] !== "boolean")
+      graphRefuse("graph_context_invalid", `${currentBase}/view/${name}`);
+  }
+  if (
+    view.validAsOf !== undefined &&
+    view.validAsOf !== null &&
+    (!Number.isInteger(view.validAsOf) || typeof view.validAsOf !== "number")
+  )
+    graphRefuse("graph_context_invalid", `${currentBase}/view/validAsOf`);
+  const eligibility = requestObject(
+    current.eligibility,
+    "graph_context_invalid",
+    `${currentBase}/eligibility`,
+  );
+  close(
+    eligibility,
+    ["sourceType", "kind", "createdAfter", "status", "attributes"],
+    `${currentBase}/eligibility`,
+  );
+  if (!["incoming", "outgoing", "both"].includes(String(root.direction)))
+    graphRefuse("graph_direction_invalid", "/direction");
+  if (!Array.isArray(root.edgeKinds) || root.edgeKinds.some((item) => typeof item !== "string"))
+    graphRefuse("graph_edge_kinds_invalid", "/edgeKinds");
+  if (!Array.isArray(root.targetKinds) || root.targetKinds.some((item) => typeof item !== "string"))
+    graphRefuse("graph_target_kinds_invalid", "/targetKinds");
+  if (!Number.isInteger(root.maxDepth) || typeof root.maxDepth !== "number")
+    graphRefuse("graph_depth_invalid", "/maxDepth");
+  if (!Number.isInteger(root.resultLimit) || typeof root.resultLimit !== "number")
+    graphRefuse("graph_result_limit_invalid", "/resultLimit");
+  if (
+    typeof root.maxWorkUnits !== "string" ||
+    !/^(?:0|[1-9][0-9]*)$/.test(root.maxWorkUnits) ||
+    BigInt(root.maxWorkUnits) > 0xffff_ffff_ffff_ffffn
+  )
+    graphRefuse("graph_work_limit_invalid", "/maxWorkUnits");
+  if (typeof root.includeExplanation !== "boolean")
+    graphRefuse("graph_context_invalid", "/includeExplanation");
+  // The canonical Rust decoder remains the semantic authority for bounds,
+  // duplicate seeds, eligibility values, and frozen authentication precedence.
+}
+
+function canonicalGraphReadContext(context: ReadContextV1): GraphObject {
+  return {
+    schemaVersion: context.schemaVersion,
+    view: {
+      includeSuperseded: context.view.includeSuperseded ?? false,
+      includeInactive: context.view.includeInactive ?? false,
+      includeOutOfWindow: context.view.includeOutOfWindow ?? false,
+      validAsOf: context.view.validAsOf ?? null,
+    },
+    eligibility: {
+      sourceType: context.eligibility.sourceType ?? null,
+      kind: context.eligibility.kind ?? null,
+      createdAfter: context.eligibility.createdAfter ?? null,
+      status: context.eligibility.status ?? null,
+      attributes: context.eligibility.attributes ?? [],
+    },
+  };
+}
+
+function canonicalGraphRequest(request: GraphExpandRequestV1): GraphObject {
+  const context =
+    request.context.type === "current"
+      ? {
+          schemaVersion: request.context.schemaVersion,
+          type: request.context.type,
+          context: canonicalGraphReadContext(request.context.context),
+        }
+      : {
+          schemaVersion: request.context.schemaVersion,
+          type: request.context.type,
+          context: {
+            schemaVersion: request.context.context.schemaVersion,
+            effectiveValidAt: request.context.context.effectiveValidAt,
+            context: canonicalGraphReadContext(request.context.context.context),
+            token: request.context.context.token,
+          },
+        };
+  return {
+    schemaVersion: request.schemaVersion,
+    seed:
+      request.seed.type === "query"
+        ? {
+            schemaVersion: request.seed.schemaVersion,
+            type: request.seed.type,
+            text: request.seed.text,
+            rankedLimit: request.seed.rankedLimit,
+          }
+        : {
+            schemaVersion: request.seed.schemaVersion,
+            type: request.seed.type,
+            logicalIds: request.seed.logicalIds.map((id) => ({ space: id.space, value: id.value })),
+          },
+    direction: request.direction,
+    edgeKinds: request.edgeKinds,
+    targetKinds: request.targetKinds,
+    context,
+    maxDepth: request.maxDepth,
+    resultLimit: request.resultLimit,
+    maxWorkUnits: request.maxWorkUnits,
+    includeExplanation: request.includeExplanation,
+  };
+}
+
 export const graph = {
+  /** Run one bounded, deterministic, all-or-nothing graph expansion. */
+  async expand(engine: Engine, request: GraphExpandRequestV1): Promise<GraphExpandResultV1> {
+    validateGraphExpandRequest(request);
+    const encoded = await intercept(() =>
+      engine._native.graphExpand(JSON.stringify(canonicalGraphRequest(request))),
+    );
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(encoded);
+    } catch {
+      graphRefuse("graph_corrupt", "");
+    }
+    return validateGraphExpandResult(decoded);
+  },
   /**
    * G5 — bounded BFS from `logicalId` over `canonical_edges`.
    *
@@ -3465,9 +4002,10 @@ export const graph = {
         kind: h.kind,
         body: h.body,
         score: h.score,
-        branch: (h.branch === "vector" || h.branch === "text_edge")
-          ? (h.branch as SoftFallbackBranch)
-          : "text",
+        branch:
+          h.branch === "vector" || h.branch === "text_edge"
+            ? (h.branch as SoftFallbackBranch)
+            : "text",
         sourceId: h.sourceId ?? null,
         // 0.8.5 — searchExpand never reranks (depth=0) → ceScore is always null.
         ceScore: h.ceScore ?? null,

@@ -51,6 +51,7 @@ mod dependency_closure;
 mod dependency_trace;
 mod evidence;
 mod frozen_read;
+mod graph_expand;
 pub mod lifecycle;
 mod pagination;
 mod pcache2;
@@ -91,6 +92,15 @@ pub use evidence::{
     EvidenceSidecarEntryV1, ResolvedEvidenceV1,
 };
 pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};
+pub use graph_expand::{
+    arm_graph_expand_after_pin_hook_for_test, arm_graph_expand_before_pin_hook_for_test,
+    decode_graph_expand_request_v1, decode_graph_expand_result_v1, encode_graph_expand_request_v1,
+    encode_graph_expand_result_v1, graph_expansion_degradation_codes_for_test,
+    GraphExpandRequestV1, GraphExpandResultV1, GraphExpansionDegradationCodeV1,
+    GraphExpansionErrorReasonV1, GraphExpansionErrorV1, GraphExpansionExplanationV1, GraphOriginV1,
+    GraphProjectionOriginV1, GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1,
+    GraphSeedSourceV1, GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, ResolvedGraphSeedV1,
+};
 pub use pagination::{PageCursor, PageError, PageErrorReason, PageRequestV1, PageV1};
 pub use projection_generation::{
     MutationProjectionStatusRequestV1, MutationProjectionStatusV1, ProjectionGenerationError,
@@ -2062,6 +2072,13 @@ struct CanonicalPageReaderRequest {
     respond: SyncSender<Result<PageV1<NodeRecord>, PageReaderError>>,
 }
 
+struct GraphExpandReaderRequest {
+    request: GraphExpandRequestV1,
+    frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
+    projection_runtime_state: ProjectionRuntimeStateV1,
+    respond: SyncSender<Result<GraphExpandResultV1, EngineError>>,
+}
+
 struct OperationalStateReaderRequest {
     collection: String,
     record_key: String,
@@ -2161,6 +2178,7 @@ enum ReaderRequest {
         view: ReadView,
         respond: SyncSender<rusqlite::Result<Vec<NodeRecord>>>,
     },
+    GraphExpand(Box<GraphExpandReaderRequest>),
     /// 0.8.20 Slice 10b (R-20-NV) — nodes that crossed a validity boundary in
     /// `(since, view-instant]`.
     CrossedBoundarySince {
@@ -2792,6 +2810,18 @@ fn reader_worker_loop(
                 );
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
+            }
+            ReaderRequest::GraphExpand(request) => {
+                let result = graph_expand::read_graph_expand_in_tx(
+                    &mut connection,
+                    &request.request,
+                    request.frozen_binding.as_deref(),
+                    request.projection_runtime_state,
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                let _ = request.respond.send(result);
             }
             ReaderRequest::CrossedBoundarySince { since, view, respond } => {
                 let result = crossed_boundary_since_in_tx(
@@ -7008,6 +7038,8 @@ pub enum EngineError {
     Evidence(EvidenceErrorV1),
     /// A governed dependency trace request was invalid, unavailable, bounded, or corrupt.
     DependencyTrace(DependencyTraceErrorV1),
+    /// A governed constrained graph-expansion request was refused.
+    GraphExpansion(GraphExpansionErrorV1),
     /// An operator-only bounded data-plane integrity request failed.
     #[cfg(feature = "operator")]
     DataPlaneIntegrity(DataPlaneIntegrityErrorV1),
@@ -7156,6 +7188,12 @@ impl From<DependencyTraceErrorV1> for EngineError {
     }
 }
 
+impl From<GraphExpansionErrorV1> for EngineError {
+    fn from(error: GraphExpansionErrorV1) -> Self {
+        Self::GraphExpansion(error)
+    }
+}
+
 #[cfg(feature = "operator")]
 impl From<DataPlaneIntegrityErrorV1> for EngineError {
     fn from(error: DataPlaneIntegrityErrorV1) -> Self {
@@ -7195,6 +7233,7 @@ impl Display for EngineError {
             Self::ProjectionGeneration(error) => write!(f, "projection generation: {error}"),
             Self::Evidence(error) => write!(f, "evidence: {error}"),
             Self::DependencyTrace(error) => write!(f, "dependency trace: {error}"),
+            Self::GraphExpansion(error) => write!(f, "graph expansion: {error}"),
             #[cfg(feature = "operator")]
             Self::DataPlaneIntegrity(error) => write!(f, "data-plane integrity: {error}"),
             Self::Overloaded => write!(f, "engine overloaded"),
@@ -7266,6 +7305,7 @@ impl EngineError {
             Self::ProjectionGeneration(_) => "ProjectionGenerationError",
             Self::Evidence(_) => "EvidenceError",
             Self::DependencyTrace(_) => "DependencyTraceError",
+            Self::GraphExpansion(_) => "GraphExpansionError",
             #[cfg(feature = "operator")]
             Self::DataPlaneIntegrity(_) => "DataPlaneIntegrityError",
             Self::Overloaded => "OverloadedError",

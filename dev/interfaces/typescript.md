@@ -996,3 +996,17 @@ New native explained results always contain a nonempty `correlationId` and one
 `StructuralInclusionV1` per hit. User object literals remain compatible because
 `Explanation.correlationId` and `PerHitExplain.structural` are optional. No
 doctor or data-plane-integrity method is exposed.
+
+## Bounded graph expansion (0.8.25 Slice 60)
+
+`graph.expand(engine, request)` accepts `GraphExpandRequestV1`, whose seed and
+read-context members are closed discriminated unions. New `u64` values are
+canonical decimal strings. It returns `GraphExpandResultV1` with deterministic
+ordered seeds and targets, complete work accounting, degradation codes, and an
+optional compact explanation.
+
+The wrapper recursively validates and canonicalizes requests before
+`Engine.graphExpand`, then validates the additive native response and all
+cross-field coherence. Refusals use `GraphExpansionError` with code
+`FDB_GRAPH_EXPANSION`, `reason`, and `fieldPath`; frozen authentication and
+state failures remain `FrozenReadError`.

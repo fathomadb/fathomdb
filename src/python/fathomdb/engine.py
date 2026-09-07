@@ -53,6 +53,12 @@ from fathomdb.types import (
     ExpandedNode,
     FrozenReadContextV1,
     GpuAllocationWitness,
+    GraphExpandResultV1,
+    GraphExpansionDegradationCodeV1,
+    GraphExpansionExplanationV1,
+    GraphOriginV1,
+    GraphTargetExplanationV1,
+    GraphTargetV1,
     IdSpace,
     MigrationStepReport,
     NodeRecord,
@@ -63,6 +69,7 @@ from fathomdb.types import (
     QueryTrace,
     ReadContextV1,
     ReadView,
+    ResolvedGraphSeedV1,
     ResolvedEvidenceV1,
     SearchExpandResult,
     SearchFilter,
@@ -89,6 +96,7 @@ from fathomdb.errors import (
     DependencyTraceError,
     EvidenceError,
     FrozenReadError,
+    GraphExpansionError,
     InvalidArgumentError,
 )
 
@@ -127,6 +135,333 @@ def _map_native_search_result(result: Any) -> SearchResult:
             )
             for hit in result.results
         ],
+        explanation=explanation,
+    )
+
+
+def _graph_refuse(reason: str, field_path: str) -> NoReturn:
+    raise GraphExpansionError(f"{reason} at {field_path}", reason=reason, field_path=field_path)
+
+
+def _graph_field(value: Any, name: str, path: str) -> Any:
+    if isinstance(value, dict):
+        if name not in value:
+            _graph_refuse("graph_corrupt", path)
+        return value[name]
+    if not hasattr(value, name):
+        _graph_refuse("graph_corrupt", path)
+    return getattr(value, name)
+
+
+def _graph_schema(value: Any, path: str) -> None:
+    schema = _graph_field(value, "schema_version", path)
+    if type(schema) is not int or schema != 1:
+        _graph_refuse("unsupported_schema_version", path)
+
+
+def _graph_string(value: Any, path: str) -> str:
+    if not isinstance(value, str):
+        _graph_refuse("graph_corrupt", path)
+    return value
+
+
+def _graph_u32(value: Any, path: str) -> int:
+    if type(value) is not int or not 0 <= value <= 0xFFFF_FFFF:
+        _graph_refuse("graph_corrupt", path)
+    return value
+
+
+def _graph_u64(value: Any, path: str) -> str:
+    if (
+        not isinstance(value, str)
+        or re.fullmatch(r"0|[1-9][0-9]*", value) is None
+        or int(value) > 0xFFFF_FFFF_FFFF_FFFF
+    ):
+        _graph_refuse("graph_corrupt", path)
+    return value
+
+
+def _graph_enum(value: Any, allowed: set[str], path: str) -> str:
+    value = _graph_string(value, path)
+    if value not in allowed:
+        _graph_refuse("graph_corrupt", path)
+    return value
+
+
+def _graph_list(value: Any, path: str) -> list[Any]:
+    if not isinstance(value, (list, tuple)):
+        _graph_refuse("graph_corrupt", path)
+    return list(value)
+
+
+def _map_graph_origin(value: Any, path: str) -> GraphOriginV1:
+    _graph_schema(value, f"{path}/schemaVersion")
+    return GraphOriginV1(
+        schema_version=1,
+        seed_logical_id=_graph_string(
+            _graph_field(value, "seed_logical_id", f"{path}/seedLogicalId"),
+            f"{path}/seedLogicalId",
+        ),
+        seed_ordinal=_graph_u32(
+            _graph_field(value, "seed_ordinal", f"{path}/seedOrdinal"),
+            f"{path}/seedOrdinal",
+        ),
+        predecessor_logical_id=_graph_string(
+            _graph_field(value, "predecessor_logical_id", f"{path}/predecessorLogicalId"),
+            f"{path}/predecessorLogicalId",
+        ),
+        target_logical_id=_graph_string(
+            _graph_field(value, "target_logical_id", f"{path}/targetLogicalId"),
+            f"{path}/targetLogicalId",
+        ),
+        hop_count=_graph_u32(
+            _graph_field(value, "hop_count", f"{path}/hopCount"),
+            f"{path}/hopCount",
+        ),
+        terminal_edge_kind=_graph_string(
+            _graph_field(value, "terminal_edge_kind", f"{path}/terminalEdgeKind"),
+            f"{path}/terminalEdgeKind",
+        ),
+        terminal_direction=cast(
+            Any,
+            _graph_enum(
+                _graph_field(value, "terminal_direction", f"{path}/terminalDirection"),
+                {"incoming", "outgoing", "both"},
+                f"{path}/terminalDirection",
+            ),
+        ),
+    )
+
+
+def _map_native_graph_expand_result(result: Any) -> GraphExpandResultV1:
+    """Validate and map an additive native graph-expansion response."""
+
+    _graph_schema(result, "/schemaVersion")
+    seed_values = _graph_list(_graph_field(result, "seeds", "/seeds"), "/seeds")
+    seeds: list[ResolvedGraphSeedV1] = []
+    for index, seed in enumerate(seed_values):
+        base = f"/seeds/{index}"
+        _graph_schema(seed, f"{base}/schemaVersion")
+        ordinal = _graph_u32(
+            _graph_field(seed, "seed_ordinal", f"{base}/seedOrdinal"),
+            f"{base}/seedOrdinal",
+        )
+        if ordinal != index:
+            _graph_refuse("graph_corrupt", f"{base}/seedOrdinal")
+        score = _graph_field(seed, "query_score", f"{base}/queryScore")
+        if score is not None and (
+            isinstance(score, bool)
+            or not isinstance(score, (int, float))
+            or not math.isfinite(float(score))
+        ):
+            _graph_refuse("graph_corrupt", f"{base}/queryScore")
+        seeds.append(
+            ResolvedGraphSeedV1(
+                schema_version=1,
+                logical_id=_graph_string(
+                    _graph_field(seed, "logical_id", f"{base}/logicalId"),
+                    f"{base}/logicalId",
+                ),
+                seed_ordinal=ordinal,
+                query_score=None if score is None else float(score),
+            )
+        )
+
+    target_values = _graph_list(_graph_field(result, "targets", "/targets"), "/targets")
+    targets: list[GraphTargetV1] = []
+    for index, target in enumerate(target_values):
+        base = f"/targets/{index}"
+        _graph_schema(target, f"{base}/schemaVersion")
+        targets.append(
+            GraphTargetV1(
+                schema_version=1,
+                logical_id=_graph_string(
+                    _graph_field(target, "logical_id", f"{base}/logicalId"),
+                    f"{base}/logicalId",
+                ),
+                kind=_graph_string(_graph_field(target, "kind", f"{base}/kind"), f"{base}/kind"),
+                body=_graph_string(_graph_field(target, "body", f"{base}/body"), f"{base}/body"),
+                write_cursor=_graph_u64(
+                    _graph_field(target, "write_cursor", f"{base}/writeCursor"),
+                    f"{base}/writeCursor",
+                ),
+                origin=_map_graph_origin(
+                    _graph_field(target, "origin", f"{base}/origin"), f"{base}/origin"
+                ),
+            )
+        )
+
+    complete = _graph_field(result, "complete", "/complete")
+    if complete is not True:
+        _graph_refuse("graph_corrupt", "/complete")
+    work_units = _graph_u64(_graph_field(result, "work_units", "/workUnits"), "/workUnits")
+    degradation_values = _graph_list(
+        _graph_field(result, "degradation_codes", "/degradationCodes"),
+        "/degradationCodes",
+    )
+    degradation_codes: tuple[GraphExpansionDegradationCodeV1, ...] = tuple(
+        cast(
+            GraphExpansionDegradationCodeV1,
+            _graph_enum(
+                value,
+                {
+                    "query_seed_text_fallback",
+                    "projection_legacy_unverified",
+                    "projection_processing",
+                    "projection_blocked",
+                    "projection_deferred",
+                    "projection_degraded",
+                },
+                f"/degradationCodes/{index}",
+            ),
+        )
+        for index, value in enumerate(degradation_values)
+    )
+
+    for index, target in enumerate(targets):
+        ordinal = target.origin.seed_ordinal
+        if ordinal >= len(seeds):
+            _graph_refuse("graph_corrupt", f"/targets/{index}/origin/seedOrdinal")
+        if target.origin.seed_logical_id != seeds[ordinal].logical_id:
+            _graph_refuse("graph_corrupt", f"/targets/{index}/origin/seedLogicalId")
+        if target.origin.target_logical_id != target.logical_id:
+            _graph_refuse("graph_corrupt", f"/targets/{index}/origin/targetLogicalId")
+
+    explanation_value = _graph_field(result, "explanation", "/explanation")
+    explanation: GraphExpansionExplanationV1 | None = None
+    if explanation_value is not None:
+        base = "/explanation"
+        _graph_schema(explanation_value, f"{base}/schemaVersion")
+        per_target_values = _graph_list(
+            _graph_field(explanation_value, "per_target", f"{base}/perTarget"),
+            f"{base}/perTarget",
+        )
+        if len(per_target_values) != len(targets):
+            _graph_refuse("graph_corrupt", f"{base}/perTarget")
+        per_target: list[GraphTargetExplanationV1] = []
+        for index, item in enumerate(per_target_values):
+            item_base = f"{base}/perTarget/{index}"
+            _graph_schema(item, f"{item_base}/schemaVersion")
+            target_index = _graph_u32(
+                _graph_field(item, "target_index", f"{item_base}/targetIndex"),
+                f"{item_base}/targetIndex",
+            )
+            if target_index != index:
+                _graph_refuse("graph_corrupt", f"{item_base}/targetIndex")
+            origin = _map_graph_origin(
+                _graph_field(item, "origin", f"{item_base}/origin"),
+                f"{item_base}/origin",
+            )
+            if origin != targets[index].origin:
+                _graph_refuse("graph_corrupt", f"{item_base}/origin")
+            per_target.append(
+                GraphTargetExplanationV1(
+                    schema_version=1,
+                    target_index=target_index,
+                    origin=origin,
+                    lifecycle_state=cast(
+                        Any,
+                        _graph_enum(
+                            _graph_field(item, "lifecycle_state", f"{item_base}/lifecycleState"),
+                            {"node_pending", "node_active", "node_deleted", "edge_valid"},
+                            f"{item_base}/lifecycleState",
+                        ),
+                    ),
+                    dependency_state=cast(
+                        Any,
+                        _graph_enum(
+                            _graph_field(item, "dependency_state", f"{item_base}/dependencyState"),
+                            {"not_applicable", "not_registered", "registered"},
+                            f"{item_base}/dependencyState",
+                        ),
+                    ),
+                )
+            )
+        explanation_degradations = tuple(
+            cast(GraphExpansionDegradationCodeV1, value)
+            for value in _graph_list(
+                _graph_field(
+                    explanation_value,
+                    "degradation_codes",
+                    f"{base}/degradationCodes",
+                ),
+                f"{base}/degradationCodes",
+            )
+        )
+        if explanation_degradations != degradation_codes:
+            _graph_refuse("graph_corrupt", f"{base}/degradationCodes")
+        explanation = GraphExpansionExplanationV1(
+            schema_version=1,
+            correlation_id=_graph_string(
+                _graph_field(explanation_value, "correlation_id", f"{base}/correlationId"),
+                f"{base}/correlationId",
+            ),
+            seed_source=cast(
+                Any,
+                _graph_enum(
+                    _graph_field(explanation_value, "seed_source", f"{base}/seedSource"),
+                    {"query", "explicit"},
+                    f"{base}/seedSource",
+                ),
+            ),
+            read_mode=cast(
+                Any,
+                _graph_enum(
+                    _graph_field(explanation_value, "read_mode", f"{base}/readMode"),
+                    {"current", "frozen"},
+                    f"{base}/readMode",
+                ),
+            ),
+            projection_generation_id=(
+                None
+                if _graph_field(
+                    explanation_value,
+                    "projection_generation_id",
+                    f"{base}/projectionGenerationId",
+                )
+                is None
+                else _graph_string(
+                    _graph_field(
+                        explanation_value,
+                        "projection_generation_id",
+                        f"{base}/projectionGenerationId",
+                    ),
+                    f"{base}/projectionGenerationId",
+                )
+            ),
+            projection_origin=cast(
+                Any,
+                _graph_enum(
+                    _graph_field(
+                        explanation_value, "projection_origin", f"{base}/projectionOrigin"
+                    ),
+                    {"not_applicable", "fresh", "legacy_unverified", "configuration", "rebuild"},
+                    f"{base}/projectionOrigin",
+                ),
+            ),
+            projection_readiness=cast(
+                Any,
+                _graph_enum(
+                    _graph_field(
+                        explanation_value,
+                        "projection_readiness",
+                        f"{base}/projectionReadiness",
+                    ),
+                    {"not_applicable", "ready", "processing", "blocked", "deferred", "degraded"},
+                    f"{base}/projectionReadiness",
+                ),
+            ),
+            degradation_codes=degradation_codes,
+            per_target=tuple(per_target),
+        )
+
+    return GraphExpandResultV1(
+        schema_version=1,
+        seeds=tuple(seeds),
+        targets=tuple(targets),
+        complete=True,
+        work_units=work_units,
+        degradation_codes=degradation_codes,
         explanation=explanation,
     )
 
@@ -183,9 +518,7 @@ def _require_evidence_schema(value: object, path: str) -> None:
         _evidence_response_error("unsupported_schema_version", path)
 
 
-def _require_evidence_variant(
-    value: object, allowed: set[str], path: str
-) -> None:
+def _require_evidence_variant(value: object, allowed: set[str], path: str) -> None:
     if not isinstance(value, str) or value not in allowed:
         _evidence_response_error("evidence_corrupt", path)
 
@@ -193,11 +526,7 @@ def _require_evidence_variant(
 def _require_u32(value: object, path: str, *, optional: bool = True) -> None:
     if optional and value is None:
         return
-    if (
-        not isinstance(value, int)
-        or isinstance(value, bool)
-        or not 0 <= value <= 2**32 - 1
-    ):
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 2**32 - 1:
         _evidence_response_error("evidence_corrupt", path)
 
 
@@ -216,9 +545,7 @@ def _require_nonempty_string(value: object, path: str) -> None:
 
 
 def _trace_response_error(reason: str, path: str) -> NoReturn:
-    raise DependencyTraceError(
-        f"{reason} at {path}", reason=reason, field_path=path
-    )
+    raise DependencyTraceError(f"{reason} at {path}", reason=reason, field_path=path)
 
 
 def _trace_object(value: object, path: str) -> dict[str, Any]:
@@ -256,21 +583,13 @@ def _trace_id(value: object, path: str) -> str:
 
 
 def _trace_u32(value: object, path: str) -> int:
-    if (
-        not isinstance(value, int)
-        or isinstance(value, bool)
-        or not 0 <= value <= 2**32 - 1
-    ):
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 2**32 - 1:
         _trace_response_error("trace_corrupt", path)
     return value
 
 
 def _trace_i64(value: object, path: str) -> int:
-    if (
-        not isinstance(value, int)
-        or isinstance(value, bool)
-        or not -(2**63) <= value <= 2**63 - 1
-    ):
+    if not isinstance(value, int) or isinstance(value, bool) or not -(2**63) <= value <= 2**63 - 1:
         _trace_response_error("trace_corrupt", path)
     return value
 
@@ -337,9 +656,10 @@ def _decode_dependency_trace_response(encoded: str) -> DependencyTraceResultV1:
             _trace_required(node, "lifecycle", lifecycle_path), lifecycle_path
         )
         _trace_schema(lifecycle, f"{lifecycle_path}/schemaVersion")
-        if _trace_required(
-            lifecycle, "artifactClass", f"{lifecycle_path}/artifactClass"
-        ) != artifact_class:
+        if (
+            _trace_required(lifecycle, "artifactClass", f"{lifecycle_path}/artifactClass")
+            != artifact_class
+        ):
             _trace_response_error("trace_corrupt", f"{lifecycle_path}/artifactClass")
         state = lifecycle.get("state")
         if artifact_class == "node":
@@ -359,9 +679,7 @@ def _decode_dependency_trace_response(encoded: str) -> DependencyTraceResultV1:
                     artifact_class=artifact_class,
                     state=state,
                     superseded=_trace_bool(
-                        _trace_required(
-                            lifecycle, "superseded", f"{lifecycle_path}/superseded"
-                        ),
+                        _trace_required(lifecycle, "superseded", f"{lifecycle_path}/superseded"),
                         f"{lifecycle_path}/superseded",
                     ),
                     valid_at_effective=_trace_bool(
@@ -438,9 +756,7 @@ def _decode_dependency_trace_response(encoded: str) -> DependencyTraceResultV1:
             if node.role != "derived":
                 _trace_response_error("trace_corrupt", f"/nodes/{index + 1}/role")
             if edge.source_revision_id != root:
-                _trace_response_error(
-                    "trace_corrupt", f"/dependencyEdges/{index}/sourceRevisionId"
-                )
+                _trace_response_error("trace_corrupt", f"/dependencyEdges/{index}/sourceRevisionId")
             if edge.derived_revision_id != node.artifact_revision_id:
                 _trace_response_error(
                     "trace_corrupt", f"/dependencyEdges/{index}/derivedRevisionId"
@@ -453,14 +769,10 @@ def _decode_dependency_trace_response(encoded: str) -> DependencyTraceResultV1:
                     "trace_corrupt", f"/dependencyEdges/{index}/derivedRevisionId"
                 )
             if edge.source_revision_id != node.artifact_revision_id:
-                _trace_response_error(
-                    "trace_corrupt", f"/dependencyEdges/{index}/sourceRevisionId"
-                )
+                _trace_response_error("trace_corrupt", f"/dependencyEdges/{index}/sourceRevisionId")
     if nodes[1:] != sorted(nodes[1:], key=lambda item: item.artifact_revision_id):
         _trace_response_error("trace_corrupt", "/nodes")
-    if edges != sorted(
-        edges, key=lambda item: (item.derived_revision_id, item.dependency_id)
-    ):
+    if edges != sorted(edges, key=lambda item: (item.derived_revision_id, item.dependency_id)):
         _trace_response_error("trace_corrupt", "/dependencyEdges")
 
     boundary_value = _trace_object(
@@ -470,16 +782,15 @@ def _decode_dependency_trace_response(encoded: str) -> DependencyTraceResultV1:
     projection_generation_id = _trace_required(
         boundary_value, "projectionGenerationId", "/readBoundary/projectionGenerationId"
     )
-    if not isinstance(projection_generation_id, str) or re.fullmatch(
-        r"pgen1:[0-9a-f]{32}", projection_generation_id
-    ) is None:
+    if (
+        not isinstance(projection_generation_id, str)
+        or re.fullmatch(r"pgen1:[0-9a-f]{32}", projection_generation_id) is None
+    ):
         _trace_response_error("trace_corrupt", "/readBoundary/projectionGenerationId")
     boundary = TraceReadBoundaryV1(
         schema_version=1,
         effective_at_epoch_s=_trace_i64(
-            _trace_required(
-                boundary_value, "effectiveAtEpochS", "/readBoundary/effectiveAtEpochS"
-            ),
+            _trace_required(boundary_value, "effectiveAtEpochS", "/readBoundary/effectiveAtEpochS"),
             "/readBoundary/effectiveAtEpochS",
         ),
         observed_write_boundary=_trace_u64(
@@ -554,7 +865,9 @@ def _map_native_evidence_search(result: Any) -> EvidenceSearchResultV1:
 
 def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
     _require_evidence_schema(value.schema_version, "/schemaVersion")
-    _require_evidence_schema(value.projection_origin.schema_version, "/projectionOrigin/schemaVersion")
+    _require_evidence_schema(
+        value.projection_origin.schema_version, "/projectionOrigin/schemaVersion"
+    )
     contribution = value.retrieval_contribution
     _require_evidence_schema(contribution.schema_version, "/retrievalContribution/schemaVersion")
     dependency = value.dependency
@@ -622,8 +935,7 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
         _evidence_response_error("evidence_corrupt", "/projectionOrigin/graphOrigin")
     if graph_kind is not None:
         _require_evidence_variant(
-            graph_kind, {"edge_seed", "traversal"},
-            "/projectionOrigin/graphOrigin/kind"
+            graph_kind, {"edge_seed", "traversal"}, "/projectionOrigin/graphOrigin/kind"
         )
         edge_revision = value.projection_origin.graph_edge_artifact_revision_id
         hop_count = value.projection_origin.graph_hop_count
@@ -631,13 +943,9 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
             edge_revision, "/projectionOrigin/graphOrigin/edgeArtifactRevisionId"
         )
         if graph_kind == "edge_seed" and hop_count is not None:
-            _evidence_response_error(
-                "evidence_corrupt", "/projectionOrigin/graphOrigin/hopCount"
-            )
+            _evidence_response_error("evidence_corrupt", "/projectionOrigin/graphOrigin/hopCount")
         if graph_kind == "traversal":
-            _require_u32(
-                hop_count, "/projectionOrigin/graphOrigin/hopCount", optional=False
-            )
+            _require_u32(hop_count, "/projectionOrigin/graphOrigin/hopCount", optional=False)
     for name, wire_name in [
         ("vector_rank", "vectorRank"),
         ("text_rank", "textRank"),
@@ -682,9 +990,7 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
         if value.projection_origin.graph_origin_kind is None
         else EvidenceGraphOriginV1(
             kind=value.projection_origin.graph_origin_kind,
-            edge_artifact_revision_id=(
-                value.projection_origin.graph_edge_artifact_revision_id
-            ),
+            edge_artifact_revision_id=(value.projection_origin.graph_edge_artifact_revision_id),
             hop_count=value.projection_origin.graph_hop_count,
         )
     )
@@ -733,12 +1039,11 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
                 dependency_id=dependency.dependency_id,
                 source_revision_id=dependency.source_revision_id,
                 derived_revision_id=dependency.derived_revision_id,
-                registered_dependency_generation=(
-                    dependency.registered_dependency_generation
-                ),
+                registered_dependency_generation=(dependency.registered_dependency_generation),
             )
         ),
     )
+
 
 _KWARG_FIELDS = {
     "embedder_pool_size",
@@ -766,9 +1071,7 @@ def _validate_id_list(name: str, value: object) -> list[int]:
     ``SearchHit.id``. ``bool`` is rejected explicitly (it is an int subclass that
     PyO3 would otherwise coerce silently)."""
     if not isinstance(value, list):
-        raise TypeError(
-            f"{name} must be a list of non-negative ints, got {type(value).__name__!r}"
-        )
+        raise TypeError(f"{name} must be a list of non-negative ints, got {type(value).__name__!r}")
     for item in value:
         if not isinstance(item, int) or isinstance(item, bool):
             raise TypeError(
@@ -801,24 +1104,17 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
     hit's contribution; ``None`` = graceful-absent / neutral), symmetric with the
     TypeScript ``perHit`` mapping.
     """
+
     def require_u64(value: object, path: str, *, optional: bool = False) -> None:
         if optional and value is None:
             return
-        if (
-            not isinstance(value, int)
-            or isinstance(value, bool)
-            or not 0 <= value <= 2**64 - 1
-        ):
+        if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 2**64 - 1:
             _invalid_explanation(path)
 
     def require_u32(value: object, path: str) -> None:
         if value is None:
             return
-        if (
-            not isinstance(value, int)
-            or isinstance(value, bool)
-            or not 0 <= value <= 2**32 - 1
-        ):
+        if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 2**32 - 1:
             _invalid_explanation(path)
 
     def require_finite(value: object, path: str, *, optional: bool = False) -> None:
@@ -845,9 +1141,7 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
     require_finite(getattr(p, "confidence", None), "/confidence", optional=True)
     native_structural = getattr(p, "structural", None)
     structural = (
-        _map_structural_explanation(native_structural)
-        if native_structural is not None
-        else None
+        _map_structural_explanation(native_structural) if native_structural is not None else None
     )
     return PerHitExplain(
         id=p.id,
@@ -868,9 +1162,7 @@ def _invalid_explanation(path: str) -> NoReturn:
     raise ValueError(f"invalid explanation response at {path}")
 
 
-def _map_candidate_native_explanation(
-    value: Any, native_results: Sequence[Any]
-) -> Explanation:
+def _map_candidate_native_explanation(value: Any, native_results: Sequence[Any]) -> Explanation:
     def require_u32(candidate: object, path: str, *, positive: bool = False) -> int:
         if (
             not isinstance(candidate, int)
@@ -915,9 +1207,7 @@ def _map_candidate_native_explanation(
     correlation = getattr(value, "correlation_id", "")
     if hasattr(value, "correlation_id") and (
         not isinstance(correlation, str)
-        or not re.fullmatch(
-            r"(?:q[0-9]+|x[0-9a-f]{32})-(?:0|[1-9][0-9]*)", correlation
-        )
+        or not re.fullmatch(r"(?:q[0-9]+|x[0-9a-f]{32})-(?:0|[1-9][0-9]*)", correlation)
     ):
         _invalid_explanation("/correlationId")
     native_per_hit = getattr(value, "per_hit", None)
@@ -1031,9 +1321,7 @@ def _validate_frozen_trace_context(value: Any) -> FrozenReadContextV1:
         or isinstance(context.schema_version, bool)
         or context.schema_version != 1
     ):
-        _frozen_trace_error(
-            "unsupported_schema_version", "/context/context/schemaVersion"
-        )
+        _frozen_trace_error("unsupported_schema_version", "/context/context/schemaVersion")
     view = context.view
     if not isinstance(view, ReadView):
         _frozen_trace_error("context_invalid", "/context/context/view")
@@ -1075,26 +1363,18 @@ def _validate_frozen_trace_context(value: Any) -> FrozenReadContextV1:
     ):
         candidate = getattr(eligibility, name, None)
         if candidate is not None and not isinstance(candidate, str):
-            _frozen_trace_error(
-                "context_invalid", f"/context/context/eligibility/{path}"
-            )
+            _frozen_trace_error("context_invalid", f"/context/context/eligibility/{path}")
     if eligibility.created_after is not None and (
         not isinstance(eligibility.created_after, int)
         or isinstance(eligibility.created_after, bool)
         or not -(2**63) <= eligibility.created_after < 2**63
     ):
-        _frozen_trace_error(
-            "context_invalid", "/context/context/eligibility/createdAfter"
-        )
+        _frozen_trace_error("context_invalid", "/context/context/eligibility/createdAfter")
     attributes = eligibility.attributes
     if not isinstance(attributes, (list, tuple)):
-        _frozen_trace_error(
-            "context_invalid", "/context/context/eligibility/attributes"
-        )
+        _frozen_trace_error("context_invalid", "/context/context/eligibility/attributes")
     if len(attributes) > 64:
-        _frozen_trace_error(
-            "context_invalid", "/context/context/eligibility/attributes"
-        )
+        _frozen_trace_error("context_invalid", "/context/context/eligibility/attributes")
     for index, pair in enumerate(attributes):
         if (
             not isinstance(pair, (list, tuple))
@@ -1434,9 +1714,7 @@ class Engine:
             closure_operation_ids=tuple(value.closure_operation_ids),
         )
 
-    def dependencies_for_source(
-        self, request: DependencySourceLookupV1
-    ) -> DependencyListV1:
+    def dependencies_for_source(self, request: DependencySourceLookupV1) -> DependencyListV1:
         """Return at most 100 dependencies in stable derived-revision order."""
         value = self._native.dependencies_for_source(request)
         return DependencyListV1(
@@ -1468,9 +1746,7 @@ class Engine:
             registered_dependency_generation=value.registered_dependency_generation,
         )
 
-    def read_dependency_closure(
-        self, request: ClosureLookupV1
-    ) -> ClosureStatusV1 | None:
+    def read_dependency_closure(self, request: ClosureLookupV1) -> ClosureStatusV1 | None:
         """Return current closure status, or ``None`` for an absent opaque ID."""
         value = self._native.read_dependency_closure(request)
         if value is None:
@@ -1509,9 +1785,7 @@ class Engine:
             ),
         )
 
-    def transition(
-        self, logical_id: str, to_state: str, reason: str | None = None
-    ) -> None:
+    def transition(self, logical_id: str, to_state: str, reason: str | None = None) -> None:
         """OPP-12 Phase-1 (0.8.19 Slice 10) — the ``transition`` lifecycle verb.
 
         Move a governed node between existence states per the engine-enforced
@@ -1690,28 +1964,20 @@ class Engine:
                 f"rerank_depth must be a non-negative integer, got {type(rerank_depth).__name__!r}"
             )
         if rerank_depth < 0:
-            raise ValueError(
-                f"rerank_depth must be >= 0, got {rerank_depth!r}"
-            )
+            raise ValueError(f"rerank_depth must be >= 0, got {rerank_depth!r}")
         if not isinstance(use_graph_arm, bool):
-            raise TypeError(
-                f"use_graph_arm must be a bool, got {type(use_graph_arm).__name__!r}"
-            )
+            raise TypeError(f"use_graph_arm must be a bool, got {type(use_graph_arm).__name__!r}")
         # 0.8.8 EXP-OBS (Slice 10) — validate `explain` before the native call,
         # mirroring use_graph_arm + the TS `search` guard (cross-SDK parity).
         if not isinstance(explain, bool):
-            raise TypeError(
-                f"explain must be a bool, got {type(explain).__name__!r}"
-            )
+            raise TypeError(f"explain must be a bool, got {type(explain).__name__!r}")
         # 0.8.5 (codex §9 P2-2) — validate the new α/pool_n knobs before the native
         # call, mirroring the rerank_depth guard and the TS `search` validation
         # (cross-SDK parity). bool is rejected explicitly (it is an int/float
         # subclass that PyO3 would otherwise coerce silently).
         if alpha is not None:
             if isinstance(alpha, bool) or not isinstance(alpha, (int, float)):
-                raise TypeError(
-                    f"alpha must be a finite number, got {type(alpha).__name__!r}"
-                )
+                raise TypeError(f"alpha must be a finite number, got {type(alpha).__name__!r}")
             if not math.isfinite(alpha):
                 raise ValueError(f"alpha must be a finite number, got {alpha!r}")
         if pool_n is not None:
@@ -1722,9 +1988,7 @@ class Engine:
             if pool_n < 0:
                 raise ValueError(f"pool_n must be >= 0, got {pool_n!r}")
         if not isinstance(view, (ReadView, type(None))):
-            raise TypeError(
-                f"view must be a ReadView or None, got {type(view).__name__!r}"
-            )
+            raise TypeError(f"view must be a ReadView or None, got {type(view).__name__!r}")
         limit = _validate_ranked_result_limit("limit", limit)
         native_view = _to_native_view(view)
         # 0.8.11 Slice 40 (#17) — accept the unified Filter on the vec0 search
@@ -1793,10 +2057,7 @@ class Engine:
     def freeze_read_context(self, context: ReadContextV1) -> FrozenReadContextV1:
         """Mint a restart-stable context bound to this database's read state."""
         if not isinstance(context, ReadContextV1):
-            raise TypeError(
-                "context must be a ReadContextV1, "
-                f"got {type(context).__name__!r}"
-            )
+            raise TypeError(f"context must be a ReadContextV1, got {type(context).__name__!r}")
         native = self._native.freeze_read_context(_to_native_read_context(context))
         if native.schema_version != 1 or native.context.schema_version != 1:
             raise FrozenReadError(
@@ -1821,19 +2082,14 @@ class Engine:
             schema_version=native.schema_version,
         )
 
-    def trace_dependency(
-        self, request: DependencyTraceRequestV1
-    ) -> DependencyTraceResultV1:
+    def trace_dependency(self, request: DependencyTraceRequestV1) -> DependencyTraceResultV1:
         """Trace one reciprocal registered dependency under a frozen context."""
         if not isinstance(request, DependencyTraceRequestV1):
             raise TypeError("request must be a DependencyTraceRequestV1")
         request.__post_init__()
         if (
             not isinstance(request.root_revision_id, str)
-            or re.fullmatch(
-                r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", request.root_revision_id
-            )
-            is None
+            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", request.root_revision_id) is None
             or request.root_revision_id.startswith("_fdb:")
         ):
             _trace_response_error("trace_root_invalid", "/rootRevisionId")
@@ -1842,13 +2098,17 @@ class Engine:
         if not isinstance(request.context, FrozenReadContextV1):
             _trace_response_error("trace_corrupt", "/context")
         context = _validate_frozen_trace_context(request.context)
-        if not isinstance(request.max_relations, int) or isinstance(
-            request.max_relations, bool
-        ) or not 1 <= request.max_relations <= 100:
+        if (
+            not isinstance(request.max_relations, int)
+            or isinstance(request.max_relations, bool)
+            or not 1 <= request.max_relations <= 100
+        ):
             _trace_response_error("trace_limit_invalid", "/maxRelations")
-        if not isinstance(request.max_work_units, int) or isinstance(
-            request.max_work_units, bool
-        ) or not 1 <= request.max_work_units <= 101:
+        if (
+            not isinstance(request.max_work_units, int)
+            or isinstance(request.max_work_units, bool)
+            or not 1 <= request.max_work_units <= 101
+        ):
             _trace_response_error("trace_limit_invalid", "/maxWorkUnits")
         encoded = self._native.trace_dependency(
             request.root_revision_id,
@@ -1874,17 +2134,14 @@ class Engine:
         """Search under an Engine-authenticated frozen validity/eligibility context."""
         if not isinstance(context, FrozenReadContextV1):
             raise TypeError(
-                "context must be a FrozenReadContextV1, "
-                f"got {type(context).__name__!r}"
+                f"context must be a FrozenReadContextV1, got {type(context).__name__!r}"
             )
         native_context = _to_native_frozen_context(context)
         self._native.validate_frozen_read_context(native_context)
         if not isinstance(rerank_depth, int) or isinstance(rerank_depth, bool):
             raise TypeError("rerank_depth must be a non-negative integer")
         if rerank_depth < 0:
-            raise InvalidArgumentError(
-                f"rerank_depth must be >= 0, got {rerank_depth!r}"
-            )
+            raise InvalidArgumentError(f"rerank_depth must be >= 0, got {rerank_depth!r}")
         if not isinstance(use_graph_arm, bool):
             raise TypeError("use_graph_arm must be a bool")
         if isinstance(alpha, bool) or not isinstance(alpha, (int, float)):
@@ -1924,23 +2181,17 @@ class Engine:
                 field_path="/schemaVersion",
             )
         _validate_ranked_result_limit("limit", request.limit)
-        if not isinstance(request.rerank_depth, int) or isinstance(
-            request.rerank_depth, bool
-        ):
+        if not isinstance(request.rerank_depth, int) or isinstance(request.rerank_depth, bool):
             raise TypeError("rerank_depth must be a non-negative integer")
         if request.rerank_depth < 0:
-            raise InvalidArgumentError(
-                f"rerank_depth must be >= 0, got {request.rerank_depth!r}"
-            )
+            raise InvalidArgumentError(f"rerank_depth must be >= 0, got {request.rerank_depth!r}")
         if request.rerank_depth > 2**32 - 1:
             raise InvalidArgumentError(
                 f"rerank_depth must be <= 4294967295, got {request.rerank_depth!r}"
             )
         if not isinstance(request.use_graph_arm, bool):
             raise TypeError("use_graph_arm must be a bool")
-        if isinstance(request.alpha, bool) or not isinstance(
-            request.alpha, (int, float)
-        ):
+        if isinstance(request.alpha, bool) or not isinstance(request.alpha, (int, float)):
             raise TypeError("alpha must be a finite number")
         if not math.isfinite(request.alpha):
             raise ValueError(f"alpha must be a finite number, got {request.alpha!r}")
@@ -1949,9 +2200,7 @@ class Engine:
         if request.pool_n < 0:
             raise InvalidArgumentError(f"pool_n must be >= 0, got {request.pool_n!r}")
         if request.pool_n > 2**32 - 1:
-            raise InvalidArgumentError(
-                f"pool_n must be <= 4294967295, got {request.pool_n!r}"
-            )
+            raise InvalidArgumentError(f"pool_n must be <= 4294967295, got {request.pool_n!r}")
         if not isinstance(request.include_explanation, bool):
             raise TypeError("include_explanation must be a bool")
         native_context = _to_native_frozen_context(request.context)
@@ -1993,8 +2242,7 @@ class Engine:
         """Search and expand while enforcing one frozen read context."""
         if not isinstance(context, FrozenReadContextV1):
             raise TypeError(
-                "context must be a FrozenReadContextV1, "
-                f"got {type(context).__name__!r}"
+                f"context must be a FrozenReadContextV1, got {type(context).__name__!r}"
             )
         native_context = _to_native_frozen_context(context)
         self._native.validate_frozen_read_context(native_context)
@@ -2081,9 +2329,7 @@ class Engine:
         are prefixes of larger limits; this does not extend to hybrid search.
         """
         if not isinstance(view, (ReadView, type(None))):
-            raise TypeError(
-                f"view must be a ReadView or None, got {type(view).__name__!r}"
-            )
+            raise TypeError(f"view must be a ReadView or None, got {type(view).__name__!r}")
         limit = _validate_ranked_result_limit("limit", limit)
         result = self._native.search_text_only(query, view=_to_native_view(view), limit=limit)
         fallback = result.soft_fallback
@@ -2134,9 +2380,7 @@ class Engine:
         stable id, and ``record_feedback`` appends correlated agent labels.
         The query text and ``source_id`` are NEVER written (privacy, ADR §C)."""
         if not isinstance(sink_path, str):
-            raise TypeError(
-                f"sink_path must be a str, got {type(sink_path).__name__!r}"
-            )
+            raise TypeError(f"sink_path must be a str, got {type(sink_path).__name__!r}")
         self._native.enable_telemetry(sink_path)
 
     def last_telemetry_query_id(self) -> str | None:
@@ -2159,13 +2403,9 @@ class Engine:
         ``label_source`` is the caller-declared label origin (e.g.
         ``"agent:hermes"``). Raises when telemetry is off."""
         if not isinstance(query_id, str):
-            raise TypeError(
-                f"query_id must be a str, got {type(query_id).__name__!r}"
-            )
+            raise TypeError(f"query_id must be a str, got {type(query_id).__name__!r}")
         if not isinstance(label_source, str):
-            raise TypeError(
-                f"label_source must be a str, got {type(label_source).__name__!r}"
-            )
+            raise TypeError(f"label_source must be a str, got {type(label_source).__name__!r}")
         relevant = _validate_id_list("relevant_ids", relevant_ids)
         irrelevant = _validate_id_list("irrelevant_ids", irrelevant_ids)
         self._native.record_feedback(query_id, relevant, irrelevant, label_source)

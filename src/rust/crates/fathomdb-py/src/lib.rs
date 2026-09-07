@@ -50,7 +50,8 @@ use fathomdb_embedder::{
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
-    encode_dependency_trace_result_v1, rerank_passages as rust_rerank_passages, ActuationBatchV1,
+    decode_graph_expand_request_v1, encode_dependency_trace_result_v1,
+    encode_graph_expand_result_v1, rerank_passages as rust_rerank_passages, ActuationBatchV1,
     ActuationError as RustActuationError, ActuationOperationV1, ActuationOutcomeV1,
     ActuationReceiptV1 as RustActuationReceiptV1, ArtifactRevisionId,
     BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ClosureLookupV1, ClosureRootV1,
@@ -153,6 +154,7 @@ create_exception!(_fathomdb, FrozenReadError, EngineError);
 create_exception!(_fathomdb, EvidenceError, EngineError);
 create_exception!(_fathomdb, PageError, EngineError);
 create_exception!(_fathomdb, DependencyTraceError, EngineError);
+create_exception!(_fathomdb, GraphExpansionError, EngineError);
 // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.
 create_exception!(_fathomdb, VectorEquivalenceMismatchError, EngineError);
 // Slice 20 (G5/G6) — traversal depth > 3 or other out-of-range argument.
@@ -312,6 +314,7 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
         RustEngineError::DependencyTrace(error) => {
             dependency_trace_error(error.reason.as_str(), &error.field_path)
         }
+        RustEngineError::GraphExpansion(error) => graph_expansion_error_to_py(&error),
         RustEngineError::Page(error) => {
             let exc =
                 PageError::new_err(format!("{} at {}", error.reason.as_str(), error.field_path));
@@ -388,6 +391,16 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
         #[allow(unreachable_patterns)]
         operator_only => EngineError::new_err(operator_only.to_string()),
     }
+}
+
+fn graph_expansion_error_to_py(error: &fathomdb_engine::GraphExpansionErrorV1) -> PyErr {
+    let exc = GraphExpansionError::new_err(error.to_string());
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("reason", error.reason.as_str());
+        let _ = value.setattr("field_path", &error.field_path);
+    });
+    exc
 }
 
 fn projection_generation_error_to_py(error: &RustProjectionGenerationError) -> PyErr {
@@ -2660,6 +2673,18 @@ impl PyEngine {
         let engine = Arc::clone(&self.inner);
         let context = context.inner.clone();
         call_engine(py, move || engine.validate_frozen_read_context_for_binding(&context))
+    }
+
+    /// Execute one canonical JSON graph-expansion request.
+    fn graph_expand(&self, py: Python<'_>, request_json: String) -> PyResult<String> {
+        validate_ffi_string_py(&request_json)?;
+        let request = decode_graph_expand_request_v1(request_json.as_bytes())
+            .map_err(|error| graph_expansion_error_to_py(&error))?;
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(py, move || engine.graph_expand(&request))?;
+        let encoded = encode_graph_expand_result_v1(&result)
+            .map_err(|error| graph_expansion_error_to_py(&error))?;
+        String::from_utf8(encoded).map_err(|_| GraphExpansionError::new_err("graph_corrupt at "))
     }
 
     /// Return canonical version-1 JSON for one governed dependency trace.
@@ -5278,6 +5303,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("EvidenceError", py.get_type::<EvidenceError>())?;
     m.add("PageError", py.get_type::<PageError>())?;
     m.add("DependencyTraceError", py.get_type::<DependencyTraceError>())?;
+    m.add("GraphExpansionError", py.get_type::<GraphExpansionError>())?;
     m.add("InvalidArgumentError", py.get_type::<InvalidArgumentError>())?;
     m.add("VectorEquivalenceMismatchError", py.get_type::<VectorEquivalenceMismatchError>())?;
     m.add("IllegalTransitionError", py.get_type::<IllegalTransitionError>())?;

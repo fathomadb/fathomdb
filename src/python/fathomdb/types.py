@@ -22,9 +22,7 @@ StructuralProjectionOriginV1 = Literal[
     "synchronous_body_fts", "current_dense_generation", "graph_traversal"
 ]
 StructuralDependencyStateV1 = Literal["not_applicable", "not_registered", "registered"]
-StructuralLifecycleStateV1 = Literal[
-    "node_pending", "node_active", "node_deleted", "edge_valid"
-]
+StructuralLifecycleStateV1 = Literal["node_pending", "node_active", "node_deleted", "edge_valid"]
 StructuralDegradationCodeV1 = Literal[
     "soft_fallback_text",
     "soft_fallback_text_edge",
@@ -32,6 +30,23 @@ StructuralDegradationCodeV1 = Literal[
     "projection_blocked",
     "projection_deferred",
     "graph_bound_reached",
+]
+TraversalDirection = Literal["outgoing", "incoming", "both"]
+GraphSeedSourceV1 = Literal["query", "explicit"]
+GraphReadModeV1 = Literal["current", "frozen"]
+GraphProjectionOriginV1 = Literal[
+    "not_applicable", "fresh", "legacy_unverified", "configuration", "rebuild"
+]
+GraphProjectionReadinessV1 = Literal[
+    "not_applicable", "ready", "processing", "blocked", "deferred", "degraded"
+]
+GraphExpansionDegradationCodeV1 = Literal[
+    "query_seed_text_fallback",
+    "projection_legacy_unverified",
+    "projection_processing",
+    "projection_blocked",
+    "projection_deferred",
+    "projection_degraded",
 ]
 
 #: Engine-set dense-projection readiness values. ``"unavailable"`` means an
@@ -43,18 +58,14 @@ DenseReadiness = Literal["unavailable", "embedding", "ready"]
 #: Reason an open engine session cannot use the shared dense runtime. ``"none"``
 #: occurs exactly when :attr:`ProjectionRuntimeStatus.runtime_embedder_available`
 #: is true.
-ProjectionRuntimeUnavailabilityReason = Literal[
-    "none", "no_runtime", "vector_equivalence_disabled"
-]
+ProjectionRuntimeUnavailabilityReason = Literal["none", "no_runtime", "vector_equivalence_disabled"]
 EmbeddingReadinessState = Literal["ready", "processing", "deferred", "blocked"]
 EmbeddingOperation = Literal["graph_edge_body_projection", "vector_projection"]
 
 #: Projection-status dense readiness. ``"not_declared"`` is distinct from
 #: ``"unavailable"``: it means the declaration has no effective
 #: ``searchable→vector`` arm at all.
-ProjectionStatusDenseReadiness = Literal[
-    "not_declared", "unavailable", "embedding", "ready"
-]
+ProjectionStatusDenseReadiness = Literal["not_declared", "unavailable", "embedding", "ready"]
 
 
 class WholeBodySourceLocator(TypedDict):
@@ -342,6 +353,7 @@ class ProjectionRuntimeStatus:
 @dataclass(frozen=True)
 class EmbeddingReadiness:
     """Pure current embedding configuration and outstanding-work state."""
+
     state: EmbeddingReadinessState
     usable_embedder: bool
     pending_count: int
@@ -484,6 +496,140 @@ class FrozenReadContextV1:
 
 
 @dataclass(frozen=True)
+class GraphQuerySeedV1:
+    """Query seed for one bounded graph expansion."""
+
+    schema_version: int
+    type: Literal["query"]
+    text: str
+    ranked_limit: int
+
+
+@dataclass(frozen=True)
+class GraphExplicitSeedV1:
+    """Caller-ordered logical-id seeds for one graph expansion."""
+
+    schema_version: int
+    type: Literal["explicit"]
+    logical_ids: tuple[IdSpace, ...]
+
+
+GraphSeedV1 = Union[GraphQuerySeedV1, GraphExplicitSeedV1]
+
+
+@dataclass(frozen=True)
+class CurrentGraphReadContextV1:
+    """Current read context for one graph expansion."""
+
+    schema_version: int
+    type: Literal["current"]
+    context: ReadContextV1
+
+
+@dataclass(frozen=True)
+class FrozenGraphReadContextV1:
+    """Authenticated frozen read context for one graph expansion."""
+
+    schema_version: int
+    type: Literal["frozen"]
+    context: FrozenReadContextV1
+
+
+GraphReadContextV1 = Union[CurrentGraphReadContextV1, FrozenGraphReadContextV1]
+
+
+@dataclass(frozen=True)
+class GraphExpandRequestV1:
+    """Complete, closed graph-expansion request."""
+
+    schema_version: int
+    seed: GraphSeedV1
+    direction: TraversalDirection
+    edge_kinds: tuple[str, ...]
+    target_kinds: tuple[str, ...]
+    context: GraphReadContextV1
+    max_depth: int
+    result_limit: int
+    max_work_units: str
+    include_explanation: bool
+
+
+@dataclass(frozen=True)
+class ResolvedGraphSeedV1:
+    """One resolved seed in stable seed order."""
+
+    schema_version: int
+    logical_id: str
+    seed_ordinal: int
+    query_score: float | None
+
+
+@dataclass(frozen=True)
+class GraphOriginV1:
+    """Compact deterministic origin for one graph target."""
+
+    schema_version: int
+    seed_logical_id: str
+    seed_ordinal: int
+    predecessor_logical_id: str
+    target_logical_id: str
+    hop_count: int
+    terminal_edge_kind: str
+    terminal_direction: TraversalDirection
+
+
+@dataclass(frozen=True)
+class GraphTargetV1:
+    """One graph-expansion target and its selected origin."""
+
+    schema_version: int
+    logical_id: str
+    kind: str
+    body: str
+    write_cursor: str
+    origin: GraphOriginV1
+
+
+@dataclass(frozen=True)
+class GraphTargetExplanationV1:
+    """Lifecycle and dependency explanation for one target."""
+
+    schema_version: int
+    target_index: int
+    origin: GraphOriginV1
+    lifecycle_state: StructuralLifecycleStateV1
+    dependency_state: StructuralDependencyStateV1
+
+
+@dataclass(frozen=True)
+class GraphExpansionExplanationV1:
+    """Compact optional explanation for a graph expansion."""
+
+    schema_version: int
+    correlation_id: str
+    seed_source: GraphSeedSourceV1
+    read_mode: GraphReadModeV1
+    projection_generation_id: str | None
+    projection_origin: GraphProjectionOriginV1
+    projection_readiness: GraphProjectionReadinessV1
+    degradation_codes: tuple[GraphExpansionDegradationCodeV1, ...]
+    per_target: tuple[GraphTargetExplanationV1, ...]
+
+
+@dataclass(frozen=True)
+class GraphExpandResultV1:
+    """Complete all-or-nothing graph-expansion result."""
+
+    schema_version: int
+    seeds: tuple[ResolvedGraphSeedV1, ...]
+    targets: tuple[GraphTargetV1, ...]
+    complete: bool
+    work_units: str
+    degradation_codes: tuple[GraphExpansionDegradationCodeV1, ...]
+    explanation: GraphExpansionExplanationV1 | None
+
+
+@dataclass(frozen=True)
 class DependencyTraceRequestV1:
     """One-page, one-hop dependency trace under a frozen read context."""
 
@@ -498,13 +644,13 @@ class DependencyTraceRequestV1:
         from fathomdb.errors import DependencyTraceError
 
         def reject(reason: str, path: str) -> None:
-            raise DependencyTraceError(
-                f"{reason} at {path}", reason=reason, field_path=path
-            )
+            raise DependencyTraceError(f"{reason} at {path}", reason=reason, field_path=path)
 
-        if not isinstance(self.schema_version, int) or isinstance(
-            self.schema_version, bool
-        ) or self.schema_version != 1:
+        if (
+            not isinstance(self.schema_version, int)
+            or isinstance(self.schema_version, bool)
+            or self.schema_version != 1
+        ):
             reject("unsupported_schema_version", "/schemaVersion")
 
 
@@ -1262,6 +1408,25 @@ class CounterSnapshot:
 
 
 __all__ = [
+    "CurrentGraphReadContextV1",
+    "FrozenGraphReadContextV1",
+    "GraphExpandRequestV1",
+    "GraphExpandResultV1",
+    "GraphExpansionDegradationCodeV1",
+    "GraphExpansionExplanationV1",
+    "GraphExplicitSeedV1",
+    "GraphOriginV1",
+    "GraphProjectionOriginV1",
+    "GraphProjectionReadinessV1",
+    "GraphQuerySeedV1",
+    "GraphReadContextV1",
+    "GraphReadModeV1",
+    "GraphSeedSourceV1",
+    "GraphSeedV1",
+    "GraphTargetExplanationV1",
+    "GraphTargetV1",
+    "ResolvedGraphSeedV1",
+    "TraversalDirection",
     "ReadView",
     "ReadContextV1",
     "FrozenReadContextV1",

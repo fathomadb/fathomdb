@@ -31,8 +31,7 @@ const SEARCH_ROOTS = [
 function hostIsMusl(): boolean {
   try {
     const report = process.report?.getReport?.() as
-      | { header?: { glibcVersionRuntime?: string } }
-      | undefined;
+      { header?: { glibcVersionRuntime?: string } } | undefined;
     return report?.header?.glibcVersionRuntime == null;
   } catch {
     return false;
@@ -639,11 +638,7 @@ export interface NativeEngine {
   dependencyForDerived(request: unknown): Promise<NativeSourceDependencyV1 | null>;
   readDependencyClosure(request: unknown): Promise<NativeClosureStatusV1 | null>;
   // OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle verbs.
-  transition(
-    logicalId: string,
-    toState: string,
-    reason?: string | null,
-  ): Promise<void>;
+  transition(logicalId: string, toState: string, reason?: string | null): Promise<void>;
   purge(logicalId: string): Promise<void>;
   // 0.8.20 Slice 5d (R-20-E4) — provenance-addressed erasure.
   eraseSource(sourceId: string): Promise<NativeEraseReport>;
@@ -659,6 +654,7 @@ export interface NativeEngine {
   readEmbeddingReadiness(): Promise<NativeEmbeddingReadiness>;
   freezeReadContext(context: NativeReadContextV1): Promise<NativeFrozenReadContextV1>;
   validateFrozenReadContext(context: NativeFrozenReadContextV1): Promise<void>;
+  graphExpand(requestJson: string): Promise<string>;
   traceDependency(
     rootRevisionId: string,
     direction: string,
@@ -712,11 +708,7 @@ export interface NativeEngine {
   ): Promise<NativeSearchResult>;
   // 0.8.18 Slice 5 (#5 vector-equivalence probe) — text-only/FTS-only path +
   // degraded-state observability.
-  searchTextOnly(
-    query: string,
-    view?: NativeReadView,
-    limit?: number,
-  ): Promise<NativeSearchResult>;
+  searchTextOnly(query: string, view?: NativeReadView, limit?: number): Promise<NativeSearchResult>;
   searchProjectedText(
     query: string,
     name: string,

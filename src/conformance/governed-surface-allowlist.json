@@ -54,6 +54,7 @@
     "ingestWithExtractor",
     "consolidate_with_provider",
     "consolidateWithProvider",
+    "graph.expand",
     "graph.neighbors",
     "graph.search_expand",
     "graph.searchExpand",

@@ -117,6 +117,7 @@ from fathomdb._fathomdb import (
 from fathomdb._fathomdb import FrozenReadError as _FrozenReadError
 from fathomdb._fathomdb import EvidenceError as _EvidenceError
 from fathomdb._fathomdb import PageError as _PageError
+from fathomdb._fathomdb import GraphExpansionError as _GraphExpansionError
 
 EngineError = _EngineError
 StorageError = _StorageError
@@ -171,6 +172,8 @@ EvidenceError = _EvidenceError
 PageError = _PageError
 DependencyTraceError = _DependencyTraceError
 setattr(DependencyTraceError, "code", "FDB_DEPENDENCY_TRACE")
+GraphExpansionError = _GraphExpansionError
+setattr(GraphExpansionError, "code", "FDB_GRAPH_EXPANSION")
 
 
 def _install_typed_init(cls: type, fields: tuple[str, ...]) -> None:
@@ -198,7 +201,9 @@ _install_typed_init(
 _install_typed_init(EmbedderDimensionMismatchError, ("stored", "supplied"))
 _install_typed_init(EmbedDevicePolicyError, ("kind", "ordinal"))
 _install_typed_init(RerankerDevicePolicyError, ("kind", "ordinal"))
-_install_typed_init(EmbedderRequiredError, ("code", "operation", "state", "remediations", "documentation_url"))
+_install_typed_init(
+    EmbedderRequiredError, ("code", "operation", "state", "remediations", "documentation_url")
+)
 # 0.8.18 Slice 5 — the query-time refusal carries the divergence `reason`.
 _install_typed_init(VectorEquivalenceMismatchError, ("reason",))
 # OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb payloads.
@@ -217,6 +222,7 @@ _install_typed_init(FrozenReadError, ("reason", "field_path"))
 _install_typed_init(EvidenceError, ("reason", "field_path"))
 _install_typed_init(DependencyTraceError, ("reason", "field_path"))
 _install_typed_init(PageError, ("reason", "field_path"))
+_install_typed_init(GraphExpansionError, ("reason", "field_path"))
 
 
 __all__ = [
@@ -237,6 +243,7 @@ __all__ = [
     "EvidenceError",
     "ExtractorError",
     "FrozenReadError",
+    "GraphExpansionError",
     "PageError",
     "IllegalTransitionError",
     "IncompatibleSchemaVersionError",

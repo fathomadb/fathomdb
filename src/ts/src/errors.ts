@@ -257,6 +257,19 @@ export class DependencyTraceError extends FathomDbError {
   }
 }
 
+export class GraphExpansionError extends FathomDbError {
+  static readonly code = "FDB_GRAPH_EXPANSION";
+  readonly code = GraphExpansionError.code;
+  readonly reason: string;
+  readonly fieldPath: string;
+
+  constructor(message: string, reason: string, fieldPath: string) {
+    super(message);
+    this.reason = reason;
+    this.fieldPath = fieldPath;
+  }
+}
+
 /** Pagination cursor, selector, context, or operational-state refusal. */
 export class PageError extends FathomDbError {
   readonly reason: string;
@@ -391,6 +404,7 @@ type ErrorCode =
   | "FDB_FROZEN_READ"
   | "FDB_EVIDENCE"
   | "FDB_DEPENDENCY_TRACE"
+  | "FDB_GRAPH_EXPANSION"
   | "FDB_DATA_PLANE_INTEGRITY"
   | "FDB_PAGE"
   // Slice 20 — depth > 3 or invalid argument (G5/G6).
@@ -466,7 +480,12 @@ function build(envelope: Envelope): Error {
     case "FDB_EMBEDDER_NOT_CONFIGURED":
       return new EmbedderNotConfiguredError(envelope.message);
     case "FDB_EMBEDDER_REQUIRED":
-      return new EmbedderRequiredError(envelope.message, { operation: String(p.operation ?? ""), state: String(p.state ?? ""), remediations: Array.isArray(p.remediations) ? p.remediations.map(String) : [], documentationUrl: String(p.documentationUrl ?? "") });
+      return new EmbedderRequiredError(envelope.message, {
+        operation: String(p.operation ?? ""),
+        state: String(p.state ?? ""),
+        remediations: Array.isArray(p.remediations) ? p.remediations.map(String) : [],
+        documentationUrl: String(p.documentationUrl ?? ""),
+      });
     case "FDB_KIND_NOT_VECTOR_INDEXED":
       return new KindNotVectorIndexedError(envelope.message);
     case "FDB_EMBEDDER_DIMENSION_MISMATCH":
@@ -545,13 +564,15 @@ function build(envelope: Envelope): Error {
         String(p.fieldPath ?? ""),
       );
     case "FDB_EVIDENCE":
-      return new EvidenceError(
+      return new EvidenceError(envelope.message, String(p.reason ?? ""), String(p.fieldPath ?? ""));
+    case "FDB_DEPENDENCY_TRACE":
+      return new DependencyTraceError(
         envelope.message,
         String(p.reason ?? ""),
         String(p.fieldPath ?? ""),
       );
-    case "FDB_DEPENDENCY_TRACE":
-      return new DependencyTraceError(
+    case "FDB_GRAPH_EXPANSION":
+      return new GraphExpansionError(
         envelope.message,
         String(p.reason ?? ""),
         String(p.fieldPath ?? ""),
@@ -559,18 +580,11 @@ function build(envelope: Envelope): Error {
     case "FDB_DATA_PLANE_INTEGRITY":
       return new FathomDbError(envelope.message);
     case "FDB_PAGE":
-      return new PageError(
-        envelope.message,
-        String(p.reason ?? ""),
-        String(p.fieldPath ?? ""),
-      );
+      return new PageError(envelope.message, String(p.reason ?? ""), String(p.fieldPath ?? ""));
     case "FDB_INVALID_ARGUMENT":
       return new InvalidArgumentError(envelope.message);
     case "FDB_VECTOR_EQUIVALENCE_MISMATCH":
-      return new VectorEquivalenceMismatchError(
-        envelope.message,
-        String(p.reason ?? ""),
-      );
+      return new VectorEquivalenceMismatchError(envelope.message, String(p.reason ?? ""));
     case "FDB_ILLEGAL_TRANSITION":
       return new IllegalTransitionError(envelope.message, {
         fromState: String(p.fromState ?? ""),
@@ -578,10 +592,7 @@ function build(envelope: Envelope): Error {
         legal: Array.isArray(p.legal) ? p.legal.map((s) => String(s)) : [],
       });
     case "FDB_NOT_LIFECYCLE_ADDRESSABLE":
-      return new NotLifecycleAddressableError(
-        envelope.message,
-        String(p.idSpace ?? ""),
-      );
+      return new NotLifecycleAddressableError(envelope.message, String(p.idSpace ?? ""));
     case "FDB_ERASURE_INCOMPLETE":
       return new ErasureIncompleteError(
         envelope.message,

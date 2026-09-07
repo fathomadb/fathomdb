@@ -18,7 +18,10 @@ case-sensitive: ``"outgoing"``, ``"incoming"``, ``"both"``.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, cast
+import json
+import re
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, cast
 
 from fathomdb._fathomdb import NodeRecord as _NativeNodeRecord
 from fathomdb._fathomdb import SearchHit as _NativeSearchHit
@@ -26,20 +29,25 @@ from fathomdb._fathomdb import graph_neighbors as _native_graph_neighbors
 from fathomdb._fathomdb import search_expand as _native_search_expand
 from fathomdb.read import _to_native_view
 from fathomdb.types import (
+    CurrentGraphReadContextV1,
     ExpandedNode,
+    FrozenGraphReadContextV1,
+    GraphExpandRequestV1,
+    GraphExpandResultV1,
+    GraphExplicitSeedV1,
+    GraphQuerySeedV1,
     IdSpace,
     NodeRecord,
+    ReadContextV1,
     ReadView,
     SearchExpandResult,
     SearchHit,
     SoftFallbackBranch,
+    TraversalDirection,
 )
 
 if TYPE_CHECKING:
     from fathomdb.engine import Engine
-
-#: Valid values for the ``direction`` parameter.
-TraversalDirection = Literal["outgoing", "incoming", "both"]
 
 
 def _to_node_record(native: _NativeNodeRecord) -> NodeRecord:
@@ -161,8 +169,7 @@ def search_expand(
         )
     if not 1 <= search_limit <= 100:
         raise InvalidArgumentError(
-            "graph.search_expand search_limit must be an integer in 1..=100, "
-            f"got {search_limit!r}"
+            f"graph.search_expand search_limit must be an integer in 1..=100, got {search_limit!r}"
         )
     native_result = _native_search_expand(
         engine._native,
@@ -189,4 +196,97 @@ def search_expand(
     )
 
 
-__all__ = ["TraversalDirection", "neighbors", "search_expand"]
+def _read_context_wire(context: ReadContextV1) -> dict[str, object]:
+    return {
+        "schemaVersion": context.schema_version,
+        "view": {
+            "includeSuperseded": context.view.include_superseded,
+            "includeInactive": context.view.include_inactive,
+            "includeOutOfWindow": context.view.include_out_of_window,
+            "validAsOf": context.view.valid_as_of,
+        },
+        "eligibility": {
+            "sourceType": context.eligibility.source_type,
+            "kind": context.eligibility.kind,
+            "createdAfter": context.eligibility.created_after,
+            "status": context.eligibility.status,
+            "attributes": [list(pair) for pair in context.eligibility.attributes],
+        },
+    }
+
+
+def _request_wire(request: GraphExpandRequestV1) -> dict[str, object]:
+    if not isinstance(request, GraphExpandRequestV1):
+        raise TypeError("graph.expand request must be GraphExpandRequestV1")
+    if isinstance(request.seed, GraphQuerySeedV1):
+        seed: dict[str, object] = {
+            "schemaVersion": request.seed.schema_version,
+            "type": request.seed.type,
+            "text": request.seed.text,
+            "rankedLimit": request.seed.ranked_limit,
+        }
+    elif isinstance(request.seed, GraphExplicitSeedV1):
+        seed = {
+            "schemaVersion": request.seed.schema_version,
+            "type": request.seed.type,
+            "logicalIds": [
+                {"space": logical_id.space, "value": logical_id.value}
+                for logical_id in request.seed.logical_ids
+            ],
+        }
+    else:
+        raise TypeError("graph.expand seed must be a GraphSeedV1 carrier")
+
+    if isinstance(request.context, CurrentGraphReadContextV1):
+        context: dict[str, object] = {
+            "schemaVersion": request.context.schema_version,
+            "type": request.context.type,
+            "context": _read_context_wire(request.context.context),
+        }
+    elif isinstance(request.context, FrozenGraphReadContextV1):
+        frozen = request.context.context
+        context = {
+            "schemaVersion": request.context.schema_version,
+            "type": request.context.type,
+            "context": {
+                "schemaVersion": frozen.schema_version,
+                "effectiveValidAt": frozen.effective_valid_at,
+                "context": _read_context_wire(frozen.context),
+                "token": frozen.token,
+            },
+        }
+    else:
+        raise TypeError("graph.expand context must be a GraphReadContextV1 carrier")
+
+    return {
+        "schemaVersion": request.schema_version,
+        "seed": seed,
+        "direction": request.direction,
+        "edgeKinds": list(request.edge_kinds),
+        "targetKinds": list(request.target_kinds),
+        "context": context,
+        "maxDepth": request.max_depth,
+        "resultLimit": request.result_limit,
+        "maxWorkUnits": request.max_work_units,
+        "includeExplanation": request.include_explanation,
+    }
+
+
+def expand(engine: "Engine", request: GraphExpandRequestV1) -> GraphExpandResultV1:
+    """Run one bounded, deterministic, all-or-nothing graph expansion."""
+
+    request_json = json.dumps(_request_wire(request), separators=(",", ":"))
+    response_json = engine._native.graph_expand(request_json)
+
+    def native_object(value: dict[str, object]) -> SimpleNamespace:
+        return SimpleNamespace(
+            **{re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower(): item for key, item in value.items()}
+        )
+
+    response = json.loads(response_json, object_hook=native_object)
+    from fathomdb.engine import _map_native_graph_expand_result
+
+    return _map_native_graph_expand_result(response)
+
+
+__all__ = ["TraversalDirection", "expand", "neighbors", "search_expand"]

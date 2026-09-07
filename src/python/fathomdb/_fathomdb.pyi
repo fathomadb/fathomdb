@@ -324,12 +324,14 @@ class OperationalStatePageV1:
 
 class IngestWithExtractorReceipt:
     """G11 (Slice 15) — BYO-LLM ingest receipt."""
+
     nodes_written: int
     edges_written: int
     docs_processed: int
 
 class ConsolidateReceipt:
     """0.8.12 Slice 15 (OPP-2) — consolidation / recency provider receipt."""
+
     clusters_processed: int
     edges_examined: int
     edges_kept: int
@@ -428,6 +430,7 @@ class Engine:
     # which is false.
     def open_report(self) -> OpenReport: ...
     def freeze_read_context(self, context: ReadContextV1) -> FrozenReadContextV1: ...
+    def graph_expand(self, request_json: str) -> str: ...
     def trace_dependency(
         self,
         root_revision_id: str,
@@ -778,7 +781,6 @@ def search_expand(
     """
     ...
 
-
 def rerank(
     query: str,
     passages: list[dict[str, Any]],
@@ -804,7 +806,6 @@ def rerank(
     """
     ...
 
-
 def embed_batch_cls(texts: list[str]) -> list[list[float]]:
     """V-3 dense-encoder path — CLS-pooled batch embed of ``texts``.
 
@@ -817,10 +818,10 @@ def embed_batch_cls(texts: list[str]) -> list[list[float]]:
     """
     ...
 
-
 def force_panic_for_test() -> None: ...
 
 class EngineError(Exception): ...
+
 class FrozenReadError(EngineError):
     reason: str
     field_path: str
@@ -830,20 +831,30 @@ class EvidenceError(EngineError):
     reason: str
     field_path: str
     def __init__(self, message: str, *, reason: str, field_path: str) -> None: ...
+
 class DependencyTraceError(EngineError):
     code: str
     reason: str
     field_path: str
     def __init__(self, message: str, *, reason: str, field_path: str) -> None: ...
+
+class GraphExpansionError(EngineError):
+    code: str
+    reason: str
+    field_path: str
+    def __init__(self, message: str, *, reason: str, field_path: str) -> None: ...
+
 class PageError(EngineError):
     reason: str
     field_path: str
     def __init__(self, message: str, *, reason: str, field_path: str) -> None: ...
+
 class StorageError(EngineError): ...
 class ProjectionError(EngineError): ...
 class VectorError(EngineError): ...
 class KindNotVectorIndexedError(VectorError): ...
 class EmbedderError(EngineError): ...
+
 class EmbedDevicePolicyError(EmbedderError):
     kind: str
     ordinal: int | None
@@ -853,7 +864,9 @@ class EmbedDevicePolicyError(EmbedderError):
         kind: str = ...,
         ordinal: int | None = ...,
     ) -> None: ...
+
 class EmbedderNotConfiguredError(EmbedderError): ...
+
 class EmbedderRequiredError(EmbedderError):
     code: Literal["FDB_EMBEDDER_REQUIRED"]
     operation: EmbeddingOperation
@@ -869,39 +882,33 @@ class EmbedderRequiredError(EmbedderError):
         remediations: list[str] = ...,
         documentation_url: str = ...,
     ) -> None: ...
+
 class SchedulerError(EngineError): ...
 class OpStoreError(EngineError): ...
 class WriteValidationError(EngineError): ...
 class SchemaValidationError(EngineError): ...
 class OverloadedError(EngineError): ...
 class ClosingError(EngineError): ...
+
 class ProvenanceError(EngineError):
     reason: str
     field_path: str
-    def __init__(
-        self, *args: Any, reason: str = ..., field_path: str = ...
-    ) -> None: ...
+    def __init__(self, *args: Any, reason: str = ..., field_path: str = ...) -> None: ...
 
 class DependencyError(EngineError):
     reason: str
     field_path: str
-    def __init__(
-        self, *args: Any, reason: str = ..., field_path: str = ...
-    ) -> None: ...
+    def __init__(self, *args: Any, reason: str = ..., field_path: str = ...) -> None: ...
 
 class DependencyClosureError(EngineError):
     reason: str
     field_path: str
-    def __init__(
-        self, *args: Any, reason: str = ..., field_path: str = ...
-    ) -> None: ...
+    def __init__(self, *args: Any, reason: str = ..., field_path: str = ...) -> None: ...
 
 class ActuationError(EngineError):
     reason: str
     field_path: str
-    def __init__(
-        self, *args: Any, reason: str = ..., field_path: str = ...
-    ) -> None: ...
+    def __init__(self, *args: Any, reason: str = ..., field_path: str = ...) -> None: ...
 
 class DatabaseLockedError(EngineError):
     holder_pid: int | None
@@ -989,9 +996,7 @@ class NotLifecycleAddressableError(EngineError):
 class ErasureIncompleteError(EngineError):
     stage: str
     detail: str
-    def __init__(
-        self, *args: Any, stage: str = ..., detail: str = ...
-    ) -> None: ...
+    def __init__(self, *args: Any, stage: str = ..., detail: str = ...) -> None: ...
 
 # 0.8.20 Slice 15d (R-20-PR) — `configure_projections` refused a DESTRUCTIVE
 # change to a live projection `name` (a role removal or tokenizer/embedder swap)
@@ -1005,6 +1010,4 @@ class ProjectionDestructiveError(EngineError):
 class ProjectionGenerationError(EngineError):
     reason: str
     field_path: str
-    def __init__(
-        self, *args: Any, reason: str = ..., field_path: str = ...
-    ) -> None: ...
+    def __init__(self, *args: Any, reason: str = ..., field_path: str = ...) -> None: ...

@@ -140,3 +140,18 @@ contains only schema, inclusion, projection-origin, dependency-state,
 lifecycle-state, and degradation enums. Trace errors use
 `FDB_DEPENDENCY_TRACE`; integrity CLI errors use
 `FDB_DATA_PLANE_INTEGRITY`.
+
+## Graph-expansion wire objects (0.8.25 Slice 60)
+
+`GraphExpandRequestV1` uses `schemaVersion: 1`, a closed query or explicit seed,
+a closed current or frozen context, lower-snake enum values, and camel-case
+fields. Every request object is recursively closed. `maxWorkUnits`, result
+`workUnits`, and target `writeCursor` are canonical unsigned-decimal strings;
+other bounded integers are JSON numbers and booleans are never integers.
+
+`GraphExpandResultV1` is additive at object boundaries but closed for enums and
+unions. It must carry `complete: true`, zero-based seed ordinals, target origins
+coherent with seeds and enclosing targets, and an explanation whose per-target
+entries and degradation codes exactly match the top-level result. The typed
+envelope code is `FDB_GRAPH_EXPANSION` with closed `reason` and exact RFC 6901
+`fieldPath`; frozen-context failures retain `FDB_FROZEN_READ`.

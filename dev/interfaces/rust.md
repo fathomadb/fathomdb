@@ -1150,3 +1150,19 @@ Explained search appends `Explanation.correlation_id` and
 unchanged. The operator feature separately exposes
 `check_data_plane_integrity(DataPlaneIntegrityRequestV1)` and its report types;
 it is not a governed SDK method.
+
+## Bounded graph expansion (0.8.25 Slice 60)
+
+`Engine::graph_expand(&GraphExpandRequestV1)` is the governed graph read. It
+accepts query or caller-ordered logical seeds, current or authenticated frozen
+context, direction, edge and return-only target-kind filters, depth 0 through 3,
+result limit 1 through 50, a `u64` work bound, and optional compact explanation.
+It returns only a complete deterministic result; exhausting the work bound
+raises `EngineError::GraphExpansion` without a partial result.
+
+All `Graph*V1` request, result, explanation, degradation, and error types are
+default-facade exports. The operation uses one reader transaction, applies node
+validity and eligibility before admission, always enforces shipped edge
+recency, and globally selects top-N only after traversal completes. Query
+seeding is FTS-first and records its projection status and text-fallback
+degradation.

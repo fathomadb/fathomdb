@@ -961,3 +961,18 @@ New Engine-produced explained results always populate `correlation_id` and a
 `Explanation.correlation_id` defaults to `""` and
 `PerHitExplain.structural` defaults to `None`. No doctor or data-plane-integrity
 method is exposed.
+
+## Bounded graph expansion (0.8.25 Slice 60)
+
+`fathomdb.graph.expand(engine, request)` accepts the frozen dataclass
+`GraphExpandRequestV1` with query or explicit seed carriers and current or
+frozen context carriers. New `u64` fields are canonical decimal strings; all
+closed choices are `Literal` unions. It returns `GraphExpandResultV1` with
+ordered seeds and targets, a complete work count, degradation codes, and an
+optional compact explanation.
+
+Requests are recursively closed and results accept additive object members but
+reject malformed schema, enum, integer, completeness, or cross-field
+coherence. Refusals use `GraphExpansionError` with code
+`FDB_GRAPH_EXPANSION`, `reason`, and `field_path`; frozen authentication and
+state failures remain `FrozenReadError`.

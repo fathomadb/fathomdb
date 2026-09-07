@@ -40,7 +40,8 @@ use fathomdb_embedder::{
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
-    encode_dependency_trace_result_v1, ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1,
+    decode_graph_expand_request_v1, encode_dependency_trace_result_v1,
+    encode_graph_expand_result_v1, ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1,
     ActuationReceiptV1 as RustActuationReceiptV1, ArtifactRevisionId,
     BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ClosureLookupV1, ClosureRootV1,
     ClosureStatusV1 as RustClosureStatusV1, ComparisonOp as RustComparisonOp,
@@ -152,6 +153,7 @@ const CODE_FROZEN_READ: &str = "FDB_FROZEN_READ";
 const CODE_EVIDENCE: &str = "FDB_EVIDENCE";
 const CODE_PAGE: &str = "FDB_PAGE";
 const CODE_DEPENDENCY_TRACE: &str = "FDB_DEPENDENCY_TRACE";
+const CODE_GRAPH_EXPANSION: &str = "FDB_GRAPH_EXPANSION";
 const CODE_PANIC: &str = "FDB_PANIC";
 
 // ===== Typed-error encoder ============================================
@@ -342,6 +344,7 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
                 "fieldPath": error.field_path,
             }),
         ),
+        RustEngineError::GraphExpansion(error) => graph_expansion_error_to_napi(&error),
         RustEngineError::Overloaded => {
             typed_error(CODE_OVERLOADED, "engine overloaded", JsonValue::Null)
         }
@@ -408,6 +411,17 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         #[allow(unreachable_patterns)]
         operator_only => typed_error(CODE_STORAGE, operator_only.to_string(), JsonValue::Null),
     }
+}
+
+fn graph_expansion_error_to_napi(error: &fathomdb_engine::GraphExpansionErrorV1) -> Error {
+    typed_error(
+        CODE_GRAPH_EXPANSION,
+        error.to_string(),
+        json!({
+            "reason": error.reason.as_str(),
+            "fieldPath": error.field_path,
+        }),
+    )
 }
 
 fn corruption_kind_str(kind: CorruptionKind) -> &'static str {
@@ -2707,6 +2721,25 @@ impl Engine {
         let context = frozen_context_to_rust(context)?;
         let engine = Arc::clone(&self.inner);
         call_engine(move || engine.validate_frozen_read_context_for_binding(&context)).await
+    }
+
+    /// Execute one canonical JSON graph-expansion request.
+    #[napi]
+    pub async fn graph_expand(&self, request_json: String) -> Result<String> {
+        validate_ffi_string_napi(&request_json)?;
+        let request = decode_graph_expand_request_v1(request_json.as_bytes())
+            .map_err(|error| graph_expansion_error_to_napi(&error))?;
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(move || engine.graph_expand(&request)).await?;
+        let encoded = encode_graph_expand_result_v1(&result)
+            .map_err(|error| graph_expansion_error_to_napi(&error))?;
+        String::from_utf8(encoded).map_err(|_| {
+            typed_error(
+                CODE_GRAPH_EXPANSION,
+                "graph_corrupt at ",
+                json!({ "reason": "graph_corrupt", "fieldPath": "" }),
+            )
+        })
     }
 
     /// Return canonical version-1 JSON for one governed dependency trace.

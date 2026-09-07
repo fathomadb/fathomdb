@@ -25,14 +25,14 @@ def _load_graph(monkeypatch):
     types_spec.loader.exec_module(sdk_types)
 
     native = types.ModuleType("fathomdb._fathomdb")
-    native.NodeRecord = object
-    native.SearchHit = object
-    native.graph_neighbors = lambda *args, **kwargs: None
-    native.search_expand = lambda *args, **kwargs: None
+    setattr(native, "NodeRecord", object)
+    setattr(native, "SearchHit", object)
+    setattr(native, "graph_neighbors", lambda *args, **kwargs: None)
+    setattr(native, "search_expand", lambda *args, **kwargs: None)
     monkeypatch.setitem(sys.modules, "fathomdb._fathomdb", native)
 
     read = types.ModuleType("fathomdb.read")
-    read._to_native_view = lambda value: value
+    setattr(read, "_to_native_view", lambda value: value)
     monkeypatch.setitem(sys.modules, "fathomdb.read", read)
 
     errors = types.ModuleType("fathomdb.errors")
@@ -43,7 +43,7 @@ def _load_graph(monkeypatch):
             self.reason = reason
             self.field_path = field_path
 
-    errors.GraphExpansionError = GraphExpansionError
+    setattr(errors, "GraphExpansionError", GraphExpansionError)
     monkeypatch.setitem(sys.modules, "fathomdb.errors", errors)
 
     graph_spec = importlib.util.spec_from_file_location("fathomdb.graph", ROOT / "graph.py")
@@ -90,7 +90,7 @@ def test_python_request_and_native_result_transport_are_raw_utf8_fixture_bytes(m
             return fixture["result"]
 
     engine = types.ModuleType("fathomdb.engine")
-    engine._map_native_graph_expand_result = lambda response: response
+    setattr(engine, "_map_native_graph_expand_result", lambda response: response)
     monkeypatch.setitem(sys.modules, "fathomdb.engine", engine)
     result = graph.expand(types.SimpleNamespace(_native=Native()), _unicode_request(sdk_types))
     assert [request.encode("utf-8") for request in captured] == [fixture["request"].encode("utf-8")]

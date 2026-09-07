@@ -109,7 +109,17 @@ fn cross_owner_registered_closure_barrier_excludes_a_surviving_derived_target() 
         .unwrap();
     assert_eq!(dependency_state(&engine), StructuralDependencyStateV1::Registered);
 
-    engine.erase_source("source-owner").unwrap();
+    engine.seed_graph_expand_nonterminal_dependency_closure_for_test().unwrap();
+    let phase: String = Connection::open(&path)
+        .unwrap()
+        .query_row(
+            "SELECT phase FROM _fathomdb_dependency_closures \
+             WHERE root_kind='source_revision' AND root_value='source-r1'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(phase, "proving");
     let surviving: i64 = Connection::open(path)
         .unwrap()
         .query_row("SELECT COUNT(*) FROM canonical_nodes WHERE logical_id='derived'", [], |row| {

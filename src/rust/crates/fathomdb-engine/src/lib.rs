@@ -17102,13 +17102,13 @@ struct CandleCrossEncoder {
 fn reranker_singleton(
 ) -> Result<Option<&'static fathomdb_embedder::CandleTinyBertReranker>, RerankerDevicePolicyError> {
     enum Singleton {
-        Loaded(fathomdb_embedder::CandleTinyBertReranker),
+        Loaded(Box<fathomdb_embedder::CandleTinyBertReranker>),
         Unavailable,
         DevicePolicy(RerankerDevicePolicyError),
     }
     static CELL: std::sync::OnceLock<Singleton> = std::sync::OnceLock::new();
     match CELL.get_or_init(|| match fathomdb_embedder::CandleTinyBertReranker::try_load() {
-        Ok(model) => Singleton::Loaded(model),
+        Ok(model) => Singleton::Loaded(Box::new(model)),
         Err(fathomdb_embedder::RerankerLoadError::DevicePolicy(error)) => {
             Singleton::DevicePolicy(error)
         }

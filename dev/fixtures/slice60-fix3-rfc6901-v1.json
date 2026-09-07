@@ -1,0 +1,6 @@
+{
+  "topLevelUnknown": "top~only",
+  "nestedContextUnknown": "nested~only",
+  "topLevelPath": "/top~0only",
+  "nestedContextPath": "/context/nested~0only"
+}

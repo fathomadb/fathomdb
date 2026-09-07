@@ -337,3 +337,56 @@ $ cargo test -p fathomdb-engine --test slice20_graph_traversal \
 `./scripts/agent-lint.sh` and `./scripts/agent-typecheck.sh` pass. The pinned
 Pyright 1.1.410 check reports 0 errors after the independent mechanical oracle
 correction; no broad diagnostic suppression was added.
+
+## FIX-3 RED
+
+Implementation-review cycle 3 is held by additive executable RED artifacts:
+
+- `dev/fixtures/slice60-fix3-rfc6901-v1.json`
+- `src/rust/crates/fathomdb-engine/tests/slice60_fix3_wire.rs`
+- `src/rust/crates/fathomdb-engine/tests/slice60_fix3_runtime.rs`
+- `src/python/tests/test_slice60_fix3_graph_expand.py`
+- `src/ts/tests/slice60-fix3-graph-expand.test.ts`
+
+The Rust wire target executes compact request bytes with top-level and nested
+tilde-only unknown fields. It currently reports `/top~only` and
+`/context/nested~only`; the RFC 6901 fixture requires `/top~0only` and
+`/context/nested~0only`.
+
+The Python target constructs a real exported graph request, replaces only its
+context carrier with an object, and installs a native double that records any
+call. It currently reaches `request.context.context` and raises `AttributeError`
+instead of the required binding-local `TypeError`; the native double remains
+unreached.
+
+The real SQLite runtime target writes a root, source, derived target, and edge;
+executes graph expansion across registered and unregistered dependency setup,
+then executes `erase_source` and `excise_source` disappearance controls. It
+also compares small and 10,000-row observations. The lifecycle controls run,
+but the current measurement reports a 69,636,096-byte historic process peak
+rather than an immediate operation delta and violates the 2 MiB proportional
+ceiling. The TypeScript parity route validates the required tilde-only paths.
+
+Focused RED evidence:
+
+```text
+$ cargo test -p fathomdb-engine --test slice60_fix3_wire
+top_level_tilde_only_unknown_uses_rfc6901_escape:
+  left: "/top~only"; right: "/top~0only"
+nested_tilde_only_unknown_uses_rfc6901_escape:
+  left: "/context/nested~only"; right: "/context/nested~0only"
+
+$ PYTHONPATH=src/python .venv/bin/python -m pytest \
+    src/python/tests/test_slice60_fix3_graph_expand.py -q
+AttributeError: 'object' object has no attribute 'context'
+
+$ cargo test -p fathomdb-engine --features test-hooks,operator \
+    --test slice60_fix3_runtime -- --test-threads=1
+graph_expand_executes_erase_and_excise_disappearance: ok
+graph_expand_executes_registered_unregistered_and_closure_fenced_dependency_states: ok
+measured_expansion_rss_is_an_immediate_proportional_delta: FAILED
+the immediate graph-expand delta, not process-history peak, must stay bounded: 69636096
+```
+
+No previous RED path or fixture changed. The next phase must implement the
+review findings without changing these FIX-3 RED oracles.

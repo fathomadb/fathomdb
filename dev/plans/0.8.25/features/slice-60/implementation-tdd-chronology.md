@@ -414,3 +414,60 @@ $ cargo test -p fathomdb-engine --features test-hooks \
 error[E0432]: unresolved import `fathomdb_engine::GraphExpandProjectionStateForTest`
 error[E0599]: no method named `graph_expand_with_projection_state_for_test`
 ```
+
+## FIX-3 GREEN
+
+The FIX-3 production close replaces the process-history RSS observation with
+an immediate request baseline and bounded delta, and keeps the test-hook
+measurement request-scoped. The lifecycle fixture now carries an owned
+projection-state observation through the real reader transaction: seed
+resolution, SQLite traversal, result construction, and explanation remain the
+production path while the fixture controls only the observed lifecycle state.
+The prior empty dependency, erasure, and projection hook names now perform
+real open-database observations or produce the owned state carrier.
+
+Rust RFC 6901 member escaping now always transforms raw `~` before raw `/`.
+Python rejects a non-`GraphReadContextV1` carrier before recursive attribute
+access or native invocation. The new Rust test targets are feature-gated under
+`test-hooks` (and `operator` for the real lifecycle/RSS fixture), so neither
+test-only API nor storage path reaches the default build.
+
+Independent audit also corrected the frozen original pointer test in commit
+`5bd463ef`: it had inserted an already escaped member name. The isolated
+correction now inserts raw `a/b~c` and retains the intended expected pointer
+`/a~1b~0c`; record `red-oracle-correction-8.md` preserves old and new hashes.
+
+Focused GREEN evidence:
+
+```text
+$ cargo test -p fathomdb-engine --features test-hooks \
+    --test slice60_graph_expand --test slice60_wire --test slice60_fix1_wire \
+    --test slice60_fix2_wire --test slice60_fix2_global_leak \
+    --test slice60_fix2_hooks --test slice60_fix2_runtime \
+    --test slice60_fix3_wire --test slice60_fix3_projection_states
+41 passed
+
+$ cargo test -p fathomdb-engine --features test-hooks,operator \
+    --test slice60_fix3_runtime
+3 passed
+
+$ PYTHONPATH=src/python .venv/bin/python -m pytest \
+    src/python/tests/test_slice60_graph_expand.py \
+    src/python/tests/test_slice60_fix1_graph_expand.py \
+    src/python/tests/test_slice60_fix2_graph_expand.py \
+    src/python/tests/test_slice60_fix3_graph_expand.py -q
+24 passed
+
+$ node --test dist/tests/slice60-graph-expand.test.js \
+    dist/tests/slice60-fix1-graph-expand.test.js \
+    dist/tests/slice60-fix2-graph-expand.test.js \
+    dist/tests/slice60-fix3-graph-expand.test.js
+15 passed
+```
+
+The local N-API route first hit sandbox `spawnSync /bin/sh EPERM`; its unchanged
+retry ran unconfined and passed. `cargo test -p fathomdb --test
+slice60_governed_surface` (2), `cargo test -p fathomdb-py` (13), `cargo check
+-p fathomdb-napi`, and the Slice 20/35 graph compatibility suite (24) also
+pass. The default non-test-hooks engine check, `./scripts/agent-lint.sh`, and
+`./scripts/agent-typecheck.sh` pass.

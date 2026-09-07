@@ -103,7 +103,7 @@ pub use graph_expand::{
 #[cfg(feature = "test-hooks")]
 pub use graph_expand::{
     graph_expansion_degradation_codes_for_test, GraphExpandMeasurementForTest,
-    GraphExpandRendezvousForTest,
+    GraphExpandProjectionStateForTest, GraphExpandRendezvousForTest,
 };
 pub use pagination::{PageCursor, PageError, PageErrorReason, PageRequestV1, PageV1};
 pub use projection_generation::{
@@ -785,6 +785,8 @@ pub struct Engine {
     projection_generation_status_full_owner_scan_count: AtomicU64,
     #[cfg(feature = "test-hooks")]
     graph_expand_rss_baseline_bytes: AtomicU64,
+    #[cfg(feature = "test-hooks")]
+    graph_expand_rss_delta_bytes: AtomicU64,
     closed: AtomicBool,
     lock: Mutex<Option<File>>,
     connection: Mutex<Option<Connection>>,
@@ -2084,6 +2086,8 @@ struct GraphExpandReaderRequest {
     projection_runtime_state: ProjectionRuntimeStateV1,
     #[cfg(feature = "test-hooks")]
     rendezvous: Option<graph_expand::GraphExpandRendezvousForTest>,
+    #[cfg(feature = "test-hooks")]
+    projection_state: Option<graph_expand::GraphExpandProjectionStateForTest>,
     respond: SyncSender<Result<GraphExpandResultV1, EngineError>>,
 }
 
@@ -2827,6 +2831,8 @@ fn reader_worker_loop(
                     request.projection_runtime_state,
                     #[cfg(feature = "test-hooks")]
                     request.rendezvous.as_ref(),
+                    #[cfg(feature = "test-hooks")]
+                    request.projection_state,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -8690,6 +8696,8 @@ impl Engine {
                         projection_generation_status_full_owner_scan_count: AtomicU64::new(0),
                         #[cfg(feature = "test-hooks")]
                         graph_expand_rss_baseline_bytes: AtomicU64::new(0),
+                        #[cfg(feature = "test-hooks")]
+                        graph_expand_rss_delta_bytes: AtomicU64::new(0),
                         closed: AtomicBool::new(false),
                         lock: Mutex::new(Some(lock)),
                         connection: Mutex::new(Some(connection)),

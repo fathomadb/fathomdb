@@ -299,6 +299,8 @@ def _validate_graph_expand_request(request: GraphExpandRequestV1) -> None:
         for index, logical_id in enumerate(request.seed.logical_ids):
             string(logical_id.space, "graph_seed_invalid", f"/seed/logicalIds/{index}/space")
             string(logical_id.value, "graph_seed_invalid", f"/seed/logicalIds/{index}/value")
+    if not isinstance(request.context, (CurrentGraphReadContextV1, FrozenGraphReadContextV1)):
+        raise TypeError("graph.expand context must be a GraphReadContextV1 carrier")
     if isinstance(request.context, FrozenGraphReadContextV1):
         string(request.context.context.token, "graph_context_invalid", "/context/context/token")
         context = request.context.context.context

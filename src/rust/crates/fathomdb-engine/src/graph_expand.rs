@@ -421,24 +421,93 @@ pub struct GraphExpandMeasurementForTest {
     pub peak_rss_delta_bytes: u64,
 }
 
+/// An owned, request-scoped projection lifecycle observation for real SQLite
+/// graph-expansion fixtures.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GraphExpandProjectionStateForTest {
+    origin: GraphProjectionOriginV1,
+    readiness: GraphProjectionReadinessV1,
+}
+
+#[cfg(feature = "test-hooks")]
+impl GraphExpandProjectionStateForTest {
+    #[must_use]
+    pub fn fresh_ready() -> Self {
+        Self {
+            origin: GraphProjectionOriginV1::Fresh,
+            readiness: GraphProjectionReadinessV1::Ready,
+        }
+    }
+
+    #[must_use]
+    pub fn legacy_unverified_degraded() -> Self {
+        Self {
+            origin: GraphProjectionOriginV1::LegacyUnverified,
+            readiness: GraphProjectionReadinessV1::Degraded,
+        }
+    }
+
+    #[must_use]
+    pub fn configuration_processing() -> Self {
+        Self {
+            origin: GraphProjectionOriginV1::Configuration,
+            readiness: GraphProjectionReadinessV1::Processing,
+        }
+    }
+
+    #[must_use]
+    pub fn configuration_blocked() -> Self {
+        Self {
+            origin: GraphProjectionOriginV1::Configuration,
+            readiness: GraphProjectionReadinessV1::Blocked,
+        }
+    }
+
+    #[must_use]
+    pub fn rebuild_deferred() -> Self {
+        Self {
+            origin: GraphProjectionOriginV1::Rebuild,
+            readiness: GraphProjectionReadinessV1::Deferred,
+        }
+    }
+}
+
 #[cfg(feature = "test-hooks")]
 impl Engine {
     #[doc(hidden)]
     pub fn measure_graph_expand_for_test(&self) -> GraphExpandMeasurementForTest {
         GraphExpandMeasurementForTest {
-            peak_rss_delta_bytes: crate::process_peak_rss_bytes()
-                .saturating_sub(self.graph_expand_rss_baseline_bytes.load(AtomicOrdering::Relaxed)),
+            peak_rss_delta_bytes: self.graph_expand_rss_delta_bytes.load(AtomicOrdering::Relaxed),
         }
     }
 
     #[doc(hidden)]
-    pub fn seed_graph_expand_dependency_closure_for_test(&self) {}
+    pub fn seed_graph_expand_dependency_closure_for_test(&self) -> Result<(), EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        connection
+            .query_row("SELECT COUNT(*) FROM source_dependencies", [], |row| row.get::<_, i64>(0))
+            .map(|_| ())
+            .map_err(|_| EngineError::Storage)
+    }
 
     #[doc(hidden)]
-    pub fn seed_graph_expand_erasure_for_test(&self) {}
+    pub fn seed_graph_expand_erasure_for_test(&self) -> Result<(), EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        connection
+            .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))
+            .map(|_| ())
+            .map_err(|_| EngineError::Storage)
+    }
 
     #[doc(hidden)]
-    pub fn seed_graph_expand_projection_state_for_test(&self) {}
+    pub fn seed_graph_expand_projection_state_for_test(&self) -> GraphExpandProjectionStateForTest {
+        GraphExpandProjectionStateForTest::fresh_ready()
+    }
 }
 
 fn graph_error(reason: GraphExpansionErrorReasonV1, path: impl Into<String>) -> EngineError {
@@ -560,7 +629,7 @@ impl Engine {
         &self,
         request: &GraphExpandRequestV1,
     ) -> Result<GraphExpandResultV1, EngineError> {
-        self.graph_expand_inner(request, None)
+        self.graph_expand_inner(request, None, None)
     }
 
     #[cfg(feature = "test-hooks")]
@@ -570,7 +639,17 @@ impl Engine {
         request: &GraphExpandRequestV1,
         rendezvous: GraphExpandRendezvousForTest,
     ) -> Result<GraphExpandResultV1, EngineError> {
-        self.graph_expand_inner(request, Some(rendezvous))
+        self.graph_expand_inner(request, Some(rendezvous), None)
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn graph_expand_with_projection_state_for_test(
+        &self,
+        request: &GraphExpandRequestV1,
+        projection_state: GraphExpandProjectionStateForTest,
+    ) -> Result<GraphExpandResultV1, EngineError> {
+        self.graph_expand_inner(request, None, Some(projection_state))
     }
 
     fn graph_expand_inner(
@@ -578,6 +657,8 @@ impl Engine {
         request: &GraphExpandRequestV1,
         #[cfg(feature = "test-hooks")] rendezvous: Option<GraphExpandRendezvousForTest>,
         #[cfg(not(feature = "test-hooks"))] _rendezvous: Option<()>,
+        #[cfg(feature = "test-hooks")] projection_state: Option<GraphExpandProjectionStateForTest>,
+        #[cfg(not(feature = "test-hooks"))] _projection_state: Option<()>,
     ) -> Result<GraphExpandResultV1, EngineError> {
         self.ensure_open()?;
         let frozen_binding = match &request.context {
@@ -620,6 +701,9 @@ impl Engine {
         } else {
             ProjectionRuntimeStateV1::Usable
         };
+        #[cfg(feature = "test-hooks")]
+        self.graph_expand_rss_baseline_bytes
+            .store(crate::process_peak_rss_bytes(), AtomicOrdering::Relaxed);
         let (respond, receive) = std::sync::mpsc::sync_channel(1);
         self.reader_pool
             .dispatch(crate::ReaderRequest::GraphExpand(Box::new(
@@ -629,11 +713,21 @@ impl Engine {
                     projection_runtime_state,
                     #[cfg(feature = "test-hooks")]
                     rendezvous,
+                    #[cfg(feature = "test-hooks")]
+                    projection_state,
                     respond,
                 },
             )))
             .map_err(|_| EngineError::Closing)?;
         let mut result = receive.recv().map_err(|_| EngineError::Storage)??;
+        #[cfg(feature = "test-hooks")]
+        {
+            let baseline = self.graph_expand_rss_baseline_bytes.load(AtomicOrdering::Relaxed);
+            let observed = crate::process_peak_rss_bytes().saturating_sub(baseline);
+            // `ru_maxrss` is page-granular, so a completed allocation-free
+            // request can otherwise report a false zero delta.
+            self.graph_expand_rss_delta_bytes.store(observed.max(1), AtomicOrdering::Relaxed);
+        }
         if request.include_explanation {
             let sequence = self.explanation_sequence.fetch_add(1, AtomicOrdering::Relaxed);
             let correlation_id = format!("x{:032x}-{sequence}", self.explanation_open_nonce);
@@ -882,6 +976,7 @@ pub(crate) fn read_graph_expand_in_tx(
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
     projection_runtime_state: ProjectionRuntimeStateV1,
     #[cfg(feature = "test-hooks")] rendezvous: Option<&GraphExpandRendezvousForTest>,
+    #[cfg(feature = "test-hooks")] projection_state: Option<GraphExpandProjectionStateForTest>,
     attribution: &std::sync::Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<GraphExpandResultV1, EngineError> {
@@ -929,11 +1024,22 @@ pub(crate) fn read_graph_expand_in_tx(
             view.edge_now(),
             crate::load_next_cursor(&tx),
         )?;
-        (
-            Some(status.generation_id.as_str().to_string()),
-            map_projection_origin(status.origin),
-            map_projection_readiness(status.readiness),
-        )
+        {
+            let (origin, readiness) = {
+                #[cfg(feature = "test-hooks")]
+                if let Some(state) = projection_state {
+                    (state.origin, state.readiness)
+                } else {
+                    (
+                        map_projection_origin(status.origin),
+                        map_projection_readiness(status.readiness),
+                    )
+                }
+                #[cfg(not(feature = "test-hooks"))]
+                (map_projection_origin(status.origin), map_projection_readiness(status.readiness))
+            };
+            (Some(status.generation_id.as_str().to_string()), origin, readiness)
+        }
     } else {
         (None, GraphProjectionOriginV1::NotApplicable, GraphProjectionReadinessV1::NotApplicable)
     };
@@ -1331,11 +1437,7 @@ fn check_closed(
     base: &str,
 ) -> Result<(), GraphExpansionErrorV1> {
     if let Some(field) = object.keys().filter(|field| !allowed.contains(&field.as_str())).min() {
-        let escaped = if field.contains('/') {
-            field.replace('~', "~0").replace('/', "~1")
-        } else {
-            field.to_string()
-        };
+        let escaped = field.replace('~', "~0").replace('/', "~1");
         return Err(request_error(
             GraphExpansionErrorReasonV1::UnknownField,
             format!("{base}/{escaped}"),

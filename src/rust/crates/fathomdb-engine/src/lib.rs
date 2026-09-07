@@ -1102,6 +1102,12 @@ struct ProjectionRuntimeStartupReport {
     stage: Result<(), &'static str>,
 }
 
+#[derive(Debug)]
+enum ProjectionRuntimeStartupMessage {
+    Setup(ProjectionRuntimeStartupReport),
+    ServiceReady(ProjectionRuntimeStartupRole),
+}
+
 #[cfg(test)]
 #[derive(Clone, Copy, Debug)]
 enum ProjectionRuntimeStartupFaultForTest {
@@ -3291,6 +3297,10 @@ impl ProjectionRuntime {
         });
 
         let (startup_send, startup_receive) = mpsc::channel();
+        let mut service_requests = BTreeMap::new();
+        let (dispatcher_service_send, dispatcher_service_receive) = mpsc::channel();
+        service_requests
+            .insert(ProjectionRuntimeStartupRole::Dispatcher(0), dispatcher_service_send);
         let dispatcher_shared = Arc::clone(&shared);
         let dispatcher_startup = startup_send.clone();
         let dispatcher = thread::Builder::new()
@@ -3300,6 +3310,7 @@ impl ProjectionRuntime {
                     dispatcher_shared,
                     0,
                     dispatcher_startup,
+                    dispatcher_service_receive,
                     #[cfg(test)]
                     startup_fault,
                 )
@@ -3310,6 +3321,9 @@ impl ProjectionRuntime {
 
         let mut workers = Vec::with_capacity(PROJECTION_WORKERS);
         for worker_idx in 0..PROJECTION_WORKERS {
+            let (worker_service_send, worker_service_receive) = mpsc::channel();
+            service_requests
+                .insert(ProjectionRuntimeStartupRole::Worker(worker_idx), worker_service_send);
             let worker_shared = Arc::clone(&shared);
             let worker_startup = startup_send.clone();
             let spawn_result = thread::Builder::new()
@@ -3319,6 +3333,7 @@ impl ProjectionRuntime {
                         worker_shared,
                         worker_idx,
                         worker_startup,
+                        worker_service_receive,
                         #[cfg(test)]
                         startup_fault,
                     )
@@ -3327,6 +3342,7 @@ impl ProjectionRuntime {
                 Ok(worker) => workers.push(worker),
                 Err(_) => {
                     drop(startup_send);
+                    drop(service_requests);
                     let runtime = Self {
                         shared,
                         dispatcher: Mutex::new(Some(dispatcher)),
@@ -3343,7 +3359,9 @@ impl ProjectionRuntime {
 
         let runtime =
             Self { shared, dispatcher: Mutex::new(Some(dispatcher)), workers: Mutex::new(workers) };
-        if let Err(error) = runtime.await_startup(startup_receive, startup_timeout) {
+        if let Err(error) =
+            runtime.await_startup(startup_receive, service_requests, startup_timeout)
+        {
             runtime.stop();
             return Err(error);
         }
@@ -3352,7 +3370,8 @@ impl ProjectionRuntime {
 
     fn await_startup(
         &self,
-        startup: Receiver<ProjectionRuntimeStartupReport>,
+        startup: Receiver<ProjectionRuntimeStartupMessage>,
+        service_requests: BTreeMap<ProjectionRuntimeStartupRole, mpsc::Sender<()>>,
         timeout: Duration,
     ) -> Result<(), EngineOpenError> {
         let expected = BTreeSet::from([
@@ -3365,8 +3384,8 @@ impl ProjectionRuntime {
 
         while observed.len() < expected.len() {
             let remaining = deadline.saturating_duration_since(Instant::now());
-            let report = match startup.recv_timeout(remaining) {
-                Ok(report) => report,
+            let message = match startup.recv_timeout(remaining) {
+                Ok(message) => message,
                 Err(mpsc::RecvTimeoutError::Timeout) => {
                     return Err(EngineOpenError::Io {
                         message: format!(
@@ -3384,6 +3403,12 @@ impl ProjectionRuntime {
                         ),
                     });
                 }
+            };
+            let ProjectionRuntimeStartupMessage::Setup(report) = message else {
+                return Err(EngineOpenError::Io {
+                    message: "projection runtime reported service readiness before setup completed"
+                        .to_string(),
+                });
             };
             if !expected.contains(&report.role) {
                 return Err(EngineOpenError::Io {
@@ -3406,6 +3431,62 @@ impl ProjectionRuntime {
                     message: format!(
                         "projection runtime {} failed during {stage}",
                         report.role.label()
+                    ),
+                });
+            }
+        }
+
+        for (role, request) in service_requests {
+            request.send(()).map_err(|_| EngineOpenError::Io {
+                message: format!(
+                    "projection runtime service request disconnected for {}",
+                    role.label()
+                ),
+            })?;
+        }
+
+        let mut service_ready = BTreeSet::new();
+        while service_ready.len() < expected.len() {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            let message = match startup.recv_timeout(remaining) {
+                Ok(message) => message,
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    return Err(EngineOpenError::Io {
+                        message: format!(
+                            "projection runtime service readiness timed out after {}ms; missing roles: {}",
+                            timeout.as_millis(),
+                            missing_projection_runtime_roles(&expected, &service_ready)
+                        ),
+                    });
+                }
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    return Err(EngineOpenError::Io {
+                        message: format!(
+                            "projection runtime service readiness disconnected; missing roles: {}",
+                            missing_projection_runtime_roles(&expected, &service_ready)
+                        ),
+                    });
+                }
+            };
+            let ProjectionRuntimeStartupMessage::ServiceReady(role) = message else {
+                return Err(EngineOpenError::Io {
+                    message: "projection runtime reported an extra setup message during service readiness"
+                        .to_string(),
+                });
+            };
+            if !expected.contains(&role) {
+                return Err(EngineOpenError::Io {
+                    message: format!(
+                        "projection runtime service readiness reported unexpected role {}",
+                        role.label()
+                    ),
+                });
+            }
+            if !service_ready.insert(role) {
+                return Err(EngineOpenError::Io {
+                    message: format!(
+                        "projection runtime service readiness reported duplicate role {}",
+                        role.label()
                     ),
                 });
             }
@@ -20504,16 +20585,19 @@ fn report_runtime_native_state_inventory_for_test(
 }
 
 fn report_projection_runtime_startup_failure(
-    startup: &mpsc::Sender<ProjectionRuntimeStartupReport>,
+    startup: &mpsc::Sender<ProjectionRuntimeStartupMessage>,
     role: ProjectionRuntimeStartupRole,
     stage: &'static str,
 ) {
-    let _ = startup.send(ProjectionRuntimeStartupReport { role, stage: Err(stage) });
+    let _ = startup.send(ProjectionRuntimeStartupMessage::Setup(ProjectionRuntimeStartupReport {
+        role,
+        stage: Err(stage),
+    }));
 }
 
 #[cfg(test)]
 fn projection_runtime_injected_setup_failure(
-    startup: &mpsc::Sender<ProjectionRuntimeStartupReport>,
+    startup: &mpsc::Sender<ProjectionRuntimeStartupMessage>,
     role: ProjectionRuntimeStartupRole,
     fault: Option<ProjectionRuntimeStartupFaultForTest>,
 ) -> bool {
@@ -20528,47 +20612,64 @@ fn projection_runtime_injected_setup_failure(
 
 fn complete_projection_runtime_startup(
     _shared: &ProjectionRuntimeShared,
-    startup: mpsc::Sender<ProjectionRuntimeStartupReport>,
+    startup: mpsc::Sender<ProjectionRuntimeStartupMessage>,
+    service_request: Receiver<()>,
     role: ProjectionRuntimeStartupRole,
     #[cfg(test)] fault: Option<ProjectionRuntimeStartupFaultForTest>,
-) -> bool {
+) -> Option<mpsc::Sender<ProjectionRuntimeStartupMessage>> {
     #[cfg(test)]
-    if let Some(fault) = fault.filter(|fault| fault.targets(role)) {
+    let setup_role = if let Some(fault) = fault.filter(|fault| fault.targets(role)) {
         match fault {
             ProjectionRuntimeStartupFaultForTest::SetupFailure(_) => unreachable!(),
             ProjectionRuntimeStartupFaultForTest::DuplicateReport { reported_as, .. } => {
-                return startup
-                    .send(ProjectionRuntimeStartupReport { role: reported_as, stage: Ok(()) })
-                    .is_ok();
+                Some(reported_as)
             }
-            ProjectionRuntimeStartupFaultForTest::MissingReport(_) => return true,
+            ProjectionRuntimeStartupFaultForTest::MissingReport(_) => None,
             ProjectionRuntimeStartupFaultForTest::StallUntilStop(_) => {
                 let mut state = match _shared.state.lock() {
                     Ok(state) => state,
-                    Err(_) => return false,
+                    Err(_) => return None,
                 };
                 while !state.stopping {
                     state = match _shared.state_cvar.wait(state) {
                         Ok(state) => state,
-                        Err(_) => return false,
+                        Err(_) => return None,
                     };
                 }
-                return false;
+                return None;
             }
             ProjectionRuntimeStartupFaultForTest::ExitAfterReport(_) => {
-                let _ = startup.send(ProjectionRuntimeStartupReport { role, stage: Ok(()) });
-                return false;
+                let _ = startup.send(ProjectionRuntimeStartupMessage::Setup(
+                    ProjectionRuntimeStartupReport { role, stage: Ok(()) },
+                ));
+                return None;
             }
         }
-    }
+    } else {
+        Some(role)
+    };
+    #[cfg(not(test))]
+    let setup_role = Some(role);
 
-    startup.send(ProjectionRuntimeStartupReport { role, stage: Ok(()) }).is_ok()
+    if let Some(setup_role) = setup_role {
+        if startup
+            .send(ProjectionRuntimeStartupMessage::Setup(ProjectionRuntimeStartupReport {
+                role: setup_role,
+                stage: Ok(()),
+            }))
+            .is_err()
+        {
+            return None;
+        }
+    }
+    service_request.recv().ok().map(|()| startup)
 }
 
 fn projection_dispatcher_loop(
     shared: Arc<ProjectionRuntimeShared>,
     dispatcher_idx: usize,
-    startup: mpsc::Sender<ProjectionRuntimeStartupReport>,
+    startup: mpsc::Sender<ProjectionRuntimeStartupMessage>,
+    service_request: Receiver<()>,
     #[cfg(test)] startup_fault: Option<ProjectionRuntimeStartupFaultForTest>,
 ) {
     let startup_role = ProjectionRuntimeStartupRole::Dispatcher(dispatcher_idx);
@@ -20597,7 +20698,17 @@ fn projection_dispatcher_loop(
     // 0.8.20 Slice 20c fix-4 (codex §9 round 3 [P1]) — read ONCE:
     // `ProjectionRuntimeShared::embedder` is fixed for the session's lifetime.
     let dense_arm_live = shared.embedder.is_some();
-    let mut startup = Some(startup);
+    let mut startup = complete_projection_runtime_startup(
+        &shared,
+        startup,
+        service_request,
+        startup_role,
+        #[cfg(test)]
+        startup_fault,
+    );
+    if startup.is_none() {
+        return;
+    }
     loop {
         #[cfg(any(test, feature = "test-hooks"))]
         report_runtime_connection_inventory_for_test(
@@ -20614,13 +20725,7 @@ fn projection_dispatcher_loop(
             dispatcher_idx,
         );
         if let Some(startup) = startup.take() {
-            if !complete_projection_runtime_startup(
-                &shared,
-                startup,
-                startup_role,
-                #[cfg(test)]
-                startup_fault,
-            ) {
+            if startup.send(ProjectionRuntimeStartupMessage::ServiceReady(startup_role)).is_err() {
                 return;
             }
         }
@@ -20763,7 +20868,8 @@ fn projection_dispatcher_loop(
 fn projection_worker_loop(
     shared: Arc<ProjectionRuntimeShared>,
     worker_idx: usize,
-    startup: mpsc::Sender<ProjectionRuntimeStartupReport>,
+    startup: mpsc::Sender<ProjectionRuntimeStartupMessage>,
+    service_request: Receiver<()>,
     #[cfg(test)] startup_fault: Option<ProjectionRuntimeStartupFaultForTest>,
 ) {
     let startup_role = ProjectionRuntimeStartupRole::Worker(worker_idx);
@@ -20792,7 +20898,17 @@ fn projection_worker_loop(
     let _connection_registration =
         shared.managed_connections.register(WalAttributionRole::ProjectionWorker, worker_idx);
     shared.wal_attribution.register(WalAttributionRole::ProjectionWorker, worker_idx);
-    let mut startup = Some(startup);
+    let mut startup = complete_projection_runtime_startup(
+        &shared,
+        startup,
+        service_request,
+        startup_role,
+        #[cfg(test)]
+        startup_fault,
+    );
+    if startup.is_none() {
+        return;
+    }
     loop {
         #[cfg(any(test, feature = "test-hooks"))]
         report_runtime_connection_inventory_for_test(
@@ -20809,13 +20925,7 @@ fn projection_worker_loop(
             worker_idx,
         );
         if let Some(startup) = startup.take() {
-            if !complete_projection_runtime_startup(
-                &shared,
-                startup,
-                startup_role,
-                #[cfg(test)]
-                startup_fault,
-            ) {
+            if startup.send(ProjectionRuntimeStartupMessage::ServiceReady(startup_role)).is_err() {
                 return;
             }
         }

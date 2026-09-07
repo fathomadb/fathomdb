@@ -538,7 +538,7 @@ impl GraphExpandProjectionStateForTest {
     }
 
     #[must_use]
-    pub fn legacy_unverified_degraded() -> Self {
+    pub fn projection_legacy_unverified_degraded() -> Self {
         Self {
             origin: GraphProjectionOriginV1::LegacyUnverified,
             readiness: GraphProjectionReadinessV1::Degraded,

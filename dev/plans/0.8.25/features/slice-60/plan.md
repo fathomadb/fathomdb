@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 60 — minimal constrained graph parity
-status: FIX3_AWAITING_REVIEW
+status: READY
 depends_on: 55
 design: design.md
-design_status: FIX3_AWAITING_REVIEW
+design_status: READY_REVIEW_PASS_CYCLE_4
 ---
 
 # Slice 60 plan

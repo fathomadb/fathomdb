@@ -1,7 +1,8 @@
 ---
 title: 0.8.25 Slice 60 — minimal constrained combined-expansion design
-status: FIX3_AWAITING_REVIEW
+status: READY
 design_version: 5
+review_fix: 3
 target_release: 0.8.25
 depends_on: 55
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md

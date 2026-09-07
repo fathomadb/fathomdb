@@ -15,9 +15,10 @@ diagnostic false.
 The RED replaces the accidental exact-vector comparison with a named predicate
 while deliberately retaining its old worker-only implementation. A new
 deterministic test freezes the intended shape: exactly the selected projection
-worker, with at most `ProjectionDispatcher:0`; another worker, writer, or reader
-must reject. The original witness also uses the predicate for its initial and
-five checkpoint snapshots, so GREEN cannot bypass the real failure path.
+worker, with at most `ProjectionDispatcher:0`; the RED explicitly rejects
+another worker and a writer. The closed allow-list also excludes readers and
+duplicate dispatchers. The original witness uses the predicate for its initial
+and five checkpoint snapshots, so GREEN cannot bypass the real failure path.
 
 | Path | Pre-RED SHA-256 | RED SHA-256 |
 | --- | --- | --- |

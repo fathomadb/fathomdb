@@ -1,18 +1,17 @@
 //! Slice 60 RED oracle for bounded, constrained, one-transaction graph expansion.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{mpsc, Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    arm_graph_expand_after_pin_hook_for_test, arm_graph_expand_before_pin_hook_for_test,
-    graph_expansion_degradation_codes_for_test, Engine, EngineError, GraphExpandRequestV1,
-    GraphExpansionDegradationCodeV1, GraphExpansionErrorReasonV1, GraphProjectionOriginV1,
-    GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1, GraphSeedSourceV1,
-    GraphSeedV1, IdSpace, InitialState, LifecycleState, PreparedWrite, ReadContextV1, ReadView,
-    SearchFilter, SourceId, TraversalDirection, TOP_K_BIT_CANDIDATES,
+    graph_expansion_degradation_codes_for_test, Engine, EngineError, GraphExpandRendezvousForTest,
+    GraphExpandRequestV1, GraphExpansionDegradationCodeV1, GraphExpansionErrorReasonV1,
+    GraphProjectionOriginV1, GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1,
+    GraphSeedSourceV1, GraphSeedV1, IdSpace, InitialState, LifecycleState, PreparedWrite,
+    ReadContextV1, ReadView, SearchFilter, SourceId, TraversalDirection, TOP_K_BIT_CANDIDATES,
 };
 use fathomdb_schema::{SCHEMA_VERSION, SQLITE_SUFFIX};
 use tempfile::TempDir;
@@ -763,43 +762,35 @@ fn frozen_pre_pin_drift_and_post_pin_isolation_use_bounded_cancellation_safe_hoo
     );
     let frozen = engine.freeze_read_context(&read_context).unwrap();
 
-    let (ready_tx, ready_rx) = mpsc::sync_channel(1);
-    let (release_tx, release_rx) = mpsc::sync_channel(1);
-    arm_graph_expand_before_pin_hook_for_test(Box::new(move || {
-        ready_tx.send(()).unwrap();
-        release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
-    }));
+    let rendezvous = GraphExpandRendezvousForTest::before_pin(Duration::from_secs(10));
     let mut request = explicit_request(&["root"], TraversalDirection::Outgoing);
     request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen };
     let worker = {
         let engine = Arc::clone(&engine);
-        thread::spawn(move || engine.graph_expand(&request))
+        let rendezvous = rendezvous.clone();
+        thread::spawn(move || engine.graph_expand_with_rendezvous_for_test(&request, rendezvous))
     };
-    ready_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+    rendezvous.wait_until_entered().unwrap();
     engine
         .write(&[node("before", "fact", "before"), edge("before-e", "link", "root", "before")])
         .unwrap();
-    release_tx.send(()).unwrap();
+    rendezvous.release();
     assert!(matches!(worker.join().unwrap(), Err(EngineError::FrozenRead(_))));
 
     let frozen = engine.freeze_read_context(&read_context).unwrap();
-    let (ready_tx, ready_rx) = mpsc::sync_channel(1);
-    let (release_tx, release_rx) = mpsc::sync_channel(1);
-    arm_graph_expand_after_pin_hook_for_test(Box::new(move || {
-        ready_tx.send(()).unwrap();
-        release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
-    }));
+    let rendezvous = GraphExpandRendezvousForTest::after_pin(Duration::from_secs(10));
     let mut request = explicit_request(&["root"], TraversalDirection::Outgoing);
     request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen };
     let worker = {
         let engine = Arc::clone(&engine);
-        thread::spawn(move || engine.graph_expand(&request))
+        let rendezvous = rendezvous.clone();
+        thread::spawn(move || engine.graph_expand_with_rendezvous_for_test(&request, rendezvous))
     };
-    ready_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+    rendezvous.wait_until_entered().unwrap();
     engine
         .write(&[node("after", "fact", "after"), edge("after-e", "link", "root", "after")])
         .unwrap();
-    release_tx.send(()).unwrap();
+    rendezvous.release();
     let result = worker.join().unwrap().unwrap();
     assert!(target_ids(&result).contains(&"before"));
     assert!(!target_ids(&result).contains(&"after"));
@@ -812,21 +803,17 @@ fn current_post_pin_write_linearizes_after_the_complete_operation() {
     let opened = Engine::open(path(&dir, "current-race")).unwrap();
     let engine = Arc::new(opened.engine);
     engine.write(&[node("root", "seed", "root")]).unwrap();
-    let (ready_tx, ready_rx) = mpsc::sync_channel(1);
-    let (release_tx, release_rx) = mpsc::sync_channel(1);
-    arm_graph_expand_after_pin_hook_for_test(Box::new(move || {
-        ready_tx.send(()).unwrap();
-        release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
-    }));
+    let rendezvous = GraphExpandRendezvousForTest::after_pin(Duration::from_secs(10));
     let request = explicit_request(&["root"], TraversalDirection::Outgoing);
     let worker = {
         let engine = Arc::clone(&engine);
-        thread::spawn(move || engine.graph_expand(&request))
+        let rendezvous = rendezvous.clone();
+        thread::spawn(move || engine.graph_expand_with_rendezvous_for_test(&request, rendezvous))
     };
-    ready_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+    rendezvous.wait_until_entered().unwrap();
     engine
         .write(&[node("after", "fact", "after"), edge("after-e", "link", "root", "after")])
         .unwrap();
-    release_tx.send(()).unwrap();
+    rendezvous.release();
     assert!(!target_ids(&worker.join().unwrap().unwrap()).contains(&"after"));
 }

@@ -1,11 +1,12 @@
-//! Slice 60 FIX-2 RED: a global rendezvous must not leak into another request.
+//! Slice 60 FIX-2 RED: a request-scoped rendezvous must not leak into another request.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 
 use fathomdb_engine::{
-    arm_graph_expand_before_pin_hook_for_test, Engine, GraphExpandRequestV1, GraphReadContextV1,
-    GraphSeedV1, IdSpace, ReadContextV1, ReadView, SearchFilter, TraversalDirection,
+    Engine, GraphExpandRendezvousForTest, GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1,
+    IdSpace, ReadContextV1, ReadView, SearchFilter, TraversalDirection,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
@@ -36,13 +37,20 @@ fn request(id: &str) -> GraphExpandRequestV1 {
 fn an_unrelated_request_cannot_consume_a_request_scoped_rendezvous() {
     let directory = TempDir::new().unwrap();
     let database = directory.path().join(format!("fix2-global{SQLITE_SUFFIX}"));
-    let engine = Engine::open(database).unwrap().engine;
-    let fired = Arc::new(AtomicUsize::new(0));
-    let observed = Arc::clone(&fired);
-    arm_graph_expand_before_pin_hook_for_test(Box::new(move || {
-        observed.fetch_add(1, Ordering::SeqCst);
-    }));
+    let engine = Arc::new(Engine::open(database).unwrap().engine);
+    let rendezvous = GraphExpandRendezvousForTest::before_pin(Duration::from_millis(100));
 
     let _ = engine.graph_expand(&request("unrelated"));
-    assert_eq!(fired.load(Ordering::SeqCst), 0);
+    assert!(rendezvous.wait_until_entered().is_err());
+
+    let worker = {
+        let engine = Arc::clone(&engine);
+        let rendezvous = rendezvous.clone();
+        thread::spawn(move || {
+            engine.graph_expand_with_rendezvous_for_test(&request("intended"), rendezvous)
+        })
+    };
+    rendezvous.wait_until_entered().unwrap();
+    rendezvous.release();
+    let _ = worker.join().unwrap();
 }

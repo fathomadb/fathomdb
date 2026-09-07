@@ -672,3 +672,18 @@ Implementation-review cycle 7 independently recomputed the pre-correction Git
 object and found that the first record had truncated its old hash to 61
 hexadecimal characters. The corrected 64-character value above changes no
 test, implementation, or assertion.
+
+## Verification FIX-11 oracle correction 17
+
+The exact Windows `dc488bc7` candidate exposed that
+`graph_expand_executes_erase_and_excise_disappearance` incorrectly unwrapped
+the lifecycle calls. `excise_source` durably deleted the rows, then correctly
+returned `ErasureIncomplete { stage: "wal_checkpoint" }` after all five
+bounded truncation attempts observed BUSY with 318 frames retained. One exact
+unchanged isolated reproduction passed 1/1 in 0.22 seconds.
+
+Independent review classified the failure as a P2 oracle defect and found no
+evidence of a graph reader leak or product defect. The test-only GREEN accepts
+only success or the exact WAL-checkpoint refusal, rejects every other error or
+stage, and retains the real post-call graph-disappearance assertions. Product
+erasure, retry, checkpoint, runtime, and public behavior remain unchanged.

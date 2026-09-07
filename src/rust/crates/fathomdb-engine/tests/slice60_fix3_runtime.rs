@@ -3,10 +3,10 @@
 #![cfg(all(feature = "test-hooks", feature = "operator"))]
 
 use fathomdb_engine::{
-    ArtifactRevisionId, CanonicalHash, Engine, GraphExpandRequestV1, GraphReadContextV1,
-    GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView,
-    SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
-    SourceVersionId, TraversalDirection, WriteProvenanceV1,
+    ArtifactRevisionId, CanonicalHash, Engine, EngineError, ExciseReport, GraphExpandRequestV1,
+    GraphReadContextV1, GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProvenancedNodeV1,
+    ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator,
+    SourceRevisionId, SourceVersionId, TraversalDirection, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
@@ -126,6 +126,14 @@ fn target_ids(engine: &Engine) -> Vec<String> {
         .collect()
 }
 
+fn assert_committed_erasure(result: Result<ExciseReport, EngineError>) {
+    match result {
+        Ok(_) => {}
+        Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "wal_checkpoint" => {}
+        other => panic!("expected committed erasure or WAL-checkpoint refusal, got {other:?}"),
+    }
+}
+
 #[test]
 fn graph_expand_executes_registered_unregistered_and_closure_fenced_dependency_states() {
     let directory = TempDir::new().unwrap();
@@ -149,11 +157,11 @@ fn graph_expand_executes_registered_unregistered_and_closure_fenced_dependency_s
 fn graph_expand_executes_erase_and_excise_disappearance() {
     let directory = TempDir::new().unwrap();
     let erased = open_graph(&directory, "erase", false);
-    erased.erase_source("source-owner").unwrap();
+    assert_committed_erasure(erased.erase_source("source-owner"));
     assert!(target_ids(&erased).is_empty());
 
     let excised = open_graph(&directory, "excise", false);
-    excised.excise_source("source-owner").unwrap();
+    assert_committed_erasure(excised.excise_source("source-owner"));
     assert!(target_ids(&excised).is_empty());
 }
 

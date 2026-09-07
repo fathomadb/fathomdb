@@ -526,12 +526,15 @@ pub(crate) fn source_link_valid(
     let Some((canonical_source_id, canonical_body)) = canonical else {
         return Ok(false);
     };
+    if canonical_source_id != source_id {
+        return Ok(false);
+    }
     let version_valid: bool = connection
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_versions \
              WHERE schema_version=1 AND source_revision_id=?1 \
                AND source_id=?2 AND source_version_id=?3)",
-            rusqlite::params![source_revision, canonical_source_id, version_id],
+            rusqlite::params![source_revision, source_id, version_id],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;
@@ -614,6 +617,13 @@ pub(crate) fn registered_dependency_for_cursor(
         || !valid_caller_identity(&dependency_id)
         || generation <= 0
         || u64::try_from(generation).ok().is_none_or(|value| value > current_generation)
+        || crate::validate_dependency_chain(
+            connection,
+            &source_revision_id,
+            &derived_revision_id,
+            crate::DependencyValidationMode::Persisted,
+        )
+        .is_err()
         || !source_link_valid(connection, &derived_revision_id, Some(&source_revision_id))?
         || !canonical_source_chain_valid(connection, &source_revision_id)?
         || crate::dependency_closure::active_barrier_for_source(connection, &source_revision_id)?
@@ -643,8 +653,12 @@ fn root_chain_role(
         .optional()
         .map_err(|_| EngineError::Storage)?;
     let Some(role) = role else { return Ok(None) };
-    let (role, source_revision_id) = match role.as_str() {
-        "canonical_source" => (TraceArtifactRoleV1::CanonicalSource, revision_id.to_string()),
+    let (role, source_revision_id, root_chain_valid) = match role.as_str() {
+        "canonical_source" => (
+            TraceArtifactRoleV1::CanonicalSource,
+            revision_id.to_string(),
+            canonical_source_chain_valid(connection, revision_id)?,
+        ),
         "derived_semantic" => {
             let source_revision_id: Option<String> = connection
                 .query_row(
@@ -659,11 +673,15 @@ fn root_chain_role(
             if !source_link_valid(connection, revision_id, Some(&source_revision_id))? {
                 return Ok(None);
             }
-            (TraceArtifactRoleV1::Derived, source_revision_id)
+            (
+                TraceArtifactRoleV1::Derived,
+                source_revision_id.clone(),
+                canonical_source_chain_valid(connection, &source_revision_id)?,
+            )
         }
         _ => return Ok(None),
     };
-    if !canonical_source_chain_valid(connection, &source_revision_id)?
+    if !root_chain_valid
         || crate::dependency_closure::active_barrier_for_source(connection, &source_revision_id)?
     {
         return Ok(None);
@@ -765,6 +783,13 @@ fn authorize_candidate_chain(
         return Ok(None);
     }
     if !canonical_source_chain_valid(connection, &source_revision_id)?
+        || crate::validate_dependency_chain(
+            connection,
+            &source_revision_id,
+            &derived_revision_id,
+            crate::DependencyValidationMode::Persisted,
+        )
+        .is_err()
         || !source_link_valid(connection, &derived_revision_id, Some(&source_revision_id))?
         || crate::dependency_closure::active_barrier_for_source(connection, &source_revision_id)?
     {

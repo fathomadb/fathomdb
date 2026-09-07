@@ -639,3 +639,19 @@ edge-batch, frontier, visited, and candidate counters within the READY
 structural bounds, including identical exact-W tuples with and without 100,000
 unrelated rows. The pre-counter RSS RED failed to compile exactly because those
 new counter fields were absent.
+
+## FIX-5 GREEN
+
+The production close restores every persisted source-ID and provenance-chain
+equality check in graph classification and dependency tracing. A canonical-root
+self-link corruption is unavailable at the root boundary; a corrupted derived
+relation preserves only its authenticated root and contributes no edge.
+
+The test-only read carrier now holds request-scoped live-RSS and retained-state
+observations. The isolated child samples current RSS after endpoint batch
+materialization and Engine structural sort, before that batch is consumed, and
+at the remaining frontier, visited, and candidate retention maxima. The
+portable counters report the maximum batch rows, current-plus-next frontier
+states, visited states, and candidates. Exact 10,000-work arms report equal
+counter tuples with and without the 100,000 unrelated-node control while
+preserving unordered endpoint SQL and Engine-side structural ordering.

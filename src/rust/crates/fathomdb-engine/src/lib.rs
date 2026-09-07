@@ -774,14 +774,6 @@ fn process_current_rss_bytes() -> u64 {
     0
 }
 
-#[cfg(feature = "test-hooks")]
-fn sqlite_current_allocator_bytes() -> u64 {
-    // SAFETY: SQLite's process-global allocator counter has no pointer inputs
-    // and is explicitly available after SQLite initialization.
-    let bytes = unsafe { rusqlite::ffi::sqlite3_memory_used() };
-    u64::try_from(bytes).unwrap_or(0)
-}
-
 #[cfg(all(feature = "test-hooks", target_os = "linux"))]
 fn process_peak_rss_bytes() -> u64 {
     let mut usage = std::mem::MaybeUninit::<libc::rusage>::zeroed();
@@ -2112,11 +2104,7 @@ struct GraphExpandReaderRequest {
     frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
     projection_runtime_state: ProjectionRuntimeStateV1,
     #[cfg(feature = "test-hooks")]
-    rendezvous: Option<graph_expand::GraphExpandRendezvousForTest>,
-    #[cfg(feature = "test-hooks")]
-    projection_state: Option<graph_expand::GraphExpandProjectionStateForTest>,
-    #[cfg(feature = "test-hooks")]
-    projection_generation: Option<graph_expand::GraphExpandProjectionGenerationForTest>,
+    test_controls: graph_expand::GraphExpandReaderControlsForTest,
     respond: SyncSender<Result<GraphExpandResultV1, EngineError>>,
 }
 
@@ -2859,11 +2847,7 @@ fn reader_worker_loop(
                     request.frozen_binding.as_deref(),
                     request.projection_runtime_state,
                     #[cfg(feature = "test-hooks")]
-                    request.rendezvous.as_ref(),
-                    #[cfg(feature = "test-hooks")]
-                    request.projection_state,
-                    #[cfg(feature = "test-hooks")]
-                    request.projection_generation,
+                    &request.test_controls,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -26503,6 +26487,10 @@ pub(crate) fn validate_dependency_chain(
         && source_schema == 1
         && version_schema == 1
         && self_schema == 1
+        && derived_source_id == link_source_id
+        && canonical_source_id == link_source_id
+        && version_source_id == link_source_id
+        && self_source_id == link_source_id
         && version_id == link_source_version
         && self_version_id == link_source_version
         && version_revision == requested_source_revision

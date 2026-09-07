@@ -26,6 +26,57 @@ const SCHEMA_VERSION: u32 = 1;
 #[cfg(feature = "test-hooks")]
 static GRAPH_EXPAND_RSS_SAMPLE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
+#[cfg(feature = "test-hooks")]
+fn observe_current_rss_peak(test_controls: &GraphExpandReaderControlsForTest) {
+    let Some(peak) = test_controls.rss_peak_bytes.as_ref() else { return };
+    let observed = crate::process_current_rss_bytes();
+    let mut current = peak.load(AtomicOrdering::Relaxed);
+    while observed > current {
+        match peak.compare_exchange_weak(
+            current,
+            observed,
+            AtomicOrdering::Relaxed,
+            AtomicOrdering::Relaxed,
+        ) {
+            Ok(_) => return,
+            Err(next) => current = next,
+        }
+    }
+}
+
+#[cfg(feature = "test-hooks")]
+#[derive(Default)]
+pub(crate) struct GraphExpandRetentionCountersForTest {
+    retained_edge_batch_rows: AtomicU64,
+    frontier_states: AtomicU64,
+    visited_states: AtomicU64,
+    candidate_targets: AtomicU64,
+}
+
+#[cfg(feature = "test-hooks")]
+fn observe_retained_graph_state(
+    test_controls: &GraphExpandReaderControlsForTest,
+    retained_edge_batch_rows: usize,
+    frontier_states: usize,
+    visited_states: usize,
+    candidate_targets: usize,
+) {
+    let Some(counters) = test_controls.retention_counters.as_ref() else { return };
+    counters.retained_edge_batch_rows.fetch_max(
+        u64::try_from(retained_edge_batch_rows).unwrap_or(u64::MAX),
+        AtomicOrdering::Relaxed,
+    );
+    counters
+        .frontier_states
+        .fetch_max(u64::try_from(frontier_states).unwrap_or(u64::MAX), AtomicOrdering::Relaxed);
+    counters
+        .visited_states
+        .fetch_max(u64::try_from(visited_states).unwrap_or(u64::MAX), AtomicOrdering::Relaxed);
+    counters
+        .candidate_targets
+        .fetch_max(u64::try_from(candidate_targets).unwrap_or(u64::MAX), AtomicOrdering::Relaxed);
+}
+
 /// The source from which graph-expansion seeds were resolved.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GraphSeedSourceV1 {
@@ -428,12 +479,25 @@ pub struct GraphExpandMeasurementForTest {
     pub peak_rss_delta_bytes: u64,
 }
 
-/// Current SQLite allocator evidence from one isolated graph-expansion fixture arm.
+/// Current process RSS evidence from one isolated graph-expansion fixture arm.
 #[cfg(feature = "test-hooks")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct GraphExpandCurrentRssSampleForTest {
     pub current_rss_delta_bytes: u64,
     pub work_units: u64,
+}
+
+/// Live current-RSS peak sampled inside one isolated graph-expansion process.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GraphExpandIsolatedProcessRssSampleForTest {
+    pub process_id: u32,
+    pub peak_rss_delta_bytes: u64,
+    pub work_units: u64,
+    pub retained_edge_batch_rows: u64,
+    pub frontier_states: u64,
+    pub visited_states: u64,
+    pub candidate_targets: u64,
 }
 
 /// An owned, request-scoped projection lifecycle observation for real SQLite
@@ -451,6 +515,16 @@ pub struct GraphExpandProjectionStateForTest {
 pub struct GraphExpandProjectionGenerationForTest {
     origin: ProjectionGenerationOriginV1,
     readiness: ProjectionReadinessV1,
+}
+
+#[cfg(feature = "test-hooks")]
+#[derive(Default)]
+pub(crate) struct GraphExpandReaderControlsForTest {
+    pub(crate) rendezvous: Option<GraphExpandRendezvousForTest>,
+    pub(crate) projection_state: Option<GraphExpandProjectionStateForTest>,
+    pub(crate) projection_generation: Option<GraphExpandProjectionGenerationForTest>,
+    pub(crate) rss_peak_bytes: Option<std::sync::Arc<AtomicU64>>,
+    pub(crate) retention_counters: Option<std::sync::Arc<GraphExpandRetentionCountersForTest>>,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -517,7 +591,7 @@ impl Engine {
         tx.execute(
             "INSERT INTO canonical_nodes(\
                 write_cursor, kind, body, source_id, logical_id, row_kind, state, reason, valid_from, valid_until\
-             ) VALUES(?1, 'fact', 'derived', 'derived-owner', 'derived', 'leaf', 'active', NULL, NULL, NULL)",
+             ) VALUES(?1, 'fact', 'derived', 'source-owner', 'derived', 'leaf', 'active', NULL, NULL, NULL)",
             [i64::try_from(cursor).map_err(|_| EngineError::Storage)?],
         )
         .map_err(|_| EngineError::Storage)?;
@@ -532,7 +606,7 @@ impl Engine {
             "INSERT INTO _fathomdb_source_links(\
                 schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id,\
                 locator_kind, start_byte, end_byte, hash_algorithm, hash_digest\
-             ) SELECT schema_version, 'derived-r1', 'derived-owner', source_version_id, source_revision_id,\
+             ) SELECT schema_version, 'derived-r1', 'source-owner', source_version_id, source_revision_id,\
                       locator_kind, start_byte, end_byte, hash_algorithm, hash_digest \
                FROM _fathomdb_source_links WHERE artifact_revision_id='source-r1'",
             [],
@@ -597,9 +671,9 @@ impl Engine {
             let path = root.join(format!("arm-{index}.sqlite"));
             let opened = Engine::open(&path).map_err(|_| EngineError::Storage)?;
             opened.engine.seed_graph_expand_rss_fixture_for_test(work, unrelated)?;
-            let baseline = crate::sqlite_current_allocator_bytes();
+            let baseline = crate::process_current_rss_bytes();
             let result = opened.engine.graph_expand(request)?;
-            let observed = crate::sqlite_current_allocator_bytes().saturating_sub(baseline);
+            let observed = crate::process_current_rss_bytes().saturating_sub(baseline);
             samples.push(GraphExpandCurrentRssSampleForTest {
                 current_rss_delta_bytes: observed,
                 work_units: result.work_units,
@@ -610,6 +684,142 @@ impl Engine {
         Ok(samples)
     }
 
+    #[doc(hidden)]
+    pub fn graph_expand_isolated_process_rss_samples_for_test(
+        request: &GraphExpandRequestV1,
+        work_units: &[u64],
+        unrelated_nodes: &[u64],
+    ) -> Result<Vec<GraphExpandIsolatedProcessRssSampleForTest>, EngineError> {
+        const CHILD_ARM: &str = "FATHOMDB_SLICE60_FIX5_RSS_CHILD_ARM";
+        const SAMPLE_PREFIX: &str = "FATHOMDB_SLICE60_FIX5_RSS_SAMPLE=";
+
+        if work_units.len() != unrelated_nodes.len() {
+            return Err(EngineError::Storage);
+        }
+        if let Ok(index) = std::env::var(CHILD_ARM) {
+            let index = index.parse::<usize>().map_err(|_| EngineError::Storage)?;
+            let work = *work_units.get(index).ok_or(EngineError::Storage)?;
+            let unrelated = *unrelated_nodes.get(index).ok_or(EngineError::Storage)?;
+            let sample = Self::measure_isolated_process_rss_arm_for_test(request, work, unrelated)?;
+            println!(
+                "{SAMPLE_PREFIX}{}:{}:{}:{}:{}:{}:{}",
+                sample.process_id,
+                sample.peak_rss_delta_bytes,
+                sample.work_units,
+                sample.retained_edge_batch_rows,
+                sample.frontier_states,
+                sample.visited_states,
+                sample.candidate_targets,
+            );
+            std::process::exit(0);
+        }
+
+        let executable = std::env::current_exe().map_err(|_| EngineError::Storage)?;
+        let mut samples = Vec::with_capacity(work_units.len());
+        for index in 0..work_units.len() {
+            let output = std::process::Command::new(&executable)
+                .arg("--nocapture")
+                .arg("--test-threads=1")
+                .env(CHILD_ARM, index.to_string())
+                .output()
+                .map_err(|_| EngineError::Storage)?;
+            if !output.status.success() {
+                return Err(EngineError::Storage);
+            }
+            let stdout = String::from_utf8(output.stdout).map_err(|_| EngineError::Storage)?;
+            let fields = stdout
+                .lines()
+                .find_map(|line| line.split_once(SAMPLE_PREFIX).map(|(_, sample)| sample))
+                .ok_or(EngineError::Storage)?
+                .split(':')
+                .collect::<Vec<_>>();
+            let [process_id, peak_rss_delta_bytes, work_units, retained_edge_batch_rows, frontier_states, visited_states, candidate_targets] =
+                fields.as_slice()
+            else {
+                return Err(EngineError::Storage);
+            };
+            samples.push(GraphExpandIsolatedProcessRssSampleForTest {
+                process_id: process_id.parse().map_err(|_| EngineError::Storage)?,
+                peak_rss_delta_bytes: peak_rss_delta_bytes
+                    .parse()
+                    .map_err(|_| EngineError::Storage)?,
+                work_units: work_units.parse().map_err(|_| EngineError::Storage)?,
+                retained_edge_batch_rows: retained_edge_batch_rows
+                    .parse()
+                    .map_err(|_| EngineError::Storage)?,
+                frontier_states: frontier_states.parse().map_err(|_| EngineError::Storage)?,
+                visited_states: visited_states.parse().map_err(|_| EngineError::Storage)?,
+                candidate_targets: candidate_targets.parse().map_err(|_| EngineError::Storage)?,
+            });
+        }
+        Ok(samples)
+    }
+
+    fn measure_isolated_process_rss_arm_for_test(
+        request: &GraphExpandRequestV1,
+        work: u64,
+        unrelated: u64,
+    ) -> Result<GraphExpandIsolatedProcessRssSampleForTest, EngineError> {
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = (request, work, unrelated);
+            return Err(EngineError::Storage);
+        }
+        #[cfg(target_os = "linux")]
+        {
+            let sequence = GRAPH_EXPAND_RSS_SAMPLE_SEQUENCE.fetch_add(1, AtomicOrdering::Relaxed);
+            let root = std::env::temp_dir()
+                .join(format!("fathomdb-slice60-rss-child-{}-{sequence}", std::process::id()));
+            std::fs::create_dir_all(&root).map_err(|_| EngineError::Storage)?;
+            let path = root.join("arm.sqlite");
+            let opened = Engine::open(&path).map_err(|_| EngineError::Storage)?;
+            opened.engine.seed_graph_expand_rss_fixture_for_test(work, unrelated)?;
+            let baseline = crate::process_current_rss_bytes();
+            if baseline == 0 {
+                return Err(EngineError::Storage);
+            }
+            let rss_peak = std::sync::Arc::new(AtomicU64::new(baseline));
+            let retention_counters =
+                std::sync::Arc::new(GraphExpandRetentionCountersForTest::default());
+            let result = opened.engine.graph_expand_inner(
+                request,
+                GraphExpandReaderControlsForTest {
+                    rss_peak_bytes: Some(std::sync::Arc::clone(&rss_peak)),
+                    retention_counters: Some(std::sync::Arc::clone(&retention_counters)),
+                    ..GraphExpandReaderControlsForTest::default()
+                },
+            )?;
+            let observed = crate::process_current_rss_bytes();
+            let mut peak = rss_peak.load(AtomicOrdering::Relaxed);
+            while observed > peak {
+                match rss_peak.compare_exchange_weak(
+                    peak,
+                    observed,
+                    AtomicOrdering::Relaxed,
+                    AtomicOrdering::Relaxed,
+                ) {
+                    Ok(_) => break,
+                    Err(next) => peak = next,
+                }
+            }
+            opened.engine.close()?;
+            let _ = std::fs::remove_dir_all(root);
+            Ok(GraphExpandIsolatedProcessRssSampleForTest {
+                process_id: std::process::id(),
+                peak_rss_delta_bytes: peak.saturating_sub(baseline),
+                work_units: result.work_units,
+                retained_edge_batch_rows: retention_counters
+                    .retained_edge_batch_rows
+                    .load(AtomicOrdering::Relaxed),
+                frontier_states: retention_counters.frontier_states.load(AtomicOrdering::Relaxed),
+                visited_states: retention_counters.visited_states.load(AtomicOrdering::Relaxed),
+                candidate_targets: retention_counters
+                    .candidate_targets
+                    .load(AtomicOrdering::Relaxed),
+            })
+        }
+    }
+
     fn seed_graph_expand_rss_fixture_for_test(
         &self,
         work: u64,
@@ -617,6 +827,13 @@ impl Engine {
     ) -> Result<(), EngineError> {
         use crate::{InitialState, PreparedWrite, SourceId};
 
+        {
+            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+            connection
+                .execute_batch("PRAGMA default_cache_size=64")
+                .map_err(|_| EngineError::Storage)?;
+        }
         self.write(&[PreparedWrite::Node {
             logical_id: Some("root".into()),
             kind: "fact".into(),
@@ -805,7 +1022,11 @@ impl Engine {
         &self,
         request: &GraphExpandRequestV1,
     ) -> Result<GraphExpandResultV1, EngineError> {
-        self.graph_expand_inner(request, None, None, None)
+        self.graph_expand_inner(
+            request,
+            #[cfg(feature = "test-hooks")]
+            GraphExpandReaderControlsForTest::default(),
+        )
     }
 
     #[cfg(feature = "test-hooks")]
@@ -815,7 +1036,13 @@ impl Engine {
         request: &GraphExpandRequestV1,
         rendezvous: GraphExpandRendezvousForTest,
     ) -> Result<GraphExpandResultV1, EngineError> {
-        self.graph_expand_inner(request, Some(rendezvous), None, None)
+        self.graph_expand_inner(
+            request,
+            GraphExpandReaderControlsForTest {
+                rendezvous: Some(rendezvous),
+                ..GraphExpandReaderControlsForTest::default()
+            },
+        )
     }
 
     #[cfg(feature = "test-hooks")]
@@ -825,7 +1052,13 @@ impl Engine {
         request: &GraphExpandRequestV1,
         projection_state: GraphExpandProjectionStateForTest,
     ) -> Result<GraphExpandResultV1, EngineError> {
-        self.graph_expand_inner(request, None, Some(projection_state), None)
+        self.graph_expand_inner(
+            request,
+            GraphExpandReaderControlsForTest {
+                projection_state: Some(projection_state),
+                ..GraphExpandReaderControlsForTest::default()
+            },
+        )
     }
 
     #[doc(hidden)]
@@ -838,23 +1071,20 @@ impl Engine {
     ) -> Result<GraphExpandResultV1, EngineError> {
         self.graph_expand_inner(
             request,
-            None,
-            None,
-            Some(GraphExpandProjectionGenerationForTest { origin, readiness }),
+            GraphExpandReaderControlsForTest {
+                projection_generation: Some(GraphExpandProjectionGenerationForTest {
+                    origin,
+                    readiness,
+                }),
+                ..GraphExpandReaderControlsForTest::default()
+            },
         )
     }
 
     fn graph_expand_inner(
         &self,
         request: &GraphExpandRequestV1,
-        #[cfg(feature = "test-hooks")] rendezvous: Option<GraphExpandRendezvousForTest>,
-        #[cfg(not(feature = "test-hooks"))] _rendezvous: Option<()>,
-        #[cfg(feature = "test-hooks")] projection_state: Option<GraphExpandProjectionStateForTest>,
-        #[cfg(not(feature = "test-hooks"))] _projection_state: Option<()>,
-        #[cfg(feature = "test-hooks")] projection_generation: Option<
-            GraphExpandProjectionGenerationForTest,
-        >,
-        #[cfg(not(feature = "test-hooks"))] _projection_generation: Option<()>,
+        #[cfg(feature = "test-hooks")] test_controls: GraphExpandReaderControlsForTest,
     ) -> Result<GraphExpandResultV1, EngineError> {
         self.ensure_open()?;
         let frozen_binding = match &request.context {
@@ -908,11 +1138,7 @@ impl Engine {
                     frozen_binding,
                     projection_runtime_state,
                     #[cfg(feature = "test-hooks")]
-                    rendezvous,
-                    #[cfg(feature = "test-hooks")]
-                    projection_state,
-                    #[cfg(feature = "test-hooks")]
-                    projection_generation,
+                    test_controls,
                     respond,
                 },
             )))
@@ -952,8 +1178,8 @@ impl Engine {
 struct EdgeRow {
     write_cursor: u64,
     kind: String,
-    from_id: String,
-    to_id: String,
+    terminal_direction: TraversalDirection,
+    next_logical_id: String,
     logical_id: Option<String>,
     superseded_at: Option<i64>,
     t_invalid: Option<i64>,
@@ -1032,11 +1258,18 @@ fn load_incident_edges(
     let mut statement = tx.prepare(&query.sql).map_err(|_| EngineError::Storage)?;
     let rows = statement
         .query_map(rusqlite::params![query.logical_id, query.limit], |row| {
+            let from_id: String = row.get(2)?;
+            let to_id: String = row.get(3)?;
+            let (terminal_direction, next_logical_id) = if from_id == logical_id {
+                (TraversalDirection::Outgoing, to_id)
+            } else {
+                (TraversalDirection::Incoming, from_id)
+            };
             Ok(EdgeRow {
                 write_cursor: u64::try_from(row.get::<_, i64>(0)?).unwrap_or(0),
                 kind: row.get(1)?,
-                from_id: row.get(2)?,
-                to_id: row.get(3)?,
+                terminal_direction,
+                next_logical_id,
                 logical_id: row.get(4)?,
                 superseded_at: row.get(5)?,
                 t_invalid: row.get(6)?,
@@ -1046,12 +1279,8 @@ fn load_incident_edges(
     rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)
 }
 
-fn direction_and_next(edge: &EdgeRow, current: &str) -> (TraversalDirection, String) {
-    if edge.from_id == current {
-        (TraversalDirection::Outgoing, edge.to_id.clone())
-    } else {
-        (TraversalDirection::Incoming, edge.from_id.clone())
-    }
+fn direction_and_next(edge: &EdgeRow) -> (TraversalDirection, &str) {
+    (edge.terminal_direction, &edge.next_logical_id)
 }
 
 fn origin_cmp(left: &GraphOriginV1, right: &GraphOriginV1) -> Ordering {
@@ -1171,20 +1400,18 @@ pub(crate) fn read_graph_expand_in_tx(
     request: &GraphExpandRequestV1,
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
     projection_runtime_state: ProjectionRuntimeStateV1,
-    #[cfg(feature = "test-hooks")] rendezvous: Option<&GraphExpandRendezvousForTest>,
-    #[cfg(feature = "test-hooks")] projection_state: Option<GraphExpandProjectionStateForTest>,
-    #[cfg(feature = "test-hooks")] projection_generation: Option<
-        GraphExpandProjectionGenerationForTest,
-    >,
+    #[cfg(feature = "test-hooks")] test_controls: &GraphExpandReaderControlsForTest,
     attribution: &std::sync::Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<GraphExpandResultV1, EngineError> {
     #[cfg(feature = "test-hooks")]
-    if let Some(rendezvous) = rendezvous {
+    if let Some(rendezvous) = test_controls.rendezvous.as_ref() {
         rendezvous.fire(GraphExpandRendezvousPhase::BeforePin);
     }
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)
         .map_err(|_| EngineError::Storage)?;
+    #[cfg(feature = "test-hooks")]
+    observe_current_rss_peak(test_controls);
     if let Some(binding) = frozen_binding {
         frozen_read::validate_snapshot(&tx, binding)?;
     } else {
@@ -1192,7 +1419,7 @@ pub(crate) fn read_graph_expand_in_tx(
             .map_err(|_| EngineError::Storage)?;
     }
     #[cfg(feature = "test-hooks")]
-    if let Some(rendezvous) = rendezvous {
+    if let Some(rendezvous) = test_controls.rendezvous.as_ref() {
         rendezvous.fire(GraphExpandRendezvousPhase::AfterPin);
     }
 
@@ -1226,7 +1453,7 @@ pub(crate) fn read_graph_expand_in_tx(
         {
             let (source_origin, source_readiness) = {
                 #[cfg(feature = "test-hooks")]
-                if let Some(state) = projection_generation {
+                if let Some(state) = test_controls.projection_generation {
                     (state.origin, state.readiness)
                 } else {
                     (status.origin, status.readiness)
@@ -1236,7 +1463,7 @@ pub(crate) fn read_graph_expand_in_tx(
             };
             let (origin, readiness) = {
                 #[cfg(feature = "test-hooks")]
-                if let Some(state) = projection_state {
+                if let Some(state) = test_controls.projection_state {
                     (state.origin, state.readiness)
                 } else {
                     (
@@ -1269,12 +1496,32 @@ pub(crate) fn read_graph_expand_in_tx(
         frontier.sort_by(|left, right| {
             left.0.cmp(&right.0).then_with(|| left.1.as_bytes().cmp(right.1.as_bytes()))
         });
+        #[cfg(feature = "test-hooks")]
+        let current_frontier_states = frontier.len();
         let mut next_frontier = Vec::new();
+        #[cfg(feature = "test-hooks")]
+        observe_retained_graph_state(
+            test_controls,
+            0,
+            current_frontier_states,
+            visited_by_seed.iter().map(HashSet::len).sum(),
+            candidates.len(),
+        );
         for (seed_index, current) in frontier {
             let seed = &seeds[seed_index];
             let remaining = request.max_work_units.saturating_sub(work_units);
             let mut edges =
                 load_incident_edges(&tx, &current, request.direction, remaining.saturating_add(1))?;
+            #[cfg(feature = "test-hooks")]
+            observe_current_rss_peak(test_controls);
+            #[cfg(feature = "test-hooks")]
+            observe_retained_graph_state(
+                test_controls,
+                edges.len(),
+                current_frontier_states.saturating_add(next_frontier.len()),
+                visited_by_seed.iter().map(HashSet::len).sum(),
+                candidates.len(),
+            );
             if u64::try_from(edges.len()).unwrap_or(u64::MAX) > remaining {
                 return Err(graph_error(
                     GraphExpansionErrorReasonV1::GraphExpansionBoundExceeded,
@@ -1282,8 +1529,8 @@ pub(crate) fn read_graph_expand_in_tx(
                 ));
             }
             edges.sort_by(|left, right| {
-                let (left_direction, left_next) = direction_and_next(left, &current);
-                let (right_direction, right_next) = direction_and_next(right, &current);
+                let (left_direction, left_next) = direction_and_next(left);
+                let (right_direction, right_next) = direction_and_next(right);
                 let rank = |direction| match direction {
                     TraversalDirection::Outgoing => 0_u8,
                     TraversalDirection::Incoming => 1,
@@ -1304,6 +1551,16 @@ pub(crate) fn read_graph_expand_in_tx(
                         right.write_cursor,
                     ))
             });
+            #[cfg(feature = "test-hooks")]
+            observe_current_rss_peak(test_controls);
+            #[cfg(feature = "test-hooks")]
+            observe_retained_graph_state(
+                test_controls,
+                edges.len(),
+                current_frontier_states.saturating_add(next_frontier.len()),
+                visited_by_seed.iter().map(HashSet::len).sum(),
+                candidates.len(),
+            );
             for edge in edges {
                 work_units += 1;
                 if !request.edge_kinds.is_empty() && !request.edge_kinds.contains(&edge.kind) {
@@ -1314,17 +1571,28 @@ pub(crate) fn read_graph_expand_in_tx(
                 {
                     continue;
                 }
-                let (terminal_direction, next) = direction_and_next(&edge, &current);
-                if !visited_by_seed[seed_index].insert(next.clone()) {
+                let (terminal_direction, next) = direction_and_next(&edge);
+                if depth + 1 < request.max_depth
+                    && !visited_by_seed[seed_index].insert(next.to_string())
+                {
+                    continue;
+                }
+                // Structural traversal order matches the output origin order. At the terminal
+                // depth, later edges cannot displace a full candidate set.
+                if depth + 1 == request.max_depth
+                    && candidates.len() >= request.result_limit as usize
+                {
                     continue;
                 }
                 let Some((kind, body, write_cursor)) =
-                    load_node(&tx, &next, view, &context.eligibility)?
+                    load_node(&tx, next, view, &context.eligibility)?
                 else {
                     continue;
                 };
-                next_frontier.push((seed_index, next.clone()));
-                if all_seed_ids.contains(&next)
+                if depth < request.max_depth {
+                    next_frontier.push((seed_index, next.to_string()));
+                }
+                if all_seed_ids.contains(next)
                     || (!request.target_kinds.is_empty() && !request.target_kinds.contains(&kind))
                 {
                     continue;
@@ -1334,41 +1602,57 @@ pub(crate) fn read_graph_expand_in_tx(
                     seed_logical_id: seed.logical_id.clone(),
                     seed_ordinal: seed.seed_ordinal,
                     predecessor_logical_id: current.clone(),
-                    target_logical_id: next.clone(),
+                    target_logical_id: next.to_string(),
                     hop_count: depth + 1,
-                    terminal_edge_kind: edge.kind,
+                    terminal_edge_kind: edge.kind.clone(),
                     terminal_direction,
                 };
                 let target = GraphTargetV1 {
                     schema_version: 1,
-                    logical_id: next.clone(),
+                    logical_id: next.to_string(),
                     kind,
                     body,
                     write_cursor,
                     origin,
                 };
-                if let Some(existing) = candidates.get_mut(&next) {
+                if let Some(existing) = candidates.get_mut(next) {
                     if origin_cmp(&target.origin, &existing.origin).is_lt() {
                         *existing = target;
                     }
-                    continue;
+                } else if candidates.len() < request.result_limit as usize {
+                    candidates.insert(next.to_string(), target);
+                } else {
+                    let worst = candidates
+                        .iter()
+                        .max_by(|(_, left), (_, right)| origin_cmp(&left.origin, &right.origin))
+                        .map(|(logical_id, _)| logical_id.clone())
+                        .expect("result limit is validated nonzero");
+                    if origin_cmp(&target.origin, &candidates[&worst].origin).is_lt() {
+                        candidates.remove(&worst);
+                        candidates.insert(next.to_string(), target);
+                    }
                 }
-                if candidates.len() < request.result_limit as usize {
-                    candidates.insert(next, target);
-                    continue;
-                }
-                let worst = candidates
-                    .iter()
-                    .max_by(|(_, left), (_, right)| origin_cmp(&left.origin, &right.origin))
-                    .map(|(logical_id, _)| logical_id.clone())
-                    .expect("result limit is validated nonzero");
-                if origin_cmp(&target.origin, &candidates[&worst].origin).is_lt() {
-                    candidates.remove(&worst);
-                    candidates.insert(next, target);
-                }
+                #[cfg(feature = "test-hooks")]
+                observe_retained_graph_state(
+                    test_controls,
+                    0,
+                    current_frontier_states.saturating_add(next_frontier.len()),
+                    visited_by_seed.iter().map(HashSet::len).sum(),
+                    candidates.len(),
+                );
             }
+            #[cfg(feature = "test-hooks")]
+            observe_current_rss_peak(test_controls);
         }
         frontier = next_frontier;
+        #[cfg(feature = "test-hooks")]
+        observe_retained_graph_state(
+            test_controls,
+            0,
+            frontier.len(),
+            visited_by_seed.iter().map(HashSet::len).sum(),
+            candidates.len(),
+        );
     }
     let mut targets = candidates.into_values().collect::<Vec<_>>();
     targets.sort_by(|left, right| origin_cmp(&left.origin, &right.origin));

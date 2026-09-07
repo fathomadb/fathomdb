@@ -73,23 +73,6 @@ fn fixture(directory: &TempDir, name: &str) -> (std::path::PathBuf, Engine) {
                     SourceVersionId::new("v1").unwrap(),
                 ),
             }),
-            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
-                logical_id: Some("derived".into()),
-                kind: "fact".into(),
-                body: "derived".into(),
-                source_id: SourceId::new("derived-owner").unwrap(),
-                state: InitialState::Active,
-                reason: None,
-                valid_from: None,
-                valid_until: None,
-                provenance: WriteProvenanceV1::derived(
-                    ArtifactRevisionId::new("derived-r1").unwrap(),
-                    SourceVersionId::new("v1").unwrap(),
-                    SourceRevisionId::new("source-r1").unwrap(),
-                    SourceLocator::whole_body(),
-                    CanonicalHash::sha256(digest(source_body)).unwrap(),
-                ),
-            }),
             PreparedWrite::Edge {
                 logical_id: Some("root-derived".into()),
                 kind: "link".into(),
@@ -105,6 +88,7 @@ fn fixture(directory: &TempDir, name: &str) -> (std::path::PathBuf, Engine) {
             },
         ])
         .unwrap();
+    opened.engine.seed_graph_expand_dependency_closure_for_test().unwrap();
     (path, opened.engine)
 }
 

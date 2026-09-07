@@ -475,13 +475,15 @@ pass. The default non-test-hooks engine check, `./scripts/agent-lint.sh`, and
 ## FIX-4 RED
 
 Cycle 4 adds new executable, additive RED targets. The cross-owner dependency
-fixture writes separate source and derived owners, executes graph expansion
-before and after registration, and requires a nonterminal closure barrier to
-exclude a derived target while its independently owned row survives. It keeps
-erase and excise as separate controls. At baseline the real database refuses
-the fixture before graph expansion with `source_mismatch` at
-`/provenance/sourceRevisionId`: ownership is incorrectly required to be the
-same, so the requested cross-owner closure cannot be represented.
+fixture must retain the public `source_mismatch` contract: public
+`Engine::write` correctly refuses a derived source owner different from its
+canonical source. The corrected oracle therefore writes only valid public
+inputs and uses a test-hooks-only real-SQL setup route to create the active
+cross-owner derived node, revision, and source link without registration. It
+then executes graph expansion before and after registration, requires a
+nonterminal closure barrier to exclude the independently owned surviving
+derived row, and keeps erase and excise as separate controls. Correction 9
+records the isolated fixture migration and re-frozen hash.
 
 The source-projection matrix fixture drives every Slice-40 source
 `ProjectionGenerationOriginV1`/`ProjectionReadinessV1` pair through a missing
@@ -491,7 +493,8 @@ does not use the prior final-graph-enum replacement seam.
 ```text
 $ cargo test -p fathomdb-engine --features test-hooks,operator \
     --test slice60_fix4_dependency
-Provenance(SourceMismatch) at /provenance/sourceRevisionId
+error[E0599]: no method named
+`seed_graph_expand_dependency_closure_for_test` found for `Engine`
 
 $ cargo test -p fathomdb-engine --features test-hooks \
     --test slice60_fix4_projection

@@ -1,0 +1,4 @@
+{
+  "request": "{\"schemaVersion\":1,\"seed\":{\"schemaVersion\":1,\"type\":\"query\",\"text\":\"café\",\"rankedLimit\":1},\"direction\":\"outgoing\",\"edgeKinds\":[],\"targetKinds\":[],\"context\":{\"schemaVersion\":1,\"type\":\"current\",\"context\":{\"schemaVersion\":1,\"view\":{\"includeSuperseded\":false,\"includeInactive\":false,\"includeOutOfWindow\":false,\"validAsOf\":1700000000},\"eligibility\":{\"sourceType\":null,\"kind\":null,\"createdAfter\":null,\"status\":null,\"attributes\":[]}}},\"maxDepth\":0,\"resultLimit\":1,\"maxWorkUnits\":\"1\",\"includeExplanation\":false}",
+  "result": "{\"schemaVersion\":1,\"seeds\":[{\"schemaVersion\":1,\"logicalId\":\"café\",\"seedOrdinal\":0,\"queryScore\":null}],\"targets\":[],\"complete\":true,\"workUnits\":\"0\",\"degradationCodes\":[\"query_seed_text_fallback\"],\"explanation\":null}"
+}

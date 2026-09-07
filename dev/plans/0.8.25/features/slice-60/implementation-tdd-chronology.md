@@ -227,3 +227,47 @@ fresh local Python consumer route was not rerun: source-tree collection stops
 at the pre-existing stale `_fathomdb.abi3.so` import mismatch for
 `ProjectionGenerationError`. The FIX-1 source-contract test passes and the
 PyO3 crate checks pass; no worktree Python extension was installed or replaced.
+
+## FIX-2 RED
+
+Implementation-review cycle 2 is held by dedicated executable RED artifacts:
+
+- `dev/fixtures/slice60-fix2-unicode-v1.json`
+- `src/rust/crates/fathomdb-engine/tests/slice60_fix2_wire.rs`
+- `src/rust/crates/fathomdb-engine/tests/slice60_fix2_global_leak.rs`
+- `src/rust/crates/fathomdb-engine/tests/slice60_fix2_hooks.rs`
+- `src/rust/crates/fathomdb-engine/tests/slice60_fix2_runtime.rs`
+- `src/python/tests/test_slice60_fix2_graph_expand.py`
+- `src/ts/tests/slice60-fix2-graph-expand.test.ts`
+
+The original runtime and wire controls remain green at the FIX-2 baseline
+`31781ee1911d3bdb7016acbe24d58ed582d80606`:
+
+```text
+$ cargo test -p fathomdb-engine --features test-hooks \
+    --test slice60_graph_expand --test slice60_wire -- --test-threads=1
+slice60_graph_expand: 18 passed; slice60_wire: 7 passed
+```
+
+The narrow RED witnesses are executable rather than source-text checks. The
+context fixture supplies an escaped unknown member with a missing or invalid
+discriminant; the current Rust decoder reports `GraphContextInvalid` where the
+contract requires `UnknownField` at `/context/a~1b~0c`. A real unrelated graph
+request fires the current process-global before-pin hook (`left: 1`,
+`right: 0`). The owned handle target cannot compile because
+`GraphExpandRendezvousForTest` and
+`Engine::graph_expand_with_rendezvous_for_test` do not exist.
+
+The real SQLite high-bound fixture inserts a root, one target node, and one
+incident edge per inspected row. Its 10,000-row case completes with
+`work_units == 10000`; its 10,001-row case returns the exact typed
+`graph_expansion_bound_exceeded` at `/maxWorkUnits`. In the same target, the
+observable `both` EXPLAIN result is two separate endpoint plans while the
+actual production OR statement reports `MULTI-INDEX OR`, and the current
+measurement reports zero RSS delta instead of a bounded observed value.
+
+The Python transport test executes the wrapper with isolated FFI stubs and
+fails byte-for-byte at the UTF-8 `é` because `json.dumps` emits `\\u00e9`.
+The TypeScript transport route executes against the same fixture and currently
+passes; it retains the native-result capture so GREEN must preserve raw result
+parity while fixing Python. No existing RED fixture or test changed.

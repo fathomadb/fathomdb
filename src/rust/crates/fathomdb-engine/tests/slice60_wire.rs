@@ -79,7 +79,9 @@ fn request_is_recursively_closed_with_version_then_unknown_precedence() {
         ),
     ] {
         let mut value = base.clone();
-        value.pointer_mut(mutate.0).map(|slot| *slot = mutate.1.clone());
+        if let Some(slot) = value.pointer_mut(mutate.0) {
+            *slot = mutate.1.clone();
+        }
         value.as_object_mut().unwrap().insert(mutate.2.trim_start_matches('/').into(), mutate.3);
         let error = decode_request(&value);
         assert_eq!(error.reason, reason, "{pointer}");
@@ -92,7 +94,9 @@ fn request_is_recursively_closed_with_version_then_unknown_precedence() {
         ("/context/context", "/context/context/schemaVersion", "a/b~c", "/context/context/a~1b~0c"),
     ] {
         let mut value = base.clone();
-        value.pointer_mut(version_path).map(|slot| *slot = json!(2));
+        if let Some(slot) = value.pointer_mut(version_path) {
+            *slot = json!(2);
+        }
         value
             .pointer_mut(container)
             .unwrap()

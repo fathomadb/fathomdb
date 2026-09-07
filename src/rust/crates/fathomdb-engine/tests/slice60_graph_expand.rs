@@ -345,7 +345,7 @@ fn validation_bounds_duplicates_and_nonlogical_seeds_are_typed() {
     let mut request = explicit_request(&["root"], TraversalDirection::Outgoing);
     request.max_work_units = 10_001;
     cases.push((request, GraphExpansionErrorReasonV1::GraphWorkLimitInvalid, "/maxWorkUnits"));
-    let mut request = explicit_request(&["root", "root"], TraversalDirection::Outgoing);
+    let request = explicit_request(&["root", "root"], TraversalDirection::Outgoing);
     cases.push((request, GraphExpansionErrorReasonV1::GraphSeedInvalid, "/seed/logicalIds/1"));
     let mut request = explicit_request(&["root"], TraversalDirection::Outgoing);
     request.seed =

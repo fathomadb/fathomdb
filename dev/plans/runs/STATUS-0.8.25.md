@@ -141,8 +141,8 @@ lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
   tests, fresh Python 24/24 and Node 15/15, AC-059b 1,000/1,000, and the serial
   and terminating parallel routes. Windows passes the corrected lifecycle
   selector 1/1, the six unreached targets 31/31, fresh Python 24/24, and fresh
-  Node 15/15. No broad code or test route was repeated during the final narrow
-  close.
+  Node 15/15. No broad test route was repeated during the final narrow close;
+  normal commit and push hooks remained enabled.
 - A diagnostic release-wide long gate exposed the pre-existing AC-013 vector
   latency failure and was stopped after that failure. It is release debt, not
   a Slice 60 graph-contract failure; Slice 75 owns its classification.

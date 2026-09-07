@@ -14,9 +14,9 @@ the final review candidate `59208028da2f6d403df0c2ec1397e439782b41ea`
 changes documentation only. Implementation review cycle 15 found no remaining
 P0, P1, P2, or material P3 finding.
 
-No broad code or test verification was repeated after the owner narrowed the
-close. No release workflow, registry staging, tag, upload, publication, or
-main merge occurred.
+No broad test route was repeated after the owner narrowed the close. Normal
+commit and push hooks remained enabled. No release workflow, registry staging,
+tag, upload, publication, or main merge occurred.
 
 ## Linux evidence
 

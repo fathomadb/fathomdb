@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 60 — minimal constrained combined-expansion design
-status: FIX1_AWAITING_REVIEW
-design_version: 3
+status: FIX2_AWAITING_REVIEW
+design_version: 4
 target_release: 0.8.25
 depends_on: 55
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -57,11 +57,14 @@ not an “unknown kind” error. This design does not invent a registry.
 
 ### Rust
 
-The default facade re-exports every type below. New public structs are
-`#[non_exhaustive]` where external field construction would otherwise prevent
-additive response evolution.
+The default facade re-exports every type below. Attribute placement is part of
+the contract: request carriers stay exhaustive so external callers can
+construct them with literals, response structs are non-exhaustive for additive
+response evolution, and every schema-v1 enum remains exhaustive because its
+wire vocabulary is closed.
 
 ```rust
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum GraphSeedV1 {
     Query {
         schema_version: u32,
@@ -74,6 +77,7 @@ pub enum GraphSeedV1 {
     },
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum GraphReadContextV1 {
     Current {
         schema_version: u32,
@@ -85,6 +89,7 @@ pub enum GraphReadContextV1 {
     },
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GraphExpandRequestV1 {
     pub schema_version: u32,
     pub seed: GraphSeedV1,
@@ -98,6 +103,8 @@ pub struct GraphExpandRequestV1 {
     pub include_explanation: bool,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct ResolvedGraphSeedV1 {
     pub schema_version: u32,
     pub logical_id: String,
@@ -105,6 +112,8 @@ pub struct ResolvedGraphSeedV1 {
     pub query_score: Option<f64>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct GraphOriginV1 {
     pub schema_version: u32,
     pub seed_logical_id: String,
@@ -116,6 +125,8 @@ pub struct GraphOriginV1 {
     pub terminal_direction: TraversalDirection,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct GraphTargetV1 {
     pub schema_version: u32,
     pub logical_id: String,
@@ -125,6 +136,7 @@ pub struct GraphTargetV1 {
     pub origin: GraphOriginV1,
 }
 
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum GraphExpansionDegradationCodeV1 {
     QuerySeedTextFallback,
     ProjectionLegacyUnverified,
@@ -134,6 +146,8 @@ pub enum GraphExpansionDegradationCodeV1 {
     ProjectionDegraded,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct GraphTargetExplanationV1 {
     pub schema_version: u32,
     pub target_index: u32,
@@ -142,6 +156,8 @@ pub struct GraphTargetExplanationV1 {
     pub dependency_state: StructuralDependencyStateV1,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct GraphExpansionExplanationV1 {
     pub schema_version: u32,
     pub correlation_id: String,
@@ -154,6 +170,8 @@ pub struct GraphExpansionExplanationV1 {
     pub per_target: Vec<GraphTargetExplanationV1>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct GraphExpandResultV1 {
     pub schema_version: u32,
     pub seeds: Vec<ResolvedGraphSeedV1>,
@@ -172,10 +190,52 @@ impl Engine {
 }
 ```
 
-`GraphSeedSourceV1` is the closed enum `query | explicit`.
-`GraphReadModeV1` is `current | frozen`. `GraphProjectionOriginV1` is
-`not_applicable | fresh | legacy_unverified | configuration | rebuild`.
-`GraphProjectionReadinessV1` is
+The remaining public enums have these exact attributes and variants:
+
+```rust
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GraphSeedSourceV1 { Query, Explicit }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GraphReadModeV1 { Current, Frozen }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GraphProjectionOriginV1 {
+    NotApplicable, Fresh, LegacyUnverified, Configuration, Rebuild,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GraphProjectionReadinessV1 {
+    NotApplicable, Ready, Processing, Blocked, Deferred, Degraded,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GraphExpansionErrorReasonV1 {
+    UnsupportedSchemaVersion, UnknownField, GraphSeedInvalid,
+    GraphDirectionInvalid, GraphEdgeKindsInvalid, GraphTargetKindsInvalid,
+    GraphContextInvalid, GraphDepthInvalid, GraphResultLimitInvalid,
+    GraphWorkLimitInvalid, GraphSeedUnavailable,
+    GraphExpansionBoundExceeded, GraphProjectionUnavailable, GraphCorrupt,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GraphExpansionErrorV1 {
+    pub schema_version: u32,
+    pub reason: GraphExpansionErrorReasonV1,
+    pub field_path: String,
+}
+```
+
+No type above has an implicit `Default`, serialization derive, hash derive, or
+ordering derive beyond those shown. In particular, types containing
+`query_score: Option<f64>` derive `PartialEq` but not `Eq`. The exhaustive
+`GraphExpandRequestV1`, `GraphSeedV1`, and `GraphReadContextV1` definitions are
+the exact external construction path; Slice 60 adds no builder or constructor
+that could apply hidden defaults. Response structs alone carry
+`#[non_exhaustive]`; their fields remain publicly readable.
+
+The lower-snake wire spellings are `query | explicit`, `current | frozen`,
+`not_applicable | fresh | legacy_unverified | configuration | rebuild`, and
 `not_applicable | ready | processing | blocked | deferred | degraded`.
 `EngineError` gains `GraphExpansion(GraphExpansionErrorV1)` and stable code
 `GraphExpansionError` at the Rust diagnostic layer.
@@ -276,9 +336,27 @@ codec tests provide the equivalent Rust-wire proof.
 Response readers ignore additive unknown object fields. They reject an
 unsupported/newer schema, an unknown enum/union variant, an incoherent union,
 malformed integer or score, `complete != true`, a seed ordinal that is not its
-zero-based array index, a target origin whose target ID differs from its target,
-an explanation whose `perTarget` cardinality or indices differ from `targets`,
-or unequal top-level/explanation degradation arrays. Canonical fixture field
+zero-based array index, or any of these response-coherence violations:
+
+1. each target origin's `seedOrdinal` must be an in-range index into `seeds`;
+2. its `seedLogicalId` must exactly equal
+   `seeds[seedOrdinal].logicalId`;
+3. its `targetLogicalId` must exactly equal its enclosing target's
+   `logicalId`;
+4. explanation `perTarget` cardinality and zero-based `targetIndex` values must
+   exactly match `targets`; and
+5. each explanation origin must be field-for-field equal to the corresponding
+   `targets[targetIndex].origin`, and its degradation array must equal the
+   top-level array.
+
+The exact failure paths are `/targets/<i>/origin/seedOrdinal`,
+`/targets/<i>/origin/seedLogicalId`,
+`/targets/<i>/origin/targetLogicalId`,
+`/explanation/perTarget`,
+`/explanation/perTarget/<i>/targetIndex`,
+`/explanation/perTarget/<i>/origin`, and
+`/explanation/degradationCodes`, respectively. These are binding-contract
+decode failures, not database graph-corruption errors. Canonical fixture field
 order is declaration order.
 
 ## Request grammar and semantic validation
@@ -307,8 +385,9 @@ After carrier/schema/unknown/type decoding, Engine semantic precedence is:
 2. for current mode, validate/canonicalize `ReadContextV1`; for frozen mode,
    authenticate the complete `FrozenReadContextV1` and database identity;
 3. reject `include_superseded` or `include_inactive` because search projections
-   and graph liveness are not version-complete; `include_out_of_window` remains
-   the existing explicit temporal relaxation;
+   and graph liveness are not version-complete; `include_out_of_window` is the
+   existing explicit relaxation for node validity only and never relaxes edge
+   recency;
 4. validate seed semantics, direction, edge kinds, target kinds, depth, result
    limit, work limit, and explanation flag, in that order; and
 5. begin/pin one reader transaction, validate frozen state if applicable, then
@@ -335,31 +414,34 @@ partial result. `query_score` is null.
 
 ### Query-derived seeds
 
-Query mode executes the existing hybrid node retrieval once with these fixed
-controls: no CE (`rerank_depth=0`), no graph arm (`use_graph_arm=false`),
-`alpha=0.3`, `pool_n=0`, and no ordinary search explanation. A new internal
-`logical_nodes_only` mode applies the context's existing indexed eligibility in
-each text/vector candidate statement. The FTS arm also applies
-`logical_id IS NOT NULL` before its candidate limit. The vector arm preserves
-its accepted metadata-before-KNN and fixed-overfetch contract, but native
-hydration rejects edge/anonymous rows before fusion and before the caller's
-`ranked_limit`. Edge-body and anonymous/content candidates therefore never
-enter the seed ranking. Results deduplicate by logical ID at their first ranked
-position, then apply `ranked_limit`; that final order defines zero-based seed
-ordinals. `query_score` is the finite existing fused score.
+Schema 33 exposes indexed vec0 metadata for accepted search predicates but no
+indexed logical-node-identity discriminator. Consequently schema-v1 graph
+query seeding **declines the entire vector arm before embedding and before any
+KNN statement**. It must not run fixed-overfetch bit-KNN and discard
+edge/anonymous rows afterward: more than `TOP_K_BIT_CANDIDATES` nearer
+nonlogical rows would starve a valid logical seed and violate A25-06 and the
+accepted predicate-before-KNN rule. Adding vec0 metadata or a migrated vector
+partition is outside this no-migration slice.
 
-This is not “run ordinary top-K and discard nonlogical hits”: context
-eligibility uses the accepted pre-candidate SQL routes, while node identity and
-lifecycle/closure are enforced in the native candidate pipeline before fusion
-and `ranked_limit`. A query with no matching logical node succeeds with empty
-seeds/targets. Query text is not echoed in result, explanation, error, or
-telemetry.
+Query mode therefore executes one native logical-node FTS statement, sharing
+the existing tokenizer/ranking and applying `logical_id IS NOT NULL`, the
+current nonsuperseded node predicate, and every context indexed-eligibility
+predicate in SQL before its candidate limit. It requests at most
+`ranked_limit` eligible rows, orders them by the existing FTS score and stable
+row tie-break, deduplicates by logical ID at first position, and uses that order
+as zero-based seed ordinals. `query_score` is that finite existing FTS score.
+The operation emits `query_seed_text_fallback` for every query-seeded success,
+including an empty success, because the dense arm was deliberately declined;
+explicit seeding never emits it.
 
-The query embedding may execute before the reader transaction because it reads
-no database state. Every database read for query candidates, seed resolution,
-projection classification, graph traversal, hydration, dependency/lifecycle
-explanation, and final frozen-state validation runs inside the same pinned
-reader transaction.
+This is not ordinary hybrid search and it performs no CE, graph arm, fusion,
+query embedding, dense device dispatch, or vec0 KNN. Edge-body and
+anonymous/content candidates cannot enter the statement. A query with no
+matching logical node succeeds with empty seeds/targets. Query text is not
+echoed in result, explanation, error, or telemetry. Every database read for
+FTS candidates, seed resolution, projection classification, graph traversal,
+hydration, dependency/lifecycle explanation, and final frozen-state validation
+runs inside the same pinned reader transaction.
 
 ## Read-context and transaction contract
 
@@ -376,9 +458,13 @@ the read. There is no second search or expansion transaction.
 
 Node visibility uses the context `ReadView`, indexed `SearchFilter`, and
 dependency-closure eligibility for seeds, intermediate nodes, and outputs.
-Erased rows are absent. Edges must be nonsuperseded and satisfy the same
-effective temporal view. An explicitly relaxed temporal view may traverse
-out-of-window nodes/edges; existence and dependency closure cannot be relaxed.
+Erased rows are absent. `include_out_of_window=true` drops only the node
+validity-window predicate for seeds, intermediate nodes, and outputs. Every
+edge always remains current/nonsuperseded and satisfies recency at the one
+effective instant: `t_valid <= instant` and
+`(t_invalid IS NULL OR instant < t_invalid)`. Thus no current or frozen request
+can traverse an expired/not-yet-valid edge through temporal relaxation;
+existence and dependency closure likewise cannot be relaxed.
 
 ## Deterministic traversal and result semantics
 
@@ -412,7 +498,8 @@ Each raw incident edge row is counted before edge-kind, edge liveness, endpoint
 visibility, and visited checks. A row may enqueue its endpoint only if:
 
 1. its kind matches `edge_kinds`, or the list is empty;
-2. the edge is active and temporally eligible;
+2. the edge is active and temporally eligible at the effective instant,
+   regardless of `include_out_of_window`;
 3. its endpoint is current, active, dependency-eligible, temporally eligible,
    and satisfies the context's complete indexed eligibility; and
 4. that endpoint has not been visited for this seed.
@@ -469,9 +556,26 @@ a Slice 60 migration. Query-plan gates prohibit a full-table
 
 `degradation_codes` is always present, sorted in the enum order above, and
 deduplicated. `include_explanation=false` returns `explanation=null`; it does
-not hide material degradation. When requested, one content-free random
-`correlation_id` is generated for the call. It is not persisted and is never
-derived from a query, seed, target, database identity, or token.
+not hide material degradation. When requested, graph expansion reuses the
+existing Engine explanation-only allocator and its exact grammar:
+`x<32-lower-hex-open-nonce>-<canonical-u64-seq>`. The open nonce is the
+Engine's already-minted `explanation_open_nonce`; the sequence is the shared
+`explanation_sequence.fetch_add(1, Relaxed)` used by explained search. Graph
+expansion has no telemetry event schema and therefore never selects or mints a
+`q<nonce>-<seq>` telemetry ID. It allocates exactly one `x...` value after the
+reader result succeeds and before that result escapes, only when
+`include_explanation=true`; a failed or explanation-off call consumes no
+sequence value. The ID is not persisted and is never derived from a query,
+seed, target, database identity, or token.
+
+Tests validate the grammar
+`^x[0-9a-f]{32}-(0|[1-9][0-9]*)$`, uniqueness for concurrent successful
+explained calls, and the explanation-off allocation-free path. For
+byte/digest/permutation comparisons only, each binding's test harness validates
+the real value and then replaces that response field with the single sentinel
+`x00000000000000000000000000000000-0` before canonical encoding. Tests never
+control the nonce/sequence, compare literal live IDs across calls, or rewrite a
+golden fixture from generated output.
 
 `per_target` has exactly one entry for each target at the same zero-based
 `target_index`; it repeats that target's compact origin, classifies lifecycle as
@@ -486,19 +590,42 @@ Explicit seeding does not consume a retrieval projection:
 `projection_generation_id=null`, origin/readiness are `not_applicable`, and it
 cannot emit a projection degradation. Query seeding loads the exact Slice 40
 generation ID, origin, and readiness observed inside the reader transaction.
+That metadata is diagnostic context; query graph expansion still declines the
+dense arm before KNN regardless of runtime state.
 
-The hard/soft matrix is:
+Code composition is exhaustive and mechanical. Start with an empty vector,
+then apply these three mappings and finally sort by the declared
+`GraphExpansionDegradationCodeV1` enum order and deduplicate:
+
+| Axis | Value | Appended code |
+| --- | --- | --- |
+| Seed route | explicit | none |
+| Seed route | query (FTS route; vector declined pre-KNN) | `query_seed_text_fallback` |
+| Projection origin | `not_applicable`, `fresh`, `configuration`, or `rebuild` | none |
+| Projection origin | `legacy_unverified` | `projection_legacy_unverified` |
+| Projection readiness | `not_applicable` or `ready` | none |
+| Projection readiness | `processing` | `projection_processing` |
+| Projection readiness | `blocked` | `projection_blocked` |
+| Projection readiness | `deferred` | `projection_deferred` |
+| Projection readiness | `degraded` | `projection_degraded` |
+
+`not_applicable` origin/readiness and a null generation ID occur together only
+for explicit seeds. Query seeds carry a non-null generation ID and the exact
+typed Slice 40 origin/readiness pair. Thus the required
+`legacy_unverified + degraded` query case produces, in exact order,
+`[query_seed_text_fallback, projection_legacy_unverified,
+projection_degraded]`; neither code masks the other. Other multi-axis cases
+compose identically. Top-level and explanation arrays are byte-for-byte equal.
+
+The hard/soft outcome matrix is:
 
 | Condition | Outcome |
 | --- | --- |
-| Explicit seeds | Projection fields not applicable; graph reads canonical tables. |
-| Query dense generation ready and runtime usable | Normal hybrid seed retrieval; no degradation. |
-| Existing search reports a vector soft fallback while synchronous FTS is usable | Native logical-node FTS seeding succeeds and emits `query_seed_text_fallback`. |
-| Generation origin/readiness is legacy-unverified, processing, blocked, deferred, or degraded | Preserve whatever node arms the existing search can truthfully serve and emit the exact matching projection classification code; do not infer arm availability from readiness alone. |
-| Query returns no eligible logical node | Successful empty result; projection classification remains truthful. |
-| Vector-equivalence self-check refused vector-dependent search | Preserve existing `VectorEquivalenceMismatchError`; do not silently relabel it as fallback. |
-| No native logical-node search arm is serviceable | `graph_projection_unavailable` at `/projection`; no result. |
-| Projection authority, frozen authority, or graph storage is corrupt/unreadable | Typed existing storage/projection/frozen failure, or `graph_corrupt` where the graph-specific invariant is known; no result. |
+| Explicit seeds | Projection fields not applicable; graph reads canonical tables; no degradation. |
+| Any query-seeded success, including zero eligible seeds | Native logical-node FTS seeding; apply the exhaustive composition above. |
+| Dense runtime absent, refused, processing, blocked, deferred, or degraded | Do not initialize/embed/query it; FTS success remains soft and truthfully reports the observed status codes. |
+| Synchronous logical-node FTS route unavailable | `graph_projection_unavailable` at `/projection`; no result. |
+| Projection authority, frozen authority, or graph storage corrupt/unreadable | Typed existing storage/projection/frozen failure, or `graph_corrupt` where the graph-specific invariant is known; no result. |
 | Work row W+1 | `graph_expansion_bound_exceeded`; no result. |
 
 This slice does not claim graph recall or semantic correctness. The operation is
@@ -548,13 +675,17 @@ frozen through GREEN.
 1. **Wire/codec property matrix:** round-trip every request/response/union/enum;
    shuffled response fields and additive response fields; schema/unknown-field
    precedence at every object; malformed u64/u32/finite-score values; union
-   incoherence; response cardinality/index/origin corruption; Python/TS exact
-   RFC 6901 paths and stable error codes.
+   incoherence; and shared Rust-wire/Python/TypeScript malformed-response
+   fixtures for out-of-range origin `seedOrdinal`, origin seed-ID mismatch,
+   origin target-ID mismatch, explanation target-index/cardinality mismatch,
+   and explanation-origin mismatch at the exact RFC 6901 paths above.
 2. **Seed matrix:** explicit order, duplicate and nonlogical IDs, all-or-nothing
    invisible/erased/closure-fenced IDs, query-only logical candidates before
-   `ranked_limit`, edge/anonymous candidates above logical hits, query
-   deduplication, zero matches, fixed no-CE/no-graph settings, and exact seed
-   ordinals/scores.
+   `ranked_limit`, query deduplication, zero matches, and exact seed
+   ordinals/scores. A required real-database fixture inserts more than
+   `TOP_K_BIT_CANDIDATES` nearer vector edge/anonymous rows plus a farther
+   FTS-matching logical node, proves the logical seed is returned, and uses the
+   vector/embedder test seam to prove no embedding or KNN statement executed.
 3. **Constraint matrix:** incoming/outgoing/both; empty/single/multiple edge
    kinds; open absent kinds; empty/single/multiple target kinds; the required
    `A(kind X) -> B(kind Y) -> C(kind X)` return-only target-kind case; every
@@ -572,9 +703,13 @@ frozen through GREEN.
    drift/post-pin isolation. The rendezvous is cancellation-safe, bounded, and
    released on Drop, following the Slice 55 deadlock correction.
 7. **Liveness/projection/explanation:** node/edge supersession, lifecycle,
-   dependency closure, erasure, temporal relaxation, every hard/soft projection
-   row, content-free correlation, per-target association/cardinality, and
-   explanation-off identical targets/work/database bytes.
+   dependency closure, erasure, every hard/soft projection row and ordered
+   multi-code composition, correlation grammar/allocation/normalization,
+   per-target association/cardinality, and explanation-off identical
+   targets/work/database bytes. The temporal matrix fixes one instant and
+   crosses in-window/out-of-window nodes with live/expired/not-yet-valid edges:
+   `include_out_of_window=true` may restore only the node cases and never any
+   edge case, for current and frozen reads and every traversal direction.
 8. **Plans/schema/nonregression:** exact endpoint-index query plans for incoming,
    outgoing, and both; no `SCAN canonical_edges`; schema stays 33 and migration
    manifest is unchanged; default search and existing graph methods retain
@@ -589,15 +724,14 @@ response, malformed-input, direction/kind, depth-zero, W/W+1, and frozen-race
 fixtures and records artifact/source hashes. Disposable artifacts are removed
 after evidence is durable.
 
-CUDA/Metal are N/A when the diff leaves the existing query embedding and dense
-dispatch unchanged. If query seeding changes device dispatch, run the same seed
-fixture on CPU plus every compiled supported device and prove identical logical
-seed order; otherwise no device claim is made. Operator, live-model, registry,
-packaging, tag, publication, and post-publication routes are outside this slice.
+CUDA/Metal are N/A: this schema-v1 operation is required to decline the vector
+arm before embedding/KNN and must not enter dense device dispatch. Operator,
+live-model, registry, packaging, tag, publication, and post-publication routes
+are outside this slice.
 
 ## Readiness rule
 
-This design is `FIX1_AWAITING_REVIEW`. Slice 7 and Slice 55 are complete, but a
-second independent design review must verify that every Cycle 1 P1/P2 finding
-is closed before the design may become `READY`. No source or test implementation
+This design is `FIX2_AWAITING_REVIEW`. Slice 7 and Slice 55 are complete, but a
+third independent design review must verify that every Cycle 2 finding is
+closed before the design may become `READY`. No source or test implementation
 is authorized by this document's current status.

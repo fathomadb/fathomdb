@@ -271,3 +271,69 @@ fails byte-for-byte at the UTF-8 `é` because `json.dumps` emits `\\u00e9`.
 The TypeScript transport route executes against the same fixture and currently
 passes; it retains the native-result capture so GREEN must preserve raw result
 parity while fixing Python. No existing RED fixture or test changed.
+
+## FIX-2 GREEN
+
+FIX-2 replaces the process-global graph pin callbacks with the owned,
+request-scoped `GraphExpandRendezvousForTest` handle behind `test-hooks`.
+The handle uses bounded entry and release channels, idempotent release, and
+Drop disarm; default builds expose neither the hook nor its storage path.
+Production traversal and EXPLAIN share one SQL-and-bind descriptor, including
+the single `both` OR statement. Rust and TypeScript close the context union
+before validating its discriminant or reading payload, and Python now sends
+wire JSON with `ensure_ascii=False`. The wire interface now correctly states
+that Slice 60 adds no migration and reuses the endpoint indexes from steps 12
+and 23; step 33 is Slice 45 page-index and visibility-state work.
+
+Three independently authorized oracle corrections preserve intent while
+repairing test mechanics: `ccdb3a15` removes an impossible stdlib JSON
+assertion from the FIX-2 Python Unicode oracle, `1b7695bd` migrates the
+original three pin-race fixtures plus FIX-2 isolation coverage from legacy
+global callbacks to the owned rendezvous, and `243b29f7` replaces seven
+runtime-equivalent dynamic-module assignments with `setattr` so Pyright can
+type-check the frozen Python test doubles. Their correction records retain the
+before-and-after hashes.
+
+Focused final evidence:
+
+```text
+$ cargo test -p fathomdb-engine --features test-hooks \
+    --test slice60_fix1_wire --test slice60_fix2_hooks \
+    --test slice60_fix2_global_leak --test slice60_fix2_runtime \
+    --test slice60_fix2_wire --test slice60_graph_expand --test slice60_wire \
+    -- --test-threads=1
+slice60_fix1_wire: 4 passed; slice60_fix2_hooks: 2 passed
+slice60_fix2_global_leak: 1 passed; slice60_fix2_runtime: 3 passed
+slice60_fix2_wire: 3 passed; slice60_graph_expand: 18 passed
+slice60_wire: 7 passed
+
+$ PYTHONPATH=src/python .venv/bin/python -m pytest \
+    src/python/tests/test_slice60_graph_expand.py \
+    src/python/tests/test_slice60_fix1_graph_expand.py \
+    src/python/tests/test_slice60_fix2_graph_expand.py -q
+23 passed
+
+$ cd src/ts && npx tsc -p tsconfig.json && node --test \
+    dist/tests/slice60-graph-expand.test.js \
+    dist/tests/slice60-fix1-graph-expand.test.js \
+    dist/tests/slice60-fix2-graph-expand.test.js
+pass 3; fail 0
+
+$ cargo test -p fathomdb --test slice60_governed_surface -- --test-threads=1
+2 passed
+
+$ cargo test -p fathomdb-py
+13 passed
+
+$ cargo check -p fathomdb-napi
+PASS
+
+$ cargo test -p fathomdb-engine --test slice20_graph_traversal \
+    --test slice35_frozen_read --test slice35_graph_frontier_pretruncation \
+    -- --test-threads=1
+24 passed
+```
+
+`./scripts/agent-lint.sh` and `./scripts/agent-typecheck.sh` pass. The pinned
+Pyright 1.1.410 check reports 0 errors after the independent mechanical oracle
+correction; no broad diagnostic suppression was added.

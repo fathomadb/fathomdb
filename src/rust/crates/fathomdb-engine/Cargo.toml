@@ -93,6 +93,22 @@ name = "slice60_graph_expand"
 required-features = ["test-hooks"]
 
 [[test]]
+name = "slice60_fix1_wire"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice60_fix2_global_leak"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice60_fix2_hooks"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice60_fix2_runtime"
+required-features = ["test-hooks"]
+
+[[test]]
 name = "dump_profile"
 required-features = ["operator"]
 

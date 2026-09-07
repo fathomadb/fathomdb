@@ -92,11 +92,6 @@ pub use evidence::{
     EvidenceSidecarEntryV1, ResolvedEvidenceV1,
 };
 pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};
-#[cfg(feature = "test-hooks")]
-pub use graph_expand::{
-    arm_graph_expand_after_pin_hook_for_test, arm_graph_expand_before_pin_hook_for_test,
-    graph_expansion_degradation_codes_for_test, GraphExpandMeasurementForTest,
-};
 pub use graph_expand::{
     decode_graph_expand_request_v1, decode_graph_expand_result_v1, encode_graph_expand_request_v1,
     encode_graph_expand_result_v1, GraphExpandRequestV1, GraphExpandResultV1,
@@ -104,6 +99,11 @@ pub use graph_expand::{
     GraphExpansionExplanationV1, GraphOriginV1, GraphProjectionOriginV1,
     GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1, GraphSeedSourceV1,
     GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, ResolvedGraphSeedV1,
+};
+#[cfg(feature = "test-hooks")]
+pub use graph_expand::{
+    graph_expansion_degradation_codes_for_test, GraphExpandMeasurementForTest,
+    GraphExpandRendezvousForTest,
 };
 pub use pagination::{PageCursor, PageError, PageErrorReason, PageRequestV1, PageV1};
 pub use projection_generation::{
@@ -783,6 +783,8 @@ pub struct Engine {
         Mutex<Option<projection_generation::CachedMutationProjectionStatus>>,
     #[cfg(feature = "test-hooks")]
     projection_generation_status_full_owner_scan_count: AtomicU64,
+    #[cfg(feature = "test-hooks")]
+    graph_expand_rss_baseline_bytes: AtomicU64,
     closed: AtomicBool,
     lock: Mutex<Option<File>>,
     connection: Mutex<Option<Connection>>,
@@ -2080,6 +2082,8 @@ struct GraphExpandReaderRequest {
     request: GraphExpandRequestV1,
     frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
     projection_runtime_state: ProjectionRuntimeStateV1,
+    #[cfg(feature = "test-hooks")]
+    rendezvous: Option<graph_expand::GraphExpandRendezvousForTest>,
     respond: SyncSender<Result<GraphExpandResultV1, EngineError>>,
 }
 
@@ -2821,6 +2825,8 @@ fn reader_worker_loop(
                     &request.request,
                     request.frozen_binding.as_deref(),
                     request.projection_runtime_state,
+                    #[cfg(feature = "test-hooks")]
+                    request.rendezvous.as_ref(),
                     &wal_attribution,
                     worker_idx,
                 );
@@ -8682,6 +8688,8 @@ impl Engine {
                         mutation_projection_status_cache: Mutex::new(None),
                         #[cfg(feature = "test-hooks")]
                         projection_generation_status_full_owner_scan_count: AtomicU64::new(0),
+                        #[cfg(feature = "test-hooks")]
+                        graph_expand_rss_baseline_bytes: AtomicU64::new(0),
                         closed: AtomicBool::new(false),
                         lock: Mutex::new(Some(lock)),
                         connection: Mutex::new(Some(connection)),

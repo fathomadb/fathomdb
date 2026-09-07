@@ -3800,6 +3800,8 @@ function validateGraphExpandRequest(value: unknown): asserts value is GraphExpan
   const context = requestObject(root.context, "graph_context_invalid", "/context");
   schema(context, "/context/schemaVersion");
   close(context, ["schemaVersion", "type", "context"], "/context");
+  if (context.type !== "current" && context.type !== "frozen")
+    graphRefuse("graph_context_invalid", "/context/type");
   const readContext = requestObject(context.context, "graph_context_invalid", "/context/context");
   if (context.type === "frozen") {
     schema(readContext, "/context/context/schemaVersion");
@@ -3815,8 +3817,6 @@ function validateGraphExpandRequest(value: unknown): asserts value is GraphExpan
     )
       graphRefuse("graph_context_invalid", "/context/context");
     graphRequestString(readContext.token, "graph_context_invalid", "/context/context/token");
-  } else if (context.type !== "current") {
-    graphRefuse("graph_context_invalid", "/context/type");
   }
   const current =
     context.type === "frozen"

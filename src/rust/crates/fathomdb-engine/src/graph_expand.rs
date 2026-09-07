@@ -314,41 +314,104 @@ pub fn graph_expansion_degradation_codes_for_test(
 }
 
 #[cfg(feature = "test-hooks")]
-struct GraphExpandPinRendezvous {
-    armed: AtomicBool,
-    hook: Mutex<Option<Box<dyn Fn() + Send>>>,
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum GraphExpandRendezvousPhase {
+    BeforePin,
+    AfterPin,
 }
 
 #[cfg(feature = "test-hooks")]
-impl GraphExpandPinRendezvous {
-    const fn new() -> Self {
-        Self { armed: AtomicBool::new(false), hook: Mutex::new(None) }
-    }
+struct GraphExpandPinRendezvous {
+    phase: GraphExpandRendezvousPhase,
+    timeout: std::time::Duration,
+    entered_send: std::sync::mpsc::SyncSender<()>,
+    entered_receive: Mutex<std::sync::mpsc::Receiver<()>>,
+    release_send: std::sync::mpsc::SyncSender<()>,
+    release_receive: Mutex<std::sync::mpsc::Receiver<()>>,
+    released: AtomicBool,
+}
 
-    fn arm(&self, hook: Box<dyn Fn() + Send>) {
-        *self.hook.lock().expect("graph-expand hook mutex") = Some(hook);
-        self.armed.store(true, AtomicOrdering::SeqCst);
-    }
+/// Owned, request-scoped test rendezvous for graph-expansion transaction seams.
+///
+/// It is compiled only with `test-hooks`. Each request receives its own handle;
+/// the worker and every owner observe one bounded release channel, so a dropped
+/// test cannot strand a reader transaction.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone)]
+pub struct GraphExpandRendezvousForTest {
+    inner: std::sync::Arc<GraphExpandPinRendezvous>,
+}
 
-    fn fire(&self) {
-        if self.armed.swap(false, AtomicOrdering::SeqCst) {
-            if let Some(hook) = self.hook.lock().expect("graph-expand hook mutex").take() {
-                hook();
-            }
+#[cfg(feature = "test-hooks")]
+impl GraphExpandRendezvousForTest {
+    fn new(phase: GraphExpandRendezvousPhase, timeout: std::time::Duration) -> Self {
+        let (entered_send, entered_receive) = std::sync::mpsc::sync_channel(1);
+        let (release_send, release_receive) = std::sync::mpsc::sync_channel(1);
+        Self {
+            inner: std::sync::Arc::new(GraphExpandPinRendezvous {
+                phase,
+                timeout,
+                entered_send,
+                entered_receive: Mutex::new(entered_receive),
+                release_send,
+                release_receive: Mutex::new(release_receive),
+                released: AtomicBool::new(false),
+            }),
         }
     }
+
+    /// Pause the owning request immediately before its SQLite transaction pins.
+    #[must_use]
+    pub fn before_pin(timeout: std::time::Duration) -> Self {
+        Self::new(GraphExpandRendezvousPhase::BeforePin, timeout)
+    }
+
+    /// Pause the owning request immediately after its SQLite transaction pins.
+    #[must_use]
+    pub fn after_pin(timeout: std::time::Duration) -> Self {
+        Self::new(GraphExpandRendezvousPhase::AfterPin, timeout)
+    }
+
+    /// Wait for the owning request to reach its configured transaction seam.
+    pub fn wait_until_entered(&self) -> Result<(), String> {
+        self.inner
+            .entered_receive
+            .lock()
+            .expect("graph-expand rendezvous entered mutex")
+            .recv_timeout(self.inner.timeout)
+            .map_err(|error| format!("graph-expand rendezvous did not enter: {error}"))
+    }
+
+    /// Idempotently release or disarm the owning request.
+    pub fn release(&self) {
+        if !self.inner.released.swap(true, AtomicOrdering::SeqCst) {
+            let _ = self.inner.release_send.try_send(());
+        }
+    }
+
+    fn fire(&self, phase: GraphExpandRendezvousPhase) {
+        if self.inner.phase != phase || self.inner.released.load(AtomicOrdering::SeqCst) {
+            return;
+        }
+        if self.inner.entered_send.try_send(()).is_err() {
+            self.release();
+            return;
+        }
+        let _ = self
+            .inner
+            .release_receive
+            .lock()
+            .expect("graph-expand rendezvous release mutex")
+            .recv_timeout(self.inner.timeout);
+        self.release();
+    }
 }
 
 #[cfg(feature = "test-hooks")]
-fn before_pin_hook() -> &'static GraphExpandPinRendezvous {
-    static HOOK: std::sync::OnceLock<GraphExpandPinRendezvous> = std::sync::OnceLock::new();
-    HOOK.get_or_init(GraphExpandPinRendezvous::new)
-}
-
-#[cfg(feature = "test-hooks")]
-fn after_pin_hook() -> &'static GraphExpandPinRendezvous {
-    static HOOK: std::sync::OnceLock<GraphExpandPinRendezvous> = std::sync::OnceLock::new();
-    HOOK.get_or_init(GraphExpandPinRendezvous::new)
+impl Drop for GraphExpandRendezvousForTest {
+    fn drop(&mut self) {
+        self.release();
+    }
 }
 
 /// Test-only measurement carrier for bounded graph-expansion fixtures.
@@ -362,7 +425,10 @@ pub struct GraphExpandMeasurementForTest {
 impl Engine {
     #[doc(hidden)]
     pub fn measure_graph_expand_for_test(&self) -> GraphExpandMeasurementForTest {
-        GraphExpandMeasurementForTest { peak_rss_delta_bytes: 0 }
+        GraphExpandMeasurementForTest {
+            peak_rss_delta_bytes: crate::process_peak_rss_bytes()
+                .saturating_sub(self.graph_expand_rss_baseline_bytes.load(AtomicOrdering::Relaxed)),
+        }
     }
 
     #[doc(hidden)]
@@ -373,20 +439,6 @@ impl Engine {
 
     #[doc(hidden)]
     pub fn seed_graph_expand_projection_state_for_test(&self) {}
-}
-
-/// Arm the one-shot graph-expansion rendezvous immediately before transaction pinning.
-#[doc(hidden)]
-#[cfg(feature = "test-hooks")]
-pub fn arm_graph_expand_before_pin_hook_for_test(hook: Box<dyn Fn() + Send>) {
-    before_pin_hook().arm(hook);
-}
-
-/// Arm the one-shot graph-expansion rendezvous after transaction pinning.
-#[doc(hidden)]
-#[cfg(feature = "test-hooks")]
-pub fn arm_graph_expand_after_pin_hook_for_test(hook: Box<dyn Fn() + Send>) {
-    after_pin_hook().arm(hook);
 }
 
 fn graph_error(reason: GraphExpansionErrorReasonV1, path: impl Into<String>) -> EngineError {
@@ -508,6 +560,25 @@ impl Engine {
         &self,
         request: &GraphExpandRequestV1,
     ) -> Result<GraphExpandResultV1, EngineError> {
+        self.graph_expand_inner(request, None)
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn graph_expand_with_rendezvous_for_test(
+        &self,
+        request: &GraphExpandRequestV1,
+        rendezvous: GraphExpandRendezvousForTest,
+    ) -> Result<GraphExpandResultV1, EngineError> {
+        self.graph_expand_inner(request, Some(rendezvous))
+    }
+
+    fn graph_expand_inner(
+        &self,
+        request: &GraphExpandRequestV1,
+        #[cfg(feature = "test-hooks")] rendezvous: Option<GraphExpandRendezvousForTest>,
+        #[cfg(not(feature = "test-hooks"))] _rendezvous: Option<()>,
+    ) -> Result<GraphExpandResultV1, EngineError> {
         self.ensure_open()?;
         let frozen_binding = match &request.context {
             GraphReadContextV1::Current { schema_version, context } => {
@@ -556,6 +627,8 @@ impl Engine {
                     request: request.clone(),
                     frozen_binding,
                     projection_runtime_state,
+                    #[cfg(feature = "test-hooks")]
+                    rendezvous,
                     respond,
                 },
             )))
@@ -580,27 +653,8 @@ impl Engine {
         self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let statements = match direction {
-            TraversalDirection::Both => vec![
-                graph_expand_incident_sql(TraversalDirection::Outgoing),
-                graph_expand_incident_sql(TraversalDirection::Incoming),
-            ],
-            direction => vec![graph_expand_incident_sql(direction)],
-        };
-        let mut plans = Vec::new();
-        for sql in statements {
-            let mut statement = connection
-                .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
-                .map_err(|_| EngineError::Storage)?;
-            let rows = statement
-                .query_map(rusqlite::params!["fixture", 1_i64], |row| row.get(3))
-                .map_err(|_| EngineError::Storage)?;
-            plans.extend(
-                rows.collect::<rusqlite::Result<Vec<String>>>()
-                    .map_err(|_| EngineError::Storage)?,
-            );
-        }
-        Ok(plans)
+        let query = graph_expand_incident_query("fixture", direction, 1);
+        explain_graph_expand_incident_query(connection, &query)
     }
 }
 
@@ -637,6 +691,12 @@ fn load_node(
     .map_err(|_| EngineError::Storage)
 }
 
+struct GraphExpandIncidentQuery {
+    sql: String,
+    logical_id: String,
+    limit: i64,
+}
+
 fn graph_expand_incident_sql(direction: TraversalDirection) -> String {
     let predicate = match direction {
         TraversalDirection::Outgoing => "from_id=?1",
@@ -646,16 +706,42 @@ fn graph_expand_incident_sql(direction: TraversalDirection) -> String {
     format!("SELECT write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid FROM canonical_edges WHERE {predicate} LIMIT ?2")
 }
 
+fn graph_expand_incident_query(
+    logical_id: &str,
+    direction: TraversalDirection,
+    limit: u64,
+) -> GraphExpandIncidentQuery {
+    GraphExpandIncidentQuery {
+        sql: graph_expand_incident_sql(direction),
+        logical_id: logical_id.to_string(),
+        limit: i64::try_from(limit).unwrap_or(i64::MAX),
+    }
+}
+
+fn explain_graph_expand_incident_query(
+    connection: &Connection,
+    query: &GraphExpandIncidentQuery,
+) -> Result<Vec<String>, EngineError> {
+    let sql = &query.sql;
+    let mut statement = connection
+        .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+        .map_err(|_| EngineError::Storage)?;
+    let rows = statement
+        .query_map(rusqlite::params![query.logical_id, query.limit], |row| row.get(3))
+        .map_err(|_| EngineError::Storage)?;
+    rows.collect::<rusqlite::Result<Vec<String>>>().map_err(|_| EngineError::Storage)
+}
+
 fn load_incident_edges(
     tx: &Connection,
     logical_id: &str,
     direction: TraversalDirection,
     limit: u64,
 ) -> Result<Vec<EdgeRow>, EngineError> {
-    let sql = graph_expand_incident_sql(direction);
-    let mut statement = tx.prepare(&sql).map_err(|_| EngineError::Storage)?;
+    let query = graph_expand_incident_query(logical_id, direction, limit);
+    let mut statement = tx.prepare(&query.sql).map_err(|_| EngineError::Storage)?;
     let rows = statement
-        .query_map(rusqlite::params![logical_id, i64::try_from(limit).unwrap_or(i64::MAX)], |row| {
+        .query_map(rusqlite::params![query.logical_id, query.limit], |row| {
             Ok(EdgeRow {
                 write_cursor: u64::try_from(row.get::<_, i64>(0)?).unwrap_or(0),
                 kind: row.get(1)?,
@@ -795,11 +881,14 @@ pub(crate) fn read_graph_expand_in_tx(
     request: &GraphExpandRequestV1,
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
     projection_runtime_state: ProjectionRuntimeStateV1,
+    #[cfg(feature = "test-hooks")] rendezvous: Option<&GraphExpandRendezvousForTest>,
     attribution: &std::sync::Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<GraphExpandResultV1, EngineError> {
     #[cfg(feature = "test-hooks")]
-    before_pin_hook().fire();
+    if let Some(rendezvous) = rendezvous {
+        rendezvous.fire(GraphExpandRendezvousPhase::BeforePin);
+    }
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)
         .map_err(|_| EngineError::Storage)?;
     if let Some(binding) = frozen_binding {
@@ -809,7 +898,9 @@ pub(crate) fn read_graph_expand_in_tx(
             .map_err(|_| EngineError::Storage)?;
     }
     #[cfg(feature = "test-hooks")]
-    after_pin_hook().fire();
+    if let Some(rendezvous) = rendezvous {
+        rendezvous.fire(GraphExpandRendezvousPhase::AfterPin);
+    }
 
     let (context, read_mode) = match &request.context {
         GraphReadContextV1::Current { context, .. } => (context, GraphReadModeV1::Current),
@@ -1615,6 +1706,7 @@ pub fn decode_graph_expand_request_v1(
     let context_object =
         object(context_value, GraphExpansionErrorReasonV1::GraphContextInvalid, "/context")?;
     check_schema(context_object, "/context/schemaVersion")?;
+    check_closed(context_object, &["schemaVersion", "type", "context"], "/context")?;
     let context_type = required(
         context_object,
         "type",
@@ -1623,23 +1715,19 @@ pub fn decode_graph_expand_request_v1(
     )?
     .as_str();
     let context = match context_type {
-        Some("current") => {
-            check_closed(context_object, &["schemaVersion", "type", "context"], "/context")?;
-            GraphReadContextV1::Current {
-                schema_version: 1,
-                context: parse_read_context(
-                    required(
-                        context_object,
-                        "context",
-                        GraphExpansionErrorReasonV1::GraphContextInvalid,
-                        "/context/context",
-                    )?,
+        Some("current") => GraphReadContextV1::Current {
+            schema_version: 1,
+            context: parse_read_context(
+                required(
+                    context_object,
+                    "context",
+                    GraphExpansionErrorReasonV1::GraphContextInvalid,
                     "/context/context",
                 )?,
-            }
-        }
+                "/context/context",
+            )?,
+        },
         Some("frozen") => {
-            check_closed(context_object, &["schemaVersion", "type", "context"], "/context")?;
             let base = "/context/context";
             let frozen_object = object(
                 required(

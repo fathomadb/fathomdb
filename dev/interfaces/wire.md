@@ -45,8 +45,10 @@ singleton, and the nullable actuation-receipt generation correlation. It does
 not rewrite canonical or projection content. The database-local generation ID
 has grammar `pgen1:<32-lower-hex>`.
 
-Step 33 adds only the endpoint indexes consumed by Slice 60 constrained graph
-expansion. It has no data migration or canonical/projection rewrite.
+Slice 60 adds no migration: constrained graph expansion reuses the endpoint
+indexes introduced in step 12 and recreated in step 23. Step 33 instead adds
+Slice 45 page indexes and visibility state/triggers; it has no data migration
+or canonical/projection rewrite.
 
 Ownership split:
 

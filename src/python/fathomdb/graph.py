@@ -323,7 +323,7 @@ def _validate_graph_expand_request(request: GraphExpandRequestV1) -> None:
 def expand(engine: "Engine", request: GraphExpandRequestV1) -> GraphExpandResultV1:
     """Run one bounded, deterministic, all-or-nothing graph expansion."""
 
-    request_json = json.dumps(_request_wire(request), separators=(",", ":"))
+    request_json = json.dumps(_request_wire(request), separators=(",", ":"), ensure_ascii=False)
     response_json = engine._native.graph_expand(request_json)
 
     def native_object(value: dict[str, object]) -> SimpleNamespace:

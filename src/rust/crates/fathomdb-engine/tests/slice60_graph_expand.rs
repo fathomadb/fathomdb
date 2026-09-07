@@ -316,6 +316,7 @@ fn result_limit_selects_top_n_only_after_the_walk_is_complete() {
     let mut request = explicit_request(&["root"], TraversalDirection::Outgoing);
     request.result_limit = 1;
     request.max_depth = 2;
+    request.target_kinds = vec!["fact".into()];
     let result = opened.engine.graph_expand(&request).unwrap();
     assert_eq!(target_ids(&result), ["z-hop1"], "hop count outranks lexical target ID");
     assert_eq!(result.work_units, 3, "traversal did not stop when one result was found");

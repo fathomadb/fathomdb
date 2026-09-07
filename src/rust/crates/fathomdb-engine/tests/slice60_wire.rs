@@ -147,17 +147,21 @@ fn response_accepts_additive_fields_and_rejects_closed_variants() {
     additive["targets"][0].as_object_mut().unwrap().insert("futureTargetField".into(), json!(true));
     decode_graph_expand_result_v1(&serde_json::to_vec(&additive).unwrap()).unwrap();
 
-    for (path, invalid) in [
-        ("/targets/0/origin/terminalDirection", json!("sideways")),
-        ("/explanation/projectionOrigin", json!("unknown")),
-        ("/explanation/projectionReadiness", json!("unknown")),
-        ("/degradationCodes/0", json!("unknown")),
+    for (mutation_path, invalid, expected_path) in [
+        (
+            "/targets/0/origin/terminalDirection",
+            json!("sideways"),
+            "/targets/0/origin/terminalDirection",
+        ),
+        ("/explanation/projectionOrigin", json!("unknown"), "/explanation/projectionOrigin"),
+        ("/explanation/projectionReadiness", json!("unknown"), "/explanation/projectionReadiness"),
+        ("/degradationCodes", json!(["unknown"]), "/degradationCodes/0"),
     ] {
         let mut value = base.clone();
-        *value.pointer_mut(path).unwrap() = invalid;
+        *value.pointer_mut(mutation_path).unwrap() = invalid;
         let error = decode_response(&value);
         assert_eq!(error.reason, GraphExpansionErrorReasonV1::GraphCorrupt);
-        assert_eq!(error.field_path, path);
+        assert_eq!(error.field_path, expected_path);
     }
 }
 

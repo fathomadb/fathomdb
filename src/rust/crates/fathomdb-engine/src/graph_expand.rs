@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
-#[cfg(feature = "test-hooks")]
-use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering as AtomicOrdering;
+#[cfg(feature = "test-hooks")]
+use std::sync::atomic::{AtomicBool, AtomicU64};
 #[cfg(feature = "test-hooks")]
 use std::sync::Mutex;
 
@@ -14,10 +14,17 @@ use crate::{
     ProjectionRuntimeStateV1, ReadContextV1, ReadView, SearchFilter, StructuralDependencyStateV1,
     StructuralLifecycleStateV1, TraversalDirection, WalAttributionCollector,
 };
+#[cfg(feature = "test-hooks")]
+use crate::{dependency_closure, ClosureCauseV1};
+#[cfg(feature = "test-hooks")]
+use rusqlite::params;
 use rusqlite::{Connection, OptionalExtension};
 use serde::Serialize;
 
 const SCHEMA_VERSION: u32 = 1;
+
+#[cfg(feature = "test-hooks")]
+static GRAPH_EXPAND_RSS_SAMPLE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// The source from which graph-expansion seeds were resolved.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -421,6 +428,14 @@ pub struct GraphExpandMeasurementForTest {
     pub peak_rss_delta_bytes: u64,
 }
 
+/// Current SQLite allocator evidence from one isolated graph-expansion fixture arm.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GraphExpandCurrentRssSampleForTest {
+    pub current_rss_delta_bytes: u64,
+    pub work_units: u64,
+}
+
 /// An owned, request-scoped projection lifecycle observation for real SQLite
 /// graph-expansion fixtures.
 #[cfg(feature = "test-hooks")]
@@ -428,6 +443,14 @@ pub struct GraphExpandMeasurementForTest {
 pub struct GraphExpandProjectionStateForTest {
     origin: GraphProjectionOriginV1,
     readiness: GraphProjectionReadinessV1,
+}
+
+/// Source projection status injected before graph-expansion's production mapping.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GraphExpandProjectionGenerationForTest {
+    origin: ProjectionGenerationOriginV1,
+    readiness: ProjectionReadinessV1,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -485,12 +508,59 @@ impl Engine {
     #[doc(hidden)]
     pub fn seed_graph_expand_dependency_closure_for_test(&self) -> Result<(), EngineError> {
         self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        connection
-            .query_row("SELECT COUNT(*) FROM source_dependencies", [], |row| row.get::<_, i64>(0))
-            .map(|_| ())
-            .map_err(|_| EngineError::Storage)
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let cursor = self.next_cursor.load(AtomicOrdering::SeqCst).saturating_add(1);
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        tx.execute(
+            "INSERT INTO canonical_nodes(\
+                write_cursor, kind, body, source_id, logical_id, row_kind, state, reason, valid_from, valid_until\
+             ) VALUES(?1, 'fact', 'derived', 'derived-owner', 'derived', 'leaf', 'active', NULL, NULL, NULL)",
+            [i64::try_from(cursor).map_err(|_| EngineError::Storage)?],
+        )
+        .map_err(|_| EngineError::Storage)?;
+        tx.execute(
+            "INSERT INTO _fathomdb_artifact_revisions(\
+                schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness\
+             ) VALUES(1, 'derived-r1', 'node', ?1, 'derived_semantic', 'complete')",
+            [i64::try_from(cursor).map_err(|_| EngineError::Storage)?],
+        )
+        .map_err(|_| EngineError::Storage)?;
+        tx.execute(
+            "INSERT INTO _fathomdb_source_links(\
+                schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id,\
+                locator_kind, start_byte, end_byte, hash_algorithm, hash_digest\
+             ) SELECT schema_version, 'derived-r1', 'derived-owner', source_version_id, source_revision_id,\
+                      locator_kind, start_byte, end_byte, hash_algorithm, hash_digest \
+               FROM _fathomdb_source_links WHERE artifact_revision_id='source-r1'",
+            [],
+        )
+        .map_err(|_| EngineError::Storage)?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        self.next_cursor.store(cursor, AtomicOrdering::SeqCst);
+        Ok(())
+    }
+
+    #[doc(hidden)]
+    pub fn seed_graph_expand_nonterminal_dependency_closure_for_test(
+        &self,
+    ) -> Result<(), EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        dependency_closure::admit_soft_closure(
+            &tx,
+            "source-r1",
+            ClosureCauseV1::SoftDeleted,
+            self.next_cursor.load(AtomicOrdering::SeqCst),
+            dependency_closure::SoftClosureMode::Proving,
+        )?;
+        tx.commit().map_err(|_| EngineError::Storage)
     }
 
     #[doc(hidden)]
@@ -507,6 +577,112 @@ impl Engine {
     #[doc(hidden)]
     pub fn seed_graph_expand_projection_state_for_test(&self) -> GraphExpandProjectionStateForTest {
         GraphExpandProjectionStateForTest::fresh_ready()
+    }
+
+    #[doc(hidden)]
+    pub fn graph_expand_current_rss_samples_for_test(
+        request: &GraphExpandRequestV1,
+        work_units: &[u64],
+        unrelated_nodes: &[u64],
+    ) -> Result<Vec<GraphExpandCurrentRssSampleForTest>, EngineError> {
+        if work_units.len() != unrelated_nodes.len() {
+            return Err(EngineError::Storage);
+        }
+        let sequence = GRAPH_EXPAND_RSS_SAMPLE_SEQUENCE.fetch_add(1, AtomicOrdering::Relaxed);
+        let root = std::env::temp_dir()
+            .join(format!("fathomdb-slice60-rss-{}-{sequence}", std::process::id()));
+        std::fs::create_dir_all(&root).map_err(|_| EngineError::Storage)?;
+        let mut samples = Vec::with_capacity(work_units.len());
+        for (index, (&work, &unrelated)) in work_units.iter().zip(unrelated_nodes).enumerate() {
+            let path = root.join(format!("arm-{index}.sqlite"));
+            let opened = Engine::open(&path).map_err(|_| EngineError::Storage)?;
+            opened.engine.seed_graph_expand_rss_fixture_for_test(work, unrelated)?;
+            let baseline = crate::sqlite_current_allocator_bytes();
+            let result = opened.engine.graph_expand(request)?;
+            let observed = crate::sqlite_current_allocator_bytes().saturating_sub(baseline);
+            samples.push(GraphExpandCurrentRssSampleForTest {
+                current_rss_delta_bytes: observed,
+                work_units: result.work_units,
+            });
+            opened.engine.close()?;
+        }
+        let _ = std::fs::remove_dir_all(root);
+        Ok(samples)
+    }
+
+    fn seed_graph_expand_rss_fixture_for_test(
+        &self,
+        work: u64,
+        unrelated: u64,
+    ) -> Result<(), EngineError> {
+        use crate::{InitialState, PreparedWrite, SourceId};
+
+        self.write(&[PreparedWrite::Node {
+            logical_id: Some("root".into()),
+            kind: "fact".into(),
+            body: "root".into(),
+            source_id: SourceId::new("slice60-rss").map_err(|_| EngineError::Storage)?,
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }])?;
+        let mut writes = Vec::new();
+        for index in 0..work {
+            writes.push(PreparedWrite::Node {
+                logical_id: Some(format!("target-{index}")),
+                kind: "fact".into(),
+                body: "target".into(),
+                source_id: SourceId::new("slice60-rss").map_err(|_| EngineError::Storage)?,
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            });
+            writes.push(PreparedWrite::Edge {
+                logical_id: Some(format!("edge-{index}")),
+                kind: "link".into(),
+                from: "root".into(),
+                to: format!("target-{index}"),
+                source_id: SourceId::new("slice60-rss").map_err(|_| EngineError::Storage)?,
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+            });
+        }
+        if !writes.is_empty() {
+            self.write(&writes)?;
+        }
+        if unrelated > 0 {
+            let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+            let first = self.next_cursor.load(AtomicOrdering::SeqCst).saturating_add(1);
+            let tx = connection
+                .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+                .map_err(|_| EngineError::Storage)?;
+            let mut insert = tx
+                .prepare("INSERT INTO canonical_nodes(\
+                    write_cursor,kind,body,source_id,logical_id,row_kind,state,reason,valid_from,valid_until\
+                 ) VALUES(?1,'fact','unrelated','slice60-rss',?2,'leaf','active',NULL,NULL,NULL)")
+                .map_err(|_| EngineError::Storage)?;
+            for index in 0..unrelated {
+                let cursor = first.saturating_add(index);
+                insert
+                    .execute(params![
+                        i64::try_from(cursor).map_err(|_| EngineError::Storage)?,
+                        format!("unrelated-{index}")
+                    ])
+                    .map_err(|_| EngineError::Storage)?;
+            }
+            drop(insert);
+            tx.commit().map_err(|_| EngineError::Storage)?;
+            self.next_cursor
+                .store(first.saturating_add(unrelated).saturating_sub(1), AtomicOrdering::SeqCst);
+        }
+        Ok(())
     }
 }
 
@@ -629,7 +805,7 @@ impl Engine {
         &self,
         request: &GraphExpandRequestV1,
     ) -> Result<GraphExpandResultV1, EngineError> {
-        self.graph_expand_inner(request, None, None)
+        self.graph_expand_inner(request, None, None, None)
     }
 
     #[cfg(feature = "test-hooks")]
@@ -639,7 +815,7 @@ impl Engine {
         request: &GraphExpandRequestV1,
         rendezvous: GraphExpandRendezvousForTest,
     ) -> Result<GraphExpandResultV1, EngineError> {
-        self.graph_expand_inner(request, Some(rendezvous), None)
+        self.graph_expand_inner(request, Some(rendezvous), None, None)
     }
 
     #[cfg(feature = "test-hooks")]
@@ -649,7 +825,23 @@ impl Engine {
         request: &GraphExpandRequestV1,
         projection_state: GraphExpandProjectionStateForTest,
     ) -> Result<GraphExpandResultV1, EngineError> {
-        self.graph_expand_inner(request, None, Some(projection_state))
+        self.graph_expand_inner(request, None, Some(projection_state), None)
+    }
+
+    #[doc(hidden)]
+    #[cfg(feature = "test-hooks")]
+    pub fn graph_expand_with_projection_generation_for_test(
+        &self,
+        request: &GraphExpandRequestV1,
+        origin: ProjectionGenerationOriginV1,
+        readiness: ProjectionReadinessV1,
+    ) -> Result<GraphExpandResultV1, EngineError> {
+        self.graph_expand_inner(
+            request,
+            None,
+            None,
+            Some(GraphExpandProjectionGenerationForTest { origin, readiness }),
+        )
     }
 
     fn graph_expand_inner(
@@ -659,6 +851,10 @@ impl Engine {
         #[cfg(not(feature = "test-hooks"))] _rendezvous: Option<()>,
         #[cfg(feature = "test-hooks")] projection_state: Option<GraphExpandProjectionStateForTest>,
         #[cfg(not(feature = "test-hooks"))] _projection_state: Option<()>,
+        #[cfg(feature = "test-hooks")] projection_generation: Option<
+            GraphExpandProjectionGenerationForTest,
+        >,
+        #[cfg(not(feature = "test-hooks"))] _projection_generation: Option<()>,
     ) -> Result<GraphExpandResultV1, EngineError> {
         self.ensure_open()?;
         let frozen_binding = match &request.context {
@@ -703,7 +899,7 @@ impl Engine {
         };
         #[cfg(feature = "test-hooks")]
         self.graph_expand_rss_baseline_bytes
-            .store(crate::process_peak_rss_bytes(), AtomicOrdering::Relaxed);
+            .store(crate::process_current_rss_bytes(), AtomicOrdering::Relaxed);
         let (respond, receive) = std::sync::mpsc::sync_channel(1);
         self.reader_pool
             .dispatch(crate::ReaderRequest::GraphExpand(Box::new(
@@ -715,6 +911,8 @@ impl Engine {
                     rendezvous,
                     #[cfg(feature = "test-hooks")]
                     projection_state,
+                    #[cfg(feature = "test-hooks")]
+                    projection_generation,
                     respond,
                 },
             )))
@@ -723,10 +921,8 @@ impl Engine {
         #[cfg(feature = "test-hooks")]
         {
             let baseline = self.graph_expand_rss_baseline_bytes.load(AtomicOrdering::Relaxed);
-            let observed = crate::process_peak_rss_bytes().saturating_sub(baseline);
-            // `ru_maxrss` is page-granular, so a completed allocation-free
-            // request can otherwise report a false zero delta.
-            self.graph_expand_rss_delta_bytes.store(observed.max(1), AtomicOrdering::Relaxed);
+            let observed = crate::process_current_rss_bytes().saturating_sub(baseline);
+            self.graph_expand_rss_delta_bytes.store(observed, AtomicOrdering::Relaxed);
         }
         if request.include_explanation {
             let sequence = self.explanation_sequence.fetch_add(1, AtomicOrdering::Relaxed);
@@ -977,6 +1173,9 @@ pub(crate) fn read_graph_expand_in_tx(
     projection_runtime_state: ProjectionRuntimeStateV1,
     #[cfg(feature = "test-hooks")] rendezvous: Option<&GraphExpandRendezvousForTest>,
     #[cfg(feature = "test-hooks")] projection_state: Option<GraphExpandProjectionStateForTest>,
+    #[cfg(feature = "test-hooks")] projection_generation: Option<
+        GraphExpandProjectionGenerationForTest,
+    >,
     attribution: &std::sync::Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> Result<GraphExpandResultV1, EngineError> {
@@ -1025,18 +1224,28 @@ pub(crate) fn read_graph_expand_in_tx(
             crate::load_next_cursor(&tx),
         )?;
         {
+            let (source_origin, source_readiness) = {
+                #[cfg(feature = "test-hooks")]
+                if let Some(state) = projection_generation {
+                    (state.origin, state.readiness)
+                } else {
+                    (status.origin, status.readiness)
+                }
+                #[cfg(not(feature = "test-hooks"))]
+                (status.origin, status.readiness)
+            };
             let (origin, readiness) = {
                 #[cfg(feature = "test-hooks")]
                 if let Some(state) = projection_state {
                     (state.origin, state.readiness)
                 } else {
                     (
-                        map_projection_origin(status.origin),
-                        map_projection_readiness(status.readiness),
+                        map_projection_origin(source_origin),
+                        map_projection_readiness(source_readiness),
                     )
                 }
                 #[cfg(not(feature = "test-hooks"))]
-                (map_projection_origin(status.origin), map_projection_readiness(status.readiness))
+                (map_projection_origin(source_origin), map_projection_readiness(source_readiness))
             };
             (Some(status.generation_id.as_str().to_string()), origin, readiness)
         }
@@ -1138,14 +1347,24 @@ pub(crate) fn read_graph_expand_in_tx(
                     write_cursor,
                     origin,
                 };
-                match candidates.get_mut(&next) {
-                    Some(existing) if origin_cmp(&target.origin, &existing.origin).is_lt() => {
+                if let Some(existing) = candidates.get_mut(&next) {
+                    if origin_cmp(&target.origin, &existing.origin).is_lt() {
                         *existing = target;
                     }
-                    None => {
-                        candidates.insert(next, target);
-                    }
-                    _ => {}
+                    continue;
+                }
+                if candidates.len() < request.result_limit as usize {
+                    candidates.insert(next, target);
+                    continue;
+                }
+                let worst = candidates
+                    .iter()
+                    .max_by(|(_, left), (_, right)| origin_cmp(&left.origin, &right.origin))
+                    .map(|(logical_id, _)| logical_id.clone())
+                    .expect("result limit is validated nonzero");
+                if origin_cmp(&target.origin, &candidates[&worst].origin).is_lt() {
+                    candidates.remove(&worst);
+                    candidates.insert(next, target);
                 }
             }
         }

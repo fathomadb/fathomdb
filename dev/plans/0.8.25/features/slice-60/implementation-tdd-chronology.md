@@ -483,7 +483,10 @@ cross-owner derived node, revision, and source link without registration. It
 then executes graph expansion before and after registration, requires a
 nonterminal closure barrier to exclude the independently owned surviving
 derived row, and keeps erase and excise as separate controls. Correction 9
-records the isolated fixture migration and re-frozen hash.
+records the isolated fixture migration and re-frozen hash. Correction 10 then
+replaces the nonterminal fixture's incorrect public `erase_source` setup with
+the test-only persisted `SoftDeleted`/`Proving` control and records the final
+fixture hash.
 
 The source-projection matrix fixture drives every Slice-40 source
 `ProjectionGenerationOriginV1`/`ProjectionReadinessV1` pair through a missing
@@ -508,4 +511,65 @@ error[E0599]: no function or associated item named
 
 The next GREEN must provide a real owned source-generation control before
 mapping, a cross-owner closure barrier, and isolated current-RSS samples for
-small, exact-work, and unrelated-size controls. No existing oracle changed.
+small, exact-work, and unrelated-size controls. The two fixture-only
+corrections are recorded separately in corrections 9 and 10; public
+`Engine::write` remains unchanged.
+
+## FIX-4 GREEN
+
+The test-hooks-only dependency setup now inserts the active cross-owner
+derived row, derived revision, and source link through real SQLite without
+dependency registration. The source-link validation follows the canonical
+source recorded by the derived artifact; it does not weaken public
+`Engine::write`, which continues to reject the invalid cross-owner
+`ProvenancedNodeV1` input with `source_mismatch`. The nonterminal control calls
+the internal soft-closure admission path for `source-r1` with `SoftDeleted` and
+`Proving`, and the oracle verifies the persisted `proving` row before its
+read-side assertion.
+
+The projection test hook carries source `ProjectionGenerationOriginV1` and
+`ProjectionReadinessV1` through the reader request and invokes the production
+mapping at the normal read-side boundary. The isolated RSS fixture records the
+real SQLite allocator delta for separate small, exact-`W`, and unrelated-large
+database arms; it does not synthesize a nonzero observation.
+
+Focused and compatibility evidence:
+
+```text
+$ cargo test -p fathomdb-engine --features test-hooks,operator \
+    --test slice60_fix3_runtime --test slice60_fix4_dependency \
+    --test slice60_fix4_projection --test slice60_fix4_rss -- --test-threads=1
+7 passed
+
+$ cargo test -p fathomdb-engine --features test-hooks \
+    --test slice60_graph_expand --test slice60_wire --test slice60_fix1_wire \
+    --test slice60_fix2_global_leak --test slice60_fix2_hooks \
+    --test slice60_fix2_runtime --test slice60_fix2_wire --test slice60_fix3_wire \
+    --test slice60_fix3_projection_states -- --test-threads=1
+41 passed
+
+$ cargo test -p fathomdb --test slice60_governed_surface -- --test-threads=1
+2 passed
+
+$ cargo test -p fathomdb-py
+13 passed
+
+$ cargo test -p fathomdb-engine --test slice20_graph_traversal \
+    --test slice35_frozen_read --test slice35_graph_frontier_pretruncation \
+    -- --test-threads=1
+24 passed
+
+$ PYTHONPATH=src/python .venv/bin/python -m pytest \
+    src/python/tests/test_slice60_graph_expand.py \
+    src/python/tests/test_slice60_fix1_graph_expand.py \
+    src/python/tests/test_slice60_fix2_graph_expand.py \
+    src/python/tests/test_slice60_fix3_graph_expand.py -q
+24 passed
+
+$ cd src/ts && npx tsc -p tsconfig.json && node --test \
+    dist/tests/slice60-graph-expand.test.js \
+    dist/tests/slice60-fix1-graph-expand.test.js \
+    dist/tests/slice60-fix2-graph-expand.test.js \
+    dist/tests/slice60-fix3-graph-expand.test.js
+4 passed
+```

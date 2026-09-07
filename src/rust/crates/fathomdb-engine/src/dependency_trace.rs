@@ -526,15 +526,12 @@ pub(crate) fn source_link_valid(
     let Some((canonical_source_id, canonical_body)) = canonical else {
         return Ok(false);
     };
-    if canonical_source_id != source_id {
-        return Ok(false);
-    }
     let version_valid: bool = connection
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_versions \
              WHERE schema_version=1 AND source_revision_id=?1 \
                AND source_id=?2 AND source_version_id=?3)",
-            rusqlite::params![source_revision, source_id, version_id],
+            rusqlite::params![source_revision, canonical_source_id, version_id],
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;

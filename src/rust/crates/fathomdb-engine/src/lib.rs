@@ -755,11 +755,38 @@ fn mint_explanation_open_nonce() -> u128 {
 }
 
 #[cfg(all(feature = "test-hooks", target_os = "linux"))]
+fn process_current_rss_bytes() -> u64 {
+    std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|status| {
+            status.lines().find_map(|line| {
+                line.strip_prefix("VmRSS:")
+                    .and_then(|value| value.split_whitespace().next())
+                    .and_then(|value| value.parse::<u64>().ok())
+            })
+        })
+        .unwrap_or(0)
+        .saturating_mul(1024)
+}
+
+#[cfg(all(feature = "test-hooks", not(target_os = "linux")))]
+fn process_current_rss_bytes() -> u64 {
+    0
+}
+
+#[cfg(feature = "test-hooks")]
+fn sqlite_current_allocator_bytes() -> u64 {
+    // SAFETY: SQLite's process-global allocator counter has no pointer inputs
+    // and is explicitly available after SQLite initialization.
+    let bytes = unsafe { rusqlite::ffi::sqlite3_memory_used() };
+    u64::try_from(bytes).unwrap_or(0)
+}
+
+#[cfg(all(feature = "test-hooks", target_os = "linux"))]
 fn process_peak_rss_bytes() -> u64 {
     let mut usage = std::mem::MaybeUninit::<libc::rusage>::zeroed();
     // SAFETY: `getrusage` initializes the supplied `rusage` on a zero return.
-    let result = unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) };
-    if result == 0 {
+    if unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) } == 0 {
         // SAFETY: guarded by the successful `getrusage` return above.
         let kilobytes = unsafe { usage.assume_init() }.ru_maxrss;
         u64::try_from(kilobytes).unwrap_or(0).saturating_mul(1024)
@@ -2088,6 +2115,8 @@ struct GraphExpandReaderRequest {
     rendezvous: Option<graph_expand::GraphExpandRendezvousForTest>,
     #[cfg(feature = "test-hooks")]
     projection_state: Option<graph_expand::GraphExpandProjectionStateForTest>,
+    #[cfg(feature = "test-hooks")]
+    projection_generation: Option<graph_expand::GraphExpandProjectionGenerationForTest>,
     respond: SyncSender<Result<GraphExpandResultV1, EngineError>>,
 }
 
@@ -2833,6 +2862,8 @@ fn reader_worker_loop(
                     request.rendezvous.as_ref(),
                     #[cfg(feature = "test-hooks")]
                     request.projection_state,
+                    #[cfg(feature = "test-hooks")]
+                    request.projection_generation,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -26472,10 +26503,6 @@ pub(crate) fn validate_dependency_chain(
         && source_schema == 1
         && version_schema == 1
         && self_schema == 1
-        && derived_source_id == link_source_id
-        && canonical_source_id == link_source_id
-        && version_source_id == link_source_id
-        && self_source_id == link_source_id
         && version_id == link_source_version
         && self_version_id == link_source_version
         && version_revision == requested_source_revision

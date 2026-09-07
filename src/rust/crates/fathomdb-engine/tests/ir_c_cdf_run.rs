@@ -231,7 +231,7 @@ mod cdf_runner_impl {
     {
         let (n, found) = results
             .iter()
-            .filter(|qr| cls.map_or(true, |c| qr.query_class == c))
+            .filter(|qr| cls.is_none_or(|c| qr.query_class == c))
             .fold((0usize, 0usize), |(n, f), qr| {
                 (n + 1, f + found_at_k(arm(qr), &qr.gold, k) as usize)
             });
@@ -240,13 +240,13 @@ mod cdf_runner_impl {
 
     /// Oracle union: found in bm25 top-K OR dense top-K.
     fn oracle_agg(results: &[QResult], cls: Option<QueryClass>, k: usize) -> (f64, usize) {
-        let (n, found) = results
-            .iter()
-            .filter(|qr| cls.map_or(true, |c| qr.query_class == c))
-            .fold((0usize, 0usize), |(n, f), qr| {
+        let (n, found) = results.iter().filter(|qr| cls.is_none_or(|c| qr.query_class == c)).fold(
+            (0usize, 0usize),
+            |(n, f), qr| {
                 let hit = found_at_k(&qr.bm25, &qr.gold, k) || found_at_k(&qr.dense, &qr.gold, k);
                 (n + 1, f + hit as usize)
-            });
+            },
+        );
         (if n == 0 { 0.0 } else { found as f64 / n as f64 }, n)
     }
 
@@ -266,14 +266,14 @@ mod cdf_runner_impl {
     fn days_to_ymd(mut d: u32) -> (u32, u32, u32) {
         let mut y = 1970u32;
         loop {
-            let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+            let leap = (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400);
             if d < if leap { 366 } else { 365 } {
                 break;
             }
             d -= if leap { 366 } else { 365 };
             y += 1;
         }
-        let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+        let leap = (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400);
         let mdays = [31u32, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
         let mut mo = 1u32;
         for &md in &mdays {

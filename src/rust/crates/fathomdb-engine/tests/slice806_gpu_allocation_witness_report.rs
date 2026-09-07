@@ -138,7 +138,10 @@ fn an_opted_in_witness_that_cannot_be_produced_fails_the_open() {
         }
     }
 
-    let error = result.err().expect("a requested witness that cannot be produced fails the open");
+    let error = match result {
+        Err(error) => error,
+        Ok(_) => panic!("a requested witness that cannot be produced fails the open"),
+    };
     let rendered = error.to_string();
     assert!(
         rendered.contains("no GPU allocation witness could be produced"),

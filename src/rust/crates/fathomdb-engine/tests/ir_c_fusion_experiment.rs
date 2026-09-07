@@ -108,7 +108,7 @@ fn fuse_weighted(
         order: usize,
     }
     let mut entries: Vec<E> = Vec::new();
-    let mut acc = |body: &str, rank0: usize, w: f64, in_vec: bool, entries: &mut Vec<E>| {
+    let acc = |body: &str, rank0: usize, w: f64, in_vec: bool, entries: &mut Vec<E>| {
         let contrib = w * (1.0 / (k + (rank0 as f64 + 1.0)));
         if let Some(e) = entries.iter_mut().find(|e| e.body == body) {
             e.score += contrib;
@@ -209,7 +209,7 @@ fn ir_c_fusion_experiment() {
     );
 
     // Doc universe: evidence docs (always) + distractors up to the budget.
-    let evidence: HashSet<String> = queries.iter().flat_map(|q| required_doc_ids(q)).collect();
+    let evidence: HashSet<String> = queries.iter().flat_map(required_doc_ids).collect();
     let Some(mut docs) = load_chain_docs(&evidence) else {
         eprintln!("[skip] corpus absent");
         return;
@@ -312,10 +312,12 @@ fn ir_c_fusion_experiment() {
             ("256/192", 256, 192, 4),
         ]
     };
-    let passage_sets: Vec<(&str, Vec<(String, Vec<f32>)>)> = geoms
+    type PassageVector = (String, Vec<f32>);
+    type PassageSet<'a> = (&'a str, Vec<PassageVector>);
+    let passage_sets: Vec<PassageSet<'_>> = geoms
         .iter()
         .map(|(label, size, stride, max)| {
-            let mut pv: Vec<(String, Vec<f32>)> = Vec::with_capacity(docs.len() * 4);
+            let mut pv: Vec<PassageVector> = Vec::with_capacity(docs.len() * 4);
             for d in &docs {
                 for chunk in chunk_words(&d.body, *size, *stride, *max) {
                     pv.push((d.doc_id.clone(), embedder.embed(&chunk).expect("embed chunk")));
@@ -449,11 +451,11 @@ fn ir_c_fusion_experiment() {
             });
         }
         // Chunk geometries × pooling × prefix (vector-only).
-        for gi in 1..passage_sets.len() {
+        for (gi, &(geom_label, _, _, _)) in geoms[..passage_sets.len()].iter().enumerate().skip(1) {
             for pool in [Pool::Max, Pool::Mean, Pool::Top2] {
                 for pref in [false, true] {
                     let tag = if pref { "pref" } else { "bare" };
-                    let name = format!("v_{}_{}_{}", geoms[gi].0, pool_label(pool), tag);
+                    let name = format!("v_{}_{}_{}", geom_label, pool_label(pool), tag);
                     configs.push(Cfg {
                         name,
                         wv: 1.0,
@@ -501,8 +503,9 @@ fn ir_c_fusion_experiment() {
         Pool::Mean => 1,
         Pool::Top2 => 2,
     };
-    let vec_cache: Mutex<HashMap<(String, usize, u8, bool), Vec<String>>> =
-        Mutex::new(HashMap::new());
+    type VectorCacheKey = (String, usize, u8, bool);
+    type VectorCache = Mutex<HashMap<VectorCacheKey, Vec<String>>>;
+    let vec_cache: VectorCache = Mutex::new(HashMap::new());
 
     eprintln!(
         "\nFX_RESULTS config | exact_fact R@5/10/20/50 | exploratory R@5/10/20/50 | neg_abst"

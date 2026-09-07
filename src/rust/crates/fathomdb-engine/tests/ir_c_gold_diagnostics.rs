@@ -438,7 +438,7 @@ fn compute_dense_section(
         if q.query_class == QueryClass::Negative {
             continue;
         }
-        if recs.len() % 1000 == 0 && recs.len() > 0 {
+        if recs.len().is_multiple_of(1000) && !recs.is_empty() {
             eprintln!(
                 "DIAG_DENSE rank_progress {} queries ({:.0}s)",
                 recs.len(),

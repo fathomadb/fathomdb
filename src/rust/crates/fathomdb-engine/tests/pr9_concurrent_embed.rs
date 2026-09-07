@@ -213,12 +213,12 @@ fn sustained_seed_serialized_path_completes_and_is_correct() {
     // write order, so rowid i ↔ bodies[i-1]). A race that swapped/garbled a
     // forward pass would break the cosine match.
     let spot = (row_count as usize).min(16);
-    for i in 0..spot {
+    for (i, body) in bodies[..spot].iter().enumerate() {
         let rowid = (i + 1) as i64;
         let blob = engine.read_vector_blob_for_test(rowid).expect("read vector blob");
         let stored: Vec<f32> =
             blob.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
-        let expected = embedder.embed(&bodies[i]).expect("re-embed for spot-check");
+        let expected = embedder.embed(body).expect("re-embed for spot-check");
         let cos = cosine(&stored, &expected);
         assert!(
             cos > 0.9999,

@@ -149,7 +149,7 @@ fn ir_c_recall_run() {
 
     // ── Build the doc universe: evidence docs for the evaluated queries
     //    (ALWAYS seeded) + corpus distractors up to the budget. ──
-    let evidence_ids: HashSet<String> = queries.iter().flat_map(|q| required_doc_ids(q)).collect();
+    let evidence_ids: HashSet<String> = queries.iter().flat_map(required_doc_ids).collect();
     let Some(mut docs) = load_chain_docs(&evidence_ids) else {
         eprintln!("[skip] corpus absent; cannot load evidence docs");
         return;

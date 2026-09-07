@@ -200,8 +200,8 @@ impl SplitMix64 {
     }
 }
 
-const QUERY_SELECT_SEED: u64 = 0x0E7_7_C0_12_5E1EC7; // EU-7 query selection
-const BOOTSTRAP_SEED: u64 = 0x0E7_7_B0_07_57_4A9; // EU-7 bootstrap
+const QUERY_SELECT_SEED: u64 = 0x000E_77C0_125E_1EC7; // EU-7 query selection
+const BOOTSTRAP_SEED: u64 = 0x0000_E77B_0075_74A9; // EU-7 bootstrap
 
 fn env_usize(key: &str, default: usize) -> usize {
     std::env::var(key).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
@@ -319,7 +319,7 @@ fn synth_distractor_body(idx: usize) -> String {
         "feature",
         "release",
     ];
-    let mut rng = SplitMix64::new(0xD15_7AC_70_5000 ^ idx as u64);
+    let mut rng = SplitMix64::new(0xD157_AC70_5000 ^ idx as u64);
     let count = 40 + rng.next_in(40);
     let mut body = String::with_capacity(512);
     for i in 0..count {

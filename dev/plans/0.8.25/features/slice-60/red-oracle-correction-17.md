@@ -21,10 +21,11 @@ ErasureIncomplete {
 The pre-correction test used `unwrap()`, so it treated the documented
 at-rest-completion refusal as though the source rows had not been erased. One
 unchanged isolated Windows reproduction then passed 1/1 in 0.22 seconds, which
-confirms the clean-or-BUSY shape without attributing the transient reader.
+confirms the clean-or-BUSY shape without attributing the BUSY outcome or
+holder.
 
 Independent review classified this as a P2 test-oracle defect. The product
-must continue to refuse success while a reader prevents WAL truncation. The
+must continue to refuse success while WAL truncation remains BUSY. The
 test-only correction therefore accepts only `Ok` or
 `ErasureIncomplete { stage: "wal_checkpoint" }`, rejects every other error,
 and retains both real `graph_expand` disappearance assertions after the

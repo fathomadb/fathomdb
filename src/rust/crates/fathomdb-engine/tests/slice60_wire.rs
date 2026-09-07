@@ -57,7 +57,7 @@ fn canonical_fixture_round_trips_request_and_response() {
     .unwrap();
     let request_bytes = request_fixture["request"].as_str().unwrap().as_bytes();
     assert_eq!(encode_graph_expand_request_v1(&request()).unwrap(), request_bytes);
-    assert_eq!(decode_graph_expand_request_v1(&request_bytes).unwrap(), request());
+    assert_eq!(decode_graph_expand_request_v1(request_bytes).unwrap(), request());
 
     let response_bytes =
         include_str!("../../../../../dev/fixtures/slice60-fix1-canonical-result-v1.json")

@@ -205,14 +205,14 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 60** (`GRAPH`) — minimal constrained graph parity
+**IMMEDIATE NEXT: Slice 75** (`CLOSURE`) — trimmed trustworthy release verification
 
-**Remaining ladder:** 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Slice 55 is durably closed. Reconcile Slice 60's constrained-graph design
-against the implemented provenance, dependency, lifecycle, eligibility,
-generation, pagination, evidence, tracing, and integrity contracts before
-beginning its RED tests.
+Slice 60 is durably closed. Reconcile Slice 75's verification design with the
+owner-directed CI-only boundary before beginning its retained investigations.
+Package production, registry staging, tags, publication, post-publication
+smoke, and merge to main remain outside this ladder.
 
 ## Stop gates
 

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "faults": [
+    {
+      "name": "derived_canonical_source_id",
+      "sql": "UPDATE canonical_nodes SET source_id='other-owner' WHERE logical_id='derived'"
+    },
+    {
+      "name": "derived_link_source_id",
+      "sql": "UPDATE _fathomdb_source_links SET source_id='other-owner' WHERE artifact_revision_id='derived-r1'"
+    },
+    {
+      "name": "canonical_link_source_id",
+      "sql": "UPDATE _fathomdb_source_links SET source_id='other-owner' WHERE artifact_revision_id='source-r1'"
+    }
+  ]
+}

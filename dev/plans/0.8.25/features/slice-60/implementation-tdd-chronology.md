@@ -573,3 +573,54 @@ $ cd src/ts && npx tsc -p tsconfig.json && node --test \
     dist/tests/slice60-fix3-graph-expand.test.js
 4 passed
 ```
+
+## FIX-5 RED
+
+Cycle 5 restores the Slice 20 persisted-provenance contract and replaces the
+allocator-only RSS witness. The additive provenance oracle writes a
+contract-valid same-owner canonical-source/derived dependency, registers it,
+then uses the existing `test-hooks` real-SQL route to corrupt each persisted
+source-ID/link/dependency-chain relationship named in
+`slice60-fix5-provenance-v1.json`. Both graph classification and dependency
+trace must fail closed; no production write path or prior fixture is changed.
+
+The additive RSS oracle defines isolated-process small, exact-10,000-work, and
+exact-10,000-work-plus-100,000-unrelated-node arms. Its required future witness
+must report a child PID, live process RSS around the request, exact work for
+both 10,000-work arms, and the fixture's proportional ceiling. It must not use
+SQLite allocator retention as a proxy.
+
+Observed RED evidence:
+
+```text
+$ cargo test -p fathomdb-engine --features test-hooks \
+    --test slice60_fix5_provenance -- --test-threads=1
+FAILED
+derived_canonical_source_id must not classify a corrupted relation as registered
+left: Registered
+right: NotRegistered
+
+$ cargo test -p fathomdb-engine --features test-hooks \
+    --test slice60_fix5_rss -- --test-threads=1
+error[E0599]: no function or associated item named
+`graph_expand_isolated_process_rss_samples_for_test` found for `Engine`
+
+$ cargo clippy -p fathomdb-engine --features test-hooks,operator --all-targets \
+    -- -D warnings
+error: this function has too many arguments (9/7)
+  --> src/rust/crates/fathomdb-engine/src/graph_expand.rs:1169:1
+```
+
+Frozen RED artifact hashes:
+
+| Path | SHA-256 |
+| --- | --- |
+| `src/rust/crates/fathomdb-engine/tests/slice60_fix5_provenance.rs` | `6cd34728a1bc245e16169856efcea7f992f7ce2b314634bdab2098330a24e661` |
+| `src/rust/crates/fathomdb-engine/tests/slice60_fix5_rss.rs` | `89a82ccd1bb721ae285840975305294389c59c0217a95a0272d9909771f7cd20` |
+| `dev/fixtures/slice60-fix5-provenance-v1.json` | `4e7b8f5f7f52bc84fd1061f606bbb5d9bb8ed956abd126959e91998d0b6c8973` |
+| `dev/fixtures/slice60-fix5-rss-v1.json` | `1532993ae4a5186b6415b6592c51bf3990dc5e1995a9402aca54749d956e19be` |
+
+The strict-Clippy failure is recorded as a gate diagnostic, not an artificial
+test. The next GREEN must restore all persisted equality checks, group the
+test-only graph-read controls, and supply the isolated live-process RSS
+witness without changing these RED oracles.

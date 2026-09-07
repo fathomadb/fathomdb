@@ -51,13 +51,19 @@ fn decode_response(value: &Value) -> fathomdb_engine::GraphExpansionErrorV1 {
 
 #[test]
 fn canonical_fixture_round_trips_request_and_response() {
-    let value = fixture();
-    let request_bytes = serde_json::to_vec(&value["request"]).unwrap();
+    let request_fixture: Value = serde_json::from_str(include_str!(
+        "../../../../../dev/fixtures/slice60-fix1-canonical-request-v1.json"
+    ))
+    .unwrap();
+    let request_bytes = request_fixture["request"].as_str().unwrap().as_bytes();
     assert_eq!(encode_graph_expand_request_v1(&request()).unwrap(), request_bytes);
     assert_eq!(decode_graph_expand_request_v1(&request_bytes).unwrap(), request());
 
-    let response_bytes = serde_json::to_vec(&value["response"]).unwrap();
-    let decoded = decode_graph_expand_result_v1(&response_bytes).unwrap();
+    let response_bytes =
+        include_str!("../../../../../dev/fixtures/slice60-fix1-canonical-result-v1.json")
+            .trim_end()
+            .as_bytes();
+    let decoded = decode_graph_expand_result_v1(response_bytes).unwrap();
     assert_eq!(encode_graph_expand_result_v1(&decoded).unwrap(), response_bytes);
 }
 

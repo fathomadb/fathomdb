@@ -13,13 +13,20 @@ fakebin="$(mktemp -d)"
 trap 'rm -rf "$fakebin"' EXIT
 cat >"$fakebin/cargo" <<'EOF'
 #!/usr/bin/env bash
+printf '%s\n' "$*" >>"$FAKE_CARGO_ARGS"
 if [[ "$*" == *--no-run* ]]; then exit 0; fi
 printf 'AC013_TREATMENT_RECORD treatment=%s n=1 seed_write_ms=1 embedding_ms=0 projection_drain_ms=1 accepted_writes=1 vector_rows_after_drain=1 drain_outcome=ok samples_us=7 result_counts=1\n' "${FAKE_TREATMENT:-process_cold}"
 EOF
 chmod +x "$fakebin/cargo"
 log="$fakebin/record.log"
-PATH="$fakebin:$PATH" FAKE_TREATMENT=warm AC013_SCALE_TREATMENT=warm LOG_PATH="$log" bash "$runner"
-if PATH="$fakebin:$PATH" FAKE_TREATMENT=process_cold AC013_SCALE_TREATMENT=warm LOG_PATH="$log" bash "$runner"; then
+args="$fakebin/cargo.args"
+PATH="$fakebin:$PATH" FAKE_CARGO_ARGS="$args" FAKE_TREATMENT=warm AC013_SCALE_TREATMENT=warm LOG_PATH="$log" bash "$runner"
+grep -Fq -- '--nocapture --test-threads=1 --exact ac_013_vector_retrieval_latency' "$args"
+if grep -Eq -- '--test-threads=1 ac_013([[:space:]]|$)' "$args"; then
+  echo 'substring AC-013 test selection must not be used' >&2
+  exit 1
+fi
+if PATH="$fakebin:$PATH" FAKE_CARGO_ARGS="$args" FAKE_TREATMENT=process_cold AC013_SCALE_TREATMENT=warm LOG_PATH="$log" bash "$runner"; then
   echo 'wrong treatment record must fail' >&2
   exit 1
 fi

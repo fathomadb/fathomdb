@@ -1,0 +1,42 @@
+from __future__ import annotations
+
+import copy
+import json
+from pathlib import Path
+
+import pytest
+
+from experiments.release_0825_slice71 import Slice71ContractError, validate_manifest
+
+
+ROOT = Path(__file__).resolve().parents[2]
+MANIFEST_PATH = ROOT / "experiments" / "configs" / "release-0825-slice71-manifest.v1.json"
+
+
+def manifest() -> dict[str, object]:
+    return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+
+
+def test_checked_in_manifest_is_strict_and_valid() -> None:
+    validate_manifest(manifest())
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("unexpected",), True),
+        (("workloads", "ac013", "samples"), 999),
+        (("workloads", "ac013", "vector_dim"), 768),
+        (("arm_order",), ["B", "C", "B", "C", "B", "C"]),
+        (("workloads", "ingest", "batch_size"), 200),
+        (("workloads", "ingest", "expected_ingest_events"), 10_000),
+    ],
+)
+def test_manifest_rejects_drift(path: tuple[str, ...], value: object) -> None:
+    document = copy.deepcopy(manifest())
+    target = document
+    for key in path[:-1]:
+        target = target[key]  # type: ignore[index,assignment]
+    target[path[-1]] = value  # type: ignore[index]
+    with pytest.raises(Slice71ContractError):
+        validate_manifest(document)

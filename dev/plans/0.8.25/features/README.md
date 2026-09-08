@@ -22,8 +22,10 @@ FathomDB memory store and reconcile its index before starting the next slice.
 The [design-documentation matrix](../design-documentation-matrix.md) records
 the completed maximum-envelope campaign: 21 logical needs mapped exactly once
 into fourteen slice-owned design records. The later owner-approved
-[scope adjustment](../scope-adjustment-2026-09-02.md) is the implementation
-boundary. The [coherence review](../design-coherence-review-2026-09-02.md)
+[scope adjustment](../scope-adjustment-2026-09-02.md), as amended by the
+[closing-ladder adjustment](../scope-adjustment-2026-09-08-slices-71-73.md),
+is the implementation boundary. The
+[coherence review](../design-coherence-review-2026-09-02.md)
 reconciled the twelve active designs to that boundary; removed design work is
 preserved in
 [`0.8.x-after-0.8.25-design-notes.md`](../../../design/0.8.x-after-0.8.25-design-notes.md).
@@ -81,11 +83,15 @@ locally; Slice 75 only audits the combined installed surface.
 | 50 | [Source-complete evidence](slice-50/plan.md) | [Design](slice-50/design.md) |
 | 55 | [Basic tracing and integrity](slice-55/plan.md) | [Design](slice-55/design.md) |
 | 60 | [Minimal constrained graph parity](slice-60/plan.md) | [Design](slice-60/design.md) |
+| 71 | [Latency and ingest investigations](slice-71/plan.md) | [Design](slice-71/design.md) |
+| 72 | [Installed CE profile and generic preflight](slice-72/plan.md) | [Design](slice-72/design.md) |
+| 73 | [Windows Node/N-API CI coverage](slice-73/plan.md) | [Design](slice-73/design.md) |
 | 75 | [Integrated closure](slice-75/plan.md) | [Design](slice-75/design.md) |
 
-The active slices are strictly sequential; Slice 75 now depends directly on
-Slice 60. A later plan may be drafted but cannot become READY while its
-dependency is incomplete.
+The active closing slices are strictly sequential:
+`60 -> 71 -> 72 -> 73 -> 75`. A later plan may be drafted but cannot become
+READY while its dependency is incomplete. Slices 71–73 use focused
+verification; Slice 75 owns the final full regression and hosted-CI gates.
 
 ## Preserved reallocated designs
 

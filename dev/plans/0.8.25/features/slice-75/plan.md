@@ -1,159 +1,60 @@
 ---
-title: 0.8.25 Slice 75 — integrated closure
+title: 0.8.25 Slice 75 — integrated release closure
 status: DRAFT
-depends_on: 60
+depends_on: 73
 design: design.md
-design_status: SCOPE_RECONCILED_FORMAL_REVIEW_REQUIRED
+design_status: SPLIT_RECONCILIATION_REQUIRED
 ---
 
-# Slice 75 plan
+# Slice 75 draft plan
 
-## Outcome and carried obligations
+## Outcome and inputs
 
-Implement the trimmed subset of R25/AC25-75; the measurement half of Memex need
-21, needs 22/24, and the integrated audit portion of need 23 under the approved
-[scope adjustment](../../scope-adjustment-2026-09-02.md). Audit—do not
-backfill—the retained Slice 10–60 contracts: installed SDK/wire parity,
-representative concurrency/lifecycle/evidence paths, selected regression
-performance, and retrieval-only evaluation.
+Produce the non-publishing release-ready decision for 0.8.25. Consume, rather
+than repeat, the exact-commit receipts from Slices 71–73 for AC-013, bulk
+ingest, installed CE CPU/CUDA, generic preflight, and focused Windows Node/N-
+API coverage. Audit all retained Slice 10–73 contracts and run the integrated
+matrix on one unchanged candidate.
 
-## AC-013 vector-latency investigation
+## Retained integrated work
 
-Before running the integrated closure matrix, investigate the pre-existing
-`ac_013_vector_retrieval_latency` failure exposed by the Slice 10 diagnostic.
-This belongs to Slice 75 because it is a release-wide canonical performance
-gate; Slice 40 owns projection-generation identity and readiness, not vector
-query latency.
+- Seal strict `IntegratedClosureManifestV1` and
+  `IntegratedClosureReceiptV1` schemas that bind commit/version, design and
+  prior-slice receipts, packages, fixtures, commands, platforms, workload
+  cells, thresholds, N/A routes, raw outputs, and result state.
+- Build registry-equivalent Rust crate/CLI, Python wheel, npm/native, and
+  applicable CUDA artifacts once per selected target. Test isolated consumers
+  with no editable/source-tree fallback and require SDK/wire equality.
+- Run representative 10k and 50k concurrency/consistency workloads covering
+  bounded reads, mutation, projection readiness, evidence, dependency,
+  lifecycle, erasure/recreate, integrity, and constrained graph expansion.
+- Run focused lifecycle/overhead comparisons and the locally packaged native
+  GLOBAL-01 `Engine.search` witness. Keep retrieval metrics explicitly data-
+  plane-only and make no answer-quality claim.
+- Execute the complete local CI-equivalent matrix required for release
+  closure, including fast/heavy/all, applicable feature/operator cells,
+  packaged consumers, strict ptrace stress, and the already-designed platform
+  routes. Do not silently waive a route.
+- Open the final unmerged release PR at the exact locally verified SHA and
+  require all hosted checks green at that unchanged head. Earlier Slice 73
+  Windows evidence is necessary coverage but cannot substitute for this final
+  exact-head gate.
+- Reconcile every receipt and write the final release-ready status. Actual
+  registry publication, tags, release creation, and post-publish smoke require
+  separate explicit authorization.
 
-Run the AC-072 binding 10k fixture in isolation with the repository's canonical
-release-mode AC-013 runner. Compare the release candidate with the pinned
-0.8.25 branch-point baseline
-`4fc1b890a11ebfaa8f11b15823656e856002807a` under the same host, compiler,
-SQLite, vector dimension, corpus seed, and process-isolation conditions. Run
-three alternating isolated repetitions per commit. Retain raw logs under
-`dev/plans/runs/0.8.25-slice-75-ac013/` and write the comparison to
-`ac-013-vector-latency-investigation.md` in this slice directory. The record
-must contain every repetition's p50/p99, seed and drain time, host/build
-identity, and exact commands and commits.
+## Deduplication boundary
 
-Classify the result before continuing:
+Slice 75 must not rerun the Slice 71 baseline investigations, redesign the
+Slice 72 preflight or CE profile, or reimplement Slice 73 Windows coverage.
+It validates their receipt identity, reruns only the integrated candidate-side
+cells naturally included in the final matrix, and stops on missing,
+contradictory, stale, or non-passing evidence.
 
-- if both isolated release-mode runs pass, record the earlier failure as a
-  debug-build or shared-runner diagnostic artifact;
-- if only the release candidate fails, stop Slice 75 and route the regression
-  to the slice or change that introduced it;
-- if both runs fail, stop release closure and present the pre-existing binding-
-  gate failure for explicit disposition; and
-- do not relax AC-072, change its fixture, or introduce an optimization
-  treatment as part of this investigation.
+## Draft-to-ready sequence
 
-## Generic release-preflight correction
-
-Slice 20 commissioning found that `scripts/preflight.sh` hard-codes the 0.8.23
-completion file and tests dependency closure only through prose in the master
-plan. It therefore rejects a correctly based 0.8.25 feature worktree even when
-the live 0.8.25 release-state writer records the prerequisite complete.
-
-- **S75-R-PREFLIGHT.** Preflight must discover the one active release-state
-  file, validate its exact release/board/plan/ref contract, and decide worktree
-  freshness and dependency closure from that state instead of a hard-coded
-  release or narration grep.
-- **S75-AC-PREFLIGHT.** RED fixtures reproduce the false 0.8.25 stale-base and
-  missing-Slice-15 outcomes. GREEN accepts the exact release tip and completed
-  prerequisite, preserves 0.8.23 completed-release behavior, and rejects an
-  absent/malformed state, wrong release/ref, non-descendant worktree, open
-  prerequisite, and primary-checkout landing.
-
-This is release-infrastructure work, not a dependency-product change. Design
-review, TDD RED/GREEN, implementation review, and independent verification are
-required with the rest of Slice 75.
-
-## Bulk-ingest visibility-trigger investigation
-
-The Slice 35 legacy-search campaigns exposed a separate write-path signal that
-is outside Slice 35's registered read-latency claim. Across the preserved v1
-and v2 runs, the release candidate's 10k bulk ingest took approximately
-3.95–4.00 seconds versus 2.11–2.14 seconds at the Slice 30 parent. The dominant
-candidate is the 42 per-row read-visibility triggers introduced for frozen-read
-drift detection. Preserve and inspect all four committed Slice 35 receipts and
-their external raw repetition data under
-`data/performance-benchmarking/scale-02/slice35-runs` before changing
-implementation; the first two receipts carry the clearest original signal and
-the final receipt binds the exact product candidate.
-
-- **S75-R-INGEST.** Determine whether the candidate regression is reproducible
-  under isolated release-mode alternating runs, attribute trigger and other
-  costs, and retain frozen-read drift correctness while restoring a bounded
-  mutation cost.
-- **S75-AC-INGEST.** A preregistered comparison uses the same 10k input, write
-  batch, compiler, host, and fresh-database procedure for the Slice 30 parent
-  and final candidate. It records per-repetition ingest time, trigger count,
-  visibility-generation delta, projection drain, and resource observations.
-  If the candidate remains more than 20% slower at the median, Slice 75 stops
-  for a targeted TDD correction; any correction must preserve the Slice 35
-  trigger-manifest, drift, race, and installed-artifact tests. If the signal
-  does not reproduce, record the confounder rather than optimizing it.
-
-This investigation must not weaken visibility invalidation, remove an
-authoritative table from the trigger manifest, coalesce distinct committed
-states, or rewrite the retained Slice 35 performance receipts.
-
-## Commonly deployed CE-reranker profile
-
-The ordinary PyPI wheel is intentionally built without `default-reranker`, but
-the optional cross-encoder is a commonly deployed FathomDB configuration and
-the CUDA package route supports `rerank-cuda`. Release confidence therefore
-needs an explicit feature-present profile rather than treating feature-off
-wheel coverage as representative of reranked search.
-
-- **S75-R-CE.** Verify installed, source-independent CPU
-  (`default-reranker`) and Linux CUDA (`rerank-cuda`) candidates with the pinned
-  reranker model. Prove the cross-encoder is active, not an identity fallback;
-  keep the candidate pool and request fixed; disclose feature set, model/cache
-  identity, resolved device, allocation, cold model-load time, steady query
-  latency, throughput, RSS/VRAM, and package size. The ordinary feature-off
-  wheel remains a separate supported profile and must continue to behave
-  truthfully.
-- **S75-AC-CE.** A checked-in manifest runs one deterministic semantic reorder
-  canary and a representative reranked-search workload on CPU and CUDA. Every
-  successful reranked result has non-degenerate CE scores; CPU/CUDA rank order
-  and scores satisfy a preregistered numerical-equivalence tolerance. At least
-  three process-cold and five steady repetitions report p50/p95/p99 and
-  throughput, with model acquisition excluded from steady timing and recorded
-  separately when needed. Compare the candidate with the pinned 0.8.25
-  branch-point baseline under identical hardware and configuration. Any
-  correctness divergence, silent feature fallback, missing allocation proof,
-  or candidate steady p95 regression greater than 10% stops release closure.
-  Absolute latency and resource values are descriptive unless an accepted
-  pre-existing policy supplies a stricter gate; they must still be retained as
-  the release's CE-enabled performance numbers.
-
-The CPU and CUDA cells must use the same checked-in query/passage fixture,
-rerank depth, pool size, alpha, thread policy, and warmed model bytes. They
-record standalone rerank and end-to-end `Engine.search` timing separately so
-model inference cannot be confused with retrieval, SQLite, or projection cost.
-No live-model provider or LLM judge is involved.
-
-## Verification routes
-
-Selected: fast, heavy, all, applicable all-feature/operator, Windows CPU/native
-Rust/Python/Node, packaged Python/npm/native/CLI, final packaged-candidate
-native `Engine.search` witness, the isolated release-mode AC-013 comparison,
-installed CPU/CUDA CE-reranker profiles, and focused CUDA where a retained
-dense/graph contract changed.
-Live-model, Windows CUDA, pre-publication
-registry-installed, and exhaustive scale-by-feature-by-CUDA matrices are N/A.
-Actual registry-installed smokes remain a separately authorized
-post-publication close gate.
-
-## Draft-to-ready and delivery
-
-Define receipt-presence and agreement criteria, installed wire fixtures,
-representative concurrency, evidence/page/dependency overhead,
-mutation-to-ready, erasure propagation, selected rebuild/resource regressions,
-CE-present correctness and performance, classification gates, and generic
-release-state preflight; design a
-proportionate workload matrix without semantic answer claims; review; implement
-RED/GREEN harness checks; review; execute all selected routes; and record final
-release evidence. Stop when an owning slice lacks proof or a data-plane claim
-mixes answer-system metrics.
+Reconcile this draft after Slices 71–73 close; seal manifest, workloads,
+thresholds, platform/N/A table, and receipt agreement rules; obtain independent
+design review; implement harness checks RED/GREEN; obtain code review; execute
+the full local matrix; obtain exact-head hosted CI; and record release-ready or
+blocked without publishing.

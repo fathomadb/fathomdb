@@ -134,13 +134,31 @@ designs remain evidence. Manual profile/temporal work is reconsidered in
 associative/routing experiments at the 0.8.31 planning review. No default
 changes.
 
+### Slice 71 — focused performance investigations
+
+Classify AC-013 vector latency against its binding release-mode gate and
+reproduce/attribute the Slice 35 bulk-ingest signal. Preserve dependency
+eligibility and visibility invalidation. Only demonstrated, narrow TDD
+corrections may land; full release regressions remain Slice 75 work.
+
+### Slice 72 — preflight and installed CE profile
+
+Make release preflight use a generic Git-verifiable release-state contract and
+produce installed, source-independent CPU/CUDA cross-encoder correctness and
+performance receipts. Use focused verification only.
+
+### Slice 73 — focused Windows Node/N-API coverage
+
+Add deterministic explicit Windows Node/N-API CI coverage for retained public
+contracts. Slice 75 still owns final exact-head hosted CI.
+
 ### Slice 75 — integrated closure
 
-Run installed cross-SDK/wire parity, including Windows CPU/native proof, plus
+Consume Slices 71–73 receipts, run installed cross-SDK/wire parity plus
 representative concurrency, evidence, pagination, dependency, readiness,
-lifecycle, and selected performance regression checks. Add a retrieval-only
-native `Engine.search` witness and keep answer-system metrics separate.
-Exhaustive scale-by-feature-by-CUDA matrices are experimental, not required.
+lifecycle, and the full release regression/hosted-CI gates. Add a retrieval-
+only native `Engine.search` witness and keep answer-system metrics separate.
+Exhaustive scale-by-feature-by-CUDA matrices remain experimental.
 
 ## Slice 3 draft contract allocation
 
@@ -163,7 +181,10 @@ implementation.
 | 60 | R25-60 minimal constrained combined graph parity | Constraint-before-truncation and deterministic bounded one-page evidence |
 | 65 | Reallocated experimental evidence | Candidate-selection review at 0.8.29; no 0.8.25 implementation |
 | 70 | Reallocated experimental evidence | Temporal reconsideration at 0.8.28; associative review at 0.8.31 |
-| 75 | R25-75 trimmed parity, lifecycle, performance, and evaluation closure | Installed cross-SDK fixtures plus representative concurrency/resource receipts |
+| 71 | Focused AC-013 and bulk-ingest investigations | Exact-arm receipts, attribution, preserved correctness invariants |
+| 72 | Generic preflight and installed CE profiles | State fixtures plus CPU/CUDA correctness/performance receipts |
+| 73 | Focused Windows Node/N-API CI coverage | Explicit module list, isolated package proof, exact workflow receipt |
+| 75 | R25-75 integrated parity, lifecycle, performance, and evaluation closure | Prior-receipt agreement, installed cross-SDK fixtures, full regressions, exact-head CI |
 
 ## Slice 4 architecture constraints
 

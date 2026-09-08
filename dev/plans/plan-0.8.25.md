@@ -120,7 +120,10 @@ backward dependency.
 | 50 | Add compact opt-in source-complete evidence resolution under the original or equivalent eligibility envelope. | 45 | Not started |
 | 55 | Add basic reciprocal provenance tracing, orphan/projection integrity checks, and compact inclusion/degradation explanation. | 50 | Not started |
 | 60 | Make combined graph expansion honor typed seed, direction, edge/target, bound, eligibility, and read-context constraints with deterministic one-page results. | 55 | Not started |
-| 75 | Audit installed cross-SDK/wire parity, representative concurrency/lifecycle/evidence paths, CE-present correctness/performance, selected regressions, and retrieval-only measurement. | 60 | Not started |
+| 71 | Investigate AC-013 vector latency and Slice 35 bulk-ingest visibility-trigger cost with sealed focused comparisons. | 60 | Not started |
+| 72 | Correct generic release preflight and profile installed CE CPU/CUDA candidates. | 71 | Not started |
+| 73 | Add focused Windows Node/N-API CI coverage for retained contracts. | 72 | Not started |
+| 75 | Consume prior receipts and run integrated cross-SDK, concurrency/lifecycle, full regression, exact-head CI, and retrieval-only closure. | 73 | Not started |
 
 ## Requirements and acceptance criteria
 
@@ -141,7 +144,9 @@ records the completed maximum-envelope campaign: 21 projected logical needs
 mapped exactly once to fourteen reviewed design records. The later approved
 [scope adjustment](0.8.25/scope-adjustment-2026-09-02.md) limits 0.8.25
 implementation authority, preserves the broader designs as evidence, and
-allocates every removed item durably.
+allocates every removed item durably. The later
+[closing-ladder adjustment](0.8.25/scope-adjustment-2026-09-08-slices-71-73.md)
+creates focused Slices 71–73 and reserves full regression work for Slice 75.
 
 The design-documentation campaign is complete: all fourteen maximum-envelope
 records passed independent review with no unresolved P1/P2 finding. The later
@@ -205,12 +210,12 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 75** (`CLOSURE`) — trimmed trustworthy release verification
+**IMMEDIATE NEXT: Slice 71** (`PERFORMANCE`) — AC-013 and bulk-ingest investigations
 
-**Remaining ladder:** 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 71 → 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Slice 60 is durably closed. Reconcile Slice 75's verification design with the
-owner-directed CI-only boundary before beginning its retained investigations.
+Slice 60 is durably closed. Execute Slice 71's two focused performance
+investigations before commissioning the drafted Slices 72, 73, and 75.
 Package production, registry staging, tags, publication, post-publication
 smoke, and merge to main remain outside this ladder.
 

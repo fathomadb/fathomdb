@@ -12,16 +12,15 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 75 (CLOSURE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 71 (PERFORMANCE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
 bounded traversal, one-context reads, lifecycle and projection handling,
-cross-SDK parity, and exact Linux/Windows verification. The
-owner-approved 2026-09-02
-scope adjustment removes Slices 65/70 and narrows the retained implementation
-ladder. Direct agents execute this release without Steward or Orchestrator
-roles.
+cross-SDK parity, and exact Linux/Windows verification. The owner-approved
+2026-09-02 scope adjustment removes Slices 65/70. The owner-approved 2026-09-08
+adjustment creates focused Slices 71–73 before final integrated closure. Direct
+agents execute this release without Steward or Orchestrator roles.
 
 ## Slice ladder
 
@@ -46,7 +45,10 @@ roles.
 | 50 | Compact source-complete evidence | Complete on release branch (`e741542d`) |
 | 55 | Basic tracing and integrity | Complete on release branch (`5a6942bc`) |
 | 60 | Minimal constrained graph parity | Complete on release branch (`59208028`) |
-| 75 | Trimmed trustworthy release verification | Not started |
+| 71 | AC-013 and bulk-ingest investigations | Not started |
+| 72 | Generic preflight and installed CE profiles | Not started |
+| 73 | Windows Node/N-API CI coverage | Not started |
+| 75 | Integrated release closure | Not started |
 
 ## Decisions and blockers
 
@@ -57,6 +59,11 @@ roles.
   [scope adjustment](../0.8.25/scope-adjustment-2026-09-02.md) is the current
   feature boundary. Bubble work is allocated to 0.8.26–0.8.28 or Parked;
   experimental work is assigned to 0.8.29/0.8.31/0.8.33 reviews or Parked.
+- The owner-approved
+  [closing-ladder adjustment](../0.8.25/scope-adjustment-2026-09-08-slices-71-73.md)
+  moves the focused investigations, preflight/CE profile, and Windows Node/N-
+  API coverage into Slices 71–73. Full regression and exact-head hosted CI
+  remain Slice 75 work.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
@@ -71,7 +78,7 @@ roles.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 75 (CLOSURE)** — trimmed trustworthy release verification. **Remaining ladder:** 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 71 (PERFORMANCE)** — AC-013 and bulk-ingest investigations. **Remaining ladder:** 71 → 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 
@@ -145,4 +152,4 @@ lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
   normal commit and push hooks remained enabled.
 - A diagnostic release-wide long gate exposed the pre-existing AC-013 vector
   latency failure and was stopped after that failure. It is release debt, not
-  a Slice 60 graph-contract failure; Slice 75 owns its classification.
+  a Slice 60 graph-contract failure; Slice 71 owns its classification.

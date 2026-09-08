@@ -922,15 +922,25 @@ fn nonterminal_barrier_hides_derived_search_hits() {
         .write(&[
             canonical("source-r1", "v1", "source", "source body"),
             derived_node("derived-r1", "derived", "source-r1"),
+            derived_edge("edge-r1", "source-r1"),
         ])
         .unwrap();
-    opened
-        .engine
-        .register_source_dependency(
-            SourceDependencyRegistrationV1::new("dep", "source-r1", "derived-r1").unwrap(),
-        )
-        .unwrap();
+    for (id, revision) in [("dep-node", "derived-r1"), ("dep-edge", "edge-r1")] {
+        opened
+            .engine
+            .register_source_dependency(
+                SourceDependencyRegistrationV1::new(id, "source-r1", revision).unwrap(),
+            )
+            .unwrap();
+    }
     assert!(!opened.engine.search("derived body").unwrap().results.is_empty());
+    assert!(opened
+        .engine
+        .search_text_only("derived edge body")
+        .unwrap()
+        .results
+        .iter()
+        .any(|hit| hit.branch == SoftFallbackBranch::TextEdge));
 
     let connection = Connection::open(&db).unwrap();
     connection
@@ -961,6 +971,52 @@ fn nonterminal_barrier_hides_derived_search_hits() {
         .results
         .iter()
         .all(|hit| !hit.body.starts_with("derived body")));
+    assert!(opened
+        .engine
+        .search_text_only("derived edge body")
+        .unwrap()
+        .results
+        .iter()
+        .all(|hit| hit.body != "derived edge body"));
+}
+
+#[test]
+fn nonterminal_barrier_hides_derived_edge_vector_hits() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "edge-vector-read-barrier");
+    let opened = Engine::open_with_embedder_for_test(&db, Arc::new(FixedEmbedder)).unwrap();
+    opened.engine.configure_vector_kind_for_test("edge_fact").unwrap();
+    opened
+        .engine
+        .write(&[
+            canonical("source-r1", "v1", "source", "source body"),
+            derived_edge("edge-r1", "source-r1"),
+        ])
+        .unwrap();
+    opened
+        .engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("dep-edge", "source-r1", "edge-r1").unwrap(),
+        )
+        .unwrap();
+    opened.engine.drain(10_000).unwrap();
+    assert!(opened
+        .engine
+        .search("no lexical edge overlap")
+        .unwrap()
+        .results
+        .iter()
+        .any(|hit| hit.body == "derived edge body"));
+
+    install_soft_barrier(&db, "source-r1", 2);
+
+    assert!(opened
+        .engine
+        .search("no lexical edge overlap")
+        .unwrap()
+        .results
+        .iter()
+        .all(|hit| hit.body != "derived edge body"));
 }
 
 #[test]

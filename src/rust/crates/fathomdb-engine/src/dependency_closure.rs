@@ -869,24 +869,6 @@ pub(crate) fn projection_owner_is_eligible_at(
         && source_revision_is_strictly_eligible(connection, &source, effective_at)?)
 }
 
-pub(crate) fn derived_cursor_has_active_barrier(
-    connection: &Connection,
-    cursor: i64,
-) -> Result<bool, EngineError> {
-    let source: Option<String> = connection
-        .query_row(
-            "SELECT l.source_revision_id FROM _fathomdb_artifact_revisions r \
-             JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id \
-             JOIN _fathomdb_source_links l ON l.artifact_revision_id=r.revision_id \
-             WHERE r.write_cursor=?1",
-            [cursor],
-            |row| row.get(0),
-        )
-        .optional()
-        .map_err(|_| EngineError::Storage)?;
-    source.map(|source| active_barrier_for_source(connection, &source)).unwrap_or(Ok(false))
-}
-
 pub(crate) fn vector_arm_requires_fallback(
     connection: &Connection,
     include_superseded: bool,

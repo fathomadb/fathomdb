@@ -18,7 +18,7 @@ cargo test --release --no-run -p fathomdb-engine --test perf_gates >/dev/null
 
 set +e
 cargo test --release -p fathomdb-engine --test perf_gates -- \
-  --nocapture --test-threads=1 ac_013 \
+  --nocapture --test-threads=1 --exact ac_013_vector_retrieval_latency \
   2>&1 | tee "$LOG_PATH"
 status=${PIPESTATUS[0]}
 set -e

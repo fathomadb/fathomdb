@@ -18286,10 +18286,17 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // node validity this conjunct is unconditional (an edge invalidated in the
         // past stays excluded even when node existence is relaxed).
         let edge_validity = edge_validity_sql_for_view("canonical_edges", 2, &view.view);
+        let edge_eligibility = dependency_closure::read_eligibility_sql(
+            "canonical_edges",
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            2,
+        );
         let mut edge_stmt = tx.prepare(&format!(
             "SELECT body, logical_id, source_id FROM canonical_edges \
              WHERE write_cursor = ?1 AND superseded_at IS NULL AND body IS NOT NULL\
-             {edge_validity} LIMIT 1"
+             {edge_validity}{edge_eligibility} LIMIT 1"
         ))?;
         // The bound parameter list for the node lookup: the candidate rowid,
         // plus `:now` when (and only when) the view emitted a validity conjunct.
@@ -18667,12 +18674,20 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // and always present (edge invalidation is not relaxed by node existence
         // relaxation).
         let edge_validity = edge_validity_sql_for_view("ce", 2, &view.view);
+        let edge_dependency = dependency_closure::read_eligibility_sql(
+            "ce",
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            2,
+        );
         let mut edge_params = vec![
             rusqlite::types::Value::Text(compiled.match_expression.clone()),
             rusqlite::types::Value::Integer(view.edge_now()),
         ];
         let edge_filter = append_edge_eligibility_sql(filter, "ce", &mut edge_params);
-        let edge_sql = edge_fts_rank_sql(&edge_validity, &edge_filter);
+        let edge_eligibility = format!("{edge_dependency}{edge_filter}");
+        let edge_sql = edge_fts_rank_sql(&edge_validity, &edge_eligibility);
         // search_index_edges may not exist on very old DBs not yet at step-14;
         // ignore the error gracefully (returns empty slice).
         if let Ok(mut stmt) = tx.prepare(&edge_sql) {
@@ -18743,9 +18758,6 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         0
     };
     text_results.extend(edge_candidates);
-    let vector_results = filter_barriered_search_hits(&tx, vector_results)?;
-    let text_results = filter_barriered_search_hits(&tx, text_results)?;
-
     // GA-2 / Slice-40 (◆ B-1) measurement seam: when `vector_stage_only` is set
     // (only ever by the eu7 recall harness via `set_vector_stage_only_for_test`,
     // off for every production caller), return the pre-fusion VECTOR-branch
@@ -19022,22 +19034,6 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     Ok(output)
 }
 
-fn filter_barriered_search_hits(
-    connection: &Connection,
-    hits: Vec<SearchHit>,
-) -> rusqlite::Result<Vec<SearchHit>> {
-    let mut visible = Vec::with_capacity(hits.len());
-    for hit in hits {
-        let cursor = i64::try_from(hit.write_cursor).map_err(|_| rusqlite::Error::InvalidQuery)?;
-        if !dependency_closure::derived_cursor_has_active_barrier(connection, cursor)
-            .map_err(|_| rusqlite::Error::InvalidQuery)?
-        {
-            visible.push(hit);
-        }
-    }
-    Ok(visible)
-}
-
 fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SearchHit> {
     let body = row.get::<_, String>(0)?;
     let logical_id = row.get::<_, Option<String>>(4)?;
@@ -19114,6 +19110,39 @@ fn record_fts_route_for_test(route: &str) {
         "FATHOMDB_FTS_ROUTE_WITNESS_FOR_TEST",
         &serde_json::json!({"route": route}),
     );
+}
+
+#[cfg(feature = "test-hooks")]
+fn slice71_search_statement_trace() -> &'static Mutex<Vec<String>> {
+    static TRACE: std::sync::OnceLock<Mutex<Vec<String>>> = std::sync::OnceLock::new();
+    TRACE.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+#[cfg(feature = "test-hooks")]
+fn record_slice71_profile_statement_for_test(sql: &str) {
+    let identity = if sql
+        .contains("SELECT l.source_revision_id FROM _fathomdb_artifact_revisions r")
+        && sql.contains("WHERE r.write_cursor=")
+    {
+        Some("post_filter_source_lookup")
+    } else {
+        None
+    };
+    if let Some(identity) = identity {
+        if let Ok(mut trace) = slice71_search_statement_trace().lock() {
+            trace.push(identity.to_string());
+        }
+    }
+}
+
+/// Return and clear the normalized Slice 71 search-statement trace.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub fn take_slice71_search_statement_trace_for_test() -> Vec<String> {
+    slice71_search_statement_trace()
+        .lock()
+        .map(|mut trace| std::mem::take(&mut *trace))
+        .unwrap_or_default()
 }
 
 #[cfg(feature = "test-hooks")]
@@ -30202,6 +30231,9 @@ unsafe extern "C" fn profile_callback_trampoline(
         Ok(s) => s,
         Err(_) => return,
     };
+
+    #[cfg(feature = "test-hooks")]
+    record_slice71_profile_statement_for_test(sql_text);
 
     let wall_clock_ms = nanoseconds / 1_000_000;
 

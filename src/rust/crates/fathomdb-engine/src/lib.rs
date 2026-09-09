@@ -708,7 +708,7 @@ const DEFAULT_EMBED_TIMEOUT_MS: u64 = 30_000;
 /// (a hung/wedged embedder); the breaker then caps the abandoned-thread leak
 /// at roughly this count.
 const DEFAULT_EMBED_CIRCUIT_THRESHOLD: u64 = 8;
-const PROJECTION_COMMIT_BATCH: usize = 16;
+const PROJECTION_COMMIT_BATCH: usize = 64;
 // Each worker should be able to grab a full commit batch while another
 // worker has the same waiting in the queue. Below this, the dispatcher
 // throttles below the workers' commit-batch capacity.

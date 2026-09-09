@@ -885,52 +885,56 @@ pub(crate) fn dense_member_kind_at(
     cursor: u64,
     effective_at: i64,
 ) -> Result<Option<String>, EngineError> {
-    let node: Option<(String, String, String, bool, bool)> = connection
-        .query_row(
+    let node: Option<(String, String, String, bool, bool, bool)> = connection
+        .prepare_cached(
             "SELECT n.kind,n.row_kind,n.state,\
                     EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions r \
                       JOIN _fathomdb_source_dependencies d \
                         ON d.derived_revision_id=r.revision_id \
                       WHERE r.artifact_class='node' AND r.write_cursor=n.write_cursor),\
-                    EXISTS(SELECT 1 FROM _fathomdb_vector_kinds vk WHERE vk.kind=n.kind) \
+                    EXISTS(SELECT 1 FROM _fathomdb_vector_kinds vk WHERE vk.kind=n.kind),\
+                    EXISTS(SELECT 1 FROM canonical_edges e WHERE e.write_cursor=n.write_cursor) \
              FROM canonical_nodes n WHERE n.write_cursor=?1",
-            [cursor],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
         )
+        .map_err(|_| EngineError::Storage)?
+        .query_row([cursor], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?))
+        })
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let edge_exists: bool = connection
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)",
-            [cursor],
-            |row| row.get(0),
-        )
-        .map_err(|_| EngineError::Storage)?;
-    if node.is_some() && edge_exists {
-        return Err(corruption());
-    }
-    if let Some((kind, row_kind, state, registered, enrolled)) = node {
+    if let Some((kind, row_kind, state, registered, enrolled, edge_exists)) = node {
+        if edge_exists {
+            return Err(corruption());
+        }
         if (!enrolled
             && !super::vector_projection_declared(connection).map_err(|_| EngineError::Storage)?)
             || !matches!(row_kind.as_str(), "leaf" | "coverage")
             || !super::kind_is_vector_committable(&kind)
-            || (registered && state != "active")
-            || !super::dependency_closure::projection_owner_is_eligible_at(
-                connection,
-                cursor,
-                effective_at,
-            )?
+        {
+            return Ok(None);
+        }
+        // `registered` is the same source-dependency existence test used by
+        // `projection_owner_is_eligible_at`. Without such a dependency that
+        // helper can only return true, so do not repeat the join for ordinary
+        // canonical rows.
+        if registered
+            && (state != "active"
+                || !super::dependency_closure::projection_owner_is_eligible_at(
+                    connection,
+                    cursor,
+                    effective_at,
+                )?)
         {
             return Ok(None);
         }
         return Ok(Some(kind));
     }
     let edge: Option<(Option<String>, Option<i64>, Option<i64>)> = connection
-        .query_row(
+        .prepare_cached(
             "SELECT body,superseded_at,t_invalid FROM canonical_edges WHERE write_cursor=?1",
-            [cursor],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
+        .map_err(|_| EngineError::Storage)?
+        .query_row([cursor], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
         .optional()
         .map_err(|_| EngineError::Storage)?;
     let Some((body, superseded_at, t_invalid)) = edge else {

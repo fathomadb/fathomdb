@@ -3648,7 +3648,11 @@ impl ProjectionRuntime {
         self.shared.state.lock().map(|state| state.pending_scan).unwrap_or(true)
     }
 
-    fn wait_for_idle(&self, timeout_ms: u64) -> bool {
+    fn wait_for_idle(
+        &self,
+        timeout_ms: u64,
+        mut has_pending_projection_work: impl FnMut() -> bool,
+    ) -> bool {
         let deadline = Instant::now() + Duration::from_millis(timeout_ms);
         let mut state = match self.shared.state.lock() {
             Ok(state) => state,
@@ -3657,13 +3661,7 @@ impl ProjectionRuntime {
         loop {
             if state.active_jobs == 0 && state.queued_jobs == 0 {
                 drop(state);
-                if !database_has_pending_projection_work(
-                    &self.shared.path,
-                    #[cfg(any(test, feature = "test-hooks"))]
-                    &self.shared.managed_connections,
-                )
-                .unwrap_or(true)
-                {
+                if !has_pending_projection_work() {
                     return true;
                 }
                 state = match self.shared.state.lock() {
@@ -12527,22 +12525,39 @@ impl Engine {
     /// instrumentation; semantics are owned by `dev/design/lifecycle.md`.
     pub fn drain(&self, timeout_ms: u64) -> Result<(), EngineError> {
         self.ensure_open()?;
-        let readiness = self.read_embedding_readiness()?;
-        if let Some(blocked) = readiness.blocked {
-            return Err(EngineError::EmbedderRequired(blocked));
+        // Only a session with no configured embedder can produce the typed
+        // missing-configuration result. A configured (including refused)
+        // runtime goes straight to the scheduler's authoritative idle check,
+        // avoiding an otherwise duplicate full pending-work scan.
+        if self.runtime_embedder.is_none() {
+            let readiness = self.read_embedding_readiness()?;
+            if let Some(blocked) = readiness.blocked {
+                return Err(EngineError::EmbedderRequired(blocked));
+            }
+            // The readiness read already uses the same durable pending-work
+            // predicate as `wait_for_idle`. When it finds no pending row, wait
+            // only for any worker finishing its post-commit bookkeeping;
+            // opening a second connection for an identical database scan cannot
+            // add evidence.
+            if readiness.pending_count == 0 {
+                return if self.projection_runtime.wait_for_workers_idle(timeout_ms) {
+                    Ok(())
+                } else {
+                    Err(EngineError::Scheduler)
+                };
+            }
         }
-        // The readiness read already uses the same durable pending-work
-        // predicate as `wait_for_idle`. When it finds no pending row, wait only
-        // for any worker finishing its post-commit bookkeeping; opening a
-        // second connection for an identical database scan cannot add evidence.
-        if readiness.pending_count == 0 {
-            return if self.projection_runtime.wait_for_workers_idle(timeout_ms) {
-                Ok(())
-            } else {
-                Err(EngineError::Scheduler)
-            };
-        }
-        if self.projection_runtime.wait_for_idle(timeout_ms) {
+        if self.projection_runtime.wait_for_idle(timeout_ms, || {
+            self.connection
+                .lock()
+                .ok()
+                .and_then(|connection| {
+                    connection.as_ref().and_then(|connection| {
+                        connection_has_pending_projection_work(connection).ok()
+                    })
+                })
+                .unwrap_or(true)
+        }) {
             Ok(())
         } else {
             Err(EngineError::Scheduler)
@@ -22492,17 +22507,15 @@ fn projection_physical_tuple_is_empty(
     connection: &Connection,
     cursor: u64,
 ) -> rusqlite::Result<bool> {
-    let sidecar_count: u64 = connection.query_row(
-        "SELECT COUNT(*) FROM _fathomdb_vector_rows \
-         WHERE rowid=?1 OR write_cursor=?1",
-        [cursor],
-        |row| row.get(0),
-    )?;
-    let vector_count: u64 = connection.query_row(
-        "SELECT COUNT(*) FROM vector_default WHERE rowid=?1",
-        [cursor],
-        |row| row.get(0),
-    )?;
+    let sidecar_count: u64 = connection
+        .prepare_cached(
+            "SELECT COUNT(*) FROM _fathomdb_vector_rows \
+             WHERE rowid=?1 OR write_cursor=?1",
+        )?
+        .query_row([cursor], |row| row.get(0))?;
+    let vector_count: u64 = connection
+        .prepare_cached("SELECT COUNT(*) FROM vector_default WHERE rowid=?1")?
+        .query_row([cursor], |row| row.get(0))?;
     Ok(sidecar_count == 0 && vector_count == 0)
 }
 
@@ -23693,11 +23706,10 @@ fn desired_vector_attr_columns(conn: &Connection) -> rusqlite::Result<Vec<String
 /// keeps this robust across vec0 versions and shadow-table layouts.
 fn actual_vector_attr_columns(conn: &Connection) -> rusqlite::Result<Vec<String>> {
     let sql: Option<String> = conn
-        .query_row(
-            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?1",
-            [DEFAULT_VECTOR_PARTITION],
-            |row| row.get::<_, String>(0),
-        )
+        .prepare_cached("SELECT sql FROM sqlite_master WHERE type='table' AND name=?1")
+        .and_then(|mut statement| {
+            statement.query_row([DEFAULT_VECTOR_PARTITION], |row| row.get::<_, String>(0))
+        })
         .optional()?;
     let Some(sql) = sql else {
         return Ok(Vec::new());
@@ -29404,8 +29416,9 @@ impl Drop for TriggerStateGuard<'_> {
 }
 
 fn canonical_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
-    let unexpected: bool = connection.query_row(
-        "SELECT EXISTS(
+    let unexpected: bool = connection
+        .prepare_cached(
+            "SELECT EXISTS(
              SELECT 1 FROM sqlite_master
              WHERE type='trigger'
                AND tbl_name IN (
@@ -29432,15 +29445,15 @@ fn canonical_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::
                )
                AND name NOT LIKE '_fathomdb_read_visibility_%'
          )",
-        [],
-        |row| row.get(0),
-    )?;
+        )?
+        .query_row([], |row| row.get(0))?;
     Ok(!unexpected)
 }
 
 fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
-    let unexpected: bool = connection.query_row(
-        "SELECT EXISTS(
+    let unexpected: bool = connection
+        .prepare_cached(
+            "SELECT EXISTS(
              SELECT 1 FROM sqlite_master
              WHERE type='trigger'
                AND tbl_name IN (
@@ -29461,9 +29474,8 @@ fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite:
                )
                AND name NOT LIKE '_fathomdb_read_visibility_%'
          )",
-        [],
-        |row| row.get(0),
-    )?;
+        )?
+        .query_row([], |row| row.get(0))?;
     Ok(!unexpected)
 }
 
@@ -29565,13 +29577,14 @@ fn commit_batch(
 }
 
 fn advance_read_visibility(connection: &Connection) -> rusqlite::Result<()> {
-    let changed = connection.execute(
-        "UPDATE _fathomdb_read_visibility_state
+    let changed = connection
+        .prepare_cached(
+            "UPDATE _fathomdb_read_visibility_state
          SET generation=generation+1,
              state_nonce=lower(hex(randomblob(32)))
          WHERE singleton=1 AND generation<9223372036854775807",
-        [],
-    )?;
+        )?
+        .execute([])?;
     if changed != 1 {
         return Err(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT_TRIGGER),

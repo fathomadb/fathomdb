@@ -22451,11 +22451,8 @@ fn terminal_state_for_cursor(
     cursor: u64,
 ) -> rusqlite::Result<Option<String>> {
     connection
-        .query_row(
-            "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor = ?1",
-            [cursor],
-            |row| row.get::<_, String>(0),
-        )
+        .prepare_cached("SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor = ?1")?
+        .query_row([cursor], |row| row.get::<_, String>(0))
         .map(Some)
         .or_else(|err| match err {
             rusqlite::Error::QueryReturnedNoRows => Ok(None),
@@ -23516,7 +23513,9 @@ fn default_profile_dimension(connection: &Connection) -> Result<u32, EngineError
 
 fn kind_is_vector_indexed(connection: &Connection, kind: &str) -> Result<bool, EngineError> {
     connection
-        .query_row("SELECT 1 FROM _fathomdb_vector_kinds WHERE kind = ?1", [kind], |_row| Ok(()))
+        .prepare_cached("SELECT 1 FROM _fathomdb_vector_kinds WHERE kind = ?1")
+        .map_err(|_| EngineError::Storage)?
+        .query_row([kind], |_row| Ok(()))
         .map(|_| true)
         .or_else(|err| match err {
             rusqlite::Error::QueryReturnedNoRows => Ok(false),
@@ -27223,17 +27222,16 @@ fn load_projection_registry(
     // This keeps boot re-derive and the write-path attribute projector safe on
     // every pre-24 schema.
     let table_exists: bool = conn
-        .query_row(
+        .prepare_cached(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_fathomdb_projection_registry'",
-            [],
-            |_| Ok(true),
-        )
+        )?
+        .query_row([], |_| Ok(true))
         .optional()?
         .unwrap_or(false);
     if !table_exists {
         return Ok(out);
     }
-    let mut stmt = conn.prepare(
+    let mut stmt = conn.prepare_cached(
         "SELECT name, roles, fts_tokenizer, vector_embedder, vector_declared, source
          FROM _fathomdb_projection_registry",
     )?;
@@ -28644,10 +28642,8 @@ fn project_canonical_node_row(
 ) -> rusqlite::Result<bool> {
     let targets = index_targets_for_row_kind(row_kind);
     if targets.fts && pass.writes_fts() {
-        tx.execute(
-            "INSERT INTO search_index(body, kind, write_cursor) VALUES(?1, ?2, ?3)",
-            params![body, kind, cursor],
-        )?;
+        tx.prepare_cached("INSERT INTO search_index(body, kind, write_cursor) VALUES(?1, ?2, ?3)")?
+            .execute(params![body, kind, cursor])?;
         // F5 (0.8.14 Slice 10) — same coexisting `searchable->FTS` target also
         // populates the multi-column `search_index_v2` (kind/body/status) so a
         // BM25F query can field-weight the lexical arm. Written SYNCHRONOUSLY in
@@ -28661,7 +28657,7 @@ fn project_canonical_node_row(
         // to the empty-string sentinel; wiring G10 onto this field is out of
         // scope for F5. Determinism (R-SUB-2) is preserved: the derivation is
         // a pure function of `body`, evaluated in-SQL identically on every run.
-        tx.execute(
+        tx.prepare_cached(
             "INSERT INTO search_index_v2(kind, body, status, write_cursor)
              VALUES(
                  ?1,
@@ -28671,8 +28667,8 @@ fn project_canonical_node_row(
                       ELSE '' END,
                  ?3
              )",
-            params![kind, body, cursor],
-        )?;
+        )?
+        .execute(params![kind, body, cursor])?;
     }
     // 0.8.20 Slice 15d (R-20-EAV) — same-transaction attribute projection. Only
     // the full `Write` pass re-derives attributes (see `writes_attributes`): the
@@ -29125,11 +29121,10 @@ fn checked_locator_columns(
 }
 
 fn revision_is_registered(tx: &Connection, revision_id: &str) -> rusqlite::Result<bool> {
-    tx.query_row(
+    tx.prepare_cached(
         "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE revision_id = ?1)",
-        [revision_id],
-        |row| row.get(0),
-    )
+    )?
+    .query_row([revision_id], |row| row.get(0))
 }
 
 fn register_artifact_identity(
@@ -29453,11 +29448,11 @@ fn apply_batch_in_transaction(
                             }
                         }
                     }
-                    tx.execute(
+                    tx.prepare_cached(
                         "UPDATE canonical_nodes SET superseded_at = ?1
                          WHERE logical_id = ?2 AND superseded_at IS NULL",
-                        params![cursor, logical_id],
-                    )?;
+                    )?
+                    .execute(params![cursor, logical_id])?;
                     // Purge only the Attribute + PropertyFts classes: those tables
                     // have NO `superseded_at IS NULL` read-side filter (the FTS5
                     // `property_search_index` cannot carry one), so their stale rows

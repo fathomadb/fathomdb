@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 71 — AC-072 and 71B performance design
 status: REVIEW_REQUIRED
-design_version: 5
+design_version: 6
 target_release: 0.8.25
 depends_on: 60
 ---
@@ -95,6 +95,21 @@ relative to its median p50 or p99 is invalid. Uniform arms map completely to
 `both_pass`, `candidate_regression`, `candidate_recovery`, or
 `pre_existing_gate_failure`. Tracking-scale and recall results cannot
 substitute for this fixture.
+
+The final campaign does not reuse or rewrite the v1 manifest, which binds the
+obsolete `5546585d` candidate. After GREEN is committed, create and commit a
+new manifest bound to the exact final source, executable build, unchanged
+10k/384d/1,000-query workload, `B,C,C,B,B,C` ordering, environment rules, and
+`dev/plans/runs/0.8.25-slice-71/ac072-final/` receipt path. Validate that new
+receipt against the new manifest while retaining the old campaign byte-for-byte.
+
+If product code changes, the two 71B 10k candidate-only checks use the retained
+71B runner and environment rules. The protected `eda95b07` medians become an
+additional numeric guard: Scale-02 acknowledgement <= 1,543.539 ms and total
+<= 1,548.545 ms; projection-active AC-013 total <= 1,442.198 ms. Scale-02
+acknowledgement/total and AC-013 total each require <= 25% spread. AC-013
+acknowledgement is reported but remains non-gating because it is the variable
+asynchronous work partition. Historical +20% limits also remain in force.
 
 Before a code correction, an opt-in `test-hooks` trace on the search reader
 records normalized statement identities at their actual execution sites. It

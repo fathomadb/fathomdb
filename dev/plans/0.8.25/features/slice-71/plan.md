@@ -153,14 +153,23 @@ cross-process mutation authority, and snapshot identity.
 - **S71-AC3 — deterministic correction:** The selected mechanism has committed
   RED/GREEN evidence and preserves all affected search, lifecycle, dependency,
   eligibility, ranking, and snapshot contracts.
-- **S71-AC4 — AC-072 passes:** All three valid prospective candidate
-  repetitions satisfy p50 <= 80 ms and p99 <= 300 ms. Passing p50 alone, an
-  unstable arm, or a vector-only result does not close the gate.
+- **S71-AC4 — AC-072 passes:** A new committed final-candidate manifest binds
+  the exact source, executable, runner, environment rules, workload, and output
+  path without modifying the retained v1 campaign. Its receipt is written
+  under `dev/plans/runs/0.8.25-slice-71/ac072-final/`. All three valid
+  prospective candidate repetitions satisfy p50 <= 80 ms and p99 <= 300 ms.
+  Passing p50 alone, an unstable arm, or a vector-only result does not close
+  the gate.
 - **S71-AC5 — 71B remains recovered:** When product code changed, the two
-  candidate-only 71B 10k checks remain within their historical limits and are
-  compared transparently with the protected `eda95b07` medians. If no product
-  code changed, Git proves the measured product sources are unchanged and no
-  write rerun is required.
+  candidate-only 71B 10k checks remain within their historical limits and do
+  not regress more than 10% from the protected `eda95b07` medians: Scale-02
+  acknowledgement <= 1,543.539 ms and total <= 1,548.545 ms; projection-active
+  AC-013 total <= 1,442.198 ms. Scale-02 acknowledgement/total and AC-013 total
+  each retain the <= 25% spread rule; every cell retains the 71B environment
+  rules. AC-013 acknowledgement remains reported but is not a gate because it
+  is the variable asynchronous work partition. If no product code changed,
+  Git proves the measured product sources are unchanged and no write rerun is
+  required.
 - **S71-AC6 — focused review:** Independent design review precedes
   implementation. Independent code review and a separate evidence/verification
   review pass on the exact final product candidate.
@@ -179,7 +188,9 @@ cross-process mutation authority, and snapshot identity.
 4. Select the correction from the dominant measured component and commit its
    deterministic RED test before GREEN implementation.
 5. Run affected correctness suites and affected-crate check/clippy.
-6. Run the exact prospective AC-072 campaign once under the sealed protocol.
+6. After the final product candidate is committed, commit a new AC-072
+   final-candidate manifest and validator fixture, leaving the v1 manifest and
+   receipt untouched; then run that exact prospective campaign once.
 7. If product code changed, run only the two candidate-side 71B 10k checks.
 8. Obtain independent code and evidence reviews, resolve blocking findings,
    update status/release state, remove owned temporary artifacts, and advance

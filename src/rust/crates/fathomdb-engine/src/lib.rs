@@ -21018,6 +21018,11 @@ fn projection_worker_loop(
         return;
     }
     loop {
+        // A failed trigger-state restoration poisons this connection. Never
+        // reuse it for another projection commit with schema triggers disabled.
+        if !connection.db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER).unwrap_or(false) {
+            return;
+        }
         #[cfg(any(test, feature = "test-hooks"))]
         report_runtime_connection_inventory_for_test(
             &shared,
@@ -21105,7 +21110,14 @@ fn projection_worker_loop(
             run_projection_jobs(&shared, &mut connection, &jobs, worker_idx)
         })) {
             Ok(result) => result,
-            Err(_) => commit_projection_panic_failures(&shared, &mut connection, &jobs, worker_idx),
+            Err(_)
+                if connection
+                    .db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER)
+                    .unwrap_or(false) =>
+            {
+                commit_projection_panic_failures(&shared, &mut connection, &jobs, worker_idx)
+            }
+            Err(_) => Err(rusqlite::Error::InvalidQuery),
         };
         if let Err(err) = commit_result {
             // Host subscribers are arbitrary application code. Their panic must
@@ -22535,6 +22547,8 @@ fn commit_projection_outcomes(
             Some("dependency closure fences projection publication".to_string()),
         ));
     }
+    let coalesce_visibility = projection_batch_has_no_custom_triggers(&tx)?;
+    let mut visibility_changed = false;
     let _activity = shared.wal_attribution.enabled.then(|| {
         WalAttributionActivity::begin(
             Arc::clone(&shared.wal_attribution),
@@ -22579,6 +22593,11 @@ fn commit_projection_outcomes(
         None
     };
     let mut staged_events: Vec<EmbedderEvent> = Vec::new();
+    let mut trigger_guard = if coalesce_visibility {
+        Some(TriggerStateGuard::disable(&tx).map_err(|_| rusqlite::Error::InvalidQuery)?)
+    } else {
+        None
+    };
     for outcome in outcomes {
         match outcome {
             ProjectionOutcome::Success { cursor, kind, blob, bin_blob, generation_id } => {
@@ -22697,6 +22716,7 @@ fn commit_projection_outcomes(
                     tx.execute(&sql, rusqlite::params_from_iter(pv.iter()))?;
                 }
                 record_projection_terminal(&tx, *cursor, "up_to_date")?;
+                visibility_changed = true;
 
                 // EU-5f — this row crossed the threshold: pin the mean and
                 // re-quantize every row written so far (incl. earlier rows
@@ -22776,6 +22796,7 @@ fn commit_projection_outcomes(
                     )?;
                 }
                 record_projection_terminal(&tx, *cursor, "failed")?;
+                visibility_changed = true;
             }
             // 0.8.20 Slice 20c fix-4 (codex §9 round 3 [P1]) — record NOTHING.
             //
@@ -22825,6 +22846,13 @@ fn commit_projection_outcomes(
         2 => return Err(rusqlite::Error::InvalidQuery),
         _ => {}
     }
+    if coalesce_visibility && visibility_changed {
+        advance_read_visibility(&tx)?;
+    }
+    if let Some(trigger_guard) = trigger_guard.as_mut() {
+        trigger_guard.restore().map_err(|_| rusqlite::Error::InvalidQuery)?;
+    }
+    drop(trigger_guard);
     tx.commit()?;
     // Commit and the accumulator transition become visible together. On every
     // earlier error the transaction and the local candidate drop, leaving the
@@ -29350,7 +29378,7 @@ impl<'connection> TriggerStateGuard<'connection> {
         Ok(Self { connection, restored: false })
     }
 
-    fn restore(mut self) -> Result<(), CommitBatchError> {
+    fn restore(&mut self) -> Result<(), CommitBatchError> {
         match self.connection.set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, true) {
             Ok(true) => {
                 self.restored = true;
@@ -29383,7 +29411,8 @@ fn canonical_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::
                    '_fathomdb_source_dependencies','_fathomdb_dependency_closures',
                    'canonical_attributes','_fathomdb_projection_state',
                    '_fathomdb_projection_terminal','_fathomdb_vector_kinds',
-                   '_fathomdb_vector_rows','operational_mutations'
+                   '_fathomdb_vector_rows','operational_mutations',
+                   '_fathomdb_open_state','_fathomdb_read_visibility_state'
                )
                AND name NOT LIKE '_fathomdb_read_visibility_%'
              UNION ALL
@@ -29395,7 +29424,37 @@ fn canonical_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::
                    '_fathomdb_source_dependencies','_fathomdb_dependency_closures',
                    'canonical_attributes','_fathomdb_projection_state',
                    '_fathomdb_projection_terminal','_fathomdb_vector_kinds',
-                   '_fathomdb_vector_rows','operational_mutations'
+                   '_fathomdb_vector_rows','operational_mutations',
+                   '_fathomdb_open_state','_fathomdb_read_visibility_state'
+               )
+               AND name NOT LIKE '_fathomdb_read_visibility_%'
+         )",
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(!unexpected)
+}
+
+fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
+    let unexpected: bool = connection.query_row(
+        "SELECT EXISTS(
+             SELECT 1 FROM sqlite_master
+             WHERE type='trigger'
+               AND tbl_name IN (
+                   '_fathomdb_vector_rows','_fathomdb_projection_terminal',
+                   '_fathomdb_embedder_profiles','operational_mutations',
+                   '_fathomdb_open_state','_fathomdb_read_visibility_state',
+                   'vector_default'
+               )
+               AND name NOT LIKE '_fathomdb_read_visibility_%'
+             UNION ALL
+             SELECT 1 FROM sqlite_temp_master
+             WHERE type='trigger'
+               AND tbl_name IN (
+                   '_fathomdb_vector_rows','_fathomdb_projection_terminal',
+                   '_fathomdb_embedder_profiles','operational_mutations',
+                   '_fathomdb_open_state','_fathomdb_read_visibility_state',
+                   'vector_default'
                )
                AND name NOT LIKE '_fathomdb_read_visibility_%'
          )",
@@ -29463,7 +29522,7 @@ fn commit_batch(
     // trigger selects the unchanged row-trigger path so application extensions
     // still observe every row.
     if canonical_batch && canonical_batch_has_no_custom_triggers(&tx)? {
-        let trigger_guard = TriggerStateGuard::disable(&tx)?;
+        let mut trigger_guard = TriggerStateGuard::disable(&tx)?;
         let attempted = apply_batch_in_transaction(
             &tx,
             batch,
@@ -29478,6 +29537,7 @@ fn commit_batch(
             Ok(result)
         });
         let restored = trigger_guard.restore();
+        drop(trigger_guard);
         return match (attempted, restored) {
             (Ok(result), Ok(())) => {
                 tx.commit()?;
@@ -32558,6 +32618,58 @@ mod tests {
     }
 
     #[test]
+    fn custom_projection_trigger_forces_row_trigger_fallback() {
+        let dir = TempDir::new().unwrap();
+        let opened = Engine::open_with_embedder_for_test(
+            dir.path().join("projection-custom-trigger.sqlite"),
+            Arc::new(Slice65ProjectionEmbedder),
+        )
+        .unwrap();
+        opened.engine.configure_vector_kind_for_test("doc").unwrap();
+        {
+            let guard = opened.engine.connection.lock().unwrap();
+            guard
+                .as_ref()
+                .unwrap()
+                .execute_batch(
+                    "CREATE TABLE custom_projection_fires(id INTEGER PRIMARY KEY);
+                     CREATE TRIGGER custom_projection_insert
+                     AFTER INSERT ON _fathomdb_vector_rows
+                     BEGIN INSERT INTO custom_projection_fires VALUES(NULL); END;",
+                )
+                .unwrap();
+        }
+        let source_id = SourceId::new("test:projection-custom-trigger").unwrap();
+        let batch = (0..4)
+            .map(|index| PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: format!("body {index}"),
+                source_id: source_id.clone(),
+                logical_id: Some(format!("logical-{index}")),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect::<Vec<_>>();
+
+        opened.engine.write(&batch).unwrap();
+        opened.engine.drain(5_000).unwrap();
+
+        let guard = opened.engine.connection.lock().unwrap();
+        assert_eq!(
+            guard
+                .as_ref()
+                .unwrap()
+                .query_row("SELECT COUNT(*) FROM custom_projection_fires", [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .unwrap(),
+            batch.len() as i64
+        );
+    }
+
+    #[test]
     fn visibility_exhaustion_rolls_back_and_restores_triggers() {
         let dir = TempDir::new().unwrap();
         let opened = Engine::open(dir.path().join("visibility-exhaustion.sqlite")).unwrap();
@@ -32678,12 +32790,22 @@ mod tests {
             {
                 let guard = opened.engine.connection.lock().unwrap();
                 let connection = guard.as_ref().unwrap();
+                let insert_trigger = if table == "_fathomdb_open_state" {
+                    format!(
+                        "CREATE TRIGGER custom_internal_insert
+                         AFTER INSERT ON {table}
+                         BEGIN INSERT INTO custom_trigger_fires VALUES(NULL); END;"
+                    )
+                } else {
+                    String::new()
+                };
                 connection
                     .execute_batch(&format!(
                         "CREATE TABLE custom_trigger_fires(id INTEGER PRIMARY KEY);
                          CREATE TRIGGER custom_internal_update
                          AFTER UPDATE ON {table}
-                         BEGIN INSERT INTO custom_trigger_fires VALUES(NULL); END;"
+                         BEGIN INSERT INTO custom_trigger_fires VALUES(NULL); END;
+                         {insert_trigger}"
                     ))
                     .unwrap();
             }

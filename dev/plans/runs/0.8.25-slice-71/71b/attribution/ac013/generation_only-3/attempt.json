@@ -1,0 +1,26 @@
+{
+  "artifacts": [
+    {
+      "kind": "environment",
+      "path": "dev/plans/runs/0.8.25-slice-71/71b/attribution/ac013/generation_only-3/environment.json",
+      "sha256": "00a66db6653f8a4c88e3dfb5ccc413683825049f8f697de3ad74ce0faa15aa60"
+    },
+    {
+      "kind": "raw_log",
+      "path": "dev/plans/runs/0.8.25-slice-71/71b/attribution/ac013/generation_only-3/raw.log",
+      "sha256": "2d324c0d43fcd444f462449a36965edaa0f1e93da5ac7164fd74daa5ce02ece6"
+    },
+    {
+      "kind": "cell_disposition",
+      "path": "dev/plans/runs/0.8.25-slice-71/71b/attribution/ac013/generation_only-3/cell.json",
+      "sha256": "c363bb86af0c316484c47ee4cfe3e4424a0f0387f8eedb87466b2908a398c1a0"
+    }
+  ],
+  "fixture": "ac013",
+  "message": "ac013/generation_only: within-arm spread 118.430% exceeded 25%",
+  "occurred_at": "2026-09-09T04:15:06.546845+00:00",
+  "ordinal": 3,
+  "schema_version": "slice71b-failed-attempt.v1",
+  "state": "spread_invalid",
+  "treatment": "generation_only"
+}

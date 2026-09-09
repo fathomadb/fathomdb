@@ -214,8 +214,11 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 
 **Remaining ladder:** 71 → 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Slice 60 is durably closed. Execute Slice 71's two focused performance
-investigations before commissioning the drafted Slices 72, 73, and 75.
+Slice 60 is durably closed. Slice 71 is in progress. Its 71B attribution
+campaign stopped under the registered spread rule and awaits owner disposition
+of a prospective protocol amendment before any replacement measurement.
+Complete Slice 71's two focused performance investigations before commissioning
+the drafted Slices 72, 73, and 75.
 Package production, registry staging, tags, publication, post-publication
 smoke, and merge to main remain outside this ladder.
 

@@ -1,10 +1,15 @@
 ---
 title: Slice 71B — write attribution protocol
-status: REVIEW_CORRECTIONS_PENDING_INDEPENDENT_REVIEW
+status: EXECUTED_STOPPED_SPREAD_INVALID
 date: 2026-09-08
 ---
 
 # Slice 71B write attribution protocol
+
+The immutable execution contract passed independent review at `76e42b90`.
+The sole sealed campaign then stopped with `spread_invalid` after 16 of 18
+cells. See [71b-attribution-result.md](71b-attribution-result.md). This file
+continues to state the original contract; it is not retroactively amended.
 
 ## Decision boundary
 

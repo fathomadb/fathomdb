@@ -1,0 +1,10 @@
+{
+  "schema_version": "slice71b-executable-preservation.v1",
+  "receipt_path": "dev/plans/runs/0.8.25-slice-71/71b/attribution/attribution-receipt.json",
+  "receipt_sha256": "98a7b878306ceaf56d70809fbbb530e6caf84748aa6801cfa685dc2a3ed2b042",
+  "original_path": "/tmp/fathomdb-slice71b-target-z0hccmrn/release/slice71b-probe",
+  "preserved_path": "dev/plans/runs/0.8.25-slice-71/71b/attribution/build/slice71b-probe",
+  "sha256": "92604c16a0ad376ceeb291f9445222b2a8e3db307f99ac6cd7619c7f6713160f",
+  "bytes": 9532344,
+  "reason": "Preserve the exact receipt-bound executable after independent evidence audit without modifying the sealed receipt."
+}

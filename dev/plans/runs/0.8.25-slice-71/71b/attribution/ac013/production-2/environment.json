@@ -1,0 +1,20 @@
+{
+  "end": {
+    "available_memory_percent": 87.93538414283103,
+    "competing_processes": [],
+    "cpu_temp_c": 76.875,
+    "load_1m": 2.8740234375,
+    "online_cpus": 24,
+    "swap_in": 0,
+    "swap_out": 0
+  },
+  "start": {
+    "available_memory_percent": 87.87344673888698,
+    "competing_processes": [],
+    "cpu_temp_c": 77.0,
+    "load_1m": 3.03759765625,
+    "online_cpus": 24,
+    "swap_in": 0,
+    "swap_out": 0
+  }
+}

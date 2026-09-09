@@ -1,7 +1,7 @@
 {
   "schema_version": "fathomdb.slice72.ce-profile-manifest/v1",
   "baseline_sha": "4fc1b890a11ebfaa8f11b15823656e856002807a",
-  "candidate_sha": "e7ecda58ec227a97173de39daa0212552c35b21f",
+  "candidate_sha": "9cc2cb929ac5b3287e97ae9c3063269737802777",
   "fixture": {
     "query": "How many people live in Berlin?",
     "passages": [

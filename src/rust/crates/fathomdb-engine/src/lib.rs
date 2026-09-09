@@ -3651,7 +3651,7 @@ impl ProjectionRuntime {
     fn wait_for_idle(
         &self,
         timeout_ms: u64,
-        mut has_pending_projection_work: impl FnMut() -> bool,
+        mut has_pending_projection_work: impl FnMut() -> Option<bool>,
     ) -> bool {
         let deadline = Instant::now() + Duration::from_millis(timeout_ms);
         let mut state = match self.shared.state.lock() {
@@ -3659,10 +3659,13 @@ impl ProjectionRuntime {
             Err(_) => return false,
         };
         loop {
+            let mut retry_pending_probe = false;
             if state.active_jobs == 0 && state.queued_jobs == 0 {
                 drop(state);
-                if !has_pending_projection_work() {
-                    return true;
+                match has_pending_projection_work() {
+                    Some(false) => return true,
+                    Some(true) => {}
+                    None => retry_pending_probe = true,
                 }
                 state = match self.shared.state.lock() {
                     Ok(state) => state,
@@ -3673,7 +3676,10 @@ impl ProjectionRuntime {
             if now >= deadline {
                 return false;
             }
-            let wait = deadline.saturating_duration_since(now);
+            let mut wait = deadline.saturating_duration_since(now);
+            if retry_pending_probe {
+                wait = wait.min(Duration::from_millis(1));
+            }
             let Ok((next_state, _)) = self.shared.state_cvar.wait_timeout(state, wait) else {
                 return false;
             };
@@ -12547,16 +12553,15 @@ impl Engine {
                 };
             }
         }
-        if self.projection_runtime.wait_for_idle(timeout_ms, || {
-            self.connection
-                .lock()
-                .ok()
-                .and_then(|connection| {
-                    connection.as_ref().and_then(|connection| {
-                        connection_has_pending_projection_work(connection).ok()
-                    })
-                })
-                .unwrap_or(true)
+        if self.projection_runtime.wait_for_idle(timeout_ms, || match self.connection.try_lock() {
+            Ok(connection) => Some(
+                connection
+                    .as_ref()
+                    .and_then(|connection| connection_has_pending_projection_work(connection).ok())
+                    .unwrap_or(true),
+            ),
+            Err(std::sync::TryLockError::WouldBlock) => None,
+            Err(std::sync::TryLockError::Poisoned(_)) => Some(true),
         }) {
             Ok(())
         } else {
@@ -21266,7 +21271,7 @@ fn embed_projection_batch(
 
     let bodies: Vec<String> = jobs.iter().map(|job| job.body.clone()).collect();
     let embed_timeout = Duration::from_millis(shared.embed_timeout_ms.load(Ordering::Relaxed));
-    // Each row keeps its single-embed budget worst-case (batch <= COMMIT_BATCH=16).
+    // Each row keeps its single-embed budget worst-case (batch <= COMMIT_BATCH=64).
     let batch_timeout = embed_timeout.saturating_mul(jobs.len() as u32);
 
     let vectors = {

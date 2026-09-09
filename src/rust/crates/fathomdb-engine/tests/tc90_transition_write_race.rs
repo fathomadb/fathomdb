@@ -256,7 +256,7 @@ struct ArmConfig {
     /// `drain` returning idle and the connection mutex being acquired.
     writer_threads: usize,
     /// Rows per competing `Engine::write` call. A burst larger than
-    /// `PROJECTION_COMMIT_BATCH` (16) makes the worker commit FULL 16-job
+    /// `PROJECTION_COMMIT_BATCH` (64) makes the worker commit FULL 64-job
     /// transactions, which was the longest write-lock hold the baseline worker
     /// took and remains the strongest post-fix contention workload.
     burst: usize,
@@ -278,7 +278,7 @@ struct ArmConfig {
     /// Wall-clock budget for the transition loop.
     ///
     /// This is NOT decoration. MEASURED at `94f09d7d`: with `writer_pace_ms: 0`
-    /// and two burst-24 writer threads, `transition`'s own `drain`
+    /// and two historical burst-24 writer threads, `transition`'s own `drain`
     /// (`lib.rs:8217`) never reaches idle, so every call burns the full
     /// `LIFECYCLE_DRAIN_TIMEOUT_MS` (30 s) and returns `EngineError::Scheduler` —
     /// an unbounded arm, and a finding in its own right. The loop therefore stops
@@ -616,8 +616,8 @@ fn tc90_control_transition_loop_without_second_writer() {
 // support a NEGATIVE: "0/10 at this load" says nothing about a wider window. The
 // stress pair widens every knob that could plausibly open one:
 //
-//   * `burst: 24` > `PROJECTION_COMMIT_BATCH` (16), so the worker commits FULL
-//     16-job transactions — the longest write-lock hold it ever takes, i.e. the
+//   * `burst: 65` > `PROJECTION_COMMIT_BATCH` (64), so the worker commits FULL
+//     64-job transactions — the longest write-lock hold it ever takes, i.e. the
 //     widest target the promotion can be offered.
 //   * `writer_threads: 2` == `PROJECTION_WORKERS`, so both workers can be
 //     committing while the transition loop runs.
@@ -726,7 +726,7 @@ fn tc90_stress_transition_loop_under_saturating_burst_load() {
         label: "stress",
         second_writer: true,
         writer_threads: 2,
-        burst: 24,
+        burst: 65,
         writer_pace_ms: 1,
         embed_delay_ms: 0,
         transitions: STRESS_TRANSITIONS,
@@ -769,7 +769,7 @@ fn tc90_stress_control_without_second_writer() {
         label: "stress_control",
         second_writer: false,
         writer_threads: 2,
-        burst: 24,
+        burst: 65,
         writer_pace_ms: 1,
         embed_delay_ms: 0,
         transitions: STRESS_TRANSITIONS,

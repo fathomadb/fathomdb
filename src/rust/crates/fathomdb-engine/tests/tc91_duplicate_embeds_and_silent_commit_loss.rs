@@ -683,9 +683,9 @@ impl CommitLossOutcome {
 }
 
 /// Rows for the forced-commit-failure arms. Comfortably more than
-/// `PROJECTION_INFLIGHT_LIMIT` (32) so several worker commits are attempted while
+/// `PROJECTION_INFLIGHT_LIMIT` (128) so several worker commits are attempted while
 /// the write lock is held.
-const LOSS_ROWS: usize = 96;
+const LOSS_ROWS: usize = 192;
 
 /// How long the external connection HOLDS the WAL write lock. Long enough that
 /// many worker commits are attempted inside the window.

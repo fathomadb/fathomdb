@@ -19,7 +19,7 @@
 //! **Why the fixture strands work deterministically.** `GatedEmbedder::embed`
 //! blocks until the test releases it, so no projection job can complete before
 //! the erasure call. The dispatcher can therefore enqueue at most
-//! `PROJECTION_INFLIGHT_LIMIT` (2 workers × 16 commit batch = 32) rows before it
+//! `PROJECTION_INFLIGHT_LIMIT` (2 workers × 64 commit batch = 128) rows before it
 //! parks on the in-flight budget; the fixture writes far more than that, so a
 //! large remainder is provably still UNSCANNED at the instant `erase_source` is
 //! entered. On the broken ordering that remainder is unreachable forever. A
@@ -36,9 +36,9 @@ use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
 use tempfile::TempDir;
 
-/// More than `PROJECTION_INFLIGHT_LIMIT` (32) so the dispatcher cannot have
+/// More than `PROJECTION_INFLIGHT_LIMIT` (128) so the dispatcher cannot have
 /// enqueued the whole batch by the time the erasure freezes the scanner.
-const SEEDED_ROWS: usize = 96;
+const SEEDED_ROWS: usize = 384;
 
 /// How long the fixture holds every `embed()` call before releasing it. Long
 /// enough that the erasure verb is unambiguously entered first; short enough

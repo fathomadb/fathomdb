@@ -1256,12 +1256,12 @@ fn a_no_embedder_session_leaves_an_enrolled_kinds_write_recoverable() {
 // ===========================================================================
 
 /// `PROJECTION_SCAN_FETCH`, restated here because it is private to the engine:
-/// `PROJECTION_WORKERS (2) * PROJECTION_COMMIT_BATCH (16)`. It is the `LIMIT` the
+/// `PROJECTION_WORKERS (2) * PROJECTION_COMMIT_BATCH (64)`. It is the `LIMIT` the
 /// dispatcher's one scan carries, and therefore the width of the window a
 /// post-fetch filter can starve. The fixture asserts it is genuinely exceeded
 /// rather than trusting this constant, so a change to it makes the test weaker
 /// only by making the fixture assertion fail.
-const PROJECTION_SCAN_FETCH: usize = 32;
+const PROJECTION_SCAN_FETCH: usize = 128;
 
 /// The `write_cursor` of the live edge body carrying `logical_id`. The edge
 /// half of [`active_cursor`]; edges live in their own table and carry their own

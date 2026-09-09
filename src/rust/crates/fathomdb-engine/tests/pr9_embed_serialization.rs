@@ -93,11 +93,11 @@ fn embeds_are_serialized_engine_side() {
     let engine = opened.engine;
     engine.configure_vector_kind_for_test("doc").expect("vector kind");
 
-    // A worker grabs a whole PROJECTION_COMMIT_BATCH (16) at once, and the
-    // dispatcher enqueues up to PROJECTION_INFLIGHT_LIMIT (32) per scan — so
-    // we write > one batch (40 docs) to ensure both workers pick up work and
+    // A worker grabs a whole PROJECTION_COMMIT_BATCH (64) at once, and the
+    // dispatcher enqueues up to PROJECTION_INFLIGHT_LIMIT (128) per scan — so
+    // we write > one batch (80 docs) to ensure both workers pick up work and
     // would embed concurrently if the engine permitted it.
-    let nodes: Vec<PreparedWrite> = (0..40)
+    let nodes: Vec<PreparedWrite> = (0..80)
         .map(|i| PreparedWrite::Node {
             kind: "doc".to_string(),
             body: format!("serialize-doc-{i}"),

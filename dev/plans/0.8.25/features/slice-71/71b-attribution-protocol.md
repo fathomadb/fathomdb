@@ -147,10 +147,14 @@ Raw output, digest-bound environment snapshots, and strict cell JSON are retaine
 `dev/plans/runs/0.8.25-slice-71/71b/attribution/`. The aggregate receipt follows
 `slice71b-attribution-receipt.v1`, binds the exact manifest, and records either
 a derived supported/unresolved classification or the canonical stop state and
-reason for an incomplete exact-order prefix. An environment failure, probe
-failure, timeout, or spread breach stops the campaign immediately. An
-independent read-only reviewer validates the retained receipt and logs; the
-reviewer does not execute another campaign.
+reason for an incomplete exact-order prefix. Each failure record binds a
+canonical attempt disposition plus every available environment, raw-log, and
+cell artifact by path and SHA-256. Build failures additionally bind the build
+log; unexpected post-build harness/storage failures are distinguished from
+build failures. An environment failure, probe failure, timeout, or spread
+breach stops the campaign immediately. An independent read-only reviewer
+validates the retained receipt and logs; the reviewer does not execute another
+campaign.
 
 ## Focused verification accounting
 

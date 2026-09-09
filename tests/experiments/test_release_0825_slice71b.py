@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import runpy
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ from experiments.release_0825_slice71b import (
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_ROOT = ROOT / "experiments" / "configs"
 MANIFEST_PATH = CONFIG_ROOT / "release-0825-slice71b-attribution-manifest.v1.json"
+RUNNER = runpy.run_path(str(ROOT / "scripts" / "perf-experiments" / "run_slice71b.py"))
 
 
 def manifest() -> dict[str, object]:
@@ -206,7 +208,7 @@ def test_attribution_receipt_accepts_canonical_partial_abort() -> None:
     document["failure"] = {
         "state": "probe_failed",
         "fixture": "scale02",
-        "treatment": "no_op",
+        "treatment": "generation_only",
         "ordinal": 2,
         "occurred_at": "2026-09-08T00:04:00Z",
         "artifacts": [
@@ -214,7 +216,17 @@ def test_attribution_receipt_accepts_canonical_partial_abort() -> None:
                 "kind": "attempt_disposition",
                 "path": "dev/plans/runs/0.8.25-slice-71/71b/attempt.json",
                 "sha256": "b" * 64,
-            }
+            },
+            {
+                "kind": "environment",
+                "path": "dev/plans/runs/0.8.25-slice-71/71b/environment.json",
+                "sha256": "c" * 64,
+            },
+            {
+                "kind": "raw_log",
+                "path": "dev/plans/runs/0.8.25-slice-71/71b/raw.log",
+                "sha256": "d" * 64,
+            },
         ],
     }
     document["errors"] = ["scale02/no_op-2: retained probe failure"]
@@ -248,6 +260,51 @@ def test_production_signature_rejects_nonce_change_without_generation_change() -
     document["cells"][0]["metrics"]["nonce_after_drain"] = "c" * 64
     with pytest.raises(Slice71BContractError, match="production"):
         validate_attribution_receipt(document, manifest(), verify_hashes=False)
+
+
+def test_runner_exposes_only_the_exact_attribution_sequence() -> None:
+    sequence = RUNNER["attribution_sequence"](manifest())
+    expected = []
+    for fixture in ("scale02", "ac013"):
+        ordinals = {"production": 0, "generation_only": 0, "no_op": 0}
+        for treatment in manifest()["attribution_order"]:
+            ordinals[treatment] += 1
+            expected.append((fixture, treatment, ordinals[treatment]))
+    assert sequence == expected
+
+
+def test_runner_binds_failed_attempt_artifacts(tmp_path: Path) -> None:
+    environment = tmp_path / "environment.json"
+    raw_log = tmp_path / "raw.log"
+    environment.write_text("environment\n", encoding="utf-8")
+    raw_log.write_text("probe output\n", encoding="utf-8")
+    failure = RUNNER["_failure_disposition"](
+        state="probe_failed",
+        message="failed",
+        root=tmp_path,
+        fixture="scale02",
+        treatment="production",
+        ordinal=1,
+    )
+    assert {artifact["kind"] for artifact in failure["artifacts"]} == {
+        "environment",
+        "raw_log",
+        "attempt_disposition",
+    }
+    for artifact in failure["artifacts"]:
+        assert len(artifact["sha256"]) == 64
+    assert (tmp_path / "attempt.json").is_file()
+
+
+def test_runner_distinguishes_build_and_post_build_harness_failures() -> None:
+    assert RUNNER["_unexpected_failure_state"](False) == "build_failed"
+    assert RUNNER["_unexpected_failure_state"](True) == "harness_failed"
+
+
+def test_runner_production_signature_requires_atomic_drain_change() -> None:
+    metrics = valid_cell("scale02", "production", 1)["metrics"]
+    metrics["nonce_after_drain"] = "c" * 64
+    assert not RUNNER["_treatment_signature_valid"]("production", metrics)
 
 
 def test_attribution_classifier_requires_measured_materiality() -> None:

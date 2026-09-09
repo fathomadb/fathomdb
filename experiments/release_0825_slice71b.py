@@ -95,6 +95,7 @@ _RECEIPT_KEYS = {
     "finished_at",
     "cells",
     "classification",
+    "failure",
     "errors",
 }
 _CLASSIFICATION_KEYS = {
@@ -127,6 +128,22 @@ _CELL_KEYS = {
 }
 _BUILD_KEYS = {"cargo", "rustc", "rustc_verbose_sha256", "profile"}
 _RUNTIME_KEYS = {"sqlite_version", "sqlite_source_id", "libsqlite3_sys"}
+_FAILURE_KEYS = {"state", "fixture", "treatment", "ordinal", "occurred_at", "artifacts"}
+_FAILURE_ARTIFACT_KEYS = {"kind", "path", "sha256"}
+_FAILURE_STATES = {
+    "environment_invalid",
+    "probe_failed",
+    "build_failed",
+    "harness_failed",
+    "spread_invalid",
+}
+_FAILURE_ARTIFACT_KINDS = {
+    "attempt_disposition",
+    "build_log",
+    "environment",
+    "raw_log",
+    "cell_disposition",
+}
 _METRIC_KEYS = {
     "records",
     "batch_size",
@@ -567,16 +584,17 @@ def validate_attribution_receipt(
         before, after_ack, after_drain = (int(value) for value in generations)
         nonce_before, nonce_ack, nonce_drain = (str(value) for value in nonces)
         if expected_treatment == "production":
+            ack_generation_changed = after_ack > before
+            ack_nonce_changed = nonce_ack != nonce_before
+            drain_generation_changed = after_drain > after_ack
+            drain_nonce_changed = nonce_drain != nonce_ack
             if not (
-                after_ack > before
+                ack_generation_changed
+                and ack_nonce_changed
                 and after_drain >= after_ack
-                and nonce_ack != nonce_before
+                and drain_generation_changed == drain_nonce_changed
             ):
                 _fail(f"{path} production treatment did not advance visibility")
-            if after_drain > after_ack and nonce_drain == nonce_ack:
-                _fail(
-                    f"{path} production drain advanced generation without nonce rotation"
-                )
         elif expected_treatment == "generation_only":
             if not (after_ack > before and after_drain >= after_ack):
                 _fail(f"{path} generation-only treatment did not advance generation")
@@ -627,13 +645,9 @@ def validate_attribution_receipt(
             _fail("/errors must be empty for a complete attribution receipt")
         if spread_violations:
             _fail(spread_violations[0])
+        _expect(root["failure"], None, "/failure")
     else:
-        if state not in {
-            "environment_invalid",
-            "probe_failed",
-            "build_failed",
-            "spread_invalid",
-        }:
+        if state not in _FAILURE_STATES:
             _fail("an incomplete receipt must carry a canonical abort state")
         _expect(
             classification["supported_causes"], [], "/classification/supported_causes"
@@ -647,6 +661,67 @@ def validate_attribution_receipt(
             _fail("an incomplete receipt must retain its stop reason")
         if state == "spread_invalid" and not spread_violations:
             _fail("spread_invalid requires a measured spread violation")
+        failure = _mapping(root["failure"], "/failure")
+        _exact_keys(failure, _FAILURE_KEYS, "/failure")
+        _expect(failure["state"], state, "/failure/state")
+        occurred_at = _timestamp(failure["occurred_at"], "/failure/occurred_at")
+        if occurred_at < receipt_started or occurred_at > receipt_finished:
+            _fail("/failure/occurred_at lies outside the receipt interval")
+        if state in {"build_failed", "harness_failed"}:
+            for key in ("fixture", "treatment", "ordinal"):
+                _expect(failure[key], None, f"/failure/{key}")
+        else:
+            failed_index = len(cells) - 1 if state == "spread_invalid" else len(cells)
+            if failed_index >= len(expected):
+                _fail("/failure does not identify a position in the sealed matrix")
+            failed_fixture, failed_treatment = expected[failed_index]
+            _expect(failure["fixture"], failed_fixture, "/failure/fixture")
+            _expect(failure["treatment"], failed_treatment, "/failure/treatment")
+            prior_same_arm = sum(
+                1
+                for prior_fixture, prior_treatment in expected[:failed_index]
+                if prior_fixture == failed_fixture
+                and prior_treatment == failed_treatment
+            )
+            _expect(failure["ordinal"], prior_same_arm + 1, "/failure/ordinal")
+        artifacts = failure["artifacts"]
+        if not isinstance(artifacts, list) or not artifacts:
+            _fail("/failure/artifacts must bind retained failure evidence")
+        kinds: set[str] = set()
+        for index, value in enumerate(artifacts):
+            path = f"/failure/artifacts/{index}"
+            artifact = _mapping(value, path)
+            _exact_keys(artifact, _FAILURE_ARTIFACT_KEYS, path)
+            kind = _nonempty(artifact["kind"], f"{path}/kind")
+            if kind not in _FAILURE_ARTIFACT_KINDS or kind in kinds:
+                _fail(f"{path}/kind is invalid or duplicated")
+            kinds.add(kind)
+            artifact_path = Path(_nonempty(artifact["path"], f"{path}/path"))
+            digest = _digest(artifact["sha256"], f"{path}/sha256")
+            if verify_hashes:
+                artifact_path = (
+                    artifact_path
+                    if artifact_path.is_absolute()
+                    else Path(__file__).resolve().parent.parent / artifact_path
+                )
+                try:
+                    actual = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+                except OSError as exc:
+                    _fail(f"{path}/path is unavailable: {exc}")
+                _expect(actual, digest, f"{path}/sha256 (artifact bytes)")
+        if "attempt_disposition" not in kinds:
+            _fail("/failure/artifacts must bind an attempt disposition")
+        if state == "build_failed" and "build_log" not in kinds:
+            _fail("a build failure must bind its build log")
+        if (
+            state in {"environment_invalid", "probe_failed"}
+            and "environment" not in kinds
+        ):
+            _fail(f"{state} must bind its environment disposition")
+        if state == "probe_failed" and "raw_log" not in kinds:
+            _fail("probe_failed must bind its raw log")
+        if state == "spread_invalid" and "cell_disposition" not in kinds:
+            _fail("spread_invalid must bind its triggering cell")
 
 
 def classify_recovery(

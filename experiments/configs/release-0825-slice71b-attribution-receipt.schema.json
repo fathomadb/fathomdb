@@ -3,7 +3,7 @@
   "title": "Slice71BAttributionReceiptV1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "manifest_sha256", "started_at", "finished_at", "cells", "classification", "errors"],
+  "required": ["schema_version", "manifest_sha256", "started_at", "finished_at", "cells", "classification", "failure", "errors"],
   "properties": {
     "schema_version": {"const": "slice71b-attribution-receipt.v1"},
     "manifest_sha256": {"$ref": "#/$defs/sha256"},
@@ -19,7 +19,7 @@
       "additionalProperties": false,
       "required": ["state", "supported_causes", "conditional_preparation_factorial_required"],
       "properties": {
-        "state": {"enum": ["supported", "unresolved", "environment_invalid", "probe_failed", "build_failed", "spread_invalid"]},
+        "state": {"enum": ["supported", "unresolved", "environment_invalid", "probe_failed", "build_failed", "harness_failed", "spread_invalid"]},
         "supported_causes": {
           "type": "array",
           "uniqueItems": true,
@@ -28,12 +28,46 @@
         "conditional_preparation_factorial_required": {"type": "boolean"}
       }
     },
+    "failure": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/failure"}
+      ]
+    },
     "errors": {"type": "array", "items": {"type": "string", "minLength": 1}}
   },
   "$defs": {
     "sha1": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "nullable_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "fixture", "treatment", "ordinal", "occurred_at", "artifacts"],
+      "properties": {
+        "state": {"enum": ["environment_invalid", "probe_failed", "build_failed", "harness_failed", "spread_invalid"]},
+        "fixture": {"type": ["string", "null"], "enum": ["scale02", "ac013", null]},
+        "treatment": {"type": ["string", "null"], "enum": ["production", "generation_only", "no_op", null]},
+        "ordinal": {"type": ["integer", "null"], "minimum": 1, "maximum": 3},
+        "occurred_at": {"type": "string", "minLength": 1},
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {"$ref": "#/$defs/failure_artifact"}
+        }
+      }
+    },
+    "failure_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "sha256"],
+      "properties": {
+        "kind": {"enum": ["attempt_disposition", "build_log", "environment", "raw_log", "cell_disposition"]},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
     "cell": {
       "type": "object",
       "additionalProperties": false,

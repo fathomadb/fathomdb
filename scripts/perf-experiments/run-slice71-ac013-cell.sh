@@ -10,39 +10,12 @@ fi
 cell_worktree="$1"
 raw_log="$2"
 runner_root="$(git rev-parse --show-toplevel)"
-runtime_probe="$(mktemp)"
-probe_db="$(mktemp --suffix=.fathomdb)"
 cargo_log="$(mktemp)"
-rm -f "$probe_db"
-trap 'rm -f "$runtime_probe" "$probe_db" "$cargo_log"' EXIT
+trap 'rm -f "$cargo_log"' EXIT
 
 cd "$cell_worktree"
 
-FATHOM_SLICE45_DATABASE="$probe_db" \
-FATHOM_SLICE45_ROWS=100 \
-FATHOM_SLICE45_SAMPLES=1 \
-FATHOM_SLICE45_MODE=latency \
-FATHOM_SLICE45_LATENCY_PAIR=current_state:frozen_state \
-cargo test --release -p fathomdb-engine --test slice45_pagination_performance \
-  measure_slice45_pagination_overhead -- --ignored --exact --nocapture \
-  >"$runtime_probe" 2>&1
-
-sqlite_version="$(python3 - "$runtime_probe" <<'PY'
-import json
-import sys
-
-for line in open(sys.argv[1], encoding="utf-8"):
-    try:
-        value = json.loads(line)
-    except json.JSONDecodeError:
-        continue
-    if value.get("schema_version") == "slice45-pagination-performance.v1":
-        print(value["sqlite_version"])
-        break
-else:
-    raise SystemExit("SQLite runtime identity missing from probe")
-PY
-)"
+sqlite_version="${SLICE71_SQLITE_VERSION:?run the source commit's SQLite runtime probe first}"
 libsqlite3_sys="$(awk '/^name = "libsqlite3-sys"$/{found=1; next} found && /^version = /{gsub(/"/, "", $3); print $3; exit}' Cargo.lock)"
 
 snapshot() {

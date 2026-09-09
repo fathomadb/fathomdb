@@ -30278,10 +30278,12 @@ mod tests {
     };
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
     use proptest::prelude::*;
+    use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
     use rusqlite::Connection;
     use std::collections::BTreeSet;
     use std::path::Path;
     use std::process::Command;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{mpsc, Arc};
     use std::thread;
     use std::time::{Duration, Instant};
@@ -32247,6 +32249,62 @@ mod tests {
             .expect("write should succeed");
 
         assert_eq!(receipt.cursor, 1);
+    }
+
+    #[test]
+    fn write_batch_prepares_visibility_triggered_statements_once() {
+        let dir = TempDir::new().unwrap();
+        let opened =
+            Engine::open(dir.path().join("statement-cache.sqlite")).expect("engine should open");
+        let canonical_prepares = Arc::new(AtomicUsize::new(0));
+        let artifact_prepares = Arc::new(AtomicUsize::new(0));
+        let terminal_prepares = Arc::new(AtomicUsize::new(0));
+        {
+            let mut guard = opened.engine.connection.lock().expect("writer lock");
+            let connection = guard.as_mut().expect("open writer");
+            connection.flush_prepared_statement_cache();
+            let canonical_prepares = Arc::clone(&canonical_prepares);
+            let artifact_prepares = Arc::clone(&artifact_prepares);
+            let terminal_prepares = Arc::clone(&terminal_prepares);
+            connection
+                .authorizer(Some(move |context: AuthContext<'_>| {
+                    if let AuthAction::Insert { table_name } = context.action {
+                        match table_name {
+                            "canonical_nodes" => {
+                                canonical_prepares.fetch_add(1, Ordering::Relaxed);
+                            }
+                            "_fathomdb_artifact_revisions" => {
+                                artifact_prepares.fetch_add(1, Ordering::Relaxed);
+                            }
+                            "_fathomdb_projection_terminal" => {
+                                terminal_prepares.fetch_add(1, Ordering::Relaxed);
+                            }
+                            _ => {}
+                        }
+                    }
+                    Authorization::Allow
+                }))
+                .expect("install preparation counter");
+        }
+
+        let source_id = SourceId::new("test:statement-cache").unwrap();
+        let batch = (0..4)
+            .map(|index| PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: format!("body {index}"),
+                source_id: source_id.clone(),
+                logical_id: None,
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect::<Vec<_>>();
+        opened.engine.write(&batch).expect("batch write");
+
+        assert_eq!(canonical_prepares.load(Ordering::Relaxed), 1);
+        assert_eq!(artifact_prepares.load(Ordering::Relaxed), 1);
+        assert_eq!(terminal_prepares.load(Ordering::Relaxed), 1);
     }
 
     proptest! {

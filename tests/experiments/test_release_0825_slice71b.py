@@ -8,6 +8,7 @@ import pytest
 
 from experiments.release_0825_slice71b import (
     Slice71BContractError,
+    attribution_classification,
     classify_recovery,
     validate_attribution_manifest,
     validate_attribution_receipt,
@@ -38,10 +39,25 @@ def valid_cell(
         "source_ref": "1" * 40,
         "source_tree_dirty": False,
         "probe_sha256": "2" * 64,
+        "probe_lock_sha256": "6" * 64,
+        "runner_sha256": "7" * 64,
+        "executable_sha256": "8" * 64,
         "fixture_sha256": "3" * 64,
         "started_at": "2026-09-08T00:00:00Z",
         "finished_at": "2026-09-08T00:00:01Z",
         "environment_valid": True,
+        "environment_sha256": "9" * 64,
+        "build_identity": {
+            "cargo": "cargo 1.0.0",
+            "rustc": "rustc 1.0.0",
+            "rustc_verbose_sha256": "a" * 64,
+            "profile": "release",
+        },
+        "runtime_identity": {
+            "sqlite_version": "3.50.0",
+            "sqlite_source_id": "source-id",
+            "libsqlite3_sys": "0.38.0",
+        },
         "raw_log_sha256": "4" * 64,
         "metrics": {
             "records": 10_000,
@@ -72,7 +88,20 @@ def valid_attribution_receipt() -> dict[str, object]:
         ordinals = {"production": 0, "generation_only": 0, "no_op": 0}
         for treatment in order:  # type: ignore[union-attr]
             ordinals[treatment] += 1
-            cells.append(valid_cell(fixture, treatment, ordinals[treatment]))
+            timing = {
+                "production": (20.0, 24.0),
+                "generation_only": (16.0, 20.0),
+                "no_op": (10.0, 12.0),
+            }[treatment]
+            cells.append(
+                valid_cell(
+                    fixture,
+                    treatment,
+                    ordinals[treatment],
+                    ack_ms=timing[0],
+                    total_ms=timing[1],
+                )
+            )
     return {
         "schema_version": "slice71b-attribution-receipt.v1",
         "manifest_sha256": "5" * 64,
@@ -80,8 +109,8 @@ def valid_attribution_receipt() -> dict[str, object]:
         "finished_at": "2026-09-08T00:01:00Z",
         "cells": cells,
         "classification": {
-            "state": "complete",
-            "supported_causes": ["per_row_visibility_update"],
+            "state": "supported",
+            "supported_causes": ["per_row_visibility_update", "per_fire_nonce"],
             "conditional_preparation_factorial_required": False,
         },
         "errors": [],
@@ -125,7 +154,10 @@ def test_attribution_receipt_accepts_exact_complete_matrix() -> None:
         (("cells", 0, "metrics", "transactions"), 39),
         (("cells", 0, "source_tree_dirty"), True),
         (("cells", 0, "environment_valid"), False),
+        (("cells", 0, "environment_sha256"), ""),
+        (("cells", 0, "runtime_identity", "sqlite_version"), ""),
         (("classification", "conditional_preparation_factorial_required"), True),
+        (("classification", "supported_causes"), ["statement_preparation"]),
     ],
 )
 def test_attribution_receipt_rejects_drift(
@@ -145,6 +177,28 @@ def test_attribution_receipt_rejects_ack_total_inconsistency() -> None:
     document["cells"][0]["metrics"]["projection_drain_ms"] = 9.0  # type: ignore[index]
     with pytest.raises(Slice71BContractError, match="total_ms"):
         validate_attribution_receipt(document, manifest(), verify_hashes=False)
+
+
+def test_attribution_classifier_requires_measured_materiality() -> None:
+    cells = valid_attribution_receipt()["cells"]
+    assert attribution_classification(cells) == {
+        "state": "supported",
+        "supported_causes": ["per_row_visibility_update", "per_fire_nonce"],
+        "conditional_preparation_factorial_required": False,
+    }
+
+
+def test_attribution_classifier_seals_unresolved_factorial_extension() -> None:
+    cells = valid_attribution_receipt()["cells"]
+    for cell in cells:  # type: ignore[union-attr]
+        cell["metrics"]["ingest_ack_ms"] = 10.0
+        cell["metrics"]["projection_drain_ms"] = 2.0
+        cell["metrics"]["total_ms"] = 12.0
+    assert attribution_classification(cells) == {
+        "state": "unresolved",
+        "supported_causes": [],
+        "conditional_preparation_factorial_required": True,
+    }
 
 
 def test_recovery_classifier_requires_both_10k_boundaries() -> None:

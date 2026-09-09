@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -52,7 +53,7 @@ def test_manifest_rejects_drift(path: tuple[str, ...], value: object) -> None:
 
 
 def test_checked_in_receipt_is_strict_and_valid() -> None:
-    validate_receipt(receipt(), manifest())
+    validate_receipt(receipt(), manifest(), MANIFEST_PATH.read_bytes())
 
 
 @pytest.mark.parametrize(
@@ -73,4 +74,28 @@ def test_receipt_rejects_drift(path: tuple[object, ...], value: object) -> None:
         target = target[key]  # type: ignore[index]
     target[path[-1]] = value  # type: ignore[index]
     with pytest.raises(Slice71ContractError):
-        validate_receipt(document, manifest())
+        validate_receipt(document, manifest(), MANIFEST_PATH.read_bytes())
+
+
+def test_receipt_recomputes_manifest_digest() -> None:
+    document = receipt()
+    document["manifest_sha256"] = "0" * 64
+    for cell in document["cells"]:  # type: ignore[union-attr]
+        cell["config_sha256"] = "0" * 64
+    with pytest.raises(Slice71ContractError, match="manifest_sha256"):
+        validate_receipt(document, manifest(), MANIFEST_PATH.read_bytes())
+
+
+def test_receipt_derives_classification_from_metrics() -> None:
+    document = receipt()
+    document["cells"][2]["metrics"]["p99_ms"] = 260  # type: ignore[index]
+    with pytest.raises(Slice71ContractError, match="classifications/ac013"):
+        validate_receipt(document, manifest(), MANIFEST_PATH.read_bytes())
+
+
+def test_manifest_bytes_are_the_document_being_validated() -> None:
+    document = manifest()
+    different_bytes = json.dumps(document, sort_keys=True).encode()
+    assert hashlib.sha256(different_bytes).hexdigest() != receipt()["manifest_sha256"]
+    with pytest.raises(Slice71ContractError, match="manifest bytes"):
+        validate_receipt(receipt(), document, different_bytes)

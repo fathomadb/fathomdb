@@ -120,7 +120,7 @@ commit. The separate verification pass was interrupted when the owner changed
 the task to outline-only, so it is not a completion claim. The bulk-ingest
 campaign was not rerun because the approved AC-013 stop condition fired.
 
-Slice 71 is in progress and incomplete. The owner-approved 71B planning
-integration resumes write work; no new measurements or implementation are
-claimed. Immediate next action is Phase 1 evidence qualification and a sealed,
-independently reviewed protocol. Slice 72 remains blocked by its parent.
+Slice 71 is in progress and incomplete. 71B is complete at `eda95b07` with
+focused tests, bounded performance evidence, and independent reviews. Immediate
+next action is the separate AC-072 disposition. Slice 72 remains blocked by its
+parent.

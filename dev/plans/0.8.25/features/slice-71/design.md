@@ -159,3 +159,25 @@ campaigns, independent code review, and a separate verification reviewer.
 This paragraph records the original verification scope; 71B's affected-crate
 and focused-test policy governs new write work. Full release regressions
 remain deferred to Slice 75 by owner direction.
+
+## 71B implemented write design
+
+The accepted implementation keeps the 54 persistent schema triggers as the
+external-SQL contract. Engine-owned canonical and projection transactions may
+disable triggers only on their own connection after confirming that no custom
+main- or TEMP-schema trigger targets the transaction's tables. They perform one
+checked random-nonce visibility advance after successful mutations and restore
+trigger execution before commit; any custom trigger selects the original row-
+trigger path, and a restoration failure poisons the connection.
+
+The governed foreground statements and projection validation statements use
+the connection cache. Values invariant under one IMMEDIATE transaction
+(generation and eligibility instant) are read once. Enrolled rows skip the
+logically redundant declaration and absent-dependency probes. `drain` uses the
+writer connection for its final durable pending-work check instead of opening
+a duplicate connection. The two projection workers retain bounded batching,
+with 64 outcomes per commit and an in-flight limit of 128.
+
+This changes no schema, public API, visibility guarantee, exhaustion behavior,
+or external trigger coverage. Exact results and focused proof are recorded in
+[71b-performance-recovery.md](71b-performance-recovery.md).

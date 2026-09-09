@@ -1,6 +1,6 @@
 ---
 title: Slice 71B — General write regression
-status: ACTIVE
+status: COMPLETE
 date: 2026-09-08
 parent_slice: 71
 ---
@@ -270,7 +270,8 @@ dependency-blocked until all Slice 71 obligations have a disposition.
 
 ## Immediate next action
 
-Recover and qualify the reviewer-supplied evidence, inspect the exact retained
-fixtures, and produce the Phase 1 versioned protocol and independent review.
-No 71B measurement or product correction has been completed by this planning
-integration.
+71B is complete at product candidate `eda95b07`; its retained performance
+evidence and focused verification are recorded in
+[71b-performance-recovery.md](71b-performance-recovery.md). The parent Slice
+71 remains open for the separate AC-072 disposition, which 71B neither reran
+nor waived.

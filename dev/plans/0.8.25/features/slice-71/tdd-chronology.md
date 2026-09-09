@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 71 — TDD chronology
-status: GREEN_BLOCKED_AT_ACCEPTANCE
-date: 2026-09-08
+status: GREEN_71B_COMPLETE
+date: 2026-09-09
 ---
 
 # Slice 71 TDD chronology
@@ -84,3 +84,18 @@ C1/C2/C3 record p50 200/201/201 ms and p99 210/210/294 ms. Candidate p99
 range/median is 40.00%, so the executable classifier returns
 `environment_invalid`. The sealed stop condition blocks the ingest campaign
 and further treatments; this is a truthful blocked outcome, not COMPLETE.
+
+## 71B write RED/GREEN
+
+The retained current-code measurements are the performance RED: Scale-02 10k
+median acknowledgement/total were 4,251.744/4,262.412 ms against historical
+1,833.777/1,834.571 ms; projection-active AC-013 total was 4,929.785 ms against
+historical 2,337.097 ms.
+
+Deterministic RED commits then required one visibility advance per canonical
+transaction, one per projection commit, statement preparation proportional to
+SQL shape rather than rows, rollback on generation exhaustion, and custom main-
+and TEMP-trigger fallback. GREEN preserves those tests while adding only the
+measured hot-path corrections. Exact candidate `eda95b07` passes both 10k
+limits and every small-workload conjunctive bound; see
+[71b-performance-recovery.md](71b-performance-recovery.md).

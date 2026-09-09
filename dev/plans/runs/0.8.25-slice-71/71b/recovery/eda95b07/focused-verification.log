@@ -1,0 +1,326 @@
+Script started on 2026-09-09 09:31:09-05:00 [COMMAND="bash /tmp/run-slice71b-focused-verification.sh" <not executed on terminal>]
+VERIFICATION_SCHEMA=slice71b-focused.v1
+STARTED_AT=2026-09-09T09:31:09-05:00
+PRODUCT_CANDIDATE=eda95b07a31f7c65cac8ac2a856a7f40de5cc72a
+PRODUCT_SOURCE_DRIFT=false
+COMMAND=cargo test -p fathomdb-engine --lib visibility_
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running unittests src/lib.rs (target/debug/deps/fathomdb_engine-c385adfbaa2381b2)
+
+running 4 tests
+test tests::governed_node_batch_advances_visibility_once ... ok
+test tests::write_batch_prepares_visibility_triggered_statements_once ... ok
+test tests::visibility_exhaustion_rolls_back_and_restores_triggers ... ok
+test tests::projection_batches_coalesce_visibility_invalidation ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 62 filtered out; finished in 0.23s
+
+real 0.40
+user 0.53
+sys 0.73
+COMMAND=cargo test -p fathomdb-engine --lib custom_
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/fathomdb_engine-c385adfbaa2381b2)
+
+running 3 tests
+test tests::custom_canonical_trigger_forces_row_trigger_fallback ... ok
+test tests::custom_projection_trigger_forces_row_trigger_fallback ... ok
+test tests::custom_internal_trigger_targets_force_row_trigger_fallback ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished in 0.25s
+
+real 0.39
+user 0.46
+sys 0.51
+COMMAND=cargo test -p fathomdb-engine --test slice30_embedding_readiness
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.51s
+     Running tests/slice30_embedding_readiness.rs (target/debug/deps/slice30_embedding_readiness-7c3464dde7fff385)
+
+running 3 tests
+test body_bearing_edge_without_embedder_reports_blocked_and_drain_is_immediate_typed_feedback ... ok
+test equivalence_refused_embedder_defers_work_without_relabelling_it_as_missing_configuration ... ok
+test absent_embedder_does_not_dispatch_body_edge_into_a_failed_terminal ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+
+real 1.72
+user 1.29
+sys 1.05
+COMMAND=cargo test -p fathomdb-engine --test slice30_dependency_closure
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running tests/slice30_dependency_closure.rs (target/debug/deps/slice30_dependency_closure-89e0bef044983a1b)
+
+running 27 tests
+test registered_derived_read_uses_source_validity_from_the_same_read_view ... ok
+test actuation_returns_closure_id_and_keyed_complete_proof ... ok
+test active_barrier_precedes_source_lifecycle_eligibility ... ok
+test bm25f_excludes_dependency_of_an_expired_source ... ok
+test point_status_rejects_nonzero_complete_proof ... ok
+test point_status_rejects_corrupt_proof_shape ... ok
+test bm25f_excludes_dependency_behind_an_admitted_barrier ... ok
+test nonterminal_barrier_hides_derived_search_hits ... ok
+test logical_purge_preserves_unrelated_artifact_in_the_same_source_bucket ... ok
+test physical_source_purge_erases_registered_dependents_and_keeps_proof ... ok
+test source_erasure_records_blocker_and_exact_retry_completes_closure ... ok
+test closure_sequence_exhaustion_rolls_back_root_supersession ... ok
+test projection_worker_before_admission_cannot_publish_dependency_residue ... ok
+test admission_before_projection_worker_terminalizes_without_publication ... ok
+test reopen_rejects_nonzero_complete_proof ... ok
+test nonterminal_barrier_hides_derived_edge_vector_hits ... ok
+test barrier_hides_derived_nodes_from_expansion_and_property_search ... ok
+test physical_closure_measures_surviving_canonical_rows_and_rolls_back ... ok
+test post_commit_closure_finalization_failure_does_not_reuse_write_boundary ... ok
+test next_writer_recovers_a_proving_soft_closure_after_reopen ... ok
+test unrelated_writer_is_fenced_while_physical_closure_is_nonterminal ... ok
+test source_supersession_atomically_soft_closes_node_and_edge ... ok
+test vector_top_k_ineligible_dependencies_degrade_before_candidate_truncation ... ok
+test point_status_rejects_missing_malformed_or_regressed_closure_sequence ... ok
+test open_rejects_missing_malformed_or_regressed_closure_sequence ... ok
+test physical_closure_measures_projection_and_dependency_residue ... ok
+test mutated_proof_semantics_fail_closed_identically_at_point_read_and_reopen ... ok
+
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.41s
+
+real 14.19
+user 19.91
+sys 48.90
+COMMAND=cargo test -p fathomdb-engine --test slice40_projection_generation
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.51s
+     Running tests/slice40_projection_generation.rs (target/debug/deps/slice40_projection_generation-00ff0ca5907c954e)
+
+running 7 tests
+test body_edge_without_a_runtime_is_blocked_not_corrupt ... ok
+test a_terminal_without_its_physical_vector_is_typed_corruption ... ok
+test non_noop_configuration_mints_but_exact_replay_reuses_generation ... ok
+test upgraded_nonempty_database_bootstraps_as_legacy_degraded ... ok
+test backup_copy_preserves_database_local_generation_identity ... ok
+test fresh_generation_is_stable_across_restart ... ok
+test caller_embedder_does_not_make_an_empty_database_legacy ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+real 1.07
+user 1.83
+sys 3.06
+COMMAND=cargo test -p fathomdb-engine --features test-hooks --test slice40_projection_generation_races
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.64s
+     Running tests/slice40_projection_generation_races.rs (target/debug/deps/slice40_projection_generation_races-126bcb28a25c40ba)
+
+running 5 tests
+test queued_worker_across_generation_transition_is_rediscovered ... ok
+test worker_computing_across_generation_transition_discards_stale_result ... ok
+test worker_at_write_lock_boundary_discards_after_transition ... ok
+test stale_worker_result_cannot_publish_into_a_new_generation ... ok
+test publication_holding_write_lock_linearizes_before_transition ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+real 4.02
+user 5.32
+sys 2.65
+COMMAND=cargo test -p fathomdb-engine --features test-hooks --test slice40_projection_completion
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.54s
+     Running tests/slice40_projection_completion.rs (target/debug/deps/slice40_projection_completion-274f5c3d7a7050a3)
+
+running 17 tests
+test status_query_plans_bound_correlations_with_durable_indexes ... ok
+test generation_status_cache_survives_epoch_changes_without_a_membership_boundary ... ok
+test generation_status_cache_invalidates_at_an_edge_membership_boundary ... ok
+test generation_status_cache_invalidates_when_the_clock_moves_backwards ... ok
+test generation_status_cache_invalidates_at_a_source_validity_boundary ... ok
+test valid_derived_provenance_without_registered_dependency_is_ready ... ok
+test complete_edge_without_required_enrolment_is_corrupt ... ok
+test global_status_rejects_a_cursor_owned_by_both_node_and_edge ... ok
+test orphan_dependency_and_source_link_are_corrupt ... ok
+test usable_runtime_cannot_leave_a_stranded_node_marker ... ok
+test sidecar_row_identity_must_match_the_projection_owner ... ok
+test registered_owner_with_missing_source_link_is_corrupt ... ok
+test generation_status_cache_invalidates_on_worker_and_external_changes ... ok
+test missing_member_below_the_watermark_is_rediscovered_before_drain_returns ... ok
+test worker_publication_never_repairs_a_partial_projection_tuple ... ok
+test mixed_completion_summary_is_exact_and_boundary_ordered ... ok
+test dispatcher_rechecks_pending_member_at_source_valid_from_without_external_notification ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.43s
+
+real 5.02
+user 4.68
+sys 19.74
+COMMAND=cargo test -p fathomdb-engine --test slice35_frozen_read
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.52s
+     Running tests/slice35_frozen_read.rs (target/debug/deps/slice35_frozen_read-55c432bb3f6d8bd4)
+
+running 5 tests
+test frozen_context_bounds_attributes_but_legacy_duplicate_conjunctions_remain_valid ... ok
+test frozen_search_expand_uses_the_bound_context_and_rejects_drift ... ok
+test frozen_expansion_applies_eligibility_before_the_graph_cap ... ok
+test frozen_context_survives_restart_and_binds_eligibility_without_leaking_it_in_token ... ok
+test frozen_context_rejects_tamper_database_mismatch_context_change_and_state_drift ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+real 0.89
+user 1.31
+sys 1.15
+COMMAND=cargo test -p fathomdb-engine --test slice35_frozen_read_races
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+     Running tests/slice35_frozen_read_races.rs (target/debug/deps/slice35_frozen_read_races-cb30c3b6974ec8c6)
+
+running 5 tests
+test authentication_precedes_ordinary_limit_and_depth_validation ... ok
+test mutation_committed_before_snapshot_pin_causes_drift_without_results ... ok
+test frozen_expansion_honors_out_of_window_relaxation ... ok
+test consume_rejects_visibility_generation_regression_observed_in_process ... ok
+test centering_state_change_invalidates_a_frozen_context ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+real 0.85
+user 1.34
+sys 1.36
+COMMAND=cargo test -p fathomdb-engine --test tc91_projection_commit_hardening
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+     Running tests/tc91_projection_commit_hardening.rs (target/debug/deps/tc91_projection_commit_hardening-6f8728237693687a)
+
+running 6 tests
+test tc91_projection_commit_storage_error_is_reported_and_redispatched ... ok
+test tc91_projection_commit_busy_is_reported_and_redispatched ... ok
+test tc91_subscriber_panic_after_commit_failure_does_not_wedge_redispatch ... ok
+test tc91_panic_terminal_commit_failure_is_reported_and_redispatched ... ok
+test tc91_projection_commit_failure_survives_stop_and_reopen ... ok
+test tc91_projection_commit_failure_at_mean_pin_is_rollback_safe ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+real 1.17
+user 1.83
+sys 2.23
+COMMAND=cargo test -p fathomdb-engine --test eu5f_production_pin
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.53s
+     Running tests/eu5f_production_pin.rs (target/debug/deps/eu5f_production_pin-052014bece433c07)
+
+running 6 tests
+test panicking_embedder_does_not_wedge_drain ... ok
+test prepin_rows_requantized ... ok
+test postpin_rows_centered ... ok
+test production_write_pins_mean_vec ... ok
+test recovery_pins_on_open_when_mean_null ... ok
+test pin_once_no_uncentered_survivors ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.07s
+
+real 1.65
+user 3.19
+sys 2.44
+COMMAND=cargo test -p fathomdb-engine --test projection_runtime
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.54s
+     Running tests/projection_runtime.rs (target/debug/deps/projection_runtime-05da724633390909)
+
+running 13 tests
+test child_second_open_locked_with_pending_vector ... ignored
+test ac_033_provenance_growth_is_bounded_and_oldest_first ... ok
+test hybrid_search_deduplicates_rows_seen_by_text_and_vector_branches ... ok
+test ac_031_hybrid_search_surfaces_vector_soft_fallback_when_projection_lags ... ok
+test ac_063a_exhausted_projection_failure_is_recorded_once_and_vector_stays_absent ... ok
+test hybrid_search_returns_vector_results_when_text_branch_has_no_match ... ok
+test projection_status_is_tracked_per_kind_not_just_global_cursor ... ok
+test ac_024a_second_open_rejects_quickly_with_pending_vector_work ... ok
+test ac_032a_drain_succeeds_when_timeout_is_sufficient ... ok
+test ac_063b_restart_does_not_retry_terminal_projection_failures ... ok
+test ac_025_drop_with_pending_vector_work_returns_promptly ... ok
+test ac_032b_drain_returns_typed_timeout_when_work_does_not_finish ... ok
+test ac_029_canonical_writes_complete_under_projection_stall ... ok
+
+test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.73s
+
+real 11.32
+user 14.32
+sys 10.54
+COMMAND=cargo test -p fathomdb-engine --test erasure_drain_ordering --test pr9_embed_serialization --test tc91_duplicate_embeds_and_silent_commit_loss --test slice20c_flush_barrier
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/erasure_drain_ordering.rs (target/debug/deps/erasure_drain_ordering-0cd7002fb53d40ea)
+
+running 3 tests
+test erase_source_removes_no_embedder_pending_edge_work ... ok
+test purge_removes_no_embedder_pending_vector_work_after_soft_delete ... ok
+test erase_source_drains_before_freezing ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+     Running tests/pr9_embed_serialization.rs (target/debug/deps/pr9_embed_serialization-e674c71cb03f8f0b)
+
+running 1 test
+test embeds_are_serialized_engine_side ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.13s
+
+     Running tests/slice20c_flush_barrier.rs (target/debug/deps/slice20c_flush_barrier-bb4201ef4e45c3f2)
+
+running 12 tests
+test reapplying_a_satisfied_vector_declaration_does_not_rewind_or_re_embed ... ok
+test declaring_a_vector_projection_backfills_pre_existing_rows_and_drain_flushes_to_ready ... ok
+test a_first_write_after_an_empty_declaration_late_enrols_once ... ok
+test a_kind_the_vector_writer_cannot_commit_is_not_late_enrolled_on_write ... ok
+test a_kind_the_vector_writer_cannot_commit_is_not_enrolled_at_declaration_time ... ok
+test dropping_a_vector_projection_leaves_edge_fact_enrolled ... ok
+test dropping_the_last_vector_projection_un_enrols_the_kind_and_stops_embedding ... ok
+test a_declaration_without_a_live_embedder_defers_then_boot_grafts ... ok
+test drain_ok_implies_dense_readiness_ready_across_mutation_shapes ... ok
+test a_boot_graft_whose_repair_fails_registers_nothing ... ok
+test a_no_embedder_session_leaves_an_enrolled_kinds_write_recoverable ... ok
+test no_embedder_body_edge_remains_pending_behind_many_enrolled_nodes ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.47s
+
+     Running tests/tc91_duplicate_embeds_and_silent_commit_loss.rs (target/debug/deps/tc91_duplicate_embeds_and_silent_commit_loss-49cedbb6fae951e5)
+
+running 6 tests
+test tc91_control_unblocked_worker_commits ... ignored, TC-91 characterization arm — run explicitly with --ignored; see the design doc
+test tc91_duplicate_embed_rate_anonymous ... ignored, TC-91 acceptance pressure arm — run explicitly with --ignored
+test tc91_mechanism_duplicate_rate_versus_write_cadence ... ignored, TC-91 acceptance pressure arm — run explicitly with --ignored
+test tc91_probe_embed_cost_per_open_at_head ... ok
+test tc91_duplicate_embed_rate_governed ... ok
+test tc91_forced_commit_contention_preserves_single_embed ... ok
+
+test result: ok. 3 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 3.13s
+
+real 9.46
+user 4.93
+sys 11.76
+COMMAND=cargo test -p fathomdb-engine --test tc90_transition_write_race tc90_stress -- --ignored
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/tc90_transition_write_race.rs (target/debug/deps/tc90_transition_write_race-de04974e26e0b515)
+
+running 2 tests
+test tc90_stress_control_without_second_writer ... ok
+test tc90_stress_transition_loop_under_saturating_burst_load ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.21s
+
+real 0.34
+user 0.36
+sys 0.22
+COMMAND=cargo check -p fathomdb-engine
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.09s
+real 0.12
+user 0.07
+sys 0.05
+COMMAND=cargo clippy -p fathomdb-engine --lib -- -D warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.12s
+real 0.18
+user 0.08
+sys 0.09
+FINISHED_AT=2026-09-09T09:32:02-05:00
+BROAD_ROUNDS=0
+
+Script done on 2026-09-09 09:32:02-05:00 [COMMAND_EXIT_CODE="0"]

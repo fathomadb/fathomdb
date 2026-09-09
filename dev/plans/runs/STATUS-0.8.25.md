@@ -24,9 +24,9 @@ agents execute this release without Steward or Orchestrator roles. Slice 71 is
 in progress under the owner's 2026-09-08 approval of
 [71B — General write regression](../0.8.25/features/slice-71/write-regression-subplan.md).
 The prior write pause is superseded; the separate read-latency disposition
-remains unresolved. The sole sealed 71B attribution campaign stopped
-canonically after 16 of 18 cells; no causal attribution or correction is
-claimed.
+remains unresolved. 71B is complete on the release branch: the write-path
+correction and its focused tests, bounded measurements, code review, and
+separate evidence audit pass without changing a performance limit.
 
 ## Slice ladder
 
@@ -51,7 +51,7 @@ claimed.
 | 50 | Compact source-complete evidence | Complete on release branch (`e741542d`) |
 | 55 | Basic tracing and integrity | Complete on release branch (`5a6942bc`) |
 | 60 | Minimal constrained graph parity | Complete on release branch (`59208028`) |
-| 71 | AC-013 disposition and 71B general write regression | In progress; 71B campaign stopped `spread_invalid`; amendment decision required |
+| 71 | AC-013 disposition and 71B general write regression | In progress; 71B complete, separate AC-072 disposition remains |
 | 72 | Generic preflight and installed CE profiles | Not started |
 | 73 | Windows Node/N-API CI coverage | Not started |
 | 75 | Integrated release closure | Not started |
@@ -76,12 +76,11 @@ claimed.
   [durable remaining-work outline](../0.8.25/features/slice-71/remaining-work-outline.md);
   the later 71B approval resumes write work independently. Slice 72 remains
   dependency-blocked until the complete parent slice has its disposition.
-- The immutable 71B protocol passed independent review at `76e42b90`. Its
-  sole campaign stopped after 16/18 cells because AC-013 `generation_only`
-  acknowledgement spread was 118.430%, while total spread was 5.776%. All
-  completed environments were valid. Two independent evidence audits pass;
-  no attribution or correction is admissible. A prospective protocol amendment
-  awaits owner disposition before review or replacement measurement.
+- 71B is complete at product candidate `eda95b07`. Scale-02 10k median
+  acknowledgement/total improve from historical 1,833.777/1,834.571 ms to
+  1,403.217/1,407.768 ms; projection-active AC-013 10k total improves from
+  2,337.097 ms to 1,311.089 ms. Focused verification and independent code and
+  evidence reviews pass. AC-072 remains a separate unresolved disposition.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
@@ -171,9 +170,8 @@ lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
 - A diagnostic release-wide long gate exposed the pre-existing AC-013 vector
   latency failure and was stopped after that failure. It is release debt, not
   a Slice 60 graph-contract failure; Slice 71 owns its classification.
-- Slice 71B protocol/code review passes at `76e42b90`. The one sealed
-  attribution campaign and two independent read-only evidence audits confirm
-  its canonical `spread_invalid` stop and artifact integrity. Work remained
-  focused: 34 contract tests, targeted static/schema/digest checks, a locked
-  probe build, two one-record harness smokes, and the retained campaign. Zero
+- Slice 71B code review passes on exact product candidate `eda95b07`; a separate
+  read-only evidence audit passes the retained prospective recovery run. The
+  affected visibility, rollback, frozen-read, projection, capacity, and drain-
+  deadline checks pass, together with affected-crate check and clippy. Zero
   broad-verification rounds completed, and AC-072 was not executed.

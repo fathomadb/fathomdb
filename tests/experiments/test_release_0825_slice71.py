@@ -6,15 +6,24 @@ from pathlib import Path
 
 import pytest
 
-from experiments.release_0825_slice71 import Slice71ContractError, validate_manifest
+from experiments.release_0825_slice71 import (
+    Slice71ContractError,
+    validate_manifest,
+    validate_receipt,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST_PATH = ROOT / "experiments" / "configs" / "release-0825-slice71-manifest.v1.json"
+RECEIPT_PATH = ROOT / "dev" / "plans" / "runs" / "0.8.25-slice-71" / "receipt.v1.json"
 
 
 def manifest() -> dict[str, object]:
     return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+
+
+def receipt() -> dict[str, object]:
+    return json.loads(RECEIPT_PATH.read_text(encoding="utf-8"))
 
 
 def test_checked_in_manifest_is_strict_and_valid() -> None:
@@ -40,3 +49,28 @@ def test_manifest_rejects_drift(path: tuple[str, ...], value: object) -> None:
     target[path[-1]] = value  # type: ignore[index]
     with pytest.raises(Slice71ContractError):
         validate_manifest(document)
+
+
+def test_checked_in_receipt_is_strict_and_valid() -> None:
+    validate_receipt(receipt(), manifest())
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("unexpected",), True),
+        (("candidate_ref",), "0" * 40),
+        (("cells", 0, "unexpected"), True),
+        (("cells", 0, "metrics", "samples"), 999),
+        (("cells", 0, "process_identity", "test_threads"), 2),
+        (("classifications", "ingest"), "within_limit"),
+    ],
+)
+def test_receipt_rejects_drift(path: tuple[object, ...], value: object) -> None:
+    document = copy.deepcopy(receipt())
+    target: object = document
+    for key in path[:-1]:
+        target = target[key]  # type: ignore[index]
+    target[path[-1]] = value  # type: ignore[index]
+    with pytest.raises(Slice71ContractError):
+        validate_receipt(document, manifest())

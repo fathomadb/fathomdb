@@ -32667,6 +32667,56 @@ mod tests {
         );
     }
 
+    #[test]
+    fn custom_internal_trigger_targets_force_row_trigger_fallback() {
+        for (case, table) in [
+            ("open-state", "_fathomdb_open_state"),
+            ("visibility-state", "_fathomdb_read_visibility_state"),
+        ] {
+            let dir = TempDir::new().unwrap();
+            let opened = Engine::open(dir.path().join(format!("{case}.sqlite"))).unwrap();
+            {
+                let guard = opened.engine.connection.lock().unwrap();
+                let connection = guard.as_ref().unwrap();
+                connection
+                    .execute_batch(&format!(
+                        "CREATE TABLE custom_trigger_fires(id INTEGER PRIMARY KEY);
+                         CREATE TRIGGER custom_internal_update
+                         AFTER UPDATE ON {table}
+                         BEGIN INSERT INTO custom_trigger_fires VALUES(NULL); END;"
+                    ))
+                    .unwrap();
+            }
+
+            opened
+                .engine
+                .write(&[PreparedWrite::Node {
+                    kind: "doc".to_string(),
+                    body: "body".to_string(),
+                    source_id: SourceId::new(format!("test:{case}")).unwrap(),
+                    logical_id: Some(format!("logical-{case}")),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                }])
+                .unwrap();
+
+            let guard = opened.engine.connection.lock().unwrap();
+            assert!(
+                guard
+                    .as_ref()
+                    .unwrap()
+                    .query_row("SELECT COUNT(*) FROM custom_trigger_fires", [], |row| {
+                        row.get::<_, i64>(0)
+                    })
+                    .unwrap()
+                    > 0,
+                "custom trigger on {table} was suppressed"
+            );
+        }
+    }
+
     proptest! {
         #[test]
         fn completed_rank_group_matches_the_full_stable_prefix(

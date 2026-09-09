@@ -58,11 +58,13 @@
     "environment_policy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["max_load_per_online_cpu", "min_available_memory_percent", "max_swap_io_delta", "thermal_throttled", "forbid_competing_processes"],
+      "required": ["max_load_per_online_cpu", "min_available_memory_percent", "max_swap_io_delta", "max_cpu_temp_c", "thermal_signal", "thermal_throttled", "forbid_competing_processes"],
       "properties": {
         "max_load_per_online_cpu": {"const": 0.5},
         "min_available_memory_percent": {"const": 25},
         "max_swap_io_delta": {"const": 0},
+        "max_cpu_temp_c": {"const": 90},
+        "thermal_signal": {"const": "k10temp:Tctl"},
         "thermal_throttled": {"const": false},
         "forbid_competing_processes": {"const": true}
       }

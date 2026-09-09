@@ -16,7 +16,14 @@ from experiments.release_0825_slice71 import (
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST_PATH = ROOT / "experiments" / "configs" / "release-0825-slice71-manifest.v1.json"
-RECEIPT_PATH = ROOT / "dev" / "plans" / "runs" / "0.8.25-slice-71" / "receipt.v1.json"
+RECEIPT_PATH = (
+    ROOT
+    / "dev"
+    / "plans"
+    / "runs"
+    / "0.8.25-slice-71"
+    / "exploratory-receipt.v1.json"
+)
 
 
 def manifest() -> dict[str, object]:
@@ -24,7 +31,29 @@ def manifest() -> dict[str, object]:
 
 
 def receipt() -> dict[str, object]:
-    return json.loads(RECEIPT_PATH.read_text(encoding="utf-8"))
+    document = json.loads(RECEIPT_PATH.read_text(encoding="utf-8"))
+    digest = hashlib.sha256(MANIFEST_PATH.read_bytes()).hexdigest()
+    document["manifest_sha256"] = digest
+    for cell in document["cells"]:
+        cell["config_sha256"] = digest
+        cell["runtime_identity"] = {
+            "sqlite_version": "3.53.2",
+            "libsqlite3_sys": "0.36.0",
+        }
+        cell["environment_observation"] = {
+            "load_1m_start": 0.5,
+            "load_1m_end": 0.5,
+            "available_memory_percent_start": 90.0,
+            "available_memory_percent_end": 90.0,
+            "swap_in_delta": 0,
+            "swap_out_delta": 0,
+            "cpu_temp_c_start": 60.0,
+            "cpu_temp_c_end": 70.0,
+            "thermal_throttled": False,
+            "competing_processes_start": [],
+            "competing_processes_end": [],
+        }
+    return document
 
 
 def test_checked_in_manifest_is_strict_and_valid() -> None:
@@ -64,6 +93,7 @@ def test_checked_in_receipt_is_strict_and_valid() -> None:
         (("cells", 0, "unexpected"), True),
         (("cells", 0, "metrics", "samples"), 999),
         (("cells", 0, "process_identity", "test_threads"), 2),
+        (("cells", 0, "environment_observation", "unexpected"), 99.0),
         (("classifications", "ingest"), "within_limit"),
     ],
 )

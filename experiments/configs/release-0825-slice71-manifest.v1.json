@@ -33,6 +33,8 @@
     "max_load_per_online_cpu": 0.5,
     "min_available_memory_percent": 25,
     "max_swap_io_delta": 0,
+    "max_cpu_temp_c": 90,
+    "thermal_signal": "k10temp:Tctl",
     "thermal_throttled": false,
     "forbid_competing_processes": true
   },

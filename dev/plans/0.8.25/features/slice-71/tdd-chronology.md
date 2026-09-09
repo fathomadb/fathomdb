@@ -54,10 +54,24 @@ exist. The follow-up GREEN adds exact top-level, cell, identity, metrics,
 arm-order, ref, and blocked-classification validation without changing the
 already-observed evidence or its thresholds.
 
-## Acceptance stop
+## Exploratory observation
 
-The six sealed AC-013 repetitions all fail p50. Candidate p99 range/median is
-38.46%, exceeding the 20% environment-validity limit. The receipt therefore
-records `environment_invalid`; the approved stop condition prevents the ingest
-campaign and any unregistered second optimization treatment. Product and
-harness GREEN changes remain reviewable, but Slice 71 cannot close COMPLETE.
+The first six AC-013 repetitions all fail p50. Candidate p99 range/median is
+38.46%, exceeding the intended 20% environment-validity limit. Because the
+manifest had not yet been committed, independent review correctly rejects
+this as acceptance evidence. Product and harness GREEN changes remain
+reviewable, but Slice 71 cannot close on the exploratory observation.
+
+## Review correction RED/GREEN
+
+Independent code review at `8e586e66` found that the first campaign was not
+preregistered, the validator trusted rather than recomputed digests and
+classification, and AC-013 cells omitted runtime/host-pressure observations.
+The first campaign is retained as exploratory only.
+
+Commit `a6a2ccf2` is the correction RED: 10 tests fail because receipt
+validation has no manifest-byte argument and cannot prove digest or derived
+classification. GREEN recomputes the exact manifest digest, derives the result
+from retained metrics and environment observations, closes the runtime and
+environment shapes, and provides a checked-in cell wrapper. The revised
+manifest is committed before its first admissible measurement.

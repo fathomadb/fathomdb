@@ -1,6 +1,6 @@
 ---
-title: 0.8.25 Slice 71 — AC-013 vector-latency investigation
-status: ENVIRONMENT_INVALID
+title: 0.8.25 Slice 71 — exploratory AC-013 vector-latency investigation
+status: EXPLORATORY_NOT_ADMISSIBLE
 date: 2026-09-08
 candidate: 5546585da8f5893f903dbde8d1a885c483061c1b
 baseline: 4fc1b890a11ebfaa8f11b15823656e856002807a
@@ -8,13 +8,16 @@ baseline: 4fc1b890a11ebfaa8f11b15823656e856002807a
 
 # AC-013 vector-latency investigation
 
-## Result
+## Exploratory result
 
-The release-mode 10k/384-dimension/1,000-sample campaign completed in sealed
+The release-mode 10k/384-dimension/1,000-sample campaign completed in intended
 `B,C,C,B,B,C` order. Every repetition failed AC-072's p50 <= 80 ms gate. The
 baseline was stable; the candidate p50 was stable but its p99 range violated
 the preregistered 20% environment-validity limit. The controlling result is
-therefore `environment_invalid`, not `pre_existing_gate_failure`.
+therefore would be `environment_invalid`, not `pre_existing_gate_failure`.
+However, independent review established that the manifest and evidence were
+first committed together. The observation was not preregistered and is not
+admissible acceptance evidence.
 
 | Arm | p50 ms | p99 ms | Seed write ms | Drain ms |
 | --- | ---: | ---: | ---: | ---: |
@@ -27,7 +30,8 @@ therefore `environment_invalid`, not `pre_existing_gate_failure`.
 
 Baseline range/median is 0.61% for p50 and 2.30% for p99. Candidate is 0.50%
 for p50 and 38.46% for p99. All raw logs and their digests are bound in
-`dev/plans/runs/0.8.25-slice-71/receipt.v1.json`.
+`dev/plans/runs/0.8.25-slice-71/exploratory-receipt.v1.json`; raw logs are
+under `ac013-exploratory/`.
 
 ## Attribution correction retained
 
@@ -44,7 +48,8 @@ weakening was attempted after observing the sealed result.
 
 ## Disposition
 
-Slice 71 stops before bulk-ingest execution. A resumed run needs an owner-
-approved protocol for obtaining environment-valid AC-013 evidence and deciding
-whether further profiling is in scope. The existing raw results remain
-negative/invalid evidence and must not be relabeled.
+The review correction preregisters a revised campaign with executable digest
+and classification derivation plus complete runtime/host-pressure capture.
+The existing raw results remain exploratory evidence and must not be relabeled.
+The bulk-ingest stop remains in force until an admissible AC-013 campaign is
+classified.

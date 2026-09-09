@@ -44,8 +44,9 @@ The receipt's exact top-level keys are `schema_version`, `manifest_sha256`,
 `candidate_ref`, `started_at`, `finished_at`, `cells`, `classifications`, and
 `errors`. Every cell has exactly `workload`, `arm`, `ref`, `ordinal`,
 `started_at`, `finished_at`, `process_identity`, `build_identity`,
-`host_identity`, `fixture_sha256`, `config_sha256`, `raw_log_sha256`,
-`result_state`, `error`, and `metrics`. AC-013 metrics have exactly `n`,
+`host_identity`, `runtime_identity`, `environment_observation`,
+`fixture_sha256`, `config_sha256`, `raw_log_sha256`, `result_state`, `error`,
+and `metrics`. AC-013 metrics have exactly `n`,
 `samples`, `vector_dim`, `seed_write_ms`, `projection_drain_ms`, `p50_ms`, and
 `p99_ms`. Ingest metrics have exactly `corpus_rows`, `batch_size`,
 `ingest_ack_ms`, `projection_drain_ms`, `row_counts`, `trigger_inventory`,
@@ -56,6 +57,14 @@ The receipt's exact top-level keys are `schema_version`, `manifest_sha256`,
 `thermal_throttled`. Enums and nullable fields are closed in the two schemas;
 the RED validator tests use those files as the sole shape authority.
 
+`runtime_identity` binds the SQLite runtime and `libsqlite3-sys` version.
+`environment_observation` binds start/end one-minute load, available-memory
+percentage, swap-in/out deltas, the `k10temp:Tctl` start/end temperature,
+derived throttling state against the sealed 90 C ceiling, and competing
+build/test process inventories. The validator recomputes the manifest digest,
+derives per-cell pass/fail and the total classification from retained metrics,
+and lets an invalid environment supersede performance classification.
+
 ## AC-013 workload
 
 Use detached source worktrees and separate target directories for branch-point
@@ -64,6 +73,11 @@ candidate. A single checked-in wrapper invokes the exact integration test with
 `AGENT_LONG=1`, corpus 10,000, dimension 384, treatment `warm`, 1,000 measured
 samples, fixed seed, release mode, one test thread, and no runner retry. The
 order is `B,C,C,B,B,C`; seed and drain are outside measured samples.
+
+The first six-cell observation preceded its manifest commit and is retained
+under `ac013-exploratory/` only. It cannot satisfy acceptance. The admissible
+campaign starts only after the revised manifest, schemas, validator, and
+environment-capture wrapper are committed together.
 
 Report every repetition and per-arm median p50/p99. Each repetition is judged
 independently; all three candidate repetitions must satisfy p50 <= 80 ms and

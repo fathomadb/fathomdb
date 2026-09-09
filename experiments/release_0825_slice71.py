@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
+import statistics
 from collections.abc import Mapping
 from typing import NoReturn
 
@@ -49,6 +52,8 @@ _ENVIRONMENT_KEYS = {
     "max_load_per_online_cpu",
     "min_available_memory_percent",
     "max_swap_io_delta",
+    "max_cpu_temp_c",
+    "thermal_signal",
     "thermal_throttled",
     "forbid_competing_processes",
 }
@@ -73,6 +78,8 @@ _CELL_KEYS = {
     "process_identity",
     "build_identity",
     "host_identity",
+    "runtime_identity",
+    "environment_observation",
     "fixture_sha256",
     "config_sha256",
     "raw_log_sha256",
@@ -83,6 +90,20 @@ _CELL_KEYS = {
 _PROCESS_KEYS = {"fresh_process", "test_threads"}
 _BUILD_KEYS = {"profile", "rustc", "llvm"}
 _HOST_KEYS = {"host", "kernel", "arch", "online_cpus"}
+_RUNTIME_KEYS = {"sqlite_version", "libsqlite3_sys"}
+_OBSERVATION_KEYS = {
+    "load_1m_start",
+    "load_1m_end",
+    "available_memory_percent_start",
+    "available_memory_percent_end",
+    "swap_in_delta",
+    "swap_out_delta",
+    "cpu_temp_c_start",
+    "cpu_temp_c_end",
+    "thermal_throttled",
+    "competing_processes_start",
+    "competing_processes_end",
+}
 _AC013_METRIC_KEYS = {
     "n",
     "samples",
@@ -176,6 +197,8 @@ def validate_manifest(document: object) -> None:
         "max_load_per_online_cpu": 0.5,
         "min_available_memory_percent": 25,
         "max_swap_io_delta": 0,
+        "max_cpu_temp_c": 90,
+        "thermal_signal": "k10temp:Tctl",
         "thermal_throttled": False,
         "forbid_competing_processes": True,
     }.items():
@@ -203,15 +226,55 @@ def _nonnegative_number(value: object, path: str) -> None:
         _fail(f"{path} must be a non-negative number")
 
 
-def validate_receipt(document: object, manifest_document: object) -> None:
+def _ac013_classification(
+    cells: list[Mapping[str, object]], ac013: Mapping[str, object]
+) -> str:
+    arm_states: dict[str, str] = {}
+    for arm in ("B", "C"):
+        arm_cells = [cell for cell in cells if cell["arm"] == arm]
+        passing = []
+        for cell in arm_cells:
+            metrics = _mapping(cell["metrics"], f"/{arm}/metrics")
+            passing.append(
+                metrics["p50_ms"] <= ac013["p50_budget_ms"]  # type: ignore[operator]
+                and metrics["p99_ms"] <= ac013["p99_budget_ms"]  # type: ignore[operator]
+            )
+        for metric in ("p50_ms", "p99_ms"):
+            values = [float(_mapping(cell["metrics"], f"/{arm}/metrics")[metric]) for cell in arm_cells]
+            median = statistics.median(values)
+            spread_percent = 0.0 if median == 0 else (max(values) - min(values)) / median * 100
+            if spread_percent > ac013["max_within_arm_range_percent"]:  # type: ignore[operator]
+                return "environment_invalid"
+        if any(passing) and not all(passing):
+            return "environment_invalid"
+        arm_states[arm] = "pass" if all(passing) else "fail"
+    return {
+        ("pass", "pass"): "both_pass",
+        ("pass", "fail"): "candidate_regression",
+        ("fail", "pass"): "candidate_recovery",
+        ("fail", "fail"): "pre_existing_gate_failure",
+    }[(arm_states["B"], arm_states["C"])]
+
+
+def validate_receipt(
+    document: object, manifest_document: object, manifest_bytes: bytes
+) -> None:
     """Reject receipt drift and cross-check every retained AC-013 evidence cell."""
 
     validate_manifest(manifest_document)
+    try:
+        manifest_from_bytes = json.loads(manifest_bytes)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        _fail(f"manifest bytes are not the validated JSON document: {exc}")
+    if manifest_from_bytes != manifest_document:
+        _fail("manifest bytes are not the validated JSON document")
     manifest = _mapping(manifest_document, "/manifest")
     root = _mapping(document, "/")
     _exact_keys(root, _RECEIPT_KEYS, "/")
     _expect(root["schema_version"], "slice71-receipt.v1", "/schema_version")
     _hex_digest(root["manifest_sha256"], 64, "/manifest_sha256")
+    manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+    _expect(root["manifest_sha256"], manifest_digest, "/manifest_sha256 (manifest bytes)")
     _expect(root["candidate_ref"], manifest["candidate_ref"], "/candidate_ref")
     _nonempty_string(root["started_at"], "/started_at")
     _nonempty_string(root["finished_at"], "/finished_at")
@@ -257,6 +320,37 @@ def validate_receipt(document: object, manifest_document: object) -> None:
         if isinstance(host["online_cpus"], bool) or not isinstance(host["online_cpus"], int) or host["online_cpus"] < 1:
             _fail(f"{path}/host_identity/online_cpus must be a positive integer")
 
+        runtime = _mapping(cell["runtime_identity"], f"{path}/runtime_identity")
+        _exact_keys(runtime, _RUNTIME_KEYS, f"{path}/runtime_identity")
+        for key in _RUNTIME_KEYS:
+            _nonempty_string(runtime[key], f"{path}/runtime_identity/{key}")
+
+        observation = _mapping(
+            cell["environment_observation"], f"{path}/environment_observation"
+        )
+        _exact_keys(observation, _OBSERVATION_KEYS, f"{path}/environment_observation")
+        for key in {
+            "load_1m_start",
+            "load_1m_end",
+            "available_memory_percent_start",
+            "available_memory_percent_end",
+            "swap_in_delta",
+            "swap_out_delta",
+            "cpu_temp_c_start",
+            "cpu_temp_c_end",
+        }:
+            _nonnegative_number(observation[key], f"{path}/environment_observation/{key}")
+        _expect(
+            observation["thermal_throttled"],
+            False,
+            f"{path}/environment_observation/thermal_throttled",
+        )
+        for key in ("competing_processes_start", "competing_processes_end"):
+            if not isinstance(observation[key], list) or not all(
+                isinstance(item, str) and item for item in observation[key]
+            ):
+                _fail(f"{path}/environment_observation/{key} must be a string array")
+
         for key in ("fixture_sha256", "config_sha256", "raw_log_sha256"):
             _hex_digest(cell[key], 64, f"{path}/{key}")
         _expect(cell["config_sha256"], root["manifest_sha256"], f"{path}/config_sha256")
@@ -278,7 +372,36 @@ def validate_receipt(document: object, manifest_document: object) -> None:
 
     classifications = _mapping(root["classifications"], "/classifications")
     _exact_keys(classifications, _CLASSIFICATION_KEYS, "/classifications")
-    _expect(classifications["ac013"], "environment_invalid", "/classifications/ac013")
+    environment = _mapping(manifest["environment_policy"], "/manifest/environment_policy")
+    environment_invalid = False
+    for index, cell_value in enumerate(cells):
+        cell = _mapping(cell_value, f"/cells/{index}")
+        observation = _mapping(cell["environment_observation"], f"/cells/{index}/environment_observation")
+        host = _mapping(cell["host_identity"], f"/cells/{index}/host_identity")
+        load_limit = float(environment["max_load_per_online_cpu"]) * int(host["online_cpus"])
+        environment_invalid |= max(float(observation["load_1m_start"]), float(observation["load_1m_end"])) > load_limit
+        environment_invalid |= min(
+            float(observation["available_memory_percent_start"]),
+            float(observation["available_memory_percent_end"]),
+        ) < float(environment["min_available_memory_percent"])
+        environment_invalid |= int(observation["swap_in_delta"]) > int(environment["max_swap_io_delta"])
+        environment_invalid |= int(observation["swap_out_delta"]) > int(environment["max_swap_io_delta"])
+        environment_invalid |= max(
+            float(observation["cpu_temp_c_start"]), float(observation["cpu_temp_c_end"])
+        ) > float(environment["max_cpu_temp_c"])
+        environment_invalid |= bool(observation["thermal_throttled"])
+        environment_invalid |= bool(observation["competing_processes_start"])
+        environment_invalid |= bool(observation["competing_processes_end"])
+    derived_classification = (
+        "environment_invalid"
+        if environment_invalid
+        else _ac013_classification([_mapping(cell, "/cells") for cell in cells], ac013)
+    )
+    _expect(
+        classifications["ac013"],
+        derived_classification,
+        "/classifications/ac013",
+    )
     _expect(classifications["ingest"], "blocked_before_execution", "/classifications/ingest")
     errors = root["errors"]
     if not isinstance(errors, list) or not errors or not all(isinstance(item, str) and item for item in errors):

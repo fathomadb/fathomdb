@@ -111,7 +111,9 @@ def validate_receipt(
 
     wheel = Path(receipt["wheel_path"]).resolve()
     venv = Path(receipt["venv_root"]).resolve()
-    python = Path(receipt["python_path"]).resolve()
+    # Keep the venv launcher path lexical: resolving its symlink would turn it
+    # into the system interpreter and defeat the isolated-install contract.
+    python = Path(receipt["python_path"]).absolute()
     module = Path(receipt["module_path"]).resolve()
     native = Path(receipt["native_path"]).resolve()
     if not python.is_relative_to(venv) or not module.is_relative_to(venv) or not native.is_relative_to(venv):
@@ -210,7 +212,7 @@ def main() -> int:
     member, member_hash = native_member(wheel)
 
     run([str(args.python.resolve()), "-m", "venv", str(venv)], cwd=source)
-    installed_python = (venv / "bin" / "python").resolve()
+    installed_python = (venv / "bin" / "python").absolute()
     install_command = [
         str(installed_python),
         "-m",

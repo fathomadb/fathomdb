@@ -142,6 +142,29 @@ else
   fail "inconsistent: rc=$RC out=$OUT"
 fi
 
+MALFORMED="$TMPROOT/malformed"
+make_repo "$MALFORMED"
+write_pair "$MALFORMED" 0.8.21 LIVE
+printf '{not json\n' >"$MALFORMED/dev/plans/release-state-0.8.21.json"
+(cd "$MALFORMED" && git add -A && git commit -qm fixture)
+run "$MALFORMED"
+if [ "$RC" -ne 0 ] && grep -qi 'not parseable JSON' <<<"$OUT"; then
+  pass 'malformed live release state hard-fails'
+else
+  fail "malformed: rc=$RC out=$OUT"
+fi
+
+MISSING="$TMPROOT/missing-state"
+make_repo "$MISSING"
+printf '# 0.8.21\nLIVE\n' >"$MISSING/dev/plans/runs/STATUS-0.8.21.md"
+(cd "$MISSING" && git add -A && git commit -qm fixture)
+run "$MISSING"
+if [ "$RC" -ne 0 ] && grep -qi 'has no valid state file' <<<"$OUT"; then
+  pass 'live board without release state hard-fails'
+else
+  fail "missing state: rc=$RC out=$OUT"
+fi
+
 if [ "$FAILED" -ne 0 ]; then
   printf '\n%d release-current test(s) failed\n' "$FAILED" >&2
   exit 1

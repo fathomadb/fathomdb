@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# preflight.sh — orchestrator-side gate, run BEFORE spawning an implementer.
+# preflight.sh — release/worktree gate, run before starting dependent work.
 #
 # Codifies the checks whose absence has cost real slices:
 #   * agent-worktree-stale-base-trap — a worktree cut from a stale base (main had
 #     advanced ~206 commits) silently lost two slices. The --worktree check below
-#     fails loudly when a worktree's HEAD is neither its declared 0.8.23 release
-#     completion ref nor current main (or a descendant of the applicable ref).
-#   * dependency-not-actually-CLOSED — spawning a slice whose declared dependency
-#     never closed. The --expect-closed check greps the plan for the CLOSED block.
+#     fails loudly when a worktree does not descend from the active release-state
+#     baseline.
+#   * dependency-not-actually-CLOSED — starting a slice whose exact release-state
+#     ladder dependency is open, missing, duplicated, or not Git-reachable.
 #   * landing-in-the-primary-checkout — TC-RUBRIC-5 requires release orchestration
 #     and all landing git-writes to run in a dedicated linked worktree. --landing
 #     HARD-fails when invoked from the primary checkout.
@@ -74,63 +74,10 @@ abs_dir() { ( cd "$1" 2>/dev/null && pwd -P ); }
 
 MAIN_SHA="$(git rev-parse main)"
 
-# 0.8.23 is explicitly completed on a release branch before its separately
-# governed integration to main. PENDING makes its release ref authoritative;
-# COMPLETE returns freshness to origin/main, which is also the release-state
-# view checker's completion claim. Both modes require the same narrow state
-# validation: an absent file keeps the legacy main-only rule; a present but
-# malformed, incomplete, or cross-release declaration fails closed. Never
-# infer a release ref from the branch name.
-RELEASE_COMPLETION_STATE="absent"
-RELEASE_COMPLETION_REF=""
-RELEASE_COMPLETION_INTEGRATION=""
-RELEASE_STATE_FILE="dev/plans/release-state-0.8.23.json"
-if [ -e "$RELEASE_STATE_FILE" ]; then
-  if RELEASE_COMPLETION_FACTS="$(python3 - "$RELEASE_STATE_FILE" <<'PY'
-import json
-import sys
-
-state_file = sys.argv[1]
-expected_ref = "origin/release/0.8.23"
-try:
-    with open(state_file, encoding="utf-8") as source:
-        state = json.load(source)
-except (OSError, json.JSONDecodeError) as exc:
-    raise SystemExit("cannot parse %s: %s" % (state_file, exc))
-
-if not isinstance(state, dict) or state.get("release") != "0.8.23":
-    raise SystemExit("release must be the exact string 0.8.23")
-completion = state.get("completion")
-if not isinstance(completion, dict) or set(completion) != {"ref", "main_integration"}:
-    raise SystemExit("completion must contain exactly ref and main_integration")
-if completion["ref"] != expected_ref:
-    raise SystemExit("completion.ref must be %s" % expected_ref)
-if completion["main_integration"] not in {"PENDING", "COMPLETE"}:
-    raise SystemExit("completion.main_integration must be PENDING or COMPLETE")
-print("%s\t%s" % (expected_ref, completion["main_integration"]))
-PY
-  )"; then
-    IFS=$'\t' read -r RELEASE_COMPLETION_REF RELEASE_COMPLETION_INTEGRATION <<<"$RELEASE_COMPLETION_FACTS"
-    if [ -n "$RELEASE_COMPLETION_REF" ] && [ -n "$RELEASE_COMPLETION_INTEGRATION" ]; then
-      RELEASE_COMPLETION_STATE="valid"
-    else
-      RELEASE_COMPLETION_STATE="invalid"
-      hard "release completion state is invalid in $RELEASE_STATE_FILE: completion facts are incomplete"
-      RELEASE_COMPLETION_REF=""
-      RELEASE_COMPLETION_INTEGRATION=""
-    fi
-  else
-    RELEASE_COMPLETION_STATE="invalid"
-    hard "release completion state is invalid in $RELEASE_STATE_FILE: $RELEASE_COMPLETION_FACTS"
-    RELEASE_COMPLETION_REF=""
-    RELEASE_COMPLETION_INTEGRATION=""
-  fi
-fi
-
 # --- 1. Canonical repo is not mid-operation -------------------------------------
 GITDIR="$(git rev-parse --git-dir)"
 if [ -d "$GITDIR/rebase-merge" ] || [ -d "$GITDIR/rebase-apply" ]; then
-  hard "canonical repo is mid-rebase — finish or abort before spawning"
+  hard "canonical repo is mid-rebase — finish or abort before continuing"
 elif [ -f "$GITDIR/MERGE_HEAD" ]; then
   hard "canonical repo is mid-merge — finish or abort before spawning"
 elif [ -f "$GITDIR/CHERRY_PICK_HEAD" ]; then
@@ -142,7 +89,7 @@ fi
 # --- 2. Tracked source is clean (dev/ docs churn is expected, so only gate src/) -
 DIRTY_SRC="$(git status --porcelain -- src/ scripts/ mkdocs.yml 2>/dev/null || true)"
 if [ -n "$DIRTY_SRC" ]; then
-  warn "tracked source dirty on canonical main (commit/stash before a worktree inherits a stale base):"
+  warn "tracked source dirty in the invoking checkout:"
   printf '%s\n' "$DIRTY_SRC" | sed 's/^/        /' >&2
 else
   ok "tracked source (src/ scripts/ mkdocs.yml) is clean"
@@ -157,138 +104,89 @@ else
   ok "disk headroom on $WT_PARENT: ${FREE_GB:-?}G free (>= ${MIN_DISK_GB}G)"
 fi
 
+# Resolve state only for checks that need release/dependency facts. Plain health
+# and landing-only invocations stay independent of the active release.
+RELEASE_STATE_STATUS="unused"
+SELECTED_RELEASE=""
+SELECTED_STATE_FILE=""
+RELEASE_BASELINE_REF=""
+RELEASE_BASELINE_SHA=""
+DEPENDENCY_SHA=""
+if [ -n "$WT" ] || [ -n "$EXPECT_CLOSED" ]; then
+  STATE_TARGET_HEAD="$(git rev-parse HEAD)"
+  if [ -n "$WT" ] && [ -d "$WT" ] \
+    && [ "$(git -C "$WT" rev-parse --show-toplevel 2>/dev/null || true)" = "$WT" ]; then
+    STATE_TARGET_HEAD="$(git -C "$WT" rev-parse HEAD)"
+  fi
+  if CURRENT_RELEASE_FACTS="$("$SELF_DIR/release-current.py" 2>&1)" \
+    && [ -n "$CURRENT_RELEASE_FACTS" ]; then
+    IFS=$'\t' read -r CURRENT_RELEASE CURRENT_BOARD CURRENT_STATE <<<"$CURRENT_RELEASE_FACTS"
+    STATE_ARGS=(
+      --repo-root "$CANON"
+      --release "$CURRENT_RELEASE"
+      --board "$CURRENT_BOARD"
+      --state "$CURRENT_STATE"
+      --target-head "$STATE_TARGET_HEAD"
+      --format tsv
+    )
+    if [ -n "$PLAN" ]; then
+      STATE_ARGS+=(--plan "$PLAN")
+    fi
+    if [ -n "$EXPECT_CLOSED" ]; then
+      STATE_ARGS+=(--expect-closed "$EXPECT_CLOSED")
+    fi
+    if VERIFIED_RELEASE_FACTS="$(
+      python3 "$SELF_DIR/preflight-release-state.py" "${STATE_ARGS[@]}" 2>&1
+    )"; then
+      IFS=$'\t' read -r SELECTED_RELEASE SELECTED_STATE_FILE RELEASE_BASELINE_REF \
+        RELEASE_BASELINE_SHA DEPENDENCY_SHA <<<"$VERIFIED_RELEASE_FACTS"
+      RELEASE_STATE_STATUS="valid"
+      ok "release-state: $SELECTED_RELEASE uses $RELEASE_BASELINE_REF ($RELEASE_BASELINE_SHA)"
+    else
+      RELEASE_STATE_STATUS="invalid"
+      hard "$VERIFIED_RELEASE_FACTS"
+    fi
+  else
+    RELEASE_STATE_STATUS="invalid"
+    hard "release-state discovery failed: ${CURRENT_RELEASE_FACTS:-no live release}"
+  fi
+fi
+
 # --- 4. Worktree stale-base guard (the load-bearing check) -----------------------
 if [ -n "$WT" ]; then
+  WT_TOPLEVEL=""
+  if [ -d "$WT" ]; then
+    WT_TOPLEVEL="$(git -C "$WT" rev-parse --show-toplevel 2>/dev/null || true)"
+  fi
   if [ ! -d "$WT" ]; then
     hard "worktree path does not exist: $WT"
-  elif [ "$(git -C "$WT" rev-parse --show-toplevel 2>/dev/null || echo MISSING)" != "$WT" ]; then
+  elif [ "$WT_TOPLEVEL" != "$WT" ]; then
     hard "not a git worktree rooted at: $WT"
   else
     WT_HEAD="$(git -C "$WT" rev-parse HEAD)"
-    case "$RELEASE_COMPLETION_STATE" in
-      valid)
-        if ! RELEASE_COMPLETION_SHA="$(git rev-parse --verify --quiet "${RELEASE_COMPLETION_REF}^{commit}")"; then
-          hard "release completion ref $RELEASE_COMPLETION_REF is not a locally verifiable commit — fetch it or correct $RELEASE_STATE_FILE"
-        else
-          case "$RELEASE_COMPLETION_INTEGRATION" in
-            PENDING)
-              RELEASE_BASELINE_REF="$RELEASE_COMPLETION_REF"
-              RELEASE_BASELINE_SHA="$RELEASE_COMPLETION_SHA"
-              RELEASE_BASELINE_LABEL="declared completion ref"
-              RELEASE_STALE_LABEL="STALE RELEASE BASE"
-              ;;
-            COMPLETE)
-              if ! ORIGIN_MAIN_SHA="$(git rev-parse --verify --quiet 'origin/main^{commit}')"; then
-                hard "release completion marks main integration COMPLETE, but origin/main is not a locally verifiable commit — fetch it or correct $RELEASE_STATE_FILE"
-                RELEASE_BASELINE_REF=""
-              elif ! git merge-base --is-ancestor "$RELEASE_COMPLETION_SHA" "$ORIGIN_MAIN_SHA"; then
-                hard "release completion marks main integration COMPLETE, but $RELEASE_COMPLETION_REF is not reachable from origin/main — fetch it or correct $RELEASE_STATE_FILE"
-                RELEASE_BASELINE_REF=""
-              else
-                RELEASE_BASELINE_REF="origin/main"
-                RELEASE_BASELINE_SHA="$ORIGIN_MAIN_SHA"
-                RELEASE_BASELINE_LABEL="declared main integration ref"
-                RELEASE_STALE_LABEL="STALE MAIN BASE"
-              fi
-              ;;
-          esac
-
-          if [ -n "${RELEASE_BASELINE_REF:-}" ]; then
-            if [ "$WT_HEAD" = "$RELEASE_BASELINE_SHA" ]; then
-              ok "worktree HEAD == $RELEASE_BASELINE_LABEL $RELEASE_BASELINE_REF ($RELEASE_BASELINE_SHA) — freshly cut, no stale base"
-            elif [ "$(git merge-base "$RELEASE_BASELINE_SHA" "$WT_HEAD")" = "$RELEASE_BASELINE_SHA" ]; then
-              warn "worktree has advanced past $RELEASE_BASELINE_LABEL $RELEASE_BASELINE_REF — OK if it carries this slice's commits"
-            else
-              hard "$RELEASE_STALE_LABEL: worktree HEAD ($WT_HEAD) is not $RELEASE_BASELINE_LABEL $RELEASE_BASELINE_REF and that ref is not its ancestor."
-              hard "  -> re-create the worktree off \$(git rev-parse $RELEASE_BASELINE_REF). See agent-worktree-stale-base-trap."
-            fi
-          fi
-        fi
-        ;;
-      invalid)
-        info "release completion state is invalid; stale-base acceptance is refused rather than falling back to main"
-        ;;
-      absent)
-        if [ "$WT_HEAD" = "$MAIN_SHA" ]; then
-          ok "worktree HEAD == current main ($MAIN_SHA) — freshly cut, no stale base"
-        elif [ "$(git merge-base "$MAIN_SHA" "$WT_HEAD")" = "$MAIN_SHA" ]; then
-          warn "worktree has advanced past main (main is an ancestor) — OK if it carries this slice's commits"
-        else
-          hard "STALE BASE: worktree HEAD ($WT_HEAD) is not current main and main is not its ancestor."
-          hard "  -> re-create the worktree off \$(git rev-parse main). See agent-worktree-stale-base-trap."
-        fi
-        ;;
-    esac
+    if [ "$RELEASE_STATE_STATUS" = "valid" ]; then
+      if [ "$WT_HEAD" = "$RELEASE_BASELINE_SHA" ]; then
+        ok "worktree HEAD == release baseline $RELEASE_BASELINE_REF ($RELEASE_BASELINE_SHA) — freshly cut, no stale base"
+      else
+        warn "worktree has advanced past release baseline $RELEASE_BASELINE_REF — OK if it carries this slice's commits"
+      fi
+    else
+      info "release state is invalid; stale-base acceptance is refused"
+    fi
     # maturin/pip -e from a worktree rebinds the shared .venv to the worktree tree.
     info "reminder: do NOT 'maturin develop' / 'pip install -e' from a worktree — build on the MAIN tree only."
   fi
 fi
 
-# --- 5. Dependency-CLOSED gate ---------------------------------------------------
-# SLICE-ID-HARDENING site 4 + [DETERMINE] duty 1. This gate's entire stated
-# purpose is catching a dependency that is not actually closed, and it had TWO
-# INDEPENDENT ways of saying yes anyway. Both were measured by executing the real
-# grep, not reasoned about, and NEITHER fix subsumes the other:
-#
-#   (a) The interpolated value was UNESCAPED, so with `--expect-closed 39.5` the
-#       `.` was a regex WILDCARD: a plan line reading `Slice 39x5 ... CLOSED`
-#       cleared the gate. Escaping is REQUIRED. (Measured: escaping alone still
-#       leaves (b) wide open.)
-#   (b) The trailing `[^0-9]` matched the `.` in `Slice 39.5`, so ONE UNIT'S
-#       CLOSED WITNESS SATISFIED ANOTHER'S: `--expect-closed 39` was cleared by a
-#       plan in which only Slice 39.5 ever closed. A boundary tighten is
-#       REQUIRED. (Measured: tightening alone still leaves (a) wide open.)
-#
-# The boundary is `([^0-9.]|\.[^0-9])`, NOT the obvious `[^0-9.]`. Measured: the
-# bare `[^0-9.]` closes (b) but introduces a NEW FALSE NEGATIVE — a legitimate
-# sentence-final `CLOSED - Slice 39.` stops matching, and this gate's failure
-# mode is refusing to spawn. What must be rejected is a following DIGIT or a
-# following `.`+DIGIT (i.e. a longer dotted id); a `.` followed by anything else
-# is just punctuation. ERE has no lookahead, so it is spelled out. The second
-# alternative additionally carries `\.?$` because it, unlike the first, can end
-# at end-of-line (the two alternatives are NOT symmetric).
-#
-# Real-state effect, measured across every dev/plans/*.md for slice ids 0-60:
-# exactly ONE behaviour delta, and it is a FALSE POSITIVE REMOVED —
-# 0.7.0-implementation.md:456 `(Phase 0.7.0 GA CLOSED, ...)` was satisfying
-# `--expect-closed 0`, the version dot being read as a boundary. That is site 4's
-# own defect class, live in a tracked file.
-#
-# A dependency can also be LANDED, or (for the scoped 0.8.23 release branch)
-# COMPLETED before integration into main. The release-state renderer writes its
-# canonical roll-up as `<closure> on <verified ref>: Slices <id> ...`; rejecting
-# that generated record would make an already-complete prerequisite appear open.
-# Keep the same exact-id boundary for all affirmative closure states and for singular and
-# plural Slice labels: a neighbouring fractional id must never clear this gate.
-# A closure state must also be a standalone affirmative token. `NOT CLOSED` is
-# not closure, and neither are prefixed words such as `UNCLOSED` or `UNLANDED`.
-# Filter a line carrying a negated state before searching it: a line that says
-# both states is contradictory, not evidence that it is safe to spawn.
-#
-# esc_ere: escape every ERE metacharacter so the value is matched LITERALLY.
-esc_ere() { printf '%s' "$1" | sed -e 's/[][\\.^$*+?(){}|]/\\&/g'; }
+# --- 5. Dependency-closed gate --------------------------------------------------
+# The helper already verified the exact integer ladder ID, accepted state, commit
+# resolution, and ancestry to both the release baseline and target HEAD. Plan
+# prose is deliberately not an authority for closure.
 if [ -n "$EXPECT_CLOSED" ]; then
-  EXPECT_CLOSED_RE="$(esc_ere "$EXPECT_CLOSED")"
-  # "not the start of a LONGER slice id": not a digit, and not `.`+digit.
-  ID_END='([^0-9.]|\.[^0-9])'
-  SLICE_LABEL='(Slice|Slices|Phase)'
-  CLOSURE_STATE='(CLOSED|LANDED|COMPLETED)'
-  CLOSURE_TOKEN="(^|[^[:alnum:]_])${CLOSURE_STATE}([^[:alnum:]_]|$)"
-  NEGATED_CLOSURE="(^|[^[:alnum:]_])(NOT[[:space:]]+|UN)${CLOSURE_STATE}([^[:alnum:]_]|$)"
-  # The generated plan roll-up lists every landed slice after one `LANDED on
-  # <ref>: Slices ...` heading. Its dependency may therefore be later in the
-  # list rather than immediately after `Slices`; keep the exact-id boundaries
-  # around that later entry.
-  ROLLUP_WITNESS="${CLOSURE_TOKEN}on.*${SLICE_LABEL}.*(^|[^0-9.])${EXPECT_CLOSED_RE}(${ID_END}|\.?$)"
-  CLOSURE_WITNESS="${SLICE_LABEL}[^A-Za-z0-9]*${EXPECT_CLOSED_RE}${ID_END}.*${CLOSURE_TOKEN}|${CLOSURE_TOKEN}.*${SLICE_LABEL}[^A-Za-z0-9]*${EXPECT_CLOSED_RE}(${ID_END}|\.?$)|${ROLLUP_WITNESS}"
-  if [ -z "$PLAN" ]; then
-    hard "--expect-closed $EXPECT_CLOSED given without --plan <file>"
-  elif [ ! -f "$PLAN" ]; then
-    hard "plan file not found: $PLAN"
-  elif grep -viE "$NEGATED_CLOSURE" "$PLAN" | grep -qiE "$CLOSURE_WITNESS"; then
-    ok "dependency Slice/Phase $EXPECT_CLOSED has a CLOSED, LANDED, or COMPLETED witness in $PLAN"
+  if [ "$RELEASE_STATE_STATUS" = "valid" ] && [ -n "$DEPENDENCY_SHA" ]; then
+    ok "dependency Slice $EXPECT_CLOSED is closed at $DEPENDENCY_SHA in $SELECTED_STATE_FILE"
   else
-    hard "dependency Slice/Phase $EXPECT_CLOSED has NO 'CLOSED', 'LANDED', or 'COMPLETED' witness in $PLAN — do not spawn dependents"
+    hard "dependency Slice $EXPECT_CLOSED is not verifiably closed in release state"
   fi
 fi
 
@@ -557,7 +455,11 @@ fi
 json_arr() { local out="" x; for x in "$@"; do out="${out:+$out,}\"$(printf '%s' "$x" | sed 's/\\/\\\\/g; s/"/\\"/g')\""; done; printf '[%s]' "$out"; }
 
 STATUS=$([ ${#HARD_FAILS[@]} -eq 0 ] && echo pass || echo fail)
-printf '{"preflight":"%s","main_sha":"%s","worktree":"%s","hard_fails":%s,"warnings":%s}\n' \
-  "$STATUS" "$MAIN_SHA" "${WT:-}" "$(json_arr "${HARD_FAILS[@]+"${HARD_FAILS[@]}"}")" "$(json_arr "${WARNS[@]+"${WARNS[@]}"}")"
+HARD_FAILS_JSON="$(json_arr "${HARD_FAILS[@]+"${HARD_FAILS[@]}"}")"
+WARNINGS_JSON="$(json_arr "${WARNS[@]+"${WARNS[@]}"}")"
+printf '{"preflight":"%s","main_sha":"%s","worktree":"%s","release":"%s","state":"%s","baseline_ref":"%s","dependency_sha":"%s","hard_fails":%s,"warnings":%s}\n' \
+  "$STATUS" "$MAIN_SHA" "${WT:-}" "$SELECTED_RELEASE" "$SELECTED_STATE_FILE" \
+  "$RELEASE_BASELINE_REF" "$DEPENDENCY_SHA" \
+  "$HARD_FAILS_JSON" "$WARNINGS_JSON"
 
 [ "$STATUS" = pass ]

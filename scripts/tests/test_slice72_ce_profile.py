@@ -26,14 +26,27 @@ def manifest() -> dict:
         "baseline_sha": BASELINE,
         "candidate_sha": CANDIDATE,
         "fixture": {
+            "query": "How many people live in Berlin?",
+            "passages": [
+                {"id": 0, "body": "Berlin art", "score": 0.5},
+                {"id": 1, "body": "Berlin population", "score": 0.49},
+            ],
             "passage_ids": [0, 1],
             "standalone_order": [1, 0],
             "engine_ids": [0, 1],
             "engine_ties": [],
+            "rerank_depth": 2,
+            "pool_n": 2,
+            "alpha": 1.0,
         },
         "features": {
             "cpu": ["pyo3/extension-module", "default-reranker"],
             "cuda": ["pyo3/extension-module", "rerank-cuda"],
+        },
+        "cuda": {
+            "selected_uuid": "GPU-test",
+            "visible_selector": "GPU-test",
+            "model": "NVIDIA GeForce RTX 3090",
         },
         "model_sha256": {
             "config.json": HASH,
@@ -45,6 +58,14 @@ def manifest() -> dict:
         "steady_calls": 20,
         "score_tolerance": 0.01,
         "p95_regression_ratio": 1.10,
+        "environment": {
+            "OMP_NUM_THREADS": "1",
+            "OPENBLAS_NUM_THREADS": "1",
+            "MKL_NUM_THREADS": "1",
+            "RAYON_NUM_THREADS": "1",
+        },
+        "cpu_affinity": [0],
+        "timer": "time.perf_counter_ns/nearest-rank",
     }
 
 
@@ -54,37 +75,105 @@ def output(path: str, device: str) -> dict:
     return {"ids": ids, "ce_scores": {"0": 0.2 + shift, "1": 0.8 + shift}}
 
 
+def artifact(role: str, device: str) -> dict:
+    current_manifest = manifest()
+    root = f"/tmp/slice72/{role}-{device}"
+    wheel = f"{root}/wheel/fathomdb.whl"
+    venv = f"{root}/venv"
+    python = f"{venv}/bin/python"
+    native = f"{venv}/lib/fathomdb/_fathomdb.so"
+    features = current_manifest["features"][device]
+    return {
+        "schema_version": "fathomdb.slice72.ce-artifact/v1",
+        "role": role,
+        "device": device,
+        "commit_sha": BASELINE if role == "baseline" else CANDIDATE,
+        "features": features,
+        "source_root": f"/tmp/source/{role}",
+        "source_clean": True,
+        "build_command": [
+            "maturin", "build", "--release", "--out", f"{root}/wheel",
+            "--features", ",".join(features), "-i", "/usr/bin/python3",
+        ],
+        "wheel_path": wheel,
+        "wheel_size": 1024,
+        "wheel_sha256": HASH,
+        "wheel_native_member": "fathomdb/_fathomdb.so",
+        "wheel_native_sha256": HASH,
+        "venv_root": venv,
+        "python_path": python,
+        "install_command": [
+            python, "-m", "pip", "install", "--no-index", "--no-deps", wheel,
+        ],
+        "module_path": f"{venv}/lib/fathomdb/__init__.py",
+        "native_path": native,
+        "native_sha256": HASH,
+    }
+
+
+def runtime(role: str, device: str, pid: int) -> dict:
+    current_artifact = artifact(role, device)
+    uuid = None if device == "cpu" else "GPU-test"
+    return {
+        "pid": pid,
+        "install_root": current_artifact["venv_root"],
+        "module_path": current_artifact["module_path"],
+        "native_path": current_artifact["native_path"],
+        "native_sha256": HASH,
+        "source_imported": False,
+        "effective_device": "cpu" if device == "cpu" else "cuda:0",
+        "selected_uuid": uuid,
+        "allocation": None if device == "cpu" else {
+            "pid": pid, "gpu_uuid": uuid, "vram_mib": 128,
+        },
+        "import_ns": 10,
+        "open_ns": 20,
+        "peak_rss_kib": 1024,
+        "affinity": [0],
+    }
+
+
 def cell(role: str, device: str, duration: int = 100) -> dict:
     current_manifest = manifest()
+    current_artifact = artifact(role, device)
+    process_id = 4000
+
+    def repetition(path: str, mode: str) -> dict:
+        nonlocal process_id
+        process_id += 1
+        current_output = output(path, device)
+        record = {
+            "output": current_output,
+            "output_digests": [MODULE.canonical_digest(current_output)]
+            * (1 if mode == "cold" else 20),
+            "runtime": runtime(role, device, process_id),
+            "raw_sha256": HASH,
+        }
+        if mode == "cold":
+            record["duration_ns"] = duration * 2
+        else:
+            record["durations_ns"] = [duration] * 20
+        return record
+
     return {
-        "schema_version": "fathomdb.slice72.ce-profile-cell/v1",
+        "schema_version": "fathomdb.slice72.ce-profile-cell/v2",
         "role": role,
         "commit_sha": BASELINE if role == "baseline" else CANDIDATE,
         "device": device,
         "features": current_manifest["features"][device],
-        "wheel_sha256": HASH,
-        "install_root": "/opt/slice72-venv",
-        "module_path": "/opt/slice72-venv/lib/fathomdb/__init__.py",
-        "source_imported": False,
-        "effective_device": "cpu" if device == "cpu" else "cuda:0",
-        "selected_uuid": None if device == "cpu" else "GPU-test",
-        "allocation": None
-        if device == "cpu"
-        else {"pid": 4242, "gpu_uuid": "GPU-test", "vram_mib": 128},
-        "model_sha256": current_manifest["model_sha256"],
+        "artifact_receipt_sha256": MODULE.receipt_digest(current_artifact),
+        "artifact": current_artifact,
+        "network_policy": "offline-loopback-proxy",
+        "cuda_inventory": None if device == "cpu" else {
+            "uuid": "GPU-test", "model": "NVIDIA GeForce RTX 3090",
+        },
+        "model_sha256_before": current_manifest["model_sha256"],
+        "model_sha256_after": current_manifest["model_sha256"],
+        "model_files_read_only": True,
         "paths": {
             path: {
-                "cold": [
-                    {"duration_ns": duration * 2, "output": output(path, device)}
-                    for _ in range(3)
-                ],
-                "steady": [
-                    {
-                        "durations_ns": [duration] * 20,
-                        "output": output(path, device),
-                    }
-                    for _ in range(5)
-                ],
+                "cold": [repetition(path, "cold") for _ in range(3)],
+                "steady": [repetition(path, "steady") for _ in range(5)],
             }
             for path in ["standalone", "engine"]
         },
@@ -111,6 +200,8 @@ class CeProfileValidatorTests(unittest.TestCase):
         receipt = MODULE.validate_and_aggregate(manifest(), cells())
         self.assertEqual(receipt["verdict"], "PASS")
         self.assertEqual(len(receipt["comparisons"]), 4)
+        self.assertEqual(len(receipt["evidence"]), 4)
+        self.assertRegex(receipt["manifest_canonical_sha256"], r"^[0-9a-f]{64}$")
 
     def test_missing_or_unknown_cell_fails(self) -> None:
         with self.assertRaisesRegex(MODULE.ProfileError, "complete cell set"):
@@ -122,14 +213,30 @@ class CeProfileValidatorTests(unittest.TestCase):
 
     def test_identity_device_and_allocation_fail_closed(self) -> None:
         for field, value, message in [
-            ("source_imported", True, "source import"),
-            ("effective_device", "cpu", "effective device"),
-            ("allocation", None, "allocation"),
+            ("source_imported", True, "native/source identity"),
+            ("effective_device", "cpu", "device/allocation"),
+            ("allocation", None, "device/allocation"),
         ]:
             bad = cells()
-            bad[1][field] = value
+            bad[1]["paths"]["engine"]["steady"][4]["runtime"][field] = value
             with self.assertRaisesRegex(MODULE.ProfileError, message):
                 MODULE.validate_and_aggregate(manifest(), bad)
+
+    def test_artifact_and_every_steady_call_are_bound(self) -> None:
+        bad = cells()
+        bad[0]["artifact"]["commit_sha"] = CANDIDATE
+        with self.assertRaisesRegex(MODULE.ProfileError, "artifact commit"):
+            MODULE.validate_and_aggregate(manifest(), bad)
+
+        bad = cells()
+        bad[3]["paths"]["engine"]["steady"][4]["output_digests"][19] = HASH
+        with self.assertRaisesRegex(MODULE.ProfileError, "per-call outputs"):
+            MODULE.validate_and_aggregate(manifest(), bad)
+
+        bad = cells()
+        bad[1]["cuda_inventory"]["uuid"] = "GPU-other"
+        with self.assertRaisesRegex(MODULE.ProfileError, "RTX 3090"):
+            MODULE.validate_and_aggregate(manifest(), bad)
 
     def test_repetition_score_and_order_contracts_fail_closed(self) -> None:
         bad = cells()
@@ -155,6 +262,9 @@ class CeProfileValidatorTests(unittest.TestCase):
         for path in bad[3]["paths"].values():
             for repetition in path["cold"] + path["steady"]:
                 repetition["output"]["ce_scores"]["0"] = 0.5
+                repetition["output_digests"] = [
+                    MODULE.canonical_digest(repetition["output"])
+                ] * len(repetition["output_digests"])
         with self.assertRaisesRegex(MODULE.ProfileError, "CPU/CUDA"):
             MODULE.validate_and_aggregate(manifest(), bad)
 

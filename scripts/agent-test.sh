@@ -207,6 +207,8 @@ run_tier_suite fast test-check-license-consistency bash scripts/tests/test_check
 # in the primary checkout and pass in a linked worktree. Builds its own throwaway
 # repo + worktree under mktemp -d; never git-writes into this checkout.
 run_tier_suite fast test-preflight-landing bash scripts/tests/test_preflight_landing.sh
+run_tier_suite fast test-preflight-release-state python3 scripts/tests/test_preflight_release_state.py
+run_tier_suite fast test-slice72-ce-profile python3 scripts/tests/test_slice72_ce_profile.py
 
 # Scripts (bash): status-board-currency-enforcement items 2+3 — the shared
 # scripts/check-board-currency.sh predicate plus its --landing wiring in

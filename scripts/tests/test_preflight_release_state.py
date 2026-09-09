@@ -111,10 +111,52 @@ class PreflightReleaseStateTests(unittest.TestCase):
         with self.assertRaisesRegex(MODULE.StateError, "plan"):
             self.fixture.validate()
 
+    def test_plan_path_spellings_normalize_but_escape_fails(self) -> None:
+        for spelling in [
+            str(self.fixture.root / self.fixture.plan),
+            "dev/plans/../plans/plan-9.1.0.md",
+        ]:
+            facts = MODULE.validate_state(
+                repo_root=self.fixture.root,
+                release="9.1.0",
+                board=str(self.fixture.root / self.fixture.board),
+                state_file=str(self.fixture.root / self.fixture.state),
+                plan=spelling,
+                expect_closed=71,
+                target_head=git(self.fixture.root, "rev-parse", "HEAD"),
+            )
+            self.assertEqual(facts["state_file"], self.fixture.state)
+        with self.assertRaisesRegex(MODULE.StateError, "escapes the repository"):
+            MODULE.validate_state(
+                repo_root=self.fixture.root,
+                release="9.1.0",
+                board=self.fixture.board,
+                state_file=self.fixture.state,
+                plan="../outside.md",
+                expect_closed=71,
+                target_head=git(self.fixture.root, "rev-parse", "HEAD"),
+            )
+
     def test_dependency_must_be_unique_and_closed(self) -> None:
+        self.fixture.data["ladder"] = []
+        self.fixture.write_state()
+        with self.assertRaisesRegex(MODULE.StateError, "exactly one"):
+            self.fixture.validate()
+        self.fixture.data["ladder"] = [
+            {
+                "slice": 71,
+                "status": "COMPLETE_ON_RELEASE_BRANCH",
+                "sha": self.fixture.dependency_sha,
+            }
+        ]
         self.fixture.data["ladder"].append(dict(self.fixture.data["ladder"][0]))
         self.fixture.write_state()
         with self.assertRaisesRegex(MODULE.StateError, "exactly one"):
+            self.fixture.validate()
+
+    def test_malformed_state_fails_closed(self) -> None:
+        (self.fixture.root / self.fixture.state).write_text("{not json\n", encoding="utf-8")
+        with self.assertRaisesRegex(MODULE.StateError, "cannot parse release state"):
             self.fixture.validate()
         self.fixture.data["ladder"] = [self.fixture.data["ladder"][0]]
         self.fixture.data["ladder"][0]["status"] = "NOT_STARTED"
@@ -137,6 +179,72 @@ class PreflightReleaseStateTests(unittest.TestCase):
         target = git(self.fixture.root, "rev-parse", "HEAD")
         with self.assertRaisesRegex(MODULE.StateError, "target HEAD"):
             self.fixture.validate(target_head=target)
+
+    def test_dependency_ancestry_is_checked_independently(self) -> None:
+        git(self.fixture.root, "checkout", "-q", "--orphan", "dependency-side")
+        (self.fixture.root / "side").write_text("side\n", encoding="utf-8")
+        git(self.fixture.root, "add", "side")
+        git(self.fixture.root, "commit", "-q", "-m", "side")
+        side_sha = git(self.fixture.root, "rev-parse", "HEAD")
+        self.fixture.data["ladder"][0]["sha"] = side_sha
+        self.fixture.write_state()
+        target = git(self.fixture.root, "rev-parse", "release/9.1.0")
+        with self.assertRaisesRegex(MODULE.StateError, "dependency Slice 71 SHA"):
+            self.fixture.validate(target_head=target)
+
+    def test_pending_and_complete_completion_lifecycles(self) -> None:
+        release_head = git(self.fixture.root, "rev-parse", "release/9.1.0")
+        git(
+            self.fixture.root,
+            "update-ref",
+            "refs/remotes/origin/release/9.1.0",
+            release_head,
+        )
+        self.fixture.data["completion"] = {
+            "ref": "origin/release/9.1.0",
+            "main_integration": "PENDING",
+        }
+        self.fixture.write_state()
+        self.assertEqual(
+            self.fixture.validate()["baseline_ref"], "origin/release/9.1.0"
+        )
+
+        git(self.fixture.root, "update-ref", "refs/remotes/origin/main", release_head)
+        self.fixture.data["completion"]["main_integration"] = "COMPLETE"
+        self.fixture.write_state()
+        self.assertEqual(self.fixture.validate()["baseline_ref"], "origin/main")
+
+    def test_completion_lifecycle_fails_closed(self) -> None:
+        self.fixture.data["completion"] = {
+            "ref": "origin/release/9.1.0",
+            "main_integration": "PENDING",
+        }
+        self.fixture.write_state()
+        with self.assertRaisesRegex(MODULE.StateError, "does not resolve"):
+            self.fixture.validate()
+
+        self.fixture.data["completion"] = {
+            "ref": "origin/release/WRONG",
+            "main_integration": "PENDING",
+        }
+        self.fixture.write_state()
+        with self.assertRaisesRegex(MODULE.StateError, "completion.ref"):
+            self.fixture.validate()
+
+        release_head = git(self.fixture.root, "rev-parse", "release/9.1.0")
+        git(self.fixture.root, "update-ref", "refs/remotes/origin/release/9.1.0", release_head)
+        git(self.fixture.root, "checkout", "-q", "--orphan", "main-side")
+        (self.fixture.root / "main-side").write_text("main side\n", encoding="utf-8")
+        git(self.fixture.root, "add", "main-side")
+        git(self.fixture.root, "commit", "-q", "-m", "main side")
+        git(self.fixture.root, "update-ref", "refs/remotes/origin/main", "HEAD")
+        self.fixture.data["completion"] = {
+            "ref": "origin/release/9.1.0",
+            "main_integration": "COMPLETE",
+        }
+        self.fixture.write_state()
+        with self.assertRaisesRegex(MODULE.StateError, "not reachable"):
+            self.fixture.validate(target_head=release_head)
 
 
 class RealPreflightRegressionTest(unittest.TestCase):

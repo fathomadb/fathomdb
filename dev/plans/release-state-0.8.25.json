@@ -3,6 +3,7 @@
   "release_kind": "active development release; feature implementation active",
   "board": "dev/plans/runs/STATUS-0.8.25.md",
   "plan": "dev/plans/plan-0.8.25.md",
+  "active_ref": "refs/heads/release/0.8.25",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
   "schema_version": 33,
   "origin_main_schema_version": 26,

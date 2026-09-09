@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 71 (PERFORMANCE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 71 (PERFORMANCE), PAUSED_BY_OWNER.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -20,7 +20,9 @@ bounded traversal, one-context reads, lifecycle and projection handling,
 cross-SDK parity, and exact Linux/Windows verification. The owner-approved
 2026-09-02 scope adjustment removes Slices 65/70. The owner-approved 2026-09-08
 adjustment creates focused Slices 71–73 before final integrated closure. Direct
-agents execute this release without Steward or Orchestrator roles.
+agents execute this release without Steward or Orchestrator roles. Slice 71 is
+paused at the owner's 2026-09-08 outline-only boundary; no further experiment
+or verification is authorized until the owner approves a disposition.
 
 ## Slice ladder
 
@@ -45,7 +47,7 @@ agents execute this release without Steward or Orchestrator roles.
 | 50 | Compact source-complete evidence | Complete on release branch (`e741542d`) |
 | 55 | Basic tracing and integrity | Complete on release branch (`5a6942bc`) |
 | 60 | Minimal constrained graph parity | Complete on release branch (`59208028`) |
-| 71 | AC-013 and bulk-ingest investigations | Not started |
+| 71 | AC-013 and bulk-ingest investigations | Paused; incomplete (`2863f7f8`) |
 | 72 | Generic preflight and installed CE profiles | Not started |
 | 73 | Windows Node/N-API CI coverage | Not started |
 | 75 | Integrated release closure | Not started |
@@ -64,6 +66,11 @@ agents execute this release without Steward or Orchestrator roles.
   moves the focused investigations, preflight/CE profile, and Windows Node/N-
   API coverage into Slices 71–73. Full regression and exact-head hosted CI
   remain Slice 75 work.
+- Slice 71's admissible AC-013 result is `environment_invalid`: all six p50
+  observations miss AC-072 and candidate p99 spread is 40%. Its stop condition
+  blocked bulk-ingest execution. The owner then redirected the slice to the
+  [durable remaining-work outline](../0.8.25/features/slice-71/remaining-work-outline.md);
+  Slice 72 remains dependency-blocked.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not

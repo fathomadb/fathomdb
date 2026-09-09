@@ -1,12 +1,16 @@
 ---
 title: 0.8.25 Slice 71 — latency and ingest investigations
-status: READY
+status: PAUSED_BY_OWNER
 depends_on: 60
 design: design.md
 design_status: APPROVED
 ---
 
 # Slice 71 plan
+
+> Execution paused on 2026-09-08. The durable continuation boundary is
+> [`remaining-work-outline.md`](remaining-work-outline.md); do not resume
+> experiments or verification without owner authorization.
 
 ## Outcome
 

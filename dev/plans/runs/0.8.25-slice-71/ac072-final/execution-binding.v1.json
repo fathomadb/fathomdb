@@ -1,0 +1,28 @@
+{
+  "schema_version": "slice71-ac072-execution-binding.v1",
+  "manifest": {
+    "path": "experiments/configs/release-0825-slice71-ac072-final-manifest.v1.json",
+    "sha256": "f2a18e590093604f25e92eff44f5a43c393183f06de71b42171b808b66739e3b"
+  },
+  "receipt": {
+    "path": "dev/plans/runs/0.8.25-slice-71/ac072-final/receipt.v1.json",
+    "sha256": "4291cc2a5c7843190da2422e9ab1b8e568ec3ec4a858ae857d605820fc60b190"
+  },
+  "final_output_root": "dev/plans/runs/0.8.25-slice-71/ac072-final",
+  "product_candidate_ref": "84c056c624446d25dbce59de7c787cceca310f6f",
+  "executed_candidate_checkout_ref": "4d8500d9c25e8498ac85fc95245753227e78d27c",
+  "candidate_source_equivalence": {
+    "src_tree": "61c07d463ea4f7e38861b4399ed946636c59a051",
+    "only_path_changed_after_product_candidate": "experiments/configs/release-0825-slice71-ac072-final-manifest.v1.json"
+  },
+  "baseline_ref": "4fc1b890a11ebfaa8f11b15823656e856002807a",
+  "executables": {
+    "candidate_sha256": "4a8365bcddd8c487ab32f1f92e7ec6229f799873dae6f0c32ef9bd9a5252f99e",
+    "baseline_sha256": "b8bca4286fc56d60913e8aa774253e5e074ffe7cc2586cf2554197323c2ee387"
+  },
+  "runners": {
+    "scripts/perf-experiments/run-ac013.sh": "085c2d30085a3e12a2068030d3f7ade63275f1c240f40c6f785e7243b24d743f",
+    "scripts/perf-experiments/run-slice71-ac013-cell.sh": "510113f1d56c5a534dfa0576316a6e18149e542a8681ff08a341e23e53d48fe0",
+    "scripts/perf-experiments/run_slice71b.py": "13e4c2b2867ecf7b18067234048a4eca4f6e7d7244b1774000bdeddb32efd732"
+  }
+}

@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 71 — AC-072 and 71B performance design
-status: REVIEW_REQUIRED
+status: PASS
 design_version: 8
 target_release: 0.8.25
 depends_on: 60
@@ -10,7 +10,7 @@ depends_on: 60
 
 Independent design review passed for v4 after three bounded correction cycles.
 The durable verdict is `design-review-cycle3.md`. Version 8 records the focused
-AC-072 correction selected from bounded diagnostics and requires focused review.
+AC-072 correction selected from bounded diagnostics; focused review passed.
 
 That verdict covers the original design v4 and retained campaign only. The
 owner-approved [71B sub-plan](write-regression-subplan.md) now supersedes the
@@ -98,10 +98,11 @@ substitute for this fixture.
 
 The final campaign does not reuse or rewrite the v1 manifest, which binds the
 obsolete `5546585d` candidate. After GREEN is committed, create and commit a
-new manifest bound to the exact final source, executable build, unchanged
-10k/384d/1,000-query workload, `B,C,C,B,B,C` ordering, environment rules, and
-`dev/plans/runs/0.8.25-slice-71/ac072-final/` receipt path. Validate that new
-receipt against the new manifest while retaining the old campaign byte-for-byte.
+new manifest bound to the final product source, unchanged 10k/384d/1,000-query
+workload, `B,C,C,B,B,C` ordering, and environment rules. An append-only
+execution binding records the actual checkout, executable and runner digests,
+and exact `dev/plans/runs/0.8.25-slice-71/ac072-final/` output path. Validate
+the receipt against the manifest while retaining the old campaign byte-for-byte.
 
 If product code changes, the two 71B 10k candidate-only checks use the retained
 71B runner and environment rules. The protected `eda95b07` medians become an

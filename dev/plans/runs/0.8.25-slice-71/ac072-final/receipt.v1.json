@@ -1,0 +1,83 @@
+{
+  "schema_version": "slice71-receipt.v1",
+  "manifest_sha256": "f2a18e590093604f25e92eff44f5a43c393183f06de71b42171b808b66739e3b",
+  "candidate_ref": "84c056c624446d25dbce59de7c787cceca310f6f",
+  "started_at": "2026-09-09T13:07:52.980196-05:00",
+  "finished_at": "2026-09-09T13:35:06.347856-05:00",
+  "cells": [
+    {
+      "workload": "ac013", "arm": "B", "ref": "4fc1b890a11ebfaa8f11b15823656e856002807a", "ordinal": 1,
+      "started_at": "2026-09-09T13:07:52.980196-05:00", "finished_at": "2026-09-09T13:15:29.102292-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "runtime_identity": {"sqlite_version": "3.53.2", "libsqlite3_sys": "0.38.1"},
+      "environment_observation": {"load_1m_start": 0.89, "load_1m_end": 1.22, "available_memory_percent_start": 89.291, "available_memory_percent_end": 89.329, "swap_in_delta": 0, "swap_out_delta": 0, "cpu_temp_c_start": 60.125, "cpu_temp_c_end": 74.375, "thermal_throttled": false, "competing_processes_start": [], "competing_processes_end": []},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628", "config_sha256": "f2a18e590093604f25e92eff44f5a43c393183f06de71b42171b808b66739e3b", "raw_log_sha256": "246b7624bdaf7ce8d7732c726448b8c069d80d86b13b285eab70423bb171eff1",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 833, "projection_drain_ms": 1442, "p50_ms": 164, "p99_ms": 173}
+    },
+    {
+      "workload": "ac013", "arm": "C", "ref": "84c056c624446d25dbce59de7c787cceca310f6f", "ordinal": 1,
+      "started_at": "2026-09-09T13:15:43.315544-05:00", "finished_at": "2026-09-09T13:18:37.325538-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "runtime_identity": {"sqlite_version": "3.53.2", "libsqlite3_sys": "0.38.1"},
+      "environment_observation": {"load_1m_start": 1.03, "load_1m_end": 1.0, "available_memory_percent_start": 89.359, "available_memory_percent_end": 89.497, "swap_in_delta": 0, "swap_out_delta": 0, "cpu_temp_c_start": 61.0, "cpu_temp_c_end": 74.5, "thermal_throttled": false, "competing_processes_start": [], "competing_processes_end": []},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628", "config_sha256": "f2a18e590093604f25e92eff44f5a43c393183f06de71b42171b808b66739e3b", "raw_log_sha256": "597af17de1f704364161e1c1b80d15f40fa8f0ca74ac3edef504992acef9bdd1",
+      "result_state": "passed", "error": null,
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 645, "projection_drain_ms": 661, "p50_ms": 69, "p99_ms": 76}
+    },
+    {
+      "workload": "ac013", "arm": "C", "ref": "84c056c624446d25dbce59de7c787cceca310f6f", "ordinal": 2,
+      "started_at": "2026-09-09T13:18:51.133769-05:00", "finished_at": "2026-09-09T13:21:11.283071-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "runtime_identity": {"sqlite_version": "3.53.2", "libsqlite3_sys": "0.38.1"},
+      "environment_observation": {"load_1m_start": 0.78, "load_1m_end": 0.98, "available_memory_percent_start": 89.448, "available_memory_percent_end": 89.497, "swap_in_delta": 0, "swap_out_delta": 0, "cpu_temp_c_start": 62.0, "cpu_temp_c_end": 73.75, "thermal_throttled": false, "competing_processes_start": [], "competing_processes_end": []},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628", "config_sha256": "f2a18e590093604f25e92eff44f5a43c393183f06de71b42171b808b66739e3b", "raw_log_sha256": "845de28f64890358e0c3fdb8a3d76b1a638a8796ab49187e8754859eddd2e67e",
+      "result_state": "passed", "error": null,
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 626, "projection_drain_ms": 621, "p50_ms": 69, "p99_ms": 75}
+    },
+    {
+      "workload": "ac013", "arm": "B", "ref": "4fc1b890a11ebfaa8f11b15823656e856002807a", "ordinal": 2,
+      "started_at": "2026-09-09T13:21:25.613302-05:00", "finished_at": "2026-09-09T13:26:50.080395-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "runtime_identity": {"sqlite_version": "3.53.2", "libsqlite3_sys": "0.38.1"},
+      "environment_observation": {"load_1m_start": 0.9, "load_1m_end": 1.16, "available_memory_percent_start": 89.512, "available_memory_percent_end": 89.306, "swap_in_delta": 0, "swap_out_delta": 0, "cpu_temp_c_start": 61.125, "cpu_temp_c_end": 74.25, "thermal_throttled": false, "competing_processes_start": [], "competing_processes_end": []},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628", "config_sha256": "f2a18e590093604f25e92eff44f5a43c393183f06de71b42171b808b66739e3b", "raw_log_sha256": "c0f2d1e37fd9ae0802caa85916e1f6eac16da2cf545cb2e192076ea16bf4025f",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 2169, "projection_drain_ms": 84, "p50_ms": 161, "p99_ms": 169}
+    },
+    {
+      "workload": "ac013", "arm": "B", "ref": "4fc1b890a11ebfaa8f11b15823656e856002807a", "ordinal": 3,
+      "started_at": "2026-09-09T13:27:04.885622-05:00", "finished_at": "2026-09-09T13:32:31.760559-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "runtime_identity": {"sqlite_version": "3.53.2", "libsqlite3_sys": "0.38.1"},
+      "environment_observation": {"load_1m_start": 0.9, "load_1m_end": 1.0, "available_memory_percent_start": 89.415, "available_memory_percent_end": 89.406, "swap_in_delta": 0, "swap_out_delta": 0, "cpu_temp_c_start": 60.875, "cpu_temp_c_end": 74.375, "thermal_throttled": false, "competing_processes_start": [], "competing_processes_end": []},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628", "config_sha256": "f2a18e590093604f25e92eff44f5a43c393183f06de71b42171b808b66739e3b", "raw_log_sha256": "043cf00b4d5fbd5ad587102a0e6f0208c04cf818679313007c472a134c8cfa72",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 1122, "projection_drain_ms": 826, "p50_ms": 162, "p99_ms": 171}
+    },
+    {
+      "workload": "ac013", "arm": "C", "ref": "84c056c624446d25dbce59de7c787cceca310f6f", "ordinal": 3,
+      "started_at": "2026-09-09T13:32:44.771753-05:00", "finished_at": "2026-09-09T13:35:06.347856-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "runtime_identity": {"sqlite_version": "3.53.2", "libsqlite3_sys": "0.38.1"},
+      "environment_observation": {"load_1m_start": 0.78, "load_1m_end": 1.05, "available_memory_percent_start": 89.445, "available_memory_percent_end": 89.306, "swap_in_delta": 0, "swap_out_delta": 0, "cpu_temp_c_start": 62.0, "cpu_temp_c_end": 74.5, "thermal_throttled": false, "competing_processes_start": [], "competing_processes_end": []},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628", "config_sha256": "f2a18e590093604f25e92eff44f5a43c393183f06de71b42171b808b66739e3b", "raw_log_sha256": "2040d002005b1ea6b3531f01900e5f93825a3368ce7fdd7a7e8790002b8d72d5",
+      "result_state": "passed", "error": null,
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 987, "projection_drain_ms": 298, "p50_ms": 69, "p99_ms": 77}
+    }
+  ],
+  "classifications": {"ac013": "candidate_recovery", "ingest": "blocked_before_execution"},
+  "errors": ["This AC-072-only receipt does not rerun ingest; the completed 71B recovery receipt remains authoritative for write performance."]
+}

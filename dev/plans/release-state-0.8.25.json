@@ -32,7 +32,7 @@
       "short": "PERFORMANCE",
       "title": "AC-072 read-latency resolution and 71B write recovery",
       "depends_on": [60],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.25/features/slice-71/plan.md",
         "dev/plans/0.8.25/features/slice-71/design.md",
@@ -48,17 +48,17 @@
         "dev/plans/0.8.25/features/slice-71/71b-performance-recovery.md",
         "dev/plans/0.8.25/features/slice-71/status.md"
       ],
-      "sha": "eda95b07",
-      "merge_subject": "fix(engine): keep projection waits and fixtures bounded",
-      "evidence": "71B is complete on the release branch. The corrected candidate coalesces visibility invalidation per canonical/projection transaction, reuses governed statements and invariant projection state, increases projection commit batches from 16 to 64, and keeps drain timeout enforcement nonblocking. Exact prospective measurements pass every unchanged performance boundary: Scale-02 10k median acknowledgement/total are 1403.217/1407.768 ms versus historical 1833.777/1834.571 ms, and AC-013 10k total is 1311.089 ms versus historical 2337.097 ms; registered 10k spreads pass. Focused affected tests, check, clippy, independent code review, and separate evidence audit pass. The prior read result remains environment_invalid. The owner-approved plan/design v5 now resolve AC-072 independently through equivalent-basis inspection, bounded full-search decomposition, a measured TDD correction, and the exact prospective campaign while protecting the 71B gains. Slice 71 stays open and Slice 72 stays dependency-blocked. Zero broad-verification rounds completed."
+      "sha": "84c056c6",
+      "merge_subject": "fix(slice71): restore AC-072 read latency",
+      "evidence": "Slice 71 is complete without changing performance limits. 71B remains recovered at eda95b07. The AC-072 correction at 84c056c6 preserves complete hybrid ranking and eligibility while removing per-match identity work and quadratic fusion. The exact 10k/384d/1000-query campaign passes all three candidate repetitions at p50 69 ms and p99 75-77 ms versus a stable 161-164/169-173 ms baseline. Candidate-only 71B guards pass: Scale-02 10k acknowledgement/total stay at 1361-1378/1365-1383 ms and projection-active 10k total at 1274-1293 ms. Forty-nine focused blast-radius tests, changed-target clippy, independent design/code review, and a separate evidence audit pass. Zero broad-verification rounds completed; Slice 75 owns full regressions."
     },
     {"slice": 72, "short": "PREFLIGHT-CE", "title": "generic preflight and installed CE profiles", "depends_on": [71], "status": "NOT_STARTED", "design_refs": ["dev/plans/0.8.25/features/slice-72/plan.md", "dev/plans/0.8.25/features/slice-72/design.md"]},
     {"slice": 73, "short": "WINDOWS-NAPI", "title": "Windows Node/N-API CI coverage", "depends_on": [72], "status": "NOT_STARTED", "design_refs": ["dev/plans/0.8.25/features/slice-73/plan.md", "dev/plans/0.8.25/features/slice-73/design.md"]},
     {"slice": 75, "short": "CLOSURE", "title": "integrated release closure", "depends_on": [73], "status": "NOT_STARTED", "design_refs": ["dev/plans/0.8.25/features/slice-75/plan.md", "dev/plans/0.8.25/features/slice-75/design.md"]}
   ],
   "landed": [],
-  "next_slice": 71,
-  "remaining_ladder": [71, 72, 73, 75],
+  "next_slice": 72,
+  "remaining_ladder": [72, 73, 75],
   "decisions": {
     "unruled": [],
     "ruled": [

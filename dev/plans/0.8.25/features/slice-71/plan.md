@@ -1,31 +1,40 @@
 ---
 title: 0.8.25 Slice 71 — AC-072 read latency and 71B write recovery
-status: IN_PROGRESS
+status: COMPLETE_ON_RELEASE_BRANCH
 depends_on: 60
 design: design.md
-design_status: REVIEW_REQUIRED
+design_status: PASS
 updated: 2026-09-09
 ---
 
 # Slice 71 plan
 
-## Current boundary
+## Completion
 
-Slice 71 has two independent performance tracks. The write track, 71B, is
+Slice 71 is complete. The independent 71B write recovery remains intact, and
+AC-072 now passes without changing its thresholds or search semantics. The
+exact results, focused checks, reviews, and no-loss write guards are recorded
+in [status.md](status.md). Slice 72 is unblocked; Slice 75 still owns broad
+release verification.
+
+## Executed boundary
+
+Slice 71 had two independent performance tracks. The write track, 71B, is
 complete at product candidate `eda95b07`; its correction, focused tests,
-bounded measurements, code review, and evidence audit must not be reopened or
-traded away. The remaining track is AC-072 vector-read latency.
+bounded measurements, code review, and evidence audit were preserved. The
+AC-072 vector-read track is complete at product candidate `84c056c6`.
 
 The [71B recovery record](71b-performance-recovery.md) reports Scale-02 10k
 acknowledgement/total at 1,403/1,408 ms, about 23% faster than historical, and
 projection-active 10k total at 1,311 ms, about 44% faster than historical.
 All registered small-write criteria passed.
 
-The retained AC-072 campaign is not a pass. Its branch-point baseline p50 is
+The earlier retained AC-072 campaign was not a pass. Its branch-point baseline p50 was
 stable at 163–165 ms, already about twice the binding 80 ms limit. The Slice 71
-candidate p50 is 200–201 ms, about 22% slower again, and candidate p99 spread
-makes the registered classification `environment_invalid`. Removing only that
-recent increment would still leave AC-072 failing.
+candidate p50 was 200–201 ms, about 22% slower again, and candidate p99 spread
+made the registered classification `environment_invalid`. The final exact
+campaign records candidate p50 69 ms and p99 75–77 ms across all three valid
+repetitions versus baseline p50 161–164 ms and p99 169–173 ms.
 
 Naming is historical: the executable test remains
 `ac_013_vector_retrieval_latency`, but it enforces AC-072's revised limits. It
@@ -41,12 +50,10 @@ prospective Slice 71 acceptance campaign.
 
 ## Outcome
 
-Explain and correct the AC-072 discrepancy without weakening search semantics,
-changing its p50/p99 limits, or losing 71B's completed write recovery. Close
-Slice 71 only when the exact prospective candidate passes AC-072, the 71B gains
-remain protected, focused reviews pass, and the release-state writer advances
-to Slice 72. An explicit later owner disposition may replace a passing result,
-but must be recorded as an exception or deferral rather than a pass.
+Achieved: AC-072 was explained and corrected without weakening search
+semantics or changing its p50/p99 limits. The exact prospective candidate
+passes, focused reviews pass, and the candidate-only 71B guards show the write
+recovery was not spent.
 
 ## Requirements
 
@@ -154,9 +161,10 @@ cross-process mutation authority, and snapshot identity.
   RED/GREEN evidence and preserves all affected search, lifecycle, dependency,
   eligibility, ranking, and snapshot contracts.
 - **S71-AC4 — AC-072 passes:** A new committed final-candidate manifest binds
-  the exact source, executable, runner, environment rules, workload, and output
-  path without modifying the retained v1 campaign. Its receipt is written
-  under `dev/plans/runs/0.8.25-slice-71/ac072-final/`. All three valid
+  the product source, environment rules, and workload; its append-only
+  execution binding records the actual checkout, executables, runners, and
+  exact output path without modifying the retained v1 campaign. Its receipt is
+  written under `dev/plans/runs/0.8.25-slice-71/ac072-final/`. All three valid
   prospective candidate repetitions satisfy p50 <= 80 ms and p99 <= 300 ms.
   Passing p50 alone, an unstable arm, or a vector-only result does not close
   the gate.

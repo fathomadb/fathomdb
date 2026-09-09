@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 71 (PERFORMANCE), IN_PROGRESS.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 72 (PREFLIGHT-CE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -53,7 +53,7 @@ through plan/design v5 without broad regression rounds.
 | 50 | Compact source-complete evidence | Complete on release branch (`e741542d`) |
 | 55 | Basic tracing and integrity | Complete on release branch (`5a6942bc`) |
 | 60 | Minimal constrained graph parity | Complete on release branch (`59208028`) |
-| 71 | AC-072 read-latency resolution and 71B write recovery | In progress; 71B complete, AC-072 focused resolution planned |
+| 71 | AC-072 read-latency resolution and 71B write recovery | Complete on release branch (`84c056c6`) |
 | 72 | Generic preflight and installed CE profiles | Not started |
 | 73 | Windows Node/N-API CI coverage | Not started |
 | 75 | Integrated release closure | Not started |
@@ -72,16 +72,16 @@ through plan/design v5 without broad regression rounds.
   moves the focused investigations, preflight/CE profile, and Windows Node/N-
   API coverage into Slices 71–73. Full regression and exact-head hosted CI
   remain Slice 75 work.
-- Slice 71's admissible AC-013 result is `environment_invalid`: all six p50
-  observations miss AC-072 and candidate p99 spread is 40%. The owner-approved
-  plan/design v5 now establish an equivalent 10k/384 basis, decompose full
-  `Engine.search`, correct only the measured cause, and run the bounded AC-072
-  campaign. Slice 72 remains dependency-blocked until Slice 71 closes.
-- 71B is complete at product candidate `eda95b07`. Scale-02 10k median
+- Slice 71 is complete. AC-072 now passes three exact 10k/384d/1,000-query
+  candidate repetitions at p50 69 ms and p99 75–77 ms, versus a stable
+  p50 161–164 ms and p99 169–173 ms baseline. Limits and search semantics were
+  unchanged; Slice 72 is unblocked.
+- 71B remains complete at product candidate `eda95b07`. Scale-02 10k median
   acknowledgement/total improve from historical 1,833.777/1,834.571 ms to
   1,403.217/1,407.768 ms; projection-active AC-013 10k total improves from
   2,337.097 ms to 1,311.089 ms. Focused verification and independent code and
-  evidence reviews pass. AC-072 remains separate from the completed write work.
+  evidence reviews pass. Candidate-only no-loss guards after the AC-072 product
+  change also pass.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
@@ -96,7 +96,7 @@ through plan/design v5 without broad regression rounds.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Continue Slice 71 (PERFORMANCE)** — AC-072 read-latency resolution and 71B write recovery. **Remaining ladder:** 71 → 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 72 (PREFLIGHT-CE)** — generic preflight and installed CE profiles. **Remaining ladder:** 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 
@@ -175,4 +175,9 @@ lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
   read-only evidence audit passes the retained prospective recovery run. The
   affected visibility, rollback, frozen-read, projection, capacity, and drain-
   deadline checks pass, together with affected-crate check and clippy. Zero
-  broad-verification rounds completed, and AC-072 was not executed.
+  broad-verification rounds completed during 71B.
+- Slice 71 AC-072 RED/GREEN completes at `de8da0f9`/`84c056c6`. Forty-nine
+  focused blast-radius tests and changed-target clippy pass. The final exact
+  campaign passes all candidate thresholds and spreads; the two candidate-only
+  71B write guards preserve the recovered margins. Independent review and
+  evidence audit pass. Zero broad-verification rounds completed for closure.

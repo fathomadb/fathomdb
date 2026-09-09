@@ -1,0 +1,50 @@
+{
+  "build_identity": {
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+    "profile": "release",
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+    "rustc_verbose_sha256": "0f1e5974425d9a3f3697d68725b2196a47e04096fb98160ce78b3b706d7c5054"
+  },
+  "environment_path": "dev/plans/runs/0.8.25-slice-71/ac072-final/write-guard/scale02/production-3/environment.json",
+  "environment_sha256": "45191ad33f681281a974de78656c6a18177b2c32987e7ec08fa0994deea6f82d",
+  "environment_valid": true,
+  "executable_path": "/tmp/fathomdb-slice71-ac072-write-guard-target/release/slice71b-probe",
+  "executable_sha256": "181f043a153988ff4cab98c5845a95af0624cc5186f4b21ed648e628b018ad42",
+  "finished_at": "2026-09-09T18:41:48.124440+00:00",
+  "fixture": "scale02",
+  "fixture_sha256": "6a650ccebc9ba4c8f171b03a8092ba997b5307b49dc21f105faa2bd4374d4447",
+  "metrics": {
+    "batch_size": 256,
+    "database_bytes": 79347712,
+    "generation_after_ack": 44,
+    "generation_after_drain": 44,
+    "generation_before": 4,
+    "ingest_ack_ms": 1378.400359,
+    "nonce_after_ack": "b4933ff308d5d2a16eab6ba40ecfc4842eb4701032597a23cd07a312b80230a3",
+    "nonce_after_drain": "b4933ff308d5d2a16eab6ba40ecfc4842eb4701032597a23cd07a312b80230a3",
+    "nonce_before": "00b8aeee471973786f7f7d3244c5601ad8d66b03f261df3811343453b5ac6f31",
+    "peak_rss_bytes": 55468032,
+    "process_cpu_seconds": 1.300066,
+    "projection_drain_ms": 4.37901799999986,
+    "records": 10000,
+    "total_ms": 1382.7793769999998,
+    "transactions": 40,
+    "trigger_inventory": 54,
+    "wal_bytes": 10835632
+  },
+  "ordinal": 3,
+  "probe_lock_sha256": "d872c097b97f4e075043f20f0e8df71427efc5d50e1a5573390a9a6fde350118",
+  "probe_sha256": "122869c5c445301fb8840d4f358059371424180e0020ff2eb925fdf8de9517e1",
+  "raw_log_path": "dev/plans/runs/0.8.25-slice-71/ac072-final/write-guard/scale02/production-3/raw.log",
+  "raw_log_sha256": "0c401eb4d5736214fdf306737bfe1ff5d1395c34b78b42948b8a8e48df1db0ec",
+  "runner_sha256": "13e4c2b2867ecf7b18067234048a4eca4f6e7d7244b1774000bdeddb32efd732",
+  "runtime_identity": {
+    "libsqlite3_sys": "0.38.1",
+    "sqlite_source_id": "2026-06-03 19:12:13 d6e03d8c777cfa2d35e3b60d8ec3e0187f3e9f99d8e2ee9cac695fd6fcdf1a24",
+    "sqlite_version": "3.53.2"
+  },
+  "source_ref": "84c056c624446d25dbce59de7c787cceca310f6f",
+  "source_tree_dirty": false,
+  "started_at": "2026-09-09T18:41:46.608222+00:00",
+  "treatment": "production"
+}

@@ -128,7 +128,15 @@ _CELL_KEYS = {
 }
 _BUILD_KEYS = {"cargo", "rustc", "rustc_verbose_sha256", "profile"}
 _RUNTIME_KEYS = {"sqlite_version", "sqlite_source_id", "libsqlite3_sys"}
-_FAILURE_KEYS = {"state", "fixture", "treatment", "ordinal", "occurred_at", "artifacts"}
+_FAILURE_KEYS = {
+    "state",
+    "fixture",
+    "treatment",
+    "ordinal",
+    "occurred_at",
+    "message",
+    "artifacts",
+}
 _FAILURE_ARTIFACT_KEYS = {"kind", "path", "sha256"}
 _FAILURE_STATES = {
     "environment_invalid",
@@ -664,10 +672,14 @@ def validate_attribution_receipt(
         failure = _mapping(root["failure"], "/failure")
         _exact_keys(failure, _FAILURE_KEYS, "/failure")
         _expect(failure["state"], state, "/failure/state")
+        message = _nonempty(failure["message"], "/failure/message")
+        _expect(errors, [message], "/errors")
         occurred_at = _timestamp(failure["occurred_at"], "/failure/occurred_at")
         if occurred_at < receipt_started or occurred_at > receipt_finished:
             _fail("/failure/occurred_at lies outside the receipt interval")
-        if state in {"build_failed", "harness_failed"}:
+        if state == "build_failed" or (
+            state == "harness_failed" and failure["fixture"] is None
+        ):
             for key in ("fixture", "treatment", "ordinal"):
                 _expect(failure[key], None, f"/failure/{key}")
         else:
@@ -688,6 +700,7 @@ def validate_attribution_receipt(
         if not isinstance(artifacts, list) or not artifacts:
             _fail("/failure/artifacts must bind retained failure evidence")
         kinds: set[str] = set()
+        disposition_path: Path | None = None
         for index, value in enumerate(artifacts):
             path = f"/failure/artifacts/{index}"
             artifact = _mapping(value, path)
@@ -697,6 +710,8 @@ def validate_attribution_receipt(
                 _fail(f"{path}/kind is invalid or duplicated")
             kinds.add(kind)
             artifact_path = Path(_nonempty(artifact["path"], f"{path}/path"))
+            if kind == "attempt_disposition":
+                disposition_path = artifact_path
             digest = _digest(artifact["sha256"], f"{path}/sha256")
             if verify_hashes:
                 artifact_path = (
@@ -722,6 +737,29 @@ def validate_attribution_receipt(
             _fail("probe_failed must bind its raw log")
         if state == "spread_invalid" and "cell_disposition" not in kinds:
             _fail("spread_invalid must bind its triggering cell")
+        if verify_hashes:
+            assert disposition_path is not None
+            disposition_path = (
+                disposition_path
+                if disposition_path.is_absolute()
+                else Path(__file__).resolve().parent.parent / disposition_path
+            )
+            disposition = json.loads(disposition_path.read_text(encoding="utf-8"))
+            expected_disposition = {
+                "schema_version": "slice71b-failed-attempt.v1",
+                "state": state,
+                "fixture": failure["fixture"],
+                "treatment": failure["treatment"],
+                "ordinal": failure["ordinal"],
+                "occurred_at": failure["occurred_at"],
+                "message": message,
+                "artifacts": [
+                    artifact
+                    for artifact in artifacts
+                    if artifact["kind"] != "attempt_disposition"
+                ],
+            }
+            _expect(disposition, expected_disposition, "/failure attempt disposition")
 
 
 def classify_recovery(

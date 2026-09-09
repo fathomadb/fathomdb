@@ -151,10 +151,12 @@ reason for an incomplete exact-order prefix. Each failure record binds a
 canonical attempt disposition plus every available environment, raw-log, and
 cell artifact by path and SHA-256. Build failures additionally bind the build
 log; unexpected post-build harness/storage failures are distinguished from
-build failures. An environment failure, probe failure, timeout, or spread
-breach stops the campaign immediately. An independent read-only reviewer
-validates the retained receipt and logs; the reviewer does not execute another
-campaign.
+build failures and retain the active matrix position and cell artifacts when
+one exists. The receipt stop reason must exactly match the message inside the
+hash-bound attempt disposition. An environment failure, probe failure,
+timeout, or spread breach stops the campaign immediately. An independent
+read-only reviewer validates the retained receipt and logs; the reviewer does
+not execute another campaign.
 
 ## Focused verification accounting
 

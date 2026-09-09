@@ -348,6 +348,7 @@ def _failure_disposition(
         "treatment": treatment,
         "ordinal": ordinal,
         "occurred_at": occurred_at,
+        "message": message,
         "artifacts": artifacts,
     }
 
@@ -636,6 +637,7 @@ def run_attribution(manifest_path: Path, source_root: Path) -> None:
     failure: dict[str, Any] | None = None
     errors: list[str] = []
     build_complete = False
+    active_cell: tuple[str, str, int, Path] | None = None
     build_root = output_root / "build"
     build_root.mkdir()
     build_log = build_root / "build.log"
@@ -668,6 +670,8 @@ def run_attribution(manifest_path: Path, source_root: Path) -> None:
         libsqlite3_sys = _libsqlite3_sys_version(lock_path)
         build_complete = True
         for fixture, treatment, ordinal in attribution_sequence(document):
+            cell_root = output_root / fixture / f"{treatment}-{ordinal}"
+            active_cell = (fixture, treatment, ordinal, cell_root)
             cell = _run_cell(
                 document=document,
                 source_ref=source_ref,
@@ -677,9 +681,10 @@ def run_attribution(manifest_path: Path, source_root: Path) -> None:
                 fixture=fixture,
                 treatment=treatment,
                 ordinal=ordinal,
-                cell_root=output_root / fixture / f"{treatment}-{ordinal}",
+                cell_root=cell_root,
             )
             cells.append(cell)
+            active_cell = None
             spread = _arm_spread(cells, fixture, treatment)
             if spread > float(document["policy"]["max_within_arm_spread_percent"]):
                 message = (
@@ -705,13 +710,23 @@ def run_attribution(manifest_path: Path, source_root: Path) -> None:
     except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
         state = _unexpected_failure_state(build_complete)
         errors.append(str(exc))
+        if active_cell is None:
+            failure_root = build_root
+            failure_fixture = None
+            failure_treatment = None
+            failure_ordinal = None
+        else:
+            failure_fixture, failure_treatment, failure_ordinal, failure_root = (
+                active_cell
+            )
+            failure_root.mkdir(parents=True, exist_ok=True)
         failure = _failure_disposition(
             state=state,
             message=str(exc),
-            root=build_root,
-            fixture=None,
-            treatment=None,
-            ordinal=None,
+            root=failure_root,
+            fixture=failure_fixture,
+            treatment=failure_treatment,
+            ordinal=failure_ordinal,
             extra_artifacts=(("build_log", build_log),),
         )
     receipt = _receipt(

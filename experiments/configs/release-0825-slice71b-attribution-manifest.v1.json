@@ -19,7 +19,7 @@
   },
   "runner": {
     "path": "scripts/perf-experiments/run_slice71b.py",
-    "sha256": "4b2bea97c98da364eb7c19659d865d98222995ba06c2722f28849827c8b63789"
+    "sha256": "13e4c2b2867ecf7b18067234048a4eca4f6e7d7244b1774000bdeddb32efd732"
   },
   "fixtures": {
     "scale02": {

@@ -331,6 +331,63 @@ def test_runner_distinguishes_build_and_post_build_harness_failures() -> None:
     assert RUNNER["_unexpected_failure_state"](True) == "harness_failed"
 
 
+def test_campaign_binds_active_cell_artifacts_on_unexpected_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document = {
+        "raw_root": "evidence",
+        "product_sources": {"unchanged_current": "1" * 40},
+        "probe": {"lock_path": "probe.lock"},
+        "timeouts_s": {"build": 1},
+        "treatments": ["production", "generation_only", "no_op"],
+        "attribution_order": ["production"],
+        "policy": {"max_within_arm_spread_percent": 25},
+    }
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(document), encoding="utf-8")
+    executable = tmp_path / "probe"
+    executable.write_text("probe", encoding="utf-8")
+    captured: dict[str, object] = {}
+    runner_globals = RUNNER["run_attribution"].__globals__
+
+    def fail_active_cell(**kwargs: object) -> None:
+        cell_root = kwargs["cell_root"]
+        assert isinstance(cell_root, Path)
+        cell_root.mkdir(parents=True)
+        (cell_root / "environment.json").write_text("env", encoding="utf-8")
+        (cell_root / "raw.log").write_text("raw", encoding="utf-8")
+        raise OSError("simulated evidence write failure")
+
+    monkeypatch.setitem(runner_globals, "ROOT", tmp_path)
+    monkeypatch.setitem(runner_globals, "validate_attribution_manifest", lambda _: None)
+    monkeypatch.setitem(runner_globals, "_source_identity", lambda _: ("1" * 40, False))
+    monkeypatch.setitem(
+        runner_globals,
+        "_build_probe",
+        lambda *_: (executable, {"profile": "release"}),
+    )
+    monkeypatch.setitem(runner_globals, "_libsqlite3_sys_version", lambda _: "0.38.1")
+    monkeypatch.setitem(runner_globals, "_run_cell", fail_active_cell)
+    monkeypatch.setitem(
+        runner_globals,
+        "validate_attribution_receipt",
+        lambda receipt, _: captured.update(receipt),
+    )
+
+    with pytest.raises(RuntimeError, match="harness_failed"):
+        RUNNER["run_attribution"](manifest_path, tmp_path)
+    assert captured["classification"]["state"] == "harness_failed"
+    assert captured["failure"]["fixture"] == "scale02"
+    assert captured["failure"]["treatment"] == "production"
+    assert captured["failure"]["ordinal"] == 1
+    assert captured["errors"] == [captured["failure"]["message"]]
+    assert {item["kind"] for item in captured["failure"]["artifacts"]} >= {
+        "environment",
+        "raw_log",
+        "attempt_disposition",
+    }
+
+
 def test_runner_production_signature_requires_atomic_drain_change() -> None:
     metrics = valid_cell("scale02", "production", 1)["metrics"]
     metrics["nonce_after_drain"] = "c" * 64

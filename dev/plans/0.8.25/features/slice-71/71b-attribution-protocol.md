@@ -1,6 +1,6 @@
 ---
 title: Slice 71B — write attribution protocol
-status: SEALED_PENDING_INDEPENDENT_REVIEW
+status: REVIEW_CORRECTIONS_PENDING_INDEPENDENT_REVIEW
 date: 2026-09-08
 ---
 
@@ -29,12 +29,16 @@ Its custom validator is `experiments/release_0825_slice71b.py`; its JSON Schemas
 are the adjacent `release-0825-slice71b-attribution-*.schema.json` files.
 The cell runner and external Rust probe are digest-bound by the manifest.
 
-The external probe is compiled in a temporary crate whose path dependencies
-point at a clean checkout of the exact product source. This keeps the probe
-byte-identical while avoiding product-tree edits. Cargo runs offline and uses
-an external target directory. Builds finish before environment observation and
-are outside the timed region. Every timed cell uses a fresh database and a
-fresh process.
+The external probe is compiled once in a temporary crate whose path
+dependencies point at a clean checkout of the exact product source. This keeps
+the probe byte-identical while avoiding product-tree edits. The manifest binds
+the dedicated probe `Cargo.lock`; Cargo runs `--offline --locked --release`
+with an external target directory and a fixed build timeout. Builds finish
+before environment observation and are outside the timed region. The receipt
+binds Cargo and Rust versions, the verbose Rust compiler identity, release
+profile, `libsqlite3-sys` version, runtime SQLite version and source ID, and
+the retained executable path and digest. Every timed cell uses a fresh database
+and a fresh process.
 
 The Scale-02 input is the exact 10,000-row output of the retained frozen fixture
 and `build_rows` growth policy, materialized as canonical JSONL outside the
@@ -74,10 +78,11 @@ no_op, generation_only, production,
 generation_only, production, no_op
 ```
 
-This gives three repetitions per arm with position balance. Execute Scale-02
-and AC-013 as separate campaigns. Do not reorder, replace, discard, or silently
-retry a cell. A failed or invalid cell is retained; any replacement requires a
-new prospective amendment.
+This gives three repetitions per arm with position balance. The only timed
+entry point executes the exact 18-cell sequence: all Scale-02 cells followed by
+all AC-013 cells. Callers cannot select an individual fixture, arm, or ordinal.
+Do not reorder, replace, discard, or silently retry a cell. A failed or invalid
+cell is retained; any replacement requires a new prospective amendment.
 
 ## Measurements and interpretation
 
@@ -85,8 +90,12 @@ The timed endpoints are:
 
 - acknowledgement: immediately before the first `Engine.write` through return
   of the final batch write;
-- drain: immediately before `Engine.drain` through its return;
-- total: the exact sum of those two non-overlapping measured intervals.
+- post-acknowledgement/drain: from final-write return, including the required
+  acknowledgement-boundary visibility observation, through `Engine.drain`
+  return;
+- total: one direct clock from immediately before the first `Engine.write`
+  through `Engine.drain` return. It therefore cannot omit time while the
+  projector progresses during the acknowledgement observation.
 
 The probe records configured rows, batch size, actual transaction count,
 visibility generation and nonce at setup/acknowledgement/drain boundaries,
@@ -98,7 +107,9 @@ public product surface used by this external probe; those quantities are
 therefore not fabricated. Extend to the sealed preparation factorial only if
 the three arms do not identify a correction target.
 
-The primary comparisons are per-fixture median acknowledgement and total time:
+The primary comparisons are per-fixture median acknowledgement and total time.
+A component is supported only when its total-time contrast is both greater
+than 0.25 ms and greater than 10% in each fixture:
 
 - production versus generation-only isolates incremental nonce work;
 - generation-only versus no-op isolates the checked singleton generation
@@ -106,18 +117,25 @@ The primary comparisons are per-fixture median acknowledgement and total time:
 - production versus no-op bounds the combined per-row visibility body cost
   while retaining trigger dispatch.
 
-Do not label residual production/no-op time as contention without a direct
-lock-wait observation. Do not interpret acknowledgement/drain redistribution
-as recovery unless total also changes. The synthetic recovered benchmark and
-the one-run diagnostic remain non-acceptance context only.
+Do not label residual production/no-op time as trigger dispatch, contention,
+writer/projector interaction, or statement preparation: those are not directly
+measured by this matrix. If neither permitted component meets the preregistered
+materiality rule, the receipt is `unresolved` and requires the separately
+sealed preparation factorial before selecting a correction. Do not interpret
+acknowledgement/drain redistribution as recovery unless total also changes.
+The synthetic recovered benchmark and the one-run diagnostic remain
+non-acceptance context only.
 
 ## Environment, stop rules, and retention
 
-The runner samples one-minute load, online CPUs, available memory, swap I/O,
-`k10temp:Tctl`, and competing build/test/benchmark processes immediately before
-and after each timed process. A cell is invalid if load exceeds half the online
-CPU count, available memory falls below 25%, swap changes, temperature exceeds
-90 C, the required thermal signal is absent, or a competing process exists.
+The runner identifies `k10temp` by its hwmon device name and then selects its
+`Tctl` label. It samples one-minute load, online CPUs, available memory, swap
+I/O, that thermal signal, and competing build/test/benchmark processes
+immediately before and after each timed process. A cell is invalid if load
+exceeds half the online CPU count, available memory falls below 25%, swap
+changes, temperature exceeds 90 C, the required thermal signal is absent, or a
+competing process exists. The clean-source check includes tracked and untracked
+files.
 
 For acknowledgement and total separately, an arm is invalid when
 `(max / min - 1) * 100 > 25`. Timings must be finite and positive. Any invalid
@@ -125,11 +143,14 @@ arm stops that fixture campaign after retaining every cell already collected.
 No outlier deletion, threshold adjustment, or same-protocol replacement run is
 allowed.
 
-Raw output, environment snapshots, and strict cell JSON are retained under
+Raw output, digest-bound environment snapshots, and strict cell JSON are retained under
 `dev/plans/runs/0.8.25-slice-71/71b/attribution/`. The aggregate receipt follows
-`slice71b-attribution-receipt.v1`, binds the exact manifest, and records a
-supported-cause classification. An independent read-only reviewer validates
-the retained receipt and logs; the reviewer does not execute another campaign.
+`slice71b-attribution-receipt.v1`, binds the exact manifest, and records either
+a derived supported/unresolved classification or the canonical stop state and
+reason for an incomplete exact-order prefix. An environment failure, probe
+failure, timeout, or spread breach stops the campaign immediately. An
+independent read-only reviewer validates the retained receipt and logs; the
+reviewer does not execute another campaign.
 
 ## Focused verification accounting
 

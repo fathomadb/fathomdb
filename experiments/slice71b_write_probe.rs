@@ -254,24 +254,34 @@ fn scale02_rows(path: &Path, records: usize) -> Result<Vec<PreparedWrite>, Strin
     Ok(rows)
 }
 
-fn visibility(connection: &Connection) -> (Option<i64>, Option<String>) {
+fn visibility(connection: &Connection) -> Result<(i64, String), String> {
     connection
         .query_row(
             "SELECT generation,state_nonce FROM _fathomdb_read_visibility_state WHERE singleton=1",
             [],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
-        .unwrap_or((None, None))
+        .map_err(|error| format!("visibility observation failed: {error}"))
 }
 
-fn trigger_inventory(connection: &Connection) -> i64 {
+fn trigger_inventory(connection: &Connection) -> Result<i64, String> {
     connection
         .query_row(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE '_fathomdb_read_visibility_%'",
             [],
             |row| row.get(0),
         )
-        .unwrap_or(0)
+        .map_err(|error| format!("trigger inventory failed: {error}"))
+}
+
+fn sqlite_identity(connection: &Connection) -> Result<(String, String), String> {
+    let version = connection
+        .query_row("SELECT sqlite_version()", [], |row| row.get(0))
+        .map_err(|error| format!("SQLite version query failed: {error}"))?;
+    let source_id = connection
+        .query_row("SELECT sqlite_source_id()", [], |row| row.get(0))
+        .map_err(|error| format!("SQLite source-id query failed: {error}"))?;
+    Ok((version, source_id))
 }
 
 fn install_treatment(path: &Path, treatment: Treatment) -> Result<(), String> {
@@ -375,23 +385,26 @@ fn run(args: &Args) -> Result<Value, String> {
     };
     install_treatment(&args.database, args.treatment)?;
     let observation = Connection::open(&args.database).map_err(|error| error.to_string())?;
-    let before = visibility(&observation);
-    let trigger_count = trigger_inventory(&observation);
+    let (sqlite_version, sqlite_source_id) = sqlite_identity(&observation)?;
+    let before = visibility(&observation)?;
+    let trigger_count = trigger_inventory(&observation)?;
     let cpu_before = process_usage().0;
     let ingest_started = Instant::now();
     for batch in rows.chunks(args.batch_size) {
         engine.write(batch).map_err(|error| error.to_string())?;
     }
     let ingest_ack_ms = ingest_started.elapsed().as_secs_f64() * 1000.0;
-    let after_ack = visibility(&observation);
-    let drain_started = Instant::now();
+    let after_ack = visibility(&observation)?;
     engine.drain(1_800_000).map_err(|error| error.to_string())?;
-    let projection_drain_ms = drain_started.elapsed().as_secs_f64() * 1000.0;
-    let after_drain = visibility(&observation);
+    let total_ms = ingest_started.elapsed().as_secs_f64() * 1000.0;
+    let projection_drain_ms = total_ms - ingest_ack_ms;
+    let after_drain = visibility(&observation)?;
     let (cpu_after, peak_rss_bytes) = process_usage();
     let (database_bytes, wal_bytes) = storage_bytes(&args.database);
     Ok(json!({
         "schema_version": "slice71b-write-probe.v1",
+        "sqlite_version": sqlite_version,
+        "sqlite_source_id": sqlite_source_id,
         "fixture": match args.fixture { Fixture::Scale02 => "scale02", Fixture::Ac013 => "ac013" },
         "treatment": match args.treatment { Treatment::Production => "production", Treatment::GenerationOnly => "generation_only", Treatment::NoOp => "no_op" },
         "records": args.records,
@@ -399,7 +412,7 @@ fn run(args: &Args) -> Result<Value, String> {
         "transactions": args.records.div_ceil(args.batch_size),
         "ingest_ack_ms": ingest_ack_ms,
         "projection_drain_ms": projection_drain_ms,
-        "total_ms": ingest_ack_ms + projection_drain_ms,
+        "total_ms": total_ms,
         "generation_before": before.0,
         "generation_after_ack": after_ack.0,
         "generation_after_drain": after_drain.0,

@@ -32,6 +32,11 @@ def valid_cell(
     ack_ms: float = 10.0,
     total_ms: float = 12.0,
 ) -> dict[str, object]:
+    visibility = {
+        "production": (1, 30_001, 30_001, "a" * 64, "b" * 64, "b" * 64),
+        "generation_only": (1, 30_001, 30_001, "a" * 64, "a" * 64, "a" * 64),
+        "no_op": (1, 1, 1, "a" * 64, "a" * 64, "a" * 64),
+    }[treatment]
     return {
         "fixture": fixture,
         "treatment": treatment,
@@ -42,11 +47,13 @@ def valid_cell(
         "probe_lock_sha256": "6" * 64,
         "runner_sha256": "7" * 64,
         "executable_sha256": "8" * 64,
+        "executable_path": "/tmp/slice71b-probe",
         "fixture_sha256": "3" * 64,
         "started_at": "2026-09-08T00:00:00Z",
         "finished_at": "2026-09-08T00:00:01Z",
         "environment_valid": True,
         "environment_sha256": "9" * 64,
+        "environment_path": "dev/plans/runs/0.8.25-slice-71/71b/environment.json",
         "build_identity": {
             "cargo": "cargo 1.0.0",
             "rustc": "rustc 1.0.0",
@@ -59,6 +66,7 @@ def valid_cell(
             "libsqlite3_sys": "0.38.0",
         },
         "raw_log_sha256": "4" * 64,
+        "raw_log_path": "dev/plans/runs/0.8.25-slice-71/71b/raw.log",
         "metrics": {
             "records": 10_000,
             "batch_size": 256 if fixture == "scale02" else 1_024,
@@ -66,13 +74,13 @@ def valid_cell(
             "ingest_ack_ms": ack_ms,
             "projection_drain_ms": total_ms - ack_ms,
             "total_ms": total_ms,
-            "generation_before": 1,
-            "generation_after_ack": 30_001,
-            "generation_after_drain": 30_001,
-            "nonce_before": "a" * 64,
-            "nonce_after_ack": "b" * 64,
-            "nonce_after_drain": "b" * 64,
-            "trigger_inventory": 48,
+            "generation_before": visibility[0],
+            "generation_after_ack": visibility[1],
+            "generation_after_drain": visibility[2],
+            "nonce_before": visibility[3],
+            "nonce_after_ack": visibility[4],
+            "nonce_after_drain": visibility[5],
+            "trigger_inventory": 54,
             "database_bytes": 1,
             "wal_bytes": 1,
             "process_cpu_seconds": 0.01,
@@ -93,20 +101,22 @@ def valid_attribution_receipt() -> dict[str, object]:
                 "generation_only": (16.0, 20.0),
                 "no_op": (10.0, 12.0),
             }[treatment]
-            cells.append(
-                valid_cell(
-                    fixture,
-                    treatment,
-                    ordinals[treatment],
-                    ack_ms=timing[0],
-                    total_ms=timing[1],
-                )
+            cell = valid_cell(
+                fixture,
+                treatment,
+                ordinals[treatment],
+                ack_ms=timing[0],
+                total_ms=timing[1],
             )
+            position = len(cells)
+            cell["started_at"] = f"2026-09-08T00:{position:02d}:00Z"
+            cell["finished_at"] = f"2026-09-08T00:{position:02d}:30Z"
+            cells.append(cell)
     return {
         "schema_version": "slice71b-attribution-receipt.v1",
         "manifest_sha256": "5" * 64,
         "started_at": "2026-09-08T00:00:00Z",
-        "finished_at": "2026-09-08T00:01:00Z",
+        "finished_at": "2026-09-08T00:18:00Z",
         "cells": cells,
         "classification": {
             "state": "supported",
@@ -132,7 +142,9 @@ def test_checked_in_attribution_manifest_is_strict_and_valid() -> None:
         (("treatments",), ["production", "no_op"]),
     ],
 )
-def test_attribution_manifest_rejects_drift(path: tuple[str, ...], value: object) -> None:
+def test_attribution_manifest_rejects_drift(
+    path: tuple[str, ...], value: object
+) -> None:
     document = copy.deepcopy(manifest())
     target = document
     for key in path[:-1]:
@@ -143,7 +155,9 @@ def test_attribution_manifest_rejects_drift(path: tuple[str, ...], value: object
 
 
 def test_attribution_receipt_accepts_exact_complete_matrix() -> None:
-    validate_attribution_receipt(valid_attribution_receipt(), manifest(), verify_hashes=False)
+    validate_attribution_receipt(
+        valid_attribution_receipt(), manifest(), verify_hashes=False
+    )
 
 
 @pytest.mark.parametrize(
@@ -176,6 +190,26 @@ def test_attribution_receipt_rejects_ack_total_inconsistency() -> None:
     document = valid_attribution_receipt()
     document["cells"][0]["metrics"]["projection_drain_ms"] = 9.0  # type: ignore[index]
     with pytest.raises(Slice71BContractError, match="total_ms"):
+        validate_attribution_receipt(document, manifest(), verify_hashes=False)
+
+
+def test_attribution_receipt_accepts_canonical_partial_abort() -> None:
+    document = valid_attribution_receipt()
+    document["cells"] = document["cells"][:4]
+    document["finished_at"] = "2026-09-08T00:04:00Z"
+    document["classification"] = {
+        "state": "probe_failed",
+        "supported_causes": [],
+        "conditional_preparation_factorial_required": False,
+    }
+    document["errors"] = ["scale02/no_op-2: retained probe failure"]
+    validate_attribution_receipt(document, manifest(), verify_hashes=False)
+
+
+def test_attribution_receipt_rejects_unexplained_partial_matrix() -> None:
+    document = valid_attribution_receipt()
+    document["cells"] = document["cells"][:4]
+    with pytest.raises(Slice71BContractError, match="exact 18-cell"):
         validate_attribution_receipt(document, manifest(), verify_hashes=False)
 
 

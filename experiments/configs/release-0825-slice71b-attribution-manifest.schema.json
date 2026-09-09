@@ -15,6 +15,7 @@
     "attribution_order",
     "policy",
     "environment_policy",
+    "timeouts_s",
     "raw_root"
   ],
   "properties": {
@@ -40,7 +41,7 @@
         "unchanged_current": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
       }
     },
-    "probe": {"$ref": "#/$defs/file_binding"},
+    "probe": {"$ref": "#/$defs/probe_binding"},
     "runner": {"$ref": "#/$defs/file_binding"},
     "fixtures": {
       "type": "object",
@@ -106,6 +107,15 @@
         "forbid_competing_processes": {"const": true}
       }
     },
+    "timeouts_s": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build", "cell"],
+      "properties": {
+        "build": {"const": 900},
+        "cell": {"const": 1800}
+      }
+    },
     "raw_root": {"const": "dev/plans/runs/0.8.25-slice-71/71b"}
   },
   "$defs": {
@@ -117,6 +127,17 @@
       "properties": {
         "path": {"type": "string", "minLength": 1},
         "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "probe_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "lock_path", "lock_sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "lock_path": {"type": "string", "minLength": 1},
+        "lock_sha256": {"$ref": "#/$defs/sha256"}
       }
     }
   }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and execute one isolated Slice 71B write-measurement cell."""
+"""Build and execute the sealed Slice 71B attribution campaign."""
 
 from __future__ import annotations
 
@@ -11,19 +11,40 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from experiments import scale_02  # noqa: E402
-from experiments.release_0825_slice71b import validate_attribution_manifest  # noqa: E402
+from experiments.release_0825_slice71b import (  # noqa: E402
+    attribution_classification,
+    validate_attribution_manifest,
+    validate_attribution_receipt,
+)
 
 
 PROBE = ROOT / "experiments" / "slice71b_write_probe.rs"
-DEFAULT_SCALE02_CONFIG = ROOT / "experiments" / "configs" / "scale-02" / "a0-envelope.v2.json"
+DEFAULT_MANIFEST = (
+    ROOT
+    / "experiments"
+    / "configs"
+    / "release-0825-slice71b-attribution-manifest.v1.json"
+)
+DEFAULT_SCALE02_CONFIG = (
+    ROOT / "experiments" / "configs" / "scale-02" / "a0-envelope.v2.json"
+)
+
+
+class CampaignAbort(RuntimeError):
+    """Stop a campaign without replacing or discarding an attempted cell."""
+
+    def __init__(self, state: str, message: str) -> None:
+        super().__init__(message)
+        self.state = state
 
 
 def sha256(path: Path) -> str:
@@ -32,6 +53,17 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _timestamp() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def _artifact_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(ROOT))
+    except ValueError:
+        return str(path.resolve())
 
 
 def generate_scale02_input(config_path: Path, output: Path) -> None:
@@ -77,11 +109,14 @@ def _read_first_number(path: Path, key: str) -> int:
 
 
 def _temperature() -> float:
-    for label in Path("/sys/class/hwmon").glob("hwmon*/temp*_label"):
+    for hwmon in Path("/sys/class/hwmon").glob("hwmon*"):
         try:
-            if label.read_text(encoding="utf-8").strip() == "Tctl":
-                value = Path(str(label).replace("_label", "_input"))
-                return int(value.read_text(encoding="utf-8").strip()) / 1000.0
+            if (hwmon / "name").read_text(encoding="utf-8").strip() != "k10temp":
+                continue
+            for label in hwmon.glob("temp*_label"):
+                if label.read_text(encoding="utf-8").strip() == "Tctl":
+                    value = Path(str(label).replace("_label", "_input"))
+                    return int(value.read_text(encoding="utf-8").strip()) / 1000.0
         except OSError:
             continue
     raise RuntimeError("required k10temp:Tctl signal is unavailable")
@@ -93,6 +128,7 @@ def _competing_processes() -> list[str]:
         check=True,
         text=True,
         stdout=subprocess.PIPE,
+        timeout=10,
     )
     own_pid = os.getpid()
     blocked = ("cargo", "rustc", "slice71b-probe", "run-ac013.sh", "perf_gates")
@@ -130,8 +166,10 @@ def environment_valid(
             float(end["available_memory_percent"]),
         )
         >= float(policy["min_available_memory_percent"])
-        and int(end["swap_in"]) - int(start["swap_in"]) <= int(policy["max_swap_io_delta"])
-        and int(end["swap_out"]) - int(start["swap_out"]) <= int(policy["max_swap_io_delta"])
+        and int(end["swap_in"]) - int(start["swap_in"])
+        <= int(policy["max_swap_io_delta"])
+        and int(end["swap_out"]) - int(start["swap_out"])
+        <= int(policy["max_swap_io_delta"])
         and max(float(start["cpu_temp_c"]), float(end["cpu_temp_c"]))
         <= float(policy["max_cpu_temp_c"])
         and not start["competing_processes"]
@@ -146,14 +184,16 @@ def _source_identity(source_root: Path) -> tuple[str, bool]:
         check=True,
         text=True,
         stdout=subprocess.PIPE,
+        timeout=10,
     ).stdout.strip()
     dirty = bool(
         subprocess.run(
-            ["git", "status", "--porcelain", "--untracked-files=no"],
+            ["git", "status", "--porcelain"],
             cwd=source_root,
             check=True,
             text=True,
             stdout=subprocess.PIPE,
+            timeout=10,
         ).stdout.strip()
     )
     return commit, dirty
@@ -191,15 +231,33 @@ def _write_probe_manifest(directory: Path, source_root: Path) -> Path:
     return manifest
 
 
-def _build_probe(source_root: Path, target_root: Path) -> Path:
+def _command_output(command: list[str]) -> str:
+    return subprocess.run(
+        command,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        timeout=30,
+    ).stdout.strip()
+
+
+def _build_probe(
+    source_root: Path,
+    target_root: Path,
+    lock_path: Path,
+    timeout_s: int,
+) -> tuple[Path, dict[str, str]]:
     temporary = Path(tempfile.mkdtemp(prefix="fathomdb-slice71b-probe-"))
     try:
         manifest = _write_probe_manifest(temporary, source_root)
+        shutil.copy2(lock_path, temporary / "Cargo.lock")
         subprocess.run(
             [
                 "cargo",
                 "build",
                 "--offline",
+                "--locked",
                 "--release",
                 "--manifest-path",
                 str(manifest),
@@ -208,38 +266,107 @@ def _build_probe(source_root: Path, target_root: Path) -> Path:
             ],
             check=True,
             cwd=source_root,
+            timeout=timeout_s,
         )
     finally:
         shutil.rmtree(temporary)
-    return target_root / "release" / "slice71b-probe"
+    rustc_verbose = _command_output(["rustc", "-Vv"]).encode()
+    identity = {
+        "cargo": _command_output(["cargo", "--version"]),
+        "rustc": _command_output(["rustc", "--version"]),
+        "rustc_verbose_sha256": hashlib.sha256(rustc_verbose).hexdigest(),
+        "profile": "release",
+    }
+    return target_root / "release" / "slice71b-probe", identity
 
 
-def run_cell(
-    manifest_path: Path,
-    source_root: Path,
+def _libsqlite3_sys_version(lock_path: Path) -> str:
+    document = tomllib.loads(lock_path.read_text(encoding="utf-8"))
+    versions = {
+        package["version"]
+        for package in document["package"]
+        if package["name"] == "libsqlite3-sys"
+    }
+    if len(versions) != 1:
+        raise RuntimeError("sealed probe lock must contain one libsqlite3-sys package")
+    return versions.pop()
+
+
+def _write_json(path: Path, document: object) -> None:
+    path.write_text(
+        json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
+def _abort(state: str, message: str) -> NoReturn:
+    raise CampaignAbort(state, message)
+
+
+def _treatment_signature_valid(treatment: str, metrics: dict[str, Any]) -> bool:
+    if metrics.get("trigger_inventory") != 54:
+        return False
+    generations = [
+        metrics.get("generation_before"),
+        metrics.get("generation_after_ack"),
+        metrics.get("generation_after_drain"),
+    ]
+    nonces = [
+        metrics.get("nonce_before"),
+        metrics.get("nonce_after_ack"),
+        metrics.get("nonce_after_drain"),
+    ]
+    if any(value is None for value in generations + nonces):
+        return False
+    before, after_ack, after_drain = (int(value) for value in generations)
+    nonce_before, nonce_ack, nonce_drain = (str(value) for value in nonces)
+    if treatment == "production":
+        return (
+            after_ack > before
+            and after_drain >= after_ack
+            and nonce_ack != nonce_before
+            and (after_drain == after_ack or nonce_drain != nonce_ack)
+        )
+    if treatment == "generation_only":
+        return (
+            after_ack > before
+            and after_drain >= after_ack
+            and len({nonce_before, nonce_ack, nonce_drain}) == 1
+        )
+    return (
+        before == after_ack == after_drain and nonce_before == nonce_ack == nonce_drain
+    )
+
+
+def _run_cell(
+    *,
+    document: dict[str, Any],
+    source_ref: str,
+    executable: Path,
+    build_identity: dict[str, str],
+    libsqlite3_sys: str,
     fixture: str,
     treatment: str,
     ordinal: int,
-    output_root: Path,
-) -> None:
-    document = json.loads(manifest_path.read_text(encoding="utf-8"))
-    validate_attribution_manifest(document)
-    source_ref, dirty = _source_identity(source_root)
-    expected = document["product_sources"]["unchanged_current"]
-    if source_ref != expected or dirty:
-        raise RuntimeError("attribution cells require the sealed clean unchanged-current source")
+    cell_root: Path,
+) -> dict[str, Any]:
     fixture_config = document["fixtures"][fixture]
-    records = 10_000
-    batch_size = int(fixture_config["batch_size_10k"])
-    probe_sha = sha256(PROBE)
-    if probe_sha != document["probe"]["sha256"]:
-        raise RuntimeError("probe digest drifted")
-
-    cell_root = output_root / fixture / f"{treatment}-{ordinal}"
     cell_root.mkdir(parents=True, exist_ok=False)
-    target_root = output_root / "targets" / source_ref
-    executable = _build_probe(source_root, target_root)
-    database = cell_root / "cell.fathom"
+    raw_log = cell_root / "raw.log"
+    environment_path = cell_root / "environment.json"
+    started_at = _timestamp()
+    try:
+        start = environment_snapshot()
+    except Exception as exc:
+        _write_json(environment_path, {"start_error": str(exc)})
+        _abort("environment_invalid", f"{fixture}/{treatment}-{ordinal}: {exc}")
+    if not environment_valid(start, start, document["environment_policy"]):
+        _write_json(environment_path, {"start": start, "end": start})
+        _abort(
+            "environment_invalid",
+            f"{fixture}/{treatment}-{ordinal}: pre-cell environment rejected; "
+            f"see {_artifact_path(environment_path)}",
+        )
+
     command = [
         str(executable),
         "--fixture",
@@ -247,53 +374,234 @@ def run_cell(
         "--treatment",
         treatment,
         "--records",
-        str(records),
+        "10000",
         "--batch-size",
-        str(batch_size),
+        str(fixture_config["batch_size_10k"]),
         "--database",
-        str(database),
+        str(cell_root / "cell.fathom"),
     ]
     if fixture == "scale02":
         command.extend(["--input-jsonl", str(ROOT / fixture_config["input_jsonl"])])
-    started_at = datetime.now(UTC).isoformat()
-    start = environment_snapshot()
-    completed = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    end = environment_snapshot()
-    finished_at = datetime.now(UTC).isoformat()
-    raw_log = cell_root / "raw.log"
-    raw_log.write_text(completed.stdout, encoding="utf-8")
+    try:
+        completed = subprocess.run(
+            command,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=int(document["timeouts_s"]["cell"]),
+        )
+        raw_log.write_text(completed.stdout, encoding="utf-8")
+    except subprocess.TimeoutExpired as exc:
+        output = (
+            exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+        )
+        raw_log.write_text(output, encoding="utf-8")
+        _write_json(environment_path, {"start": start, "end_error": "probe timeout"})
+        _abort("probe_failed", f"{fixture}/{treatment}-{ordinal}: probe timed out")
+    try:
+        end = environment_snapshot()
+    except Exception as exc:
+        _write_json(environment_path, {"start": start, "end_error": str(exc)})
+        _abort("environment_invalid", f"{fixture}/{treatment}-{ordinal}: {exc}")
+    _write_json(environment_path, {"start": start, "end": end})
+    finished_at = _timestamp()
     if completed.returncode != 0:
-        raise RuntimeError(f"probe failed; retained output at {raw_log}")
+        _abort(
+            "probe_failed",
+            f"{fixture}/{treatment}-{ordinal}: probe failed; see {_artifact_path(raw_log)}",
+        )
     lines = [line for line in completed.stdout.splitlines() if line.startswith("{")]
     if len(lines) != 1:
-        raise RuntimeError("probe output did not contain exactly one JSON record")
-    metrics = json.loads(lines[0])
-    if metrics.pop("schema_version") != "slice71b-write-probe.v1":
-        raise RuntimeError("probe schema drifted")
-    if metrics.pop("fixture") != fixture or metrics.pop("treatment") != treatment:
-        raise RuntimeError("probe identity drifted")
+        _abort(
+            "probe_failed", f"{fixture}/{treatment}-{ordinal}: malformed probe output"
+        )
+    try:
+        probe_result = json.loads(lines[0])
+    except json.JSONDecodeError as exc:
+        _abort("probe_failed", f"{fixture}/{treatment}-{ordinal}: invalid JSON: {exc}")
+    if not isinstance(probe_result, dict):
+        _abort(
+            "probe_failed",
+            f"{fixture}/{treatment}-{ordinal}: probe JSON is not an object",
+        )
+    if probe_result.pop("schema_version", None) != "slice71b-write-probe.v1":
+        _abort("probe_failed", f"{fixture}/{treatment}-{ordinal}: probe schema drifted")
+    if probe_result.pop("fixture", None) != fixture:
+        _abort(
+            "probe_failed", f"{fixture}/{treatment}-{ordinal}: fixture identity drifted"
+        )
+    if probe_result.pop("treatment", None) != treatment:
+        _abort(
+            "probe_failed",
+            f"{fixture}/{treatment}-{ordinal}: treatment identity drifted",
+        )
+    sqlite_version = probe_result.pop("sqlite_version", "")
+    sqlite_source_id = probe_result.pop("sqlite_source_id", "")
+    if not _treatment_signature_valid(treatment, probe_result):
+        _abort(
+            "probe_failed",
+            f"{fixture}/{treatment}-{ordinal}: treatment signature failed; "
+            f"see {_artifact_path(raw_log)}",
+        )
     cell = {
         "fixture": fixture,
         "treatment": treatment,
         "ordinal": ordinal,
         "source_ref": source_ref,
-        "source_tree_dirty": dirty,
-        "probe_sha256": probe_sha,
+        "source_tree_dirty": False,
+        "probe_sha256": document["probe"]["sha256"],
+        "probe_lock_sha256": document["probe"]["lock_sha256"],
+        "runner_sha256": document["runner"]["sha256"],
+        "executable_sha256": sha256(executable),
+        "executable_path": _artifact_path(executable),
         "fixture_sha256": fixture_config["fixture_sha256"],
         "started_at": started_at,
         "finished_at": finished_at,
-        "environment_valid": environment_valid(start, end, document["environment_policy"]),
+        "environment_valid": environment_valid(
+            start, end, document["environment_policy"]
+        ),
+        "environment_sha256": sha256(environment_path),
+        "environment_path": _artifact_path(environment_path),
         "raw_log_sha256": sha256(raw_log),
-        "metrics": metrics,
+        "raw_log_path": _artifact_path(raw_log),
+        "build_identity": build_identity,
+        "runtime_identity": {
+            "sqlite_version": sqlite_version,
+            "sqlite_source_id": sqlite_source_id,
+            "libsqlite3_sys": libsqlite3_sys,
+        },
+        "metrics": probe_result,
     }
-    (cell_root / "cell.json").write_text(
-        json.dumps(cell, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    _write_json(cell_root / "cell.json", cell)
+    if not cell["environment_valid"]:
+        _abort(
+            "environment_invalid",
+            f"{fixture}/{treatment}-{ordinal}: post-cell environment rejected; "
+            f"see {_artifact_path(cell_root / 'cell.json')}",
+        )
+    return cell
+
+
+def _arm_spread(cells: list[dict[str, Any]], fixture: str, treatment: str) -> float:
+    arm = [
+        cell
+        for cell in cells
+        if cell["fixture"] == fixture and cell["treatment"] == treatment
+    ]
+    if len(arm) < 3:
+        return 0.0
+    return max(
+        (
+            max(float(cell["metrics"][metric]) for cell in arm)
+            / min(float(cell["metrics"][metric]) for cell in arm)
+            - 1.0
+        )
+        * 100.0
+        for metric in ("ingest_ack_ms", "total_ms")
     )
-    (cell_root / "environment.json").write_text(
-        json.dumps({"start": start, "end": end}, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+
+
+def _receipt(
+    *,
+    manifest_path: Path,
+    started_at: str,
+    cells: list[dict[str, Any]],
+    state: str,
+    errors: list[str],
+) -> dict[str, Any]:
+    classification = (
+        attribution_classification(cells)
+        if state == "complete"
+        else {
+            "state": state,
+            "supported_causes": [],
+            "conditional_preparation_factorial_required": False,
+        }
     )
-    print(json.dumps(cell, sort_keys=True))
+    return {
+        "schema_version": "slice71b-attribution-receipt.v1",
+        "manifest_sha256": sha256(manifest_path),
+        "started_at": started_at,
+        "finished_at": _timestamp(),
+        "cells": cells,
+        "classification": classification,
+        "errors": errors,
+    }
+
+
+def run_attribution(manifest_path: Path, source_root: Path) -> None:
+    document = json.loads(manifest_path.read_text(encoding="utf-8"))
+    validate_attribution_manifest(document)
+    source_ref, dirty = _source_identity(source_root)
+    if source_ref != document["product_sources"]["unchanged_current"] or dirty:
+        raise RuntimeError(
+            "campaign requires the sealed clean unchanged-current source"
+        )
+    output_root = ROOT / document["raw_root"] / "attribution"
+    output_root.mkdir(parents=True, exist_ok=False)
+    started_at = _timestamp()
+    cells: list[dict[str, Any]] = []
+    receipt_path = output_root / "attribution-receipt.json"
+    state = "complete"
+    errors: list[str] = []
+    try:
+        lock_path = ROOT / document["probe"]["lock_path"]
+        target_root = Path(tempfile.mkdtemp(prefix="fathomdb-slice71b-target-"))
+        executable, build_identity = _build_probe(
+            source_root,
+            target_root,
+            lock_path,
+            int(document["timeouts_s"]["build"]),
+        )
+        if not executable.is_file():
+            _abort(
+                "build_failed", "probe build did not produce the expected executable"
+            )
+        libsqlite3_sys = _libsqlite3_sys_version(lock_path)
+        ordinals = {
+            fixture: {treatment: 0 for treatment in document["treatments"]}
+            for fixture in ("scale02", "ac013")
+        }
+        for fixture in ("scale02", "ac013"):
+            for treatment in document["attribution_order"]:
+                ordinals[fixture][treatment] += 1
+                ordinal = ordinals[fixture][treatment]
+                cell = _run_cell(
+                    document=document,
+                    source_ref=source_ref,
+                    executable=executable,
+                    build_identity=build_identity,
+                    libsqlite3_sys=libsqlite3_sys,
+                    fixture=fixture,
+                    treatment=treatment,
+                    ordinal=ordinal,
+                    cell_root=output_root / fixture / f"{treatment}-{ordinal}",
+                )
+                cells.append(cell)
+                spread = _arm_spread(cells, fixture, treatment)
+                if spread > float(document["policy"]["max_within_arm_spread_percent"]):
+                    _abort(
+                        "spread_invalid",
+                        f"{fixture}/{treatment}: within-arm spread {spread:.3f}% exceeded 25%",
+                    )
+    except CampaignAbort as exc:
+        state = exc.state
+        errors.append(str(exc))
+    except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+        state = "build_failed"
+        errors.append(str(exc))
+    receipt = _receipt(
+        manifest_path=manifest_path,
+        started_at=started_at,
+        cells=cells,
+        state=state,
+        errors=errors,
+    )
+    _write_json(receipt_path, receipt)
+    validate_attribution_receipt(receipt, document)
+    print(json.dumps(receipt, sort_keys=True))
+    if state != "complete":
+        raise RuntimeError(f"campaign stopped with {state}; retained {receipt_path}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -302,29 +610,13 @@ def main(argv: list[str] | None = None) -> int:
     generate = subparsers.add_parser("generate-scale02-input")
     generate.add_argument("--config", type=Path, default=DEFAULT_SCALE02_CONFIG)
     generate.add_argument("--output", type=Path, required=True)
-    cell = subparsers.add_parser("run-cell")
-    cell.add_argument("--manifest", type=Path, required=True)
-    cell.add_argument("--source-root", type=Path, required=True)
-    cell.add_argument("--fixture", choices=("scale02", "ac013"), required=True)
-    cell.add_argument(
-        "--treatment",
-        choices=("production", "generation_only", "no_op"),
-        required=True,
-    )
-    cell.add_argument("--ordinal", type=int, choices=(1, 2, 3), required=True)
-    cell.add_argument("--output-root", type=Path, required=True)
+    campaign = subparsers.add_parser("run-attribution")
+    campaign.add_argument("--source-root", type=Path, required=True)
     args = parser.parse_args(argv)
     if args.command == "generate-scale02-input":
         generate_scale02_input(args.config, args.output)
     else:
-        run_cell(
-            args.manifest,
-            args.source_root.resolve(),
-            args.fixture,
-            args.treatment,
-            args.ordinal,
-            args.output_root.resolve(),
-        )
+        run_attribution(DEFAULT_MANIFEST, args.source_root.resolve())
     return 0
 
 

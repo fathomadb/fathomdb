@@ -6,7 +6,9 @@ import hashlib
 import json
 import math
 import re
+import statistics
 from collections.abc import Mapping
+from datetime import datetime
 from pathlib import Path
 from typing import NoReturn
 
@@ -42,11 +44,13 @@ _TOP_KEYS = {
     "attribution_order",
     "policy",
     "environment_policy",
+    "timeouts_s",
     "raw_root",
 }
 _APPROVAL_KEYS = {"state", "approved_by", "approved_at"}
 _SOURCE_KEYS = {"scale02_baseline", "ac013_baseline", "unchanged_current"}
-_PROBE_KEYS = {"path", "sha256"}
+_FILE_BINDING_KEYS = {"path", "sha256"}
+_PROBE_KEYS = {"path", "sha256", "lock_path", "lock_sha256"}
 _FIXTURE_KEYS = {"scale02", "ac013"}
 _SCALE02_KEYS = {
     "input_jsonl",
@@ -83,6 +87,7 @@ _ENV_KEYS = {
     "thermal_signal",
     "forbid_competing_processes",
 }
+_TIMEOUT_KEYS = {"build", "cell"}
 _RECEIPT_KEYS = {
     "schema_version",
     "manifest_sha256",
@@ -104,13 +109,24 @@ _CELL_KEYS = {
     "source_ref",
     "source_tree_dirty",
     "probe_sha256",
+    "probe_lock_sha256",
+    "runner_sha256",
+    "executable_sha256",
+    "executable_path",
     "fixture_sha256",
     "started_at",
     "finished_at",
     "environment_valid",
+    "environment_sha256",
+    "environment_path",
     "raw_log_sha256",
+    "raw_log_path",
+    "build_identity",
+    "runtime_identity",
     "metrics",
 }
+_BUILD_KEYS = {"cargo", "rustc", "rustc_verbose_sha256", "profile"}
+_RUNTIME_KEYS = {"sqlite_version", "sqlite_source_id", "libsqlite3_sys"}
 _METRIC_KEYS = {
     "records",
     "batch_size",
@@ -167,6 +183,17 @@ def _nonempty(value: object, path: str) -> str:
     return value
 
 
+def _timestamp(value: object, path: str) -> datetime:
+    text = _nonempty(value, path)
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError as exc:
+        _fail(f"{path} must be an ISO-8601 timestamp: {exc}")
+    if parsed.tzinfo is None:
+        _fail(f"{path} must include a timezone")
+    return parsed
+
+
 def _positive(value: object, path: str) -> float:
     if (
         isinstance(value, bool)
@@ -185,12 +212,59 @@ def _nullable_generation(value: object, path: str) -> None:
         _fail(f"{path} must be a non-negative integer or null")
 
 
-def validate_attribution_manifest(document: object, *, verify_files: bool = True) -> None:
+def attribution_classification(cells: object) -> dict[str, object]:
+    """Derive only causes measured by the three trigger-body arms."""
+
+    if not isinstance(cells, list):
+        _fail("classification cells must be an array")
+    grouped: dict[tuple[str, str], list[float]] = {}
+    for value in cells:
+        cell = _mapping(value, "/classification/cell")
+        metrics = _mapping(cell["metrics"], "/classification/cell/metrics")
+        grouped.setdefault((str(cell["fixture"]), str(cell["treatment"])), []).append(
+            float(metrics["total_ms"])
+        )
+    causes: list[str] = []
+    generation_supported = True
+    nonce_supported = True
+    try:
+        for fixture in ("scale02", "ac013"):
+            medians = {
+                treatment: statistics.median(grouped[(fixture, treatment)])
+                for treatment in _TREATMENTS
+            }
+            generation_delta = medians["generation_only"] - medians["no_op"]
+            nonce_delta = medians["production"] - medians["generation_only"]
+            generation_supported &= (
+                generation_delta > 0.25 and generation_delta / medians["no_op"] > 0.10
+            )
+            nonce_supported &= (
+                nonce_delta > 0.25 and nonce_delta / medians["generation_only"] > 0.10
+            )
+    except (KeyError, statistics.StatisticsError, ZeroDivisionError):
+        _fail("classification requires every sealed treatment repetition")
+    if generation_supported:
+        causes.append("per_row_visibility_update")
+    if nonce_supported:
+        causes.append("per_fire_nonce")
+    unresolved = not causes
+    return {
+        "state": "unresolved" if unresolved else "supported",
+        "supported_causes": causes,
+        "conditional_preparation_factorial_required": unresolved,
+    }
+
+
+def validate_attribution_manifest(
+    document: object, *, verify_files: bool = True
+) -> None:
     """Reject drift in the sealed Slice 71B attribution protocol."""
 
     root = _mapping(document, "/")
     _exact_keys(root, _TOP_KEYS, "/")
-    _expect(root["schema_version"], "slice71b-attribution-manifest.v1", "/schema_version")
+    _expect(
+        root["schema_version"], "slice71b-attribution-manifest.v1", "/schema_version"
+    )
     _expect(root["release"], "0.8.25", "/release")
 
     approval = _mapping(root["approval"], "/approval")
@@ -217,8 +291,10 @@ def validate_attribution_manifest(document: object, *, verify_files: bool = True
     _exact_keys(probe, _PROBE_KEYS, "/probe")
     probe_path = Path(_nonempty(probe["path"], "/probe/path"))
     probe_sha = _digest(probe["sha256"], "/probe/sha256")
+    lock_path = Path(_nonempty(probe["lock_path"], "/probe/lock_path"))
+    lock_sha = _digest(probe["lock_sha256"], "/probe/lock_sha256")
     runner = _mapping(root["runner"], "/runner")
-    _exact_keys(runner, _PROBE_KEYS, "/runner")
+    _exact_keys(runner, _FILE_BINDING_KEYS, "/runner")
     runner_path = Path(_nonempty(runner["path"], "/runner/path"))
     runner_sha = _digest(runner["sha256"], "/runner/sha256")
 
@@ -227,22 +303,32 @@ def validate_attribution_manifest(document: object, *, verify_files: bool = True
     scale02 = _mapping(fixtures["scale02"], "/fixtures/scale02")
     _exact_keys(scale02, _SCALE02_KEYS, "/fixtures/scale02")
     _expect(scale02["sizes"], _SIZES, "/fixtures/scale02/sizes")
-    _expect(scale02["batch_size_small"], "one_transaction", "/fixtures/scale02/batch_size_small")
+    _expect(
+        scale02["batch_size_small"],
+        "one_transaction",
+        "/fixtures/scale02/batch_size_small",
+    )
     _expect(scale02["batch_size_10k"], 256, "/fixtures/scale02/batch_size_10k")
     _expect(scale02["embedder"], "none", "/fixtures/scale02/embedder")
-    input_path = Path(_nonempty(scale02["input_jsonl"], "/fixtures/scale02/input_jsonl"))
+    input_path = Path(
+        _nonempty(scale02["input_jsonl"], "/fixtures/scale02/input_jsonl")
+    )
     input_sha = _digest(scale02["input_sha256"], "/fixtures/scale02/input_sha256")
     _digest(scale02["fixture_sha256"], "/fixtures/scale02/fixture_sha256")
 
     ac013 = _mapping(fixtures["ac013"], "/fixtures/ac013")
     _exact_keys(ac013, _AC013_KEYS, "/fixtures/ac013")
     _expect(ac013["sizes"], _SIZES, "/fixtures/ac013/sizes")
-    _expect(ac013["batch_size_small"], "one_transaction", "/fixtures/ac013/batch_size_small")
+    _expect(
+        ac013["batch_size_small"], "one_transaction", "/fixtures/ac013/batch_size_small"
+    )
     _expect(ac013["batch_size_10k"], 1_024, "/fixtures/ac013/batch_size_10k")
     _expect(ac013["vector_dim"], 384, "/fixtures/ac013/vector_dim")
     _expect(ac013["embedder"], "varying/perf-gates-dense", "/fixtures/ac013/embedder")
     generator_path = Path(_nonempty(ac013["generator"], "/fixtures/ac013/generator"))
-    generator_sha = _digest(ac013["generator_sha256"], "/fixtures/ac013/generator_sha256")
+    generator_sha = _digest(
+        ac013["generator_sha256"], "/fixtures/ac013/generator_sha256"
+    )
     _digest(ac013["fixture_sha256"], "/fixtures/ac013/fixture_sha256")
 
     _expect(root["treatments"], _TREATMENTS, "/treatments")
@@ -271,12 +357,17 @@ def validate_attribution_manifest(document: object, *, verify_files: bool = True
         "forbid_competing_processes": True,
     }.items():
         _expect(environment[key], expected, f"/environment_policy/{key}")
+    timeouts = _mapping(root["timeouts_s"], "/timeouts_s")
+    _exact_keys(timeouts, _TIMEOUT_KEYS, "/timeouts_s")
+    _expect(timeouts["build"], 900, "/timeouts_s/build")
+    _expect(timeouts["cell"], 1_800, "/timeouts_s/cell")
     _expect(root["raw_root"], "dev/plans/runs/0.8.25-slice-71/71b", "/raw_root")
 
     if verify_files:
         repo = Path(__file__).resolve().parent.parent
         for path, expected, label in (
             (repo / probe_path, probe_sha, "probe"),
+            (repo / lock_path, lock_sha, "probe lock"),
             (repo / runner_path, runner_sha, "runner"),
             (repo / generator_path, generator_sha, "generator"),
             (repo / input_path, input_sha, "scale02 input"),
@@ -301,12 +392,20 @@ def validate_attribution_receipt(
     manifest = _mapping(manifest_document, "/manifest")
     root = _mapping(document, "/")
     _exact_keys(root, _RECEIPT_KEYS, "/")
-    _expect(root["schema_version"], "slice71b-attribution-receipt.v1", "/schema_version")
+    _expect(
+        root["schema_version"], "slice71b-attribution-receipt.v1", "/schema_version"
+    )
     manifest_sha = _digest(root["manifest_sha256"], "/manifest_sha256")
-    _nonempty(root["started_at"], "/started_at")
-    _nonempty(root["finished_at"], "/finished_at")
+    receipt_started = _timestamp(root["started_at"], "/started_at")
+    receipt_finished = _timestamp(root["finished_at"], "/finished_at")
+    if receipt_finished < receipt_started:
+        _fail("/finished_at precedes /started_at")
     if verify_hashes:
-        manifest_path = Path(__file__).resolve().parent / "configs" / "release-0825-slice71b-attribution-manifest.v1.json"
+        manifest_path = (
+            Path(__file__).resolve().parent
+            / "configs"
+            / "release-0825-slice71b-attribution-manifest.v1.json"
+        )
         if hashlib.sha256(manifest_path.read_bytes()).hexdigest() != manifest_sha:
             _fail("/manifest_sha256 does not bind the checked-in manifest")
 
@@ -318,8 +417,8 @@ def validate_attribution_receipt(
         for fixture in ("scale02", "ac013")
         for treatment in manifest["attribution_order"]  # type: ignore[union-attr]
     ]
-    if len(cells) != len(expected):
-        _fail("/cells must contain the exact 18-cell attribution matrix")
+    if len(cells) > len(expected):
+        _fail("/cells exceeds the sealed 18-cell attribution matrix")
 
     sources = _mapping(manifest["product_sources"], "/manifest/product_sources")
     probe = _mapping(manifest["probe"], "/manifest/probe")
@@ -329,8 +428,9 @@ def validate_attribution_receipt(
         for fixture in ("scale02", "ac013")
     }
     grouped: dict[tuple[str, str], list[Mapping[str, object]]] = {}
+    prior_finished = receipt_started
     for index, (value, (expected_fixture, expected_treatment)) in enumerate(
-        zip(cells, expected, strict=True)
+        zip(cells, expected)
     ):
         path = f"/cells/{index}"
         cell = _mapping(value, path)
@@ -346,72 +446,211 @@ def validate_attribution_receipt(
         _digest(cell["source_ref"], f"{path}/source_ref", _SHA1)
         _expect(cell["source_tree_dirty"], False, f"{path}/source_tree_dirty")
         _digest(cell["probe_sha256"], f"{path}/probe_sha256")
+        _digest(cell["probe_lock_sha256"], f"{path}/probe_lock_sha256")
+        _digest(cell["runner_sha256"], f"{path}/runner_sha256")
+        _digest(cell["executable_sha256"], f"{path}/executable_sha256")
+        _nonempty(cell["executable_path"], f"{path}/executable_path")
         _digest(cell["fixture_sha256"], f"{path}/fixture_sha256")
         if verify_hashes:
-            _expect(cell["source_ref"], sources["unchanged_current"], f"{path}/source_ref")
+            _expect(
+                cell["source_ref"], sources["unchanged_current"], f"{path}/source_ref"
+            )
             _expect(cell["probe_sha256"], probe["sha256"], f"{path}/probe_sha256")
-            fixture = _mapping(fixtures[expected_fixture], f"/manifest/fixtures/{expected_fixture}")
-            _expect(cell["fixture_sha256"], fixture["fixture_sha256"], f"{path}/fixture_sha256")
-        _nonempty(cell["started_at"], f"{path}/started_at")
-        _nonempty(cell["finished_at"], f"{path}/finished_at")
+            _expect(
+                cell["probe_lock_sha256"],
+                probe["lock_sha256"],
+                f"{path}/probe_lock_sha256",
+            )
+            runner = _mapping(manifest["runner"], "/manifest/runner")
+            _expect(cell["runner_sha256"], runner["sha256"], f"{path}/runner_sha256")
+            fixture = _mapping(
+                fixtures[expected_fixture], f"/manifest/fixtures/{expected_fixture}"
+            )
+            _expect(
+                cell["fixture_sha256"],
+                fixture["fixture_sha256"],
+                f"{path}/fixture_sha256",
+            )
+        cell_started = _timestamp(cell["started_at"], f"{path}/started_at")
+        cell_finished = _timestamp(cell["finished_at"], f"{path}/finished_at")
+        if cell_started < prior_finished or cell_finished < cell_started:
+            _fail(f"{path} timestamps violate sealed execution order")
+        prior_finished = cell_finished
         _expect(cell["environment_valid"], True, f"{path}/environment_valid")
+        _digest(cell["environment_sha256"], f"{path}/environment_sha256")
+        _nonempty(cell["environment_path"], f"{path}/environment_path")
         _digest(cell["raw_log_sha256"], f"{path}/raw_log_sha256")
+        _nonempty(cell["raw_log_path"], f"{path}/raw_log_path")
+        if verify_hashes:
+            repo = Path(__file__).resolve().parent.parent
+            for file_key, digest_key in (
+                ("executable_path", "executable_sha256"),
+                ("environment_path", "environment_sha256"),
+                ("raw_log_path", "raw_log_sha256"),
+            ):
+                artifact = Path(str(cell[file_key]))
+                artifact = artifact if artifact.is_absolute() else repo / artifact
+                try:
+                    actual = hashlib.sha256(artifact.read_bytes()).hexdigest()
+                except OSError as exc:
+                    _fail(f"{path}/{file_key} is unavailable: {exc}")
+                _expect(
+                    actual, cell[digest_key], f"{path}/{digest_key} (artifact bytes)"
+                )
+        build = _mapping(cell["build_identity"], f"{path}/build_identity")
+        _exact_keys(build, _BUILD_KEYS, f"{path}/build_identity")
+        _nonempty(build["cargo"], f"{path}/build_identity/cargo")
+        _nonempty(build["rustc"], f"{path}/build_identity/rustc")
+        _digest(
+            build["rustc_verbose_sha256"], f"{path}/build_identity/rustc_verbose_sha256"
+        )
+        _expect(build["profile"], "release", f"{path}/build_identity/profile")
+        runtime = _mapping(cell["runtime_identity"], f"{path}/runtime_identity")
+        _exact_keys(runtime, _RUNTIME_KEYS, f"{path}/runtime_identity")
+        for key in _RUNTIME_KEYS:
+            _nonempty(runtime[key], f"{path}/runtime_identity/{key}")
 
         metrics = _mapping(cell["metrics"], f"{path}/metrics")
         _exact_keys(metrics, _METRIC_KEYS, f"{path}/metrics")
         _expect(metrics["records"], 10_000, f"{path}/metrics/records")
         batch_size = 256 if expected_fixture == "scale02" else 1_024
         _expect(metrics["batch_size"], batch_size, f"{path}/metrics/batch_size")
-        _expect(metrics["transactions"], math.ceil(10_000 / batch_size), f"{path}/metrics/transactions")
+        _expect(
+            metrics["transactions"],
+            math.ceil(10_000 / batch_size),
+            f"{path}/metrics/transactions",
+        )
         ack = _positive(metrics["ingest_ack_ms"], f"{path}/metrics/ingest_ack_ms")
-        drain = _positive(metrics["projection_drain_ms"], f"{path}/metrics/projection_drain_ms")
+        drain = _positive(
+            metrics["projection_drain_ms"], f"{path}/metrics/projection_drain_ms"
+        )
         total = _positive(metrics["total_ms"], f"{path}/metrics/total_ms")
         if not math.isclose(total, ack + drain, rel_tol=1e-6, abs_tol=0.05):
             _fail(f"{path}/metrics/total_ms must equal acknowledgement plus drain")
-        for key in ("generation_before", "generation_after_ack", "generation_after_drain"):
+        for key in (
+            "generation_before",
+            "generation_after_ack",
+            "generation_after_drain",
+        ):
             _nullable_generation(metrics[key], f"{path}/metrics/{key}")
         for key in ("nonce_before", "nonce_after_ack", "nonce_after_drain"):
             if metrics[key] is not None:
                 _digest(metrics[key], f"{path}/metrics/{key}")
-        for key in ("trigger_inventory", "database_bytes", "wal_bytes", "peak_rss_bytes"):
-            if isinstance(metrics[key], bool) or not isinstance(metrics[key], int) or metrics[key] < 0:
+        for key in (
+            "trigger_inventory",
+            "database_bytes",
+            "wal_bytes",
+            "peak_rss_bytes",
+        ):
+            if (
+                isinstance(metrics[key], bool)
+                or not isinstance(metrics[key], int)
+                or metrics[key] < 0
+            ):
                 _fail(f"{path}/metrics/{key} must be a non-negative integer")
         _positive(metrics["process_cpu_seconds"], f"{path}/metrics/process_cpu_seconds")
+        _expect(metrics["trigger_inventory"], 54, f"{path}/metrics/trigger_inventory")
+        generations = [
+            metrics[key]
+            for key in (
+                "generation_before",
+                "generation_after_ack",
+                "generation_after_drain",
+            )
+        ]
+        nonces = [
+            metrics[key]
+            for key in ("nonce_before", "nonce_after_ack", "nonce_after_drain")
+        ]
+        if any(value is None for value in generations + nonces):
+            _fail(f"{path} current-source visibility observations must be present")
+        before, after_ack, after_drain = (int(value) for value in generations)
+        nonce_before, nonce_ack, nonce_drain = (str(value) for value in nonces)
+        if expected_treatment == "production":
+            if not (
+                after_ack > before
+                and after_drain >= after_ack
+                and nonce_ack != nonce_before
+            ):
+                _fail(f"{path} production treatment did not advance visibility")
+            if after_drain > after_ack and nonce_drain == nonce_ack:
+                _fail(
+                    f"{path} production drain advanced generation without nonce rotation"
+                )
+        elif expected_treatment == "generation_only":
+            if not (after_ack > before and after_drain >= after_ack):
+                _fail(f"{path} generation-only treatment did not advance generation")
+            if len({nonce_before, nonce_ack, nonce_drain}) != 1:
+                _fail(f"{path} generation-only treatment rotated the nonce")
+        elif not (
+            before == after_ack == after_drain
+            and nonce_before == nonce_ack == nonce_drain
+        ):
+            _fail(f"{path} no-op treatment changed visibility state")
         grouped.setdefault((expected_fixture, expected_treatment), []).append(cell)
 
-    spread_limit = float(_mapping(manifest["policy"], "/manifest/policy")["max_within_arm_spread_percent"])
+    if receipt_finished < prior_finished:
+        _fail("/finished_at precedes the final cell")
+
+    spread_limit = float(
+        _mapping(manifest["policy"], "/manifest/policy")[
+            "max_within_arm_spread_percent"
+        ]
+    )
+    spread_violations: list[str] = []
     for (fixture, treatment), arm_cells in grouped.items():
         for metric in ("ingest_ack_ms", "total_ms"):
-            values = [float(_mapping(cell["metrics"], "/metrics")[metric]) for cell in arm_cells]
+            values = [
+                float(_mapping(cell["metrics"], "/metrics")[metric])
+                for cell in arm_cells
+            ]
             spread = (max(values) / min(values) - 1.0) * 100.0
             if spread > spread_limit:
-                _fail(f"{fixture}/{treatment}/{metric} spread {spread:.3f}% exceeds {spread_limit}%")
+                spread_violations.append(
+                    f"{fixture}/{treatment}/{metric} spread {spread:.3f}% exceeds "
+                    f"{spread_limit}%"
+                )
 
     classification = _mapping(root["classification"], "/classification")
     _exact_keys(classification, _CLASSIFICATION_KEYS, "/classification")
-    _expect(classification["state"], "complete", "/classification/state")
-    causes = classification["supported_causes"]
-    allowed_causes = {
-        "per_row_visibility_update",
-        "per_fire_nonce",
-        "trigger_dispatch",
-        "writer_projector_interaction",
-        "statement_preparation",
-    }
-    if not isinstance(causes, list) or not causes or any(cause not in allowed_causes for cause in causes):
-        _fail("/classification/supported_causes is invalid")
-    _expect(
-        classification["conditional_preparation_factorial_required"],
-        False,
-        "/classification/conditional_preparation_factorial_required",
-    )
     errors = root["errors"]
-    if not isinstance(errors, list) or errors:
-        _fail("/errors must be empty for a complete attribution receipt")
+    if not isinstance(errors, list) or any(
+        not isinstance(error, str) or not error for error in errors
+    ):
+        _fail("/errors must contain only non-empty strings")
+    state = classification["state"]
+    if state in {"supported", "unresolved"}:
+        if len(cells) != len(expected):
+            _fail("a completed receipt must contain the exact 18-cell matrix")
+        _expect(classification, attribution_classification(cells), "/classification")
+        if errors:
+            _fail("/errors must be empty for a complete attribution receipt")
+        if spread_violations:
+            _fail(spread_violations[0])
+    else:
+        if state not in {
+            "environment_invalid",
+            "probe_failed",
+            "build_failed",
+            "spread_invalid",
+        }:
+            _fail("an incomplete receipt must carry a canonical abort state")
+        _expect(
+            classification["supported_causes"], [], "/classification/supported_causes"
+        )
+        _expect(
+            classification["conditional_preparation_factorial_required"],
+            False,
+            "/classification/conditional_preparation_factorial_required",
+        )
+        if not errors:
+            _fail("an incomplete receipt must retain its stop reason")
+        if state == "spread_invalid" and not spread_violations:
+            _fail("spread_invalid requires a measured spread violation")
 
 
 def classify_recovery(
-    medians: Mapping[str, Mapping[int, Mapping[str, Mapping[str, float]]]]
+    medians: Mapping[str, Mapping[int, Mapping[str, Mapping[str, float]]]],
 ) -> str:
     """Apply the preregistered 10k and joint small-write recovery boundaries."""
 
@@ -444,7 +683,11 @@ def classify_recovery(
 def main() -> int:
     """Validate the checked-in attribution manifest."""
 
-    manifest_path = Path(__file__).resolve().parent / "configs" / "release-0825-slice71b-attribution-manifest.v1.json"
+    manifest_path = (
+        Path(__file__).resolve().parent
+        / "configs"
+        / "release-0825-slice71b-attribution-manifest.v1.json"
+    )
     validate_attribution_manifest(json.loads(manifest_path.read_text(encoding="utf-8")))
     print("ok")
     return 0

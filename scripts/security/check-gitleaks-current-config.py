@@ -67,6 +67,15 @@ EXPECTED_ALLOWLISTS = [
         "regexes": [r"^[0-9a-f]{64}$"],
     },
     {
+        "description": "Slice 72 CE tokenizer digest is artifact-integrity metadata",
+        "condition": "AND",
+        "regexTarget": "match",
+        "paths": [
+            r"^dev/plans/0\.8\.25/features/slice-72/ce-profile-manifest\.json$"
+        ],
+        "regexes": [r'^tokenizer\.json": "[0-9a-f]{64}"$'],
+    },
+    {
         "description": "code-marker drift evidence carries two reviewed marker identifiers",
         "condition": "AND",
         "regexTarget": "secret",

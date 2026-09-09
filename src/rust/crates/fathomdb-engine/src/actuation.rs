@@ -1239,6 +1239,7 @@ fn simulate_request(
                         }
                         Err(CommitBatchError::Sql(_)) => return Err(EngineError::Storage),
                         Err(CommitBatchError::Engine(error)) => return Err(error),
+                        Err(CommitBatchError::WriterPoisoned) => return Err(EngineError::Storage),
                     }
                 }
                 ActuationOperationV1::RegisterSourceDependency(dependency) => {
@@ -1797,6 +1798,9 @@ impl Engine {
                             }
                             Err(CommitBatchError::Engine(error)) => {
                                 Err(RefusalOrInfrastructure::Infrastructure(error))
+                            }
+                            Err(CommitBatchError::WriterPoisoned) => {
+                                Err(RefusalOrInfrastructure::Infrastructure(EngineError::Storage))
                             }
                         }
                     }

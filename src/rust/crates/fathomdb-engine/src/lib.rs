@@ -471,7 +471,7 @@ use fathomdb_schema::CANONICAL_TABLES;
 use jsonschema::JSONSchema;
 #[cfg(any(test, feature = "test-hooks"))]
 use rusqlite::TransactionState;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{config::DbConfig, params, Connection, OptionalExtension};
 use serde_json::Value;
 // `sha2::Digest` + `sha2::Sha256` — used by `safe_export` (operator-gated)
 // and unconditionally by `ingest_with_extractor` (G11 logical_id derivation).
@@ -9893,6 +9893,10 @@ impl Engine {
                 return Err(EngineError::Provenance(error));
             }
             Err(CommitBatchError::Engine(error)) => return Err(error),
+            Err(CommitBatchError::WriterPoisoned) => {
+                self.closed.store(true, Ordering::SeqCst);
+                return Err(EngineError::Storage);
+            }
         };
         let pending_projection = !projection_jobs.is_empty()
             || !vector_kinds_to_enrol.is_empty()
@@ -29004,6 +29008,7 @@ enum CommitBatchError {
     Sql(rusqlite::Error),
     Provenance(ProvenanceError),
     Engine(EngineError),
+    WriterPoisoned,
 }
 
 impl From<rusqlite::Error> for CommitBatchError {
@@ -29320,6 +29325,86 @@ fn register_artifact_identity(
     Ok(())
 }
 
+/// Temporarily suppress schema triggers on the writer connection. External
+/// connections retain the schema-33 triggers, and `Drop` restores this
+/// connection during error unwinding before the transaction rolls back.
+struct TriggerStateGuard<'connection> {
+    connection: &'connection Connection,
+    restored: bool,
+}
+
+impl<'connection> TriggerStateGuard<'connection> {
+    fn disable(connection: &'connection Connection) -> Result<Self, CommitBatchError> {
+        if !connection
+            .db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER)
+            .map_err(|_| CommitBatchError::WriterPoisoned)?
+        {
+            return Err(CommitBatchError::WriterPoisoned);
+        }
+        let enabled = connection
+            .set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, false)
+            .map_err(|_| CommitBatchError::WriterPoisoned)?;
+        if enabled {
+            return Err(CommitBatchError::WriterPoisoned);
+        }
+        Ok(Self { connection, restored: false })
+    }
+
+    fn restore(mut self) -> Result<(), CommitBatchError> {
+        match self.connection.set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, true) {
+            Ok(true) => {
+                self.restored = true;
+                Ok(())
+            }
+            _ => Err(CommitBatchError::WriterPoisoned),
+        }
+    }
+}
+
+impl Drop for TriggerStateGuard<'_> {
+    fn drop(&mut self) {
+        if !self.restored {
+            self.restored = self
+                .connection
+                .set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, true)
+                .unwrap_or(false);
+        }
+    }
+}
+
+fn canonical_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
+    let unexpected: bool = connection.query_row(
+        "SELECT EXISTS(
+             SELECT 1 FROM sqlite_master
+             WHERE type='trigger'
+               AND tbl_name IN (
+                   'canonical_nodes','canonical_edges','_fathomdb_artifact_revisions',
+                   '_fathomdb_source_versions','_fathomdb_source_links',
+                   '_fathomdb_source_dependencies','_fathomdb_dependency_closures',
+                   'canonical_attributes','_fathomdb_projection_state',
+                   '_fathomdb_projection_terminal','_fathomdb_vector_kinds',
+                   '_fathomdb_vector_rows','operational_mutations'
+               )
+               AND name NOT LIKE '_fathomdb_read_visibility_%'
+             UNION ALL
+             SELECT 1 FROM sqlite_temp_master
+             WHERE type='trigger'
+               AND tbl_name IN (
+                   'canonical_nodes','canonical_edges','_fathomdb_artifact_revisions',
+                   '_fathomdb_source_versions','_fathomdb_source_links',
+                   '_fathomdb_source_dependencies','_fathomdb_dependency_closures',
+                   'canonical_attributes','_fathomdb_projection_state',
+                   '_fathomdb_projection_terminal','_fathomdb_vector_kinds',
+                   '_fathomdb_vector_rows','operational_mutations'
+               )
+               AND name NOT LIKE '_fathomdb_read_visibility_%'
+         )",
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(!unexpected)
+}
+
 fn commit_batch(
     connection: &mut Connection,
     batch: &[PreparedWrite],
@@ -29361,7 +29446,48 @@ fn commit_batch(
     // `BEGIN IMMEDIATE` can itself return `SQLITE_BUSY` — but WITH the busy
     // handler consulted, i.e. absorbed by the existing 5 s default instead of
     // surfaced (pinned by `tc57_mechanism_control_write_first_is_retryable`).
+    let canonical_batch = batch.iter().all(|write| {
+        matches!(
+            write,
+            PreparedWrite::Node { .. }
+                | PreparedWrite::Edge { .. }
+                | PreparedWrite::ProvenancedNode(_)
+                | PreparedWrite::ProvenancedEdge(_)
+        )
+    });
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    // Slice 71B: the standard canonical mutation closure contains only the
+    // visibility triggers. Suppress them on this connection, perform the same
+    // checked nonce-bearing invalidation once after all mutations succeed, then
+    // restore trigger execution before commit. An unexpected main or TEMP
+    // trigger selects the unchanged row-trigger path so application extensions
+    // still observe every row.
+    if canonical_batch && canonical_batch_has_no_custom_triggers(&tx)? {
+        let trigger_guard = TriggerStateGuard::disable(&tx)?;
+        let attempted = apply_batch_in_transaction(
+            &tx,
+            batch,
+            plans,
+            base_cursor,
+            provenance_row_cap,
+            vector_kinds_to_enrol,
+            dependency_closure::SoftClosureMode::Complete,
+        )
+        .and_then(|result| {
+            advance_read_visibility(&tx)?;
+            Ok(result)
+        });
+        let restored = trigger_guard.restore();
+        return match (attempted, restored) {
+            (Ok(result), Ok(())) => {
+                tx.commit()?;
+                Ok(result)
+            }
+            (Err(error), Ok(())) => Err(error),
+            (_, Err(_)) => Err(CommitBatchError::WriterPoisoned),
+        };
+    }
+
     let result = apply_batch_in_transaction(
         &tx,
         batch,
@@ -29373,6 +29499,23 @@ fn commit_batch(
     )?;
     tx.commit()?;
     Ok(result)
+}
+
+fn advance_read_visibility(connection: &Connection) -> rusqlite::Result<()> {
+    let changed = connection.execute(
+        "UPDATE _fathomdb_read_visibility_state
+         SET generation=generation+1,
+             state_nonce=lower(hex(randomblob(32)))
+         WHERE singleton=1 AND generation<9223372036854775807",
+        [],
+    )?;
+    if changed != 1 {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT_TRIGGER),
+            Some("read visibility generation exhausted".to_string()),
+        ));
+    }
+    Ok(())
 }
 
 /// Apply a validated ordinary write batch inside an already-owned transaction.
@@ -32365,6 +32508,116 @@ mod tests {
         )
         .unwrap();
         assert_eq!(after, before + 1);
+    }
+
+    #[test]
+    fn visibility_exhaustion_rolls_back_and_restores_triggers() {
+        let dir = TempDir::new().unwrap();
+        let opened = Engine::open(dir.path().join("visibility-exhaustion.sqlite")).unwrap();
+        {
+            let guard = opened.engine.connection.lock().unwrap();
+            let connection = guard.as_ref().unwrap();
+            connection
+                .execute(
+                    "UPDATE _fathomdb_read_visibility_state
+                     SET generation=9223372036854775807 WHERE singleton=1",
+                    [],
+                )
+                .unwrap();
+        }
+        let node = PreparedWrite::Node {
+            kind: "doc".to_string(),
+            body: "body".to_string(),
+            source_id: SourceId::new("test:visibility-exhaustion").unwrap(),
+            logical_id: Some("logical".to_string()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        };
+
+        assert!(matches!(opened.engine.write(&[node.clone()]), Err(EngineError::Storage)));
+
+        {
+            let guard = opened.engine.connection.lock().unwrap();
+            let connection = guard.as_ref().unwrap();
+            assert!(connection
+                .db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER)
+                .unwrap());
+            assert_eq!(
+                connection
+                    .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| {
+                        row.get::<_, i64>(0)
+                    })
+                    .unwrap(),
+                0
+            );
+            assert_eq!(
+                crate::frozen_read::load_visibility_generation(connection).unwrap(),
+                9_223_372_036_854_775_807
+            );
+            connection
+                .execute(
+                    "UPDATE _fathomdb_read_visibility_state SET generation=0 WHERE singleton=1",
+                    [],
+                )
+                .unwrap();
+        }
+        opened.engine.write(&[node]).unwrap();
+        let guard = opened.engine.connection.lock().unwrap();
+        assert_eq!(
+            crate::frozen_read::load_visibility_generation(guard.as_ref().unwrap()).unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn custom_canonical_trigger_forces_row_trigger_fallback() {
+        let dir = TempDir::new().unwrap();
+        let opened = Engine::open(dir.path().join("visibility-custom-trigger.sqlite")).unwrap();
+        let before;
+        {
+            let guard = opened.engine.connection.lock().unwrap();
+            let connection = guard.as_ref().unwrap();
+            connection
+                .execute_batch(
+                    "CREATE TABLE custom_trigger_fires(id INTEGER PRIMARY KEY);
+                     CREATE TRIGGER custom_canonical_insert
+                     AFTER INSERT ON canonical_nodes
+                     BEGIN INSERT INTO custom_trigger_fires VALUES(NULL); END;",
+                )
+                .unwrap();
+            before = crate::frozen_read::load_visibility_generation(connection).unwrap();
+        }
+        let source_id = SourceId::new("test:visibility-custom-trigger").unwrap();
+        let batch = (0..4)
+            .map(|index| PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: format!("body {index}"),
+                source_id: source_id.clone(),
+                logical_id: Some(format!("logical-{index}")),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect::<Vec<_>>();
+
+        opened.engine.write(&batch).unwrap();
+
+        let guard = opened.engine.connection.lock().unwrap();
+        let connection = guard.as_ref().unwrap();
+        assert_eq!(
+            connection
+                .query_row("SELECT COUNT(*) FROM custom_trigger_fires", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            4
+        );
+        assert_eq!(
+            crate::frozen_read::load_visibility_generation(connection).unwrap(),
+            before + 12
+        );
     }
 
     proptest! {

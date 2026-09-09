@@ -32511,6 +32511,53 @@ mod tests {
     }
 
     #[test]
+    fn projection_batches_coalesce_visibility_invalidation() {
+        let dir = TempDir::new().unwrap();
+        let opened = Engine::open_with_embedder_for_test(
+            dir.path().join("projection-visibility-batch.sqlite"),
+            Arc::new(Slice65ProjectionEmbedder),
+        )
+        .unwrap();
+        opened.engine.configure_vector_kind_for_test("doc").unwrap();
+        let before = crate::frozen_read::load_visibility_generation(
+            opened.engine.connection.lock().unwrap().as_ref().unwrap(),
+        )
+        .unwrap();
+        let source_id = SourceId::new("test:projection-visibility-batch").unwrap();
+        let batch = (0..32)
+            .map(|index| PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: format!("body {index}"),
+                source_id: source_id.clone(),
+                logical_id: Some(format!("logical-{index}")),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect::<Vec<_>>();
+
+        opened.engine.write(&batch).unwrap();
+        opened.engine.drain(5_000).unwrap();
+
+        let guard = opened.engine.connection.lock().unwrap();
+        let connection = guard.as_ref().unwrap();
+        let after = crate::frozen_read::load_visibility_generation(connection).unwrap();
+        assert!(
+            after <= before + 1 + batch.len() as u64,
+            "projection visibility advanced once per row mutation: before={before}, after={after}"
+        );
+        assert_eq!(
+            connection
+                .query_row("SELECT COUNT(*) FROM _fathomdb_vector_rows", [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .unwrap(),
+            batch.len() as i64
+        );
+    }
+
+    #[test]
     fn visibility_exhaustion_rolls_back_and_restores_triggers() {
         let dir = TempDir::new().unwrap();
         let opened = Engine::open(dir.path().join("visibility-exhaustion.sqlite")).unwrap();

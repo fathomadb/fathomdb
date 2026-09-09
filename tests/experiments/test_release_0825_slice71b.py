@@ -123,6 +123,7 @@ def valid_attribution_receipt() -> dict[str, object]:
             "supported_causes": ["per_row_visibility_update", "per_fire_nonce"],
             "conditional_preparation_factorial_required": False,
         },
+        "failure": None,
         "errors": [],
     }
 
@@ -202,6 +203,20 @@ def test_attribution_receipt_accepts_canonical_partial_abort() -> None:
         "supported_causes": [],
         "conditional_preparation_factorial_required": False,
     }
+    document["failure"] = {
+        "state": "probe_failed",
+        "fixture": "scale02",
+        "treatment": "no_op",
+        "ordinal": 2,
+        "occurred_at": "2026-09-08T00:04:00Z",
+        "artifacts": [
+            {
+                "kind": "attempt_disposition",
+                "path": "dev/plans/runs/0.8.25-slice-71/71b/attempt.json",
+                "sha256": "b" * 64,
+            }
+        ],
+    }
     document["errors"] = ["scale02/no_op-2: retained probe failure"]
     validate_attribution_receipt(document, manifest(), verify_hashes=False)
 
@@ -210,6 +225,28 @@ def test_attribution_receipt_rejects_unexplained_partial_matrix() -> None:
     document = valid_attribution_receipt()
     document["cells"] = document["cells"][:4]
     with pytest.raises(Slice71BContractError, match="exact 18-cell"):
+        validate_attribution_receipt(document, manifest(), verify_hashes=False)
+
+
+def test_attribution_receipt_rejects_unbound_partial_abort() -> None:
+    document = valid_attribution_receipt()
+    document["cells"] = document["cells"][:4]
+    document["finished_at"] = "2026-09-08T00:04:00Z"
+    document["classification"] = {
+        "state": "probe_failed",
+        "supported_causes": [],
+        "conditional_preparation_factorial_required": False,
+    }
+    document["errors"] = ["unbound failure"]
+    document["failure"] = None
+    with pytest.raises(Slice71BContractError, match="failure"):
+        validate_attribution_receipt(document, manifest(), verify_hashes=False)
+
+
+def test_production_signature_rejects_nonce_change_without_generation_change() -> None:
+    document = valid_attribution_receipt()
+    document["cells"][0]["metrics"]["nonce_after_drain"] = "c" * 64
+    with pytest.raises(Slice71BContractError, match="production"):
         validate_attribution_receipt(document, manifest(), verify_hashes=False)
 
 

@@ -15,7 +15,7 @@
     "path": "experiments/slice71b_write_probe.rs",
     "sha256": "122869c5c445301fb8840d4f358059371424180e0020ff2eb925fdf8de9517e1",
     "lock_path": "experiments/configs/release-0825-slice71b-probe.Cargo.lock",
-    "lock_sha256": "1155906739db1ffc4beca86714d2016e42dc1a761c7a39d21644114a6b58490b"
+    "lock_sha256": "d872c097b97f4e075043f20f0e8df71427efc5d50e1a5573390a9a6fde350118"
   },
   "runner": {
     "path": "scripts/perf-experiments/run_slice71b.py",

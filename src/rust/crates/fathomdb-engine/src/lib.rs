@@ -440,6 +440,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::fs::{File, OpenOptions};
+use std::hash::BuildHasher;
 use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -16713,16 +16714,41 @@ pub fn fuse_three_arms(
         in_vector: bool,
         order: usize,
     }
+    enum BodySlot {
+        One(usize),
+        Collisions(Vec<usize>),
+    }
     let mut entries: Vec<Entry> = Vec::new();
+    let mut entry_by_hash: HashMap<u64, BodySlot> = HashMap::new();
     let mut accumulate = |hit: SearchHit, rank0: usize, in_vector: bool, weight: f64| {
         let contrib = weight / (RRF_K + (rank0 as f64 + 1.0));
-        if let Some(existing) = entries.iter_mut().find(|e| e.hit.body == hit.body) {
-            // Dedup on body; the representative hit (vector-first) is retained.
-            existing.score += contrib;
-        } else {
-            let order = entries.len();
-            entries.push(Entry { hit, score: contrib, in_vector, order });
+        let body_hash = entry_by_hash.hasher().hash_one(&hit.body);
+        let existing = entry_by_hash.get(&body_hash).and_then(|slot| match slot {
+            BodySlot::One(index) => (entries[*index].hit.body == hit.body).then_some(*index),
+            BodySlot::Collisions(indices) => {
+                indices.iter().copied().find(|index| entries[*index].hit.body == hit.body)
+            }
+        });
+        if let Some(existing) = existing {
+            entries[existing].score += contrib;
+            return;
         }
+        let order = entries.len();
+        match entry_by_hash.entry(body_hash) {
+            std::collections::hash_map::Entry::Vacant(slot) => {
+                slot.insert(BodySlot::One(order));
+            }
+            std::collections::hash_map::Entry::Occupied(mut slot) => {
+                let body_slot = slot.get_mut();
+                match body_slot {
+                    BodySlot::One(previous) => {
+                        *body_slot = BodySlot::Collisions(vec![*previous, order]);
+                    }
+                    BodySlot::Collisions(indices) => indices.push(order),
+                }
+            }
+        }
+        entries.push(Entry { hit, score: contrib, in_vector, order });
     };
     for (rank0, hit) in vector_hits.into_iter().enumerate() {
         accumulate(hit, rank0, true, RRF_WEIGHT_VECTOR);
@@ -18182,9 +18208,24 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     if let Some(filter) = filter {
         validate_filter_attributes_on_snapshot(&tx, filter)?;
     }
+    let has_source_dependencies = dependency_closure::has_source_dependencies(&tx)?;
+    let read_dependency_eligibility = |alias: &str, now_idx: usize| {
+        if has_source_dependencies {
+            dependency_closure::read_eligibility_sql(
+                alias,
+                view.view.include_superseded,
+                view.view.include_inactive,
+                view.view.include_out_of_window,
+                now_idx,
+            )
+        } else {
+            String::new()
+        }
+    };
     let vector_eligibility_degraded = query_vector.is_some()
         && dependency_closure::vector_arm_requires_fallback(
             &tx,
+            has_source_dependencies,
             view.view.include_superseded,
             view.view.include_inactive,
             view.view.include_out_of_window,
@@ -18297,13 +18338,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // On a corpus that never authored a window every row is NULL/NULL and
         // the conjunct matches everything ⇒ default behaviour is unchanged.
         let node_validity = view.validity_sql("canonical_nodes", 2);
-        let node_eligibility = dependency_closure::read_eligibility_sql(
-            "canonical_nodes",
-            view.view.include_superseded,
-            view.view.include_inactive,
-            view.view.include_out_of_window,
-            2,
-        );
+        let node_eligibility = read_dependency_eligibility("canonical_nodes", 2);
         let mut node_stmt = tx.prepare(&format!(
             "SELECT kind, body, logical_id, source_id FROM canonical_nodes \
              WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active'\
@@ -18322,13 +18357,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // node validity this conjunct is unconditional (an edge invalidated in the
         // past stays excluded even when node existence is relaxed).
         let edge_validity = edge_validity_sql_for_view("canonical_edges", 2, &view.view);
-        let edge_eligibility = dependency_closure::read_eligibility_sql(
-            "canonical_edges",
-            view.view.include_superseded,
-            view.view.include_inactive,
-            view.view.include_out_of_window,
-            2,
-        );
+        let edge_eligibility = read_dependency_eligibility("canonical_edges", 2);
         let mut edge_stmt = tx.prepare(&format!(
             "SELECT body, logical_id, source_id FROM canonical_edges \
              WHERE write_cursor = ?1 AND superseded_at IS NULL AND body IS NOT NULL\
@@ -18431,6 +18460,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // post-filter it against the same metadata the vector branch was pruned by
     // in SQL (the vector branch is filtered in phase 1; the text branch has no
     // metadata columns of its own).
+    let mut deferred_text_identity = false;
     let text_candidates: Vec<SearchHit> = {
         #[cfg(feature = "tc5-benchmark")]
         tc5_benchmark::record_fts_route();
@@ -18510,26 +18540,40 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // row-set, the `bm25(search_index), write_cursor` ordering and the
         // scores are all byte-unchanged.
         let text_validity = view.validity_sql("cn", 2);
-        let text_eligibility = dependency_closure::read_eligibility_sql(
-            "cn",
-            view.view.include_superseded,
-            view.view.include_inactive,
-            view.view.include_out_of_window,
-            2,
-        );
+        let text_eligibility = read_dependency_eligibility("cn", 2);
         let mut text_params: Vec<rusqlite::types::Value> =
             vec![rusqlite::types::Value::Text(compiled.match_expression.clone())];
         if let Some(now) = now_param {
             text_params.push(rusqlite::types::Value::Integer(now));
         }
         let text_filter = append_node_eligibility_sql(filter, "cn", &mut text_params);
-        let join_sql =
-            body_fts_rank_sql(&text_validity, &text_eligibility, &text_filter, &limit_clause);
         #[cfg(feature = "test-hooks")]
         let force_full_sort =
             std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
         #[cfg(not(feature = "test-hooks"))]
         let force_full_sort = false;
+        let defer_text_identity = query_vector.is_some()
+            && filter.is_none()
+            && perf_limit.is_none()
+            && !has_source_dependencies
+            && !view.view.include_superseded
+            && !view.view.include_inactive
+            && !view.view.include_out_of_window
+            && !recency_enabled
+            && !importance_enabled
+            && rerank_depth == 0
+            && !use_graph_arm
+            && !explain
+            && !force_full_sort
+            && dependency_closure::all_nodes_directly_eligible(
+                &tx,
+                view.view.include_superseded,
+                view.view.include_inactive,
+                view.view.include_out_of_window,
+                view.edge_now(),
+            )?;
+        let join_sql =
+            body_fts_rank_sql(&text_validity, &text_eligibility, &text_filter, &limit_clause);
         let rank_stream_requested =
             direct_text_candidate_limit.is_some() && filter.is_none() && !force_full_sort;
         let rank_stream_eligible = rank_stream_requested
@@ -18573,7 +18617,45 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         } else {
             None
         };
-        if let Some((candidates, _crossed_boundary_tie)) = rank_stream_candidates {
+        let deferred_candidates = if defer_text_identity {
+            let now_binding =
+                now_param.map(|_| " AND (?2 IS NULL OR ?2 IS NOT NULL)").unwrap_or("");
+            let sql = format!(
+                "SELECT body, kind, write_cursor, bm25(search_index) FROM search_index \
+                 WHERE search_index MATCH ?1{now_binding}{limit_clause}"
+            );
+            let mut candidates = tx.prepare(&sql).and_then(|mut statement| {
+                let rows =
+                    statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
+                        let body = row.get::<_, String>(0)?;
+                        Ok(SearchHit {
+                            id: IdSpace::content(String::new()),
+                            body,
+                            kind: row.get::<_, String>(1)?,
+                            write_cursor: row.get::<_, i64>(2)? as u64,
+                            score: row.get::<_, f64>(3)?,
+                            branch: SoftFallbackBranch::Text,
+                            source_id: None,
+                            ce_score: None,
+                        })
+                    })?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })?;
+            candidates.sort_by(|left, right| {
+                left.score
+                    .total_cmp(&right.score)
+                    .then_with(|| left.write_cursor.cmp(&right.write_cursor))
+            });
+            Some(candidates)
+        } else {
+            None
+        };
+        if let Some(candidates) = deferred_candidates {
+            deferred_text_identity = true;
+            #[cfg(feature = "test-hooks")]
+            record_fts_route_for_test("hybrid_deferred_identity");
+            candidates
+        } else if let Some((candidates, _crossed_boundary_tie)) = rank_stream_candidates {
             #[cfg(feature = "test-hooks")]
             record_fts_route_for_test(if _crossed_boundary_tie {
                 "rank_stream_tie_completed"
@@ -18583,7 +18665,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             candidates
         } else if let Ok(mut statement) = tx.prepare(&join_sql) {
             #[cfg(feature = "test-hooks")]
-            if rank_stream_eligible {
+            if query_vector.is_some() && force_full_sort {
+                record_fts_route_for_test("hybrid_full_sort_forced");
+            } else if rank_stream_eligible {
                 record_fts_route_for_test("full_sort_fallback");
             } else if rank_stream_requested {
                 record_fts_route_for_test("full_sort_ineligible");
@@ -18710,13 +18794,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // and always present (edge invalidation is not relaxed by node existence
         // relaxation).
         let edge_validity = edge_validity_sql_for_view("ce", 2, &view.view);
-        let edge_dependency = dependency_closure::read_eligibility_sql(
-            "ce",
-            view.view.include_superseded,
-            view.view.include_inactive,
-            view.view.include_out_of_window,
-            2,
-        );
+        let edge_dependency = read_dependency_eligibility("ce", 2);
         let mut edge_params = vec![
             rusqlite::types::Value::Text(compiled.match_expression.clone()),
             rusqlite::types::Value::Integer(view.edge_now()),
@@ -18930,6 +19008,27 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     };
 
     results.truncate(final_limit);
+
+    if deferred_text_identity {
+        let mut identity_stmt = tx.prepare_cached(
+            "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1",
+        )?;
+        for hit in &mut results {
+            if hit.branch != SoftFallbackBranch::Text {
+                continue;
+            }
+            if let Ok((logical_id, source_id)) = identity_stmt
+                .query_row([hit.write_cursor], |row| {
+                    Ok((row.get::<_, Option<String>>(0)?, row.get::<_, Option<String>>(1)?))
+                })
+            {
+                hit.id = derive_stable_id(logical_id.as_deref(), &hit.body);
+                hit.source_id = source_id;
+            } else {
+                hit.id = derive_stable_id(None, &hit.body);
+            }
+        }
+    }
 
     let projection_status = explain
         .then(|| {

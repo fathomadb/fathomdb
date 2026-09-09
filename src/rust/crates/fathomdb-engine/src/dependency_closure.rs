@@ -871,6 +871,7 @@ pub(crate) fn projection_owner_is_eligible_at(
 
 pub(crate) fn vector_arm_requires_fallback(
     connection: &Connection,
+    has_source_dependencies: bool,
     include_superseded: bool,
     include_inactive: bool,
     include_out_of_window: bool,
@@ -900,6 +901,9 @@ pub(crate) fn vector_arm_requires_fallback(
     )?;
     if direct_state_unsafe {
         return Ok(true);
+    }
+    if !has_source_dependencies {
+        return Ok(false);
     }
     let mut source_predicate = String::new();
     if !include_superseded {
@@ -947,6 +951,38 @@ pub(crate) fn vector_arm_requires_fallback(
     } else {
         connection.query_row(&sql, [effective_at], |row| row.get(0))
     }
+}
+
+pub(crate) fn has_source_dependencies(connection: &Connection) -> rusqlite::Result<bool> {
+    connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)",
+        [],
+        |row| row.get(0),
+    )
+}
+
+pub(crate) fn all_nodes_directly_eligible(
+    connection: &Connection,
+    include_superseded: bool,
+    include_inactive: bool,
+    include_out_of_window: bool,
+    effective_at: i64,
+) -> rusqlite::Result<bool> {
+    let unsafe_row: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE \
+           (?2=0 AND n.superseded_at IS NOT NULL) OR \
+           (?3=0 AND n.state!='active') OR \
+           (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR \
+                      (n.valid_until IS NOT NULL AND n.valid_until<=?1))) LIMIT 1)",
+        params![
+            effective_at,
+            i64::from(include_superseded),
+            i64::from(include_inactive),
+            i64::from(include_out_of_window),
+        ],
+        |row| row.get(0),
+    )?;
+    Ok(!unsafe_row)
 }
 
 pub(crate) fn read_eligibility_sql(

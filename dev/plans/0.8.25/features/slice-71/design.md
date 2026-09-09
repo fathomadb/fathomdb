@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 71 — AC-072 and 71B performance design
 status: REVIEW_REQUIRED
-design_version: 6
+design_version: 8
 target_release: 0.8.25
 depends_on: 60
 ---
@@ -9,8 +9,8 @@ depends_on: 60
 # Slice 71 design
 
 Independent design review passed for v4 after three bounded correction cycles.
-The durable verdict is `design-review-cycle3.md`. Version 5 adds the remaining
-AC-072 completion design and requires focused review before implementation.
+The durable verdict is `design-review-cycle3.md`. Version 8 records the focused
+AC-072 correction selected from bounded diagnostics and requires focused review.
 
 That verdict covers the original design v4 and retained campaign only. The
 owner-approved [71B sub-plan](write-regression-subplan.md) now supersedes the
@@ -111,14 +111,34 @@ acknowledgement/total and AC-013 total each require <= 25% spread. AC-013
 acknowledgement is reported but remains non-gating because it is the variable
 asynchronous work partition. Historical +20% limits also remain in force.
 
-Before a code correction, an opt-in `test-hooks` trace on the search reader
-records normalized statement identities at their actual execution sites. It
-does not use `ProfileRecord` or the timing-gated slow-statement callback. A
-fixed 24-hit node-FTS fixture must observe exactly 24
-`post_filter_source_lookup` events before GREEN and zero afterward. Removal of
-the common post-filter is allowed only after eligibility is present at every
-replacement site and real-database tests prove barred vector-node, node-FTS,
-vector-edge, and edge-FTS hits remain excluded before truncation.
+The earlier 71A correction removed the common per-hit barrier post-filter and
+its fixed 24-hit test remains a regression contract. The remaining AC-072
+cause was different. A bounded six-call diagnostic on the exact 10k/384d
+fixture measured 174-197 ms full searches: global eligibility reached 7-8 ms,
+vector retrieval reached 17-29 ms, unbounded node FTS reached 96-111 ms, and
+quadratic body fusion raised completion to 174-197 ms. A fixed-prefix FTS
+ablation reached p50 59 ms but was rejected because deep vector/text overlap
+can require text ranks beyond the prefix for exact RRF.
+
+The selected correction preserves the complete text candidate set. When the
+same read snapshot proves there are no source dependencies and every canonical
+node is directly eligible, the default unfiltered hybrid path reads body, kind,
+cursor, and BM25 directly from FTS, stably sorts every match by BM25 then
+cursor, and defers stable-ID/source hydration until after final truncation.
+Ownerless rows retain their content-derived IDs. Any dependency, unsafe node,
+filter, reranking, graph arm, reweighting, explanation, or forced test control
+uses the existing joined path. Dependency predicates are omitted only after
+the same snapshot proves the dependency table empty.
+
+RRF accumulation becomes linear in the common case through a hashed body index
+while retaining exact body comparison on hash collision, vector-first identity,
+weights, tie order, duplicates, and all deep-overlap contributions. No candidate
+count, arm, eligibility rule, public limit, or AC-072 threshold changes. A
+100-query 10k/384d release ablation of this exact path measured p50 70 ms and
+p99 77 ms. The RED/GREEN real-database test compares limit-100 output, including
+deep text ranks, duplicate bodies, and an ownerless row, against the forced
+complete joined control. Existing lifecycle, dependency-closure, rank-stream,
+and fusion suites remain the focused blast-radius oracles.
 
 ## Ingest workload
 

@@ -2,7 +2,8 @@
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    take_slice71_search_statement_trace_for_test, Engine, InitialState, PreparedWrite, SourceId,
+    take_slice71_search_statement_trace_for_test, Engine, IdSpaceKind, InitialState, PreparedWrite,
+    SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use std::sync::{Arc, Mutex};
@@ -18,8 +19,12 @@ impl Embedder for FixedEmbedder {
         EmbedderIdentity::new("slice71", "exact-hybrid", 8)
     }
 
-    fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
-        Ok(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    fn embed(&self, text: &str) -> Result<Vector, EmbedderError> {
+        if text == "slice71hybrid" || text.ends_with("document-1") {
+            Ok(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        } else {
+            Ok(vec![0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        }
     }
 }
 
@@ -129,11 +134,49 @@ fn hybrid_deferred_identity_matches_complete_ranked_control_at_limit_100() {
     });
     opened.engine.write(&writes).expect("seed");
     opened.engine.drain(10_000).expect("drain");
+    opened.engine.close().expect("close before ownerless injection");
+
+    let ownerless_body = format!("{} ownerless", "slice71hybrid ".repeat(300));
+    let connection = rusqlite::Connection::open(&path).expect("open ownerless injection");
+    connection
+        .execute(
+            "INSERT INTO search_index(body, kind, write_cursor) VALUES (?1, 'doc', 999999)",
+            [&ownerless_body],
+        )
+        .expect("insert ownerless FTS row");
+    let deep_text_rank = {
+        let mut statement = connection
+            .prepare(
+                "SELECT write_cursor FROM search_index WHERE search_index MATCH ?1 \
+                 ORDER BY bm25(search_index), write_cursor",
+            )
+            .expect("prepare text ranks");
+        statement
+            .query_map(["slice71hybrid"], |row| row.get::<_, u64>(0))
+            .expect("query text ranks")
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .expect("collect text ranks")
+            .iter()
+            .position(|cursor| *cursor == 1)
+            .expect("vector-first row in text ranks")
+            + 1
+    };
+    assert!(deep_text_rank > 200, "fixture must exercise a deep text contribution");
+    connection.close().expect("close ownerless injection");
+    let opened =
+        Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).expect("reopen");
 
     let optimized = opened.engine.search_with_limit("slice71hybrid", 100).expect("optimized");
     unsafe { std::env::set_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST", "1") };
     let control = opened.engine.search_with_limit("slice71hybrid", 100).expect("control");
     assert_eq!(optimized, control, "optimized hybrid search must preserve complete-ranking output");
+    let ownerless = optimized
+        .results
+        .iter()
+        .find(|hit| hit.body == ownerless_body)
+        .expect("ownerless row must survive exact ranking");
+    assert_eq!(ownerless.id.space, IdSpaceKind::Content);
+    assert_eq!(ownerless.source_id, None);
 
     let routes = std::fs::read_to_string(route_witness).expect("route witness");
     assert!(routes.contains("hybrid_deferred_identity"), "optimized route was not selected");

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -28,7 +29,17 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def run(command: list[str], *, cwd: Path) -> str:
+def run(
+    command: list[str], *, cwd: Path, environment: dict[str, str] | None = None
+) -> str:
+    process_environment = os.environ.copy()
+    if environment:
+        process_environment.update(environment)
+        if "PATH_prefix" in environment:
+            process_environment["PATH"] = (
+                environment["PATH_prefix"] + os.pathsep + process_environment["PATH"]
+            )
+            del process_environment["PATH_prefix"]
     result = subprocess.run(
         command,
         cwd=cwd,
@@ -36,6 +47,7 @@ def run(command: list[str], *, cwd: Path) -> str:
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=process_environment,
     )
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip()
@@ -73,6 +85,7 @@ def validate_receipt(
         "source_root",
         "source_clean",
         "build_command",
+        "build_environment",
         "wheel_path",
         "wheel_size",
         "wheel_sha256",
@@ -97,6 +110,13 @@ def validate_receipt(
         raise ArtifactError("artifact features do not match the manifest")
     if receipt["source_clean"] is not True:
         raise ArtifactError("artifact source checkout was not clean")
+    expected_build_environment = (
+        {"CUDA_HOME": "/usr/local/cuda", "PATH_prefix": "/usr/local/cuda/bin"}
+        if device == "cuda"
+        else {}
+    )
+    if receipt["build_environment"] != expected_build_environment:
+        raise ArtifactError("artifact build environment is not the registered environment")
 
     if not isinstance(receipt["wheel_size"], int) or receipt["wheel_size"] <= 0:
         raise ArtifactError("artifact wheel size is invalid")
@@ -204,7 +224,16 @@ def main() -> int:
         "-i",
         str(args.python.resolve()),
     ]
-    run(build_command, cwd=source / "src" / "python")
+    build_environment = (
+        {"CUDA_HOME": "/usr/local/cuda", "PATH_prefix": "/usr/local/cuda/bin"}
+        if args.device == "cuda"
+        else {}
+    )
+    run(
+        build_command,
+        cwd=source / "src" / "python",
+        environment=build_environment,
+    )
     wheels = list(wheel_dir.glob("*.whl"))
     if len(wheels) != 1:
         raise ArtifactError("build must produce exactly one wheel")
@@ -243,6 +272,7 @@ def main() -> int:
         "source_root": str(source),
         "source_clean": True,
         "build_command": build_command,
+        "build_environment": build_environment,
         "wheel_path": str(wheel),
         "wheel_size": wheel.stat().st_size,
         "wheel_sha256": sha256(wheel),

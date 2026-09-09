@@ -95,6 +95,16 @@ campaign on invalidity, retain all cells, and diagnose the environment. A
 revised protocol must be recorded before any replacement campaign; no silent
 retries, discarded outliers, or threshold changes after seeing results.
 
+For Phase 5 recovery, the 2026-09-09 owner direction prospectively narrows
+"primary timing metric" to match the actual completion criteria below. The
+1–1,000-row cells use their registered median and conjunctive relative/absolute
+limit; sub-millisecond scheduling range does not invalidate them. At 10k,
+Scale-02 acknowledgement and total, and AC-013 total, retain the 25% spread
+gate. AC-013 acknowledgement remains mandatory and reported but is diagnostic:
+asynchronous projection can move the same work across the acknowledgement and
+drain boundary. No performance limit or 25% threshold changes. Earlier invalid
+observations remain retained and cannot be reused in the prospective run.
+
 ## Phase 2 — Attribute the regression
 
 Measure acknowledgement, subsequent drain, and total ingest-to-drained wall

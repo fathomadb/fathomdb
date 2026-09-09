@@ -74,4 +74,10 @@ weakening was attempted after observing the sealed result.
 The revised campaign confirms `environment_invalid`. The existing first-run
 raw results remain exploratory and must not be relabeled. The approved stop
 condition blocks bulk-ingest execution and any unregistered further AC-013
-treatment. Slice 71 remains blocked for an owner-approved protocol change.
+treatment at this historical boundary.
+
+The owner subsequently completed the independent 71B write track and approved
+plan/design v5 for focused AC-072 resolution. That prospective work preserves
+this result, establishes an equivalent 10k/384 basis, decomposes full
+`Engine.search`, corrects only a measured cause, and reruns the registered
+acceptance campaign without broad regressions or weaker limits.

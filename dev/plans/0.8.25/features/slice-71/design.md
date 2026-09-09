@@ -1,15 +1,16 @@
 ---
-title: 0.8.25 Slice 71 — investigation design
-status: APPROVED
-design_version: 4
+title: 0.8.25 Slice 71 — AC-072 and 71B performance design
+status: REVIEW_REQUIRED
+design_version: 5
 target_release: 0.8.25
 depends_on: 60
 ---
 
 # Slice 71 design
 
-Independent design review passed after three bounded correction cycles. The
-durable verdict is `design-review-cycle3.md`.
+Independent design review passed for v4 after three bounded correction cycles.
+The durable verdict is `design-review-cycle3.md`. Version 5 adds the remaining
+AC-072 completion design and requires focused review before implementation.
 
 That verdict covers the original design v4 and retained campaign only. The
 owner-approved [71B sub-plan](write-regression-subplan.md) now supersedes the
@@ -148,17 +149,19 @@ Fresh branch-sensitive nonce behavior, rollback safety, cross-process and
 raw-SQL drift detection, virtual-table coupling, exhaustion, and authoritative
 coverage remain required guarantees.
 
-## TDD and focused verification
+## Historical v4 TDD and verification
 
-The RED commit contains exact-runner selection/exit-status tests, strict
-manifest/receipt rejection tests, and the deterministic query-profile oracle.
+The original v4 RED commit contains exact-runner selection/exit-status tests,
+strict manifest/receipt rejection tests, and the deterministic query-profile
+oracle.
 GREEN changes only code directly supported by those failures. Focused
 verification includes the changed tests, relevant dependency-closure and
 Slice 35 trigger tests, workspace clippy, workspace check, both sealed
 campaigns, independent code review, and a separate verification reviewer.
-This paragraph records the original verification scope; 71B's affected-crate
-and focused-test policy governs new write work. Full release regressions
-remain deferred to Slice 75 by owner direction.
+This paragraph records the original verification scope only. The AC-072
+completion section below governs current read work, and 71B's affected-crate
+policy governed the completed write work. Full release regressions remain
+deferred to Slice 75 by owner direction.
 
 ## 71B implemented write design
 
@@ -181,3 +184,118 @@ with 64 outcomes per commit and an in-flight limit of 128.
 This changes no schema, public API, visibility guarantee, exhaustion behavior,
 or external trigger coverage. Exact results and focused proof are recorded in
 [71b-performance-recovery.md](71b-performance-recovery.md).
+
+## AC-072 completion design
+
+### Isolation from 71B
+
+The read-latency correction starts from the completed 71B product candidate
+`eda95b07`. The governed write, visibility, projection-commit, batching, and
+drain changes are protected inputs, not new optimization space. AC-072 work
+must not modify them unless diagnostic evidence makes such a dependency
+unavoidable. Any such overlap requires an explicit blast-radius account and
+the two candidate-side 71B 10k checks before Slice 71 can close.
+
+### Equivalent execution basis
+
+Before changing product code, produce one compact equivalence record for the
+historical synthetic 10k run, branch-point baseline, retained Slice 71
+candidate, and prospective candidate. It binds effective corpus/vector-row
+counts, dimension, deterministic corpus/query seeds, embedder, candidate
+fanout, warmup and measured-query counts, public operation, build/features,
+SQLite/sqlite-vec identities, CPU identity/instructions, affinity, experimental
+environment variables, background projection state, and host controls.
+
+The historical real-embedding 36/49 ms result used 7,667 rows and remains a
+separate production reference. The historical synthetic 15/17 ms result used
+10,000 rows at 384 dimensions and is the closer diagnostic comparison. The
+current fixture's default is 768 dimensions; the executed Slice 71 record says
+384, so the equivalence record must inspect the effective setting instead of
+presuming either configuration.
+
+`ac_013_vector_retrieval_latency` measures full `Engine.search`. Acceptance
+therefore includes query embedding, reader dispatch, vector retrieval,
+canonical hydration, FTS retrieval, eligibility, ranking, and fusion. A
+vector-only probe is diagnostic only. The test's `ac_013` name is retained for
+compatibility; the binding contract it evaluates is AC-072.
+
+### Bounded diagnostic seam
+
+Add opt-in `test-hooks` instrumentation at existing execution boundaries. It
+may record elapsed component time, normalized statement identity, execution
+count, rows/results consumed, preparation count, and SQLite statement counters
+such as VM steps, full-scan steps, and sorts when the runtime exposes them.
+Capture `EXPLAIN QUERY PLAN` for the exact statements and effective parameters.
+Do not enable this instrumentation in the acceptance campaign or production
+builds.
+
+Decompose one representative slow full search in this order:
+
+1. query embedding and serialization;
+2. reader dispatch and queue/lock wait;
+3. vector eligibility and fallback classification;
+4. binary KNN candidate scan and float reranking;
+5. canonical hydration;
+6. FTS retrieval, lifecycle/dependency eligibility, and ranking; and
+7. fusion and final materialization.
+
+The decomposition stops when it identifies the dominant component and enough
+mechanism evidence to write a deterministic RED test. It is not a second
+performance campaign.
+
+### Initial SQL blast radius
+
+Inspect `vector_arm_requires_fallback` first. Its negative `EXISTS` result on
+an entirely eligible corpus may require examining all vector rows through
+canonical-state joins. Confirm or reject that hypothesis with its real plan,
+statement counters, and elapsed contribution.
+
+Inspect the hybrid FTS arm next. Full `Engine.search` does not automatically
+use the streaming optimization restricted to direct text-only search. Measure
+matched rows, eligibility placement, ranking work, cap placement, and fusion.
+Inspect hydration against the actual schema and query plan; do not rely on
+comments that predate cursor indexes now created by migrations.
+
+The direct blast radius includes search dispatch, dependency/lifecycle
+eligibility, vector candidate production and reranking, FTS query generation,
+hydration, fusion, relevant schema indexes, and their focused tests. It excludes
+SDKs, publication, unrelated writers, CUDA, Windows, and release-wide gates
+unless the selected correction actually crosses one of those boundaries.
+
+### Correction constraints
+
+Choose the smallest measured correction: prepared-statement reuse, a
+semantics-equivalent SQL rewrite, a justified index, removal of a redundant
+same-snapshot check, an FTS execution improvement, or correction of proved
+runner/runtime drift. Preserve eligibility before truncation, lifecycle and
+dependency semantics, stable ranking/fusion, and one read snapshot.
+
+Eligibility cannot be cached solely by generation because validity windows can
+change with time and external processes can mutate the database. Any cache must
+bind effective time, snapshot/read-view identity, and cross-process visibility.
+Do not reduce candidate counts, disable an arm, substitute vector-only search,
+skip eligibility, or change AC-072 thresholds.
+
+### RED/GREEN and evidence
+
+The RED test targets the measured mechanism rather than elapsed wall time. Good
+oracles include a repeated-statement count, a stable scan/plan property, a
+proved redundant-check count, or a real-database eligibility result that the
+old query violates. GREEN preserves the oracle and existing affected search,
+dependency, lifecycle, frozen-read, ranking, and pagination tests.
+
+After focused correctness tests and affected-crate check/clippy, run the exact
+release-mode AC-072 campaign: 10,000 rows, 384 dimensions, 1,000 measured
+queries after warmup, three repetitions per arm in `B,C,C,B,B,C` order, with
+the registered environment and spread rules. All valid candidate repetitions
+must satisfy p50 <= 80 ms and p99 <= 300 ms.
+
+If product code changed, run three candidate repetitions for only the Scale-02
+10k and projection-active 10k 71B workloads. Compare their medians with both
+the protected `eda95b07` results and the unchanged historical limits. Do not
+rerun historical write baselines. No product-code change means Git source-drift
+proof is sufficient and no write timing rerun is needed.
+
+Full regressions, Windows, CUDA, installed cross-SDK, hosted CI, and publication
+remain outside Slice 71. Slice 75 consumes these focused receipts and owns the
+integrated candidate-side release matrix.

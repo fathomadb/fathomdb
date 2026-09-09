@@ -1,19 +1,17 @@
 ---
 title: 0.8.25 Slice 71 — remaining work outline
 status: IN_PROGRESS
-date: 2026-09-08
+date: 2026-09-09
 ---
 
 # Slice 71 remaining work outline
 
 ## Direction
 
-The owner approved immediate write-regression work within Slice 71 on
-2026-09-08. [71B — General write regression](write-regression-subplan.md) is
-the execution authority for its protocol, attribution, correction, and focused
-verification. It supersedes the earlier write pause and read-before-write
-sequencing. It is not another release-ladder slice. The full regression matrix
-remains owned by Slice 75.
+The owner approved the remaining Slice 71 completion path on 2026-09-09. The
+[71B write recovery](71b-performance-recovery.md) is complete and protected.
+The remaining work is the independent AC-072 read-latency discrepancy described
+by plan/design v5. The full regression matrix remains owned by Slice 75.
 
 This outline retains historical evidence and indexes remaining parent work;
 do not duplicate or execute a competing write protocol here.
@@ -39,12 +37,10 @@ runner:
   the separated Slice 71 write/drain fields or its exact runner. It remains a
   symptom, not a baseline.
 
-There is no retained paired timing series for 1, 10, 100, or 1,000 records
-across the relevant commits. Therefore the repository cannot presently say
-how much user-visible latency a small write or small batch gained. The schema
-mechanism fires per affected row, so some per-row cost is structurally
-expected at every size, but its magnitude and fixed-cost crossover are
-unmeasured. Do not report "bulk only" or a numeric small-write regression.
+71B now retains matched 1, 10, 100, 1,000, and 10,000-row write measurements.
+Every small-write criterion passes, and both 10k workloads recover beyond their
+historical total-time limits. This closes the general-write question; it does
+not establish or change full-search AC-072 latency.
 
 The underlying Slice 35 run artifacts are retained outside the checkout under
 `data/performance-benchmarking/scale-02/slice35-runs/`. The admissible AC-013
@@ -78,34 +74,32 @@ The highest-value comparison is narrow and already available in Git:
 
 ## Remaining parent obligations
 
-### General writes — active now as 71B
+### General writes — complete as 71B
 
-Execute the [six-phase sub-plan](write-regression-subplan.md): seal/review the
-versioned evidence protocol; attribute generation, preparation, nonce, and
-possible writer/projector contention costs; review a supported correction;
-implement with deterministic RED/GREEN proof; demonstrate large/small-write
-recovery; obtain independent code review and a separate evidence audit.
-The plan distinguishes confirmed code mechanisms from unverified diagnostic
-measurements and does not preselect transaction coalescing.
+Product candidate `eda95b07` passes the unchanged large/small-write criteria,
+focused correctness checks, independent code review, and separate evidence
+audit. Do not reopen this track or spend its recovered margin on AC-072.
 
 ### Read latency — separate unresolved disposition
 
 The admissible AC-013 campaign remains `environment_invalid`. All six p50
 values miss AC-072's 80 ms boundary (baseline 163–165 ms, candidate 200–201 ms),
 and candidate p99 spread is 40%. Preserve this result and its original receipt.
-Any revised read campaign or release-gate disposition requires its own explicit
-prospective decision. It neither blocks 71B nor becomes passing when writes
-recover. 71B may use the separately bound AC-013 seeder without rerunning the
-search-latency acceptance campaign.
+
+The approved completion path first establishes equivalence with the historical
+10k/384 synthetic runner and runtime, then decomposes one representative slow
+full `Engine.search` call. Inspect vector fallback eligibility and the hybrid
+FTS arm first, select a correction only from measured dominant work, implement
+it with deterministic RED/GREEN proof, and run the exact prospective AC-072
+campaign. A vector-only probe cannot close the gate.
 
 ### Verification and parent closeout
 
-71B owns focused verification: changed documentation/harness checks, affected
-correctness suites and crate checks, independent candidate review, and evidence
-audit. Full release verification stays in Slice 75. No broad suite during fix
-iterations; the sub-plan records the owner-requested maximum-two-round ceiling
-if a broad Slice 71 exception is later authorized. Do not spend that ceiling
-as an automatic allowance.
+Use only the direct AC-072 blast radius: selected mechanism tests, affected
+search/dependency/lifecycle/ranking tests, affected-crate check/clippy, and the
+registered AC-072 campaign. If product code changes, rerun only the two 71B
+10k candidate workloads; do not rerun their historical baselines. Full release
+verification stays in Slice 75.
 
 Close Slice 71 only after write recovery and the separate read-latency
 obligation have their required dispositions. Update the release-state JSON
@@ -122,5 +116,5 @@ campaign was not rerun because the approved AC-013 stop condition fired.
 
 Slice 71 is in progress and incomplete. 71B is complete at `eda95b07` with
 focused tests, bounded performance evidence, and independent reviews. Immediate
-next action is the separate AC-072 disposition. Slice 72 remains blocked by its
-parent.
+next action is focused review of plan/design v5 followed by the measurement-
+equivalence audit. Slice 72 remains blocked until AC-072 and Slice 71 close.

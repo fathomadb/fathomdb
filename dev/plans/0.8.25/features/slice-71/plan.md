@@ -1,140 +1,204 @@
 ---
-title: 0.8.25 Slice 71 — latency and ingest investigations
+title: 0.8.25 Slice 71 — AC-072 read latency and 71B write recovery
 status: IN_PROGRESS
 depends_on: 60
 design: design.md
-design_status: APPROVED
+design_status: REVIEW_REQUIRED
+updated: 2026-09-09
 ---
 
 # Slice 71 plan
 
-> Owner-approved continuation on 2026-09-08: execute
-> [71B — General write regression](write-regression-subplan.md) now within
-> Slice 71. It owns the amended write protocol and supersedes conflicting
-> write requirements below. AC-013/AC-072 read-latency disposition remains
-> unresolved independently; its prior stop no longer blocks write work.
+## Current boundary
+
+Slice 71 has two independent performance tracks. The write track, 71B, is
+complete at product candidate `eda95b07`; its correction, focused tests,
+bounded measurements, code review, and evidence audit must not be reopened or
+traded away. The remaining track is AC-072 vector-read latency.
+
+The [71B recovery record](71b-performance-recovery.md) reports Scale-02 10k
+acknowledgement/total at 1,403/1,408 ms, about 23% faster than historical, and
+projection-active 10k total at 1,311 ms, about 44% faster than historical.
+All registered small-write criteria passed.
+
+The retained AC-072 campaign is not a pass. Its branch-point baseline p50 is
+stable at 163–165 ms, already about twice the binding 80 ms limit. The Slice 71
+candidate p50 is 200–201 ms, about 22% slower again, and candidate p99 spread
+makes the registered classification `environment_invalid`. Removing only that
+recent increment would still leave AC-072 failing.
+
+Naming is historical: the executable test remains
+`ac_013_vector_retrieval_latency`, but it enforces AC-072's revised limits. It
+times full `Engine.search`—query embedding, vector retrieval, the text-search
+arm, fusion, and result processing—not only vector distance calculations.
+
+Historical comparisons must remain distinct. The accepted real-embedding
+36/49 ms result used 7,667 records. The closer synthetic comparison used
+10,000 records, 384 dimensions, and recorded 15/17 ms. Its exact runner,
+runtime, and configuration must be verified from retained evidence before it
+is used diagnostically. Neither historical result substitutes for the
+prospective Slice 71 acceptance campaign.
 
 ## Outcome
 
-Resolve two previously observed performance signals without weakening product
-correctness: AC-013 vector-query latency and the Slice 35 bulk-ingest cost.
-Slice 71 produces reproducible, commit-bound evidence and makes only a
-targeted TDD correction whose cause is demonstrated. It does not execute the
-release-wide regression matrix reserved for Slice 75.
-
-## Reconciliation and audit
-
-The post-Slice-60 handoff assigned both signals to Slice 75. The owner scope
-adjustment dated 2026-09-08 moves them here. Review of work since their first
-allocation establishes these corrections and constraints:
-
-- AC-072 is authoritative only at release-mode 10k corpus, at least 1,000
-  measured samples, p50 <= 80 ms, and p99 <= 300 ms. The 100k/1M cells are
-  tracking-only and AC-013b recall is a separate report-only experiment.
-- Slice 60 observed `n=10000 samples=1000 seed_ms=10264 p50_ms=919
-  p99_ms=991` in a non-isolated run. The canonical runner currently selects
-  tests by substring, so exact AC-013 selection is itself a required harness
-  correction.
-- The Slice 35 data contain six preserved five-repetition campaigns. Their
-  candidate median 10k-ingest regressions range from 80.71% to 103.56% versus
-  the Slice 30 parent. The final measured candidate is `0aff1cb`; the baseline
-  is `b2bfb1f318f58041144acb2356a6a4c9624068b9`.
-- “42 per-row triggers” was incorrect. Slice 35 had 42 trigger definitions;
-  schema 33 has 54. Three foreground fires per simple node do not include
-  projector activity. 71B requires measured deltas with setup and drain
-  attribution instead of imposing 30,000 events on every 10k fixture.
-- Existing trigger, rollback, frozen-read drift, cross-process, and virtual-
-  table coupling are product invariants. Diagnostic ablations are not product
-  candidates.
+Explain and correct the AC-072 discrepancy without weakening search semantics,
+changing its p50/p99 limits, or losing 71B's completed write recovery. Close
+Slice 71 only when the exact prospective candidate passes AC-072, the 71B gains
+remain protected, focused reviews pass, and the release-state writer advances
+to Slice 72. An explicit later owner disposition may replace a passing result,
+but must be recorded as an exception or deferral rather than a pass.
 
 ## Requirements
 
-- **S71-R1:** Bind every comparison to exact source commits, toolchain,
-  compiler mode, SQLite/runtime identity, host pressure, configuration,
-  fixture digest, and raw output.
-- **S71-R2:** Run AC-013 in isolated release mode with a fixed 384-vector
-  dimension and separate seed/drain timing. Use the same exact runner for both
-  arms and three counterbalanced repetitions per arm.
-- **S71-R3:** Add an opt-in `test-hooks` reader trace of normalized search-
-  statement identities before modifying search. A correction is permitted only
-  when a deterministic fixed-fan-out test observes 24
-  `post_filter_source_lookup` invocations before GREEN and zero afterward, and
-  SQL eligibility still excludes barred vector-node, node-FTS, vector-edge,
-  and edge-FTS hits before truncation.
-- **S71-R4:** Reproduce ingest against fresh databases using the existing 10k
-  input and batch size 256. Record ingest acknowledgement, projection drain,
-  row counts, trigger count, generation delta, nonce, database bytes, CPU,
-  RSS, errors, and host pressure for three counterbalanced repetitions per
-  arm.
-- **S71-R5:** If candidate ingest remains more than 20% slower at the median,
-  run production-trigger, generation-only/no-nonce, and no-op-body diagnostic
-  cells before proposing a correction. These counterfactuals never constitute
-  shipped behavior.
-- **S71-R6:** Preserve visibility invalidation, committed-state distinction,
-  rollback behavior, authoritative-table coverage, and dependency eligibility.
-  71B permits reviewed additive implementation/migration changes that preserve
-  accepted guarantees; changing a guarantee needs a concrete owner decision.
+- **S71-R1 — protect 71B:** Treat `eda95b07` and its retained evidence as the
+  write-performance baseline. Do not assume another write optimization will
+  improve read latency. Avoid the governed write, visibility, projection, and
+  drain paths unless a measured AC-072 cause requires them.
+- **S71-R2 — establish equivalence:** Before product changes, bind the current
+  and historical fixture definitions, exact 10,000 canonical/vector rows,
+  dimension 384, corpus/query seeds, synthetic embedder, candidate fanout,
+  query count, warmup, public operation, build mode/features, SQLite and
+  sqlite-vec versions, CPU identity/instructions, affinity, and host controls.
+  Record effective values, not intended defaults.
+- **S71-R3 — use the real acceptance path:** AC-072 times full
+  `Engine.search`, including its text arm. Vector-only measurements may
+  attribute a component but cannot establish acceptance.
+- **S71-R4 — decompose before campaigning:** Instrument one representative
+  slow search with bounded, diagnostic-only tracing. Attribute query embedding
+  and serialization, reader dispatch/wait, vector eligibility, binary KNN,
+  float reranking, canonical hydration, FTS retrieval/eligibility/ranking, and
+  fusion before selecting a correction.
+- **S71-R5 — inspect work, not guesses:** Retain statement execution counts,
+  rows processed, preparation cost, SQLite VM/full-scan/sort counters where
+  available, and `EXPLAIN QUERY PLAN`. Acceptance timing must run without
+  intrusive tracing.
+- **S71-R6 — preserve semantics:** Keep eligibility before cap, lifecycle and
+  dependency rules, ranking/fusion behavior, snapshot consistency,
+  cross-process invalidation, and time-dependent validity. Never cache
+  eligibility solely by write generation.
+- **S71-R7 — TDD correction:** Add a deterministic RED test for the measured
+  dominant mechanism before product edits. Preserve its oracle through GREEN
+  and run only affected correctness suites plus affected-crate check/clippy.
+- **S71-R8 — exact evidence:** Run the registered release-mode AC-072 campaign
+  at 10k/384 with 1,000 measured queries after warmup, three repetitions per
+  arm in `B,C,C,B,B,C` order, and the existing environment-validity rules.
+- **S71-R9 — preserve write recovery:** If product code changes, rerun only the
+  two 71B 10k candidate workloads under their retained protocol. Compare them
+  with the protected 71B results and unchanged historical limits. Do not rerun
+  historical write baselines.
+
+## Measurement-equivalence audit
+
+The current fixture defaults to 768 dimensions unless the environment
+overrides it. Existing Slice 71 evidence records 384 dimensions, so verify the
+effective execution rather than inferring dimension drift. Also exclude
+inherited experimental environment variables and require no active background
+projection work during measured searches.
+
+The historical synthetic 10k record was produced from a documented working
+tree with environment-tunable dimension/drain settings. Recover its exact
+runner and runtime from retained artifacts where possible. If an exact field
+cannot be recovered, mark it unavailable and use that observation only as a
+diagnostic reference—not as a matched acceptance arm.
+
+## Diagnostic decomposition
+
+| Component | Question to resolve |
+| --- | --- |
+| Query embedding and serialization | Did runtime configuration or preprocessing become expensive? |
+| Reader dispatch and waiting | Is elapsed time CPU work or queue/lock delay? |
+| Vector eligibility | Does every query scan or join the entire corpus? |
+| Binary KNN and float reranking | Did execution plan, runtime, or fanout change? |
+| Canonical hydration | Are lookups indexed, repeated, or using expensive correlated predicates? |
+| FTS and fusion | Does the synthetic query match many rows and make the hybrid text arm dominate? |
+
+Begin with two code-grounded suspects:
+
+1. `vector_arm_requires_fallback` checks for any unsafe vector row through
+   canonical-state joins. On an entirely eligible corpus, proving that no such
+   row exists may scan the full vector set. Measure its plan, VM steps, rows,
+   and elapsed contribution.
+2. Full hybrid search runs the FTS arm with lifecycle/dependency predicates and
+   ranking. The streaming optimization is limited to direct text-only search,
+   so AC-072 does not inherit it automatically. Measure match count, cap
+   placement, eligibility work, ranking, and fusion.
+
+Inspect canonical hydration against the actual schema and query plan. Existing
+comments about absent cursor indexes are not authority when migrations now
+create those indexes.
+
+## Correction selection
+
+Choose the smallest correction supported by the dominant measured component.
+Permitted shapes include prepared-statement reuse when preparation is material;
+join/correlated-predicate rewrites or a justified index when scanning dominates;
+FTS execution improvements that preserve eligibility-before-cap and
+ranking/fusion; removal of proved redundant checks within one snapshot; or a
+runtime/fixture correction when the product path is not responsible.
+
+Do not reduce candidate counts, skip eligibility, disable a search arm,
+substitute vector-only search, change the fixture after seeing results, or
+loosen AC-072. Any cache must bind the read view, effective time,
+cross-process mutation authority, and snapshot identity.
 
 ## Acceptance criteria
 
-- **S71-AC1 — exact runner:** RED proves substring selection can include other
-  tests. GREEN uses `--exact ac_013_vector_retrieval_latency`, preserves the
-  cargo pipeline exit status, and emits a parseable raw log.
-- **S71-AC2 — AC-013 evidence:** Three candidate and three branch-point runs,
-  ordered `B,C,C,B,B,C`, each retain 1,000 warm-treatment samples and fixed
-  dimension 384. Every repetition is judged independently against AC-072; an
-  arm is passing only when all three repetitions pass and failing only when all
-  three fail. Mixed results or a greater-than-20% within-arm p50/p99 range are
-  `environment_invalid`. The total classification is `both_pass` (both pass),
-  `candidate_regression` (baseline passes/candidate fails),
-  `candidate_recovery` (baseline fails/candidate passes),
-  `pre_existing_gate_failure` (both fail), or `environment_invalid`.
-- **S71-AC3 — attribution:** The normalized reader trace binds any search
-  change to the redundant-query hypothesis without depending on wall time or
-  the slow-statement callback. Real-database tests for barred vector-node,
-  node-FTS, vector-edge, and edge-FTS paths plus ineligible dependency
-  degradation pass unchanged or are added RED before the common post-filter is
-  removed.
-- **S71-AC4 — ingest evidence:** Three candidate and three baseline fresh-DB
-  repetitions retain all S71-R4 fields. The pre-visibility baseline records
-  `trigger_inventory: 0`, `visibility_state: not_applicable`, null
-  generation/nonce fields, and reason `schema_predates_visibility_state`; it
-  never fabricates a zero generation delta. Candidate trigger and generation
-  accounting distinguishes setup, foreground, and drain activity according to
-  71B; historical fixed-event receipts retain their original meaning.
-- **S71-AC5 — ingest disposition:** At or below 20% median regression, retain
-  evidence and do not optimize. Above 20%, retain the ablation evidence and
-  either land a narrowly proved TDD correction or stop with the precise
-  invariant/decision blocker.
-- **S71-AC6 — review and verification:** Independent design review precedes
-  implementation. Tests are committed RED before GREEN. An independent code
-  review and a separate focused-verification pass bind their verdicts to the
-  exact candidate commit.
-- **S71-AC7 — proportional gate:** Follow 71B's affected-harness/product tests
-  and affected-crate clippy/check scope. Do not rerun the read campaign merely
-  to verify write work. Do not run `agent-verify`, `scripts/check.sh`, long stress, Windows,
-  CUDA, packaged cross-SDK, or hosted CI; Slice 75 owns those full routes.
+- **S71-AC1 — equivalent basis:** A durable comparison record accounts for
+  every S71-R2 field and clearly separates the 7,667-row real result, the 10k
+  synthetic historical result, the branch-point baseline, and the prospective
+  candidate.
+- **S71-AC2 — causal attribution:** Bounded diagnostic evidence identifies the
+  dominant component and demonstrates the selected mechanism. A vector-only
+  microbenchmark or wall-clock-only observation is insufficient.
+- **S71-AC3 — deterministic correction:** The selected mechanism has committed
+  RED/GREEN evidence and preserves all affected search, lifecycle, dependency,
+  eligibility, ranking, and snapshot contracts.
+- **S71-AC4 — AC-072 passes:** All three valid prospective candidate
+  repetitions satisfy p50 <= 80 ms and p99 <= 300 ms. Passing p50 alone, an
+  unstable arm, or a vector-only result does not close the gate.
+- **S71-AC5 — 71B remains recovered:** When product code changed, the two
+  candidate-only 71B 10k checks remain within their historical limits and are
+  compared transparently with the protected `eda95b07` medians. If no product
+  code changed, Git proves the measured product sources are unchanged and no
+  write rerun is required.
+- **S71-AC6 — focused review:** Independent design review precedes
+  implementation. Independent code review and a separate evidence/verification
+  review pass on the exact final product candidate.
+- **S71-AC7 — state closure:** `status.md` and the release-state JSON record the
+  exact candidate and evidence; generated views agree; Slice 71 becomes
+  `COMPLETE_ON_RELEASE_BRANCH`; `next_slice` becomes 72; Slice 75 consumes the
+  Slice 71 receipts without repeating their historical investigations.
 
-## Delivery sequence
+## Execution sequence
 
-1. Approve this plan and design through independent review.
-2. Add deterministic harness and profiling tests; retain the failing RED
-   diagnostics in `tdd-chronology.md` and commit the RED state.
-3. Implement the minimum GREEN harness/search changes and run focused tests.
-4. Preserve the completed AC-013 campaign and its `environment_invalid`
-   classification; its outstanding disposition remains a parent obligation.
-5. Execute 71B's six phases independently of that read-latency disposition.
-6. Obtain independent code review and focused verification; resolve findings
-   without changing the sealed experiment after seeing results.
-7. Write `status.md`, update the release-state writer, and remove any temporary
-   branches/worktrees created for baseline execution.
+1. Complete the measurement-equivalence audit and update design v5 from actual
+   runner, runtime, schema, and query-plan evidence.
+2. Obtain independent design review before product implementation.
+3. Add bounded diagnostic instrumentation and decompose one representative
+   slow full `Engine.search` call.
+4. Select the correction from the dominant measured component and commit its
+   deterministic RED test before GREEN implementation.
+5. Run affected correctness suites and affected-crate check/clippy.
+6. Run the exact prospective AC-072 campaign once under the sealed protocol.
+7. If product code changed, run only the two candidate-side 71B 10k checks.
+8. Obtain independent code and evidence reviews, resolve blocking findings,
+   update status/release state, remove owned temporary artifacts, and advance
+   to Slice 72.
+
+## Verification boundary
+
+Slice 71 uses focused tests, bounded diagnostics, the exact AC-072 campaign,
+and—only after product changes—the two candidate-side 71B checks. Do not run
+`agent-verify`, `scripts/check.sh`, long stress, Windows, CUDA, packaged
+cross-SDK, hosted CI, or a historical write-baseline campaign. Slice 75 owns
+the integrated full regression matrix.
 
 ## Stop conditions
 
-For any separately authorized read-latency campaign, stop rather than weaken a
-gate when AC-013 has a mixed-result arm or greater-than-20% within-arm p50/p99
-range, the environment identity drifts, both AC-013 arms fail, or the candidate remains over
-AC-072 after a proved local regression is removed. Those read dispositions do
-not stop 71B. The sub-plan owns write environment, correctness, recovery,
-review, and contract-change stop conditions. Neither track can silently close
-the other's obligations.
+Stop without weakening a gate when fixture/runtime equivalence cannot be
+established, environment identity drifts, a candidate arm is mixed or exceeds
+the registered spread rule, the candidate misses either AC-072 boundary, the
+selected correction changes a public/accepted contract, or a product change
+spends the recovered 71B write margin. Retain all observations. A replacement
+campaign or release-specific AC-072 exception requires an explicit prospective
+owner decision.

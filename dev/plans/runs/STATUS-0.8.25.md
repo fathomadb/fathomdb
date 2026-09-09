@@ -27,6 +27,8 @@ The prior write pause is superseded; the separate read-latency disposition
 remains unresolved. 71B is complete on the release branch: the write-path
 correction and its focused tests, bounded measurements, code review, and
 separate evidence audit pass without changing a performance limit.
+The owner-approved completion path now keeps 71B fixed and resolves AC-072
+through plan/design v5 without broad regression rounds.
 
 ## Slice ladder
 
@@ -51,7 +53,7 @@ separate evidence audit pass without changing a performance limit.
 | 50 | Compact source-complete evidence | Complete on release branch (`e741542d`) |
 | 55 | Basic tracing and integrity | Complete on release branch (`5a6942bc`) |
 | 60 | Minimal constrained graph parity | Complete on release branch (`59208028`) |
-| 71 | AC-013 disposition and 71B general write regression | In progress; 71B complete, separate AC-072 disposition remains |
+| 71 | AC-072 read-latency resolution and 71B write recovery | In progress; 71B complete, AC-072 focused resolution planned |
 | 72 | Generic preflight and installed CE profiles | Not started |
 | 73 | Windows Node/N-API CI coverage | Not started |
 | 75 | Integrated release closure | Not started |
@@ -71,16 +73,15 @@ separate evidence audit pass without changing a performance limit.
   API coverage into Slices 71–73. Full regression and exact-head hosted CI
   remain Slice 75 work.
 - Slice 71's admissible AC-013 result is `environment_invalid`: all six p50
-  observations miss AC-072 and candidate p99 spread is 40%. Its stop condition
-  blocked bulk-ingest execution. The owner then redirected the slice to the
-  [durable remaining-work outline](../0.8.25/features/slice-71/remaining-work-outline.md);
-  the later 71B approval resumes write work independently. Slice 72 remains
-  dependency-blocked until the complete parent slice has its disposition.
+  observations miss AC-072 and candidate p99 spread is 40%. The owner-approved
+  plan/design v5 now establish an equivalent 10k/384 basis, decompose full
+  `Engine.search`, correct only the measured cause, and run the bounded AC-072
+  campaign. Slice 72 remains dependency-blocked until Slice 71 closes.
 - 71B is complete at product candidate `eda95b07`. Scale-02 10k median
   acknowledgement/total improve from historical 1,833.777/1,834.571 ms to
   1,403.217/1,407.768 ms; projection-active AC-013 10k total improves from
   2,337.097 ms to 1,311.089 ms. Focused verification and independent code and
-  evidence reviews pass. AC-072 remains a separate unresolved disposition.
+  evidence reviews pass. AC-072 remains separate from the completed write work.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
@@ -95,7 +96,7 @@ separate evidence audit pass without changing a performance limit.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Continue Slice 71 (PERFORMANCE)** — AC-013 disposition and 71B general write regression. **Remaining ladder:** 71 → 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Continue Slice 71 (PERFORMANCE)** — AC-072 read-latency resolution and 71B write recovery. **Remaining ladder:** 71 → 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

@@ -210,14 +210,16 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 71** (`PERFORMANCE`) — AC-013 disposition and 71B general write regression
+**IMMEDIATE NEXT: Slice 71** (`PERFORMANCE`) — AC-072 read-latency resolution and 71B write recovery
 
 **Remaining ladder:** 71 → 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
 Slice 60 is durably closed. Slice 71 is in progress. Its 71B general-write
 correction is complete at `eda95b07`; unchanged performance limits, focused
-verification, and independent reviews pass. Complete the separate AC-072
-disposition before commissioning the drafted Slices 72, 73, and 75.
+verification, and independent reviews pass. Plan/design v5 now own focused
+AC-072 resolution: establish the equivalent 10k/384 basis, decompose full
+`Engine.search`, correct the measured cause, run the bounded gate, and protect
+the two 71B 10k workloads before commissioning Slices 72, 73, and 75.
 Package production, registry staging, tags, publication, post-publication
 smoke, and merge to main remain outside this ladder.
 

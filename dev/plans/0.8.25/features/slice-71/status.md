@@ -24,5 +24,13 @@ in [71b-performance-recovery.md](71b-performance-recovery.md).
 Focused correctness tests and affected-crate check/clippy pass. Independent
 code review passes on the exact candidate; the separate evidence audit passes
 the retained prospective run. No broad verification round or AC-072 rerun
-occurred. Slice 71 remains open solely for the separate AC-072 disposition;
+occurred. Slice 71 remains open solely for the separate AC-072 resolution;
 Slice 72 remains dependency-blocked.
+
+The owner approved the Slice 71 completion path on 2026-09-09. Plan/design v5
+now require an equivalent 10k/384 execution basis, bounded decomposition of one
+slow full `Engine.search`, a mechanism-specific TDD correction, and the exact
+prospective AC-072 campaign. If product code changes, only the two 71B 10k
+candidate workloads are repeated to protect the recovered write performance.
+Full regressions remain in Slice 75. No implementation or measurement is
+claimed by this planning update.

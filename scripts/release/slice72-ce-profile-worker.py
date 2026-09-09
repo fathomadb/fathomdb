@@ -13,7 +13,6 @@ import resource
 import subprocess
 import sys
 import tempfile
-import threading
 import time
 from typing import Any
 
@@ -53,12 +52,6 @@ def sample_cuda_process(pid: int, samples: list[dict[str, Any]]) -> None:
                     )
                 except ValueError:
                     pass
-
-
-def cuda_process_sample(pid: int, stop: threading.Event, samples: list[dict[str, Any]]) -> None:
-    while not stop.is_set():
-        sample_cuda_process(pid, samples)
-        stop.wait(0.01)
 
 
 def output_from_standalone(fathomdb: Any, fixture: dict[str, Any]) -> dict[str, Any]:
@@ -171,45 +164,30 @@ def main() -> int:
             return output_from_standalone(fathomdb, fixture)
 
     samples: list[dict[str, Any]] = []
-    stop = threading.Event()
-    sampler = None
-    if effective_device == "cuda:0":
-        sampler = threading.Thread(
-            target=cuda_process_sample,
-            args=(os.getpid(), stop, samples),
-            daemon=True,
-        )
-        sampler.start()
-
-    try:
-        if args.mode == "cold":
+    if args.mode == "cold":
+        call_started = time.perf_counter_ns()
+        output = operation()
+        duration_ns: int | list[int] = time.perf_counter_ns() - call_started
+        output_digests = [output_digest(output)]
+    else:
+        reference = operation()
+        validate_runtime_output(reference)
+        reference_digest = output_digest(reference)
+        durations = []
+        output_digests = []
+        for _ in range(manifest["steady_calls"]):
             call_started = time.perf_counter_ns()
-            output = operation()
-            duration_ns: int | list[int] = time.perf_counter_ns() - call_started
-            output_digests = [output_digest(output)]
-        else:
-            reference = operation()
-            validate_runtime_output(reference)
-            reference_digest = output_digest(reference)
-            durations = []
-            output_digests = []
-            for _ in range(manifest["steady_calls"]):
-                call_started = time.perf_counter_ns()
-                current = operation()
-                durations.append(time.perf_counter_ns() - call_started)
-                current_digest = output_digest(current)
-                if current_digest != reference_digest or current != reference:
-                    raise RuntimeError("CE output changed between steady calls")
-                output_digests.append(current_digest)
-            output = reference
-            duration_ns = durations
-        validate_runtime_output(output)
-        if effective_device == "cuda:0":
-            sample_cuda_process(os.getpid(), samples)
-    finally:
-        stop.set()
-        if sampler is not None:
-            sampler.join(timeout=2)
+            current = operation()
+            durations.append(time.perf_counter_ns() - call_started)
+            current_digest = output_digest(current)
+            if current_digest != reference_digest or current != reference:
+                raise RuntimeError("CE output changed between steady calls")
+            output_digests.append(current_digest)
+        output = reference
+        duration_ns = durations
+    validate_runtime_output(output)
+    if effective_device == "cuda:0":
+        sample_cuda_process(os.getpid(), samples)
 
     allocation = None
     if samples:

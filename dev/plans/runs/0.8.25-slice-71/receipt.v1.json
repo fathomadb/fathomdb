@@ -1,0 +1,99 @@
+{
+  "schema_version": "slice71-receipt.v1",
+  "manifest_sha256": "e8e71b5d108a05de23b8736585945f36aad0b971e9a008408ba1c15bf6dbd3e2",
+  "candidate_ref": "5546585da8f5893f903dbde8d1a885c483061c1b",
+  "started_at": "2026-09-08T19:38:01.441806-05:00",
+  "finished_at": "2026-09-08T20:18:02.818017-05:00",
+  "cells": [
+    {
+      "workload": "ac013", "arm": "B", "ref": "4fc1b890a11ebfaa8f11b15823656e856002807a", "ordinal": 1,
+      "started_at": "2026-09-08T19:38:01.441806-05:00", "finished_at": "2026-09-08T19:43:34.770133-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "runtime_identity": {"sqlite_version": "3.53.2", "libsqlite3_sys": "0.38.1"},
+      "environment_observation": {"load_1m_start": 0.34, "load_1m_end": 1.08, "available_memory_percent_start": 90.289, "available_memory_percent_end": 90.273, "swap_in_delta": 0, "swap_out_delta": 0, "cpu_temp_c_start": 59.625, "cpu_temp_c_end": 73.5, "thermal_throttled": false, "competing_processes_start": [], "competing_processes_end": []},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628",
+      "config_sha256": "e8e71b5d108a05de23b8736585945f36aad0b971e9a008408ba1c15bf6dbd3e2",
+      "raw_log_sha256": "852f1ac08e8befd9dccda8beb71ca17133201097b999eb7389515abbd668d18d",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 1834, "projection_drain_ms": 82, "p50_ms": 163, "p99_ms": 173}
+    },
+    {
+      "workload": "ac013", "arm": "C", "ref": "5546585da8f5893f903dbde8d1a885c483061c1b", "ordinal": 1,
+      "started_at": "2026-09-08T19:43:42.813240-05:00", "finished_at": "2026-09-08T19:52:48.242672-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "runtime_identity": {"sqlite_version": "3.53.2", "libsqlite3_sys": "0.38.1"},
+      "environment_observation": {"load_1m_start": 0.92, "load_1m_end": 1.01, "available_memory_percent_start": 90.312, "available_memory_percent_end": 90.308, "swap_in_delta": 0, "swap_out_delta": 0, "cpu_temp_c_start": 63.75, "cpu_temp_c_end": 73.5, "thermal_throttled": false, "competing_processes_start": [], "competing_processes_end": []},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628",
+      "config_sha256": "e8e71b5d108a05de23b8736585945f36aad0b971e9a008408ba1c15bf6dbd3e2",
+      "raw_log_sha256": "dd382ab0373eb3a09024cec6ee602f959023e6c5224c09a2cafd4683bb54a397",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 4829, "projection_drain_ms": 193, "p50_ms": 200, "p99_ms": 210}
+    },
+    {
+      "workload": "ac013", "arm": "C", "ref": "5546585da8f5893f903dbde8d1a885c483061c1b", "ordinal": 2,
+      "started_at": "2026-09-08T19:52:55.565773-05:00", "finished_at": "2026-09-08T19:59:43.758458-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "runtime_identity": {"sqlite_version": "3.53.2", "libsqlite3_sys": "0.38.1"},
+      "environment_observation": {"load_1m_start": 0.85, "load_1m_end": 1.02, "available_memory_percent_start": 90.352, "available_memory_percent_end": 90.217, "swap_in_delta": 0, "swap_out_delta": 0, "cpu_temp_c_start": 64.5, "cpu_temp_c_end": 73.5, "thermal_throttled": false, "competing_processes_start": [], "competing_processes_end": []},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628",
+      "config_sha256": "e8e71b5d108a05de23b8736585945f36aad0b971e9a008408ba1c15bf6dbd3e2",
+      "raw_log_sha256": "2bd30424380cc9a1dc8816295e2b0ede28cd0c574037fb9d20266489807a6fd1",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 5104, "projection_drain_ms": 189, "p50_ms": 201, "p99_ms": 210}
+    },
+    {
+      "workload": "ac013", "arm": "B", "ref": "4fc1b890a11ebfaa8f11b15823656e856002807a", "ordinal": 2,
+      "started_at": "2026-09-08T19:59:50.804556-05:00", "finished_at": "2026-09-08T20:05:22.708210-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "runtime_identity": {"sqlite_version": "3.53.2", "libsqlite3_sys": "0.38.1"},
+      "environment_observation": {"load_1m_start": 0.94, "load_1m_end": 1.0, "available_memory_percent_start": 90.24, "available_memory_percent_end": 89.681, "swap_in_delta": 0, "swap_out_delta": 0, "cpu_temp_c_start": 64.75, "cpu_temp_c_end": 75.625, "thermal_throttled": false, "competing_processes_start": [], "competing_processes_end": []},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628",
+      "config_sha256": "e8e71b5d108a05de23b8736585945f36aad0b971e9a008408ba1c15bf6dbd3e2",
+      "raw_log_sha256": "89ad0c485cf4d005b6a77471db13836bc6570b6832699e990e8766a2d99d6558",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 1846, "projection_drain_ms": 90, "p50_ms": 165, "p99_ms": 174}
+    },
+    {
+      "workload": "ac013", "arm": "B", "ref": "4fc1b890a11ebfaa8f11b15823656e856002807a", "ordinal": 3,
+      "started_at": "2026-09-08T20:05:31.711337-05:00", "finished_at": "2026-09-08T20:11:01.412615-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "runtime_identity": {"sqlite_version": "3.53.2", "libsqlite3_sys": "0.38.1"},
+      "environment_observation": {"load_1m_start": 0.85, "load_1m_end": 1.0, "available_memory_percent_start": 90.178, "available_memory_percent_end": 90.311, "swap_in_delta": 0, "swap_out_delta": 0, "cpu_temp_c_start": 63.75, "cpu_temp_c_end": 75.125, "thermal_throttled": false, "competing_processes_start": [], "competing_processes_end": []},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628",
+      "config_sha256": "e8e71b5d108a05de23b8736585945f36aad0b971e9a008408ba1c15bf6dbd3e2",
+      "raw_log_sha256": "504eed4b9b792d6c9266d5b1415efb8184c775237505edb5a165f672c914f991",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 1548, "projection_drain_ms": 573, "p50_ms": 163, "p99_ms": 172}
+    },
+    {
+      "workload": "ac013", "arm": "C", "ref": "5546585da8f5893f903dbde8d1a885c483061c1b", "ordinal": 3,
+      "started_at": "2026-09-08T20:11:08.395724-05:00", "finished_at": "2026-09-08T20:18:02.818017-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "runtime_identity": {"sqlite_version": "3.53.2", "libsqlite3_sys": "0.38.1"},
+      "environment_observation": {"load_1m_start": 1.0, "load_1m_end": 1.48, "available_memory_percent_start": 89.89, "available_memory_percent_end": 89.995, "swap_in_delta": 0, "swap_out_delta": 0, "cpu_temp_c_start": 70.625, "cpu_temp_c_end": 75.125, "thermal_throttled": false, "competing_processes_start": [], "competing_processes_end": []},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628",
+      "config_sha256": "e8e71b5d108a05de23b8736585945f36aad0b971e9a008408ba1c15bf6dbd3e2",
+      "raw_log_sha256": "a3e5dab0549bb61e447af7e769fbad7485252d532220d08148928bdba6e41ccc",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 5096, "projection_drain_ms": 183, "p50_ms": 201, "p99_ms": 294}
+    }
+  ],
+  "classifications": {"ac013": "environment_invalid", "ingest": "blocked_before_execution"},
+  "errors": [
+    "candidate p99 range is 84 ms around median 210 ms (40.00%), exceeding the sealed 20% validity limit",
+    "all six repetitions fail AC-072 p50, but environment_invalid supersedes a pre_existing_gate_failure claim",
+    "the Slice 71 stop condition blocked bulk-ingest execution"
+  ]
+}

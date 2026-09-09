@@ -369,6 +369,13 @@ def validate_receipt(
             _expect(metrics[key], expected, f"{path}/metrics/{key}")
         for key in _AC013_METRIC_KEYS - {"n", "samples", "vector_dim"}:
             _nonnegative_number(metrics[key], f"{path}/metrics/{key}")
+        expected_result_state = (
+            "passed"
+            if metrics["p50_ms"] <= ac013["p50_budget_ms"]  # type: ignore[operator]
+            and metrics["p99_ms"] <= ac013["p99_budget_ms"]  # type: ignore[operator]
+            else "failed"
+        )
+        _expect(cell["result_state"], expected_result_state, f"{path}/result_state")
 
     classifications = _mapping(root["classifications"], "/classifications")
     _exact_keys(classifications, _CLASSIFICATION_KEYS, "/classifications")

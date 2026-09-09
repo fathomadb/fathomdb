@@ -75,3 +75,12 @@ classification. GREEN recomputes the exact manifest digest, derives the result
 from retained metrics and environment observations, closes the runtime and
 environment shapes, and provides a checked-in cell wrapper. The revised
 manifest is committed before its first admissible measurement.
+
+## Admissible acceptance stop
+
+The post-correction campaign completes all six cells with valid captured host
+pressure. B1/B2/B3 record p50 163/165/163 ms and p99 173/174/172 ms;
+C1/C2/C3 record p50 200/201/201 ms and p99 210/210/294 ms. Candidate p99
+range/median is 40.00%, so the executable classifier returns
+`environment_invalid`. The sealed stop condition blocks the ingest campaign
+and further treatments; this is a truthful blocked outcome, not COMPLETE.

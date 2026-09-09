@@ -16,14 +16,7 @@ from experiments.release_0825_slice71 import (
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST_PATH = ROOT / "experiments" / "configs" / "release-0825-slice71-manifest.v1.json"
-RECEIPT_PATH = (
-    ROOT
-    / "dev"
-    / "plans"
-    / "runs"
-    / "0.8.25-slice-71"
-    / "exploratory-receipt.v1.json"
-)
+RECEIPT_PATH = ROOT / "dev" / "plans" / "runs" / "0.8.25-slice-71" / "receipt.v1.json"
 
 
 def manifest() -> dict[str, object]:
@@ -31,29 +24,7 @@ def manifest() -> dict[str, object]:
 
 
 def receipt() -> dict[str, object]:
-    document = json.loads(RECEIPT_PATH.read_text(encoding="utf-8"))
-    digest = hashlib.sha256(MANIFEST_PATH.read_bytes()).hexdigest()
-    document["manifest_sha256"] = digest
-    for cell in document["cells"]:
-        cell["config_sha256"] = digest
-        cell["runtime_identity"] = {
-            "sqlite_version": "3.53.2",
-            "libsqlite3_sys": "0.36.0",
-        }
-        cell["environment_observation"] = {
-            "load_1m_start": 0.5,
-            "load_1m_end": 0.5,
-            "available_memory_percent_start": 90.0,
-            "available_memory_percent_end": 90.0,
-            "swap_in_delta": 0,
-            "swap_out_delta": 0,
-            "cpu_temp_c_start": 60.0,
-            "cpu_temp_c_end": 70.0,
-            "thermal_throttled": False,
-            "competing_processes_start": [],
-            "competing_processes_end": [],
-        }
-    return document
+    return json.loads(RECEIPT_PATH.read_text(encoding="utf-8"))
 
 
 def test_checked_in_manifest_is_strict_and_valid() -> None:
@@ -83,6 +54,17 @@ def test_manifest_rejects_drift(path: tuple[str, ...], value: object) -> None:
 
 def test_checked_in_receipt_is_strict_and_valid() -> None:
     validate_receipt(receipt(), manifest(), MANIFEST_PATH.read_bytes())
+
+
+def test_checked_in_receipt_binds_manifest_fixture_and_raw_logs() -> None:
+    document = receipt()
+    assert document["manifest_sha256"] == hashlib.sha256(MANIFEST_PATH.read_bytes()).hexdigest()
+    fixture = ROOT / "src" / "rust" / "crates" / "fathomdb-engine" / "tests" / "perf_gates.rs"
+    fixture_digest = hashlib.sha256(fixture.read_bytes()).hexdigest()
+    for cell in document["cells"]:  # type: ignore[union-attr]
+        assert cell["fixture_sha256"] == fixture_digest
+        raw_log = RECEIPT_PATH.parent / "ac013" / f"{cell['arm']}{cell['ordinal']}.log"
+        assert cell["raw_log_sha256"] == hashlib.sha256(raw_log.read_bytes()).hexdigest()
 
 
 @pytest.mark.parametrize(
@@ -118,7 +100,7 @@ def test_receipt_recomputes_manifest_digest() -> None:
 
 def test_receipt_derives_classification_from_metrics() -> None:
     document = receipt()
-    document["cells"][2]["metrics"]["p99_ms"] = 260  # type: ignore[index]
+    document["cells"][5]["metrics"]["p99_ms"] = 210  # type: ignore[index]
     with pytest.raises(Slice71ContractError, match="classifications/ac013"):
         validate_receipt(document, manifest(), MANIFEST_PATH.read_bytes())
 

@@ -111,7 +111,11 @@ def validate_receipt(
     if receipt["source_clean"] is not True:
         raise ArtifactError("artifact source checkout was not clean")
     expected_build_environment = (
-        {"CUDA_HOME": "/usr/local/cuda", "PATH_prefix": "/usr/local/cuda/bin"}
+        {
+            "CUDA_HOME": "/usr/local/cuda",
+            "LIBRARY_PATH": "/usr/local/cuda/lib64",
+            "PATH_prefix": "/usr/local/cuda/bin",
+        }
         if device == "cuda"
         else {}
     )
@@ -141,7 +145,7 @@ def validate_receipt(
     build_command = receipt["build_command"]
     if (
         not isinstance(build_command, list)
-        or len(build_command) != 9
+        or len(build_command) != 11
         or not all(isinstance(item, str) and item for item in build_command)
     ):
         raise ArtifactError("artifact build command is malformed")
@@ -149,6 +153,8 @@ def validate_receipt(
         "maturin",
         "build",
         "--release",
+        "--auditwheel",
+        "skip",
         "--out",
         str(wheel.parent),
         "--features",
@@ -217,6 +223,8 @@ def main() -> int:
         "maturin",
         "build",
         "--release",
+        "--auditwheel",
+        "skip",
         "--out",
         str(wheel_dir),
         "--features",
@@ -225,7 +233,11 @@ def main() -> int:
         str(args.python.resolve()),
     ]
     build_environment = (
-        {"CUDA_HOME": "/usr/local/cuda", "PATH_prefix": "/usr/local/cuda/bin"}
+        {
+            "CUDA_HOME": "/usr/local/cuda",
+            "LIBRARY_PATH": "/usr/local/cuda/lib64",
+            "PATH_prefix": "/usr/local/cuda/bin",
+        }
         if args.device == "cuda"
         else {}
     )

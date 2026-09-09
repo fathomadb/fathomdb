@@ -92,12 +92,17 @@ def artifact(role: str, device: str) -> dict:
         "source_root": f"/tmp/source/{role}",
         "source_clean": True,
         "build_command": [
-            "maturin", "build", "--release", "--out", f"{root}/wheel",
+            "maturin", "build", "--release", "--auditwheel", "skip",
+            "--out", f"{root}/wheel",
             "--features", ",".join(features), "-i", "/usr/bin/python3",
         ],
         "build_environment": {}
         if device == "cpu"
-        else {"CUDA_HOME": "/usr/local/cuda", "PATH_prefix": "/usr/local/cuda/bin"},
+        else {
+            "CUDA_HOME": "/usr/local/cuda",
+            "LIBRARY_PATH": "/usr/local/cuda/lib64",
+            "PATH_prefix": "/usr/local/cuda/bin",
+        },
         "wheel_path": wheel,
         "wheel_size": 1024,
         "wheel_sha256": HASH,

@@ -910,9 +910,8 @@ pub(crate) fn dense_member_kind_at(
         return Err(corruption());
     }
     if let Some((kind, row_kind, state, registered, enrolled)) = node {
-        let declared =
-            super::vector_projection_declared(connection).map_err(|_| EngineError::Storage)?;
-        if (!declared && !enrolled)
+        if (!enrolled
+            && !super::vector_projection_declared(connection).map_err(|_| EngineError::Storage)?)
             || !matches!(row_kind.as_str(), "leaf" | "coverage")
             || !super::kind_is_vector_committable(&kind)
             || (registered && state != "active")

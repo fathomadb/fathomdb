@@ -12527,8 +12527,20 @@ impl Engine {
     /// instrumentation; semantics are owned by `dev/design/lifecycle.md`.
     pub fn drain(&self, timeout_ms: u64) -> Result<(), EngineError> {
         self.ensure_open()?;
-        if let Some(blocked) = self.read_embedding_readiness()?.blocked {
+        let readiness = self.read_embedding_readiness()?;
+        if let Some(blocked) = readiness.blocked {
             return Err(EngineError::EmbedderRequired(blocked));
+        }
+        // The readiness read already uses the same durable pending-work
+        // predicate as `wait_for_idle`. When it finds no pending row, wait only
+        // for any worker finishing its post-commit bookkeeping; opening a
+        // second connection for an identical database scan cannot add evidence.
+        if readiness.pending_count == 0 {
+            return if self.projection_runtime.wait_for_workers_idle(timeout_ms) {
+                Ok(())
+            } else {
+                Err(EngineError::Scheduler)
+            };
         }
         if self.projection_runtime.wait_for_idle(timeout_ms) {
             Ok(())
@@ -22598,22 +22610,20 @@ fn commit_projection_outcomes(
     } else {
         None
     };
+    // Generation and eligibility time cannot change while this IMMEDIATE
+    // transaction owns the writer lock. Read them once for the whole batch.
+    let current_generation_id = projection_generation::current_generation_id(&tx)
+        .map_err(|_| rusqlite::Error::InvalidQuery)?;
+    let effective_at = current_epoch_seconds();
     for outcome in outcomes {
         match outcome {
             ProjectionOutcome::Success { cursor, kind, blob, bin_blob, generation_id } => {
-                if projection_generation::current_generation_id(&tx)
-                    .map_err(|_| rusqlite::Error::InvalidQuery)?
-                    != *generation_id
-                {
+                if current_generation_id != *generation_id {
                     continue;
                 }
-                if projection_generation::dense_member_kind_at(
-                    &tx,
-                    *cursor,
-                    current_epoch_seconds(),
-                )
-                .map_err(|_| rusqlite::Error::InvalidQuery)?
-                .as_deref()
+                if projection_generation::dense_member_kind_at(&tx, *cursor, effective_at)
+                    .map_err(|_| rusqlite::Error::InvalidQuery)?
+                    .as_deref()
                     != Some(kind.as_str())
                 {
                     continue;
@@ -22755,19 +22765,12 @@ fn commit_projection_outcomes(
                 }
             }
             ProjectionOutcome::Failure { cursor, failure_code, generation_id } => {
-                if projection_generation::current_generation_id(&tx)
-                    .map_err(|_| rusqlite::Error::InvalidQuery)?
-                    != *generation_id
-                {
+                if current_generation_id != *generation_id {
                     continue;
                 }
-                if projection_generation::dense_member_kind_at(
-                    &tx,
-                    *cursor,
-                    current_epoch_seconds(),
-                )
-                .map_err(|_| rusqlite::Error::InvalidQuery)?
-                .is_none()
+                if projection_generation::dense_member_kind_at(&tx, *cursor, effective_at)
+                    .map_err(|_| rusqlite::Error::InvalidQuery)?
+                    .is_none()
                 {
                     continue;
                 }

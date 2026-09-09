@@ -32336,6 +32336,37 @@ mod tests {
         assert_eq!(terminal_prepares.load(Ordering::Relaxed), 1);
     }
 
+    #[test]
+    fn governed_node_batch_advances_visibility_once() {
+        let dir = TempDir::new().unwrap();
+        let opened = Engine::open(dir.path().join("visibility-batch.sqlite")).unwrap();
+        let before = crate::frozen_read::load_visibility_generation(
+            opened.engine.connection.lock().unwrap().as_ref().unwrap(),
+        )
+        .unwrap();
+        let source_id = SourceId::new("test:visibility-batch").unwrap();
+        let batch = (0..4)
+            .map(|index| PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: format!("body {index}"),
+                source_id: source_id.clone(),
+                logical_id: Some(format!("logical-{index}")),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect::<Vec<_>>();
+
+        opened.engine.write(&batch).unwrap();
+
+        let after = crate::frozen_read::load_visibility_generation(
+            opened.engine.connection.lock().unwrap().as_ref().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(after, before + 1);
+    }
+
     proptest! {
         #[test]
         fn completed_rank_group_matches_the_full_stable_prefix(

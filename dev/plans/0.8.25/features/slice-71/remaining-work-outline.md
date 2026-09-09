@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 71 — remaining work outline
-status: PAUSED_BY_OWNER
+status: IN_PROGRESS
 date: 2026-09-08
 ---
 
@@ -8,10 +8,15 @@ date: 2026-09-08
 
 ## Direction
 
-Execution stopped on 2026-09-08 at the owner's direction. Do not run another
-performance campaign, implement another treatment, or perform generic
-verification from this outline. Resume only after the owner approves the next
-measurement boundary. The full regression matrix remains owned by Slice 75.
+The owner approved immediate write-regression work within Slice 71 on
+2026-09-08. [71B — General write regression](write-regression-subplan.md) is
+the execution authority for its protocol, attribution, correction, and focused
+verification. It supersedes the earlier write pause and read-before-write
+sequencing. It is not another release-ladder slice. The full regression matrix
+remains owned by Slice 75.
+
+This outline retains historical evidence and indexes remaining parent work;
+do not duplicate or execute a competing write protocol here.
 
 ## What the retained data establish
 
@@ -53,11 +58,11 @@ The highest-value comparison is narrow and already available in Git:
    schema step 31 and the read-visibility trigger family. The Slice 35
    candidates descend from that change. This is the first window in which the
    repeatable 80.71%-103.56% 10k-ingest regression appears.
-2. Step 31 adds three triggers for each of 14 authoritative tables. A normal
-   node fixture causes three visibility-generation updates per node, or
-   30,000 additional singleton-row updates for 10,000 nodes. This is the
-   leading explanation for the initial Slice 35 regression, but it has not
-   been isolated by a controlled ablation.
+2. Step 31 adds three trigger definitions per authoritative table. The simple
+   foreground node path causes three generation updates per node (30,000/10k);
+   this is not a write-plus-drain count. 71B requires measured phase/connection
+   attribution and treats the reviewer's roughly five-fire aggregate as
+   preliminary until its starting state and artifacts are checked.
 3. Commit `2a65a38a` (Slice 40) adds two projection-generation tables and six
    visibility triggers. Those triggers need not fire for every normal node
    write, so they are a secondary path-specific hypothesis rather than an
@@ -71,75 +76,40 @@ The highest-value comparison is narrow and already available in Git:
    rather than a broad historical bisect unless the narrow cells falsify all
    trigger hypotheses.
 
-## Work to perform after owner authorization
+## Remaining parent obligations
 
-### 1. Set the performance decision boundary
+### General writes — active now as 71B
 
-- Decide whether AC-072 remains a release blocker on this host. All six
-  admissible p50 values miss the 80 ms boundary: baseline 163-165 ms and
-  candidate 200-201 ms. Candidate p99 spread is 40%, so the preregistered
-  classifier correctly returns `environment_invalid`; no threshold change or
-  repeat is authorized by the present manifest.
-- If AC-013 is to resume, approve a revised preregistered environment/protocol
-  before collecting data. Do not relabel the exploratory or admissible
-  campaigns.
-- Decide whether the write investigation must quantify interactive small
-  writes or only prove and correct the already-repeated 10k regression. The
-  recommended scope includes 1, 10, 100, 1,000, and 10,000 rows so a fix does
-  not hide a fixed-cost penalty behind bulk throughput.
+Execute the [six-phase sub-plan](write-regression-subplan.md): seal/review the
+versioned evidence protocol; attribute generation, preparation, nonce, and
+possible writer/projector contention costs; review a supported correction;
+implement with deterministic RED/GREEN proof; demonstrate large/small-write
+recovery; obtain independent code review and a separate evidence audit.
+The plan distinguishes confirmed code mechanisms from unverified diagnostic
+measurements and does not preselect transaction coalescing.
 
-### 2. Attribute the write regression before designing a fix
+### Read latency — separate unresolved disposition
 
-- Reuse the exact 10k fixture and host controls from the retained Slice 35
-  campaigns. Compare, in counterbalanced order, the pre-Slice-35 baseline,
-  step-31 generation-only state, post-Slice-40 state, post-Slice-45
-  generation-plus-nonce state, and current release state.
-- Capture ingest acknowledgement separately from projection drain. Record row
-  counts, fired trigger count, generation delta, nonce change, database/WAL
-  bytes, CPU, RSS, errors, and host pressure.
-- If the current candidate remains more than 20% slower, run only the planned
-  diagnostic ablations: production triggers, generation-only/no-nonce, and a
-  no-op trigger body. These are non-shipping counterfactuals.
-- Repeat the minimum cells at the approved small sizes. Report absolute
-  latency as well as relative regression; percentages are misleading near the
-  fixed-cost floor.
-- Stop if results are unstable, if the trigger cells do not explain the
-  regression, or if isolation requires changing a public/schema/ADR contract.
+The admissible AC-013 campaign remains `environment_invalid`. All six p50
+values miss AC-072's 80 ms boundary (baseline 163–165 ms, candidate 200–201 ms),
+and candidate p99 spread is 40%. Preserve this result and its original receipt.
+Any revised read campaign or release-gate disposition requires its own explicit
+prospective decision. It neither blocks 71B nor becomes passing when writes
+recover. 71B may use the separately bound AC-013 seeder without rerunning the
+search-latency acceptance campaign.
 
-### 3. Design and implement only a proved correction
+### Verification and parent closeout
 
-- Preserve cross-process invalidation, raw-SQL mutation visibility,
-  commit/rollback distinction, monotonic generation exhaustion, branch nonce
-  behavior, authoritative-table coverage, and virtual-table owner coupling.
-- Write deterministic RED tests for the selected mechanism and invariants
-  before production changes. The performance measurement is supporting
-  evidence, not the TDD oracle.
-- Make the smallest correction supported by the ablation. Do not move
-  invalidation solely into `Engine.write` unless external SQLite mutations and
-  cross-process readers remain covered.
-- Re-run only the preregistered affected-size cells and classify against the
-  approved boundary. Stop for an owner decision if the invariant-preserving
-  correction still misses it.
+71B owns focused verification: changed documentation/harness checks, affected
+correctness suites and crate checks, independent candidate review, and evidence
+audit. Full release verification stays in Slice 75. No broad suite during fix
+iterations; the sub-plan records the owner-requested maximum-two-round ceiling
+if a broad Slice 71 exception is later authorized. Do not spend that ceiling
+as an automatic allowance.
 
-### 4. Apply proportional verification
-
-There is no value in a full verifier while the performance disposition is
-blocked. The following is the complete Slice 71 verification ladder:
-
-- With evidence-only changes: validate receipt schema, hashes, derived
-  classification, commit ancestry, and retained raw-log binding. No workspace
-  regression run is required.
-- With a harness-only change: run its shell/Python contract tests and syntax or
-  type checks for the changed runner only.
-- With an Engine/schema correction: run the new RED/GREEN tests, existing
-  visibility trigger/rollback/frozen-read/cross-process tests touched by the
-  mechanism, and focused `cargo check`/clippy for the affected crates.
-- Obtain independent code review on the exact candidate and a separate
-  read-only audit of the focused results. Do not run `agent-verify`,
-  `scripts/check.sh`, long stress, CUDA, Windows, packaged cross-SDK, or hosted
-  CI in Slice 71.
-- Slice 75 performs the full release-wide regressions after Slices 71-73 have
-  a disposition.
+Close Slice 71 only after write recovery and the separate read-latency
+obligation have their required dispositions. Update the release-state JSON
+and regenerate its owned regions. Slice 72 remains dependency-blocked.
 
 ## Current durable boundary
 
@@ -150,6 +120,7 @@ commit. The separate verification pass was interrupted when the owner changed
 the task to outline-only, so it is not a completion claim. The bulk-ingest
 campaign was not rerun because the approved AC-013 stop condition fired.
 
-Slice 71 is paused and incomplete. Slice 72 remains dependency-blocked until
-Slice 71 receives either a measured disposition or an explicit owner-approved
-deferral.
+Slice 71 is in progress and incomplete. The owner-approved 71B planning
+integration resumes write work; no new measurements or implementation are
+claimed. Immediate next action is Phase 1 evidence qualification and a sealed,
+independently reviewed protocol. Slice 72 remains blocked by its parent.

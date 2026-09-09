@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 71 (PERFORMANCE), PAUSED_BY_OWNER.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 71 (PERFORMANCE), IN_PROGRESS.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -21,8 +21,10 @@ cross-SDK parity, and exact Linux/Windows verification. The owner-approved
 2026-09-02 scope adjustment removes Slices 65/70. The owner-approved 2026-09-08
 adjustment creates focused Slices 71–73 before final integrated closure. Direct
 agents execute this release without Steward or Orchestrator roles. Slice 71 is
-paused at the owner's 2026-09-08 outline-only boundary; no further experiment
-or verification is authorized until the owner approves a disposition.
+in progress under the owner's 2026-09-08 approval of
+[71B — General write regression](../0.8.25/features/slice-71/write-regression-subplan.md).
+The prior write pause is superseded; the separate read-latency disposition
+remains unresolved. No new write campaign or correction is claimed.
 
 ## Slice ladder
 
@@ -47,7 +49,7 @@ or verification is authorized until the owner approves a disposition.
 | 50 | Compact source-complete evidence | Complete on release branch (`e741542d`) |
 | 55 | Basic tracing and integrity | Complete on release branch (`5a6942bc`) |
 | 60 | Minimal constrained graph parity | Complete on release branch (`59208028`) |
-| 71 | AC-013 and bulk-ingest investigations | Paused; incomplete (`2863f7f8`) |
+| 71 | AC-013 disposition and 71B general write regression | In progress; 71B protocol next; retained evidence `2863f7f8` |
 | 72 | Generic preflight and installed CE profiles | Not started |
 | 73 | Windows Node/N-API CI coverage | Not started |
 | 75 | Integrated release closure | Not started |
@@ -70,7 +72,8 @@ or verification is authorized until the owner approves a disposition.
   observations miss AC-072 and candidate p99 spread is 40%. Its stop condition
   blocked bulk-ingest execution. The owner then redirected the slice to the
   [durable remaining-work outline](../0.8.25/features/slice-71/remaining-work-outline.md);
-  Slice 72 remains dependency-blocked.
+  the later 71B approval resumes write work independently. Slice 72 remains
+  dependency-blocked until the complete parent slice has its disposition.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
@@ -85,7 +88,7 @@ or verification is authorized until the owner approves a disposition.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 71 (PERFORMANCE)** — AC-013 and bulk-ingest investigations. **Remaining ladder:** 71 → 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Continue Slice 71 (PERFORMANCE)** — AC-013 disposition and 71B general write regression. **Remaining ladder:** 71 → 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 71 — latency and ingest investigations
-status: PAUSED_BY_OWNER
+status: IN_PROGRESS
 depends_on: 60
 design: design.md
 design_status: APPROVED
@@ -8,9 +8,11 @@ design_status: APPROVED
 
 # Slice 71 plan
 
-> Execution paused on 2026-09-08. The durable continuation boundary is
-> [`remaining-work-outline.md`](remaining-work-outline.md); do not resume
-> experiments or verification without owner authorization.
+> Owner-approved continuation on 2026-09-08: execute
+> [71B — General write regression](write-regression-subplan.md) now within
+> Slice 71. It owns the amended write protocol and supersedes conflicting
+> write requirements below. AC-013/AC-072 read-latency disposition remains
+> unresolved independently; its prior stop no longer blocks write work.
 
 ## Outcome
 
@@ -37,12 +39,10 @@ allocation establishes these corrections and constraints:
   candidate median 10k-ingest regressions range from 80.71% to 103.56% versus
   the Slice 30 parent. The final measured candidate is `0aff1cb`; the baseline
   is `b2bfb1f318f58041144acb2356a6a4c9624068b9`.
-- “42 per-row triggers” was incorrect. Slice 35 had 42 triggers total (14
-  tables times three). The current schema has 54 total triggers (18 times
-  three), while this fixture fires three INSERT triggers per node and rotates
-  one 32-byte nonce per trigger. A 10k ingest therefore expects 30,000 ingest-
-  caused visibility-generation events, plus independently recorded setup
-  events.
+- “42 per-row triggers” was incorrect. Slice 35 had 42 trigger definitions;
+  schema 33 has 54. Three foreground fires per simple node do not include
+  projector activity. 71B requires measured deltas with setup and drain
+  attribution instead of imposing 30,000 events on every 10k fixture.
 - Existing trigger, rollback, frozen-read drift, cross-process, and virtual-
   table coupling are product invariants. Diagnostic ablations are not product
   candidates.
@@ -71,9 +71,9 @@ allocation establishes these corrections and constraints:
   cells before proposing a correction. These counterfactuals never constitute
   shipped behavior.
 - **S71-R6:** Preserve visibility invalidation, committed-state distinction,
-  rollback behavior, authoritative-table coverage, dependency eligibility,
-  and all public/schema contracts. Stop for an owner decision if a remedy
-  needs a schema, ADR, or public-contract change.
+  rollback behavior, authoritative-table coverage, and dependency eligibility.
+  71B permits reviewed additive implementation/migration changes that preserve
+  accepted guarantees; changing a guarantee needs a concrete owner decision.
 
 ## Acceptance criteria
 
@@ -100,8 +100,8 @@ allocation establishes these corrections and constraints:
   `trigger_inventory: 0`, `visibility_state: not_applicable`, null
   generation/nonce fields, and reason `schema_predates_visibility_state`; it
   never fabricates a zero generation delta. Candidate trigger and generation
-  accounting distinguishes setup events from the expected 30,000 ingest
-  events.
+  accounting distinguishes setup, foreground, and drain activity according to
+  71B; historical fixed-event receipts retain their original meaning.
 - **S71-AC5 — ingest disposition:** At or below 20% median regression, retain
   evidence and do not optimize. Above 20%, retain the ablation evidence and
   either land a narrowly proved TDD correction or stop with the precise
@@ -110,9 +110,9 @@ allocation establishes these corrections and constraints:
   implementation. Tests are committed RED before GREEN. An independent code
   review and a separate focused-verification pass bind their verdicts to the
   exact candidate commit.
-- **S71-AC7 — proportional gate:** Run only changed harness tests, relevant
-  Rust/Python/shell tests, the two experiments, workspace clippy, and workspace
-  check. Do not run `agent-verify`, `scripts/check.sh`, long stress, Windows,
+- **S71-AC7 — proportional gate:** Follow 71B's affected-harness/product tests
+  and affected-crate clippy/check scope. Do not rerun the read campaign merely
+  to verify write work. Do not run `agent-verify`, `scripts/check.sh`, long stress, Windows,
   CUDA, packaged cross-SDK, or hosted CI; Slice 75 owns those full routes.
 
 ## Delivery sequence
@@ -121,9 +121,9 @@ allocation establishes these corrections and constraints:
 2. Add deterministic harness and profiling tests; retain the failing RED
    diagnostics in `tdd-chronology.md` and commit the RED state.
 3. Implement the minimum GREEN harness/search changes and run focused tests.
-4. Execute the preregistered AC-013 campaign and classify it.
-5. Execute the preregistered ingest campaign, then attribution/correction only
-   if its threshold requires it.
+4. Preserve the completed AC-013 campaign and its `environment_invalid`
+   classification; its outstanding disposition remains a parent obligation.
+5. Execute 71B's six phases independently of that read-latency disposition.
 6. Obtain independent code review and focused verification; resolve findings
    without changing the sealed experiment after seeing results.
 7. Write `status.md`, update the release-state writer, and remove any temporary
@@ -131,10 +131,10 @@ allocation establishes these corrections and constraints:
 
 ## Stop conditions
 
-Stop rather than weaken a gate when AC-013 has a mixed-result arm or greater-
-than-20% within-arm p50/p99 range, ingest acknowledgement has greater-than-25%
-max/min spread within an arm, the environment identity drifts, both AC-013
-arms fail, the candidate remains over
-AC-072 after a proved local regression is removed, barrier correctness breaks,
-ingest attribution requires changing a public/schema/ADR contract, or an
-independent reviewer returns a blocking finding.
+For any separately authorized read-latency campaign, stop rather than weaken a
+gate when AC-013 has a mixed-result arm or greater-than-20% within-arm p50/p99
+range, the environment identity drifts, both AC-013 arms fail, or the candidate remains over
+AC-072 after a proved local regression is removed. Those read dispositions do
+not stop 71B. The sub-plan owns write environment, correctness, recovery,
+review, and contract-change stop conditions. Neither track can silently close
+the other's obligations.

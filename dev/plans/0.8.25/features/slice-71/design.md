@@ -11,6 +11,14 @@ depends_on: 60
 Independent design review passed after three bounded correction cycles. The
 durable verdict is `design-review-cycle3.md`.
 
+That verdict covers the original design v4 and retained campaign only. The
+owner-approved [71B sub-plan](write-regression-subplan.md) now supersedes the
+write protocol, fixed event-count requirement, and verification scope below.
+It requires a versioned protocol and independent review before new timings,
+and a reviewed concrete correction before implementation. The original closed
+manifest/receipt schemas below remain historical contracts, not schemas to
+silently extend for 71B. AC-013 read-latency evidence remains unchanged.
+
 ## Evidence model
 
 `Slice71ManifestV1` is checked in before measurement and rejects missing or
@@ -98,6 +106,11 @@ vector-edge, and edge-FTS hits remain excluded before truncation.
 
 ## Ingest workload
 
+The following records the original v4 protocol. New execution follows 71B,
+including its three initial trigger arms (no nonce-only arm), foreground/drain
+accounting, total-completion criteria, and separately bound projection-active
+fixture. Do not execute this historical protocol as the current sub-plan.
+
 Use Slice 30 parent `b2bfb1f318f58041144acb2356a6a4c9624068b9`
 as baseline and the exact Slice 71 candidate, with the existing Scale-02 10k
 fixture, batch size 256, no embedder, fresh database, isolated process, and
@@ -128,10 +141,12 @@ memory is below 25%, swap-in/out increases, thermal throttling is reported, or
 another build/test/Scale-02 process is active. Invalid or disagreeing cells
 stop without retry or exclusion after results are visible.
 
-Any shipped correction must retain three committed visibility changes per
-ingested node, all 54 schema triggers, fresh nonce behavior, rollback safety,
-cross-process drift detection, virtual-table coupling, and authoritative-table
-coverage unless a successor decision explicitly changes that contract.
+The original design required three foreground changes per simple node and 54
+schema-33 triggers. Under 71B, these implementation counts may change only
+through a reviewed design with coordinated migration/open-manifest updates.
+Fresh branch-sensitive nonce behavior, rollback safety, cross-process and
+raw-SQL drift detection, virtual-table coupling, exhaustion, and authoritative
+coverage remain required guarantees.
 
 ## TDD and focused verification
 
@@ -141,4 +156,6 @@ GREEN changes only code directly supported by those failures. Focused
 verification includes the changed tests, relevant dependency-closure and
 Slice 35 trigger tests, workspace clippy, workspace check, both sealed
 campaigns, independent code review, and a separate verification reviewer.
-Full release regressions remain deferred to Slice 75 by owner direction.
+This paragraph records the original verification scope; 71B's affected-crate
+and focused-test policy governs new write work. Full release regressions
+remain deferred to Slice 75 by owner direction.

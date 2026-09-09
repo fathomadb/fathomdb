@@ -210,7 +210,7 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 71** (`PERFORMANCE`) — AC-013 and bulk-ingest investigations
+**IMMEDIATE NEXT: Slice 71** (`PERFORMANCE`) — AC-013 disposition and 71B general write regression
 
 **Remaining ladder:** 71 → 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 

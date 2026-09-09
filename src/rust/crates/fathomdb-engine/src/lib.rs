@@ -22438,10 +22438,11 @@ fn record_projection_terminal(
     cursor: u64,
     state: &str,
 ) -> rusqlite::Result<()> {
-    connection.execute(
-        "INSERT OR IGNORE INTO _fathomdb_projection_terminal(write_cursor, state) VALUES(?1, ?2)",
-        params![cursor, state],
-    )?;
+    connection
+        .prepare_cached(
+            "INSERT OR IGNORE INTO _fathomdb_projection_terminal(write_cursor, state) VALUES(?1, ?2)",
+        )?
+        .execute(params![cursor, state])?;
     Ok(())
 }
 
@@ -28704,12 +28705,12 @@ fn project_canonical_node_row(
     let enqueue_vector = targets.vector && kind_is_vector_indexed(tx, kind).unwrap_or(false);
     if pass.writes_vector_state() {
         if enqueue_vector {
-            tx.execute(
+            tx.prepare_cached(
                 "INSERT INTO _fathomdb_projection_state(kind, last_enqueued_cursor, updated_at)
                  VALUES(?1, ?2, 0)
                  ON CONFLICT(kind) DO UPDATE SET last_enqueued_cursor = excluded.last_enqueued_cursor",
-                params![kind, cursor],
-            )?;
+            )?
+            .execute(params![kind, cursor])?;
         } else {
             // Never-vector-projected rows terminate the cursor up-front so
             // `advance_projection_cursor` can advance the readiness watermark.
@@ -29149,17 +29150,17 @@ fn register_artifact_identity(
         if revision_is_registered(tx, &revision_id)? {
             return Err(ProvenanceError::new(ProvenanceErrorReason::RevisionIdConflict, "").into());
         }
-        tx.execute(
+        tx.prepare_cached(
             "INSERT INTO _fathomdb_artifact_revisions(\
                schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness\
              ) VALUES(1, ?1, ?2, ?3, 'legacy', ?4)",
-            params![
-                revision_id,
-                artifact_class,
-                cursor,
-                ProvenanceCompleteness::MigratedIncomplete.as_str()
-            ],
-        )?;
+        )?
+        .execute(params![
+            revision_id,
+            artifact_class,
+            cursor,
+            ProvenanceCompleteness::MigratedIncomplete.as_str()
+        ])?;
         return Ok(());
     };
 
@@ -29490,11 +29491,11 @@ fn apply_batch_in_transaction(
                 // `ReadView::validity_sql` reads as UNBOUNDED on that side. So a
                 // write that omits the window is byte-identical on disk to a
                 // pre-slice write, and default-view visibility cannot drift.
-                tx.execute(
+                tx.prepare_cached(
                     "INSERT INTO canonical_nodes(write_cursor, kind, body, source_id, logical_id, row_kind, state, reason, valid_from, valid_until)
                      VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-                    params![cursor, kind, body, source_id.as_str(), logical_id, RowKind::Leaf.as_str(), state.as_str(), reason, valid_from, valid_until],
-                )?;
+                )?
+                .execute(params![cursor, kind, body, source_id.as_str(), logical_id, RowKind::Leaf.as_str(), state.as_str(), reason, valid_from, valid_until])?;
                 // EXP-S (D2/D5) — per-row_kind index-target dispatch. For `leaf`
                 // this is behavior-identical to the pre-EXP-S inline path: FTS
                 // (sync, in-tx) + vector (async, gated by kind_is_vector_indexed);

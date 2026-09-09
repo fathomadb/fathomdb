@@ -30716,6 +30716,27 @@ mod tests {
     }
 
     #[test]
+    fn projection_runtime_idle_probe_retry_honors_deadline() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = initialized_projection_runtime_path(&dir, "runtime-idle-probe-timeout.sqlite");
+        let (result, _, _) = start_projection_runtime_for_test(path, Duration::from_secs(30), None);
+        let runtime = result.expect("runtime startup");
+        let timeout = Duration::from_millis(25);
+        let started = Instant::now();
+
+        assert!(
+            !runtime.wait_for_idle(timeout.as_millis() as u64, || None),
+            "a persistently busy durable-work probe must time out"
+        );
+        assert!(
+            started.elapsed() <= timeout * 3,
+            "the retryable probe must remain bounded by the drain deadline"
+        );
+
+        runtime.stop();
+    }
+
+    #[test]
     fn projection_runtime_startup_exit_after_report_is_rejected_and_cleans_up() {
         let dir = TempDir::new().expect("temp dir");
         let path = initialized_projection_runtime_path(&dir, "runtime-startup-exit.sqlite");

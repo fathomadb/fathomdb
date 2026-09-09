@@ -16,7 +16,7 @@ trap 'rm -f "$cargo_log"' EXIT
 cd "$cell_worktree"
 
 sqlite_version="${SLICE71_SQLITE_VERSION:?run the source commit's SQLite runtime probe first}"
-libsqlite3_sys="$(awk '/^name = "libsqlite3-sys"$/{found=1; next} found && /^version = /{gsub(/"/, "", $3); print $3; exit}' Cargo.lock)"
+libsqlite3_sys="$(awk '/^name = "libsqlite3-sys"$/{found=1; next} found && /^version = /{print $3; exit}' Cargo.lock | sed 's/[\"]//g')"
 
 snapshot() {
   local phase="$1" load mem swap_in swap_out temp competing

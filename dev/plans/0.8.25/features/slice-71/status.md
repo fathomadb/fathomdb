@@ -32,6 +32,17 @@ The execution binding records the runner and executable hashes and the actual
 candidate checkout `4d8500d9`; its product source tree is identical to
 `84c056c6`, with only the committed campaign manifest added between them.
 
+The equivalent-basis audit keeps the historical 7,667-row real-embedding
+36/49 ms result separate. The historical synthetic 15/17 ms result used the
+same deterministic fixture shape at 10k/384d and fanout 192, but its exact
+runner, runtime, CPU instructions, and affinity were not retained, so it is
+diagnostic only. The binding comparison instead interleaves baseline and
+candidate on the same x86_64 24-CPU host with the same source-bound
+`VaryingEmbedder`, corpus/query seeds, 1,000 warmups, 1,000 measured full
+`Engine.search` calls, release/default-feature runner, SQLite 3.53.2,
+`libsqlite3-sys` 0.38.1, scheduler-default affinity, completed projection
+drain, and captured host-pressure rules.
+
 The two candidate-only 71B guards also pass. Scale-02 10k acknowledgement was
 1,361.080/1,368.250/1,378.400 ms and total was
 1,365.443/1,372.627/1,382.779 ms, below the 1,543.539/1,548.545 ms guards.

@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 71 — TDD chronology
-status: GREEN_71B_COMPLETE
+status: COMPLETE_ON_RELEASE_BRANCH
 date: 2026-09-09
 ---
 
@@ -99,3 +99,19 @@ and TEMP-trigger fallback. GREEN preserves those tests while adding only the
 measured hot-path corrections. Exact candidate `eda95b07` passes both 10k
 limits and every small-workload conjunctive bound; see
 [71b-performance-recovery.md](71b-performance-recovery.md).
+
+## AC-072 final RED/GREEN
+
+Bounded full-search diagnostics isolated the remaining cost to per-match FTS
+identity/hydration work and quadratic fusion. Commit `de8da0f9` is the RED: it
+requires the default hybrid path to remain exactly equivalent to the complete
+joined control for deep-ranked overlap, duplicate bodies, and an ownerless raw
+FTS row. Commit `84c056c6` is GREEN: it defers identity hydration until final
+hits when the snapshot proves the fast path safe and replaces quadratic fusion
+lookup with a collision-safe index. The fallback path remains unchanged.
+
+Forty-nine focused search, ranking, lifecycle, dependency, eligibility, and
+result-shape tests pass, together with changed-target clippy. The prospective
+campaign committed at `4d8500d9` passes all three candidate repetitions at
+p50 69 ms and p99 75–77 ms. Candidate-only 71B guards also pass. No broad
+verification round was run; Slice 75 owns it.

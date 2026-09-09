@@ -1,0 +1,72 @@
+{
+  "schema_version": "slice71b-attribution-manifest.v1",
+  "release": "0.8.25",
+  "approval": {
+    "state": "approved",
+    "approved_by": "HITL",
+    "approved_at": "2026-09-08"
+  },
+  "product_sources": {
+    "scale02_baseline": "b2bfb1f318f58041144acb2356a6a4c9624068b9",
+    "ac013_baseline": "4fc1b890a11ebfaa8f11b15823656e856002807a",
+    "unchanged_current": "c80e6909e0860f6e57ed423fdf47fbafce2479c9"
+  },
+  "probe": {
+    "path": "experiments/slice71b_write_probe.rs",
+    "sha256": "b67a9c52f9978b74b04f643ff6d4e6aec311c94227a8bda2a6d7015ceb594889"
+  },
+  "runner": {
+    "path": "scripts/perf-experiments/run_slice71b.py",
+    "sha256": "fa1fda6195c2b275558b619e47f3452d27419a23fc5dff5d1fc2fa55ebf174f9"
+  },
+  "fixtures": {
+    "scale02": {
+      "input_jsonl": "data/performance-benchmarking/scale-02/slice71b/scale02-input.v1.jsonl",
+      "input_sha256": "ac01dfe5f3ce6d1e46623d284f1f3ec611746fa2a2d89ea05221fe22f9c8e069",
+      "fixture_sha256": "6a650ccebc9ba4c8f171b03a8092ba997b5307b49dc21f105faa2bd4374d4447",
+      "sizes": [1, 10, 100, 1000, 10000],
+      "batch_size_small": "one_transaction",
+      "batch_size_10k": 256,
+      "embedder": "none"
+    },
+    "ac013": {
+      "generator": "experiments/slice71b_write_probe.rs",
+      "generator_sha256": "b67a9c52f9978b74b04f643ff6d4e6aec311c94227a8bda2a6d7015ceb594889",
+      "fixture_sha256": "0fac90a3b608652ee30d166b10f8dcebc2784a081abb642c193126a2a8ccf3ef",
+      "sizes": [1, 10, 100, 1000, 10000],
+      "batch_size_small": "one_transaction",
+      "batch_size_10k": 1024,
+      "vector_dim": 384,
+      "embedder": "varying/perf-gates-dense"
+    }
+  },
+  "treatments": ["production", "generation_only", "no_op"],
+  "attribution_order": [
+    "production",
+    "generation_only",
+    "no_op",
+    "no_op",
+    "generation_only",
+    "production",
+    "generation_only",
+    "production",
+    "no_op"
+  ],
+  "policy": {
+    "repetitions_per_arm": 3,
+    "max_within_arm_spread_percent": 25,
+    "ten_k_limit_percent": 20,
+    "small_limit_percent": 10,
+    "small_absolute_floor_ms": 0.25,
+    "conditional_preparation_factorial": "only_if_three_arm_attribution_is_unresolved"
+  },
+  "environment_policy": {
+    "max_load_per_online_cpu": 0.5,
+    "min_available_memory_percent": 25,
+    "max_swap_io_delta": 0,
+    "max_cpu_temp_c": 90,
+    "thermal_signal": "k10temp:Tctl",
+    "forbid_competing_processes": true
+  },
+  "raw_root": "dev/plans/runs/0.8.25-slice-71/71b"
+}

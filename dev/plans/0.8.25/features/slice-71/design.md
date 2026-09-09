@@ -27,8 +27,8 @@ visibility state is `not_applicable`, generation/nonce values are null, and
 the exact reason is `schema_predates_visibility_state`.
 
 The exact machine contract is frozen by
-`experiments/config/release_0825_slice71_manifest.schema.json` and
-`experiments/config/release_0825_slice71_receipt.schema.json`, both with
+`experiments/configs/release-0825-slice71-manifest.schema.json` and
+`experiments/configs/release-0825-slice71-receipt.schema.json`, both with
 `additionalProperties: false` at every object. The manifest's exact top-level
 keys are `schema_version`, `candidate_ref`, `baselines`, `arm_order`,
 `workloads`, `environment_policy`, `timeouts_s`, and `raw_root`.

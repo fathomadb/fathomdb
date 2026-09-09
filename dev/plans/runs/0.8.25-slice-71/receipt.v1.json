@@ -1,0 +1,90 @@
+{
+  "schema_version": "slice71-receipt.v1",
+  "manifest_sha256": "313f4df095bc250a004f3627188324dee7f90533afaaef7b5a6118fbd1f10085",
+  "candidate_ref": "5546585da8f5893f903dbde8d1a885c483061c1b",
+  "started_at": "2026-09-08T18:19:06-05:00",
+  "finished_at": "2026-09-08T19:00:44-05:00",
+  "cells": [
+    {
+      "workload": "ac013", "arm": "B", "ref": "4fc1b890a11ebfaa8f11b15823656e856002807a", "ordinal": 1,
+      "started_at": "2026-09-08T18:19:06-05:00", "finished_at": "2026-09-08T18:24:39-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628",
+      "config_sha256": "313f4df095bc250a004f3627188324dee7f90533afaaef7b5a6118fbd1f10085",
+      "raw_log_sha256": "e1d9ab633b350311df705d77a887a21846d50826969fb0ebbcfa9580c614e69d",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 1749, "projection_drain_ms": 256, "p50_ms": 165, "p99_ms": 174}
+    },
+    {
+      "workload": "ac013", "arm": "C", "ref": "5546585da8f5893f903dbde8d1a885c483061c1b", "ordinal": 1,
+      "started_at": "2026-09-08T18:25:35-05:00", "finished_at": "2026-09-08T18:32:24-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628",
+      "config_sha256": "313f4df095bc250a004f3627188324dee7f90533afaaef7b5a6118fbd1f10085",
+      "raw_log_sha256": "c27adc64ab411cf39f0fbcc8af84965e203108d74926e60a25ae03d9974023fc",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 2901, "projection_drain_ms": 2153, "p50_ms": 201, "p99_ms": 260}
+    },
+    {
+      "workload": "ac013", "arm": "C", "ref": "5546585da8f5893f903dbde8d1a885c483061c1b", "ordinal": 2,
+      "started_at": "2026-09-08T18:35:23-05:00", "finished_at": "2026-09-08T18:42:16-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628",
+      "config_sha256": "313f4df095bc250a004f3627188324dee7f90533afaaef7b5a6118fbd1f10085",
+      "raw_log_sha256": "ce8dbea3388b66dedb1adb2e505a6825fe9f34dacb49e834589beacb8caea66d",
+      "result_state": "failed", "error": "AC-072 p50 and p99 exceeded their budgets",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 4215, "projection_drain_ms": 681, "p50_ms": 202, "p99_ms": 311}
+    },
+    {
+      "workload": "ac013", "arm": "B", "ref": "4fc1b890a11ebfaa8f11b15823656e856002807a", "ordinal": 2,
+      "started_at": "2026-09-08T18:42:29-05:00", "finished_at": "2026-09-08T18:48:03-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628",
+      "config_sha256": "313f4df095bc250a004f3627188324dee7f90533afaaef7b5a6118fbd1f10085",
+      "raw_log_sha256": "8df460547cdfed11a7ca1175d4c015af17b017816e20783272e9922df4d8ffa5",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 586, "projection_drain_ms": 1863, "p50_ms": 165, "p99_ms": 176}
+    },
+    {
+      "workload": "ac013", "arm": "B", "ref": "4fc1b890a11ebfaa8f11b15823656e856002807a", "ordinal": 3,
+      "started_at": "2026-09-08T18:48:18-05:00", "finished_at": "2026-09-08T18:53:48-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628",
+      "config_sha256": "313f4df095bc250a004f3627188324dee7f90533afaaef7b5a6118fbd1f10085",
+      "raw_log_sha256": "3ec29def9411474c9a25fb094989669e34707b90c488d686722c19604cd1ebcd",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 1772, "projection_drain_ms": 245, "p50_ms": 164, "p99_ms": 172}
+    },
+    {
+      "workload": "ac013", "arm": "C", "ref": "5546585da8f5893f903dbde8d1a885c483061c1b", "ordinal": 3,
+      "started_at": "2026-09-08T18:53:56-05:00", "finished_at": "2026-09-08T19:00:44-05:00",
+      "process_identity": {"fresh_process": true, "test_threads": 1},
+      "build_identity": {"profile": "release", "rustc": "1.95.0", "llvm": "22.1.2"},
+      "host_identity": {"host": "windchill3", "kernel": "7.0.0-30-generic", "arch": "x86_64", "online_cpus": 24},
+      "fixture_sha256": "73646fdac08d67d6120fe3db9f32a90481b2f1a3038c9c8116b04045c577e628",
+      "config_sha256": "313f4df095bc250a004f3627188324dee7f90533afaaef7b5a6118fbd1f10085",
+      "raw_log_sha256": "f787348f70ecba54064b94d12e8f7c7da34c11381c29affde3a182abfc4a41e7",
+      "result_state": "failed", "error": "AC-072 p50 exceeded 80 ms",
+      "metrics": {"n": 10000, "samples": 1000, "vector_dim": 384, "seed_write_ms": 4836, "projection_drain_ms": 186, "p50_ms": 202, "p99_ms": 211}
+    }
+  ],
+  "classifications": {
+    "ac013": "environment_invalid",
+    "ingest": "blocked_before_execution"
+  },
+  "errors": [
+    "candidate p99 range is 100 ms around median 260 ms (38.46%), exceeding the sealed 20% validity limit",
+    "all six repetitions fail AC-072 p50, but environment_invalid supersedes a pre_existing_gate_failure claim",
+    "the Slice 71 stop condition blocked bulk-ingest execution"
+  ]
+}

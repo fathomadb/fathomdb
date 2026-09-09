@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Slice71ManifestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "candidate_ref", "baselines", "arm_order", "workloads", "environment_policy", "timeouts_s", "raw_root"],
+  "properties": {
+    "schema_version": {"const": "slice71-manifest.v1"},
+    "candidate_ref": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "baselines": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ac013_ref", "ingest_ref"],
+      "properties": {
+        "ac013_ref": {"const": "4fc1b890a11ebfaa8f11b15823656e856002807a"},
+        "ingest_ref": {"const": "b2bfb1f318f58041144acb2356a6a4c9624068b9"}
+      }
+    },
+    "arm_order": {"const": ["B", "C", "C", "B", "B", "C"]},
+    "workloads": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ac013", "ingest"],
+      "properties": {
+        "ac013": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["corpus_n", "vector_dim", "samples", "treatment", "repetitions_per_arm", "p50_budget_ms", "p99_budget_ms", "max_within_arm_range_percent"],
+          "properties": {
+            "corpus_n": {"const": 10000},
+            "vector_dim": {"const": 384},
+            "samples": {"const": 1000},
+            "treatment": {"const": "warm"},
+            "repetitions_per_arm": {"const": 3},
+            "p50_budget_ms": {"const": 80},
+            "p99_budget_ms": {"const": 300},
+            "max_within_arm_range_percent": {"const": 20}
+          }
+        },
+        "ingest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["corpus_n", "batch_size", "embedder", "repetitions_per_arm", "median_regression_limit_percent", "max_within_arm_spread_percent", "expected_ingest_events", "ablation_repetitions", "ablation_cells"],
+          "properties": {
+            "corpus_n": {"const": 10000},
+            "batch_size": {"const": 256},
+            "embedder": {"const": "none"},
+            "repetitions_per_arm": {"const": 3},
+            "median_regression_limit_percent": {"const": 20},
+            "max_within_arm_spread_percent": {"const": 25},
+            "expected_ingest_events": {"const": 30000},
+            "ablation_repetitions": {"const": 3},
+            "ablation_cells": {"const": ["production", "counter_only", "nonce_only", "no_op"]}
+          }
+        }
+      }
+    },
+    "environment_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_load_per_online_cpu", "min_available_memory_percent", "max_swap_io_delta", "thermal_throttled", "forbid_competing_processes"],
+      "properties": {
+        "max_load_per_online_cpu": {"const": 0.5},
+        "min_available_memory_percent": {"const": 25},
+        "max_swap_io_delta": {"const": 0},
+        "thermal_throttled": {"const": false},
+        "forbid_competing_processes": {"const": true}
+      }
+    },
+    "timeouts_s": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ac013_cell", "ingest_cell"],
+      "properties": {
+        "ac013_cell": {"const": 3600},
+        "ingest_cell": {"const": 900}
+      }
+    },
+    "raw_root": {"const": "dev/plans/runs/0.8.25-slice-71"}
+  }
+}

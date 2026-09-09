@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 71 — TDD chronology
-status: GREEN_IN_PROGRESS
+status: GREEN_BLOCKED_AT_ACCEPTANCE
 date: 2026-09-08
 ---
 
@@ -41,5 +41,23 @@ the design's deterministic behavioral RED.
   edge-vector, and vector pre-truncation dependency tests pass.
 - Focused `fathomdb-engine` clippy with `test-hooks` passes with warnings denied.
 
-The manifest/receipt contract remains RED until its checked-in schemas and
-validator are added against this product-code commit.
+The strict manifest schemas, receipt schema, checked-in manifest, and seven
+negative/positive validator tests are GREEN against source candidate
+`5546585d`.
+
+## RED/GREEN — strict receipt follow-up
+
+The first contract GREEN covered the sealed manifest but omitted the design's
+promised executable receipt rejection. Commit `666de9f2` adds the missing
+tests as a second RED: collection fails because `validate_receipt` does not
+exist. The follow-up GREEN adds exact top-level, cell, identity, metrics,
+arm-order, ref, and blocked-classification validation without changing the
+already-observed evidence or its thresholds.
+
+## Acceptance stop
+
+The six sealed AC-013 repetitions all fail p50. Candidate p99 range/median is
+38.46%, exceeding the 20% environment-validity limit. The receipt therefore
+records `environment_invalid`; the approved stop condition prevents the ingest
+campaign and any unregistered second optimization treatment. Product and
+harness GREEN changes remain reviewable, but Slice 71 cannot close COMPLETE.

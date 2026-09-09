@@ -1,0 +1,44 @@
+{
+  "schema_version": "slice71-manifest.v1",
+  "candidate_ref": "5546585da8f5893f903dbde8d1a885c483061c1b",
+  "baselines": {
+    "ac013_ref": "4fc1b890a11ebfaa8f11b15823656e856002807a",
+    "ingest_ref": "b2bfb1f318f58041144acb2356a6a4c9624068b9"
+  },
+  "arm_order": ["B", "C", "C", "B", "B", "C"],
+  "workloads": {
+    "ac013": {
+      "corpus_n": 10000,
+      "vector_dim": 384,
+      "samples": 1000,
+      "treatment": "warm",
+      "repetitions_per_arm": 3,
+      "p50_budget_ms": 80,
+      "p99_budget_ms": 300,
+      "max_within_arm_range_percent": 20
+    },
+    "ingest": {
+      "corpus_n": 10000,
+      "batch_size": 256,
+      "embedder": "none",
+      "repetitions_per_arm": 3,
+      "median_regression_limit_percent": 20,
+      "max_within_arm_spread_percent": 25,
+      "expected_ingest_events": 30000,
+      "ablation_repetitions": 3,
+      "ablation_cells": ["production", "counter_only", "nonce_only", "no_op"]
+    }
+  },
+  "environment_policy": {
+    "max_load_per_online_cpu": 0.5,
+    "min_available_memory_percent": 25,
+    "max_swap_io_delta": 0,
+    "thermal_throttled": false,
+    "forbid_competing_processes": true
+  },
+  "timeouts_s": {
+    "ac013_cell": 3600,
+    "ingest_cell": 900
+  },
+  "raw_root": "dev/plans/runs/0.8.25-slice-71"
+}

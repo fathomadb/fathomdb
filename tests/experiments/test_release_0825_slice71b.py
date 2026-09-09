@@ -211,6 +211,7 @@ def test_attribution_receipt_accepts_canonical_partial_abort() -> None:
         "treatment": "generation_only",
         "ordinal": 2,
         "occurred_at": "2026-09-08T00:04:00Z",
+        "message": "scale02/generation_only-2: retained probe failure",
         "artifacts": [
             {
                 "kind": "attempt_disposition",
@@ -229,7 +230,7 @@ def test_attribution_receipt_accepts_canonical_partial_abort() -> None:
             },
         ],
     }
-    document["errors"] = ["scale02/no_op-2: retained probe failure"]
+    document["errors"] = ["scale02/generation_only-2: retained probe failure"]
     validate_attribution_receipt(document, manifest(), verify_hashes=False)
 
 
@@ -252,6 +253,35 @@ def test_attribution_receipt_rejects_unbound_partial_abort() -> None:
     document["errors"] = ["unbound failure"]
     document["failure"] = None
     with pytest.raises(Slice71BContractError, match="failure"):
+        validate_attribution_receipt(document, manifest(), verify_hashes=False)
+
+
+def test_attribution_receipt_rejects_stop_reason_not_bound_by_failure() -> None:
+    document = valid_attribution_receipt()
+    document["cells"] = document["cells"][:4]
+    document["finished_at"] = "2026-09-08T00:04:00Z"
+    document["classification"] = {
+        "state": "harness_failed",
+        "supported_causes": [],
+        "conditional_preparation_factorial_required": False,
+    }
+    document["failure"] = {
+        "state": "harness_failed",
+        "fixture": "scale02",
+        "treatment": "generation_only",
+        "ordinal": 2,
+        "occurred_at": "2026-09-08T00:04:00Z",
+        "message": "bound reason",
+        "artifacts": [
+            {
+                "kind": "attempt_disposition",
+                "path": "dev/plans/runs/0.8.25-slice-71/71b/attempt.json",
+                "sha256": "b" * 64,
+            }
+        ],
+    }
+    document["errors"] = ["different unbound reason"]
+    with pytest.raises(Slice71BContractError, match="errors"):
         validate_attribution_receipt(document, manifest(), verify_hashes=False)
 
 

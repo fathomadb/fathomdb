@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 75 — integrated closure design
 status: APPROVED
-design_version: 5
+design_version: 6
 target_release: 0.8.25
 depends_on: 73
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -128,6 +128,18 @@ tracked million-row tier. AC-076 uses 10k and 1,000 measured searches at
 20/150 ms. AC-072 uses 10k, 384 dimensions, and 1,000 measured full
 `Engine.search` calls at 80/300 ms. AC-020 retains its registered parallelism
 predicate.
+
+The final-candidate AC-020 RED result was `537 ms` sequential versus `129 ms`
+concurrent at a `100 ms` bound. A bounded controlled comparison of the
+already-present SQLite experiment levers found that disabling SQLite's unused
+process-wide memory-allocation statistics was sufficient on current code;
+PCACHE2 alone was not. Production therefore calls
+`sqlite3_config(SQLITE_CONFIG_MEMSTATUS, 0)` once before its first connection,
+without shutting down an already-initialized SQLite runtime. It does not
+promote the experimental custom allocator, change database page size, or raise
+reader cache limits. The unchanged AC-020 command remains the acceptance
+oracle; the concurrent-DDL, cursor, durability, schema-upgrade, interaction,
+and retrieval-latency cells form the focused blast-radius check.
 
 One EU7 body on 7,667 real documents, real BGE, 100 queries, 1,000 bootstrap
 resamples, 1,000 latency samples, and 8×250 stress searches supplies both real

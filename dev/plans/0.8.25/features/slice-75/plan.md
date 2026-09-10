@@ -66,6 +66,13 @@ approved subject to design review:
 12. Prove runtime floors without rebuilding artifacts: reuse one Linux x64
     abi3 wheel and N-API package for Python 3.10, 3.11, and 3.12 plus Node 18
     and the release-current Node runtime.
+13. The final AC-020 command exposed the inherited reader-concurrency gate as
+    RED. A controlled use of the repository's existing SQLite experiments
+    isolated the built-in memory-status lock as the smallest effective lever.
+    Promote only `SQLITE_CONFIG_MEMSTATUS=0` before FathomDB's first SQLite
+    connection. Do not promote PCACHE2, page-size changes, or large reader
+    caches. If SQLite was already initialized by another library, leave it
+    running rather than shutting it down.
 
 No global acceptance identifier or public API is added.
 
@@ -173,6 +180,8 @@ exhaustive scale-by-feature-by-CUDA matrix are excluded.
    claims. This keeps the aggregate suite-label count at 109. Add failing
    final-interaction and schema-26 tests for any exposed gap. Preserve the RED
    commit.
+   The unchanged AC-020 gate is the RED test for the reader-concurrency
+   correction; its unconfigured final-candidate result must be retained.
 2. **GREEN:** Implement the smallest manifest validator, focused execution
    helpers, and test fixtures. Amend AC-021 and EU7 only where necessary to make their registered
    protocols executable and fail closed. Generalize the Tegra workflow and its
@@ -180,6 +189,8 @@ exhaustive scale-by-feature-by-CUDA matrix are excluded.
    helpers that capture exact service, PR, workflow, run, job, matrix, and SHA
    identities. Add the Slice-75 installed cross-SDK and GLOBAL resolved-config
    bindings. Do not change public APIs or performance limits.
+   For AC-020, configure only SQLite's unused memory-status accounting off at
+   process start; preserve the existing bound and command.
 3. **REFACTOR:** Remove duplication, run formatting plus the affected focused
    tests, and obtain independent code review.
 4. Freeze the product candidate and execute the matrix. After a narrow fix,

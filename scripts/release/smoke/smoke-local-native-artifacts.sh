@@ -66,10 +66,27 @@ fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+unset PYTHONPATH
 
 "$PYTHON_BASE" -m venv "$WORK/python-venv"
 PYTHON="$WORK/python-venv/bin/python"
 "$PYTHON" -m pip install --no-index --find-links "$WHEEL_DIR" fathomdb
+"$PYTHON" - "$WORK/python-venv" <<'PY'
+from pathlib import Path
+import sys
+
+import fathomdb
+from fathomdb import _native
+
+venv = Path(sys.argv[1]).resolve()
+package = Path(fathomdb.__file__).resolve()
+native = Path(_native.__file__).resolve()
+if venv not in package.parents or venv not in native.parents:
+    raise SystemExit(
+        f"installed Python import escaped isolated environment: package={package} native={native}"
+    )
+print(f"slice75-native-python-paths: package={package} native={native} source_fallback=false")
+PY
 "$PYTHON" - "$REPO_ROOT/tests/fixtures/slice45_frozen_context_v3.json" \
   "$WORK/python-frozen-fixture.sqlite" "$WORK/python-frozen-token.txt" <<'PY'
 import json
@@ -219,6 +236,7 @@ else:
 engine.close()
 print("local Python wheel runtime validation: ok")
 PY
+printf 'slice75-native-python-result: markers=3 write_search=pass dependency=pass frozen_read=pass\n'
 
 MAIN="$WORK/main"
 NPM_ROOT="$WORK/npm"
@@ -390,10 +408,22 @@ case "$resolved_native" in
   "$CONSUMER"/*) ;;
   *) printf 'smoke-local-native-artifacts: native module escaped isolated consumer\n' >&2; exit 1 ;;
 esac
-built_native_sha256="$(sha256sum "$TS_DIR/fathomdb.$NAPI_LABEL.node")"
-built_native_sha256="${built_native_sha256%% *}"
-installed_native_sha256="$(sha256sum "$resolved_native")"
-installed_native_sha256="${installed_native_sha256%% *}"
+built_native_sha256="$("$PYTHON_BASE" - "$TS_DIR/fathomdb.$NAPI_LABEL.node" <<'PY'
+import hashlib
+from pathlib import Path
+import sys
+
+print(hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest())
+PY
+)"
+installed_native_sha256="$("$PYTHON_BASE" - "$resolved_native" <<'PY'
+import hashlib
+from pathlib import Path
+import sys
+
+print(hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest())
+PY
+)"
 if [ "$built_native_sha256" != "$installed_native_sha256" ]; then
   printf 'smoke-local-native-artifacts: installed native artifact digest mismatch\n' >&2
   exit 1

@@ -222,10 +222,19 @@ macos-14|aarch64-apple-darwin|darwin-arm64
 macos-15-intel|x86_64-apple-darwin|darwin-x64
 ubuntu-24.04-arm|aarch64-unknown-linux-gnu|linux-arm64-gnu
 ubuntu-latest|x86_64-unknown-linux-gnu|linux-x64-gnu
-[self-hosted, Windows, X64, windchill3-windows-11]|x86_64-pc-windows-msvc|win32-x64-msvc
+${{ github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/release/') && fromJSON('["self-hosted","Windows","X64","windchill3-windows-11"]') || 'windows-latest' }}|x86_64-pc-windows-msvc|win32-x64-msvc
 EOF
 )"
 [ "$rows" = "$expected" ] || fail "runtime matrix must cover exactly the five release-ready native triples; got: ${rows:-<none>}"
+
+grep -Fq '  workflow_dispatch:' "$CI_YML" \
+  || fail 'self-hosted Windows routing requires a manual workflow trigger'
+grep -Fq "github.event_name == 'workflow_dispatch'" <<<"$block" \
+  || fail 'the Windows self-hosted runner must be unreachable from pull_request and push events'
+grep -Fq "startsWith(github.ref, 'refs/heads/release/')" <<<"$block" \
+  || fail 'the Windows self-hosted runner must be restricted to release branches'
+grep -Fq 'CANDIDATE_SHA" != "$GITHUB_SHA' <<<"$block" \
+  || fail 'manual native validation must bind the requested candidate to the workflow SHA'
 
 for required in \
   'Build local Python wheel' \

@@ -3,13 +3,14 @@
 set -euo pipefail
 
 usage() {
-  printf 'usage: %s --packages DIR --witness DIR --hf-home DIR --output DIR\n' "$0" >&2
+  printf 'usage: %s --candidate-sha SHA --packages DIR --witness DIR --hf-home DIR --output DIR\n' "$0" >&2
 }
 
-packages='' witness='' hf_home='' output=''
+candidate_sha='' packages='' witness='' hf_home='' output=''
 while [ "$#" -gt 0 ]; do
   [ "$#" -ge 2 ] || { usage; exit 2; }
   case "$1" in
+    --candidate-sha) candidate_sha="$2" ;;
     --packages) packages="$2" ;;
     --witness) witness="$2" ;;
     --hf-home) hf_home="$2" ;;
@@ -18,14 +19,15 @@ while [ "$#" -gt 0 ]; do
   esac
   shift 2
 done
-[ -d "$packages" ] && [ -d "$witness" ] && [ -d "$hf_home" ] && [ -n "$output" ] \
+[ -n "$candidate_sha" ] && [ -d "$packages" ] && [ -d "$witness" ] \
+  && [ -d "$hf_home" ] && [ -n "$output" ] \
   || { usage; exit 2; }
+[[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]] \
+  || { printf 'slice75-cuda-package-smoke: invalid candidate SHA\n' >&2; exit 2; }
+head_sha="$(git rev-parse HEAD)"
+[ "$head_sha" = "$candidate_sha" ] \
+  || { printf 'slice75-cuda-package-smoke: candidate SHA differs from HEAD\n' >&2; exit 1; }
 [ ! -e "$output" ] || { printf 'slice75-cuda-package-smoke: output must be new\n' >&2; exit 1; }
-candidate_sha="$(python3 - "$witness/cuda-preflight-witness.json" <<'PY'
-import json, sys
-print(json.load(open(sys.argv[1], encoding="utf-8"))["candidate_sha"])
-PY
-)"
 python3 scripts/release/verify-cuda-preflight-witness.py \
   --witness-dir "$witness" --candidate-sha "$candidate_sha"
 

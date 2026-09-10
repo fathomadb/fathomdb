@@ -3,6 +3,7 @@
 use std::sync::{Arc, Once};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+use fathomdb_engine::lifecycle::ProjectionStatus;
 use fathomdb_engine::{
     ArtifactRevisionId, CanonicalHash, Engine, EngineError, FrozenReadErrorReason, InitialState,
     LifecycleState, PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
@@ -139,6 +140,26 @@ fn body_hash(body: &str) -> CanonicalHash {
     CanonicalHash::sha256(digest).expect("canonical hash")
 }
 
+fn assert_legacy_projection_state(engine: &Engine) {
+    assert_eq!(
+        engine
+            .query_i64_col_for_test(
+                "SELECT COUNT(*) FROM _fathomdb_projection_terminal \
+                 WHERE write_cursor IN (1,2,3) AND state='up_to_date'",
+            )
+            .expect("legacy projection terminal census"),
+        vec![3]
+    );
+    assert_eq!(
+        engine
+            .query_i64_col_for_test(
+                "SELECT last_enqueued_cursor FROM _fathomdb_projection_state WHERE kind='doc'",
+            )
+            .expect("legacy projection state"),
+        vec![3]
+    );
+}
+
 #[test]
 fn populated_schema26_upgrades_through_every_step_then_reopens_and_projects() {
     let dir = TempDir::new().expect("tempdir");
@@ -153,6 +174,7 @@ fn populated_schema26_upgrades_through_every_step_then_reopens_and_projects() {
         upgraded.report.migration_steps.iter().map(|step| step.step_id).collect::<Vec<_>>(),
         (27..=SCHEMA_VERSION).collect::<Vec<_>>()
     );
+    assert_legacy_projection_state(&upgraded.engine);
     println!(
         "SLICE75_SCHEMA26_RESULT before=26 after={SCHEMA_VERSION} steps=27,28,29,30,31,32,33 reopen_steps=0"
     );
@@ -166,6 +188,7 @@ fn populated_schema26_upgrades_through_every_step_then_reopens_and_projects() {
     assert_eq!(reopened.report.schema_version_before, SCHEMA_VERSION);
     assert_eq!(reopened.report.schema_version_after, SCHEMA_VERSION);
     assert!(reopened.report.migration_steps.is_empty());
+    assert_legacy_projection_state(&reopened.engine);
     reopened.engine.configure_vector_kind_for_test("doc").expect("configure projection");
     reopened
         .engine
@@ -190,10 +213,23 @@ fn schema26_upgrade_supports_lifecycle_dependency_erasure_recreation_and_reopen(
     let path = db_path(&dir, "lifecycle");
     seed_schema26(&path);
     let upgraded = open_current(&path);
+    assert_legacy_projection_state(&upgraded.engine);
+    upgraded.engine.configure_vector_kind_for_test("doc").expect("configure vector projection");
+    upgraded.engine.rebuild_projections().expect("rebuild legacy projections");
+    upgraded.engine.drain(10_000).expect("legacy projection drain");
+    assert_eq!(
+        upgraded.engine.projection_status_for_test("doc").unwrap(),
+        ProjectionStatus::UpToDate
+    );
+    assert_eq!(upgraded.engine.vector_row_count_for_test().expect("legacy vector census"), 3);
+    assert!(upgraded.engine.has_vector_row_for_cursor_for_test(1).unwrap());
+    assert!(upgraded.engine.has_vector_row_for_cursor_for_test(2).unwrap());
     upgraded
         .engine
         .transition("legacy-pending", LifecycleState::Active, None)
         .expect("promote legacy pending row");
+    upgraded.engine.drain(10_000).expect("promoted projection drain");
+    assert_eq!(upgraded.engine.vector_row_count_for_test().expect("promoted vector census"), 3);
     assert!(upgraded
         .engine
         .search("pending")
@@ -250,6 +286,12 @@ fn schema26_upgrade_supports_lifecycle_dependency_erasure_recreation_and_reopen(
             .expect("dependency registration"),
         )
         .expect("register dependency");
+    upgraded.engine.drain(10_000).expect("dependency projection drain");
+    assert_eq!(
+        upgraded.engine.projection_status_for_test("doc").unwrap(),
+        ProjectionStatus::UpToDate
+    );
+    assert_eq!(upgraded.engine.vector_row_count_for_test().expect("dependency vector census"), 5);
     let frozen = upgraded
         .engine
         .freeze_read_context(
@@ -257,12 +299,12 @@ fn schema26_upgrade_supports_lifecycle_dependency_erasure_recreation_and_reopen(
         )
         .expect("freeze");
     upgraded.engine.erase_source("slice75-upgraded-source").expect("erase upgraded source");
-    assert!(upgraded
-        .engine
-        .search("upgraded dependency")
-        .expect("post-erasure search")
-        .results
-        .is_empty());
+    upgraded.engine.drain(10_000).expect("erasure projection drain");
+    let post_erasure = upgraded.engine.search("upgraded dependency").expect("post-erasure search");
+    assert!(post_erasure.results.iter().all(|hit| {
+        hit.body != "upgraded dependency source" && hit.body != "upgraded dependency derived"
+    }));
+    assert_eq!(upgraded.engine.vector_row_count_for_test().expect("post-erasure vectors"), 3);
     assert!(matches!(
         upgraded.engine.search_frozen(
             "upgraded dependency",
@@ -281,11 +323,24 @@ fn schema26_upgrade_supports_lifecycle_dependency_erasure_recreation_and_reopen(
         .engine
         .write(&[node("upgraded-recreated", "upgraded dependency recreated", InitialState::Active)])
         .expect("safe recreation");
+    upgraded.engine.drain(10_000).expect("recreation projection drain");
+    assert_eq!(
+        upgraded.engine.projection_status_for_test("doc").unwrap(),
+        ProjectionStatus::UpToDate
+    );
+    assert_eq!(upgraded.engine.vector_row_count_for_test().expect("recreated vectors"), 4);
     upgraded.engine.close().expect("close lifecycle fixture");
 
     let reopened = open_current(&path);
     assert!(reopened.report.migration_steps.is_empty());
+    assert_eq!(
+        reopened.engine.projection_status_for_test("doc").unwrap(),
+        ProjectionStatus::UpToDate
+    );
+    assert_eq!(reopened.engine.vector_row_count_for_test().expect("reopened vectors"), 4);
     let results = reopened.engine.search("upgraded dependency").expect("reopen search").results;
-    assert_eq!(results.len(), 1);
-    assert_eq!(results[0].body, "upgraded dependency recreated");
+    assert_eq!(results.iter().filter(|hit| hit.body == "upgraded dependency recreated").count(), 1);
+    assert!(results.iter().all(|hit| {
+        hit.body != "upgraded dependency source" && hit.body != "upgraded dependency derived"
+    }));
 }

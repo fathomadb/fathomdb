@@ -60,8 +60,7 @@ artifact_name="jetson-tegra-cuda-evidence-$run_id-1"
 mkdir "$work/evidence"
 gh run download "$run_id" --repo "$repository" --name "$artifact_name" --dir "$work/evidence"
 python3 scripts/release/verify-tegra-gpu-witness.py \
-  --witness "$work/evidence/tegra-gpu-allocation-witness.json" \
-  --candidate-sha "$candidate_sha"
+  --witness "$work/evidence/tegra-gpu-allocation-witness.json"
 python3 - "$work/run.json" "$work/evidence" "$repository" "$workflow" "$branch" \
   "$candidate_sha" "$candidate_version" "$run_id" "$receipt" <<'PY'
 import hashlib

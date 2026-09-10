@@ -207,7 +207,7 @@
       "id": "linux-artifact-current-smoke",
       "timeout_seconds": 7200,
       "commands": ["bash scripts/release/smoke/smoke-local-native-artifacts.sh ${RUN_DIR}/artifacts/python src/ts src/ts/npm/linux-x64-gnu linux-x64-gnu scripts/release/smoke/slice73-windows-napi-modules.json"],
-      "expected": {"python_feature_markers": 8, "napi_modules": 13, "napi_tests": 180, "source_fallback": false}
+      "expected": {"python_markers": ["write_search", "dependency", "frozen_read"], "napi_modules": 13, "napi_tests": 180, "source_fallback": false}
     },
     {
       "id": "linux-runtime-floor-smokes",
@@ -218,7 +218,7 @@
     {
       "id": "linux-cuda-package",
       "timeout_seconds": 7200,
-      "commands": ["env FATHOMDB_CANDIDATE_SHA=${FINAL_SHA} bash scripts/release/cuda-preflight.sh ${RUN_DIR}/cuda-preflight --rerank-cuda", "cargo build --locked --release -p fathomdb-cli --features embed-cuda,rerank-cuda --target x86_64-unknown-linux-gnu", "bash scripts/release/seal-cuda-cli-archive.sh --binary target/x86_64-unknown-linux-gnu/release/fathomdb --version 0.8.24 --output ${RUN_DIR}/cuda-preflight.packages/fathomdb-0.8.24-x86_64-unknown-linux-gnu.tar.gz", "bash scripts/release/slice75-cuda-package-smoke.sh --packages ${RUN_DIR}/cuda-preflight.packages --witness ${RUN_DIR}/cuda-preflight --hf-home ${HF_HOME} --output ${RUN_DIR}/cuda-package-smoke"],
+      "commands": ["env FATHOMDB_CANDIDATE_SHA=${FINAL_SHA} bash scripts/release/cuda-preflight.sh ${RUN_DIR}/cuda-preflight --rerank-cuda", "cargo build --locked --release -p fathomdb-cli --features embed-cuda,rerank-cuda --target x86_64-unknown-linux-gnu", "bash scripts/release/seal-cuda-cli-archive.sh --binary target/x86_64-unknown-linux-gnu/release/fathomdb --version 0.8.24 --output ${RUN_DIR}/cuda-preflight.packages/fathomdb-0.8.24-x86_64-unknown-linux-gnu.tar.gz", "bash scripts/release/slice75-cuda-package-smoke.sh --candidate-sha ${FINAL_SHA} --packages ${RUN_DIR}/cuda-preflight.packages --witness ${RUN_DIR}/cuda-preflight --hf-home ${HF_HOME} --output ${RUN_DIR}/cuda-package-smoke"],
       "expected": {"consumers": ["python", "napi", "cli"], "policies": ["cpu", "auto", "cuda"], "gpu": "RTX 3090", "python_napi_embed_model_forwards_min": 1, "python_napi_rerank_model_forwards_min": 1, "cli_doctors": ["gpu", "reranker-gpu"]}
     },
     {
@@ -236,7 +236,7 @@
     {
       "id": "hosted-native-validation",
       "timeout_seconds": 10800,
-      "commands": ["bash scripts/release/slice75-hosted-ci.sh --repository fathomadb/fathomdb --branch release/0.8.25 --candidate-sha ${FINAL_SHA} --job native-artifact-runtime-validation --receipt ${RUN_DIR}/hosted-native-validation.json"],
+      "commands": ["bash scripts/release/slice75-hosted-ci.sh --repository fathomadb/fathomdb --branch release/0.8.25 --candidate-sha ${FINAL_SHA} --dispatch --job native-artifact-runtime-validation --receipt ${RUN_DIR}/hosted-native-validation.json"],
       "expected": {"workflow": "CI", "job": "native-artifact-runtime-validation", "rows": ["linux-x64-gnu", "linux-arm64-gnu", "darwin-x64", "darwin-arm64", "win32-x64-msvc"], "conclusion": "success"}
     },
     {

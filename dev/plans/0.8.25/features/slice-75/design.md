@@ -22,7 +22,7 @@ digest equals the tested digest. The current workspace version remains the
 pre-cut Axis-W version; production package/version work is a later release
 operation outside this ladder.
 
-## Closure manifest and receipt
+## Closure manifest and evidence
 
 `Slice75ClosureManifestV1` is checked in before execution. It contains:
 
@@ -34,33 +34,29 @@ operation outside this ladder.
 - invalidation paths for every retained or reusable result; and
 - the permitted exclusions listed in the plan.
 
-The validator accepts only closed keys and known cell IDs. A current cell is
-`passed` only with a zero exit code, exact positive count, no forbidden skip or
-ignored result, all markers, and all numeric predicates. A retained cell also
-requires its source receipt digest and a zero relevant-path diff from its
-original candidate. Hosted cells bind workflow run, job/matrix label, and exact
-product SHA. Unknown, missing, timed-out, zero-test, skipped, or mismatched
-evidence is not pooled into a pass.
+The validator seals declarations only: it accepts closed keys and known cell
+IDs, checks fixed in-repository and retained-receipt digests, and rejects
+relaxed limits, counts, environments, or exclusions. It does not pretend to
+execute commands or infer a pass from prose. Execution records the exact
+candidate SHA, command, exit status, positive count/marker, threshold, and
+raw-log digest for each cell. Independent evidence review checks those records
+against the sealed manifest; unknown, missing, timed-out, zero-test, skipped,
+or mismatched evidence is not pooled into a pass.
 
-`Slice75ClosureReceiptV1` records immutable per-cell records and a top-level
-verdict. Raw logs live under one run directory and are referenced by digest;
-the compact committed receipt carries the evidence needed to reproduce the
-verdict without embedding full logs.
-
-At candidate freeze, the validator computes one canonical digest over
-`git ls-files` to identify the unchanged overall candidate. Separately, the
-manifest maps each cell to a narrower closed invalidation-path set so a fix
-does not force unrelated expensive work to repeat. External BGE/TinyBERT files
-and the gitignored EU7 corpus carry resolved paths, file counts, and SHA-256
-digests. Generated package/model outputs are hashed before their first
-consumer. Every cell receipt has the deterministic path
-`dev/plans/runs/0.8.25-slice-75/cells/<cell-id>.json`. Hosted helpers bind the
-repository, branch, exact SHA, PR or dispatch run ID, workflow/job name, matrix
-label, and conclusion. The Jetson helper captures the run ID returned after
-dispatch before watching it. The Windows helper starts the VM only when
-needed, verifies the guest service over SSH, and then confirms the exact
-repository runner identity, labels, online state, and idle state through the
-GitHub API.
+At candidate freeze, the status records the full tracked-tree identity.
+Separately, the manifest maps each cell to a narrower closed invalidation-path
+set so a fix does not force unrelated expensive work to repeat. Retained cells
+use explicit `git diff --quiet <source> <candidate> -- <paths...>` checks.
+External BGE/TinyBERT files and the gitignored EU7 corpus are checked against
+their declared SHA-256/file-count inputs before their consumers run. Generated
+package/model outputs are hashed before their first consumer. Raw logs are
+temporary; the committed compact receipt retains their digests and the
+observations used for the verdict. Hosted helpers bind the repository, branch,
+exact SHA, run ID, workflow/job name, matrix label, and conclusion. The Jetson
+helper captures the run ID after dispatch before watching it. The Windows
+helper starts the VM only when needed, verifies the guest service over SSH,
+and then confirms the exact repository runner identity, labels, online state,
+and idle state through the GitHub API.
 
 ## Focused final-code interaction target
 
@@ -161,12 +157,13 @@ has no general write/search commands. Dependent-crate package resolution waits f
 separate version-cut and ordered registry rehearsal; no historical registry
 dependency is misrepresented as this candidate.
 
-The installed cross-SDK fixture is bounded but representative. Eight positive
-feature markers in each SDK cover actuation, dependency/closure, projection
-readiness, pagination/operational state, evidence, lifecycle/erasure, frozen
-reads, and constrained graph behavior. The N-API route additionally reuses the
-fixed Slice 73 13-module set and requires 180/180 tests. Both SDKs exchange one
-canonical frozen-context/database fixture and require wire-equivalent values.
+The installed cross-SDK fixture is bounded but representative. Python records
+positive write/search, dependency, and frozen-read markers. The N-API route
+reuses the fixed Slice 73 13-module set and requires 180/180 tests across the
+broader actuation, dependency/closure, projection-readiness,
+pagination/operational-state, evidence, lifecycle/erasure, frozen-read, and
+constrained-graph areas. Both SDKs exchange one canonical
+frozen-context/database fixture and require wire-equivalent values.
 
 The existing GLOBAL-01 native fixture is resolved for Slice 75 so its CLI path
 names the built candidate. Candidate-artifact Python performs exactly one
@@ -186,9 +183,10 @@ GitHub provides the macOS runners. Before workflow dispatch, Slice 75 starts
 `gh-runner-wonl-win11`, requires a runner registered to `fathomadb/fathomdb`
 with labels `self-hosted`, `Windows`, `X64`, and `windchill3-windows-11`, starts
 and verifies its service, and uses those labels for the supported Windows CPU
-row. Missing or wrong registration is a preflight failure. The workflow row is
-changed under a shell-fixture RED test from `windows-latest` to that explicit
-self-hosted selector. That row supplements, rather than
+row. Missing or wrong registration is a preflight failure. The workflow row
+selects that runner only for an exact-SHA manual dispatch on a release branch;
+ordinary push and pull-request events retain GitHub-hosted Windows and cannot
+allocate the persistent VM. That row supplements, rather than
 repeats, the applicable Slice 73 13-module/180-test receipt.
 
 Slice 72 is the retained Linux x64 CE CPU/CUDA proof when its declared model,
@@ -219,9 +217,10 @@ early.
 
 ## TDD, review, and rerun policy
 
-RED tests first define manifest closure/count/skip/applicability failures and
+RED tests first define manifest closure/count/skip/declaration failures and
 any product defect exposed by the interaction/upgrade fixtures. GREEN adds the
-minimal validator, manifest, fixture hooks, and fail-closed verdict assertions.
+minimal manifest validator, fixture hooks, execution helpers, and fail-closed
+verdict assertions.
 Tests remain fixed during each correction. An independent reviewer checks the
 design before code and another checks the final diff.
 

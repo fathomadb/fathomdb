@@ -343,7 +343,14 @@ wait_for_gpu() {
     host_pid="$(docker inspect --format '{{.State.Pid}}' "$container")"
     observed="$(nvidia-smi --id="$gpu_index" --query-compute-apps=pid --format=csv,noheader || true)"
     if printf '%s\n' "$observed" | grep -Fx "$host_pid" >/dev/null; then
-      docker wait "$container" >/dev/null
+      container_status="$(docker wait "$container")"
+      if [ "$container_status" != 0 ]; then
+        docker logs "$container" >&2 || true
+        docker rm "$container" >/dev/null
+        printf 'cuda-package-smoke: %s GPU container exited %s\n' \
+          "$consumer" "$container_status" >&2
+        exit 1
+      fi
       docker rm "$container" >/dev/null
       write_gpu "$consumer" "$host_pid" "$gpu_uuid" "$gpu_index" "$gpu_name" "$gpu_driver"
       return

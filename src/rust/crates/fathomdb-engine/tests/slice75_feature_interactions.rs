@@ -1,7 +1,7 @@
 #![cfg(feature = "test-hooks")]
 
 use std::collections::HashSet;
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
 use std::thread;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
@@ -232,31 +232,49 @@ fn concurrent_writes_projection_and_search_never_duplicate_or_expose_deleted_row
     let path = dir.path().join(format!("race{SQLITE_SUFFIX}"));
     let opened = open(&path);
     let engine = Arc::new(opened.engine);
+    let (ready_tx, ready_rx) = mpsc::sync_channel(0);
+    let (checked_tx, checked_rx) = mpsc::sync_channel(0);
     let writer = {
         let engine = Arc::clone(&engine);
         thread::spawn(move || {
             for index in 0..40 {
                 let logical = format!("race-{index}");
-                engine
+                let receipt = engine
                     .write(&[node(
                         &logical,
                         format!("raceneedle document {index}"),
                         "slice75-race",
                     )])
                     .expect("race write");
-                if index % 3 == 0 {
+                let deleted = index % 3 == 0;
+                if deleted {
                     engine
                         .transition(&logical, LifecycleState::Deleted, Some("race fixture".into()))
                         .expect("race delete");
                 }
+                engine.drain(10_000).expect("race projection drain");
+                ready_tx.send((receipt.cursor, deleted)).expect("publish completed mutation");
+                checked_rx.recv().expect("wait for search check");
             }
         })
     };
-    for _ in 0..80 {
+    for _ in 0..40 {
+        let (cursor, deleted) = ready_rx.recv().expect("completed mutation");
         let result = engine.search_with_limit("raceneedle", 100).expect("race search");
         let identities = result.results.iter().map(|hit| hit.id.clone()).collect::<HashSet<_>>();
         assert_eq!(identities.len(), result.results.len(), "search returned duplicate identities");
-        assert!(result.results.iter().all(|hit| !hit.body.contains("inactive")));
+        assert!(
+            result.projection_cursor >= cursor,
+            "search cursor {} did not cover drained write {cursor}",
+            result.projection_cursor
+        );
+        if deleted {
+            assert!(
+                result.results.iter().all(|hit| hit.write_cursor != cursor),
+                "deleted cursor {cursor} remained visible after its transition completed"
+            );
+        }
+        checked_tx.send(()).expect("release writer");
     }
     writer.join().expect("writer");
     engine.drain(10_000).expect("drain");

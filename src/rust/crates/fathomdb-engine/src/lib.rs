@@ -32836,7 +32836,10 @@ mod tests {
             valid_until: None,
         };
 
-        assert!(matches!(opened.engine.write(&[node.clone()]), Err(EngineError::Storage)));
+        assert!(matches!(
+            opened.engine.write(std::slice::from_ref(&node)),
+            Err(EngineError::Storage)
+        ));
 
         {
             let guard = opened.engine.connection.lock().unwrap();

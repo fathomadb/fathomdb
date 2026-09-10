@@ -284,7 +284,7 @@ windows_validation_command="$(step_run_command "$windows_validation_step")"
   || fail 'Windows local-artifact validation must define an executable run command'
 run_contains_invocation \
   "$windows_validation_command" \
-  "./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"\$PWD/src/python/dist\" -TsDirectory \"\$PWD/src/ts\" -PlatformPackageDirectory \"\$PWD/src/ts/npm/\${{ matrix.label }}\" -NapiLabel \"\${{ matrix.label }}\"" \
+  "./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"\$PWD/src/python/dist\" -TsDirectory \"\$PWD/src/ts\" -PlatformPackageDirectory \"\$PWD/src/ts/npm/\${{ matrix.label }}\" -NapiLabel \"\${{ matrix.label }}\" -RetainedTestManifest \"\$PWD/scripts/release/smoke/slice73-windows-napi-modules.json\"" \
   backtick \
   || fail 'Windows local-artifact validation must pass the wheel, TypeScript, platform-package, and N-API label arguments'
 
@@ -406,7 +406,7 @@ if [ "${NATIVE_RUNTIME_VALIDATION_FIXTURE:-0}" != "1" ]; then
         }
         $0 == "      - name: Validate local wheel and N-API package (Windows)" {
           print
-          print "        # ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\""
+          print "        # ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\" -RetainedTestManifest \"$PWD/scripts/release/smoke/slice73-windows-napi-modules.json\""
           next
         }
         { print }
@@ -436,10 +436,10 @@ if [ "${NATIVE_RUNTIME_VALIDATION_FIXTURE:-0}" != "1" ]; then
   fi
 
   awk '
-    $0 == "        run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\"" {
+    $0 == "        run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\" -RetainedTestManifest \"$PWD/scripts/release/smoke/slice73-windows-napi-modules.json\"" {
       print "        run: |"
       print "          @'\''"
-      print "          ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\""
+      print "          ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\" -RetainedTestManifest \"$PWD/scripts/release/smoke/slice73-windows-napi-modules.json\""
       print "          '\''@"
       print "          ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/not-the-matrix-label\" -NapiLabel \"wrong-napi-label\""
       replaced = 1
@@ -453,9 +453,9 @@ if [ "${NATIVE_RUNTIME_VALIDATION_FIXTURE:-0}" != "1" ]; then
   fi
 
   awk '
-    $0 == "        run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\"" {
+    $0 == "        run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\" -RetainedTestManifest \"$PWD/scripts/release/smoke/slice73-windows-napi-modules.json\"" {
       print "        run: |"
-      print "          Write-Output '\''./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\"'\''"
+      print "          Write-Output '\''./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\" -RetainedTestManifest \"$PWD/scripts/release/smoke/slice73-windows-napi-modules.json\"'\''"
       print "          ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/not-the-matrix-label\" -NapiLabel \"wrong-napi-label\""
       replaced = 1
       next
@@ -468,12 +468,13 @@ if [ "${NATIVE_RUNTIME_VALIDATION_FIXTURE:-0}" != "1" ]; then
   fi
 
   awk '
-    $0 == "        run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\"" {
+    $0 == "        run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\" -RetainedTestManifest \"$PWD/scripts/release/smoke/slice73-windows-napi-modules.json\"" {
       print "        run: |"
       print "          ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" `"
       print "            -TsDirectory \"$PWD/src/ts\" `"
       print "            -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" `"
-      print "            -NapiLabel \"${{ matrix.label }}\""
+      print "            -NapiLabel \"${{ matrix.label }}\" `"
+      print "            -RetainedTestManifest \"$PWD/scripts/release/smoke/slice73-windows-napi-modules.json\""
       replaced = 1
       next
     }
@@ -506,12 +507,13 @@ if [ "${NATIVE_RUNTIME_VALIDATION_FIXTURE:-0}" != "1" ]; then
   fi
 
   awk '
-    $0 == "        run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\"" {
+    $0 == "        run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" -TsDirectory \"$PWD/src/ts\" -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" -NapiLabel \"${{ matrix.label }}\" -RetainedTestManifest \"$PWD/scripts/release/smoke/slice73-windows-napi-modules.json\"" {
       print "        run: |"
       print "          ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory \"$PWD/src/python/dist\" ` "
       print "            -TsDirectory \"$PWD/src/ts\" `"
       print "            -PlatformPackageDirectory \"$PWD/src/ts/npm/${{ matrix.label }}\" `"
-      print "            -NapiLabel \"${{ matrix.label }}\""
+      print "            -NapiLabel \"${{ matrix.label }}\" `"
+      print "            -RetainedTestManifest \"$PWD/scripts/release/smoke/slice73-windows-napi-modules.json\""
       replaced = 1
       next
     }

@@ -222,6 +222,12 @@ jobs:
             native_artifact_harness:
               - 'scripts/release/smoke/smoke-local-native-artifacts.sh'
               - 'scripts/release/smoke/smoke-local-native-artifacts.ps1'
+              - 'scripts/release/smoke/slice73-windows-napi-modules.json'
+              - 'src/conformance/provenance-v1.json'
+              - 'src/conformance/governed-surface-allowlist.json'
+              - 'dev/fixtures/slice20-dependency-conformance-v1.json'
+              - 'dev/fixtures/slice25-actuation-conformance-v1.json'
+              - 'dev/fixtures/slice60-graph-expand-conformance-v1.json'
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: python_non_windows
         with:
@@ -1159,7 +1165,7 @@ jobs:
       - name: Validate local wheel and N-API package (Windows)
         if: matrix.runner == 'windows-latest'
         shell: pwsh
-        run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory "$PWD/src/python/dist" -TsDirectory "$PWD/src/ts" -PlatformPackageDirectory "$PWD/src/ts/npm/${{ matrix.label }}" -NapiLabel "${{ matrix.label }}"
+        run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory "$PWD/src/python/dist" -TsDirectory "$PWD/src/ts" -PlatformPackageDirectory "$PWD/src/ts/npm/${{ matrix.label }}" -NapiLabel "${{ matrix.label }}" -RetainedTestManifest "$PWD/scripts/release/smoke/slice73-windows-napi-modules.json"
 
   # Docs-only fast-path md gate. Runs ONLY when the diff is markdown-only (the
   # heavy `verify` job — which runs scripts/agent-verify.sh -> agent-lint-md.sh —

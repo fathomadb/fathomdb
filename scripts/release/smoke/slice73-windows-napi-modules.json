@@ -1,0 +1,25 @@
+{
+  "schema_version": "fathomdb.slice73.windows-napi/v1",
+  "modules": [
+    "slice15-identity-provenance.test.js",
+    "slice15b-search-validity.test.js",
+    "slice15d-projection-registry.test.js",
+    "slice20-source-dependencies.test.js",
+    "slice22-projection-status.test.js",
+    "slice25-actuation.test.js",
+    "slice30-dependency-closure.test.js",
+    "slice35-frozen-read.test.js",
+    "slice45-pagination.test.js",
+    "slice50-evidence.test.js",
+    "slice50-evidence-response-validation.test.js",
+    "slice55-candidate-native-explanation.test.js",
+    "slice60-graph-expand.test.js"
+  ],
+  "fixtures": [
+    "src/conformance/provenance-v1.json",
+    "src/conformance/governed-surface-allowlist.json",
+    "dev/fixtures/slice20-dependency-conformance-v1.json",
+    "dev/fixtures/slice25-actuation-conformance-v1.json",
+    "dev/fixtures/slice60-graph-expand-conformance-v1.json"
+  ]
+}

@@ -113,12 +113,14 @@ class Slice73WindowsNapiContract(unittest.TestCase):
             "Assert-RegularPathFromRoot $manifestPath $repoRoot",
             "Assert-RegularPathFromRoot $sourceModule $repoRoot",
             "Assert-RegularPathFromRoot $sourceFixture $repoRoot",
-            "Get-ChildItem -LiteralPath $rootPath -Recurse -Force",
+            "System.Collections.Generic.Stack[string]",
+            "Get-ChildItem -LiteralPath $directory -Force",
             "Get-ChildItem -LiteralPath $installedSdk -Force",
             "non-regular entry is not allowed in digest tree",
         ]
         for fragment in required:
             self.assertIn(fragment, smoke)
+        self.assertNotIn("Get-ChildItem -LiteralPath $rootPath -Recurse", smoke)
         self.assertNotIn("Copy-Item -Path (Join-Path $installedSdk '*')", smoke)
 
     def test_fast_tier_registers_the_structural_contract(self) -> None:

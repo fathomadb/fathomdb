@@ -49,13 +49,22 @@ function Assert-RegularPathFromRoot {
 function Get-TreeDigest {
   param([Parameter(Mandatory = $true)][string]$Root)
   $rootPath = (Resolve-Path -LiteralPath $Root).Path.TrimEnd('\', '/')
-  $entries = @(Get-ChildItem -LiteralPath $rootPath -Recurse -Force)
-  $lines = @(
-    foreach ($entry in $entries) {
+  $rootItem = Get-Item -LiteralPath $rootPath -Force
+  if ($rootItem -isnot [System.IO.DirectoryInfo] -or
+      ($rootItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+    throw "smoke-local-native-artifacts: digest root is not an ordinary directory: $rootPath"
+  }
+  $directories = New-Object 'System.Collections.Generic.Stack[string]'
+  $directories.Push($rootPath)
+  $lines = @()
+  while ($directories.Count -gt 0) {
+    $directory = $directories.Pop()
+    foreach ($entry in @(Get-ChildItem -LiteralPath $directory -Force)) {
       if (($entry.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
         throw "smoke-local-native-artifacts: reparse point is not allowed in digest tree: $($entry.FullName)"
       }
       if ($entry -is [System.IO.DirectoryInfo]) {
+        $directories.Push($entry.FullName)
         continue
       }
       if ($entry -isnot [System.IO.FileInfo]) {
@@ -63,9 +72,9 @@ function Get-TreeDigest {
       }
       $relative = $entry.FullName.Substring($rootPath.Length).TrimStart('\', '/').Replace('\', '/')
       $hash = (Get-FileHash -LiteralPath $entry.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-      "$relative`t$hash"
+      $lines += "$relative`t$hash"
     }
-  )
+  }
   $lines = @($lines | Sort-Object)
   $bytes = [System.Text.Encoding]::UTF8.GetBytes(([string]::Join("`n", $lines) + "`n"))
   $sha256 = [System.Security.Cryptography.SHA256]::Create()

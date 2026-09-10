@@ -55,7 +55,7 @@ through plan/design v5 without broad regression rounds.
 | 60 | Minimal constrained graph parity | Complete on release branch (`59208028`) |
 | 71 | AC-072 read-latency resolution and 71B write recovery | Complete on release branch (`84c056c6`) |
 | 72 | Generic preflight and installed CE profiles | Complete on release branch (`2e14f5ba`) |
-| 73 | Windows Node/N-API CI coverage | Not started |
+| 73 | Windows Node/N-API CI coverage | Complete on release branch (`6eb7cd18`) |
 | 75 | Integrated release closure | Not started |
 
 ## Decisions and blockers
@@ -86,6 +86,9 @@ through plan/design v5 without broad regression rounds.
   tracked release state and exact Git ancestry. The installed CPU/CUDA CE
   campaign passes correctness, pinned RTX 3090 allocation, and all four 10%
   median-p95 comparisons; the maximum ratio is `1.0962`. Slice 73 is unblocked.
+- Slice 73 is complete at `6eb7cd18`. The Windows 11 installed N-API campaign
+  passes its fixed 13-module matrix at 180/180 with no failures, cancellations,
+  skips, or todos. Slice 75 is unblocked.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not

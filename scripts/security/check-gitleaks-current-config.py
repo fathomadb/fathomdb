@@ -87,6 +87,15 @@ EXPECTED_ALLOWLISTS = [
         "regexes": [r"^[0-9a-f]{64}$"],
     },
     {
+        "description": "Slice 75 closure manifest contains only reviewed artifact and evidence digests",
+        "condition": "AND",
+        "regexTarget": "secret",
+        "paths": [
+            r"^dev/plans/0\.8\.25/features/slice-75/slice75-closure-manifest\.json$"
+        ],
+        "regexes": [r"^[0-9a-f]{64}$"],
+    },
+    {
         "description": "code-marker drift evidence carries two reviewed marker identifiers",
         "condition": "AND",
         "regexTarget": "secret",

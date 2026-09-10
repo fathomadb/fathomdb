@@ -106,6 +106,21 @@ class Slice73WindowsNapiContract(unittest.TestCase):
             self.assertIn(fragment, smoke)
         self.assertNotIn("dist/tests/*.test.js", smoke)
 
+    def test_powershell_rejects_reparse_ancestors_and_hidden_tree_omissions(self) -> None:
+        smoke = SMOKE.read_text(encoding="utf-8")
+        required = [
+            "function Assert-RegularPathFromRoot",
+            "Assert-RegularPathFromRoot $manifestPath $repoRoot",
+            "Assert-RegularPathFromRoot $sourceModule $repoRoot",
+            "Assert-RegularPathFromRoot $sourceFixture $repoRoot",
+            "Get-ChildItem -LiteralPath $rootPath -Recurse -Force",
+            "Get-ChildItem -LiteralPath $installedSdk -Force",
+            "non-regular entry is not allowed in digest tree",
+        ]
+        for fragment in required:
+            self.assertIn(fragment, smoke)
+        self.assertNotIn("Copy-Item -Path (Join-Path $installedSdk '*')", smoke)
+
     def test_fast_tier_registers_the_structural_contract(self) -> None:
         self.assertIn(
             "run_tier_suite fast test-slice73-windows-napi-ci "

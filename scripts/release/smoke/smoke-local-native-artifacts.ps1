@@ -22,19 +22,51 @@ function Test-PathInside {
   )
 }
 
+function Assert-RegularPathFromRoot {
+  param([string]$Path, [string]$Root)
+  $rootPath = (Resolve-Path -LiteralPath $Root).Path.TrimEnd('\', '/')
+  $pathValue = (Resolve-Path -LiteralPath $Path).Path
+  if (-not (Test-PathInside $pathValue $rootPath)) {
+    throw "smoke-local-native-artifacts: path escaped trusted root: $pathValue"
+  }
+  $currentPath = $pathValue
+  while ($true) {
+    $item = Get-Item -LiteralPath $currentPath -Force
+    if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+      throw "smoke-local-native-artifacts: reparse point is not allowed in trusted path: $currentPath"
+    }
+    if ($currentPath.Equals($rootPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+      break
+    }
+    $parentPath = Split-Path -Parent $currentPath
+    if ([string]::IsNullOrEmpty($parentPath) -or $parentPath -eq $currentPath) {
+      throw "smoke-local-native-artifacts: trusted path did not reach root: $pathValue"
+    }
+    $currentPath = $parentPath.TrimEnd('\', '/')
+  }
+}
+
 function Get-TreeDigest {
   param([Parameter(Mandatory = $true)][string]$Root)
   $rootPath = (Resolve-Path -LiteralPath $Root).Path.TrimEnd('\', '/')
+  $entries = @(Get-ChildItem -LiteralPath $rootPath -Recurse -Force)
   $lines = @(
-    Get-ChildItem -LiteralPath $rootPath -Recurse -File | ForEach-Object {
-      if (($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
-        throw "smoke-local-native-artifacts: reparse point is not allowed in digest tree: $($_.FullName)"
+    foreach ($entry in $entries) {
+      if (($entry.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "smoke-local-native-artifacts: reparse point is not allowed in digest tree: $($entry.FullName)"
       }
-      $relative = $_.FullName.Substring($rootPath.Length).TrimStart('\', '/').Replace('\', '/')
-      $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+      if ($entry -is [System.IO.DirectoryInfo]) {
+        continue
+      }
+      if ($entry -isnot [System.IO.FileInfo]) {
+        throw "smoke-local-native-artifacts: non-regular entry is not allowed in digest tree: $($entry.FullName)"
+      }
+      $relative = $entry.FullName.Substring($rootPath.Length).TrimStart('\', '/').Replace('\', '/')
+      $hash = (Get-FileHash -LiteralPath $entry.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
       "$relative`t$hash"
-    } | Sort-Object
+    }
   )
+  $lines = @($lines | Sort-Object)
   $bytes = [System.Text.Encoding]::UTF8.GetBytes(([string]::Join("`n", $lines) + "`n"))
   $sha256 = [System.Security.Cryptography.SHA256]::Create()
   try {
@@ -66,6 +98,10 @@ $manifestPath = (Resolve-Path -LiteralPath $RetainedTestManifest).Path
 if (-not (Test-PathInside $manifestPath $repoRoot)) {
   throw 'smoke-local-native-artifacts: retained test manifest escaped the source checkout'
 }
+Assert-RegularPathFromRoot $manifestPath $repoRoot
+if ((Get-Item -LiteralPath $manifestPath -Force) -isnot [System.IO.FileInfo]) {
+  throw 'smoke-local-native-artifacts: retained test manifest is not a regular file'
+}
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 if ($manifest.schema_version -ne 'fathomdb.slice73.windows-napi/v1') {
   throw "smoke-local-native-artifacts: unsupported retained test manifest schema $($manifest.schema_version)"
@@ -89,6 +125,11 @@ foreach ($module in $manifestModules) {
   if (-not (Test-Path -LiteralPath $sourceModule -PathType Leaf)) {
     throw "smoke-local-native-artifacts: missing retained test source $sourceModule"
   }
+  $sourceModule = (Resolve-Path -LiteralPath $sourceModule).Path
+  Assert-RegularPathFromRoot $sourceModule $repoRoot
+  if ((Get-Item -LiteralPath $sourceModule -Force) -isnot [System.IO.FileInfo]) {
+    throw "smoke-local-native-artifacts: retained test source is not a regular file: $sourceModule"
+  }
 }
 foreach ($fixture in $manifestFixtures) {
   if ($fixture -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]*$' -or $fixture.Contains('..')) {
@@ -98,6 +139,11 @@ foreach ($fixture in $manifestFixtures) {
   if (-not (Test-Path -LiteralPath $sourceFixture -PathType Leaf) -or
       -not (Test-PathInside $sourceFixture $repoRoot)) {
     throw "smoke-local-native-artifacts: missing or escaped retained fixture $fixture"
+  }
+  $sourceFixture = (Resolve-Path -LiteralPath $sourceFixture).Path
+  Assert-RegularPathFromRoot $sourceFixture $repoRoot
+  if ((Get-Item -LiteralPath $sourceFixture -Force) -isnot [System.IO.FileInfo]) {
+    throw "smoke-local-native-artifacts: retained fixture is not a regular file: $fixture"
   }
 }
 
@@ -291,6 +337,8 @@ console.log("local N-API package runtime validation: ok");
   if (-not (Test-PathInside $resolvedNativeModule $consumer) -or (Test-PathInside $resolvedNativeModule $repoRoot)) {
     throw 'smoke-local-native-artifacts: resolved native module escaped isolated consumer'
   }
+  Assert-RegularPathFromRoot $resolvedMainModule $consumer
+  Assert-RegularPathFromRoot $resolvedNativeModule $consumer
   $builtNativeSha256 = (Get-FileHash -LiteralPath $native -Algorithm SHA256).Hash.ToLowerInvariant()
   $installedNativeSha256 = (Get-FileHash -LiteralPath $resolvedNativeModule -Algorithm SHA256).Hash.ToLowerInvariant()
   if ($installedNativeSha256 -ne $builtNativeSha256) {
@@ -306,7 +354,9 @@ console.log("local N-API package runtime validation: ok");
   $stagedSdk = Join-Path $compiledDist 'src'
   Remove-Item -LiteralPath $stagedSdk -Recurse -Force
   New-Item -ItemType Directory -Path $stagedSdk | Out-Null
-  Copy-Item -Path (Join-Path $installedSdk '*') -Destination $stagedSdk -Recurse
+  foreach ($installedEntry in @(Get-ChildItem -LiteralPath $installedSdk -Force)) {
+    Copy-Item -LiteralPath $installedEntry.FullName -Destination $stagedSdk -Recurse -Force
+  }
   $stagedSdkTreeSha256 = Get-TreeDigest $stagedSdk
   if ($stagedSdkTreeSha256 -ne $installedSdkTreeSha256) {
     throw 'smoke-local-native-artifacts: sdk tree digest mismatch'
@@ -314,10 +364,7 @@ console.log("local N-API package runtime validation: ok");
 
   foreach ($fixture in $manifest.fixtures) {
     $sourceFixture = (Resolve-Path -LiteralPath (Join-Path $repoRoot $fixture)).Path
-    $sourceFixtureItem = Get-Item -LiteralPath $sourceFixture
-    if (($sourceFixtureItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
-      throw "smoke-local-native-artifacts: retained fixture is a reparse point: $fixture"
-    }
+    Assert-RegularPathFromRoot $sourceFixture $repoRoot
     $stagedFixture = Join-Path $mirrorRoot $fixture
     if (-not (Test-PathInside $stagedFixture $mirrorRoot)) {
       throw "smoke-local-native-artifacts: retained fixture destination escaped mirror: $fixture"

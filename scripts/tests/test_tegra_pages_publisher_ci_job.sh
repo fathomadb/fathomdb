@@ -90,7 +90,7 @@ assert_contains 'jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_
 assert_contains 'fathomdb-${expected_version}-*-linux_aarch64.whl' "publisher accepts only the honest Tegra wheel tag"
 assert_contains 'bash scripts/release/build-tegra-pages-index.sh' "publisher delegates index construction to the exercised helper"
 assert_contains '--version "$expected_version"' "publisher passes the exact +tegra version to the index helper"
-assert_job_contains tegra-cuda-evidence 'require-tegra-pages-release-version.sh' "Jetson preflight rejects stale project metadata before a build"
+assert_job_contains validate-candidate 'candidate version must match the dispatched release branch' "Jetson preflight binds version to its release branch"
 assert_job_contains prepare-tegra-pages 'require-tegra-pages-release-version.sh' "publisher rejects stale project metadata before publication"
 assert_job_contains tegra-cuda-evidence '--base-version "$CANDIDATE_VERSION"' "Jetson build uses the validated candidate version"
 assert_job_contains prepare-tegra-pages '--expected-version "$CANDIDATE_VERSION"' "Pages publisher uses the validated candidate version"
@@ -151,7 +151,7 @@ if [ "${TEGRA_PAGES_CI_FIXTURE:-0}" != "1" ]; then
   mutation_out="$(TEGRA_PAGES_CI_FIXTURE=1 JETSON_TEGRA_CI_YML="$MUTATED" bash "$0" 2>&1)"
   mutation_rc=$?
   set -e
-  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'Jetson preflight rejects stale project metadata before a build' <<<"$mutation_out"; then
+  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'publisher rejects stale project metadata before publication' <<<"$mutation_out"; then
     pass "mutation proves stale project metadata cannot reach publication"
   else
     fail "release-version-checker mutation did not fail its assertion: $mutation_out"

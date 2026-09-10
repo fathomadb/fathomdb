@@ -18,7 +18,7 @@
 # the existing package names out of scope, and § 11 item 8 holds registry
 # publication behind the staged gate.
 #
-# Usage: build-python-cuda-tegra.sh [--out <dir>] [--interpreter <python>] [--assert-only]
+# Usage: build-python-cuda-tegra.sh [--out <dir>] [--interpreter <python>] [--base-version <version>] [--assert-only]
 #
 #   --assert-only  Run every toolchain-identity and link-environment assertion,
 #                  print the resolved build environment, and exit 0 without
@@ -37,6 +37,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 OUT_DIR="$REPO_ROOT/target/tegra-python-dist"
 INTERPRETER='python3'
 ASSERT_ONLY=0
+BASE_VERSION=''
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -50,12 +51,17 @@ while [ "$#" -gt 0 ]; do
       INTERPRETER="$2"
       shift 2
       ;;
+    --base-version)
+      [ "$#" -ge 2 ] || { printf 'build-python-cuda-tegra: --base-version needs a version\n' >&2; exit 2; }
+      BASE_VERSION="$2"
+      shift 2
+      ;;
     --assert-only)
       ASSERT_ONLY=1
       shift
       ;;
     *)
-      printf 'usage: %s [--out <dir>] [--interpreter <python>] [--assert-only]\n' "$(basename "$0")" >&2
+      printf 'usage: %s [--out <dir>] [--interpreter <python>] [--base-version <version>] [--assert-only]\n' "$(basename "$0")" >&2
       exit 2
       ;;
   esac
@@ -120,6 +126,24 @@ if ! command -v "$INTERPRETER" >/dev/null 2>&1; then
   fail "interpreter $INTERPRETER is not on PATH"
 fi
 
+SOURCE_PYTHON="$REPO_ROOT/src/python"
+SOURCE_PYPROJECT="$SOURCE_PYTHON/pyproject.toml"
+BASE_VERSION="$($INTERPRETER - "$SOURCE_PYPROJECT" "$BASE_VERSION" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+contents = Path(sys.argv[1]).read_text(encoding="utf-8")
+matches = re.findall(r'^version = "([^"]+)"$', contents, flags=re.MULTILINE)
+if len(matches) != 1:
+    raise SystemExit("pyproject.toml must contain exactly one base version")
+requested = sys.argv[2] or matches[0]
+if not re.fullmatch(r'[0-9]+(?:\.[0-9]+)+(?:[A-Za-z0-9.\-]*)?', requested):
+    raise SystemExit("--base-version must be a validated PEP 440 base version")
+print(requested)
+PY
+)"
+
 # --- Build environment, every value from the contract -----------------------
 export CUDA_PATH="$CUDA_TEGRA_HOST_TOOLKIT_ROOT"
 export CUDACXX="$CUDA_TEGRA_HOST_TOOLKIT_ROOT/bin/nvcc"
@@ -141,6 +165,7 @@ printf 'build-python-cuda-tegra: CUDA_COMPUTE_CAP=%s\n' "$CUDA_COMPUTE_CAP"
 printf 'build-python-cuda-tegra: LIBRARY_PATH=%s\n' "$LIBRARY_PATH"
 printf 'build-python-cuda-tegra: LD_LIBRARY_PATH=%s\n' "$LD_LIBRARY_PATH"
 printf 'build-python-cuda-tegra: features=%s\n' "$CUDA_PYTHON_FEATURES"
+printf 'build-python-cuda-tegra: base-version=%s\n' "$BASE_VERSION"
 
 if [ "$ASSERT_ONLY" -eq 1 ]; then
   printf 'build-python-cuda-tegra: assertions passed; --assert-only, not building\n'
@@ -148,20 +173,6 @@ if [ "$ASSERT_ONLY" -eq 1 ]; then
 fi
 
 mkdir -p "$OUT_DIR"
-SOURCE_PYTHON="$REPO_ROOT/src/python"
-SOURCE_PYPROJECT="$SOURCE_PYTHON/pyproject.toml"
-BASE_VERSION="$($INTERPRETER - "$SOURCE_PYPROJECT" <<'PY'
-from pathlib import Path
-import re
-import sys
-
-contents = Path(sys.argv[1]).read_text(encoding="utf-8")
-matches = re.findall(r'^version = "([^"]+)"$', contents, flags=re.MULTILINE)
-if len(matches) != 1 or not re.fullmatch(r'[0-9]+(?:\.[0-9]+)+(?:[A-Za-z0-9.\-]*)?', matches[0]):
-    raise SystemExit("pyproject.toml must contain exactly one validated PEP 440 base version")
-print(matches[0])
-PY
-)"
 TEGRA_LOCAL_VERSION="${BASE_VERSION}+tegra"
 STAGING_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/fathomdb-tegra-python.XXXXXX")"
 trap 'rm -rf "$STAGING_ROOT"' EXIT

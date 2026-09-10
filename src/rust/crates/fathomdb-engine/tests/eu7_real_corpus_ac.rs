@@ -109,7 +109,7 @@ use std::sync::{Arc, Barrier, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use corpus_subset::{load_subset_or_skip, repo_root, Doc};
+use corpus_subset::{load_subset_or_skip, Doc};
 use fathomdb_embedder::CandleBgeEmbedder;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{EmbedderChoice, Engine, PreparedWrite};
@@ -750,9 +750,8 @@ fn measure_stress(
 /// another crate, would silently arm it. `#[ignore]` holds regardless of which
 /// features are selected.
 ///
-/// The `AGENT_LONG` early-return below is kept as a third layer rather than
-/// replaced: an explicit `--ignored` run on a box without the corpus should
-/// still skip rather than fail.
+/// The explicit body fails closed when its long flag, corpus, or model cache is
+/// absent. `#[ignore]` remains the routine-suite protection.
 ///
 /// This does NOT create a vacuous green: R-20-EU7 was CLOSED by HITL decision,
 /// so this test no longer gates anything. Run:
@@ -761,14 +760,14 @@ fn measure_stress(
 #[test]
 #[ignore = "TC-20: EU-7 real-corpus measurement is ~1.5h of wall clock; opt in with --ignored"]
 fn eu7_real_corpus_ac_validation() {
-    if std::env::var_os("AGENT_LONG").is_none() {
-        eprintln!("[skip] AGENT_LONG not set; EU-7 real-corpus measurement is opt-in");
-        return;
-    }
-    if std::env::var("FATHOMDB_SKIP_NETWORK_TESTS").is_ok() {
-        eprintln!("[skip] FATHOMDB_SKIP_NETWORK_TESTS set; embedder cache unavailable");
-        return;
-    }
+    assert!(
+        std::env::var_os("AGENT_LONG").is_some(),
+        "AGENT_LONG=1 is required for the explicit EU-7 acceptance body"
+    );
+    assert!(
+        std::env::var_os("FATHOMDB_SKIP_NETWORK_TESTS").is_none(),
+        "FATHOMDB_SKIP_NETWORK_TESTS must be absent for EU-7 acceptance"
+    );
 
     let num_queries = env_usize("EU7_QUERIES", 100);
     let bootstrap = env_usize("EU7_BOOTSTRAP", 1000);
@@ -776,10 +775,8 @@ fn eu7_real_corpus_ac_validation() {
     let stress_per_thread = env_usize("EU7_STRESS_PER_THREAD", AC019_QUERIES_PER_THREAD_DEFAULT);
     let ns = n_values();
 
-    let Some((real, queries)) = load_real_and_queries(num_queries) else {
-        eprintln!("[skip] corpus not present; cannot run EU-7 real-corpus measurement");
-        return;
-    };
+    let (real, queries) = load_real_and_queries(num_queries)
+        .expect("EU-7 acceptance requires the configured real corpus");
     let real_len = real.len();
     eprintln!(
         "EU7_SETUP real_docs={real_len} queries={} n_values={ns:?} bootstrap={bootstrap} \
@@ -992,12 +989,8 @@ fn eu7_real_corpus_ac_validation() {
 
     // ── Verdicts (data already persisted to JSON above) ────────────────
     //
-    // AC-013 (latency) and AC-019 (stress) are REPORTED, not hard-gated
-    // here: per the launch prompt, "Canonical-CI is the only verdict-
-    // quality signal. Dev-box measurements in EU-7 are scouting." A slow
-    // dev runner missing the 80/300 ms budget is a hardware artifact for
-    // PR-3 to confirm at canonical scale, not a true RED. The pass/fail
-    // flags are in the JSON for the orchestrator + HITL.
+    // AC-013 remains descriptive here because AC-072 owns full-search latency.
+    // AC-073 is the mixed-tail stress verdict on the same real-corpus run.
     //
     // AC-075 (0.8.0 Slice 40 / GA-2) — this real-embedder recall@10, measured
     // on the pre-fusion VECTOR STAGE (◆ B-1), is the ASSERTING recall verdict
@@ -1029,7 +1022,7 @@ fn eu7_real_corpus_ac_validation() {
             recall,
         );
     }
-    for (n, _, _, recall, recall_ci_hi, padded) in &verdicts {
+    for (n, _, ac019_ok, recall, recall_ci_hi, padded) in &verdicts {
         assert!(
             *recall >= SANITY_FLOOR,
             "AC-013b sanity: recall@10 {recall:.4} < sanity floor {SANITY_FLOOR} at n={n} \
@@ -1037,6 +1030,10 @@ fn eu7_real_corpus_ac_validation() {
              signals a wiring bug, not a quantization gap)"
         );
         if !*padded {
+            assert!(
+                *ac019_ok,
+                "AC-073 mixed-tail verdict failed at n={n}: stress p99 exceeded the same-run bound"
+            );
             // ◆ GA-3 (0.8.0 Slice-40) — the AC-075 verdict is a ONE-SIDED,
             // CI-based gate against the UNCHANGED 0.90 floor: PASS iff the recall
             // 95% bootstrap CI is NOT significantly below the floor
@@ -1097,13 +1094,13 @@ fn write_measurements_json(m: MeasurementsOut) {
         latency_samples,
         stress_per_thread,
     } = m;
-    let Some(root) = repo_root() else {
-        eprintln!("[warn] repo_root() not found; skipping measurements JSON write");
-        return;
-    };
-    // ◆ GA-3: write to a non-anchor filename so each eu7 run no longer clobbers
-    // the historical 0.7.1 measurements anchor (which pinned the 0.937 number).
-    let out_path = root.join("dev/plans/runs/eu7-latest-measurements.json");
+    let out_path = std::env::var_os("FATHOMDB_EU7_OUTPUT")
+        .map(std::path::PathBuf::from)
+        .expect("FATHOMDB_EU7_OUTPUT is required for the explicit EU-7 acceptance body");
+    assert!(out_path.is_absolute(), "FATHOMDB_EU7_OUTPUT must be an absolute path");
+    if let Some(parent) = out_path.parent() {
+        std::fs::create_dir_all(parent).expect("create EU-7 output directory");
+    }
     let doc = json!({
         "_comment": "EU-7 real-corpus AC measurements (dev-box scouting). \
                      Regenerable: AGENT_LONG=1 cargo test -p fathomdb-engine \

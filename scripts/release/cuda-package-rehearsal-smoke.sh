@@ -16,10 +16,10 @@ CUDA_RUNTIME_LIBRARY="${CUDA_HOME:?cuda-package-smoke: CUDA_HOME is required}/ta
 CUDA_LIBRARY_DIRECTORY="${CUDA_HOME}/targets/x86_64-linux/lib"
 
 usage() {
-  printf 'usage: %s --python-wheel FILE --npm-main FILE --napi-platform FILE --cli-archive FILE --model-cache-manifest FILE --hf-home DIR --smoke-dir DIR [--reranker-cache-manifest FILE]\n' "$0" >&2
+  printf 'usage: %s --python-wheel FILE --npm-main FILE --napi-platform FILE --cli-archive FILE --model-cache-manifest FILE --hf-home DIR --smoke-dir DIR [--reranker-cache-manifest FILE --reranker-cache-root DIR]\n' "$0" >&2
 }
 
-python_wheel='' npm_main='' napi_platform='' cli_archive='' model_cache_manifest='' hf_home='' smoke_dir='' reranker_cache_manifest=''
+python_wheel='' npm_main='' napi_platform='' cli_archive='' model_cache_manifest='' hf_home='' smoke_dir='' reranker_cache_manifest='' reranker_cache_root=''
 while [ "$#" -gt 0 ]; do
   [ "$#" -ge 2 ] || { usage; exit 2; }
   case "$1" in
@@ -31,6 +31,7 @@ while [ "$#" -gt 0 ]; do
     --hf-home) hf_home="$2" ;;
     --smoke-dir) smoke_dir="$2" ;;
     --reranker-cache-manifest) reranker_cache_manifest="$2" ;;
+    --reranker-cache-root) reranker_cache_root="$2" ;;
     *) usage; exit 2 ;;
   esac
   shift 2
@@ -43,6 +44,7 @@ for path in "$python_wheel" "$npm_main" "$napi_platform" "$cli_archive" "$model_
 done
 if [ -n "$reranker_cache_manifest" ]; then
   [ -f "$reranker_cache_manifest" ] && [ ! -L "$reranker_cache_manifest" ] || { printf 'cuda-package-smoke: reranker cache manifest is absent or symlinked\n' >&2; exit 1; }
+  [ -d "$reranker_cache_root" ] && [ ! -L "$reranker_cache_root" ] || { printf 'cuda-package-smoke: reranker cache root is absent or symlinked\n' >&2; exit 1; }
 fi
 [ ! -e "$smoke_dir" ] || { printf 'cuda-package-smoke: smoke directory must be new: %s\n' "$smoke_dir" >&2; exit 1; }
 [ -d "$hf_home" ] && [ ! -L "$hf_home" ] || { printf 'cuda-package-smoke: pinned embedder cache must be a non-symlink directory\n' >&2; exit 1; }
@@ -53,8 +55,10 @@ napi_platform_abs="$(realpath -- "$napi_platform")"
 cli_archive_abs="$(realpath -- "$cli_archive")"
 model_cache_manifest_abs="$(realpath -- "$model_cache_manifest")"
 reranker_cache_manifest_abs=''
+reranker_cache_root_abs=''
 if [ -n "$reranker_cache_manifest" ]; then
   reranker_cache_manifest_abs="$(realpath -- "$reranker_cache_manifest")"
+  reranker_cache_root_abs="$(realpath -- "$reranker_cache_root")"
 fi
 hf_home_abs="$(realpath -- "$hf_home")"
 cuda_runtime_library_abs="$(realpath -- "$CUDA_RUNTIME_LIBRARY")"
@@ -84,12 +88,13 @@ for name, expected in manifest["files"].items():
         raise SystemExit(f"cuda-package-smoke: HF seed member differs: {name}")
 PY
 if [ -n "$reranker_cache_manifest_abs" ]; then
-  python3 - "$reranker_cache_manifest_abs" <<'PY'
+  python3 - "$reranker_cache_manifest_abs" "$reranker_cache_root_abs" <<'PY'
+import hashlib
 import json
 from pathlib import Path
 import sys
 
-path = Path(sys.argv[1])
+path, cache_root = map(Path, sys.argv[1:])
 value = json.loads(path.read_bytes())
 expected = {
     "schema_version": "fathomdb.reranker-cache/v1",
@@ -105,6 +110,11 @@ expected = {
 canonical = json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("ascii") + b"\n"
 if path.read_bytes() != canonical or value != expected:
     raise SystemExit("cuda-package-smoke: reranker cache manifest differs from the fixed TinyBERT seed")
+snapshot = cache_root / value["snapshot_relpath"]
+for name, digest in value["files"].items():
+    member = snapshot / name
+    if member.is_symlink() or not member.is_file() or hashlib.sha256(member.read_bytes()).hexdigest() != digest:
+        raise SystemExit(f"cuda-package-smoke: reranker cache differs: {name}")
 PY
 fi
 for command in docker nvidia-smi; do
@@ -130,7 +140,9 @@ PY
 
 write_gpu() {
   local consumer="$1" pid="$2" uuid="$3" index="$4" name="$5" driver="$6"
-  python3 - "$smoke_dir/gpu-$consumer.json" "$consumer" "$pid" "$uuid" "$index" "$name" "$driver" <<'PY'
+  local rerank_forwards=0
+  [ -z "$reranker_cache_manifest_abs" ] || rerank_forwards=1
+  python3 - "$smoke_dir/gpu-$consumer.json" "$consumer" "$pid" "$uuid" "$index" "$name" "$driver" "$rerank_forwards" <<'PY'
 import json
 from pathlib import Path
 import sys
@@ -141,6 +153,7 @@ Path(sys.argv[1]).write_text(json.dumps({
     "smoke_pid": int(sys.argv[3]), "nvidia_smi_pid": int(sys.argv[3]), "gpu_uuid": sys.argv[4],
     "nvidia_smi_uuid": sys.argv[4], "host_index": int(sys.argv[5]), "requested_ordinal": 0,
     "device_name": sys.argv[6], "driver_version": sys.argv[7],
+    "embed_model_forwards": 1, "rerank_model_forwards": int(sys.argv[8]),
 }, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 PY
 }
@@ -216,23 +229,35 @@ PY
 # These commands mount only retained artifact bytes. The host checkout is
 # never mounted; env -i and --network none prevent ambient package/download or
 # device-selector inputs from satisfying a CPU-default smoke.
+RERANKER_ENABLED=false
+RERANKER_RUNTIME_MOUNT=()
+if [ -n "$reranker_cache_manifest_abs" ]; then
+  RERANKER_ENABLED=true
+  RERANKER_RUNTIME_MOUNT=(
+    --mount "type=bind,src=$reranker_cache_root_abs,dst=/fathomdb-reranker-cache-root,readonly"
+  )
+fi
 docker run --rm --network none \
   --mount "type=bind,src=$python_wheel_abs,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
-  -e "WHEEL_FILENAME=$WHEEL_FILENAME" \
+  "${RERANKER_RUNTIME_MOUNT[@]}" \
+  -e "WHEEL_FILENAME=$WHEEL_FILENAME" -e "RERANKER_ENABLED=$RERANKER_ENABLED" \
   "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
-  env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache WHEEL_FILENAME="$WHEEL_FILENAME" sh -ceu '
+  env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache-root WHEEL_FILENAME="$WHEEL_FILENAME" RERANKER_ENABLED="$RERANKER_ENABLED" sh -ceu '
     test ! -e /dev/nvidiactl
     python -m pip install --no-deps "/input/$WHEEL_FILENAME"
     exec python -c '"'"'
-import tempfile
+import os, tempfile
 from pathlib import Path
 from fathomdb import Engine
 with tempfile.TemporaryDirectory() as d:
     engine=Engine.open(str(Path(d) / "cpu.fdb"), use_default_embedder=True)
     engine.embed("CUDA package rehearsal installed Python CPU smoke")
-    engine.write([{"kind":"doc","body":"{}","source_id":"cuda-package-cpu"}])
-    engine.search("smoke"); engine.close()
+    engine.write([{"kind":"doc","body":"cuda package rerank smoke one","source_id":"cuda-package-cpu"},{"kind":"doc","body":"cuda package rerank smoke two","source_id":"cuda-package-cpu"}])
+    result=engine.search("cuda package rerank smoke", rerank_depth=2 if os.environ["RERANKER_ENABLED"] == "true" else 0, limit=2)
+    assert len(result.results) == 2
+    assert os.environ["RERANKER_ENABLED"] != "true" or all(hit.ce_score is not None for hit in result.results)
+    engine.close()
 '"'"'
   '
 write_cpu python
@@ -242,13 +267,15 @@ docker run --rm --network none \
   --mount "type=bind,src=$napi_platform_abs,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
   --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
+  "${RERANKER_RUNTIME_MOUNT[@]}" \
+  -e "RERANKER_ENABLED=$RERANKER_ENABLED" \
   "$CUDA_DRIVERLESS_NODE_IMAGE" \
-  env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache sh -ceu '
+  env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache-root RERANKER_ENABLED="$RERANKER_ENABLED" sh -ceu '
     test ! -e /dev/nvidiactl
     mkdir /consumer && cd /consumer
     printf "%s\n" "{\"private\":true,\"type\":\"module\",\"dependencies\":{\"fathomdb\":\"file:/input/fathomdb.tgz\",\"fathomdb-linux-x64-gnu\":\"file:/input/fathomdb-linux-x64-gnu.tgz\"}}" > package.json
     npm install --offline --ignore-scripts --no-audit --no-fund
-    node --input-type=module -e "import { Engine } from \"fathomdb\"; const e=await Engine.open(\"/tmp/cpu.fdb\",{useDefaultEmbedder:true}); await e.embed(\"CUDA package rehearsal installed N-API CPU smoke\"); await e.write([{kind:\"doc\",body:\"{}\",sourceId:\"cuda-package-cpu\"}]); await e.search(\"smoke\"); await e.close();"
+    node --input-type=module -e "import { Engine } from \"fathomdb\"; const e=await Engine.open(\"/tmp/cpu.fdb\",{useDefaultEmbedder:true}); await e.embed(\"CUDA package rehearsal installed N-API CPU smoke\"); await e.write([{kind:\"doc\",body:\"cuda package rerank smoke one\",sourceId:\"cuda-package-cpu\"},{kind:\"doc\",body:\"cuda package rerank smoke two\",sourceId:\"cuda-package-cpu\"}]); const r=await e.search(\"cuda package rerank smoke\",{rerankDepth:process.env.RERANKER_ENABLED===\"true\"?2:0,limit:2}); if(r.results.length!==2||(process.env.RERANKER_ENABLED===\"true\"&&!r.results.every(x=>x.ceScore!==null)))throw new Error(\"rerank model forward missing\"); await e.close();"
   '
 write_cpu napi
 
@@ -333,10 +360,11 @@ python_gpu="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$python_wheel_abs,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
   --mount "type=bind,src=$cuda_library_directory_abs,dst=/usr/local/cuda/lib64,readonly" \
-  -e "WHEEL_FILENAME=$WHEEL_FILENAME" \
+  "${RERANKER_RUNTIME_MOUNT[@]}" \
+  -e "WHEEL_FILENAME=$WHEEL_FILENAME" -e "RERANKER_ENABLED=$RERANKER_ENABLED" \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
     env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 WHEEL_FILENAME="$WHEEL_FILENAME" /opt/python/cp311-cp311/bin/python -m pip install --no-deps "/input/$WHEEL_FILENAME"
-    exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache LD_LIBRARY_PATH=/usr/local/cuda/lib64 FATHOMDB_EMBED_DEVICE=cuda:0 /opt/python/cp311-cp311/bin/python -c "from fathomdb import Engine; import tempfile; from pathlib import Path; d=tempfile.TemporaryDirectory(); e=Engine.open(str(Path(d.name)/\"gpu.fdb\"),use_default_embedder=True); e.embed(\"CUDA package rehearsal installed Python GPU smoke\"); e.close(); import time; time.sleep(20)"
+    exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache LD_LIBRARY_PATH=/usr/local/cuda/lib64 FATHOMDB_EMBED_DEVICE=cuda:0 FATHOMDB_RERANK_DEVICE=cuda:0 FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache-root RERANKER_ENABLED="$RERANKER_ENABLED" /opt/python/cp311-cp311/bin/python -c "import os,tempfile,time; from pathlib import Path; from fathomdb import Engine; d=tempfile.TemporaryDirectory(); e=Engine.open(str(Path(d.name)/\"gpu.fdb\"),use_default_embedder=True); e.embed(\"CUDA package rehearsal installed Python GPU smoke\"); e.write([{\"kind\":\"doc\",\"body\":\"cuda package rerank smoke one\",\"source_id\":\"cuda-package-gpu\"},{\"kind\":\"doc\",\"body\":\"cuda package rerank smoke two\",\"source_id\":\"cuda-package-gpu\"}]); r=e.search(\"cuda package rerank smoke\",rerank_depth=2 if os.environ[\"RERANKER_ENABLED\"]==\"true\" else 0,limit=2); assert len(r.results)==2; assert os.environ[\"RERANKER_ENABLED\"]!=\"true\" or all(x.ce_score is not None for x in r.results); time.sleep(20); e.close()"
   ')"
 wait_for_gpu "$python_gpu" python
 
@@ -346,10 +374,12 @@ napi_gpu="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
   --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
   --mount "type=bind,src=$cuda_library_directory_abs,dst=/usr/local/cuda/lib64,readonly" \
+  "${RERANKER_RUNTIME_MOUNT[@]}" \
+  -e "RERANKER_ENABLED=$RERANKER_ENABLED" \
   "$CUDA_DRIVERLESS_NODE_IMAGE" sh -ceu '
     mkdir /consumer && cd /consumer
     printf "%s\n" "{\"private\":true,\"type\":\"module\",\"dependencies\":{\"fathomdb\":\"file:/input/fathomdb.tgz\",\"fathomdb-linux-x64-gnu\":\"file:/input/fathomdb-linux-x64-gnu.tgz\"}}" > package.json
     env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache npm install --offline --ignore-scripts --no-audit --no-fund
-    exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache LD_LIBRARY_PATH=/usr/local/cuda/lib64 FATHOMDB_EMBED_DEVICE=cuda:0 node --input-type=module -e "import { Engine } from \"fathomdb\"; const e=await Engine.open(\"/tmp/gpu.fdb\",{useDefaultEmbedder:true}); await e.embed(\"CUDA package rehearsal installed N-API GPU smoke\"); await e.close(); await new Promise(resolve=>setTimeout(resolve,20000));"
+    exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache LD_LIBRARY_PATH=/usr/local/cuda/lib64 FATHOMDB_EMBED_DEVICE=cuda:0 node --input-type=module -e "const rerank=process.argv[1]===\"true\"; if(rerank){process.env.FATHOMDB_RERANK_DEVICE=\"cuda:0\";process.env.FATHOMDB_RERANKER_CACHE=\"/fathomdb-reranker-cache-root\";} const {Engine}=await import(\"fathomdb\"); const e=await Engine.open(\"/tmp/gpu.fdb\",{useDefaultEmbedder:true}); await e.embed(\"CUDA package rehearsal installed N-API GPU smoke\"); await e.write([{kind:\"doc\",body:\"cuda package rerank smoke one\",sourceId:\"cuda-package-gpu\"},{kind:\"doc\",body:\"cuda package rerank smoke two\",sourceId:\"cuda-package-gpu\"}]); const r=await e.search(\"cuda package rerank smoke\",{rerankDepth:rerank?2:0,limit:2}); if(r.results.length!==2||(rerank&&!r.results.every(x=>x.ceScore!==null)))throw new Error(\"rerank model forward missing\"); await new Promise(resolve=>setTimeout(resolve,20000)); await e.close();" "$RERANKER_ENABLED"
   ')"
 wait_for_gpu "$napi_gpu" napi

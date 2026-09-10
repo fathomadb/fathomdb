@@ -1119,7 +1119,7 @@ jobs:
             target: aarch64-apple-darwin
             label: darwin-arm64
             manylinux: "auto"
-          - runner: windows-latest
+          - runner: [self-hosted, Windows, X64, windchill3-windows-11]
             target: x86_64-pc-windows-msvc
             label: win32-x64-msvc
             manylinux: "auto"
@@ -1154,7 +1154,7 @@ jobs:
           npm run build:native
           npm exec -- tsc -p tsconfig.build.json
       - name: Validate local wheel and N-API package
-        if: matrix.runner != 'windows-latest'
+        if: matrix.label != 'win32-x64-msvc'
         shell: bash
         run: |
           bash scripts/release/smoke/smoke-local-native-artifacts.sh \
@@ -1163,7 +1163,7 @@ jobs:
             "$PWD/src/ts/npm/${{ matrix.label }}" \
             "${{ matrix.label }}"
       - name: Validate local wheel and N-API package (Windows)
-        if: matrix.runner == 'windows-latest'
+        if: matrix.label == 'win32-x64-msvc'
         shell: pwsh
         run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory "$PWD/src/python/dist" -TsDirectory "$PWD/src/ts" -PlatformPackageDirectory "$PWD/src/ts/npm/${{ matrix.label }}" -NapiLabel "${{ matrix.label }}" -RetainedTestManifest "$PWD/scripts/release/smoke/slice73-windows-napi-modules.json"
 

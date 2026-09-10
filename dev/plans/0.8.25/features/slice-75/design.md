@@ -89,19 +89,20 @@ benchmark or derive latency limits from test timing.
 
 Each `slice75_schema26_upgrade` test independently creates a database by
 applying the exact registered migration prefix through step 26 with
-`Engine::open_with_migrations_for_test`. It populates canonical nodes/edges,
-logical/source identities, operational state, and lifecycle rows through the
-available public operations, then uses a narrow raw-SQL fixture helper to seed
-schema-valid v26 FTS/vector/projection rows that the current no-embedder test
-engine cannot produce publicly. The record calls this a migration-prefix
-fixture, not an actual 0.8.23 binary-produced artifact. `PRAGMA
-user_version=26`, a table/row census, and a fixture digest are asserted before
-each independent upgrade.
+`migrate_with_steps`. A narrow raw-SQL fixture helper then populates
+schema-valid canonical nodes/edges, logical/source identities, lifecycle
+states, FTS rows, and projection terminal/cursor state. The record calls this
+a migration-prefix fixture, not an actual prior binary-produced artifact.
+`PRAGMA user_version=26` and an ordered canonical table/row census are asserted
+before each independent upgrade.
 
-The first test opens those bytes with the normal current `Engine::open`,
+The first test opens those bytes through the normal current migration path
+with a deterministic test embedder,
 requiring `schema_version_before=26`, `schema_version_after=33`, and migration
 step IDs 27 through 33 exactly once. It proves preserved canonical reads,
-search, vector materialization, projection readiness, and lifecycle state.
+search and projection state, then configures current vector projection and
+proves materialization/readiness without pretending a synthetic v26 vector
+blob came from a prior runtime.
 
 The second test closes and reopens the upgraded database, requires an empty
 migration-step list, then exercises new provenance and dependency registration,
@@ -225,7 +226,7 @@ Tests remain fixed during each correction. An independent reviewer checks the
 design before code and another checks the final diff.
 
 The manifest tests are added to the already-registered
-`test_agent_tier_contracts.sh` suite, so the post-implementation aggregate
+`test_agent_test_tiers.sh` suite, so the post-implementation aggregate
 contract remains structurally pinned at 109 suite labels rather than acquiring
 an accidental 110th label.
 

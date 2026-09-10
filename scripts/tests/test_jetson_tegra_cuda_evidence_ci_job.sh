@@ -75,6 +75,7 @@ assert_contains 'candidate version must match the dispatched release branch' "ca
 assert_contains '--base-version "$CANDIDATE_VERSION"' "Jetson builder receives the validated candidate version"
 if awk '
   /name: Require the candidate version and release branch/ { in_step = 1; seen = 1; next }
+  in_step && /^  [A-Za-z0-9_-]+:$/ { in_step = 0 }
   in_step && /^[[:space:]]+- name:/ { in_step = 0 }
   in_step && /^[[:space:]]+if:/ { conditional = 1 }
   END { exit(!seen || conditional) }
@@ -85,6 +86,7 @@ else
 fi
 if awk '
   /name: Require the candidate version and release branch/ { in_step = 1; seen = 1; next }
+  in_step && /^  [A-Za-z0-9_-]+:$/ { in_step = 0 }
   in_step && /^[[:space:]]+- name:/ { in_step = 0 }
   in_step && /^[[:space:]]+run: \|[[:space:]]*$/ { literal_run = 1 }
   in_step && /set -euo pipefail/ { strict_shell = 1 }
@@ -161,7 +163,7 @@ if [ "${JETSON_TEGRA_CI_FIXTURE:-0}" != "1" ]; then
     fail "clean-checkout mutation did not fail its assertion: $mutation_out"
   fi
 
-  sed "0,/startsWith(github.ref, 'refs\/heads\/release\/')/s//startsWith(github.ref, 'refs\/heads\/topic\/')/" "$WORKFLOW" >"$MUTATED"
+  sed "s/startsWith(github.ref, 'refs\/heads\/release\/')/startsWith(github.ref, 'refs\/heads\/topic\/')/g" "$WORKFLOW" >"$MUTATED"
   set +e
   mutation_out="$(JETSON_TEGRA_CI_FIXTURE=1 JETSON_TEGRA_CI_YML="$MUTATED" bash "$0" 2>&1)"
   mutation_rc=$?

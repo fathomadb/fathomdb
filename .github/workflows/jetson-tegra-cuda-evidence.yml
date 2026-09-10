@@ -10,6 +10,10 @@ on:
         description: "Exact lowercase 40-hex commit to validate (must equal the dispatched workflow commit)"
         required: true
         type: string
+      candidate_version:
+        description: "Base release version; must match the release branch suffix"
+        required: true
+        type: string
       publish_to_pages:
         description: "After Jetson validation, publish the exact Tegra wheel to the interim GitHub Pages index"
         required: false
@@ -28,11 +32,12 @@ concurrency:
 jobs:
   validate-candidate:
     name: Validate immutable evidence candidate
-    if: github.ref == 'refs/heads/release/0.8.24'
+    if: startsWith(github.ref, 'refs/heads/release/')
     runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]
     timeout-minutes: 5
     outputs:
       candidate_sha: ${{ steps.candidate.outputs.candidate_sha }}
+      candidate_version: ${{ steps.version.outputs.candidate_version }}
     steps:
       - id: candidate
         name: Require the dispatch commit as the candidate
@@ -50,15 +55,33 @@ jobs:
             exit 1
           fi
           printf 'candidate_sha=%s\n' "$CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
+      - id: version
+        name: Require the candidate version and release branch
+        shell: bash
+        env:
+          CANDIDATE_VERSION: ${{ inputs.candidate_version }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$CANDIDATE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            printf 'candidate version must be a three-component release version\n' >&2
+            exit 1
+          fi
+          expected_ref="refs/heads/release/$CANDIDATE_VERSION"
+          if [ "$GITHUB_REF" != "$expected_ref" ]; then
+            printf 'candidate version must match the dispatched release branch\n' >&2
+            exit 1
+          fi
+          printf 'candidate_version=%s\n' "$CANDIDATE_VERSION" >> "$GITHUB_OUTPUT"
 
   tegra-cuda-evidence:
     name: Build and witness the Tegra CUDA wheel
     needs: validate-candidate
-    if: github.ref == 'refs/heads/release/0.8.24'
+    if: startsWith(github.ref, 'refs/heads/release/')
     runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]
     timeout-minutes: 90
     env:
       CANDIDATE_SHA: ${{ needs.validate-candidate.outputs.candidate_sha }}
+      CANDIDATE_VERSION: ${{ needs.validate-candidate.outputs.candidate_version }}
     steps:
       - name: Allocate retained evidence directory
         shell: bash
@@ -107,14 +130,6 @@ jobs:
             "$CANDIDATE_SHA" "$actual_sha" "$GITHUB_WORKFLOW_REF" "$GITHUB_WORKFLOW_SHA" \
             > "$EVIDENCE_DIR/source-identity.txt"
 
-      - name: Fail closed unless candidate has the authorized release version
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash scripts/release/require-tegra-pages-release-version.sh \
-            --manifest src/python/pyproject.toml \
-            --expected-version 0.8.24
-
       - name: Fail closed unless this is a classic Tegra CUDA host
         shell: bash
         run: |
@@ -154,7 +169,8 @@ jobs:
           python3 -m venv "$BUILD_VENV"
           "$BUILD_VENV/bin/python" -m pip install --disable-pip-version-check --upgrade pip 'maturin==1.14.1'
           PATH="$BUILD_VENV/bin:$PATH" \
-            bash scripts/release/build-python-cuda-tegra.sh --assert-only \
+            bash scripts/release/build-python-cuda-tegra.sh \
+              --base-version "$CANDIDATE_VERSION" --assert-only \
             2>&1 | tee "$EVIDENCE_DIR/build-contract.log"
 
       - name: Build the nonpublishing Tegra CUDA wheel
@@ -165,6 +181,7 @@ jobs:
             bash scripts/release/build-python-cuda-tegra.sh \
               --out "$EVIDENCE_DIR/wheel" \
               --interpreter python \
+              --base-version "$CANDIDATE_VERSION" \
             2>&1 | tee "$EVIDENCE_DIR/build-wheel.log"
           mapfile -t wheels < <(find "$EVIDENCE_DIR/wheel" -maxdepth 1 -type f -name 'fathomdb-*-linux_aarch64.whl' -print)
           [ "${#wheels[@]}" -eq 1 ] || {
@@ -266,11 +283,11 @@ jobs:
 
   # The Jetson has no publication credential. This hosted job receives only
   # its retained artifact and constructs the interim, exact-version PEP 503
-  # site. It is deliberately opt-in for the authorized 0.8.24 release branch.
+  # site. It is deliberately opt-in for the matching release branch.
   prepare-tegra-pages:
     name: Prepare interim Tegra PEP 503 Pages artifact
     needs: tegra-cuda-evidence
-    if: ${{ inputs.publish_to_pages == true && github.ref == 'refs/heads/release/0.8.24' }}
+    if: ${{ inputs.publish_to_pages == true && startsWith(github.ref, 'refs/heads/release/') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -290,11 +307,13 @@ jobs:
       - id: index
         name: Verify wheel and construct the static PEP 503 index
         shell: bash
+        env:
+          CANDIDATE_VERSION: ${{ inputs.candidate_version }}
         run: |
           set -euo pipefail
           bash scripts/release/require-tegra-pages-release-version.sh \
-            --manifest src/python/pyproject.toml --expected-version 0.8.24
-          expected_version='0.8.24+tegra'
+            --manifest src/python/pyproject.toml --expected-version "$CANDIDATE_VERSION"
+          expected_version="${CANDIDATE_VERSION}+tegra"
           mapfile -t wheels < <(find evidence/wheel -maxdepth 1 -type f \
             -name "fathomdb-${expected_version}-*-linux_aarch64.whl" -print)
           [ "${#wheels[@]}" -eq 1 ] || {
@@ -322,7 +341,7 @@ jobs:
   deploy-tegra-pages:
     name: Deploy interim Tegra PEP 503 Pages index
     needs: prepare-tegra-pages
-    if: ${{ inputs.publish_to_pages == true && github.ref == 'refs/heads/release/0.8.24' }}
+    if: ${{ inputs.publish_to_pages == true && startsWith(github.ref, 'refs/heads/release/') }}
     runs-on: ubuntu-latest
     permissions:
       actions: read

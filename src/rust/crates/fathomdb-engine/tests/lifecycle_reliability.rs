@@ -1,10 +1,11 @@
+use std::collections::BTreeSet;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use fathomdb_engine::lifecycle::{Event, EventCategory, EventSource};
-use fathomdb_engine::Engine;
+use fathomdb_engine::{Engine, ProjectionRole, ProjectionSpec};
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
@@ -201,6 +202,8 @@ fn ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl() {
         let stop = Arc::clone(&stop);
         thread::spawn(move || {
             let mut tick: u64 = 0;
+            let mut projection_add_drop_cycles = 0_u64;
+            let mut projection_rebuilds = 0_u64;
             while !stop.load(Ordering::Relaxed) {
                 let name = format!("things_{}", tick % 4);
                 let _ = engine.write(&[PreparedWrite::AdminSchema {
@@ -209,9 +212,26 @@ fn ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl() {
                     schema_json: "{}".to_string(),
                     retention_json: "{}".to_string(),
                 }]);
+                let projection_name = "ac021_owner".to_string();
+                let spec = ProjectionSpec {
+                    name: projection_name.clone(),
+                    roles: BTreeSet::from([ProjectionRole::Filterable]),
+                    fts: None,
+                    vector: None,
+                    source: None,
+                };
+                if engine.configure_projections(&[spec], &[]).is_ok() {
+                    if engine.rebuild_projections().is_ok() {
+                        projection_rebuilds += 1;
+                    }
+                    if engine.configure_projections(&[], &[projection_name]).is_ok() {
+                        projection_add_drop_cycles += 1;
+                    }
+                }
                 tick = tick.wrapping_add(1);
                 thread::sleep(Duration::from_millis(1000));
             }
+            (projection_add_drop_cycles, projection_rebuilds)
         })
     };
 
@@ -222,7 +242,9 @@ fn ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl() {
     for handle in handles {
         handle.join().expect("reader thread");
     }
-    ddl_handle.join().expect("ddl thread");
+    let (projection_add_drop_cycles, projection_rebuilds) = ddl_handle.join().expect("ddl thread");
+    assert!(projection_add_drop_cycles >= 1, "projection add/drop workload did not execute");
+    assert!(projection_rebuilds >= 1, "projection rebuild workload did not execute");
 
     let captured = sink.events.lock().unwrap();
     // AC-021 dispatches on the stable error code, not on every error
@@ -240,5 +262,9 @@ fn ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl() {
     assert_eq!(
         schema_errors, 0,
         "expected zero SQLITE_SCHEMA error events under concurrent reads + DDL"
+    );
+    eprintln!(
+        "AC021_RESULT duration_seconds={window_secs} projection_add_drop_cycles={projection_add_drop_cycles} \
+         projection_rebuilds={projection_rebuilds} sqlite_schema={schema_errors}"
     );
 }

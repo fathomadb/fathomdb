@@ -2,8 +2,8 @@
 # Consume locally built Python and N-API artifacts without contacting a registry.
 set -euo pipefail
 
-if [ "$#" -ne 4 ]; then
-  printf 'usage: %s <wheel-dir> <ts-dir> <platform-package-dir> <napi-label>\n' "$0" >&2
+if [ "$#" -lt 4 ] || [ "$#" -gt 5 ]; then
+  printf 'usage: %s <wheel-dir> <ts-dir> <platform-package-dir> <napi-label> [retained-test-manifest]\n' "$0" >&2
   exit 2
 fi
 
@@ -11,7 +11,11 @@ WHEEL_DIR="$1"
 TS_DIR="$2"
 PLATFORM_PACKAGE_DIR="$3"
 NAPI_LABEL="$4"
+RETAINED_TEST_MANIFEST="${5:-}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PYTHON_BASE="${FATHOMDB_SMOKE_PYTHON:-python3}"
+NODE_CMD="${FATHOMDB_SMOKE_NODE:-node}"
+LIGHTWEIGHT="${FATHOMDB_SMOKE_LIGHTWEIGHT:-0}"
 
 wheel_paths=("$WHEEL_DIR"/*.whl)
 if [ "${#wheel_paths[@]}" -ne 1 ] || [ ! -f "${wheel_paths[0]}" ]; then
@@ -38,7 +42,7 @@ case "$wheel_name" in
     exit 1
     ;;
 esac
-if ! python3 - "${wheel_paths[0]}" "$ABI3_TAG" <<'PY'
+if ! "$PYTHON_BASE" - "${wheel_paths[0]}" "$ABI3_TAG" <<'PY'
 import sys, zipfile
 
 path, abi3_tag = sys.argv[1], sys.argv[2]
@@ -63,7 +67,7 @@ fi
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-python3 -m venv "$WORK/python-venv"
+"$PYTHON_BASE" -m venv "$WORK/python-venv"
 PYTHON="$WORK/python-venv/bin/python"
 "$PYTHON" -m pip install --no-index --find-links "$WHEEL_DIR" fathomdb
 "$PYTHON" - "$REPO_ROOT/tests/fixtures/slice45_frozen_context_v3.json" \
@@ -231,9 +235,9 @@ cp "$TS_DIR/fathomdb.$NAPI_LABEL.node" "$PLATFORM/fathomdb.$NAPI_LABEL.node"
 # a registry to resolve unrelated native packages.
 bash "$REPO_ROOT/scripts/release/npm-inject-optional-deps.sh" "$MAIN" "$NPM_ROOT"
 
-platform_name="$(node -p "require(process.argv[1]).name" "$PLATFORM/package.json")"
-main_version="$(node -p "require(process.argv[1]).version" "$MAIN/package.json")"
-injected="$(node -p "require(process.argv[1]).optionalDependencies[process.argv[2]] || ''" \
+platform_name="$("$NODE_CMD" -p "require(process.argv[1]).name" "$PLATFORM/package.json")"
+main_version="$("$NODE_CMD" -p "require(process.argv[1]).version" "$MAIN/package.json")"
+injected="$("$NODE_CMD" -p "require(process.argv[1]).optionalDependencies[process.argv[2]] || ''" \
   "$MAIN/package.json" "$platform_name")"
 if [ "$injected" != "$main_version" ]; then
   printf 'smoke-local-native-artifacts: %s optionalDependency is %s, expected %s\n' \
@@ -257,7 +261,7 @@ EOF
 (
   cd "$CONSUMER"
   npm install --offline --ignore-scripts
-  node --input-type=module - "$REPO_ROOT/tests/fixtures/slice45_frozen_context_v3.json" \
+  "$NODE_CMD" --input-type=module - "$REPO_ROOT/tests/fixtures/slice45_frozen_context_v3.json" \
     "$WORK/python-frozen-fixture.sqlite" "$WORK/python-frozen-token.txt" <<'JS'
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
@@ -302,7 +306,7 @@ assert.deepEqual(frozen.context, {
 assert.equal(frozen.token, expectedToken);
 await engine.close();
 JS
-  node --input-type=module - "$WORK/npm-smoke.fdb" <<'JS'
+  "$NODE_CMD" --input-type=module - "$WORK/npm-smoke.fdb" <<'JS'
 import { Engine } from "fathomdb";
 
 const engine = await Engine.open(process.argv[2]);
@@ -373,5 +377,98 @@ await engine.close();
 console.log("local N-API package runtime validation: ok");
 JS
 )
+
+resolved_main="$(cd "$CONSUMER" && "$NODE_CMD" -e 'process.stdout.write(require.resolve(process.argv[1]))' fathomdb)"
+resolved_native="$(cd "$CONSUMER" && "$NODE_CMD" -e 'process.stdout.write(require.resolve(process.argv[1]))' "$platform_name")"
+resolved_main="$(realpath "$resolved_main")"
+resolved_native="$(realpath "$resolved_native")"
+case "$resolved_main" in
+  "$CONSUMER"/*) ;;
+  *) printf 'smoke-local-native-artifacts: main module escaped isolated consumer\n' >&2; exit 1 ;;
+esac
+case "$resolved_native" in
+  "$CONSUMER"/*) ;;
+  *) printf 'smoke-local-native-artifacts: native module escaped isolated consumer\n' >&2; exit 1 ;;
+esac
+built_native_sha256="$(sha256sum "$TS_DIR/fathomdb.$NAPI_LABEL.node")"
+built_native_sha256="${built_native_sha256%% *}"
+installed_native_sha256="$(sha256sum "$resolved_native")"
+installed_native_sha256="${installed_native_sha256%% *}"
+if [ "$built_native_sha256" != "$installed_native_sha256" ]; then
+  printf 'smoke-local-native-artifacts: installed native artifact digest mismatch\n' >&2
+  exit 1
+fi
+
+if [ "$LIGHTWEIGHT" != 1 ] && [ -n "$RETAINED_TEST_MANIFEST" ]; then
+  COMPILED="$WORK/compiled"
+  MIRROR="$WORK/mirror"
+  mkdir -p "$COMPILED" "$MIRROR/src/ts"
+  "$PYTHON_BASE" - "$REPO_ROOT" "$TS_DIR" "$RETAINED_TEST_MANIFEST" \
+    "$WORK/modules.txt" "$WORK/fixtures.txt" <<'PY'
+import json
+import pathlib
+import re
+import sys
+
+repo = pathlib.Path(sys.argv[1]).resolve()
+ts = pathlib.Path(sys.argv[2]).resolve()
+manifest_path = pathlib.Path(sys.argv[3]).resolve()
+if repo not in manifest_path.parents or not manifest_path.is_file():
+    raise SystemExit("retained test manifest escaped the source checkout")
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+if manifest.get("schema_version") != "fathomdb.slice73.windows-napi/v1":
+    raise SystemExit("unsupported retained test manifest schema")
+modules = manifest.get("modules", [])
+fixtures = manifest.get("fixtures", [])
+if not modules or not fixtures or len(modules) != len(set(modules)) or len(fixtures) != len(set(fixtures)):
+    raise SystemExit("retained test manifest must contain unique modules and fixtures")
+for module in modules:
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]*\.test\.js", module):
+        raise SystemExit(f"unsafe retained module {module}")
+    if not (ts / "tests" / module.replace(".js", ".ts")).is_file():
+        raise SystemExit(f"missing retained test source {module}")
+for fixture in fixtures:
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]*", fixture) or ".." in fixture:
+        raise SystemExit(f"unsafe retained fixture {fixture}")
+    source = (repo / fixture).resolve()
+    if repo not in source.parents or not source.is_file():
+        raise SystemExit(f"missing retained fixture {fixture}")
+pathlib.Path(sys.argv[4]).write_text("\n".join(modules) + "\n", encoding="utf-8")
+pathlib.Path(sys.argv[5]).write_text("\n".join(fixtures) + "\n", encoding="utf-8")
+PY
+  "$NODE_CMD" "$TS_DIR/node_modules/typescript/bin/tsc" \
+    -p "$TS_DIR/tsconfig.json" --outDir "$COMPILED"
+  rm -rf "$COMPILED/src"
+  mkdir -p "$COMPILED/src"
+  cp -R "$CONSUMER/node_modules/fathomdb/dist/." "$COMPILED/src/"
+  while IFS= read -r fixture; do
+    mkdir -p "$MIRROR/$(dirname "$fixture")"
+    cp "$REPO_ROOT/$fixture" "$MIRROR/$fixture"
+  done < "$WORK/fixtures.txt"
+  mkdir -p "$MIRROR/src/ts/dist"
+  cp -R "$COMPILED/." "$MIRROR/src/ts/dist/"
+  total_modules=0
+  total_tests=0
+  while IFS= read -r module; do
+    module_output="$(cd "$MIRROR/src/ts" && "$NODE_CMD" --test --test-reporter=tap "dist/tests/$module")"
+    printf '%s\n' "$module_output"
+    counts="$(printf '%s\n' "$module_output" | "$PYTHON_BASE" -c '
+import re, sys
+text=sys.stdin.read()
+def one(name):
+    found=re.findall(rf"^# {name} (\\d+)\\s*$", text, re.M)
+    if len(found) != 1: raise SystemExit(f"missing unique TAP count: {name}")
+    return int(found[0])
+tests=one("tests"); passed=one("pass")
+bad=sum(one(name) for name in ("fail", "cancelled", "skipped", "todo"))
+if tests <= 0 or passed != tests or bad: raise SystemExit("retained module did not pass without skips")
+print(tests)
+')"
+    total_modules=$((total_modules + 1))
+    total_tests=$((total_tests + counts))
+  done < "$WORK/modules.txt"
+  printf 'slice75-native-napi-result: modules=%s tests=%s pass=%s skipped=0\n' \
+    "$total_modules" "$total_tests" "$total_tests"
+fi
 
 printf 'smoke-local-native-artifacts: ok — local wheel + matched N-API package validated\n'

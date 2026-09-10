@@ -8799,7 +8799,6 @@ impl Engine {
             ManagedConnectionRegistry,
         >,
     ) -> Result<(Connection, Vec<Connection>, OpenReport, Vec<i32>), EngineOpenError> {
-        init_sqlite_runtime();
         init_perf_experiments_runtime();
         register_sqlite_vec_extension();
         let mut connection = open_managed_connection(
@@ -23376,29 +23375,6 @@ fn map_migration_error(err: SchemaMigrationError) -> EngineOpenError {
             EngineOpenError::Io { message: message.to_string() }
         }
     }
-}
-
-/// Disable SQLite's process-wide memory-allocation statistics before the first
-/// FathomDB connection opens. Those statistics are not part of the product
-/// contract, and their global lock prevents the independent reader workers
-/// from meeting AC-020's concurrency bound.
-///
-/// If another user of this SQLite library initialized it first, SQLite returns
-/// `SQLITE_MISUSE`; leave that already-running process alone rather than
-/// shutting it down. FathomDB remains correct in that case, with only the
-/// concurrency optimization unavailable for that process.
-fn init_sqlite_runtime() {
-    static INIT: Once = Once::new();
-    INIT.call_once(|| {
-        // SAFETY: sqlite3_config is SQLite's documented pre-initialization API.
-        // No pointer arguments are involved. A late call fails without changing
-        // the already-initialized runtime.
-        let rc =
-            unsafe { rusqlite::ffi::sqlite3_config(rusqlite::ffi::SQLITE_CONFIG_MEMSTATUS, 0_i32) };
-        if rc != rusqlite::ffi::SQLITE_OK && rc != rusqlite::ffi::SQLITE_MISUSE {
-            eprintln!("sqlite-runtime: could not disable memory status (rc={rc})");
-        }
-    });
 }
 
 /// 0.7.0 perf-experiments hook: process-start `sqlite3_config` calls.

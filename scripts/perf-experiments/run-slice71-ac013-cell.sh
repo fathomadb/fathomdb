@@ -25,7 +25,8 @@ snapshot() {
   swap_in=$(awk '$1=="pswpin"{print $2}' /proc/vmstat)
   swap_out=$(awk '$1=="pswpout"{print $2}' /proc/vmstat)
   temp=$(for label in /sys/class/hwmon/hwmon*/temp*_label; do
-    if [ "$(sed -n '1p' "$label" 2>/dev/null)" = "Tctl" ]; then
+    label_text="$(sed -n '1p' "$label" 2>/dev/null)" || true
+    if [ "$label_text" = "Tctl" ]; then
       input="${label%_label}_input"
       awk '{printf "%.3f", $1/1000}' "$input"
       break
@@ -57,7 +58,7 @@ PY
 }
 
 mkdir -p "$(dirname "$raw_log")"
-exec > >(tee "$raw_log") 2>&1
+exec >"$raw_log" 2>&1
 snapshot start
 set +e
 LOG_PATH="$cargo_log" AGENT_LONG=1 AC013_CORPUS_N=10000 \

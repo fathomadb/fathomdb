@@ -50,7 +50,8 @@ config_relative="$(realpath --relative-to="$repo_root" "$config")"
     --repository-root . --config "$config_relative"
 )
 run_dir="$(find "$work/repository/experiments/runs" -mindepth 1 -maxdepth 1 -type d \
-  -name 'measurement-classification-native-search-*' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+  -name 'measurement-classification-native-search-*' -printf '%T@ %p\n' \
+  | sort -nr | awk 'NR == 1 {sub(/^[^ ]+ /, ""); print}')"
 [ -n "$run_dir" ] || { printf 'slice75-global-native: native run receipt is missing\n' >&2; exit 1; }
 python3 - "$run_dir" "$candidate_sha" "$work/venv" "$receipt" <<'PY'
 import hashlib

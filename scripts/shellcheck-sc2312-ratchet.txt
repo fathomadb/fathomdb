@@ -36,7 +36,6 @@ scripts/lint-design-status.sh
 scripts/lint-findings.sh
 scripts/lint-plan-anchors.sh
 scripts/md-safe-fix.sh
-scripts/preflight.sh
 scripts/release/verify-embedder-api-no-drift.sh
 scripts/repo-prune/bin/context-clarity.sh
 scripts/repo-prune/bin/memory-clarity.sh

@@ -43,7 +43,6 @@ dev/tools/mermaid/test-render-mermaid.sh
 scripts/lint-findings.sh
 scripts/perf-experiments/collect-host-spec.sh
 scripts/perf-experiments/ledger-check.sh
-scripts/preflight.sh
 scripts/release/assert-co-tagging.sh
 scripts/release/smoke/smoke-crates-cli.sh
 scripts/release/smoke/smoke-npm-package.sh

@@ -70,6 +70,13 @@ paths = ['''^dev/plans/runs/0\.8\.25-slice-72/(?:receipt\.json|(?:baseline|candi
 regexes = ['''^[0-9a-f]{64}$''']
 
 [[rules.allowlists]]
+description = "Slice 75 closure manifest contains only reviewed artifact and evidence digests"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^dev/plans/0\.8\.25/features/slice-75/slice75-closure-manifest\.json$''']
+regexes = ['''^[0-9a-f]{64}$''']
+
+[[rules.allowlists]]
 description = "code-marker drift evidence carries two reviewed marker identifiers"
 condition = "AND"
 regexTarget = "secret"

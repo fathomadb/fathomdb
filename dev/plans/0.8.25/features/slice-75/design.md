@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 75 — integrated closure design
-status: DRAFT_SPLIT_RECONCILIATION_REQUIRED
-design_version: 3
+status: APPROVED
+design_version: 5
 target_release: 0.8.25
 depends_on: 73
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -9,79 +9,238 @@ architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 
 # Slice 75 design
 
-## Authority and boundary
+## Boundary
 
-This design owns final integrated release closure after Slice 73. Slices 71,
-72, and 73 own respectively the two performance investigations, preflight plus
-installed CE profiles, and focused Windows Node/N-API coverage. Their strict,
-exact-commit receipts are prerequisites. Slice 75 neither recreates those
-studies nor treats historical handoff text as duplicate authority.
+Slice 75 is a release-evidence adapter around existing product contracts. It
+adds focused integration/upgrade witnesses and a fail-closed closure manifest;
+it does not add product capability, change public wire shapes, lower a limit,
+or reproduce earlier performance investigations.
 
-## Manifest and receipt
+The frozen product candidate is the Git tree excluding Slice-75 receipts and
+status records. Receipt-only commits may follow only when their product-tree
+digest equals the tested digest. The current workspace version remains the
+pre-cut Axis-W version; production package/version work is a later release
+operation outside this ladder.
 
-`IntegratedClosureManifestV1` binds the unchanged candidate, version, all
-Slice 10–73 status/verification receipts and digests, package hashes, fixtures,
-platform/device requirements, commands, workload cells, repetitions,
-thresholds, timeouts, and allowed N/A routes. Unknown or missing material
-fields reject before execution.
+## Closure manifest and receipt
 
-`IntegratedClosureReceiptV1` records every command and cell, installed package
-and actual Engine method, read/projection identities, raw-output digest,
-errors/timeouts, latency/resource summaries, and `passed`, `failed`,
-`insufficient_samples`, `missing_prerequisite`, or `environment_invalid`.
-Only `passed` supports closure. Partial evidence remains visible and cannot be
-pooled into completeness.
+`Slice75ClosureManifestV1` is checked in before execution. It contains:
 
-## Installed cross-SDK and wire conformance
+- product-tree and candidate identity rules;
+- required current, retained, hosted, and explicitly unavailable cells;
+- exact argv, cwd, controlled/set/unset environment, timeout, features,
+  platform, expected test count, required output markers, and thresholds;
+- fixture, model, package, and source-receipt SHA-256 inputs;
+- invalidation paths for every retained or reusable result; and
+- the permitted exclusions listed in the plan.
 
-Build locally packaged, registry-equivalent Rust crate/CLI, Python, npm/native,
-and applicable CUDA artifacts from one commit. In isolated consumers, prove
-resolved paths and execute retained Slice 15–60 success, error, and unknown-
-version fixtures. Require semantic and canonical-wire equality after the
-documented casing conversion. Linux and Windows x64 CPU/native coverage is
-mandatory; Slice 73's focused receipt is checked for identity and included,
-but final exact-head hosted CI remains required.
+The validator accepts only closed keys and known cell IDs. A current cell is
+`passed` only with a zero exit code, exact positive count, no forbidden skip or
+ignored result, all markers, and all numeric predicates. A retained cell also
+requires its source receipt digest and a zero relevant-path diff from its
+original candidate. Hosted cells bind workflow run, job/matrix label, and exact
+product SHA. Unknown, missing, timed-out, zero-test, skipped, or mismatched
+evidence is not pooled into a pass.
 
-## Representative concurrency and consistency
+`Slice75ClosureReceiptV1` records immutable per-cell records and a top-level
+verdict. Raw logs live under one run directory and are referenced by digest;
+the compact committed receipt carries the evidence needed to reproduce the
+verdict without embedding full logs.
 
-Run fresh-database 10,000-record one-reader/one-writer and 50,000-record
-12-reader/one-writer cells with at least three cold and three steady
-repetitions and 500 steady operations per reader. A fixed cycle covers search,
-bounded canonical/state walks, evidence resolution, dependency trace, compact
-integrity, constrained expansion, record/dependency/lifecycle mutation,
-erasure/recreate, and projection readiness.
+At candidate freeze, the validator computes one canonical digest over
+`git ls-files` to identify the unchanged overall candidate. Separately, the
+manifest maps each cell to a narrower closed invalidation-path set so a fix
+does not force unrelated expensive work to repeat. External BGE/TinyBERT files
+and the gitignored EU7 corpus carry resolved paths, file counts, and SHA-256
+digests. Generated package/model outputs are hashed before their first
+consumer. Every cell receipt has the deterministic path
+`dev/plans/runs/0.8.25-slice-75/cells/<cell-id>.json`. Hosted helpers bind the
+repository, branch, exact SHA, PR or dispatch run ID, workflow/job name, matrix
+label, and conclusion. The Jetson helper captures the run ID returned after
+dispatch before watching it. The Windows helper starts the VM only when
+needed, verifies the guest service over SSH, and then confirms the exact
+repository runner identity, labels, online state, and idle state through the
+GitHub API.
 
-The manifest pins corpus/trace digests, seed, reset/warm-up, timeouts, no-retry
-policy, runtime, affinity, and resource sampling. Report latency distributions,
-throughput, writer wait, typed outcomes, errors/timeouts, RSS, CPU, storage,
-and open/close time. Mixed visibility, duplicate/omitted pages, stale evidence,
-searchable erased dependents, untyped busy/timeout, or false-ready projection
-is a correctness failure.
+## Focused final-code interaction target
 
-## Lifecycle, overhead, and packaged native witness
+`slice75_feature_interactions` contains four deterministic real-SQLite tests:
 
-At 10,000 records, run paired fresh-database baseline/new-operation cells for
-eligibility, optional frozen context, canonical/state pages, evidence,
-dependency, bounded actuation, projection status, integrity, and constrained
-expansion. Run deterministic end-to-end mutation-to-ready, supersession,
-erase-to-fence/no-orphan, restart/resume, and rebuild-generation cells.
+1. A multi-row governed write exercises cached statements, transaction-level
+   canonical visibility coalescing, projection batching, an internal custom
+   trigger target, drain/readiness, close, and reopen. The custom trigger must
+   fire per affected row while the built-in invalidation advances only at its
+   designed boundary.
+2. A hybrid search fixture selects the deferred-identity and linear-fusion
+   route and compares it with the complete ranked control. Adding a source
+   dependency, lifecycle-ineligible row, and frozen context must select the
+   safe eligibility route and never expose the hidden dependent.
+3. A bounded writer/projection/search race checks that each completed search
+   is internally consistent, cursors do not claim false readiness, and results
+   contain neither duplicate identities nor lifecycle-ineligible rows.
+4. Source erasure followed by recreation must remove old canonical, vector,
+   dependency, and search visibility, settle projection state, and remain
+   correct after close/reopen.
 
-Run frozen GLOBAL-01 input through the locally packaged candidate's named
-native A0 `Engine.search` path. Record identities, source coverage, duplicates,
-arm contributions, latency/resources, and gold sufficiency with
-`measurement_layer: data_plane` and `engine_search_executed: true`. This proves
-execution and descriptive retrieval behavior, not answer quality.
+The fixture reuses existing test-only hooks and APIs. It does not add a 50k
+benchmark or derive latency limits from test timing.
 
-## Failure policy and final verification
+## Populated schema-26 upgrade target
 
-Validate cleanliness, exact candidate, prior-slice closure, manifest, packages,
-fixtures, and platforms before execution. Write raw results atomically after
-each cell. Drift, source-installed artifacts, digest conflicts, or SDK
-contradiction are environment failures; missing evidence is never zero/pass.
+Each `slice75_schema26_upgrade` test independently creates a database by
+applying the exact registered migration prefix through step 26 with
+`Engine::open_with_migrations_for_test`. It populates canonical nodes/edges,
+logical/source identities, operational state, and lifecycle rows through the
+available public operations, then uses a narrow raw-SQL fixture helper to seed
+schema-valid v26 FTS/vector/projection rows that the current no-embedder test
+engine cannot produce publicly. The record calls this a migration-prefix
+fixture, not an actual 0.8.23 binary-produced artifact. `PRAGMA
+user_version=26`, a table/row census, and a fixture digest are asserted before
+each independent upgrade.
 
-RED/GREEN harness tests reject bad schemas/digests, absent cells, pooled
-repetitions, source fallback, version skew, wire mismatch, mixed-layer claims,
-bypassed native search, stale prior receipts, and relaxed thresholds. Then run
-the complete local release matrix and an unmerged PR's hosted checks at the
-same SHA. Release-ready closure does not authorize tags, publication, registry
-mutation, release creation, or post-publish smoke.
+The first test opens those bytes with the normal current `Engine::open`,
+requiring `schema_version_before=26`, `schema_version_after=33`, and migration
+step IDs 27 through 33 exactly once. It proves preserved canonical reads,
+search, vector materialization, projection readiness, and lifecycle state.
+
+The second test closes and reopens the upgraded database, requires an empty
+migration-step list, then exercises new provenance and dependency registration,
+frozen-read invalidation, supersession, source erasure/purge, recreation,
+projection drain/readiness, and a final reopen. Old source/dependent/vector/FTS
+state must not reappear. This is the authoritative prior-release upgrade
+witness; individual step tests remain focused supporting coverage.
+
+## Long and performance paths
+
+The default aggregate gate runs without `AGENT_LONG`; explicit cells activate
+only the selected long bodies. AC-021 is brought into agreement with its
+registered 60-second DDL workload by observing both administrative schema
+mutation and projection rebuild activity. AC-059b runs the full 1,000-read
+race. AC-034a/b runs 100 process-kill trials; AC-034c stays unavailable because
+the accepted VM/sysrq fixture is absent.
+
+One release-built `perf_gates` target is reused for AC-076, AC-072, and AC-020.
+`AC_FULL_SCALE` is removed, not set to `0`, because presence selects the
+tracked million-row tier. AC-076 uses 10k and 1,000 measured searches at
+20/150 ms. AC-072 uses 10k, 384 dimensions, and 1,000 measured full
+`Engine.search` calls at 80/300 ms. AC-020 retains its registered parallelism
+predicate.
+
+One EU7 body on 7,667 real documents, real BGE, 100 queries, 1,000 bootstrap
+resamples, 1,000 latency samples, and 8×250 stress searches supplies both real
+verdicts. The body must fail rather than return successfully when the long
+flag, corpus, or model cache is absent. It asserts AC-073 against the same-run
+baseline and AC-075 with the accepted `recall_ci_hi >= 0.90` predicate. Fused
+recall and synthetic recall remain descriptive.
+
+## Models, artifacts, and GLOBAL-01
+
+The live-model cell performs cache preflight first and forbids
+`FATHOMDB_SKIP_NETWORK_TESTS`. It runs the existing seven TypeScript modules,
+engine, Python selectors, and CLI selectors with expected counts 33, 9, 13,
+and 2. TypeScript also binds per-file counts 2/1/5/2/11/6/6. The receipt records
+model identity/cache digest. Hosted model-job green is supporting evidence only
+unless these positive markers are present.
+
+The Linux x64 wheel and N-API package are built once from the candidate using
+the workflow feature contracts. An isolated environment installs those bytes;
+runtime attestation records the Python package, extension, CLI, JS package, and
+`.node` paths and hashes. Repository paths on `PYTHONPATH`, editable installs,
+and source-tree native fallback fail.
+
+That same wheel is installed and smoke-tested under CPython 3.10, 3.11, and
+3.12; the same packed N-API bytes are installed and smoke-tested under Node 18
+and 25.9.0. These are reuse cells, not rebuild rows. The release workspace and
+CLI are also built once, the three independent leaf crates
+(`fathomdb-embedder-api`, `fathomdb-schema`, and `fathomdb-query`) run
+normal `cargo package`, and the built CLI opens, checks, and closes a fresh
+database through its integrity verbs. Candidate write/search behavior is
+covered by the installed SDK and GLOBAL-01 cells because the CLI intentionally
+has no general write/search commands. Dependent-crate package resolution waits for the
+separate version-cut and ordered registry rehearsal; no historical registry
+dependency is misrepresented as this candidate.
+
+The installed cross-SDK fixture is bounded but representative. Eight positive
+feature markers in each SDK cover actuation, dependency/closure, projection
+readiness, pagination/operational state, evidence, lifecycle/erasure, frozen
+reads, and constrained graph behavior. The N-API route additionally reuses the
+fixed Slice 73 13-module set and requires 180/180 tests. Both SDKs exchange one
+canonical frozen-context/database fixture and require wire-equivalent values.
+
+The existing GLOBAL-01 native fixture is resolved for Slice 75 so its CLI path
+names the built candidate. Candidate-artifact Python performs exactly one
+native `Engine.search` over the three frozen records. The receipt requires the
+expected source first, recall@3=1, reciprocal rank=1, and
+`measurement_layer=data_plane`. It uses no external answerer/judge and incurs
+no spend. Historical answer-quality decisions remain separate and no new
+answer-quality claim is made by this data-plane release.
+
+## Platform classification
+
+Exact-head installed smoke is required for Linux x64 GNU, Linux ARM64 GNU,
+macOS x64, macOS ARM64, Windows x64 MSVC CPU, and Jetson/Tegra Python CUDA.
+Each CPU row builds wheel and N-API bytes once, installs them, records resolved
+native paths/hashes, and runs open/write/search/dependency/frozen-read/close.
+GitHub provides the macOS runners. Before workflow dispatch, Slice 75 starts
+`gh-runner-wonl-win11`, requires a runner registered to `fathomadb/fathomdb`
+with labels `self-hosted`, `Windows`, `X64`, and `windchill3-windows-11`, starts
+and verifies its service, and uses those labels for the supported Windows CPU
+row. Missing or wrong registration is a preflight failure. The workflow row is
+changed under a shell-fixture RED test from `windows-latest` to that explicit
+self-hosted selector. That row supplements, rather than
+repeats, the applicable Slice 73 13-module/180-test receipt.
+
+Slice 72 is the retained Linux x64 CE CPU/CUDA proof when its declared model,
+reranker, engine, feature, build, lock, and tooling inputs have no relevant
+diff. It does not prove the combined release package. Slice 75 also builds and
+installs the current Linux x64 `embed-cuda,rerank-cuda` wheel/N-API/CLI package
+and runs CPU, auto, and forced-CUDA embed/rerank processes with RTX 3090
+allocation and model-forward evidence. Linux ARM64/macOS/Windows packages
+carry their documented default-embedder feature, not an implied CE guarantee.
+
+Tegra is an active 0.8.25 and go-forward Python CUDA route. Slice 75 makes
+`jetson-tegra-cuda-evidence.yml` release-generic, removing its stale 0.8.24
+branch and expected-version literals while preserving exact-SHA and
+nonpublication gates. On the Jetson at `10.83.10.13`, it builds and installs
+one host-native `0.8.25+tegra` `linux_aarch64` wheel and runs CPU, auto-CUDA,
+and forced-CUDA in separate processes. Because the repository version cut is
+outside the slice, the builder accepts a validated `candidate_version` and
+changes only the copied staging manifest; it records the overlay diff and
+never dirties the exact-SHA checkout. The input must equal the release-state
+version and branch suffix. The forced path must retain verified Orin allocation
+and model-forward evidence. `publish_to_pages=false` is mandatory in Slice 75.
+
+Musl, ARMv7, Windows ARM64/ia32, Windows CUDA, and Tegra npm remain outside the
+active routes. Public compatibility docs continue to describe the currently
+published release until the separately authorized release cut; the closure
+receipt describes candidate routes without rewriting published-state claims
+early.
+
+## TDD, review, and rerun policy
+
+RED tests first define manifest closure/count/skip/applicability failures and
+any product defect exposed by the interaction/upgrade fixtures. GREEN adds the
+minimal validator, manifest, fixture hooks, and fail-closed verdict assertions.
+Tests remain fixed during each correction. An independent reviewer checks the
+design before code and another checks the final diff.
+
+The manifest tests are added to the already-registered
+`test_agent_tier_contracts.sh` suite, so the post-implementation aggregate
+contract remains structurally pinned at 109 suite labels rather than acquiring
+an accidental 110th label.
+
+After candidate freeze, a narrow correction invalidates only cells whose
+declared inputs changed. Product/schema/search/write changes invalidate the
+interaction, upgrade, affected performance, and installed-consumer cells.
+Model/reranker changes invalidate live-model, EU7, and relevant CE cells.
+Workflow/package changes invalidate affected hosted rows. Receipt/status-only
+changes invalidate none when product-tree equality is proved. The aggregate
+default-tree gate runs once on the final product tree; unaffected expensive
+campaigns are not repeated.
+
+The aggregate gate requires zero skipped suite labels. Its known nested
+network-backed model bodies are an exact manifest exclusion and receive no
+credit there; the separate live-model cell must execute them. Any other nested
+skip is a failure. AC-072 additionally unsets scale-treatment and drain-timeout
+overrides. EU7 unsets its recompute override and writes only to a caller-owned
+run-directory path, never the tracked historical `eu7-latest` file.

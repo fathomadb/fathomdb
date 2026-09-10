@@ -1,0 +1,268 @@
+{
+  "schema_version": "fathomdb.slice75-closure-manifest/v1",
+  "release": "0.8.25",
+  "branch": "release/0.8.25",
+  "suite_labels": 109,
+  "bindings": {
+    "FINAL_SHA": "git rev-parse HEAD",
+    "RUN_DIR": "dev/plans/runs/0.8.25-slice-75",
+    "HF_HOME": "${HOME}/.cache/huggingface",
+    "FATHOMDB_EMBEDDER_CACHE": "${HOME}/.cache/fathomdb/embedders",
+    "RERANKER_CACHE": "${HOME}/.cache/fathomdb/reranker/0290849b0459"
+  },
+  "global_rules": {
+    "cwd": ".",
+    "dirty_product_tree": "fail",
+    "retry_count": 0,
+    "raw_log_directory": "${RUN_DIR}/raw",
+    "cell_receipt_template": "${RUN_DIR}/cells/${CELL_ID}.json",
+    "candidate_identity_set": "tracked-tree",
+    "input_digest_policy": "At candidate freeze, canonical SHA-256 over the full tracked tree identifies the unchanged candidate. Each cell separately hashes only its closed invalidation input set; output artifacts are SHA-256 recorded after creation and before consumption.",
+    "forbidden_output_patterns": ["[skip]", "0 tests", "timed out"]
+  },
+  "fixed_inputs": {
+    "tests/fixtures/slice45_frozen_context_v3.json": "07593b03b5ce7bec61371c87c46c0969d7791aaf503d29eab8f0ed6a7f5b2323",
+    "scripts/release/smoke/slice73-windows-napi-modules.json": "da703d3e20176473bc82264c337fae062176d39c122d047e335a7664e850018f",
+    "experiments/configs/measurement-classification/native-search.measurement-plan.v2.json": "ae6c068ab7d67f7b0ec2b5e756dee2619c31825d73e1197dd7be4dab32bdb40c",
+    "dev/fixtures/slice20-dependency-conformance-v1.json": "1572d7bb921867100d0f1c3b283e60be9ed6fcf1e012224c5d74b37519635a5c",
+    "dev/fixtures/slice25-actuation-conformance-v1.json": "a325f6b3c2b5db943cc99bc431061d66e170dd935dcfb98584fa84bf1653a475",
+    "dev/fixtures/slice60-graph-expand-conformance-v1.json": "ec43aec001ebfa2b6e3696559e31bfcb19b3c88f109e021ff3aa281a28563baf",
+    "experiments/configs/measurement-classification/native-search.slice75.v2.json": "6ef62916f4ba2b770594db25bcb0d5e9215b7af95482165847e56d26b301954d"
+  },
+  "input_sets": {
+    "tracked-tree": ["@git-ls-files"],
+    "engine": ["Cargo.toml", "Cargo.lock", "src/rust/crates/fathomdb-engine", "src/rust/crates/fathomdb-query", "src/rust/crates/fathomdb-schema"],
+    "schema": ["Cargo.toml", "Cargo.lock", "src/rust/crates/fathomdb-engine", "src/rust/crates/fathomdb-schema"],
+    "models": ["Cargo.toml", "Cargo.lock", "src/rust/crates/fathomdb-cli", "src/rust/crates/fathomdb-embedder", "src/rust/crates/fathomdb-engine", "src/rust/crates/fathomdb-py", "src/python", "src/ts"],
+    "packages": ["Cargo.toml", "Cargo.lock", "src/rust", "src/python", "src/ts", "scripts/release"],
+    "global": ["Cargo.toml", "Cargo.lock", "src/rust", "src/python", "experiments/__init__.py", "experiments/_lib.py", "experiments/measurement_classification.py", "experiments/configs/measurement-classification/native-search.slice75.v2.json", "experiments/configs/measurement-classification/native-search.measurement-plan.v2.json"],
+    "windows": [".github/workflows/ci.yml", "scripts/release/slice75-windows-runner.sh", "scripts/release/smoke/smoke-local-native-artifacts.ps1", "scripts/release/smoke/slice73-windows-napi-modules.json", "src/rust/crates/fathomdb-napi", "src/ts"],
+    "hosted": [".github/workflows/ci.yml", "scripts/release/slice75-hosted-ci.sh"],
+    "tegra": [".github/workflows/jetson-tegra-cuda-evidence.yml", "scripts/release/build-python-cuda-tegra.sh", "scripts/release/slice75-jetson-run.sh", "scripts/release/verify-tegra-gpu-witness.py", "scripts/release/require-tegra-pages-release-version.sh", "scripts/release/cuda-artifact-contract.sh", "src/rust", "src/python"],
+    "docs": ["mkdocs.yml", "docs"]
+  },
+  "cell_input_sets": {
+    "default-tree": ["tracked-tree"],
+    "final-interactions": ["engine"],
+    "schema26-upgrade": ["schema"],
+    "ac021": ["engine"],
+    "ac059b": ["engine"],
+    "ac034ab": ["engine"],
+    "performance": ["engine"],
+    "eu7-real": ["models"],
+    "model-cache": ["models"],
+    "model-ts": ["models"],
+    "model-engine": ["models"],
+    "model-python": ["models"],
+    "model-cli": ["models"],
+    "rust-release-build": ["packages"],
+    "rust-leaf-packages": ["packages"],
+    "cli-installed-smoke": ["packages"],
+    "linux-artifact-build": ["packages"],
+    "linux-artifact-current-smoke": ["packages"],
+    "linux-runtime-floor-smokes": ["packages"],
+    "linux-cuda-package": ["packages"],
+    "global-01-native": ["global", "packages"],
+    "windows-runner-preflight": ["windows"],
+    "hosted-native-validation": ["windows", "hosted", "packages"],
+    "jetson-tegra": ["tegra"],
+    "mkdocs": ["docs"],
+    "hosted-ci": ["hosted", "tracked-tree"]
+  },
+  "external_inputs_by_cell": {
+    "model-cache": {"${FATHOMDB_EMBEDDER_CACHE}/0b2926f8a9b1/config.json": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750", "${FATHOMDB_EMBEDDER_CACHE}/0b2926f8a9b1/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66", "${FATHOMDB_EMBEDDER_CACHE}/0b2926f8a9b1/model.safetensors": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad"},
+    "eu7-real": {"inherit": "model-cache"},
+    "model-ts": {"inherit": "model-cache"},
+    "model-engine": {"inherit": "model-cache"},
+    "model-python": {"inherit": "model-cache"},
+    "model-cli": {"inherit": "model-cache"},
+    "linux-cuda-package": {"${HF_HOME}/hub/models--BAAI--bge-small-en-v1.5/snapshots/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/config.json": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750", "${HF_HOME}/hub/models--BAAI--bge-small-en-v1.5/snapshots/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66", "${HF_HOME}/hub/models--BAAI--bge-small-en-v1.5/snapshots/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/model.safetensors": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad", "${RERANKER_CACHE}/config.json": "2144195e107cd7ea61556478e7add12986ebfbc3085f924fc0b90c2410604879", "${RERANKER_CACHE}/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66", "${RERANKER_CACHE}/model.safetensors": "a0e7364ddf91ff7028f1102e1b91ac7a72e3db4061241bd84efe45c72c9af03a"},
+    "eu7-corpus": {"path_glob": "data/corpus-data/raw/*.jsonl", "file_count": 13, "canonical_sha256": "af1484a4873e61d98647ea44ab3cb452a3b42d9d7ccd32babb68f50ba531b65e", "consumer": "eu7-real"}
+  },
+  "cells": [
+    {
+      "id": "default-tree",
+      "timeout_seconds": 7200,
+      "commands": ["env AGENT_VERBOSE=1 bash scripts/agent-verify.sh --tier=all"],
+      "expected": {"suite_labels": 109, "failed": 0, "skipped": 0, "excluded": 0}
+    },
+    {
+      "id": "final-interactions",
+      "timeout_seconds": 900,
+      "commands": ["cargo test -p fathomdb-engine --features operator,test-hooks --test slice75_feature_interactions -- --nocapture --test-threads=1"],
+      "expected": {"passed": 4, "ignored": 0}
+    },
+    {
+      "id": "schema26-upgrade",
+      "timeout_seconds": 900,
+      "commands": ["cargo test -p fathomdb-engine --features operator,test-hooks --test slice75_schema26_upgrade -- --nocapture --test-threads=1"],
+      "expected": {"passed": 2, "before": 26, "after": 33, "steps": [27, 28, 29, 30, 31, 32, 33], "reopen_steps": 0}
+    },
+    {
+      "id": "ac021",
+      "timeout_seconds": 180,
+      "commands": ["env AGENT_LONG=1 cargo test -p fathomdb-engine --features operator --test lifecycle_reliability ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl -- --exact --nocapture --test-threads=1"],
+      "expected": {"passed": 1, "duration_seconds": 60, "sqlite_schema": 0, "projection_add_drop_cycles_min": 1, "projection_rebuilds_min": 1}
+    },
+    {
+      "id": "ac059b",
+      "timeout_seconds": 360,
+      "commands": [
+        "cargo test -p fathomdb-engine --test cursors ac_059b_write_cursor_is_satisfied_by_projection_cursor_and_queryable -- --exact --nocapture --test-threads=1",
+        "env AGENT_LONG=1 cargo test -p fathomdb-engine --test cursor_read_after_write projection_cursor_bounds_observed_row_count -- --exact --nocapture --test-threads=1"
+      ],
+      "expected": {"passed": 2, "race_reads": 1000, "cursor_violations": 0}
+    },
+    {
+      "id": "ac034ab",
+      "timeout_seconds": 1800,
+      "commands": ["env AGENT_LONG=1 cargo test -p fathomdb-engine --test durability_soak ac_034a_and_b_power_cut_zero_corruption_and_p99_lost_commit -- --exact --nocapture --test-threads=1"],
+      "expected": {"passed": 1, "trials": 100, "corruption": 0, "lost_commit_p99_ms_max": 100},
+      "unavailable": {"ac034c": "no accepted VM/sysrq fixture"}
+    },
+    {
+      "id": "performance",
+      "timeout_seconds": 10800,
+      "unset_environment": ["AC_FULL_SCALE", "AC013_SCALE_TREATMENT", "AC013_DRAIN_TIMEOUT_MS"],
+      "commands": [
+        "cargo test --release --no-run -p fathomdb-engine --test perf_gates",
+        "env AGENT_LONG=1 AC012_CORPUS_N=10000 cargo test --release -p fathomdb-engine --test perf_gates ac_012_text_query_latency_on_fts5_path -- --exact --nocapture --test-threads=1",
+        "env AGENT_LONG=1 AC013_CORPUS_N=10000 AC013_VECTOR_DIM=384 cargo test --release -p fathomdb-engine --test perf_gates ac_013_vector_retrieval_latency -- --exact --nocapture --test-threads=1",
+        "env AGENT_LONG=1 cargo test --release -p fathomdb-engine --test perf_gates ac_020_reads_do_not_serialize_on_a_single_reader_connection -- --exact --nocapture --test-threads=1"
+      ],
+      "expected": {"passed": 3, "text_p50_ms_max": 20, "text_p99_ms_max": 150, "vector_p50_ms_max": 80, "vector_p99_ms_max": 300, "concurrent_ratio_max": 0.1875}
+    },
+    {
+      "id": "eu7-real",
+      "timeout_seconds": 10800,
+      "unset_environment": ["FATHOMDB_SKIP_NETWORK_TESTS", "EU7_FORCE_FULL_RECOMPUTE"],
+      "commands": ["env AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 EU7_LATENCY_SAMPLES=1000 EU7_STRESS_PER_THREAD=250 FATHOMDB_EU7_OUTPUT=${RUN_DIR}/eu7.json cargo test --release -p fathomdb-engine --features operator,default-embedder --test eu7_real_corpus_ac eu7_real_corpus_ac_validation -- --exact --ignored --nocapture --test-threads=1"],
+      "expected": {"passed": 1, "real_docs_min": 7667, "ac073_stress_bound": "max(10*baseline_p99_ms,150)", "ac075_recall_ci_hi_min": 0.9}
+    },
+    {
+      "id": "model-cache",
+      "timeout_seconds": 1800,
+      "unset_environment": ["FATHOMDB_SKIP_NETWORK_TESTS"],
+      "commands": ["cargo run --quiet -p fathomdb-cli --features default-embedder --bin fathomdb -- doctor warm-cache --json"],
+      "expected": {"exit_code": 0, "model": "BAAI/bge-small-en-v1.5", "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a"}
+    },
+    {
+      "id": "model-ts",
+      "timeout_seconds": 3600,
+      "unset_environment": ["FATHOMDB_SKIP_NETWORK_TESTS"],
+      "commands": [
+        "npm ci --prefix src/ts",
+        "npm run build:native:debug --prefix src/ts",
+        "npm exec --prefix src/ts -- tsc -p tsconfig.json",
+        "cd src/ts && for test_file in dist/tests/embed-batch-cls.test.js dist/tests/embedder-event-narrowing.test.js dist/tests/functional-embed.test.js dist/tests/release-surface.test.js dist/tests/slice20c-flush-barrier.test.js dist/tests/tc67-unsupported-vector-kind-report.test.js dist/tests/use-default-embedder.test.js; do RELEASE_SURFACE_TESTS=1 node --test \"$test_file\" || exit; done"
+      ],
+      "expected": {"passed": 33, "per_file": [2, 1, 5, 2, 11, 6, 6], "skipped": 0}
+    },
+    {
+      "id": "model-engine",
+      "timeout_seconds": 1800,
+      "unset_environment": ["FATHOMDB_SKIP_NETWORK_TESTS"],
+      "commands": ["cargo test -p fathomdb-engine --features default-embedder --test eu5b_lockflip"],
+      "expected": {"passed": 9, "skipped": 0}
+    },
+    {
+      "id": "model-python",
+      "timeout_seconds": 1800,
+      "unset_environment": ["FATHOMDB_SKIP_NETWORK_TESTS"],
+      "commands": ["python -m pytest src/python/tests/test_use_default_embedder.py src/python/tests/test_embed.py src/python/tests/test_functional_graph_arm.py::test_edge_body_enables_edge_fact_seeding src/python/tests/test_slice20c_flush_barrier.py::test_a_no_embedder_session_leaves_an_enrolled_kinds_write_recoverable"],
+      "expected": {"passed": 13, "skipped": 0}
+    },
+    {
+      "id": "model-cli",
+      "timeout_seconds": 900,
+      "unset_environment": ["FATHOMDB_SKIP_NETWORK_TESTS"],
+      "commands": ["cargo test -p fathomdb-cli --features default-embedder --test cli_warm_cache"],
+      "expected": {"passed": 2, "skipped": 0}
+    },
+    {
+      "id": "rust-release-build",
+      "timeout_seconds": 3600,
+      "commands": ["cargo build --locked --release --workspace"],
+      "expected": {"exit_code": 0}
+    },
+    {
+      "id": "rust-leaf-packages",
+      "timeout_seconds": 1800,
+      "commands": ["cargo package -p fathomdb-embedder-api", "cargo package -p fathomdb-schema", "cargo package -p fathomdb-query"],
+      "expected": {"packaged": 3, "registry_writes": 0}
+    },
+    {
+      "id": "cli-installed-smoke",
+      "timeout_seconds": 300,
+      "commands": ["target/release/fathomdb --version", "target/release/fathomdb doctor check-integrity --json ${RUN_DIR}/cli-smoke.fdb", "target/release/fathomdb doctor data-plane-integrity --json ${RUN_DIR}/cli-smoke.fdb"],
+      "expected": {"exit_code": 0, "integrity": "ok", "data_plane_status": "clean", "source": "target/release/fathomdb"}
+    },
+    {
+      "id": "linux-artifact-build",
+      "timeout_seconds": 7200,
+      "commands": ["maturin build --locked --release --out ${RUN_DIR}/artifacts/python --features pyo3/extension-module,default-embedder -m src/rust/crates/fathomdb-py/Cargo.toml", "npm ci --prefix src/ts", "npm run build:native --prefix src/ts", "npm exec --prefix src/ts -- tsc -p tsconfig.build.json"],
+      "expected": {"wheel_count": 1, "wheel_tag": "cp310-abi3", "napi_label": "linux-x64-gnu"}
+    },
+    {
+      "id": "linux-artifact-current-smoke",
+      "timeout_seconds": 7200,
+      "commands": ["bash scripts/release/smoke/smoke-local-native-artifacts.sh ${RUN_DIR}/artifacts/python src/ts src/ts/npm/linux-x64-gnu linux-x64-gnu scripts/release/smoke/slice73-windows-napi-modules.json"],
+      "expected": {"python_feature_markers": 8, "napi_modules": 13, "napi_tests": 180, "source_fallback": false}
+    },
+    {
+      "id": "linux-runtime-floor-smokes",
+      "timeout_seconds": 3600,
+      "commands": ["env FATHOMDB_SMOKE_PYTHON=python3.10 FATHOMDB_SMOKE_NODE=node18 FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh ${RUN_DIR}/artifacts/python src/ts src/ts/npm/linux-x64-gnu linux-x64-gnu", "env FATHOMDB_SMOKE_PYTHON=python3.11 FATHOMDB_SMOKE_NODE=node FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh ${RUN_DIR}/artifacts/python src/ts src/ts/npm/linux-x64-gnu linux-x64-gnu", "env FATHOMDB_SMOKE_PYTHON=python3.12 FATHOMDB_SMOKE_NODE=node FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh ${RUN_DIR}/artifacts/python src/ts src/ts/npm/linux-x64-gnu linux-x64-gnu"],
+      "expected": {"python_versions": ["3.10", "3.11", "3.12"], "node_versions": ["18", "25.9.0"], "artifact_rebuilds": 0}
+    },
+    {
+      "id": "linux-cuda-package",
+      "timeout_seconds": 7200,
+      "commands": ["env FATHOMDB_CANDIDATE_SHA=${FINAL_SHA} bash scripts/release/cuda-preflight.sh ${RUN_DIR}/cuda-preflight --rerank-cuda", "cargo build --locked --release -p fathomdb-cli --features embed-cuda,rerank-cuda --target x86_64-unknown-linux-gnu", "bash scripts/release/seal-cuda-cli-archive.sh --binary target/x86_64-unknown-linux-gnu/release/fathomdb --version 0.8.24 --output ${RUN_DIR}/cuda-preflight.packages/fathomdb-0.8.24-x86_64-unknown-linux-gnu.tar.gz", "bash scripts/release/slice75-cuda-package-smoke.sh --packages ${RUN_DIR}/cuda-preflight.packages --witness ${RUN_DIR}/cuda-preflight --hf-home ${HF_HOME} --output ${RUN_DIR}/cuda-package-smoke"],
+      "expected": {"consumers": ["python", "napi", "cli"], "policies": ["cpu", "auto", "cuda"], "gpu": "RTX 3090", "python_napi_embed_model_forwards_min": 1, "python_napi_rerank_model_forwards_min": 1, "cli_doctors": ["gpu", "reranker-gpu"]}
+    },
+    {
+      "id": "global-01-native",
+      "timeout_seconds": 900,
+      "commands": ["bash scripts/release/slice75-global-native.sh --wheel-dir ${RUN_DIR}/artifacts/python --config experiments/configs/measurement-classification/native-search.slice75.v2.json --receipt ${RUN_DIR}/global-01.json"],
+      "expected": {"measurement_layer": "data_plane", "engine_search_calls": 1, "expected_rank": 1, "recall_at_3": 1, "reciprocal_rank": 1, "spend_usd": 0}
+    },
+    {
+      "id": "windows-runner-preflight",
+      "timeout_seconds": 600,
+      "commands": ["bash scripts/release/slice75-windows-runner.sh --vm gh-runner-wonl-win11 --repository fathomadb/fathomdb --runner windchill3-windows-11 --ssh-user runner --ssh-key ${WINDOWS_SSH_KEY} --receipt ${RUN_DIR}/windows-runner.json"],
+      "expected": {"runner": "windchill3-windows-11", "labels": ["self-hosted", "Windows", "X64", "windchill3-windows-11"], "status": "online", "busy": false, "service": "running"}
+    },
+    {
+      "id": "hosted-native-validation",
+      "timeout_seconds": 10800,
+      "commands": ["bash scripts/release/slice75-hosted-ci.sh --repository fathomadb/fathomdb --branch release/0.8.25 --candidate-sha ${FINAL_SHA} --job native-artifact-runtime-validation --receipt ${RUN_DIR}/hosted-native-validation.json"],
+      "expected": {"workflow": "CI", "job": "native-artifact-runtime-validation", "rows": ["linux-x64-gnu", "linux-arm64-gnu", "darwin-x64", "darwin-arm64", "win32-x64-msvc"], "conclusion": "success"}
+    },
+    {
+      "id": "jetson-tegra",
+      "timeout_seconds": 10800,
+      "commands": ["bash scripts/release/slice75-jetson-run.sh --repository fathomadb/fathomdb --workflow jetson-tegra-cuda-evidence.yml --branch release/0.8.25 --candidate-sha ${FINAL_SHA} --candidate-version 0.8.25 --receipt ${RUN_DIR}/jetson-tegra.json"],
+      "expected": {"runner_host": "10.83.10.13", "wheel_version": "0.8.25+tegra", "wheel_count": 1, "policies": ["cpu", "auto", "cuda"], "gpu": "Orin", "publication_jobs": 0}
+    },
+    {
+      "id": "mkdocs",
+      "timeout_seconds": 600,
+      "commands": [".venv/bin/mkdocs build --strict"],
+      "expected": {"warnings": 0, "errors": 0}
+    },
+    {
+      "id": "hosted-ci",
+      "timeout_seconds": 14400,
+      "commands": ["bash scripts/release/slice75-hosted-ci.sh --repository fathomadb/fathomdb --branch release/0.8.25 --candidate-sha ${FINAL_SHA} --all-required --receipt ${RUN_DIR}/hosted-ci.json"],
+      "expected": {"head_sha": "${FINAL_SHA}", "required_conclusion": "success", "unauthorized_skips": 0, "advisory_jobs_recorded": true, "strict_security_job": "security"}
+    }
+  ],
+  "retained": [
+    {"id": "slice71-write", "semantic_scope": "post-AC-072 candidate-only Scale-02 and projection-active write guards", "candidate": "84c056c6", "source_candidate": "eda95b07", "receipt": "dev/plans/0.8.25/features/slice-71/status.md", "receipt_sha256": "c356a7f6d900103866811c6174e423fb5c0affe6eb7a80bd6fe301f6111dabd5", "invalidation_paths": ["src/rust/crates/fathomdb-engine/src", "src/rust/crates/fathomdb-schema/src", "Cargo.lock"]},
+    {"id": "slice71-ac072", "semantic_scope": "AC-072 10k/384d/1000-query candidate recovery and execution binding", "candidate": "84c056c6", "execution_candidate": "4d8500d9", "receipt": "dev/plans/runs/0.8.25-slice-71/ac072-final/receipt.v1.json", "receipt_sha256": "4291cc2a5c7843190da2422e9ab1b8e568ec3ec4a858ae857d605820fc60b190", "binding": "dev/plans/runs/0.8.25-slice-71/ac072-final/execution-binding.v1.json", "binding_sha256": "7e61a312599a599c66856b1477bc7c1a88c67a5e8db4e98fe079e594a7177d22", "invalidation_paths": ["src/rust/crates/fathomdb-engine", "src/rust/crates/fathomdb-schema", "Cargo.lock"]},
+    {"id": "slice72", "semantic_scope": "installed CE CPU/CUDA correctness and <=1.10 ratios", "candidate": "2e14f5ba81888a72ccc8616759d6413056268d95", "receipt": "dev/plans/runs/0.8.25-slice-72/receipt.json", "receipt_sha256": "9cee6f677e8aa9ff3dd7ca48f9eeeea93c82a394b9c66132f3f1f5725cd27e14", "invalidation_paths": ["src/rust/crates/fathomdb-engine/src", "src/rust/crates/fathomdb-embedder/src", "scripts/release/run-slice72-ce-profile.py", "scripts/release/slice72-ce-profile-worker.py", "scripts/release/slice72_ce_artifact.py", "scripts/release/verify-slice72-ce-profile.py", "Cargo.lock"]},
+    {"id": "slice73", "semantic_scope": "Windows x64 installed N-API 13-module/180-test campaign; workflow routing is replaced by current hosted validation", "candidate": "6eb7cd18aa83faf400f843f8ce55bf16bcf9309e", "receipt": "dev/plans/runs/0.8.25-slice-73/receipt.json", "receipt_sha256": "4020aad58cfef363aab83f782de215fc4f9ad648454fab40f72408cc80819bbe", "invalidation_paths": ["src/rust/crates/fathomdb-napi", "src/ts", "scripts/release/smoke/smoke-local-native-artifacts.ps1", "scripts/release/smoke/slice73-windows-napi-modules.json", "Cargo.lock"], "replacement_cell": "hosted-native-validation"}
+  ],
+  "excluded": ["scripts/check.sh", "agent-verify-fast", "agent-verify-heavy", "synthetic-recall-verdict", "paid-global", "tracked-100k", "tracked-1m", "tegra-napi", "windows-cuda", "windows-arm64", "windows-ia32", "linux-musl", "linux-armv7"]
+}

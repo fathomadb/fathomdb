@@ -93,7 +93,7 @@ class Slice73WindowsNapiContract(unittest.TestCase):
             "$env:TEMP = $testTemp",
             "$env:TMP = $testTemp",
             "foreach ($module in $manifest.modules)",
-            "& node --test $modulePath",
+            "& node --test --test-reporter=tap $modulePath",
             "tests -le 0",
             "pass -ne $counts.tests",
             "fail -ne 0",
@@ -110,7 +110,6 @@ class Slice73WindowsNapiContract(unittest.TestCase):
         smoke = SMOKE.read_text(encoding="utf-8")
         required = [
             "function Assert-RegularPathFromRoot",
-            "[char]0x2139",
             "Assert-RegularPathFromRoot $manifestPath $repoRoot",
             "Assert-RegularPathFromRoot $sourceModule $repoRoot",
             "Assert-RegularPathFromRoot $sourceFixture $repoRoot",

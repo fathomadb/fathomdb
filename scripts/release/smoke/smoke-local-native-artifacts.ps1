@@ -87,8 +87,7 @@ function Get-TreeDigest {
 
 function Get-NodeSummaryCount {
   param([string]$Output, [string]$Name)
-  $infoPrefix = [regex]::Escape([string][char]0x2139)
-  $matches = [regex]::Matches($Output, "(?m)^\s*(?:#|$infoPrefix)\s+$Name (\d+)\s*$")
+  $matches = [regex]::Matches($Output, "(?m)^\s*# $Name (\d+)\s*$")
   if ($matches.Count -ne 1) {
     throw "smoke-local-native-artifacts: expected one Node summary field '$Name', found $($matches.Count)"
   }
@@ -400,7 +399,7 @@ console.log("local N-API package runtime validation: ok");
           -not (Test-PathInside $modulePath $compiledDist)) {
         throw "smoke-local-native-artifacts: retained compiled module is missing or escaped: $module"
       }
-      $moduleOutput = @(& node --test $modulePath 2>&1)
+      $moduleOutput = @(& node --test --test-reporter=tap $modulePath 2>&1)
       $moduleExit = $LASTEXITCODE
       $moduleText = [string]::Join("`n", @($moduleOutput | ForEach-Object { $_.ToString() }))
       Write-Output $moduleText

@@ -110,6 +110,7 @@ class Slice73WindowsNapiContract(unittest.TestCase):
         smoke = SMOKE.read_text(encoding="utf-8")
         required = [
             "function Assert-RegularPathFromRoot",
+            "[char]0x2139",
             "Assert-RegularPathFromRoot $manifestPath $repoRoot",
             "Assert-RegularPathFromRoot $sourceModule $repoRoot",
             "Assert-RegularPathFromRoot $sourceFixture $repoRoot",

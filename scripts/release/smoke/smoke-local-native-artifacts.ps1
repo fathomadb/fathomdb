@@ -87,7 +87,8 @@ function Get-TreeDigest {
 
 function Get-NodeSummaryCount {
   param([string]$Output, [string]$Name)
-  $matches = [regex]::Matches($Output, "(?m)^\s*# $Name (\d+)\s*$")
+  $infoPrefix = [regex]::Escape([string][char]0x2139)
+  $matches = [regex]::Matches($Output, "(?m)^\s*(?:#|$infoPrefix)\s+$Name (\d+)\s*$")
   if ($matches.Count -ne 1) {
     throw "smoke-local-native-artifacts: expected one Node summary field '$Name', found $($matches.Count)"
   }

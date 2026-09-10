@@ -35,8 +35,9 @@ operation outside this ladder.
 - the permitted exclusions listed in the plan.
 
 The validator seals declarations only: it accepts closed keys and known cell
-IDs, checks fixed in-repository and retained-receipt digests, and rejects
-relaxed limits, counts, environments, or exclusions. It does not pretend to
+IDs, checks fixed in-repository and retained-receipt digests, and pins the
+complete execution declaration so command, timeout, environment, expectation,
+input mapping, or exclusion drift fails. It does not pretend to
 execute commands or infer a pass from prose. Execution records the exact
 candidate SHA, command, exit status, positive count/marker, threshold, and
 raw-log digest for each cell. Independent evidence review checks those records
@@ -49,7 +50,10 @@ set so a fix does not force unrelated expensive work to repeat. Retained cells
 use explicit `git diff --quiet <source> <candidate> -- <paths...>` checks.
 External BGE/TinyBERT files and the gitignored EU7 corpus are checked against
 their declared SHA-256/file-count inputs before their consumers run. Generated
-package/model outputs are hashed before their first consumer. Raw logs are
+package/model outputs are hashed before their first consumer. The combined
+CUDA package set has a canonical manifest binding all four artifact hashes to
+the checked-out candidate SHA and verified preflight witness; the installed
+smoke rejects substituted bytes. Raw logs are
 temporary; the committed compact receipt retains their digests and the
 observations used for the verdict. Hosted helpers bind the repository, branch,
 exact SHA, run ID, workflow/job name, matrix label, and conclusion. The Jetson
@@ -71,9 +75,11 @@ and idle state through the GitHub API.
    route and compares it with the complete ranked control. Adding a source
    dependency, lifecycle-ineligible row, and frozen context must select the
    safe eligibility route and never expose the hidden dependent.
-3. A bounded writer/projection/search race checks that each completed search
-   is internally consistent, cursors do not claim false readiness, and results
-   contain neither duplicate identities nor lifecycle-ineligible rows.
+3. A bounded writer/projection/search fixture first checks completed mutations
+   and readiness at deterministic boundaries, then runs an explicit overlapping
+   writer/search phase. Each search must be internally consistent and contain
+   no duplicate identities; settled results contain no lifecycle-ineligible
+   rows.
 4. Source erasure followed by recreation must remove old canonical, vector,
    dependency, and search visibility, settle projection state, and remain
    correct after close/reopen.

@@ -89,6 +89,18 @@ class Slice75ClosureManifestTest(unittest.TestCase):
         value["unreviewed"] = True
         self.assert_rejected(value, "unknown top-level")
 
+    def test_unreviewed_command_or_timeout_change_is_rejected(self) -> None:
+        for field, replacement in (("commands", ["true"]), ("timeout_seconds", 1)):
+            with self.subTest(field=field):
+                value = self.manifest()
+                self.cell(value, "mkdocs")[field] = replacement
+                self.assert_rejected(value, "sealed execution")
+
+    def test_excluded_cell_set_is_exact(self) -> None:
+        value = self.manifest()
+        value["excluded"].remove("paid-global")
+        self.assert_rejected(value, "excluded cells")
+
 
 if __name__ == "__main__":
     unittest.main()

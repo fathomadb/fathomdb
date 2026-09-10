@@ -3,15 +3,16 @@
 set -euo pipefail
 
 usage() {
-  printf 'usage: %s --candidate-sha SHA --packages DIR --witness DIR --hf-home DIR --output DIR\n' "$0" >&2
+  printf 'usage: %s --candidate-sha SHA --packages DIR --package-manifest FILE --witness DIR --hf-home DIR --output DIR\n' "$0" >&2
 }
 
-candidate_sha='' packages='' witness='' hf_home='' output=''
+candidate_sha='' packages='' package_manifest='' witness='' hf_home='' output=''
 while [ "$#" -gt 0 ]; do
   [ "$#" -ge 2 ] || { usage; exit 2; }
   case "$1" in
     --candidate-sha) candidate_sha="$2" ;;
     --packages) packages="$2" ;;
+    --package-manifest) package_manifest="$2" ;;
     --witness) witness="$2" ;;
     --hf-home) hf_home="$2" ;;
     --output) output="$2" ;;
@@ -19,7 +20,8 @@ while [ "$#" -gt 0 ]; do
   esac
   shift 2
 done
-[ -n "$candidate_sha" ] && [ -d "$packages" ] && [ -d "$witness" ] \
+[ -n "$candidate_sha" ] && [ -d "$packages" ] && [ -f "$package_manifest" ] \
+  && [ ! -L "$package_manifest" ] && [ -d "$witness" ] \
   && [ -d "$hf_home" ] && [ -n "$output" ] \
   || { usage; exit 2; }
 [[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]] \
@@ -30,6 +32,32 @@ head_sha="$(git rev-parse HEAD)"
 [ ! -e "$output" ] || { printf 'slice75-cuda-package-smoke: output must be new\n' >&2; exit 1; }
 python3 scripts/release/verify-cuda-preflight-witness.py \
   --witness-dir "$witness" --candidate-sha "$candidate_sha"
+python3 - "$packages" "$package_manifest" "$witness/cuda-preflight-witness.json" "$candidate_sha" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+packages, manifest_path, witness_path = map(Path, sys.argv[1:4])
+candidate = sys.argv[4]
+raw = manifest_path.read_bytes()
+manifest = json.loads(raw)
+canonical = json.dumps(manifest, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("ascii") + b"\n"
+if raw != canonical or set(manifest) != {"schema_version", "candidate_sha", "preflight_witness_sha256", "artifacts"}:
+    raise SystemExit("slice75-cuda-package-smoke: package manifest is not canonical")
+if manifest["schema_version"] != "fathomdb.slice75-cuda-package-set/v1" or manifest["candidate_sha"] != candidate:
+    raise SystemExit("slice75-cuda-package-smoke: package manifest candidate differs")
+digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+if manifest["preflight_witness_sha256"] != digest(witness_path):
+    raise SystemExit("slice75-cuda-package-smoke: package manifest names a different preflight witness")
+actual = {
+    path.name: digest(path)
+    for path in sorted(packages.iterdir())
+    if path.is_file() and path != manifest_path
+}
+if actual != manifest["artifacts"]:
+    raise SystemExit("slice75-cuda-package-smoke: package bytes differ from the candidate-bound manifest")
+PY
 
 shopt -s nullglob
 wheels=("$packages"/*.whl)

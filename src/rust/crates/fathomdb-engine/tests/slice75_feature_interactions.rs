@@ -1,15 +1,17 @@
 #![cfg(feature = "test-hooks")]
 
 use std::collections::HashSet;
-use std::sync::{mpsc, Arc};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{mpsc, Arc, Barrier};
 use std::thread;
+use std::time::Duration;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    ArtifactRevisionId, CanonicalHash, Engine, EngineError, FrozenReadErrorReason, InitialState,
-    LifecycleState, PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
-    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    WriteProvenanceV1,
+    ArtifactRevisionId, CanonicalHash, DependencyDerivedLookupV1, DependencySourceLookupV1, Engine,
+    EngineError, FrozenReadErrorReason, InitialState, LifecycleState, PreparedWrite,
+    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1,
+    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
@@ -277,9 +279,56 @@ fn concurrent_writes_projection_and_search_never_duplicate_or_expose_deleted_row
         checked_tx.send(()).expect("release writer");
     }
     writer.join().expect("writer");
+
+    let start = Arc::new(Barrier::new(2));
+    let writing = Arc::new(AtomicBool::new(true));
+    let writes_completed = Arc::new(AtomicUsize::new(0));
+    let overlapping_writer = {
+        let engine = Arc::clone(&engine);
+        let start = Arc::clone(&start);
+        let writing = Arc::clone(&writing);
+        let writes_completed = Arc::clone(&writes_completed);
+        thread::spawn(move || {
+            start.wait();
+            for index in 40..80 {
+                let logical = format!("race-{index}");
+                engine
+                    .write(&[node(
+                        &logical,
+                        format!("raceneedle document {index}"),
+                        "slice75-race",
+                    )])
+                    .expect("overlapping race write");
+                if index % 3 == 0 {
+                    engine
+                        .transition(&logical, LifecycleState::Deleted, Some("race fixture".into()))
+                        .expect("overlapping race delete");
+                }
+                writes_completed.fetch_add(1, Ordering::Release);
+                thread::sleep(Duration::from_millis(1));
+            }
+            engine.drain(10_000).expect("overlapping projection drain");
+            writing.store(false, Ordering::Release);
+        })
+    };
+    start.wait();
+    let mut overlapping_searches = 0;
+    while writing.load(Ordering::Acquire) {
+        let result = engine.search_with_limit("raceneedle", 100).expect("overlapping search");
+        let identities = result.results.iter().map(|hit| hit.id.clone()).collect::<HashSet<_>>();
+        assert_eq!(
+            identities.len(),
+            result.results.len(),
+            "overlapping search returned duplicate identities"
+        );
+        overlapping_searches += 1;
+    }
+    overlapping_writer.join().expect("overlapping writer");
+    assert_eq!(writes_completed.load(Ordering::Acquire), 40);
+    assert!(overlapping_searches > 0, "fixture did not exercise overlapping search and mutation");
     engine.drain(10_000).expect("drain");
     let final_result = engine.search_with_limit("raceneedle", 100).expect("final search");
-    assert_eq!(final_result.results.len(), 26);
+    assert_eq!(final_result.results.len(), 53);
 }
 
 #[test]
@@ -323,6 +372,17 @@ fn source_erasure_removes_dependency_and_search_state_before_safe_recreation_and
         .expect("freeze");
     opened.engine.erase_source("slice75-erasure").expect("erase source");
     assert!(opened.engine.search("eraseneedle").expect("post-erase search").results.is_empty());
+    assert!(opened
+        .engine
+        .dependencies_for_source(DependencySourceLookupV1::new("erase-source-r1").unwrap())
+        .expect("source dependencies after erasure")
+        .items
+        .is_empty());
+    assert!(opened
+        .engine
+        .dependency_for_derived(DependencyDerivedLookupV1::new("erase-derived-r1").unwrap())
+        .expect("derived dependency after erasure")
+        .is_none());
     assert!(matches!(
         opened.engine.search_frozen("eraseneedle", &frozen, 0, false, 0.3, 0, false, 10),
         Err(EngineError::FrozenRead(error)) if error.reason == FrozenReadErrorReason::StateDrifted
@@ -338,4 +398,15 @@ fn source_erasure_removes_dependency_and_search_state_before_safe_recreation_and
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].body, "eraseneedle recreated");
     assert_eq!(reopened.engine.vector_row_count_for_test().expect("vector rows"), 1);
+    assert!(reopened
+        .engine
+        .dependencies_for_source(DependencySourceLookupV1::new("erase-source-r1").unwrap())
+        .expect("source dependencies after reopen")
+        .items
+        .is_empty());
+    assert!(reopened
+        .engine
+        .dependency_for_derived(DependencyDerivedLookupV1::new("erase-derived-r1").unwrap())
+        .expect("derived dependency after reopen")
+        .is_none());
 }

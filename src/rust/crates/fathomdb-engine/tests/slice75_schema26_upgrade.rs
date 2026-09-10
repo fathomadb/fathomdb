@@ -5,10 +5,10 @@ use std::sync::{Arc, Once};
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::ProjectionStatus;
 use fathomdb_engine::{
-    ArtifactRevisionId, CanonicalHash, Engine, EngineError, FrozenReadErrorReason, InitialState,
-    LifecycleState, PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
-    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    WriteProvenanceV1,
+    ArtifactRevisionId, CanonicalHash, DependencyDerivedLookupV1, DependencySourceLookupV1, Engine,
+    EngineError, FrozenReadErrorReason, InitialState, LifecycleState, PreparedWrite,
+    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1,
+    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::{migrate_with_steps, Migration, MIGRATIONS, SCHEMA_VERSION, SQLITE_SUFFIX};
 use rusqlite::Connection;
@@ -304,6 +304,17 @@ fn schema26_upgrade_supports_lifecycle_dependency_erasure_recreation_and_reopen(
     assert!(post_erasure.results.iter().all(|hit| {
         hit.body != "upgraded dependency source" && hit.body != "upgraded dependency derived"
     }));
+    assert!(upgraded
+        .engine
+        .dependencies_for_source(DependencySourceLookupV1::new("upgraded-source-r1").unwrap())
+        .expect("source dependencies after erasure")
+        .items
+        .is_empty());
+    assert!(upgraded
+        .engine
+        .dependency_for_derived(DependencyDerivedLookupV1::new("upgraded-derived-r1").unwrap())
+        .expect("derived dependency after erasure")
+        .is_none());
     assert_eq!(upgraded.engine.vector_row_count_for_test().expect("post-erasure vectors"), 3);
     assert!(matches!(
         upgraded.engine.search_frozen(
@@ -343,4 +354,15 @@ fn schema26_upgrade_supports_lifecycle_dependency_erasure_recreation_and_reopen(
     assert!(results.iter().all(|hit| {
         hit.body != "upgraded dependency source" && hit.body != "upgraded dependency derived"
     }));
+    assert!(reopened
+        .engine
+        .dependencies_for_source(DependencySourceLookupV1::new("upgraded-source-r1").unwrap())
+        .expect("source dependencies after reopen")
+        .items
+        .is_empty());
+    assert!(reopened
+        .engine
+        .dependency_for_derived(DependencyDerivedLookupV1::new("upgraded-derived-r1").unwrap())
+        .expect("derived dependency after reopen")
+        .is_none());
 }

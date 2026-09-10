@@ -84,6 +84,31 @@ RETAINED_DIGESTS = {
     "slice72": ("receipt_sha256", "9cee6f677e8aa9ff3dd7ca48f9eeeea93c82a394b9c66132f3f1f5725cd27e14"),
     "slice73": ("receipt_sha256", "4020aad58cfef363aab83f782de215fc4f9ad648454fab40f72408cc80819bbe"),
 }
+EXCLUDED = {
+    "scripts/check.sh",
+    "agent-verify-fast",
+    "agent-verify-heavy",
+    "synthetic-recall-verdict",
+    "paid-global",
+    "tracked-100k",
+    "tracked-1m",
+    "tegra-napi",
+    "windows-cuda",
+    "windows-arm64",
+    "windows-ia32",
+    "linux-musl",
+    "linux-armv7",
+}
+SEALED_EXECUTION_SHA256 = "f8f72a68b8d3425a64b616bf91a317d8c248c6f197ad9be7cdfe160e9fea0092"
+SEALED_EXECUTION_KEYS = (
+    "bindings",
+    "global_rules",
+    "input_sets",
+    "cell_input_sets",
+    "external_inputs_by_cell",
+    "cells",
+    "excluded",
+)
 
 
 class InvalidManifest(ValueError):
@@ -111,6 +136,7 @@ def validate(manifest: dict[str, Any], repo: Path) -> None:
     require(manifest["release"] == "0.8.25", "release must be 0.8.25")
     require(manifest["branch"] == "release/0.8.25", "branch must be release/0.8.25")
     require(manifest["suite_labels"] == 109, "suite_labels must remain 109")
+    require(set(manifest["excluded"]) == EXCLUDED, "excluded cells changed")
 
     rules = manifest["global_rules"]
     require(
@@ -198,6 +224,15 @@ def validate(manifest: dict[str, Any], repo: Path) -> None:
     binding = repo / binding_item["binding"]
     require(binding.is_file(), "slice71-ac072: binding missing")
     require(sha256(binding) == binding_item.get("binding_sha256"), "slice71-ac072: binding_sha256 mismatch")
+
+    sealed_execution = {key: manifest[key] for key in SEALED_EXECUTION_KEYS}
+    sealed_bytes = json.dumps(
+        sealed_execution, ensure_ascii=True, separators=(",", ":"), sort_keys=True
+    ).encode("ascii")
+    require(
+        hashlib.sha256(sealed_bytes).hexdigest() == SEALED_EXECUTION_SHA256,
+        "sealed execution commands, timeouts, environments, inputs, or expectations changed",
+    )
 
 
 def main() -> int:

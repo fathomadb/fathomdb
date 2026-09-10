@@ -210,14 +210,16 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 72** (`PREFLIGHT-CE`) — generic preflight and installed CE profiles
+**IMMEDIATE NEXT: Slice 73** (`WINDOWS-NAPI`) — Windows Node/N-API CI coverage
 
-**Remaining ladder:** 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 73 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Slices 60 and 71 are durably closed. Slice 71 preserved the 71B general-write
+Slices 60, 71, and 72 are durably closed. Slice 71 preserved the 71B general-write
 correction at `eda95b07` and restored AC-072 at `84c056c6` without changing
 its limits. The exact 10k/384 campaign, focused blast-radius tests, independent
-reviews, and candidate-only 71B no-loss guards pass. Slice 72 is unblocked.
+reviews, and candidate-only 71B no-loss guards pass. Slice 72 makes preflight
+release-state-aware and retains passing installed CPU/CUDA CE evidence at
+candidate `2e14f5ba`; Slice 73 is unblocked.
 Package production, registry staging, tags, publication, post-publication
 smoke, and merge to main remain outside this ladder.
 

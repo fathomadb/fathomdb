@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 72 — installed CE profile and generic preflight
-status: READY
+status: COMPLETE
 depends_on: 71
 design: design.md
 design_version: 2

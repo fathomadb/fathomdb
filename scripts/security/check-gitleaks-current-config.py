@@ -76,6 +76,17 @@ EXPECTED_ALLOWLISTS = [
         "regexes": [r'^tokenizer\.json": "[0-9a-f]{64}"$'],
     },
     {
+        "description": "Slice 72 CE receipts contain only artifact and evidence digests",
+        "condition": "AND",
+        "regexTarget": "secret",
+        "paths": [
+            r"^dev/plans/runs/0\.8\.25-slice-72/(?:receipt\.json|"
+            r"(?:baseline|candidate)-(?:cpu|cuda)/"
+            r"(?:baseline|candidate)-(?:cpu|cuda)\.json)$"
+        ],
+        "regexes": [r"^[0-9a-f]{64}$"],
+    },
+    {
         "description": "code-marker drift evidence carries two reviewed marker identifiers",
         "condition": "AND",
         "regexTarget": "secret",

@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 72 (PREFLIGHT-CE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 73 (WINDOWS-NAPI), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -54,7 +54,7 @@ through plan/design v5 without broad regression rounds.
 | 55 | Basic tracing and integrity | Complete on release branch (`5a6942bc`) |
 | 60 | Minimal constrained graph parity | Complete on release branch (`59208028`) |
 | 71 | AC-072 read-latency resolution and 71B write recovery | Complete on release branch (`84c056c6`) |
-| 72 | Generic preflight and installed CE profiles | Not started |
+| 72 | Generic preflight and installed CE profiles | Complete on release branch (`2e14f5ba`) |
 | 73 | Windows Node/N-API CI coverage | Not started |
 | 75 | Integrated release closure | Not started |
 
@@ -82,6 +82,10 @@ through plan/design v5 without broad regression rounds.
   2,337.097 ms to 1,311.089 ms. Focused verification and independent code and
   evidence reviews pass. Candidate-only no-loss guards after the AC-072 product
   change also pass.
+- Slice 72 is complete at measured candidate `2e14f5ba`. Generic preflight uses
+  tracked release state and exact Git ancestry. The installed CPU/CUDA CE
+  campaign passes correctness, pinned RTX 3090 allocation, and all four 10%
+  median-p95 comparisons; the maximum ratio is `1.0962`. Slice 73 is unblocked.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
@@ -91,12 +95,12 @@ through plan/design v5 without broad regression rounds.
 - Generic release-state completion now distinguishes release-branch completion
   from `origin/main` reachability. The `landed` set remains empty until an
   independently authorized push and integration.
-- No publication, external-system mutation, or feature implementation is
-  authorized by prework.
+- Publication, tags, registry mutation, and `main` integration remain outside
+  the completed Slice 72 scope.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 72 (PREFLIGHT-CE)** — generic preflight and installed CE profiles. **Remaining ladder:** 72 → 73 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 73 (WINDOWS-NAPI)** — Windows Node/N-API CI coverage. **Remaining ladder:** 73 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

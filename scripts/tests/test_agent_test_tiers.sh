@@ -138,6 +138,12 @@ else
   fail "CI must run explicit --tier=fast and --tier=heavy verifier gates"
 fi
 
+if python3 "$SCRIPT_DIR/test_slice75_closure_manifest.py"; then
+  pass "Slice 75 closure manifest is fail-closed"
+else
+  fail "Slice 75 closure manifest contract must pass"
+fi
+
 if [ "$FAILED" -gt 0 ]; then
   printf '\n%d test(s) failed\n' "$FAILED" >&2
   exit 1

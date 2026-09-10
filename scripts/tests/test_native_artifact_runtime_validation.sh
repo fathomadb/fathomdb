@@ -213,7 +213,7 @@ grep -Fqx "    runs-on: \${{ matrix.runner }}" <<<"$block" \
   || fail 'runtime job must execute on every selected native runner'
 
 rows="$(awk '
-  /^          - runner: / { runner = $3; target = ""; label = ""; next }
+  /^          - runner: / { runner = $0; sub(/^          - runner: /, "", runner); target = ""; label = ""; next }
   /^            target: / { target = $2; next }
   /^            label: / { label = $2; print runner "|" target "|" label; runner = ""; target = ""; label = "" }
 ' <<<"$block" | sort)"
@@ -222,7 +222,7 @@ macos-14|aarch64-apple-darwin|darwin-arm64
 macos-15-intel|x86_64-apple-darwin|darwin-x64
 ubuntu-24.04-arm|aarch64-unknown-linux-gnu|linux-arm64-gnu
 ubuntu-latest|x86_64-unknown-linux-gnu|linux-x64-gnu
-windows-latest|x86_64-pc-windows-msvc|win32-x64-msvc
+[self-hosted, Windows, X64, windchill3-windows-11]|x86_64-pc-windows-msvc|win32-x64-msvc
 EOF
 )"
 [ "$rows" = "$expected" ] || fail "runtime matrix must cover exactly the five release-ready native triples; got: ${rows:-<none>}"
@@ -260,7 +260,7 @@ grep -Fqx '          npm exec -- tsc -p tsconfig.build.json' <<<"$napi_build_ste
 
 unix_validation_step="$(named_step 'Validate local wheel and N-API package')" \
   || fail 'missing Unix local-artifact validation step'
-grep -Fqx "        if: matrix.runner != 'windows-latest'" <<<"$unix_validation_step" \
+grep -Fqx "        if: matrix.label != 'win32-x64-msvc'" <<<"$unix_validation_step" \
   || fail 'Unix local-artifact validation must exclude the Windows runner'
 grep -Fqx '        shell: bash' <<<"$unix_validation_step" \
   || fail 'Unix local-artifact validation must use bash'
@@ -275,7 +275,7 @@ run_contains_invocation \
 
 windows_validation_step="$(named_step 'Validate local wheel and N-API package (Windows)')" \
   || fail 'missing Windows local-artifact validation step'
-grep -Fqx "        if: matrix.runner == 'windows-latest'" <<<"$windows_validation_step" \
+grep -Fqx "        if: matrix.label == 'win32-x64-msvc'" <<<"$windows_validation_step" \
   || fail 'Windows local-artifact validation must select only the Windows runner'
 grep -Fqx '        shell: pwsh' <<<"$windows_validation_step" \
   || fail 'Windows local-artifact validation must use PowerShell'

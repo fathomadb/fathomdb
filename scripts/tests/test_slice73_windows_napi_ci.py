@@ -71,7 +71,8 @@ class Slice73WindowsNapiContract(unittest.TestCase):
         windows_step = ci.index("      - name: Validate local wheel and N-API package (Windows)\n")
         windows_end = ci.index("\n  # Docs-only fast-path", windows_step)
         block = ci[windows_step:windows_end]
-        self.assertIn("if: matrix.runner == 'windows-latest'", block)
+        self.assertIn("if: matrix.label == 'win32-x64-msvc'", block)
+        self.assertIn("runner: [self-hosted, Windows, X64, windchill3-windows-11]", ci)
         self.assertIn("-RetainedTestManifest", block)
         self.assertIn("scripts/release/smoke/slice73-windows-napi-modules.json", block)
 

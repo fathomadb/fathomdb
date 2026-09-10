@@ -114,6 +114,8 @@ import sys
 
 text = Path(sys.argv[1]).read_text()
 required = (
+    '--base-version)',
+    'BASE_VERSION="$2"',
     'TEGRA_LOCAL_VERSION="${BASE_VERSION}+tegra"',
     'mktemp -d',
     'Version: ${TEGRA_LOCAL_VERSION}',

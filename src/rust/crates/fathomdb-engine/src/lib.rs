@@ -9233,7 +9233,13 @@ impl Engine {
             .ok()
             .and_then(|connection| connection.as_ref().map(Connection::is_autocommit))
             .unwrap_or(false);
-        let direct_inventory = self.actual_checkpoint_direct_inventory_for_test();
+        let expected_runtime_probes = match observer.control {
+            "direct_rust" => 0,
+            "python_serial" => 2,
+            _ => 2,
+        };
+        let direct_inventory =
+            self.actual_checkpoint_direct_inventory_for_test(expected_runtime_probes);
         let collector_roles = self
             .wal_attribution_snapshot()
             .active_roles
@@ -9254,7 +9260,10 @@ impl Engine {
     }
 
     #[cfg(any(test, feature = "test-hooks"))]
-    fn actual_checkpoint_direct_inventory_for_test(&self) -> String {
+    fn actual_checkpoint_direct_inventory_for_test(
+        &self,
+        expected_runtime_probes: usize,
+    ) -> String {
         let registry_complete = self.managed_connections.exact_live();
         let creation = self.managed_connections.creation_counts();
         let writer_autocommit = self
@@ -9303,7 +9312,8 @@ impl Engine {
             },
         );
         let complete = registry_complete
-            && creation == Some((1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 2))
+            && creation
+                == Some((1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, expected_runtime_probes))
             && writer_autocommit
             && reader_autocommit
             && runtime_autocommit;
@@ -31169,10 +31179,10 @@ mod tests {
         let creation =
             opened.engine.managed_connections.creation_counts().ok_or("creation_audit_lock")?;
         eprintln!(
-            "slice65_wal post_commit_creation expected=writer:1,readers:8,dispatcher:1,workers:2,probes:2 actual=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
+            "slice65_wal post_commit_creation expected=writer:1,readers:8,dispatcher:1,workers:2,probes:0 actual=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
             creation.0, creation.1, creation.2, creation.3, creation.4,
         );
-        if creation != (1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 2) {
+        if creation != (1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 0) {
             return Err("creation_counts_mismatch");
         }
         if !snapshot.no_owned_snapshot
@@ -31207,7 +31217,7 @@ mod tests {
             return Err("runtime_not_autocommit");
         }
         Ok(format!(
-            "writer:autocommit;readers:8-autocommit;dispatcher:autocommit;workers:2-autocommit;expected_creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2;actual_creation=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
+            "writer:autocommit;readers:8-autocommit;dispatcher:autocommit;workers:2-autocommit;expected_creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0;actual_creation=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
             creation.0, creation.1, creation.2, creation.3, creation.4,
         ))
     }
@@ -31927,7 +31937,7 @@ mod tests {
             assert!(pair[0].contains("writer_autocommit=1"));
             assert!(pair[1].contains("writer_autocommit=1"));
             assert!(
-                pair[0].contains("direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=autocommit;dispatcher=autocommit;workers=2-autocommit;registry=complete;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2;complete=1"),
+                pair[0].contains("direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=autocommit;dispatcher=autocommit;workers=2-autocommit;registry=complete;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0;complete=1"),
                 "unexpected direct inventory: {}",
                 pair[0]
             );

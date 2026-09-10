@@ -210,9 +210,9 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 73** (`WINDOWS-NAPI`) — Windows Node/N-API CI coverage
+**IMMEDIATE NEXT: Slice 75** (`CLOSURE`) — integrated release closure
 
-**Remaining ladder:** 73 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
 Slices 60, 71, and 72 are durably closed. Slice 71 preserved the 71B general-write
 correction at `eda95b07` and restored AC-072 at `84c056c6` without changing

@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 73 — Windows Node/N-API CI coverage
-status: READY
+status: COMPLETE
 depends_on: 72
 design: design.md
 ---

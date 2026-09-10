@@ -1,0 +1,31 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260909234238
+Username: MEMEX-AFE8V4I00\runner
+RunAs User: MEMEX-AFE8V4I00\runner
+Configuration Name: 
+Machine: MEMEX-AFE8V4I00 (Microsoft Windows NT 10.0.26200.0)
+Host Application: powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\Users\runner\AppData\Local\Temp\fathomdb-slice73-ac1f4380\final-build.ps1
+Process ID: 1308
+PSVersion: 5.1.26100.9168
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9168
+BuildVersion: 10.0.26100.9168
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+candidate_sha=6eb7cd18aa83faf400f843f8ce55bf16bcf9309e
+reconstructed_from_parent=ac1f4380c62a1f08ca97eec952ce652bcb0af8ea
+verifier_sha256=e53557237369b44deddba54a618ca4d06f5657b54895ef9624e72d5d9a1fb23c
+contract_sha256=1f8ecc8f7696ff3703fe53dc2c71eb3179552d4c9bcae610790bd22d226cdd17
+
+
+
+wheel_sha256=e6cc8e6caab04b6768432ad4ebb6b4ce6144dc706640bd150a2bcaba7b3a98d5
+native_sha256=0c8c93b3e3824dc90e5a2cc51388a7877d9d994c81d7aba038b57044157d1be2
+**********************
+Windows PowerShell transcript end
+End time: 20260909234242
+**********************

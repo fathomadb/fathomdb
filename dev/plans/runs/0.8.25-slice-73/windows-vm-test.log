@@ -1,0 +1,1249 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260909234425
+Username: MEMEX-AFE8V4I00\runner
+RunAs User: MEMEX-AFE8V4I00\runner
+Configuration Name: 
+Machine: MEMEX-AFE8V4I00 (Microsoft Windows NT 10.0.26200.0)
+Host Application: powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\Users\runner\AppData\Local\Temp\fathomdb-slice73-ac1f4380\test.ps1
+Process ID: 320
+PSVersion: 5.1.26100.9168
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9168
+BuildVersion: 10.0.26100.9168
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+candidate_sha=6eb7cd18aa83faf400f843f8ce55bf16bcf9309e
+artifact_build_sha=6eb7cd18aa83faf400f843f8ce55bf16bcf9309e
+candidate_archive_sha256=52acd19eaf7312674b6c0cbbb52baa45a24a0946854698ffc76692a2ee38c99a
+verifier_sha256=e53557237369b44deddba54a618ca4d06f5657b54895ef9624e72d5d9a1fb23c
+in_repo_rustc=rustc 1.95.0 (59807616e 2026-04-14)
+in_repo_cargo=cargo 1.95.0 (f2d3ce0bd 2026-03-21)
+wheel_sha256=e6cc8e6caab04b6768432ad4ebb6b4ce6144dc706640bd150a2bcaba7b3a98d5
+native_build_sha256=0c8c93b3e3824dc90e5a2cc51388a7877d9d994c81d7aba038b57044157d1be2
+
+
+
+
+
+
+
+TAP version 13
+# Subtest: shared fixture canonical and both locator variants preserve compact receipt
+ok 1 - shared fixture canonical and both locator variants preserve compact receipt
+  ---
+  duration_ms: 71.4046
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct unknownField with reason/path parity
+ok 2 - shared fixture rejects direct unknownField with reason/path parity
+  ---
+  duration_ms: 63.1799
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct escapedUnknownField with reason/path parity
+ok 3 - shared fixture rejects direct escapedUnknownField with reason/path parity
+  ---
+  duration_ms: 61.6539
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct multipleUnknownProvenanceFields with reason/path parity
+ok 4 - shared fixture rejects direct multipleUnknownProvenanceFields with reason/path parity
+  ---
+  duration_ms: 64.0186
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct multipleUnknownCanonicalRoleFields with reason/path parity
+ok 5 - shared fixture rejects direct multipleUnknownCanonicalRoleFields with reason/path parity
+  ---
+  duration_ms: 61.7554
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct multipleUnknownWholeBodyLocatorFields with reason/path parity
+ok 6 - shared fixture rejects direct multipleUnknownWholeBodyLocatorFields with reason/path parity
+  ---
+  duration_ms: 66.2938
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct multipleUnknownHashFields with reason/path parity
+ok 7 - shared fixture rejects direct multipleUnknownHashFields with reason/path parity
+  ---
+  duration_ms: 64.3111
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct unsupportedVersion with reason/path parity
+ok 8 - shared fixture rejects direct unsupportedVersion with reason/path parity
+  ---
+  duration_ms: 61.7283
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct rolePrecedenceMissingFields with reason/path parity
+ok 9 - shared fixture rejects direct rolePrecedenceMissingFields with reason/path parity
+  ---
+  duration_ms: 64.21
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct rolePrecedenceMalformedFields with reason/path parity
+ok 10 - shared fixture rejects direct rolePrecedenceMalformedFields with reason/path parity
+  ---
+  duration_ms: 67.7132
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct embeddedNulArtifactRevision with reason/path parity
+ok 11 - shared fixture rejects direct embeddedNulArtifactRevision with reason/path parity
+  ---
+  duration_ms: 62.9841
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct embeddedNulSourceVersion with reason/path parity
+ok 12 - shared fixture rejects direct embeddedNulSourceVersion with reason/path parity
+  ---
+  duration_ms: 62.3958
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct missingLocator with reason/path parity
+ok 13 - shared fixture rejects direct missingLocator with reason/path parity
+  ---
+  duration_ms: 64.7041
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct missingHash with reason/path parity
+ok 14 - shared fixture rejects direct missingHash with reason/path parity
+  ---
+  duration_ms: 60.4064
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct missingRole with reason/path parity
+ok 15 - shared fixture rejects direct missingRole with reason/path parity
+  ---
+  duration_ms: 60.9749
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsDerivedMember with reason/path parity
+ok 16 - shared fixture rejects direct canonicalRejectsDerivedMember with reason/path parity
+  ---
+  duration_ms: 64.0712
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsNulSourceRevisionBeforeEncoding with reason/path parity
+ok 17 - shared fixture rejects direct canonicalRejectsNulSourceRevisionBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 65.3255
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsSurrogateSourceRevisionBeforeEncoding with reason/path parity
+ok 18 - shared fixture rejects direct canonicalRejectsSurrogateSourceRevisionBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 60.3639
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsNulLocatorBeforeEncoding with reason/path parity
+ok 19 - shared fixture rejects direct canonicalRejectsNulLocatorBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 60.9554
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsSurrogateLocatorBeforeEncoding with reason/path parity
+ok 20 - shared fixture rejects direct canonicalRejectsSurrogateLocatorBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 65.6843
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsNulHashBeforeEncoding with reason/path parity
+ok 21 - shared fixture rejects direct canonicalRejectsNulHashBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 60.7514
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct canonicalRejectsSurrogateHashBeforeEncoding with reason/path parity
+ok 22 - shared fixture rejects direct canonicalRejectsSurrogateHashBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 60.4043
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct sourceRevisionMissing with reason/path parity
+ok 23 - shared fixture rejects direct sourceRevisionMissing with reason/path parity
+  ---
+  duration_ms: 59.159
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct sourceMismatch with reason/path parity
+ok 24 - shared fixture rejects direct sourceMismatch with reason/path parity
+  ---
+  duration_ms: 61.2638
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct hashMismatch with reason/path parity
+ok 25 - shared fixture rejects direct hashMismatch with reason/path parity
+  ---
+  duration_ms: 62.0948
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct numericLocatorOffset with reason/path parity
+ok 26 - shared fixture rejects direct numericLocatorOffset with reason/path parity
+  ---
+  duration_ms: 61.0503
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct signedLocatorOffset with reason/path parity
+ok 27 - shared fixture rejects direct signedLocatorOffset with reason/path parity
+  ---
+  duration_ms: 61.9158
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct zeroPaddedLocatorOffset with reason/path parity
+ok 28 - shared fixture rejects direct zeroPaddedLocatorOffset with reason/path parity
+  ---
+  duration_ms: 60.8921
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct overflowLocatorOffset with reason/path parity
+ok 29 - shared fixture rejects direct overflowLocatorOffset with reason/path parity
+  ---
+  duration_ms: 61.9321
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct unicodeBoundaryLocator with reason/path parity
+ok 30 - shared fixture rejects direct unicodeBoundaryLocator with reason/path parity
+  ---
+  duration_ms: 63.7763
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct wholeBodyRejectsRangeMember with reason/path parity
+ok 31 - shared fixture rejects direct wholeBodyRejectsRangeMember with reason/path parity
+  ---
+  duration_ms: 64.0635
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct unknownLocatorKindPrecedesMalformedOffset with reason/path parity
+ok 32 - shared fixture rejects direct unknownLocatorKindPrecedesMalformedOffset with reason/path parity
+  ---
+  duration_ms: 68.2007
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct utf8LocatorMissingStart with reason/path parity
+ok 33 - shared fixture rejects direct utf8LocatorMissingStart with reason/path parity
+  ---
+  duration_ms: 60.2705
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct utf8LocatorMissingEnd with reason/path parity
+ok 34 - shared fixture rejects direct utf8LocatorMissingEnd with reason/path parity
+  ---
+  duration_ms: 62.3513
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct utf8LocatorRejectsExtraMember with reason/path parity
+ok 35 - shared fixture rejects direct utf8LocatorRejectsExtraMember with reason/path parity
+  ---
+  duration_ms: 64.2604
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct nullLocatorOffset with reason/path parity
+ok 36 - shared fixture rejects direct nullLocatorOffset with reason/path parity
+  ---
+  duration_ms: 61.664
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct booleanLocatorOffset with reason/path parity
+ok 37 - shared fixture rejects direct booleanLocatorOffset with reason/path parity
+  ---
+  duration_ms: 66.6662
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct floatLocatorOffset with reason/path parity
+ok 38 - shared fixture rejects direct floatLocatorOffset with reason/path parity
+  ---
+  duration_ms: 64.8708
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct unknownHashAlgorithmPrecedesMalformedDigest with reason/path parity
+ok 39 - shared fixture rejects direct unknownHashAlgorithmPrecedesMalformedDigest with reason/path parity
+  ---
+  duration_ms: 66.8385
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct uppercaseHashDigest with reason/path parity
+ok 40 - shared fixture rejects direct uppercaseHashDigest with reason/path parity
+  ---
+  duration_ms: 64.9483
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects direct wrongLengthHashDigest with reason/path parity
+ok 41 - shared fixture rejects direct wrongLengthHashDigest with reason/path parity
+  ---
+  duration_ms: 64.8629
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped unknownField with reason/path parity
+ok 42 - shared fixture rejects wrapped unknownField with reason/path parity
+  ---
+  duration_ms: 68.8274
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped escapedUnknownField with reason/path parity
+ok 43 - shared fixture rejects wrapped escapedUnknownField with reason/path parity
+  ---
+  duration_ms: 63.548
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped multipleUnknownProvenanceFields with reason/path parity
+ok 44 - shared fixture rejects wrapped multipleUnknownProvenanceFields with reason/path parity
+  ---
+  duration_ms: 65.8057
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped multipleUnknownCanonicalRoleFields with reason/path parity
+ok 45 - shared fixture rejects wrapped multipleUnknownCanonicalRoleFields with reason/path parity
+  ---
+  duration_ms: 63.6411
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped multipleUnknownWholeBodyLocatorFields with reason/path parity
+ok 46 - shared fixture rejects wrapped multipleUnknownWholeBodyLocatorFields with reason/path parity
+  ---
+  duration_ms: 65.9397
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped multipleUnknownHashFields with reason/path parity
+ok 47 - shared fixture rejects wrapped multipleUnknownHashFields with reason/path parity
+  ---
+  duration_ms: 63.3932
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped unsupportedVersion with reason/path parity
+ok 48 - shared fixture rejects wrapped unsupportedVersion with reason/path parity
+  ---
+  duration_ms: 59.4146
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped rolePrecedenceMissingFields with reason/path parity
+ok 49 - shared fixture rejects wrapped rolePrecedenceMissingFields with reason/path parity
+  ---
+  duration_ms: 61.1026
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped rolePrecedenceMalformedFields with reason/path parity
+ok 50 - shared fixture rejects wrapped rolePrecedenceMalformedFields with reason/path parity
+  ---
+  duration_ms: 61.1002
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped embeddedNulArtifactRevision with reason/path parity
+ok 51 - shared fixture rejects wrapped embeddedNulArtifactRevision with reason/path parity
+  ---
+  duration_ms: 59.2853
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped embeddedNulSourceVersion with reason/path parity
+ok 52 - shared fixture rejects wrapped embeddedNulSourceVersion with reason/path parity
+  ---
+  duration_ms: 63.7496
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped missingLocator with reason/path parity
+ok 53 - shared fixture rejects wrapped missingLocator with reason/path parity
+  ---
+  duration_ms: 56.8853
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped missingHash with reason/path parity
+ok 54 - shared fixture rejects wrapped missingHash with reason/path parity
+  ---
+  duration_ms: 58.3733
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped missingRole with reason/path parity
+ok 55 - shared fixture rejects wrapped missingRole with reason/path parity
+  ---
+  duration_ms: 59.045
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsDerivedMember with reason/path parity
+ok 56 - shared fixture rejects wrapped canonicalRejectsDerivedMember with reason/path parity
+  ---
+  duration_ms: 56.9239
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsNulSourceRevisionBeforeEncoding with reason/path parity
+ok 57 - shared fixture rejects wrapped canonicalRejectsNulSourceRevisionBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 56.9659
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsSurrogateSourceRevisionBeforeEncoding with reason/path parity
+ok 58 - shared fixture rejects wrapped canonicalRejectsSurrogateSourceRevisionBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 58.5855
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsNulLocatorBeforeEncoding with reason/path parity
+ok 59 - shared fixture rejects wrapped canonicalRejectsNulLocatorBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 57.6114
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsSurrogateLocatorBeforeEncoding with reason/path parity
+ok 60 - shared fixture rejects wrapped canonicalRejectsSurrogateLocatorBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 64.0804
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsNulHashBeforeEncoding with reason/path parity
+ok 61 - shared fixture rejects wrapped canonicalRejectsNulHashBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 61.9561
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped canonicalRejectsSurrogateHashBeforeEncoding with reason/path parity
+ok 62 - shared fixture rejects wrapped canonicalRejectsSurrogateHashBeforeEncoding with reason/path parity
+  ---
+  duration_ms: 59.2891
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped sourceRevisionMissing with reason/path parity
+ok 63 - shared fixture rejects wrapped sourceRevisionMissing with reason/path parity
+  ---
+  duration_ms: 61.9792
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped sourceMismatch with reason/path parity
+ok 64 - shared fixture rejects wrapped sourceMismatch with reason/path parity
+  ---
+  duration_ms: 61.2254
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped hashMismatch with reason/path parity
+ok 65 - shared fixture rejects wrapped hashMismatch with reason/path parity
+  ---
+  duration_ms: 62.8001
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped numericLocatorOffset with reason/path parity
+ok 66 - shared fixture rejects wrapped numericLocatorOffset with reason/path parity
+  ---
+  duration_ms: 61.6104
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped signedLocatorOffset with reason/path parity
+ok 67 - shared fixture rejects wrapped signedLocatorOffset with reason/path parity
+  ---
+  duration_ms: 60.0028
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped zeroPaddedLocatorOffset with reason/path parity
+ok 68 - shared fixture rejects wrapped zeroPaddedLocatorOffset with reason/path parity
+  ---
+  duration_ms: 60.9163
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped overflowLocatorOffset with reason/path parity
+ok 69 - shared fixture rejects wrapped overflowLocatorOffset with reason/path parity
+  ---
+  duration_ms: 60.3507
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped unicodeBoundaryLocator with reason/path parity
+ok 70 - shared fixture rejects wrapped unicodeBoundaryLocator with reason/path parity
+  ---
+  duration_ms: 62.2303
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped wholeBodyRejectsRangeMember with reason/path parity
+ok 71 - shared fixture rejects wrapped wholeBodyRejectsRangeMember with reason/path parity
+  ---
+  duration_ms: 57.9641
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped unknownLocatorKindPrecedesMalformedOffset with reason/path parity
+ok 72 - shared fixture rejects wrapped unknownLocatorKindPrecedesMalformedOffset with reason/path parity
+  ---
+  duration_ms: 57.8439
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped utf8LocatorMissingStart with reason/path parity
+ok 73 - shared fixture rejects wrapped utf8LocatorMissingStart with reason/path parity
+  ---
+  duration_ms: 58.5574
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped utf8LocatorMissingEnd with reason/path parity
+ok 74 - shared fixture rejects wrapped utf8LocatorMissingEnd with reason/path parity
+  ---
+  duration_ms: 60.1243
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped utf8LocatorRejectsExtraMember with reason/path parity
+ok 75 - shared fixture rejects wrapped utf8LocatorRejectsExtraMember with reason/path parity
+  ---
+  duration_ms: 57.6986
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped nullLocatorOffset with reason/path parity
+ok 76 - shared fixture rejects wrapped nullLocatorOffset with reason/path parity
+  ---
+  duration_ms: 58.1068
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped booleanLocatorOffset with reason/path parity
+ok 77 - shared fixture rejects wrapped booleanLocatorOffset with reason/path parity
+  ---
+  duration_ms: 60.4251
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped floatLocatorOffset with reason/path parity
+ok 78 - shared fixture rejects wrapped floatLocatorOffset with reason/path parity
+  ---
+  duration_ms: 57.3149
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped unknownHashAlgorithmPrecedesMalformedDigest with reason/path parity
+ok 79 - shared fixture rejects wrapped unknownHashAlgorithmPrecedesMalformedDigest with reason/path parity
+  ---
+  duration_ms: 57.9828
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped uppercaseHashDigest with reason/path parity
+ok 80 - shared fixture rejects wrapped uppercaseHashDigest with reason/path parity
+  ---
+  duration_ms: 59.4067
+  type: 'test'
+  ...
+# Subtest: shared fixture rejects wrapped wrongLengthHashDigest with reason/path parity
+ok 81 - shared fixture rejects wrapped wrongLengthHashDigest with reason/path parity
+  ---
+  duration_ms: 56.9429
+  type: 'test'
+  ...
+# Subtest: direct node provenance encoding maps to provenance
+ok 82 - direct node provenance encoding maps to provenance
+  ---
+  duration_ms: 57.3814
+  type: 'test'
+  ...
+# Subtest: direct node provenance encoding maps to provenance
+ok 83 - direct node provenance encoding maps to provenance
+  ---
+  duration_ms: 63.9373
+  type: 'test'
+  ...
+# Subtest: direct edge provenance encoding maps to provenance
+ok 84 - direct edge provenance encoding maps to provenance
+  ---
+  duration_ms: 63.4419
+  type: 'test'
+  ...
+# Subtest: direct edge provenance encoding maps to provenance
+ok 85 - direct edge provenance encoding maps to provenance
+  ---
+  duration_ms: 61.6751
+  type: 'test'
+  ...
+# Subtest: wrapped node provenance encoding maps to provenance
+ok 86 - wrapped node provenance encoding maps to provenance
+  ---
+  duration_ms: 65.6008
+  type: 'test'
+  ...
+# Subtest: wrapped node provenance encoding maps to provenance
+ok 87 - wrapped node provenance encoding maps to provenance
+  ---
+  duration_ms: 61.7394
+  type: 'test'
+  ...
+# Subtest: wrapped edge provenance encoding maps to provenance
+ok 88 - wrapped edge provenance encoding maps to provenance
+  ---
+  duration_ms: 58.3889
+  type: 'test'
+  ...
+# Subtest: wrapped edge provenance encoding maps to provenance
+ok 89 - wrapped edge provenance encoding maps to provenance
+  ---
+  duration_ms: 58.0038
+  type: 'test'
+  ...
+# Subtest: direct versioned node body must be a string
+ok 90 - direct versioned node body must be a string
+  ---
+  duration_ms: 57.7157
+  type: 'test'
+  ...
+# Subtest: wrapped versioned node body must be a string
+ok 91 - wrapped versioned node body must be a string
+  ---
+  duration_ms: 60.0458
+  type: 'test'
+  ...
+# Subtest: direct versioned edge body must be a string
+ok 92 - direct versioned edge body must be a string
+  ---
+  duration_ms: 58.6778
+  type: 'test'
+  ...
+# Subtest: wrapped versioned edge body must be a string
+ok 93 - wrapped versioned edge body must be a string
+  ---
+  duration_ms: 59.5927
+  type: 'test'
+  ...
+# Subtest: canonical role is illegal for edges
+ok 94 - canonical role is illegal for edges
+  ---
+  duration_ms: 59.1862
+  type: 'test'
+  ...
+# Subtest: unknown role precedes missing or malformed shared IDs
+ok 95 - unknown role precedes missing or malformed shared IDs
+  ---
+  duration_ms: 59.9674
+  type: 'test'
+  ...
+# Subtest: unknown role precedes missing or malformed shared IDs
+ok 96 - unknown role precedes missing or malformed shared IDs
+  ---
+  duration_ms: 63.3061
+  type: 'test'
+  ...
+1..96
+# tests 96
+# suites 0
+# pass 96
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6074.7919
+TAP version 13
+# Subtest: fix-2: a node whose validUntil is in the past does not leak through search
+ok 1 - fix-2: a node whose validUntil is in the past does not leak through search
+  ---
+  duration_ms: 114.6183
+  type: 'test'
+  ...
+# Subtest: fix-2: a node whose validFrom is in the future does not leak through search
+ok 2 - fix-2: a node whose validFrom is in the future does not leak through search
+  ---
+  duration_ms: 94.8615
+  type: 'test'
+  ...
+# Subtest: fix-2: a node whose window covers now IS still returned by search
+ok 3 - fix-2: a node whose window covers now IS still returned by search
+  ---
+  duration_ms: 95.0596
+  type: 'test'
+  ...
+# Subtest: fix-2: default search is unchanged on a corpus with no authored windows
+ok 4 - fix-2: default search is unchanged on a corpus with no authored windows
+  ---
+  duration_ms: 116.5466
+  type: 'test'
+  ...
+# Subtest: fix-2: search accepts a ReadView ΓÇö validAsOf selects by instant
+ok 5 - fix-2: search accepts a ReadView ΓÇö validAsOf selects by instant
+  ---
+  duration_ms: 94.8817
+  type: 'test'
+  ...
+# Subtest: fix-2: searchTextOnly takes the same predicate and the same escape hatch
+ok 6 - fix-2: searchTextOnly takes the same predicate and the same escape hatch
+  ---
+  duration_ms: 90.1935
+  type: 'test'
+  ...
+# Subtest: fix-2: search refuses a view that relaxes the existence axis
+ok 7 - fix-2: search refuses a view that relaxes the existence axis
+  ---
+  duration_ms: 91.8843
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 832.2701
+TAP version 13
+# Subtest: configure + read.projections round-trips a spec verbatim
+ok 1 - configure + read.projections round-trips a spec verbatim
+  ---
+  duration_ms: 80.8312
+  type: 'test'
+  ...
+# Subtest: idempotent re-registration is a no-op
+ok 2 - idempotent re-registration is a no-op
+  ---
+  duration_ms: 69.2329
+  type: 'test'
+  ...
+# Subtest: property filter + property-FTS return correct rows at rest
+ok 3 - property filter + property-FTS return correct rows at rest
+  ---
+  duration_ms: 79.6689
+  type: 'test'
+  ...
+# Subtest: explicit drop drops exactly one; omission does not drop
+ok 4 - explicit drop drops exactly one; omission does not drop
+  ---
+  duration_ms: 77.3131
+  type: 'test'
+  ...
+# Subtest: destructive change requires an explicit drop
+ok 5 - destructive change requires an explicit drop
+  ---
+  duration_ms: 69.2358
+  type: 'test'
+  ...
+# Subtest: fix-5 NUL in projection name rejected at binding, not persisted
+ok 6 - fix-5 NUL in projection name rejected at binding, not persisted
+  ---
+  duration_ms: 66.2607
+  type: 'test'
+  ...
+# Subtest: fix-5 NUL in ftsTokenizer rejected at binding, not persisted
+ok 7 - fix-5 NUL in ftsTokenizer rejected at binding, not persisted
+  ---
+  duration_ms: 64.781
+  type: 'test'
+  ...
+# Subtest: fix-5 NUL in vectorEmbedder rejected at binding, not persisted
+ok 8 - fix-5 NUL in vectorEmbedder rejected at binding, not persisted
+  ---
+  duration_ms: 69.8471
+  type: 'test'
+  ...
+# Subtest: fix-5 NUL in drop entry rejected at binding
+ok 9 - fix-5 NUL in drop entry rejected at binding
+  ---
+  duration_ms: 69.4548
+  type: 'test'
+  ...
+# Subtest: TC-47 surrogate in projection name rejected at binding, not persisted
+ok 10 - TC-47 surrogate in projection name rejected at binding, not persisted
+  ---
+  duration_ms: 66.4395
+  type: 'test'
+  ...
+# Subtest: TC-47 surrogate in ftsTokenizer rejected at binding, not persisted
+ok 11 - TC-47 surrogate in ftsTokenizer rejected at binding, not persisted
+  ---
+  duration_ms: 65.0817
+  type: 'test'
+  ...
+# Subtest: TC-47 surrogate in vectorEmbedder rejected at binding, not persisted
+ok 12 - TC-47 surrogate in vectorEmbedder rejected at binding, not persisted
+  ---
+  duration_ms: 85.6905
+  type: 'test'
+  ...
+# Subtest: TC-47 surrogate in projection role rejected at binding, not persisted
+ok 13 - TC-47 surrogate in projection role rejected at binding, not persisted
+  ---
+  duration_ms: 65.6228
+  type: 'test'
+  ...
+# Subtest: TC-47 surrogate in drop entry rejected at binding
+ok 14 - TC-47 surrogate in drop entry rejected at binding
+  ---
+  duration_ms: 68.3966
+  type: 'test'
+  ...
+# Subtest: fix-4 orphaned ftsTokenizer (fts:false) rejected at binding, not persisted
+ok 15 - fix-4 orphaned ftsTokenizer (fts:false) rejected at binding, not persisted
+  ---
+  duration_ms: 71.2813
+  type: 'test'
+  ...
+# Subtest: fix-4 orphaned vectorEmbedder (vector:false) rejected at binding, not persisted
+ok 16 - fix-4 orphaned vectorEmbedder (vector:false) rejected at binding, not persisted
+  ---
+  duration_ms: 66.7272
+  type: 'test'
+  ...
+# Subtest: fix-4 empty ftsTokenizer (fts:true) rejected at binding, not persisted
+ok 17 - fix-4 empty ftsTokenizer (fts:true) rejected at binding, not persisted
+  ---
+  duration_ms: 71.6034
+  type: 'test'
+  ...
+# Subtest: fix-4 empty vectorEmbedder (vector:true) rejected at binding, not persisted
+ok 18 - fix-4 empty vectorEmbedder (vector:true) rejected at binding, not persisted
+  ---
+  duration_ms: 78.3158
+  type: 'test'
+  ...
+# Subtest: fix-4 duplicate role rejected at binding, not persisted
+ok 19 - fix-4 duplicate role rejected at binding, not persisted
+  ---
+  duration_ms: 71.1961
+  type: 'test'
+  ...
+# Subtest: fix-4 CONTROL ΓÇö a consistent spec round-trips verbatim via read.projections
+ok 20 - fix-4 CONTROL ΓÇö a consistent spec round-trips verbatim via read.projections
+  ---
+  duration_ms: 62.5573
+  type: 'test'
+  ...
+# Subtest: R-20-SV ΓÇö fts/vector without the searchable role is REJECTED (WriteValidationError)
+ok 21 - R-20-SV ΓÇö fts/vector without the searchable role is REJECTED (WriteValidationError)
+  ---
+  duration_ms: 75.2045
+  type: 'test'
+  ...
+# Subtest: R-20-SV ΓÇö a LEGACY registry row reads back verbatim but no longer re-applies
+ok 22 - R-20-SV ΓÇö a LEGACY registry row reads back verbatim but no longer re-applies
+  ---
+  duration_ms: 156.0703
+  type: 'test'
+  ...
+# Subtest: fix-4 read.projections output round-trips BACK into configureProjections (nullΓëíNone, PyΓëíTS)
+ok 23 - fix-4 read.projections output round-trips BACK into configureProjections (nullΓëíNone, PyΓëíTS)
+  ---
+  duration_ms: 73.9383
+  type: 'test'
+  ...
+# Subtest: rankable and vector sub-target are deferred, not built
+ok 24 - rankable and vector sub-target are deferred, not built
+  ---
+  duration_ms: 79.1948
+  type: 'test'
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1938.6141
+TAP version 13
+# Subtest: dependency round trip uses canonical decimal generation
+ok 1 - dependency round trip uses canonical decimal generation
+  ---
+  duration_ms: 82.6231
+  type: 'test'
+  ...
+# Subtest: shared fixture dependency error unsupported_schema_version /schemaVersion
+ok 2 - shared fixture dependency error unsupported_schema_version /schemaVersion
+  ---
+  duration_ms: 87.38
+  type: 'test'
+  ...
+# Subtest: shared fixture dependency error unknown_field /aaa~0x~1y
+ok 3 - shared fixture dependency error unknown_field /aaa~0x~1y
+  ---
+  duration_ms: 65.3733
+  type: 'test'
+  ...
+# Subtest: shared fixture dependency error dependency_id_invalid /dependencyId
+ok 4 - shared fixture dependency error dependency_id_invalid /dependencyId
+  ---
+  duration_ms: 65.3507
+  type: 'test'
+  ...
+# Subtest: shared fixture dependency error dependency_reference_invalid /sourceRevisionId
+ok 5 - shared fixture dependency error dependency_reference_invalid /sourceRevisionId
+  ---
+  duration_ms: 65.4177
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 502.3511
+TAP version 13
+# Subtest: read.projectionStatus exposes exact current status wires
+ok 1 - read.projectionStatus exposes exact current status wires
+  ---
+  duration_ms: 76.5041
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 207.4894
+TAP version 13
+# Subtest: actuation commits and exact replay returns the terminal receipt
+ok 1 - actuation commits and exact replay returns the terminal receipt
+  ---
+  duration_ms: 77.4232
+  type: 'test'
+  ...
+# Subtest: actuation preserves embedded-NUL source identity
+ok 2 - actuation preserves embedded-NUL source identity
+  ---
+  duration_ms: 67.1489
+  type: 'test'
+  ...
+# Subtest: actuation rejects an unpaired surrogate at the canonical nested path
+ok 3 - actuation rejects an unpaired surrogate at the canonical nested path
+  ---
+  duration_ms: 60.2165
+  type: 'test'
+  ...
+# Subtest: actuation surrogate guard preserves schema precedence
+ok 4 - actuation surrogate guard preserves schema precedence
+  ---
+  duration_ms: 62.2895
+  type: 'test'
+  ...
+# Subtest: actuation surrogate guard preserves unknown-field precedence
+ok 5 - actuation surrogate guard preserves unknown-field precedence
+  ---
+  duration_ms: 62.0148
+  type: 'test'
+  ...
+# Subtest: actuation surrogate guard preserves top-level ID taxonomy
+ok 6 - actuation surrogate guard preserves top-level ID taxonomy
+  ---
+  duration_ms: 60.3498
+  type: 'test'
+  ...
+# Subtest: shared all-variant fixture has exact receipt and digest
+ok 7 - shared all-variant fixture has exact receipt and digest
+  ---
+  duration_ms: 65.8203
+  type: 'test'
+  ...
+# Subtest: actuation errors preserve reason and canonical field path
+ok 8 - actuation errors preserve reason and canonical field path
+  ---
+  duration_ms: 66.9117
+  type: 'test'
+  ...
+# Subtest: actuation rejects unknown nested record fields
+ok 9 - actuation rejects unknown nested record fields
+  ---
+  duration_ms: 66.8465
+  type: 'test'
+  ...
+# Subtest: actuation rejects an own top-level __proto__ field without writing
+ok 10 - actuation rejects an own top-level __proto__ field without writing
+  ---
+  duration_ms: 63.9034
+  type: 'test'
+  ...
+# Subtest: actuation rejects an own nested __proto__ field without writing
+ok 11 - actuation rejects an own nested __proto__ field without writing
+  ---
+  duration_ms: 71.425
+  type: 'test'
+  ...
+# Subtest: actuation validates operation count before nested operation data
+ok 12 - actuation validates operation count before nested operation data
+  ---
+  duration_ms: 63.5513
+  type: 'test'
+  ...
+# Subtest: actuation validates policy ID before nested operation data
+ok 13 - actuation validates policy ID before nested operation data
+  ---
+  duration_ms: 63.0077
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 981.1769
+TAP version 13
+# Subtest: closure lookup is closed and absent ids disclose nothing
+ok 1 - closure lookup is closed and absent ids disclose nothing
+  ---
+  duration_ms: 65.9316
+  type: 'test'
+  ...
+# Subtest: closure response decoder rejects unknown variants and malformed decimals
+ok 2 - closure response decoder rejects unknown variants and malformed decimals
+  ---
+  duration_ms: 62.6811
+  type: 'test'
+  ...
+# Subtest: closure response decoder accepts a non-null installed status
+ok 3 - closure response decoder accepts a non-null installed status
+  ---
+  duration_ms: 68.8054
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 325.235
+TAP version 13
+# Subtest: frozen read context binds eligibility and rejects drift
+ok 1 - frozen read context binds eligibility and rejects drift
+  ---
+  duration_ms: 75.3606
+  type: 'test'
+  ...
+# Subtest: frozen search expansion returns the governed union
+ok 2 - frozen search expansion returns the governed union
+  ---
+  duration_ms: 81.9497
+  type: 'test'
+  ...
+# Subtest: frozen authentication precedes query, shape, and range validation
+ok 3 - frozen authentication precedes query, shape, and range validation
+  ---
+  duration_ms: 61.0393
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 349.744
+TAP version 13
+# Subtest: canonical and operational pages share frozen authority
+ok 1 - canonical and operational pages share frozen authority
+  ---
+  duration_ms: 79.6865
+  type: 'test'
+  ...
+# Subtest: page request refusals retain PageError reason and field path
+ok 2 - page request refusals retain PageError reason and field path
+  ---
+  duration_ms: 66.1282
+  type: 'test'
+  ...
+# Subtest: unknown native page response versions fail closed
+ok 3 - unknown native page response versions fail closed
+  ---
+  duration_ms: 62.9392
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 338.974
+TAP version 13
+# Subtest: search and resolve exact source evidence
+ok 1 - search and resolve exact source evidence
+  ---
+  duration_ms: 79.1139
+  type: 'test'
+  ...
+# Subtest: evidence request schema and unknown fields are typed
+ok 2 - evidence request schema and unknown fields are typed
+  ---
+  duration_ms: 65.1816
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 274.344
+TAP version 13
+# Subtest: unknown native evidence response versions fail closed
+ok 1 - unknown native evidence response versions fail closed
+  ---
+  duration_ms: 1.0415
+  type: 'test'
+  ...
+# Subtest: unknown unions and invalid numerics in native evidence fail closed
+ok 2 - unknown unions and invalid numerics in native evidence fail closed
+  ---
+  duration_ms: 1.2621
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 130.8246
+TAP version 13
+# Subtest: slice55 candidate native explanation rejects query u32
+ok 1 - slice55 candidate native explanation rejects query u32
+  ---
+  duration_ms: 1.8023
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects query limit
+ok 2 - slice55 candidate native explanation rejects query limit
+  ---
+  duration_ms: 0.1227
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects query finite
+ok 3 - slice55 candidate native explanation rejects query finite
+  ---
+  duration_ms: 0.1099
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects correlation
+ok 4 - slice55 candidate native explanation rejects correlation
+  ---
+  duration_ms: 0.1595
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects count
+ok 5 - slice55 candidate native explanation rejects count
+  ---
+  duration_ms: 0.161
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects position arm
+ok 6 - slice55 candidate native explanation rejects position arm
+  ---
+  duration_ms: 0.3443
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects position score
+ok 7 - slice55 candidate native explanation rejects position score
+  ---
+  duration_ms: 0.1836
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects unknown result arm
+ok 8 - slice55 candidate native explanation rejects unknown result arm
+  ---
+  duration_ms: 0.1379
+  type: 'test'
+  ...
+# Subtest: slice55 candidate native explanation rejects duplicate positional id
+ok 9 - slice55 candidate native explanation rejects duplicate positional id
+  ---
+  duration_ms: 0.272
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 134.7017
+TAP version 13
+# Subtest: graph.expand is a governed consumer surface
+ok 1 - graph.expand is a governed consumer surface
+  ---
+  duration_ms: 8.4
+  type: 'test'
+  ...
+# Subtest: graph.expand depth zero preserves seed order and canonical u64 strings
+ok 2 - graph.expand depth zero preserves seed order and canonical u64 strings
+  ---
+  duration_ms: 73.4232
+  type: 'test'
+  ...
+# Subtest: graph.expand applies direction, edge kind, and return-only target kind
+ok 3 - graph.expand applies direction, edge kind, and return-only target kind
+  ---
+  duration_ms: 65.1008
+  type: 'test'
+  ...
+# Subtest: graph.expand incoming: W succeeds and W+1 has no partial result
+ok 4 - graph.expand incoming: W succeeds and W+1 has no partial result
+  ---
+  duration_ms: 128.619
+  type: 'test'
+  ...
+# Subtest: graph.expand outgoing: W succeeds and W+1 has no partial result
+ok 5 - graph.expand outgoing: W succeeds and W+1 has no partial result
+  ---
+  duration_ms: 138.0124
+  type: 'test'
+  ...
+# Subtest: graph.expand both: W succeeds and W+1 has no partial result
+ok 6 - graph.expand both: W succeeds and W+1 has no partial result
+  ---
+  duration_ms: 140.6817
+  type: 'test'
+  ...
+# Subtest: graph.expand recursively rejects unknown request fields before native execution
+ok 7 - graph.expand recursively rejects unknown request fields before native execution
+  ---
+  duration_ms: 64.5919
+  type: 'test'
+  ...
+# Subtest: graph.expand validates canonical u64, real booleans, and closed unions
+ok 8 - graph.expand validates canonical u64, real booleans, and closed unions
+  ---
+  duration_ms: 63.7099
+  type: 'test'
+  ...
+# Subtest: malformed native graph responses map to one exact typed family
+ok 9 - malformed native graph responses map to one exact typed family
+  ---
+  duration_ms: 2.674
+  type: 'test'
+  ...
+# Subtest: native graph response is open but closed variants and noncanonical values fail
+ok 10 - native graph response is open but closed variants and noncanonical values fail
+  ---
+  duration_ms: 1.3341
+  type: 'test'
+  ...
+# Subtest: frozen authentication outranks invalid seed and graph bounds
+ok 11 - frozen authentication outranks invalid seed and graph bounds
+  ---
+  duration_ms: 69.4471
+  type: 'test'
+  ...
+# Subtest: legacy graph verbs remain source compatible
+ok 12 - legacy graph verbs remain source compatible
+  ---
+  duration_ms: 74.5347
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 965.2896
+slice73-windows-napi-result:{"schemaVersion":"fathomdb.slice73.windows-napi-result/v1","outcome":"pass","manifestSha256":"da703d3e20176473bc82264c337fae062176d39c122d047e335a7664e850018f","resolvedMainModule":"C:\\Users\\runner\\AppData\\Local\\Temp\\fathomdb-local-native-a886dd86-48af-487a-a8a9-084331df76f8\\mirror\\src\\ts\\node_modules\\fathomdb\\dist\\index.js","resolvedNativeModule":"C:\\Users\\runner\\AppData\\Local\\Temp\\fathomdb-local-native-a886dd86-48af-487a-a8a9-084331df76f8\\mirror\\src\\ts\\node_modules\\fathomdb-native-win32-x64-msvc\\fathomdb.win32-x64-msvc.node","nativeSha256":"0c8c93b3e3824dc90e5a2cc51388a7877d9d994c81d7aba038b57044157d1be2","installedSdkTreeSha256":"7bba3f3140d16d4cc63669e4b91e399353afc3e9e760b1b8340f6af402d021b1","stagedSdkTreeSha256":"7bba3f3140d16d4cc63669e4b91e399353afc3e9e760b1b8340f6af402d021b1","modules":[{"module":"slice15-identity-provenance.test.js","tests":96,"pass":96},{"module":"slice15b-search-validity.test.js","tests":7,"pass":7},{"module":"slice15d-projection-registry.test.js","tests":24,"pass":24},{"module":"slice20-source-dependencies.test.js","tests":5,"pass":5},{"module":"slice22-projection-status.test.js","tests":1,"pass":1},{"module":"slice25-actuation.test.js","tests":13,"pass":13},{"module":"slice30-dependency-closure.test.js","tests":3,"pass":3},{"module":"slice35-frozen-read.test.js","tests":3,"pass":3},{"module":"slice45-pagination.test.js","tests":3,"pass":3},{"module":"slice50-evidence.test.js","tests":2,"pass":2},{"module":"slice50-evidence-response-validation.test.js","tests":2,"pass":2},{"module":"slice55-candidate-native-explanation.test.js","tests":9,"pass":9},{"module":"slice60-graph-expand.test.js","tests":12,"pass":12}],"totals":{"modules":13,"tests":180,"pass":180,"fail":0,"cancelled":0,"skipped":0,"todo":0}}
+smoke-local-native-artifacts: ok - local wheel + matched N-API package + retained modules validated
+**********************
+Windows PowerShell transcript end
+End time: 20260909234451
+**********************

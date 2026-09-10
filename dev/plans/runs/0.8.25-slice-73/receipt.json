@@ -1,0 +1,103 @@
+{
+  "schema_version": "fathomdb.slice73.windows-napi-receipt/v1",
+  "outcome": "PASS",
+  "candidate_sha": "6eb7cd18aa83faf400f843f8ce55bf16bcf9309e",
+  "candidate_archive": {
+    "sha256": "52acd19eaf7312674b6c0cbbb52baa45a24a0946854698ffc76692a2ee38c99a",
+    "linux_and_windows_hash_match": true
+  },
+  "exact_candidate_build": {
+    "parent_source_sha": "ac1f4380c62a1f08ca97eec952ce652bcb0af8ea",
+    "parent_to_candidate_changed_files": [
+      "scripts/release/smoke/smoke-local-native-artifacts.ps1",
+      "scripts/tests/test_slice73_windows_napi_ci.py"
+    ],
+    "product_source_diff_empty": true,
+    "candidate_files_overlaid_and_hashed_before_cached_rebuild": true,
+    "wheel_and_napi_rebuilt_after_overlay": true,
+    "build_log": "windows-vm-build.log"
+  },
+  "environment": {
+    "host": "MEMEX-AFE8V4I00",
+    "os": "Windows 11 Pro",
+    "os_build": "26200",
+    "powershell": "5.1.26100.9168",
+    "node": "25.9.0",
+    "npm": "11.12.1",
+    "rustc_in_repo": "1.95.0 (59807616e 2026-04-14)",
+    "cargo_in_repo": "1.95.0 (f2d3ce0bd 2026-03-21)",
+    "python": "3.12.10",
+    "maturin": "1.14.1",
+    "bash": "5.3.15"
+  },
+  "implementation": {
+    "verifier_sha256": "e53557237369b44deddba54a618ca4d06f5657b54895ef9624e72d5d9a1fb23c",
+    "structural_contract_sha256": "1f8ecc8f7696ff3703fe53dc2c71eb3179552d4c9bcae610790bd22d226cdd17",
+    "manifest_sha256": "da703d3e20176473bc82264c337fae062176d39c122d047e335a7664e850018f"
+  },
+  "fixtures": {
+    "src/conformance/provenance-v1.json": "aa788d4ddca441fabbd605f07e9e7c5ef2d15e81d7efd06d4d346b7e590c4fa1",
+    "src/conformance/governed-surface-allowlist.json": "f097468b48eebf65db11786f6ba9ffb930f2e5e8aeaeba4c95dfa67bd188a52a",
+    "dev/fixtures/slice20-dependency-conformance-v1.json": "1572d7bb921867100d0f1c3b283e60be9ed6fcf1e012224c5d74b37519635a5c",
+    "dev/fixtures/slice25-actuation-conformance-v1.json": "a325f6b3c2b5db943cc99bc431061d66e170dd935dcfb98584fa84bf1653a475",
+    "dev/fixtures/slice60-graph-expand-conformance-v1.json": "ec43aec001ebfa2b6e3696559e31bfcb19b3c88f109e021ff3aa281a28563baf"
+  },
+  "artifacts": {
+    "wheel_sha256": "e6cc8e6caab04b6768432ad4ebb6b4ce6144dc706640bd150a2bcaba7b3a98d5",
+    "built_native_sha256": "0c8c93b3e3824dc90e5a2cc51388a7877d9d994c81d7aba038b57044157d1be2",
+    "installed_native_sha256": "0c8c93b3e3824dc90e5a2cc51388a7877d9d994c81d7aba038b57044157d1be2",
+    "installed_sdk_tree_sha256": "7bba3f3140d16d4cc63669e4b91e399353afc3e9e760b1b8340f6af402d021b1",
+    "staged_sdk_tree_sha256": "7bba3f3140d16d4cc63669e4b91e399353afc3e9e760b1b8340f6af402d021b1"
+  },
+  "resolved_installed_paths": {
+    "main": "C:\\Users\\runner\\AppData\\Local\\Temp\\fathomdb-local-native-a886dd86-48af-487a-a8a9-084331df76f8\\mirror\\src\\ts\\node_modules\\fathomdb\\dist\\index.js",
+    "native": "C:\\Users\\runner\\AppData\\Local\\Temp\\fathomdb-local-native-a886dd86-48af-487a-a8a9-084331df76f8\\mirror\\src\\ts\\node_modules\\fathomdb-native-win32-x64-msvc\\fathomdb.win32-x64-msvc.node",
+    "outside_source_checkout": true,
+    "verifier_temp_removed": true
+  },
+  "modules": [
+    {"module": "slice15-identity-provenance.test.js", "tests": 96, "pass": 96},
+    {"module": "slice15b-search-validity.test.js", "tests": 7, "pass": 7},
+    {"module": "slice15d-projection-registry.test.js", "tests": 24, "pass": 24},
+    {"module": "slice20-source-dependencies.test.js", "tests": 5, "pass": 5},
+    {"module": "slice22-projection-status.test.js", "tests": 1, "pass": 1},
+    {"module": "slice25-actuation.test.js", "tests": 13, "pass": 13},
+    {"module": "slice30-dependency-closure.test.js", "tests": 3, "pass": 3},
+    {"module": "slice35-frozen-read.test.js", "tests": 3, "pass": 3},
+    {"module": "slice45-pagination.test.js", "tests": 3, "pass": 3},
+    {"module": "slice50-evidence.test.js", "tests": 2, "pass": 2},
+    {"module": "slice50-evidence-response-validation.test.js", "tests": 2, "pass": 2},
+    {"module": "slice55-candidate-native-explanation.test.js", "tests": 9, "pass": 9},
+    {"module": "slice60-graph-expand.test.js", "tests": 12, "pass": 12}
+  ],
+  "totals": {
+    "modules": 13,
+    "tests": 180,
+    "pass": 180,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "focused_local_checks": [
+    "python3 scripts/tests/test_slice73_windows_napi_ci.py",
+    "bash scripts/tests/test_native_artifact_runtime_validation.sh",
+    "python3 scripts/tests/test_ci_proportional_routing.py",
+    "bash scripts/tests/test_agent_test_tiers.sh",
+    "actionlint .github/workflows/ci.yml",
+    "npm run typecheck",
+    "git diff --check"
+  ],
+  "retained_logs": {
+    "windows-vm-build.log": "907c10c084cd703c8290a8b2764d73129c76f3f6c0f088d4f3007a8643765e59",
+    "windows-vm-test.log": "6f47cf837d466b0cc535237cd25c2a7c2285760f2394b3557554b5508f0f07aa"
+  },
+  "broad_regression_rounds": 0,
+  "cleanup": {
+    "status": "COMPLETE",
+    "windows_task_directories_removed": true,
+    "temporary_maturin_removed": true,
+    "local_transfer_artifacts_removed": true,
+    "windows_vm_state": "shut off"
+  }
+}

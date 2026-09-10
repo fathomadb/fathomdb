@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 73 — Windows Node/N-API CI design
-status: READY
+status: APPROVED
 design_version: 2
 target_release: 0.8.25
 depends_on: 72
@@ -73,11 +73,11 @@ relative file names and per-file SHA-256 values for installed
 only regular files and their digests must be equal. The receipt retains both
 digests, making the relative-import staging claim independently auditable.
 
-Each module runs in its own `node --test` process from the disposable
-`src/ts` directory. `TEMP` and `TMP` are set to a verifier-owned directory
-beneath that disposable root for every process, containing `freshDbPath()` and
-all other test-owned temporary files. The runner parses the standard summary
-and requires:
+Each module runs in its own `node --test --test-reporter=tap` process from the
+disposable `src/ts` directory. `TEMP` and `TMP` are set to a verifier-owned
+directory beneath that disposable root for every process, containing
+`freshDbPath()` and all other test-owned temporary files. The runner parses
+the reporter's stable ASCII TAP summary and requires:
 
 - tests greater than zero;
 - pass equals tests;

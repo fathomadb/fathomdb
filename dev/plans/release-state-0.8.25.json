@@ -54,12 +54,31 @@
       "evidence": "Slice 71 is complete without changing performance limits. 71B remains recovered at eda95b07. The AC-072 correction at 84c056c6 preserves complete hybrid ranking and eligibility while removing per-match identity work and quadratic fusion. The exact 10k/384d/1000-query campaign passes all three candidate repetitions at p50 69 ms and p99 75-77 ms versus a stable 161-164/169-173 ms baseline. Candidate-only 71B guards pass: Scale-02 10k acknowledgement/total stay at 1361-1378/1365-1383 ms and projection-active 10k total at 1274-1293 ms. Forty-nine focused blast-radius tests, changed-target clippy, independent design/code review, and a separate evidence audit pass. Zero broad-verification rounds completed; Slice 75 owns full regressions."
     },
     {"slice": 72, "short": "PREFLIGHT-CE", "title": "generic preflight and installed CE profiles", "depends_on": [71], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/features/slice-72/plan.md", "dev/plans/0.8.25/features/slice-72/design.md", "dev/plans/0.8.25/features/slice-72/design-review.md", "dev/plans/0.8.25/features/slice-72/implementation-review.md", "dev/plans/0.8.25/features/slice-72/tdd-chronology.md", "dev/plans/0.8.25/features/slice-72/verification-review.md", "dev/plans/0.8.25/features/slice-72/ce-profile-manifest.json", "dev/plans/0.8.25/features/slice-72/status.md", "dev/plans/runs/0.8.25-slice-72/receipt.json"], "sha": "2e14f5ba", "merge_subject": "fix(0.8.25): remove CUDA profile observer interference", "evidence": "Generic preflight now selects the tracked live release, validates its active/PENDING/COMPLETE baseline, and proves exact dependency closure from release-state SHA reachability. Exact installed CPU/CUDA baseline and candidate profiles pass standalone and Engine CE correctness, pinned RTX 3090 allocation, offline immutable-model, and all four 10% median-p95 gates; the maximum ratio is 1.0962. Focused state/tooling suites, five CPU reranker tests, two CUDA reranker tests, independent design/code review, and a separate retained-evidence audit pass. No broad regression was run; Slice 75 owns it."},
-    {"slice": 73, "short": "WINDOWS-NAPI", "title": "Windows Node/N-API CI coverage", "depends_on": [72], "status": "NOT_STARTED", "design_refs": ["dev/plans/0.8.25/features/slice-73/plan.md", "dev/plans/0.8.25/features/slice-73/design.md"]},
+    {
+      "slice": 73,
+      "short": "WINDOWS-NAPI",
+      "title": "Windows Node/N-API CI coverage",
+      "depends_on": [72],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.25/features/slice-73/plan.md",
+        "dev/plans/0.8.25/features/slice-73/design.md",
+        "dev/plans/0.8.25/features/slice-73/design-review.md",
+        "dev/plans/0.8.25/features/slice-73/implementation-review.md",
+        "dev/plans/0.8.25/features/slice-73/tdd-chronology.md",
+        "dev/plans/0.8.25/features/slice-73/verification-review.md",
+        "dev/plans/0.8.25/features/slice-73/status.md",
+        "dev/plans/runs/0.8.25-slice-73/receipt.json"
+      ],
+      "sha": "6eb7cd18",
+      "merge_subject": "fix(0.8.25): use stable TAP test summaries",
+      "evidence": "The existing Windows x64 native-artifact CI cell now runs a fixed 13-module sample of retained TypeScript/N-API contracts against isolated installed package bytes. The exact Windows 11 candidate campaign passes 180/180 tests with zero failures, cancellations, skips, or todos; built/installed native hashes and installed/staged SDK-tree digests agree. Focused workflow, routing, structural, PowerShell, and TypeScript checks plus independent design/code/evidence reviews pass. No broad regression was run; Slice 75 owns integrated release closure and full verification."
+    },
     {"slice": 75, "short": "CLOSURE", "title": "integrated release closure", "depends_on": [73], "status": "NOT_STARTED", "design_refs": ["dev/plans/0.8.25/features/slice-75/plan.md", "dev/plans/0.8.25/features/slice-75/design.md"]}
   ],
   "landed": [],
-  "next_slice": 73,
-  "remaining_ladder": [73, 75],
+  "next_slice": 75,
+  "remaining_ladder": [75],
   "decisions": {
     "unruled": [],
     "ruled": [

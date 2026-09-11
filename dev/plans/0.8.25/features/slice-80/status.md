@@ -1,6 +1,6 @@
 # Slice 80 status
 
-Status: **SLICE 80.N IN PROGRESS; AC-072 ACCEPTANCE EVIDENCE REMAINS MISSING**
+Status: **SLICE 80.N STOPPED ON AC-072 ENVIRONMENT INVALIDITY; ACCEPTANCE BLOCKED**
 
 - Contract/design: complete and independently approved.
 - TDD implementation: complete through `e8b63952`.
@@ -13,6 +13,9 @@ Status: **SLICE 80.N IN PROGRESS; AC-072 ACCEPTANCE EVIDENCE REMAINS MISSING**
 - The 80.m stop left the replacement AC-072 campaign unstarted after R1. The
   owner has now authorized the bounded 80.n smoke and one conditional three-cell
   campaign under [80n authorization](80n-authorization.md).
+- Slice 80.n's smoke-repair path passed and R1 completed at 69/76 ms, but its
+  `pswpin` increased by three. R2/R3 remain unstarted by the campaign stop rule;
+  see [the stopped receipt](../../../runs/0.8.25-slice-80/80n-stopped-campaign.md).
 - Slice 80.m readiness proof passed; its repaired AC-081 campaign has 7/7
   qualified numeric passes with no warnings (172.883034 ms sequential median;
   52.527637 ms concurrent median).
@@ -24,5 +27,6 @@ Status: **SLICE 80.N IN PROGRESS; AC-072 ACCEPTANCE EVIDENCE REMAINS MISSING**
 
 The initial AC-081 quota defect and both collector-census defects are retained
 transparently. Slice 80.m's allowance remains exhausted historical evidence.
-Slice 80.n has a separate, recorded allowance; it has not spent an AC-072 cell
-yet. Slice 80 remains in progress and Slice 85 is not unblocked.
+Slice 80.n's separate allowance is now stopped after its first AC-072 cell.
+Slice 80 remains in progress and Slice 85 is not unblocked. A new explicit
+owner disposition is required before further AC-072 timing.

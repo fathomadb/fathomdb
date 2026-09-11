@@ -20,11 +20,13 @@
   "slice80n": {
     "record": "dev/plans/0.8.25/features/slice-80/80n-acceptance-completion.md",
     "authorization": "dev/plans/0.8.25/features/slice-80/80n-authorization.md",
-    "status": "IMPLEMENTING",
+    "status": "STOPPED_ENVIRONMENT_INVALID",
     "active_budget": {
       "ac081_fresh_processes": 0,
       "ac072_non_acceptance_smokes": 1,
       "ac072_acceptance_cells": 3,
+      "ac072_cells_started": 1,
+      "ac072_cells_remaining_without_new_owner_disposition": 0,
       "stop_after_first_invalid_numeric_failure_timeout_or_malformed_receipt": true,
       "replacement_observations_authorized": false,
       "broad_regression_rounds": 0
@@ -37,7 +39,7 @@
       "runner_sha256": "7b486ed2dfc5990085cf13af4d4382d411eb5ee8b5af58b7ac1721eded372124",
       "scanner_sha256": "b213ef845247ae230ba846fb7ef9f4df0eac458fb117b6ee0c758def2de9b825",
       "validator_sha256": "31a84b60d9ed656723358cb653afa0c1d7648e86e2b4b2220d473eaec9b17a2b",
-      "dispatcher_sha256": "9a33d09b437fb1cd0bacf132bc43963b21b95e42cd8566fb532c048579b2197e",
+      "dispatcher_sha256": "f25401004b937e03ef04e12e54e9c0feae4d69456e4f39249e8c4a3589c60af6",
       "seal": "dev/plans/runs/0.8.25-slice-80/80n-pre-dispatch-seal.md",
       "required_child_environment": {
         "AGENT_LONG": "1",

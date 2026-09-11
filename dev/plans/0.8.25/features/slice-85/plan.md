@@ -1,10 +1,89 @@
 ---
 title: Slice 85 — final verification, CI and non-publishing packaging
-status: DRAFT
+status: READY
 depends_on: 80
 ---
 
 # Slice 85 — final verification and packaging
+
+## Planning reconciliation
+
+The original brief landed at `b8a1a228` before Slices 76–80. The reviewed
+baseline is `56e6d7fd`. The intervening work changes this slice as follows:
+
+1. Slice 76 measured statement reuse and compilation/accounting behavior, then
+   removed its experimental product diff. It contributes diagnostic evidence,
+   not a shipping treatment or a release pass.
+2. Slice 77 produced an inconclusive residual profile, selected no treatment,
+   and restored the protected product/test tree. Its experiment matrix must not
+   be repeated here.
+3. Slice 79 shipped one startup-only runtime configuration owner plus bounded
+   reader statement reuse. It added Rust/Python/TypeScript public surfaces,
+   changed Engine/runtime initialization and the schema-26 upgrade fixture, and
+   passed focused source and installed-binding tests. Those are final-candidate
+   invalidation inputs and require broad plus installed-artifact coverage.
+4. Slice 80 replaced retired AC-020 with accepted AC-081a/b/c, retained AC-072
+   with host swap as diagnostic context, and accepted applicable protected 71B
+   write evidence. Its 76/77 tooling and performance evidence are reusable
+   only under their recorded input identities.
+5. The typed verifier still registers 109 suites (106 fast, three heavy).
+   Therefore the original 109-label expectation remains current; the full
+   round must show real Python and TypeScript execution and no skip/exclusion.
+6. Package metadata remains `0.8.24`. Slice 85 may rehearse local artifacts at
+   that truthful version but cannot silently cut 0.8.25, publish, or claim a
+   publish-ready dependent-crate rehearsal that requires the version cut.
+7. The current local host has Rust 1.95, Python 3.12, Node 25 and packaging
+   tools, but no visible NVIDIA driver and no Python 3.10/3.11 binaries.
+   Linux CUDA, runtime-floor, native-platform and Tegra rows therefore use
+   exact-candidate remote/hosted evidence or remain an explicit blocker.
+
+This reconciliation approves the draft direction with the adjustments below.
+It rejects rebuilding the Slice 75 framework, rerunning the 76/77 experiments,
+restoring AC-020, multiplying equivalent SDK/platform combinations, or using a
+version cut as a packaging shortcut.
+
+## Needs, requirements and acceptance
+
+- **N85-1:** a release owner needs one auditable, deduplicated verdict for the
+  final 0.8.25 candidate before deciding whether to publish. This is the final
+  owner of draft N25-04 and R25-75/AC25-75 after Slice 75's checkpoint transfer.
+- **R85-1:** every inherited Slice 75 cell and every Slice 79/80 addition has a
+  final disposition bound to its relevant inputs and evidence.
+- **R85-2:** the candidate passes one full local verification round plus the
+  risk-weighted long, installed-artifact, model, platform and CI obligations;
+  a missing, skipped, zero-test or stale result is not a pass.
+- **R85-3:** exact artifact/source/toolchain identity is preserved across build
+  and consumption, without editable/source fallback or registry writes.
+- **R85-4:** closure changes only release evidence and state unless a failing
+  test exposes a bounded product/runner defect; such a fix follows RED/GREEN
+  and invalidates only affected evidence.
+- **AC85-1:** the Slice 85 manifest accounts for all 26 legacy cell IDs plus
+  runtime configuration and protected-write applicability, with no duplicate
+  ID and a permitted final disposition for every row.
+- **AC85-2:** `agent-verify --tier=all`, strict MkDocs, full workspace
+  all-target check/clippy, selected long reliability/performance/model tests,
+  and installed Linux SDK/CLI workflows pass with positive test/operation
+  counts; output records exact commands and identities.
+- **AC85-3:** the five-row native matrix, CUDA/Tegra routes and required hosted
+  CI pass at the exact candidate, or an already-authorized unavailable cell is
+  named as a non-pass. AC-034c is the only pre-authorized unavailable cell.
+- **AC85-4:** retained AC-081, AC-072, 71B, Slice 72 CE and Slice 73 Windows
+  receipts are reused only when an explicit relevant-input comparison proves
+  applicability; otherwise their current route is rerun.
+- **AC85-5:** final status distinguishes release readiness from publication and
+  records any blocking non-pass without relaxing an oracle.
+
+R25-75/AC25-75 close only through this explicit mapping:
+
+| Allocated outcome | Required Slice 85 evidence |
+| --- | --- |
+| Cross-SDK and wire parity | Full Rust/Python/TypeScript round, installed Linux/native matrix, the shared frozen-context/database fixture and wire-equivalent values, plus risk-weighted mutation, erasure, eligibility, lifecycle and runtime-mode behavior. |
+| Snapshot concurrency and lifecycle closure | `final-interactions`, populated `schema26-upgrade`, AC-021, AC-059b, AC-034a/b, AC-081c and the installed frozen/dependency/lifecycle workflows. |
+| Predictable cold/steady performance and resource costs | AC-076, accepted AC-081/AC-072 distributions, rerun CE CPU/CUDA profile, rerun protected 71B workloads, EU7 AC-073/075, and recorded cold/steady latency, throughput, RSS/VRAM and uncertainty where the owning protocol defines it. Descriptive resource values are not new limits. |
+| Retrieval-only evaluation | Installed GLOBAL-01 native search and EU7 Engine evidence with positive execution/model counts; no answer-quality or spend claim. |
+| Missing platform/lifecycle evidence fails | Final manifest validator plus exact-candidate five-platform, CUDA/Tegra and hosted-CI receipts; AC-034c remains the sole authorized unavailable non-pass. |
+
+The detailed architecture and execution ownership are in [the design](design.md).
 
 ## Outcome and authority
 
@@ -31,7 +110,7 @@ passes. Approved Slice 75 oracle corrections remain in force; do not repin
 again without a genuine separately approved contract change.
 
 Keep legacy Slice 75 manifest/tests as historical execution contracts.
-Any new manifest/validator must get focused RED tests for missing coverage,
+The new manifest/validator gets focused RED tests for missing coverage,
 zero-test/skip, stale artifact, relaxed threshold and false reuse. Do not
 rewrite old result files to look like the final candidate.
 
@@ -60,7 +139,8 @@ rewrite old result files to look like the final candidate.
    remains diagnostic under the approved Slice 80 policy, not an automatic
    invalidation. The synthetic warm hybrid-search gate does not replace the
    separately required real-corpus stress/fidelity evidence.
-4. Both protected 71B 10k candidate workloads when invalidated, with retained
+4. Both protected 71B 10k candidate workloads are invalidated by the Slice 80
+   `fathomdb-engine/src` change and must rerun, with retained
    guards and no historical baseline reruns. Keep ack and drained-total
    measurements distinct and do not infer write performance from AC-020.
 5. Risk-weighted API/SDK coverage manifest: public Rust, Python, TypeScript,
@@ -135,6 +215,27 @@ a distinct owner decision after this slice.
 - Separate independent implementation/tooling review from the evidence audit.
   Missing platform/model/receipt, unresolved successor acceptance or a material safety
   finding blocks release-readiness closure.
+
+## Implementation and TDD sequence
+
+1. **RED:** add focused validator tests proving the final manifest rejects a
+   missing legacy/additional row, duplicate ID, forbidden disposition, passing
+   row without evidence, zero-test/skip, stale candidate or artifact identity,
+   relaxed thresholds, false reuse, and AC-034c represented as a pass. Commit
+   the RED before the validator/manifest implementation. Add a runner RED that
+   requires three installed Python and three installed Node runtime-mode cases.
+2. **GREEN:** implement the smallest manifest validator, candidate manifest and
+   installed-runtime smoke addition needed for AC85-1/2. Do not build a
+   scheduler or replace existing cell runners.
+3. Run cheap route/test-list/preflight smokes, then freeze the candidate.
+4. Execute the matrix in dependency/cost order, recording immutable raw logs
+   and hashes. Fix only actual product or route defects; add a reproducing RED
+   first and rerun only invalidated cells after GREEN.
+5. Obtain independent code review of the validator/manifest and independent
+   verification of the final evidence. Then update release state and status.
+6. Merge the completed Slice 85 branch into `release/0.8.25`, verify the exact
+   Git ancestry/tree and clean status, then remove the Slice 85 worktree and
+   branch. Do not merge to `main`.
 
 ## Completion
 

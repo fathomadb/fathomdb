@@ -1,6 +1,21 @@
 {
   "schema_version": "slice80-execution.v1",
   "authority": "seq-277",
+  "additional_campaign_authorization": {
+    "source": "repository owner, 2026-09-11",
+    "record": "dev/plans/0.8.25/features/slice-80/additional-campaign-authorization.md",
+    "scope": {
+      "ac081_fresh_processes": 7,
+      "ac072_repetitions": 3,
+      "further_campaigns_authorized": false
+    },
+    "preconditions": [
+      "corrected competitor census",
+      "read-only quiet-environment diagnosis",
+      "focused collector review",
+      "sealed source/build/binary/collector identities"
+    ]
+  },
   "source_ref_at_seal": "6b785e7c0fa54507e30147e6f03922bd30bfd41e",
   "toolchain": {
     "rustc": "1.95.0 (59807616e 2026-04-14)",
@@ -34,7 +49,7 @@
     "required_test_count": 1,
     "runner": "scripts/perf-experiments/run-slice80-ac081-cell.sh",
     "parser": "dev/tools/slice80_read_acceptance.py",
-    "raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac081",
+    "raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac081-authorized-final",
     "test_list_check": "python3 dev/tools/slice80_read_acceptance.py check-test-list --binary /tmp/fathomdb-slice80/ac081-perf-gates"
   },
   "reader_independence": {
@@ -67,7 +82,7 @@
     "p99_budget_ms": 300,
     "environment_policy_source": "experiments/configs/release-0825-slice71-ac072-final-manifest.v1.json",
     "timeout_seconds_per_repetition": 3600,
-    "raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac072"
+    "raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac072-authorized-final"
   },
   "environment": {
     "max_load_per_online_cpu": 0.5,
@@ -131,6 +146,7 @@
     "profiling": false,
     "optimization_sweep": false,
     "maximum_environment_correction_attempts": 1,
-    "maximum_replacement_series_per_gate": 1
+    "maximum_replacement_series_per_gate": 1,
+    "owner_authorized_final_campaigns_per_gate": 1
   }
 }

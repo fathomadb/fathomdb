@@ -19,8 +19,10 @@ The scope and thresholds are approved. This plan and [design](design.md)
 are reconciled in [the planning review](planning-review.md). The exact focused
 commands and counts are sealed in [the execution manifest](execution-manifest.json).
 Implementation and numerical successor evidence are complete. Environment
-applicability remains unproved and the bounded retry budget is exhausted; see
-[status](status.md). Do not re-open the approved thresholds.
+applicability remains unproved. The owner authorized exactly one additional
+bounded final campaign for each gate on 2026-09-11; see
+[the authorization record](additional-campaign-authorization.md). Do not
+re-open the approved thresholds.
 
 ## Inputs and protected baseline
 
@@ -88,6 +90,11 @@ bearing; diagnostics remains descriptive.
   Permit at most one documented environment correction and one replacement
   bounded series for the affected gate; preserve all invalid evidence.
   Genuine performance failures are not eligible for repeat-until-pass.
+- The prior allowance is exhausted. Owner authorization on 2026-09-11 adds
+  exactly one final seven-process AC-081 campaign and one final three-cell
+  AC-072 campaign. They must use the corrected competitor census and a
+  read-only documented quiet-environment diagnosis. Preserve all outcomes;
+  do not replace an observation or start another campaign after this allowance.
 - Reuse all six Slice 79 write receipts after checking relevant input identity.
   Only product-path changes invalidating them require rechecking the two 71B
   10k candidate workloads under their retained protocol; no historical reruns.

@@ -262,5 +262,25 @@ class Slice85InstalledRuntimeContractTest(unittest.TestCase):
                 self.assertIn(marker, text)
 
 
+class Slice85NodeSupportContractTest(unittest.TestCase):
+    def test_package_and_docs_support_node_24_and_25(self) -> None:
+        package = json.loads((ROOT / "src/ts/package.json").read_text(encoding="utf-8"))
+        self.assertEqual(package.get("engines", {}).get("node"), ">=24 <26")
+        install = (ROOT / "docs/install/typescript.md").read_text(encoding="utf-8")
+        compatibility = (ROOT / "docs/compatibility/index.md").read_text(encoding="utf-8")
+        readme = (ROOT / "src/ts/README.md").read_text(encoding="utf-8")
+        for text in (install, compatibility, readme):
+            self.assertIn("24.19.0", text)
+            self.assertIn("25.9.0", text)
+
+    def test_primary_ci_and_release_node_is_24(self) -> None:
+        for relative in (".github/workflows/ci.yml", ".github/workflows/release.yml"):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            setup_count = text.count("uses: actions/setup-node@")
+            self.assertGreater(setup_count, 0)
+            self.assertEqual(text.count('node-version: "24.19.0"'), setup_count)
+            self.assertNotIn('node-version: "25.9.0"', text)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -157,7 +157,7 @@ def test_ci_default_embedder_typescript_suite_is_pinned_and_serial() -> None:
         None,
     )
     assert node_step is not None, "default-embedder-tests must pin Node explicitly"
-    assert node_step.get("with", {}).get("node-version") == "25.9.0"
+    assert node_step.get("with", {}).get("node-version") == "24.19.0"
 
     runs = [step.get("run", "") for step in steps if isinstance(step.get("run"), str)]
     assert "cd src/ts && npm ci" in runs, (

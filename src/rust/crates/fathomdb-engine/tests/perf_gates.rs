@@ -1210,6 +1210,51 @@ fn run_ac020_gate(sqlite_mode: Option<RuntimeSqliteMode>) {
 }
 
 #[test]
+fn ac_081_oracle_warns_at_exact_warning_boundaries() {
+    let verdict = evaluate_ac081(Duration::from_millis(200), Duration::from_millis(80));
+    assert!(verdict.numeric_pass);
+    assert!(verdict.sequential_warning);
+    assert!(verdict.concurrent_warning);
+    assert!(!verdict.sequential_failure);
+    assert!(!verdict.concurrent_failure);
+}
+
+#[test]
+fn ac_081_oracle_hard_boundaries_are_inclusive() {
+    let verdict = evaluate_ac081(Duration::from_millis(500), Duration::from_millis(100));
+    assert!(verdict.numeric_pass);
+    assert!(verdict.sequential_warning);
+    assert!(verdict.concurrent_warning);
+}
+
+#[test]
+fn ac_081_oracle_fails_one_nanosecond_above_either_hard_limit() {
+    let sequential = evaluate_ac081(Duration::from_nanos(500_000_001), Duration::from_millis(79));
+    assert!(!sequential.numeric_pass);
+    assert!(sequential.sequential_failure);
+    assert!(!sequential.concurrent_failure);
+
+    let concurrent = evaluate_ac081(Duration::from_millis(199), Duration::from_nanos(100_000_001));
+    assert!(!concurrent.numeric_pass);
+    assert!(!concurrent.sequential_failure);
+    assert!(concurrent.concurrent_failure);
+}
+
+#[test]
+fn ac_081_oracle_ignores_ratio_and_preserves_mixed_flags() {
+    let poor_ratio = evaluate_ac081(Duration::from_millis(50), Duration::from_millis(49));
+    assert!(poor_ratio.numeric_pass);
+    assert!(!poor_ratio.sequential_warning);
+    assert!(!poor_ratio.concurrent_warning);
+
+    let good_ratio_but_slow = evaluate_ac081(Duration::from_millis(501), Duration::from_millis(90));
+    assert!(!good_ratio_but_slow.numeric_pass);
+    assert!(good_ratio_but_slow.sequential_failure);
+    assert!(good_ratio_but_slow.concurrent_warning);
+    assert!(!good_ratio_but_slow.concurrent_failure);
+}
+
+#[test]
 fn ac_020_reads_do_not_serialize_on_a_single_reader_connection() {
     run_ac020_gate(None);
 }

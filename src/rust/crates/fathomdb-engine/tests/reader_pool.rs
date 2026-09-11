@@ -161,6 +161,47 @@ fn concurrent_searches_route_to_workers_without_loss_or_duplication() {
     assert_eq!(engine.live_reader_worker_count_for_test(), READER_POOL_SIZE);
 }
 
+#[test]
+fn one_reader_progresses_while_another_reader_holds_a_snapshot() {
+    let (_dir, opened) = fresh_engine("reader_pool_independence");
+    opened
+        .engine
+        .write(&[PreparedWrite::Node {
+            kind: "doc".to_string(),
+            body: "independent reader witness".to_string(),
+            source_id: fathomdb_engine::SourceId::new("test:reader-independence")
+                .expect("test source id"),
+            logical_id: None,
+            state: fathomdb_engine::InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }])
+        .expect("seed write");
+
+    opened.engine.search("independent").expect("prime worker zero");
+    assert_eq!(opened.engine.next_reader_worker_index_for_test(), 1);
+
+    let (snapshot_ready, release) = opened.engine.pause_reader_after_wal_snapshot_for_test();
+    snapshot_ready.wait();
+
+    let engine = Arc::new(opened.engine);
+    let (completed_tx, completed_rx) = std::sync::mpsc::sync_channel(1);
+    let search_engine = Arc::clone(&engine);
+    let search = thread::spawn(move || {
+        let result = search_engine.search("independent");
+        let _ = completed_tx.send(result);
+    });
+
+    let progressed = completed_rx.recv_timeout(Duration::from_secs(2));
+    release.wait();
+    search.join().expect("second reader search thread");
+
+    let result = progressed.expect("worker one must complete while worker zero is paused");
+    assert!(!result.expect("second reader search").results.is_empty());
+    assert_eq!(engine.next_reader_worker_index_for_test(), 2);
+}
+
 // -- G.1 lookaside ---------------------------------------------------
 
 #[test]

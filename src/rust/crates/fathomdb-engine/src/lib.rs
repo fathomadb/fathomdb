@@ -2700,6 +2700,10 @@ fn reader_worker_loop(
     }
     #[cfg(feature = "slice76-statement-reuse")]
     connection.set_prepared_statement_cache_capacity(10);
+    #[cfg(feature = "slice76-diagnostics")]
+    connection
+        .authorizer(Some(slice76_prepare_authorizer))
+        .expect("Slice 76 diagnostic authorizer must install on reader connection");
     #[cfg(any(test, feature = "test-hooks"))]
     let _connection_registration =
         managed_connections.register(WalAttributionRole::ReaderWorker, worker_idx);
@@ -18151,7 +18155,12 @@ fn prepare_search_statement<'connection>(
 ) -> rusqlite::Result<SearchStatement<'connection>> {
     #[cfg(feature = "slice76-statement-reuse")]
     {
-        let statement = connection.prepare_cached(sql)?;
+        #[cfg(feature = "slice76-diagnostics")]
+        begin_slice76_prepare(sql);
+        let statement = connection.prepare_cached(sql);
+        #[cfg(feature = "slice76-diagnostics")]
+        end_slice76_prepare();
+        let statement = statement?;
         let was_reused = statement.get_status(StatementStatus::Run) > 0;
         #[cfg(feature = "slice76-diagnostics")]
         record_slice76_prepare(sql, was_reused);
@@ -18159,7 +18168,12 @@ fn prepare_search_statement<'connection>(
     }
     #[cfg(not(feature = "slice76-statement-reuse"))]
     {
-        let statement = connection.prepare(sql)?;
+        #[cfg(feature = "slice76-diagnostics")]
+        begin_slice76_prepare(sql);
+        let statement = connection.prepare(sql);
+        #[cfg(feature = "slice76-diagnostics")]
+        end_slice76_prepare();
+        let statement = statement?;
         #[cfg(feature = "slice76-diagnostics")]
         record_slice76_prepare(sql, false);
         Ok(SearchStatement::Fresh { statement })
@@ -19128,7 +19142,12 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     if deferred_text_identity {
         let identity_sql =
             "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1";
-        let mut identity_stmt = tx.prepare_cached(identity_sql)?;
+        #[cfg(feature = "slice76-diagnostics")]
+        begin_slice76_prepare(identity_sql);
+        let identity_stmt = tx.prepare_cached(identity_sql);
+        #[cfg(feature = "slice76-diagnostics")]
+        end_slice76_prepare();
+        let mut identity_stmt = identity_stmt?;
         #[cfg(feature = "slice76-diagnostics")]
         record_slice76_prepare(identity_sql, identity_stmt.get_status(StatementStatus::Run) > 0);
         for hit in &mut results {
@@ -30738,6 +30757,70 @@ fn record_slice76_prepare(sql: &str, reused: bool) {
     }
 }
 
+#[cfg(feature = "slice76-diagnostics")]
+struct Slice76PrepareContext {
+    sql: String,
+    compile_seen: bool,
+}
+
+#[cfg(feature = "slice76-diagnostics")]
+thread_local! {
+    static SLICE76_PREPARE_CONTEXT: std::cell::RefCell<Option<Slice76PrepareContext>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(feature = "slice76-diagnostics")]
+fn begin_slice76_prepare(sql: &str) {
+    SLICE76_PREPARE_CONTEXT.with(|context| {
+        *context.borrow_mut() = Some(Slice76PrepareContext {
+            sql: sql.split_whitespace().collect::<Vec<_>>().join(" "),
+            compile_seen: false,
+        });
+    });
+}
+
+#[cfg(feature = "slice76-diagnostics")]
+fn end_slice76_prepare() {
+    SLICE76_PREPARE_CONTEXT.with(|context| {
+        context.borrow_mut().take();
+    });
+}
+
+#[cfg(feature = "slice76-diagnostics")]
+fn slice76_prepare_authorizer(
+    _context: rusqlite::hooks::AuthContext<'_>,
+) -> rusqlite::hooks::Authorization {
+    let compiled_sql = SLICE76_PREPARE_CONTEXT.with(|context| {
+        let mut context = context.borrow_mut();
+        let context = context.as_mut()?;
+        if context.compile_seen {
+            return None;
+        }
+        context.compile_seen = true;
+        Some(context.sql.clone())
+    });
+    if let Some(sql) = compiled_sql {
+        record_slice76_compile(&sql);
+    }
+    rusqlite::hooks::Authorization::Allow
+}
+
+#[cfg(feature = "slice76-diagnostics")]
+fn record_slice76_compile(sql: &str) {
+    let Some(name) = thread::current().name().map(str::to_string) else {
+        return;
+    };
+    let Some(index) = name.strip_prefix("fathomdb-reader-").and_then(|value| value.parse().ok())
+    else {
+        return;
+    };
+    let key = format!("SLICE76_COMPILE {sql}");
+    if let Ok(mut census) = slice76_sql_census().lock() {
+        let count = census.entry(index).or_default().entry(key).or_default();
+        *count = count.saturating_add(1);
+    }
+}
+
 /// Return and clear the private Slice 76 per-reader executed-SQL census.
 #[cfg(feature = "slice76-diagnostics")]
 #[doc(hidden)]
@@ -30792,7 +30875,7 @@ mod tests {
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
     use proptest::prelude::*;
     use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
-    use rusqlite::Connection;
+    use rusqlite::{Connection, OptionalExtension};
     use std::collections::BTreeSet;
     use std::path::Path;
     use std::process::Command;
@@ -30877,6 +30960,42 @@ mod tests {
         assert!(statement.was_reused());
         assert_eq!(statement.query_row([1_i64], |row| row.get::<_, String>(0)).unwrap(), "before");
         assert!(statement.reprepare_count() >= 1, "SQLite must reprepare after schema change");
+    }
+
+    #[cfg(feature = "slice76-diagnostics")]
+    #[test]
+    fn slice76_compile_census_distinguishes_cache_hits_from_compilation() {
+        let _ = super::take_slice76_sql_census_for_test();
+        thread::Builder::new()
+            .name("fathomdb-reader-0".to_string())
+            .spawn(|| {
+                let connection = Connection::open_in_memory().expect("open");
+                connection
+                    .execute_batch("CREATE TABLE item(id INTEGER PRIMARY KEY, value TEXT)")
+                    .expect("schema");
+                connection.set_prepared_statement_cache_capacity(10);
+                connection
+                    .authorizer(Some(super::slice76_prepare_authorizer))
+                    .expect("install diagnostic authorizer");
+
+                for _ in 0..2 {
+                    let mut statement =
+                        prepare_search_statement(&connection, "SELECT value FROM item WHERE id=?1")
+                            .expect("prepare");
+                    let _: Option<String> =
+                        statement.query_row([1_i64], |row| row.get(0)).optional().expect("query");
+                }
+            })
+            .expect("spawn")
+            .join()
+            .expect("join");
+        let census = super::take_slice76_sql_census_for_test();
+        let worker = census.get(&0).expect("reader census");
+        assert_eq!(
+            worker.get("SLICE76_COMPILE SELECT value FROM item WHERE id=?1"),
+            Some(&1),
+            "the authorizer fires for compilation, not a prepared-cache hit"
+        );
     }
 
     #[test]

@@ -72,7 +72,7 @@ slice72-test-hooks = []
 slice72-gpu-tests = ["embed-cuda", "rerank-cuda", "slice72-test-hooks"]
 # Slice 76: private, non-shipping SQL census used only by the bounded AC-020
 # experiment. No facade or binding forwards this feature.
-slice76-diagnostics = []
+slice76-diagnostics = ["rusqlite/hooks"]
 # Slice 76: private, non-shipping statement-reuse treatment.
 slice76-statement-reuse = []
 # Slice 76: private CPU-profile boundary linked only in a diagnostic artifact.

@@ -43,11 +43,11 @@ for label in R1 R2 R3; do
   timeout --kill-after=15s 3600 "$runner" "$worktree" "$binary" "$raw_log" "$source_sha" "$binary_sha" "$input_sha" acceptance 10000 "$expected_runner_sha" "$expected_scanner_sha"
   runner_status=$?
   set -e
-  if ! PYTHONPATH="$root${PYTHONPATH:+:$PYTHONPATH}" "$validator" validate-cell --log "$raw_log" --label "$label" --purpose acceptance >"$verdict"; then
+  if ! PYTHONPATH="$root${PYTHONPATH:+:$PYTHONPATH}" python3 "$validator" validate-cell --log "$raw_log" --label "$label" --purpose acceptance >"$verdict"; then
     exit 1
   fi
   if [ "$runner_status" -ne 0 ]; then
     exit 1
   fi
 done
-PYTHONPATH="$root${PYTHONPATH:+:$PYTHONPATH}" "$validator" summarize-campaign --logs "$raw_root/R1.log" "$raw_root/R2.log" "$raw_root/R3.log" >"$raw_root/summary.json"
+PYTHONPATH="$root${PYTHONPATH:+:$PYTHONPATH}" python3 "$validator" summarize-campaign --logs "$raw_root/R1.log" "$raw_root/R2.log" "$raw_root/R3.log" >"$raw_root/summary.json"

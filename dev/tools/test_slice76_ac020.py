@@ -72,6 +72,8 @@ class Slice76Ac020Tests(unittest.TestCase):
             Path("go"),
             Path("done"),
             Path("finish"),
+            "gperftools",
+            Path("profile.data"),
         )
         self.assertEqual(
             environment["FATHOMDB_SLICE76_PROFILE_ARM"],
@@ -81,9 +83,18 @@ class Slice76Ac020Tests(unittest.TestCase):
         self.assertEqual(environment["FATHOMDB_SLICE76_PROFILE_GO"], "go")
         self.assertEqual(environment["FATHOMDB_SLICE76_PROFILE_DONE"], "done")
         self.assertEqual(environment["FATHOMDB_SLICE76_PROFILE_FINISH"], "finish")
+        self.assertEqual(
+            environment["FATHOMDB_SLICE76_GPERFTOOLS_OUTPUT"], "profile.data"
+        )
         with self.assertRaisesRegex(ValueError, "unsupported profile arm"):
             slice76_ac020.profile_environment(
-                "setup", Path("ready"), Path("go"), Path("done"), Path("finish")
+                "setup",
+                Path("ready"),
+                Path("go"),
+                Path("done"),
+                Path("finish"),
+                "gperftools",
+                Path("profile.data"),
             )
 
     def test_campaign_validation_enforces_order_count_and_binary_identity(self):

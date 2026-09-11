@@ -248,6 +248,12 @@ fn slice76_profile_gate_phase() {
     let embedder = Arc::new(RoutedEmbedder::new(8));
     let opened = Engine::open_with_embedder_for_test(&path, embedder).expect("open");
     seed_ac020_fixture(&opened.engine);
+    #[cfg(feature = "slice76-gperftools-profile")]
+    let registered_workers = fathomdb_engine::slice76_registered_profile_workers_for_test();
+    #[cfg(not(feature = "slice76-gperftools-profile"))]
+    let registered_workers = 0;
+    #[cfg(feature = "slice76-gperftools-profile")]
+    assert_eq!(registered_workers, AC020_THREADS, "all reader workers must register");
     let warmup_searches = if arm == "concurrent-after-sequential-warmup" {
         for _ in 0..AC020_THREADS {
             run_ac020_mix(&opened.engine);
@@ -256,10 +262,25 @@ fn slice76_profile_gate_phase() {
     } else {
         0
     };
-    std::fs::write(&ready, format!("{{\"arm\":\"{arm}\",\"warmup_searches\":{warmup_searches}}}"))
-        .expect("write ready record");
+    std::fs::write(
+        &ready,
+        format!(
+            "{{\"arm\":\"{arm}\",\"registered_workers\":{registered_workers},\"warmup_searches\":{warmup_searches}}}"
+        ),
+    )
+    .expect("write ready record");
     wait_for_slice76_path(&go);
     eprintln!("SLICE76_PROFILE_BEGIN arm={arm}");
+    #[cfg(feature = "slice76-gperftools-profile")]
+    {
+        let output = std::path::PathBuf::from(
+            std::env::var_os("FATHOMDB_SLICE76_GPERFTOOLS_OUTPUT").expect("profile output"),
+        );
+        assert!(
+            fathomdb_engine::slice76_start_cpu_profile_for_test(&output),
+            "gperftools profile start failed"
+        );
+    }
     if arm == "sequential" {
         for _ in 0..AC020_THREADS {
             run_ac020_mix(&opened.engine);
@@ -267,6 +288,8 @@ fn slice76_profile_gate_phase() {
     } else {
         run_ac020_concurrent(opened.engine);
     }
+    #[cfg(feature = "slice76-gperftools-profile")]
+    fathomdb_engine::slice76_stop_cpu_profile_for_test();
     eprintln!("SLICE76_PROFILE_END arm={arm}");
     let searches = AC020_THREADS * AC020_ROUNDS_PER_THREAD * ac020_queries().len();
     std::fs::write(&done, format!("{{\"arm\":\"{arm}\",\"searches\":{searches}}}"))

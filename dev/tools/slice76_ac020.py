@@ -215,7 +215,13 @@ def clean_environment() -> dict[str, str]:
 
 
 def profile_environment(
-    arm: str, ready: Path, go: Path, done: Path, finish: Path
+    arm: str,
+    ready: Path,
+    go: Path,
+    done: Path,
+    finish: Path,
+    tool: str,
+    output: Path,
 ) -> dict[str, str]:
     if arm not in {"sequential", "concurrent-after-sequential-warmup"}:
         raise ValueError(f"unsupported profile arm: {arm}")
@@ -225,6 +231,10 @@ def profile_environment(
     environment["FATHOMDB_SLICE76_PROFILE_GO"] = str(go)
     environment["FATHOMDB_SLICE76_PROFILE_DONE"] = str(done)
     environment["FATHOMDB_SLICE76_PROFILE_FINISH"] = str(finish)
+    if tool == "gperftools":
+        environment["FATHOMDB_SLICE76_GPERFTOOLS_OUTPUT"] = str(output)
+    elif tool != "perf":
+        raise ValueError(f"unsupported profile tool: {tool}")
     return environment
 
 
@@ -290,7 +300,9 @@ def cmd_profile(args: argparse.Namespace) -> int:
         go = root / "go"
         done = root / "done"
         finish = root / "finish"
-        environment = profile_environment(args.arm, ready, go, done, finish)
+        environment = profile_environment(
+            args.arm, ready, go, done, finish, args.tool, output
+        )
         command = [
             str(binary),
             "slice76_profile_gate_phase",
@@ -308,39 +320,48 @@ def cmd_profile(args: argparse.Namespace) -> int:
             )
             wait_for_path(ready, child, 300)
             expected_warmup = 1600 if args.arm == "concurrent-after-sequential-warmup" else 0
+            expected_workers = 8 if args.tool == "gperftools" else 0
             ready_record = json.loads(ready.read_text())
-            if ready_record != {"arm": args.arm, "warmup_searches": expected_warmup}:
+            if ready_record != {
+                "arm": args.arm,
+                "registered_workers": expected_workers,
+                "warmup_searches": expected_warmup,
+            }:
                 raise ValueError(f"wrong profile warmup record: {ready_record}")
-            profile = subprocess.Popen(
-                [
-                    "perf",
-                    "record",
-                    "--call-graph",
-                    "dwarf",
-                    "--output",
-                    str(output),
-                    "--pid",
-                    str(child.pid),
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                env=clean_environment(),
-            )
-            time.sleep(0.25)
-            if profile.poll() is not None:
-                profile_stdout, profile_stderr = profile.communicate()
-                raise ValueError(
-                    f"perf exited before the search phase ({profile.returncode}):\n"
-                    f"{profile_stdout}{profile_stderr}"
+            profile_stdout = ""
+            profile_stderr = ""
+            if args.tool == "perf":
+                profile = subprocess.Popen(
+                    [
+                        "perf",
+                        "record",
+                        "--call-graph",
+                        "dwarf",
+                        "--output",
+                        str(output),
+                        "--pid",
+                        str(child.pid),
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    env=clean_environment(),
                 )
+                time.sleep(0.25)
+                if profile.poll() is not None:
+                    profile_stdout, profile_stderr = profile.communicate()
+                    raise ValueError(
+                        f"perf exited before the search phase ({profile.returncode}):\n"
+                        f"{profile_stdout}{profile_stderr}"
+                    )
             go.touch()
             wait_for_path(done, child, 300)
             done_record = json.loads(done.read_text())
             if done_record != {"arm": args.arm, "searches": 1600}:
                 raise ValueError(f"wrong profile completion record: {done_record}")
-            profile.send_signal(signal.SIGINT)
-            profile_stdout, profile_stderr = profile.communicate(timeout=30)
+            if profile is not None:
+                profile.send_signal(signal.SIGINT)
+                profile_stdout, profile_stderr = profile.communicate(timeout=30)
             finish.touch()
             child_stdout, child_stderr = child.communicate(timeout=30)
         finally:
@@ -359,7 +380,7 @@ def cmd_profile(args: argparse.Namespace) -> int:
         raise ValueError(
             f"profile harness failed or did not delimit one search phase ({child.returncode}):\n{log}"
         )
-    if profile.returncode != 0:
+    if profile is not None and profile.returncode != 0:
         raise ValueError(
             f"perf failed ({profile.returncode}):\n{profile_stdout}{profile_stderr}"
         )
@@ -371,6 +392,7 @@ def cmd_profile(args: argparse.Namespace) -> int:
         "profile_path": str(output),
         "profile_sha256": sha256(output),
         "scope": "on_cpu_search_phase_only",
+        "tool": args.tool,
     }
     print(json.dumps(record, sort_keys=True))
     return 0
@@ -482,6 +504,7 @@ def parser() -> argparse.ArgumentParser:
     profile.add_argument("--binary", required=True)
     profile.add_argument("--arm", required=True)
     profile.add_argument("--output", required=True)
+    profile.add_argument("--tool", choices=["perf", "gperftools"], default="perf")
     profile.set_defaults(handler=cmd_profile)
     return root
 

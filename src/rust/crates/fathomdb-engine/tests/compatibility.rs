@@ -1,11 +1,15 @@
 use fathomdb_embedder_api::EmbedderIdentity;
-use fathomdb_engine::{Engine, EngineOpenError};
+use fathomdb_engine::{configure_runtime, Engine, EngineOpenError, RuntimeSqliteMode};
 use fathomdb_schema::{Migration, SCHEMA_VERSION, SQLITE_SUFFIX};
 use rusqlite::{params, Connection};
 use tempfile::TempDir;
 
 fn db_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
     dir.path().join(format!("{name}{SQLITE_SUFFIX}"))
+}
+
+fn configure_test_runtime() {
+    configure_runtime(RuntimeSqliteMode::Performance).expect("configure test runtime");
 }
 
 fn set_user_version(conn: &Connection, version: u32) {
@@ -41,6 +45,7 @@ fn create_profile(conn: &Connection, name: &str, revision: &str, dimension: u32)
 
 #[test]
 fn ac_047_rejects_05_shaped_database_before_use() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "legacy");
     let conn = Connection::open(&path).unwrap();
@@ -61,6 +66,7 @@ fn ac_047_rejects_05_shaped_database_before_use() {
 
 #[test]
 fn future_schema_version_is_also_rejected() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "future");
     let conn = Connection::open(&path).unwrap();
@@ -80,6 +86,7 @@ fn future_schema_version_is_also_rejected() {
 
 #[test]
 fn engine_open_emits_migration_step_events() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "events");
     let conn = Connection::open(&path).unwrap();
@@ -105,6 +112,7 @@ fn engine_open_emits_migration_step_events() {
 
 #[test]
 fn engine_open_poison_migration_reports_failure_and_preserves_user_version() {
+    configure_test_runtime();
     static POISON: &[Migration] = &[Migration {
         step_id: 2,
         sql: "CREATE TABLE _poison(id INTEGER PRIMARY KEY); SELECT * FROM missing_table",
@@ -145,6 +153,7 @@ fn engine_open_poison_migration_reports_failure_and_preserves_user_version() {
 
 #[test]
 fn ac_048_rejects_stored_embedder_identity_mismatch() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "identity");
     Engine::open(&path).unwrap().engine.close().unwrap();
@@ -173,6 +182,7 @@ fn ac_048_rejects_stored_embedder_identity_mismatch() {
 
 #[test]
 fn ac_048b_rejects_stored_embedder_dimension_mismatch() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "dimension");
     Engine::open(&path).unwrap().engine.close().unwrap();
@@ -201,6 +211,7 @@ fn ac_048b_rejects_stored_embedder_dimension_mismatch() {
 
 #[test]
 fn second_live_open_is_locked_and_close_releases_lock() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "locked");
 

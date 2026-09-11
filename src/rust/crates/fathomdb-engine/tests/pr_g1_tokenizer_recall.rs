@@ -11,7 +11,7 @@
 //! `AGENT_LONG`). No mocking of the database: a real engine is opened against a
 //! real on-disk SQLite file at each schema version.
 
-use fathomdb_engine::Engine;
+use fathomdb_engine::{configure_runtime, Engine, RuntimeSqliteMode};
 use fathomdb_schema::{migrate_with_steps, Migration, MIGRATIONS, SCHEMA_VERSION, SQLITE_SUFFIX};
 use rusqlite::Connection;
 use tempfile::TempDir;
@@ -123,6 +123,7 @@ const FLOOR: f64 = 0.90;
 
 #[test]
 fn ac_fts_tokenizer_floor_holds_across_migration() {
+    configure_runtime(RuntimeSqliteMode::Performance).expect("configure test runtime");
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("tok_recall{SQLITE_SUFFIX}"));
 

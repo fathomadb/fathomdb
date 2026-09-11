@@ -22,7 +22,9 @@
 
 use std::path::PathBuf;
 
-use fathomdb_engine::{Engine, ExtractDocument, PreparedWrite, RowKind};
+use fathomdb_engine::{
+    configure_runtime, Engine, ExtractDocument, PreparedWrite, RowKind, RuntimeSqliteMode,
+};
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::{params, Connection};
 use tempfile::TempDir;
@@ -43,6 +45,10 @@ fn fixture_dir() -> PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/slice15_byo_llm")
 }
 
+fn configure_test_runtime() {
+    configure_runtime(RuntimeSqliteMode::Performance).expect("configure test runtime");
+}
+
 // ---------------------------------------------------------------------------
 // Item 6 (R-20-E3) — no stored canonical row carries NULL provenance
 // ---------------------------------------------------------------------------
@@ -57,6 +63,7 @@ fn fixture_dir() -> PathBuf {
 /// that some other writer put on disk.
 #[test]
 fn no_canonical_row_has_null_source_id() {
+    configure_test_runtime();
     let dir = TempDir::new().expect("tempdir");
     let path = db_path(&dir, "null_provenance");
     let opened = Engine::open_without_embedder_for_test(&path).expect("open");
@@ -171,6 +178,7 @@ fn seed_pre_0_8_20_database(dir: &TempDir, name: &str) -> PathBuf {
 /// ungoverned row IS erased, which requires the migration to have run.
 #[test]
 fn excise_legacy_source_deletes_no_governed_row() {
+    configure_test_runtime();
     let dir = TempDir::new().expect("tempdir");
     let path = seed_pre_0_8_20_database(&dir, "legacy_excise");
 
@@ -228,6 +236,7 @@ fn excise_legacy_source_deletes_no_governed_row() {
 /// `source_doc_id` field **omitted everywhere**.
 #[test]
 fn extractor_omitting_source_doc_id_still_excisable() {
+    configure_test_runtime();
     let script = fixture_dir().join("provenance_omitting_harness.py");
     assert!(script.exists(), "fixture harness must exist at {}", script.display());
     let cmd_strings = ["python3".to_string(), script.to_string_lossy().to_string()];

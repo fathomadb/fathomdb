@@ -60,9 +60,9 @@ Slice 85 is unblocked but not started. See the
 | 73 | Windows Node/N-API CI coverage | Complete on release branch (`6eb7cd18`) |
 | 75 | Evidence checkpoint; unfinished release closure transferred | Closed with carry-forward (`5056db9e`); AC-020 unresolved |
 | 76 | AC-020 attribution and statement reuse | Complete (`8027546d`) |
-| 77 | Adaptive experiments and candidate selection | Complete inconclusive (`5484cd17`) |
+| 77 | Adaptive experiments and candidate selection | Complete inconclusive (`b3ccba83`) |
 | 79 | Explicit runtime configuration and statement reuse | Complete with carry-forward (`e2db3ffc`) |
-| 80 | Absolute read-performance successor and valid AC-072 evidence | In progress; final allowance stopped invalid, acceptance blocked |
+| 80 | Absolute read-performance successor and valid AC-072 evidence | Complete on release branch (`e54ad00c`) |
 | 85 | Final verification, CI and non-publishing packaging | Planning brief; final candidate matrix pending |
 
 ## Decisions and blockers

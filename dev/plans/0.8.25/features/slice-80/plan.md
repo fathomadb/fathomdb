@@ -6,6 +6,15 @@ depends_on: 79
 
 # Slice 80 — absolute read-performance acceptance and bounded verification
 
+## Current completion plan
+
+[Slice 80.n — acceptance completion](80n-acceptance-completion.md) specifies
+the remaining harness, environment, evidence-reuse and closeout work after
+80.m. It preserves the accepted AC-081 campaign and defines the AC-072-only
+path to unblock Slice 85. It is a draft execution plan, not a renewed timing
+allowance. Earlier campaign budgets below are historical and exhausted; do
+not interpret them as authority for another run.
+
 ## Authority and placement
 
 Owner ruling **seq-277** (2026-09-11; session decision

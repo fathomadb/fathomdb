@@ -29,6 +29,14 @@ IDENTITY_MARKER = re.compile(
 )
 EXIT_MARKER = re.compile(r"^SLICE80_TEST_EXIT status=(?P<status>\d+)$", re.MULTILINE)
 REQUIRED_IDENTITY = ("source_sha", "binary_sha256", "input_sha256", "mode")
+READINESS_IDENTITIES = {
+    "SLICE80_IDENTITY": REQUIRED_IDENTITY,
+    "SLICE80_AC072_IDENTITY": ("source_sha", "collector_sha256", "scanner_sha256"),
+}
+READINESS_EXITS = {
+    "SLICE80_IDENTITY": "SLICE80_TEST_EXIT",
+    "SLICE80_AC072_IDENTITY": "SLICE71_TEST_EXIT",
+}
 REQUIRED_ENVIRONMENT = (
     "load_1m",
     "online_cpus",
@@ -128,6 +136,40 @@ def parse_cell_log(path: Path, label: str) -> dict[str, Any]:
         raw_log=str(path),
     )
     return record
+
+
+def parse_collector_readiness_log(text: str, identity_prefix: str) -> dict[str, Any]:
+    """Validate benchmark-free collection records emitted by a production runner."""
+    required_identity = READINESS_IDENTITIES.get(identity_prefix)
+    exit_prefix = READINESS_EXITS.get(identity_prefix)
+    if required_identity is None or exit_prefix is None:
+        raise ValueError("unsupported collector identity prefix")
+    identity_lines = re.findall(
+        rf"^{re.escape(identity_prefix)} (?P<fields>.+)$", text, flags=re.MULTILINE
+    )
+    if len(identity_lines) != 1:
+        raise ValueError("expected exactly one collector identity marker")
+    identity = dict(field.split("=", maxsplit=1) for field in identity_lines[0].split())
+    if any(not identity.get(field) for field in required_identity):
+        raise ValueError("collector identity is incomplete")
+    exits = re.findall(
+        rf"^{re.escape(exit_prefix)} status=(?P<status>\d+)$", text, flags=re.MULTILINE
+    )
+    if exits != ["0"]:
+        raise ValueError("collector-only execution must exit zero exactly once")
+    environments = [
+        json.loads(line)
+        for line in re.findall(r"^SLICE(?:80|71)_ENV (.+)$", text, flags=re.MULTILINE)
+    ]
+    if len(environments) != 2 or [item.get("phase") for item in environments] != ["start", "end"]:
+        raise ValueError("expected exactly one ordered start/end environment pair")
+    qualification = qualify_environment(environments[0], environments[1])
+    return {
+        **identity,
+        "environment": {"start": environments[0], "end": environments[1]},
+        "environment_applicable": qualification["applicable"],
+        "environment_reasons": qualification["reasons"],
+    }
 
 
 def scan_competing_processes(rows: str, excluded_pids: set[int]) -> list[str]:
@@ -311,6 +353,9 @@ def main() -> int:
     cell.add_argument("--label", required=True)
     campaign = commands.add_parser("summarize-campaign")
     campaign.add_argument("--logs", nargs=7, type=Path, required=True)
+    readiness = commands.add_parser("verify-collector-readiness")
+    readiness.add_argument("--log", type=Path, required=True)
+    readiness.add_argument("--identity-prefix", required=True, choices=READINESS_IDENTITIES)
     scanner = commands.add_parser("scan-processes")
     scanner.add_argument("--exclude-pids", default="")
     args = parser.parse_args()
@@ -328,6 +373,9 @@ def main() -> int:
         summary = summarize(observations)
         print(json.dumps(summary, sort_keys=True))
         print(render_human_summary(summary))
+    elif args.command == "verify-collector-readiness":
+        text = args.log.read_text(encoding="utf-8", errors="replace")
+        print(json.dumps(parse_collector_readiness_log(text, args.identity_prefix), sort_keys=True))
     else:
         excluded = {int(value) for value in args.exclude_pids.split(",") if value}
         for row in scan_competing_processes(__import__("sys").stdin.read(), excluded):

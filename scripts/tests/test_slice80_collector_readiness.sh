@@ -48,7 +48,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 "$root/dev/tools/slice80_read_acceptance.py" \
   verify-collector-readiness --log "$temp_dir/ac072.log" \
   --identity-prefix SLICE80_AC072_IDENTITY | rg '"environment_applicable": true' >/dev/null
 
-bash -c 'sleep 30' "$root/scripts/perf-experiments/run-slice80-ac081-cell.sh" &
+bash -c 'while :; do sleep 1; done' "$root/scripts/perf-experiments/run-slice80-ac081-cell.sh" &
 competitor_pid=$!
 SLICE80_COLLECTOR_ONLY=1 "$root/scripts/perf-experiments/run-slice80-ac081-cell.sh" \
   "$root" /bin/true "$temp_dir/ac081-competing.log" "$source_sha" "$true_sha" "$input_sha"

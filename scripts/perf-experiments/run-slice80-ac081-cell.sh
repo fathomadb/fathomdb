@@ -107,6 +107,11 @@ exec >"$raw_log" 2>&1
 printf 'SLICE80_IDENTITY source_sha=%s binary_sha256=%s input_sha256=%s mode=performance\n' \
   "$source_sha" "$actual_binary_sha" "$actual_input_sha"
 snapshot start
+if [ "${SLICE80_COLLECTOR_ONLY:-0}" = "1" ]; then
+  snapshot end
+  printf 'SLICE80_TEST_EXIT status=0\n'
+  exit 0
+fi
 set +e
 AGENT_LONG=1 "$binary" --exact ac_081_absolute_read_performance --nocapture --test-threads=1
 test_status=$?

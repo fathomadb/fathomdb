@@ -28,7 +28,7 @@ sqlite_version="${SLICE71_SQLITE_VERSION:?run the source commit SQLite runtime p
 libsqlite3_sys=$(grep -A1 '^name = "libsqlite3-sys"$' Cargo.lock | tail -n 1 | tr -cd '0-9.\n')
 
 snapshot() {
-  local phase="$1" load mem swap_in swap_out temp competing grandparent great_grandparent
+  local phase="$1" load mem swap_in swap_out temp competing grandparent great_grandparent affinity cgroup_path quota quota_root
   load=$(awk '{print $1}' /proc/loadavg)
   mem=$(awk '/MemTotal:/{total=$2} /MemAvailable:/{available=$2} END{printf "%.3f", available*100/total}' /proc/meminfo)
   swap_in=$(awk '$1=="pswpin"{print $2}' /proc/vmstat)
@@ -51,16 +51,36 @@ snapshot() {
     snapshot_subshell_pid=$BASHPID
     ps -eo pid=,comm=,args= | PYTHONDONTWRITEBYTECODE=1 \
       python3 "$runner_root/dev/tools/slice80_read_acceptance.py" scan-processes \
-        --exclude-pids "$$,$PPID,$grandparent,$great_grandparent,$snapshot_subshell_pid"
+      --exclude-pids "$$,$PPID,$grandparent,$great_grandparent,$snapshot_subshell_pid"
   )
-  python3 - "$phase" "$load" "$mem" "$swap_in" "$swap_out" "$temp" "$competing" "$sqlite_version" "$libsqlite3_sys" <<'PY'
+  affinity=$(awk '/Cpus_allowed_list:/{print $2}' /proc/self/status)
+  cgroup_path=$(awk -F: '$1=="0"{print $3}' /proc/self/cgroup)
+  quota_root="/sys/fs/cgroup${cgroup_path}"
+  while [ "$quota_root" != "/sys/fs/cgroup" ] && [ ! -r "$quota_root/cpu.max" ]; do
+    quota_root=$(dirname "$quota_root")
+  done
+  quota=$(sed -n '1p' "$quota_root/cpu.max" 2>/dev/null || true)
+  python3 - "$phase" "$load" "$mem" "$swap_in" "$swap_out" "$temp" "$competing" "$sqlite_version" "$libsqlite3_sys" "$affinity" "$quota" <<'PY'
+import glob
 import json
+import os
+import pathlib
 import sys
 
-phase, load, mem, swap_in, swap_out, temp, competing, sqlite, libsqlite = sys.argv[1:]
+phase, load, mem, swap_in, swap_out, temp, competing, sqlite, libsqlite, affinity, quota = sys.argv[1:]
+def values(pattern):
+    result = []
+    for path in sorted(glob.glob(pattern)):
+        try:
+            result.append(pathlib.Path(path).read_text().strip())
+        except OSError:
+            pass
+    return result
+
 print("SLICE71_ENV " + json.dumps({
     "phase": phase,
     "load_1m": float(load),
+    "online_cpus": len(os.sched_getaffinity(0)),
     "available_memory_percent": float(mem),
     "pswpin": int(swap_in),
     "pswpout": int(swap_out),
@@ -69,6 +89,10 @@ print("SLICE71_ENV " + json.dumps({
     "competing_processes": [line for line in competing.splitlines() if line],
     "sqlite_version": sqlite,
     "libsqlite3_sys": libsqlite,
+    "cpu_affinity": affinity,
+    "cpu_quota": quota,
+    "scaling_governors": sorted(set(values("/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"))),
+    "scaling_frequencies_khz": [int(value) for value in values("/sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq")],
 }, sort_keys=True))
 PY
 }
@@ -78,6 +102,11 @@ exec >"$raw_log" 2>&1
 printf 'SLICE80_AC072_IDENTITY source_sha=%s collector_sha256=%s scanner_sha256=%s\n' \
   "$actual_source_sha" "$collector_sha" "$scanner_sha"
 snapshot start
+if [ "${SLICE80_COLLECTOR_ONLY:-0}" = "1" ]; then
+  snapshot end
+  printf 'SLICE71_TEST_EXIT status=0\n'
+  exit 0
+fi
 set +e
 LOG_PATH="$cargo_log" AGENT_LONG=1 AC013_CORPUS_N=10000 \
   AC013_VECTOR_DIM=384 AC013_SAMPLES=1000 AC013_SCALE_TREATMENT=warm \

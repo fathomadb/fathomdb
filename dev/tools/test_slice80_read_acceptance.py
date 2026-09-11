@@ -199,13 +199,14 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
                 subject.parse_cell_log(path, "bad")
 
     def test_competing_process_scan_covers_binary_and_runner_and_excludes_ancestors(self):
-        rows = """10 ac081-perf-gates /tmp/ac081-perf-gates
-11 bash bash scripts/perf-experiments/run-slice80-ac081-cell.sh
-12 cargo cargo test
-13 sleep sleep 1
+        rows = """10 ac081-perf-gat /tmp/ac081-perf-gates
+11 perf_gates-abcd /tmp/target/debug/deps/perf_gates-abcd --exact ac_081
+12 bash bash scripts/perf-experiments/run-slice80-ac081-cell.sh
+13 cargo cargo test
+14 sleep sleep 1
 """
-        found = subject.scan_competing_processes(rows, {11})
-        self.assertEqual([item.split()[0] for item in found], ["10", "12"])
+        found = subject.scan_competing_processes(rows, {12})
+        self.assertEqual([item.split()[0] for item in found], ["10", "11", "13"])
 
 
 if __name__ == "__main__":

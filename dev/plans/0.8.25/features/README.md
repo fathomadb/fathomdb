@@ -90,17 +90,18 @@ locally; Slice 75 only audits the combined installed surface.
 | 75 | [Closed evidence checkpoint](slice-75/plan.md) | [Historical design](slice-75/design.md) |
 | 76 | [Attribution and statement reuse](slice-76/plan.md) | [Experiment design](../ac020-experiment-protocol.md) |
 | 77 | [Adaptive experiments and selection](slice-77/plan.md) | [Experiment design](../ac020-experiment-protocol.md) |
-| 80 | [Consulted implementation planning](slice-80/plan.md) | Pending 76/77 evidence and owner consultation |
+| 79 | [Runtime configuration and statement reuse](slice-79/plan.md) | [Design](slice-79/design.md) |
+| 80 | [Remaining AC-020 disposition](slice-80/plan.md) | Pending Slice 79 evidence |
 | 85 | [Final verification, CI and packaging](slice-85/plan.md) | Final matrix pending Slice 80 |
 
 The active closing slices are strictly sequential:
-`60 -> 71 -> 72 -> 73 -> 75 -> 76 -> 77 -> 80 -> 85`. A later plan may be drafted but cannot become
+`60 -> 71 -> 72 -> 73 -> 75 -> 76 -> 77 -> 79 -> 80 -> 85`. A later plan may be drafted but cannot become
 READY while its dependency is incomplete. Slices 71–73 use focused
 verification; Slice 75 is closed with carry-forward, not passing acceptance.
 Slices 76/77/80 use focused checks and bounded performance only. Slice 85
 owns final full regression, hosted CI and non-publishing packaging. The general
 all-at-every-closure vocabulary above does not authorize broad rounds in these
-focused slices. Reserved 78–79/81–84 require explicit allocation if needed.
+focused slices. Slice 79 was allocated at `seq-276`; 78/81–84 remain reserved.
 
 ## Preserved reallocated designs
 

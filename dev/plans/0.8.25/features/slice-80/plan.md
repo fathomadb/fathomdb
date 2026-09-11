@@ -1,18 +1,25 @@
 ---
-title: Slice 80 — evidence-driven AC-020 correction planning and implementation
+title: Slice 80 — remaining AC-020 disposition
 status: DRAFT
-depends_on: 77
+depends_on: 79
 ---
 
-# Slice 80 — planning contract and implementation boundary
+# Slice 80 — remaining AC-020 disposition
+
+## Boundary after the Slice 79 allocation
+
+The `seq-276` owner ruling allocates Slice 79 to the explicit runtime
+configuration and statement-reuse candidate. Slice 80 no longer duplicates
+that implementation. It consumes Slice 79's reviewed result and decides only
+the remaining AC-020 disposition, if any, before final verification in 85.
 
 ## Not yet an implementation-ready plan
 
-The implementation approach cannot responsibly be selected before Slices
-76/77 finish. This file specifies how to produce that plan, the required
-consultation, and the conditions for proceeding. It does not authorize
-isolation, a rusqlite fork, runtime-global settings, API changes or packaging
-redesign. Statistics-enabled recovery is preferred; AC-020 cannot be deferred.
+Additional implementation cannot responsibly be selected before Slice 79
+finishes. This file specifies how to produce any remaining plan and the
+required consultation. It does not authorize isolation, a rusqlite fork,
+additional runtime-global settings or packaging redesign. AC-020 cannot be
+deferred.
 
 ## Required planning inputs
 

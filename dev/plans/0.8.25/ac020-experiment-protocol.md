@@ -1,6 +1,6 @@
 ---
-title: AC-020 statistics-enabled experiment protocol
-status: APPROVED_FOR_SLICES_76_77
+title: AC-020 experiment and Slice 79 recovery protocol
+status: APPROVED_FOR_SLICES_76_77_79
 target_release: 0.8.25
 ---
 
@@ -9,16 +9,22 @@ target_release: 0.8.25
 ## Purpose and authority
 
 Generate decision-quality evidence with a bounded experiment sequence, not a
-benchmark leaderboard. The owner requires real AC-020 recovery, rejects
-shared-runtime MEMSTATUS disabling, prefers statistics-enabled optimization,
-and wants to avoid fork maintenance. This protocol binds Slices 76 and 77.
+benchmark leaderboard. The owner requires real AC-020 recovery and wants to
+avoid fork maintenance. This protocol binds the historical Slices 76/77
+experiments. The later `seq-276` ruling authorizes Slice 79 to use
+`MEMSTATUS=0` in an explicitly configured performance mode because FathomDB
+owns the SQLite runtime; that prospective exception does not rewrite the
+earlier experiment evidence.
 Independent review must pass before either slice executes its experiments.
 Experiment success means a question is answered; it need not mean a gate passes.
 
 The baseline is the safe release checkpoint at `5056db9e`, with subsequent
 planning-only commits allowed by relevant-tree identity. Never use the
-rejected `a318f916` prototype as the release baseline. Do not edit the
-registered test, workloads, worker count, oracle, or timing boundary.
+rejected `a318f916` prototype as the release baseline. Historical Slices 76/77
+did not edit the registered test. Slice 79 may extract its unchanged
+fixture/timing/oracle into a helper and add one diagnostics-mode sibling; the
+canonical test name, workloads, worker count, oracle, and timing boundary stay
+unchanged.
 
 ## Source and executor preflight
 
@@ -56,6 +62,12 @@ exactly one executed test, no skip/ignore, and `AC020_NUMBERS`. Capture
 sequential, concurrent and bound values from every run, including failures.
 Use full-precision durations when already available; do not change the test
 to improve reporting or recompute its verdict from truncated milliseconds.
+
+For Slice 79, use the same command with the canonical test for performance
+mode and substitute only the exact diagnostics sibling name for diagnostics.
+Run the sealed `A B B A A B B A A B B A A B` order, where A is diagnostics
+and B is the performance/default canonical gate. This prospective harness
+permission does not alter Slices 76/77 receipts.
 
 ## Timing design and classification
 
@@ -143,6 +155,9 @@ claiming reuse; static presence of OpenEphemeral is insufficient.
 - TDD for instrumentation/collectors and prototype correctness. RED covers
   missing/zero-test/skip/wrong-identity results, counter accounting, and the
   selected semantic boundary. Existing AC-020 is the unchanged performance RED.
+- For Slices 76/77, public API and schema stayed unchanged. Slice 79's
+  `seq-276` runtime-control API is the sole approved exception; schema remains
+  unchanged.
 - Caching tests cover alternating bindings, statement/row release before
   commit, error recovery, same-connection reuse, schema invalidation/reprepare,
   frozen/current visibility, dependencies and lifecycle. Do not insist that
@@ -156,13 +171,16 @@ claiming reuse; static presence of OpenEphemeral is insufficient.
   shutdown/cancellation, error delivery, fairness and snapshot boundaries.
 - No transaction merging across independent requests, result memoization,
   reduced candidate sets, weakened eligibility/frozen checks or hidden fixture
-  special cases. Keep schema and public API unchanged.
+  special cases. Keep schema unchanged; the `seq-276` Slice 79 runtime-control
+  API is the only public-surface exception.
 - Capture before/after query plans as evidence. Require semantic invariants,
   not universally identical opcode listings for binding/query changes.
 
 ## Protected evidence and scope
 
-Slices 76/77 do focused static checks and selected real-DB tests only.
+Slices 76/77 did focused static checks and selected real-DB tests only.
+Slice 79 may build local installed Python and Node artifacts for API parity;
+it does not run the hosted or cross-platform package matrix owned by Slice 85.
 For a candidate advanced from Slice 77, run the exact retained AC-072
 10k/384d campaign and both 71B 10k candidate workloads; reuse command/fixture
 definitions from Slice 71, with its existing environment and recovery guards.

@@ -126,7 +126,8 @@ backward dependency.
 | 75 | Integrated evidence checkpoint; original closure obligations carried forward, not a passing release gate. | 73 | Closed with carry-forward (`5056db9e`) |
 | 76 | Establish AC-020 statistics-enabled attribution and test statement reuse. | 75 | Draft plan; review before experiments |
 | 77 | Select adaptive follow-on experiments from Slice 76 evidence and prepare a decision dossier. | 76 | Draft plan; selection sealed after 76 |
-| 80 | Consult owner, design and implement the selected AC-020 correction. | 77 | Planning contract; implementation design pending results |
+| 79 | Add explicit SQLite runtime configuration and ship reviewed statement reuse. | 77 | In progress; authorized at `seq-276` |
+| 80 | Consult owner and resolve any remaining AC-020 disposition. | 79 | Planning contract pending Slice 79 evidence |
 | 85 | Final verification, CI and non-publishing package rehearsal. | 80 | Planning brief; final matrix pending candidate |
 
 ## Requirements and acceptance criteria
@@ -153,10 +154,11 @@ allocates every removed item durably. The later
 created focused Slices 71–73 and reserved full regression work for Slice 75.
 The [AC-020 ladder adjustment](0.8.25/scope-adjustment-2026-09-10-ac020.md)
 closes Slice 75 as an evidence checkpoint, keeps AC-020 unresolved, and
-allocates experiments to 76/77, consulted implementation to 80, and final
-verification/CI/non-publishing packaging to 85. Slices 78–79 and 81–84 are
-reserved, not commissioned. Shared-runtime statistics disabling and AC-020
-deferral remain rejected. No publication is authorized.
+allocates experiments to 76/77, the later `seq-276` ruling allocates explicit
+runtime configuration and statement reuse to 79, and final
+verification/CI/non-publishing packaging remains in 85. Slice 80 now consumes
+79 for any remaining AC-020 disposition. Other reserved slots remain
+uncommissioned. No publication is authorized.
 
 The design-documentation campaign is complete: all fourteen maximum-envelope
 records passed independent review with no unresolved P1/P2 finding. The later
@@ -220,9 +222,9 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 80** (`AC020-IMPLEMENTATION`) — consultation, design and selected AC-020 correction
+**IMMEDIATE NEXT: Slice 79** (`AC020-RUNTIME`) — explicit SQLite runtime configuration and statement reuse
 
-**Remaining ladder:** 80 → 85.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 79 → 80 → 85.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
 Slices 60, 71, and 72 are durably closed. Slice 71 preserved the 71B general-write
 correction at `eda95b07` and restored AC-072 at `84c056c6` without changing

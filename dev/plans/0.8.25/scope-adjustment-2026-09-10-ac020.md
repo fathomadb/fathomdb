@@ -38,11 +38,22 @@ propose a bounded slice with its question, cost and exit before occupying a
 number; update dependencies explicitly. Do not force a losing candidate into
 Slice 80 or expand the experiments indefinitely.
 
+## Superseding Slice 79 ruling
+
+The owner subsequently allocated Slice 79 and authorized `MEMSTATUS=0` for its
+explicit performance-mode runtime configuration at `seq-276`, stating that
+FathomDB is the application owner of the SQLite runtime. This narrowly
+supersedes the earlier shared-runtime prohibition below. It does not alter the
+historical conditions or conclusions of Slices 75–77. Slice 79 owns the runtime
+API, reviewed statement reuse, focused recovery evidence, and public contract;
+Slice 80 consumes its result for any remaining AC-020 disposition.
+
 ## Fixed boundaries
 
 - AC-020 remains unchanged: concurrent <= sequential * 1.5 / 8.
-- Shared-runtime memory-stat disabling and other unapproved host-global
-  configuration changes are rejected. No shutdown/reinitialize workaround.
+- Other unapproved host-global configuration changes remain rejected. The
+  Slice 79 `MEMSTATUS` exception is authorized by `seq-276`. No
+  shutdown/reinitialize workaround.
 - Statistics-enabled optimizations come first. Isolation, private statistics
   disabling, source forks, API changes and packaging redesign require an
   explicit owner decision after the experiment dossier.

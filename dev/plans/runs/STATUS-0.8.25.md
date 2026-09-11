@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 80 (AC020-IMPLEMENTATION), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 79 (AC020-RUNTIME), IN_PROGRESS.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -56,9 +56,10 @@ owner consultation, and Slice 85 owns final verification/CI/package rehearsal.
 | 72 | Generic preflight and installed CE profiles | Complete on release branch (`2e14f5ba`) |
 | 73 | Windows Node/N-API CI coverage | Complete on release branch (`6eb7cd18`) |
 | 75 | Evidence checkpoint; unfinished release closure transferred | Closed with carry-forward (`5056db9e`); AC-020 unresolved |
-| 76 | AC-020 attribution and statement reuse | Draft plan; prospective review required |
-| 77 | Adaptive experiments and candidate selection | Draft; depends on 76 evidence |
-| 80 | Consulted design and selected correction | Planning contract; implementation not authorized |
+| 76 | AC-020 attribution and statement reuse | Complete (`8027546d`) |
+| 77 | Adaptive experiments and candidate selection | Complete inconclusive (`5484cd17`) |
+| 79 | Explicit runtime configuration and statement reuse | In progress; authorized at `seq-276` |
+| 80 | Remaining AC-020 disposition | Planning contract; depends on 79 evidence |
 | 85 | Final verification, CI and non-publishing packaging | Planning brief; final candidate matrix pending |
 
 ## Decisions and blockers
@@ -93,12 +94,12 @@ owner consultation, and Slice 85 owns final verification/CI/package rehearsal.
   passes its fixed 13-module matrix at 180/180 with no failures, cancellations,
   skips, or todos. This unblocked the original Slice 75 campaign.
 
-- Slice 75 is closed with carry-forward, not a passing gate. Its approved
-  surface/WAL oracle corrections remain; the shared-runtime MEMSTATUS fix
-  stays reverted. Slice 76 is next for protocol sealing, not broad tests.
-- Slices 78–79 and 81–84 are reserved only. Shared-runtime statistics
-  disabling and AC-020 deferral are rejected. One final broad Slice 85 round
-  is planned; an exceptional second requires owner authorization.
+- Slice 75 remains a closed checkpoint, not a passing gate. Slices 76 and 77
+  completed bounded attribution and selection without resolving AC-020.
+- The owner allocated Slice 79 at `seq-276` and authorized `MEMSTATUS=0` for
+  the application-owned SQLite runtime. Slice 79 is in progress; 78/81–84
+  remain reserved. One final broad Slice 85 round is planned; an exceptional
+  second requires owner authorization.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
@@ -113,7 +114,7 @@ owner consultation, and Slice 85 owns final verification/CI/package rehearsal.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 80 (AC020-IMPLEMENTATION)** — consultation, design and selected AC-020 correction. **Remaining ladder:** 80 → 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Continue Slice 79 (AC020-RUNTIME)** — explicit SQLite runtime configuration and statement reuse. **Remaining ladder:** 79 → 80 → 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

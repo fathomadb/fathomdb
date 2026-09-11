@@ -1,6 +1,6 @@
 ---
 title: Slice 79 — admin.configure_runtime design
-status: DRAFT
+status: READY
 ---
 
 # Design — startup SQLite memory-statistics selection
@@ -17,7 +17,7 @@ an existing Engine. Extend the namespace without overloading that operation.
 The engine's `init_perf_experiments_runtime` contains a legacy
 shutdown/configure/initialize sequence; it is not the production design.
 
-## API proposal
+## Public contract
 
 ```python
 from fathomdb import admin
@@ -31,10 +31,35 @@ Rust uses a typed enum; TypeScript follows existing SDK naming conventions.
 Thin wrappers call the common Rust owner in their loaded native runtime.
 No Engine, database path, raw connection or access token is an input.
 
-Proposed return: a small effective-configuration value containing the selected
-mode, not a database WriteReceipt/cursor. It reports successful configuration,
-not ongoing attestation against arbitrary external C calls. Exact return and
-error shapes require interface review.
+Rust exposes `fathomdb::admin::configure_runtime(RuntimeSqliteMode)` returning
+`RuntimeConfiguration { sqlite_mode }`. Python exposes the synchronous
+`admin.configure_runtime(sqlite_mode=...)`; TypeScript exposes synchronous
+`admin.configureRuntime({ sqliteMode })`. The two string values are
+`performance` and `diagnostics`. Return objects contain only the effective
+mode. Stable errors distinguish `invalid_mode`, `too_late`, `conflict`, and
+`sqlite_failure`; conflict includes requested/effective modes and native
+failure includes SQLite's numeric result code.
+
+Rust's exact types are `RuntimeSqliteMode::{Performance, Diagnostics}` and
+`RuntimeConfigurationError::{TooLate, Conflict { requested, effective },
+SqliteFailure { code }}`; default `Engine::open` maps the latter into
+`EngineOpenError::RuntimeConfiguration`. Python returns frozen
+`RuntimeConfiguration(sqlite_mode: Literal[...])` and raises
+`RuntimeConfigurationError` with `reason`, `requested_mode`,
+`effective_mode`, and `sqlite_code` attributes. Invalid Python strings are
+`ValueError` before native mutation. TypeScript returns
+`RuntimeConfiguration { sqliteMode }`; native failures use
+`FDB_RUNTIME_CONFIGURATION` with data fields `reason`, `requestedMode`,
+`effectiveMode`, and `sqliteCode`, mapped to `RuntimeConfigurationError`.
+Invalid TypeScript strings are `RangeError` before native mutation.
+
+The operation is classified as a runtime control, not a governed application
+command. `governed-surface-allowlist.json` adds exactly
+`runtime_controls: ["admin.configure_runtime", "admin.configureRuntime"]`;
+both SDK surface tests enumerate every public `admin` member, subtract this set
+from application commands, and assert the set is live. The CLI adds no flag and
+therefore uses the performance default. Applications that need diagnostics call
+the API before opening any Engine.
 
 ## Initialization state and lifecycle
 
@@ -61,32 +86,33 @@ not reset the mode. Restart is the supported mode change.
 See [SQLite configuration](https://www.sqlite.org/c3ref/config.html) and
 [MEMSTATUS options](https://www.sqlite.org/c3ref/c_config_covering_index_scan.html).
 
-## Small choices to settle before READY
+## Sealed default and entry points
 
-1. **Open without explicit configuration.** Proposed default: select performance
-   through the same one-time initialization path, preserving normal SDK open
-   ergonomics. Alternative: require an explicit admin call. The owner selected
-   the API and modes, not this default; approve it before implementation.
-2. **CLI and other entry points.** Define minimal CLI diagnostics selection and
-   audit module imports, embedder startup, sqlite-vec registration, migrations
-   and standalone schema use. Do not change the public
-   `migrate(&rusqlite::Connection)` contract to pretend an existing connection
-   can configure startup settings. Standalone schema use need not carry the
-   Engine performance guarantee.
-3. **Result/error mapping.** Fit existing conventions for invalid mode, conflict,
-   too-late initialization and native failure. Keep SDK semantics equivalent
-   without inventing a large error framework.
+`Engine::open` without a prior explicit call selects `performance` through the
+same state machine. The ordinary Rust, Python, Node and CLI path therefore
+continues to satisfy the unqualified AC-020 contract. Applications needing
+SQLite memory accounting call `diagnostics` before any Engine open. A prior
+arbitrary host SQLite call is outside the lock; default open or an explicit
+call then receives `SQLITE_MISUSE` and maps to `too_late`. Standalone schema
+APIs operating on a caller connection remain unchanged and do not carry the
+Engine performance guarantee.
 
 ## Existing initialization and experiment paths
 
-Inventory rusqlite first-use behavior, `init_perf_experiments_runtime` callers
-and compile-time MEMSTATUS overrides. One production path owns the setting.
-Remove or disable conflicting experimental shutdown/reconfiguration in shipping
-flows; preserve historical receipts, not hidden overrides of the admin choice.
-Do not substitute process-wide build flags for the explicit startup selection.
+One process-global `Mutex<RuntimeState>` owns explicit configuration and every
+first Engine open. `Unconfigured`, `Configured(mode)`, and `Failed(code)` are
+terminal transitions. `configure_runtime` calls
+`sqlite3_config` and then `sqlite3_initialize` while holding the lock, recording
+success only after both return `SQLITE_OK`. `Engine::open` configures
+`performance` when still unconfigured.
+The sqlite-vec auto-extension registration follows this transition. Identical
+calls return the existing configuration; conflicts and late calls do no work.
+Failures are sticky. No shipping code calls `sqlite3_shutdown`.
 
-Do not port PAGECACHE/PCACHE2 experiments. If separating legacy hooks demands a
-broader change, present the precise conflict for review instead of widening scope.
+Remove the conflicting global branch of `init_perf_experiments_runtime`; do not
+port PAGECACHE/PCACHE2 experiments. Historical receipts remain evidence rather
+than hidden overrides of the admin choice. Do not substitute process-wide build
+flags for the production state machine.
 
 ## Deliberate tradeoff and limitations
 
@@ -104,10 +130,12 @@ is required. Document limitations without introducing a guard framework.
 
 ## Focused test design
 
-- Port the reviewed Slice 76 statement-reuse approach and semantic tests into
-  the candidate. Both MEMSTATUS modes use exactly the same statement sites,
-  SQL/bindings and bounded cache capacity. Statement reuse is not an optional
-  arm, and no additional cache-sizing sweep is included.
+- Port only the reviewed `9e913517`/`b432d24d` statement-reuse product behavior:
+  each reader owns a ten-entry rusqlite cache for its lifetime and the exact
+  search/dependency statement sites use `prepare_cached`. Both modes use the
+  same SQL/bindings and cache. Profiler, census and experiment features are not
+  ported. REDs cover alternating bindings, row release/error recovery,
+  automatic schema reprepare and focused concurrent DDL/reprepare behavior.
 - The same uninstrumented binary runs seven fresh processes with statistics on
   and seven with statistics off in the plan's sealed counterbalanced order.
   Only admin startup mode differs; retain each arm's real AC-020 outcomes and
@@ -121,7 +149,9 @@ is required. Document limitations without introducing a guard framework.
 - Cover identical calls before/after opens, differing-mode conflicts, invalid
   input without mutation, multiple Engines/databases, close/reopen and deliberate
   prior SQLite initialization returning the too-late error.
-- Cover concurrent FathomDB first use/configuration and initialization failure.
+- Cover concurrent FathomDB first use/configuration. Native initialization
+  failure has no stable test seam and is reviewed structurally rather than
+  supported by a synthetic failure hook.
   Correct opens/searches/closes must work in both modes.
 - Exercise Rust and fresh installed Python/Node admin operations and equivalent
   errors. Native addon proof must not be labeled proof of Rust isolation.
@@ -137,5 +167,6 @@ changed artifacts and defaults for Slice 85; no broad matrix in this slice.
 Additional logging, heap limits, page-cache provisioning, connection timeouts
 and statement-cache sizing remain in [ROADMAP.md](../../../../../ROADMAP.md).
 No compatibility mode, ownership token, opening guard, fork, live toggle,
-forced shutdown or tuning sweep. If the chosen candidate fails AC-020, report
+forced shutdown or tuning sweep. Separate accidental-connection controls are
+external to this slice. If the chosen candidate fails AC-020, report
 the result for consultation rather than weakening the oracle.

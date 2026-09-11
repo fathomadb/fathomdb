@@ -1,15 +1,16 @@
 ---
 title: Slice 79 — AC-020 runtime configuration
-status: DRAFT
+status: READY
 ---
 
 # Slice 79 — explicit SQLite runtime configuration
 
 ## Purpose and authority
 
-Drafted 2026-09-10 at the owner's request. Slice 79 was an unused reserved slot
-when checked. This draft occupies the planning slot only: execution is not
-activated, and the release-state ladder and `next_slice` are unchanged.
+Drafted 2026-09-10 and activated by the owner after Slice 77. The explicit
+`MEMSTATUS=0` authorization is recorded at `seq-276`; the owner states that
+FathomDB is the application owner of the SQLite runtime. Slice 79 is allocated
+between 77 and 80 in release state.
 
 The request named AC-070; the discussion concerns **AC-020**, concurrent reads.
 AC-070 is failed-migration `user_version` preservation, not this work. See
@@ -41,39 +42,46 @@ SQLite or fork redesign is included.
   [ROADMAP.md](../../../../../ROADMAP.md).
 
 These record the new direction, replacing the earlier blanket rejection of
-shared-runtime statistics disabling for this proposed work. They do not claim
-runtime exclusivity or that file-sharing hazards disappear.
+shared-runtime statistics disabling for this work. The configuration contract
+requires application-owned startup order; separate accidental-connection
+controls are not duplicated here.
 
-## Placement and prerequisites before READY
+## Reconciliation since the draft
 
-The [77 plan](../slice-77/plan.md), [80 plan](../slice-80/plan.md), shared
-experiment protocol and release-state ruling still encode statistics-enabled
-work. Reconcile those authority records through the prescribed ledger/state
-tools before execution; preserve historical experiment conditions and receipts.
-This draft does not silently amend their execution mandates.
+1. Slice 77 closed inconclusive at `5484cd17`; it selected no treatment, but
+   retained statement reuse as an eligible anchor.
+2. The owner allocated reserved Slice 79 and superseded the shared-runtime
+   prohibition through `seq-276`; the scope adjustment, protocol, release state
+   and Slice 80 dependency are updated prospectively without rewriting history.
+3. Code review found the existing experimental runtime hook calls
+   `sqlite3_shutdown`; production configuration must replace only that global
+   hook and never shut SQLite down.
+4. The reviewed statement-reuse behavior is bound to `9e913517`/`b432d24d`:
+   ten cached search statements per reader and the exact search/dependency
+   preparation sites, without profiler/census features.
+5. The public surface currently pins only `admin.configure`. The new runtime
+   operation is an approved runtime-control member, not an application command;
+   Python and TypeScript surface tests must both enumerate it explicitly.
+6. Rust, Python and Node each configure the SQLite image linked into that
+   artifact. Slice 79 proves local Rust and installed bindings; Slice 85 owns
+   Windows, macOS, Jetson and the final package matrix.
 
-Proposed allocation: 79 implements the runtime API and obtains focused recovery
-evidence; 80 consumes it for the required owner consultation, integration
-disposition and any separately approved remaining correction; 85 retains final
-verification, CI and non-publishing packaging. Do not duplicate implementation
-in 80. Decide whether unfinished 77 work is consumed, completed or stopped before
-changing dependencies; drafting 79 does not cancel it.
-
-Before READY: resolve the design's small interface choices, approve the revised
-placement, seal source/build identity, enumerate exact focused test selectors
-and counts, and obtain independent design review. No broad tests are authorized.
+Design review blocked the draft on these six points. This revision resolves
+them; the exact selectors, counts, build identity, order and protected receipt
+bindings are sealed in [execution-manifest.json](execution-manifest.json).
+No broad tests are authorized.
 
 ## Requirements and acceptance signals
 
 | ID | Requirement | Focused evidence |
 | --- | --- | --- |
-| R79-1 | Startup-only two-mode Rust/Python/TypeScript admin operation | Fresh-process functional calls and real Engine opens |
+| R79-1 | Startup-only two-mode Rust/Python/TypeScript admin operation | Fresh-process functional calls and real Engine opens; CLI remains unchanged |
 | R79-2 | Consistent initialization | Identical calls succeed; conflicting and late calls fail without shutdown |
 | R79-3 | Honest memory behavior | Diagnostics accounting/heap-limit witnesses; statistics-off witness |
 | R79-4 | No connection restrictions or query-time overhead | Review and multiple Engine/database open-close tests |
 | R79-5 | Matched AC-020 comparison with statement reuse in both arms | Seven MEMSTATUS-on and seven off runs; all seven off runs pass |
 | R79-6 | Protected performance | Exact AC-072 candidate campaign and both protected 71B 10k workloads |
-| R79-7 | Public contract and durable handoff | ADR/interfaces/changelog, surface checks and independent reviews |
+| R79-7 | Public contract and durable handoff | ADR/interfaces/changelog, approved surface pin and independent reviews |
 
 These are local requirements, not new ACs. Do not edit acceptance or loosen gates.
 
@@ -83,12 +91,14 @@ These are local requirements, not new ACs. Do not edit acceptance or loosen gate
    precise product candidate, including its focused semantic tests and bounded
    cache capacity. Keep it identical in both modes. Its faster sequential
    denominator means the prior MEMSTATUS-off ratio does not establish a pass.
-2. Stage or commit RED tests for initialization, both modes and SDK parity.
+2. Commit RED tests for initialization, both modes and SDK parity.
    Runtime-global tests use separate fresh child processes, never forced resets.
 3. Implement one Rust configuration owner and thin SDK wrappers. Audit every
    initialization entry point and legacy experiment hooks. Do not copy the old
    shutdown/configure/initialize experiment sequence into production.
-4. Run changed-target lint/check and selected real-database/unit tests. Exercise
+4. Run `cargo test -p fathomdb-engine --test runtime_configuration -- --test-threads=1`,
+   the three statement-reuse unit selectors, affected engine search/dependency
+   tests, facade checks, and installed Python/Node runtime-control tests. Exercise
    installed Python/Node calls and Rust behavior, not merely exported symbols.
    Update ADR/interfaces/changelog and obtain the required governed-surface pin
    approval; never regenerate test oracles autonomously.
@@ -115,10 +125,15 @@ sequential and concurrent time, plus each run's own gate bound and outcome.
 Do not use one arm's sequential time to judge the other arm. Retain historical
 76/77 results as context only. No additional baseline campaign is required.
 
-Use production configuration, not experimental environment variables. If startup
-setup must call the new API, review that harness-only delta explicitly; timed
-work and oracle stay unchanged. Keep accounting witnesses and profilers out of
-verdict timing. Diagnostics mode is both timed and functionally verified; retain
+Keep the canonical performance/default gate name
+`ac_020_reads_do_not_serialize_on_a_single_reader_connection` and add only the
+diagnostics sibling
+`ac_020_reads_do_not_serialize_on_a_single_reader_connection_diagnostics`.
+Both share one fixture/timing/oracle helper; the diagnostics sibling invokes
+the production API before open while the canonical entry proves first-open
+performance default. Fixture, timed work, worker count and oracle remain
+unchanged. Keep accounting witnesses and profilers out
+of verdict timing. Diagnostics mode is both timed and functionally verified; retain
 its actual AC-020 pass/fail results, but diagnostics failure does not prevent
 acceptance when all seven performance-mode runs pass and other requirements hold.
 
@@ -127,10 +142,10 @@ running; retain its source identity, executor and noise controls. Allow only one
 bounded environment correction, no tuning sweep or repeat-until-pass loop.
 Failure returns measured evidence for consultation, not an automatic fork.
 
-Run the exact AC-072 candidate campaign (p50 <= 80 ms, p99 <= 300 ms, unchanged
-environment-validity rules) and candidate-only 71B Scale-02 and projection-active
-10k workloads under their retained limits. Seal exact commands and receipt refs
-from Slice 71 before execution. Do not rerun historical write baselines.
+Run the exact commands/fixtures retained by Slice 71's AC-072 receipt and 71B
+recovery record: AC-072 10k/384d/1,000-query candidate campaign (p50 <= 80 ms,
+p99 <= 300 ms), plus candidate-only Scale-02 and projection-active 10k
+workloads under their recorded limits. Do not rerun historical write baselines.
 
 ## Completion and exclusions
 

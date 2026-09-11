@@ -40,8 +40,8 @@ INVOKE_FIELDS = {
     "AC013_SCALE_TREATMENT",
 }
 NUMBERS = re.compile(
-    r"^AC013_NUMBERS n=(?P<n>\d+) samples=(?P<samples>\d+) seed_ms=(?P<seed>\d+) "
-    r"p50_ms=(?P<p50>\d+) p99_ms=(?P<p99>\d+)$", re.MULTILINE
+    r"AC013_NUMBERS n=(?P<n>\d+) samples=(?P<samples>\d+) seed_ms=(?P<seed>\d+) "
+    r"p50_ms=(?P<p50>\d+) p99_ms=(?P<p99>\d+)(?=\n|$)"
 )
 TREATMENT = re.compile(r"^AC013_TREATMENT_RECORD (?P<fields>.+)$", re.MULTILINE)
 

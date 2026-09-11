@@ -223,9 +223,9 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 80** (`READ-ACCEPTANCE`) — absolute read-performance successor and bounded verification
+**IMMEDIATE NEXT: Slice 85** (`FINAL-VERIFICATION`) — final verification, CI and non-publishing packaging
 
-**Remaining ladder:** 80 → 85.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 85.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
 Slices 60, 71, and 72 are durably closed. Slice 71 preserved the 71B general-write
 correction at `eda95b07` and restored AC-072 at `84c056c6` without changing

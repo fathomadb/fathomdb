@@ -19,6 +19,16 @@ stop-rule compliance.
 
 No timing, broad verification, or edits were performed by the reviewer.
 
+## Revised qualification and state closure
+
+Verdict: **PASS**
+
+An independent read-only audit verified the separate revised C1–C5 verdicts,
+their preservation of original raw evidence, the C1–C3 qualifying streak, the
+unchanged workload/limits and non-swap controls, and the generated release
+state. Slice 80 is complete at `e54ad00c`; Slice 85 is next and not started.
+No benchmark or edit was performed by the reviewer.
+
 ## Continuation re-review
 
 Verdict: **PASS — STREAK-IMPOSSIBLE CLOSURE IS ACCURATE**

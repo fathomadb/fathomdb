@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 80 (READ-ACCEPTANCE), BLOCKED_ENVIRONMENT_QUALIFICATION.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 85 (FINAL-VERIFICATION), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -26,10 +26,10 @@ agents execute this release without Steward or Orchestrator roles. Slices
 closes Slice 75 as an evidence checkpoint at safe product SHA `5056db9e`,
 not passing release acceptance. Slices 76, 77, and 79 retain their historical
 AC-020 failures. Owner ruling seq-277 retires that ratio gate. Slice 80's
-successor implementation and numeric evidence are complete, but the one
-additional owner-authorized AC-081 campaign is invalid because its own census
-shell was recorded as a competitor. The required stop rule prevented AC-072
-dispatch, so Slice 85 remains blocked. See the
+successor implementation is complete: its accepted 80.m AC-081 evidence passes
+and the owner-approved AC-072 qualification correction reassesses retained
+C1–C5 as passing, with C1–C3 satisfying the required consecutive evidence.
+Slice 85 is unblocked but not started. See the
 [Slice 80 status](../0.8.25/features/slice-80/status.md).
 
 ## Slice ladder
@@ -118,7 +118,7 @@ dispatch, so Slice 85 remains blocked. See the
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 80 (READ-ACCEPTANCE)** — absolute read-performance successor and bounded verification. **Remaining ladder:** 80 → 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 85 (FINAL-VERIFICATION)** — final verification, CI and non-publishing packaging. **Remaining ladder:** 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

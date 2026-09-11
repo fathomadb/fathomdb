@@ -1,0 +1,24 @@
+# Slice 80.n execution authorization
+
+Recorded: 2026-09-11
+
+The repository owner commissioned the focused Slice 80.n implementation and
+acceptance-completion path. This authorization supersedes the stopped 80.m
+AC-072 allowance only for the following bounded work:
+
+| Work | Allowance | Stop rule |
+| --- | ---: | --- |
+| AC-081 | 0 | Reuse the accepted 80.m receipt when protected inputs match. |
+| AC-072 smoke | One non-acceptance 10-row/384d warm run | A functional or qualification failure blocks longer timing until an identified harness repair is proved. |
+| AC-072 acceptance | One three-cell, fresh-process 10k/384d/1,000-query warm campaign | Validate each cell before the next; the first numeric failure, invalid environment, timeout, or malformed receipt stops remaining timing. |
+| Protected writes | 0 | Reuse Slice 79 receipts unless a product/build input changes. |
+| Broad verification | 0 | Reserved for Slice 85. |
+
+The authorization includes ordinary focused runner, parser, collector, record,
+and review corrections needed to execute this route. It does not authorize
+product optimization, threshold changes, additional timing campaigns, host
+configuration changes, disabling swap, terminating unrelated processes,
+publication, push, or Slice 85 verification.
+
+Existing observations remain immutable historical evidence. The smoke is
+explicitly non-acceptance and cannot satisfy any AC-072 campaign cell.

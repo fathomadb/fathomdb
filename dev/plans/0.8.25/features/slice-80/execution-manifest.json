@@ -1,5 +1,5 @@
 {
-  "schema_version": "slice80-execution.v2",
+  "schema_version": "slice80-execution.v3",
   "authority": "seq-277",
   "additional_campaign_authorization": {
     "source": "repository owner, 2026-09-11",
@@ -16,6 +16,35 @@
       "sealed source/build/binary/collector identities"
     ],
     "environment_diagnosis": "dev/plans/runs/0.8.25-slice-80/pre-timing-environment.md"
+  },
+  "slice80n": {
+    "record": "dev/plans/0.8.25/features/slice-80/80n-acceptance-completion.md",
+    "authorization": "dev/plans/0.8.25/features/slice-80/80n-authorization.md",
+    "status": "IMPLEMENTING",
+    "active_budget": {
+      "ac081_fresh_processes": 0,
+      "ac072_non_acceptance_smokes": 1,
+      "ac072_acceptance_cells": 3,
+      "stop_after_first_invalid_numeric_failure_timeout_or_malformed_receipt": true,
+      "replacement_observations_authorized": false,
+      "broad_regression_rounds": 0
+    },
+    "prebuilt_ac072_route": {
+      "selector": "ac_013_vector_retrieval_latency",
+      "binary": "target/release/deps/perf_gates-e6869802f14984e9",
+      "binary_sha256": "ff4b78f36898f8109eef2dcb64f91a99741f9619433d77de0cfef0e59d51895d",
+      "required_child_environment": {
+        "AGENT_LONG": "1",
+        "AC013_VECTOR_DIM": "384",
+        "AC013_SAMPLES": "1000",
+        "AC013_SCALE_TREATMENT": "warm"
+      },
+      "smoke_corpus_n": 10,
+      "acceptance_corpus_n": 10000,
+      "smoke_timeout_seconds": 30,
+      "acceptance_timeout_seconds": 3600,
+      "raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac072-slice80n"
+    }
   },
   "slice80m": {
     "record": "dev/plans/0.8.25/features/slice-80/80m-collector-completion.md",

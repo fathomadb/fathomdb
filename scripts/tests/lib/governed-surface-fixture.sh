@@ -35,8 +35,8 @@
 #
 # WHAT THE GATE REQUIRES OF THE PAIR (see check-governed-surface-pin.sh's header):
 #   * the pin carries sha256 + git_blob_sha1 of the allowlist file's RAW BYTES;
-#   * the pin's allowlist/core/recovery_denylist lists equal the file's, element
-#     for element and in order;
+#   * the pin's allowlist/core/recovery_denylist/runtime_controls lists equal
+#     the file's, element for element and in order;
 #   * counts.<list> is present, an integer, and equals len(<list>) in BOTH;
 #   * recovery_denylist is EXACTLY the five REQ-054 names, in BOTH.
 # All four are satisfied by construction below and then VERIFIED by running the
@@ -86,6 +86,7 @@ surface = {
     "allowlist": ["fixture_verb_one", "fixture_verb_two"],
     "core": ["fixture_verb_one"],
     "recovery_denylist": REQ_054,
+    "runtime_controls": ["fixture_runtime_control"],
 }
 raw = (json.dumps(surface, indent=2) + "\n").encode("utf-8")
 
@@ -93,7 +94,7 @@ file_path = os.path.join(repo, "src/conformance/governed-surface-allowlist.json"
 with open(file_path, "wb") as fh:
     fh.write(raw)
 
-LIST_KEYS = ["allowlist", "core", "recovery_denylist"]
+LIST_KEYS = ["allowlist", "core", "recovery_denylist", "runtime_controls"]
 pin = {
     "_comment": (
         "FIXTURE pin over the fixture surface next to it. NOT a HITL sign-off and not "

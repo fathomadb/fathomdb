@@ -18,6 +18,16 @@
     "environment_diagnosis": "dev/plans/runs/0.8.25-slice-80/pre-timing-environment.md"
   },
   "source_ref_at_seal": "6b785e7c0fa54507e30147e6f03922bd30bfd41e",
+  "authorized_final_pre_timing_seal": {
+    "collector_source_ref": "8eafa888ebe9d3e8039a33f804f7ced8cbb7ee08",
+    "source_rule": "Each cell requires a clean current HEAD; that exact source SHA is recorded in its raw identity marker.",
+    "product_input_sha256": "95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274",
+    "ac081_binary_sha256": "ff4b78f36898f8109eef2dcb64f91a99741f9619433d77de0cfef0e59d51895d",
+    "ac081_runner_sha256": "d1bfc6512fd97f7af2c94f440419beaa6556d32f1cf8f37d2d88a742b145ad83",
+    "ac072_runner_sha256": "4fb5fae0a5440d9bf9cfe0337e305596b6b6ac649d0e3d04740fd991cd018c44",
+    "scanner_sha256": "dba781bfd4b0f91f226b7313e48f5bb3157bdb512e0ca81760572e1e9835bd72",
+    "ac072_source_environment": "SLICE80_EXPECTED_SOURCE_SHA=<clean-current-head>"
+  },
   "toolchain": {
     "rustc": "1.95.0 (59807616e 2026-04-14)",
     "cargo": "1.95.0 (f2d3ce0 2026-03-21)"
@@ -73,7 +83,7 @@
     "runner": "scripts/perf-experiments/run-slice71-ac013-cell.sh",
     "sqlite_version": "3.53.2",
     "libsqlite3_sys": "0.38.1",
-    "command_template": "SLICE71_SQLITE_VERSION=3.53.2 timeout 3600 scripts/perf-experiments/run-slice71-ac013-cell.sh <candidate-worktree> <raw-log>",
+    "command_template": "SLICE71_SQLITE_VERSION=3.53.2 SLICE80_EXPECTED_SOURCE_SHA=<clean-current-head> timeout 3600 scripts/perf-experiments/run-slice71-ac013-cell.sh <candidate-worktree> <raw-log>",
     "corpus_n": 10000,
     "vector_dim": 384,
     "samples": 1000,

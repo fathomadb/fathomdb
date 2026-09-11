@@ -5,10 +5,11 @@ use std::sync::{Arc, Once};
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::ProjectionStatus;
 use fathomdb_engine::{
-    ArtifactRevisionId, CanonicalHash, DependencyDerivedLookupV1, DependencySourceLookupV1, Engine,
-    EngineError, FrozenReadErrorReason, InitialState, LifecycleState, PreparedWrite,
-    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1,
-    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    configure_runtime, ArtifactRevisionId, CanonicalHash, DependencyDerivedLookupV1,
+    DependencySourceLookupV1, Engine, EngineError, FrozenReadErrorReason, InitialState,
+    LifecycleState, PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView, RuntimeSqliteMode,
+    SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
+    SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::{migrate_with_steps, Migration, MIGRATIONS, SCHEMA_VERSION, SQLITE_SUFFIX};
 use rusqlite::Connection;
@@ -70,6 +71,8 @@ fn register_sqlite_vec_once() {
 }
 
 fn seed_schema26(path: &std::path::Path) -> Vec<(i64, String, String, String)> {
+    configure_runtime(RuntimeSqliteMode::Performance)
+        .expect("configure application SQLite runtime");
     register_sqlite_vec_once();
     let mut connection = Connection::open(path).expect("create schema-26 fixture");
     let report = migrate_with_steps(&connection, SCHEMA_26_MIGRATIONS)

@@ -18163,7 +18163,10 @@ fn prepare_search_statement<'connection>(
         let statement = statement?;
         let was_reused = statement.get_status(StatementStatus::Run) > 0;
         #[cfg(feature = "slice76-diagnostics")]
-        record_slice76_prepare(sql, was_reused);
+        {
+            record_slice76_prepare(sql, was_reused);
+            record_slice76_statement_memory(sql, statement.get_status(StatementStatus::MemUsed));
+        }
         Ok(SearchStatement::Cached { statement })
     }
     #[cfg(not(feature = "slice76-statement-reuse"))]
@@ -18175,7 +18178,10 @@ fn prepare_search_statement<'connection>(
         end_slice76_prepare();
         let statement = statement?;
         #[cfg(feature = "slice76-diagnostics")]
-        record_slice76_prepare(sql, false);
+        {
+            record_slice76_prepare(sql, false);
+            record_slice76_statement_memory(sql, statement.get_status(StatementStatus::MemUsed));
+        }
         Ok(SearchStatement::Fresh { statement })
     }
 }
@@ -19149,7 +19155,16 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         end_slice76_prepare();
         let mut identity_stmt = identity_stmt?;
         #[cfg(feature = "slice76-diagnostics")]
-        record_slice76_prepare(identity_sql, identity_stmt.get_status(StatementStatus::Run) > 0);
+        {
+            record_slice76_prepare(
+                identity_sql,
+                identity_stmt.get_status(StatementStatus::Run) > 0,
+            );
+            record_slice76_statement_memory(
+                identity_sql,
+                identity_stmt.get_status(StatementStatus::MemUsed),
+            );
+        }
         for hit in &mut results {
             if hit.branch != SoftFallbackBranch::Text {
                 continue;
@@ -30821,6 +30836,23 @@ fn record_slice76_compile(sql: &str) {
     }
 }
 
+#[cfg(feature = "slice76-diagnostics")]
+fn record_slice76_statement_memory(sql: &str, bytes: i32) {
+    let Some(name) = thread::current().name().map(str::to_string) else {
+        return;
+    };
+    let Some(index) = name.strip_prefix("fathomdb-reader-").and_then(|value| value.parse().ok())
+    else {
+        return;
+    };
+    let normalized = sql.split_whitespace().collect::<Vec<_>>().join(" ");
+    let key = format!("SLICE76_MEMUSED {normalized}");
+    if let Ok(mut census) = slice76_sql_census().lock() {
+        let retained = census.entry(index).or_default().entry(key).or_default();
+        *retained = (*retained).max(u64::try_from(bytes).unwrap_or(0));
+    }
+}
+
 /// Return and clear the private Slice 76 per-reader executed-SQL census.
 #[cfg(feature = "slice76-diagnostics")]
 #[doc(hidden)]
@@ -30995,6 +31027,12 @@ mod tests {
             worker.get("SLICE76_COMPILE SELECT value FROM item WHERE id=?1"),
             Some(&1),
             "the authorizer fires for compilation, not a prepared-cache hit"
+        );
+        assert!(
+            worker
+                .get("SLICE76_MEMUSED SELECT value FROM item WHERE id=?1")
+                .is_some_and(|bytes| *bytes > 0),
+            "the census must retain SQLite's statement-memory estimate"
         );
     }
 

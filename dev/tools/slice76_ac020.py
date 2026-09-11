@@ -24,6 +24,12 @@ MARKER = re.compile(
     r"^AC020_NUMBERS sequential_ms=(\d+) concurrent_ms=(\d+) bound_ms=(\d+)$",
     re.MULTILINE,
 )
+FULL_PRECISION_FAILURE = re.compile(
+    r"^AC-020 failed: concurrent=([0-9]+(?:\.[0-9]+)?)ms "
+    r"bound=([0-9]+(?:\.[0-9]+)?)ms "
+    r"sequential=([0-9]+(?:\.[0-9]+)?)ms$",
+    re.MULTILINE,
+)
 RUNNING = re.compile(r"^running (\d+) test(?:s)?$", re.MULTILINE)
 RESULT = re.compile(
     r"^test result: (?:ok|FAILED)\. (\d+) passed(?:; (\d+) failed(?:; (\d+) ignored)?)?",
@@ -63,6 +69,14 @@ def parse_run_log(text: str, exit_code: int) -> dict[str, Any]:
     if passed + failed != 1 or ignored != 0:
         raise ValueError("expected exactly one executed test with no ignore")
     sequential, concurrent, bound = (int(value) for value in markers[0])
+    precise = FULL_PRECISION_FAILURE.findall(text)
+    if len(precise) > 1:
+        raise ValueError("expected at most one full-precision AC-020 diagnostic")
+    if precise:
+        concurrent_text, bound_text, sequential_text = precise[0]
+        sequential = float(sequential_text)
+        concurrent = float(concurrent_text)
+        bound = float(bound_text)
     return {
         "sequential_ms": sequential,
         "concurrent_ms": concurrent,
@@ -114,13 +128,13 @@ def validate_campaign(
             raise ValueError(f"wrong binary identity for {observation.get('label')}")
 
 
-def nearest_rank(values: list[int], percentile: float) -> int:
+def nearest_rank(values: list[float], percentile: float) -> float:
     ordered = sorted(values)
     rank = max(1, math.ceil(percentile * len(ordered)))
     return ordered[rank - 1]
 
 
-def distribution(values: list[int]) -> dict[str, int]:
+def distribution(values: list[float]) -> dict[str, float]:
     ordered = sorted(values)
     return {
         "min": ordered[0],
@@ -135,8 +149,8 @@ def distribution(values: list[int]) -> dict[str, int]:
 def summarize(observations: list[dict[str, Any]]) -> dict[str, Any]:
     if not observations:
         raise ValueError("cannot summarize zero observations")
-    sequential = [int(item["sequential_ms"]) for item in observations]
-    concurrent = [int(item["concurrent_ms"]) for item in observations]
+    sequential = [float(item["sequential_ms"]) for item in observations]
+    concurrent = [float(item["concurrent_ms"]) for item in observations]
     sequential_summary = distribution(sequential)
     concurrent_summary = distribution(concurrent)
     speedups = [s / c for s, c in zip(sequential, concurrent, strict=True)]

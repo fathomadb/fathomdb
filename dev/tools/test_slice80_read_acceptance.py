@@ -128,16 +128,19 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             subject.validate_campaign([*observations[:6], observations[0]], identity())
 
-    def test_campaign_does_not_average_away_numeric_or_environment_failure(self):
+    def test_campaign_reports_numeric_and_environment_failure_without_raising(self):
         observations = [
             {"label": f"R{i}", **identity(), "numeric_pass": True, "environment_applicable": True}
             for i in range(1, 8)
         ]
-        for field in ("numeric_pass", "environment_applicable"):
+        for field, expected_status in (
+            ("numeric_pass", "FAIL"),
+            ("environment_applicable", "ENVIRONMENT_INVALID"),
+        ):
             failed = [dict(item) for item in observations]
             failed[3][field] = False
-            with self.assertRaises(ValueError):
-                subject.validate_campaign(failed, identity())
+            subject.validate_campaign(failed, identity())
+            self.assertEqual(subject.summarize(failed)["status"], expected_status)
 
     def test_human_summary_makes_warning_visible_without_failing(self):
         observations = [

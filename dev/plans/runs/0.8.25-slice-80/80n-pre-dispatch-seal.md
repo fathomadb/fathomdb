@@ -1,6 +1,6 @@
 # Slice 80.n pre-dispatch seal
 
-Prepared from `486b8099c796f3f79f0a2e888a7400fd37bb0b4a`; the campaign records
+The implementation source is `9284cdb8`; the campaign records
 its final clean documentation HEAD in each raw identity marker. Product inputs
 remain the protected `95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274`.
 
@@ -8,9 +8,10 @@ remain the protected `95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3
 - Fresh task-owned copy: `/tmp/fathomdb-slice80n-artifact/perf_gates`.
 - Both digests: `ff4b78f36898f8109eef2dcb64f91a99741f9619433d77de0cfef0e59d51895d`.
 - Test-list check: `ac_013_vector_retrieval_latency` appeared exactly once.
-- Prebuilt runner SHA-256: `5f40adfb1ba1600c08202859fbe57d325316f83383166d5a79ecebb0cca58aaa`.
+- Prebuilt runner SHA-256: `7b486ed2dfc5990085cf13af4d4382d411eb5ee8b5af58b7ac1721eded372124`.
 - Shared competitor scanner SHA-256: `b213ef845247ae230ba846fb7ef9f4df0eac458fb117b6ee0c758def2de9b825`.
-- Three-cell dispatcher SHA-256: `a0935ff95555e6407cec7b2f70ba235f321fff26931097b72a74a29bc53761fc`.
+- Validator SHA-256: `32b33b260ad4ba1f8d2d90493b8053a2d3fb8356d674830be8dcd4b577081bdf`.
+- Three-cell dispatcher SHA-256: `9a33d09b437fb1cd0bacf132bc43963b21b95e42cd8566fb532c048579b2197e`.
 
 The runner invokes the copied test executable directly with the sealed
 selector and environment. It does not invoke Cargo, rustc, or `run-ac013.sh`

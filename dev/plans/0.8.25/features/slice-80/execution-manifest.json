@@ -36,7 +36,7 @@
       "protected_product_input_sha256": "95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274",
       "runner_sha256": "7b486ed2dfc5990085cf13af4d4382d411eb5ee8b5af58b7ac1721eded372124",
       "scanner_sha256": "b213ef845247ae230ba846fb7ef9f4df0eac458fb117b6ee0c758def2de9b825",
-      "validator_sha256": "88381db66229f2a20783a178b01dc21f69ce982fd7fa14b2acbca499077ffc40",
+      "validator_sha256": "31a84b60d9ed656723358cb653afa0c1d7648e86e2b4b2220d473eaec9b17a2b",
       "dispatcher_sha256": "9a33d09b437fb1cd0bacf132bc43963b21b95e42cd8566fb532c048579b2197e",
       "seal": "dev/plans/runs/0.8.25-slice-80/80n-pre-dispatch-seal.md",
       "required_child_environment": {

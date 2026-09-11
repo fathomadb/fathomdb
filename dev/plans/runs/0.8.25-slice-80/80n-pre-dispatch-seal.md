@@ -1,8 +1,7 @@
 # Slice 80.n pre-dispatch seal
 
-The implementation source is `aa2bb4f5`; the campaign records
-its final clean documentation HEAD in each raw identity marker. Product inputs
-remain the protected `95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274`.
+Product inputs remain the protected
+`95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274`.
 
 - Retained executable: `target/release/deps/perf_gates-e6869802f14984e9`.
 - Fresh task-owned copy: `/tmp/fathomdb-slice80n-artifact/perf_gates`.
@@ -18,9 +17,21 @@ recognize Rust's progress-line prefix on `AC013_NUMBERS`; it therefore has an
 `INCOMPLETE` tooling verdict and is not acceptance evidence. Commits `525919ec`
 and `62b2c6cc` add the narrow parser repairs and RED/GREEN proof. The repaired
 validator now accepts the retained receipt, which is qualified and numerically
-passing as a smoke only. The owner-approved harness-fix smoke repeat remains
-available; no AC-072 acceptance cell has run.
-- Three-cell dispatcher SHA-256: `f25401004b937e03ef04e12e54e9c0feae4d69456e4f39249e8c4a3589c60af6`.
+passing as a smoke only. The repair-proof smoke at
+`raw/ac072-slice80n-smoke-repair1/` passed as a non-acceptance record.
+
+## Executed campaign identity
+
+The only acceptance cell, R1, ran from `da916eb2bf3227eba2a0480fbcd5e8bf6f8b2cb7`
+with dispatcher SHA-256
+`9a33d09b437fb1cd0bacf132bc43963b21b95e42cd8566fb532c048579b2197e`.
+It stopped as environment-invalid; see `80n-stopped-campaign.md`.
+
+## Post-stop repair identity
+
+Commit `aa2bb4f5` repaired only Python-validator invocation. Its dispatcher
+SHA-256 is `f25401004b937e03ef04e12e54e9c0feae4d69456e4f39249e8c4a3589c60af6`.
+No acceptance cell ran using this post-stop dispatcher.
 
 The runner invokes the copied test executable directly with the sealed
 selector and environment. It does not invoke Cargo, rustc, or `run-ac013.sh`

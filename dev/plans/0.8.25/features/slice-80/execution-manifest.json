@@ -39,7 +39,17 @@
       "runner_sha256": "7b486ed2dfc5990085cf13af4d4382d411eb5ee8b5af58b7ac1721eded372124",
       "scanner_sha256": "b213ef845247ae230ba846fb7ef9f4df0eac458fb117b6ee0c758def2de9b825",
       "validator_sha256": "31a84b60d9ed656723358cb653afa0c1d7648e86e2b4b2220d473eaec9b17a2b",
-      "dispatcher_sha256": "f25401004b937e03ef04e12e54e9c0feae4d69456e4f39249e8c4a3589c60af6",
+      "executed_campaign": {
+        "source_sha": "da916eb2bf3227eba2a0480fbcd5e8bf6f8b2cb7",
+        "dispatcher_sha256": "9a33d09b437fb1cd0bacf132bc43963b21b95e42cd8566fb532c048579b2197e",
+        "smoke_raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac072-slice80n-smoke-repair1",
+        "acceptance_raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac072-slice80n-campaign1"
+      },
+      "post_stop_dispatcher_repair": {
+        "source_sha": "aa2bb4f5",
+        "dispatcher_sha256": "f25401004b937e03ef04e12e54e9c0feae4d69456e4f39249e8c4a3589c60af6",
+        "status": "focused repair only; no acceptance cell executed"
+      },
       "seal": "dev/plans/runs/0.8.25-slice-80/80n-pre-dispatch-seal.md",
       "required_child_environment": {
         "AGENT_LONG": "1",
@@ -51,7 +61,7 @@
       "acceptance_corpus_n": 10000,
       "smoke_timeout_seconds": 30,
       "acceptance_timeout_seconds": 3600,
-      "raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac072-slice80n"
+      "historical_initial_smoke_root": "dev/plans/runs/0.8.25-slice-80/raw/ac072-slice80n"
     }
   },
   "slice80m": {

@@ -156,6 +156,144 @@ fn run_ac020_mix(engine: &Engine) {
     }
 }
 
+fn run_ac020_concurrent(engine: Engine) {
+    let engine = Arc::new(engine);
+    let barrier = Arc::new(Barrier::new(AC020_THREADS + 1));
+    let mut handles = Vec::with_capacity(AC020_THREADS);
+    for _ in 0..AC020_THREADS {
+        let engine = Arc::clone(&engine);
+        let barrier = Arc::clone(&barrier);
+        handles.push(thread::spawn(move || {
+            barrier.wait();
+            run_ac020_mix(&engine);
+        }));
+    }
+    barrier.wait();
+    for handle in handles {
+        handle.join().expect("reader thread");
+    }
+}
+
+fn wait_for_slice76_path(path: &std::path::Path) {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !path.exists() {
+        assert!(Instant::now() < deadline, "timed out waiting for {}", path.display());
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[test]
+fn slice76_memstatus_is_enabled() {
+    let mut before = 0_i64;
+    let mut highwater = 0_i64;
+    // SAFETY: the status outputs are valid pointers and reset is disabled.
+    let status = unsafe {
+        rusqlite::ffi::sqlite3_status64(
+            rusqlite::ffi::SQLITE_STATUS_MEMORY_USED,
+            &mut before,
+            &mut highwater,
+            0,
+        )
+    };
+    assert_eq!(status, rusqlite::ffi::SQLITE_OK);
+    // SAFETY: SQLite owns the returned allocation and it is released exactly once below.
+    let allocation = unsafe { rusqlite::ffi::sqlite3_malloc64(1_048_576) };
+    assert!(!allocation.is_null(), "controlled SQLite allocation failed");
+    let mut during = 0_i64;
+    // SAFETY: the status outputs are valid pointers and reset is disabled.
+    let status = unsafe {
+        rusqlite::ffi::sqlite3_status64(
+            rusqlite::ffi::SQLITE_STATUS_MEMORY_USED,
+            &mut during,
+            &mut highwater,
+            0,
+        )
+    };
+    assert_eq!(status, rusqlite::ffi::SQLITE_OK);
+    // SAFETY: `allocation` came from sqlite3_malloc64 and has not been freed.
+    unsafe { rusqlite::ffi::sqlite3_free(allocation) };
+    let mut after = 0_i64;
+    // SAFETY: the status outputs are valid pointers and reset is disabled.
+    let status = unsafe {
+        rusqlite::ffi::sqlite3_status64(
+            rusqlite::ffi::SQLITE_STATUS_MEMORY_USED,
+            &mut after,
+            &mut highwater,
+            0,
+        )
+    };
+    assert_eq!(status, rusqlite::ffi::SQLITE_OK);
+    assert!(during >= before + 1_048_576, "memory accounting did not observe allocation");
+    assert!(after < during, "memory accounting did not observe free");
+    eprintln!("SLICE76_MEMSTATUS before={before} during={during} after={after}");
+}
+
+#[test]
+fn slice76_profile_gate_phase() {
+    let arm = std::env::var("FATHOMDB_SLICE76_PROFILE_ARM").expect("profile arm");
+    let ready = std::path::PathBuf::from(
+        std::env::var_os("FATHOMDB_SLICE76_PROFILE_READY").expect("ready path"),
+    );
+    let go =
+        std::path::PathBuf::from(std::env::var_os("FATHOMDB_SLICE76_PROFILE_GO").expect("go path"));
+    let done = std::path::PathBuf::from(
+        std::env::var_os("FATHOMDB_SLICE76_PROFILE_DONE").expect("done path"),
+    );
+    let finish = std::path::PathBuf::from(
+        std::env::var_os("FATHOMDB_SLICE76_PROFILE_FINISH").expect("finish path"),
+    );
+    assert!(matches!(arm.as_str(), "sequential" | "concurrent-after-sequential-warmup"));
+
+    let (_dir, path) = fixture_path("slice76_profile_gate_phase");
+    let embedder = Arc::new(RoutedEmbedder::new(8));
+    let opened = Engine::open_with_embedder_for_test(&path, embedder).expect("open");
+    seed_ac020_fixture(&opened.engine);
+    let warmup_searches = if arm == "concurrent-after-sequential-warmup" {
+        for _ in 0..AC020_THREADS {
+            run_ac020_mix(&opened.engine);
+        }
+        AC020_THREADS * AC020_ROUNDS_PER_THREAD * ac020_queries().len()
+    } else {
+        0
+    };
+    std::fs::write(&ready, format!("{{\"arm\":\"{arm}\",\"warmup_searches\":{warmup_searches}}}"))
+        .expect("write ready record");
+    wait_for_slice76_path(&go);
+    eprintln!("SLICE76_PROFILE_BEGIN arm={arm}");
+    if arm == "sequential" {
+        for _ in 0..AC020_THREADS {
+            run_ac020_mix(&opened.engine);
+        }
+    } else {
+        run_ac020_concurrent(opened.engine);
+    }
+    eprintln!("SLICE76_PROFILE_END arm={arm}");
+    let searches = AC020_THREADS * AC020_ROUNDS_PER_THREAD * ac020_queries().len();
+    std::fs::write(&done, format!("{{\"arm\":\"{arm}\",\"searches\":{searches}}}"))
+        .expect("write done record");
+    wait_for_slice76_path(&finish);
+}
+
+#[cfg(feature = "slice76-diagnostics")]
+#[test]
+fn slice76_sql_prepare_census() {
+    let (_dir, path) = fixture_path("slice76_sql_prepare_census");
+    let embedder = Arc::new(RoutedEmbedder::new(8));
+    let opened = Engine::open_with_embedder_for_test(&path, embedder).expect("open");
+    seed_ac020_fixture(&opened.engine);
+    let _ = fathomdb_engine::take_slice76_sql_census_for_test();
+    for _ in 0..AC020_THREADS {
+        run_ac020_mix(&opened.engine);
+    }
+    let census = fathomdb_engine::take_slice76_sql_census_for_test();
+    assert_eq!(census.len(), AC020_THREADS, "every reader must execute search SQL");
+    for (worker, statements) in &census {
+        let executions: u64 = statements.values().sum();
+        assert!(executions > 0, "reader {worker} must report executions");
+    }
+    eprintln!("SLICE76_SQL_CENSUS {}", serde_json::to_string(&census).expect("census JSON"));
+}
+
 // ── AC-012 / AC-013 / AC-019 retrieval perf-gate fixtures ───────────────────
 //
 // Per `dev/plans/0.6.0-Phase-9-Pack-D-retrieval-perf-fixtures.md` and

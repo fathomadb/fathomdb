@@ -30563,6 +30563,8 @@ unsafe extern "C" fn profile_callback_trampoline(
 
     #[cfg(feature = "test-hooks")]
     record_slice71_profile_statement_for_test(sql_text);
+    #[cfg(feature = "slice76-diagnostics")]
+    record_slice76_profile_statement(sql_text);
 
     let wall_clock_ms = nanoseconds / 1_000_000;
 
@@ -30585,6 +30587,36 @@ unsafe extern "C" fn profile_callback_trampoline(
         let signal = lifecycle::SlowStatement { statement: sql_text.to_string(), wall_clock_ms };
         ctx.subscribers.dispatch_slow_statement(&signal);
     }
+}
+
+#[cfg(feature = "slice76-diagnostics")]
+fn slice76_sql_census() -> &'static Mutex<BTreeMap<usize, BTreeMap<String, u64>>> {
+    static CENSUS: std::sync::OnceLock<Mutex<BTreeMap<usize, BTreeMap<String, u64>>>> =
+        std::sync::OnceLock::new();
+    CENSUS.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+#[cfg(feature = "slice76-diagnostics")]
+fn record_slice76_profile_statement(sql: &str) {
+    let Some(name) = thread::current().name().map(str::to_string) else {
+        return;
+    };
+    let Some(index) = name.strip_prefix("fathomdb-reader-").and_then(|value| value.parse().ok())
+    else {
+        return;
+    };
+    let normalized = sql.split_whitespace().collect::<Vec<_>>().join(" ");
+    if let Ok(mut census) = slice76_sql_census().lock() {
+        let count = census.entry(index).or_default().entry(normalized).or_default();
+        *count = count.saturating_add(1);
+    }
+}
+
+/// Return and clear the private Slice 76 per-reader executed-SQL census.
+#[cfg(feature = "slice76-diagnostics")]
+#[doc(hidden)]
+pub fn take_slice76_sql_census_for_test() -> BTreeMap<usize, BTreeMap<String, u64>> {
+    slice76_sql_census().lock().map(|mut census| std::mem::take(&mut *census)).unwrap_or_default()
 }
 
 #[cfg(test)]

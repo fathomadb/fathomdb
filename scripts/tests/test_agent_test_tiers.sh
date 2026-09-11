@@ -144,6 +144,12 @@ else
   fail "Slice 75 closure manifest contract must pass"
 fi
 
+if python3 "$SCRIPT_DIR/test_slice85_final_gate.py"; then
+  pass "Slice 85 final evidence gate is fail-closed"
+else
+  fail "Slice 85 final evidence gate contract must pass"
+fi
+
 if [ "$FAILED" -gt 0 ]; then
   printf '\n%d test(s) failed\n' "$FAILED" >&2
   exit 1

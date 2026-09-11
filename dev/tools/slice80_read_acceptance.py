@@ -150,7 +150,10 @@ def scan_competing_processes(rows: str, excluded_pids: set[int]) -> list[str]:
             command in {"cargo", "rustc"}
             or is_perf_binary(command)
             or is_perf_binary(executable)
-            or re.search(r"run-(?:ac013|slice80-ac081)[.]sh", arguments)
+            or re.search(
+                r"(?:run-ac013|run-slice71-ac013-cell|run-slice80-ac081-cell)[.]sh",
+                arguments,
+            )
         ):
             found.append(row.strip())
     return found

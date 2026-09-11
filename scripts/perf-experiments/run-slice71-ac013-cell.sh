@@ -19,7 +19,7 @@ sqlite_version="${SLICE71_SQLITE_VERSION:?run the source commit SQLite runtime p
 libsqlite3_sys=$(grep -A1 '^name = "libsqlite3-sys"$' Cargo.lock | tail -n 1 | tr -cd '0-9.\n')
 
 snapshot() {
-  local phase="$1" load mem swap_in swap_out temp competing
+  local phase="$1" load mem swap_in swap_out temp competing grandparent great_grandparent
   load=$(awk '{print $1}' /proc/loadavg)
   mem=$(awk '/MemTotal:/{total=$2} /MemAvailable:/{available=$2} END{printf "%.3f", available*100/total}' /proc/meminfo)
   swap_in=$(awk '$1=="pswpin"{print $2}' /proc/vmstat)
@@ -36,7 +36,11 @@ snapshot() {
     echo "required k10temp:Tctl signal is unavailable" >&2
     exit 2
   fi
-  competing=$(ps -eo pid=,comm=,args= | awk '$2 ~ /^(cargo|rustc|perf_gates)$/ || $0 ~ /run-ac013[.]sh/ {print}' || true)
+  grandparent=$(ps -o ppid= -p "$PPID" | tr -d ' ')
+  great_grandparent=$(ps -o ppid= -p "$grandparent" | tr -d ' ')
+  competing=$(ps -eo pid=,comm=,args= | PYTHONDONTWRITEBYTECODE=1 \
+    python3 "$runner_root/dev/tools/slice80_read_acceptance.py" scan-processes \
+      --exclude-pids "$$,$PPID,$grandparent,$great_grandparent")
   python3 - "$phase" "$load" "$mem" "$swap_in" "$swap_out" "$temp" "$competing" "$sqlite_version" "$libsqlite3_sys" <<'PY'
 import json
 import sys

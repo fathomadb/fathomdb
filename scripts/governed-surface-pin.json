@@ -141,23 +141,31 @@
     "  previous git_blob_sha1: 0cac3a1b9a66e6c5e7b337c08d52f60f332abed4",
     "  previous sha256:        fd01c7c44d0eecfc4b8842450bb3506b1fc66f3344ec71b86e459e8d00814b7a",
     "",
+    "RE-ISSUED 2026-09-10 (HITL steward-ledger seq-276). Slice 79 adds",
+    "admin.configure_runtime/admin.configureRuntime as startup-only runtime",
+    "controls, not governed application commands. Allowlist/core and the",
+    "five-name recovery denylist are unchanged; runtime_controls is exactly 2.",
+    "  previous git_blob_sha1: 369e43865e478dff72ed5c90cbb72cc8446afda1",
+    "  previous sha256:        f097468b48eebf65db11786f6ba9ffb930f2e5e8aeaeba4c95dfa67bd188a52a",
+    "",
     "REPRODUCE THE PIN FROM GIT:",
-    "  git cat-file blob 369e43865e478dff72ed5c90cbb72cc8446afda1",
+    "  git cat-file blob 4bafc43287ce76346184f1c88706304a18533825",
     "    -> the signed allowlist bytes (content-addressed; no commit needed)",
     "  sha256sum src/conformance/governed-surface-allowlist.json",
-    "    -> f097468b48eebf65db11786f6ba9ffb930f2e5e8aeaeba4c95dfa67bd188a52a   (= sha256 below)"
+    "    -> dab487c3f2f0f3897af16d4bb9e24fe09e6ad23125297e6b23dc08f8e878f179   (= sha256 below)"
   ],
-  "ac": "AC-079; 0.8.21 Slice 60; 0.8.22 Slice 21 F5; 0.8.22 Slice 22 C5; 0.8.23 Slice 30; approved 0.8.25 Slices 20 and 25; approved 0.8.25 Slice 30; approved 0.8.25 Slice 35; approved 0.8.25 Slice 40; approved 0.8.25 Slice 45; approved 0.8.25 Slice 50; approved 0.8.25 Slice 55; approved 0.8.25 Slice 60",
-  "covers": "Prior signed surfaces plus the approved 0.8.25 Slice 20 dependency registry, Slice 25 bounded atomic actuation, Slice 30 keyed closure-status read, Slice 35 optional frozen reads, Slice 40 projection-generation status reads, Slice 45 canonical pagination and operational-state reads, Slice 50 compact source evidence reads, Slice 55 governed dependency trace reads, and Slice 60 bounded constrained graph expansion",
+  "ac": "AC-079; 0.8.21 Slice 60; 0.8.22 Slice 21 F5; 0.8.22 Slice 22 C5; 0.8.23 Slice 30; approved 0.8.25 Slices 20 and 25; approved 0.8.25 Slice 30; approved 0.8.25 Slice 35; approved 0.8.25 Slice 40; approved 0.8.25 Slice 45; approved 0.8.25 Slice 50; approved 0.8.25 Slice 55; approved 0.8.25 Slice 60; approved 0.8.25 Slice 79 under seq-276",
+  "covers": "Prior signed surfaces plus the approved 0.8.25 Slice 20 dependency registry, Slice 25 bounded atomic actuation, Slice 30 keyed closure-status read, Slice 35 optional frozen reads, Slice 40 projection-generation status reads, Slice 45 canonical pagination and operational-state reads, Slice 50 compact source evidence reads, Slice 55 governed dependency trace reads, Slice 60 bounded constrained graph expansion, and Slice 79 startup-only runtime controls",
   "pinned_file": "src/conformance/governed-surface-allowlist.json",
-  "pinned_at_commit": "e874fed10f1fcdcc3c3512632892fd4a0cd26201",
-  "pinned_at_commit_short": "e874fed1",
-  "git_blob_sha1": "369e43865e478dff72ed5c90cbb72cc8446afda1",
-  "sha256": "f097468b48eebf65db11786f6ba9ffb930f2e5e8aeaeba4c95dfa67bd188a52a",
+  "pinned_at_commit": "a6650c81b120fb8fdd747cc4753360fbdbc13653",
+  "pinned_at_commit_short": "a6650c81",
+  "git_blob_sha1": "4bafc43287ce76346184f1c88706304a18533825",
+  "sha256": "dab487c3f2f0f3897af16d4bb9e24fe09e6ad23125297e6b23dc08f8e878f179",
   "counts": {
     "allowlist": 67,
     "core": 5,
-    "recovery_denylist": 5
+    "recovery_denylist": 5,
+    "runtime_controls": 2
   },
   "allowlist": [
     "Engine.open",
@@ -241,5 +249,9 @@
     "repair",
     "fix",
     "rebuild"
+  ],
+  "runtime_controls": [
+    "admin.configure_runtime",
+    "admin.configureRuntime"
   ]
 }

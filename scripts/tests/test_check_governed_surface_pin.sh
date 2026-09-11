@@ -6,10 +6,10 @@
 # WHAT IS BEING PROTECTED: the HITL signed the accumulated governed-surface
 # delta of 0.8.20 Slices 5d+10b+15b+15d (AC-079), later signed deltas, and the
 # Slice 22 C5 pair, the explicitly commissioned Slice 30 addition, and the
-# owner-approved 0.8.25 Slice 20/25/30/35/40/45/50/55/60 additions — pinned to the exact content of
+# owner-approved 0.8.25 Slice 20/25/30/35/40/45/50/55/60/79 additions — pinned to the exact content of
 # src/conformance/governed-surface-allowlist.json at the provenance commit
 # recorded in the pin (67 allowlist members, 5 core, recovery_denylist unchanged
-# at the five REQ-054 names). A signature keyed to specific content is worth
+# at the five REQ-054 names, and 2 runtime controls). A signature keyed to specific content is worth
 # exactly as much as the mechanism that notices when that content moves.
 #
 # RED-first: the file MATCHES the pin today, so asserting only against the real
@@ -30,7 +30,7 @@
 # NOTE ON ARMS 8b-8f (the pin's own well-formedness): Arm 8 proves the counts
 # block is what catches a lazy re-pin, which makes the counts block itself a
 # target. These arms attack it: a pin that DELETES, nulls or mistypes one of its
-# three counts must fail as a MALFORMED PIN (exit 2 — the gate could not run),
+# four counts must fail as a MALFORMED PIN (exit 2 — the gate could not run),
 # never skip that list and never be reported as a surface divergence (exit 1 —
 # "go get it signed"). Each was captured exiting 0 on the pre-fix gate.
 set -euo pipefail
@@ -145,7 +145,7 @@ expect_routes_to_hitl() {
 run_checker
 expect_rc 0 "the real repo's governed surface matches the pin (default args)"
 expect_out 'ok +governed-surface-pin' "the passing run says ok"
-expect_out '67 allowlist / 5 core / 5 recovery_denylist' \
+expect_out '67 allowlist / 5 core / 5 recovery_denylist / 2 runtime_controls' \
   "the passing run states the pinned counts it verified"
 
 PIN_SHA="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["sha256"])' "$REAL_PIN")"
@@ -241,8 +241,9 @@ expected_allowlist = [
     "read.operational_state_page",
     "read.operationalStatePage",
 ]
-expected_counts = {"allowlist": 67, "core": 5, "recovery_denylist": 5}
+expected_counts = {"allowlist": 67, "core": 5, "recovery_denylist": 5, "runtime_controls": 2}
 expected_denylist = ["recover", "restore", "repair", "fix", "rebuild"]
+expected_runtime_controls = ["admin.configure_runtime", "admin.configureRuntime"]
 expected_ac_provenance = "0.8.23 Slice 30"
 expected_comment_provenance = "RE-ISSUED 2026-08-16 (HITL explicit Slice 30 commission)."
 expected_0825_provenance = "approved 0.8.25 Slices 20 and 25"
@@ -261,6 +262,8 @@ expected_slice55_provenance = "approved 0.8.25 Slice 55"
 expected_slice55_comment = "RE-ISSUED 2026-09-06 (HITL-approved 0.8.25 Slice 55 plan and execution)."
 expected_slice60_provenance = "approved 0.8.25 Slice 60"
 expected_slice60_comment = "RE-ISSUED 2026-09-10 (HITL-approved 0.8.25 Slice 60 plan and execution)."
+expected_slice79_provenance = "approved 0.8.25 Slice 79 under seq-276"
+expected_slice79_comment = "RE-ISSUED 2026-09-10 (HITL steward-ledger seq-276)."
 
 problems = []
 if allowlist.get("allowlist") != expected_allowlist:
@@ -273,6 +276,10 @@ if allowlist.get("recovery_denylist") != expected_denylist:
     problems.append("allowlist recovery denylist changed")
 if pin.get("recovery_denylist") != expected_denylist:
     problems.append("pin recovery denylist changed")
+if allowlist.get("runtime_controls") != expected_runtime_controls:
+    problems.append("allowlist runtime controls changed")
+if pin.get("runtime_controls") != expected_runtime_controls:
+    problems.append("pin runtime controls changed")
 if expected_ac_provenance not in pin.get("ac", ""):
     problems.append("pin lacks explicit Slice 30 commission provenance in its ac field")
 if expected_comment_provenance not in "\n".join(pin.get("_comment", [])):
@@ -309,6 +316,10 @@ if expected_slice60_provenance not in pin.get("ac", ""):
     problems.append("pin lacks approved 0.8.25 Slice 60 provenance in its ac field")
 if expected_slice60_comment not in "\n".join(pin.get("_comment", [])):
     problems.append("pin lacks approved 0.8.25 Slice 60 provenance in its comment")
+if expected_slice79_provenance not in pin.get("ac", ""):
+    problems.append("pin lacks approved 0.8.25 Slice 79 provenance in its ac field")
+if expected_slice79_comment not in "\n".join(pin.get("_comment", [])):
+    problems.append("pin lacks approved 0.8.25 Slice 79 provenance in its comment")
 
 if problems:
     raise SystemExit("; ".join(problems))
@@ -474,13 +485,30 @@ else
 fi
 expect_routes_to_hitl "lazy-repin"
 
+# A hash-only re-pin must not hide an unapproved runtime-control addition.
+F="$(copy_file runtime-control-lazy-repin)"
+mutate "$F" 'd["runtime_controls"].append("admin.unsafe_runtime")'
+RUNTIME_PIN="$TMPROOT/runtime-control-lazy-repin/pin.json"
+python3 - "$REAL_PIN" "$F" "$RUNTIME_PIN" <<'PY'
+import hashlib, json, sys
+pin = json.load(open(sys.argv[1]))
+raw = open(sys.argv[2], "rb").read()
+pin["sha256"] = hashlib.sha256(raw).hexdigest()
+pin["git_blob_sha1"] = hashlib.sha1(b"blob %d\0" % len(raw) + raw).hexdigest()
+json.dump(pin, open(sys.argv[3], "w"), indent=2)
+PY
+check_fixture "$F" "$RUNTIME_PIN"
+expect_rc 1 "a runtime-control LAZY RE-PIN still HARD-fails"
+expect_out 'ADDED admin.unsafe_runtime' "runtime-control lazy-repin names the added control"
+expect_out 'counts block says 2' "runtime-control lazy-repin is caught by its count"
+
 # ========= Arm 8b (RED): a pin that DELETES one of its own counts ============
 # Arm 8 proved the counts block is what catches a lazy re-pin. So the counts
 # block is itself worth attacking: reading counts.<list> permissively meant an
 # ABSENT entry came back as None and BOTH the internal-consistency check and the
 # file-count check silently skipped that list. Deleting a count therefore
 # disarmed the backstop — the gate would have kept reporting "ok" while checking
-# strictly less than it claimed. Captured on the pre-fix script, all three of
+# strictly less than it claimed. Captured on the pre-fix script, each of
 # these exited 0. A count the gate cannot read is a MALFORMED PIN (exit 2, "the
 # gate could not run"), never a divergence (exit 1, "go get the surface signed").
 #
@@ -496,7 +524,7 @@ PY
   printf '%s' "$out"
 }
 
-for KEY in allowlist core recovery_denylist; do
+for KEY in allowlist core recovery_denylist runtime_controls; do
   check_fixture "$REAL_FILE" "$(omit_count_pin "$KEY")"
   expect_rc 2 "a pin that OMITS counts.$KEY HARD-fails as malformed (was a silent exit 0)"
   expect_out "'counts' has no '$KEY' entry" "omit-counts.$KEY names the missing count entry"

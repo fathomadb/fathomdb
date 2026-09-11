@@ -1,10 +1,11 @@
-"""Admin namespace exposing the `configure` verb beside `Engine`.
+"""Admin namespace exposing schema configuration and startup runtime control.
 
 Per `dev/interfaces/python.md` § Runtime surface, `admin.configure` is the
 fifth canonical SDK verb. The native binding (`fathomdb._fathomdb`)
 performs the writer-thread wiring; this module exposes the typed
 Python signature and converts the native receipt to the public
-`WriteReceipt` dataclass.
+`WriteReceipt` dataclass. `configure_runtime` selects SQLite behavior before
+the first Engine open and does not submit an application command.
 """
 
 from __future__ import annotations

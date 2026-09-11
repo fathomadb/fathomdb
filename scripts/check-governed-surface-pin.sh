@@ -16,9 +16,9 @@
 #   22's C5 projection-status reads (steward-ledger seq-247), and the approved
 #   0.8.25 Slice 20/25/30/35/40/45/50 surfaces — pinned to the EXACT CONTENT of
 #   src/conformance/governed-surface-allowlist.json at the commit recorded in
-#   scripts/governed-surface-pin.json: 64 allowlist members,
-#   5 core, and recovery_denylist unchanged at the five
-#   REQ-054 names. A signature keyed to specific content is worth exactly as much
+#   scripts/governed-surface-pin.json: 67 allowlist members,
+#   5 core, recovery_denylist unchanged at the five REQ-054 names, and the
+#   separately classified runtime controls. A signature keyed to specific content is worth exactly as much
 #   as the mechanism that notices when that content moves. This is that
 #   mechanism: the signed content is recorded in scripts/governed-surface-pin.json
 #   and this gate HARD-fails the moment the file diverges from it, routing the
@@ -54,7 +54,8 @@
 #       values recorded in the pin. Both are recorded so a reviewer can
 #       reproduce the pin either way (`git rev-parse <pinned_at_commit>:<file>`
 #       gives the blob sha1 directly).
-#   (b) MEMBER LISTS: `allowlist`, `core` and `recovery_denylist` are compared
+#   (b) MEMBER LISTS: `allowlist`, `core`, `recovery_denylist`, and
+#       `runtime_controls` are compared
 #       element-by-element against the copies stored in the pin, so the failure
 #       can name WHICH member appeared or vanished — and so that updating only
 #       the hash in the pin (a lazy re-pin, to silence the gate) still fails.
@@ -62,7 +63,7 @@
 #       against the pin's own
 #       `counts` block, so a pin whose lists and counts disagree is caught as an
 #       internally inconsistent (botched) re-pin rather than being trusted.
-#       EVERY one of the three counts must be PRESENT and an integer: a count the
+#       EVERY one of the four counts must be PRESENT and an integer: a count the
 #       gate cannot read is a MALFORMED PIN (exit 2), never a skipped check. An
 #       absent count used to read back as None and silently disable both halves
 #       of (c) for that list, so a re-pin that DELETED a count, added a member
@@ -173,7 +174,7 @@ FILE, PIN = sys.argv[1], sys.argv[2]
 # it. See the "recovery denylist is five names" rule.
 REQ_054 = ["recover", "restore", "repair", "fix", "rebuild"]
 
-LIST_KEYS = ["allowlist", "core", "recovery_denylist"]
+LIST_KEYS = ["allowlist", "core", "recovery_denylist", "runtime_controls"]
 CAP = 8  # cap on enumerated member names per difference line
 
 failures = []
@@ -411,7 +412,8 @@ if failures:
 print(
     f"ok    governed-surface-pin: {FILE} matches the {pin.get('ac', 'pre-signed')} pin "
     f"({pin['counts']['allowlist']} allowlist / {pin['counts']['core']} core / "
-    f"{pin['counts']['recovery_denylist']} recovery_denylist, {WHERE})"
+    f"{pin['counts']['recovery_denylist']} recovery_denylist / "
+    f"{pin['counts']['runtime_controls']} runtime_controls, {WHERE})"
 )
 PY
 RC=$?

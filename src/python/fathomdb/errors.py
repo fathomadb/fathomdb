@@ -6,7 +6,8 @@ PyO3 binding (`fathomdb._fathomdb`); they inherit from `EngineError`
 which inherits from Python `Exception`. Typed payload attributes
 (`holder_pid`, `kind`, `stage`, `recovery_hint_code`, `doc_anchor`,
 `stored`, `supplied`, `stored_name`, `stored_revision`, `supplied_name`,
-`supplied_revision`) are set by the binding's
+`supplied_revision`, `reason`, `requested_mode`, `effective_mode`,
+`sqlite_code`) are set by the binding's
 `engine_error_to_py` / `engine_open_error_to_py` translators on raise.
 
 For Python-only construction with typed kwargs (used by binding tests),

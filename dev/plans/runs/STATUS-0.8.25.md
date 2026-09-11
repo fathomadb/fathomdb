@@ -26,10 +26,10 @@ agents execute this release without Steward or Orchestrator roles. Slices
 closes Slice 75 as an evidence checkpoint at safe product SHA `5056db9e`,
 not passing release acceptance. Slices 76, 77, and 79 retain their historical
 AC-020 failures. Owner ruling seq-277 retires that ratio gate. Slice 80's
-successor implementation and numeric evidence are complete, but environment
-applicability is unproved because the corrected competitor census postdates
-the runs; AC-072 also exhausted its replacement budget without a fully valid
-cell. Slice 85 remains blocked. See the
+successor implementation and numeric evidence are complete, but the one
+additional owner-authorized AC-081 campaign is invalid because its own census
+shell was recorded as a competitor. The required stop rule prevented AC-072
+dispatch, so Slice 85 remains blocked. See the
 [Slice 80 status](../0.8.25/features/slice-80/status.md).
 
 ## Slice ladder
@@ -62,7 +62,7 @@ cell. Slice 85 remains blocked. See the
 | 76 | AC-020 attribution and statement reuse | Complete (`8027546d`) |
 | 77 | Adaptive experiments and candidate selection | Complete inconclusive (`5484cd17`) |
 | 79 | Explicit runtime configuration and statement reuse | Complete with carry-forward (`e2db3ffc`) |
-| 80 | Absolute read-performance successor and valid AC-072 evidence | In progress; implementation complete, acceptance evidence blocked |
+| 80 | Absolute read-performance successor and valid AC-072 evidence | In progress; final allowance stopped invalid, acceptance blocked |
 | 85 | Final verification, CI and non-publishing packaging | Planning brief; final candidate matrix pending |
 
 ## Decisions and blockers

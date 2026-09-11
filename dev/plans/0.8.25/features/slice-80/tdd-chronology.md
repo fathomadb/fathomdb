@@ -23,5 +23,16 @@
   before producing the promised structured report.
 - Reporting GREEN `9cbc71bb`: structural validation still fails closed, while
   complete failed or environment-invalid campaigns reach structured summary.
+- Authorized collector RED `11ed3dc3` and GREEN `086311de`: AC-072 now reuses
+  the corrected scanner for truncated names, hash-suffixed test binaries and
+  runner processes while excluding the current campaign ancestry.
+- Review RED `07b452dc` and GREEN `4e0f2619`: the AC-072 command-substitution
+  shell is excluded by its `BASHPID`; a runner-level test preserves that exact
+  current-versus-other-runner distinction. The focused reviewer passed.
+- Receipt RED `cb5e3f54` and GREEN `8eafa888`: AC-072 records the exact source,
+  collector and scanner identities when the Slice 80 source guard is enabled.
+- The authorized AC-081 collection exposed the analogous uncorrected AC-081
+  self-census defect. Its seven raw cells are retained as environment-invalid;
+  no fix or replacement was run because the owner authorization requires stop.
 
 No shipping search, SQL, schema, storage or runtime behavior changed in Slice 80.

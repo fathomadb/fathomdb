@@ -1,6 +1,6 @@
 # Slice 80 independent evidence review
 
-Verdict: **NOT PASS — acceptance evidence incomplete**.
+Verdict: **evidence integrity PASS; release acceptance NOT PASS**.
 
 The reviewer independently reproduced the registered thresholds, candidate and
 binary hashes, seven AC-081 numeric results, medians, warnings, six AC-072
@@ -23,3 +23,20 @@ blocked; no additional performance or broad run was launched by the reviewer.
 
 The separate code review passes through `9cbc71bb`, including structured
 `FAIL`/`ENVIRONMENT_INVALID` reporting and bounded reader-test cleanup.
+
+## Owner-authorized final allowance audit
+
+The seven authorized AC-081 raw logs exactly match their retained hashes and
+measurements. Their sequential median is 172.733800 ms and concurrent median
+is 62.389734 ms; every cell passes numerically with no warning. Each start and
+end snapshot, however, contains only the runner's own command-substitution
+shell as a competing AC-081 runner. They are therefore correctly invalid, not
+relabeled valid.
+
+The source, binary, product-input, AC-081 runner, AC-072 collector and scanner
+hashes match the pre-timing seal. The read-only environment diagnosis predates
+the cells. No AC-072 authorized-final directory or raw log exists: stopping
+after the invalid AC-081 campaign follows the owner's campaign-level stop rule.
+Prior receipts remain unchanged and applicable as recorded. Slice 80 remains
+in progress and Slice 85 remains blocked. No broad or further timing run was
+performed.

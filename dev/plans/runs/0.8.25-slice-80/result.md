@@ -40,6 +40,33 @@ the original collector did not walk to the delegated parent `cpu.max`. A second
 pre-review-fix passing series is preserved under `raw/ac081-pre-review-fix`.
 Neither is substituted for the final artifact receipt.
 
+## Owner-authorized final attempt
+
+The owner authorized one additional seven-process AC-081 campaign and one
+additional three-cell AC-072 campaign. The sealed AC-081 candidate at
+`e0b2a14b2fcc2bcf88a2103ad9ce0ae75973eef6` completed all seven fresh
+processes once. Every cell is numerically below both warning thresholds:
+
+An earlier malformed expanded source SHA was rejected by the runner before a
+raw log, environment snapshot, or test process was created; it was not a cell.
+
+| Run | Sequential ms | Concurrent ms | Qualification |
+| --- | ---: | ---: | --- |
+| R1 | 170.620864 | 62.428466 | invalid: own census shell |
+| R2 | 172.733800 | 41.579400 | invalid: own census shell |
+| R3 | 173.352778 | 65.812139 | invalid: own census shell |
+| R4 | 173.132814 | 42.363298 | invalid: own census shell |
+| R5 | 178.120022 | 62.389734 | invalid: own census shell |
+| R6 | 172.525128 | 65.803744 | invalid: own census shell |
+| R7 | 171.988307 | 39.106786 | invalid: own census shell |
+
+The corrected scanner truthfully recorded the active AC-081 runner's own
+command-substitution shell because that runner lacks the AC-072 `BASHPID`
+exclusion. This is a collector defect, not evidence of a competing workload.
+Nevertheless, the retained policy makes every cell invalid. The authorization
+requires stopping after any invalid campaign, so AC-072 was not dispatched and
+no campaign was repeated or replaced.
+
 ## AC-081c and focused checks
 
 - Four full-precision oracle tests pass, including every warning/hard boundary,

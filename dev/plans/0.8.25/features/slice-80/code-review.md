@@ -25,3 +25,7 @@ validation from outcome reporting so structured `FAIL` and
 `ENVIRONMENT_INVALID` results are emitted. Final re-review is recorded in this
 file: invalid-quota logs emit `ENVIRONMENT_INVALID`, numerical failures emit
 `FAIL`, mixed identities still fail closed, and the 15-test suite passes.
+
+The focused pre-timing collector review passes through `4e0f2619`: AC-072 uses
+the shared corrected scanner, excludes its command-substitution shell by PID,
+retains another campaign as a competitor, and changes no control or threshold.

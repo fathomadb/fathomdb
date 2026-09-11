@@ -24,6 +24,11 @@ bounded final campaign for each gate on 2026-09-11; see
 [the authorization record](additional-campaign-authorization.md). Do not
 re-open the approved thresholds.
 
+The additional AC-081 campaign was executed and stopped invalid because its
+own census command-substitution shell was recorded as a competitor. Under the
+same authorization's stop rule, AC-072 was not dispatched. The allowance is
+therefore exhausted; see [status](status.md).
+
 ## Inputs and protected baseline
 
 Consume Slice 79 closeout at `323db678`, its product candidate `a6650c81`,

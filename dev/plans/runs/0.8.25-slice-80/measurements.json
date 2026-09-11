@@ -5,6 +5,24 @@
     "binary_sha256": "ff4b78f36898f8109eef2dcb64f91a99741f9619433d77de0cfef0e59d51895d",
     "relevant_input_sha256": "95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274"
   },
+  "authorized_final_attempt": {
+    "authority": "repository owner, 2026-09-11",
+    "status": "STOPPED_AFTER_AC081_ENVIRONMENT_INVALID",
+    "ac081": {
+      "source_sha": "e0b2a14b2fcc2bcf88a2103ad9ce0ae75973eef6",
+      "status": "NUMERIC_PASS_ENVIRONMENT_INVALID_OWN_CENSUS_SHELL",
+      "runs": [
+        {"label": "R1", "sequential_ns": 170620864, "concurrent_ns": 62428466, "sha256": "fa0c82726d9077173744b28b5b53f4e91e1abca4e2d56d961b0eb292d64d666c"},
+        {"label": "R2", "sequential_ns": 172733800, "concurrent_ns": 41579400, "sha256": "37967f88d8ada3591c303f1b83a599470f559f19a73709129342cd427308c5ed"},
+        {"label": "R3", "sequential_ns": 173352778, "concurrent_ns": 65812139, "sha256": "2cdc0df9258c68b01e5e28dcf40eccc4cc82db18a2229cb8c954df688f75f626"},
+        {"label": "R4", "sequential_ns": 173132814, "concurrent_ns": 42363298, "sha256": "6b6c22dd032252588ad8c64e5cf7fede535ae6c3c24636bdac4733a903bba179"},
+        {"label": "R5", "sequential_ns": 178120022, "concurrent_ns": 62389734, "sha256": "7304cbcea8323d63e2d21cd6659f8cbeb1701ccb7f473c0a1a38548079a4b7f4"},
+        {"label": "R6", "sequential_ns": 172525128, "concurrent_ns": 65803744, "sha256": "85a99c450d6afef66b3d8efb9bc155d4036f8791238d26d7686d6d74caefcb7c"},
+        {"label": "R7", "sequential_ns": 171988307, "concurrent_ns": 39106786, "sha256": "03b77964afd1a4e78236f21be1f9ef92f10be61e3455937580a7fc98f0b0fd16"}
+      ]
+    },
+    "ac072": {"executed": 0, "reason": "required stop after invalid AC-081 campaign"}
+  },
   "ac081": {
     "status": "NUMERIC_PASS_ENVIRONMENT_UNPROVED_COMPETITOR_CENSUS",
     "warnings": [],

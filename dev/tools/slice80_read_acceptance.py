@@ -131,6 +131,12 @@ def parse_cell_log(path: Path, label: str) -> dict[str, Any]:
 
 
 def scan_competing_processes(rows: str, excluded_pids: set[int]) -> list[str]:
+    def is_perf_binary(name: str) -> bool:
+        return (
+            name in {"perf_gates", "ac081-perf-gates", "ac081-perf-gates"[:15]}
+            or name.startswith("perf_gates-")
+        )
+
     found = []
     for row in rows.splitlines():
         fields = row.strip().split(maxsplit=2)
@@ -139,8 +145,12 @@ def scan_competing_processes(rows: str, excluded_pids: set[int]) -> list[str]:
         pid, command, arguments = fields
         if int(pid) in excluded_pids:
             continue
-        if command in {"cargo", "rustc", "perf_gates", "ac081-perf-gates"} or re.search(
-            r"run-(?:ac013|slice80-ac081)[.]sh", arguments
+        executable = Path(arguments.split(maxsplit=1)[0]).name
+        if (
+            command in {"cargo", "rustc"}
+            or is_perf_binary(command)
+            or is_perf_binary(executable)
+            or re.search(r"run-(?:ac013|slice80-ac081)[.]sh", arguments)
         ):
             found.append(row.strip())
     return found

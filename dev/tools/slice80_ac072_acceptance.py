@@ -178,6 +178,7 @@ def parse_cell_text(text: str, label: str, purpose: str) -> dict[str, Any]:
         "numeric_pass": numeric_pass,
         "environment_applicable": qualification["applicable"],
         "environment_reasons": qualification["reasons"],
+        "environment_diagnostics": qualification["diagnostics"],
         "environment": {"start": environments[0], "end": environments[1]},
     }
 

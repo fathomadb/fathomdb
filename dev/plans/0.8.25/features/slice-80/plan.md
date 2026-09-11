@@ -109,8 +109,10 @@ bearing; diagnostics remains descriptive.
   time and warning, medians and dispersion. Do not pass a campaign by averaging
   away a failed run or by interpreting zero/skipped measurements as success.
 - AC-072 remains 10k/384d/1,000 queries, three repetitions, p50 <=80 ms and
-  p99 <=300 ms with the retained Slice 71 environment policy. Swap activity
-  invalidates evidence. Obtain valid candidate evidence, not a new historical
+  p99 <=300 ms with the retained Slice 71 environment controls. The collector
+  records host-wide `pswpin`/`pswpout` deltas as diagnostics, not a SUT-specific
+  qualification rule: they cannot attribute activity to FathomDB. Keep every
+  other control binding. Obtain valid candidate evidence, not a new historical
   baseline. Do not disable swap or terminate other applications without authority.
 - Keep timing isolated from builds, profilers and other performance work.
   Permit at most one documented environment correction and one replacement

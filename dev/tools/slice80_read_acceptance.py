@@ -140,6 +140,7 @@ def parse_cell_log(path: Path, label: str) -> dict[str, Any]:
         label=label,
         environment_applicable=qualification["applicable"],
         environment_reasons=qualification["reasons"],
+        environment_diagnostics=qualification["diagnostics"],
         environment={"start": environments[0], "end": environments[1]},
         raw_log=str(path),
     )
@@ -184,6 +185,7 @@ def parse_collector_readiness_log(text: str, identity_prefix: str) -> dict[str, 
         "environment": {"start": environments[0], "end": environments[1]},
         "environment_applicable": qualification["applicable"],
         "environment_reasons": qualification["reasons"],
+        "environment_diagnostics": qualification["diagnostics"],
     }
 
 
@@ -231,19 +233,28 @@ def _quota_cpus(value: str) -> float:
 
 def qualify_environment(start: dict[str, Any], end: dict[str, Any]) -> dict[str, Any]:
     reasons: list[str] = []
+    diagnostics: list[dict[str, int | str]] = []
     for phase, sample in (("start", start), ("end", end)):
         missing = [field for field in REQUIRED_ENVIRONMENT if field not in sample]
         if missing:
             reasons.append(f"{phase} missing: {','.join(missing)}")
     if reasons:
-        return {"applicable": False, "reasons": reasons}
+        return {"applicable": False, "reasons": reasons, "diagnostics": diagnostics}
 
     if max(start["load_1m"], end["load_1m"]) / min(start["online_cpus"], end["online_cpus"]) > 0.5:
         reasons.append("load")
     if min(start["available_memory_percent"], end["available_memory_percent"]) < 25:
         reasons.append("memory")
-    if end["pswpin"] - start["pswpin"] != 0 or end["pswpout"] - start["pswpout"] != 0:
-        reasons.append("swap")
+    pswpin_delta = end["pswpin"] - start["pswpin"]
+    pswpout_delta = end["pswpout"] - start["pswpout"]
+    if pswpin_delta != 0 or pswpout_delta != 0:
+        diagnostics.append(
+            {
+                "kind": "machine_wide_swap",
+                "pswpin_delta": pswpin_delta,
+                "pswpout_delta": pswpout_delta,
+            }
+        )
     if max(start["cpu_temp_c"], end["cpu_temp_c"]) > 90:
         reasons.append("temperature")
     if start["thermal_signal"] != "k10temp:Tctl" or end["thermal_signal"] != "k10temp:Tctl":
@@ -260,7 +271,7 @@ def qualify_environment(start: dict[str, Any], end: dict[str, Any]) -> dict[str,
     governors = start["scaling_governors"]
     if governors != end["scaling_governors"] or not governors or set(governors) != {"performance"}:
         reasons.append("governor")
-    return {"applicable": not reasons, "reasons": reasons}
+    return {"applicable": not reasons, "reasons": reasons, "diagnostics": diagnostics}
 
 
 def validate_campaign(observations: list[dict[str, Any]], identity: dict[str, str]) -> None:

@@ -129,11 +129,12 @@ one documented environment correction and replacement series for an affected
 gate, after which unresolved environment trouble blocks closure.
 
 Run the exact Slice 71 AC-072 candidate campaign: three 10k/384d/1,000-query
-repetitions with unchanged 80/300 ms p50/p99 limits and environment policy.
-Nonzero machine-wide swap activity invalidates evidence, without proving
-FathomDB caused it. Obtain a quiet environment; do not change OS policy or
-terminate unrelated processes without approval. Record contemporaneous controls
-for the successor too; swap-invalid evidence is not applicable there either.
+repetitions with unchanged 80/300 ms p50/p99 limits and environment controls.
+Record nonzero machine-wide swap activity as diagnostic context, without
+attributing it to FathomDB or rejecting an otherwise qualified application
+result. Obtain a quiet environment; do not change OS policy or terminate
+unrelated processes without approval. Record contemporaneous controls for the
+successor too; all non-swap qualification rules remain applicable.
 
 Six Slice 79 write receipts can carry forward when relevant product/build
 inputs are unchanged. A test-oracle/documentation change alone does not demand
@@ -197,7 +198,9 @@ After a committed RED→GREEN correction and focused review, seal source,
 collector, scanner and candidate identities. Build or reuse a single AC-081
 executable only when the declared product/build inputs are byte-identical. Then
 run at most seven fresh AC-081 processes and three AC-072 repetitions. Qualify
-each log before the next dispatch; the first numerical failure or environmental
-invalidity ends all remaining timing. No collector-only correction cycle may
+each log before the next dispatch; the first numerical failure or SUT-relevant
+environmental invalidity ends all remaining timing. Host-wide swap counters are
+retained as diagnostics because they cannot attribute activity to FathomDB. No
+collector-only correction cycle may
 become environmental polling: one RED→GREEN correction plus one review-driven
 amendment is the limit.

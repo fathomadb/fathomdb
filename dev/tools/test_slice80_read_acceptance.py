@@ -96,9 +96,17 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
         self.assertTrue(verdict["applicable"])
         self.assertEqual(verdict["reasons"], [])
 
-    def test_environment_rejects_swap_load_memory_temperature_and_competitors(self):
+    def test_environment_reports_machine_wide_swap_without_rejecting_the_sut(self):
+        verdict = subject.qualify_environment(environment(), environment(pswpin=11))
+        self.assertTrue(verdict["applicable"])
+        self.assertEqual(verdict["reasons"], [])
+        self.assertEqual(
+            verdict["diagnostics"],
+            [{"kind": "machine_wide_swap", "pswpin_delta": 1, "pswpout_delta": 0}],
+        )
+
+    def test_environment_rejects_load_memory_temperature_and_competitors(self):
         cases = [
-            (environment(), environment(pswpin=11)),
             (environment(load_1m=13.0), environment()),
             (environment(available_memory_percent=24.0), environment()),
             (environment(cpu_temp_c=91.0), environment()),
@@ -204,12 +212,16 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
                 f"SLICE80_IDENTITY {identity_line}\n"
                 f"SLICE80_ENV {json.dumps({'phase': 'start', **environment()})}\n"
                 f"{PASS_LOG}"
-                f"SLICE80_ENV {json.dumps({'phase': 'end', **environment()})}\n"
+                f"SLICE80_ENV {json.dumps({'phase': 'end', **environment(pswpin=11)})}\n"
                 "SLICE80_TEST_EXIT status=0\n"
             )
             parsed = subject.parse_cell_log(path, "R1")
             self.assertEqual(parsed["label"], "R1")
             self.assertTrue(parsed["environment_applicable"])
+            self.assertEqual(
+                parsed["environment_diagnostics"],
+                [{"kind": "machine_wide_swap", "pswpin_delta": 1, "pswpout_delta": 0}],
+            )
             self.assertEqual(parsed["source_sha"], ident["source_sha"])
 
     def test_parse_cell_rejects_missing_or_duplicate_control_records(self):
@@ -229,6 +241,7 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
         )
         parsed = subject.parse_collector_readiness_log(ready, "SLICE80_IDENTITY")
         self.assertTrue(parsed["environment_applicable"])
+        self.assertEqual(parsed["environment_diagnostics"], [])
         self.assertEqual(parsed["source_sha"], identity()["source_sha"])
 
         competing = ready.replace('"competing_processes": []', '"competing_processes": ["99 bash run-slice80-ac081-cell.sh"]')

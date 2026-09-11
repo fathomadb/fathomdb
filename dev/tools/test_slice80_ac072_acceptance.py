@@ -98,21 +98,25 @@ class Slice80Ac072AcceptanceTests(unittest.TestCase):
         failed = failed.replace("... ok", "... FAILED").replace(
             "test result: ok. 1 passed; 0 failed", "test result: FAILED. 0 passed; 1 failed"
         ).replace("SLICE80_AC072_TEST_EXIT status=0", "SLICE80_AC072_TEST_EXIT status=101")
-        for text, expected_environment in (
-            (failed, True),
-            (failed.replace('"pswpout": 20', '"pswpout": 21', 1), False),
+        for text in (
+            failed,
+            failed.replace('"pswpout": 20', '"pswpout": 21', 1),
         ):
             cell = subject.parse_cell_text(text, "R1", "acceptance")
             self.assertFalse(cell["numeric_pass"])
-            self.assertEqual(cell["environment_applicable"], expected_environment)
-            self.assertEqual(subject.cell_status(cell), "FAIL" if expected_environment else "ENVIRONMENT_INVALID")
+            self.assertTrue(cell["environment_applicable"])
+            self.assertEqual(subject.cell_status(cell), "FAIL")
 
-    def test_numeric_and_environment_verdicts_remain_distinct(self):
-        invalid = log().replace('"pswpin": 10', '"pswpin": 11', 1)
-        cell = subject.parse_cell_text(invalid, "R1", "acceptance")
+    def test_numeric_verdict_and_machine_wide_swap_diagnostic_remain_distinct(self):
+        diagnostic = log().replace('"pswpin": 10', '"pswpin": 11', 1)
+        cell = subject.parse_cell_text(diagnostic, "R1", "acceptance")
         self.assertTrue(cell["numeric_pass"])
-        self.assertFalse(cell["environment_applicable"])
-        self.assertEqual(subject.cell_status(cell), "ENVIRONMENT_INVALID")
+        self.assertTrue(cell["environment_applicable"])
+        self.assertEqual(
+            cell["environment_diagnostics"],
+            [{"kind": "machine_wide_swap", "pswpin_delta": -1, "pswpout_delta": 0}],
+        )
+        self.assertEqual(subject.cell_status(cell), "PASS")
 
     def test_campaign_requires_three_unique_applicable_numeric_passes(self):
         cell = subject.parse_cell_text(log(), "R1", "acceptance")

@@ -2,11 +2,10 @@
 
 ## Outcome
 
-Implementation is complete, but Slice 80 cannot close because required
-environment qualification is incomplete. The prior bounded replacement budget
-is historical. Slice 80.m completed its collector-repaired AC-081 campaign,
-then stopped at AC-072 R1 environment invalidity. Release state remains on
-Slice 80.
+Implementation is complete. The owner-approved qualification correction keeps
+machine-wide swap counters as diagnostics rather than attributing them to
+FathomDB. The retained Slice 80.n continuation audit now supplies five
+qualified AC-072 passes and closes Slice 80; Slice 85 is next.
 
 AC-020 is retired under seq-277; its historical failures remain failures.
 AC-081a/b/c replace it without changing the search fixture or shipping product.
@@ -67,11 +66,11 @@ were 172.329732, 187.860923, 171.467129, 172.883034, 166.994596,
 52.527637, 66.048653, 37.461359, 45.923609 and 63.495882 ms. Medians are
 172.883034 ms sequential and 52.527637 ms concurrent, with no warning.
 
-AC-072 R1 recorded p50 69 ms and p99 75 ms, satisfying its numerical limits,
-but `pswpin` increased from 370407 to 370409. The environment policy treats
-this machine-wide swap activity as invalid acceptance evidence. The owner
-instruction requires stopping immediately, so R2 and R3 did not run. This is
-the exact blocker; no criterion was waived and no further timing is authorized.
+Under the then-current policy, AC-072 R1 recorded p50 69 ms and p99 75 ms but
+was classified invalid when `pswpin` increased from 370407 to 370409. The owner
+instruction then required stopping immediately, so R2 and R3 did not run. This
+historical classification remains preserved; the later qualification correction
+does not rewrite this receipt.
 
 ## Owner-authorized final attempt
 
@@ -96,8 +95,8 @@ raw log, environment snapshot, or test process was created; it was not a cell.
 The corrected scanner truthfully recorded the active AC-081 runner's own
 command-substitution shell because that runner lacks the AC-072 `BASHPID`
 exclusion. This is a collector defect, not evidence of a competing workload.
-Nevertheless, the retained policy makes every cell invalid. The authorization
-requires stopping after any invalid campaign, so AC-072 was not dispatched and
+Nevertheless, the then-current policy made every cell invalid. The authorization
+required stopping after any invalid campaign, so AC-072 was not dispatched and
 no campaign was repeated or replaced.
 
 ## AC-081c and focused checks
@@ -120,12 +119,21 @@ no campaign was repeated or replaced.
 
 The owner-authorized six-process continuation cannot complete acceptance. Its
 required smoke was qualified. C1–C5 were real full measurements and all met
-the numerical limits. C1 (70/79 ms) and C4 (70/76 ms) are fully qualified;
-C2, C3 and C5 are invalid solely because their swap-I/O deltas were nonzero.
-C5 breaks the new streak. Only C6 remains, so three consecutive valid numeric
-passes are impossible. The two permitted post-invalidity collector-only
-readiness checks passed and no further timing was dispatched. See
+the numerical limits. Under the original policy, C1 (70/79 ms) and C4 (70/76
+ms) were qualified while C2, C3 and C5 were classified invalid solely for
+nonzero swap-I/O deltas. C5 therefore broke the original streak. The two
+permitted post-invalidity collector-only readiness checks passed and no further
+timing was dispatched. See
 [the continuation receipt](80n-continuation-campaign.md).
+
+### Revised qualification audit
+
+The original continuation verdicts remain historical evidence. Under the
+owner-approved policy, their host-wide swap deltas are reported diagnostics,
+not SUT-invalidating conditions. Reassessment of C1–C5 finds five qualified
+numeric passes; C1–C3 establish the required three consecutive passes. See
+[the revised audit](80n-revised-qualification-audit.md) and its separate JSON
+verdicts. No timing was rerun.
 
 All six exact 10k/384d/1,000-query cells pass numerically:
 
@@ -138,11 +146,12 @@ All six exact 10k/384d/1,000-query cells pass numerically:
 | R5 | 70 | 77 | 5 | invalid |
 | R6 | 69 | 76 | 2 | invalid |
 
-No test failed and no recorded load, memory or thermal limit failed. The
-retained policy requires zero machine-wide swap I/O, so five cells cannot count.
-R2 passes the recorded controls, but its old competitor scanner cannot establish
-complete exclusion. No cell is fully proved environment-valid. No swap setting
-was changed and no unrelated process was terminated.
+No test failed and no recorded load, memory or thermal limit failed. Under the
+original policy, zero machine-wide swap I/O was required, so five cells could
+not count. R2 passes the recorded controls, but its old competitor scanner
+cannot establish complete exclusion. No cell was then fully proved
+environment-valid. No swap setting was changed and no unrelated process was
+terminated.
 
 ## Applicability and scope
 

@@ -48,7 +48,16 @@ Before acceptance, run one short non-acceptance smoke through the sealed path.
 For an environment-invalid observation, pause dispatch, inspect its controls,
 and use at most two bounded read-only diagnosis/readiness cycles across this
 campaign before deciding whether to continue. A valid-environment numerical
-failure stops for investigation. Existing thresholds, fixture controls, zero
-swap-I/O rule, accepted AC-081/write receipts, and focused-only scope remain
-unchanged. No host-policy change, swap disabling, unrelated-process termination,
-or unlimited retrying is authorized.
+failure stops for investigation. Existing thresholds, fixture controls, all
+non-swap environment rules, accepted AC-081/write receipts, and focused-only
+scope remain unchanged. No host-policy change, swap disabling, unrelated-process
+termination, or unlimited retrying is authorized.
+
+## Qualification correction
+
+Recorded: 2026-09-11. The owner approved correcting the qualification rule:
+retain and report host-wide `pswpin`/`pswpout` deltas as diagnostics, but do not
+invalidate AC-072 solely from those machine-wide counters. All workload,
+latency, identity and non-swap environment controls remain binding. Reassess
+the five retained continuation observations under this policy while preserving
+their original verdict files separately; no new timing is authorized or needed.

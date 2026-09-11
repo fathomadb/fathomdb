@@ -1,6 +1,6 @@
 # Slice 80 status
 
-Status: **BLOCKED — AC-072 ENVIRONMENT QUALIFICATION**
+Status: **COMPLETE — SLICE 85 UNBLOCKED**
 
 - Contract/design: complete and independently approved.
 - TDD implementation: complete through `e8b63952`.
@@ -8,8 +8,11 @@ Status: **BLOCKED — AC-072 ENVIRONMENT QUALIFICATION**
   qualified numeric passes, no warnings, with 172.883034 ms sequential and
   52.527637 ms concurrent medians. Earlier invalid campaigns remain history.
 - AC-081c: focused real-database proof passes.
-- AC-072: 6/6 numeric passes; five are swap-invalid and R2's complete competitor
-  exclusion is unproved. Zero of three required cells is fully proved valid.
+- AC-072: the owner-approved qualification correction retains machine-wide
+  swap as diagnostic context, not an application-invalidating rule. C1–C5 are
+  five retained fresh-process 10k/384d/1,000-query warm numeric passes; C1–C3
+  establish the required consecutive three. See the separate
+  [revised audit](../../../runs/0.8.25-slice-80/80n-revised-qualification-audit.md).
 - The 80.m stop left the replacement AC-072 campaign unstarted after R1. The
   owner has now authorized the bounded 80.n smoke and one conditional three-cell
   campaign under [80n authorization](80n-authorization.md).
@@ -23,19 +26,17 @@ Status: **BLOCKED — AC-072 ENVIRONMENT QUALIFICATION**
   `pswpin` increased by two. The current stop rule leaves R2 and R3 unstarted.
 - Protected Slice 79 write evidence: applicable.
 - Broad verification: zero rounds, as planned.
-- The superseding continuation ran its required smoke, then retained qualified
-  C1 (70/79 ms) and C4 (70/76 ms) passes and C2/C3/C5's swap-invalid numeric
-  passes. C5 broke the only possible three-cell valid-pass streak; C6 cannot
-  satisfy the streak and was not run.
-  The two allowed post-invalidity collector-only readiness checks both passed.
-- Next slice: remains 80. Slice 85 is not unblocked.
+- The superseding continuation's original raw verdicts are preserved. Its
+  revised-policy audit separately records C2/C3/C5's host-wide swap deltas
+  while retaining their pass status and all other qualification controls.
+- Next slice: 85. Its final verification, CI and non-publishing packaging are
+  unblocked; none of that work ran in Slice 80.
 
 The initial AC-081 quota defect and both collector-census defects are retained
 transparently. Slice 80.m's allowance remains exhausted historical evidence.
 Slice 80.n's prior allowance stopped after its first AC-072 cell. The owner
-then authorized a fresh smoke and up to six continuation observations,
-requiring three consecutive valid numeric passes and permitting two bounded
-read-only diagnosis/readiness cycles after environment invalidity. The campaign
-cannot now obtain that streak: C5 is environment-invalid and only C6 remains.
-No criterion is waived; Slice 80 remains blocked and Slice 85 is not unblocked.
-See [the continuation receipt](../../../runs/0.8.25-slice-80/80n-continuation-campaign.md).
+then authorized a fresh smoke and up to six continuation observations. The
+original zero-swap rejection was corrected because it used a host-wide,
+non-SUT-attributable counter. No latency limit, workload, identity or remaining
+environment control was weakened. Original verdicts are retained separately;
+the revised audit closes AC-072 without new timing.

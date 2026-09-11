@@ -20,7 +20,7 @@
   "slice80n": {
     "record": "dev/plans/0.8.25/features/slice-80/80n-acceptance-completion.md",
     "authorization": "dev/plans/0.8.25/features/slice-80/80n-authorization.md",
-    "status": "BLOCKED_ENVIRONMENT_QUALIFICATION",
+    "status": "COMPLETE_REVISED_QUALIFICATION",
     "active_budget": {
       "ac081_fresh_processes": 0,
       "ac072_non_acceptance_smokes": 1,
@@ -39,15 +39,16 @@
       "broad_regression_rounds": 0
     },
     "continuation_execution": {
-      "status": "STOPPED_STREAK_IMPOSSIBLE",
+      "status": "COMPLETE_REVISED_QUALIFICATION",
+      "original_policy_status": "STOPPED_STREAK_IMPOSSIBLE",
       "fresh_runner_processes_dispatched": 5,
       "full_acceptance_measurements_completed": 5,
-      "qualified_numeric_passes": 2,
-      "maximum_consecutive_qualified_numeric_pass_streak": 1,
+      "qualified_numeric_passes": 5,
+      "maximum_consecutive_qualified_numeric_pass_streak": 5,
       "post_environment_invalidity_readiness_cycles_used": 2,
       "unstarted_cell": "C6",
-      "reason": "C5 was environment-invalid for swap activity; a single remaining cell cannot establish the required three consecutive qualified numeric passes.",
-      "receipt": "dev/plans/runs/0.8.25-slice-80/80n-continuation-campaign.md"
+      "reason": "Under the owner-approved revised policy, C1-C5 all pass: host-wide swap is recorded as non-attributable diagnostic evidence, not an applicability failure.",
+      "receipt": "dev/plans/runs/0.8.25-slice-80/80n-revised-qualification-audit.md"
     },
     "prebuilt_ac072_route": {
       "selector": "ac_013_vector_retrieval_latency",
@@ -201,7 +202,7 @@
   "environment": {
     "max_load_per_online_cpu": 0.5,
     "min_available_memory_percent": 25,
-    "max_swap_io_delta": 0,
+    "machine_wide_swap": "record pswpin/pswpout deltas as diagnostics; do not reject a SUT result solely from them",
     "max_cpu_temp_c": 90,
     "thermal_signal": "k10temp:Tctl",
     "forbid_competing_performance_processes": true,
@@ -222,7 +223,7 @@
     ],
     "load_rule": "max(start.load_1m,end.load_1m)/online_cpus <= 0.5",
     "memory_rule": "min(start.available_memory_percent,end.available_memory_percent) >= 25",
-    "swap_rule": "end.pswpin-start.pswpin == 0 and end.pswpout-start.pswpout == 0",
+    "swap_rule": "always record end-start pswpin/pswpout deltas as machine-wide diagnostics; they are not SUT-attributable rejection criteria",
     "temperature_rule": "max(start.cpu_temp_c,end.cpu_temp_c) <= 90 using k10temp:Tctl",
     "competing_pattern": "cargo|rustc|perf_gates|run-ac013|run-slice80-ac081 excluding the current runner/test process",
     "affinity_rule": "start and end CPU affinity strings are identical and contain at least 8 CPUs",

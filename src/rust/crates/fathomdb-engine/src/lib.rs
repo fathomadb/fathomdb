@@ -18109,9 +18109,17 @@ fn read_search_work_in_tx<C: SearchOriginCapture>(
 
 enum SearchStatement<'connection> {
     #[cfg(not(feature = "slice76-statement-reuse"))]
-    Fresh { statement: Statement<'connection> },
+    Fresh {
+        statement: Statement<'connection>,
+        #[cfg(feature = "slice76-diagnostics")]
+        diagnostic_sql: String,
+    },
     #[cfg(feature = "slice76-statement-reuse")]
-    Cached { statement: CachedStatement<'connection> },
+    Cached {
+        statement: CachedStatement<'connection>,
+        #[cfg(feature = "slice76-diagnostics")]
+        diagnostic_sql: String,
+    },
 }
 
 #[cfg(all(test, feature = "slice76-statement-reuse"))]
@@ -18149,6 +18157,20 @@ impl<'connection> std::ops::DerefMut for SearchStatement<'connection> {
     }
 }
 
+#[cfg(feature = "slice76-diagnostics")]
+impl Drop for SearchStatement<'_> {
+    fn drop(&mut self) {
+        let diagnostic_sql = match self {
+            #[cfg(not(feature = "slice76-statement-reuse"))]
+            Self::Fresh { diagnostic_sql, .. } => diagnostic_sql,
+            #[cfg(feature = "slice76-statement-reuse")]
+            Self::Cached { diagnostic_sql, .. } => diagnostic_sql,
+        }
+        .clone();
+        record_slice76_reprepare(&diagnostic_sql, self.get_status(StatementStatus::RePrepare));
+    }
+}
+
 fn prepare_search_statement<'connection>(
     connection: &'connection Connection,
     sql: &str,
@@ -18167,7 +18189,11 @@ fn prepare_search_statement<'connection>(
             record_slice76_prepare(sql, was_reused);
             record_slice76_statement_memory(sql, statement.get_status(StatementStatus::MemUsed));
         }
-        Ok(SearchStatement::Cached { statement })
+        Ok(SearchStatement::Cached {
+            statement,
+            #[cfg(feature = "slice76-diagnostics")]
+            diagnostic_sql: sql.to_string(),
+        })
     }
     #[cfg(not(feature = "slice76-statement-reuse"))]
     {
@@ -18182,7 +18208,11 @@ fn prepare_search_statement<'connection>(
             record_slice76_prepare(sql, false);
             record_slice76_statement_memory(sql, statement.get_status(StatementStatus::MemUsed));
         }
-        Ok(SearchStatement::Fresh { statement })
+        Ok(SearchStatement::Fresh {
+            statement,
+            #[cfg(feature = "slice76-diagnostics")]
+            diagnostic_sql: sql.to_string(),
+        })
     }
 }
 
@@ -19180,6 +19210,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 hit.id = derive_stable_id(None, &hit.body);
             }
         }
+        #[cfg(feature = "slice76-diagnostics")]
+        record_slice76_reprepare(
+            identity_sql,
+            identity_stmt.get_status(StatementStatus::RePrepare),
+        );
     }
 
     let projection_status = explain
@@ -30853,6 +30888,23 @@ fn record_slice76_statement_memory(sql: &str, bytes: i32) {
     }
 }
 
+#[cfg(feature = "slice76-diagnostics")]
+fn record_slice76_reprepare(sql: &str, count: i32) {
+    let Some(name) = thread::current().name().map(str::to_string) else {
+        return;
+    };
+    let Some(index) = name.strip_prefix("fathomdb-reader-").and_then(|value| value.parse().ok())
+    else {
+        return;
+    };
+    let normalized = sql.split_whitespace().collect::<Vec<_>>().join(" ");
+    let key = format!("SLICE76_REPREPARE {normalized}");
+    if let Ok(mut census) = slice76_sql_census().lock() {
+        let observed = census.entry(index).or_default().entry(key).or_default();
+        *observed = (*observed).max(u64::try_from(count).unwrap_or(0));
+    }
+}
+
 /// Return and clear the private Slice 76 per-reader executed-SQL census.
 #[cfg(feature = "slice76-diagnostics")]
 #[doc(hidden)]
@@ -30907,7 +30959,9 @@ mod tests {
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
     use proptest::prelude::*;
     use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
-    use rusqlite::{Connection, OptionalExtension};
+    use rusqlite::Connection;
+    #[cfg(all(feature = "slice76-diagnostics", feature = "slice76-statement-reuse"))]
+    use rusqlite::OptionalExtension;
     use std::collections::BTreeSet;
     use std::path::Path;
     use std::process::Command;
@@ -30994,7 +31048,7 @@ mod tests {
         assert!(statement.reprepare_count() >= 1, "SQLite must reprepare after schema change");
     }
 
-    #[cfg(feature = "slice76-diagnostics")]
+    #[cfg(all(feature = "slice76-diagnostics", feature = "slice76-statement-reuse"))]
     #[test]
     fn slice76_compile_census_distinguishes_cache_hits_from_compilation() {
         let _ = super::take_slice76_sql_census_for_test();
@@ -31033,6 +31087,11 @@ mod tests {
                 .get("SLICE76_MEMUSED SELECT value FROM item WHERE id=?1")
                 .is_some_and(|bytes| *bytes > 0),
             "the census must retain SQLite's statement-memory estimate"
+        );
+        assert_eq!(
+            worker.get("SLICE76_REPREPARE SELECT value FROM item WHERE id=?1"),
+            Some(&0),
+            "automatic reprepare must be recorded separately from prepare-time compilation"
         );
     }
 

@@ -43,3 +43,11 @@ issues before any benchmark ran. They are resolved as follows:
 
 These are evidence-quality corrections only. The experiment, oracle, run budget
 and focused verification scope are unchanged.
+
+A runner-enforcement re-review then found three implementation gaps before any
+measurement: the profile needed an end/finish handshake and exact count
+records; verdict invocations needed to resolve identities from the runtime
+manifest; and sealed evidence needed fail-closed immutability, cleanup and
+campaign-order validation. The runner now enforces those constraints. These are
+measurement-integrity corrections only and do not change the experiment budget
+or product oracle.

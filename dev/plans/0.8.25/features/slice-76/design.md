@@ -49,8 +49,9 @@ sites remain unchanged and are counted separately.
 - One profile pair compares the registered gate's sequential and concurrent
   search phases. The concurrent harness first performs the same 1,600-search
   sequential pass that warms the registered gate's reader pool. A ready/go
-  rendezvous lets the runner attach `perf` after setup and detach after the
-  delimited search interval, excluding seed and teardown work.
+  rendezvous lets the runner attach `perf` after setup. The harness records the
+  exact warmup count, signals after exactly 1,600 profiled searches and waits
+  for the runner to detach before teardown, excluding seed and teardown work.
 - The profile is on-CPU sampling only. Off-CPU channel/lock waiting remains
   unresolved, so Slice 76 cannot select a dispatch or lock treatment from this
   profile alone. Slice 76 does not build a general telemetry framework.

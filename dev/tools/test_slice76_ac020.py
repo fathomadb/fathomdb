@@ -62,10 +62,16 @@ class Slice76Ac020Tests(unittest.TestCase):
             self.assertEqual(record["source_sha"], "source-sha")
             self.assertEqual(destination.read_bytes(), b"candidate")
             self.assertEqual(len(record["binary_sha256"]), 64)
+            with self.assertRaisesRegex(ValueError, "already exists"):
+                slice76_ac020.seal_build(root, destination, "B", "source-sha")
 
     def test_profile_environment_delimits_the_requested_gate_phase(self):
         environment = slice76_ac020.profile_environment(
-            "concurrent-after-sequential-warmup", Path("ready"), Path("go")
+            "concurrent-after-sequential-warmup",
+            Path("ready"),
+            Path("go"),
+            Path("done"),
+            Path("finish"),
         )
         self.assertEqual(
             environment["FATHOMDB_SLICE76_PROFILE_ARM"],
@@ -73,8 +79,24 @@ class Slice76Ac020Tests(unittest.TestCase):
         )
         self.assertEqual(environment["FATHOMDB_SLICE76_PROFILE_READY"], "ready")
         self.assertEqual(environment["FATHOMDB_SLICE76_PROFILE_GO"], "go")
+        self.assertEqual(environment["FATHOMDB_SLICE76_PROFILE_DONE"], "done")
+        self.assertEqual(environment["FATHOMDB_SLICE76_PROFILE_FINISH"], "finish")
         with self.assertRaisesRegex(ValueError, "unsupported profile arm"):
-            slice76_ac020.profile_environment("setup", Path("ready"), Path("go"))
+            slice76_ac020.profile_environment(
+                "setup", Path("ready"), Path("go"), Path("done"), Path("finish")
+            )
+
+    def test_campaign_validation_enforces_order_count_and_binary_identity(self):
+        observations = [
+            {"label": "B1", "configuration": "B", "binary_sha256": "b"},
+            {"label": "C1", "configuration": "C", "binary_sha256": "c"},
+        ]
+        builds = {"B": {"binary_sha256": "b"}, "C": {"binary_sha256": "c"}}
+        slice76_ac020.validate_campaign(observations, ["B", "C"], builds)
+        with self.assertRaisesRegex(ValueError, "configuration order"):
+            slice76_ac020.validate_campaign(observations, ["C", "B"], builds)
+        with self.assertRaisesRegex(ValueError, "wrong binary identity"):
+            slice76_ac020.validate_campaign(observations, ["B", "C"], {**builds, "C": {"binary_sha256": "x"}})
 
 
 if __name__ == "__main__":

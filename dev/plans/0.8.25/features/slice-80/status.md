@@ -1,6 +1,6 @@
 # Slice 80 status
 
-Status: **SLICE 80.N CONTINUATION AUTHORIZED; AC-072 ACCEPTANCE IN PROGRESS**
+Status: **BLOCKED — AC-072 ENVIRONMENT QUALIFICATION**
 
 - Contract/design: complete and independently approved.
 - TDD implementation: complete through `e8b63952`.
@@ -23,12 +23,19 @@ Status: **SLICE 80.N CONTINUATION AUTHORIZED; AC-072 ACCEPTANCE IN PROGRESS**
   `pswpin` increased by two. The current stop rule leaves R2 and R3 unstarted.
 - Protected Slice 79 write evidence: applicable.
 - Broad verification: zero rounds, as planned.
+- The superseding continuation ran its required smoke, then retained qualified
+  C1 (70/79 ms) and C4 (70/76 ms) passes and C2/C3/C5's swap-invalid numeric
+  passes. C5 broke the only possible three-cell valid-pass streak; C6 cannot
+  satisfy the streak and was not run.
+  The two allowed post-invalidity collector-only readiness checks both passed.
 - Next slice: remains 80. Slice 85 is not unblocked.
 
 The initial AC-081 quota defect and both collector-census defects are retained
 transparently. Slice 80.m's allowance remains exhausted historical evidence.
 Slice 80.n's prior allowance stopped after its first AC-072 cell. The owner
-has now authorized a fresh smoke and up to six continuation observations,
+then authorized a fresh smoke and up to six continuation observations,
 requiring three consecutive valid numeric passes and permitting two bounded
-read-only diagnosis/readiness cycles after environment invalidity. Slice 80
-remains in progress and Slice 85 is not yet unblocked.
+read-only diagnosis/readiness cycles after environment invalidity. The campaign
+cannot now obtain that streak: C5 is environment-invalid and only C6 remains.
+No criterion is waived; Slice 80 remains blocked and Slice 85 is not unblocked.
+See [the continuation receipt](../../../runs/0.8.25-slice-80/80n-continuation-campaign.md).

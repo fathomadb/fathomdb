@@ -116,6 +116,17 @@ no campaign was repeated or replaced.
 
 ## AC-072
 
+### Slice 80.n superseding continuation
+
+The owner-authorized six-process continuation cannot complete acceptance. Its
+required smoke was qualified. C1–C5 were real full measurements and all met
+the numerical limits. C1 (70/79 ms) and C4 (70/76 ms) are fully qualified;
+C2, C3 and C5 are invalid solely because their swap-I/O deltas were nonzero.
+C5 breaks the new streak. Only C6 remains, so three consecutive valid numeric
+passes are impossible. The two permitted post-invalidity collector-only
+readiness checks passed and no further timing was dispatched. See
+[the continuation receipt](80n-continuation-campaign.md).
+
 All six exact 10k/384d/1,000-query cells pass numerically:
 
 | Run | p50 ms | p99 ms | Swap-in delta | Applicability |

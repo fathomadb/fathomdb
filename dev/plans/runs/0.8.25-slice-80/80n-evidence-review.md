@@ -18,3 +18,18 @@ stop-rule compliance.
   runner and scanner identities match the raw receipt.
 
 No timing, broad verification, or edits were performed by the reviewer.
+
+## Continuation re-review
+
+Verdict: **PASS — STREAK-IMPOSSIBLE CLOSURE IS ACCURATE**
+
+An independent read-only re-review checked the superseding continuation raw
+logs and structured verdicts. C1–C5 are five complete full measurements. C1
+(70/79 ms) and C4 (70/76 ms) are qualified numeric passes; C2, C3 and C5 are
+numerically passing but invalid solely for nonzero swap I/O. The maximum
+qualified streak is one. `readiness-2` and `readiness-3` are the two permitted
+post-invalidity collector-only cycles; `readiness-1` is retained separately
+after qualified C1. C6 was not dispatched because it cannot establish the
+required three-pass streak. Source, binary, protected-input, runner and scanner
+identities match the raw records. No benchmark or edit was performed by the
+reviewer.

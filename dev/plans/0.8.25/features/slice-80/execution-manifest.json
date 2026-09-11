@@ -20,7 +20,7 @@
   "slice80n": {
     "record": "dev/plans/0.8.25/features/slice-80/80n-acceptance-completion.md",
     "authorization": "dev/plans/0.8.25/features/slice-80/80n-authorization.md",
-    "status": "CONTINUATION_AUTHORIZED",
+    "status": "BLOCKED_ENVIRONMENT_QUALIFICATION",
     "active_budget": {
       "ac081_fresh_processes": 0,
       "ac072_non_acceptance_smokes": 1,
@@ -37,6 +37,17 @@
       "stop_after_first_invalid_numeric_failure_timeout_or_malformed_receipt": true,
       "replacement_observations_authorized": false,
       "broad_regression_rounds": 0
+    },
+    "continuation_execution": {
+      "status": "STOPPED_STREAK_IMPOSSIBLE",
+      "fresh_runner_processes_dispatched": 5,
+      "full_acceptance_measurements_completed": 5,
+      "qualified_numeric_passes": 2,
+      "maximum_consecutive_qualified_numeric_pass_streak": 1,
+      "post_environment_invalidity_readiness_cycles_used": 2,
+      "unstarted_cell": "C6",
+      "reason": "C5 was environment-invalid for swap activity; a single remaining cell cannot establish the required three consecutive qualified numeric passes.",
+      "receipt": "dev/plans/runs/0.8.25-slice-80/80n-continuation-campaign.md"
     },
     "prebuilt_ac072_route": {
       "selector": "ac_013_vector_retrieval_latency",

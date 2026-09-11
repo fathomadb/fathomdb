@@ -22,3 +22,15 @@ publication, push, or Slice 85 verification.
 
 Existing observations remain immutable historical evidence. The smoke is
 explicitly non-acceptance and cannot satisfy any AC-072 campaign cell.
+
+## Continuation authorization
+
+Recorded: 2026-09-11. The owner directed: "Fix it." For the unresolved
+environment-only AC-072 blocker, this authorizes one fresh three-cell campaign
+after the documented dispatcher repair and read-only quiet-environment check.
+It keeps the exact 10k/384d/1,000-query warm fixture, thresholds, collector,
+and per-cell stop rule: any invalid, failed, timed-out, or malformed cell stops
+the new campaign immediately. It does not authorize host setting changes,
+stopping the Windows VM, disabling swap, terminating unrelated processes,
+threshold changes, further replacement campaigns, broad verification, or
+publication.

@@ -27,6 +27,9 @@
       "ac072_acceptance_cells": 3,
       "ac072_cells_started": 1,
       "ac072_cells_remaining_without_new_owner_disposition": 0,
+      "continuation_ac072_acceptance_cells": 3,
+      "continuation_stop_after_first_invalid_numeric_failure_timeout_or_malformed_receipt": true,
+      "further_continuation_replacements_authorized": false,
       "stop_after_first_invalid_numeric_failure_timeout_or_malformed_receipt": true,
       "replacement_observations_authorized": false,
       "broad_regression_rounds": 0

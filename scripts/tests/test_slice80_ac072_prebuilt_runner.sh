@@ -44,8 +44,10 @@ runner_sha=$(sha256sum "$runner" | awk '{print $1}')
 scanner_sha=$(sha256sum "$root/dev/tools/slice80_read_acceptance.py" | awk '{print $1}')
 PATH="$temp_dir/bin:$PATH" FAKE_CAPTURE="$capture" "$runner" "$root" "$temp_dir/fake-test" \
   "$temp_dir/smoke.log" "$source_sha" "$binary_sha" "$input_sha" smoke 10 "$runner_sha" "$scanner_sha"
-test "$(tr '\n' ' ' <"$capture/args")" = '--exact ac_013_vector_retrieval_latency --nocapture --test-threads=1 '
-test "$(cat "$capture/env")" = '1,10,384,1000,warm'
+captured_args=$(tr '\n' ' ' <"$capture/args")
+test "$captured_args" = '--exact ac_013_vector_retrieval_latency --nocapture --test-threads=1 '
+captured_env=$(cat "$capture/env")
+test "$captured_env" = '1,10,384,1000,warm'
 
 cat >"$temp_dir/stubborn-test" <<'EOF'
 #!/usr/bin/env bash

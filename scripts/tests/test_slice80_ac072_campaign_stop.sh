@@ -40,10 +40,12 @@ if DISPATCH_MARKER="$temp_dir/labels" VALIDATOR_MARKER="$temp_dir/validator-mark
   echo "dispatcher must fail after an invalid first cell" >&2
   exit 1
 fi
-test "$(cat "$temp_dir/labels")" = R1.log
+labels=$(cat "$temp_dir/labels")
+test "$labels" = R1.log
 test -f "$temp_dir/campaign/R1.log"
 test ! -e "$temp_dir/campaign/R2.log"
-test "$(cat "$temp_dir/validator-marker")" = invoked
+validator_marker=$(cat "$temp_dir/validator-marker")
+test "$validator_marker" = invoked
 
 missing_verdict="$temp_dir/missing.json"
 if PYTHONPATH="$root" python3 "$root/dev/tools/slice80_ac072_acceptance.py" validate-cell --log "$temp_dir/missing.log" \

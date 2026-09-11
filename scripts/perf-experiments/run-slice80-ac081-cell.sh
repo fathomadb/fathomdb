@@ -43,13 +43,14 @@ if [ "$actual_source_sha" != "$source_sha" ] || \
 fi
 
 snapshot() {
-  local phase="$1" load memory swap_in swap_out temperature competing affinity cgroup_path quota quota_root grandparent great_grandparent snapshot_subshell_pid
+  local phase="$1" load memory swap_in swap_out temperature competing affinity cgroup_path quota quota_root grandparent great_grandparent snapshot_subshell_pid label_text
   load=$(awk '{print $1}' /proc/loadavg)
   memory=$(awk '/MemTotal:/{total=$2} /MemAvailable:/{available=$2} END{printf "%.3f", available*100/total}' /proc/meminfo)
   swap_in=$(awk '$1=="pswpin"{print $2}' /proc/vmstat)
   swap_out=$(awk '$1=="pswpout"{print $2}' /proc/vmstat)
   temperature=$(for label in /sys/class/hwmon/hwmon*/temp*_label; do
-    if [ "$(sed -n '1p' "$label" 2>/dev/null)" = "Tctl" ]; then
+    label_text=$(sed -n '1p' "$label" 2>/dev/null || true)
+    if [ "$label_text" = "Tctl" ]; then
       awk '{printf "%.3f", $1/1000}' "${label%_label}_input"
       break
     fi

@@ -219,6 +219,30 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "identity"):
                 subject.parse_cell_log(path, "bad")
 
+    def test_collector_readiness_requires_identity_complete_environment_and_zero_exit(self):
+        identity_line = " ".join(f"{key}={value}" for key, value in identity().items())
+        ready = (
+            f"SLICE80_IDENTITY {identity_line}\n"
+            f"SLICE80_ENV {json.dumps({'phase': 'start', **environment()})}\n"
+            f"SLICE80_ENV {json.dumps({'phase': 'end', **environment()})}\n"
+            "SLICE80_TEST_EXIT status=0\n"
+        )
+        parsed = subject.parse_collector_readiness_log(ready, "SLICE80_IDENTITY")
+        self.assertTrue(parsed["environment_applicable"])
+        self.assertEqual(parsed["source_sha"], identity()["source_sha"])
+
+        competing = ready.replace('"competing_processes": []', '"competing_processes": ["99 bash run-slice80-ac081-cell.sh"]')
+        self.assertFalse(
+            subject.parse_collector_readiness_log(competing, "SLICE80_IDENTITY")["environment_applicable"]
+        )
+        for broken in (
+            ready.replace("SLICE80_IDENTITY", "OTHER_IDENTITY"),
+            ready.replace('"phase": "end", ', ""),
+            ready.replace("SLICE80_TEST_EXIT status=0", "SLICE80_TEST_EXIT status=1"),
+        ):
+            with self.assertRaises(ValueError):
+                subject.parse_collector_readiness_log(broken, "SLICE80_IDENTITY")
+
     def test_competing_process_scan_covers_binary_and_runner_and_excludes_ancestors(self):
         rows = """10 ac081-perf-gate /tmp/ac081-perf-gates
 11 perf_gates-abcd /tmp/target/debug/deps/perf_gates-abcd --exact ac_081

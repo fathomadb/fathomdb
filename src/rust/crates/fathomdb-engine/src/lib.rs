@@ -2468,6 +2468,13 @@ impl ReaderWorkerPool {
         self.live_workers.load(Ordering::SeqCst)
     }
 
+    #[cfg(debug_assertions)]
+    fn next_worker_index(&self) -> usize {
+        let worker_count = self.senders.len();
+        assert!(worker_count > 0, "reader pool must have workers");
+        self.next.load(Ordering::Relaxed) % worker_count
+    }
+
     #[cfg(any(test, feature = "test-hooks"))]
     fn wal_connection_inventory_for_test(&self) -> Vec<bool> {
         self.senders
@@ -12853,6 +12860,14 @@ impl Engine {
     #[doc(hidden)]
     pub fn live_reader_worker_count_for_test(&self) -> usize {
         self.reader_pool.live_count()
+    }
+
+    /// Return the worker index that the next round-robin read dispatch will use.
+    /// This test-only witness does not mutate scheduling state.
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub fn next_reader_worker_index_for_test(&self) -> usize {
+        self.reader_pool.next_worker_index()
     }
 
     /// Pack 6.G G.1 — return the `sqlite3_db_config(LOOKASIDE)` rc

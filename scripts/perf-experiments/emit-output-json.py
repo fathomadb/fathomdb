@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assemble or merge a perf-experiment closure JSON.
 
-Reads the host JSON from --host-json, parses AC012/013/020 numbers
+Reads the host JSON from --host-json, parses active and historical numbers
 from each log via the existing parse-numbers module, then writes
 (or merges with an existing) closure JSON to --out.
 

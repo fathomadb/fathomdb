@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract AC012_NUMBERS / AC013_NUMBERS / AC020_NUMBERS lines from a
+"""Extract active and historical performance number markers from a
 perf-gates run log. Emits a single JSON object on stdout with all
 fields it could parse; missing fields are absent (not null).
 
@@ -24,6 +24,14 @@ PATTERNS = {
     "ac020": re.compile(
         r"AC020_NUMBERS\s+sequential_ms=(?P<seq>\d+)\s+concurrent_ms=(?P<conc>\d+)"
         r"\s+bound_ms=(?P<bound>\d+)"
+    ),
+    "ac081": re.compile(
+        r"AC081_NUMBERS\s+sequential_ns=(?P<seq>\d+)\s+concurrent_ns=(?P<conc>\d+)"
+        r"\s+sequential_searches=(?P<seq_count>\d+)\s+concurrent_searches=(?P<conc_count>\d+)"
+        r"\s+threads=(?P<threads>\d+)\s+sequential_warning=(?P<seq_warn>true|false)"
+        r"\s+concurrent_warning=(?P<conc_warn>true|false)"
+        r"\s+sequential_failure=(?P<seq_fail>true|false)"
+        r"\s+concurrent_failure=(?P<conc_fail>true|false)\s+ratio=(?P<ratio>[0-9.]+)"
     ),
     "ac019": re.compile(
         r"AC019_NUMBERS\s+n=(?P<n>\d+)\s+threads=(?P<threads>\d+)"
@@ -79,6 +87,20 @@ def parse(path: str) -> dict:
             "concurrent_ms": conc,
             "bound_ms": bound,
             "speedup": speedup,
+        }
+    m = PATTERNS["ac081"].search(text)
+    if m:
+        out["ac081"] = {
+            "sequential_ns": int(m["seq"]),
+            "concurrent_ns": int(m["conc"]),
+            "sequential_searches": int(m["seq_count"]),
+            "concurrent_searches": int(m["conc_count"]),
+            "threads": int(m["threads"]),
+            "sequential_warning": m["seq_warn"] == "true",
+            "concurrent_warning": m["conc_warn"] == "true",
+            "sequential_failure": m["seq_fail"] == "true",
+            "concurrent_failure": m["conc_fail"] == "true",
+            "ratio": float(m["ratio"]),
         }
     return out
 

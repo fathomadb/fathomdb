@@ -61,7 +61,11 @@ this table.
 | P-PERF-SAMPLES       | AC-012, AC-013, AC-017, AC-019 | Minimum measured samples per percentile calculation                                       | 1,000                                                                                        | ADR-0.6.0-text-query-latency-gates (sets ≥ 1,000 for text); applied uniformly to all latency ACs |
 | P-STRESS-MULT        | AC-019                         | Mixed-retrieval stress tail-latency multiplier vs baseline_p99                            | 10×                                                                                          | acceptance.md                                                                                    |
 | P-STRESS-FLOOR       | AC-019                         | Mixed-retrieval stress tail-latency floor (max(mult × baseline, floor))                   | 150 ms                                                                                       | acceptance.md                                                                                    |
-| P-PARALLEL-TOL       | AC-020                         | Concurrent-read wall-clock tolerance vs `T_seq / N`                                       | 1.5×                                                                                         | acceptance.md                                                                                    |
+| P-PARALLEL-TOL       | AC-020 (retired)               | Historical concurrent-read wall-clock tolerance vs `T_seq / N`                            | 1.5×                                                                                         | acceptance.md                                                                                    |
+| P-READ-SEQ-WARN      | AC-081a                        | Sequential 1,600-search batch warning threshold                                            | 200 ms                                                                                        | ADR-0.8.25-absolute-read-performance-successor                                                   |
+| P-READ-SEQ-LIMIT     | AC-081a                        | Sequential 1,600-search batch inclusive hard limit                                         | 500 ms                                                                                        | ADR-0.8.25-absolute-read-performance-successor                                                   |
+| P-READ-CONC-WARN     | AC-081b                        | Eight-reader 1,600-search batch warning threshold                                           | 80 ms                                                                                         | ADR-0.8.25-absolute-read-performance-successor                                                   |
+| P-READ-CONC-LIMIT    | AC-081b                        | Eight-reader 1,600-search batch inclusive hard limit                                        | 100 ms                                                                                        | ADR-0.8.25-absolute-read-performance-successor                                                   |
 | P-FD-TOL             | AC-022b                        | Post-close FD-count tolerance vs pre-open count                                           | +0 (engine FDs) plus runtime-tolerance counted as `≤ +5` for runtime/GC FDs                  | acceptance.md                                                                                    |
 | P-LOCK-BOUND         | AC-024a                        | Second-open `DatabaseLocked` rejection wall-clock bound                                   | 1 s                                                                                          | acceptance.md                                                                                    |
 | P-TAU                | AC-027d                        | Per-query Kendall tau threshold for post-recovery vector top-k vs pre-corruption baseline | ≥ 0.9                                                                                        | ADR-0.6.0-recovery-rank-correlation                                                              |
@@ -97,7 +101,10 @@ this table to either an ADR or to an acceptance.md self-owned bullet.
 | AC-013      | REQ-011    | P-PERF-SAMPLES                                                                          | ADR-0.6.0-retrieval-latency-gates (budget superseded by AC-072)                    |
 | AC-017      | REQ-015    | P-PERF-SAMPLES                                                                          | ADR-0.6.0-projection-freshness-sli                                                 |
 | AC-019      | REQ-017    | P-PERF-SAMPLES, P-STRESS-MULT, P-STRESS-FLOOR                                           | acceptance.md (budget superseded by AC-073)                                        |
-| AC-020      | REQ-018    | P-PARALLEL-TOL                                                                          | acceptance.md                                                                      |
+| AC-020      | REQ-018    | P-PARALLEL-TOL                                                                          | acceptance.md (retired by AC-081a/b/c)                                             |
+| AC-081a     | REQ-018    | P-READ-SEQ-WARN, P-READ-SEQ-LIMIT                                                       | ADR-0.8.25-absolute-read-performance-successor                                    |
+| AC-081b     | REQ-018    | P-READ-CONC-WARN, P-READ-CONC-LIMIT                                                     | ADR-0.8.25-absolute-read-performance-successor                                    |
+| AC-081c     | REQ-018    | —                                                                                        | ADR-0.8.25-absolute-read-performance-successor                                    |
 | AC-072      | REQ-011    | P-PERF-SAMPLES                                                                          | ADR-0.7.0-text-query-latency-gates-revised (tiered; 10k binding, HITL 2026-06-01)  |
 | AC-073      | REQ-017    | P-PERF-SAMPLES, P-STRESS-MULT, P-STRESS-FLOOR                                           | ADR-0.7.0-text-query-latency-gates-revised (tiered; real-corpus verdict)           |
 | AC-075      | REQ-011    | P-PERF-SAMPLES                                                                          | ADR-0.7.0-vector-binary-quant (recall floor; real-embedder eu7 vector-stage, Slice 40) |
@@ -358,6 +365,9 @@ the only test-plan.md responsibility for this section.)
 **Assertion:** N=8 concurrent reader threads each running the documented read-mix complete in wall-clock ≤ P-PARALLEL-TOL × `(T_seq / N)`, where `T_seq` is the sequential N-iteration wall-clock.
 **Measurement:** Run sequential and concurrent variants; assert the bound; fail CI if exceeded.
 **Fixture:** interactive-read-mix (test-plan.md fixture spec — pending — must specify per-query-type ratios + tolerance).
+**Status:** **retired and superseded by AC-081a/b/c** under owner ruling
+seq-277 (2026-09-11). Historical failures remain failures; this assertion is
+not an active release gate.
 
 ## Reliability
 
@@ -1183,7 +1193,7 @@ Every REQ in `requirements.md` has ≥1 AC:
 | REQ-015  | AC-017                |
 | REQ-016  | AC-018                |
 | REQ-017  | AC-019, AC-073        |
-| REQ-018  | AC-020                |
+| REQ-018  | AC-020 (retired), AC-081a/b/c |
 | REQ-019  | AC-021                |
 | REQ-020a | AC-022a/b             |
 | REQ-020b | AC-022c               |
@@ -1269,7 +1279,7 @@ build-once test artifacts, not threshold decisions:
 | Deterministic-slow CTE fixture (≥ 200 ms guaranteed) + fast / slow pair                                       | AC-007a, AC-007b              |
 | Poison-fixture (deterministic op failure)                                                                     | AC-003d, AC-009               |
 | Mixed-retrieval stress workload generator                                                                     | AC-019                        |
-| Interactive read-mix definition (per-query-type ratios)                                                       | AC-020                        |
+| Interactive read-mix definition (per-query-type ratios)                                                       | AC-020 (retired), AC-081a/b   |
 | Compressed-runtime write fixture (10k writes/sec × 14 min harness)                                            | AC-033                        |
 | Vector-100-query suite + FTS-100-query suite                                                                  | AC-027b/d                     |
 | AST scanner script (Rust + Python + TS code-only scope)                                                       | AC-050a                       |
@@ -1338,3 +1348,38 @@ The signed delta is exactly seven net-new allowlist members, representing four l
 **Assertion:** After erasure, the erased body is absent from every row-owned projection and from raw database and `-wal` bytes. The proof is registry-driven, includes `search_index_v2`, and asserts raw table contents/raw file bytes rather than search results. A retained control body remains present; WAL-truncation busy conditions surface typed incompleteness rather than a false success.
 **Measurement:** run `cargo test -p fathomdb-engine --features operator --test erasure_completeness`; all ten tests must execute and pass.
 **Fixture:** operator-feature erasure-completeness fixture with raw-table and raw-byte witnesses.
+
+## AC-081a: Sequential interactive read batch stays within its absolute budget
+
+**Requirement ref:** REQ-018
+**Test id:** T-081a
+**Assertion:** The unchanged interactive-read-mix fixture completes exactly
+1,600 sequential searches in <= P-READ-SEQ-LIMIT.
+**Measurement:** Compare the full-precision batch duration; emit a non-blocking
+warning at or above P-READ-SEQ-WARN; fail only above the inclusive hard limit.
+**Fixture:** interactive-read-mix, 50 rounds of four queries repeated eight
+times after seed and drain.
+
+## AC-081b: Eight-reader interactive batch stays within its absolute budget
+
+**Requirement ref:** REQ-018
+**Test id:** T-081b
+**Assertion:** Eight concurrent reader callers complete exactly 1,600 total
+searches on the unchanged interactive-read-mix fixture in <= P-READ-CONC-LIMIT.
+**Measurement:** Compare the full-precision batch duration; emit a non-blocking
+warning at or above P-READ-CONC-WARN; fail only above the inclusive hard limit.
+The sequential/concurrent ratio is descriptive only.
+**Fixture:** interactive-read-mix, eight callers each running 50 rounds of four
+queries after the sequential arm on the same engine.
+
+## AC-081c: A reader progresses while another reader holds a snapshot
+
+**Requirement ref:** REQ-018
+**Test id:** T-081c
+**Assertion:** A search dispatched to one real reader connection completes
+while a distinct reader connection on the same Engine holds a live SQLite
+snapshot.
+**Measurement:** A test-only rendezvous pauses reader worker 0 after snapshot
+acquisition; the next round-robin request must complete on worker 1 before the
+held reader is released.
+**Fixture:** reader-pool-independence real-database fixture.

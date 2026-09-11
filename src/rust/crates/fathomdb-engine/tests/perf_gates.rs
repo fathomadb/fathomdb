@@ -10,6 +10,33 @@ use tempfile::TempDir;
 const PERF_SAMPLES: usize = 1_000;
 const AC020_THREADS: usize = 8;
 const AC020_ROUNDS_PER_THREAD: usize = 50;
+const AC081_SEQUENTIAL_WARNING: Duration = Duration::from_millis(200);
+const AC081_SEQUENTIAL_HARD_LIMIT: Duration = Duration::from_millis(500);
+const AC081_CONCURRENT_WARNING: Duration = Duration::from_millis(80);
+const AC081_CONCURRENT_HARD_LIMIT: Duration = Duration::from_millis(100);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Ac081Verdict {
+    numeric_pass: bool,
+    sequential_warning: bool,
+    concurrent_warning: bool,
+    sequential_failure: bool,
+    concurrent_failure: bool,
+}
+
+fn evaluate_ac081(sequential: Duration, concurrent: Duration) -> Ac081Verdict {
+    let sequential_warning = sequential >= AC081_SEQUENTIAL_WARNING;
+    let concurrent_warning = concurrent >= AC081_CONCURRENT_WARNING;
+    let sequential_failure = sequential > AC081_SEQUENTIAL_HARD_LIMIT;
+    let concurrent_failure = concurrent > AC081_CONCURRENT_HARD_LIMIT;
+    Ac081Verdict {
+        numeric_pass: !sequential_failure && !concurrent_failure,
+        sequential_warning,
+        concurrent_warning,
+        sequential_failure,
+        concurrent_failure,
+    }
+}
 
 #[derive(Clone, Debug)]
 struct DeterministicEmbedder {
@@ -1209,6 +1236,70 @@ fn run_ac020_gate(sqlite_mode: Option<RuntimeSqliteMode>) {
     );
 }
 
+fn run_ac081_gate() {
+    if !long_run_enabled() {
+        return;
+    }
+
+    let (_dir, path) = fixture_path("ac081_read_mix");
+    let embedder = Arc::new(RoutedEmbedder::new(8));
+    let opened = Engine::open_with_embedder_for_test(&path, embedder).expect("open");
+    seed_ac020_fixture(&opened.engine);
+
+    let sequential_started = Instant::now();
+    for _ in 0..AC020_THREADS {
+        run_ac020_mix(&opened.engine);
+    }
+    let sequential = sequential_started.elapsed();
+
+    let engine = Arc::new(opened.engine);
+    let barrier = Arc::new(Barrier::new(AC020_THREADS + 1));
+    let mut handles = Vec::with_capacity(AC020_THREADS);
+    for _ in 0..AC020_THREADS {
+        let engine = Arc::clone(&engine);
+        let barrier = Arc::clone(&barrier);
+        handles.push(thread::spawn(move || {
+            barrier.wait();
+            run_ac020_mix(&engine);
+        }));
+    }
+    let concurrent_started = Instant::now();
+    barrier.wait();
+    for handle in handles {
+        handle.join().expect("reader thread");
+    }
+    let concurrent = concurrent_started.elapsed();
+    let verdict = evaluate_ac081(sequential, concurrent);
+    let ratio = sequential.as_secs_f64() / concurrent.as_secs_f64();
+
+    eprintln!(
+        "AC081_NUMBERS sequential_ns={} concurrent_ns={} sequential_searches=1600 \
+         concurrent_searches=1600 threads=8 sequential_warning={} concurrent_warning={} \
+         sequential_failure={} concurrent_failure={} ratio={ratio:.6}",
+        sequential.as_nanos(),
+        concurrent.as_nanos(),
+        verdict.sequential_warning,
+        verdict.concurrent_warning,
+        verdict.sequential_failure,
+        verdict.concurrent_failure,
+    );
+    if verdict.sequential_warning {
+        eprintln!(
+            "AC081_WARNING arm=sequential observed={sequential:?} warning_at={AC081_SEQUENTIAL_WARNING:?}"
+        );
+    }
+    if verdict.concurrent_warning {
+        eprintln!(
+            "AC081_WARNING arm=concurrent observed={concurrent:?} warning_at={AC081_CONCURRENT_WARNING:?}"
+        );
+    }
+    assert!(
+        verdict.numeric_pass,
+        "AC-081a/b failed: sequential={sequential:?} hard_limit={AC081_SEQUENTIAL_HARD_LIMIT:?}; \
+         concurrent={concurrent:?} hard_limit={AC081_CONCURRENT_HARD_LIMIT:?}"
+    );
+}
+
 #[test]
 fn ac_081_oracle_warns_at_exact_warning_boundaries() {
     let verdict = evaluate_ac081(Duration::from_millis(200), Duration::from_millis(80));
@@ -1255,13 +1346,20 @@ fn ac_081_oracle_ignores_ratio_and_preserves_mixed_flags() {
 }
 
 #[test]
+#[ignore = "retired by seq-277; historical AC-020 ratio oracle"]
 fn ac_020_reads_do_not_serialize_on_a_single_reader_connection() {
     run_ac020_gate(None);
 }
 
 #[test]
+#[ignore = "retired by seq-277; historical AC-020 diagnostics ratio oracle"]
 fn ac_020_reads_do_not_serialize_on_a_single_reader_connection_diagnostics() {
     run_ac020_gate(Some(RuntimeSqliteMode::Diagnostics));
+}
+
+#[test]
+fn ac_081_absolute_read_performance() {
+    run_ac081_gate();
 }
 
 #[test]

@@ -12,6 +12,10 @@ supersedes: ADR-0.6.0-database-lock-mechanism
 
 **Status:** accepted (HITL 2026-05-02; per `dev/progress/0.6.0.md` Phase 8 architectural-conflict resolution).
 
+**Current acceptance note (0.8.25):** seq-277 retired AC-020's ratio and
+registered AC-081a/b/c. This ADR's reader-pool architecture remains accepted;
+AC-081c now supplies its direct independent-progress witness.
+
 Successor to [`ADR-0.6.0-database-lock-mechanism`](./ADR-0.6.0-database-lock-mechanism.md). Retains that ADR's sidecar-flock half verbatim by reference; drops the `PRAGMA locking_mode=EXCLUSIVE` half. The predecessor ADR remains in-tree marked `superseded` with the original body preserved for history.
 
 ## Context

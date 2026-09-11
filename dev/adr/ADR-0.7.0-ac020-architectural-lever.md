@@ -4,12 +4,14 @@ date: 2026-05-25
 target_release: 0.7.0
 desc: Architectural lever for AC-020 (single-reader concurrency ratio). Compares PCACHE2 / WAL2 / reader-writer pool split / vendor-SQLite swap; recommends one; encodes diagnostic-first stop-rule.
 blast_radius: src/rust/crates/fathomdb-engine/src/lib.rs (reader pool + sqlite handle layer); src/rust/crates/fathomdb-engine/Cargo.toml (potentially: libsqlite3-sys version / vendor); src/rust/crates/fathomdb-engine/tests/perf_gates.rs (AC-020 bound); dev/design/recovery.md (if WAL2 / vendor swap); dev/notes/performance-whitepaper-notes.md (closure narrative)
-status: draft, HITL-required
+status: superseded by ADR-0.8.25-absolute-read-performance-successor
 ---
 
 # ADR-0.7.0 — AC-020 architectural lever
 
-**Status:** draft, HITL-required.
+**Status:** superseded by `ADR-0.8.25-absolute-read-performance-successor`
+under owner ruling seq-277. The analysis and failed historical ratio remain
+evidence; it no longer directs an implementation campaign.
 
 This ADR picks the **one** architectural lever that closes AC-020
 in 0.7.0. AC-020's read-path concurrency ratio (currently 3.530×

@@ -39,6 +39,9 @@ def fmt_dev(rec: dict[str, Any]) -> str:
     if "ac020" in res:
         ac = res["ac020"]
         parts.append(f"AC020 seq={ac.get('sequential_ms','?')}/conc={ac.get('concurrent_ms','?')}/×{ac.get('speedup','?')}")
+    if "ac081" in res:
+        ac = res["ac081"]
+        parts.append(f"AC081 seq_ns={ac.get('sequential_ns','?')}/conc_ns={ac.get('concurrent_ns','?')}/×{ac.get('ratio','?')}")
     if "ac013" in res:
         ac = res["ac013"]
         parts.append(f"AC013 p50={ac.get('p50_ms','?')}/p99={ac.get('p99_ms','?')} n={ac.get('n','?')}")
@@ -55,6 +58,9 @@ def fmt_canonical(rec: dict[str, Any]) -> str:
     if "ac020" in res:
         ac = res["ac020"]
         parts.append(f"AC020 seq={ac.get('sequential_ms','?')}/conc={ac.get('concurrent_ms','?')}/×{ac.get('speedup','?')}")
+    if "ac081" in res:
+        ac = res["ac081"]
+        parts.append(f"AC081 seq_ns={ac.get('sequential_ns','?')}/conc_ns={ac.get('concurrent_ns','?')}/×{ac.get('ratio','?')}")
     if "ac013" in res:
         ac = res["ac013"]
         parts.append(f"AC013 p50={ac.get('p50_ms','?')}/p99={ac.get('p99_ms','?')}")

@@ -74,7 +74,7 @@ on:
         required: false
         default: "L-A0"
       targets:
-        description: "Space-separated targets: ac012 ac020 ac013 (default ac012)"
+        description: "Space-separated targets: ac012 ac081 ac013 (default ac012)"
         required: false
         default: "ac012"
       perf_record:
@@ -162,9 +162,9 @@ jobs:
         run: |
           set -o pipefail
           # Run only the AC-012 perf gate; explicit test filter so we don't
-          # also drag in AC-013 / AC-019 / AC-020 (Pack 7 territory).
+          # also drag in AC-013 / AC-019 / AC-081 (release-only territory).
           # Test is `#[test]` (not `#[ignore]`); long-run-gated via
-          # `AGENT_LONG=1` env. Filter to AC-012 only — AC-013/019/020 stay
+          # `AGENT_LONG=1` env. Filter to AC-012 only — AC-013/019/081 stay
           # deferred per Pack 7 trigger evaluation.
           cargo test --release -p fathomdb-engine --test perf_gates -- \
             --nocapture ac_012 \

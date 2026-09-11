@@ -78,6 +78,8 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
         self.assertTrue(subject.parse_run_log(warning, 0, identity())["sequential_warning"])
         failure = PASS_LOG.replace("concurrent_ns=79000000", "concurrent_ns=100000001").replace(
             "concurrent_failure=false", "concurrent_failure=true"
+        ).replace(
+            "concurrent_warning=false", "concurrent_warning=true"
         ).replace(" ... ok", " ... FAILED").replace(
             "test result: ok. 1 passed; 0 failed", "test result: FAILED. 0 passed; 1 failed"
         )

@@ -22,6 +22,9 @@ AC-050c) gates merges against this invariant.
 - Reader workers retain a bounded set of prepared search statements while
   preserving query bindings, eligibility, snapshots, and automatic schema
   reprepare behavior.
+- The retired AC-020 relative concurrency ratio is replaced by absolute
+  sequential and eight-reader batch budgets plus a deterministic independent-
+  reader progress check. Historical AC-020 failures remain failures.
 
 ### Removed
 

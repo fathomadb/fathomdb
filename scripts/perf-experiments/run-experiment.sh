@@ -7,8 +7,8 @@
 #   LEVER_ID       — lever id from the taxonomy (e.g. "L-A0")
 #
 # Optional env:
-#   TARGETS        — space-separated list: "ac012" "ac020" "ac013"
-#                    (default: "ac012 ac020")
+#   TARGETS        — space-separated list: "ac012" "ac081" "ac013"
+#                    (default: "ac012 ac081")
 #   AC012_CORPUS_N — default 100000 dev; 1000000 canonical
 #   AC013_CORPUS_N — default 10000
 #   AC_FULL_SCALE  — set to "1" to honor ADR canonical scale
@@ -19,7 +19,7 @@ set -euo pipefail
 
 : "${EXP_ID:?EXP_ID required}"
 : "${LEVER_ID:?LEVER_ID required}"
-TARGETS="${TARGETS:-ac012 ac020}"
+TARGETS="${TARGETS:-ac012 ac081}"
 RUN_LOCATION="${RUN_LOCATION:-dev-box}"
 AC012_CORPUS_N="${AC012_CORPUS_N:-100000}"
 AC013_CORPUS_N="${AC013_CORPUS_N:-10000}"
@@ -53,11 +53,11 @@ for target in $TARGETS; do
       bash "$SCRIPT_DIR/run-ac012.sh" >/dev/null 2>&1 || echo "warn: ac012 exited non-zero" >&2
       LOG_PATHS+=("$LOG")
       ;;
-    ac020)
-      LOG="$LOG_DIR/ac020.log"
+    ac081)
+      LOG="$LOG_DIR/ac081.log"
       LOG_PATH="$LOG" \
       AGENT_LONG=1 \
-      bash "$SCRIPT_DIR/run-ac020.sh" >/dev/null 2>&1 || echo "warn: ac020 exited non-zero" >&2
+      bash "$SCRIPT_DIR/run-ac020.sh" >/dev/null 2>&1 || echo "warn: ac081 exited non-zero" >&2
       LOG_PATHS+=("$LOG")
       ;;
     ac013)

@@ -12,7 +12,7 @@ scripts/perf-experiments/
   run-experiment.sh                 (driver; takes EXP_ID + LEVER_ID)
   collect-host-spec.sh              (host CPU/kernel/glibc/SQLite/rustc capture)
   run-ac012.sh                      (AC-012 only; respects AC012_CORPUS_N)
-  run-ac020.sh                      (AC-020 only)
+  run-ac020.sh                      (compatibility name; AC-081a/b successor only)
   run-ac013.sh                      (AC-013 only; respects AC013_CORPUS_N)
   parse-ac012-numbers.py            (extracts p50/p99/seed/n from harness stderr)
   parse-ac020-numbers.py            (extracts seq/conc/speedup from harness output)

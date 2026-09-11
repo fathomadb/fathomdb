@@ -49,8 +49,9 @@ mode and does not change SQL, binding, eligibility, or snapshot semantics.
 
 - A private SQLite packaging redesign is unnecessary under the application-
   owned-runtime decision.
-- A compatibility mode or silent fallback would make AC-020 depend on
-  initialization order.
+- A compatibility mode or silent fallback would make read-performance
+  acceptance depend on initialization order. AC-020 was later retired by
+  seq-277; the rationale remains applicable to AC-081a/b evidence.
 - Live mode changes or shutdown/reinitialize would invalidate other SQLite
   users and existing handles.
 - Connection permits and ownership tokens are separate controls and are not

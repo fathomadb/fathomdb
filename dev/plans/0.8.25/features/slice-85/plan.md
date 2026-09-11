@@ -47,7 +47,8 @@ rewrite old result files to look like the final candidate.
    WAL/checkpoint, concurrency/DDL and cursor/commit contracts.
    Selected long AC-021, AC-059b and AC-034a/b retain original protocols;
    AC-034c remains explicitly unavailable, not passed.
-3. Slice 80 absolute read-performance successor on its registered executor
+3. Slice 80 AC-081a/b/c absolute read-performance and reader-independence
+   successor on its registered executor
    (seq-277; see [design](../slice-80/design.md)); AC-020 is retired, not a
    continuing ratio gate. AC-072 10k/384d at
    p50 <=80 ms/p99 <=300 ms; AC-076 text latency; real AC-073 stress and

@@ -29,7 +29,8 @@ anchor. No test id is valid without an AC back-reference.
 | AC ids           | Layer                | Owning package                                        | Fixture family                                                                                                                            | Scaffold path                                                                                                                                                                                                                                                   |
 | ---------------- | -------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | AC-001..AC-010   | integration          | `fathomdb-engine` + bindings                          | lifecycle subscriber, diagnostics, counters, profiling, projection status                                                                 | `src/rust/crates/fathomdb-engine/tests/lifecycle_observability.rs`; binding mirrors under `src/python/tests/` and `src/ts/tests/`                                                                                                                               |
-| AC-011a..AC-020  | perf                 | `fathomdb-engine`                                     | 1M chunk/vector corpora, seeded benchmark DB, deterministic embedder, read-mix generator, projection-freshness harness, drain-100 harness | `src/rust/crates/fathomdb-engine/tests/perf_gates.rs`                                                                                                                                                                                                           |
+| AC-011a..AC-020, AC-081a/b | perf       | `fathomdb-engine`                                     | 1M chunk/vector corpora, seeded benchmark DB, deterministic embedder, read-mix generator, projection-freshness harness, drain-100 harness | `src/rust/crates/fathomdb-engine/tests/perf_gates.rs`                                                                                                                                                                                                           |
+| AC-081c          | integration          | `fathomdb-engine`                                     | real-database reader-pool snapshot rendezvous                                                                                             | `src/rust/crates/fathomdb-engine/tests/reader_pool.rs`                                                                                                                                                                                                          |
 | AC-021..AC-025   | integration          | `fathomdb-engine`                                     | concurrent reader/admin DDL, open/close fd accounting, second-open lock, pending-vector shutdown                                          | `src/rust/crates/fathomdb-engine/tests/lifecycle_reliability.rs`                                                                                                                                                                                                |
 | AC-026..AC-028c  | integration          | `fathomdb-cli` + `fathomdb-engine`                    | WAL-only export, shadow corruption, recovery/excise source fixtures                                                                       | `src/rust/crates/fathomdb-cli/tests/recovery_cli.rs`                                                                                                                                                                                                            |
 | AC-029..AC-033   | integration/soak     | `fathomdb-engine`                                     | frozen scheduler, deterministic drain jobs, provenance retention workload                                                                 | `src/rust/crates/fathomdb-engine/tests/projection_runtime.rs`                                                                                                                                                                                                   |
@@ -75,14 +76,14 @@ reused across suites:
      exercise: AC-021's 60 s spec-conforming window, AC-059b's
      ~1000-iteration cursor-race fixture
      (`cursor_read_after_write::projection_cursor_bounds_observed_row_count`),
-     and AC-020's sequential-vs-8-reader perf comparison once that
+     and AC-081a/b's absolute sequential/eight-reader comparison once that
      read-mix fixture is landed. `agent-verify` runs the AC-021 5 s
      smoke variant only; the smoke run
      does not satisfy AC-021's measurement protocol on its own.
    - `scripts/check.sh` with `AGENT_LONG=1` (full evidence gate) runs
      everything `agent-verify` runs PLUS the long-run variants: AC-021's
      60 s spec-conforming window, AC-059b's ~1000-iteration race
-     fixture, and AC-020's sequential-vs-8-reader comparison once the
+     fixture, and AC-081a/b's sequential/eight-reader comparison once the
      read-mix fixture is protocol-complete. AC-059b has no smoke
      variant — its evidence comes exclusively from this gate.
 
@@ -164,8 +165,11 @@ reused across suites:
     `dev/plans/0.6.0-Phase-9-Pack-7-canonical-perf-measurement.md`.
     0.6.0 ships with these three gates documented as DEFERRED, not
     weakened. Budgets stay pinned at ADR values.
-- AC-020 is **DEFERRED for 0.6.0** as of Pack 6.G close (2026-05-04).
-  Implemented as a long-run-only env-gated harness; the documented read
+- AC-020 was **DEFERRED for 0.6.0** as of Pack 6.G close (2026-05-04)
+  and retired by seq-277 for 0.8.25. AC-081a/b now own absolute batch budgets;
+  AC-081c separately owns deterministic reader independence.
+  Its historical harness remains compiled but ignored; the active AC-081a/b
+  harness is long-run-only and env-gated. The documented read
   mix is 50% vector-only semantic queries (`semantic-*`) and 50% hybrid
   queries (`hybrid-*`) over a pre-drained vector-indexed fixture, 50
   rounds per reader thread. Evidenced by `scripts/check.sh` with
@@ -193,9 +197,8 @@ reused across suites:
   are all Pack 7 territory — see
   `dev/plans/0.6.0-Phase-9-Pack-5-performance-diagnostics.md` §13.
 
-  AC-020 stays RED in CI; the test bound (`tests/perf_gates.rs:245`)
-  is unchanged. 0.6.0 ships with the gate documented as DEFERRED, not
-  weakened. Pack 7 reopens the gate when a measured fix lands.
+  These historical AC-020 results remain RED. They were not relabeled passing
+  when seq-277 retired the ratio oracle; active 0.8.25 acceptance is AC-081a/b/c.
 
   Evidence trail:
   - `dev/notes/performance-whitepaper-notes.md` (§4 kept ledger

@@ -17,7 +17,6 @@ CHECKER = ROOT / "scripts/release/verify-slice85-manifest.py"
 LEGACY = ROOT / "dev/plans/0.8.25/features/slice-75/slice75-closure-manifest.json"
 CE_BASE = ROOT / "dev/plans/0.8.25/features/slice-72/ce-profile-manifest.json"
 SMOKE = ROOT / "scripts/release/smoke/smoke-local-native-artifacts.sh"
-SHA = "1" * 40
 HASH = "2" * 64
 
 
@@ -36,23 +35,70 @@ class Slice85FinalGateTest(unittest.TestCase):
         ce_base_path.parent.mkdir(parents=True)
         ce_base_path.write_bytes(CE_BASE.read_bytes())
         overlay = json.loads(CE_BASE.read_text(encoding="utf-8"))
-        overlay["candidate_sha"] = SHA
-        overlay_path = self.repo / "dev/plans/runs/0.8.25-slice-85/slice72-ce-manifest.json"
+        overlay_path = (
+            self.repo / "dev/plans/runs/0.8.25-slice-85/slice72-ce-manifest.json"
+        )
         overlay_path.parent.mkdir(parents=True)
+        (self.repo / "source-input.txt").write_text(
+            "candidate input\n", encoding="utf-8"
+        )
+        subprocess.run(["git", "init", "-q", str(self.repo)], check=True)
+        subprocess.run(
+            ["git", "-C", str(self.repo), "config", "user.name", "Slice 85 Test"],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.repo),
+                "config",
+                "user.email",
+                "slice85@example.invalid",
+            ],
+            check=True,
+        )
+        subprocess.run(["git", "-C", str(self.repo), "add", "."], check=True)
+        subprocess.run(
+            ["git", "-C", str(self.repo), "commit", "-qm", "fixture"], check=True
+        )
+        self.candidate_sha = subprocess.check_output(
+            ["git", "-C", str(self.repo), "rev-parse", "HEAD"], text=True
+        ).strip()
+        self.candidate_tree = subprocess.check_output(
+            ["git", "-C", str(self.repo), "rev-parse", "HEAD^{tree}"], text=True
+        ).strip()
+        overlay["candidate_sha"] = self.candidate_sha
         overlay_path.write_text(json.dumps(overlay), encoding="utf-8")
+        self.input_hash = digest(self.repo / "source-input.txt")
+        self.artifacts = {}
+        for name in ("python-wheel", "napi-linux-x64-gnu", "cli-linux-x64-gnu"):
+            path = self.repo / "artifacts" / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(name, encoding="utf-8")
+            self.artifacts[name] = {
+                "path": str(path.relative_to(self.repo)),
+                "sha256": digest(path),
+            }
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
 
-    def obligation(self, obligation_id: str, origin: str = "legacy") -> dict:
+    def obligation(
+        self,
+        obligation_id: str,
+        origin: str = "legacy",
+        commands: list[str] | None = None,
+    ) -> dict:
         return {
             "id": obligation_id,
             "origin": origin,
             "disposition": "run",
-            "candidate_sha": SHA,
-            "current_input_sha256": HASH,
+            "candidate_sha": self.candidate_sha,
+            "input_paths": ["source-input.txt"],
+            "current_input_sha256": self.input_hash,
             "accepted_input_sha256": None,
-            "commands": ["true"],
+            "commands": commands if commands is not None else ["true"],
             "retained_receipt": None,
             "artifact_sha256": None,
             "evidence": [],
@@ -61,10 +107,33 @@ class Slice85FinalGateTest(unittest.TestCase):
 
     def manifest(self) -> dict:
         legacy = json.loads(LEGACY.read_text(encoding="utf-8"))
-        obligations = [self.obligation(cell["id"]) for cell in legacy["cells"]]
+        obligations = [
+            self.obligation(cell["id"], commands=cell["commands"])
+            for cell in legacy["cells"]
+        ]
         obligations.extend(
-            self.obligation(obligation_id, "additional")
-            for obligation_id in ("runtime-configuration", "protected-writes", "slice72-ce")
+            [
+                self.obligation(
+                    "runtime-configuration",
+                    "additional",
+                    ["runtime source", "runtime installed"],
+                ),
+                self.obligation(
+                    "protected-writes",
+                    "additional",
+                    [f"protected write {index}" for index in range(7)],
+                ),
+                self.obligation(
+                    "slice72-ce",
+                    "additional",
+                    [
+                        "slice72 artifact",
+                        "slice72 cpu",
+                        "slice72 cuda",
+                        "slice72 verify",
+                    ],
+                ),
+            ]
         )
         ac034c = self.obligation("ac034c", "authorized-exception")
         ac034c.update(
@@ -79,13 +148,9 @@ class Slice85FinalGateTest(unittest.TestCase):
             "release": "0.8.25",
             "branch": "release/0.8.25",
             "candidate": {
-                "sha": SHA,
-                "tree_sha256": HASH,
-                "artifacts": {
-                    "python-wheel": HASH,
-                    "napi-linux-x64-gnu": HASH,
-                    "cli-linux-x64-gnu": HASH,
-                },
+                "sha": self.candidate_sha,
+                "tree": self.candidate_tree,
+                "artifacts": self.artifacts,
             },
             "legacy_manifest": {
                 "path": str(LEGACY.relative_to(ROOT)),
@@ -113,7 +178,9 @@ class Slice85FinalGateTest(unittest.TestCase):
             "obligations": obligations,
         }
 
-    def run_checker(self, value: dict, phase: str = "plan") -> subprocess.CompletedProcess[str]:
+    def run_checker(
+        self, value: dict, phase: str = "plan"
+    ) -> subprocess.CompletedProcess[str]:
         path = self.repo / "manifest.json"
         path.write_text(json.dumps(value), encoding="utf-8")
         return subprocess.run(
@@ -142,26 +209,36 @@ class Slice85FinalGateTest(unittest.TestCase):
         return next(row for row in value["obligations"] if row["id"] == obligation_id)
 
     def complete(self, value: dict) -> None:
+        run_dir = self.repo / "dev/plans/runs/0.8.25-slice-85"
+        run_dir.mkdir(parents=True, exist_ok=True)
         for row in value["obligations"]:
             if row["disposition"] == "unavailable":
                 continue
             if row["id"] == "performance":
                 row["disposition"] = "reuse"
                 row["commands"] = []
-                row["retained_receipt"] = "dev/plans/runs/slice80.json"
+                receipt = self.repo / "dev/plans/runs/slice80.json"
+                receipt.write_text("retained pass\n", encoding="utf-8")
+                row["retained_receipt"] = str(receipt.relative_to(self.repo))
                 row["accepted_input_sha256"] = row["current_input_sha256"]
+            log = run_dir / f"{row['id']}.log"
+            log.write_text("PASS positive evidence\n", encoding="utf-8")
             row["evidence"] = [
                 {
-                    "path": f"logs/{row['id']}.log",
-                    "sha256": HASH,
-                    "tests": 1,
+                    "path": str(log.relative_to(self.repo)),
+                    "sha256": digest(log),
+                    "tests": 200,
                     "skipped": 0,
                     "verdict": "pass",
                 }
             ]
             row["verdict"] = "pass"
         for obligation_id in ("runtime-configuration", "linux-artifact-current-smoke"):
-            self.row(value, obligation_id)["artifact_sha256"] = HASH
+            self.row(value, obligation_id)["artifact_sha256"] = self.artifacts[
+                "python-wheel"
+                if obligation_id == "runtime-configuration"
+                else "napi-linux-x64-gnu"
+            ]["sha256"]
 
     def test_planning_manifest_validates(self) -> None:
         result = self.run_checker(self.manifest())
@@ -202,14 +279,19 @@ class Slice85FinalGateTest(unittest.TestCase):
                 self.assert_rejected(value, fragment, "final")
 
     def test_stale_candidate_or_artifact_is_rejected(self) -> None:
-        for mutation, fragment in (("candidate", "candidate_sha"), ("artifact", "artifact_sha256")):
+        for mutation, fragment in (
+            ("candidate", "candidate_sha"),
+            ("artifact", "artifact_sha256"),
+        ):
             with self.subTest(mutation=mutation):
                 value = self.manifest()
                 self.complete(value)
                 if mutation == "candidate":
                     self.row(value, "default-tree")["candidate_sha"] = "9" * 40
                 else:
-                    self.row(value, "runtime-configuration")["artifact_sha256"] = "9" * 64
+                    self.row(value, "runtime-configuration")["artifact_sha256"] = (
+                        "9" * 64
+                    )
                 self.assert_rejected(value, fragment, "final")
 
     def test_relaxed_threshold_is_rejected(self) -> None:
@@ -228,6 +310,74 @@ class Slice85FinalGateTest(unittest.TestCase):
         )
         self.assert_rejected(value, "reuse input digest")
 
+    def test_final_rejects_missing_or_tampered_evidence_files(self) -> None:
+        for mutation, fragment in (
+            ("missing", "evidence file missing"),
+            ("tampered", "evidence sha256 mismatch"),
+        ):
+            with self.subTest(mutation=mutation):
+                value = self.manifest()
+                self.complete(value)
+                path = (
+                    self.repo / self.row(value, "default-tree")["evidence"][0]["path"]
+                )
+                if mutation == "missing":
+                    path.unlink()
+                else:
+                    path.write_text("tampered\n", encoding="utf-8")
+                self.assert_rejected(value, fragment, "final")
+
+    def test_final_rejects_missing_reuse_receipt(self) -> None:
+        value = self.manifest()
+        self.complete(value)
+        (self.repo / self.row(value, "performance")["retained_receipt"]).unlink()
+        self.assert_rejected(value, "retained receipt file missing", "final")
+
+    def test_final_rejects_input_digest_not_computed_from_paths(self) -> None:
+        value = self.manifest()
+        self.complete(value)
+        self.row(value, "default-tree")["current_input_sha256"] = "8" * 64
+        self.assert_rejected(value, "computed input digest", "final")
+
+    def test_final_rejects_nonexistent_candidate_and_tampered_artifact(self) -> None:
+        for mutation, fragment in (
+            ("candidate", "candidate commit"),
+            ("artifact", "artifact sha256 mismatch"),
+        ):
+            with self.subTest(mutation=mutation):
+                value = self.manifest()
+                self.complete(value)
+                if mutation == "candidate":
+                    value["candidate"]["sha"] = "9" * 40
+                    for row in value["obligations"]:
+                        row["candidate_sha"] = "9" * 40
+                    overlay = self.repo / value["ce_overlay"]["path"]
+                    overlay_value = json.loads(overlay.read_text(encoding="utf-8"))
+                    overlay_value["candidate_sha"] = "9" * 40
+                    overlay.write_text(json.dumps(overlay_value), encoding="utf-8")
+                else:
+                    artifact = (
+                        self.repo
+                        / value["candidate"]["artifacts"]["python-wheel"]["path"]
+                    )
+                    artifact.write_text("tampered\n", encoding="utf-8")
+                self.assert_rejected(value, fragment, "final")
+
+    def test_final_rejects_unsealed_legacy_command_or_too_small_count(self) -> None:
+        for mutation, fragment in (
+            ("command", "legacy command contract"),
+            ("count", "positive count contract"),
+        ):
+            with self.subTest(mutation=mutation):
+                value = self.manifest()
+                self.complete(value)
+                row = self.row(value, "default-tree")
+                if mutation == "command":
+                    row["commands"] = ["true"]
+                else:
+                    row["evidence"][0]["tests"] = 1
+                self.assert_rejected(value, fragment, "final")
+
     def test_ac034c_is_the_only_unavailable_row_and_never_passes(self) -> None:
         for mutation in ("other-unavailable", "ac034c-pass"):
             with self.subTest(mutation=mutation):
@@ -237,6 +387,12 @@ class Slice85FinalGateTest(unittest.TestCase):
                 else:
                     self.row(value, "ac034c")["verdict"] = "pass"
                 self.assert_rejected(value, "AC-034c")
+
+    def test_ac034c_order_does_not_matter(self) -> None:
+        value = self.manifest()
+        value["obligations"].insert(0, value["obligations"].pop())
+        result = self.run_checker(value)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_ce_overlay_may_only_change_candidate_sha(self) -> None:
         overlay_path = self.repo / self.manifest()["ce_overlay"]["path"]
@@ -267,7 +423,9 @@ class Slice85NodeSupportContractTest(unittest.TestCase):
         package = json.loads((ROOT / "src/ts/package.json").read_text(encoding="utf-8"))
         self.assertEqual(package.get("engines", {}).get("node"), ">=24 <26")
         install = (ROOT / "docs/install/typescript.md").read_text(encoding="utf-8")
-        compatibility = (ROOT / "docs/compatibility/index.md").read_text(encoding="utf-8")
+        compatibility = (ROOT / "docs/compatibility/index.md").read_text(
+            encoding="utf-8"
+        )
         readme = (ROOT / "src/ts/README.md").read_text(encoding="utf-8")
         for text in (install, compatibility, readme):
             self.assertIn("24.19.0", text)
@@ -280,6 +438,16 @@ class Slice85NodeSupportContractTest(unittest.TestCase):
             self.assertGreater(setup_count, 0)
             self.assertEqual(text.count('node-version: "24.19.0"'), setup_count)
             self.assertNotIn('node-version: "25.9.0"', text)
+
+    def test_node_24_arm64_archive_digest_is_sealed(self) -> None:
+        expected = "01443c1e1a29e531ccad5a46fefa6df490d2189c49f7955904aecdbb0fe86fdc"
+        for relative in (
+            "scripts/release/Dockerfile.napi-manylinux",
+            "scripts/release/napi-artifact-contract.sh",
+        ):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn("24.19.0", text)
+            self.assertIn(expected, text)
 
 
 if __name__ == "__main__":

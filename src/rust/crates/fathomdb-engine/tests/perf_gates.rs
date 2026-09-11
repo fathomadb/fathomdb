@@ -1302,16 +1302,36 @@ fn run_ac081_gate() {
 
 #[test]
 fn ac_081_oracle_warns_at_exact_warning_boundaries() {
+    let below = evaluate_ac081(Duration::from_nanos(199_999_999), Duration::from_nanos(79_999_999));
+    assert!(below.numeric_pass);
+    assert!(!below.sequential_warning);
+    assert!(!below.concurrent_warning);
+
     let verdict = evaluate_ac081(Duration::from_millis(200), Duration::from_millis(80));
     assert!(verdict.numeric_pass);
     assert!(verdict.sequential_warning);
     assert!(verdict.concurrent_warning);
     assert!(!verdict.sequential_failure);
     assert!(!verdict.concurrent_failure);
+
+    let sequential_only =
+        evaluate_ac081(Duration::from_nanos(200_000_001), Duration::from_millis(79));
+    assert!(sequential_only.numeric_pass);
+    assert!(sequential_only.sequential_warning);
+    assert!(!sequential_only.concurrent_warning);
+
+    let concurrent_only =
+        evaluate_ac081(Duration::from_millis(199), Duration::from_nanos(80_000_001));
+    assert!(concurrent_only.numeric_pass);
+    assert!(!concurrent_only.sequential_warning);
+    assert!(concurrent_only.concurrent_warning);
 }
 
 #[test]
 fn ac_081_oracle_hard_boundaries_are_inclusive() {
+    let below = evaluate_ac081(Duration::from_nanos(499_999_999), Duration::from_nanos(99_999_999));
+    assert!(below.numeric_pass);
+
     let verdict = evaluate_ac081(Duration::from_millis(500), Duration::from_millis(100));
     assert!(verdict.numeric_pass);
     assert!(verdict.sequential_warning);
@@ -1329,6 +1349,11 @@ fn ac_081_oracle_fails_one_nanosecond_above_either_hard_limit() {
     assert!(!concurrent.numeric_pass);
     assert!(!concurrent.sequential_failure);
     assert!(concurrent.concurrent_failure);
+
+    let both = evaluate_ac081(Duration::from_nanos(500_000_001), Duration::from_nanos(100_000_001));
+    assert!(!both.numeric_pass);
+    assert!(both.sequential_failure);
+    assert!(both.concurrent_failure);
 }
 
 #[test]

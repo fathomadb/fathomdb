@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -62,6 +63,10 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
             )
             with self.assertRaises(ValueError):
                 subject.parse_run_log(text, 0, identity())
+
+        zero_duration = PASS_LOG.replace("sequential_ns=199000000", "sequential_ns=0")
+        with self.assertRaisesRegex(ValueError, "positive"):
+            subject.parse_run_log(zero_duration, 0, identity())
 
     def test_parse_rejects_skipped_nonzero_exit_and_missing_identity(self):
         with self.assertRaises(ValueError):
@@ -168,6 +173,39 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
             record = subject.select_binary(build_json, destination)
             self.assertEqual(destination.read_bytes(), b"sealed")
             self.assertEqual(len(record["binary_sha256"]), 64)
+
+    def test_parse_cell_consumes_raw_identity_exit_and_environment(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "R1.log"
+            ident = identity()
+            identity_line = " ".join(f"{key}={value}" for key, value in ident.items())
+            path.write_text(
+                f"SLICE80_IDENTITY {identity_line}\n"
+                f"SLICE80_ENV {json.dumps({'phase': 'start', **environment()})}\n"
+                f"{PASS_LOG}"
+                f"SLICE80_ENV {json.dumps({'phase': 'end', **environment()})}\n"
+                "SLICE80_TEST_EXIT status=0\n"
+            )
+            parsed = subject.parse_cell_log(path, "R1")
+            self.assertEqual(parsed["label"], "R1")
+            self.assertTrue(parsed["environment_applicable"])
+            self.assertEqual(parsed["source_sha"], ident["source_sha"])
+
+    def test_parse_cell_rejects_missing_or_duplicate_control_records(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "bad.log"
+            path.write_text(PASS_LOG)
+            with self.assertRaisesRegex(ValueError, "identity"):
+                subject.parse_cell_log(path, "bad")
+
+    def test_competing_process_scan_covers_binary_and_runner_and_excludes_ancestors(self):
+        rows = """10 ac081-perf-gates /tmp/ac081-perf-gates
+11 bash bash scripts/perf-experiments/run-slice80-ac081-cell.sh
+12 cargo cargo test
+13 sleep sleep 1
+"""
+        found = subject.scan_competing_processes(rows, {11})
+        self.assertEqual([item.split()[0] for item in found], ["10", "12"])
 
 
 if __name__ == "__main__":

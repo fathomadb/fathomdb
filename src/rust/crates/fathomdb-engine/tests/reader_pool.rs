@@ -1,6 +1,6 @@
 //! Pack 6 F.0 — thread-affine reader worker pool integration tests.
 //!
-//! Covers the two new acceptance contracts introduced by the refactor:
+//! Covers reader-pool lifetime, routing and independent-progress contracts:
 //!   1. Shutdown integrity: every reader worker exits on `Engine::close`,
 //!      and every owned read-only `Connection` is dropped.
 //!   2. Routing/concurrency stress: with 8 worker threads and many
@@ -8,7 +8,7 @@
 //!      exactly once — no request is lost or duplicated.
 //!
 //! These tests are deliberately cheap and deterministic. They are not
-//! perf gates; AC-020 in `tests/perf_gates.rs` remains the perf oracle.
+//! performance gates; AC-081a/b own the separate absolute timing oracle.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -182,8 +182,11 @@ fn one_reader_progresses_while_another_reader_holds_a_snapshot() {
     opened.engine.search("independent").expect("prime worker zero");
     assert_eq!(opened.engine.next_reader_worker_index_for_test(), 1);
 
-    let (snapshot_ready, release) = opened.engine.pause_reader_after_wal_snapshot_for_test();
-    snapshot_ready.wait();
+    let (snapshot_ready, release) = opened.engine.pause_reader_with_timeout_for_test();
+    let held_worker = snapshot_ready
+        .recv_timeout(Duration::from_secs(2))
+        .expect("worker zero must acquire its snapshot");
+    assert_eq!(held_worker, 0);
 
     let engine = Arc::new(opened.engine);
     let (completed_tx, completed_rx) = std::sync::mpsc::sync_channel(1);
@@ -194,7 +197,7 @@ fn one_reader_progresses_while_another_reader_holds_a_snapshot() {
     });
 
     let progressed = completed_rx.recv_timeout(Duration::from_secs(2));
-    release.wait();
+    release.send(()).expect("release held reader");
     search.join().expect("second reader search thread");
 
     let result = progressed.expect("worker one must complete while worker zero is paused");

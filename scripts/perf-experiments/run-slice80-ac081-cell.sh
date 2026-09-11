@@ -43,7 +43,7 @@ if [ "$actual_source_sha" != "$source_sha" ] || \
 fi
 
 snapshot() {
-  local phase="$1" load memory swap_in swap_out temperature competing affinity cgroup_path quota quota_root grandparent great_grandparent
+  local phase="$1" load memory swap_in swap_out temperature competing affinity cgroup_path quota quota_root grandparent great_grandparent snapshot_subshell_pid
   load=$(awk '{print $1}' /proc/loadavg)
   memory=$(awk '/MemTotal:/{total=$2} /MemAvailable:/{available=$2} END{printf "%.3f", available*100/total}' /proc/meminfo)
   swap_in=$(awk '$1=="pswpin"{print $2}' /proc/vmstat)
@@ -63,9 +63,10 @@ snapshot() {
   quota=$(sed -n '1p' "$quota_root/cpu.max" 2>/dev/null || true)
   grandparent=$(ps -o ppid= -p "$PPID" | tr -d ' ')
   great_grandparent=$(ps -o ppid= -p "$grandparent" | tr -d ' ')
-  competing=$(ps -eo pid=,comm=,args= | PYTHONDONTWRITEBYTECODE=1 \
+  competing=$(snapshot_subshell_pid=$BASHPID
+    ps -eo pid=,comm=,args= | PYTHONDONTWRITEBYTECODE=1 \
     python3 dev/tools/slice80_read_acceptance.py scan-processes \
-      --exclude-pids "$$,$PPID,$grandparent,$great_grandparent")
+      --exclude-pids "$$,$PPID,$grandparent,$great_grandparent,$snapshot_subshell_pid")
   python3 - "$phase" "$load" "$memory" "$swap_in" "$swap_out" "$temperature" \
     "$competing" "$affinity" "$quota" <<'PY'
 import glob

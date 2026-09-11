@@ -1930,6 +1930,15 @@ mod tests {
     }
 
     #[test]
+    fn runtime_configuration_open_error_has_a_stable_cli_code_and_failure_class() {
+        let err =
+            EngineOpenError::RuntimeConfiguration(fathomdb::RuntimeConfigurationError::TooLate);
+
+        assert_eq!(engine_open_error_code(&err), "RuntimeConfigurationError");
+        assert_eq!(engine_open_error_to_outcome(&err), CliOutcome::Unrecoverable);
+    }
+
+    #[test]
     fn embed_device_policy_open_error_has_a_stable_cli_code_and_failure_class() {
         let err = EngineOpenError::EmbedDevicePolicy(
             fathomdb_embedder::EmbedDevicePolicyError::Resolution(

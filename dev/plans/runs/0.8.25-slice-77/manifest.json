@@ -1,10 +1,77 @@
 {
-  "schema_version": "fathomdb.slice77-execution-manifest/v1",
-  "status": "SEALED_BEFORE_DIAGNOSTIC",
-  "release_source_sha": "ec97a956",
-  "protected_product_checkpoint": "5056db9e6de314a70c67ee5195b8dd1f7023e80f",
-  "statement_reuse_reference": "b432d24d",
+  "budgets": {
+    "diagnostic_executions_max": 9,
+    "environment_restart_max": 1,
+    "initial_diagnostics": 2,
+    "timeout_seconds": 600,
+    "timing_executions_max": 56
+  },
+  "builds": {
+    "A": {
+      "binary_path": "/tmp/fathomdb-slice77/bin/A/perf_gates",
+      "binary_sha256": "86495537b68df3b826cb69081bb7e36800781768943596f008057355487d6083",
+      "configuration": "A",
+      "relevant_tree_sha256": "0c93c8817375e5887e7b98596f3becdc666b354759b11307e4ab4afde65d18ba",
+      "source_binary_path": "/tmp/fathomdb-slice77/target-A/release/deps/perf_gates-696d1c57ac817771",
+      "source_sha": "c53d24a1d18f9f51701ccbc6bb9d69331be6649b"
+    },
+    "A-profile": {
+      "binary_path": "/tmp/fathomdb-slice77/bin/A-profile/perf_gates",
+      "binary_sha256": "bf87764ad112102e482d73b2efb727f968c9587771f816d8c39aa3b6eb393b67",
+      "configuration": "A-profile",
+      "relevant_tree_sha256": "0c93c8817375e5887e7b98596f3becdc666b354759b11307e4ab4afde65d18ba",
+      "source_binary_path": "/tmp/fathomdb-slice77/target-profile/release/deps/perf_gates-5849a765d0fefe61",
+      "source_sha": "c53d24a1d18f9f51701ccbc6bb9d69331be6649b"
+    }
+  },
   "cleanup_to_reverse": "8027546d",
+  "commands": {
+    "anchor_identity": "compare the four paths changed by 8027546d byte-for-byte with b432d24d",
+    "anchor_restore": "git revert --no-edit 8027546d in the temporary Slice 77 worktree",
+    "diagnostic_build": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS CARGO_TARGET_DIR=/tmp/fathomdb-slice77/target-profile CARGO_PROFILE_RELEASE_DEBUG=2 CFLAGS='-O2 -g -fno-omit-frame-pointer' RUSTFLAGS='-C debuginfo=2 -C force-frame-pointers=yes' cargo test --locked --release -p fathomdb-engine --features slice76-statement-reuse,slice76-gperftools-profile --test perf_gates --no-run",
+    "diagnostic_seal": "python3 dev/tools/slice76_ac020.py seal-build --configuration A-profile --target-dir /tmp/fathomdb-slice77/target-profile --binary-out /tmp/fathomdb-slice77/bin/A-profile/perf_gates --runtime-manifest dev/plans/runs/0.8.25-slice-77/manifest.json",
+    "profile_concurrent": "python3 dev/tools/slice76_ac020.py profile --tool gperftools --configuration A-profile --runtime-manifest dev/plans/runs/0.8.25-slice-77/manifest.json --binary /tmp/fathomdb-slice77/bin/A-profile/perf_gates --arm concurrent-after-sequential-warmup --output dev/plans/runs/0.8.25-slice-77/statement-reuse-concurrent.gperf",
+    "profile_report": "google-pprof --text /tmp/fathomdb-slice77/bin/A-profile/perf_gates PROFILE",
+    "profile_sequential": "python3 dev/tools/slice76_ac020.py profile --tool gperftools --configuration A-profile --runtime-manifest dev/plans/runs/0.8.25-slice-77/manifest.json --binary /tmp/fathomdb-slice77/bin/A-profile/perf_gates --arm sequential --output dev/plans/runs/0.8.25-slice-77/statement-reuse-sequential.gperf",
+    "registered_ac020": "timeout 600 env AGENT_LONG=1 SEALED_BINARY ac_020_reads_do_not_serialize_on_a_single_reader_connection --exact --nocapture --test-threads=1"
+  },
+  "diagnostic": {
+    "concurrent_preceding_warmup_searches": 1600,
+    "expected_registered_workers": 8,
+    "off_cpu_wait": "not measured",
+    "profiles": [
+      "statement-reuse-sequential.gperf",
+      "statement-reuse-concurrent.gperf"
+    ],
+    "scope": "on-CPU search phase only",
+    "tool": "gperftools libprofiler only",
+    "sequential_samples": 17,
+    "concurrent_samples": 52,
+    "concurrent_search_samples_excluding_teardown": 47,
+    "concurrent_search_lock_samples": 23,
+    "concurrent_search_allocator_samples": 16,
+    "concurrent_search_page_cache_samples": 11,
+    "concurrent_search_vector_conversion_samples": 1,
+    "concurrent_search_parser_samples": 2,
+    "profile_sha256": {
+      "sequential": "f2f6e0726a3386321315a1638d92027b6bda4dd094c45d14d39ab4dd8e087c5a",
+      "concurrent": "bfcf4a868a570158c82272538c5ed30513b2574508190a415fb069d8ebd3476c",
+      "concurrent_collapsed": "a00f77315219f7dd41b5cd8c3dd37ce0af94c286f2bbca8161c8b029d6c628b3"
+    }
+  },
+  "fixture": {
+    "dimensions": 8,
+    "documents": 4,
+    "expected_test_count": 1,
+    "oracle": "concurrent <= sequential * 1.5 / 8",
+    "queries_per_round": 4,
+    "reader_workers": 8,
+    "rounds_per_thread": 50,
+    "searches_per_arm": 1600,
+    "threads": 8
+  },
+  "protected_product_checkpoint": "5056db9e6de314a70c67ee5195b8dd1f7023e80f",
+  "release_source_sha": "ec97a956",
   "relevant_tree": {
     "paths": [
       "Cargo.lock",
@@ -17,69 +84,50 @@
       "src/rust/crates/fathomdb-schema"
     ]
   },
-  "fixture": {
-    "reader_workers": 8,
-    "threads": 8,
-    "rounds_per_thread": 50,
-    "queries_per_round": 4,
-    "searches_per_arm": 1600,
-    "documents": 4,
-    "dimensions": 8,
-    "expected_test_count": 1,
-    "oracle": "concurrent <= sequential * 1.5 / 8"
+  "run_labels": {
+    "initial_baseline": [
+      "IA1",
+      "IA2",
+      "IA3",
+      "IA4",
+      "IA5",
+      "IA6",
+      "IA7"
+    ],
+    "matched": []
   },
+  "run_order": {
+    "initial_baseline": [
+      "A",
+      "A",
+      "A",
+      "A",
+      "A",
+      "A",
+      "A"
+    ],
+    "matched": []
+  },
+  "schema_version": "fathomdb.slice77-execution-manifest/v1",
   "selection_thresholds": {
-    "minimum_concurrent_profile_samples": 50,
-    "minimum_named_stack_percent": 10.0,
     "concurrent_improvement": "> max(3% of matched anchor median, twice anchor IQR)",
     "maximum_sequential_degradation_percent": 3.0,
+    "minimum_concurrent_profile_samples": 50,
+    "minimum_named_stack_percent": 10.0,
     "stable_recovery": "7 of 7 registered AC-020 assertions pass"
   },
-  "diagnostic": {
-    "tool": "gperftools libprofiler only",
-    "scope": "on-CPU search phase only",
-    "profiles": [
-      "statement-reuse-sequential.gperf",
-      "statement-reuse-concurrent.gperf"
-    ],
-    "expected_registered_workers": 8,
-    "concurrent_preceding_warmup_searches": 1600,
-    "off_cpu_wait": "not measured"
-  },
-  "commands": {
-    "anchor_restore": "git revert --no-edit 8027546d in the temporary Slice 77 worktree",
-    "anchor_identity": "compare the four paths changed by 8027546d byte-for-byte with b432d24d",
-    "diagnostic_build": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS CARGO_TARGET_DIR=/tmp/fathomdb-slice77/target-profile CARGO_PROFILE_RELEASE_DEBUG=2 CFLAGS='-O2 -g -fno-omit-frame-pointer' RUSTFLAGS='-C debuginfo=2 -C force-frame-pointers=yes' cargo test --locked --release -p fathomdb-engine --features slice76-statement-reuse,slice76-gperftools-profile --test perf_gates --no-run",
-    "diagnostic_seal": "python3 dev/tools/slice76_ac020.py seal-build --configuration A-profile --target-dir /tmp/fathomdb-slice77/target-profile --binary-out /tmp/fathomdb-slice77/bin/A-profile/perf_gates --runtime-manifest dev/plans/runs/0.8.25-slice-77/manifest.json",
-    "profile_sequential": "python3 dev/tools/slice76_ac020.py profile --tool gperftools --configuration A-profile --runtime-manifest dev/plans/runs/0.8.25-slice-77/manifest.json --binary /tmp/fathomdb-slice77/bin/A-profile/perf_gates --arm sequential --output dev/plans/runs/0.8.25-slice-77/statement-reuse-sequential.gperf",
-    "profile_concurrent": "python3 dev/tools/slice76_ac020.py profile --tool gperftools --configuration A-profile --runtime-manifest dev/plans/runs/0.8.25-slice-77/manifest.json --binary /tmp/fathomdb-slice77/bin/A-profile/perf_gates --arm concurrent-after-sequential-warmup --output dev/plans/runs/0.8.25-slice-77/statement-reuse-concurrent.gperf",
-    "profile_report": "google-pprof --text /tmp/fathomdb-slice77/bin/A-profile/perf_gates PROFILE",
-    "registered_ac020": "timeout 600 env AGENT_LONG=1 SEALED_BINARY ac_020_reads_do_not_serialize_on_a_single_reader_connection --exact --nocapture --test-threads=1"
-  },
+  "statement_reuse_reference": "b432d24d",
+  "status": "COMPLETE_NO_ELIGIBLE_TREATMENT",
   "treatment": {
-    "status": "PENDING_POST_CACHE_PROFILE",
     "eligible": [],
     "excluded_without_new_signal": [
       "D",
       "L",
       "private-runtime isolation",
       "MEMSTATUS changes"
-    ]
-  },
-  "builds": {},
-  "run_order": {
-    "initial_baseline": ["A", "A", "A", "A", "A", "A", "A"],
-    "matched": []
-  },
-  "run_labels": {
-    "initial_baseline": ["IA1", "IA2", "IA3", "IA4", "IA5", "IA6", "IA7"],
-    "matched": []
-  },
-  "budgets": {
-    "timing_executions_max": 56,
-    "diagnostic_executions_max": 9,
-    "initial_diagnostics": 2,
-    "environment_restart_max": 1,
-    "timeout_seconds": 600
+    ],
+    "status": "NO_TREATMENT_MET_SEALED_SELECTION_RULE",
+    "matched_campaign": "NOT_APPLICABLE",
+    "protected_candidate_guards": "NOT_APPLICABLE_NO_IMPLEMENTATION_CANDIDATE"
   }
 }

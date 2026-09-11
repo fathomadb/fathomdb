@@ -1,0 +1,101 @@
+{
+  "schema_version": "slice79-result.v1",
+  "product_candidate": "a6650c81b120fb8fdd747cc4753360fbdbc13653",
+  "product_tree": "eae96154a760ae8a8b57898c6edfd037d6152c92",
+  "evidence_head": "e2db3ffc",
+  "cargo_lock_sha256": "a69a7e4846ff6fbaf48dd46b7d3cf1024b169eb8fda7425e4e75fefa0242d9f1",
+  "ac020_binary": {
+    "path": "target/release/deps/perf_gates-e6869802f14984e9",
+    "sha256": "cbaf0cb9131a9c3277299d517260d4de229509596499f889ccb1891761a66c1c",
+    "build": "cargo 1.95.0/rustc 1.95.0; release; bundled SQLite 3.53.2; libsqlite3-sys 0.38.1"
+  },
+  "ac020": {
+    "fixture": "8 readers; 1600 sequential searches followed by 1600 concurrent searches",
+    "oracle": "concurrent <= sequential * 1.5 / 8",
+    "order": [
+      "diagnostics",
+      "performance",
+      "performance",
+      "diagnostics",
+      "diagnostics",
+      "performance",
+      "performance",
+      "diagnostics",
+      "diagnostics",
+      "performance",
+      "performance",
+      "diagnostics",
+      "diagnostics",
+      "performance"
+    ],
+    "diagnostics": {
+      "sequential_ms": [174.18983, 160.050316, 164.901088, 175.97244, 162.914963, 170.293082, 176.486092],
+      "concurrent_ms": [65.456839, 65.375034, 67.414269, 84.514892, 83.685484, 76.731105, 81.627472],
+      "median_sequential_ms": 170.293082,
+      "median_concurrent_ms": 76.731105,
+      "median_bound_ms": 31.929955,
+      "median_per_run_speedup": 2.219349,
+      "ratio_of_medians": 2.219349,
+      "passes": 0
+    },
+    "performance": {
+      "sequential_ms": [174.632177, 167.387389, 168.117509, 175.192386, 177.263762, 181.739253, 162.759618],
+      "concurrent_ms": [47.401572, 56.415725, 53.616722, 63.191326, 64.308568, 39.072815, 46.374209],
+      "median_sequential_ms": 174.632177,
+      "median_concurrent_ms": 53.616722,
+      "median_bound_ms": 32.743532,
+      "median_per_run_speedup": 3.135542,
+      "ratio_of_medians": 3.257047,
+      "passes": 0
+    },
+    "paired_median_performance_minus_diagnostics": {
+      "sequential_ms": 3.216421,
+      "sequential_percent": 1.950515,
+      "concurrent_ms": -19.376916,
+      "concurrent_percent": -25.230543
+    },
+    "raw_logs": "ac020/run-*.log"
+  },
+  "ac072": {
+    "runs": [
+      {"seed_ms": 1319, "p50_ms": 69, "p99_ms": 76},
+      {"seed_ms": 1296, "p50_ms": 69, "p99_ms": 95},
+      {"seed_ms": 1304, "p50_ms": 69, "p99_ms": 75}
+    ],
+    "limits": {"p50_ms": 80, "p99_ms": 300},
+    "metric_passes": 3,
+    "environment_valid_runs": 0,
+    "result_state": "environment_invalid",
+    "swap_deltas": [
+      {"pswpin": 8, "pswpout": 0},
+      {"pswpin": 32, "pswpout": 427},
+      {"pswpin": 153, "pswpout": 0}
+    ],
+    "raw_logs": "ac072/candidate-*/raw.log"
+  },
+  "write_guards": {
+    "probe_source_sha256": "122869c5c445301fb8840d4f358059371424180e0020ff2eb925fdf8de9517e1",
+    "probe_executable_sha256": "fdcf4ff3cbf67df71f9fb83f9c2135b602174c698eb85d099dcc79168e6516d8",
+    "scale02": {
+      "ack_ms": [1377.05635, 1388.886163, 1378.58589],
+      "total_ms": [1381.492867, 1393.327169, 1382.966892],
+      "ack_limit_ms": 1543.539,
+      "total_limit_ms": 1548.545,
+      "ack_spread_percent": 0.8591,
+      "total_spread_percent": 0.8566,
+      "passes": 3
+    },
+    "projection_active": {
+      "ack_spread_percent_descriptive": 33.9289,
+      "total_ms": [1291.084054, 1316.862285, 1245.943056],
+      "total_limit_ms": 1442.198,
+      "total_spread_percent": 5.6920,
+      "spread_oracle": "total only; acknowledgement is asynchronous and descriptive",
+      "passes": 3
+    },
+    "environment_valid": true,
+    "receipts": "write/*/{cell.json,environment.json,raw.log}"
+  },
+  "focused_verification": "focused-verification.md",
+  "broad_verification_runs": 0
+}

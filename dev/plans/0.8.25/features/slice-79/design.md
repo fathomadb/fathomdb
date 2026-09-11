@@ -1,6 +1,6 @@
 ---
 title: Slice 79 — admin.configure_runtime design
-status: READY
+status: COMPLETE
 ---
 
 # Design — startup SQLite memory-statistics selection

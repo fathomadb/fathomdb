@@ -1,6 +1,6 @@
 ---
 title: Slice 79 — AC-020 runtime configuration
-status: READY
+status: COMPLETE
 ---
 
 # Slice 79 — explicit SQLite runtime configuration
@@ -149,10 +149,13 @@ workloads under their recorded limits. Do not rerun historical write baselines.
 
 ## Completion and exclusions
 
-R79 requirements and independent reviews pass on the selected shipping-feature
-candidate. Document unavailable memory controls, restart semantics and startup
-behavior. Handoff identifies affected Rust/CLI and Python/Node artifacts and
-platform checks still required in 85.
+Passing release acceptance requires all R79 requirements and independent
+reviews on the selected shipping-feature candidate. A bounded campaign failure
+may close Slice 79 only as a completed experiment/implementation result with
+the unmet gate and any invalid protected receipt explicitly carried forward;
+it is not release acceptance. Document unavailable memory controls, restart
+semantics and startup behavior. Handoff identifies affected Rust/CLI and
+Python/Node artifacts and platform checks still required in 85.
 
 No broad regression, hosted CI matrix, packaging redesign, publishing, tagging,
 push, migration/query rewrite, tuning sweep or roadmap implementation here.

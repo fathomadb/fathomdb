@@ -124,10 +124,10 @@ backward dependency.
 | 72 | Correct generic release preflight and profile installed CE CPU/CUDA candidates. | 71 | Not started |
 | 73 | Add focused Windows Node/N-API CI coverage for retained contracts. | 72 | Not started |
 | 75 | Integrated evidence checkpoint; original closure obligations carried forward, not a passing release gate. | 73 | Closed with carry-forward (`5056db9e`) |
-| 76 | Establish AC-020 statistics-enabled attribution and test statement reuse. | 75 | Draft plan; review before experiments |
-| 77 | Select adaptive follow-on experiments from Slice 76 evidence and prepare a decision dossier. | 76 | Draft plan; selection sealed after 76 |
-| 79 | Add explicit SQLite runtime configuration and ship reviewed statement reuse. | 77 | In progress; authorized at `seq-276` |
-| 80 | Consult owner and resolve any remaining AC-020 disposition. | 79 | Planning contract pending Slice 79 evidence |
+| 76 | Establish AC-020 statistics-enabled attribution and test statement reuse. | 75 | Complete (`8027546d`) |
+| 77 | Select adaptive follow-on experiments from Slice 76 evidence and prepare a decision dossier. | 76 | Complete inconclusive (`5484cd17`) |
+| 79 | Add explicit SQLite runtime configuration and ship reviewed statement reuse. | 77 | Complete with carry-forward (`e2db3ffc`) |
+| 80 | Consult owner and resolve any remaining AC-020 disposition. | 79 | Next; planning contract informed by Slice 79 evidence |
 | 85 | Final verification, CI and non-publishing package rehearsal. | 80 | Planning brief; final matrix pending candidate |
 
 ## Requirements and acceptance criteria
@@ -222,9 +222,9 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 79** (`AC020-RUNTIME`) — explicit SQLite runtime configuration and statement reuse
+**IMMEDIATE NEXT: Slice 80** (`AC020-IMPLEMENTATION`) — consultation and remaining AC-020 disposition
 
-**Remaining ladder:** 79 → 80 → 85.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 80 → 85.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
 Slices 60, 71, and 72 are durably closed. Slice 71 preserved the 71B general-write
 correction at `eda95b07` and restored AC-072 at `84c056c6` without changing

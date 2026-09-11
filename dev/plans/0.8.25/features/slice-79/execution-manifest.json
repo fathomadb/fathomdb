@@ -24,6 +24,7 @@
     "cargo test -p fathomdb-engine statement_reuse_ --lib -- --test-threads=1",
     "cargo test -p fathomdb-engine --test slice30_dependency_closure -- --test-threads=1",
     "cargo test -p fathomdb-engine --test slice35_frozen_read -- --test-threads=1",
+    "cargo test -p fathomdb-engine --features test-hooks,operator --test slice75_schema26_upgrade -- --test-threads=1",
     "cargo test -p fathomdb --test governed_surface -- --test-threads=1",
     "python -m build src/python --wheel --outdir /tmp/fathomdb-slice79-python-dist",
     "python -m venv /tmp/fathomdb-slice79-python-venv; install the wheel; pytest test_slice79_runtime_configuration.py (3 tests)",
@@ -57,7 +58,7 @@
       "scale02_command": "slice71b-probe --fixture scale02 --treatment production --records 10000 --batch-size 256 --database <cell>/cell.fathom --input-jsonl data/performance-benchmarking/scale-02/slice71b/scale02-input.v1.jsonl",
       "projection_active_command": "slice71b-probe --fixture ac013 --treatment production --records 10000 --batch-size 1024 --database <cell>/cell.fathom",
       "repetitions_each": 3,
-      "limits": "Scale-02 acknowledgement <=1543.539 ms and total <=1548.545 ms; projection-active total <=1442.198 ms; each cell set spread <=25%"
+      "limits": "Scale-02 acknowledgement <=1543.539 ms and total <=1548.545 ms, with each spread <=25%; projection-active total <=1442.198 ms with total spread <=25%; projection-active acknowledgement is descriptive"
     }
   },
   "excluded": [

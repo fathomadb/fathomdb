@@ -13,6 +13,19 @@ configuration and statement-reuse candidate. Slice 80 no longer duplicates
 that implementation. It consumes Slice 79's reviewed result and decides only
 the remaining AC-020 disposition, if any, before final verification in 85.
 
+Slice 79's product candidate `a6650c81` retains statement reuse and makes
+performance (`MEMSTATUS=0`) the ordinary first-open mode. Its seven-run median
+was 174.632177 ms sequential / 53.616722 ms concurrent, with a 3.135542x
+median per-run speedup and 0/7 AC-020 passes against a 32.743532 ms median
+bound. The ratio of medians was 3.257047x. Diagnostics was
+170.293082/76.731105 ms (2.219349x), also 0/7. Both protected 71B write
+workloads passed. AC-072 met its numerical limits in all three runs, but all
+three had nonzero swap activity and are environment-invalid under the retained
+protocol. Treat that product and evidence as the current anchor; do not repeat
+the resolved runtime-mode decision or assume it closes the remaining post-cache
+concurrency cost. Obtain one environment-valid AC-072 guard on the eventual
+Slice 80 candidate.
+
 ## Not yet an implementation-ready plan
 
 Additional implementation cannot responsibly be selected before Slice 79

@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 79 (AC020-RUNTIME), IN_PROGRESS.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 80 (AC020-IMPLEMENTATION), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -25,9 +25,9 @@ agents execute this release without Steward or Orchestrator roles. Slices
 [2026-09-10 adjustment](../0.8.25/scope-adjustment-2026-09-10-ac020.md)
 closes Slice 75 as an evidence checkpoint at safe product SHA `5056db9e`,
 not passing release acceptance. AC-020 remains unresolved; other original
-verification obligations transfer without being waived. Slices 76/77 own
-bounded statistics-enabled experiments, Slice 80 requires results and further
-owner consultation, and Slice 85 owns final verification/CI/package rehearsal.
+verification obligations transfer without being waived. Slices 76, 77, and 79
+are complete with AC-020 still unresolved. Slice 80 owns further consultation
+and correction, and Slice 85 owns final verification/CI/package rehearsal.
 
 ## Slice ladder
 
@@ -58,8 +58,8 @@ owner consultation, and Slice 85 owns final verification/CI/package rehearsal.
 | 75 | Evidence checkpoint; unfinished release closure transferred | Closed with carry-forward (`5056db9e`); AC-020 unresolved |
 | 76 | AC-020 attribution and statement reuse | Complete (`8027546d`) |
 | 77 | Adaptive experiments and candidate selection | Complete inconclusive (`5484cd17`) |
-| 79 | Explicit runtime configuration and statement reuse | In progress; authorized at `seq-276` |
-| 80 | Remaining AC-020 disposition | Planning contract; depends on 79 evidence |
+| 79 | Explicit runtime configuration and statement reuse | Complete with carry-forward (`e2db3ffc`) |
+| 80 | Remaining AC-020 disposition | Next; planning contract informed by 79 evidence |
 | 85 | Final verification, CI and non-publishing packaging | Planning brief; final candidate matrix pending |
 
 ## Decisions and blockers
@@ -97,9 +97,10 @@ owner consultation, and Slice 85 owns final verification/CI/package rehearsal.
 - Slice 75 remains a closed checkpoint, not a passing gate. Slices 76 and 77
   completed bounded attribution and selection without resolving AC-020.
 - The owner allocated Slice 79 at `seq-276` and authorized `MEMSTATUS=0` for
-  the application-owned SQLite runtime. Slice 79 is in progress; 78/81–84
-  remain reserved. One final broad Slice 85 round is planned; an exceptional
-  second requires owner authorization.
+  the application-owned SQLite runtime. Slice 79 is complete with AC-020 still
+  failing 0/7 and an environment-valid AC-072 guard carried to Slice 80;
+  78/81–84 remain reserved. One final broad Slice 85 round is planned; an
+  exceptional second requires owner authorization.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
@@ -114,7 +115,7 @@ owner consultation, and Slice 85 owns final verification/CI/package rehearsal.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Continue Slice 79 (AC020-RUNTIME)** — explicit SQLite runtime configuration and statement reuse. **Remaining ladder:** 79 → 80 → 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 80 (AC020-IMPLEMENTATION)** — consultation and remaining AC-020 disposition. **Remaining ladder:** 80 → 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

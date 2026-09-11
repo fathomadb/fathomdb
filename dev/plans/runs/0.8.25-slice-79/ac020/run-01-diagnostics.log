@@ -1,0 +1,15 @@
+
+running 1 test
+test ac_020_reads_do_not_serialize_on_a_single_reader_connection_diagnostics ... AC020_NUMBERS sequential_ms=174 concurrent_ms=65 bound_ms=32
+
+thread 'ac_020_reads_do_not_serialize_on_a_single_reader_connection_diagnostics' (3177887) panicked at src/rust/crates/fathomdb-engine/tests/perf_gates.rs:1206:5:
+AC-020 failed: concurrent=65.456839ms bound=32.660592ms sequential=174.18983ms
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    ac_020_reads_do_not_serialize_on_a_single_reader_connection_diagnostics
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.30s

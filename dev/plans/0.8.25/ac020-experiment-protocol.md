@@ -1,6 +1,6 @@
 ---
 title: AC-020 statistics-enabled experiment protocol
-status: DRAFT
+status: APPROVED_FOR_SLICE_76
 target_release: 0.8.25
 ---
 

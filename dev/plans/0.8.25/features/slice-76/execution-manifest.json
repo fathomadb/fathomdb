@@ -1,0 +1,113 @@
+{
+  "schema_version": "fathomdb.slice76-execution-manifest/v1",
+  "status": "SEALED_BEFORE_PROTOTYPE",
+  "product_checkpoint": "5056db9e6de314a70c67ee5195b8dd1f7023e80f",
+  "planning_checkpoint": "b8a1a2281da804780b48fb5320f9f46f24fd0ecb",
+  "relevant_tree": {
+    "paths": [
+      "Cargo.lock",
+      "src/rust/crates/fathomdb-engine"
+    ],
+    "git_ls_tree_sha256": "90e658e0ed651828575639da9529c2eb3304bedb955bc2fa5d35fcb9aba8d8dd",
+    "cargo_lock_sha256": "a69a7e4846ff6fbaf48dd46b7d3cf1024b169eb8fda7425e4e75fefa0242d9f1"
+  },
+  "toolchain": {
+    "rustc": "1.95.0 (59807616e 2026-04-14)",
+    "cargo": "1.95.0 (f2d3ce0bd 2026-03-21)",
+    "host": "x86_64-unknown-linux-gnu"
+  },
+  "sqlite": {
+    "rusqlite": "0.40.1",
+    "libsqlite3_sys": "0.38.1",
+    "sqlite_vec": "0.1.9",
+    "memory_statistics_witness": "slice76_memstatus_is_enabled",
+    "forbidden_verdict_environment": [
+      "FATHOMDB_PERF_EXPERIMENTS",
+      "FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF",
+      "FATHOMDB_PERF_SQLITE_PAGECACHE",
+      "FATHOMDB_PERF_SQLITE_PCACHE2",
+      "FATHOMDB_PERF_SEARCH_LIMIT",
+      "FATHOMDB_PERF_READER_PRAGMAS",
+      "FATHOMDB_PERF_WRITER_PRAGMAS",
+      "LIBSQLITE3_FLAGS"
+    ]
+  },
+  "fixture": {
+    "reader_workers": 8,
+    "threads": 8,
+    "rounds_per_thread": 50,
+    "queries": [
+      "semantic-0",
+      "hybrid-0",
+      "semantic-1",
+      "hybrid-1"
+    ],
+    "searches_per_arm": 1600,
+    "documents": 4,
+    "dimensions": 8,
+    "expected_test_count": 1,
+    "oracle": "concurrent <= sequential * 1.5 / 8"
+  },
+  "commands": {
+    "collector_red_green": "python3 -m unittest dev.tools.test_slice76_ac020",
+    "baseline_build": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS CARGO_TARGET_DIR=/tmp/fathomdb-slice76/target-B cargo test --locked --release -p fathomdb-engine --test perf_gates --no-run",
+    "baseline_seal": "python3 dev/tools/slice76_ac020.py seal-build --configuration B --target-dir /tmp/fathomdb-slice76/target-B --binary-out /tmp/fathomdb-slice76/bin/B/perf_gates --runtime-manifest dev/plans/runs/0.8.25-slice-76/manifest.json",
+    "baseline_diagnostic_build": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS CARGO_TARGET_DIR=/tmp/fathomdb-slice76/target-B-diagnostic cargo test --locked --release -p fathomdb-engine --features slice76-diagnostics --test perf_gates --no-run",
+    "baseline_diagnostic_seal": "python3 dev/tools/slice76_ac020.py seal-build --configuration B-diagnostic --target-dir /tmp/fathomdb-slice76/target-B-diagnostic --binary-out /tmp/fathomdb-slice76/bin/B-diagnostic/perf_gates --runtime-manifest dev/plans/runs/0.8.25-slice-76/manifest.json",
+    "treatment_build": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS CARGO_TARGET_DIR=/tmp/fathomdb-slice76/target-C cargo test --locked --release -p fathomdb-engine --test perf_gates --no-run",
+    "treatment_seal": "python3 dev/tools/slice76_ac020.py seal-build --configuration C --target-dir /tmp/fathomdb-slice76/target-C --binary-out /tmp/fathomdb-slice76/bin/C/perf_gates --runtime-manifest dev/plans/runs/0.8.25-slice-76/manifest.json",
+    "treatment_diagnostic_build": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS CARGO_TARGET_DIR=/tmp/fathomdb-slice76/target-C-diagnostic cargo test --locked --release -p fathomdb-engine --features slice76-diagnostics --test perf_gates --no-run",
+    "treatment_diagnostic_seal": "python3 dev/tools/slice76_ac020.py seal-build --configuration C-diagnostic --target-dir /tmp/fathomdb-slice76/target-C-diagnostic --binary-out /tmp/fathomdb-slice76/bin/C-diagnostic/perf_gates --runtime-manifest dev/plans/runs/0.8.25-slice-76/manifest.json",
+    "baseline_ac020": "timeout 600 env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS AGENT_LONG=1 /tmp/fathomdb-slice76/bin/B/perf_gates ac_020_reads_do_not_serialize_on_a_single_reader_connection --exact --nocapture --test-threads=1",
+    "treatment_ac020": "timeout 600 env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS AGENT_LONG=1 /tmp/fathomdb-slice76/bin/C/perf_gates ac_020_reads_do_not_serialize_on_a_single_reader_connection --exact --nocapture --test-threads=1",
+    "baseline_memstatus_witness": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS /tmp/fathomdb-slice76/bin/B/perf_gates slice76_memstatus_is_enabled --exact --nocapture --test-threads=1",
+    "treatment_memstatus_witness": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS /tmp/fathomdb-slice76/bin/C/perf_gates slice76_memstatus_is_enabled --exact --nocapture --test-threads=1",
+    "mechanism_tests": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS cargo test --locked -p fathomdb-engine --lib slice76_statement_reuse -- --nocapture",
+    "reader_pool": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS cargo test --locked -p fathomdb-engine --features test-hooks --test reader_pool -- --nocapture --test-threads=1",
+    "feature_interactions": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS cargo test --locked -p fathomdb-engine --features test-hooks --test slice75_feature_interactions -- --nocapture --test-threads=1",
+    "frozen_read": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS cargo test --locked -p fathomdb-engine --features test-hooks --test slice35_frozen_read -- --nocapture --test-threads=1",
+    "diagnostic_slot_1_baseline_census_counters": "timeout 600 env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS FATHOMDB_SLICE76_DIAGNOSTIC=combined /tmp/fathomdb-slice76/bin/B-diagnostic/perf_gates slice76_sql_prepare_census --exact --nocapture --test-threads=1",
+    "diagnostic_slot_2_sequential_profile": "timeout 600 env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS AC020_PHASE=sequential perf record --call-graph dwarf -o dev/plans/runs/0.8.25-slice-76/profiles/sequential.data -- /tmp/fathomdb-slice76/bin/B/perf_gates ac_020_sequential_only --ignored --exact --nocapture --test-threads=1",
+    "diagnostic_slot_3_concurrent_profile": "timeout 600 env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS AC020_PHASE=concurrent perf record --call-graph dwarf -o dev/plans/runs/0.8.25-slice-76/profiles/concurrent.data -- /tmp/fathomdb-slice76/bin/B/perf_gates ac_020_concurrent_only --ignored --exact --nocapture --test-threads=1",
+    "diagnostic_slot_4_treatment_census_counters": "timeout 600 env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS FATHOMDB_SLICE76_DIAGNOSTIC=combined /tmp/fathomdb-slice76/bin/C-diagnostic/perf_gates slice76_sql_prepare_census --exact --nocapture --test-threads=1"
+  },
+  "expected_positive_counts": {
+    "collector_red_green": 5,
+    "baseline_memstatus_witness": 1,
+    "treatment_memstatus_witness": 1,
+    "mechanism_tests": 3,
+    "reader_pool": 6,
+    "feature_interactions": 4,
+    "frozen_read": 5
+  },
+  "run_order": {
+    "initial_baseline": ["B", "B", "B", "B", "B", "B", "B"],
+    "matched": ["B", "C", "C", "B", "B", "C", "C", "B", "B", "C", "C", "B", "B", "C"]
+  },
+  "diagnostic_slots": {
+    "normal": [
+      "diagnostic_slot_1_baseline_census_counters",
+      "diagnostic_slot_2_sequential_profile",
+      "diagnostic_slot_3_concurrent_profile",
+      "diagnostic_slot_4_treatment_census_counters"
+    ],
+    "baseline_green": [
+      "diagnostic_slot_1_baseline_census_counters"
+    ]
+  },
+  "baseline_green_exit": "Seven valid passing B observations make attribution and prototype timing NOT_APPLICABLE_BASELINE_GREEN; retain the positive statistics witness and combined SQL census/counters, skip profile slots 2-4, then route Slice 77 to confirmation.",
+  "treatment": {
+    "name": "connection-owned common-path prepared-statement reuse",
+    "membership": "filled from current executed-SQL census before GREEN",
+    "capacity_rule": "smallest no-eviction per-reader cyclic distinct-SQL reuse distance including existing cached statements; one value, no sweep",
+    "capacity": "filled_before_GREEN",
+    "prototype_binary_sha256": "filled_after_build"
+  },
+  "receipts": {
+    "directory": "dev/plans/runs/0.8.25-slice-76",
+    "runtime_manifest": "manifest.json",
+    "observations": "observations.jsonl",
+    "summary": "summary.json",
+    "result": "result.md"
+  }
+}

@@ -1,6 +1,6 @@
 ---
 title: Slice 76 — AC-020 attribution and statement reuse
-status: DRAFT
+status: APPROVED_FOR_EXECUTION
 depends_on: 75
 ---
 
@@ -17,19 +17,55 @@ The [shared protocol](../../ac020-experiment-protocol.md) is the experiment
 design of record. Read it in full; all identities, counter semantics,
 correctness requirements, verdict rules and stop conditions apply here.
 
+## Draft reconciliation
+
+The draft was checked against the release branch before execution:
+
+1. Since the safe product checkpoint `5056db9e`, `b8a1a228` changes planning
+   and evidence records only. Product code, tests, dependencies, packaging and
+   workflows are unchanged.
+2. Search-statement reuse was tried and reverted in the 0.6.0 Pack 5 E.1
+   experiment. It reduced the old sequential arm by 13.7% but did not improve
+   its concurrent arm. That experiment preceded F.0's sticky thread-affine
+   reader workers; the corresponding G.2 reuse experiment was never run on the
+   new topology. The imported research was grounded on main `8b4bc1c6`; its
+   phrase "never tried on this path" means the current 0.8.25 path, not the
+   project history.
+3. A current retest is justified because E.1 preceded the thread-affine reader
+   pool, per-reader lookaside, schema 33, current dependency/lifecycle reads,
+   Slice 71's deferred text hydration and linear fusion, and the current
+   rusqlite/SQLite versions. Its four-statement counter is not reusable as a
+   current oracle.
+4. The current common AC-020 path contains stable and generated SQL shapes;
+   only deferred identity hydration is already cached. Exact executed shapes,
+   preparations and capacity are measured rather than copied from either the
+   old experiment or the research estimate.
+5. Slice 75 carry-forward bookkeeping is limited to classifying the checked-in
+   manifest and known receipts. It does not trigger artifact hunting or test
+   reruns. Same-file dual-runtime safety remains a bounded contract census, not
+   an implementation task in Slice 76.
+
+These findings approve the experiment while narrowing diagnostics to evidence
+that can choose Slice 77's next step. A new private SQLite runtime, packaging
+change, global SQLite configuration, or shipping optimization is rejected here.
+
 ## Requirements and falsifiable outputs
 
 | ID | Requirement | Acceptance evidence |
 | --- | --- | --- |
 | R76-1 | Protect the release checkpoint and existing receipts | Source/fixture/executor manifest, clean baseline and Slice 75 cell inventory |
 | R76-2 | Establish current scaling | Seven baseline observations with real test counts, raw logs, statistics enabled and dispersion |
-| R76-3 | Attribute fixed-cost and contention sources | SQL census, allocations/search, page traffic, lookaside and dispatch measurements; known/unknown attribution separated |
+| R76-3 | Attribute enough of the current cost to choose the next experiment | Exact current SQL/prepare census plus one bounded CPU/wait profile and available per-reader counters; unknown share stays explicit |
 | R76-4 | Test statement reuse independently | Matched B/C series and focused RED/GREEN evidence, or explicit documented infeasibility |
 | R76-5 | Supply Slice 77's decision inputs | Reviewed ranked hypotheses, candidate eligibility, memory/correctness risks and exact remaining questions |
 
 A negative or inconclusive experimental result can satisfy this slice.
 A missing measurement cannot be renamed a negative result. Environment-blocked
 work records its blocker and does not become a completed attribution.
+If seven valid current baselines all pass, R76-3 and R76-4 are explicitly
+`NOT_APPLICABLE_BASELINE_GREEN`: retain the positive statistics witness and SQL
+census, skip prototype timing, and route Slice 77 to confirmation. This is a
+successful early exit, not infeasibility or a renamed missing measurement.
 
 ## Entry and checkpoint inventory
 
@@ -38,12 +74,10 @@ work records its blocker and does not become a completed attribution.
 2. Read the imported research and reconcile its main-branch grounding with
    current release code. In particular, verify uncached search sites, existing
    deferred identity hydration, stable SQL shapes and reader cache capacity.
-3. Create a cell-by-cell Slice 75 carry-forward inventory from its manifest:
-   original source, result location/digest, actual execution/counts, status
-   (verified pass/fail, unavailable, missing, or unrun), and Slice 85 owner.
-   Bounded read-only recovery: at most 30 minutes in documented run/artifact
-   roots; ask the prior agent/owner for missing receipts rather than broad
-   filesystem searches or rerunning suites.
+3. Create a cell-by-cell Slice 75 carry-forward inventory from its checked-in
+   manifest and status: declared receipt, checked-in presence, status (verified,
+   missing, unavailable or unrun), and Slice 85 owner. Do not search outside
+   documented roots or rerun suites for this inventory.
 4. Seal the benchmark executor and source/build manifest. Resolve exact
    protected AC-072/71B commands from retained receipts for Slice 77.
 5. Independent protocol review precedes prototype work. Review may narrow
@@ -73,14 +107,15 @@ If the baseline passes all seven, do not immediately optimize: verify source,
 statistics and registered executor, then give Slice 77 a confirmation-only
 route. Do not assume a different CI host will also pass.
 
-At most six initial diagnostic executions (up to two for each group):
+Use at most three initial diagnostic executions:
 
-1. Allocator/page-cache calls and stacks; distinguish prepare, execution,
-   parsing, FTS5/vec scratch, and net/peak retained memory.
-2. Contention/CPU/blocked-time classification with symbol visibility and
-   unattributed share disclosed; collect per-arm lookaside hit/miss counters.
-3. SQL/EQP/opcode census and dispatch queue/service/response waits, with
-   busy-worker/idle-worker overlap.
+1. Exact SQL/prepare census and EQP/opcode inspection for the common AC-020
+   path, using current code rather than the stale four-statement A.3 harness.
+2. One sequential/concurrent CPU and blocked-time profile, classifying visible
+   preparation, SQLite/extension, WAL/VFS, allocator and dispatch stacks.
+3. Available per-reader lookaside/page/dispatch counters only where an existing
+   hook or one small tested diagnostic supplies them. Absence stays explicit;
+   it does not authorize a new instrumentation subsystem.
 
 Measurements must cover both sequential and concurrent arms where the
 instrument supports it. Establish actual calls/search and counts by reader;
@@ -94,16 +129,21 @@ B is unchanged safe baseline. C differs only in connection-owned search
 statement reuse and its explicitly selected capacity. Keep SQL, bindings,
 query ordering, snapshot scope and result collection unchanged.
 
-Set one capacity from the measured simultaneous working set, not a guessed
-minimum of 32. Record unique SQL across shapes, lifetime overlap, memory per
-connection and aggregate across eight workers. If SQL contains request-varying
-literals, parameterize only where semantics are straightforward and independently
-tested; otherwise flag a separate experiment rather than widening C.
+Set one capacity from each reader's cyclic distinct-SQL reuse distance,
+including existing cached statements, not from simultaneous statement count or
+a guessed minimum of 32. The current rusqlite default is 16; seal the smallest
+observed no-eviction capacity once and record retained memory per connection and
+across eight workers. If SQL contains request-varying literals, parameterize
+only where semantics are straightforward and independently tested; otherwise
+flag a separate experiment rather than widening C.
 
-RED tests must prove fresh bindings/results on alternating requests,
-error-path release, schema invalidation, transaction release and current/frozen
-visibility. Existing dependency/eligibility/ranking tests remain fixed.
-Use property tests for any new reusable binding/round-trip machinery.
+RED tests target the actual changed mechanism: alternating query bindings and
+results, statement/row release before transaction completion, error recovery,
+and current/frozen visibility. One schema-change witness confirms cached
+statements recover through SQLite's supported reprepare behavior. Existing
+dependency/eligibility/ranking tests remain fixed. Property tests are required
+only if new reusable binding or codec machinery is introduced; changing
+`prepare` to `prepare_cached` with unchanged bindings introduces none.
 
 Run seven matched control and seven treatment processes in the predeclared
 alternating order. No second cache-size tuning sweep. Count preparations in
@@ -111,9 +151,9 @@ separate diagnostics: after warm-up, fresh preparations should scale with
 distinct resident SQL shapes rather than request count; legitimate schema
 reprepare and evictions are recorded, not hidden.
 
-Reserve up to three post-C diagnostic executions to measure changes in
-allocation/page calls and identify the residual. Ephemeral reuse may be refuted
-while ordinary prepare reuse still succeeds.
+Reserve one post-C diagnostic execution to confirm preparation reduction and
+identify the visible residual. Ephemeral reuse may be refuted while ordinary
+prepare reuse still succeeds.
 
 ### Phase C — interpretation and handoff
 
@@ -143,19 +183,35 @@ Do not claim demonstrated corruption or silently prohibit an existing supported
 API. Any material gap becomes an explicit Slice 80 consultation input, or a
 separate urgent bounded correction proposal if current correctness is at risk.
 
+## Implementation and review sequence
+
+1. **RED:** add focused experiment tests for the selected common-path statement
+   sites and prove they fail while those sites are uncached. Commit the RED
+   witness without changing established acceptance tests.
+2. **GREEN:** convert only those measured sites to connection-owned cached
+   statements and set the single census-derived capacity. Do not parameterize
+   unrelated SQL or change query semantics.
+3. Run the focused correctness selectors, matched B/C measurements and one
+   residual diagnostic. An independent code reviewer inspects the exact diff.
+4. Remove the experimental product/test diff after evidence is retained. The
+   final Slice 76 tree keeps only plans, design, status and experiment receipts;
+   the prototype commits and commands remain identifiable in history.
+5. A separate read-only verifier checks raw logs, counts, digests, statistics
+   status, selection math and the clean final relevant-tree identity.
+
 ## Budget, exclusions and completion
 
 - Timing: 7 initial B + 14 matched B/C = 21 normal runs; cap 28 including the
   single allowed invalid-environment restart. Baseline-green route uses fewer.
-- Diagnostics: maximum 9 total; no broad tests, hosted dispatch, package builds,
+- Diagnostics: maximum 4 total; no broad tests, hosted dispatch, package builds,
   global configuration ablation or new model campaign.
 - Focused check/clippy/test selectors and expected positive counts are frozen
   in the manifest after code census, before execution. Do not invent selectors;
   use cargo --list to verify exact existing names without running broad bodies.
 - Four-hour active-work checkpoint; stop/rethink on repeated failure.
-- Outputs under dev/plans/runs/0.8.25-slice-76/: manifest, raw observations,
-  allocation/SQL/dispatch evidence, result, review, Slice 75 inventory, and
-  explicit Slice 77 recommendation. Status links exact source and receipts.
+- Outputs under dev/plans/runs/0.8.25-slice-76/: manifest, raw logs, summary,
+  result, review, Slice 75 inventory and explicit Slice 77 recommendation.
+  Do not duplicate the same observation into multiple prose records.
 - Independent code review covers any diagnostic/prototype code; a separate
   evidence review checks attribution, all observations and selection claims.
   No review pass is claimed merely because the plan was written.

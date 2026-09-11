@@ -14,7 +14,8 @@
       "read-only quiet-environment diagnosis",
       "focused collector review",
       "sealed source/build/binary/collector identities"
-    ]
+    ],
+    "environment_diagnosis": "dev/plans/runs/0.8.25-slice-80/pre-timing-environment.md"
   },
   "source_ref_at_seal": "6b785e7c0fa54507e30147e6f03922bd30bfd41e",
   "toolchain": {

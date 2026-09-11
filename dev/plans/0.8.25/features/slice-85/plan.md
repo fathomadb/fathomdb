@@ -32,10 +32,15 @@ baseline is `56e6d7fd`. The intervening work changes this slice as follows:
 6. Package metadata remains `0.8.24`. Slice 85 may rehearse local artifacts at
    that truthful version but cannot silently cut 0.8.25, publish, or claim a
    publish-ready dependent-crate rehearsal that requires the version cut.
-7. The current local host has Rust 1.95, Python 3.12, Node 25 and packaging
-   tools, but no visible NVIDIA driver and no Python 3.10/3.11 binaries.
-   Linux CUDA, runtime-floor, native-platform and Tegra rows therefore use
-   exact-candidate remote/hosted evidence or remain an explicit blocker.
+7. The local `windchill3` host has Rust 1.95, Python 3.12, Node 25 and packaging
+   tools. An unconfined device check resolves the registered Slice 72 RTX 3090
+   as `GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b`; the Slice 72 baseline was
+   recorded on this same host/device and CPU affinity. Existing uv-managed
+   CPython 3.10 and 3.11 interpreters plus system CPython 3.12 provide the
+   local runtime-floor executor. Node 18.20.8 is installed under the existing
+   nvm tree. The matrix binds absolute interpreter paths, so it does not depend
+   on unresolved `python3.10` or `node18` aliases. GPU checks must run with
+   device access rather than treating a sandboxed driver failure as absence.
 
 This reconciliation approves the draft direction with the adjustments below.
 It rejects rebuilding the Slice 75 framework, rerunning the 76/77 experiments,
@@ -142,7 +147,10 @@ rewrite old result files to look like the final candidate.
 4. Both protected 71B 10k candidate workloads are invalidated by the Slice 80
    `fathomdb-engine/src` change and must rerun, with retained
    guards and no historical baseline reruns. Keep ack and drained-total
-   measurements distinct and do not infer write performance from AC-020.
+   measurements distinct and do not infer write performance from AC-020. The
+   intervening Engine edits are `debug_assertions`-gated and do not themselves
+   establish a release-path regression; this conservative bounded rerun is
+   retained because the recorded broad invalidation policy still matches.
 5. Risk-weighted API/SDK coverage manifest: public Rust, Python, TypeScript,
    wire/error codecs, configured features and native bindings. Give every
    surface an evidence/disposition row; name high-risk mutation, erasure,
@@ -163,9 +171,13 @@ rewrite old result files to look like the final candidate.
    Slice 72 CE and Slice 73 Windows deep receipts require input applicability;
    core runtime changes may invalidate them even without wrapper changes.
 8. Exact-head required hosted CI with job/matrix/run SHA identities and
-   explicit path-conditioned/skipped/advisory dispositions. Remote workflow
-   dispatch needs the normal execution authority; this planning edit does not
-   authorize a push merely to make the candidate available.
+   explicit path-conditioned/skipped/advisory dispositions. After local
+   verification and code review, fast-forward the GREEN candidate into the
+   durable local `release/0.8.25` worktree, request explicit push authority,
+   push that release branch, verify its remote head equals `FINAL_SHA`, and
+   only then dispatch. This candidate-placement merge is not closure: the
+   Slice 85 worktree remains until evidence/status-only commits are reviewed
+   and merged. If push authority is withheld, hosted verification is blocked.
 9. Verify final runtime/linkage behavior against the approved Slice 79 contract.
    Performance mode intentionally disables accounting/heap-limit facilities in
    its SQLite runtime; diagnostics restores them at process restart. Rust does
@@ -227,15 +239,20 @@ a distinct owner decision after this slice.
 2. **GREEN:** implement the smallest manifest validator, candidate manifest and
    installed-runtime smoke addition needed for AC85-1/2. Do not build a
    scheduler or replace existing cell runners.
-3. Run cheap route/test-list/preflight smokes, then freeze the candidate.
+3. Run cheap route/test-list/preflight smokes, then freeze the candidate. Source
+   runtime-configuration tests positively counted by the broad round satisfy
+   their rows; run the focused selectors only for missing counts or diagnosis.
 4. Execute the matrix in dependency/cost order, recording immutable raw logs
    and hashes. Fix only actual product or route defects; add a reproducing RED
    first and rerun only invalidated cells after GREEN.
-5. Obtain independent code review of the validator/manifest and independent
-   verification of the final evidence. Then update release state and status.
-6. Merge the completed Slice 85 branch into `release/0.8.25`, verify the exact
-   Git ancestry/tree and clean status, then remove the Slice 85 worktree and
-   branch. Do not merge to `main`.
+5. Obtain independent code review of the validator/manifest. After the local
+   gate passes, stage the reviewed GREEN commit on `release/0.8.25`, obtain
+   explicit push authority, push, confirm the remote branch head, and collect
+   exact-head hosted evidence.
+6. Obtain independent verification of the final evidence, then update release
+   state and status. Merge any evidence/status-only commits into the already
+   staged release branch, verify exact ancestry/tree and clean status, then
+   remove the Slice 85 worktree and branch. Do not merge to `main`.
 
 ## Completion
 

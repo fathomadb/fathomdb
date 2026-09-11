@@ -25,3 +25,25 @@ After those corrections, the reviewer returned **PASS**. The design is complete,
 falsifiable and bounded: one completeness validator and one installed-runtime
 smoke extension, with no scheduler, product feature, oracle change, version cut
 or publishing action.
+
+## Follow-up findings
+
+A subsequent review correctly reopened the package for five bounded fixes:
+
+- stage and explicitly authorize a push of the exact GREEN commit at the remote
+  release-branch head before hosted dispatch, while deferring closure cleanup;
+- bind CE to the locally accessible original `windchill3` RTX 3090/CPU-affinity
+  envelope and runtime floors to installed uv CPython 3.10/3.11 plus system 3.12;
+- compile TypeScript tests with `tsconfig.json` before the focused Node selector;
+- let positive broad-round counts satisfy equivalent runtime source rows; and
+- distinguish conservative write-evidence invalidation from an observed
+  release-path risk because the intervening source edits are debug-only.
+
+These changes are applied above; the independent reviewer must refresh the
+verdict before execution proceeds.
+
+The refresh found one remaining executor mismatch: legacy runtime-floor
+commands named aliases absent from `PATH`. Node 18.20.8 was installed through
+the existing nvm setup, and the matrix now seals absolute paths for uv CPython
+3.10.20/3.11.15, system Python 3.12, nvm Node 18.20.8 and current Node 25.9.0.
+The reviewer verified those bindings and returned **PASS**.

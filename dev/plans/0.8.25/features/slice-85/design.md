@@ -39,7 +39,10 @@ candidate and invalidates rows whose input sets include that change.
 - AC-081a/b/c and AC-072 reuse Slice 80 because changes after their accepted
   source are documentation-only and the recorded product/build inputs match.
 - Protected 71B writes rerun: Slice 80 changed their inherited broad
-  `src/rust/crates/fathomdb-engine/src` invalidation set.
+  `src/rust/crates/fathomdb-engine/src` invalidation set. Those edits are
+  `debug_assertions`-gated and do not demonstrate a release-path regression;
+  the rerun is conservative compliance with the existing broad invalidation
+  rule, not evidence that a regression is expected.
 - Slice 72 CE and Slice 73 Windows receipts are not presumed applicable: Slice
   79 changed runtime initialization and installed SDK surfaces. Their candidate
   routes must rerun or exact-candidate hosted/native coverage must subsume them.
@@ -61,11 +64,17 @@ candidate and invalidates rows whose input sets include that change.
    serializing timing and builds.
 4. Build Linux CPU artifacts once; consume those exact bytes in fresh Python,
    Node and CLI processes and runtime-floor/GLOBAL-01 checks.
-5. Run or collect exact-candidate Linux CUDA, native five-platform, Windows,
-   Tegra and hosted-CI evidence. Hosted dispatch checks out the supplied SHA;
-   therefore the candidate must be remotely reachable, but pushing requires
-   the repository's normal explicit authorization.
-6. Independently audit code and evidence, then close or record blockers.
+5. After local verification and code review, fast-forward the GREEN commit into
+   the durable local `release/0.8.25` worktree. Obtain explicit push authority,
+   push that branch, and verify `origin/release/0.8.25` equals `FINAL_SHA`.
+   Only then dispatch hosted CI, whose release-branch guard requires the input
+   SHA to equal the dispatched branch head. Withhold closure if push authority
+   or exact-head placement is unavailable; do not redesign the workflow.
+6. Run or collect exact-candidate Linux CUDA, native five-platform, Windows,
+   Tegra and hosted-CI evidence.
+7. Independently audit code and evidence, then close or record blockers. Merge
+   evidence/status-only commits to the already staged release branch and clean
+   up the temporary Slice 85 branch/worktree.
 
 The frozen variable bindings are `RUN_DIR=dev/plans/runs/0.8.25-slice-85`,
 `FINAL_SHA=git rev-parse HEAD` at the clean GREEN commit, CPU artifact paths
@@ -73,10 +82,15 @@ under `$RUN_DIR/artifacts/{python,napi,cli}`, and CUDA outputs under
 `$RUN_DIR/cuda-*`. Local x64 owns broad, long, model, CPU-package, GLOBAL-01,
 CE and 71B execution; GitHub Actions owns Linux ARM64, macOS x64/ARM64 and the
 exact-SHA aggregate; `gh-runner-wonl-win11` owns Windows x64; the registered
-Jetson workflow owns Tegra. The historical manifest's command arrays and
-timeouts are adopted byte-for-byte except for the command arrays, feature sets,
-timeouts and positive counts in the execution matrix's sealed-routes table.
-There is no unresolved command or feature-set choice.
+Jetson workflow owns Tegra. Local unconfined preflight binds the Slice 72 CE
+rerun to the same `windchill3` host, CPU 0 affinity and registered RTX 3090 UUID
+used by the historical baseline, preserving timing comparability. Runtime
+floors bind to the explicit installed uv CPython 3.10/3.11 paths, system
+CPython 3.12, and nvm Node 18.20.8 path. The historical manifest's command
+arrays and timeouts are adopted byte-for-byte except for the command arrays,
+feature sets, timeouts and positive counts in the execution matrix's
+sealed-routes table. There is no unresolved command, feature-set or executor
+choice.
 
 ## TDD and fixes
 

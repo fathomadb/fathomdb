@@ -19,15 +19,12 @@ The scope and thresholds are approved. This plan and [design](design.md)
 are reconciled in [the planning review](planning-review.md). The exact focused
 commands and counts are sealed in [the execution manifest](execution-manifest.json).
 Implementation and numerical successor evidence are complete. Environment
-applicability remains unproved. The owner authorized exactly one additional
-bounded final campaign for each gate on 2026-09-11; see
+applicability remains unproved. Slice 80.m is the owner-authorized completion
+work package: repair both collectors, prove their readiness without timing, and
+then run exactly one new campaign per gate. Its authorization and the single
+active allowance table are in
 [the authorization record](additional-campaign-authorization.md). Do not
 re-open the approved thresholds.
-
-The additional AC-081 campaign was executed and stopped invalid because its
-own census command-substitution shell was recorded as a competitor. Under the
-same authorization's stop rule, AC-072 was not dispatched. The allowance is
-therefore exhausted; see [status](status.md).
 
 ## Inputs and protected baseline
 
@@ -78,7 +75,16 @@ bearing; diagnostics remains descriptive.
    and receipt paths before timing. Execute seven fresh performance-mode
    processes and the exact three-run AC-072 candidate campaign. No profiling,
    tuning sweep or repeated historical baseline.
-5. **Review and handoff.** Independent design, code and evidence reviews;
+5. **Slice 80.m collector completion.** TDD the missing AC-081 census-shell
+   exclusion and preserve AC-072's PID-specific exclusion. Run a collector-only
+   readiness proof through both production runner paths: valid identity and
+   environment records, a positive competing-runner control, and fail-closed
+   missing-control handling. Seal corrected collector identities, reuse the
+   benchmark executable only if relevant inputs remain identical, then qualify
+   every timed cell before dispatching the next. A numerical or environmental
+   failure stops timing immediately and does not create a replacement allowance.
+   Collector-only checks consume no timing allowance.
+6. **Review and handoff.** Independent design, code and evidence reviews;
    focused changed-target checks; input-invalidation map for Slice 85.
    Final artifacts and broad verification belong to 85, not this slice.
 
@@ -95,11 +101,14 @@ bearing; diagnostics remains descriptive.
   Permit at most one documented environment correction and one replacement
   bounded series for the affected gate; preserve all invalid evidence.
   Genuine performance failures are not eligible for repeat-until-pass.
-- The prior allowance is exhausted. Owner authorization on 2026-09-11 adds
-  exactly one final seven-process AC-081 campaign and one final three-cell
-  AC-072 campaign. They must use the corrected competitor census and a
-  read-only documented quiet-environment diagnosis. Preserve all outcomes;
-  do not replace an observation or start another campaign after this allowance.
+- Slice 80.m supersedes the old stop disposition only for its specified
+  collector repair and readiness proof. The active allowance is exactly seven
+  fresh AC-081 processes and three AC-072 cells, separately tracked. AC-072's
+  prior final allowance was never started. Both campaigns require corrected,
+  sealed collectors and a read-only documented quiet environment. Preserve all
+  outcomes; stop after the first invalid or failed timed cell and do not replace
+  it. The previous seven AC-081 cells remain numerical evidence with a
+  qualification defect, not retrospectively valid evidence.
 - Reuse all six Slice 79 write receipts after checking relevant input identity.
   Only product-path changes invalidating them require rechecking the two 71B
   10k candidate workloads under their retained protocol; no historical reruns.

@@ -26,6 +26,7 @@ READY describes the reviewed design, not implemented behavior.
 | R80-6 | Seven valid fresh-process performance-mode observations are required; missing, skipped, malformed and environment-invalid evidence cannot pass. |
 | R80-7 | Valid AC-072 evidence and applicable protected 71B write evidence remain required; other read/freshness contracts are unchanged. |
 | R80-8 | Exact candidate/input identities, independent reviews and a Slice 85 applicability map support closure; no broad round here. |
+| R80-9 | Slice 80.m proves both production collectors before timing. Self exclusion is PID-specific; a separate competing runner remains disqualifying. Readiness checks do not consume acceptance observations. |
 
 ## Fixture and timing invariants
 
@@ -176,3 +177,27 @@ No product optimization, SQLite fork/isolation, lookaside/page-cache treatment,
 new runtime mode, public API, schema change, publishing or threshold tuning.
 Future optimization opportunities remain parked in ROADMAP.md. Contract
 replacement does not claim residual concurrency contention was eliminated.
+
+## Slice 80.m collector completion
+
+The previously authorized seven-cell AC-081 series is preserved as numerical
+evidence but is environment-invalid because its collector counted its own
+command-substitution shell. It does not show a performance defect. AC-072's
+corresponding new series was not started. The owner separately authorizes this
+bounded recovery.
+
+Both shell runners collect through a command substitution, so each excludes the
+specific `$BASHPID` of that substitution in addition to its runner and ancestor
+PIDs. Do not exclude names, process families, or unrelated PIDs. A collector-only
+mode executes the exact identity and start/end snapshot path without launching a
+benchmark. It must prove a qualified normal record, reject a live separate
+runner-shaped process, and fail closed when a required record is absent.
+
+After a committed RED→GREEN correction and focused review, seal source,
+collector, scanner and candidate identities. Build or reuse a single AC-081
+executable only when the declared product/build inputs are byte-identical. Then
+run at most seven fresh AC-081 processes and three AC-072 repetitions. Qualify
+each log before the next dispatch; the first numerical failure or environmental
+invalidity ends all remaining timing. No collector-only correction cycle may
+become environmental polling: one RED→GREEN correction plus one review-driven
+amendment is the limit.

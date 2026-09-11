@@ -13,3 +13,22 @@ Repository owner authorization, 2026-09-11:
   settings, or terminate unrelated processes.
 - Stop on any invalid or failing campaign. Slice 80 may close only when both
   campaigns have applicable passing evidence and independent reviews pass.
+
+## Slice 80.m follow-on authorization
+
+Repository owner authorization, 2026-09-11:
+
+- Preserve the prior seven AC-081 logs as numerical evidence with their recorded
+  collector qualification defect. Do not relabel them valid.
+- Repair the AC-081 collector with focused TDD and prove readiness through both
+  production runner paths without launching a benchmark. Self exclusion must be
+  PID-specific; a separate competing runner must still invalidate readiness.
+- After corrected identities are sealed, authorize exactly seven fresh AC-081
+  processes and exactly three AC-072 repetitions. Qualify every cell before
+  dispatching the next. The first numerical failure or environmental invalidity
+  stops further timing; no replacement observation is authorized.
+- AC-072 was not started under the prior final allowance. This authorization
+  supplies its three cells; it does not consume or reinterpret any historical
+  result. Keep all work and acceptance obligations in Slice 80.
+- No broad regression, product optimization, historical write rerun, threshold
+  change, or Slice 85 advance is authorized by this follow-on.

@@ -1,6 +1,6 @@
 # Slice 80 status
 
-Status: **AUTHORIZED FINAL CAMPAIGN STOPPED; ACCEPTANCE BLOCKED**
+Status: **SLICE 80.M COLLECTOR COMPLETION AUTHORIZED; ACCEPTANCE BLOCKED**
 
 - Contract/design: complete and independently approved.
 - TDD implementation: complete through `8eafa888`.
@@ -12,13 +12,14 @@ Status: **AUTHORIZED FINAL CAMPAIGN STOPPED; ACCEPTANCE BLOCKED**
 - AC-081c: focused real-database proof passes.
 - AC-072: 6/6 numeric passes; five are swap-invalid and R2's complete competitor
   exclusion is unproved. Zero of three required cells is fully proved valid.
-- The additional AC-072 campaign was not run: the approved stop rule requires
-  stopping after the invalid authorized AC-081 campaign.
+- The additional AC-072 campaign was not run: the prior stop rule halted it
+  before dispatch.
 - Protected Slice 79 write evidence: applicable.
 - Broad verification: zero rounds, as planned.
 - Next slice: remains 80. Slice 85 is not unblocked.
 
 The initial AC-081 quota defect and both collector-census defects are retained
-transparently. The owner-authorized allowance is exhausted: seven AC-081 cells
-ran once, and the required stop rule prevented AC-072 dispatch. No further
-timing run is authorized.
+transparently. Slice 80.m has a new, separate allowance after collector repair
+and readiness proof: seven AC-081 cells and three AC-072 cells. AC-072 is
+not started under that allowance. Any invalid or failed timed cell stops the
+remainder; no replacement observations are authorized.

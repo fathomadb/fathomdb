@@ -1,5 +1,5 @@
 {
-  "schema_version": "slice80-execution.v1",
+  "schema_version": "slice80-execution.v2",
   "authority": "seq-277",
   "additional_campaign_authorization": {
     "source": "repository owner, 2026-09-11",
@@ -16,6 +16,29 @@
       "sealed source/build/binary/collector identities"
     ],
     "environment_diagnosis": "dev/plans/runs/0.8.25-slice-80/pre-timing-environment.md"
+  },
+  "slice80m": {
+    "record": "dev/plans/0.8.25/features/slice-80/80m-collector-completion.md",
+    "authorization": "repository owner, 2026-09-11",
+    "readiness": {
+      "runs_benchmarks": false,
+      "required_runners": [
+        "scripts/perf-experiments/run-slice80-ac081-cell.sh",
+        "scripts/perf-experiments/run-slice71-ac013-cell.sh"
+      ],
+      "required_proofs": [
+        "qualified identity and environment records",
+        "separate runner-shaped competitor is retained",
+        "missing identity or environment records fail closed"
+      ]
+    },
+    "active_budget": {
+      "ac081_fresh_processes": 7,
+      "ac072_repetitions": 3,
+      "stop_after_first_invalid_or_numeric_failure": true,
+      "replacement_observations_authorized": false,
+      "ac072_prior_final_series": "not_started"
+    }
   },
   "source_ref_at_seal": "6b785e7c0fa54507e30147e6f03922bd30bfd41e",
   "authorized_final_pre_timing_seal": {

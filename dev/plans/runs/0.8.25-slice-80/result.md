@@ -4,8 +4,8 @@
 
 Implementation is complete, but Slice 80 cannot close because required
 environment qualification is incomplete. The prior bounded replacement budget
-is historical. Slice 80.m authorizes exactly one new collector-repaired campaign
-per gate; no Slice 80.m timing cell has started yet. Release state remains on
+is historical. Slice 80.m completed its collector-repaired AC-081 campaign,
+then stopped at AC-072 R1 environment invalidity. Release state remains on
 Slice 80.
 
 AC-020 is retired under seq-277; its historical failures remain failures.
@@ -57,7 +57,21 @@ readiness proof validates normal identity/environment records, rejects a live
 separate runner-shaped competitor, and fails closed for malformed or incomplete
 records. The sealed executable and relevant product-input hash are unchanged.
 The active allowance and final collector identities are in the execution
-manifest. No benchmark was launched by this repair.
+manifest. No benchmark was launched by the repair itself.
+
+## Slice 80.m acceptance execution
+
+All seven AC-081 cells passed numerically and qualified: sequential values
+were 172.329732, 187.860923, 171.467129, 172.883034, 166.994596,
+174.128097 and 179.485752 ms; concurrent values were 47.222802, 64.693117,
+52.527637, 66.048653, 37.461359, 45.923609 and 63.495882 ms. Medians are
+172.883034 ms sequential and 52.527637 ms concurrent, with no warning.
+
+AC-072 R1 recorded p50 69 ms and p99 75 ms, satisfying its numerical limits,
+but `pswpin` increased from 370407 to 370409. The environment policy treats
+this machine-wide swap activity as invalid acceptance evidence. The owner
+instruction requires stopping immediately, so R2 and R3 did not run. This is
+the exact blocker; no criterion was waived and no further timing is authorized.
 
 ## Owner-authorized final attempt
 

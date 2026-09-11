@@ -23,6 +23,36 @@
     },
     "ac072": {"executed": 0, "reason": "required stop after invalid AC-081 campaign"}
   },
+  "slice80m": {
+    "source_sha": "ad4223464a813b28e6aed6c048f7e3572df59246",
+    "product_input_sha256": "95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274",
+    "readiness": {
+      "status": "PASS",
+      "ac081_log_sha256": "c3e06318dad8f6d9e3f5aaa0c513161bf778d6ea60f791043ff420dfcb16b36d",
+      "ac072_log_sha256": "c0faae8e73df0dd108735bce59a16dd5518dc3919911b0cb791bc254e9ecb4e1"
+    },
+    "ac081": {
+      "status": "PASS",
+      "sequential_median_ns": 172883034,
+      "concurrent_median_ns": 52527637,
+      "runs": [
+        {"label": "R1", "sequential_ns": 172329732, "concurrent_ns": 47222802, "sha256": "a9ed4c8fc04e929ef26a74965f029049b3e63acfcbe141737b1205c6d269f076"},
+        {"label": "R2", "sequential_ns": 187860923, "concurrent_ns": 64693117, "sha256": "e9fefd10294d007ef3e5892d90a026859095d81fc10ec5345352f748b9d3062e"},
+        {"label": "R3", "sequential_ns": 171467129, "concurrent_ns": 52527637, "sha256": "50e4731fe6fce2c1a8a91eb14d27f10093ceb04fa382ea2255a7842c3d33a85e"},
+        {"label": "R4", "sequential_ns": 172883034, "concurrent_ns": 66048653, "sha256": "81198a44fb1f39fe30ca409b3a83463b6c6294e5bdf2a591a662c0ab749bf699"},
+        {"label": "R5", "sequential_ns": 166994596, "concurrent_ns": 37461359, "sha256": "8e64bdb7ecfafa9bb02d8f45d35c165190be8ea09405e436e68a4151bdf7c954"},
+        {"label": "R6", "sequential_ns": 174128097, "concurrent_ns": 45923609, "sha256": "c41ae45aae6a746f192d932a9bfc2e984c183050b2cd8b8de5da07004492b561"},
+        {"label": "R7", "sequential_ns": 179485752, "concurrent_ns": 63495882, "sha256": "8c68178792b00bb26a2ec1a3ff1d2d1d10a44c7dbb83650b80ac70ee03409940"}
+      ]
+    },
+    "ac072": {
+      "status": "ENVIRONMENT_INVALID_STOPPED_AFTER_R1",
+      "runs": [
+        {"label": "R1", "p50_ms": 69, "p99_ms": 75, "swap_in_delta": 2, "swap_out_delta": 0, "applicable": false, "sha256": "80cce104fcd86267e06236b7ceab194fb7af73024411bd58c2d11c4186c13874"}
+      ],
+      "unstarted": ["R2", "R3"]
+    }
+  },
   "ac081": {
     "status": "NUMERIC_PASS_ENVIRONMENT_UNPROVED_COMPETITOR_CENSUS",
     "warnings": [],

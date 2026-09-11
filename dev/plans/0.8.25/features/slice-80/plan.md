@@ -26,6 +26,12 @@ active allowance table are in
 [the authorization record](additional-campaign-authorization.md). Do not
 re-open the approved thresholds.
 
+Slice 80.m completed its collector repair and readiness proof. Its AC-081
+campaign passed all seven qualified cells. AC-072 R1 passed numerically but
+recorded a machine-wide swap-in delta of two; the owner stop rule therefore
+ended the campaign before R2 and R3. Slice 80 remains open and Slice 85 remains
+blocked. See [the Slice 80.m record](80m-collector-completion.md).
+
 ## Inputs and protected baseline
 
 Consume Slice 79 closeout at `323db678`, its product candidate `a6650c81`,

@@ -34,5 +34,16 @@
 - The authorized AC-081 collection exposed the analogous uncorrected AC-081
   self-census defect. Its seven raw cells are retained as environment-invalid;
   no fix or replacement was run because the owner authorization requires stop.
+- Slice 80.m RED `ac7ceaa2` and GREEN `7df7af60`: AC-081 gained the same
+  PID-specific census-subshell exclusion as AC-072. RED `012e147e` and GREEN
+  `edb36bdc` added both production collector-only paths, complete AC-072
+  environment controls, and their valid/competitor readiness proof.
+- Reviewer RED `9ecd9ead` and GREEN `e8b63952`: readiness now binds each
+  collector's exact environment marker and rejects duplicate, malformed,
+  missing, empty and unexpected identity fields. Seventeen focused Python
+  tests, both shell census/readiness proofs, Ruff and shell syntax passed.
+- Slice 80.m timing used the independently reviewed collectors. AC-081 passed
+  all seven qualified fresh cells; AC-072 R1 was numerically within limits but
+  environment-invalid from `pswpin +2`, so no later AC-072 cell was dispatched.
 
 No shipping search, SQL, schema, storage or runtime behavior changed in Slice 80.

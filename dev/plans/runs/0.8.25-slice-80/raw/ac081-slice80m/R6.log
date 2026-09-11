@@ -1,0 +1,11 @@
+SLICE80_IDENTITY source_sha=ad4223464a813b28e6aed6c048f7e3572df59246 binary_sha256=ff4b78f36898f8109eef2dcb64f91a99741f9619433d77de0cfef0e59d51895d input_sha256=95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274 mode=performance
+SLICE80_ENV {"available_memory_percent": 72.31, "competing_processes": [], "cpu_affinity": "0-23", "cpu_quota": "max 100000", "cpu_temp_c": 73.5, "load_1m": 0.35, "online_cpus": 24, "phase": "start", "pswpin": 370407, "pswpout": 963932, "scaling_frequencies_khz": [4065278, 4148620, 3738251, 3630306, 1431222, 1431222, 1431222, 1431222, 1431222, 4058353, 1431222, 4538092, 1431222, 4022144, 3632498, 3634064, 3631507, 1431222, 4068649, 4057084, 1431222, 1431222, 1431222, 1431222], "scaling_governors": ["performance"], "thermal_signal": "k10temp:Tctl"}
+
+running 1 test
+test ac_081_absolute_read_performance ... AC081_NUMBERS sequential_ns=174128097 concurrent_ns=45923609 sequential_searches=1600 concurrent_searches=1600 threads=8 sequential_warning=false concurrent_warning=false sequential_failure=false concurrent_failure=false ratio=3.791690
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.26s
+
+SLICE80_ENV {"available_memory_percent": 72.312, "competing_processes": [], "cpu_affinity": "0-23", "cpu_quota": "max 100000", "cpu_temp_c": 74.125, "load_1m": 0.35, "online_cpus": 24, "phase": "end", "pswpin": 370407, "pswpout": 963932, "scaling_frequencies_khz": [3648591, 4066659, 1431222, 3628756, 3694767, 1431222, 4058210, 3913693, 1431222, 1431222, 4537550, 1431222, 1431222, 1431222, 1431222, 3637910, 3634178, 4062121, 1431222, 3992821, 4538128, 3631778, 3631166, 3635216], "scaling_governors": ["performance"], "thermal_signal": "k10temp:Tctl"}
+SLICE80_TEST_EXIT status=0

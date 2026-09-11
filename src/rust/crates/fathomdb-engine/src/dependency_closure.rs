@@ -877,8 +877,7 @@ pub(crate) fn vector_arm_requires_fallback(
     include_out_of_window: bool,
     effective_at: i64,
 ) -> rusqlite::Result<bool> {
-    let direct_state_unsafe: bool = crate::prepare_search_statement(
-        connection,
+    let direct_state_unsafe: bool = connection.query_row(
         "SELECT EXISTS(\
            SELECT 1 FROM _fathomdb_vector_rows vr \
            LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' \
@@ -892,8 +891,6 @@ pub(crate) fn vector_arm_requires_fallback(
                     OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) \
                                   OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))))) \
            LIMIT 1)",
-    )?
-    .query_row(
         params![
             effective_at,
             i64::from(include_superseded),
@@ -957,11 +954,11 @@ pub(crate) fn vector_arm_requires_fallback(
 }
 
 pub(crate) fn has_source_dependencies(connection: &Connection) -> rusqlite::Result<bool> {
-    crate::prepare_search_statement(
-        connection,
+    connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies LIMIT 1)",
+        [],
+        |row| row.get(0),
     )
-    .and_then(|mut statement| statement.query_row([], |row| row.get(0)))
 }
 
 pub(crate) fn all_nodes_directly_eligible(
@@ -971,15 +968,12 @@ pub(crate) fn all_nodes_directly_eligible(
     include_out_of_window: bool,
     effective_at: i64,
 ) -> rusqlite::Result<bool> {
-    let unsafe_row: bool = crate::prepare_search_statement(
-        connection,
+    let unsafe_row: bool = connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM canonical_nodes n WHERE \
            (?2=0 AND n.superseded_at IS NOT NULL) OR \
            (?3=0 AND n.state!='active') OR \
            (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) OR \
                       (n.valid_until IS NOT NULL AND n.valid_until<=?1))) LIMIT 1)",
-    )?
-    .query_row(
         params![
             effective_at,
             i64::from(include_superseded),

@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 80 (READ-ACCEPTANCE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 80 (READ-ACCEPTANCE), IN_PROGRESS.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -25,10 +25,12 @@ agents execute this release without Steward or Orchestrator roles. Slices
 [2026-09-10 adjustment](../0.8.25/scope-adjustment-2026-09-10-ac020.md)
 closes Slice 75 as an evidence checkpoint at safe product SHA `5056db9e`,
 not passing release acceptance. Slices 76, 77, and 79 retain their historical
-AC-020 failures. Owner ruling seq-277 retires that ratio gate; Slice 80 owns
-its absolute-budget successor and environment-valid AC-072 evidence. Other
-verification obligations remain; Slice 85 owns final verification/CI/package
-rehearsal. See the [Slice 80 plan](../0.8.25/features/slice-80/plan.md).
+AC-020 failures. Owner ruling seq-277 retires that ratio gate. Slice 80's
+successor implementation and numeric evidence are complete, but environment
+applicability is unproved because the corrected competitor census postdates
+the runs; AC-072 also exhausted its replacement budget without a fully valid
+cell. Slice 85 remains blocked. See the
+[Slice 80 status](../0.8.25/features/slice-80/status.md).
 
 ## Slice ladder
 
@@ -60,7 +62,7 @@ rehearsal. See the [Slice 80 plan](../0.8.25/features/slice-80/plan.md).
 | 76 | AC-020 attribution and statement reuse | Complete (`8027546d`) |
 | 77 | Adaptive experiments and candidate selection | Complete inconclusive (`5484cd17`) |
 | 79 | Explicit runtime configuration and statement reuse | Complete with carry-forward (`e2db3ffc`) |
-| 80 | Absolute read-performance successor and valid AC-072 evidence | Next; seq-277 scope approved; design review pending |
+| 80 | Absolute read-performance successor and valid AC-072 evidence | In progress; implementation complete, acceptance evidence blocked |
 | 85 | Final verification, CI and non-publishing packaging | Planning brief; final candidate matrix pending |
 
 ## Decisions and blockers
@@ -116,7 +118,7 @@ rehearsal. See the [Slice 80 plan](../0.8.25/features/slice-80/plan.md).
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 80 (READ-ACCEPTANCE)** — absolute read-performance successor and bounded verification. **Remaining ladder:** 80 → 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Continue Slice 80 (READ-ACCEPTANCE)** — absolute read-performance successor and bounded verification. **Remaining ladder:** 80 → 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

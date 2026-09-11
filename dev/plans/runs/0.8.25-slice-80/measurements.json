@@ -1,0 +1,42 @@
+{
+  "schema_version": "slice80-measurements.v1",
+  "candidate": {
+    "source_sha": "a93d48598d914cf61455b80063ffbebce2fd9852",
+    "binary_sha256": "ff4b78f36898f8109eef2dcb64f91a99741f9619433d77de0cfef0e59d51895d",
+    "relevant_input_sha256": "95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274"
+  },
+  "ac081": {
+    "status": "NUMERIC_PASS_ENVIRONMENT_UNPROVED_COMPETITOR_CENSUS",
+    "warnings": [],
+    "sequential_median_ns": 176546395,
+    "concurrent_median_ns": 57370858,
+    "sequential_range_ns": [167485947, 184868446],
+    "sequential_median_absolute_deviation_ns": 4559619,
+    "concurrent_range_ns": [41336902, 67162199],
+    "concurrent_median_absolute_deviation_ns": 8853315,
+    "runs": [
+      {"label": "R1", "sequential_ns": 184868446, "concurrent_ns": 56478269, "sha256": "aee64bf4a57ea8301ef4a1cc9d32c79058f3e4108f3ba2be8032eb342bfbd0d2"},
+      {"label": "R2", "sequential_ns": 176546395, "concurrent_ns": 41336902, "sha256": "88e30c181ea818d3a6a1e3c109b7197d895109847e0de6913653f7abf38fe078"},
+      {"label": "R3", "sequential_ns": 179911464, "concurrent_ns": 67162199, "sha256": "ea1f9f734883a387fa38e0345ed2c3125da7d05e9fb51e8ade8c5edd1cc2ebaa"},
+      {"label": "R4", "sequential_ns": 171986776, "concurrent_ns": 66224173, "sha256": "29e98a3944ee6c64df48d174e188e0a95a8f6812bfb75063646ed7d5666f952c"},
+      {"label": "R5", "sequential_ns": 184352509, "concurrent_ns": 46410745, "sha256": "c7d7e8f2690739760866dfc8ba8f2259bbd64eff1fbd2ed74d974b5ba7a99daf"},
+      {"label": "R6", "sequential_ns": 167485947, "concurrent_ns": 57370858, "sha256": "0a4068c01c07309fc83dca0eacb8b07f31a296951f48b2d4780d8ec3e3e5a380"},
+      {"label": "R7", "sequential_ns": 174591925, "concurrent_ns": 61982696, "sha256": "661a3dafb557cb3a239fe255a936e7003e4e6db76dbda6d8cf0097c5c7996e1f"}
+    ],
+    "superseded_series": [
+      {"path": "raw/ac081-invalid-quota", "reason": "missing delegated-parent cpu.max"},
+      {"path": "raw/ac081-pre-review-fix", "reason": "candidate identity superseded by review corrections"}
+    ]
+  },
+  "ac072": {
+    "status": "INCOMPLETE_ENVIRONMENT_VALID_COUNT_0_OF_3",
+    "runs": [
+      {"label": "R1", "p50_ms": 73, "p99_ms": 81, "swap_in_delta": 1, "applicable": false, "sha256": "718d597aa96c2dededf4705b8e7399068e853887c52d647fd1b983d55b60ed6d"},
+      {"label": "R2", "p50_ms": 73, "p99_ms": 80, "swap_in_delta": 0, "applicable": false, "applicability": "UNPROVED_COMPETITOR_CENSUS", "sha256": "f1727945b7eb9dce1192a47799deaef15a4eabb750539d659b352c20ef957218"},
+      {"label": "R3", "p50_ms": 72, "p99_ms": 80, "swap_in_delta": 4, "applicable": false, "sha256": "3d138f1847b7fc77d7ef96845109116758946881d600a54116c7886eae061c8f"},
+      {"label": "R4", "p50_ms": 70, "p99_ms": 77, "swap_in_delta": 167, "applicable": false, "sha256": "aea46be95af6987f9d18585051aec53416d92ff756ef09867e729b07dd0b32ef"},
+      {"label": "R5", "p50_ms": 70, "p99_ms": 77, "swap_in_delta": 5, "applicable": false, "sha256": "094cc43bbb6624443a7be3da7424a99d1e179eca645468d7cf921da5e82f7ca6"},
+      {"label": "R6", "p50_ms": 69, "p99_ms": 76, "swap_in_delta": 2, "applicable": false, "sha256": "05e1ae31d7e43bda131d5d8747799094f539eec38e19d7f520c9a351b8d29770"}
+    ]
+  }
+}

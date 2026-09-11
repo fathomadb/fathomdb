@@ -1,0 +1,48 @@
+{
+  "schema_version": "slice80-receipt.v1",
+  "authority": "seq-277",
+  "candidate": {
+    "source_sha": "a93d48598d914cf61455b80063ffbebce2fd9852",
+    "binary_sha256": "ff4b78f36898f8109eef2dcb64f91a99741f9619433d77de0cfef0e59d51895d",
+    "relevant_input_sha256": "95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274",
+    "rustc": "1.95.0 (59807616e 2026-04-14)",
+    "cargo": "1.95.0 (f2d3ce0 2026-03-21)",
+    "profile": "release",
+    "features": []
+  },
+  "ac081": {
+    "ids": ["AC-081a", "AC-081b"],
+    "raw_logs": "raw/ac081/R1.log through R7.log",
+    "valid_runs": 0,
+    "numeric_passes": 7,
+    "warning_runs": 0,
+    "sequential_ns": [184868446, 176546395, 179911464, 171986776, 184352509, 167485947, 174591925],
+    "concurrent_ns": [56478269, 41336902, 67162199, 66224173, 46410745, 57370858, 61982696],
+    "sequential_median_ns": 176546395,
+    "concurrent_median_ns": 57370858,
+    "status": "NUMERIC_PASS_ENVIRONMENT_UNPROVED_COMPETITOR_CENSUS"
+  },
+  "ac081c": {
+    "selector": "one_reader_progresses_while_another_reader_holds_a_snapshot",
+    "executed": 1,
+    "passed": 1,
+    "status": "PASS"
+  },
+  "ac072": {
+    "raw_logs": "raw/ac072/R1.log through R6.log",
+    "numeric_passes": 6,
+    "environment_valid_runs": [],
+    "environment_invalid_runs": ["R1", "R3", "R4", "R5", "R6"],
+    "environment_unproved_runs": ["R2"],
+    "p50_ms": [73, 73, 72, 70, 70, 69],
+    "p99_ms": [81, 80, 80, 77, 77, 76],
+    "swap_in_deltas": [1, 0, 4, 167, 5, 2],
+    "status": "INCOMPLETE_ENVIRONMENT_VALID_COUNT_0_OF_3"
+  },
+  "protected_write_evidence": {
+    "source": "dev/plans/runs/0.8.25-slice-79/result.md",
+    "applicable": true,
+    "reason": "Slice 80 changed test, acceptance, documentation and debug-only test hooks; shipping write/query/runtime inputs are unchanged."
+  },
+  "broad_regression_rounds": 0
+}

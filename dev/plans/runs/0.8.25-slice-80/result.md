@@ -1,0 +1,85 @@
+# Slice 80 result
+
+## Outcome
+
+Implementation is complete, but Slice 80 cannot close because required
+environment qualification is incomplete. The bounded replacement budget is
+exhausted. Release state therefore remains on Slice 80.
+
+AC-020 is retired under seq-277; its historical failures remain failures.
+AC-081a/b/c replace it without changing the search fixture or shipping product.
+
+## AC-081a/b
+
+The final build-once release executable is bound in `manifest.json`. Seven
+fresh direct processes all passed numerically with no warnings. Their recorded
+start/end controls pass, but the then-current competitor scanner missed Linux
+truncated and hash-suffixed performance-binary names. The corrected scanner at
+`eab4c2b0` cannot reconstruct the earlier process census, so environment
+applicability is unproved rather than valid.
+
+| Run | Sequential ms | Concurrent ms | Ratio, descriptive |
+| --- | ---: | ---: | ---: |
+| R1 | 184.868446 | 56.478269 | 3.273267 |
+| R2 | 176.546395 | 41.336902 | 4.270915 |
+| R3 | 179.911464 | 67.162199 | 2.678761 |
+| R4 | 171.986776 | 66.224173 | 2.597039 |
+| R5 | 184.352509 | 46.410745 | 3.972195 |
+| R6 | 167.485947 | 57.370858 | 2.919356 |
+| R7 | 174.591925 | 61.982696 | 2.816785 |
+
+Medians are 176.546395 ms sequential and 57.370858 ms concurrent. Every
+sequential result is below the 200 ms warning and 500 ms inclusive limit; every
+concurrent result is below the 80 ms warning and 100 ms inclusive limit.
+Sequential range is 167.485947–184.868446 ms with 4.559619 ms median absolute
+deviation. Concurrent range is 41.336902–67.162199 ms with 8.853315 ms median
+absolute deviation.
+
+The first numerically passing series is preserved under `raw/ac081-invalid-quota`:
+the original collector did not walk to the delegated parent `cpu.max`. A second
+pre-review-fix passing series is preserved under `raw/ac081-pre-review-fix`.
+Neither is substituted for the final artifact receipt.
+
+## AC-081c and focused checks
+
+- Four full-precision oracle tests pass, including every warning/hard boundary,
+  one-nanosecond violations, independent arms, both failures and ratio
+  irrelevance.
+- The real-database same-Engine test proves worker 1 completes while worker 0
+  holds a live snapshot. Its test control releases on send, disconnect or a
+  five-second worker timeout; the caller uses bounded receives.
+- Fifteen evidence-tool tests pass for identity, positive execution/counts,
+  environment applicability, campaign non-vacuity, warnings, binary selection,
+  raw-log parsing and competing-process recognition.
+- The compiled-list check finds one active AC-081 test and confirms both AC-020
+  registrations are ignored under ordinary `AGENT_LONG=1` execution.
+
+## AC-072
+
+All six exact 10k/384d/1,000-query cells pass numerically:
+
+| Run | p50 ms | p99 ms | Swap-in delta | Applicability |
+| --- | ---: | ---: | ---: | --- |
+| R1 | 73 | 81 | 1 | invalid |
+| R2 | 73 | 80 | 0 | competitor census unproved |
+| R3 | 72 | 80 | 4 | invalid |
+| R4 | 70 | 77 | 167 | invalid |
+| R5 | 70 | 77 | 5 | invalid |
+| R6 | 69 | 76 | 2 | invalid |
+
+No test failed and no recorded load, memory or thermal limit failed. The
+retained policy requires zero machine-wide swap I/O, so five cells cannot count.
+R2 passes the recorded controls, but its old competitor scanner cannot establish
+complete exclusion. No cell is fully proved environment-valid. No swap setting
+was changed and no unrelated process was terminated.
+
+## Applicability and scope
+
+Slice 79's six write receipts remain applicable: Slice 80 changed contracts,
+test harnesses, tooling, documents and debug-only synchronization—not shipping
+write/search/SQLite behavior. The AC-072 exact operation and release product path
+were unchanged by post-run review fixes, so the six logs remain honest numerical
+candidate evidence, but none is complete acceptance evidence.
+
+No broad regression, CI, platform/package campaign or optimization sweep ran.
+Slice 85 has not started.

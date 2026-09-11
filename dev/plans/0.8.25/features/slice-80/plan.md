@@ -1,6 +1,6 @@
 ---
 title: Slice 80 — absolute read-performance acceptance and bounded verification
-status: READY
+status: IN_PROGRESS
 depends_on: 79
 ---
 
@@ -18,8 +18,9 @@ remain unused.
 The scope and thresholds are approved. This plan and [design](design.md)
 are reconciled in [the planning review](planning-review.md). The exact focused
 commands and counts are sealed in [the execution manifest](execution-manifest.json).
-Implementation and successor acceptance evidence remain pending. Do not re-open
-the approved thresholds.
+Implementation and numerical successor evidence are complete. Environment
+applicability remains unproved and the bounded retry budget is exhausted; see
+[status](status.md). Do not re-open the approved thresholds.
 
 ## Inputs and protected baseline
 

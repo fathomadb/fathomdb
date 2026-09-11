@@ -13,11 +13,13 @@ performance, SDK/API, installed-artifact, platform and CI contracts.
 This replaces Slice 75 as final verification owner, preserving rather than
 discarding its work. Closure is release readiness, not publication.
 
-This is a planning brief pending the Slice 80 design and invalidation map.
-Before READY, independently review and seal an executable matrix derived
-from the retained [Slice 75 matrix](../slice-75/plan.md) and
-[manifest](../slice-75/slice75-closure-manifest.json). Do not execute their
-entire campaigns blindly or remove an obligation merely because it is costly.
+Slice 80 is complete; consume its [current evidence and handoff](../slice-80/current-evidence.md).
+The [execution matrix](execution-matrix.md) reconciles the retained
+[Slice 75 manifest](../slice-75/slice75-closure-manifest.json) with that outcome.
+Before READY, fill the candidate/executor/artifact paths and actual reuse
+decisions, then review the matrix. Do not execute old campaigns blindly or
+remove an obligation merely because it is costly. No new validation framework
+is required to maintain this inventory.
 
 ## Required reconciliation
 
@@ -54,7 +56,10 @@ rewrite old result files to look like the final candidate.
    p50 <=80 ms/p99 <=300 ms; AC-076 text latency; real AC-073 stress and
    AC-075 vector-stage fidelity with positive execution/model counts.
    Consume exact Slice 80 recovery evidence where final-input identity
-   permits; do not rerun the 76/77 experimental matrix.
+   permits; do not rerun the 76/77 experimental matrix. AC-072 host-wide swap
+   remains diagnostic under the approved Slice 80 policy, not an automatic
+   invalidation. The synthetic warm hybrid-search gate does not replace the
+   separately required real-corpus stress/fidelity evidence.
 4. Both protected 71B 10k candidate workloads when invalidated, with retained
    guards and no historical baseline reruns. Keep ack and drained-total
    measurements distinct and do not infer write performance from AC-020.
@@ -63,6 +68,10 @@ rewrite old result files to look like the final candidate.
    surface an evidence/disposition row; name high-risk mutation, erasure,
    authorization/eligibility, lifecycle and concurrent-read interactions.
    Symbol/allowlist parity alone is not SDK behavior coverage.
+   Include `admin.configure_runtime` / `admin.configureRuntime` across Rust,
+   Python and TypeScript: both modes, startup ordering, conflicting/late calls,
+   and intended statistics/heap-limit behavior. Reuse Slice 79 proofs where
+   applicable and exercise final installed bindings in fresh processes.
 6. Installed Linux x64 wheel/N-API/CLI candidate artifacts, Python 3.10/3.11/
    3.12 and Node 18/release-current runtime reuse, no editable/source fallback,
    cross-SDK frozen/dependency/lifecycle workflows and packaged GLOBAL-01
@@ -77,12 +86,13 @@ rewrite old result files to look like the final candidate.
    explicit path-conditioned/skipped/advisory dispositions. Remote workflow
    dispatch needs the normal execution authority; this planning edit does not
    authorize a push merely to make the candidate available.
-9. If runtime/linkage changed: artifact-specific ELF/Mach-O/PE symbol/import
-   proofs, Rust co-tenant plus installed Python/Node initialization-order
-   compatibility, same-file safety disposition, memory policy and extension
-   binding checks. These are mandatory when applicable, not inferred from
-   Linux prototype bytes. If no runtime change, retain the usage-risk audit
-   and test/document only the approved resolution.
+9. Verify final runtime/linkage behavior against the approved Slice 79 contract.
+   Performance mode intentionally disables accounting/heap-limit facilities in
+   its SQLite runtime; diagnostics restores them at process restart. Rust does
+   not promise private SQLite isolation. Reuse applicable compatibility/linkage
+   proofs and check changed artifacts as needed; do not require unchanged host
+   statistics in performance mode, invent a shared-runtime compatibility mode,
+   or reopen private-runtime isolation or database-file connection guards.
 
 ## Packaging, not publishing
 
@@ -112,6 +122,9 @@ a distinct owner decision after this slice.
 - Freeze the candidate after focused Slice 80 recovery/review. Run cheap
   checks first and short-circuit genuine failures. Serialize timing against
   builds and other performance work.
+- Inspect each changed runner/artifact route and run its short relevant smoke
+  before the longer suite. Fix ordinary runner/setup defects directly and
+  rerun only affected checks; a stopped cell does not stop other useful work.
 - One final broad round is planned. An exceptional second requires owner
   authorization with the changed-input/coverage reason. A narrow fix reruns
   only invalidated cells; do not restart unaffected broad work.

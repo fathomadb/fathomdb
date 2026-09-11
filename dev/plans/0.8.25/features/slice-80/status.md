@@ -2,8 +2,11 @@
 
 Status: **COMPLETE — SLICE 85 UNBLOCKED**
 
+Use the [current evidence index](current-evidence.md) for accepted campaigns
+and the Slice 85 handoff. Earlier invalid/stopped attempts remain historical.
+
 - Contract/design: complete and independently approved.
-- TDD implementation: complete through `e8b63952`.
+- Implementation and qualification correction: complete through `e54ad00c`.
 - AC-081a/b: Slice 80.m has the applicable accepted seven-cell campaign: 7/7
   qualified numeric passes, no warnings, with 172.883034 ms sequential and
   52.527637 ms concurrent medians. Earlier invalid campaigns remain history.
@@ -13,17 +16,10 @@ Status: **COMPLETE — SLICE 85 UNBLOCKED**
   five retained fresh-process 10k/384d/1,000-query warm numeric passes; C1–C3
   establish the required consecutive three. See the separate
   [revised audit](../../../runs/0.8.25-slice-80/80n-revised-qualification-audit.md).
-- The 80.m stop left the replacement AC-072 campaign unstarted after R1. The
-  owner has now authorized the bounded 80.n smoke and one conditional three-cell
-  campaign under [80n authorization](80n-authorization.md).
-- Slice 80.n's smoke-repair path passed and R1 completed at 69/76 ms, but its
-  `pswpin` increased by three. R2/R3 remain unstarted by the campaign stop rule;
-  see [the stopped receipt](../../../runs/0.8.25-slice-80/80n-stopped-campaign.md).
-- Slice 80.m readiness proof passed; its repaired AC-081 campaign has 7/7
-  qualified numeric passes with no warnings (172.883034 ms sequential median;
-  52.527637 ms concurrent median).
-- Slice 80.m AC-072 R1 passed numerically (69/75 ms p50/p99) but is invalid:
-  `pswpin` increased by two. The current stop rule leaves R2 and R3 unstarted.
+- Earlier 80.m/80.n attempts stopped under their then-current protocols.
+  Their [authorization history](80n-authorization.md) and
+  [stopped receipt](../../../runs/0.8.25-slice-80/80n-stopped-campaign.md)
+  are retained; they are not current blockers or fresh timing allowances.
 - Protected Slice 79 write evidence: applicable.
 - Broad verification: zero rounds, as planned.
 - The superseding continuation's original raw verdicts are preserved. Its

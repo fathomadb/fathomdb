@@ -119,7 +119,16 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
 
     def test_campaign_requires_seven_unique_matching_observations(self):
         observations = [
-            {"label": f"R{i}", **identity(), "numeric_pass": True, "environment_applicable": True}
+            {
+                "label": f"R{i}",
+                **identity(),
+                "sequential_ns": 190_000_000,
+                "concurrent_ns": 70_000_000,
+                "sequential_warning": False,
+                "concurrent_warning": False,
+                "numeric_pass": True,
+                "environment_applicable": True,
+            }
             for i in range(1, 8)
         ]
         subject.validate_campaign(observations, identity())
@@ -130,7 +139,16 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
 
     def test_campaign_reports_numeric_and_environment_failure_without_raising(self):
         observations = [
-            {"label": f"R{i}", **identity(), "numeric_pass": True, "environment_applicable": True}
+            {
+                "label": f"R{i}",
+                **identity(),
+                "sequential_ns": 190_000_000,
+                "concurrent_ns": 70_000_000,
+                "sequential_warning": False,
+                "concurrent_warning": False,
+                "numeric_pass": True,
+                "environment_applicable": True,
+            }
             for i in range(1, 8)
         ]
         for field, expected_status in (

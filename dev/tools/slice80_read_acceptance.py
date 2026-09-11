@@ -212,8 +212,8 @@ def validate_campaign(observations: list[dict[str, Any]], identity: dict[str, st
     for item in observations:
         if any(item.get(field) != identity.get(field) for field in REQUIRED_IDENTITY):
             raise ValueError("campaign identity drift")
-        if not item.get("numeric_pass") or not item.get("environment_applicable"):
-            raise ValueError("every campaign observation must be numerically passing and applicable")
+        if "numeric_pass" not in item or "environment_applicable" not in item:
+            raise ValueError("campaign observation missing verdict fields")
 
 
 def summarize(observations: list[dict[str, Any]]) -> dict[str, Any]:

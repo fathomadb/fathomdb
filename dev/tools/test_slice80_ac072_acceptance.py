@@ -59,6 +59,13 @@ class Slice80Ac072AcceptanceTests(unittest.TestCase):
         cell = subject.parse_cell_text(prefixed, "R1", "acceptance")
         self.assertTrue(cell["numeric_pass"])
 
+    def test_accepts_the_rust_harness_late_ok_after_stderr_records(self):
+        split = log().replace(
+            "AC013_NUMBERS n=10000", "test ac_013_vector_retrieval_latency ... AC013_NUMBERS n=10000"
+        ).replace("test ac_013_vector_retrieval_latency ... ok\n", "ok\n")
+        cell = subject.parse_cell_text(split, "R1", "acceptance")
+        self.assertTrue(cell["numeric_pass"])
+
     def test_smoke_has_own_size_and_cannot_satisfy_acceptance(self):
         smoke = subject.parse_cell_text(log(n=10, purpose="smoke"), "smoke", "smoke")
         self.assertEqual(smoke["corpus_n"], 10)

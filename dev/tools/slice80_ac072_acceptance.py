@@ -144,11 +144,16 @@ def parse_cell_text(text: str, label: str, purpose: str) -> dict[str, Any]:
     if len(environments) != 2 or [item.get("phase") for item in environments] != ["start", "end"]:
         raise ValueError("expected one ordered environment pair")
     exits = re.findall(rf"^{EXIT_PREFIX} status=(\d+)$", text, flags=re.MULTILINE)
-    passed = bool(re.search(rf"test {SELECTOR} \.\.\. ok", text)) and bool(
-        re.search(r"test result: ok\. 1 passed; 0 failed;", text)
+    started = bool(re.search(rf"^test {SELECTOR} \.\.\.", text, flags=re.MULTILINE))
+    passed_summary = bool(re.search(r"test result: ok\. 1 passed; 0 failed;", text))
+    failed_summary = bool(re.search(r"test result: FAILED\. 0 passed; 1 failed;", text))
+    passed = started and passed_summary and bool(
+        re.search(rf"test {SELECTOR} \.\.\. ok", text)
+        or re.search(r"\nok\n\s*test result: ok\. 1 passed; 0 failed;", text)
     )
-    failed = bool(re.search(rf"test {SELECTOR} \.\.\. FAILED", text)) and bool(
-        re.search(r"test result: FAILED\. 0 passed; 1 failed;", text)
+    failed = started and failed_summary and bool(
+        re.search(rf"test {SELECTOR} \.\.\. FAILED", text)
+        or re.search(r"\nFAILED\n\s*test result: FAILED\. 0 passed; 1 failed;", text)
     )
     qualification = qualify_environment(environments[0], environments[1])
     printed_within_budget = int(numbers["p50"]) <= 80 and int(numbers["p99"]) <= 300

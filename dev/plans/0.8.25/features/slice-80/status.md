@@ -1,19 +1,18 @@
 # Slice 80 status
 
-Status: **SLICE 80.M STOPPED ON AC-072 ENVIRONMENT INVALIDITY; ACCEPTANCE BLOCKED**
+Status: **SLICE 80.N IN PROGRESS; AC-072 ACCEPTANCE EVIDENCE REMAINS MISSING**
 
 - Contract/design: complete and independently approved.
 - TDD implementation: complete through `e8b63952`.
-- AC-081a/b: 7/7 numeric passes, no warnings; environment applicability
-  remains unproved because the corrected competitor census postdates the runs.
-- The one additional owner-authorized AC-081 campaign also has 7/7 numeric
-  passes, but all seven cells are environment-invalid: AC-081's own census
-  shell was recorded as a competing runner.
+- AC-081a/b: Slice 80.m has the applicable accepted seven-cell campaign: 7/7
+  qualified numeric passes, no warnings, with 172.883034 ms sequential and
+  52.527637 ms concurrent medians. Earlier invalid campaigns remain history.
 - AC-081c: focused real-database proof passes.
 - AC-072: 6/6 numeric passes; five are swap-invalid and R2's complete competitor
   exclusion is unproved. Zero of three required cells is fully proved valid.
-- The additional AC-072 campaign was not run: the prior stop rule halted it
-  before dispatch.
+- The 80.m stop left the replacement AC-072 campaign unstarted after R1. The
+  owner has now authorized the bounded 80.n smoke and one conditional three-cell
+  campaign under [80n authorization](80n-authorization.md).
 - Slice 80.m readiness proof passed; its repaired AC-081 campaign has 7/7
   qualified numeric passes with no warnings (172.883034 ms sequential median;
   52.527637 ms concurrent median).
@@ -24,7 +23,6 @@ Status: **SLICE 80.M STOPPED ON AC-072 ENVIRONMENT INVALIDITY; ACCEPTANCE BLOCKE
 - Next slice: remains 80. Slice 85 is not unblocked.
 
 The initial AC-081 quota defect and both collector-census defects are retained
-transparently. Slice 80.m's allowance is exhausted: AC-081 completed seven
-valid cells, then AC-072's first cell invalidated from swap activity. No
-replacement observation is authorized. Slice 80 remains in progress and Slice
-85 is not unblocked.
+transparently. Slice 80.m's allowance remains exhausted historical evidence.
+Slice 80.n has a separate, recorded allowance; it has not spent an AC-072 cell
+yet. Slice 80 remains in progress and Slice 85 is not unblocked.

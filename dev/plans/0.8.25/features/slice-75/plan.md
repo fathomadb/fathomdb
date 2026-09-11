@@ -1,12 +1,22 @@
 ---
 title: 0.8.25 Slice 75 — integrated release closure
-status: READY
+status: CLOSED_WITH_CARRY_FORWARD
 depends_on: 73
 design: design.md
 design_status: APPROVED
 ---
 
 # Slice 75 plan
+
+## Checkpoint closure — 2026-09-10
+
+This original execution matrix is retained as evidence and obligation inventory.
+Slice 75 is closed by owner reallocation, NOT by passing its original acceptance
+predicate. AC-020 remains unresolved. See [status](status.md) and the
+[new ladder](../../scope-adjustment-2026-09-10-ac020.md): experiments 76/77,
+consulted implementation 80, final verification/CI/non-publishing packaging 85.
+The requirements below transfer to Slice 85 unless already satisfied by an
+applicable exact receipt; do not execute this historical plan as a new campaign.
 
 ## Outcome
 

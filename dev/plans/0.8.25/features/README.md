@@ -24,6 +24,7 @@ the completed maximum-envelope campaign: 21 logical needs mapped exactly once
 into fourteen slice-owned design records. The later owner-approved
 [scope adjustment](../scope-adjustment-2026-09-02.md), as amended by the
 [closing-ladder adjustment](../scope-adjustment-2026-09-08-slices-71-73.md),
+and the [AC-020 recovery adjustment](../scope-adjustment-2026-09-10-ac020.md),
 is the implementation boundary. The
 [coherence review](../design-coherence-review-2026-09-02.md)
 reconciled the twelve active designs to that boundary; removed design work is
@@ -86,12 +87,20 @@ locally; Slice 75 only audits the combined installed surface.
 | 71 | [Latency and ingest investigations](slice-71/plan.md) | [Design](slice-71/design.md) |
 | 72 | [Installed CE profile and generic preflight](slice-72/plan.md) | [Design](slice-72/design.md) |
 | 73 | [Windows Node/N-API CI coverage](slice-73/plan.md) | [Design](slice-73/design.md) |
-| 75 | [Integrated closure](slice-75/plan.md) | [Design](slice-75/design.md) |
+| 75 | [Closed evidence checkpoint](slice-75/plan.md) | [Historical design](slice-75/design.md) |
+| 76 | [Attribution and statement reuse](slice-76/plan.md) | [Experiment design](../ac020-experiment-protocol.md) |
+| 77 | [Adaptive experiments and selection](slice-77/plan.md) | [Experiment design](../ac020-experiment-protocol.md) |
+| 80 | [Consulted implementation planning](slice-80/plan.md) | Pending 76/77 evidence and owner consultation |
+| 85 | [Final verification, CI and packaging](slice-85/plan.md) | Final matrix pending Slice 80 |
 
 The active closing slices are strictly sequential:
-`60 -> 71 -> 72 -> 73 -> 75`. A later plan may be drafted but cannot become
+`60 -> 71 -> 72 -> 73 -> 75 -> 76 -> 77 -> 80 -> 85`. A later plan may be drafted but cannot become
 READY while its dependency is incomplete. Slices 71–73 use focused
-verification; Slice 75 owns the final full regression and hosted-CI gates.
+verification; Slice 75 is closed with carry-forward, not passing acceptance.
+Slices 76/77/80 use focused checks and bounded performance only. Slice 85
+owns final full regression, hosted CI and non-publishing packaging. The general
+all-at-every-closure vocabulary above does not authorize broad rounds in these
+focused slices. Reserved 78–79/81–84 require explicit allocation if needed.
 
 ## Preserved reallocated designs
 

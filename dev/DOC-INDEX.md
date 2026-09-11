@@ -44,6 +44,11 @@ refresh in the closing commit when you touch a doc).
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
 | `dev/README.md` | Entry map for the engineering docs tree | — | 2026-08-23 |
+| `dev/plans/0.8.25/scope-adjustment-2026-09-10-ac020.md` | Slice 75 checkpoint and AC-020 recovery ladder 76/77/80/85 | 0.8.25 planning | 2026-09-10 |
+| `dev/plans/0.8.25/ac020-experiment-protocol.md` | Statistics-enabled experiment controls, correctness, quantitative selection and budgets | Slices 76/77 | 2026-09-10 |
+| `dev/plans/0.8.25/features/slice-76/plan.md` · `dev/plans/0.8.25/features/slice-77/plan.md` | Sequential attribution and adaptive candidate-selection experiments | Slices 76/77 | 2026-09-10 |
+| `dev/plans/0.8.25/features/slice-80/plan.md` · `dev/plans/0.8.25/features/slice-85/plan.md` | Consulted implementation and final verification/CI/non-publishing packaging | Slices 80/85 | 2026-09-10 |
+| `dev/plans/runs/0.8.25-ac020-research/report.md` | Byte-identical retained research input; experimental recommendations qualified by recovery protocol | AC-020 research | 2026-09-10 |
 | `dev/needs.md` | Product/consumer needs driving requirements | — | 2026-05-28 |
 | `dev/notes/earp-agent-orientation.md` · `earp-hitl-decisions.md` | EARP navigation, boundaries, and current HITL rulings | EARP developer harness | 2026-08-08 |
 | `dev/notes/0.8.23-architecture-tradeoffs.md` | 0.8.23 architecture documentation follow-up | 0.8.23 planning | 2026-08-07 |

@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 75 (CLOSURE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 76 (AC020-ATTRIBUTION), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -20,15 +20,14 @@ bounded traversal, one-context reads, lifecycle and projection handling,
 cross-SDK parity, and exact Linux/Windows verification. The owner-approved
 2026-09-02 scope adjustment removes Slices 65/70. The owner-approved 2026-09-08
 adjustment creates focused Slices 71–73 before final integrated closure. Direct
-agents execute this release without Steward or Orchestrator roles. Slice 71 is
-in progress under the owner's 2026-09-08 approval of
-[71B — General write regression](../0.8.25/features/slice-71/write-regression-subplan.md).
-The prior write pause is superseded; the separate read-latency disposition
-remains unresolved. 71B is complete on the release branch: the write-path
-correction and its focused tests, bounded measurements, code review, and
-separate evidence audit pass without changing a performance limit.
-The owner-approved completion path now keeps 71B fixed and resolves AC-072
-through plan/design v5 without broad regression rounds.
+agents execute this release without Steward or Orchestrator roles. Slices
+71–73 are complete; AC-072 and 71B recovery remain protected. The owner-directed
+[2026-09-10 adjustment](../0.8.25/scope-adjustment-2026-09-10-ac020.md)
+closes Slice 75 as an evidence checkpoint at safe product SHA `5056db9e`,
+not passing release acceptance. AC-020 remains unresolved; other original
+verification obligations transfer without being waived. Slices 76/77 own
+bounded statistics-enabled experiments, Slice 80 requires results and further
+owner consultation, and Slice 85 owns final verification/CI/package rehearsal.
 
 ## Slice ladder
 
@@ -56,7 +55,11 @@ through plan/design v5 without broad regression rounds.
 | 71 | AC-072 read-latency resolution and 71B write recovery | Complete on release branch (`84c056c6`) |
 | 72 | Generic preflight and installed CE profiles | Complete on release branch (`2e14f5ba`) |
 | 73 | Windows Node/N-API CI coverage | Complete on release branch (`6eb7cd18`) |
-| 75 | Integrated release closure | Not started |
+| 75 | Evidence checkpoint; unfinished release closure transferred | Closed with carry-forward (`5056db9e`); AC-020 unresolved |
+| 76 | AC-020 attribution and statement reuse | Draft plan; prospective review required |
+| 77 | Adaptive experiments and candidate selection | Draft; depends on 76 evidence |
+| 80 | Consulted design and selected correction | Planning contract; implementation not authorized |
+| 85 | Final verification, CI and non-publishing packaging | Planning brief; final candidate matrix pending |
 
 ## Decisions and blockers
 
@@ -70,8 +73,8 @@ through plan/design v5 without broad regression rounds.
 - The owner-approved
   [closing-ladder adjustment](../0.8.25/scope-adjustment-2026-09-08-slices-71-73.md)
   moves the focused investigations, preflight/CE profile, and Windows Node/N-
-  API coverage into Slices 71–73. Full regression and exact-head hosted CI
-  remain Slice 75 work.
+  API coverage into Slices 71–73. Its former Slice 75 final-verification
+  allocation is superseded by the 2026-09-10 adjustment: Slice 85 now owns it.
 - Slice 71 is complete. AC-072 now passes three exact 10k/384d/1,000-query
   candidate repetitions at p50 69 ms and p99 75–77 ms, versus a stable
   p50 161–164 ms and p99 169–173 ms baseline. Limits and search semantics were
@@ -88,7 +91,14 @@ through plan/design v5 without broad regression rounds.
   median-p95 comparisons; the maximum ratio is `1.0962`. Slice 73 is unblocked.
 - Slice 73 is complete at `6eb7cd18`. The Windows 11 installed N-API campaign
   passes its fixed 13-module matrix at 180/180 with no failures, cancellations,
-  skips, or todos. Slice 75 is unblocked.
+  skips, or todos. This unblocked the original Slice 75 campaign.
+
+- Slice 75 is closed with carry-forward, not a passing gate. Its approved
+  surface/WAL oracle corrections remain; the shared-runtime MEMSTATUS fix
+  stays reverted. Slice 76 is next for protocol sealing, not broad tests.
+- Slices 78–79 and 81–84 are reserved only. Shared-runtime statistics
+  disabling and AC-020 deferral are rejected. One final broad Slice 85 round
+  is planned; an exceptional second requires owner authorization.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
@@ -103,7 +113,7 @@ through plan/design v5 without broad regression rounds.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 75 (CLOSURE)** — integrated release closure. **Remaining ladder:** 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 76 (AC020-ATTRIBUTION)** — statistics-enabled AC-020 attribution and statement reuse. **Remaining ladder:** 76 → 77 → 80 → 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

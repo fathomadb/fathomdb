@@ -123,7 +123,11 @@ backward dependency.
 | 71 | Investigate AC-013 vector latency and Slice 35 bulk-ingest visibility-trigger cost with sealed focused comparisons. | 60 | Not started |
 | 72 | Correct generic release preflight and profile installed CE CPU/CUDA candidates. | 71 | Not started |
 | 73 | Add focused Windows Node/N-API CI coverage for retained contracts. | 72 | Not started |
-| 75 | Consume prior receipts and run integrated cross-SDK, concurrency/lifecycle, full regression, exact-head CI, and retrieval-only closure. | 73 | Not started |
+| 75 | Integrated evidence checkpoint; original closure obligations carried forward, not a passing release gate. | 73 | Closed with carry-forward (`5056db9e`) |
+| 76 | Establish AC-020 statistics-enabled attribution and test statement reuse. | 75 | Draft plan; review before experiments |
+| 77 | Select adaptive follow-on experiments from Slice 76 evidence and prepare a decision dossier. | 76 | Draft plan; selection sealed after 76 |
+| 80 | Consult owner, design and implement the selected AC-020 correction. | 77 | Planning contract; implementation design pending results |
+| 85 | Final verification, CI and non-publishing package rehearsal. | 80 | Planning brief; final matrix pending candidate |
 
 ## Requirements and acceptance criteria
 
@@ -146,7 +150,13 @@ mapped exactly once to fourteen reviewed design records. The later approved
 implementation authority, preserves the broader designs as evidence, and
 allocates every removed item durably. The later
 [closing-ladder adjustment](0.8.25/scope-adjustment-2026-09-08-slices-71-73.md)
-creates focused Slices 71–73 and reserves full regression work for Slice 75.
+created focused Slices 71–73 and reserved full regression work for Slice 75.
+The [AC-020 ladder adjustment](0.8.25/scope-adjustment-2026-09-10-ac020.md)
+closes Slice 75 as an evidence checkpoint, keeps AC-020 unresolved, and
+allocates experiments to 76/77, consulted implementation to 80, and final
+verification/CI/non-publishing packaging to 85. Slices 78–79 and 81–84 are
+reserved, not commissioned. Shared-runtime statistics disabling and AC-020
+deferral remain rejected. No publication is authorized.
 
 The design-documentation campaign is complete: all fourteen maximum-envelope
 records passed independent review with no unresolved P1/P2 finding. The later
@@ -210,9 +220,9 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 75** (`CLOSURE`) — integrated release closure
+**IMMEDIATE NEXT: Slice 76** (`AC020-ATTRIBUTION`) — statistics-enabled AC-020 attribution and statement reuse
 
-**Remaining ladder:** 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 76 → 77 → 80 → 85.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
 Slices 60, 71, and 72 are durably closed. Slice 71 preserved the 71B general-write
 correction at `eda95b07` and restored AC-072 at `84c056c6` without changing

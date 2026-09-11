@@ -9,6 +9,12 @@ architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 
 # Slice 75 design
 
+Execution ownership changed on 2026-09-10: Slice 75 closed as a checkpoint
+with unfinished obligations transferred, not a passing release gate.
+See [status](status.md) and [Slice 85](../slice-85/plan.md).
+This approved design remains the historical evidence/coverage contract;
+references below to final closure now inform Slice 85's reviewed matrix.
+
 ## Boundary
 
 Slice 75 is a release-evidence adapter around existing product contracts. It

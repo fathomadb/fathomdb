@@ -74,14 +74,19 @@
       "merge_subject": "fix(0.8.25): use stable TAP test summaries",
       "evidence": "The existing Windows x64 native-artifact CI cell now runs a fixed 13-module sample of retained TypeScript/N-API contracts against isolated installed package bytes. The exact Windows 11 candidate campaign passes 180/180 tests with zero failures, cancellations, skips, or todos; built/installed native hashes and installed/staged SDK-tree digests agree. Focused workflow, routing, structural, PowerShell, and TypeScript checks plus independent design/code/evidence reviews pass. No broad regression was run; Slice 75 owns integrated release closure and full verification."
     },
-    {"slice": 75, "short": "CLOSURE", "title": "integrated release closure", "depends_on": [73], "status": "NOT_STARTED", "design_refs": ["dev/plans/0.8.25/features/slice-75/plan.md", "dev/plans/0.8.25/features/slice-75/design.md"]}
+    {"slice":75,"short":"CLOSURE","title":"integrated evidence checkpoint; unfinished closure transferred","depends_on":[73],"status":"COMPLETE_ON_RELEASE_BRANCH","design_refs":["dev/plans/0.8.25/features/slice-75/plan.md","dev/plans/0.8.25/features/slice-75/design.md","dev/plans/0.8.25/features/slice-75/status.md","dev/plans/0.8.25/scope-adjustment-2026-09-10-ac020.md"],"closure_kind":"CLOSED_WITH_CARRY_FORWARD_NOT_RELEASE_ACCEPTANCE","sha":"5056db9e","merge_subject":"Revert \"perf(0.8.25): close AC-020 reader concurrency\"","evidence":"Owner-directed checkpoint closure at the safe reverted product SHA, not a passing release gate. Approved oracle corrections and closure tooling are retained. AC-020 remains unresolved; missing/unexecuted/unverified original manifest cells transfer to Slice 85. Statistics-enabled experiments belong to 76/77; implementation follows consultation in 80. See Slice 75 status for exact evidence qualifications."},
+    {"slice":76,"short":"AC020-ATTRIBUTION","title":"statistics-enabled AC-020 attribution and statement reuse","depends_on":[75],"status":"NOT_STARTED","design_refs":["dev/plans/0.8.25/features/slice-76/plan.md","dev/plans/0.8.25/ac020-experiment-protocol.md"]},
+    {"slice":77,"short":"AC020-EXPERIMENTS","title":"adaptive follow-on experiments and candidate selection","depends_on":[76],"status":"NOT_STARTED","design_refs":["dev/plans/0.8.25/features/slice-77/plan.md","dev/plans/0.8.25/ac020-experiment-protocol.md"]},
+    {"slice":80,"short":"AC020-IMPLEMENTATION","title":"consultation, design and selected AC-020 correction","depends_on":[77],"status":"NOT_STARTED","design_refs":["dev/plans/0.8.25/features/slice-80/plan.md","dev/plans/0.8.25/ac020-experiment-protocol.md"]},
+    {"slice":85,"short":"FINAL-VERIFICATION","title":"final verification, CI and non-publishing packaging","depends_on":[80],"status":"NOT_STARTED","design_refs":["dev/plans/0.8.25/features/slice-85/plan.md","dev/plans/0.8.25/ac020-experiment-protocol.md"]}
   ],
   "landed": [],
-  "next_slice": 75,
-  "remaining_ladder": [75],
+  "next_slice": 76,
+  "remaining_ladder": [76, 77, 80, 85],
   "decisions": {
     "unruled": [],
     "ruled": [
+      {"id":"ac020-recovery-ladder","title":"Close Slice 75 as an evidence checkpoint, not passing acceptance; plan experiments 76/77, consulted implementation 80 and final verification/CI/non-publishing packaging 85. Preserve AC-020 and reject shared-runtime statistics disabling; reserve 78-79 and 81-84.","source":"repository owner 2026-09-10; dev/plans/0.8.25/scope-adjustment-2026-09-10-ac020.md"},
       {
         "id": "direct-execution",
         "title": "0.8.25 uses direct agents without Steward or Orchestrator roles",
@@ -139,6 +144,7 @@
       }
     ]
   },
+  "release_readiness": {"status":"BLOCKED","blockers":["AC-020 unresolved on the safe candidate","Final verification and artifact obligations carried to Slice 85"],"publication_authorized":false},
   "generated_views": [
     {
       "id": "plan-immediate-next",

@@ -22,6 +22,7 @@
     "authorization": "repository owner, 2026-09-11",
     "readiness": {
       "runs_benchmarks": false,
+      "review": "dev/plans/0.8.25/features/slice-80/code-review.md (PASS through e8b63952)",
       "required_runners": [
         "scripts/perf-experiments/run-slice80-ac081-cell.sh",
         "scripts/perf-experiments/run-slice71-ac013-cell.sh"
@@ -31,6 +32,15 @@
         "separate runner-shaped competitor is retained",
         "missing identity or environment records fail closed"
       ]
+    },
+    "final_candidate_seal": {
+      "source_rule": "clean current HEAD; each raw cell records it",
+      "product_input_sha256": "95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274",
+      "ac081_binary_sha256": "ff4b78f36898f8109eef2dcb64f91a99741f9619433d77de0cfef0e59d51895d",
+      "ac081_runner_sha256": "8cdb9b7a6342a6ed88c156c817a56ef2a32638d7307331c4f1fd8a70dda5c61c",
+      "ac072_runner_sha256": "001faf65d2fe4f5d8f24364b5d4e675aa1ca1c2caf480cd27f6468566b502802",
+      "scanner_sha256": "bbefad0bcb14f0788601e46add1c604eddf3af29ea9a5b6125bc29d3be8b3b0b",
+      "ac081_binary_reuse": "permitted: the declared product/build inputs remain byte-identical"
     },
     "active_budget": {
       "ac081_fresh_processes": 7,
@@ -83,7 +93,7 @@
     "required_test_count": 1,
     "runner": "scripts/perf-experiments/run-slice80-ac081-cell.sh",
     "parser": "dev/tools/slice80_read_acceptance.py",
-    "raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac081-authorized-final",
+    "raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac081-slice80m",
     "test_list_check": "python3 dev/tools/slice80_read_acceptance.py check-test-list --binary /tmp/fathomdb-slice80/ac081-perf-gates"
   },
   "reader_independence": {
@@ -116,7 +126,7 @@
     "p99_budget_ms": 300,
     "environment_policy_source": "experiments/configs/release-0825-slice71-ac072-final-manifest.v1.json",
     "timeout_seconds_per_repetition": 3600,
-    "raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac072-authorized-final"
+    "raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac072-slice80m"
   },
   "environment": {
     "max_load_per_online_cpu": 0.5,

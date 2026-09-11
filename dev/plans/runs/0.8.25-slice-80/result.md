@@ -3,8 +3,10 @@
 ## Outcome
 
 Implementation is complete, but Slice 80 cannot close because required
-environment qualification is incomplete. The bounded replacement budget is
-exhausted. Release state therefore remains on Slice 80.
+environment qualification is incomplete. The prior bounded replacement budget
+is historical. Slice 80.m authorizes exactly one new collector-repaired campaign
+per gate; no Slice 80.m timing cell has started yet. Release state remains on
+Slice 80.
 
 AC-020 is retired under seq-277; its historical failures remain failures.
 AC-081a/b/c replace it without changing the search fixture or shipping product.
@@ -39,6 +41,23 @@ The first numerically passing series is preserved under `raw/ac081-invalid-quota
 the original collector did not walk to the delegated parent `cpu.max`. A second
 pre-review-fix passing series is preserved under `raw/ac081-pre-review-fix`.
 Neither is substituted for the final artifact receipt.
+
+## Slice 80.m collector completion
+
+The prior authorized-final AC-081 series remains preserved as strong numerical
+evidence with a qualification defect. Its 172.733800 ms sequential and
+62.389734 ms concurrent medians are below both warning thresholds; it does not
+demonstrate an AC-081 performance defect. It is not retrospectively relabeled
+valid.
+
+Focused RED/GREEN repair adds AC-081's missing PID-specific census-subshell
+exclusion, aligns AC-072's complete environment record, and adds an exact
+collector-only readiness path for both runners. The independently reviewed
+readiness proof validates normal identity/environment records, rejects a live
+separate runner-shaped competitor, and fails closed for malformed or incomplete
+records. The sealed executable and relevant product-input hash are unchanged.
+The active allowance and final collector identities are in the execution
+manifest. No benchmark was launched by this repair.
 
 ## Owner-authorized final attempt
 

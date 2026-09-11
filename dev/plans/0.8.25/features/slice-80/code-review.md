@@ -29,3 +29,11 @@ file: invalid-quota logs emit `ENVIRONMENT_INVALID`, numerical failures emit
 The focused pre-timing collector review passes through `4e0f2619`: AC-072 uses
 the shared corrected scanner, excludes its command-substitution shell by PID,
 retains another campaign as a competitor, and changes no control or threshold.
+
+Slice 80.m review passes through `e8b63952`. Both runners now exclude only
+their own census subshells and expose a benchmark-free production collection
+path. AC-072 now emits the same twelve required controls as AC-081. The
+readiness parser binds each identity to its own environment marker and rejects
+duplicate, missing, empty, malformed, and unexpected identity fields. Its
+focused proof uses both runner paths, a persistent separate runner-shaped
+competitor, and missing-control fixtures. No timing ran during this review.

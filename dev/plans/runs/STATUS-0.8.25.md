@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 80 (AC020-IMPLEMENTATION), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 80 (READ-ACCEPTANCE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -24,10 +24,11 @@ agents execute this release without Steward or Orchestrator roles. Slices
 71–73 are complete; AC-072 and 71B recovery remain protected. The owner-directed
 [2026-09-10 adjustment](../0.8.25/scope-adjustment-2026-09-10-ac020.md)
 closes Slice 75 as an evidence checkpoint at safe product SHA `5056db9e`,
-not passing release acceptance. AC-020 remains unresolved; other original
-verification obligations transfer without being waived. Slices 76, 77, and 79
-are complete with AC-020 still unresolved. Slice 80 owns further consultation
-and correction, and Slice 85 owns final verification/CI/package rehearsal.
+not passing release acceptance. Slices 76, 77, and 79 retain their historical
+AC-020 failures. Owner ruling seq-277 retires that ratio gate; Slice 80 owns
+its absolute-budget successor and environment-valid AC-072 evidence. Other
+verification obligations remain; Slice 85 owns final verification/CI/package
+rehearsal. See the [Slice 80 plan](../0.8.25/features/slice-80/plan.md).
 
 ## Slice ladder
 
@@ -59,7 +60,7 @@ and correction, and Slice 85 owns final verification/CI/package rehearsal.
 | 76 | AC-020 attribution and statement reuse | Complete (`8027546d`) |
 | 77 | Adaptive experiments and candidate selection | Complete inconclusive (`5484cd17`) |
 | 79 | Explicit runtime configuration and statement reuse | Complete with carry-forward (`e2db3ffc`) |
-| 80 | Remaining AC-020 disposition | Next; planning contract informed by 79 evidence |
+| 80 | Absolute read-performance successor and valid AC-072 evidence | Next; seq-277 scope approved; design review pending |
 | 85 | Final verification, CI and non-publishing packaging | Planning brief; final candidate matrix pending |
 
 ## Decisions and blockers
@@ -115,7 +116,7 @@ and correction, and Slice 85 owns final verification/CI/package rehearsal.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 80 (AC020-IMPLEMENTATION)** — consultation and remaining AC-020 disposition. **Remaining ladder:** 80 → 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 80 (READ-ACCEPTANCE)** — absolute read-performance successor and bounded verification. **Remaining ladder:** 80 → 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

@@ -127,7 +127,7 @@ backward dependency.
 | 76 | Establish AC-020 statistics-enabled attribution and test statement reuse. | 75 | Complete (`8027546d`) |
 | 77 | Select adaptive follow-on experiments from Slice 76 evidence and prepare a decision dossier. | 76 | Complete inconclusive (`5484cd17`) |
 | 79 | Add explicit SQLite runtime configuration and ship reviewed statement reuse. | 77 | Complete with carry-forward (`e2db3ffc`) |
-| 80 | Consult owner and resolve any remaining AC-020 disposition. | 79 | Next; planning contract informed by Slice 79 evidence |
+| 80 | Implement absolute read-performance successor and obtain valid AC-072 evidence. | 79 | Next; seq-277 scope approved; design review pending |
 | 85 | Final verification, CI and non-publishing package rehearsal. | 80 | Planning brief; final matrix pending candidate |
 
 ## Requirements and acceptance criteria
@@ -156,9 +156,10 @@ The [AC-020 ladder adjustment](0.8.25/scope-adjustment-2026-09-10-ac020.md)
 closes Slice 75 as an evidence checkpoint, keeps AC-020 unresolved, and
 allocates experiments to 76/77, the later `seq-276` ruling allocates explicit
 runtime configuration and statement reuse to 79, and final
-verification/CI/non-publishing packaging remains in 85. Slice 80 now consumes
-79 for any remaining AC-020 disposition. Other reserved slots remain
-uncommissioned. No publication is authorized.
+verification/CI/non-publishing packaging remains in 85. The later owner ruling
+seq-277 retires the AC-020 ratio gate. [Slice 80](0.8.25/features/slice-80/plan.md)
+now owns the absolute-budget successor and valid AC-072 evidence. No slices
+move; other reserved slots remain uncommissioned. No publication is authorized.
 
 The design-documentation campaign is complete: all fourteen maximum-envelope
 records passed independent review with no unresolved P1/P2 finding. The later
@@ -222,7 +223,7 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 80** (`AC020-IMPLEMENTATION`) — consultation and remaining AC-020 disposition
+**IMMEDIATE NEXT: Slice 80** (`READ-ACCEPTANCE`) — absolute read-performance successor and bounded verification
 
 **Remaining ladder:** 80 → 85.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 

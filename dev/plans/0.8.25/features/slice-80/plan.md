@@ -1,125 +1,110 @@
 ---
-title: Slice 80 — remaining AC-020 disposition
+title: Slice 80 — absolute read-performance acceptance and bounded verification
 status: DRAFT
 depends_on: 79
 ---
 
-# Slice 80 — remaining AC-020 disposition
+# Slice 80 — absolute read-performance acceptance and bounded verification
 
-## Boundary after the Slice 79 allocation
+## Authority and placement
 
-The `seq-276` owner ruling allocates Slice 79 to the explicit runtime
-configuration and statement-reuse candidate. Slice 80 no longer duplicates
-that implementation. It consumes Slice 79's reviewed result and decides only
-the remaining AC-020 disposition, if any, before final verification in 85.
+Owner ruling **seq-277** (2026-09-11; session decision
+`TC-ac020-successor-0825`) replaces this slice's unchanged-AC-020 recovery
+mandate. This is an acceptance-contract replacement, not another optimization
+campaign. No renumbering: 79 remains complete; 80 owns this work; 85 retains
+final verification, CI and non-publishing packaging. Reserved 78 and 81–84
+remain unused.
 
-Slice 79's product candidate `a6650c81` retains statement reuse and makes
-performance (`MEMSTATUS=0`) the ordinary first-open mode. Its seven-run median
-was 174.632177 ms sequential / 53.616722 ms concurrent, with a 3.135542x
-median per-run speedup and 0/7 AC-020 passes against a 32.743532 ms median
-bound. The ratio of medians was 3.257047x. Diagnostics was
-170.293082/76.731105 ms (2.219349x), also 0/7. Both protected 71B write
-workloads passed. AC-072 met its numerical limits in all three runs, but all
-three had nonzero swap activity and are environment-invalid under the retained
-protocol. Treat that product and evidence as the current anchor; do not repeat
-the resolved runtime-mode decision or assume it closes the remaining post-cache
-concurrency cost. Obtain one environment-valid AC-072 guard on the eventual
-Slice 80 candidate.
+The scope and thresholds are approved. This plan and [design](design.md)
+require independent review and a sealed executable protocol before READY;
+implementation and successor acceptance evidence remain pending. Do not
+re-open the approved thresholds.
 
-## Not yet an implementation-ready plan
+## Inputs and protected baseline
 
-Additional implementation cannot responsibly be selected before Slice 79
-finishes. This file specifies how to produce any remaining plan and the
-required consultation. It does not authorize isolation, a rusqlite fork,
-additional runtime-global settings or packaging redesign. AC-020 cannot be
-deferred.
+Consume Slice 79 closeout at `323db678`, its product candidate `a6650c81`,
+and its [result](../../../runs/0.8.25-slice-79/result.md),
+[manifest](../../../runs/0.8.25-slice-79/manifest.json) and reviews.
+Preserve runtime configuration, performance-mode MEMSTATUS=0 and statement
+reuse. Old AC-020 failed all seven runs despite medians of 174.632177 ms
+sequential and 53.616722 ms concurrent; these remain historical failures.
 
-## Required planning inputs
+All six 71B write cells passed. AC-072 met numerical limits in three runs,
+but swap activity invalidated all three as acceptance evidence. The former
+[experiment protocol](../../ac020-experiment-protocol.md) supplies historical
+provenance and applicable measurement controls, not a continuing ratio gate.
 
-Read the closed Slice 76 result, Slice 77 decision dossier and raw summaries,
-prototype diffs/SHAs, research corrections, protected AC-072/71B receipts,
-Slice 75 carry-forward inventory and same-file usage census. Verify each
-against code. A prototype performance pass is not a shipping implementation
-pass; unreviewed or missing evidence blocks READY.
+## Approved successor
 
-## Owner consultation before design approval
+Specification derived from seq-277, for the unchanged 1,600-search fixture:
 
-Present a short recommendation comparing:
+| Execution | Loud warning at or above | Hard limit, inclusive |
+| --- | ---: | ---: |
+| Sequential | 200 ms | 500 ms |
+| Eight readers, 1,600 total searches | 80 ms | 100 ms |
 
-1. Minimal statistics-enabled candidate, including individual and combined
-   effects, absolute times, uncertainty, memory retention and semantic risks.
-2. Any remaining focused experiment proposed for reserved Slices 78–79.
-3. Only if needed, private-runtime alternatives: generated adaptation versus
-   maintained fork, extension linkage, migration API compatibility, supported
-   platforms, update/security maintenance, and selective statistics policy.
+Either exceeded hard limit fails. Warnings do not fail acceptance. Compare
+full-precision durations; ratio is informational only. There is no hybrid
+formula or additional 20% regression gate. Performance mode is acceptance
+bearing; diagnostics remains descriptive.
 
-Ask for decisions on the selected scope, acceptable resource tradeoffs,
-same-process same-file support, and any isolation/API/dependency implications.
-Do not ask again whether shared-runtime MEMSTATUS disabling or AC-020 deferral
-is acceptable: both are rejected. If no justified solution is ready, keep this
-slice in planning and request a bounded additional experiment.
+## Work packages
 
-## What the completed design must contain
+1. **Contract registration.** Register an unused successor AC identifier
+   through the acceptance/ADR process. Retire AC-020 while preserving its
+   historical assertion/results. Update requirement/test/parameter mappings,
+   ADR index, test-plan wiring, current release manifests and active selectors.
+   Keep AC-072, AC-076, AC-073 and AC-015/016 unchanged.
+2. **Reader independence.** Map REQ-018 to adequate existing deterministic
+   coverage. If absent, add a focused real-database test proving another
+   reader progresses while one reader is paused. Absolute timing alone
+   cannot prove independent connections.
+3. **Oracle/reporting TDD.** Stage or commit RED tests for the design's boundary,
+   warning, missing-evidence and invalid-environment cases, then implement
+   only the necessary harness/reporting changes. Preserve fixture, query mix,
+   operation counts, result checks, mode and timing boundaries.
+4. **Bounded acceptance.** Seal exact commands, toolchain/features, source and
+   binary identities, executor/environment controls, timeout, positive counts
+   and receipt paths before timing. Execute seven fresh performance-mode
+   processes and the exact three-run AC-072 candidate campaign. No profiling,
+   tuning sweep or repeated historical baseline.
+5. **Review and handoff.** Independent design, code and evidence reviews;
+   focused changed-target checks; input-invalidation map for Slice 85.
+   Final artifacts and broad verification belong to 85, not this slice.
 
-- Numbered local requirements mapped to unchanged AC-020, host noninterference,
-  retrieval correctness, protected performance and existing SDK contracts.
-- Exact chosen code changes, rejected alternatives, connection/statement
-  ownership and cleanup, allocation lifetime and bounded cache/queue memory.
-- Current/frozen snapshot, eligibility-before-ranking/cap, error precedence,
-  cancellation, concurrent DDL/reprepare, lifecycle/erasure and projection
-  invariants. No per-fixture branches or cross-request result caching.
-- Explicit treatment of private runtime and memory controls if approved;
-  proof that all SQLite/sqlite-vec references bind as intended, and that the
-  public migration contract and same-file access are safe. A C ABI boundary
-  need not inherently preclude source builds; compare actual implementations.
-- Full RED/GREEN sequence, exact focused selectors/counts, diff-scoped static
-  checks, artifact implications and acceptance/rollback criteria.
-- Slice 85 invalidation map by source, fixture, feature, model, workflow and
-  package inputs. Changing engine code generally invalidates installed engine
-  artifacts even if SDK wrapper code is unchanged.
-- Any required ADR/interface-doc/changelog updates. Do not amend public
-  behavior through an internal implementation note alone.
+## Verification and stop policy
 
-Obtain independent design review and explicit owner approval after consultation
-before marking READY. The normal review/retry caps apply; no extra correction
-cycles are implicitly authorized.
+- Each valid successor run must satisfy both hard limits. Report every raw
+  time and warning, medians and dispersion. Do not pass a campaign by averaging
+  away a failed run or by interpreting zero/skipped measurements as success.
+- AC-072 remains 10k/384d/1,000 queries, three repetitions, p50 <=80 ms and
+  p99 <=300 ms with the retained Slice 71 environment policy. Swap activity
+  invalidates evidence. Obtain valid candidate evidence, not a new historical
+  baseline. Do not disable swap or terminate other applications without authority.
+- Keep timing isolated from builds, profilers and other performance work.
+  Permit at most one documented environment correction and one replacement
+  bounded series for the affected gate; preserve all invalid evidence.
+  Genuine performance failures are not eligible for repeat-until-pass.
+- Reuse all six Slice 79 write receipts after checking relevant input identity.
+  Only product-path changes invalidating them require rechecking the two 71B
+  10k candidate workloads under their retained protocol; no historical reruns.
+- Run diff-scoped lint/typechecks and focused unit/integration tests. Product
+  defects return to focused TDD and a bounded scope decision. No speculative
+  optimization, dependency fork, isolation, lookaside/cache tuning or new API.
+- No broad suite, CI/platform/package campaign here. Slice 85 owns one final
+  broad round; a second requires explicit owner authorization.
 
-## Implementation and focused verification
+## Completion
 
-Preserve a committed/staged RED before product fixes. Implement the selected
-minimal correction; retain or port justified prototype tests, remove diagnostic
-startup hooks from shipping paths, and verify the shipping feature set matches
-the tested one. Experiments are not merged wholesale.
+Successor contract and oracle are implemented; REQ-018 coverage is proved;
+seven successor runs and the AC-072 campaign have valid passing evidence;
+protected write receipts remain applicable; independent reviews pass.
 
-On the actual implementation candidate, run the unchanged seven-process
-AC-020 recovery series under the established protocol, focused functional and
-property tests, and affected-target check/clippy. Reuse Slice 77 performance
-only if relevant source/build identity is demonstrably identical; otherwise
-measure the actual final implementation.
+Report **AC-020 retired; successor passed**, never AC-020 recovered.
+Warning-only outcomes do not block closure. Store receipts/reviews under
+`dev/plans/runs/0.8.25-slice-80/`, with exact source/artifact/feature/fixture
+identities and positive counts. Advance release state to 85 and regenerate
+views only at actual completion. Slice 85 consumes applicable receipts and
+completes the remaining inherited coverage.
 
-Run the exact AC-072 candidate campaign and both 71B 10k candidate workloads
-if relevant code changed from the guard-tested prototype; no historical
-write-baseline reruns. Preserve the existing limits and environment rules.
-Also select direct-text/real-vector parity checks if SQL/vector semantics
-changed; small targeted correctness evidence comes before the final expensive
-real-model campaign in Slice 85.
-
-Independent implementation review and separate evidence audit must pass.
-If a correctness defect appears during verification, return to focused TDD;
-do not weaken an oracle. Isolation or a broader rewrite discovered necessary
-mid-implementation requires a new decision, potentially reserved Slices 81–84.
-
-## Completion criteria
-
-A reviewed shipping candidate meets unchanged AC-020, focused semantics,
-host compatibility, and protected read/write criteria; exact evidence and a
-complete Slice 85 invalidation/handoff manifest are durable. No broad suite
-or package/CI matrix runs in Slice 80 by default. Slice 85 remains responsible
-for final release-level validation.
-
-A legitimate no-code outcome is possible only if experiments prove the
-unchanged release candidate passes on the registered executor and reviews
-resolve the discrepancy without altering the gate. It still requires owner
-consultation, exact evidence and the Slice 85 handoff.
-
-No publishing, version cut, registry mutation, tags, push or merge to main.
+No version cut, publishing, registry mutation, tags, push or merge to main.

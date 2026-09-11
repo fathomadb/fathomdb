@@ -243,7 +243,7 @@ if [ "$CRATES_OIDC_FAILED" -eq 0 ]; then
 fi
 
 # Node's exact version is part of the release test environment: npm and native
-# N-API behavior must match the production-target Node 24.19.0, not float on a
+# N-API behavior must match the production-target Node 25.9.0, not float on a
 # runner-provided major. Every setup-node use in the two CI entry points must
 # carry that exact pin. The cross-platform release has one setup per N-API
 # build, platform publish, registry smoke, and promotion job.
@@ -258,14 +258,14 @@ EXPECTED_RELEASE_SETUP_NODE_COUNT=15
 EXPECTED_SETUP_NODE_TOTAL=20
 for workflow in "$CI_YML" "$RELEASE_YML"; do
   setup_node_count="$(grep -c 'uses: actions/setup-node@' "$workflow" || true)"
-  node_pin_count="$(grep -c 'node-version: "24.19.0"' "$workflow" || true)"
+  node_pin_count="$(grep -c 'node-version: "25.9.0"' "$workflow" || true)"
   case "$workflow" in
     "$CI_YML") expected_setup_node_count=$EXPECTED_CI_SETUP_NODE_COUNT ;;
     "$RELEASE_YML") expected_setup_node_count=$EXPECTED_RELEASE_SETUP_NODE_COUNT ;;
   esac
   setup_node_total=$((setup_node_total + setup_node_count))
   if [ "$setup_node_count" -ne "$expected_setup_node_count" ] || [ "$setup_node_count" -ne "$node_pin_count" ]; then
-    printf 'FAIL  %s must have exactly %s setup-node steps, each pinned to Node 24.19.0 (setup-node=%s, pins=%s)\n' \
+    printf 'FAIL  %s must have exactly %s setup-node steps, each pinned to Node 25.9.0 (setup-node=%s, pins=%s)\n' \
       "$workflow" "$expected_setup_node_count" "$setup_node_count" "$node_pin_count" >&2
     NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
   fi
@@ -280,26 +280,26 @@ if [ "$setup_node_total" -ne "$EXPECTED_SETUP_NODE_TOTAL" ]; then
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi
 if [ "$NODE_PIN_FAILED" -eq 0 ]; then
-  printf 'PASS  ci.yml and release.yml pin every setup-node step to Node 24.19.0\n'
+  printf 'PASS  ci.yml and release.yml pin every setup-node step to Node 25.9.0\n'
 fi
 pinned_node_version=""
 if [ -f "$NODE_VERSION_FILE" ]; then
   pinned_node_version="$(tr -d '\r\n' < "$NODE_VERSION_FILE")"
 fi
-if [ "$pinned_node_version" != "24.19.0" ]; then
-  printf 'FAIL  .nvmrc must pin local Node to 24.19.0\n' >&2
+if [ "$pinned_node_version" != "25.9.0" ]; then
+  printf 'FAIL  .nvmrc must pin local Node to 25.9.0\n' >&2
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi
-if ! grep -Fqx 'Built and tested primarily on Node.js 24.19.0; Node.js 25.9.0 is also verified.' "$TS_README"; then
-  printf 'FAIL  TypeScript README must state the primary Node 24 and secondary Node 25 versions\n' >&2
+if ! grep -Fq 'Built and tested on Node.js 25.9.0.' "$TS_README" || grep -Fq '24.19.0' "$TS_README"; then
+  printf 'FAIL  TypeScript README must state the sole Node 25.9.0 target\n' >&2
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi
-if ! grep -Fqx -- '- Node **24.x or 25.x** (release CI uses Node 24.19.0; Node 25.9.0 is also verified).' "$TS_INSTALL_DOC"; then
-  printf 'FAIL  TypeScript install doc must declare Node 24/25 and name Node 24 as primary\n' >&2
+if ! grep -Fqx -- '- Node **25.x** (release CI uses Node 25.9.0).' "$TS_INSTALL_DOC" || grep -Fq '24.19.0' "$TS_INSTALL_DOC"; then
+  printf 'FAIL  TypeScript install doc must declare the sole Node 25 target\n' >&2
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi
 if [ "$NODE_PIN_FAILED" -eq 0 ]; then
-  printf 'PASS  local Node pin and TypeScript docs make Node 24 primary and retain Node 25 coverage\n'
+  printf 'PASS  local Node pin and TypeScript docs declare the sole Node 25 target\n'
 fi
 
 # Prove the step-order assertion is non-vacuous. This deliberately moves T1's

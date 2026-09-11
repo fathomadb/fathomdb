@@ -7,6 +7,8 @@ runner="$root/scripts/perf-experiments/run-slice71-ac013-cell.sh"
 
 grep -F 'snapshot_subshell_pid=$BASHPID' "$runner" >/dev/null
 grep -F '$$,$PPID,$grandparent,$great_grandparent,$snapshot_subshell_pid' "$runner" >/dev/null
+grep -F 'SLICE80_EXPECTED_SOURCE_SHA' "$runner" >/dev/null
+grep -F 'SLICE80_AC072_IDENTITY source_sha=%s collector_sha256=%s scanner_sha256=%s' "$runner" >/dev/null
 
 rows=$'13 bash bash scripts/perf-experiments/run-slice71-ac013-cell.sh . /tmp/current.log\n14 bash bash scripts/perf-experiments/run-slice71-ac013-cell.sh . /tmp/other.log\n'
 found=$(printf '%s' "$rows" | PYTHONDONTWRITEBYTECODE=1 \

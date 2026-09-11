@@ -38,9 +38,12 @@ snapshot() {
   fi
   grandparent=$(ps -o ppid= -p "$PPID" | tr -d ' ')
   great_grandparent=$(ps -o ppid= -p "$grandparent" | tr -d ' ')
-  competing=$(ps -eo pid=,comm=,args= | PYTHONDONTWRITEBYTECODE=1 \
-    python3 "$runner_root/dev/tools/slice80_read_acceptance.py" scan-processes \
-      --exclude-pids "$$,$PPID,$grandparent,$great_grandparent")
+  competing=$(
+    snapshot_subshell_pid=$BASHPID
+    ps -eo pid=,comm=,args= | PYTHONDONTWRITEBYTECODE=1 \
+      python3 "$runner_root/dev/tools/slice80_read_acceptance.py" scan-processes \
+        --exclude-pids "$$,$PPID,$grandparent,$great_grandparent,$snapshot_subshell_pid"
+  )
   python3 - "$phase" "$load" "$mem" "$swap_in" "$swap_out" "$temp" "$competing" "$sqlite_version" "$libsqlite3_sys" <<'PY'
 import json
 import sys

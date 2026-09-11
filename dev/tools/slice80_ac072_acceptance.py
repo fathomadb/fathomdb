@@ -151,11 +151,17 @@ def parse_cell_text(text: str, label: str, purpose: str) -> dict[str, Any]:
         re.search(r"test result: FAILED\. 0 passed; 1 failed;", text)
     )
     qualification = qualify_environment(environments[0], environments[1])
-    numeric_pass = int(numbers["p50"]) <= 80 and int(numbers["p99"]) <= 300
-    if (numeric_pass and (exits != ["0"] or not passed)) or (
-        not numeric_pass and (exits != ["101"] or not failed)
-    ):
-        raise ValueError("strict Rust exit disagrees with the numeric oracle")
+    printed_within_budget = int(numbers["p50"]) <= 80 and int(numbers["p99"]) <= 300
+    if exits == ["0"] and passed:
+        if not printed_within_budget:
+            raise ValueError("successful strict Rust exit disagrees with printed timings")
+        numeric_pass = True
+    elif exits == ["101"] and failed:
+        # The Rust gate compares full Duration values while its marker truncates
+        # to milliseconds. A displayed 80/300 can therefore be a true failure.
+        numeric_pass = False
+    else:
+        raise ValueError("strict Rust exit disagrees with the test result")
     return {
         **identity,
         "label": label,
@@ -163,6 +169,7 @@ def parse_cell_text(text: str, label: str, purpose: str) -> dict[str, Any]:
         "sample_count": len(samples),
         "p50_ms": int(numbers["p50"]),
         "p99_ms": int(numbers["p99"]),
+        "printed_within_budget": printed_within_budget,
         "numeric_pass": numeric_pass,
         "environment_applicable": qualification["applicable"],
         "environment_reasons": qualification["reasons"],

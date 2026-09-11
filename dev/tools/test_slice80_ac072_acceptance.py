@@ -78,6 +78,21 @@ class Slice80Ac072AcceptanceTests(unittest.TestCase):
         self.assertTrue(cell["environment_applicable"])
         self.assertEqual(subject.cell_status(cell), "FAIL")
 
+    def test_full_precision_boundary_failure_is_not_misread_from_truncated_milliseconds(self):
+        samples = ",".join(["80000"] * 989 + ["300000"] * 11)
+        failed = log(samples=samples).replace("p50_ms=70 p99_ms=70", "p50_ms=80 p99_ms=300")
+        failed = failed.replace("... ok", "... FAILED").replace(
+            "test result: ok. 1 passed; 0 failed", "test result: FAILED. 0 passed; 1 failed"
+        ).replace("SLICE80_AC072_TEST_EXIT status=0", "SLICE80_AC072_TEST_EXIT status=101")
+        for text, expected_environment in (
+            (failed, True),
+            (failed.replace('"pswpout": 20', '"pswpout": 21', 1), False),
+        ):
+            cell = subject.parse_cell_text(text, "R1", "acceptance")
+            self.assertFalse(cell["numeric_pass"])
+            self.assertEqual(cell["environment_applicable"], expected_environment)
+            self.assertEqual(subject.cell_status(cell), "FAIL" if expected_environment else "ENVIRONMENT_INVALID")
+
     def test_numeric_and_environment_verdicts_remain_distinct(self):
         invalid = log().replace('"pswpin": 10', '"pswpin": 11', 1)
         cell = subject.parse_cell_text(invalid, "R1", "acceptance")

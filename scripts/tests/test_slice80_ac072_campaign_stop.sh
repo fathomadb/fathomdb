@@ -25,6 +25,13 @@ validator_sha=$(sha256sum "$temp_dir/validator" | awk '{print $1}')
 dispatcher_sha=$(sha256sum "$campaign" | awk '{print $1}')
 if DISPATCH_MARKER="$temp_dir/labels" SLICE80_AC072_RUNNER="$temp_dir/runner" \
   SLICE80_AC072_VALIDATOR="$temp_dir/validator" "$campaign" "$root" /bin/true \
+  "$temp_dir/rejected" source binary input wrong "$scanner_sha" "$validator_sha" "$dispatcher_sha"; then
+  echo "dispatcher must reject a mismatched sealed runner before output creation" >&2
+  exit 1
+fi
+test ! -e "$temp_dir/rejected"
+if DISPATCH_MARKER="$temp_dir/labels" SLICE80_AC072_RUNNER="$temp_dir/runner" \
+  SLICE80_AC072_VALIDATOR="$temp_dir/validator" "$campaign" "$root" /bin/true \
   "$temp_dir/campaign" source binary input "$runner_sha" "$scanner_sha" "$validator_sha" "$dispatcher_sha"; then
   echo "dispatcher must fail after an invalid first cell" >&2
   exit 1

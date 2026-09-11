@@ -3,7 +3,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{Engine, PreparedWrite};
+use fathomdb_engine::{configure_runtime, Engine, PreparedWrite, RuntimeSqliteMode};
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
@@ -1158,10 +1158,13 @@ fn ac_019_mixed_retrieval_stress_workload_tail() {
     );
 }
 
-#[test]
-fn ac_020_reads_do_not_serialize_on_a_single_reader_connection() {
+fn run_ac020_gate(sqlite_mode: Option<RuntimeSqliteMode>) {
     if !long_run_enabled() {
         return;
+    }
+
+    if let Some(mode) = sqlite_mode {
+        configure_runtime(mode).expect("configure SQLite runtime before open");
     }
 
     let (_dir, path) = fixture_path("ac020_read_mix");
@@ -1204,6 +1207,16 @@ fn ac_020_reads_do_not_serialize_on_a_single_reader_connection() {
         concurrent <= bound,
         "AC-020 failed: concurrent={concurrent:?} bound={bound:?} sequential={sequential:?}"
     );
+}
+
+#[test]
+fn ac_020_reads_do_not_serialize_on_a_single_reader_connection() {
+    run_ac020_gate(None);
+}
+
+#[test]
+fn ac_020_reads_do_not_serialize_on_a_single_reader_connection_diagnostics() {
+    run_ac020_gate(Some(RuntimeSqliteMode::Diagnostics));
 }
 
 #[test]

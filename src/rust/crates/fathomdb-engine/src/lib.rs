@@ -30594,13 +30594,14 @@ mod slice20_fix1_tests;
 mod tests {
     use super::{
         derive_stable_id, legacy_revision_id, native_connection_state_for_test,
-        resolve_source_type, retain_complete_rank_boundary_candidates, DeviceResolution,
-        EmbedderChoice, Engine, EngineError, EngineOpenError, IdSpace, IdSpaceKind, InitialState,
-        LoaderInfo, ManagedConnectionRegistry, NativeTransactionState, PreparedWrite,
-        ProjectionRuntime, ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole,
-        ReaderRequest, RuntimeProbeConnection, SearchHit, SoftFallbackBranch, SourceId,
-        WalAttributionCollector, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
-        KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+        prepare_search_statement, resolve_source_type, retain_complete_rank_boundary_candidates,
+        DeviceResolution, EmbedderChoice, Engine, EngineError, EngineOpenError, IdSpace,
+        IdSpaceKind, InitialState, LoaderInfo, ManagedConnectionRegistry, NativeTransactionState,
+        PreparedWrite, ProjectionRuntime, ProjectionRuntimeStartupFaultForTest,
+        ProjectionRuntimeStartupRole, ReaderRequest, RuntimeProbeConnection, SearchHit,
+        SoftFallbackBranch, SourceId, WalAttributionCollector, WalAttributionRole,
+        ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS,
+        READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
@@ -30617,6 +30618,108 @@ mod tests {
     use std::thread;
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
+
+    #[test]
+    fn statement_reuse_refreshes_alternating_bindings() {
+        let connection = Connection::open_in_memory().expect("open");
+        connection
+            .execute_batch(
+                "CREATE TABLE values_by_id(id INTEGER PRIMARY KEY, value TEXT);\
+                 INSERT INTO values_by_id VALUES(1, 'one'), (2, 'two');",
+            )
+            .expect("seed");
+        let mut reuse = Vec::new();
+        for (id, expected) in [(1_i64, "one"), (2, "two"), (1, "one")] {
+            let mut statement =
+                prepare_search_statement(&connection, "SELECT value FROM values_by_id WHERE id=?1")
+                    .expect("prepare");
+            reuse.push(statement.was_reused());
+            let actual: String = statement.query_row([id], |row| row.get(0)).expect("query");
+            assert_eq!(actual, expected);
+        }
+        assert_eq!(reuse, [false, true, true]);
+    }
+
+    #[test]
+    fn statement_reuse_releases_rows_and_recovers_after_error() {
+        let mut connection = Connection::open_in_memory().expect("open");
+        connection
+            .execute_batch("CREATE TABLE item(value INTEGER); INSERT INTO item VALUES(7)")
+            .expect("seed");
+        let transaction = connection.transaction().expect("transaction");
+        {
+            let mut statement =
+                prepare_search_statement(&transaction, "SELECT value FROM item WHERE value=?1")
+                    .expect("prepare");
+            assert!(statement.query_row([9_i64], |row| row.get::<_, i64>(0)).is_err());
+        }
+        {
+            let mut statement =
+                prepare_search_statement(&transaction, "SELECT value FROM item WHERE value=?1")
+                    .expect("reprepare");
+            assert!(statement.was_reused());
+            assert_eq!(statement.query_row([7_i64], |row| row.get::<_, i64>(0)).unwrap(), 7);
+        }
+        transaction.commit().expect("commit after statement release");
+    }
+
+    #[test]
+    fn statement_reuse_reprepares_after_schema_change() {
+        let connection = Connection::open_in_memory().expect("open");
+        connection
+            .execute_batch(
+                "CREATE TABLE item(id INTEGER PRIMARY KEY, value TEXT);\
+                 INSERT INTO item VALUES(1, 'before');",
+            )
+            .expect("seed");
+        {
+            let mut statement =
+                prepare_search_statement(&connection, "SELECT value FROM item WHERE id=?1")
+                    .expect("prepare");
+            assert_eq!(
+                statement.query_row([1_i64], |row| row.get::<_, String>(0)).unwrap(),
+                "before"
+            );
+        }
+        connection.execute_batch("ALTER TABLE item ADD COLUMN extra TEXT").expect("alter");
+        let mut statement =
+            prepare_search_statement(&connection, "SELECT value FROM item WHERE id=?1")
+                .expect("cached prepare");
+        assert!(statement.was_reused());
+        assert_eq!(statement.query_row([1_i64], |row| row.get::<_, String>(0)).unwrap(), "before");
+        assert!(statement.reprepare_count() >= 1, "SQLite must reprepare after schema change");
+    }
+
+    #[test]
+    fn statement_reuse_recovers_after_concurrent_schema_change() {
+        let dir = TempDir::new().expect("tempdir");
+        let path = dir.path().join("statement-cache.sqlite");
+        let reader = Connection::open(&path).expect("reader");
+        reader.execute_batch("PRAGMA journal_mode=WAL; CREATE TABLE item(id INTEGER PRIMARY KEY, value TEXT); INSERT INTO item VALUES(1, 'before');").expect("seed");
+        {
+            let mut statement =
+                prepare_search_statement(&reader, "SELECT value FROM item WHERE id=?1")
+                    .expect("prepare");
+            assert_eq!(
+                statement.query_row([1_i64], |row| row.get::<_, String>(0)).unwrap(),
+                "before"
+            );
+        }
+        let writer_path = path.clone();
+        thread::spawn(move || {
+            Connection::open(writer_path)
+                .expect("writer")
+                .execute_batch("ALTER TABLE item ADD COLUMN extra TEXT")
+                .expect("alter");
+        })
+        .join()
+        .expect("ddl thread");
+        let mut statement = prepare_search_statement(&reader, "SELECT value FROM item WHERE id=?1")
+            .expect("cached prepare");
+        assert!(statement.was_reused());
+        assert_eq!(statement.query_row([1_i64], |row| row.get::<_, String>(0)).unwrap(), "before");
+        assert!(statement.reprepare_count() >= 1);
+    }
 
     #[test]
     fn reader_request_envelope_stays_bounded_as_search_capabilities_grow() {

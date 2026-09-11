@@ -43,7 +43,15 @@ These changes are applied above; the independent reviewer must refresh the
 verdict before execution proceeds.
 
 The refresh found one remaining executor mismatch: legacy runtime-floor
-commands named aliases absent from `PATH`. Node 18.20.8 was installed through
-the existing nvm setup, and the matrix now seals absolute paths for uv CPython
-3.10.20/3.11.15, system Python 3.12, nvm Node 18.20.8 and current Node 25.9.0.
-The reviewer verified those bindings and returned **PASS**.
+commands named aliases absent from `PATH`. The matrix now seals absolute paths
+for uv CPython 3.10.20/3.11.15, system Python 3.12 and current Node 25.9.0. The
+reviewer verified those bindings and returned **PASS**.
+
+The release owner subsequently narrowed the public Node contract to Node 25
+only, matching the runtime used throughout earlier 0.8.25 development and
+testing. Other Node release lines are explicitly deferred. The package engine
+range, public docs, local/CI/release pins, N-API build contract and runtime-floor
+matrix are aligned. The independent review then found two registered broad-gate
+tests that still asserted the superseded target. Both were corrected under
+RED/GREEN, their focused guards passed, and the reviewer returned **PASS** with
+no remaining material design blockers.

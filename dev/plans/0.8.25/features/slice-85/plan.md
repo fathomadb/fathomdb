@@ -37,10 +37,11 @@ baseline is `56e6d7fd`. The intervening work changes this slice as follows:
    as `GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b`; the Slice 72 baseline was
    recorded on this same host/device and CPU affinity. Existing uv-managed
    CPython 3.10 and 3.11 interpreters plus system CPython 3.12 provide the
-   local runtime-floor executor. Node 18.20.8 is installed under the existing
-   nvm tree. The matrix binds absolute interpreter paths, so it does not depend
-   on unresolved `python3.10` or `node18` aliases. GPU checks must run with
-   device access rather than treating a sandboxed driver failure as absence.
+   local runtime-floor executor. Node 25.9.0 is the sole Node target for this
+   release because it is the runtime used throughout earlier 0.8.25 development
+   and testing. Compatibility with other Node release lines is deferred. The
+   matrix binds absolute interpreter paths. GPU checks must run with device
+   access rather than treating a sandboxed driver failure as absence.
 
 This reconciliation approves the draft direction with the adjustments below.
 It rejects rebuilding the Slice 75 framework, rerunning the 76/77 experiments,
@@ -161,7 +162,7 @@ rewrite old result files to look like the final candidate.
    and intended statistics/heap-limit behavior. Reuse Slice 79 proofs where
    applicable and exercise final installed bindings in fresh processes.
 6. Installed Linux x64 wheel/N-API/CLI candidate artifacts, Python 3.10/3.11/
-   3.12 and Node 18/release-current runtime reuse, no editable/source fallback,
+   3.12 and Node 25 runtime reuse, no editable/source fallback,
    cross-SDK frozen/dependency/lifecycle workflows and packaged GLOBAL-01
    native-search witness without answer-quality claims or model spend.
 7. Exact-candidate native validation on Linux x64/ARM64, macOS x64/ARM64,

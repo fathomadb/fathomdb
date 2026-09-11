@@ -26,7 +26,8 @@ resolved automatically on a matching host. You install `fathomdb` and nothing el
 versioned release targets Linux x64 and Linux AArch64 glibc; macOS, Windows, and Linux musl remain
 without an installable native package.
 
-Built and tested on Node.js 25.9.0.
+Built and tested on Node.js 25.9.0. Other Node release lines are not part of
+the 0.8.25 compatibility contract.
 
 ## Quick start
 

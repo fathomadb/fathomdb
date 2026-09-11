@@ -86,7 +86,9 @@ Jetson workflow owns Tegra. Local unconfined preflight binds the Slice 72 CE
 rerun to the same `windchill3` host, CPU 0 affinity and registered RTX 3090 UUID
 used by the historical baseline, preserving timing comparability. Runtime
 floors bind to the explicit installed uv CPython 3.10/3.11 paths, system
-CPython 3.12, and nvm Node 18.20.8 path. The historical manifest's command
+CPython 3.12, and nvm Node 25.9.0 path. Node 25 is the sole 0.8.25 target because
+it is the runtime used by earlier development and testing; compatibility with
+other Node release lines is deferred. The historical manifest's command
 arrays and timeouts are adopted byte-for-byte except for the command arrays,
 feature sets, timeouts and positive counts in the execution matrix's
 sealed-routes table. There is no unresolved command, feature-set or executor

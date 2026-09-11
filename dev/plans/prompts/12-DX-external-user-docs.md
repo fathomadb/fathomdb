@@ -116,7 +116,7 @@ Three pages under `docs/install/`:
   (`pip install -e src/python/` from `0.6.0-rewrite` branch); verify
   with hello-world snippet; troubleshooting (e.g. sqlite-vec missing).
 - `docs/install/typescript.md` — TS install. Sections: requirements
-  (Node 18+; platform-tagged napi .node binary auto-selected);
+  (Node 25.x; platform-tagged napi .node binary auto-selected);
   `npm install fathomdb@0.6.0` (post-GA); current pre-GA build-from-
   source (`cd src/ts && npm install && npm run build`); verify with
   hello-world snippet; TS-not-yet-Python-parity caveat link.

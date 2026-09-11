@@ -87,6 +87,44 @@ if venv not in package.parents or venv not in native.parents:
     )
 print(f"slice75-native-python-paths: package={package} native={native} source_fallback=false")
 PY
+"$PYTHON" - "$WORK/python-runtime-performance.fathom" <<'PY'
+import sys
+
+from fathomdb import Engine, admin
+
+configured = admin.configure_runtime(sqlite_mode="performance")
+assert configured.sqlite_mode == "performance"
+Engine.open(sys.argv[1], use_default_embedder=False).close()
+print("slice85-runtime-python-performance: pass")
+PY
+"$PYTHON" - <<'PY'
+from fathomdb import admin
+from fathomdb.errors import RuntimeConfigurationError
+
+admin.configure_runtime(sqlite_mode="diagnostics")
+admin.configure_runtime(sqlite_mode="diagnostics")
+try:
+    admin.configure_runtime(sqlite_mode="performance")
+except RuntimeConfigurationError as error:
+    assert error.reason == "conflict"
+    assert error.requested_mode == "performance"
+    assert error.effective_mode == "diagnostics"
+else:
+    raise AssertionError("expected a typed runtime configuration conflict")
+print("slice85-runtime-python-conflict: pass")
+PY
+"$PYTHON" - <<'PY'
+from fathomdb import admin
+
+try:
+    admin.configure_runtime(sqlite_mode="fast")
+except ValueError:
+    pass
+else:
+    raise AssertionError("expected an invalid-mode ValueError")
+assert admin.configure_runtime(sqlite_mode="performance").sqlite_mode == "performance"
+print("slice85-runtime-python-invalid: pass")
+PY
 "$PYTHON" - "$REPO_ROOT/tests/fixtures/slice45_frozen_context_v3.json" \
   "$WORK/python-frozen-fixture.sqlite" "$WORK/python-frozen-token.txt" <<'PY'
 import json
@@ -279,6 +317,44 @@ EOF
 (
   cd "$CONSUMER"
   npm install --offline --ignore-scripts
+  "$NODE_CMD" --input-type=module - "$WORK/node-runtime-performance.fathom" <<'JS'
+import { Engine, admin } from "fathomdb";
+
+const configured = admin.configureRuntime({ sqliteMode: "performance" });
+if (configured.sqliteMode !== "performance") throw new Error("wrong runtime mode");
+const engine = await Engine.open(process.argv[2], { useDefaultEmbedder: false });
+await engine.close();
+console.log("slice85-runtime-node-performance: pass");
+JS
+  "$NODE_CMD" --input-type=module <<'JS'
+import { RuntimeConfigurationError, admin } from "fathomdb";
+
+admin.configureRuntime({ sqliteMode: "diagnostics" });
+admin.configureRuntime({ sqliteMode: "diagnostics" });
+try {
+  admin.configureRuntime({ sqliteMode: "performance" });
+  throw new Error("expected a typed runtime configuration conflict");
+} catch (error) {
+  if (!(error instanceof RuntimeConfigurationError)) throw error;
+  if (error.reason !== "conflict" || error.requestedMode !== "performance" ||
+      error.effectiveMode !== "diagnostics") throw error;
+}
+console.log("slice85-runtime-node-conflict: pass");
+JS
+  "$NODE_CMD" --input-type=module <<'JS'
+import { admin } from "fathomdb";
+
+try {
+  admin.configureRuntime({ sqliteMode: "fast" });
+  throw new Error("expected an invalid-mode RangeError");
+} catch (error) {
+  if (!(error instanceof RangeError)) throw error;
+}
+if (admin.configureRuntime({ sqliteMode: "performance" }).sqliteMode !== "performance") {
+  throw new Error("invalid mode mutated the runtime");
+}
+console.log("slice85-runtime-node-invalid: pass");
+JS
   "$NODE_CMD" --input-type=module - "$REPO_ROOT/tests/fixtures/slice45_frozen_context_v3.json" \
     "$WORK/python-frozen-fixture.sqlite" "$WORK/python-frozen-token.txt" <<'JS'
 import { readFileSync } from "node:fs";
@@ -395,6 +471,7 @@ await engine.close();
 console.log("local N-API package runtime validation: ok");
 JS
 )
+printf 'slice85-runtime-configuration-result: python=3 node=3 skipped=0\n'
 
 resolved_main="$(cd "$CONSUMER" && "$NODE_CMD" -e 'process.stdout.write(require.resolve(process.argv[1]))' fathomdb)"
 resolved_native="$(cd "$CONSUMER" && "$NODE_CMD" -e 'process.stdout.write(require.resolve(process.argv[1]))' "$platform_name")"

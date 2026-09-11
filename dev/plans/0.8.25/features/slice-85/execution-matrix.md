@@ -11,9 +11,10 @@ is `dev/plans/runs/0.8.25-slice-85/`. Current package version is `0.8.24`.
 Local preflight found Rust/Cargo 1.95, Python 3.12, Node 25.9, npm 11.19,
 actionlint, lychee, MkDocs, maturin, gh and virsh. Unconfined preflight on local
 host `windchill3` finds the exact registered RTX 3090 UUID, uv-managed CPython
-3.10.20/3.11.15, system Python 3.12 and nvm Node 18.20.8. The matrix uses their
-absolute paths. This is the same host/device/CPU-affinity envelope as the
-retained Slice 72 baseline.
+3.10.20/3.11.15, system Python 3.12 and nvm Node 25.9.0. The matrix uses their
+absolute paths. Node 25 is the sole Node target used throughout the 0.8.25
+development and test cycle. This is the same host/device/CPU-affinity envelope
+as the retained Slice 72 baseline.
 
 For each row, record actual
 receipt reuse or execution result. Reuse requires relevant-input applicability;
@@ -61,7 +62,7 @@ or replaced routes:
 | Runtime Python source | `python -m pytest src/python/tests/test_slice79_runtime_configuration.py -q`; omit this focused route when the broad-round log already proves the same selector/count | 300 s; 3 passed |
 | Runtime TypeScript source | `npm run build:debug --prefix src/ts` then `src/ts/node_modules/.bin/tsc -p src/ts/tsconfig.json` then `node --test src/ts/dist/tests/slice79-runtime-configuration.test.js`; omit this focused route when the broad-round log already proves the same selector/count | 900 s; 3 passed |
 | Runtime installed SDKs | `bash scripts/release/smoke/smoke-local-native-artifacts.sh $RUN_DIR/artifacts/python src/ts src/ts/npm/linux-x64-gnu linux-x64-gnu scripts/release/smoke/slice73-windows-napi-modules.json` after its Slice 85 runtime-smoke addition | 7,200 s shared artifact smoke; three Python and three Node child-process cases plus retained positive markers/tests |
-| Runtime floors | Run the legacy helper three times, replacing its unresolved executable aliases only: 3.10 uses `FATHOMDB_SMOKE_PYTHON=/home/coreyt/.local/share/uv/python/cpython-3.10.20-linux-x86_64-gnu/bin/python3.10` and `FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v18.20.8/bin/node`; 3.11 uses `/home/coreyt/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/bin/python3.11` and current `/home/coreyt/.nvm/versions/node/v25.9.0/bin/node`; 3.12 uses `/usr/bin/python3.12` and that same Node 25 path. Preserve `FATHOMDB_SMOKE_LIGHTWEIGHT=1` and every remaining legacy argument. | 7,200 s total; each interpreter reports wheel/native paths, three Python plus three Node runtime cases, and final success with no source fallback or skips |
+| Runtime floors | Preserve the helper/artifact-reuse protocol while resolving its aliases: run Python 3.10 with `FATHOMDB_SMOKE_PYTHON=/home/coreyt/.local/share/uv/python/cpython-3.10.20-linux-x86_64-gnu/bin/python3.10`, 3.11 with `/home/coreyt/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/bin/python3.11`, and 3.12 with `/usr/bin/python3.12`; every invocation uses `FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v25.9.0/bin/node`. Preserve `FATHOMDB_SMOKE_LIGHTWEIGHT=1` and every remaining legacy argument. | 7,200 s total; Python 3.10/3.11/3.12 and Node 25 consume the same artifact bytes, each invocation reports three Python plus three Node runtime cases, and all finish without source fallback or skips |
 | AC-076 | Command below | 3,600 s; one test, 1,000 queries, p50 <=20 ms, p99 <=150 ms |
 | AC-081/AC-072 | `slice80/current-evidence.md` and exact input SHA-256 below | Reuse seven AC-081 passes, AC-081c, and C1–C5 AC-072 passes |
 | Protected writes | `slice-79/execution-manifest.json#/protected/write`, using its one offline locked release probe build and exactly three `scale02` plus three `ac013` candidate cells under `$RUN_DIR/write/{scale02,ac013}-production-{1,2,3}` | 1,800 s build; 900 s/cell; Scale-02 ack <=1543.539 ms and total <=1548.545 ms, AC-013 total <=1442.198 ms, each gated spread <=25% |

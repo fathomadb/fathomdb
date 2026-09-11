@@ -2,6 +2,9 @@
   "name": "fathomdb",
   "version": "0.8.24",
   "packageManager": "npm@11.12.1",
+  "engines": {
+    "node": ">=25 <26"
+  },
   "description": "TypeScript SDK for FathomDB — napi-rs binding to fathomdb-engine",
   "license": "MIT",
   "repository": {

@@ -17,7 +17,7 @@ platform-tagged `.node` binary at load time.
 
 ## Requirements
 
-- Node **18** or later (release.yml runs CI on Node 25.9.0).
+- Node **25.x** (release CI uses Node 25.9.0).
 - The published `0.8.23` npm package supports Linux
   `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`. Other hosts
   must build from source.

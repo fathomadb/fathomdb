@@ -17,8 +17,9 @@ targets those three interpreters explicitly.
 
 ## Supported Node versions
 
-Node **18** or later. CI and the release build use the exact Node **25.9.0**
-toolchain (which bundles npm **11.12.1**).
+Node **25.x**. CI, development, and the release build use exact Node **25.9.0**.
+The package declares `engines.node = ">=25 <26"`. Compatibility with other
+Node release lines is not part of the 0.8.25 contract.
 
 ## Supported Rust toolchain
 

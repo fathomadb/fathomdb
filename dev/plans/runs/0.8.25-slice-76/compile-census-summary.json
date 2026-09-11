@@ -1,0 +1,24 @@
+{
+  "artifact_sha256": "32d3ca65cff364e4dcb70bca2015b8571006814d0844d1ed129df18d2592e0a1",
+  "automatic_reprepare_total": 0,
+  "binary_sha256": "7096d2df1489ebaa3a321fc9517297bc4e533e0f0a9820ae8273313e38e45851",
+  "configuration": "C3-diagnostic",
+  "count_scope": "compilation observed during instrumented prepare calls; automatic step-time reprepare is recorded separately",
+  "distinct_compiled_sql_per_worker": 10,
+  "expected_workers": 8,
+  "observed_workers": 8,
+  "retained_statement_memory_bytes_per_worker": 57976,
+  "retained_statement_memory_bytes_total": 463808,
+  "source_sha": "b432d24d128d01f88a37b41b0e9de4ff6a52d790",
+  "total_compilations": 80,
+  "worker_compilations": {
+    "0": 10,
+    "1": 10,
+    "2": 10,
+    "3": 10,
+    "4": 10,
+    "5": 10,
+    "6": 10,
+    "7": 10
+  }
+}

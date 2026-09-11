@@ -1,0 +1,22 @@
+warning: unused variable: `was_reused`
+     --> src/rust/crates/fathomdb-engine/src/lib.rs:18186:13
+      |
+18186 |         let was_reused = statement.get_status(StatementStatus::Run) > 0;
+      |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_was_reused`
+      |
+      = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `fathomdb-engine` (lib) generated 1 warning (run `cargo fix --lib -p fathomdb-engine` to apply 1 suggestion)
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.58s
+     Running tests/slice35_frozen_read.rs (target/debug/deps/slice35_frozen_read-6557f8a9282eb2d2)
+
+running 5 tests
+test frozen_context_bounds_attributes_but_legacy_duplicate_conjunctions_remain_valid ... ok
+test frozen_context_rejects_tamper_database_mismatch_context_change_and_state_drift ... ok
+test frozen_context_survives_restart_and_binds_eligibility_without_leaking_it_in_token ... ok
+test frozen_expansion_applies_eligibility_before_the_graph_cap ... ok
+test frozen_search_expand_uses_the_bound_context_and_rejects_drift ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+

@@ -1,0 +1,21 @@
+warning: unused variable: `was_reused`
+     --> src/rust/crates/fathomdb-engine/src/lib.rs:18186:13
+      |
+18186 |         let was_reused = statement.get_status(StatementStatus::Run) > 0;
+      |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_was_reused`
+      |
+      = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `fathomdb-engine` (lib) generated 1 warning (run `cargo fix --lib -p fathomdb-engine` to apply 1 suggestion)
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.59s
+     Running tests/slice75_feature_interactions.rs (target/debug/deps/slice75_feature_interactions-6000d903ad1970e4)
+
+running 4 tests
+test batch_write_coalesces_visibility_while_custom_triggers_and_projection_rows_remain_per_row ... ok
+test concurrent_writes_projection_and_search_never_duplicate_or_expose_deleted_rows ... ok
+test deferred_hybrid_search_matches_full_sort_and_frozen_eligibility_hides_inactive_rows ... ok
+test source_erasure_removes_dependency_and_search_state_before_safe_recreation_and_reopen ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+

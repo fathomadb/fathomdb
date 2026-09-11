@@ -1,0 +1,24 @@
+   Compiling fathomdb-engine v0.8.24 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/src/rust/crates/fathomdb-engine)
+warning: unused variable: `was_reused`
+     --> src/rust/crates/fathomdb-engine/src/lib.rs:18186:13
+      |
+18186 |         let was_reused = statement.get_status(StatementStatus::Run) > 0;
+      |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_was_reused`
+      |
+      = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `fathomdb-engine` (lib) generated 1 warning (run `cargo fix --lib -p fathomdb-engine` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.17s
+     Running tests/reader_pool.rs (target/debug/deps/reader_pool-46043f82f94638e3)
+
+running 6 tests
+test concurrent_searches_route_to_workers_without_loss_or_duplication ... ok
+test reader_pool_spawns_eight_worker_threads_at_open ... ok
+test reader_workers_consume_lookaside_slots_after_warmup_read ... LOOKASIDE_USED_HIWTR_PER_WORKER=[128, 128, 128, 128, 128, 128, 128, 128]
+ok
+test reader_workers_exit_on_close_and_drop_connections ... ok
+test reader_workers_exit_on_drop_without_explicit_close ... ok
+test reader_workers_have_lookaside_configured_with_ok_rc ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+

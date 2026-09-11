@@ -1,0 +1,365 @@
+Total: 90 samples
+       9  10.0%  10.0%        9  10.0% __GI___lll_lock_wake
+       8   8.9%  18.9%        8   8.9% futex_wait
+       4   4.4%  23.3%        5   5.6% _int_free
+       4   4.4%  27.8%       32  35.6% sqlite3VdbeExec
+       3   3.3%  31.1%       12  13.3% lll_mutex_unlock_optimized
+       3   3.3%  34.4%       34  37.8% yy_reduce.isra.0
+       2   2.2%  36.7%        2   2.2% __memcpy_avx_unaligned_erms
+       2   2.2%  38.9%        2   2.2% sqlite3GetToken
+       2   2.2%  41.1%        3   3.3% sqlite3WhereEnd
+       2   2.2%  43.3%        5   5.6% wherePathSolver.isra.0
+       2   2.2%  45.6%        3   3.3% whereScanNext
+       1   1.1%  46.7%        1   1.1% 0x00007aa009266e81
+       1   1.1%  47.8%        1   1.1% 0x00007aa009266e96
+       1   1.1%  48.9%        1   1.1% ::branch (inline)
+       1   1.1%  50.0%        1   1.1% ::estimated_capacity (inline)
+       1   1.1%  51.1%        2   2.2% ::notify
+       1   1.1%  52.2%        6   6.7% __GI___libc_free
+       1   1.1%  53.3%        1   1.1% ___pthread_mutex_lock
+       1   1.1%  54.4%        1   1.1% __libc_calloc@@GLIBC_2.2.5
+       1   1.1%  55.6%        1   1.1% __memset_avx2_unaligned_erms
+       1   1.1%  56.7%        1   1.1% __rustc::__rust_dealloc
+       1   1.1%  57.8%        1   1.1% _int_free_merge_chunk
+       1   1.1%  58.9%        1   1.1% _int_malloc
+       1   1.1%  60.0%        1   1.1% alloc::vec::Vec::len (inline)
+       1   1.1%  61.1%       82  91.1% fathomdb_engine::read_search_in_tx
+       1   1.1%  62.2%        1   1.1% fts5PorterTokenize
+       1   1.1%  63.3%        1   1.1% keywordCode.constprop.0
+       1   1.1%  64.4%        9  10.0% lll_mutex_lock_optimized
+       1   1.1%  65.6%        2   2.2% mallocWithAlarm
+       1   1.1%  66.7%        1   1.1% matchQuality (inline)
+       1   1.1%  67.8%        2   2.2% memset (inline)
+       1   1.1%  68.9%        1   1.1% min_idx
+       1   1.1%  70.0%        1   1.1% pcache1FetchNoMutex
+       1   1.1%  71.1%        2   2.2% pcache1Unpin
+       1   1.1%  72.2%        1   1.1% propagateConstantExprRewriteOne
+       1   1.1%  73.3%        1   1.1% sqlite3BinaryCompareCollSeq
+       1   1.1%  74.4%        5   5.6% sqlite3BtreeCloseCursor (inline)
+       1   1.1%  75.6%        3   3.3% sqlite3BtreeTableMoveto
+       1   1.1%  76.7%       22  24.4% sqlite3CodeSubselect
+       1   1.1%  77.8%        1   1.1% sqlite3ExprCompare
+       1   1.1%  78.9%        1   1.1% sqlite3ExprCompare.part.0
+       1   1.1%  80.0%        1   1.1% sqlite3LocateTable
+       1   1.1%  81.1%       13  14.4% sqlite3Malloc (inline)
+       1   1.1%  82.2%        1   1.1% sqlite3PagerSharedLock
+       1   1.1%  83.3%       36  40.0% sqlite3Parser (inline)
+       1   1.1%  84.4%       40  44.4% sqlite3RunParser
+       1   1.1%  85.6%        1   1.1% sqlite3StatusUp (inline)
+       1   1.1%  86.7%        1   1.1% sqlite3StrICmp (inline)
+       1   1.1%  87.8%        1   1.1% sqlite3VListAdd (inline)
+       1   1.1%  88.9%        1   1.1% sqlite3VdbeExplain
+       1   1.1%  90.0%        1   1.1% sqlite3VdbeIdxRowid
+       1   1.1%  91.1%       18  20.0% sqlite3WhereCodeOneLoopStart (inline)
+       1   1.1%  92.2%        1   1.1% sqlite3WhereExprUsageFull
+       1   1.1%  93.3%        1   1.1% sqlite3WindowRewrite
+       1   1.1%  94.4%        1   1.1% sqlite3_blob_close (inline)
+       1   1.1%  95.6%        1   1.1% sqlite3_column_type
+       1   1.1%  96.7%        2   2.2% sqlite3_str_vappendf
+       1   1.1%  97.8%        1   1.1% whereLoopAdjustCost (inline)
+       1   1.1%  98.9%        1   1.1% whereScanInit
+       1   1.1% 100.0%        1   1.1% yy_find_shift_action (inline)
+       0   0.0% 100.0%        1   1.1% ::__bind_in
+       0   0.0% 100.0%       27  30.0% ::advance
+       0   0.0% 100.0%        5   5.6% ::advance (inline)
+       0   0.0% 100.0%        1   1.1% ::alloc_impl (inline)
+       0   0.0% 100.0%        1   1.1% ::alloc_impl_runtime (inline)
+       0   0.0% 100.0%        1   1.1% ::allocate_zeroed (inline)
+       0   0.0% 100.0%        1   1.1% ::append_elements (inline)
+       0   0.0% 100.0%       90 100.0% ::call_once (inline)
+       0   0.0% 100.0%        6   6.7% ::deallocate (inline)
+       0   0.0% 100.0%        6   6.7% ::deallocate_impl (inline)
+       0   0.0% 100.0%        6   6.7% ::deallocate_impl_runtime (inline)
+       0   0.0% 100.0%        2   2.2% ::drop
+       0   0.0% 100.0%        9  10.0% ::drop (inline)
+       0   0.0% 100.0%        1   1.1% ::embed
+       0   0.0% 100.0%        3   3.3% ::extend (inline)
+       0   0.0% 100.0%        3   3.3% ::extend::{{closure}} (inline)
+       0   0.0% 100.0%        1   1.1% ::extend_from_slice (inline)
+       0   0.0% 100.0%        1   1.1% ::fmt (inline)
+       0   0.0% 100.0%        3   3.3% ::fold (inline)
+       0   0.0% 100.0%        1   1.1% ::from_elem (inline)
+       0   0.0% 100.0%       13  14.4% ::from_iter
+       0   0.0% 100.0%       10  11.1% ::from_iter (inline)
+       0   0.0% 100.0%        5   5.6% ::from_iter::{{closure}} (inline)
+       0   0.0% 100.0%       90 100.0% ::new::thread_start
+       0   0.0% 100.0%       10  11.1% ::next
+       0   0.0% 100.0%       28  31.1% ::next (inline)
+       0   0.0% 100.0%        1   1.1% ::next::{{closure}} (inline)
+       0   0.0% 100.0%        2   2.2% ::push_str (inline)
+       0   0.0% 100.0%        2   2.2% ::spec_extend (inline)
+       0   0.0% 100.0%        1   1.1% ::spec_write_fmt (inline)
+       0   0.0% 100.0%        5   5.6% ::try_fold (inline)
+       0   0.0% 100.0%        1   1.1% ::try_select (inline)
+       0   0.0% 100.0%        1   1.1% ::write_fmt (inline)
+       0   0.0% 100.0%        1   1.1% ::write_str
+       0   0.0% 100.0%        1   1.1% __GI___libc_realloc
+       0   0.0% 100.0%        1   1.1% _int_realloc
+       0   0.0% 100.0%        1   1.1% alloc::alloc::alloc_zeroed (inline)
+       0   0.0% 100.0%        6   6.7% alloc::alloc::dealloc (inline)
+       0   0.0% 100.0%        2   2.2% alloc::fmt::format (inline)
+       0   0.0% 100.0%        2   2.2% alloc::fmt::format::format_inner
+       0   0.0% 100.0%        2   2.2% alloc::fmt::format::{{closure}} (inline)
+       0   0.0% 100.0%        1   1.1% alloc::raw_vec::RawVec::with_capacity_zeroed_in (inline)
+       0   0.0% 100.0%        5   5.6% alloc::raw_vec::RawVecInner::deallocate (inline)
+       0   0.0% 100.0%        1   1.1% alloc::raw_vec::RawVecInner::try_allocate_in (inline)
+       0   0.0% 100.0%        1   1.1% alloc::raw_vec::RawVecInner::with_capacity_zeroed_in (inline)
+       0   0.0% 100.0%        1   1.1% alloc::vec::Vec::append_elements (inline)
+       0   0.0% 100.0%        1   1.1% alloc::vec::Vec::extend_from_slice (inline)
+       0   0.0% 100.0%        1   1.1% alloc::vec::Vec::remove (inline)
+       0   0.0% 100.0%        1   1.1% alloc::vec::Vec::try_remove (inline)
+       0   0.0% 100.0%        1   1.1% alloc::vec::from_elem (inline)
+       0   0.0% 100.0%        1   1.1% blobSeekToRow
+       0   0.0% 100.0%        1   1.1% btreeBeginTrans
+       0   0.0% 100.0%        3   3.3% btreeReleaseAllCursorPages (inline)
+       0   0.0% 100.0%       90 100.0% clone3
+       0   0.0% 100.0%        5   5.6% closeAllCursors (inline)
+       0   0.0% 100.0%        5   5.6% closeCursorsInFrame (inline)
+       0   0.0% 100.0%        1   1.1% codeCompare (inline)
+       0   0.0% 100.0%        1   1.1% codeCompare.part.0.isra.0
+       0   0.0% 100.0%        1   1.1% core::bool::::then (inline)
+       0   0.0% 100.0%        1   1.1% core::fmt::write
+       0   0.0% 100.0%       23  25.6% core::iter::adapters::fuse::and_then_or_clear (inline)
+       0   0.0% 100.0%        3   3.3% core::iter::adapters::map::map_fold::{{closure}} (inline)
+       0   0.0% 100.0%        5   5.6% core::iter::adapters::try_process
+       0   0.0% 100.0%       13  14.4% core::iter::traits::iterator::Iterator::collect (inline)
+       0   0.0% 100.0%        3   3.3% core::iter::traits::iterator::Iterator::for_each (inline)
+       0   0.0% 100.0%        3   3.3% core::iter::traits::iterator::Iterator::for_each::call::{{closure}} (inline)
+       0   0.0% 100.0%        5   5.6% core::iter::traits::iterator::Iterator::try_fold (inline)
+       0   0.0% 100.0%        5   5.6% core::iter::traits::iterator::Iterator::try_for_each (inline)
+       0   0.0% 100.0%        3   3.3% core::mem::drop (inline)
+       0   0.0% 100.0%       23  25.6% core::ops::function::FnOnce::call_once (inline)
+       0   0.0% 100.0%        4   4.4% core::ops::function::FnOnce::call_once{{vtable.shim}}@22a570
+       0   0.0% 100.0%       86  95.6% core::ops::function::FnOnce::call_once{{vtable.shim}}@34ace0
+       0   0.0% 100.0%        1   1.1% core::ops::function::impls::::call_once (inline)
+       0   0.0% 100.0%        1   1.1% core::option::Option::and_then (inline)
+       0   0.0% 100.0%        2   2.2% core::option::Option::map (inline)
+       0   0.0% 100.0%        2   2.2% core::option::Option::map_or_else (inline)
+       0   0.0% 100.0%        1   1.1% core::ptr::copy_nonoverlapping (inline)
+       0   0.0% 100.0%        1   1.1% core::ptr::copy_nonoverlapping:: (inline)
+       0   0.0% 100.0%        6   6.7% core::ptr::drop_in_place (inline)
+       0   0.0% 100.0%        3   3.3% core::ptr::drop_in_place@2e1ea0
+       0   0.0% 100.0%        3   3.3% core::ptr::drop_in_place@2e65c0
+       0   0.0% 100.0%        3   3.3% core::ptr::drop_in_place@2e65c0 (inline)
+       0   0.0% 100.0%        5   5.6% core::result::Result::and_then (inline)
+       0   0.0% 100.0%        4   4.4% dbMallocRawFinish
+       0   0.0% 100.0%        1   1.1% deleteTable
+       0   0.0% 100.0%        1   1.1% enlargeAndAppend
+       0   0.0% 100.0%        1   1.1% exprAnalyze
+       0   0.0% 100.0%        1   1.1% exprImpliesNotNull
+       0   0.0% 100.0%        2   2.2% exprListDeleteNN
+       0   0.0% 100.0%        2   2.2% fathomdb_engine::Engine::search
+       0   0.0% 100.0%        2   2.2% fathomdb_engine::Engine::search_filtered_with_limit
+       0   0.0% 100.0%        2   2.2% fathomdb_engine::Engine::search_inner (inline)
+       0   0.0% 100.0%        2   2.2% fathomdb_engine::Engine::search_inner_with_frozen_binding_and_expansion
+       0   0.0% 100.0%        1   1.1% fathomdb_engine::Engine::search_inner_with_frozen_binding_and_expansion::{{closure}} (inline)
+       0   0.0% 100.0%        1   1.1% fathomdb_engine::Engine::search_inner_with_frozen_binding_and_expansion::{{closure}}::{{closure}} (inline)
+       0   0.0% 100.0%        2   2.2% fathomdb_engine::Engine::search_inner_with_frozen_binding_and_stats (inline)
+       0   0.0% 100.0%        2   2.2% fathomdb_engine::Engine::search_inner_with_stats (inline)
+       0   0.0% 100.0%        2   2.2% fathomdb_engine::Engine::search_reranked_with_explain
+       0   0.0% 100.0%        2   2.2% fathomdb_engine::Engine::search_reranked_with_limit
+       0   0.0% 100.0%        2   2.2% fathomdb_engine::Engine::search_with_limit (inline)
+       0   0.0% 100.0%        1   1.1% fathomdb_engine::ReaderWorkerPool::dispatch (inline)
+       0   0.0% 100.0%       86  95.6% fathomdb_engine::ReaderWorkerPool::new::{{closure}} (inline)
+       0   0.0% 100.0%        1   1.1% fathomdb_engine::dependency_closure::all_nodes_directly_eligible
+       0   0.0% 100.0%        2   2.2% fathomdb_engine::dependency_closure::has_source_dependencies
+       0   0.0% 100.0%        1   1.1% fathomdb_engine::dependency_closure::read_barrier_sql_for_cursor (inline)
+       0   0.0% 100.0%        1   1.1% fathomdb_engine::dependency_closure::read_eligibility_sql
+       0   0.0% 100.0%        1   1.1% fathomdb_engine::dependency_closure::read_eligibility_sql_for_cursor (inline)
+       0   0.0% 100.0%        6   6.7% fathomdb_engine::dependency_closure::vector_arm_requires_fallback
+       0   0.0% 100.0%        3   3.3% fathomdb_engine::derive_stable_id
+       0   0.0% 100.0%        2   2.2% fathomdb_engine::edge_validity_sql_for_view
+       0   0.0% 100.0%        1   1.1% fathomdb_engine::fuse_rrf (inline)
+       0   0.0% 100.0%        1   1.1% fathomdb_engine::fuse_three_arms
+       0   0.0% 100.0%        3   3.3% fathomdb_engine::load_projection_cursor_for_search
+       0   0.0% 100.0%       40  44.4% fathomdb_engine::prepare_search_statement (inline)
+       0   0.0% 100.0%        5   5.6% fathomdb_engine::read_search_in_tx::{{closure}}
+       0   0.0% 100.0%        1   1.1% fathomdb_engine::read_search_in_tx::{{closure}}::{{closure}} (inline)
+       0   0.0% 100.0%       82  91.1% fathomdb_engine::read_search_work_in_tx (inline)
+       0   0.0% 100.0%       86  95.6% fathomdb_engine::reader_worker_loop
+       0   0.0% 100.0%        1   1.1% fillInCell (inline)
+       0   0.0% 100.0%        2   2.2% fts5ApiCallback
+       0   0.0% 100.0%        2   2.2% fts5ApiInvoke (inline)
+       0   0.0% 100.0%        2   2.2% fts5ApiQueryPhrase
+       0   0.0% 100.0%        2   2.2% fts5BestIndexMethod
+       0   0.0% 100.0%        2   2.2% fts5Bm25Function
+       0   0.0% 100.0%        2   2.2% fts5Bm25GetData (inline)
+       0   0.0% 100.0%        1   1.1% fts5CloseMethod (inline)
+       0   0.0% 100.0%        2   2.2% fts5CursorFirst (inline)
+       0   0.0% 100.0%        1   1.1% fts5DataRead
+       0   0.0% 100.0%        2   2.2% fts5ExprNearInitAll (inline)
+       0   0.0% 100.0%        2   2.2% fts5ExprNodeFirst
+       0   0.0% 100.0%        1   1.1% fts5ExprPhraseFree (inline)
+       0   0.0% 100.0%        1   1.1% fts5ExprPhraseFree.part.0
+       0   0.0% 100.0%        3   3.3% fts5FilterMethod
+       0   0.0% 100.0%        1   1.1% fts5FreeCursorComponents
+       0   0.0% 100.0%        1   1.1% fts5IndexCloseReader (inline)
+       0   0.0% 100.0%        1   1.1% fts5IndexDataVersion
+       0   0.0% 100.0%        1   1.1% fts5IndexDataVersion (inline)
+       0   0.0% 100.0%        1   1.1% fts5IterClose (inline)
+       0   0.0% 100.0%        1   1.1% fts5LeafRead
+       0   0.0% 100.0%        2   2.2% fts5MultiIterNew
+       0   0.0% 100.0%        1   1.1% fts5NewTransaction (inline)
+       0   0.0% 100.0%        2   2.2% fts5OpenMethod
+       0   0.0% 100.0%        1   1.1% fts5SegIterNextPage
+       0   0.0% 100.0%        2   2.2% fts5SegIterSeekInit
+       0   0.0% 100.0%        1   1.1% fts5yy_reduce (inline)
+       0   0.0% 100.0%        4   4.4% getAndInitPage
+       0   0.0% 100.0%        4   4.4% getPageNormal
+       0   0.0% 100.0%        1   1.1% hashbrown::raw::RawTableInner::drop_inner_table (inline)
+       0   0.0% 100.0%        1   1.1% hashbrown::raw::RawTableInner::free_buckets (inline)
+       0   0.0% 100.0%        5   5.6% innerLoopLoadRow (inline)
+       0   0.0% 100.0%        1   1.1% lockBtree (inline)
+       0   0.0% 100.0%        4   4.4% moveToRoot
+       0   0.0% 100.0%        1   1.1% pcache1Create
+       0   0.0% 100.0%        4   4.4% pcache1Fetch
+       0   0.0% 100.0%        4   4.4% pcache1FetchWithMutex (inline)
+       0   0.0% 100.0%        4   4.4% perf_gates::run_ac020_concurrent::{{closure}} (inline)
+       0   0.0% 100.0%        4   4.4% perf_gates::run_ac020_mix
+       0   0.0% 100.0%        1   1.1% propagateConstants (inline)
+       0   0.0% 100.0%        3   3.3% releasePageNotNull (inline)
+       0   0.0% 100.0%        1   1.1% resolveExprStep
+       0   0.0% 100.0%        1   1.1% resolveSelectStep
+       0   0.0% 100.0%       40  44.4% rusqlite::Connection::prepare (inline)
+       0   0.0% 100.0%       40  44.4% rusqlite::Connection::prepare_with_flags
+       0   0.0% 100.0%        3   3.3% rusqlite::inner_connection::InnerConnection::close
+       0   0.0% 100.0%       40  44.4% rusqlite::inner_connection::InnerConnection::prepare
+       0   0.0% 100.0%        1   1.1% rusqlite::raw_statement::RawStatement::column_type (inline)
+       0   0.0% 100.0%       32  35.6% rusqlite::raw_statement::RawStatement::step (inline)
+       0   0.0% 100.0%        1   1.1% rusqlite::row::Row::get
+       0   0.0% 100.0%        5   5.6% rusqlite::row::Rows::get_expected_row
+       0   0.0% 100.0%       32  35.6% rusqlite::row::Rows::next (inline)
+       0   0.0% 100.0%        1   1.1% rusqlite::statement::Statement::bind_parameters (inline)
+       0   0.0% 100.0%        4   4.4% rusqlite::statement::Statement::query_row@316820
+       0   0.0% 100.0%        1   1.1% rusqlite::statement::Statement::query_row@316820 (inline)
+       0   0.0% 100.0%        2   2.2% rusqlite::statement::Statement::query_row@31ffa0
+       0   0.0% 100.0%       32  35.6% rusqlite::statement::Statement::step (inline)
+       0   0.0% 100.0%        1   1.1% rusqlite::statement::Statement::value_ref
+       0   0.0% 100.0%        2   2.2% selectExpander
+       0   0.0% 100.0%        5   5.6% selectInnerLoop
+       0   0.0% 100.0%        4   4.4% sqlite3BtreeClose.isra.0
+       0   0.0% 100.0%        2   2.2% sqlite3BtreeIndexMoveto
+       0   0.0% 100.0%        1   1.1% sqlite3BtreeInsert
+       0   0.0% 100.0%        1   1.1% sqlite3BtreeOpen
+       0   0.0% 100.0%        3   3.3% sqlite3Close
+       0   0.0% 100.0%        1   1.1% sqlite3ColumnDefault
+       0   0.0% 100.0%        1   1.1% sqlite3DeleteTable (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3DeleteTrigger (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3DeleteTrigger.part.0
+       0   0.0% 100.0%        1   1.1% sqlite3DeleteTriggerStep
+       0   0.0% 100.0%        1   1.1% sqlite3ExprAssignVarNumber
+       0   0.0% 100.0%        5   5.6% sqlite3ExprCodeExprList.isra.0
+       0   0.0% 100.0%        1   1.1% sqlite3ExprCodeGetColumn (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3ExprCodeTarget
+       0   0.0% 100.0%       18  20.0% sqlite3ExprCodeTemp
+       0   0.0% 100.0%        1   1.1% sqlite3ExprCompare (inline)
+       0   0.0% 100.0%        2   2.2% sqlite3ExprDelete (inline)
+       0   0.0% 100.0%        2   2.2% sqlite3ExprDeleteNN
+       0   0.0% 100.0%        2   2.2% sqlite3ExprIfFalse
+       0   0.0% 100.0%       18  20.0% sqlite3ExprIfTrue
+       0   0.0% 100.0%        2   2.2% sqlite3ExprImpliesExpr
+       0   0.0% 100.0%        2   2.2% sqlite3ExprListDelete (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3FindFunction
+       0   0.0% 100.0%        1   1.1% sqlite3FinishCoding
+       0   0.0% 100.0%        2   2.2% sqlite3Fts5ExprFirst
+       0   0.0% 100.0%        1   1.1% sqlite3Fts5ExprFree (inline)
+       0   0.0% 100.0%        2   2.2% sqlite3Fts5ExprNew
+       0   0.0% 100.0%        2   2.2% sqlite3Fts5IndexQuery
+       0   0.0% 100.0%        1   1.1% sqlite3Fts5IndexReset (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3Fts5IterClose (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3Fts5ParseNearsetFree (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3Fts5ParseNodeFree (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3Fts5ParseNodeFree.part.0
+       0   0.0% 100.0%        1   1.1% sqlite3Fts5ParseTerm
+       0   0.0% 100.0%        1   1.1% sqlite3Fts5Parser (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3Fts5ParserFree (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3Fts5StorageReset (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3Fts5Tokenize
+       0   0.0% 100.0%        1   1.1% sqlite3Fts5Tokenize (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3HashClear (inline)
+       0   0.0% 100.0%        3   3.3% sqlite3LeaveMutexAndCloseZombie
+       0   0.0% 100.0%        3   3.3% sqlite3LeaveMutexAndCloseZombie (inline)
+       0   0.0% 100.0%       40  44.4% sqlite3LockAndPrepare
+       0   0.0% 100.0%        1   1.1% sqlite3MPrintf
+       0   0.0% 100.0%        9  10.0% sqlite3Malloc
+       0   0.0% 100.0%        1   1.1% sqlite3MallocZero (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3MemRealloc
+       0   0.0% 100.0%        1   1.1% sqlite3PExpr
+       0   0.0% 100.0%        4   4.4% sqlite3PagerGet (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3PagerOpen (inline)
+       0   0.0% 100.0%        4   4.4% sqlite3PcacheFetch (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3PcacheOpen (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3PcacheSetPageSize
+       0   0.0% 100.0%       40  44.4% sqlite3Prepare
+       0   0.0% 100.0%        1   1.1% sqlite3ProcessJoin (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3Realloc
+       0   0.0% 100.0%        1   1.1% sqlite3ResolveExprListNames
+       0   0.0% 100.0%        1   1.1% sqlite3ResolveSelectNames (inline)
+       0   0.0% 100.0%        3   3.3% sqlite3SchemaClear
+       0   0.0% 100.0%       29  32.2% sqlite3Select
+       0   0.0% 100.0%        2   2.2% sqlite3SelectExpand (inline)
+       0   0.0% 100.0%        3   3.3% sqlite3SelectPrep
+       0   0.0% 100.0%        1   1.1% sqlite3SelectPrep (inline)
+       0   0.0% 100.0%       32  35.6% sqlite3Step (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3StrAccumEnlarge
+       0   0.0% 100.0%        1   1.1% sqlite3VMPrintf
+       0   0.0% 100.0%        1   1.1% sqlite3ValueFromExpr (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3VdbeFinishMoveto
+       0   0.0% 100.0%        5   5.6% sqlite3VdbeFreeCursorNN
+       0   0.0% 100.0%        5   5.6% sqlite3VdbeHalt
+       0   0.0% 100.0%        1   1.1% sqlite3VdbeMakeReady
+       0   0.0% 100.0%        4   4.4% sqlite3VdbeReset
+       0   0.0% 100.0%        1   1.1% sqlite3VdbeSorterInit
+       0   0.0% 100.0%        1   1.1% sqlite3VdbeValueListFree (inline)
+       0   0.0% 100.0%        3   3.3% sqlite3WalkExpr (inline)
+       0   0.0% 100.0%        4   4.4% sqlite3WalkExprNN
+       0   0.0% 100.0%        3   3.3% sqlite3WalkSelect
+       0   0.0% 100.0%        2   2.2% sqlite3WalkSelectExpr (inline)
+       0   0.0% 100.0%       24  26.7% sqlite3WhereBegin
+       0   0.0% 100.0%        1   1.1% sqlite3WhereExprAnalyze (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3WhereExprUsage (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3_blob_close
+       0   0.0% 100.0%        1   1.1% sqlite3_blob_open
+       0   0.0% 100.0%        3   3.3% sqlite3_finalize
+       0   0.0% 100.0%        6   6.7% sqlite3_free
+       0   0.0% 100.0%        6   6.7% sqlite3_free (inline)
+       0   0.0% 100.0%       40  44.4% sqlite3_prepare_v3
+       0   0.0% 100.0%        1   1.1% sqlite3_reset
+       0   0.0% 100.0%        1   1.1% sqlite3_reset (inline)
+       0   0.0% 100.0%       32  35.6% sqlite3_step
+       0   0.0% 100.0%       32  35.6% sqlite3_step (inline)
+       0   0.0% 100.0%        1   1.1% sqlite3_str_appendf
+       0   0.0% 100.0%        1   1.1% sqlite3_str_new
+       0   0.0% 100.0%       90 100.0% start_thread
+       0   0.0% 100.0%       90 100.0% std::panic::catch_unwind (inline)
+       0   0.0% 100.0%       90 100.0% std::panicking::catch_unwind (inline)
+       0   0.0% 100.0%       90 100.0% std::panicking::catch_unwind::do_call (inline)
+       0   0.0% 100.0%        2   2.2% std::sync::mpmc::Sender::send
+       0   0.0% 100.0%        2   2.2% std::sync::mpmc::array::Channel::send
+       0   0.0% 100.0%        2   2.2% std::sync::mpmc::array::Channel::write (inline)
+       0   0.0% 100.0%        1   1.1% std::sync::mpmc::waker::Waker::try_select::{{closure}} (inline)
+       0   0.0% 100.0%        2   2.2% std::sync::mpsc::SyncSender::send (inline)
+       0   0.0% 100.0%       90 100.0% std::sys::backtrace::__rust_begin_short_backtrace
+       0   0.0% 100.0%       90 100.0% std::thread::lifecycle::spawn_unchecked::{{closure}} (inline)
+       0   0.0% 100.0%       90 100.0% std::thread::lifecycle::spawn_unchecked::{{closure}}::{{closure}} (inline)
+       0   0.0% 100.0%        2   2.2% unixCurrentTimeInt64
+       0   0.0% 100.0%        1   1.1% valueFromExpr
+       0   0.0% 100.0%        1   1.1% vec0Filter
+       0   0.0% 100.0%        4   4.4% vec0Filter_knn
+       0   0.0% 100.0%        2   2.2% vec0Filter_knn_chunks_iter
+       0   0.0% 100.0%        8   8.9% vec0Filter_point
+       0   0.0% 100.0%        2   2.2% vec0_chunks_iter
+       0   0.0% 100.0%        1   1.1% vec0_cursor_clear
+       0   0.0% 100.0%        3   3.3% vec0_get_chunk_position
+       0   0.0% 100.0%        7   7.8% vec0_get_vector_data
+       0   0.0% 100.0%        1   1.1% vec0_query_point_data_clear
+       0   0.0% 100.0%        1   1.1% vec0_query_point_data_clear (inline)
+       0   0.0% 100.0%        2   2.2% vtabBestIndex (inline)
+       0   0.0% 100.0%        9  10.0% whereLoopAddAll
+       0   0.0% 100.0%        7   7.8% whereLoopAddBtree
+       0   0.0% 100.0%        4   4.4% whereLoopAddBtreeIndex
+       0   0.0% 100.0%        1   1.1% whereLoopAddOr
+       0   0.0% 100.0%        2   2.2% whereLoopAddVirtual
+       0   0.0% 100.0%        2   2.2% whereLoopAddVirtualOne
+       0   0.0% 100.0%        1   1.1% whereLoopInsert
+       0   0.0% 100.0%        2   2.2% whereUsablePartialIndex

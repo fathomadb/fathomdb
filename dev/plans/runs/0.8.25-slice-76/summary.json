@@ -1,0 +1,36 @@
+{
+  "ac020": {
+    "oracle": "concurrent_ms <= sequential_ms * 1.5 / 8",
+    "required_speedup": 5.333333333333333,
+    "treatment_required_concurrent_ms_at_median_sequential": 32.8125
+  },
+  "baseline": {
+    "concurrent_median_ms": 137,
+    "passed": 0,
+    "runs": 7,
+    "sequential_median_ms": 564,
+    "speedup": 4.116788321167883
+  },
+  "compilation_census": "compile-census-summary.json",
+  "effect": {
+    "concurrent_improvement_fraction": 0.41605839416058393,
+    "concurrent_improvement_ms": 57,
+    "sequential_improvement_fraction": 0.6897163120567376,
+    "sequential_improvement_ms": 389
+  },
+  "focused_correctness": {
+    "feature_interactions": 4,
+    "frozen_read": 5,
+    "mechanism": 3,
+    "reader_pool": 6
+  },
+  "result": "STATEMENT_REUSE_ELIGIBLE_AC020_UNRESOLVED",
+  "schema_version": "fathomdb.slice76-summary/v1",
+  "treatment": {
+    "concurrent_median_ms": 80,
+    "passed": 0,
+    "runs": 7,
+    "sequential_median_ms": 175,
+    "speedup": 2.1875
+  }
+}

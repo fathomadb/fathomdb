@@ -1,0 +1,64 @@
+{
+  "B2": {
+    "concurrent_ms": {
+      "iqr": 3,
+      "max": 140,
+      "median": 137,
+      "min": 133,
+      "q1": 136,
+      "q3": 139
+    },
+    "labels": [
+      "MB1",
+      "MB2",
+      "MB3",
+      "MB4",
+      "MB5",
+      "MB6",
+      "MB7"
+    ],
+    "median_of_ratios": 4.112781954887218,
+    "passed": 0,
+    "ratio_of_medians": 4.116788321167883,
+    "sequential_ms": {
+      "iqr": 32,
+      "max": 580,
+      "median": 564,
+      "min": 541,
+      "q1": 545,
+      "q3": 577
+    },
+    "total": 7
+  },
+  "C": {
+    "concurrent_ms": {
+      "iqr": 8,
+      "max": 84,
+      "median": 80,
+      "min": 70,
+      "q1": 76,
+      "q3": 84
+    },
+    "labels": [
+      "MC1",
+      "MC2",
+      "MC3",
+      "MC4",
+      "MC5",
+      "MC6",
+      "MC7"
+    ],
+    "median_of_ratios": 2.1904761904761907,
+    "passed": 0,
+    "ratio_of_medians": 2.1875,
+    "sequential_ms": {
+      "iqr": 5,
+      "max": 184,
+      "median": 175,
+      "min": 168,
+      "q1": 173,
+      "q3": 178
+    },
+    "total": 7
+  }
+}

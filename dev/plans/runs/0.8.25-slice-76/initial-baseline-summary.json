@@ -1,0 +1,33 @@
+{
+  "B": {
+    "concurrent_ms": {
+      "iqr": 11,
+      "max": 131,
+      "median": 125,
+      "min": 116,
+      "q1": 117,
+      "q3": 128
+    },
+    "labels": [
+      "IB1",
+      "IB2",
+      "IB3",
+      "IB4",
+      "IB5",
+      "IB6",
+      "IB7"
+    ],
+    "median_of_ratios": 4.318965517241379,
+    "passed": 0,
+    "ratio_of_medians": 4.152,
+    "sequential_ms": {
+      "iqr": 24,
+      "max": 555,
+      "median": 519,
+      "min": 501,
+      "q1": 512,
+      "q3": 536
+    },
+    "total": 7
+  }
+}

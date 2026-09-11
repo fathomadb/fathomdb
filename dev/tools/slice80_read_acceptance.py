@@ -37,6 +37,10 @@ READINESS_EXITS = {
     "SLICE80_IDENTITY": "SLICE80_TEST_EXIT",
     "SLICE80_AC072_IDENTITY": "SLICE71_TEST_EXIT",
 }
+READINESS_ENVIRONMENTS = {
+    "SLICE80_IDENTITY": "SLICE80_ENV",
+    "SLICE80_AC072_IDENTITY": "SLICE71_ENV",
+}
 REQUIRED_ENVIRONMENT = (
     "load_1m",
     "online_cpus",
@@ -142,15 +146,22 @@ def parse_collector_readiness_log(text: str, identity_prefix: str) -> dict[str, 
     """Validate benchmark-free collection records emitted by a production runner."""
     required_identity = READINESS_IDENTITIES.get(identity_prefix)
     exit_prefix = READINESS_EXITS.get(identity_prefix)
-    if required_identity is None or exit_prefix is None:
+    environment_prefix = READINESS_ENVIRONMENTS.get(identity_prefix)
+    if required_identity is None or exit_prefix is None or environment_prefix is None:
         raise ValueError("unsupported collector identity prefix")
     identity_lines = re.findall(
         rf"^{re.escape(identity_prefix)} (?P<fields>.+)$", text, flags=re.MULTILINE
     )
     if len(identity_lines) != 1:
         raise ValueError("expected exactly one collector identity marker")
-    identity = dict(field.split("=", maxsplit=1) for field in identity_lines[0].split())
-    if any(not identity.get(field) for field in required_identity):
+    identity_fields = [field.split("=", maxsplit=1) for field in identity_lines[0].split()]
+    if (
+        any(len(field) != 2 for field in identity_fields)
+        or len({field[0] for field in identity_fields}) != len(identity_fields)
+    ):
+        raise ValueError("collector identity contains malformed or duplicate fields")
+    identity = dict(identity_fields)
+    if set(identity) != set(required_identity) or any(not identity.get(field) for field in required_identity):
         raise ValueError("collector identity is incomplete")
     exits = re.findall(
         rf"^{re.escape(exit_prefix)} status=(?P<status>\d+)$", text, flags=re.MULTILINE
@@ -159,7 +170,7 @@ def parse_collector_readiness_log(text: str, identity_prefix: str) -> dict[str, 
         raise ValueError("collector-only execution must exit zero exactly once")
     environments = [
         json.loads(line)
-        for line in re.findall(r"^SLICE(?:80|71)_ENV (.+)$", text, flags=re.MULTILINE)
+        for line in re.findall(rf"^{re.escape(environment_prefix)} (.+)$", text, flags=re.MULTILINE)
     ]
     if len(environments) != 2 or [item.get("phase") for item in environments] != ["start", "end"]:
         raise ValueError("expected exactly one ordered start/end environment pair")

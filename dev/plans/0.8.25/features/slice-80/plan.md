@@ -1,6 +1,6 @@
 ---
 title: Slice 80 — absolute read-performance acceptance and bounded verification
-status: DRAFT
+status: READY
 depends_on: 79
 ---
 
@@ -16,9 +16,10 @@ final verification, CI and non-publishing packaging. Reserved 78 and 81–84
 remain unused.
 
 The scope and thresholds are approved. This plan and [design](design.md)
-require independent review and a sealed executable protocol before READY;
-implementation and successor acceptance evidence remain pending. Do not
-re-open the approved thresholds.
+are reconciled in [the planning review](planning-review.md). The exact focused
+commands and counts are sealed in [the execution manifest](execution-manifest.json).
+Implementation and successor acceptance evidence remain pending. Do not re-open
+the approved thresholds.
 
 ## Inputs and protected baseline
 
@@ -50,7 +51,8 @@ bearing; diagnostics remains descriptive.
 
 ## Work packages
 
-1. **Contract registration.** Register an unused successor AC identifier
+1. **Contract registration.** Register successors **AC-081a/b/c**, confirmed
+   unused: sequential budget, concurrent budget and reader independence,
    through the acceptance/ADR process. Retire AC-020 while preserving its
    historical assertion/results. Update requirement/test/parameter mappings,
    ADR index, test-plan wiring, current release manifests and active selectors.
@@ -96,11 +98,11 @@ bearing; diagnostics remains descriptive.
 
 ## Completion
 
-Successor contract and oracle are implemented; REQ-018 coverage is proved;
+Successor contracts and oracle are implemented; REQ-018 coverage is proved;
 seven successor runs and the AC-072 campaign have valid passing evidence;
 protected write receipts remain applicable; independent reviews pass.
 
-Report **AC-020 retired; successor passed**, never AC-020 recovered.
+Report **AC-020 retired; AC-081a/b/c passed**, never AC-020 recovered.
 Warning-only outcomes do not block closure. Store receipts/reviews under
 `dev/plans/runs/0.8.25-slice-80/`, with exact source/artifact/feature/fixture
 identities and positive counts. Advance release state to 85 and regenerate

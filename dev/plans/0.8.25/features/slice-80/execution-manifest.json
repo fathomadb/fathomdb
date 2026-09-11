@@ -1,0 +1,135 @@
+{
+  "schema_version": "slice80-execution.v1",
+  "authority": "seq-277",
+  "source_ref_at_seal": "6b785e7c0fa54507e30147e6f03922bd30bfd41e",
+  "toolchain": {
+    "rustc": "1.95.0 (59807616e 2026-04-14)",
+    "cargo": "1.95.0 (f2d3ce0 2026-03-21)"
+  },
+  "successor": {
+    "ids": ["AC-081a", "AC-081b", "AC-081c"],
+    "selector": "ac_081_absolute_read_performance",
+    "mode": "performance",
+    "features": [],
+    "fixture": {
+      "sequential_searches": 1600,
+      "concurrent_searches": 1600,
+      "reader_threads": 8,
+      "rounds_per_thread": 50,
+      "queries_per_round": 4,
+      "sequential_warning_ns": 200000000,
+      "sequential_hard_limit_ns": 500000000,
+      "concurrent_warning_ns": 80000000,
+      "concurrent_hard_limit_ns": 100000000
+    },
+    "build_command": "CARGO_TARGET_DIR=/tmp/fathomdb-slice80-target cargo test --release --no-run -p fathomdb-engine --test perf_gates --message-format=json > /tmp/fathomdb-slice80-build.json",
+    "select_command": "python3 dev/tools/slice80_read_acceptance.py select-binary --build-json /tmp/fathomdb-slice80-build.json --copy-to /tmp/fathomdb-slice80/ac081-perf-gates",
+    "identity_command": "sha256sum /tmp/fathomdb-slice80/ac081-perf-gates",
+    "run_command": "AGENT_LONG=1 scripts/perf-experiments/run-slice80-ac081-cell.sh . /tmp/fathomdb-slice80/ac081-perf-gates <raw-log> <source-sha> <binary-sha256>",
+    "repetitions": 7,
+    "fresh_process_per_repetition": true,
+    "timeout_seconds_per_repetition": 300,
+    "required_marker": "AC081_NUMBERS",
+    "required_test_count": 1,
+    "runner": "scripts/perf-experiments/run-slice80-ac081-cell.sh",
+    "parser": "dev/tools/slice80_read_acceptance.py",
+    "raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac081",
+    "test_list_check": "python3 dev/tools/slice80_read_acceptance.py check-test-list --binary /tmp/fathomdb-slice80/ac081-perf-gates"
+  },
+  "reader_independence": {
+    "selector": "one_reader_progresses_while_another_reader_holds_a_snapshot",
+    "command": "cargo test -p fathomdb-engine --test reader_pool one_reader_progresses_while_another_reader_holds_a_snapshot -- --exact --nocapture",
+    "required_test_count": 1,
+    "timeout_seconds": 120
+  },
+  "oracle_and_receipt_tests": {
+    "commands": [
+      "cargo test -p fathomdb-engine --test perf_gates ac_081_oracle -- --nocapture",
+      "python3 -m unittest dev.tools.test_slice80_read_acceptance"
+    ],
+    "expected_counts": [
+      4,
+      12
+    ]
+  },
+  "ac072": {
+    "runner": "scripts/perf-experiments/run-slice71-ac013-cell.sh",
+    "sqlite_version": "3.53.2",
+    "libsqlite3_sys": "0.38.1",
+    "command_template": "SLICE71_SQLITE_VERSION=3.53.2 timeout 3600 scripts/perf-experiments/run-slice71-ac013-cell.sh <candidate-worktree> <raw-log>",
+    "corpus_n": 10000,
+    "vector_dim": 384,
+    "samples": 1000,
+    "treatment": "warm",
+    "repetitions": 3,
+    "p50_budget_ms": 80,
+    "p99_budget_ms": 300,
+    "environment_policy_source": "experiments/configs/release-0825-slice71-ac072-final-manifest.v1.json",
+    "timeout_seconds_per_repetition": 3600,
+    "raw_root": "dev/plans/runs/0.8.25-slice-80/raw/ac072"
+  },
+  "environment": {
+    "max_load_per_online_cpu": 0.5,
+    "min_available_memory_percent": 25,
+    "max_swap_io_delta": 0,
+    "max_cpu_temp_c": 90,
+    "thermal_signal": "k10temp:Tctl",
+    "forbid_competing_performance_processes": true,
+    "snapshot_phases": ["start", "end"],
+    "required_fields": [
+      "load_1m",
+      "online_cpus",
+      "available_memory_percent",
+      "pswpin",
+      "pswpout",
+      "cpu_temp_c",
+      "thermal_signal",
+      "competing_processes",
+      "cpu_affinity",
+      "cpu_quota",
+      "scaling_governors",
+      "scaling_frequencies_khz"
+    ],
+    "load_rule": "max(start.load_1m,end.load_1m)/online_cpus <= 0.5",
+    "memory_rule": "min(start.available_memory_percent,end.available_memory_percent) >= 25",
+    "swap_rule": "end.pswpin-start.pswpin == 0 and end.pswpout-start.pswpout == 0",
+    "temperature_rule": "max(start.cpu_temp_c,end.cpu_temp_c) <= 90 using k10temp:Tctl",
+    "competing_pattern": "cargo|rustc|perf_gates|run-ac013|run-slice80-ac081 excluding the current runner/test process",
+    "affinity_rule": "start and end CPU affinity strings are identical and contain at least 8 CPUs",
+    "quota_rule": "start and end cgroup CPU quota strings are identical and are either max or permit at least 8 CPUs",
+    "governor_rule": "all readable CPU scaling governors are performance and the start/end sets are identical",
+    "frequency_rule": "capture every readable scaling_cur_freq at start/end; descriptive only",
+    "applicability_states": ["PASS", "PASS_WITH_WARNING", "FAIL", "ENVIRONMENT_INVALID", "INCOMPLETE"]
+  },
+  "relevant_inputs": [
+    "Cargo.toml",
+    "Cargo.lock",
+    ".cargo/config.toml",
+    "src/rust/crates/fathomdb-engine/Cargo.toml",
+    "src/rust/crates/fathomdb-engine/src",
+    "src/rust/crates/fathomdb-engine/tests/perf_gates.rs",
+    "src/rust/crates/fathomdb-engine/tests/reader_pool.rs",
+    "src/rust/crates/fathomdb-query",
+    "src/rust/crates/fathomdb-schema",
+    "src/rust/crates/fathomdb-embedder",
+    "src/rust/crates/fathomdb-embedder-api"
+  ],
+  "retained_write_receipts": {
+    "source": "dev/plans/runs/0.8.25-slice-79/result.md",
+    "applicable_if_product_and_build_inputs_unchanged": true
+  },
+  "receipt_paths": {
+    "manifest": "dev/plans/runs/0.8.25-slice-80/manifest.json",
+    "result": "dev/plans/runs/0.8.25-slice-80/result.md",
+    "measurements": "dev/plans/runs/0.8.25-slice-80/measurements.json",
+    "code_review": "dev/plans/0.8.25/features/slice-80/code-review.md",
+    "verification_review": "dev/plans/runs/0.8.25-slice-80/verification-review.md"
+  },
+  "scope": {
+    "full_regression_rounds": 0,
+    "profiling": false,
+    "optimization_sweep": false,
+    "maximum_environment_correction_attempts": 1,
+    "maximum_replacement_series_per_gate": 1
+  }
+}

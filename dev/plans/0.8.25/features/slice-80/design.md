@@ -1,6 +1,6 @@
 ---
 title: Slice 80 — absolute read-performance acceptance design
-status: DRAFT
+status: READY
 ---
 
 # Slice 80 — absolute read-performance acceptance design
@@ -11,13 +11,14 @@ Owner ruling **seq-277** approves the scope implemented by [the plan](plan.md).
 The old ratio penalizes sequential improvements even when both execution
 times improve. Replace that acceptance assertion with independent absolute
 budgets; preserve historical failures and separately prove reader independence.
-This design is pending independent review, not a claim of implemented behavior.
+The executable details are sealed in [the execution manifest](execution-manifest.json).
+READY describes the reviewed design, not implemented behavior.
 
 ## Local requirements
 
 | Requirement | Contract and proof |
 | --- | --- |
-| R80-1 | Retire AC-020 and register its successor consistently in acceptance, ADR, test-plan, selectors and live release manifests. |
+| R80-1 | Retire AC-020 and register AC-081a/b/c consistently: sequential budget, concurrent budget and reader independence. |
 | R80-2 | Sequential total <=500 ms; warning >=200 ms. Concurrent total <=100 ms; warning >=80 ms. Boundary unit tests use full precision. |
 | R80-3 | Both arms execute the original 1,600-search workload with unchanged result checks and eight concurrent readers. Positive-count evidence is mandatory. |
 | R80-4 | Ratio remains descriptive; warnings are non-blocking and prominently visible in structured and human summaries. |
@@ -115,6 +116,11 @@ Preserve applicable historical controls, but do not inherit a ratio acceptance
 rule. Explicitly verify the existing AGENT_LONG guard actually executes tests.
 
 Run seven fresh processes, each measuring both arms once in performance mode.
+Build once into `/tmp/fathomdb-slice80-target`, select and copy one test
+executable, record its SHA-256, and run that binary directly. The runner rejects
+source, binary or declared-input identity drift; no Cargo invocation occurs
+inside a timed repetition. Start/end snapshots and their exact applicability
+rules are sealed in the execution manifest.
 Both hard limits must pass in every valid run. Summaries retain individual
 measurements, warnings, medians, spread and all invalid/failed attempts. Run
 without builds/competing performance work. No repeat-until-pass; the plan permits
@@ -135,12 +141,19 @@ changes require the retained two-workload candidate-only guards as appropriate.
 
 ## Contract migration and historical integrity
 
-Allocate the successor AC identifier only after checking acceptance and ADR
-registries; no draft identifier is assigned here. The owner has authorized
+The acceptance and ADR registries confirm the **AC-081** family is unused;
+allocate AC-081a to sequential absolute time, AC-081b to concurrent absolute
+time and AC-081c to deterministic reader independence. The owner has authorized
 retirement, but canonical registration and executable migration remain work.
-Keep AC-020's original assertion/results under a retired/superseded label.
+Keep AC-020's original helper/assertion/results under a retired/superseded label.
+Mark both legacy test registrations ignored with the seq-277 retirement reason,
+so `AGENT_LONG=1` cannot execute them by default. Repoint `run-ac020.sh` to the
+one exact AC-081 selector and add a binary `--list` check requiring AC-081 once
+and both retired registrations only as ignored tests.
 Update P-PARALLEL-TOL's active mapping, REQ-018 traceability, test-plan commands,
-ADR index and live release validators so no hidden old ratio blocks closure.
+`dev/traceability.md`, `dev/design/perf-gates.md`, reader-pool and AC-020-lever
+ADRs, ADR index, active runner/workflow selectors, changelog, release state and
+Slice 85 handoff so no hidden old ratio blocks closure.
 Do not alter historical Slice 75/76/77/79 receipt bytes or claim they passed
 the original gate. An explicit successor mapping is preferable to rewriting
 historical manifest semantics. Review the existing AGENT_LONG/CI routing for

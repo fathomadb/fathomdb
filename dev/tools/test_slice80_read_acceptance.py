@@ -239,9 +239,28 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
             ready.replace("SLICE80_IDENTITY", "OTHER_IDENTITY"),
             ready.replace('"phase": "end", ', ""),
             ready.replace("SLICE80_TEST_EXIT status=0", "SLICE80_TEST_EXIT status=1"),
+            ready.replace("source_sha=" + "a" * 40, "source_sha=" + "a" * 40 + " source_sha=other"),
         ):
             with self.assertRaises(ValueError):
                 subject.parse_collector_readiness_log(broken, "SLICE80_IDENTITY")
+
+    def test_ac072_collector_readiness_binds_its_environment_prefix_and_identity(self):
+        ready = (
+            "SLICE80_AC072_IDENTITY source_sha=source collector_sha256=collector scanner_sha256=scanner\n"
+            f"SLICE71_ENV {json.dumps({'phase': 'start', **environment()})}\n"
+            f"SLICE71_ENV {json.dumps({'phase': 'end', **environment()})}\n"
+            "SLICE71_TEST_EXIT status=0\n"
+        )
+        self.assertTrue(
+            subject.parse_collector_readiness_log(ready, "SLICE80_AC072_IDENTITY")["environment_applicable"]
+        )
+        for broken in (
+            ready.replace("SLICE71_ENV", "SLICE80_ENV"),
+            ready.replace("source_sha=source", "source_sha=source source_sha=other"),
+            ready.replace("scanner_sha256=scanner", "scanner_sha256=scanner extra=unexpected"),
+        ):
+            with self.assertRaises(ValueError):
+                subject.parse_collector_readiness_log(broken, "SLICE80_AC072_IDENTITY")
 
     def test_competing_process_scan_covers_binary_and_runner_and_excludes_ancestors(self):
         rows = """10 ac081-perf-gate /tmp/ac081-perf-gates

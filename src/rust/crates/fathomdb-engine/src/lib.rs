@@ -30650,6 +30650,83 @@ mod tests {
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
 
+    #[cfg(feature = "slice76-statement-reuse")]
+    use super::prepare_search_statement;
+
+    #[cfg(feature = "slice76-statement-reuse")]
+    #[test]
+    fn slice76_statement_reuse_refreshes_alternating_bindings() {
+        let connection = Connection::open_in_memory().expect("open");
+        connection
+            .execute_batch(
+                "CREATE TABLE values_by_id(id INTEGER PRIMARY KEY, value TEXT);\
+                            INSERT INTO values_by_id VALUES(1, 'one'), (2, 'two');",
+            )
+            .expect("seed");
+        let mut reuse = Vec::new();
+        for (id, expected) in [(1_i64, "one"), (2, "two"), (1, "one")] {
+            let mut statement =
+                prepare_search_statement(&connection, "SELECT value FROM values_by_id WHERE id=?1")
+                    .expect("prepare");
+            reuse.push(statement.was_reused());
+            let actual: String = statement.query_row([id], |row| row.get(0)).expect("query");
+            assert_eq!(actual, expected);
+        }
+        assert_eq!(reuse, [false, true, true]);
+    }
+
+    #[cfg(feature = "slice76-statement-reuse")]
+    #[test]
+    fn slice76_statement_reuse_releases_rows_and_recovers_after_error() {
+        let mut connection = Connection::open_in_memory().expect("open");
+        connection
+            .execute_batch("CREATE TABLE item(value INTEGER); INSERT INTO item VALUES(7)")
+            .expect("seed");
+        let transaction = connection.transaction().expect("transaction");
+        {
+            let mut statement =
+                prepare_search_statement(&transaction, "SELECT value FROM item WHERE value=?1")
+                    .expect("prepare");
+            assert!(statement.query_row([9_i64], |row| row.get::<_, i64>(0)).is_err());
+        }
+        {
+            let mut statement =
+                prepare_search_statement(&transaction, "SELECT value FROM item WHERE value=?1")
+                    .expect("reprepare");
+            assert!(statement.was_reused());
+            assert_eq!(statement.query_row([7_i64], |row| row.get::<_, i64>(0)).unwrap(), 7);
+        }
+        transaction.commit().expect("commit after statement release");
+    }
+
+    #[cfg(feature = "slice76-statement-reuse")]
+    #[test]
+    fn slice76_statement_reuse_reprepares_after_schema_change() {
+        let connection = Connection::open_in_memory().expect("open");
+        connection
+            .execute_batch(
+                "CREATE TABLE item(id INTEGER PRIMARY KEY, value TEXT);\
+                                  INSERT INTO item VALUES(1, 'before');",
+            )
+            .expect("seed");
+        {
+            let mut statement =
+                prepare_search_statement(&connection, "SELECT value FROM item WHERE id=?1")
+                    .expect("prepare");
+            assert_eq!(
+                statement.query_row([1_i64], |row| row.get::<_, String>(0)).unwrap(),
+                "before"
+            );
+        }
+        connection.execute_batch("ALTER TABLE item ADD COLUMN extra TEXT").expect("alter");
+        let mut statement =
+            prepare_search_statement(&connection, "SELECT value FROM item WHERE id=?1")
+                .expect("cached prepare");
+        assert!(statement.was_reused());
+        assert_eq!(statement.query_row([1_i64], |row| row.get::<_, String>(0)).unwrap(), "before");
+        assert!(statement.reprepare_count() >= 1, "SQLite must reprepare after schema change");
+    }
+
     #[test]
     fn reader_request_envelope_stays_bounded_as_search_capabilities_grow() {
         assert!(

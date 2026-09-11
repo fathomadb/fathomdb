@@ -34,7 +34,7 @@ if [ "$actual_source_sha" != "$source_sha" ] || \
 fi
 
 snapshot() {
-  local phase="$1" load memory swap_in swap_out temperature competing affinity cgroup_path quota
+  local phase="$1" load memory swap_in swap_out temperature competing affinity cgroup_path quota quota_root
   load=$(awk '{print $1}' /proc/loadavg)
   memory=$(awk '/MemTotal:/{total=$2} /MemAvailable:/{available=$2} END{printf "%.3f", available*100/total}' /proc/meminfo)
   swap_in=$(awk '$1=="pswpin"{print $2}' /proc/vmstat)
@@ -47,7 +47,11 @@ snapshot() {
   done)
   affinity=$(awk '/Cpus_allowed_list:/{print $2}' /proc/self/status)
   cgroup_path=$(awk -F: '$1=="0"{print $3}' /proc/self/cgroup)
-  quota=$(sed -n '1p' "/sys/fs/cgroup${cgroup_path}/cpu.max" 2>/dev/null || true)
+  quota_root="/sys/fs/cgroup${cgroup_path}"
+  while [ "$quota_root" != "/sys/fs/cgroup" ] && [ ! -r "$quota_root/cpu.max" ]; do
+    quota_root=$(dirname "$quota_root")
+  done
+  quota=$(sed -n '1p' "$quota_root/cpu.max" 2>/dev/null || true)
   competing=$(ps -eo pid=,comm=,args= | awk -v self="$$" '
     $1 != self && ($2 ~ /^(cargo|rustc|perf_gates)$/ || $0 ~ /run-ac013[.]sh/) {print}')
   python3 - "$phase" "$load" "$memory" "$swap_in" "$swap_out" "$temperature" \

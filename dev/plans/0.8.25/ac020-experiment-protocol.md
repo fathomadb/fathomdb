@@ -87,6 +87,17 @@ to improve reporting or recompute its verdict from truncated milliseconds.
 
 ## Diagnostic design
 
+For Slice 76, its reviewed four-slot design and execution manifest control this
+section. Mandatory signals are the positive MEMSTATUS witness, combined current
+SQL/preparation/reuse-distance census, one delimited on-CPU profile pair, and one
+post-treatment census. Allocation-call/byte totals, page-cache detail,
+lookaside detail and queue-delay telemetry are optional only when existing or
+small already-authorized hooks expose them; Slice 76 must not build a general
+instrumentation subsystem to obtain them. Missing off-CPU measurement prevents
+a Slice 77 dispatch/lock-wait recommendation. Missing allocation/page counters
+prevents quantitative selection of BLOB, lookaside or page-cache treatments.
+Those conclusions remain unresolved rather than inferred from CPU samples.
+
 Diagnostics are non-shipping, process-owned and never timed as verdicts.
 Use the available profiler first; if symbols are inlined/stripped, explicitly
 record visibility and use one diagnostic-symbol build. A counting allocator
@@ -100,14 +111,14 @@ total allocation/free churn. Count allocator entry calls and page-cache
 allocation/free calls, including internal paths; label sampled/partial counts.
 FTS5/sqlite-vec may bypass lookaside.
 
-Classify allocation stacks and contention separately: preparation/finalization,
+Classify visible allocation stacks and on-CPU contention separately: preparation/finalization,
 ephemeral pager/page-cache, FTS5, sqlite-vec parsing/scratch, WAL/VFS, glibc
 allocator, and application dispatch. Futex entry counts are neither total
 mutex contention nor elapsed wait time; use CPU stacks and waits where
 available, and report unknown/unattributed share. Never sum overlapping
 percentages as if they were disjoint elapsed-time fractions.
 
-Dispatch diagnostics measure enqueue-to-start delay, service time, queue
+When available under a slice manifest, dispatch diagnostics measure enqueue-to-start delay, service time, queue
 depth, worker busy/idle periods and response waiting. A request queued behind
 a busy worker while another is idle counts even if the bounded channel is
 not full. Do not instrument verdict timing.

@@ -55,7 +55,7 @@ change, global SQLite configuration, or shipping optimization is rejected here.
 | --- | --- | --- |
 | R76-1 | Protect the release checkpoint and existing receipts | Source/fixture/executor manifest, clean baseline and Slice 75 cell inventory |
 | R76-2 | Establish current scaling | Seven baseline observations with real test counts, raw logs, statistics enabled and dispersion |
-| R76-3 | Attribute enough of the current cost to choose the next experiment | Exact current SQL/prepare census plus one bounded CPU/wait profile and available per-reader counters; unknown share stays explicit |
+| R76-3 | Attribute enough of the current cost to choose the next experiment | Exact current SQL/prepare census plus one bounded CPU profile pair and available per-reader counters; off-CPU waiting stays explicitly unresolved |
 | R76-4 | Test statement reuse independently | Matched B/C series and focused RED/GREEN evidence, or explicit documented infeasibility |
 | R76-5 | Supply Slice 77's decision inputs | Reviewed ranked hypotheses, candidate eligibility, memory/correctness risks and exact remaining questions |
 
@@ -111,8 +111,9 @@ Use at most three initial diagnostic executions:
 
 1. Exact SQL/prepare census and EQP/opcode inspection for the common AC-020
    path, using current code rather than the stale four-statement A.3 harness.
-2. One sequential/concurrent CPU and blocked-time profile, classifying visible
-   preparation, SQLite/extension, WAL/VFS, allocator and dispatch stacks.
+2. One sequential/concurrent CPU profile pair, classifying visible preparation,
+   SQLite/extension, WAL/VFS, allocator and dispatch stacks. The sealed commands
+   do not measure off-CPU waits, so no lock/channel wait attribution is claimed.
 3. Available per-reader lookaside/page/dispatch counters only where an existing
    hook or one small tested diagnostic supplies them. Absence stays explicit;
    it does not authorize a new instrumentation subsystem.

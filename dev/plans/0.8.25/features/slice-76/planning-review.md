@@ -24,3 +24,22 @@ Final re-review: **PASS**. The sealed manifest scrubs the forbidden environment,
 separates and hash-binds B/C verdict and diagnostic binaries, supplies four exact
 diagnostic slots, and makes the baseline-green early exit executable. No design
 or execution blocker remains.
+
+## Measurement-contract correction
+
+A subsequent independent review at `f26d59c4` found four measurement-contract
+issues before any benchmark ran. They are resolved as follows:
+
+- the concurrent profile now performs the registered gate's preceding 1,600
+  sequential searches and both profile arms use a ready/go boundary so setup and
+  teardown are outside the sampled interval;
+- the profile is explicitly on-CPU only; off-CPU waiting remains unresolved and
+  cannot justify a dispatch or lock-wait treatment;
+- the relevant-tree digest now covers workspace build inputs and every local
+  engine dependency, while shared scaffolding is separated from the B-to-C diff;
+- the shared protocol now states that Slice 76's four-slot manifest controls,
+  distinguishes mandatory from optional signals and names the recommendations
+  unavailable signals cannot support.
+
+These are evidence-quality corrections only. The experiment, oracle, run budget
+and focused verification scope are unchanged.

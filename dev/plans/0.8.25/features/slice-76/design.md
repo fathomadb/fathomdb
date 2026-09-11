@@ -46,8 +46,14 @@ sites remain unchanged and are counted separately.
 - Current SQL evidence comes from code census plus a process-owned diagnostic.
   The diagnostic may count preparations and list normalized executed SQL, but
   it must not alter verdict scheduling or SQLite configuration.
-- One profile compares the sequential and concurrent arms. Unresolved stacks
-  remain unresolved; Slice 76 does not build a general telemetry framework.
+- One profile pair compares the registered gate's sequential and concurrent
+  search phases. The concurrent harness first performs the same 1,600-search
+  sequential pass that warms the registered gate's reader pool. A ready/go
+  rendezvous lets the runner attach `perf` after setup and detach after the
+  delimited search interval, excluding seed and teardown work.
+- The profile is on-CPU sampling only. Off-CPU channel/lock waiting remains
+  unresolved, so Slice 76 cannot select a dispatch or lock treatment from this
+  profile alone. Slice 76 does not build a general telemetry framework.
 
 Statistics-enabled means no `MEMSTATUS_OFF`, custom PCACHE2, PAGECACHE,
 `LIBSQLITE3_FLAGS`, or inherited FathomDB performance overrides in verdict
@@ -91,7 +97,8 @@ campaign stops interpretation. One environment correction is allowed. No broad
 regression, package build, hosted run or global SQLite configuration experiment
 is part of Slice 76.
 
-After review, the prototype is removed, relevant product/test tree identity is
-verified against the safe baseline, temporary binaries/profiles are removed or
-their durable external hashes recorded, release state advances to Slice 77, and
-the worktree is left clean.
+After review, the prototype is removed. The full local build-input/product tree
+is verified against the safe baseline; shared diagnostic/test scaffolding is
+identified separately from the B-to-C treatment diff. Temporary binaries and
+profiles are removed or their durable external hashes recorded, release state
+advances to Slice 77, and the worktree is left clean.

@@ -63,6 +63,19 @@ class Slice76Ac020Tests(unittest.TestCase):
             self.assertEqual(destination.read_bytes(), b"candidate")
             self.assertEqual(len(record["binary_sha256"]), 64)
 
+    def test_profile_environment_delimits_the_requested_gate_phase(self):
+        environment = slice76_ac020.profile_environment(
+            "concurrent-after-sequential-warmup", Path("ready"), Path("go")
+        )
+        self.assertEqual(
+            environment["FATHOMDB_SLICE76_PROFILE_ARM"],
+            "concurrent-after-sequential-warmup",
+        )
+        self.assertEqual(environment["FATHOMDB_SLICE76_PROFILE_READY"], "ready")
+        self.assertEqual(environment["FATHOMDB_SLICE76_PROFILE_GO"], "go")
+        with self.assertRaisesRegex(ValueError, "unsupported profile arm"):
+            slice76_ac020.profile_environment("setup", Path("ready"), Path("go"))
+
 
 if __name__ == "__main__":
     unittest.main()

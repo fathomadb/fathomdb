@@ -366,9 +366,33 @@ export class FathomDbPanicError extends Error {
   }
 }
 
+export class RuntimeConfigurationError extends FathomDbError {
+  readonly reason: string;
+  readonly requestedMode: string | null;
+  readonly effectiveMode: string | null;
+  readonly sqliteCode: number | null;
+
+  constructor(
+    message: string,
+    options: {
+      reason: string;
+      requestedMode?: string | null;
+      effectiveMode?: string | null;
+      sqliteCode?: number | null;
+    },
+  ) {
+    super(message);
+    this.reason = options.reason;
+    this.requestedMode = options.requestedMode ?? null;
+    this.effectiveMode = options.effectiveMode ?? null;
+    this.sqliteCode = options.sqliteCode ?? null;
+  }
+}
+
 // ===== Typed-error rethrow ============================================
 
 type ErrorCode =
+  | "FDB_RUNTIME_CONFIGURATION"
   | "FDB_STORAGE"
   | "FDB_PROJECTION"
   | "FDB_PROJECTION_GENERATION"
@@ -453,6 +477,13 @@ function parseEnvelope(raw: unknown): Envelope | null {
 function build(envelope: Envelope): Error {
   const p = envelope.payload ?? {};
   switch (envelope.code) {
+    case "FDB_RUNTIME_CONFIGURATION":
+      return new RuntimeConfigurationError(envelope.message, {
+        reason: String(p.reason ?? ""),
+        requestedMode: typeof p.requestedMode === "string" ? p.requestedMode : null,
+        effectiveMode: typeof p.effectiveMode === "string" ? p.effectiveMode : null,
+        sqliteCode: typeof p.sqliteCode === "number" ? p.sqliteCode : null,
+      });
     case "FDB_STORAGE":
       return new StorageError(envelope.message);
     case "FDB_PROJECTION":

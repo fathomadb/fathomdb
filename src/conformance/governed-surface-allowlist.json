@@ -10,6 +10,11 @@
   "_slice45_pagination_signature": "The approved 0.8.25 Slice 45 plan adds canonical pagination plus point and paginated operational-state reads in both SDK naming conventions. The reads are bounded, use authenticated continuation or frozen authority, and add no list administration or mutation. Core membership and the recovery denylist are unchanged.",
   "_slice50_evidence_signature": "The approved 0.8.25 Slice 50 plan adds opt-in search_with_evidence/searchWithEvidence and resolve_evidence/resolveEvidence reads. They mint and resolve compact, authenticated, source-bound evidence references under the supplied frozen read context. Core membership and the recovery denylist are unchanged.",
   "_slice55_trace_signature": "The approved 0.8.25 Slice 55 plan adds trace_dependency/traceDependency as a bounded, one-hop governed read under an authenticated frozen context. It adds no reverse state or SDK doctor surface. Core membership and the recovery denylist are unchanged.",
+  "_slice79_runtime_control_signature": "HITL authorization seq-276 approves exactly admin.configure_runtime and admin.configureRuntime as process-start SQLite runtime controls. They are not application commands, leave allowlist/core/recovery_denylist unchanged, and expose only performance/diagnostics mode selection.",
+  "runtime_controls": [
+    "admin.configure_runtime",
+    "admin.configureRuntime"
+  ],
   "allowlist": [
     "Engine.open",
     "admin.configure",

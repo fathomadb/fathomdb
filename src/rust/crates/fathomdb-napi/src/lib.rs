@@ -77,7 +77,9 @@ use fathomdb_engine::{
     ProjectionSpec as RustProjectionSpec, ProjectionVector as RustProjectionVector,
     ProvenancedEdgeV1, ProvenancedNodeV1, QueryTrace as RustQueryTrace,
     ReadContextV1 as RustReadContextV1, ReadView as RustReadView,
-    ResolvedEvidenceV1 as RustResolvedEvidenceV1, ScalarValue as RustScalarValue,
+    ResolvedEvidenceV1 as RustResolvedEvidenceV1,
+    RuntimeConfigurationError as RustRuntimeConfigurationError,
+    RuntimeSqliteMode as RustRuntimeSqliteMode, ScalarValue as RustScalarValue,
     SearchExpandResult as RustSearchExpandResult, SearchFilter as RustSearchFilter,
     SearchHit as RustSearchHit, SearchResult as RustSearchResult, SoftFallbackBranch,
     SourceDependencyRegistrationV1, SourceDependencyV1 as RustSourceDependencyV1, SourceId,
@@ -105,6 +107,7 @@ use serde_json::{json, Value as JsonValue};
 // fails to compile (Rust side) or fails an exhaustiveness check (TS).
 
 const CODE_STORAGE: &str = "FDB_STORAGE";
+const CODE_RUNTIME_CONFIGURATION: &str = "FDB_RUNTIME_CONFIGURATION";
 const CODE_PROJECTION: &str = "FDB_PROJECTION";
 const CODE_PROJECTION_GENERATION: &str = "FDB_PROJECTION_GENERATION";
 const CODE_VECTOR: &str = "FDB_VECTOR";
@@ -483,6 +486,7 @@ fn reranker_device_policy_error_to_napi(
 
 fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
     match err {
+        EngineOpenError::RuntimeConfiguration(error) => runtime_configuration_error_to_napi(error),
         EngineOpenError::DatabaseLocked { holder_pid } => typed_error(
             CODE_DATABASE_LOCKED,
             match holder_pid {
@@ -547,6 +551,34 @@ fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
             JsonValue::Null,
         ),
     }
+}
+
+fn runtime_configuration_error_to_napi(error: RustRuntimeConfigurationError) -> Error {
+    let mode = |value| match value {
+        RustRuntimeSqliteMode::Performance => "performance",
+        RustRuntimeSqliteMode::Diagnostics => "diagnostics",
+    };
+    let data = match error {
+        RustRuntimeConfigurationError::TooLate => json!({
+            "reason": "too_late",
+            "requestedMode": null,
+            "effectiveMode": null,
+            "sqliteCode": null
+        }),
+        RustRuntimeConfigurationError::Conflict { requested, effective } => json!({
+            "reason": "conflict",
+            "requestedMode": mode(requested),
+            "effectiveMode": mode(effective),
+            "sqliteCode": null
+        }),
+        RustRuntimeConfigurationError::SqliteFailure { code } => json!({
+            "reason": "sqlite_failure",
+            "requestedMode": null,
+            "effectiveMode": null,
+            "sqliteCode": code
+        }),
+    };
+    typed_error(CODE_RUNTIME_CONFIGURATION, error.to_string(), data)
 }
 
 fn panic_error() -> Error {
@@ -2460,6 +2492,16 @@ pub struct AdminConfigureOptions {
     pub body: String,
 }
 
+#[napi(object)]
+pub struct RuntimeConfigureOptions {
+    pub sqlite_mode: String,
+}
+
+#[napi(object)]
+pub struct RuntimeConfiguration {
+    pub sqlite_mode: String,
+}
+
 // ===== Engine =========================================================
 
 #[napi]
@@ -3253,6 +3295,29 @@ impl Engine {
 }
 
 // ===== admin.configure ================================================
+
+#[napi(js_name = "adminConfigureRuntime")]
+pub fn admin_configure_runtime(options: RuntimeConfigureOptions) -> Result<RuntimeConfiguration> {
+    let mode = match options.sqlite_mode.as_str() {
+        "performance" => RustRuntimeSqliteMode::Performance,
+        "diagnostics" => RustRuntimeSqliteMode::Diagnostics,
+        _ => {
+            return Err(Error::new(
+                Status::InvalidArg,
+                "sqliteMode must be 'performance' or 'diagnostics'",
+            ));
+        }
+    };
+    fathomdb_engine::configure_runtime(mode)
+        .map(|configuration| RuntimeConfiguration {
+            sqlite_mode: match configuration.sqlite_mode {
+                RustRuntimeSqliteMode::Performance => "performance",
+                RustRuntimeSqliteMode::Diagnostics => "diagnostics",
+            }
+            .to_string(),
+        })
+        .map_err(runtime_configuration_error_to_napi)
+}
 
 #[napi(js_name = "adminConfigure")]
 pub async fn admin_configure(

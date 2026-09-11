@@ -34,6 +34,16 @@ lifecycle/erasure verbs below. Verb NAMES are camelCase in TS; the governed
 allowlist entries stay dotted snake_case where the two differ
 (`read.get_many` ↔ `read.getMany`).
 
+`admin.configureRuntime({ sqliteMode: "performance" | "diagnostics" })` is a
+synchronous startup runtime control, not a governed application command. It
+returns `RuntimeConfiguration { sqliteMode }`. Invalid strings throw
+`RangeError`; native startup failures throw `RuntimeConfigurationError` with
+`reason`, `requestedMode`, `effectiveMode`, and `sqliteCode`. Call it before any
+Engine open. Without a call, first open selects performance. Performance
+disables SQLite global memory accounting and heap-limit enforcement for the
+loaded runtime; diagnostics preserves them. Mode changes require a process
+restart.
+
 ### Lifecycle + erasure verbs (0.8.19 Slice 10 / 0.8.20 Slice 5d)
 
 Governed and HITL-SIGNED; **not** recovery verbs (none carries a REQ-054
@@ -62,7 +72,8 @@ denylist name).
   the at-rest step did not complete. `EraseReport` is
   `{ sourceRef, nodesExcised, edgesExcised, projectionsInvalidated }`.
 
-All runtime operations are Promise-returning on the TS surface.
+Application commands are Promise-returning on the TS surface. The startup-only
+`admin.configureRuntime` control is synchronous.
 
 ### Module-level CLS batch embedding (0.8.20 Slice 40)
 

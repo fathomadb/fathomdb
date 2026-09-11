@@ -78,7 +78,7 @@ fn runtime_configuration_child() {
                 .expect("allocate");
             assert!(unsafe { rusqlite::ffi::sqlite3_memory_used() } > 0);
             let prior = unsafe { rusqlite::ffi::sqlite3_hard_heap_limit64(1024) };
-            assert!(prior >= 1024);
+            assert_eq!(prior, 0, "the default hard heap limit is unlimited");
             let denied = unsafe { rusqlite::ffi::sqlite3_malloc64(1_048_576) };
             assert!(denied.is_null(), "hard heap limit must reject an oversized allocation");
             unsafe {

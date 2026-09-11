@@ -10,6 +10,23 @@ AC-050c) gates merges against this invariant.
 
 ## [Unreleased]
 
+### Added
+
+- Startup-only Rust, Python, and TypeScript SQLite runtime configuration with
+  explicit performance and diagnostics modes. Performance is the ordinary
+  first-open default; diagnostics preserves SQLite memory statistics and heap
+  limits.
+
+### Changed
+
+- Reader workers retain a bounded set of prepared search statements while
+  preserving query bindings, eligibility, snapshots, and automatic schema
+  reprepare behavior.
+
+### Removed
+
+None.
+
 ## 0.8.24 — 2026-08-31
 
 **Publication status: prepared, not yet tagged or published to the canonical

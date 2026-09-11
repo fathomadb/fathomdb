@@ -607,6 +607,17 @@ class SearchExpandResult:
     expanded: list[ExpandedNode]
     all_logical_ids: list[str]
 
+class RuntimeConfiguration:
+    @property
+    def sqlite_mode(self) -> str: ...
+
+class RuntimeConfigurationError(EngineError):
+    reason: str
+    requested_mode: str | None
+    effective_mode: str | None
+    sqlite_code: int | None
+
+def admin_configure_runtime(sqlite_mode: str) -> RuntimeConfiguration: ...
 def admin_configure(engine: Engine, name: str, body: str) -> WriteReceipt: ...
 def transition(
     engine: Engine,

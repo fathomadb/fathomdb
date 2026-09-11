@@ -90,7 +90,9 @@ use fathomdb_engine::{
     ProjectionSpec as RustProjectionSpec, ProjectionVector as RustProjectionVector,
     ProvenanceError as RustProvenanceError, ProvenancedEdgeV1, ProvenancedNodeV1,
     QueryTrace as RustQueryTrace, ReadContextV1 as RustReadContextV1, ReadView as RustReadView,
-    ResolvedEvidenceV1 as RustResolvedEvidenceV1, ScalarValue as RustScalarValue,
+    ResolvedEvidenceV1 as RustResolvedEvidenceV1, RuntimeConfiguration as RustRuntimeConfiguration,
+    RuntimeConfigurationError as RustRuntimeConfigurationError,
+    RuntimeSqliteMode as RustRuntimeSqliteMode, ScalarValue as RustScalarValue,
     SearchExpandResult as RustSearchExpandResult, SearchFilter as RustSearchFilter,
     SearchHit as RustSearchHit, SearchResult as RustSearchResult, SoftFallback as RustSoftFallback,
     SoftFallbackBranch, SourceDependencyRegistrationV1,
@@ -118,6 +120,7 @@ use pyo3::types::{PyDict, PyList};
 // inherits from Python `Exception` via `create_exception!`.
 
 create_exception!(_fathomdb, EngineError, PyException);
+create_exception!(_fathomdb, RuntimeConfigurationError, EngineError);
 create_exception!(_fathomdb, StorageError, EngineError);
 create_exception!(_fathomdb, ProjectionError, EngineError);
 create_exception!(_fathomdb, ProjectionGenerationError, EngineError);
@@ -527,6 +530,7 @@ fn open_stage_str(stage: OpenStage) -> &'static str {
 
 fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
     match err {
+        EngineOpenError::RuntimeConfiguration(error) => runtime_configuration_error_to_py(error),
         EngineOpenError::DatabaseLocked { holder_pid } => {
             let exc = DatabaseLockedError::new_err(match holder_pid {
                 Some(pid) => format!("database is locked by process {pid}"),
@@ -3390,6 +3394,76 @@ impl PyEngine {
 
 // ===== admin.configure ================================================
 
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "RuntimeConfiguration",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyRuntimeConfiguration {
+    sqlite_mode: String,
+}
+
+impl From<RustRuntimeConfiguration> for PyRuntimeConfiguration {
+    fn from(value: RustRuntimeConfiguration) -> Self {
+        Self {
+            sqlite_mode: match value.sqlite_mode {
+                RustRuntimeSqliteMode::Performance => "performance",
+                RustRuntimeSqliteMode::Diagnostics => "diagnostics",
+            }
+            .to_string(),
+        }
+    }
+}
+
+fn runtime_configuration_error_to_py(error: RustRuntimeConfigurationError) -> PyErr {
+    Python::attach(|py| {
+        let exc = RuntimeConfigurationError::new_err(error.to_string());
+        let value = exc.value(py);
+        match error {
+            RustRuntimeConfigurationError::TooLate => {
+                let _ = value.setattr("reason", "too_late");
+                let _ = value.setattr("requested_mode", py.None());
+                let _ = value.setattr("effective_mode", py.None());
+                let _ = value.setattr("sqlite_code", py.None());
+            }
+            RustRuntimeConfigurationError::Conflict { requested, effective } => {
+                let name = |mode| match mode {
+                    RustRuntimeSqliteMode::Performance => "performance",
+                    RustRuntimeSqliteMode::Diagnostics => "diagnostics",
+                };
+                let _ = value.setattr("reason", "conflict");
+                let _ = value.setattr("requested_mode", name(requested));
+                let _ = value.setattr("effective_mode", name(effective));
+                let _ = value.setattr("sqlite_code", py.None());
+            }
+            RustRuntimeConfigurationError::SqliteFailure { code } => {
+                let _ = value.setattr("reason", "sqlite_failure");
+                let _ = value.setattr("requested_mode", py.None());
+                let _ = value.setattr("effective_mode", py.None());
+                let _ = value.setattr("sqlite_code", code);
+            }
+        }
+        exc
+    })
+}
+
+#[pyfunction]
+fn admin_configure_runtime(sqlite_mode: &str) -> PyResult<PyRuntimeConfiguration> {
+    let mode = match sqlite_mode {
+        "performance" => RustRuntimeSqliteMode::Performance,
+        "diagnostics" => RustRuntimeSqliteMode::Diagnostics,
+        _ => {
+            return Err(PyValueError::new_err("sqlite_mode must be 'performance' or 'diagnostics'"))
+        }
+    };
+    fathomdb_engine::configure_runtime(mode)
+        .map(PyRuntimeConfiguration::from)
+        .map_err(runtime_configuration_error_to_py)
+}
+
 #[pyfunction]
 #[pyo3(signature = (engine, name, body))]
 fn admin_configure(
@@ -5224,6 +5298,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     // Slice 20 — graph traversal result types.
     m.add_class::<PyExpandedNode>()?;
     m.add_class::<PySearchExpandResult>()?;
+    m.add_class::<PyRuntimeConfiguration>()?;
+    m.add_function(wrap_pyfunction!(admin_configure_runtime, &m)?)?;
     m.add_function(wrap_pyfunction!(admin_configure, &m)?)?;
     // OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle verbs.
     m.add_function(wrap_pyfunction!(transition, &m)?)?;
@@ -5271,6 +5347,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(native_raw_wal_checkpoint_for_test, &m)?)?;
 
     m.add("EngineError", py.get_type::<EngineError>())?;
+    m.add("RuntimeConfigurationError", py.get_type::<RuntimeConfigurationError>())?;
     m.add("StorageError", py.get_type::<StorageError>())?;
     m.add("ProjectionError", py.get_type::<ProjectionError>())?;
     m.add("VectorError", py.get_type::<VectorError>())?;

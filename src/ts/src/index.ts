@@ -2430,6 +2430,16 @@ export interface AdminConfigureOptions {
   body: string;
 }
 
+export type RuntimeSqliteMode = "performance" | "diagnostics";
+
+export interface RuntimeConfigureOptions {
+  sqliteMode: RuntimeSqliteMode;
+}
+
+export interface RuntimeConfiguration {
+  sqliteMode: RuntimeSqliteMode;
+}
+
 async function intercept<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
@@ -3300,6 +3310,12 @@ export class Engine {
 }
 
 export const admin = {
+  configureRuntime(options: RuntimeConfigureOptions): RuntimeConfiguration {
+    if (options.sqliteMode !== "performance" && options.sqliteMode !== "diagnostics") {
+      throw new RangeError("sqliteMode must be 'performance' or 'diagnostics'");
+    }
+    return interceptSync(() => native.adminConfigureRuntime(options));
+  },
   async configure(engine: Engine, options: AdminConfigureOptions): Promise<WriteReceipt> {
     validateFfiString(options.name);
     validateFfiString(options.body);

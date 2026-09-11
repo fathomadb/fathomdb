@@ -23,6 +23,7 @@ from fathomdb._fathomdb import (
 from fathomdb._fathomdb import (
     CorruptionError as _CorruptionError,
 )
+from fathomdb._fathomdb import RuntimeConfigurationError as _RuntimeConfigurationError
 from fathomdb._fathomdb import (
     DatabaseLockedError as _DatabaseLockedError,
 )
@@ -142,6 +143,7 @@ OverloadedError = _OverloadedError
 ClosingError = _ClosingError
 DatabaseLockedError = _DatabaseLockedError
 CorruptionError = _CorruptionError
+RuntimeConfigurationError = _RuntimeConfigurationError
 IncompatibleSchemaVersionError = _IncompatibleSchemaVersionError
 MigrationError = _MigrationError
 EmbedderIdentityMismatchError = _EmbedderIdentityMismatchError
@@ -191,6 +193,10 @@ def _install_typed_init(cls: type, fields: tuple[str, ...]) -> None:
 
 _install_typed_init(DatabaseLockedError, ("holder_pid",))
 _install_typed_init(
+    RuntimeConfigurationError,
+    ("reason", "requested_mode", "effective_mode", "sqlite_code"),
+)
+_install_typed_init(
     CorruptionError,
     ("kind", "stage", "recovery_hint_code", "doc_anchor"),
 )
@@ -233,6 +239,7 @@ __all__ = [
     "EmbedderDimensionMismatchError",
     "EmbedDevicePolicyError",
     "RerankerDevicePolicyError",
+    "RuntimeConfigurationError",
     "EmbedderError",
     "EmbedderIdentityMismatchError",
     "EmbedderNotConfiguredError",

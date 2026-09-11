@@ -54,7 +54,6 @@ mod frozen_read;
 mod graph_expand;
 pub mod lifecycle;
 mod pagination;
-mod pcache2;
 mod projection_generation;
 #[cfg(feature = "tc5-benchmark")]
 pub mod tc5_benchmark;
@@ -472,7 +471,9 @@ use fathomdb_schema::CANONICAL_TABLES;
 use jsonschema::JSONSchema;
 #[cfg(any(test, feature = "test-hooks"))]
 use rusqlite::TransactionState;
-use rusqlite::{config::DbConfig, params, Connection, OptionalExtension};
+use rusqlite::{
+    config::DbConfig, params, CachedStatement, Connection, OptionalExtension, Statement,
+};
 use serde_json::Value;
 // `sha2::Digest` + `sha2::Sha256` — used by `safe_export` (operator-gated)
 // and unconditionally by `ingest_with_extractor` (G11 logical_id derivation).
@@ -2676,6 +2677,7 @@ fn reader_worker_loop(
     ready: SyncSender<()>,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
 ) {
+    connection.set_prepared_statement_cache_capacity(10);
     #[cfg(any(test, feature = "test-hooks"))]
     let _connection_registration =
         managed_connections.register(WalAttributionRole::ReaderWorker, worker_idx);
@@ -3939,6 +3941,139 @@ pub struct OpenReport {
 pub struct OpenedEngine {
     pub engine: Engine,
     pub report: OpenReport,
+}
+
+impl OpenedEngine {
+    /// Return the process-wide SQLite configuration effective for this open.
+    pub fn runtime_configuration(&self) -> RuntimeConfiguration {
+        effective_runtime_configuration()
+    }
+}
+
+/// SQLite runtime mode selected before FathomDB opens its first connection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RuntimeSqliteMode {
+    /// Disable SQLite's process-global memory statistics and heap-limit
+    /// enforcement to remove their shared allocator lock from read traffic.
+    Performance,
+    /// Enable SQLite's process-global memory statistics and heap-limit
+    /// enforcement for diagnostic applications.
+    Diagnostics,
+}
+
+/// Effective process-wide SQLite runtime configuration.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RuntimeConfiguration {
+    pub sqlite_mode: RuntimeSqliteMode,
+}
+
+/// Startup configuration failure. Changing modes requires a process restart.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RuntimeConfigurationError {
+    /// SQLite was already initialized before FathomDB could configure it.
+    TooLate,
+    /// The runtime is already configured in a different mode.
+    Conflict { requested: RuntimeSqliteMode, effective: RuntimeSqliteMode },
+    /// SQLite rejected configuration or initialization with this result code.
+    SqliteFailure { code: i32 },
+}
+
+impl Display for RuntimeConfigurationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TooLate => write!(f, "SQLite runtime configuration is too late; restart required"),
+            Self::Conflict { requested, effective } => write!(
+                f,
+                "SQLite runtime is already configured as {effective:?}, not {requested:?}; restart required"
+            ),
+            Self::SqliteFailure { code } => {
+                write!(f, "SQLite runtime configuration failed with code {code}")
+            }
+        }
+    }
+}
+
+impl Error for RuntimeConfigurationError {}
+
+#[derive(Clone, Copy, Debug)]
+enum RuntimeState {
+    Unconfigured,
+    Configured(RuntimeConfiguration),
+    Failed(RuntimeConfigurationError),
+}
+
+static SQLITE_RUNTIME_STATE: Mutex<RuntimeState> = Mutex::new(RuntimeState::Unconfigured);
+
+/// Configure the SQLite runtime before opening any FathomDB Engine.
+///
+/// Repeating the same mode is idempotent. Selecting a different mode or
+/// configuring after any SQLite initialization fails without shutdown or
+/// reconfiguration. The setting applies to the SQLite image linked into this
+/// artifact and persists for the process lifetime.
+pub fn configure_runtime(
+    sqlite_mode: RuntimeSqliteMode,
+) -> Result<RuntimeConfiguration, RuntimeConfigurationError> {
+    configure_runtime_locked(Some(sqlite_mode))
+}
+
+fn configure_runtime_for_open() -> Result<RuntimeConfiguration, RuntimeConfigurationError> {
+    configure_runtime_locked(None)
+}
+
+fn configure_runtime_locked(
+    requested: Option<RuntimeSqliteMode>,
+) -> Result<RuntimeConfiguration, RuntimeConfigurationError> {
+    let mut state = SQLITE_RUNTIME_STATE.lock().map_err(|_| {
+        RuntimeConfigurationError::SqliteFailure { code: rusqlite::ffi::SQLITE_ERROR }
+    })?;
+    match *state {
+        RuntimeState::Configured(effective) => {
+            if requested.is_none_or(|mode| mode == effective.sqlite_mode) {
+                return Ok(effective);
+            }
+            return Err(RuntimeConfigurationError::Conflict {
+                requested: requested.expect("checked Some"),
+                effective: effective.sqlite_mode,
+            });
+        }
+        RuntimeState::Failed(error) => return Err(error),
+        RuntimeState::Unconfigured => {}
+    }
+
+    let mode = requested.unwrap_or(RuntimeSqliteMode::Performance);
+    let memstatus = match mode {
+        RuntimeSqliteMode::Performance => 0_i32,
+        RuntimeSqliteMode::Diagnostics => 1_i32,
+    };
+    let config_rc =
+        unsafe { rusqlite::ffi::sqlite3_config(rusqlite::ffi::SQLITE_CONFIG_MEMSTATUS, memstatus) };
+    if config_rc != rusqlite::ffi::SQLITE_OK {
+        let error = if config_rc == rusqlite::ffi::SQLITE_MISUSE {
+            RuntimeConfigurationError::TooLate
+        } else {
+            RuntimeConfigurationError::SqliteFailure { code: config_rc }
+        };
+        *state = RuntimeState::Failed(error);
+        return Err(error);
+    }
+    let initialize_rc = unsafe { rusqlite::ffi::sqlite3_initialize() };
+    if initialize_rc != rusqlite::ffi::SQLITE_OK {
+        let error = RuntimeConfigurationError::SqliteFailure { code: initialize_rc };
+        *state = RuntimeState::Failed(error);
+        return Err(error);
+    }
+    let effective = RuntimeConfiguration { sqlite_mode: mode };
+    *state = RuntimeState::Configured(effective);
+    Ok(effective)
+}
+
+fn effective_runtime_configuration() -> RuntimeConfiguration {
+    match *SQLITE_RUNTIME_STATE.lock().expect("SQLite runtime state") {
+        RuntimeState::Configured(configuration) => configuration,
+        RuntimeState::Unconfigured | RuntimeState::Failed(_) => {
+            unreachable!("an opened Engine always has a configured SQLite runtime")
+        }
+    }
 }
 
 /// EU-5b — loader-supplied open-time telemetry threaded into
@@ -6916,6 +7051,7 @@ pub struct RecoveryHint {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EngineOpenError {
+    RuntimeConfiguration(RuntimeConfigurationError),
     DatabaseLocked {
         holder_pid: Option<u32>,
     },
@@ -6984,6 +7120,7 @@ pub enum EmbedderChoice {
 impl Display for EngineOpenError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::RuntimeConfiguration(error) => error.fmt(f),
             Self::DatabaseLocked { holder_pid } => match holder_pid {
                 Some(pid) => write!(f, "database is locked by process {pid}"),
                 None => write!(f, "database is locked by another engine instance"),
@@ -8799,7 +8936,7 @@ impl Engine {
             ManagedConnectionRegistry,
         >,
     ) -> Result<(Connection, Vec<Connection>, OpenReport, Vec<i32>), EngineOpenError> {
-        init_perf_experiments_runtime();
+        configure_runtime_for_open().map_err(EngineOpenError::RuntimeConfiguration)?;
         register_sqlite_vec_extension();
         let mut connection = open_managed_connection(
             &path,
@@ -18079,6 +18216,52 @@ fn read_search_work_in_tx<C: SearchOriginCapture>(
     )
 }
 
+struct SearchStatement<'connection> {
+    statement: CachedStatement<'connection>,
+}
+
+#[cfg(test)]
+impl SearchStatement<'_> {
+    fn was_reused(&self) -> bool {
+        self.statement.get_status(rusqlite::StatementStatus::Run) > 0
+    }
+
+    fn reprepare_count(&self) -> i32 {
+        self.statement.get_status(rusqlite::StatementStatus::RePrepare)
+    }
+}
+
+impl<'connection> std::ops::Deref for SearchStatement<'connection> {
+    type Target = Statement<'connection>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.statement
+    }
+}
+
+impl std::ops::DerefMut for SearchStatement<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.statement
+    }
+}
+
+fn prepare_search_statement<'connection>(
+    connection: &'connection Connection,
+    sql: &str,
+) -> rusqlite::Result<SearchStatement<'connection>> {
+    connection.prepare_cached(sql).map(|statement| SearchStatement { statement })
+}
+
+fn load_projection_cursor_for_search(connection: &Connection) -> rusqlite::Result<u64> {
+    prepare_search_statement(connection, "SELECT value FROM _fathomdb_open_state WHERE key = ?1")?
+        .query_row([PROJECTION_CURSOR_KEY], |row| row.get::<_, String>(0))
+        .map(|value| value.parse::<u64>().unwrap_or(0))
+        .or_else(|err| match err {
+            rusqlite::Error::QueryReturnedNoRows => Ok(0),
+            _ => Err(err),
+        })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn read_search_in_tx<C: SearchOriginCapture>(
     reader: &mut Connection,
@@ -18206,7 +18389,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             query_vector_bin,
         )
     };
-    let cursor = load_projection_cursor(&tx)?;
+    let cursor = load_projection_cursor_for_search(&tx)?;
     // fix-3 (codex §9 [P2], TOCTOU) — validate every filter attribute name on THIS
     // reader transaction's snapshot, before `build_vector_phase1_sql` emits
     // `AND attr_<hex>=?` and before the FTS arm probes `canonical_attributes`. The
@@ -18300,7 +18483,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 rusqlite::types::Value::Text(query_vector.to_string()),
             ];
             params.extend(vector_filter_values(filter));
-            let mut statement = tx.prepare(&sql)?;
+            let mut statement = prepare_search_statement(&tx, &sql)?;
             let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
                 Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
             })?;
@@ -18349,11 +18532,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // the conjunct matches everything ⇒ default behaviour is unchanged.
         let node_validity = view.validity_sql("canonical_nodes", 2);
         let node_eligibility = read_dependency_eligibility("canonical_nodes", 2);
-        let mut node_stmt = tx.prepare(&format!(
-            "SELECT kind, body, logical_id, source_id FROM canonical_nodes \
+        let mut node_stmt = prepare_search_statement(
+            &tx,
+            &format!(
+                "SELECT kind, body, logical_id, source_id FROM canonical_nodes \
              WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active'\
              {node_validity}{node_eligibility} LIMIT 1"
-        ))?;
+            ),
+        )?;
         // fix-2 (codex §9 [P2]): an edge body projected into `vector_default`
         // (kind = "edge_fact") is hydrated HERE by write_cursor. Gating on
         // `superseded_at` alone let an EXPIRED edge (`t_invalid <= :now`) surface
@@ -18368,11 +18554,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // past stays excluded even when node existence is relaxed).
         let edge_validity = edge_validity_sql_for_view("canonical_edges", 2, &view.view);
         let edge_eligibility = read_dependency_eligibility("canonical_edges", 2);
-        let mut edge_stmt = tx.prepare(&format!(
-            "SELECT body, logical_id, source_id FROM canonical_edges \
+        let mut edge_stmt = prepare_search_statement(
+            &tx,
+            &format!(
+                "SELECT body, logical_id, source_id FROM canonical_edges \
              WHERE write_cursor = ?1 AND superseded_at IS NULL AND body IS NOT NULL\
              {edge_validity}{edge_eligibility} LIMIT 1"
-        ))?;
+            ),
+        )?;
         // The bound parameter list for the node lookup: the candidate rowid,
         // plus `:now` when (and only when) the view emitted a validity conjunct.
         // One instant for the whole query — resolved once, above, not per row.
@@ -18634,23 +18823,26 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 "SELECT body, kind, write_cursor, bm25(search_index) FROM search_index \
                  WHERE search_index MATCH ?1{now_binding}{limit_clause}"
             );
-            let mut candidates = tx.prepare(&sql).and_then(|mut statement| {
-                let rows =
-                    statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
-                        let body = row.get::<_, String>(0)?;
-                        Ok(SearchHit {
-                            id: IdSpace::content(String::new()),
-                            body,
-                            kind: row.get::<_, String>(1)?,
-                            write_cursor: row.get::<_, i64>(2)? as u64,
-                            score: row.get::<_, f64>(3)?,
-                            branch: SoftFallbackBranch::Text,
-                            source_id: None,
-                            ce_score: None,
-                        })
-                    })?;
-                rows.collect::<rusqlite::Result<Vec<_>>>()
-            })?;
+            let mut candidates =
+                prepare_search_statement(&tx, &sql).and_then(|mut statement| {
+                    let rows = statement.query_map(
+                        rusqlite::params_from_iter(text_params.iter()),
+                        |row| {
+                            let body = row.get::<_, String>(0)?;
+                            Ok(SearchHit {
+                                id: IdSpace::content(String::new()),
+                                body,
+                                kind: row.get::<_, String>(1)?,
+                                write_cursor: row.get::<_, i64>(2)? as u64,
+                                score: row.get::<_, f64>(3)?,
+                                branch: SoftFallbackBranch::Text,
+                                source_id: None,
+                                ce_score: None,
+                            })
+                        },
+                    )?;
+                    rows.collect::<rusqlite::Result<Vec<_>>>()
+                })?;
             candidates.sort_by(|left, right| {
                 left.score
                     .total_cmp(&right.score)
@@ -18814,7 +19006,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let edge_sql = edge_fts_rank_sql(&edge_validity, &edge_eligibility);
         // search_index_edges may not exist on very old DBs not yet at step-14;
         // ignore the error gracefully (returns empty slice).
-        if let Ok(mut stmt) = tx.prepare(&edge_sql) {
+        if let Ok(mut stmt) = prepare_search_statement(&tx, &edge_sql) {
             if let Ok(rows) =
                 stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
                     let body = row.get::<_, String>(0)?;
@@ -23375,100 +23567,6 @@ fn map_migration_error(err: SchemaMigrationError) -> EngineOpenError {
             EngineOpenError::Io { message: message.to_string() }
         }
     }
-}
-
-/// 0.7.0 perf-experiments hook: process-start `sqlite3_config` calls.
-/// Runs exactly once per process; must precede any `Connection::open`.
-/// Gated on `FATHOMDB_PERF_EXPERIMENTS=1`. Each individual config
-/// option is opt-in via its own env var so unrelated experiments do
-/// not implicitly co-fire.
-///
-/// Currently supports:
-/// - `FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF=1`:
-///   `sqlite3_config(SQLITE_CONFIG_MEMSTATUS, 0)` — drops the
-///   allocator stats locking surface (whitepaper § 7.4). Composes
-///   with other levers; small payoff alone.
-///
-/// Pattern: shutdown → config → initialize, mirroring B.1 attempt #2
-/// (`d448263`, reverted). The captured rc for each config call is
-/// logged to stderr so experiments can verify the call took effect.
-fn init_perf_experiments_runtime() {
-    static INIT: Once = Once::new();
-    INIT.call_once(|| {
-        if std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_none() {
-            return;
-        }
-        let memstatus_off =
-            std::env::var_os("FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF").is_some_and(|v| v == "1");
-        // FATHOMDB_PERF_SQLITE_PAGECACHE=<page_size_bytes>:<page_count>
-        // E.g. "4096:5000" => pre-allocate 4096 B × 5000 pages = 20 MB
-        // global page-cache backing. SQLite distributes this across
-        // connections; reduces global allocator pressure for page
-        // cache fills.
-        let pagecache = std::env::var("FATHOMDB_PERF_SQLITE_PAGECACHE").ok();
-        // FATHOMDB_PERF_SQLITE_PCACHE2=1 installs the per-instance
-        // custom page-cache allocator (pcache2.rs). Targets AC-020
-        // residual contention on the default pcache1 mutex.
-        let pcache2_on =
-            std::env::var_os("FATHOMDB_PERF_SQLITE_PCACHE2").is_some_and(|v| v == "1");
-        if !memstatus_off && pagecache.is_none() && !pcache2_on {
-            return;
-        }
-        // SAFETY: sqlite3_shutdown / sqlite3_initialize are documented
-        // as safe to call before any other SQLite API; sqlite3_config
-        // must be called between shutdown and initialize. We pre-empt
-        // rusqlite's lazy first-call sqlite3_initialize via this
-        // explicit shutdown-then-config-then-initialize sequence,
-        // identical to B.1 attempt #2's plumbing.
-        unsafe {
-            let rc_shutdown = rusqlite::ffi::sqlite3_shutdown();
-            let rc_memstatus = if memstatus_off {
-                rusqlite::ffi::sqlite3_config(rusqlite::ffi::SQLITE_CONFIG_MEMSTATUS, 0_i32)
-            } else {
-                -1
-            };
-            // SQLITE_CONFIG_PAGECACHE = 7 per sqlite3.h. With buffer=NULL,
-            // SQLite allocates the backing memory itself but still
-            // partitions it for use as the page-cache pool.
-            let rc_pagecache = if let Some(spec) = pagecache.as_ref() {
-                let mut parts = spec.split(':');
-                let sz = parts.next().and_then(|s| s.parse::<i32>().ok()).unwrap_or(0);
-                let n = parts.next().and_then(|s| s.parse::<i32>().ok()).unwrap_or(0);
-                if sz > 0 && n > 0 {
-                    rusqlite::ffi::sqlite3_config(
-                        7, // SQLITE_CONFIG_PAGECACHE
-                        std::ptr::null_mut::<std::ffi::c_void>(),
-                        sz,
-                        n,
-                    )
-                } else {
-                    eprintln!(
-                        "perf-experiment: bad FATHOMDB_PERF_SQLITE_PAGECACHE spec '{spec}' (expect '<bytes>:<count>')"
-                    );
-                    -1
-                }
-            } else {
-                -1
-            };
-            let rc_pcache2 = if pcache2_on {
-                // SQLITE_CONFIG_PCACHE2 = 18 per sqlite3.h. The methods
-                // table must outlive the SQLite engine; we pass a
-                // pointer to our static.
-                rusqlite::ffi::sqlite3_config(
-                    rusqlite::ffi::SQLITE_CONFIG_PCACHE2,
-                    &raw const pcache2::PCACHE2_METHODS.0,
-                )
-            } else {
-                -1
-            };
-            let rc_init = rusqlite::ffi::sqlite3_initialize();
-            eprintln!(
-                "perf-experiment: runtime-config rcs shutdown={rc_shutdown} \
-                 memstatus={rc_memstatus} pagecache={rc_pagecache} pcache2={rc_pcache2} \
-                 initialize={rc_init} (0=SQLITE_OK; 21=SQLITE_MISUSE; -1=not configured)"
-            );
-        }
-    });
 }
 
 fn register_sqlite_vec_extension() {

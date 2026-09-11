@@ -11,15 +11,15 @@
     "build": "cargo 1.95.0/rustc 1.95.0 release; no FATHOMDB_PERF_* or LIBSQLITE3_FLAGS overrides"
   },
   "red": [
-    {"command": "cargo test -p fathomdb-engine --test runtime_configuration -- --test-threads=1", "expected": "compile failure before API exists", "green_count": 6},
+    {"command": "cargo test -p fathomdb-engine --test runtime_configuration -- --test-threads=1", "expected": "compile failure before API exists", "green_count": 7},
     {"command": "cargo test -p fathomdb-engine statement_reuse_ --lib -- --test-threads=1", "expected": "compile failure before cache helper exists", "green_count": 4},
     {"command": "PYTHONPATH=src/python python -m pytest src/python/tests/test_slice79_runtime_configuration.py -q", "expected": "import/API failure", "green_count": 3},
-    {"command": "npm run build:debug -w fathomdb && node --test src/ts/dist/tests/slice79-runtime-configuration.test.js", "expected": "API/type failure", "green_count": 3}
+    {"command": "cd src/ts && npm run build:debug && ./node_modules/.bin/tsc -p tsconfig.json && node --test dist/tests/slice79-runtime-configuration.test.js", "expected": "API/type failure", "green_count": 3}
   ],
   "focused_green": [
     "cargo fmt --all -- --check",
     "cargo check -p fathomdb-engine -p fathomdb -p fathomdb-py -p fathomdb-napi",
-    "cargo clippy -p fathomdb-engine -p fathomdb -p fathomdb-py -p fathomdb-napi --all-targets -- -D warnings",
+    "cargo clippy -p fathomdb-engine -p fathomdb -p fathomdb-py -p fathomdb-napi --lib -- -D warnings; clippy the exact affected test targets separately",
     "cargo test -p fathomdb-engine --test runtime_configuration -- --test-threads=1",
     "cargo test -p fathomdb-engine statement_reuse_ --lib -- --test-threads=1",
     "cargo test -p fathomdb-engine --test slice30_dependency_closure -- --test-threads=1",
@@ -27,7 +27,7 @@
     "cargo test -p fathomdb --test governed_surface -- --test-threads=1",
     "python -m build src/python --wheel --outdir /tmp/fathomdb-slice79-python-dist",
     "python -m venv /tmp/fathomdb-slice79-python-venv; install the wheel; pytest test_slice79_runtime_configuration.py (3 tests)",
-    "npm run build:debug -w fathomdb; npm pack -w fathomdb --pack-destination /tmp/fathomdb-slice79-node; install the tarball in a fresh /tmp project; node --test the built Slice 79 module (3 tests)",
+    "from src/ts: npm run build:debug; pack the main and matched Linux platform packages, install both offline in a fresh /tmp consumer, and run the three Slice 79 scenarios",
     "python -m pytest src/python/tests/test_surface.py -q",
     "npm test --workspace fathomdb -- src/ts/tests/surface.test.ts"
   ],

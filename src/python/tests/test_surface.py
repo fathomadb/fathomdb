@@ -54,6 +54,7 @@ def _load_governed_surface_contract() -> dict[str, list[str]]:
 _CONTRACT = _load_governed_surface_contract()
 GOVERNED_SURFACE_ALLOWLIST = frozenset(_CONTRACT["allowlist"])
 _CORE_LIVE_SURFACE = frozenset(_CONTRACT["core"])
+_RUNTIME_CONTROLS = frozenset(_CONTRACT["runtime_controls"])
 
 # Engine-attached instrumentation/control methods are observability, NOT
 # application commands — excluded from the allowlist (preserved from AC-057a's
@@ -129,7 +130,9 @@ def _live_python_command_surface() -> set[str]:
         live.add("Engine.open" if name == "open" else name)
     for verb in getattr(admin, "__all__", ()):
         if callable(getattr(admin, verb, None)):
-            live.add(f"admin.{verb}")
+            name = f"admin.{verb}"
+            if name not in _RUNTIME_CONTROLS:
+                live.add(name)
     # Slice 30 — the governed `read.*` namespace. `read.__all__` is the snake_case
     # verb list (`get`, `get_many`, `collection`, `mutations`); each emits the
     # dotted allowlist name verbatim. A stray non-allowlisted `read` verb (e.g.
@@ -162,6 +165,14 @@ def test_read_namespace_verbs_are_live() -> None:
     assert not missing, f"read.* verbs that must be live are missing: {sorted(missing)}"
     # And they remain governed-allowlist members.
     assert _NOW_LIVE_READ_VERBS <= GOVERNED_SURFACE_ALLOWLIST
+
+
+def test_runtime_controls_are_pinned_and_live() -> None:
+    assert _RUNTIME_CONTROLS == {
+        "admin.configure_runtime",
+        "admin.configureRuntime",
+    }
+    assert callable(admin.configure_runtime)
 
 
 def test_search_text_only_verb_is_live() -> None:

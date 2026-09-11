@@ -32,6 +32,7 @@ interface GovernedSurfaceContract {
   allowlist: string[];
   core: string[];
   recovery_denylist: string[];
+  runtime_controls: string[];
 }
 
 function loadGovernedSurfaceContract(): GovernedSurfaceContract {
@@ -53,6 +54,7 @@ function loadGovernedSurfaceContract(): GovernedSurfaceContract {
 const CONTRACT = loadGovernedSurfaceContract();
 const GOVERNED_SURFACE_ALLOWLIST: ReadonlySet<string> = new Set(CONTRACT.allowlist);
 const CORE_LIVE_SURFACE: readonly string[] = CONTRACT.core;
+const RUNTIME_CONTROLS: ReadonlySet<string> = new Set(CONTRACT.runtime_controls);
 
 // Engine-attached instrumentation/control methods are observability, NOT
 // application commands — excluded from the allowlist (preserved from AC-057a's
@@ -136,7 +138,12 @@ function liveTsCommandSurface(engine: Engine): Set<string> {
     if (typeof (Engine as unknown as Record<string, unknown>)[name] !== "function") continue;
     live.add(name === "open" ? "Engine.open" : name);
   }
-  if (typeof admin.configure === "function") live.add("admin.configure");
+  for (const key of Object.keys(admin as unknown as Record<string, unknown>)) {
+    if (key.startsWith("_")) continue;
+    if (typeof (admin as unknown as Record<string, unknown>)[key] !== "function") continue;
+    const name = `admin.${key}`;
+    if (!RUNTIME_CONTROLS.has(name)) live.add(name);
+  }
   // Slice 30 — the governed `read.*` namespace. Introspect the `read` object's
   // own function-valued keys (mirroring the `admin` introspection); normalize
   // camelCase → snake_case so the emitted name matches the dotted allowlist. A
@@ -173,6 +180,14 @@ test("public surface is the governed allowlist (membership, not a count)", async
   } finally {
     await engine.close();
   }
+});
+
+test("runtime controls are pinned and live", () => {
+  assert.deepEqual(
+    [...RUNTIME_CONTROLS].sort(),
+    ["admin.configureRuntime", "admin.configure_runtime"],
+  );
+  assert.equal(typeof admin.configureRuntime, "function");
 });
 
 test("read.* namespace verbs are live (Slice 30, introspected not documented-only)", async () => {

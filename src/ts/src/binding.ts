@@ -630,6 +630,14 @@ interface NativeAdminConfigureOptions {
   body: string;
 }
 
+export interface NativeRuntimeConfigureOptions {
+  sqliteMode: "performance" | "diagnostics";
+}
+
+export interface NativeRuntimeConfiguration {
+  sqliteMode: "performance" | "diagnostics";
+}
+
 export interface NativeEngine {
   write(batch: unknown[]): Promise<NativeWriteReceipt>;
   actuate(request: unknown): Promise<NativeActuationReceiptV1>;
@@ -765,6 +773,7 @@ export interface NativeModule {
     engine: NativeEngine,
     options: NativeAdminConfigureOptions,
   ): Promise<NativeWriteReceipt>;
+  adminConfigureRuntime(options: NativeRuntimeConfigureOptions): NativeRuntimeConfiguration;
   // Slice 30 — governed read.* native fns (G2/G3).
   readGet(
     engine: NativeEngine,

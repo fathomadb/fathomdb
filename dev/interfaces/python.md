@@ -32,6 +32,16 @@ the BYO-LLM verbs
 (`engine.ingest_with_extractor`, `engine.consolidate_with_provider`),
 `engine.configure_projections`, and the lifecycle/erasure verbs below.
 
+`admin.configure_runtime(sqlite_mode="performance" | "diagnostics")` is a
+synchronous startup runtime control, not a governed application command. It
+returns frozen `RuntimeConfiguration(sqlite_mode=...)`. Invalid strings raise
+`ValueError`; native startup failures raise `RuntimeConfigurationError` with
+`reason`, `requested_mode`, `effective_mode`, and `sqlite_code` attributes.
+Call it before any Engine open. Without a call, first open selects performance.
+Performance disables SQLite global memory accounting and heap-limit enforcement
+for the loaded runtime; diagnostics preserves them. Mode changes require a
+process restart.
+
 ### Lifecycle + erasure verbs (0.8.19 Slice 10 / 0.8.20 Slice 5d)
 
 Governed and HITL-SIGNED; **not** recovery verbs (none carries a REQ-054

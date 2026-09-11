@@ -102,6 +102,11 @@
 //! reviewed delta, but that is a change-control promise, not a semver one.
 //! [`PreparedWrite`] and [`SearchFilter`] are `#[non_exhaustive]`.
 
+/// Process-start administrative controls that do not require an [`Engine`].
+pub mod admin {
+    pub use fathomdb_engine::configure_runtime;
+}
+
 // The 26 governed application-surface types (`dev/interfaces/rust.md` § 2a) —
 // always present on the default facade.
 //
@@ -173,13 +178,14 @@ pub use fathomdb_engine::{
     ProjectionRuntimeStatusEntry, ProjectionRuntimeUnavailabilityReason, ProjectionSpec,
     ProjectionStatusDenseReadiness, ProjectionVector, ProvenanceCompleteness, ProvenanceError,
     ProvenanceErrorReason, ProvenancedEdgeV1, ProvenancedNodeV1, QueryTrace, ReadContextV1,
-    ReadView, RecoveryHint, ResolvedEvidenceV1, ResolvedGraphSeedV1, ScalarValue,
-    SearchExpandResult, SearchFilter, SearchResult, SoftFallback, SoftFallbackBranch,
-    SourceDependencyRegistrationV1, SourceDependencyV1, SourceId, SourceLocator, SourceRevisionId,
-    SourceVersionId, StructuralDegradationCodeV1, StructuralDependencyStateV1,
-    StructuralInclusionStateV1, StructuralInclusionV1, StructuralLifecycleStateV1,
-    StructuralProjectionOriginV1, Subscription, TraceArtifactClassV1, TraceArtifactRoleV1,
-    TraceNodeLifecycleV1, TraceReadBoundaryV1, TraversalDirection, WriteProvenanceV1, WriteReceipt,
+    ReadView, RecoveryHint, ResolvedEvidenceV1, ResolvedGraphSeedV1, RuntimeConfiguration,
+    RuntimeConfigurationError, RuntimeSqliteMode, ScalarValue, SearchExpandResult, SearchFilter,
+    SearchResult, SoftFallback, SoftFallbackBranch, SourceDependencyRegistrationV1,
+    SourceDependencyV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    StructuralDegradationCodeV1, StructuralDependencyStateV1, StructuralInclusionStateV1,
+    StructuralInclusionV1, StructuralLifecycleStateV1, StructuralProjectionOriginV1, Subscription,
+    TraceArtifactClassV1, TraceArtifactRoleV1, TraceNodeLifecycleV1, TraceReadBoundaryV1,
+    TraversalDirection, WriteProvenanceV1, WriteReceipt,
 };
 
 // The operator-seam report types (`dev/interfaces/rust.md` § 2b) — CLI-only,

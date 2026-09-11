@@ -12,6 +12,23 @@ status: locked
 This file owns Rust-visible symbol spelling and result shape. Cross-binding
 parity rules remain owned by `design/bindings.md`.
 
+## SQLite runtime configuration (0.8.25 Slice 79)
+
+`fathomdb::admin::configure_runtime(RuntimeSqliteMode)` is a synchronous,
+startup-only runtime control. `RuntimeSqliteMode` has exactly `Performance` and
+`Diagnostics`; success returns `RuntimeConfiguration { sqlite_mode }`.
+`RuntimeConfigurationError` distinguishes `TooLate`, `Conflict { requested,
+effective }`, and `SqliteFailure { code }`. A first `Engine::open` without a
+prior call selects `Performance`; a configuration failure is surfaced as
+`EngineOpenError::RuntimeConfiguration`.
+
+The choice applies to the loaded SQLite runtime for the process lifetime.
+Performance disables SQLite global memory statistics and heap-limit enforcement;
+Diagnostics retains them. Identical calls are idempotent, conflicting or late
+calls fail, and changing mode requires restart. No path calls
+`sqlite3_shutdown()` to force the choice. The API is not a database connection
+permission or file-access boundary.
+
 ## TC-5 benchmark-only boundary (Slice 70)
 
 `fathomdb-tc5-benchmark` is a non-published workspace executable, available

@@ -9,9 +9,11 @@ Python signature and converts the native receipt to the public
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from fathomdb._fathomdb import admin_configure as _native_configure
+from fathomdb._fathomdb import admin_configure_runtime as _native_configure_runtime
+from fathomdb._fathomdb import RuntimeConfiguration
 from fathomdb.types import WriteReceipt
 
 if TYPE_CHECKING:
@@ -33,4 +35,14 @@ def configure(engine: "Engine", *, name: str, body: str) -> WriteReceipt:
     )
 
 
-__all__ = ["configure"]
+def configure_runtime(
+    *, sqlite_mode: Literal["performance", "diagnostics"]
+) -> RuntimeConfiguration:
+    """Select SQLite's process-wide startup mode before opening an Engine."""
+
+    if sqlite_mode not in {"performance", "diagnostics"}:
+        raise ValueError("sqlite_mode must be 'performance' or 'diagnostics'")
+    return _native_configure_runtime(sqlite_mode)
+
+
+__all__ = ["configure", "configure_runtime"]

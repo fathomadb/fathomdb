@@ -199,7 +199,7 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
                 subject.parse_cell_log(path, "bad")
 
     def test_competing_process_scan_covers_binary_and_runner_and_excludes_ancestors(self):
-        rows = """10 ac081-perf-gat /tmp/ac081-perf-gates
+        rows = """10 ac081-perf-gate /tmp/ac081-perf-gates
 11 perf_gates-abcd /tmp/target/debug/deps/perf_gates-abcd --exact ac_081
 12 bash bash scripts/perf-experiments/run-slice80-ac081-cell.sh
 13 cargo cargo test

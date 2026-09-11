@@ -3,7 +3,7 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
-ac072_runner="$root/scripts/perf-experiments/run-slice71-ac013-cell.sh"
+ac072_runner="$root/scripts/perf-experiments/run-slice80-ac072-cell.sh"
 ac081_runner="$root/scripts/perf-experiments/run-slice80-ac081-cell.sh"
 
 for runner in "$ac072_runner" "$ac081_runner"; do
@@ -11,10 +11,9 @@ for runner in "$ac072_runner" "$ac081_runner"; do
   grep -F '$$,$PPID,$grandparent,$great_grandparent,$snapshot_subshell_pid' "$runner" >/dev/null
 done
 
-grep -F 'SLICE80_EXPECTED_SOURCE_SHA' "$ac072_runner" >/dev/null
-grep -F 'SLICE80_AC072_IDENTITY source_sha=%s collector_sha256=%s scanner_sha256=%s' "$ac072_runner" >/dev/null
+grep -F 'SLICE80_AC072_IDENTITY source_sha=%s binary_sha256=%s input_sha256=%s' "$ac072_runner" >/dev/null
 
-rows=$'13 bash bash scripts/perf-experiments/run-slice71-ac013-cell.sh . /tmp/current.log\n14 bash bash scripts/perf-experiments/run-slice71-ac013-cell.sh . /tmp/other.log\n'
+rows=$'13 bash bash scripts/perf-experiments/run-slice80-ac072-cell.sh . /tmp/current.log\n14 bash bash scripts/perf-experiments/run-slice80-ac072-cell.sh . /tmp/other.log\n'
 found=$(printf '%s' "$rows" | PYTHONDONTWRITEBYTECODE=1 \
   python3 "$root/dev/tools/slice80_read_acceptance.py" scan-processes --exclude-pids 13)
 if [ "${found%% *}" != 14 ]; then

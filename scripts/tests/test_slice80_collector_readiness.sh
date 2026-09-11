@@ -6,7 +6,7 @@ root=$(cd "$(dirname "$0")/../.." && pwd)
 
 for runner in \
   "$root/scripts/perf-experiments/run-slice80-ac081-cell.sh" \
-  "$root/scripts/perf-experiments/run-slice71-ac013-cell.sh"; do
+  "$root/scripts/perf-experiments/run-slice80-ac072-cell.sh"; do
   grep -F 'SLICE80_COLLECTOR_ONLY' "$runner" >/dev/null
   grep -F 'snapshot start' "$runner" >/dev/null
   grep -F 'snapshot end' "$runner" >/dev/null
@@ -41,9 +41,8 @@ PYTHONDONTWRITEBYTECODE=1 python3 "$root/dev/tools/slice80_read_acceptance.py" \
   verify-collector-readiness --log "$temp_dir/ac081.log" \
   --identity-prefix SLICE80_IDENTITY | rg '"environment_applicable": true' >/dev/null
 
-SLICE80_COLLECTOR_ONLY=1 SLICE71_SQLITE_VERSION=3.53.2 \
-  SLICE80_EXPECTED_SOURCE_SHA="$source_sha" \
-  "$root/scripts/perf-experiments/run-slice71-ac013-cell.sh" "$root" "$temp_dir/ac072.log"
+SLICE80_COLLECTOR_ONLY=1 "$root/scripts/perf-experiments/run-slice80-ac072-cell.sh" \
+  "$root" /bin/true "$temp_dir/ac072.log" "$source_sha" "$true_sha" "$input_sha" smoke 10
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/dev/tools/slice80_read_acceptance.py" \
   verify-collector-readiness --log "$temp_dir/ac072.log" \
   --identity-prefix SLICE80_AC072_IDENTITY | rg '"environment_applicable": true' >/dev/null

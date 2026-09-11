@@ -246,10 +246,13 @@ class Slice80ReadAcceptanceTests(unittest.TestCase):
 
     def test_ac072_collector_readiness_binds_its_environment_prefix_and_identity(self):
         ready = (
-            "SLICE80_AC072_IDENTITY source_sha=source collector_sha256=collector scanner_sha256=scanner\n"
+            "SLICE80_AC072_IDENTITY source_sha=source binary_sha256=binary input_sha256=input "
+            "runner_sha256=runner scanner_sha256=scanner mode=performance purpose=smoke "
+            "selector=ac_013_vector_retrieval_latency corpus_n=10 vector_dim=384 "
+            "requested_samples=1000 compiled_samples=1000 treatment=warm\n"
             f"SLICE71_ENV {json.dumps({'phase': 'start', **environment()})}\n"
             f"SLICE71_ENV {json.dumps({'phase': 'end', **environment()})}\n"
-            "SLICE71_TEST_EXIT status=0\n"
+            "SLICE80_AC072_TEST_EXIT status=0\n"
         )
         self.assertTrue(
             subject.parse_collector_readiness_log(ready, "SLICE80_AC072_IDENTITY")["environment_applicable"]

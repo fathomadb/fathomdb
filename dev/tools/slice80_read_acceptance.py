@@ -31,11 +31,15 @@ EXIT_MARKER = re.compile(r"^SLICE80_TEST_EXIT status=(?P<status>\d+)$", re.MULTI
 REQUIRED_IDENTITY = ("source_sha", "binary_sha256", "input_sha256", "mode")
 READINESS_IDENTITIES = {
     "SLICE80_IDENTITY": REQUIRED_IDENTITY,
-    "SLICE80_AC072_IDENTITY": ("source_sha", "collector_sha256", "scanner_sha256"),
+    "SLICE80_AC072_IDENTITY": (
+        "source_sha", "binary_sha256", "input_sha256", "runner_sha256", "scanner_sha256",
+        "mode", "purpose", "selector", "corpus_n", "vector_dim", "requested_samples",
+        "compiled_samples", "treatment",
+    ),
 }
 READINESS_EXITS = {
     "SLICE80_IDENTITY": "SLICE80_TEST_EXIT",
-    "SLICE80_AC072_IDENTITY": "SLICE71_TEST_EXIT",
+    "SLICE80_AC072_IDENTITY": "SLICE80_AC072_TEST_EXIT",
 }
 READINESS_ENVIRONMENTS = {
     "SLICE80_IDENTITY": "SLICE80_ENV",
@@ -204,7 +208,7 @@ def scan_competing_processes(rows: str, excluded_pids: set[int]) -> list[str]:
             or is_perf_binary(command)
             or is_perf_binary(executable)
             or re.search(
-                r"(?:run-ac013|run-slice71-ac013-cell|run-slice80-ac081-cell)[.]sh",
+                r"(?:run-ac013|run-slice71-ac013-cell|run-slice80-ac081-cell|run-slice80-ac072-cell)[.]sh",
                 arguments,
             )
         ):

@@ -11,7 +11,7 @@ cleanup() { rm -rf "$temp_dir"; }
 trap cleanup EXIT
 cat >"$temp_dir/runner" <<'EOF'
 #!/usr/bin/env bash
-printf '%s\n' "$8" >>"$DISPATCH_MARKER"
+basename "$3" >>"$DISPATCH_MARKER"
 printf 'partial receipt\n' >"$3"
 EOF
 cat >"$temp_dir/validator" <<'EOF'
@@ -25,7 +25,7 @@ if DISPATCH_MARKER="$temp_dir/labels" SLICE80_AC072_RUNNER="$temp_dir/runner" \
   echo "dispatcher must fail after an invalid first cell" >&2
   exit 1
 fi
-test "$(cat "$temp_dir/labels")" = R1
+test "$(cat "$temp_dir/labels")" = R1.log
 test -f "$temp_dir/campaign/R1.log"
 test ! -e "$temp_dir/campaign/R2.log"
 

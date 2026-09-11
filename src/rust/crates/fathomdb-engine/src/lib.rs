@@ -59,17 +59,6 @@ mod projection_generation;
 #[cfg(feature = "tc5-benchmark")]
 pub mod tc5_benchmark;
 
-#[cfg(feature = "slice76-gperftools-profile")]
-#[link(name = "profiler")]
-unsafe extern "C" {
-    fn ProfilerStart(filename: *const std::os::raw::c_char) -> std::os::raw::c_int;
-    fn ProfilerStop();
-    fn ProfilerRegisterThread();
-}
-
-#[cfg(feature = "slice76-gperftools-profile")]
-static SLICE76_PROFILE_WORKERS: AtomicUsize = AtomicUsize::new(0);
-
 pub use actuation::{
     ActuationBatchV1, ActuationError, ActuationErrorReason, ActuationOperationV1,
     ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1, LifecycleActuationV1,
@@ -481,13 +470,9 @@ use fathomdb_schema::{
 #[cfg(feature = "operator")]
 use fathomdb_schema::CANONICAL_TABLES;
 use jsonschema::JSONSchema;
-#[cfg(feature = "slice76-statement-reuse")]
-use rusqlite::CachedStatement;
-#[cfg(any(feature = "slice76-diagnostics", feature = "slice76-statement-reuse"))]
-use rusqlite::StatementStatus;
 #[cfg(any(test, feature = "test-hooks"))]
 use rusqlite::TransactionState;
-use rusqlite::{config::DbConfig, params, Connection, OptionalExtension, Statement};
+use rusqlite::{config::DbConfig, params, Connection, OptionalExtension};
 use serde_json::Value;
 // `sha2::Digest` + `sha2::Sha256` — used by `safe_export` (operator-gated)
 // and unconditionally by `ingest_with_extractor` (G11 logical_id derivation).
@@ -2691,19 +2676,6 @@ fn reader_worker_loop(
     ready: SyncSender<()>,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
 ) {
-    #[cfg(feature = "slice76-gperftools-profile")]
-    {
-        // SAFETY: gperftools documents thread registration as argument-free and
-        // process-global; this worker remains alive until the pool joins it.
-        unsafe { ProfilerRegisterThread() };
-        SLICE76_PROFILE_WORKERS.fetch_add(1, Ordering::SeqCst);
-    }
-    #[cfg(feature = "slice76-statement-reuse")]
-    connection.set_prepared_statement_cache_capacity(10);
-    #[cfg(feature = "slice76-diagnostics")]
-    connection
-        .authorizer(Some(slice76_prepare_authorizer))
-        .expect("Slice 76 diagnostic authorizer must install on reader connection");
     #[cfg(any(test, feature = "test-hooks"))]
     let _connection_registration =
         managed_connections.register(WalAttributionRole::ReaderWorker, worker_idx);
@@ -18107,125 +18079,6 @@ fn read_search_work_in_tx<C: SearchOriginCapture>(
     )
 }
 
-enum SearchStatement<'connection> {
-    #[cfg(not(feature = "slice76-statement-reuse"))]
-    Fresh {
-        statement: Statement<'connection>,
-        #[cfg(feature = "slice76-diagnostics")]
-        diagnostic_sql: String,
-    },
-    #[cfg(feature = "slice76-statement-reuse")]
-    Cached {
-        statement: CachedStatement<'connection>,
-        #[cfg(feature = "slice76-diagnostics")]
-        diagnostic_sql: String,
-    },
-}
-
-#[cfg(all(test, feature = "slice76-statement-reuse"))]
-impl SearchStatement<'_> {
-    fn was_reused(&self) -> bool {
-        self.get_status(StatementStatus::Run) > 0
-    }
-
-    fn reprepare_count(&self) -> i32 {
-        self.get_status(StatementStatus::RePrepare)
-    }
-}
-
-impl<'connection> std::ops::Deref for SearchStatement<'connection> {
-    type Target = Statement<'connection>;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            #[cfg(not(feature = "slice76-statement-reuse"))]
-            Self::Fresh { statement, .. } => statement,
-            #[cfg(feature = "slice76-statement-reuse")]
-            Self::Cached { statement, .. } => statement,
-        }
-    }
-}
-
-impl<'connection> std::ops::DerefMut for SearchStatement<'connection> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            #[cfg(not(feature = "slice76-statement-reuse"))]
-            Self::Fresh { statement, .. } => statement,
-            #[cfg(feature = "slice76-statement-reuse")]
-            Self::Cached { statement, .. } => statement,
-        }
-    }
-}
-
-#[cfg(feature = "slice76-diagnostics")]
-impl Drop for SearchStatement<'_> {
-    fn drop(&mut self) {
-        let diagnostic_sql = match self {
-            #[cfg(not(feature = "slice76-statement-reuse"))]
-            Self::Fresh { diagnostic_sql, .. } => diagnostic_sql,
-            #[cfg(feature = "slice76-statement-reuse")]
-            Self::Cached { diagnostic_sql, .. } => diagnostic_sql,
-        }
-        .clone();
-        record_slice76_reprepare(&diagnostic_sql, self.get_status(StatementStatus::RePrepare));
-    }
-}
-
-fn prepare_search_statement<'connection>(
-    connection: &'connection Connection,
-    sql: &str,
-) -> rusqlite::Result<SearchStatement<'connection>> {
-    #[cfg(feature = "slice76-statement-reuse")]
-    {
-        #[cfg(feature = "slice76-diagnostics")]
-        begin_slice76_prepare(sql);
-        let statement = connection.prepare_cached(sql);
-        #[cfg(feature = "slice76-diagnostics")]
-        end_slice76_prepare();
-        let statement = statement?;
-        let was_reused = statement.get_status(StatementStatus::Run) > 0;
-        #[cfg(feature = "slice76-diagnostics")]
-        {
-            record_slice76_prepare(sql, was_reused);
-            record_slice76_statement_memory(sql, statement.get_status(StatementStatus::MemUsed));
-        }
-        Ok(SearchStatement::Cached {
-            statement,
-            #[cfg(feature = "slice76-diagnostics")]
-            diagnostic_sql: sql.to_string(),
-        })
-    }
-    #[cfg(not(feature = "slice76-statement-reuse"))]
-    {
-        #[cfg(feature = "slice76-diagnostics")]
-        begin_slice76_prepare(sql);
-        let statement = connection.prepare(sql);
-        #[cfg(feature = "slice76-diagnostics")]
-        end_slice76_prepare();
-        let statement = statement?;
-        #[cfg(feature = "slice76-diagnostics")]
-        {
-            record_slice76_prepare(sql, false);
-            record_slice76_statement_memory(sql, statement.get_status(StatementStatus::MemUsed));
-        }
-        Ok(SearchStatement::Fresh {
-            statement,
-            #[cfg(feature = "slice76-diagnostics")]
-            diagnostic_sql: sql.to_string(),
-        })
-    }
-}
-
-fn load_projection_cursor_for_search(connection: &Connection) -> rusqlite::Result<u64> {
-    prepare_search_statement(connection, "SELECT value FROM _fathomdb_open_state WHERE key = ?1")?
-        .query_row([PROJECTION_CURSOR_KEY], |row| row.get::<_, String>(0))
-        .map(|value| value.parse::<u64>().unwrap_or(0))
-        .or_else(|err| match err {
-            rusqlite::Error::QueryReturnedNoRows => Ok(0),
-            _ => Err(err),
-        })
-}
-
 #[allow(clippy::too_many_arguments)]
 fn read_search_in_tx<C: SearchOriginCapture>(
     reader: &mut Connection,
@@ -18353,7 +18206,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             query_vector_bin,
         )
     };
-    let cursor = load_projection_cursor_for_search(&tx)?;
+    let cursor = load_projection_cursor(&tx)?;
     // fix-3 (codex §9 [P2], TOCTOU) — validate every filter attribute name on THIS
     // reader transaction's snapshot, before `build_vector_phase1_sql` emits
     // `AND attr_<hex>=?` and before the FTS arm probes `canonical_attributes`. The
@@ -18447,7 +18300,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 rusqlite::types::Value::Text(query_vector.to_string()),
             ];
             params.extend(vector_filter_values(filter));
-            let mut statement = prepare_search_statement(&tx, &sql)?;
+            let mut statement = tx.prepare(&sql)?;
             let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
                 Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
             })?;
@@ -18496,14 +18349,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // the conjunct matches everything ⇒ default behaviour is unchanged.
         let node_validity = view.validity_sql("canonical_nodes", 2);
         let node_eligibility = read_dependency_eligibility("canonical_nodes", 2);
-        let mut node_stmt = prepare_search_statement(
-            &tx,
-            &format!(
-                "SELECT kind, body, logical_id, source_id FROM canonical_nodes \
+        let mut node_stmt = tx.prepare(&format!(
+            "SELECT kind, body, logical_id, source_id FROM canonical_nodes \
              WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active'\
              {node_validity}{node_eligibility} LIMIT 1"
-            ),
-        )?;
+        ))?;
         // fix-2 (codex §9 [P2]): an edge body projected into `vector_default`
         // (kind = "edge_fact") is hydrated HERE by write_cursor. Gating on
         // `superseded_at` alone let an EXPIRED edge (`t_invalid <= :now`) surface
@@ -18518,14 +18368,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         // past stays excluded even when node existence is relaxed).
         let edge_validity = edge_validity_sql_for_view("canonical_edges", 2, &view.view);
         let edge_eligibility = read_dependency_eligibility("canonical_edges", 2);
-        let mut edge_stmt = prepare_search_statement(
-            &tx,
-            &format!(
-                "SELECT body, logical_id, source_id FROM canonical_edges \
+        let mut edge_stmt = tx.prepare(&format!(
+            "SELECT body, logical_id, source_id FROM canonical_edges \
              WHERE write_cursor = ?1 AND superseded_at IS NULL AND body IS NOT NULL\
              {edge_validity}{edge_eligibility} LIMIT 1"
-            ),
-        )?;
+        ))?;
         // The bound parameter list for the node lookup: the candidate rowid,
         // plus `:now` when (and only when) the view emitted a validity conjunct.
         // One instant for the whole query — resolved once, above, not per row.
@@ -18787,26 +18634,23 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 "SELECT body, kind, write_cursor, bm25(search_index) FROM search_index \
                  WHERE search_index MATCH ?1{now_binding}{limit_clause}"
             );
-            let mut candidates =
-                prepare_search_statement(&tx, &sql).and_then(|mut statement| {
-                    let rows = statement.query_map(
-                        rusqlite::params_from_iter(text_params.iter()),
-                        |row| {
-                            let body = row.get::<_, String>(0)?;
-                            Ok(SearchHit {
-                                id: IdSpace::content(String::new()),
-                                body,
-                                kind: row.get::<_, String>(1)?,
-                                write_cursor: row.get::<_, i64>(2)? as u64,
-                                score: row.get::<_, f64>(3)?,
-                                branch: SoftFallbackBranch::Text,
-                                source_id: None,
-                                ce_score: None,
-                            })
-                        },
-                    )?;
-                    rows.collect::<rusqlite::Result<Vec<_>>>()
-                })?;
+            let mut candidates = tx.prepare(&sql).and_then(|mut statement| {
+                let rows =
+                    statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
+                        let body = row.get::<_, String>(0)?;
+                        Ok(SearchHit {
+                            id: IdSpace::content(String::new()),
+                            body,
+                            kind: row.get::<_, String>(1)?,
+                            write_cursor: row.get::<_, i64>(2)? as u64,
+                            score: row.get::<_, f64>(3)?,
+                            branch: SoftFallbackBranch::Text,
+                            source_id: None,
+                            ce_score: None,
+                        })
+                    })?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+            })?;
             candidates.sort_by(|left, right| {
                 left.score
                     .total_cmp(&right.score)
@@ -18970,7 +18814,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let edge_sql = edge_fts_rank_sql(&edge_validity, &edge_eligibility);
         // search_index_edges may not exist on very old DBs not yet at step-14;
         // ignore the error gracefully (returns empty slice).
-        if let Ok(mut stmt) = prepare_search_statement(&tx, &edge_sql) {
+        if let Ok(mut stmt) = tx.prepare(&edge_sql) {
             if let Ok(rows) =
                 stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
                     let body = row.get::<_, String>(0)?;
@@ -19176,25 +19020,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     results.truncate(final_limit);
 
     if deferred_text_identity {
-        let identity_sql =
-            "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1";
-        #[cfg(feature = "slice76-diagnostics")]
-        begin_slice76_prepare(identity_sql);
-        let identity_stmt = tx.prepare_cached(identity_sql);
-        #[cfg(feature = "slice76-diagnostics")]
-        end_slice76_prepare();
-        let mut identity_stmt = identity_stmt?;
-        #[cfg(feature = "slice76-diagnostics")]
-        {
-            record_slice76_prepare(
-                identity_sql,
-                identity_stmt.get_status(StatementStatus::Run) > 0,
-            );
-            record_slice76_statement_memory(
-                identity_sql,
-                identity_stmt.get_status(StatementStatus::MemUsed),
-            );
-        }
+        let mut identity_stmt = tx.prepare_cached(
+            "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1",
+        )?;
         for hit in &mut results {
             if hit.branch != SoftFallbackBranch::Text {
                 continue;
@@ -19210,11 +19038,6 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 hit.id = derive_stable_id(None, &hit.body);
             }
         }
-        #[cfg(feature = "slice76-diagnostics")]
-        record_slice76_reprepare(
-            identity_sql,
-            identity_stmt.get_status(StatementStatus::RePrepare),
-        );
     }
 
     let projection_status = explain
@@ -30740,8 +30563,6 @@ unsafe extern "C" fn profile_callback_trampoline(
 
     #[cfg(feature = "test-hooks")]
     record_slice71_profile_statement_for_test(sql_text);
-    #[cfg(feature = "slice76-diagnostics")]
-    record_slice76_profile_statement(sql_text);
 
     let wall_clock_ms = nanoseconds / 1_000_000;
 
@@ -30766,178 +30587,6 @@ unsafe extern "C" fn profile_callback_trampoline(
     }
 }
 
-#[cfg(feature = "slice76-diagnostics")]
-fn slice76_sql_census() -> &'static Mutex<BTreeMap<usize, BTreeMap<String, u64>>> {
-    static CENSUS: std::sync::OnceLock<Mutex<BTreeMap<usize, BTreeMap<String, u64>>>> =
-        std::sync::OnceLock::new();
-    CENSUS.get_or_init(|| Mutex::new(BTreeMap::new()))
-}
-
-#[cfg(feature = "slice76-diagnostics")]
-fn record_slice76_profile_statement(sql: &str) {
-    let Some(name) = thread::current().name().map(str::to_string) else {
-        return;
-    };
-    let Some(index) = name.strip_prefix("fathomdb-reader-").and_then(|value| value.parse().ok())
-    else {
-        return;
-    };
-    let normalized = sql.split_whitespace().collect::<Vec<_>>().join(" ");
-    if let Ok(mut census) = slice76_sql_census().lock() {
-        let count = census.entry(index).or_default().entry(normalized).or_default();
-        *count = count.saturating_add(1);
-    }
-}
-
-#[cfg(feature = "slice76-diagnostics")]
-fn record_slice76_prepare(sql: &str, reused: bool) {
-    let Some(name) = thread::current().name().map(str::to_string) else {
-        return;
-    };
-    let Some(index) = name.strip_prefix("fathomdb-reader-").and_then(|value| value.parse().ok())
-    else {
-        return;
-    };
-    let state = if reused { "REUSED" } else { "FRESH" };
-    let normalized = sql.split_whitespace().collect::<Vec<_>>().join(" ");
-    let key = format!("SLICE76_PREPARE_{state} {normalized}");
-    if let Ok(mut census) = slice76_sql_census().lock() {
-        let count = census.entry(index).or_default().entry(key).or_default();
-        *count = count.saturating_add(1);
-    }
-}
-
-#[cfg(feature = "slice76-diagnostics")]
-struct Slice76PrepareContext {
-    sql: String,
-    compile_seen: bool,
-}
-
-#[cfg(feature = "slice76-diagnostics")]
-thread_local! {
-    static SLICE76_PREPARE_CONTEXT: std::cell::RefCell<Option<Slice76PrepareContext>> =
-        const { std::cell::RefCell::new(None) };
-}
-
-#[cfg(feature = "slice76-diagnostics")]
-fn begin_slice76_prepare(sql: &str) {
-    SLICE76_PREPARE_CONTEXT.with(|context| {
-        *context.borrow_mut() = Some(Slice76PrepareContext {
-            sql: sql.split_whitespace().collect::<Vec<_>>().join(" "),
-            compile_seen: false,
-        });
-    });
-}
-
-#[cfg(feature = "slice76-diagnostics")]
-fn end_slice76_prepare() {
-    SLICE76_PREPARE_CONTEXT.with(|context| {
-        context.borrow_mut().take();
-    });
-}
-
-#[cfg(feature = "slice76-diagnostics")]
-fn slice76_prepare_authorizer(
-    _context: rusqlite::hooks::AuthContext<'_>,
-) -> rusqlite::hooks::Authorization {
-    let compiled_sql = SLICE76_PREPARE_CONTEXT.with(|context| {
-        let mut context = context.borrow_mut();
-        let context = context.as_mut()?;
-        if context.compile_seen {
-            return None;
-        }
-        context.compile_seen = true;
-        Some(context.sql.clone())
-    });
-    if let Some(sql) = compiled_sql {
-        record_slice76_compile(&sql);
-    }
-    rusqlite::hooks::Authorization::Allow
-}
-
-#[cfg(feature = "slice76-diagnostics")]
-fn record_slice76_compile(sql: &str) {
-    let Some(name) = thread::current().name().map(str::to_string) else {
-        return;
-    };
-    let Some(index) = name.strip_prefix("fathomdb-reader-").and_then(|value| value.parse().ok())
-    else {
-        return;
-    };
-    let key = format!("SLICE76_COMPILE {sql}");
-    if let Ok(mut census) = slice76_sql_census().lock() {
-        let count = census.entry(index).or_default().entry(key).or_default();
-        *count = count.saturating_add(1);
-    }
-}
-
-#[cfg(feature = "slice76-diagnostics")]
-fn record_slice76_statement_memory(sql: &str, bytes: i32) {
-    let Some(name) = thread::current().name().map(str::to_string) else {
-        return;
-    };
-    let Some(index) = name.strip_prefix("fathomdb-reader-").and_then(|value| value.parse().ok())
-    else {
-        return;
-    };
-    let normalized = sql.split_whitespace().collect::<Vec<_>>().join(" ");
-    let key = format!("SLICE76_MEMUSED {normalized}");
-    if let Ok(mut census) = slice76_sql_census().lock() {
-        let retained = census.entry(index).or_default().entry(key).or_default();
-        *retained = (*retained).max(u64::try_from(bytes).unwrap_or(0));
-    }
-}
-
-#[cfg(feature = "slice76-diagnostics")]
-fn record_slice76_reprepare(sql: &str, count: i32) {
-    let Some(name) = thread::current().name().map(str::to_string) else {
-        return;
-    };
-    let Some(index) = name.strip_prefix("fathomdb-reader-").and_then(|value| value.parse().ok())
-    else {
-        return;
-    };
-    let normalized = sql.split_whitespace().collect::<Vec<_>>().join(" ");
-    let key = format!("SLICE76_REPREPARE {normalized}");
-    if let Ok(mut census) = slice76_sql_census().lock() {
-        let observed = census.entry(index).or_default().entry(key).or_default();
-        *observed = (*observed).max(u64::try_from(count).unwrap_or(0));
-    }
-}
-
-/// Return and clear the private Slice 76 per-reader executed-SQL census.
-#[cfg(feature = "slice76-diagnostics")]
-#[doc(hidden)]
-pub fn take_slice76_sql_census_for_test() -> BTreeMap<usize, BTreeMap<String, u64>> {
-    slice76_sql_census().lock().map(|mut census| std::mem::take(&mut *census)).unwrap_or_default()
-}
-
-/// Return the number of reader workers registered with the private CPU profiler.
-#[cfg(feature = "slice76-gperftools-profile")]
-#[doc(hidden)]
-pub fn slice76_registered_profile_workers_for_test() -> usize {
-    SLICE76_PROFILE_WORKERS.load(Ordering::SeqCst)
-}
-
-/// Start the private gperftools CPU profile at an explicit test boundary.
-#[cfg(feature = "slice76-gperftools-profile")]
-#[doc(hidden)]
-pub fn slice76_start_cpu_profile_for_test(path: &Path) -> bool {
-    let Ok(path) = std::ffi::CString::new(path.as_os_str().as_encoded_bytes()) else {
-        return false;
-    };
-    // SAFETY: `path` is a live NUL-terminated string for the duration of the call.
-    unsafe { ProfilerStart(path.as_ptr()) != 0 }
-}
-
-/// Stop and flush the private gperftools CPU profile.
-#[cfg(feature = "slice76-gperftools-profile")]
-#[doc(hidden)]
-pub fn slice76_stop_cpu_profile_for_test() {
-    // SAFETY: gperftools documents ProfilerStop as safe after a successful start.
-    unsafe { ProfilerStop() };
-}
-
 #[cfg(test)]
 mod slice20_fix1_tests;
 
@@ -30960,8 +30609,6 @@ mod tests {
     use proptest::prelude::*;
     use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
     use rusqlite::Connection;
-    #[cfg(all(feature = "slice76-diagnostics", feature = "slice76-statement-reuse"))]
-    use rusqlite::OptionalExtension;
     use std::collections::BTreeSet;
     use std::path::Path;
     use std::process::Command;
@@ -30970,130 +30617,6 @@ mod tests {
     use std::thread;
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
-
-    #[cfg(feature = "slice76-statement-reuse")]
-    use super::prepare_search_statement;
-
-    #[cfg(feature = "slice76-statement-reuse")]
-    #[test]
-    fn slice76_statement_reuse_refreshes_alternating_bindings() {
-        let connection = Connection::open_in_memory().expect("open");
-        connection
-            .execute_batch(
-                "CREATE TABLE values_by_id(id INTEGER PRIMARY KEY, value TEXT);\
-                            INSERT INTO values_by_id VALUES(1, 'one'), (2, 'two');",
-            )
-            .expect("seed");
-        let mut reuse = Vec::new();
-        for (id, expected) in [(1_i64, "one"), (2, "two"), (1, "one")] {
-            let mut statement =
-                prepare_search_statement(&connection, "SELECT value FROM values_by_id WHERE id=?1")
-                    .expect("prepare");
-            reuse.push(statement.was_reused());
-            let actual: String = statement.query_row([id], |row| row.get(0)).expect("query");
-            assert_eq!(actual, expected);
-        }
-        assert_eq!(reuse, [false, true, true]);
-    }
-
-    #[cfg(feature = "slice76-statement-reuse")]
-    #[test]
-    fn slice76_statement_reuse_releases_rows_and_recovers_after_error() {
-        let mut connection = Connection::open_in_memory().expect("open");
-        connection
-            .execute_batch("CREATE TABLE item(value INTEGER); INSERT INTO item VALUES(7)")
-            .expect("seed");
-        let transaction = connection.transaction().expect("transaction");
-        {
-            let mut statement =
-                prepare_search_statement(&transaction, "SELECT value FROM item WHERE value=?1")
-                    .expect("prepare");
-            assert!(statement.query_row([9_i64], |row| row.get::<_, i64>(0)).is_err());
-        }
-        {
-            let mut statement =
-                prepare_search_statement(&transaction, "SELECT value FROM item WHERE value=?1")
-                    .expect("reprepare");
-            assert!(statement.was_reused());
-            assert_eq!(statement.query_row([7_i64], |row| row.get::<_, i64>(0)).unwrap(), 7);
-        }
-        transaction.commit().expect("commit after statement release");
-    }
-
-    #[cfg(feature = "slice76-statement-reuse")]
-    #[test]
-    fn slice76_statement_reuse_reprepares_after_schema_change() {
-        let connection = Connection::open_in_memory().expect("open");
-        connection
-            .execute_batch(
-                "CREATE TABLE item(id INTEGER PRIMARY KEY, value TEXT);\
-                                  INSERT INTO item VALUES(1, 'before');",
-            )
-            .expect("seed");
-        {
-            let mut statement =
-                prepare_search_statement(&connection, "SELECT value FROM item WHERE id=?1")
-                    .expect("prepare");
-            assert_eq!(
-                statement.query_row([1_i64], |row| row.get::<_, String>(0)).unwrap(),
-                "before"
-            );
-        }
-        connection.execute_batch("ALTER TABLE item ADD COLUMN extra TEXT").expect("alter");
-        let mut statement =
-            prepare_search_statement(&connection, "SELECT value FROM item WHERE id=?1")
-                .expect("cached prepare");
-        assert!(statement.was_reused());
-        assert_eq!(statement.query_row([1_i64], |row| row.get::<_, String>(0)).unwrap(), "before");
-        assert!(statement.reprepare_count() >= 1, "SQLite must reprepare after schema change");
-    }
-
-    #[cfg(all(feature = "slice76-diagnostics", feature = "slice76-statement-reuse"))]
-    #[test]
-    fn slice76_compile_census_distinguishes_cache_hits_from_compilation() {
-        let _ = super::take_slice76_sql_census_for_test();
-        thread::Builder::new()
-            .name("fathomdb-reader-0".to_string())
-            .spawn(|| {
-                let connection = Connection::open_in_memory().expect("open");
-                connection
-                    .execute_batch("CREATE TABLE item(id INTEGER PRIMARY KEY, value TEXT)")
-                    .expect("schema");
-                connection.set_prepared_statement_cache_capacity(10);
-                connection
-                    .authorizer(Some(super::slice76_prepare_authorizer))
-                    .expect("install diagnostic authorizer");
-
-                for _ in 0..2 {
-                    let mut statement =
-                        prepare_search_statement(&connection, "SELECT value FROM item WHERE id=?1")
-                            .expect("prepare");
-                    let _: Option<String> =
-                        statement.query_row([1_i64], |row| row.get(0)).optional().expect("query");
-                }
-            })
-            .expect("spawn")
-            .join()
-            .expect("join");
-        let census = super::take_slice76_sql_census_for_test();
-        let worker = census.get(&0).expect("reader census");
-        assert_eq!(
-            worker.get("SLICE76_COMPILE SELECT value FROM item WHERE id=?1"),
-            Some(&1),
-            "the authorizer fires for compilation, not a prepared-cache hit"
-        );
-        assert!(
-            worker
-                .get("SLICE76_MEMUSED SELECT value FROM item WHERE id=?1")
-                .is_some_and(|bytes| *bytes > 0),
-            "the census must retain SQLite's statement-memory estimate"
-        );
-        assert_eq!(
-            worker.get("SLICE76_REPREPARE SELECT value FROM item WHERE id=?1"),
-            Some(&0),
-            "automatic reprepare must be recorded separately from prepare-time compilation"
-        );
-    }
 
     #[test]
     fn reader_request_envelope_stays_bounded_as_search_capabilities_grow() {

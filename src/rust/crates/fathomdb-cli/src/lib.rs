@@ -1472,6 +1472,7 @@ fn engine_error_code(err: &EngineError) -> &'static str {
 
 fn engine_open_error_code(err: &EngineOpenError) -> &'static str {
     match err {
+        EngineOpenError::RuntimeConfiguration(_) => "RuntimeConfigurationError",
         EngineOpenError::DatabaseLocked { .. } => "DatabaseLockedError",
         EngineOpenError::Corruption(_) => "CorruptionError",
         EngineOpenError::IncompatibleSchemaVersion { .. } => "IncompatibleSchemaVersionError",

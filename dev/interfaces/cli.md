@@ -302,6 +302,7 @@ to its class.
 | `EngineError::EmbedderNotConfigured`             | 70        | unrecoverable |
 | `EngineError::KindNotVectorIndexed`              | 70        | unrecoverable |
 | `EngineError::EmbedderDimensionMismatch{..}`     | 70        | unrecoverable |
+| `EngineOpenError::RuntimeConfiguration(..)`      | 70        | unrecoverable |
 | `EngineOpenError::DatabaseLocked{..}`            | 71        | lock-held     |
 | `EngineError::Closing`                           | 71        | lock-held     |
 | `EngineOpenError::Corruption(..)`                | 70        | unrecoverable |

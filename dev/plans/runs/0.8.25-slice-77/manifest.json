@@ -33,7 +33,32 @@
     "profile_concurrent": "python3 dev/tools/slice76_ac020.py profile --tool gperftools --configuration A-profile --runtime-manifest dev/plans/runs/0.8.25-slice-77/manifest.json --binary /tmp/fathomdb-slice77/bin/A-profile/perf_gates --arm concurrent-after-sequential-warmup --output dev/plans/runs/0.8.25-slice-77/statement-reuse-concurrent.gperf",
     "profile_report": "google-pprof --text /tmp/fathomdb-slice77/bin/A-profile/perf_gates PROFILE",
     "profile_sequential": "python3 dev/tools/slice76_ac020.py profile --tool gperftools --configuration A-profile --runtime-manifest dev/plans/runs/0.8.25-slice-77/manifest.json --binary /tmp/fathomdb-slice77/bin/A-profile/perf_gates --arm sequential --output dev/plans/runs/0.8.25-slice-77/statement-reuse-sequential.gperf",
-    "registered_ac020": "timeout 600 env AGENT_LONG=1 SEALED_BINARY ac_020_reads_do_not_serialize_on_a_single_reader_connection --exact --nocapture --test-threads=1"
+    "registered_ac020_planned": "timeout 600 env AGENT_LONG=1 SEALED_BINARY ac_020_reads_do_not_serialize_on_a_single_reader_connection --exact --nocapture --test-threads=1",
+    "registered_ac020_actual_inner": "env AGENT_LONG=1 /tmp/fathomdb-slice77/bin/A/perf_gates ac_020_reads_do_not_serialize_on_a_single_reader_connection --exact --nocapture --test-threads=1",
+    "registered_ac020_collector": "python3 dev/tools/slice76_ac020.py run --configuration A --label IA<N> --binary /tmp/fathomdb-slice77/bin/A/perf_gates --runtime-manifest dev/plans/runs/0.8.25-slice-77/manifest.json --observations dev/plans/runs/0.8.25-slice-77/anchor-observations.jsonl --log dev/plans/runs/0.8.25-slice-77/IA<N>.log"
+  },
+  "executor_qualification": {
+    "contemporaneous_preflight": "NOT_RETAINED",
+    "effect": "anchor timings are diagnostic only; not treatment-selection or acceptance evidence",
+    "receipt": "environment-qualification.md",
+    "timeout_applied": false
+  },
+  "locked_runtime": {
+    "cargo": "1.95.0",
+    "libsqlite3_sys": "0.38.1",
+    "rusqlite": "0.40.1",
+    "rustc": "1.95.0",
+    "sqlite": "3.53.2 bundled",
+    "sqlite_vec": "0.1.9"
+  },
+  "execution_receipts": {
+    "anchor": "anchor-observations.jsonl (labels IA1..IA7 in order; timestamps and log hashes retained)",
+    "profile_duration": "NOT_RETAINED",
+    "profile_host_controls": "NOT_RETAINED",
+    "profile_order": [
+      "statement-reuse-sequential.gperf",
+      "statement-reuse-concurrent.gperf"
+    ]
   },
   "diagnostic": {
     "concurrent_preceding_warmup_searches": 1600,
@@ -46,8 +71,9 @@
     "scope": "on-CPU search phase only",
     "tool": "gperftools libprofiler only",
     "sequential_samples": 17,
-    "concurrent_samples": 52,
+    "concurrent_samples_including_teardown": 52,
     "concurrent_search_samples_excluding_teardown": 47,
+    "selection_sample_gate_met": false,
     "concurrent_search_lock_samples": 23,
     "concurrent_search_allocator_samples": 16,
     "concurrent_search_page_cache_samples": 11,
@@ -117,7 +143,7 @@
     "stable_recovery": "7 of 7 registered AC-020 assertions pass"
   },
   "statement_reuse_reference": "b432d24d",
-  "status": "COMPLETE_NO_ELIGIBLE_TREATMENT",
+  "status": "COMPLETE_INCONCLUSIVE_NO_AUTHORIZED_TREATMENT",
   "treatment": {
     "eligible": [],
     "excluded_without_new_signal": [
@@ -126,7 +152,7 @@
       "private-runtime isolation",
       "MEMSTATUS changes"
     ],
-    "status": "NO_TREATMENT_MET_SEALED_SELECTION_RULE",
+    "status": "NO_TREATMENT_AUTHORIZED_PROFILE_BELOW_SAMPLE_GATE",
     "matched_campaign": "NOT_APPLICABLE",
     "protected_candidate_guards": "NOT_APPLICABLE_NO_IMPLEMENTATION_CANDIDATE"
   }

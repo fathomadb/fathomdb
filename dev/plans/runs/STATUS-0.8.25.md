@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 77 (AC020-EXPERIMENTS), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 80 (AC020-IMPLEMENTATION), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -113,7 +113,7 @@ owner consultation, and Slice 85 owns final verification/CI/package rehearsal.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 77 (AC020-EXPERIMENTS)** — adaptive follow-on experiments and candidate selection. **Remaining ladder:** 77 → 80 → 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 80 (AC020-IMPLEMENTATION)** — consultation, design and selected AC-020 correction. **Remaining ladder:** 80 → 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

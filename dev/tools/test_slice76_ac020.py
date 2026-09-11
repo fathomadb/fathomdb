@@ -12,6 +12,10 @@ test ac_020_reads_do_not_serialize_on_a_single_reader_connection ... FAILED
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out
 """
 
+FULL_PRECISION_LOG = PASS_LOG + """
+AC-020 failed: concurrent=121.625ms bound=101.375ms sequential=540.625ms
+"""
+
 
 class Slice76Ac020Tests(unittest.TestCase):
     def test_parse_accepts_one_executed_test_and_one_marker(self):
@@ -20,6 +24,22 @@ class Slice76Ac020Tests(unittest.TestCase):
         self.assertEqual(parsed["concurrent_ms"], 121)
         self.assertEqual(parsed["bound_ms"], 101)
         self.assertFalse(parsed["assertion_passed"])
+
+    def test_parse_prefers_available_full_precision_durations(self):
+        parsed = slice76_ac020.parse_run_log(FULL_PRECISION_LOG, exit_code=101)
+        self.assertEqual(parsed["sequential_ms"], 540.625)
+        self.assertEqual(parsed["concurrent_ms"], 121.625)
+        self.assertEqual(parsed["bound_ms"], 101.375)
+
+        summary = slice76_ac020.summarize(
+            [
+                {"label": "B1", "sequential_ms": 1.125, "concurrent_ms": 0.625},
+                {"label": "B2", "sequential_ms": 2.25, "concurrent_ms": 1.25},
+                {"label": "B3", "sequential_ms": 3.375, "concurrent_ms": 1.875},
+            ]
+        )
+        self.assertEqual(summary["sequential_ms"]["median"], 2.25)
+        self.assertEqual(summary["concurrent_ms"]["median"], 1.25)
 
     def test_parse_rejects_zero_tests_or_missing_marker(self):
         with self.assertRaisesRegex(ValueError, "exactly one executed test"):

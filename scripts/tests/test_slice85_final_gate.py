@@ -116,14 +116,14 @@ class Slice85FinalGateTest(unittest.TestCase):
         floors = [
             "env FATHOMDB_SMOKE_PYTHON=/home/coreyt/.local/share/uv/python/"
             "cpython-3.10.20-linux-x86_64-gnu/bin/python3.10 "
-            "FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v24.19.0/bin/node "
+            "FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v25.9.0/bin/node "
             "FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh",
             "env FATHOMDB_SMOKE_PYTHON=/home/coreyt/.local/share/uv/python/"
             "cpython-3.11.15-linux-x86_64-gnu/bin/python3.11 "
             "FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v25.9.0/bin/node "
             "FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh",
             "env FATHOMDB_SMOKE_PYTHON=/usr/bin/python3.12 "
-            "FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v24.19.0/bin/node "
+            "FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v25.9.0/bin/node "
             "FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh",
         ]
         obligations = [
@@ -487,34 +487,38 @@ class Slice85InstalledRuntimeContractTest(unittest.TestCase):
 
 
 class Slice85NodeSupportContractTest(unittest.TestCase):
-    def test_package_and_docs_support_node_24_and_25(self) -> None:
+    def test_package_and_docs_support_only_node_25(self) -> None:
         package = json.loads((ROOT / "src/ts/package.json").read_text(encoding="utf-8"))
-        self.assertEqual(package.get("engines", {}).get("node"), ">=24 <26")
+        self.assertEqual(package.get("engines", {}).get("node"), ">=25 <26")
         install = (ROOT / "docs/install/typescript.md").read_text(encoding="utf-8")
         compatibility = (ROOT / "docs/compatibility/index.md").read_text(
             encoding="utf-8"
         )
         readme = (ROOT / "src/ts/README.md").read_text(encoding="utf-8")
         for text in (install, compatibility, readme):
-            self.assertIn("24.19.0", text)
             self.assertIn("25.9.0", text)
+            self.assertNotIn("24.19.0", text)
 
-    def test_primary_ci_and_release_node_is_24(self) -> None:
-        for relative in (".github/workflows/ci.yml", ".github/workflows/release.yml"):
+    def test_ci_and_release_node_is_25(self) -> None:
+        for relative in (
+            ".github/workflows/aarch64-release-preflight.yml",
+            ".github/workflows/ci.yml",
+            ".github/workflows/release.yml",
+        ):
             text = (ROOT / relative).read_text(encoding="utf-8")
             setup_count = text.count("uses: actions/setup-node@")
             self.assertGreater(setup_count, 0)
-            self.assertEqual(text.count('node-version: "24.19.0"'), setup_count)
-            self.assertNotIn('node-version: "25.9.0"', text)
+            self.assertEqual(text.count('node-version: "25.9.0"'), setup_count)
+            self.assertNotIn('node-version: "24.19.0"', text)
 
-    def test_node_24_arm64_archive_digest_is_sealed(self) -> None:
-        expected = "01443c1e1a29e531ccad5a46fefa6df490d2189c49f7955904aecdbb0fe86fdc"
+    def test_node_25_arm64_archive_digest_is_sealed(self) -> None:
+        expected = "bf007bf0dcc2fddd90888fde374a1ad33c1ab2ca2ad324c645dd7aed0f9f1460"
         for relative in (
             "scripts/release/Dockerfile.napi-manylinux",
             "scripts/release/napi-artifact-contract.sh",
         ):
             text = (ROOT / relative).read_text(encoding="utf-8")
-            self.assertIn("24.19.0", text)
+            self.assertIn("25.9.0", text)
             self.assertIn(expected, text)
 
 

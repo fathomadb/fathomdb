@@ -1,0 +1,85 @@
+{
+  "schema_version": "fathomdb.slice77-execution-manifest/v1",
+  "status": "SEALED_BEFORE_DIAGNOSTIC",
+  "release_source_sha": "ec97a956",
+  "protected_product_checkpoint": "5056db9e6de314a70c67ee5195b8dd1f7023e80f",
+  "statement_reuse_reference": "b432d24d",
+  "cleanup_to_reverse": "8027546d",
+  "relevant_tree": {
+    "paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "rust-toolchain.toml",
+      "src/rust/crates/fathomdb-embedder",
+      "src/rust/crates/fathomdb-embedder-api",
+      "src/rust/crates/fathomdb-engine",
+      "src/rust/crates/fathomdb-query",
+      "src/rust/crates/fathomdb-schema"
+    ]
+  },
+  "fixture": {
+    "reader_workers": 8,
+    "threads": 8,
+    "rounds_per_thread": 50,
+    "queries_per_round": 4,
+    "searches_per_arm": 1600,
+    "documents": 4,
+    "dimensions": 8,
+    "expected_test_count": 1,
+    "oracle": "concurrent <= sequential * 1.5 / 8"
+  },
+  "selection_thresholds": {
+    "minimum_concurrent_profile_samples": 50,
+    "minimum_named_stack_percent": 10.0,
+    "concurrent_improvement": "> max(3% of matched anchor median, twice anchor IQR)",
+    "maximum_sequential_degradation_percent": 3.0,
+    "stable_recovery": "7 of 7 registered AC-020 assertions pass"
+  },
+  "diagnostic": {
+    "tool": "gperftools libprofiler only",
+    "scope": "on-CPU search phase only",
+    "profiles": [
+      "statement-reuse-sequential.gperf",
+      "statement-reuse-concurrent.gperf"
+    ],
+    "expected_registered_workers": 8,
+    "concurrent_preceding_warmup_searches": 1600,
+    "off_cpu_wait": "not measured"
+  },
+  "commands": {
+    "anchor_restore": "git revert --no-edit 8027546d in the temporary Slice 77 worktree",
+    "anchor_identity": "compare the four paths changed by 8027546d byte-for-byte with b432d24d",
+    "diagnostic_build": "env -u FATHOMDB_PERF_EXPERIMENTS -u FATHOMDB_PERF_SQLITE_MEMSTATUS_OFF -u FATHOMDB_PERF_SQLITE_PAGECACHE -u FATHOMDB_PERF_SQLITE_PCACHE2 -u FATHOMDB_PERF_SEARCH_LIMIT -u FATHOMDB_PERF_READER_PRAGMAS -u FATHOMDB_PERF_WRITER_PRAGMAS -u LIBSQLITE3_FLAGS CARGO_TARGET_DIR=/tmp/fathomdb-slice77/target-profile CARGO_PROFILE_RELEASE_DEBUG=2 CFLAGS='-O2 -g -fno-omit-frame-pointer' RUSTFLAGS='-C debuginfo=2 -C force-frame-pointers=yes' cargo test --locked --release -p fathomdb-engine --features slice76-statement-reuse,slice76-gperftools-profile --test perf_gates --no-run",
+    "diagnostic_seal": "python3 dev/tools/slice76_ac020.py seal-build --configuration A-profile --target-dir /tmp/fathomdb-slice77/target-profile --binary-out /tmp/fathomdb-slice77/bin/A-profile/perf_gates --runtime-manifest dev/plans/runs/0.8.25-slice-77/manifest.json",
+    "profile_sequential": "python3 dev/tools/slice76_ac020.py profile --tool gperftools --configuration A-profile --runtime-manifest dev/plans/runs/0.8.25-slice-77/manifest.json --binary /tmp/fathomdb-slice77/bin/A-profile/perf_gates --arm sequential --output dev/plans/runs/0.8.25-slice-77/statement-reuse-sequential.gperf",
+    "profile_concurrent": "python3 dev/tools/slice76_ac020.py profile --tool gperftools --configuration A-profile --runtime-manifest dev/plans/runs/0.8.25-slice-77/manifest.json --binary /tmp/fathomdb-slice77/bin/A-profile/perf_gates --arm concurrent-after-sequential-warmup --output dev/plans/runs/0.8.25-slice-77/statement-reuse-concurrent.gperf",
+    "profile_report": "google-pprof --text /tmp/fathomdb-slice77/bin/A-profile/perf_gates PROFILE",
+    "registered_ac020": "timeout 600 env AGENT_LONG=1 SEALED_BINARY ac_020_reads_do_not_serialize_on_a_single_reader_connection --exact --nocapture --test-threads=1"
+  },
+  "treatment": {
+    "status": "PENDING_POST_CACHE_PROFILE",
+    "eligible": [],
+    "excluded_without_new_signal": [
+      "D",
+      "L",
+      "private-runtime isolation",
+      "MEMSTATUS changes"
+    ]
+  },
+  "builds": {},
+  "run_order": {
+    "initial_baseline": ["A", "A", "A", "A", "A", "A", "A"],
+    "matched": []
+  },
+  "run_labels": {
+    "initial_baseline": ["IA1", "IA2", "IA3", "IA4", "IA5", "IA6", "IA7"],
+    "matched": []
+  },
+  "budgets": {
+    "timing_executions_max": 56,
+    "diagnostic_executions_max": 9,
+    "initial_diagnostics": 2,
+    "environment_restart_max": 1,
+    "timeout_seconds": 600
+  }
+}

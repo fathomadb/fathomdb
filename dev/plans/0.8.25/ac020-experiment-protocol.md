@@ -1,6 +1,6 @@
 ---
 title: AC-020 statistics-enabled experiment protocol
-status: APPROVED_FOR_SLICE_76
+status: APPROVED_FOR_SLICES_76_77
 target_release: 0.8.25
 ---
 
@@ -94,9 +94,13 @@ post-treatment census. Allocation-call/byte totals, page-cache detail,
 lookaside detail and queue-delay telemetry are optional only when existing or
 small already-authorized hooks expose them; Slice 76 must not build a general
 instrumentation subsystem to obtain them. Missing off-CPU measurement prevents
-a Slice 77 dispatch/lock-wait recommendation. Missing allocation/page counters
-prevents quantitative selection of BLOB, lookaside or page-cache treatments.
-Those conclusions remain unresolved rather than inferred from CPU samples.
+a Slice 77 dispatch/lock-wait recommendation. Slice 76's missing
+allocation/page counters prevent it from selecting BLOB, lookaside or
+page-cache treatments. Slice 77 may select BLOB transport from its direct
+post-cache CPU profile when a named parsing/conversion stack meets its sealed
+threshold; allocation effects remain unknown. Lookaside and page-cache still
+require quantitative counters. Unavailable signals remain unresolved rather
+than inferred from CPU samples.
 
 Diagnostics are non-shipping, process-owned and never timed as verdicts.
 Use the available profiler first; if symbols are inlined/stripped, explicitly

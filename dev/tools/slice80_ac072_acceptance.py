@@ -144,14 +144,18 @@ def parse_cell_text(text: str, label: str, purpose: str) -> dict[str, Any]:
     if len(environments) != 2 or [item.get("phase") for item in environments] != ["start", "end"]:
         raise ValueError("expected one ordered environment pair")
     exits = re.findall(rf"^{EXIT_PREFIX} status=(\d+)$", text, flags=re.MULTILINE)
-    if exits != ["0"]:
-        raise ValueError("strict Rust test must exit zero exactly once")
-    if not re.search(rf"test {SELECTOR} \.\.\. ok", text) or not re.search(
-        r"test result: ok\. 1 passed; 0 failed;", text
-    ):
-        raise ValueError("exact AC-072 test was not executed successfully")
+    passed = bool(re.search(rf"test {SELECTOR} \.\.\. ok", text)) and bool(
+        re.search(r"test result: ok\. 1 passed; 0 failed;", text)
+    )
+    failed = bool(re.search(rf"test {SELECTOR} \.\.\. FAILED", text)) and bool(
+        re.search(r"test result: FAILED\. 0 passed; 1 failed;", text)
+    )
     qualification = qualify_environment(environments[0], environments[1])
     numeric_pass = int(numbers["p50"]) <= 80 and int(numbers["p99"]) <= 300
+    if (numeric_pass and (exits != ["0"] or not passed)) or (
+        not numeric_pass and (exits != ["101"] or not failed)
+    ):
+        raise ValueError("strict Rust exit disagrees with the numeric oracle")
     return {
         **identity,
         "label": label,
@@ -204,7 +208,7 @@ def main() -> int:
             parsed["status"] = cell_status(parsed)
             print(json.dumps(parsed, sort_keys=True))
             return 0 if parsed["status"] == "PASS" else 1
-        except ValueError as error:
+        except (OSError, ValueError) as error:
             print(json.dumps({"label": args.label, "status": "INCOMPLETE", "error": str(error)}, sort_keys=True))
             return 1
     try:

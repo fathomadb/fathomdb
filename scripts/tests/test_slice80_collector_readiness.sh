@@ -34,6 +34,8 @@ input_sha=$(git -C "$root" ls-tree -r "$source_sha" -- \
   src/rust/crates/fathomdb-embedder src/rust/crates/fathomdb-embedder-api | \
   sha256sum | awk '{print $1}')
 true_sha=$(sha256sum /bin/true | awk '{print $1}')
+ac072_runner_sha=$(sha256sum "$root/scripts/perf-experiments/run-slice80-ac072-cell.sh" | awk '{print $1}')
+scanner_sha=$(sha256sum "$root/dev/tools/slice80_read_acceptance.py" | awk '{print $1}')
 
 SLICE80_COLLECTOR_ONLY=1 "$root/scripts/perf-experiments/run-slice80-ac081-cell.sh" \
   "$root" /bin/true "$temp_dir/ac081.log" "$source_sha" "$true_sha" "$input_sha"
@@ -42,7 +44,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 "$root/dev/tools/slice80_read_acceptance.py" \
   --identity-prefix SLICE80_IDENTITY | rg '"environment_applicable": true' >/dev/null
 
 SLICE80_COLLECTOR_ONLY=1 "$root/scripts/perf-experiments/run-slice80-ac072-cell.sh" \
-  "$root" /bin/true "$temp_dir/ac072.log" "$source_sha" "$true_sha" "$input_sha" smoke 10
+  "$root" /bin/true "$temp_dir/ac072.log" "$source_sha" "$true_sha" "$input_sha" smoke 10 "$ac072_runner_sha" "$scanner_sha"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/dev/tools/slice80_read_acceptance.py" \
   verify-collector-readiness --log "$temp_dir/ac072.log" \
   --identity-prefix SLICE80_AC072_IDENTITY | rg '"environment_applicable": true' >/dev/null

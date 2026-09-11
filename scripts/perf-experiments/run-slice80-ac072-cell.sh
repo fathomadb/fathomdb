@@ -2,8 +2,8 @@
 # Run one identity-bound Slice 80.n AC-072 observation from a prebuilt test binary.
 set -euo pipefail
 
-if [ "$#" -ne 8 ]; then
-  echo "usage: $0 WORKTREE BINARY RAW_LOG SOURCE_SHA BINARY_SHA256 INPUT_SHA256 PURPOSE CORPUS_N" >&2
+if [ "$#" -ne 10 ]; then
+  echo "usage: $0 WORKTREE BINARY RAW_LOG SOURCE_SHA BINARY_SHA256 INPUT_SHA256 PURPOSE CORPUS_N RUNNER_SHA256 SCANNER_SHA256" >&2
   exit 2
 fi
 
@@ -15,6 +15,8 @@ expected_binary_sha="$5"
 expected_input_sha="$6"
 purpose="$7"
 corpus_n="$8"
+expected_runner_sha="$9"
+expected_scanner_sha="${10}"
 runner_root=$(cd "$(dirname "$0")/../.." && pwd)
 
 case "$purpose:$corpus_n" in
@@ -52,6 +54,10 @@ if [ "$actual_source_sha" != "$source_sha" ] || [ "$actual_binary_sha" != "$expe
 fi
 runner_sha=$(sha256sum "$runner_root/scripts/perf-experiments/run-slice80-ac072-cell.sh" | awk '{print $1}')
 scanner_sha=$(sha256sum "$runner_root/dev/tools/slice80_read_acceptance.py" | awk '{print $1}')
+if [ "$runner_sha" != "$expected_runner_sha" ] || [ "$scanner_sha" != "$expected_scanner_sha" ]; then
+  echo "Slice 80 AC-072 collector identity drift" >&2
+  exit 2
+fi
 
 snapshot() {
   local phase="$1" load memory swap_in swap_out temperature competing affinity cgroup_path quota quota_root grandparent great_grandparent snapshot_subshell_pid
@@ -111,7 +117,12 @@ fi
 child_pid=""
 terminate_child() {
   if [ -n "$child_pid" ]; then
-    kill -TERM "$child_pid" 2>/dev/null || true
+    kill -TERM -- "-$child_pid" 2>/dev/null || true
+    for _ in $(seq 1 20); do
+      kill -0 "$child_pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    kill -KILL -- "-$child_pid" 2>/dev/null || true
     wait "$child_pid" 2>/dev/null || true
   fi
   exit 124
@@ -119,7 +130,7 @@ terminate_child() {
 trap terminate_child INT TERM
 set +e
 AGENT_LONG=1 AC013_CORPUS_N="$corpus_n" AC013_VECTOR_DIM=384 AC013_SAMPLES=1000 AC013_SCALE_TREATMENT=warm \
-  "$binary" --exact ac_013_vector_retrieval_latency --nocapture --test-threads=1 &
+  setsid "$binary" --exact ac_013_vector_retrieval_latency --nocapture --test-threads=1 &
 child_pid=$!
 wait "$child_pid"
 test_status=$?

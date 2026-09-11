@@ -40,9 +40,30 @@ for command in cargo rustc; do
   chmod +x "$temp_dir/bin/$command"
 done
 binary_sha=$(sha256sum "$temp_dir/fake-test" | awk '{print $1}')
+runner_sha=$(sha256sum "$runner" | awk '{print $1}')
+scanner_sha=$(sha256sum "$root/dev/tools/slice80_read_acceptance.py" | awk '{print $1}')
 PATH="$temp_dir/bin:$PATH" FAKE_CAPTURE="$capture" "$runner" "$root" "$temp_dir/fake-test" \
-  "$temp_dir/smoke.log" "$source_sha" "$binary_sha" "$input_sha" smoke 10
+  "$temp_dir/smoke.log" "$source_sha" "$binary_sha" "$input_sha" smoke 10 "$runner_sha" "$scanner_sha"
 test "$(tr '\n' ' ' <"$capture/args")" = '--exact ac_013_vector_retrieval_latency --nocapture --test-threads=1 '
 test "$(cat "$capture/env")" = '1,10,384,1000,warm'
+
+cat >"$temp_dir/stubborn-test" <<'EOF'
+#!/usr/bin/env bash
+echo "$$" >"$FAKE_CAPTURE/stubborn-pid"
+trap '' TERM
+while :; do sleep 1; done
+EOF
+chmod +x "$temp_dir/stubborn-test"
+stubborn_sha=$(sha256sum "$temp_dir/stubborn-test" | awk '{print $1}')
+if FAKE_CAPTURE="$capture" timeout --kill-after=3s 1 "$runner" "$root" "$temp_dir/stubborn-test" \
+  "$temp_dir/stubborn.log" "$source_sha" "$stubborn_sha" "$input_sha" smoke 10 "$runner_sha" "$scanner_sha"; then
+  echo "stubborn child must not survive a bounded cancellation" >&2
+  exit 1
+fi
+stubborn_pid=$(cat "$capture/stubborn-pid")
+if kill -0 "$stubborn_pid" 2>/dev/null; then
+  echo "runner left its task-owned stubborn child alive" >&2
+  exit 1
+fi
 
 echo "ok test_slice80_ac072_prebuilt_runner"

@@ -63,11 +63,20 @@ class Slice80Ac072AcceptanceTests(unittest.TestCase):
             log().replace("AC013_VECTOR_DIM=384 ", ""),
             log() + "AC013_NUMBERS n=10000 samples=1000 seed_ms=1 p50_ms=70 p99_ms=70\n",
             log(samples="70000," * 999),
-            log().replace("SLICE80_AC072_TEST_EXIT status=0", "SLICE80_AC072_TEST_EXIT status=101"),
             log().replace("1 passed; 0 failed; 0 ignored", "0 passed; 0 failed; 1 ignored"),
         ):
             with self.assertRaises(ValueError):
                 subject.parse_cell_text(broken, "R1", "acceptance")
+
+    def test_strict_numeric_failure_preserves_environment_verdict(self):
+        failed = log(samples=",".join(["81000"] * 1000)).replace("p50_ms=70 p99_ms=70", "p50_ms=81 p99_ms=81")
+        failed = failed.replace("... ok", "... FAILED").replace(
+            "test result: ok. 1 passed; 0 failed", "test result: FAILED. 0 passed; 1 failed"
+        ).replace("SLICE80_AC072_TEST_EXIT status=0", "SLICE80_AC072_TEST_EXIT status=101")
+        cell = subject.parse_cell_text(failed, "R1", "acceptance")
+        self.assertFalse(cell["numeric_pass"])
+        self.assertTrue(cell["environment_applicable"])
+        self.assertEqual(subject.cell_status(cell), "FAIL")
 
     def test_numeric_and_environment_verdicts_remain_distinct(self):
         invalid = log().replace('"pswpin": 10', '"pswpin": 11', 1)

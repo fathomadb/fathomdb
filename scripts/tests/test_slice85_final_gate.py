@@ -100,6 +100,7 @@ class Slice85FinalGateTest(unittest.TestCase):
             "accepted_input_sha256": None,
             "commands": commands if commands is not None else ["true"],
             "retained_receipt": None,
+            "retained_receipt_sha256": None,
             "artifact_sha256": None,
             "evidence": [],
             "verdict": "pending",
@@ -107,8 +108,35 @@ class Slice85FinalGateTest(unittest.TestCase):
 
     def manifest(self) -> dict:
         legacy = json.loads(LEGACY.read_text(encoding="utf-8"))
+        performance = [
+            "timeout 3600 env -u AC_FULL_SCALE AGENT_LONG=1 AC012_CORPUS_N=10000 "
+            "cargo test --release -p fathomdb-engine --test perf_gates "
+            "ac_012_text_query_latency_on_fts5_path -- --exact --nocapture --test-threads=1"
+        ]
+        floors = [
+            "env FATHOMDB_SMOKE_PYTHON=/home/coreyt/.local/share/uv/python/"
+            "cpython-3.10.20-linux-x86_64-gnu/bin/python3.10 "
+            "FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v24.19.0/bin/node "
+            "FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh",
+            "env FATHOMDB_SMOKE_PYTHON=/home/coreyt/.local/share/uv/python/"
+            "cpython-3.11.15-linux-x86_64-gnu/bin/python3.11 "
+            "FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v25.9.0/bin/node "
+            "FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh",
+            "env FATHOMDB_SMOKE_PYTHON=/usr/bin/python3.12 "
+            "FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v24.19.0/bin/node "
+            "FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh",
+        ]
         obligations = [
-            self.obligation(cell["id"], commands=cell["commands"])
+            self.obligation(
+                cell["id"],
+                commands=(
+                    performance
+                    if cell["id"] == "performance"
+                    else floors
+                    if cell["id"] == "linux-runtime-floor-smokes"
+                    else cell["commands"]
+                ),
+            )
             for cell in legacy["cells"]
         ]
         obligations.extend(
@@ -116,21 +144,36 @@ class Slice85FinalGateTest(unittest.TestCase):
                 self.obligation(
                     "runtime-configuration",
                     "additional",
-                    ["runtime source", "runtime installed"],
+                    [
+                        "cargo test -p fathomdb-engine --test runtime_configuration",
+                        "cargo test -p fathomdb-engine statement_reuse_ --lib",
+                        "python -m pytest src/python/tests/test_slice79_runtime_configuration.py",
+                        "npm run build:debug --prefix src/ts && "
+                        "src/ts/node_modules/.bin/tsc -p src/ts/tsconfig.json && "
+                        "node --test src/ts/dist/tests/slice79-runtime-configuration.test.js",
+                        "bash scripts/release/smoke/smoke-local-native-artifacts.sh",
+                    ],
                 ),
                 self.obligation(
                     "protected-writes",
                     "additional",
-                    [f"protected write {index}" for index in range(7)],
+                    [
+                        "cargo build --offline --locked --release slice71b-probe",
+                        *[
+                            f"slice71b-probe --fixture {fixture} --treatment production --ordinal {ordinal}"
+                            for fixture in ("scale02", "ac013")
+                            for ordinal in range(1, 4)
+                        ],
+                    ],
                 ),
                 self.obligation(
                     "slice72-ce",
                     "additional",
                     [
-                        "slice72 artifact",
-                        "slice72 cpu",
-                        "slice72 cuda",
-                        "slice72 verify",
+                        "python3 scripts/release/slice72_ce_artifact.py --device cpu",
+                        "python3 scripts/release/run-slice72-ce-profile.py --device cpu",
+                        "python3 scripts/release/run-slice72-ce-profile.py --device cuda",
+                        "python3 scripts/release/verify-slice72-ce-profile.py",
                     ],
                 ),
             ]
@@ -214,13 +257,6 @@ class Slice85FinalGateTest(unittest.TestCase):
         for row in value["obligations"]:
             if row["disposition"] == "unavailable":
                 continue
-            if row["id"] == "performance":
-                row["disposition"] = "reuse"
-                row["commands"] = []
-                receipt = self.repo / "dev/plans/runs/slice80.json"
-                receipt.write_text("retained pass\n", encoding="utf-8")
-                row["retained_receipt"] = str(receipt.relative_to(self.repo))
-                row["accepted_input_sha256"] = row["current_input_sha256"]
             log = run_dir / f"{row['id']}.log"
             log.write_text("PASS positive evidence\n", encoding="utf-8")
             row["evidence"] = [
@@ -330,7 +366,28 @@ class Slice85FinalGateTest(unittest.TestCase):
     def test_final_rejects_missing_reuse_receipt(self) -> None:
         value = self.manifest()
         self.complete(value)
-        (self.repo / self.row(value, "performance")["retained_receipt"]).unlink()
+        row = self.row(value, "performance")
+        row.update(
+            disposition="reuse",
+            commands=[],
+            input_paths=[
+                "Cargo.toml",
+                "Cargo.lock",
+                ".cargo/config.toml",
+                "src/rust/crates/fathomdb-engine/Cargo.toml",
+                "src/rust/crates/fathomdb-engine/src",
+                "src/rust/crates/fathomdb-engine/tests/perf_gates.rs",
+                "src/rust/crates/fathomdb-engine/tests/reader_pool.rs",
+                "src/rust/crates/fathomdb-query",
+                "src/rust/crates/fathomdb-schema",
+                "src/rust/crates/fathomdb-embedder",
+                "src/rust/crates/fathomdb-embedder-api",
+            ],
+            current_input_sha256="95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274",
+            accepted_input_sha256="95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f3573274",
+            retained_receipt="dev/plans/0.8.25/features/slice-80/current-evidence.md",
+            retained_receipt_sha256="e91bbcff1434e4fb32509513b3c3b4c5a07b2f319ceaeaac61924fc5591435c7",
+        )
         self.assert_rejected(value, "retained receipt file missing", "final")
 
     def test_final_rejects_input_digest_not_computed_from_paths(self) -> None:
@@ -377,6 +434,17 @@ class Slice85FinalGateTest(unittest.TestCase):
                 else:
                     row["evidence"][0]["tests"] = 1
                 self.assert_rejected(value, fragment, "final")
+
+    def test_runtime_route_requires_fresh_typescript_test_compilation(self) -> None:
+        value = self.manifest()
+        row = self.row(value, "runtime-configuration")
+        row["commands"] = [
+            command.replace(
+                "src/ts/node_modules/.bin/tsc -p src/ts/tsconfig.json && ", ""
+            )
+            for command in row["commands"]
+        ]
+        self.assert_rejected(value, "TypeScript compile order")
 
     def test_ac034c_is_the_only_unavailable_row_and_never_passes(self) -> None:
         for mutation in ("other-unavailable", "ac034c-pass"):

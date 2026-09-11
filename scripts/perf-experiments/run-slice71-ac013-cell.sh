@@ -15,6 +15,15 @@ trap 'rm -f "$cargo_log"' EXIT
 
 cd "$cell_worktree"
 
+expected_source_sha="${SLICE80_EXPECTED_SOURCE_SHA:-}"
+actual_source_sha=$(git rev-parse HEAD)
+if [ -n "$expected_source_sha" ] && [ "$actual_source_sha" != "$expected_source_sha" ]; then
+  echo "Slice 80 AC-072 source identity drift" >&2
+  exit 2
+fi
+collector_sha=$(sha256sum "$runner_root/scripts/perf-experiments/run-slice71-ac013-cell.sh" | awk '{print $1}')
+scanner_sha=$(sha256sum "$runner_root/dev/tools/slice80_read_acceptance.py" | awk '{print $1}')
+
 sqlite_version="${SLICE71_SQLITE_VERSION:?run the source commit SQLite runtime probe first}"
 libsqlite3_sys=$(grep -A1 '^name = "libsqlite3-sys"$' Cargo.lock | tail -n 1 | tr -cd '0-9.\n')
 
@@ -66,6 +75,8 @@ PY
 
 mkdir -p "$(dirname "$raw_log")"
 exec >"$raw_log" 2>&1
+printf 'SLICE80_AC072_IDENTITY source_sha=%s collector_sha256=%s scanner_sha256=%s\n' \
+  "$actual_source_sha" "$collector_sha" "$scanner_sha"
 snapshot start
 set +e
 LOG_PATH="$cargo_log" AGENT_LONG=1 AC013_CORPUS_N=10000 \

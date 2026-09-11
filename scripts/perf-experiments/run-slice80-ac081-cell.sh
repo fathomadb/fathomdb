@@ -25,16 +25,25 @@ actual_input_sha=$(git ls-tree -r "$source_sha" -- \
   src/rust/crates/fathomdb-engine/tests/reader_pool.rs \
   src/rust/crates/fathomdb-query src/rust/crates/fathomdb-schema \
   src/rust/crates/fathomdb-embedder src/rust/crates/fathomdb-embedder-api | sha256sum | awk '{print $1}')
+dirty_inputs=$(git status --porcelain -- \
+  Cargo.toml Cargo.lock .cargo/config.toml \
+  src/rust/crates/fathomdb-engine/Cargo.toml \
+  src/rust/crates/fathomdb-engine/src \
+  src/rust/crates/fathomdb-engine/tests/perf_gates.rs \
+  src/rust/crates/fathomdb-engine/tests/reader_pool.rs \
+  src/rust/crates/fathomdb-query src/rust/crates/fathomdb-schema \
+  src/rust/crates/fathomdb-embedder src/rust/crates/fathomdb-embedder-api)
 
 if [ "$actual_source_sha" != "$source_sha" ] || \
    [ "$actual_binary_sha" != "$expected_binary_sha" ] || \
-   [ "$actual_input_sha" != "$expected_input_sha" ]; then
+   [ "$actual_input_sha" != "$expected_input_sha" ] || \
+   [ -n "$dirty_inputs" ]; then
   echo "Slice 80 identity drift" >&2
   exit 2
 fi
 
 snapshot() {
-  local phase="$1" load memory swap_in swap_out temperature competing affinity cgroup_path quota quota_root
+  local phase="$1" load memory swap_in swap_out temperature competing affinity cgroup_path quota quota_root grandparent great_grandparent
   load=$(awk '{print $1}' /proc/loadavg)
   memory=$(awk '/MemTotal:/{total=$2} /MemAvailable:/{available=$2} END{printf "%.3f", available*100/total}' /proc/meminfo)
   swap_in=$(awk '$1=="pswpin"{print $2}' /proc/vmstat)
@@ -52,8 +61,11 @@ snapshot() {
     quota_root=$(dirname "$quota_root")
   done
   quota=$(sed -n '1p' "$quota_root/cpu.max" 2>/dev/null || true)
-  competing=$(ps -eo pid=,comm=,args= | awk -v self="$$" '
-    $1 != self && ($2 ~ /^(cargo|rustc|perf_gates)$/ || $0 ~ /run-ac013[.]sh/) {print}')
+  grandparent=$(ps -o ppid= -p "$PPID" | tr -d ' ')
+  great_grandparent=$(ps -o ppid= -p "$grandparent" | tr -d ' ')
+  competing=$(ps -eo pid=,comm=,args= | PYTHONDONTWRITEBYTECODE=1 \
+    python3 dev/tools/slice80_read_acceptance.py scan-processes \
+      --exclude-pids "$$,$PPID,$grandparent,$great_grandparent")
   python3 - "$phase" "$load" "$memory" "$swap_in" "$swap_out" "$temperature" \
     "$competing" "$affinity" "$quota" <<'PY'
 import glob

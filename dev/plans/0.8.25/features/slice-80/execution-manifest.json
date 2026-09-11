@@ -25,6 +25,7 @@
     "build_command": "CARGO_TARGET_DIR=/tmp/fathomdb-slice80-target cargo test --release --no-run -p fathomdb-engine --test perf_gates --message-format=json > /tmp/fathomdb-slice80-build.json",
     "select_command": "python3 dev/tools/slice80_read_acceptance.py select-binary --build-json /tmp/fathomdb-slice80-build.json --copy-to /tmp/fathomdb-slice80/ac081-perf-gates",
     "identity_command": "sha256sum /tmp/fathomdb-slice80/ac081-perf-gates",
+    "input_identity_command": "git ls-tree -r <source-sha> -- <relevant_inputs> | sha256sum",
     "run_command": "AGENT_LONG=1 scripts/perf-experiments/run-slice80-ac081-cell.sh . /tmp/fathomdb-slice80/ac081-perf-gates <raw-log> <source-sha> <binary-sha256> <input-sha256>",
     "repetitions": 7,
     "fresh_process_per_repetition": true,
@@ -49,7 +50,7 @@
     ],
     "expected_counts": [
       4,
-      12
+      15
     ]
   },
   "ac072": {

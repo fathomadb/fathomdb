@@ -2275,6 +2275,13 @@ enum ReaderRequest {
         snapshot_ready: Arc<Barrier>,
         release: Arc<Barrier>,
     },
+    /// Slice 80 test-only variant with bounded/disconnect-safe release. The
+    /// sender dropping is cancellation, so a failed test cannot strand close.
+    #[cfg(debug_assertions)]
+    HoldWalSnapshotBounded {
+        snapshot_ready: SyncSender<usize>,
+        release: Receiver<()>,
+    },
     /// Slice 65 follow-on: the acknowledgement fires only after SQLite has
     /// completed `COMMIT` and the collector has returned to idle. This is a
     /// private test diagnostic, not a release signal or SDK synchronization
@@ -2937,6 +2944,17 @@ fn reader_worker_loop(
                 );
                 snapshot_ready.wait();
                 release.wait();
+                connection.execute_batch("COMMIT").expect("release reader snapshot");
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
+            }
+            #[cfg(debug_assertions)]
+            ReaderRequest::HoldWalSnapshotBounded { snapshot_ready, release } => {
+                connection.execute_batch("BEGIN DEFERRED").expect("begin reader transaction");
+                let _: i64 = connection
+                    .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get(0))
+                    .expect("acquire real reader snapshot");
+                let _ = snapshot_ready.send(worker_idx);
+                let _ = release.recv_timeout(Duration::from_secs(5));
                 connection.execute_batch("COMMIT").expect("release reader snapshot");
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
             }
@@ -9273,6 +9291,22 @@ impl Engine {
             })
             .expect("reader worker must be live for WAL attribution control");
         (snapshot_ready, release)
+    }
+
+    /// Pause worker zero on a real snapshot with cancellation-safe bounded
+    /// release. Dropping the returned sender releases the worker immediately.
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub fn pause_reader_with_timeout_for_test(&self) -> (Receiver<usize>, SyncSender<()>) {
+        let (snapshot_ready_tx, snapshot_ready_rx) = mpsc::sync_channel(1);
+        let (release_tx, release_rx) = mpsc::sync_channel(1);
+        self.reader_pool.senders[0]
+            .send(ReaderRequest::HoldWalSnapshotBounded {
+                snapshot_ready: snapshot_ready_tx,
+                release: release_rx,
+            })
+            .expect("reader worker must be live for independence control");
+        (snapshot_ready_rx, release_tx)
     }
 
     #[cfg(test)]

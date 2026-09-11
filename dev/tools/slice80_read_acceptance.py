@@ -22,6 +22,12 @@ MARKER = re.compile(
     r"sequential_failure=(?P<sequential_failure>true|false) "
     r"concurrent_failure=(?P<concurrent_failure>true|false) ratio=(?P<ratio>[0-9.]+)"
 )
+IDENTITY_MARKER = re.compile(
+    r"^SLICE80_IDENTITY source_sha=(?P<source>\S+) binary_sha256=(?P<binary>\S+) "
+    r"input_sha256=(?P<input>\S+) mode=(?P<mode>\S+)$",
+    re.MULTILINE,
+)
+EXIT_MARKER = re.compile(r"^SLICE80_TEST_EXIT status=(?P<status>\d+)$", re.MULTILINE)
 REQUIRED_IDENTITY = ("source_sha", "binary_sha256", "input_sha256", "mode")
 REQUIRED_ENVIRONMENT = (
     "load_1m",
@@ -64,6 +70,8 @@ def parse_run_log(text: str, exit_code: int, identity: dict[str, str]) -> dict[s
         "ratio": float(match["ratio"]),
         **identity,
     }
+    if record["sequential_ns"] <= 0 or record["concurrent_ns"] <= 0:
+        raise ValueError("both measured durations must be positive")
     if record["sequential_searches"] != 1600 or record["concurrent_searches"] != 1600:
         raise ValueError("both arms must execute exactly 1600 searches")
     if record["threads"] != 8:
@@ -87,6 +95,55 @@ def parse_run_log(text: str, exit_code: int, identity: dict[str, str]) -> dict[s
     ):
         raise ValueError("test execution status disagrees with the numeric oracle")
     return record
+
+
+def parse_cell_log(path: Path, label: str) -> dict[str, Any]:
+    text = path.read_text(encoding="utf-8", errors="replace")
+    identities = list(IDENTITY_MARKER.finditer(text))
+    if len(identities) != 1:
+        raise ValueError("expected exactly one Slice 80 identity marker")
+    identity_match = identities[0]
+    identity = {
+        "source_sha": identity_match["source"],
+        "binary_sha256": identity_match["binary"],
+        "input_sha256": identity_match["input"],
+        "mode": identity_match["mode"],
+    }
+    exits = list(EXIT_MARKER.finditer(text))
+    if len(exits) != 1:
+        raise ValueError("expected exactly one SLICE80_TEST_EXIT marker")
+    environments = [
+        json.loads(line)
+        for line in re.findall(r"^SLICE80_ENV (.+)$", text, flags=re.MULTILINE)
+    ]
+    if len(environments) != 2 or [item.get("phase") for item in environments] != ["start", "end"]:
+        raise ValueError("expected exactly one ordered start/end environment pair")
+    record = parse_run_log(text, int(exits[0]["status"]), identity)
+    qualification = qualify_environment(environments[0], environments[1])
+    record.update(
+        label=label,
+        environment_applicable=qualification["applicable"],
+        environment_reasons=qualification["reasons"],
+        environment={"start": environments[0], "end": environments[1]},
+        raw_log=str(path),
+    )
+    return record
+
+
+def scan_competing_processes(rows: str, excluded_pids: set[int]) -> list[str]:
+    found = []
+    for row in rows.splitlines():
+        fields = row.strip().split(maxsplit=2)
+        if len(fields) < 3:
+            continue
+        pid, command, arguments = fields
+        if int(pid) in excluded_pids:
+            continue
+        if command in {"cargo", "rustc", "perf_gates", "ac081-perf-gates"} or re.search(
+            r"run-(?:ac013|slice80-ac081)[.]sh", arguments
+        ):
+            found.append(row.strip())
+    return found
 
 
 def _cpu_count(affinity: str) -> int:
@@ -236,12 +293,32 @@ def main() -> int:
     select.add_argument("--copy-to", type=Path, required=True)
     listing = commands.add_parser("check-test-list")
     listing.add_argument("--binary", type=Path, required=True)
+    cell = commands.add_parser("parse-cell")
+    cell.add_argument("--log", type=Path, required=True)
+    cell.add_argument("--label", required=True)
+    campaign = commands.add_parser("summarize-campaign")
+    campaign.add_argument("--logs", nargs=7, type=Path, required=True)
+    scanner = commands.add_parser("scan-processes")
+    scanner.add_argument("--exclude-pids", default="")
     args = parser.parse_args()
     if args.command == "select-binary":
         print(json.dumps(select_binary(args.build_json, args.copy_to), sort_keys=True))
-    else:
+    elif args.command == "check-test-list":
         check_test_list(args.binary)
         print("AC-081 selector and retired AC-020 registrations present")
+    elif args.command == "parse-cell":
+        print(json.dumps(parse_cell_log(args.log, args.label), sort_keys=True))
+    elif args.command == "summarize-campaign":
+        observations = [parse_cell_log(path, f"R{index}") for index, path in enumerate(args.logs, 1)]
+        identity = {field: observations[0][field] for field in REQUIRED_IDENTITY}
+        validate_campaign(observations, identity)
+        summary = summarize(observations)
+        print(json.dumps(summary, sort_keys=True))
+        print(render_human_summary(summary))
+    else:
+        excluded = {int(value) for value in args.exclude_pids.split(",") if value}
+        for row in scan_competing_processes(__import__("sys").stdin.read(), excluded):
+            print(row)
     return 0
 
 

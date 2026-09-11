@@ -34,3 +34,21 @@ the new campaign immediately. It does not authorize host setting changes,
 stopping the Windows VM, disabling swap, terminating unrelated processes,
 threshold changes, further replacement campaigns, broad verification, or
 publication.
+
+## Superseding continuation authorization
+
+Recorded: 2026-09-11. This supersedes the preceding continuation allowance.
+The owner authorizes up to six fresh-process AC-072 observations in one
+continuation campaign. Completion requires three consecutive observations that
+are both environment-valid and numerically passing. Stop when that streak is
+obtained or the six-observation cap is consumed; every observation remains
+retained and no historical result may substitute for one.
+
+Before acceptance, run one short non-acceptance smoke through the sealed path.
+For an environment-invalid observation, pause dispatch, inspect its controls,
+and use at most two bounded read-only diagnosis/readiness cycles across this
+campaign before deciding whether to continue. A valid-environment numerical
+failure stops for investigation. Existing thresholds, fixture controls, zero
+swap-I/O rule, accepted AC-081/write receipts, and focused-only scope remain
+unchanged. No host-policy change, swap disabling, unrelated-process termination,
+or unlimited retrying is authorized.

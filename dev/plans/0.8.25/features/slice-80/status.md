@@ -1,6 +1,6 @@
 # Slice 80 status
 
-Status: **SLICE 80.N STOPPED ON AC-072 ENVIRONMENT INVALIDITY; ACCEPTANCE BLOCKED**
+Status: **SLICE 80.N CONTINUATION AUTHORIZED; AC-072 ACCEPTANCE IN PROGRESS**
 
 - Contract/design: complete and independently approved.
 - TDD implementation: complete through `e8b63952`.
@@ -27,8 +27,8 @@ Status: **SLICE 80.N STOPPED ON AC-072 ENVIRONMENT INVALIDITY; ACCEPTANCE BLOCKE
 
 The initial AC-081 quota defect and both collector-census defects are retained
 transparently. Slice 80.m's allowance remains exhausted historical evidence.
-Slice 80.n's separate allowance is now stopped after its first AC-072 cell.
-Slice 80 remains in progress and Slice 85 is not unblocked. A new explicit
-owner disposition was recorded for one fresh continuation campaign; it retains
-the same per-cell stop rule and does not authorize host changes or another
-replacement after that campaign.
+Slice 80.n's prior allowance stopped after its first AC-072 cell. The owner
+has now authorized a fresh smoke and up to six continuation observations,
+requiring three consecutive valid numeric passes and permitting two bounded
+read-only diagnosis/readiness cycles after environment invalidity. Slice 80
+remains in progress and Slice 85 is not yet unblocked.

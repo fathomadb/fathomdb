@@ -229,7 +229,7 @@ class Slice85FinalGateTest(unittest.TestCase):
                     [
                         "cargo build --locked --release -p fathomdb-tc5-benchmark --features tc5-benchmark-cuda",
                         "python3 -m venv ${RUN_DIR}/tc5-runtime",
-                        "${RUN_DIR}/tc5-runtime/bin/python -m pip install --no-deps ${RUN_DIR}/artifacts/python/fathomdb-0.8.24-cp310-abi3-manylinux_2_28_x86_64.whl",
+                        "${RUN_DIR}/tc5-runtime/bin/python -m pip install --no-deps ${RUN_DIR}/cuda-preflight.packages/fathomdb-0.8.24-cp310-abi3-manylinux_2_28_x86_64.whl",
                         "${RUN_DIR}/tc5-runtime/bin/python -m experiments.tc5_gpu_v2 dry-run --config ${RUN_DIR}/tc5-candidate-config.json --arm bridge --output-root ${RUN_DIR}/tc5-bridge",
                         "${RUN_DIR}/tc5-runtime/bin/python -m experiments.tc5_gpu_v2 run --config ${RUN_DIR}/tc5-candidate-config.json --arm bridge --output-root ${RUN_DIR}/tc5-bridge --binary ${RUN_DIR}/artifacts/fathomdb-tc5-benchmark",
                     ],

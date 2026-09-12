@@ -16,6 +16,35 @@ from experiments import tc5_gpu_v2
 CONFIG = Path("experiments/configs/scale-01/tc5-gpu-v2.json")
 
 
+def _sha(path: Path) -> str:
+    return tc5_gpu_v2._sha_file(path)
+
+
+def _candidate_config(tmp_path: Path) -> Path:
+    value = json.loads(CONFIG.read_text(encoding="utf-8"))
+    python = tmp_path / "python"
+    wheel = tmp_path / "candidate.whl"
+    cli = tmp_path / "fathomdb"
+    benchmark = tmp_path / "fathomdb-tc5-benchmark"
+    for path in (python, wheel, cli, benchmark):
+        path.write_text(path.name, encoding="utf-8")
+    value["release"] = "0.8.25"
+    value["runtime"]["python"] = str(python)
+    value["runtime"]["fathomdb_bin"] = str(cli)
+    value["candidate"] = {
+        "sha": "1" * 40,
+        "version": "0.8.25",
+        "python_wheel": str(wheel),
+        "python_wheel_sha256": _sha(wheel),
+        "fathomdb_bin_sha256": _sha(cli),
+        "benchmark_binary": str(benchmark),
+        "benchmark_binary_sha256": _sha(benchmark),
+    }
+    path = tmp_path / "candidate-config.json"
+    path.write_text(json.dumps(value), encoding="utf-8")
+    return path
+
+
 def test_committed_configuration_freezes_the_two_gpu_fidelity_arms():
     config = tc5_gpu_v2.load_config(CONFIG)
 
@@ -26,6 +55,38 @@ def test_committed_configuration_freezes_the_two_gpu_fidelity_arms():
     assert config.bootstrap_resamples == 1000
     assert config.cuda_uuid.startswith("GPU-")
     assert config.model_asset_directory.is_dir()
+
+
+def test_candidate_configuration_requires_and_loads_exact_artifact_bindings(tmp_path):
+    path = _candidate_config(tmp_path)
+    config = tc5_gpu_v2.load_config(path)
+
+    assert config.release == "0.8.25"
+    assert config.candidate_sha == "1" * 40
+    assert config.candidate_version == "0.8.25"
+    assert config.python_wheel_sha256 == _sha(config.python_wheel)
+    assert config.fathomdb_bin_sha256 == _sha(config.fathomdb_bin)
+    assert config.benchmark_binary_sha256 == _sha(config.benchmark_binary)
+
+    value = json.loads(path.read_text(encoding="utf-8"))
+    del value["candidate"]
+    path.write_text(json.dumps(value), encoding="utf-8")
+    with pytest.raises(tc5_gpu_v2.Tc5GpuV2Error, match="candidate binding"):
+        tc5_gpu_v2.load_config(path)
+
+
+def test_candidate_dry_run_rejects_artifact_digest_drift(tmp_path, monkeypatch):
+    path = _candidate_config(tmp_path)
+    config = tc5_gpu_v2.load_config(path)
+    monkeypatch.setattr(
+        tc5_gpu_v2,
+        "_load_arm_inputs",
+        lambda _config, _arm: tc5_gpu_v2.ArmInputs((), (), "1" * 64),
+    )
+    config.fathomdb_bin.write_text("tampered", encoding="utf-8")
+
+    with pytest.raises(tc5_gpu_v2.Tc5GpuV2Error, match="candidate artifact digest"):
+        tc5_gpu_v2.dry_run(path, "bridge", output_root=tmp_path / "new")
 
 
 def test_dry_run_qualifies_inputs_without_creating_a_database(tmp_path, monkeypatch):

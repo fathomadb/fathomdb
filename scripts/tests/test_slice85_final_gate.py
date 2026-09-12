@@ -126,6 +126,14 @@ class Slice85FinalGateTest(unittest.TestCase):
             "FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v25.9.0/bin/node "
             "FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh",
         ]
+        artifact_build = [
+            "bash -c 'cd src/python && maturin build --locked --release --out "
+            "${RUN_DIR}/artifacts/python --features "
+            "pyo3/extension-module,default-embedder'",
+            "npm ci --prefix src/ts",
+            "npm run build:native --prefix src/ts",
+            "src/ts/node_modules/.bin/tsc -p src/ts/tsconfig.build.json",
+        ]
         obligations = [
             self.obligation(
                 cell["id"],
@@ -134,6 +142,8 @@ class Slice85FinalGateTest(unittest.TestCase):
                     if cell["id"] == "performance"
                     else floors
                     if cell["id"] == "linux-runtime-floor-smokes"
+                    else artifact_build
+                    if cell["id"] == "linux-artifact-build"
                     else cell["commands"]
                 ),
             )
@@ -445,6 +455,16 @@ class Slice85FinalGateTest(unittest.TestCase):
             for command in row["commands"]
         ]
         self.assert_rejected(value, "TypeScript compile order")
+
+    def test_linux_artifact_route_uses_package_metadata_and_rooted_tsconfig(self) -> None:
+        value = self.manifest()
+        row = self.row(value, "linux-artifact-build")
+        row["commands"][0] = row["commands"][0].replace("cd src/python && ", "")
+        self.assert_rejected(value, "Linux artifact build command contract")
+        value = self.manifest()
+        row = self.row(value, "linux-artifact-build")
+        row["commands"][-1] = "npm exec --prefix src/ts -- tsc -p tsconfig.build.json"
+        self.assert_rejected(value, "Linux artifact build command contract")
 
     def test_ac034c_is_the_only_unavailable_row_and_never_passes(self) -> None:
         for mutation in ("other-unavailable", "ac034c-pass"):

@@ -1,18 +1,20 @@
 # Slice 85 — CUDA CE Engine p95 release exception
 
 Recorded: 2026-09-11
+Granted: 2026-09-11 by the repository owner (HITL).
 
-**Status: PROPOSED. Requires an owner ruling. This document does not grant the
-exception and does not record a pass.**
+**Status: GRANTED. This is an accepted non-pass disposition for release 0.8.25.
+It is not a PASS and must not be recorded or displayed as one.**
 
-This is a request for a narrowly scoped, explicit release exception covering one
-failing comparison in the retained Slice 72 CE profile: the `cuda` / `engine`
-`median_repetition_p95` ratio. It asks the owner to accept a small, quantified
+This records a narrowly scoped, explicit release exception covering one failing
+comparison in the retained Slice 72 CE profile: the `cuda` / `engine`
+`median_repetition_p95` ratio. The owner has accepted a small, quantified
 first-touch performance regression for 0.8.25 on the basis of a demonstrated
 mismatch between what that gate was intended to measure and what it measures.
 
-It is not a request to change a threshold, relax an oracle, substitute a
-different statistic, re-baseline, or run another timing campaign.
+The exception changes no threshold, relaxes no oracle, substitutes no
+statistic, re-baselines nothing, and authorizes no further timing campaign.
+The corrected protocol in Appendix A remains unauthorized follow-on work.
 
 ## 1. The non-pass, exactly as measured
 
@@ -142,7 +144,7 @@ of an unconfirmed mechanism.
 
 ## 4. Scope and limits of this finding
 
-These limits are part of the request. The exception should be granted on the
+These limits are part of the disposition. The exception is granted on the
 narrow claim, not a broader one.
 
 1. **This is a first-touch regression, not an absence of regression.**
@@ -187,15 +189,15 @@ narrow claim, not a broader one.
    the ratio by construction. This gate compares candidate against comparator
    on the same statistic; its defect is warmup contamination. The relevant
    lesson from `seq-277` is that a defective performance oracle is corrected by
-   an explicit owner decision on the record — which is what is requested here.
+   an explicit owner decision on the record — which is what this document is.
 
 7. **AC-072 and AC-081a/b/c do not replace this coverage.** They are absolute
    read-performance gates over 1,600 and 1,000 queries on the same reader pool,
    they currently pass, and they amortise the cold-pool term. That makes the
    residual product risk small. It does not demonstrate that this CE-integrated
    Engine workload meets an equivalent performance requirement, because no such
-   requirement is stated for it. Granting this exception leaves a genuine, if
-   narrow, coverage gap, closed by Appendix A rather than by those gates.
+   requirement is stated for it. This exception leaves a genuine, if narrow,
+   coverage gap, closed by Appendix A rather than by those gates.
 
 8. **The comparator sensitivity result is sensitivity analysis, not a
    probability.** The comparator's five repetition-p95 values are
@@ -220,11 +222,11 @@ narrow claim, not a broader one.
   retry budget, and an identified deterministic cause.
 
 `plan.md` Completion permits "explicitly authorized non-pass disposition." This
-request is that authorization, on the record, with the cost named.
+document is that authorization, on the record, with the cost named.
 
-## 6. Terms of the proposed exception
+## 6. Terms of the exception
 
-If granted, the exception is limited to the following and nothing else.
+The exception is limited to the following and nothing else.
 
 **Covered:** the `cuda` / `engine` `median_repetition_p95` comparison of the
 retained Slice 72 CE profile, for release 0.8.25 only.
@@ -256,7 +258,7 @@ recorded here so the trend is visible, and it is not re-dispositioned.
    profile produced no receipt.
 7. Appendix A is scheduled as follow-on work, not performed in Slice 85.
 
-## 7. What granting this exception invalidates
+## 7. What this exception invalidates
 
 Stated precisely, because the same reasoning applies backwards.
 

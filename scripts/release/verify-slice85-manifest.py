@@ -52,7 +52,7 @@ DISPOSITIONS = {
 }
 CE_EXCEPTION = "dev/plans/0.8.25/features/slice-85/ce-engine-p95-exception.md"
 CE_EXCEPTION_SHA256 = (
-    "65c54a63c820dbceeb0e27348488a72c365c8efbeb6c9552c9bc0a81a659d102"
+    "c3e3323583d75c8b78d7dacca6e0f0b9ce9a92c61a7ceea37d1804a9c140183d"
 )
 SEALED_THRESHOLDS = {
     "text_p50_ms_max": 20,

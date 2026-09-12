@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parents[2]
 CHECKER = ROOT / "scripts/release/verify-slice85-manifest.py"
 LEGACY = ROOT / "dev/plans/0.8.25/features/slice-75/slice75-closure-manifest.json"
 CE_BASE = ROOT / "dev/plans/0.8.25/features/slice-72/ce-profile-manifest.json"
+CE_EXCEPTION = (
+    ROOT / "dev/plans/0.8.25/features/slice-85/ce-engine-p95-exception.md"
+)
 SMOKE = ROOT / "scripts/release/smoke/smoke-local-native-artifacts.sh"
 WINDOWS_RUNNER = ROOT / "scripts/release/slice75-windows-runner.sh"
 HASH = "2" * 64
@@ -35,6 +38,9 @@ class Slice85FinalGateTest(unittest.TestCase):
         ce_base_path = self.repo / CE_BASE.relative_to(ROOT)
         ce_base_path.parent.mkdir(parents=True)
         ce_base_path.write_bytes(CE_BASE.read_bytes())
+        exception_path = self.repo / CE_EXCEPTION.relative_to(ROOT)
+        exception_path.parent.mkdir(parents=True, exist_ok=True)
+        exception_path.write_bytes(CE_EXCEPTION.read_bytes())
         overlay = json.loads(CE_BASE.read_text(encoding="utf-8"))
         overlay_path = (
             self.repo / "dev/plans/runs/0.8.25-slice-85/slice72-ce-manifest.json"
@@ -556,6 +562,23 @@ class Slice85FinalGateTest(unittest.TestCase):
         overlay["steady_calls"] += 1
         overlay_path.write_text(json.dumps(overlay), encoding="utf-8")
         self.assert_rejected(self.manifest(), "CE overlay")
+
+    def test_final_accepts_only_the_documented_ce_non_pass(self) -> None:
+        value = self.manifest()
+        self.complete(value)
+        row = self.row(value, "slice72-ce")
+        row["disposition"] = "accepted-non-pass"
+        row["retained_receipt"] = str(CE_EXCEPTION.relative_to(ROOT))
+        row["retained_receipt_sha256"] = digest(CE_EXCEPTION)
+        row["verdict"] = "accepted-non-pass"
+        row["evidence"][0]["tests"] = 4
+        row["evidence"][0]["verdict"] = "accepted-non-pass"
+        result = self.run_checker(value, "final")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        value = self.manifest()
+        self.row(value, "default-tree")["disposition"] = "accepted-non-pass"
+        self.assert_rejected(value, "accepted non-pass")
 
 
 class Slice85InstalledRuntimeContractTest(unittest.TestCase):

@@ -37,5 +37,11 @@ need "$BUILD_NAPI" 'CUDA_NAPI_FEATURES="$REQUESTED_CUDA_NAPI_FEATURES"'
 need "$SMOKE" 'reranker-cli-doctor.json'
 need "$SMOKE" 'doctor reranker-gpu --json'
 need "$SMOKE" 'FATHOMDB_RERANK_DEVICE'
+need "$SMOKE" 'engine.search("cuda package rerank smoke", undefined, rerank?2:0)'
+
+if grep -Fq 'engine.search("cuda package rerank smoke",{rerankDepth:' "$SMOKE"; then
+  printf 'FAIL  %s must pass rerankDepth through the public positional API\n' "${SMOKE#"$ROOT"/}" >&2
+  exit 1
+fi
 
 printf 'CUDA reranker producer contract passed\n'

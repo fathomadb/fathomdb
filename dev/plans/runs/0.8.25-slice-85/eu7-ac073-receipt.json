@@ -1,6 +1,6 @@
 {
   "schema_version": "fathomdb.slice85-eu7-ac073/v1",
-  "candidate_sha": "2e52602c937993f4fc2f3c49e942a56aa580bd6c",
+  "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
   "ac073_stress": "pass",
   "stress_p99_ms": 391,
   "stress_bound_ms": 730,

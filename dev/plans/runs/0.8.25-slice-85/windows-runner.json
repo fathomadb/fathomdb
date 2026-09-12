@@ -1,0 +1,1 @@
+{"busy":false,"ip":"192.168.122.51","labels":["self-hosted","Windows","X64","windchill3-windows-11"],"repository":"fathomadb/fathomdb","runner":"windchill3-windows-11","schema_version":"fathomdb.slice75-windows-runner/v1","service":"running","service_name":"actions.runner.fathomadb-fathomdb.windchill3-windows-11","status":"online","vm":"gh-runner-wonl-win11"}

@@ -1,9 +1,13 @@
 {
   "release": "0.8.25",
-  "release_kind": "active development release; feature implementation active",
+  "release_kind": "release candidate ready; publication not authorized",
   "board": "dev/plans/runs/STATUS-0.8.25.md",
   "plan": "dev/plans/plan-0.8.25.md",
   "active_ref": "refs/heads/release/0.8.25",
+  "completion": {
+    "ref": "origin/release/0.8.25",
+    "main_integration": "PENDING"
+  },
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
   "schema_version": 33,
   "origin_main_schema_version": 26,
@@ -79,11 +83,11 @@
     {"slice":77,"short":"AC020-EXPERIMENTS","title":"adaptive follow-on experiments and candidate selection","depends_on":[76],"status":"COMPLETE_ON_RELEASE_BRANCH","closure_kind":"COMPLETE_INCONCLUSIVE_NO_TREATMENT_SELECTED","design_refs":["dev/plans/0.8.25/features/slice-77/plan.md","dev/plans/0.8.25/features/slice-77/design.md","dev/plans/0.8.25/features/slice-77/tdd-chronology.md","dev/plans/0.8.25/features/slice-77/status.md","dev/plans/runs/0.8.25-slice-77/planning-review.md","dev/plans/runs/0.8.25-slice-77/code-review.md","dev/plans/runs/0.8.25-slice-77/selection.md","dev/plans/runs/0.8.25-slice-77/result.md","dev/plans/runs/0.8.25-slice-77/decision.md","dev/plans/runs/0.8.25-slice-77/environment-qualification.md","dev/plans/runs/0.8.25-slice-77/verification-review.md","dev/plans/runs/0.8.25-slice-77/manifest.json","dev/plans/0.8.25/ac020-experiment-protocol.md"],"sha":"b3ccba83","merge_subject":"Reapply \"chore(slice76): remove experimental product diff\"","evidence":"The exact reviewed statement-reuse anchor confirms zero of seven AC-020 passes with full-precision medians of 174.216944 ms sequential and 86.531221 ms concurrent. The direct post-cache CPU profile covers all eight workers but has only 47 search samples after excluding teardown, below the sealed minimum of 50; missing contemporaneous executor controls further limit attribution. The result is honestly inconclusive and authorizes no second treatment or speculative implementation. Cleanup restores the protected product/test tree byte-for-byte. Slice 80 owns mandatory consultation on a bounded corrected profile/counter census versus any separately authorized feasibility work; AC-020 remains unresolved."},
     {"slice":79,"short":"AC020-RUNTIME","title":"explicit SQLite runtime configuration and statement reuse","depends_on":[77],"status":"COMPLETE_ON_RELEASE_BRANCH","closure_kind":"COMPLETE_WITH_CARRY_FORWARD_NOT_RELEASE_ACCEPTANCE","design_refs":["dev/plans/0.8.25/features/slice-79/plan.md","dev/plans/0.8.25/features/slice-79/design.md","dev/plans/0.8.25/features/slice-79/design-review.md","dev/plans/0.8.25/features/slice-79/tdd-chronology.md","dev/plans/0.8.25/features/slice-79/code-review.md","dev/plans/0.8.25/features/slice-79/status.md","dev/plans/runs/0.8.25-slice-79/manifest.json","dev/plans/runs/0.8.25-slice-79/result.md","dev/plans/runs/0.8.25-slice-79/focused-verification.md","dev/plans/runs/0.8.25-slice-79/verification-review.md","dev/plans/0.8.25/ac020-experiment-protocol.md"],"sha":"e2db3ffc","merge_subject":"test(slice79): configure schema upgrade fixture first","evidence":"The owner-approved performance/diagnostics startup API and bounded statement reuse ship on product candidate a6650c81. Focused Rust and installed Python/Node contracts, schema-26 upgrade/reopen/lifecycle witnesses, governed-surface pin, design and code reviews pass. Performance mode materially reduces concurrent latency versus diagnostics, but unchanged AC-020 still fails 0/7 at 53.616722 ms concurrent versus a 32.743532 ms median bound. All six protected 71B write cells pass. AC-072 meets numerical limits in three runs but all are environment-invalid due nonzero swap activity. No broad regression ran; Slice 80 owns the remaining AC-020 correction and a valid AC-072 guard."},
     {"slice":80,"short":"READ-ACCEPTANCE","title":"absolute read-performance successor and bounded verification","depends_on":[79],"status":"COMPLETE_ON_RELEASE_BRANCH","design_refs":["dev/plans/0.8.25/features/slice-80/plan.md","dev/plans/0.8.25/features/slice-80/design.md","dev/plans/0.8.25/features/slice-80/planning-review.md","dev/plans/0.8.25/features/slice-80/design-review.md","dev/plans/0.8.25/features/slice-80/additional-campaign-authorization.md","dev/plans/0.8.25/features/slice-80/80n-authorization.md","dev/plans/0.8.25/features/slice-80/tdd-chronology.md","dev/plans/0.8.25/features/slice-80/code-review.md","dev/plans/0.8.25/features/slice-80/status.md","dev/plans/runs/0.8.25-slice-80/pre-timing-environment.md","dev/plans/runs/0.8.25-slice-80/manifest.json","dev/plans/runs/0.8.25-slice-80/measurements.json","dev/plans/runs/0.8.25-slice-80/result.md","dev/plans/runs/0.8.25-slice-80/80n-continuation-campaign.md","dev/plans/runs/0.8.25-slice-80/80n-revised-qualification-audit.md","dev/plans/runs/0.8.25-slice-80/80n-qualification-design-review.md","dev/plans/runs/0.8.25-slice-80/80n-qualification-code-review.md","dev/plans/runs/0.8.25-slice-80/verification-review.md"],"sha":"e54ad00c","merge_subject":"fix(slice80): make host swap diagnostic only","evidence":"AC-081a/b/c are accepted: seven qualified fresh-process AC-081 passes, focused reader-independence proof, and applicable Slice 79 write receipts. The owner-approved AC-072 qualification correction retains host-wide pswpin/pswpout only as diagnostics because they cannot attribute activity to FathomDB. Separate reassessment of retained C1-C5 finds five exact 10k/384d/1000-query warm passes, with C1-C3 establishing the required three consecutive passes; every non-swap control, identity and latency limit remains satisfied. Original verdicts remain preserved. Focused RED/GREEN parser/runner/readiness checks and independent design, code and evidence reviews pass. No new timing, host-policy change or broad verification ran. Slice 85 is unblocked."},
-    {"slice":85,"short":"FINAL-VERIFICATION","title":"final verification, CI and non-publishing packaging","depends_on":[80],"status":"NOT_STARTED","design_refs":["dev/plans/0.8.25/features/slice-85/plan.md","dev/plans/0.8.25/ac020-experiment-protocol.md"]}
+    {"slice":85,"short":"FINAL-VERIFICATION","title":"final verification, CI and non-publishing packaging","depends_on":[80],"status":"COMPLETE_ON_RELEASE_BRANCH","design_refs":["dev/plans/0.8.25/features/slice-85/plan.md","dev/plans/0.8.25/features/slice-85/design.md","dev/plans/0.8.25/features/slice-85/design-review.md","dev/plans/0.8.25/features/slice-85/code-review.md","dev/plans/0.8.25/features/slice-85/execution-matrix.md","dev/plans/0.8.25/features/slice-85/status.md","dev/plans/runs/0.8.25-slice-85/final-manifest.json"],"sha":"18fefc67","merge_subject":"fix(ci): align feature wheel probe inventory","evidence":"The 31-obligation final manifest closes all required local, long-running, installed-artifact, GPU, platform and hosted verification. Local full verification passes 109/109; exact-candidate TC-5 passes AC-075 at recall 0.958 with CI [0.938, 0.974]; AC-073 passes 391 ms against 730 ms; protected writes pass six candidate cells; five hosted native rows and the required CI inventory pass; nonpublishing Jetson cpu/auto/cuda evidence passes. AC-034c remains the sole unavailable cell and the owner-authored CUDA Engine p95 disposition is linked without changing its oracle. Node 25 is the sole 0.8.25 Node target. Publication remains separately unauthorized."}
   ],
   "landed": [],
-  "next_slice": 85,
-  "remaining_ladder": [85],
+  "next_slice": null,
+  "remaining_ladder": [],
   "decisions": {
     "unruled": [],
     "ruled": [
@@ -99,6 +103,11 @@
         "id": "cuda-ptrace",
         "title": "CUDA, NVIDIA tools including nvidia-smi, and ptrace are standing-authorized for applicable 0.8.25 work, including unconfined execution when needed",
         "source": "repository owner standing authorization, reaffirmed 2026-08-31"
+      },
+      {
+        "id": "slice85-ce-engine-p95-exception",
+        "title": "Slice 85 CE Engine p95 disposition",
+        "source": "todos seq-240; dev/plans/0.8.25/features/slice-85/ce-engine-p95-exception.md"
       },
       {
         "id": "windows-verification-transfer",
@@ -147,25 +156,13 @@
       }
     ]
   },
-  "release_readiness": {"status":"PENDING_FINAL_VERIFICATION","blockers":["Slice 85 final verification, CI and non-publishing packaging remain required before release readiness can advance"],"publication_authorized":false},
+  "release_readiness": {"status":"READY_FOR_RELEASE","blockers":[],"publication_authorized":false},
   "generated_views": [
     {
-      "id": "plan-immediate-next",
+      "id": "plan-landed-roll-up",
       "file": "dev/plans/plan-0.8.25.md",
-      "location": "Immediate next slice",
-      "renders": "the next slice and remaining dependency ladder"
-    },
-    {
-      "id": "status-current-state",
-      "file": "dev/plans/runs/STATUS-0.8.25.md",
-      "location": "Current state",
-      "renders": "the next slice and the main-reachable landed set"
-    },
-    {
-      "id": "status-next-action",
-      "file": "dev/plans/runs/STATUS-0.8.25.md",
-      "location": "Immediate next action",
-      "renders": "the lifecycle-aware next action and remaining dependency ladder"
+      "location": "Release ladder complete",
+      "renders": "the completion-ref-aware landed roll-up used by dependency preflight"
     }
   ]
 }

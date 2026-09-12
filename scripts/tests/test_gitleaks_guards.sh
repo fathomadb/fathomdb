@@ -57,6 +57,15 @@ if ! command -v gitleaks >/dev/null 2>&1; then
   printf '%s passed, %s failed\n' "$PASS" "$FAIL"
   exit 1
 fi
+
+for marker in \
+  'Slice 85 CE overlay contains only copied artifact-integrity digests' \
+  '^dev/plans/runs/0\.8\.25-slice-85/slice72-ce-manifest\.json$'; do
+  if ! grep -Fq "$marker" "$CURRENT_CONFIG"; then
+    printf 'FAIL gitleaks current config lost the narrow Slice 85 CE overlay allowlist: %s\n' "$marker" >&2
+    exit 1
+  fi
+done
 GITLEAKS_BIN="$(command -v gitleaks)"
 
 if "$CURRENT_CONFIG_CHECK" "$CURRENT_CONFIG" >/dev/null 2>&1; then

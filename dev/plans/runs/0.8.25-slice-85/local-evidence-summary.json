@@ -1,0 +1,52 @@
+{
+  "schema_version": "fathomdb.slice85-local-evidence-summary/v1",
+  "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+  "candidate_delta": {
+    "base_sha": "2e52602c937993f4fc2f3c49e942a56aa580bd6c",
+    "scope": "planning, evidence validation, documentation, release-smoke portability, and private test-hooks diagnostics only",
+    "product_artifacts_changed": false
+  },
+  "full_verification": {
+    "registered": 109,
+    "ran": 109,
+    "passed": 109,
+    "failed": 0,
+    "excluded": 0,
+    "source": "final-agent-verify-3.log",
+    "sha256": "93fc4f6d8895cd1b1ee47ab5a757e61eba46fd8026bb3c40e6bcdd8d3b54db2d"
+  },
+  "focused_candidate_delta": {
+    "tests": [
+      "scripts/tests/test_native_artifact_runtime_validation.sh",
+      "scripts/tests/test_preflight_landing.sh",
+      "scripts/tests/test_verify_release_gates.sh",
+      "scripts/tests/test_windows_wal_attribution_ci_job.sh",
+      "tests/experiments/test_tc5_gpu_v2.py",
+      "perf_gates::ac_012_text_query_latency_on_fts5_path"
+    ],
+    "red_observed": true,
+    "green_observed": true,
+    "independent_review": "pass",
+    "final_candidate_performance": {
+      "queries": 1000,
+      "p50_ms": 1,
+      "p99_ms": 3,
+      "verdict": "pass"
+    }
+  },
+  "retained_positive_sources": {
+    "final-interactions.log": "f0dbe1d7a9d488a24c0e66079011671be2b2a02a47f101bb80944193e154c7f2",
+    "schema26-upgrade.log": "9a97c0903356154a83e1f6a94dd532ae56ebb99a3ff38f02e6ea79a171b0b225",
+    "ac021.log": "258aff655f71f7728709b3385afff8251f31f401b66c096370017d8c26670a91",
+    "ac059b-cursors.log": "70eb011faefa3f58cb60523c75ef77eac1bac8d5f7953c78682707ae18c5d839",
+    "ac059b-race.log": "415228b4e06ec2f910fb1d1b6273f5a0704fba12d50dce7c6016bf7ac39806d9",
+    "ac034ab.log": "7285e95d0067363baafb52f6402e214e361b2b69a86c69e559c3783b2596683c",
+    "mkdocs.log": "9d2082184f89a763aea49a73ddb800ef31cb8b9b8148b33a639839bbbc8fe32d",
+    "runtime-rust.log": "79090767f36c8f17bb4995f21b32e077046b0c6558231a08a306da15b9cad0c4",
+    "runtime-statement-reuse.log": "737c0f7d31fa169073b8a71a8be35c33f02b5226287bd1b475862bf4c8a18861",
+    "runtime-python.log": "ba701459e2a6795d9139ba370568c64d01e017b4680e4f8a94e60b0cd7138117",
+    "runtime-typescript.log": "f1802fb95682902ebdbd2eae3f59b8f0bf07b83483481cf0d213ad35c24aac37",
+    "protected-writes-build.log": "8a9e48253761ce0d64bcaa51ca4235910b605c1040d914c810cc25ffc7cfb368"
+  },
+  "verdict": "pass"
+}

@@ -1,0 +1,9 @@
+{
+  "schema_version": "fathomdb.slice85-ce-accepted-summary/v1",
+  "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+  "checks_executed": 4,
+  "passing_checks": 3,
+  "accepted_non_pass": "cuda-engine-p95",
+  "disposition": "dev/plans/0.8.25/features/slice-85/ce-engine-p95-exception.md",
+  "verdict": "accepted-non-pass"
+}

@@ -16,7 +16,7 @@ make completeness and false-pass rules executable; a new scheduler is not.
 
 ## Evidence model
 
-`dev/plans/runs/0.8.25-slice-85/manifest.json` is the final inventory. Each row
+`dev/plans/runs/0.8.25-slice-85/final-manifest.json` is the final inventory. Each row
 has a unique ID, legacy/additional origin, relevant input set, disposition,
 candidate/source identity, command or retained receipt, raw-log paths, positive
 counts, and verdict. Dispositions are `run`, `rerun`, `reuse`, `unavailable`,
@@ -110,8 +110,10 @@ The frozen variable bindings are `RUN_DIR=dev/plans/runs/0.8.25-slice-85`,
 under `$RUN_DIR/artifacts/{python,napi,cli}`, and CUDA outputs under
 `$RUN_DIR/cuda-*`. Local x64 owns broad, long, model, CPU-package, GLOBAL-01,
 CE and 71B execution; GitHub Actions owns Linux ARM64, macOS x64/ARM64 and the
-exact-SHA aggregate; `gh-runner-wonl-win11` owns Windows x64; the registered
-Jetson workflow owns Tegra. Local unconfined preflight binds the Slice 72 CE
+exact-SHA aggregate; `gh-runner-wonl-win11` owns Windows x64. Direct SSH to the
+registered Jetson owns the current Tegra build/runtime proof; its self-hosted
+workflow remains available for later use, without making artifact upload a
+closure requirement. Local unconfined preflight binds the Slice 72 CE
 rerun to the same `windchill3` host, CPU 0 affinity and registered RTX 3090 UUID
 used by the historical baseline, preserving timing comparability. Runtime
 floors bind to the explicit installed uv CPython 3.10/3.11 paths, system

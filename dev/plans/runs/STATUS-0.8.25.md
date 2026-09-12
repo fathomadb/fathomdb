@@ -1,18 +1,19 @@
 ---
 title: FathomDB 0.8.25 status
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.25
 ---
 
 # STATUS — FathomDB 0.8.25
 
 The single writer is `dev/plans/release-state-0.8.25.json`. Edit release facts
-there, then regenerate this board's fenced view. The release plan is
+there, then regenerate its declared release views. The release plan is
 `dev/plans/plan-0.8.25.md`.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 85 (FINAL-VERIFICATION), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+**The release ladder is complete on `origin/release/0.8.25`.** Integration to
+`origin/main` remains pending, and publication is not authorized.
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -29,8 +30,8 @@ AC-020 failures. Owner ruling seq-277 retires that ratio gate. Slice 80's
 successor implementation is complete: its accepted 80.m AC-081 evidence passes
 and the owner-approved AC-072 qualification correction reassesses retained
 C1–C5 as passing, with C1–C3 satisfying the required consecutive evidence.
-Slice 85 is unblocked but not started. See the
-[Slice 80 status](../0.8.25/features/slice-80/status.md).
+Slice 85 completes the final 31-obligation verification matrix at candidate
+`18fefc67`. See the [Slice 85 status](../0.8.25/features/slice-85/status.md).
 
 ## Slice ladder
 
@@ -63,7 +64,7 @@ Slice 85 is unblocked but not started. See the
 | 77 | Adaptive experiments and candidate selection | Complete inconclusive (`b3ccba83`) |
 | 79 | Explicit runtime configuration and statement reuse | Complete with carry-forward (`e2db3ffc`) |
 | 80 | Absolute read-performance successor and valid AC-072 evidence | Complete on release branch (`e54ad00c`) |
-| 85 | Final verification, CI and non-publishing packaging | Planning brief; final candidate matrix pending |
+| 85 | Final verification, CI and non-publishing packaging | Complete on release branch (`18fefc67`) |
 
 ## Decisions and blockers
 
@@ -102,8 +103,7 @@ Slice 85 is unblocked but not started. See the
 - The owner allocated Slice 79 at `seq-276` and authorized `MEMSTATUS=0` for
   the application-owned SQLite runtime. Slice 79 is complete with AC-020 still
   failing 0/7 and an environment-valid AC-072 guard carried to Slice 80;
-  78/81–84 remain reserved. One final broad Slice 85 round is planned; an
-  exceptional second requires owner authorization.
+  78/81–84 remain reserved. Slice 85's final broad round passed 109/109.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
@@ -114,11 +114,12 @@ Slice 85 is unblocked but not started. See the
   from `origin/main` reachability. The `landed` set remains empty until an
   independently authorized push and integration.
 - Publication, tags, registry mutation, and `main` integration remain outside
-  the completed Slice 72 scope.
+  the completed Slice 85 scope.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 85 (FINAL-VERIFICATION)** — final verification, CI and non-publishing packaging. **Remaining ladder:** 85.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+Seek the repository owner's separate publication decision. Do not tag, publish,
+mutate registries or integrate to `main` from this status alone.
 
 ## Verification
 

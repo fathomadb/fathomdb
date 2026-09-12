@@ -52,8 +52,9 @@ baseline is `56e6d7fd`. The intervening work changes this slice as follows:
    supersedes only its AC-075 cell with one candidate-bound repetition of the
    7,667-document TC-5 GPU smoke. This is not the optional CPU release-
    equivalence bridge. The 17,272-document primary is retained, not repeated.
-9. The candidate-bound TC-5 repetition produced stable recall `0.954`, CI
-   `[0.936, 0.971]` on two fresh databases. The registered fixture and exact
+9. The final candidate-bound TC-5 repetition produced recall `0.958`, CI
+   `[0.938, 0.974]`; its diagnostic repetition matched those metrics and the
+   SUT digest. The registered fixture and exact
    ground truth matched; fresh SQLite file digests differed while both SUT
    result digests matched each other. Review found the drafted historical-output
    equality contradicted AC-075's governed one-sided `CI-high >= 0.90` oracle.
@@ -194,8 +195,10 @@ rewrite old result files to look like the final candidate.
    cross-SDK frozen/dependency/lifecycle workflows and packaged GLOBAL-01
    native-search witness without answer-quality claims or model spend.
 7. Exact-candidate native validation on Linux x64/ARM64, macOS x64/ARM64,
-   Windows x64 CPU; Linux x64 combined CUDA packages; Jetson/Tegra Python
-   CUDA with positive allocation/model-forward evidence. Reconcile actual
+   Windows x64 CPU; Linux x64 combined CUDA packages; direct-SSH Jetson/Tegra
+   Python CUDA build and installed-runtime proof with positive allocation/
+   model-forward evidence. The Jetson remains available as a self-hosted
+   runner later; hosted upload is not required for this closure. Reconcile actual
    supported feature sets rather than asserting all-feature Cartesian parity.
    Slice 72 CE and Slice 73 Windows deep receipts require input applicability;
    core runtime changes may invalidate them even without wrapper changes.

@@ -1,0 +1,926 @@
+{
+  "schema_version": "fathomdb.slice85-final-manifest/v1",
+  "release": "0.8.25",
+  "branch": "release/0.8.25",
+  "candidate": {
+    "sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+    "tree": "4e81675d35e8492b409de06e86ae1dcd5cecc866",
+    "artifacts": {
+      "python-wheel": {
+        "path": "dev/plans/runs/0.8.25-slice-85/cuda-preflight.packages/fathomdb-0.8.24-cp310-abi3-manylinux_2_28_x86_64.whl",
+        "sha256": "bb86e3a0fcb13b544facd567d267d50259fc37db4deb9ba8146eb77ca3c3601e"
+      },
+      "napi-linux-x64-gnu": {
+        "path": "src/ts/fathomdb.linux-x64-gnu.node",
+        "sha256": "3b284054bea856725d45dc64bd5c81f51bb28e64469a4456e236244f02249f37"
+      },
+      "cli-linux-x64-gnu": {
+        "path": "target/x86_64-unknown-linux-gnu/release/fathomdb",
+        "sha256": "121ba04c74e92f4640ddacf35dadc49d38d47f40e1f8c2cce306d19e840a0997"
+      },
+      "tc5-benchmark": {
+        "path": "dev/plans/runs/0.8.25-slice-85/artifacts/fathomdb-tc5-benchmark",
+        "sha256": "55f287965c80501d825cee4e82bb7219844deee81668ec1cc992ffe1aa8c7c19"
+      }
+    }
+  },
+  "legacy_manifest": {
+    "path": "dev/plans/0.8.25/features/slice-75/slice75-closure-manifest.json",
+    "sha256": "27fd9d9bccdf83b8c3d6b686b51821980f33e7fbef48f242e268036e6b293620"
+  },
+  "ce_overlay": {
+    "base_path": "dev/plans/0.8.25/features/slice-72/ce-profile-manifest.json",
+    "path": "dev/plans/runs/0.8.25-slice-85/slice72-ce-manifest.json"
+  },
+  "global_rules": {
+    "forbidden_output_patterns": [
+      "[skip]",
+      "0 tests",
+      "timed out"
+    ],
+    "retry_count": 0
+  },
+  "sealed_thresholds": {
+    "text_p50_ms_max": 20,
+    "text_p99_ms_max": 150,
+    "read_p50_ms_max": 80,
+    "read_p99_ms_max": 300,
+    "scale02_ack_ms_max": 1543.539,
+    "scale02_total_ms_max": 1548.545,
+    "ac013_total_ms_max": 1442.198,
+    "write_spread_pct_max": 25,
+    "ce_p95_ratio_max": 1.1
+  },
+  "obligations": [
+    {
+      "id": "default-tree",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "env AGENT_VERBOSE=1 bash scripts/agent-verify.sh --tier=all"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 109,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "final-interactions",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "cargo test -p fathomdb-engine --features operator,test-hooks --test slice75_feature_interactions -- --nocapture --test-threads=1"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 4,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "schema26-upgrade",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "cargo test -p fathomdb-engine --features operator,test-hooks --test slice75_schema26_upgrade -- --nocapture --test-threads=1"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 2,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "ac021",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "env AGENT_LONG=1 cargo test -p fathomdb-engine --features operator --test lifecycle_reliability ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl -- --exact --nocapture --test-threads=1"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "ac059b",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "cargo test -p fathomdb-engine --test cursors ac_059b_write_cursor_is_satisfied_by_projection_cursor_and_queryable -- --exact --nocapture --test-threads=1",
+        "env AGENT_LONG=1 cargo test -p fathomdb-engine --test cursor_read_after_write projection_cursor_bounds_observed_row_count -- --exact --nocapture --test-threads=1"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 2,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "ac034ab",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "env AGENT_LONG=1 cargo test -p fathomdb-engine --test durability_soak ac_034a_and_b_power_cut_zero_corruption_and_p99_lost_commit -- --exact --nocapture --test-threads=1"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "performance",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "src/rust/crates/fathomdb-engine/Cargo.toml",
+        "src/rust/crates/fathomdb-engine/src",
+        "src/rust/crates/fathomdb-engine/tests/perf_gates.rs",
+        "src/rust/crates/fathomdb-engine/tests/reader_pool.rs",
+        "src/rust/crates/fathomdb-query",
+        "src/rust/crates/fathomdb-schema",
+        "src/rust/crates/fathomdb-embedder",
+        "src/rust/crates/fathomdb-embedder-api"
+      ],
+      "current_input_sha256": "a60678d3e9bc8697cc993d4fcf0eb518e537a20adba3588e7e52037467c19818",
+      "accepted_input_sha256": null,
+      "commands": [
+        "timeout 3600 env -u AC_FULL_SCALE AGENT_LONG=1 AC012_CORPUS_N=10000 cargo test --release -p fathomdb-engine --test perf_gates ac_012_text_query_latency_on_fts5_path -- --exact --nocapture --test-threads=1"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "eu7-real",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "env AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 EU7_LATENCY_SAMPLES=1000 EU7_STRESS_PER_THREAD=250 FATHOMDB_EU7_OUTPUT=${RUN_DIR}/eu7.json cargo test --release -p fathomdb-engine --features operator,default-embedder --test eu7_real_corpus_ac eu7_real_corpus_ac_validation -- --exact --ignored --nocapture --test-threads=1"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/eu7-ac073-receipt.json",
+          "sha256": "429f4648fdf9366dff4da13963a79a4aeb0a15744208ecf6c0fc47441b034b55",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "model-cache",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "cargo run --quiet -p fathomdb-cli --features default-embedder --bin fathomdb -- doctor warm-cache --json"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "model-ts",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "npm ci --prefix src/ts",
+        "npm run build:native:debug --prefix src/ts",
+        "npm exec --prefix src/ts -- tsc -p tsconfig.json",
+        "cd src/ts && for test_file in dist/tests/embed-batch-cls.test.js dist/tests/embedder-event-narrowing.test.js dist/tests/functional-embed.test.js dist/tests/release-surface.test.js dist/tests/slice20c-flush-barrier.test.js dist/tests/tc67-unsupported-vector-kind-report.test.js dist/tests/use-default-embedder.test.js; do RELEASE_SURFACE_TESTS=1 node --test \"$test_file\" || exit; done"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 33,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "model-engine",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "cargo test -p fathomdb-engine --features default-embedder --test eu5b_lockflip"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 9,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "model-python",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "python -m pytest src/python/tests/test_use_default_embedder.py src/python/tests/test_embed.py src/python/tests/test_functional_graph_arm.py::test_edge_body_enables_edge_fact_seeding src/python/tests/test_slice20c_flush_barrier.py::test_a_no_embedder_session_leaves_an_enrolled_kinds_write_recoverable"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 13,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "model-cli",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "cargo test -p fathomdb-cli --features default-embedder --test cli_warm_cache"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 2,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "rust-release-build",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "cargo build --locked --release --workspace"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "rust-leaf-packages",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "cargo package -p fathomdb-embedder-api",
+        "cargo package -p fathomdb-schema",
+        "cargo package -p fathomdb-query"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 3,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "cli-installed-smoke",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "target/release/fathomdb --version",
+        "target/release/fathomdb doctor check-integrity --json ${RUN_DIR}/cli-smoke.fdb",
+        "target/release/fathomdb doctor data-plane-integrity --json ${RUN_DIR}/cli-smoke.fdb"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "linux-artifact-build",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "bash -c 'cd src/python && maturin build --locked --release --out ../../${RUN_DIR}/artifacts/python --features pyo3/extension-module,default-embedder'",
+        "npm ci --prefix src/ts",
+        "npm run build:native --prefix src/ts",
+        "src/ts/node_modules/.bin/tsc -p src/ts/tsconfig.build.json"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "linux-artifact-current-smoke",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "bash scripts/release/smoke/smoke-local-native-artifacts.sh ${RUN_DIR}/artifacts/python src/ts src/ts/npm/linux-x64-gnu linux-x64-gnu scripts/release/smoke/slice73-windows-napi-modules.json"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": "3b284054bea856725d45dc64bd5c81f51bb28e64469a4456e236244f02249f37",
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 180,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "linux-runtime-floor-smokes",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "env FATHOMDB_SMOKE_PYTHON=/home/coreyt/.local/share/uv/python/cpython-3.10.20-linux-x86_64-gnu/bin/python3.10 FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v25.9.0/bin/node FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh",
+        "env FATHOMDB_SMOKE_PYTHON=/home/coreyt/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/bin/python3.11 FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v25.9.0/bin/node FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh",
+        "env FATHOMDB_SMOKE_PYTHON=/usr/bin/python3.12 FATHOMDB_SMOKE_NODE=/home/coreyt/.nvm/versions/node/v25.9.0/bin/node FATHOMDB_SMOKE_LIGHTWEIGHT=1 bash scripts/release/smoke/smoke-local-native-artifacts.sh"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 3,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "linux-cuda-package",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "env FATHOMDB_CANDIDATE_SHA=${FINAL_SHA} FATHOMDB_CUDA_GPU_UUID=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b bash scripts/release/cuda-preflight.sh ${RUN_DIR}/cuda-preflight --rerank-cuda",
+        "env CUDA_HOME=/usr/local/cuda-12.6 LIBRARY_PATH=/usr/local/cuda-12.6/lib64 PATH=/usr/local/cuda-12.6/bin:${PATH} cargo build --locked --release -p fathomdb-cli --features embed-cuda,rerank-cuda --target x86_64-unknown-linux-gnu",
+        "bash scripts/release/seal-cuda-cli-archive.sh --binary target/x86_64-unknown-linux-gnu/release/fathomdb --version 0.8.24 --output ${RUN_DIR}/cuda-preflight.packages/fathomdb-0.8.24-x86_64-unknown-linux-gnu.tar.gz",
+        "python3 scripts/release/seal-slice75-cuda-packages.py --candidate-sha ${FINAL_SHA} --packages ${RUN_DIR}/cuda-preflight.packages --witness ${RUN_DIR}/cuda-preflight --output ${RUN_DIR}/cuda-package-manifest.json",
+        "env FATHOMDB_CUDA_GPU_UUID=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b CUDA_HOME=/usr/local/cuda-12.6 bash scripts/release/slice75-cuda-package-smoke.sh --candidate-sha ${FINAL_SHA} --packages ${RUN_DIR}/cuda-preflight.packages --package-manifest ${RUN_DIR}/cuda-package-manifest.json --witness ${RUN_DIR}/cuda-preflight --hf-home ${HF_HOME} --output ${RUN_DIR}/cuda-package-smoke"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 3,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "global-01-native",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "bash scripts/release/slice75-global-native.sh --wheel-dir ${RUN_DIR}/artifacts/python --config experiments/configs/measurement-classification/native-search.slice75.v2.json --receipt ${RUN_DIR}/global-01.json"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "windows-runner-preflight",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "bash scripts/release/slice75-windows-runner.sh --vm gh-runner-wonl-win11 --repository fathomadb/fathomdb --runner windchill3-windows-11 --ssh-user runner --ssh-key ${WINDOWS_SSH_KEY} --receipt ${RUN_DIR}/windows-runner.json"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/windows-runner.json",
+          "sha256": "ec1302aeca5a0f6360b71254355bf628528865760d82b1efb8776732b4214b79",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "hosted-native-validation",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "bash scripts/release/slice75-hosted-ci.sh --repository fathomadb/fathomdb --branch release/0.8.25 --candidate-sha ${FINAL_SHA} --dispatch --job native-artifact-runtime-validation --receipt ${RUN_DIR}/hosted-native-validation.json"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/hosted-ci.json",
+          "sha256": "7e12a089b14ccdecf2de5e354cfca0712f71f9532c96938ae89dc64a3d214c61",
+          "tests": 5,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "jetson-tegra",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "bash scripts/release/slice75-jetson-run.sh --repository fathomadb/fathomdb --workflow jetson-tegra-cuda-evidence.yml --branch release/0.8.25 --candidate-sha ${FINAL_SHA} --candidate-version 0.8.25 --receipt ${RUN_DIR}/jetson-tegra.json"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/jetson-tegra.json",
+          "sha256": "251ab4d75dc3f9581f047bd2e913eb2ff6a9044d06c4b6f8052d72c18ddd5351",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "mkdocs",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        ".venv/bin/mkdocs build --strict"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "hosted-ci",
+      "origin": "legacy",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "bash scripts/release/slice75-hosted-ci.sh --repository fathomadb/fathomdb --branch release/0.8.25 --candidate-sha ${FINAL_SHA} --all-required --receipt ${RUN_DIR}/hosted-ci.json"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/hosted-ci.json",
+          "sha256": "7e12a089b14ccdecf2de5e354cfca0712f71f9532c96938ae89dc64a3d214c61",
+          "tests": 1,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "runtime-configuration",
+      "origin": "additional",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "cargo test -p fathomdb-engine --test runtime_configuration",
+        "cargo test -p fathomdb-engine statement_reuse_ --lib",
+        "python -m pytest src/python/tests/test_slice79_runtime_configuration.py",
+        "npm run build:debug --prefix src/ts && src/ts/node_modules/.bin/tsc -p src/ts/tsconfig.json && node --test src/ts/dist/tests/slice79-runtime-configuration.test.js",
+        "bash scripts/release/smoke/smoke-local-native-artifacts.sh"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": "bb86e3a0fcb13b544facd567d267d50259fc37db4deb9ba8146eb77ca3c3601e",
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 6,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "protected-writes",
+      "origin": "additional",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "cargo build --offline --locked --release slice71b-probe",
+        "slice71b-probe --fixture scale02 --treatment production --ordinal 1",
+        "slice71b-probe --fixture scale02 --treatment production --ordinal 2",
+        "slice71b-probe --fixture scale02 --treatment production --ordinal 3",
+        "slice71b-probe --fixture ac013 --treatment production --ordinal 1",
+        "slice71b-probe --fixture ac013 --treatment production --ordinal 2",
+        "slice71b-probe --fixture ac013 --treatment production --ordinal 3"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/local-evidence-summary.json",
+          "sha256": "c0c36c1098fd6437866e12affef01a227943efbfaf87db3a3d0d1305c2b518ba",
+          "tests": 6,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "slice72-ce",
+      "origin": "authorized-exception",
+      "disposition": "accepted-non-pass",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "python3 scripts/release/slice72_ce_artifact.py --device cpu",
+        "python3 scripts/release/run-slice72-ce-profile.py --device cpu",
+        "python3 scripts/release/run-slice72-ce-profile.py --device cuda",
+        "python3 scripts/release/verify-slice72-ce-profile.py"
+      ],
+      "retained_receipt": "dev/plans/0.8.25/features/slice-85/ce-engine-p95-exception.md",
+      "retained_receipt_sha256": "c3e3323583d75c8b78d7dacca6e0f0b9ce9a92c61a7ceea37d1804a9c140183d",
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/ce-accepted-summary.json",
+          "sha256": "3318e3c147bb2c3d26cf11a94a46b1f0cff42f198a0a8303b678ee3f38d5be6a",
+          "tests": 4,
+          "skipped": 0,
+          "verdict": "accepted-non-pass"
+        }
+      ],
+      "verdict": "accepted-non-pass"
+    },
+    {
+      "id": "tc5-bridge",
+      "origin": "additional",
+      "disposition": "rerun",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [
+        "cargo build --locked --release -p fathomdb-tc5-benchmark --features tc5-benchmark-cuda",
+        "python3 -m venv --clear ${RUN_DIR}/tc5-runtime",
+        "${RUN_DIR}/tc5-runtime/bin/python -m pip install --no-deps --force-reinstall ${RUN_DIR}/cuda-preflight.packages/fathomdb-0.8.24-cp310-abi3-manylinux_2_28_x86_64.whl",
+        "${RUN_DIR}/tc5-runtime/bin/python -m experiments.tc5_gpu_v2 dry-run --config ${RUN_DIR}/tc5-candidate-config.json --arm bridge --output-root ${RUN_DIR}/tc5-bridge",
+        "${RUN_DIR}/tc5-runtime/bin/python -m experiments.tc5_gpu_v2 run --config ${RUN_DIR}/tc5-candidate-config.json --arm bridge --output-root ${RUN_DIR}/tc5-bridge --binary ${RUN_DIR}/artifacts/fathomdb-tc5-benchmark"
+      ],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [
+        {
+          "path": "dev/plans/runs/0.8.25-slice-85/tc5-bridge-final/tc5-gpu-arm-result.v2.json",
+          "sha256": "44e52cc2f808d61b344f56ab20f82c4b524a4afd171fdd3ba29335888e24b485",
+          "tests": 100,
+          "skipped": 0,
+          "verdict": "pass"
+        }
+      ],
+      "verdict": "pass"
+    },
+    {
+      "id": "ac034c",
+      "origin": "authorized-exception",
+      "disposition": "unavailable",
+      "candidate_sha": "18fefc67c914940b0799eb5f6d5d23c9d3c25fb6",
+      "input_paths": [
+        "Cargo.toml"
+      ],
+      "current_input_sha256": "aaf9829afc2310c5d03ca916d39760dcb3c1b5306b6ba66fff26bbc70651c6b1",
+      "accepted_input_sha256": null,
+      "commands": [],
+      "retained_receipt": null,
+      "retained_receipt_sha256": null,
+      "artifact_sha256": null,
+      "evidence": [],
+      "verdict": "unavailable"
+    }
+  ]
+}

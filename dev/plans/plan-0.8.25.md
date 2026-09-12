@@ -220,21 +220,23 @@ data, P25-20 stays narrow, and P25-07 includes the test-only `httpmock`
 correction with its stop conditions. The Slice 7 plan passed independent
 review after two bounded FIX cycles and was approved at `seq-274`.
 
-## Immediate next slice
+## Immediate next slice — release ladder complete
 
-<!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 85** (`FINAL-VERIFICATION`) — final verification, CI and non-publishing packaging
+<!-- BEGIN GENERATED release-state:0.8.25:plan-landed-roll-up -->
+**COMPLETED on `origin/release/0.8.25`; `origin/main` integration is PENDING, in full:** no slices. local candidate SCHEMA is 33; `origin/main` remains at 26 until the candidate's unlanded schema migration lands; remaining ladder = none.<!-- END GENERATED release-state:0.8.25:plan-landed-roll-up -->
 
-**Remaining ladder:** 85.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+The release candidate is ready for a separate publication decision;
+publication, tags, registry mutation and integration to `main` remain
+unauthorized.
 
 Slices 60, 71, and 72 are durably closed. Slice 71 preserved the 71B general-write
 correction at `eda95b07` and restored AC-072 at `84c056c6` without changing
 its limits. The exact 10k/384 campaign, focused blast-radius tests, independent
 reviews, and candidate-only 71B no-loss guards pass. Slice 72 makes preflight
 release-state-aware and retains passing installed CPU/CUDA CE evidence at
-candidate `2e14f5ba`; Slice 73 is unblocked.
-Package production, registry staging, tags, publication, post-publication
-smoke, and merge to main remain outside this ladder.
+candidate `2e14f5ba`; Slice 73 is complete. Slice 85 closes the final
+verification, hosted CI and nonpublishing packaging scope at candidate
+`18fefc67`.
 
 ## Stop gates
 

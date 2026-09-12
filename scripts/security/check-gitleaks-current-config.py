@@ -87,6 +87,15 @@ EXPECTED_ALLOWLISTS = [
         "regexes": [r"^[0-9a-f]{64}$"],
     },
     {
+        "description": "Slice 85 CE overlay contains only copied artifact-integrity digests",
+        "condition": "AND",
+        "regexTarget": "secret",
+        "paths": [
+            r"^dev/plans/runs/0\.8\.25-slice-85/slice72-ce-manifest\.json$"
+        ],
+        "regexes": [r"^[0-9a-f]{64}$"],
+    },
+    {
         "description": "Slice 75 closure manifest contains only reviewed artifact and evidence digests",
         "condition": "AND",
         "regexTarget": "secret",

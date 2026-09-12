@@ -23,6 +23,11 @@ slices:
 This package is planning and design work. It does not authorize product-code,
 schema, publication, or Memex-repository changes.
 
+The cross-slice and post-0.8.25 portfolio is ranked in
+[`memex-needs-prioritization-scaffold.md`](memex-needs-prioritization-scaffold.md).
+That scaffold distinguishes FathomDB work from Memex adoption and orders
+candidate work by value, stability risk, and effort.
+
 ## Baseline findings
 
 - FathomDB is not node-only. Its accepted graph model is one ontology-neutral

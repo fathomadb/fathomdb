@@ -134,6 +134,29 @@ class Slice85FinalGateTest(unittest.TestCase):
             "npm run build:native --prefix src/ts",
             "src/ts/node_modules/.bin/tsc -p src/ts/tsconfig.build.json",
         ]
+        cuda_package = [
+            "env FATHOMDB_CANDIDATE_SHA=${FINAL_SHA} "
+            "FATHOMDB_CUDA_GPU_UUID=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b "
+            "bash scripts/release/cuda-preflight.sh ${RUN_DIR}/cuda-preflight --rerank-cuda",
+            "env CUDA_HOME=/usr/local/cuda-12.6 "
+            "LIBRARY_PATH=/usr/local/cuda-12.6/lib64 "
+            "PATH=/usr/local/cuda-12.6/bin:${PATH} cargo build --locked --release "
+            "-p fathomdb-cli --features embed-cuda,rerank-cuda "
+            "--target x86_64-unknown-linux-gnu",
+            "bash scripts/release/seal-cuda-cli-archive.sh --binary "
+            "target/x86_64-unknown-linux-gnu/release/fathomdb --version 0.8.24 "
+            "--output ${RUN_DIR}/cuda-preflight.packages/"
+            "fathomdb-0.8.24-x86_64-unknown-linux-gnu.tar.gz",
+            "python3 scripts/release/seal-slice75-cuda-packages.py "
+            "--candidate-sha ${FINAL_SHA} --packages ${RUN_DIR}/cuda-preflight.packages "
+            "--witness ${RUN_DIR}/cuda-preflight --output ${RUN_DIR}/cuda-package-manifest.json",
+            "env FATHOMDB_CUDA_GPU_UUID=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b "
+            "CUDA_HOME=/usr/local/cuda-12.6 bash scripts/release/"
+            "slice75-cuda-package-smoke.sh --candidate-sha ${FINAL_SHA} "
+            "--packages ${RUN_DIR}/cuda-preflight.packages --package-manifest "
+            "${RUN_DIR}/cuda-package-manifest.json --witness ${RUN_DIR}/cuda-preflight "
+            "--hf-home ${HF_HOME} --output ${RUN_DIR}/cuda-package-smoke",
+        ]
         obligations = [
             self.obligation(
                 cell["id"],
@@ -144,6 +167,8 @@ class Slice85FinalGateTest(unittest.TestCase):
                     if cell["id"] == "linux-runtime-floor-smokes"
                     else artifact_build
                     if cell["id"] == "linux-artifact-build"
+                    else cuda_package
+                    if cell["id"] == "linux-cuda-package"
                     else cell["commands"]
                 ),
             )
@@ -461,6 +486,22 @@ class Slice85FinalGateTest(unittest.TestCase):
         row = self.row(value, "linux-artifact-build")
         row["commands"][0] = row["commands"][0].replace("cd src/python && ", "")
         self.assert_rejected(value, "Linux artifact build command contract")
+
+    def test_linux_cuda_route_seals_executor_and_toolkit_inputs(self) -> None:
+        for mutation in ("gpu", "toolkit"):
+            with self.subTest(mutation=mutation):
+                value = self.manifest()
+                row = self.row(value, "linux-cuda-package")
+                if mutation == "gpu":
+                    row["commands"][0] = row["commands"][0].replace(
+                        "FATHOMDB_CUDA_GPU_UUID=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b ",
+                        "",
+                    )
+                else:
+                    row["commands"][1] = row["commands"][1].replace(
+                        "CUDA_HOME=/usr/local/cuda-12.6 ", ""
+                    )
+                self.assert_rejected(value, "Linux CUDA package command contract")
         value = self.manifest()
         row = self.row(value, "linux-artifact-build")
         row["commands"][-1] = "npm exec --prefix src/ts -- tsc -p tsconfig.build.json"

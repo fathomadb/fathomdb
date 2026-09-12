@@ -218,6 +218,15 @@ class Slice85FinalGateTest(unittest.TestCase):
                         "python3 scripts/release/verify-slice72-ce-profile.py",
                     ],
                 ),
+                self.obligation(
+                    "tc5-bridge",
+                    "additional",
+                    [
+                        "cargo build --locked --release -p fathomdb-tc5-benchmark --features tc5-benchmark-cuda",
+                        "python3 -m experiments.tc5_gpu_v2 dry-run --config ${RUN_DIR}/tc5-candidate-config.json --arm bridge --output-root ${RUN_DIR}/tc5-bridge",
+                        "python3 -m experiments.tc5_gpu_v2 run --config ${RUN_DIR}/tc5-candidate-config.json --arm bridge --output-root ${RUN_DIR}/tc5-bridge --binary ${RUN_DIR}/artifacts/fathomdb-tc5-benchmark",
+                    ],
+                ),
             ]
         )
         ac034c = self.obligation("ac034c", "authorized-exception")
@@ -311,6 +320,51 @@ class Slice85FinalGateTest(unittest.TestCase):
                 }
             ]
             row["verdict"] = "pass"
+        eu7 = self.row(value, "eu7-real")
+        eu7_path = self.repo / eu7["evidence"][0]["path"]
+        eu7_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": "fathomdb.slice85-eu7-ac073/v1",
+                    "candidate_sha": self.candidate_sha,
+                    "ac073_stress": "pass",
+                    "stress_p99_ms": 391,
+                    "stress_bound_ms": 730,
+                    "ac075": "superseded-by-tc5",
+                }
+            ),
+            encoding="utf-8",
+        )
+        eu7["evidence"][0]["sha256"] = digest(eu7_path)
+        tc5 = self.row(value, "tc5-bridge")
+        tc5_path = self.repo / tc5["evidence"][0]["path"]
+        tc5_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": "tc5-gpu-arm-result.v2",
+                    "candidate": {"sha": self.candidate_sha, "version": "0.8.25"},
+                    "arm": "bridge",
+                    "document_count": 7667,
+                    "query_completion_count": 100,
+                    "bootstrap_resamples": 1000,
+                    "synthetic_document_count": 0,
+                    "fixture_digest": "9e92d236e44fc7443c1940f6870877a6e6eb07e92136ca2da331f88221e622ed",
+                    "ground_truth_sha256": "ef6be77b9b5670b0992606167f6cc191849f51ac90b6c4b7d25f403c3dc7f34b",
+                    "sut_result_sha256": "436493dcd17973f33cde5424391cd73288a9740d1c837ed5231a7bc0db7cf84a",
+                    "metrics": {"recall_at_10": 0.958, "ci_95": [0.938, 0.974]},
+                    "provenance": {
+                        "candidate_execution": "cpu/sqlite-vec",
+                        "exact_f32_rerank_execution": "cpu/sqlite-vec",
+                        "embedding_execution": "cuda:0",
+                        "candidate_k": 192,
+                        "top_k": 10,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        tc5["evidence"][0]["sha256"] = digest(tc5_path)
+        tc5["evidence"][0]["tests"] = 100
         ce = self.row(value, "slice72-ce")
         ce["origin"] = "authorized-exception"
         ce["disposition"] = "accepted-non-pass"
@@ -329,7 +383,7 @@ class Slice85FinalGateTest(unittest.TestCase):
     def test_planning_manifest_validates(self) -> None:
         result = self.run_checker(self.manifest())
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("30 obligations", result.stdout)
+        self.assertIn("31 obligations", result.stdout)
 
     def test_missing_or_duplicate_obligation_is_rejected(self) -> None:
         for mutation in ("missing", "duplicate"):
@@ -484,6 +538,36 @@ class Slice85FinalGateTest(unittest.TestCase):
                 else:
                     row["evidence"][0]["tests"] = 1
                 self.assert_rejected(value, fragment, "final")
+
+    def test_final_rejects_tc5_bridge_candidate_or_fidelity_drift(self) -> None:
+        for mutation, fragment in (
+            ("candidate", "TC-5 candidate binding"),
+            ("fidelity", "TC-5 bridge equivalence"),
+        ):
+            with self.subTest(mutation=mutation):
+                value = self.manifest()
+                self.complete(value)
+                row = self.row(value, "tc5-bridge")
+                path = self.repo / row["evidence"][0]["path"]
+                receipt = json.loads(path.read_text(encoding="utf-8"))
+                if mutation == "candidate":
+                    receipt["candidate"]["sha"] = "9" * 40
+                else:
+                    receipt["sut_result_sha256"] = "9" * 64
+                path.write_text(json.dumps(receipt), encoding="utf-8")
+                row["evidence"][0]["sha256"] = digest(path)
+                self.assert_rejected(value, fragment, "final")
+
+    def test_final_rejects_eu7_without_positive_ac073_stress(self) -> None:
+        value = self.manifest()
+        self.complete(value)
+        row = self.row(value, "eu7-real")
+        path = self.repo / row["evidence"][0]["path"]
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        receipt["ac073_stress"] = "fail"
+        path.write_text(json.dumps(receipt), encoding="utf-8")
+        row["evidence"][0]["sha256"] = digest(path)
+        self.assert_rejected(value, "EU7 AC-073 stress", "final")
 
     def test_runtime_route_requires_fresh_typescript_test_compilation(self) -> None:
         value = self.manifest()

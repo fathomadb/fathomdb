@@ -311,6 +311,14 @@ class Slice85FinalGateTest(unittest.TestCase):
                 }
             ]
             row["verdict"] = "pass"
+        ce = self.row(value, "slice72-ce")
+        ce["origin"] = "authorized-exception"
+        ce["disposition"] = "accepted-non-pass"
+        ce["retained_receipt"] = str(CE_EXCEPTION.relative_to(ROOT))
+        ce["retained_receipt_sha256"] = digest(CE_EXCEPTION)
+        ce["verdict"] = "accepted-non-pass"
+        ce["evidence"][0]["tests"] = 4
+        ce["evidence"][0]["verdict"] = "accepted-non-pass"
         for obligation_id in ("runtime-configuration", "linux-artifact-current-smoke"):
             self.row(value, obligation_id)["artifact_sha256"] = self.artifacts[
                 "python-wheel"
@@ -567,6 +575,7 @@ class Slice85FinalGateTest(unittest.TestCase):
         value = self.manifest()
         self.complete(value)
         row = self.row(value, "slice72-ce")
+        row["origin"] = "authorized-exception"
         row["disposition"] = "accepted-non-pass"
         row["retained_receipt"] = str(CE_EXCEPTION.relative_to(ROOT))
         row["retained_receipt_sha256"] = digest(CE_EXCEPTION)

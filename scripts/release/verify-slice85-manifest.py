@@ -42,7 +42,18 @@ ROW_KEYS = {
 }
 EVIDENCE_KEYS = {"path", "sha256", "tests", "skipped", "verdict"}
 ADDITIONAL_IDS = {"runtime-configuration", "protected-writes", "slice72-ce", "ac034c"}
-DISPOSITIONS = {"run", "rerun", "reuse", "unavailable", "blocked"}
+DISPOSITIONS = {
+    "run",
+    "rerun",
+    "reuse",
+    "unavailable",
+    "blocked",
+    "accepted-non-pass",
+}
+CE_EXCEPTION = "dev/plans/0.8.25/features/slice-85/ce-engine-p95-exception.md"
+CE_EXCEPTION_SHA256 = (
+    "65c54a63c820dbceeb0e27348488a72c365c8efbeb6c9552c9bc0a81a659d102"
+)
 SEALED_THRESHOLDS = {
     "text_p50_ms_max": 20,
     "text_p99_ms_max": 150,
@@ -440,6 +451,7 @@ def validate(manifest: dict[str, Any], repo: Path, phase: str) -> None:
         "obligation IDs must be unique and complete",
     )
     unavailable: set[str] = set()
+    accepted_non_pass: set[str] = set()
     for row in rows:
         row_id = row["id"]
         require(set(row) == ROW_KEYS, f"{row_id}: obligation keys changed")
@@ -526,6 +538,18 @@ def validate(manifest: dict[str, Any], repo: Path, phase: str) -> None:
             )
         if disposition == "unavailable":
             unavailable.add(row_id)
+        if disposition == "accepted-non-pass":
+            accepted_non_pass.add(row_id)
+            require(
+                row_id == "slice72-ce"
+                and row["origin"] == "authorized-exception",
+                "accepted non-pass is authorized only for slice72-ce",
+            )
+            require(
+                receipt == CE_EXCEPTION
+                and receipt_digest == CE_EXCEPTION_SHA256,
+                "slice72-ce: accepted non-pass disposition reference changed",
+            )
         artifact_sha = row["artifact_sha256"]
         if artifact_sha is not None:
             require(
@@ -537,8 +561,14 @@ def validate(manifest: dict[str, Any], repo: Path, phase: str) -> None:
             require(
                 disposition != "blocked", f"{row_id}: blocked disposition cannot close"
             )
-            require(row["verdict"] == "pass", f"{row_id}: final verdict must be pass")
-            require(evidence, f"{row_id}: passing row requires evidence")
+            expected_verdict = (
+                "accepted-non-pass" if disposition == "accepted-non-pass" else "pass"
+            )
+            require(
+                row["verdict"] == expected_verdict,
+                f"{row_id}: final verdict must be {expected_verdict}",
+            )
+            require(evidence, f"{row_id}: closing row requires evidence")
             total = 0
             for item in evidence:
                 require(
@@ -555,8 +585,8 @@ def validate(manifest: dict[str, Any], repo: Path, phase: str) -> None:
                     item["skipped"] == 0, f"{row_id}: evidence skipped must be zero"
                 )
                 require(
-                    item["verdict"] == "pass",
-                    f"{row_id}: evidence verdict must be pass",
+                    item["verdict"] == expected_verdict,
+                    f"{row_id}: evidence verdict must be {expected_verdict}",
                 )
                 path = repo_file(repo, item["path"], "evidence")
                 run_dir = (repo / "dev/plans/runs/0.8.25-slice-85").resolve()
@@ -583,6 +613,15 @@ def validate(manifest: dict[str, Any], repo: Path, phase: str) -> None:
     require(
         unavailable == {"ac034c"}, "AC-034c must be the only unavailable obligation"
     )
+    require(
+        accepted_non_pass <= {"slice72-ce"},
+        "accepted non-pass is authorized only for slice72-ce",
+    )
+    if phase == "final":
+        require(
+            accepted_non_pass == {"slice72-ce"},
+            "slice72-ce must use its documented accepted non-pass disposition",
+        )
     ac034c = next(row for row in rows if row["id"] == "ac034c")
     require(
         ac034c["verdict"] == "unavailable",

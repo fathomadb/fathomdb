@@ -554,6 +554,7 @@ PY
   done < "$WORK/fixtures.txt"
   mkdir -p "$MIRROR/src/ts/dist"
   cp -R "$COMPILED/." "$MIRROR/src/ts/dist/"
+  cp -R "$CONSUMER/node_modules" "$MIRROR/src/ts/node_modules"
   total_modules=0
   total_tests=0
   while IFS= read -r module; do

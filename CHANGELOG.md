@@ -8,10 +8,27 @@ released section MUST list every removed public symbol under a `### Removed` hea
 the removal-detect linter (`scripts/security/check-removal-changelog.sh`,
 AC-050c) gates merges against this invariant.
 
-## [Unreleased]
+## 0.8.25 — 2026-09-12
+
+**Publication status: authorized and pending.** The release is published only
+after the version-cut commit and protected release rehearsals pass.
+
+Schema version **26 → 33**.
 
 ### Added
 
+- Immutable record-revision and source-version provenance, exact source
+  locators, canonical hashes, and cross-SDK identity contracts.
+- Queryable canonical-source dependencies, bounded reciprocal lookup, and a
+  model-free atomic actuation API with compact idempotent receipts.
+- Dependency-aware lifecycle and erasure closure with visibility fences,
+  barriers, bounded recovery, and no-active-orphan proof.
+- Eligibility-before-ranking across lexical, vector, and graph retrieval plus
+  optional Engine-minted frozen read contexts.
+- Durable projection-generation identity and readiness correlation, stable
+  canonical pagination, and governed operational-state reads.
+- Opt-in source-complete evidence, bounded provenance tracing, integrity
+  reporting, explained-search correlation, and constrained graph expansion.
 - Startup-only Rust, Python, and TypeScript SQLite runtime configuration with
   explicit performance and diagnostics modes. Performance is the ordinary
   first-open default; diagnostics preserves SQLite memory statistics and heap
@@ -25,6 +42,9 @@ AC-050c) gates merges against this invariant.
 - The retired AC-020 relative concurrency ratio is replaced by absolute
   sequential and eight-reader batch budgets plus a deterministic independent-
   reader progress check. Historical AC-020 failures remain failures.
+- Linux x86_64 CUDA-capable Python and npm artifacts remain CPU-loadable without
+  a CUDA runtime or NVIDIA driver; driverless `auto`/`cpu`, forced-CUDA, and
+  selected-GPU behavior are independently evidenced.
 
 ### Removed
 

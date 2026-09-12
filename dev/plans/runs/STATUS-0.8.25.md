@@ -119,14 +119,22 @@ Slice 85 completes the final 31-obligation verification matrix at candidate
 
 ## Immediate next action
 
-Execute the owner-authorized release train at `seq-278`: reconcile and integrate
-the candidate to `main`, cut version `0.8.25`, pass the pre-publish rehearsals,
-push `v0.8.25`, verify registry-installed artifacts, and record closure.
+| | |
+|---|---|
+| **Immediate next action** | Execute the owner-authorized release train at `seq-278`: reconcile and integrate the candidate to `main`, cut version `0.8.25`, pass the pre-publish rehearsals, push `v0.8.25`, verify registry-installed artifacts, and record closure. |
 
 ## Verification
 
 Every transition must pass the release-state renderer, developer Markdown
 lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
+
+- The accepted Slice 85 manifest and its retained hashes disposition repeat
+  local/hosted dry-runs and package rehearsals for this release cut; they are
+  not rerun absent a publication blocker.
+- The generic commission-manifest end-of-ladder check expects `LANDED` state.
+  Its pre-integration failure is a known state-ordering mismatch: 0.8.25 stays
+  truthfully `COMPLETE_ON_RELEASE_BRANCH` until the candidate reaches `main`.
+  This is non-product release bookkeeping and does not block publication.
 
 - Slice 7 fast verification passes 103/103 suites; the appropriately sized
   heavy route passes 2/3 applicable suites with one explicit exclusion.

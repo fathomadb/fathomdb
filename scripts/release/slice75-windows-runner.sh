@@ -64,7 +64,7 @@ service_name="actions.runner.${repository//\//-}.$runner"
 # shellcheck disable=SC2029
 ssh "${ssh_args[@]}" \
   "powershell -NoProfile -NonInteractive -Command \"Start-Service -Name '$service_name'; (Get-Service -Name '$service_name').Status.ToString()\"" \
-  | grep -Fx Running >/dev/null
+  | tr -d '\r' | grep -Fx Running >/dev/null
 
 gh api --paginate "repos/$repository/actions/runners?per_page=100" > "$work/runners.json"
 python3 - "$work/runners.json" "$repository" "$runner" "$vm" "$ip" "$service_name" "$receipt" <<'PY'

@@ -37,6 +37,17 @@ Closeout documents do not rewrite the frozen source/product identity. A product,
 test, runner, workflow, packaging or public-doc correction creates a new
 candidate and invalidates rows whose input sets include that change.
 
+The legacy `eu7-real` row now owns only AC-073. Its structured receipt records
+the passing stress sub-result and explicitly names AC-075 as superseded; the
+failed legacy fidelity output remains retained and non-countable. Decision
+`seq-31` in `dev/steward/steward-ledger.jsonl` is the authority for moving
+grown-corpus fidelity to TC-5. A separate `tc5-bridge` row owns AC-075 and must
+reproduce the registered 7,667-document bridge's fixture, ground-truth and SUT
+result digests. Its candidate config is generated after the GREEN SHA and
+artifact build, outside the tracked source tree, and binds that SHA/version plus
+the exact wheel, CLI and private benchmark binary hashes. The immutable 0.8.23
+TC-5 config remains valid and unchanged.
+
 ## Reuse decisions
 
 - AC-081a/b/c and AC-072 reuse Slice 80 because changes after their accepted
@@ -57,6 +68,9 @@ candidate and invalidates rows whose input sets include that change.
 - Feature-local source tests may be consumed by the single broad round; no
   duplicate focused run is required unless the broad output lacks a positive
   selector/count or an installed-binding interaction.
+- The failed candidate EU7 result cannot satisfy AC-075. Its AC-073 stress
+  sub-result is retained. The historical TC-5 primary remains scale context;
+  only the bounded 7,667-document bridge reruns against this candidate.
 
 ## Execution order
 
@@ -67,15 +81,18 @@ candidate and invalidates rows whose input sets include that change.
    serializing timing and builds.
 4. Build Linux CPU artifacts once; consume those exact bytes in fresh Python,
    Node and CLI processes and runtime-floor/GLOBAL-01 checks.
-5. After local verification and code review, fast-forward the GREEN commit into
+5. Build the exact candidate wheel, CLI and CUDA TC-5 private binary, generate
+   the candidate-bound config, run its dry preflight, then run only the frozen
+   7,667-document TC-5 bridge. Require exact registered result identities.
+6. After local verification and code review, fast-forward the GREEN commit into
    the durable local `release/0.8.25` worktree. Obtain explicit push authority,
    push that branch, and verify `origin/release/0.8.25` equals `FINAL_SHA`.
    Only then dispatch hosted CI, whose release-branch guard requires the input
    SHA to equal the dispatched branch head. Withhold closure if push authority
    or exact-head placement is unavailable; do not redesign the workflow.
-6. Run or collect exact-candidate Linux CUDA, native five-platform, Windows,
+7. Run or collect exact-candidate Linux CUDA, native five-platform, Windows,
    Tegra and hosted-CI evidence.
-7. Independently audit code and evidence, then close or record blockers. Merge
+8. Independently audit code and evidence, then close or record blockers. Merge
    evidence/status-only commits to the already staged release branch and clean
    up the temporary Slice 85 branch/worktree.
 
@@ -100,7 +117,10 @@ choice.
 ## TDD and fixes
 
 The validator RED/GREEN cases are specified in the plan. Tests use temporary
-manifests and never edit retained receipts. If execution discovers a defect,
+manifests and never edit retained receipts. The TC-5 runner extension is
+backward-compatible: it preserves the frozen 0.8.23 configuration and requires
+an explicit candidate block for 0.8.25, verifies artifact digests before corpus
+work, and emits candidate provenance. If execution discovers a defect,
 first add the narrowest failing test at the owning layer, demonstrate RED,
 implement GREEN, refactor, and run blast-radius checks. A product/runner fix
 does not authorize a second full round: only affected rows rerun unless the

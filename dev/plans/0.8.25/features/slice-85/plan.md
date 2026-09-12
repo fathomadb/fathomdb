@@ -42,6 +42,15 @@ baseline is `56e6d7fd`. The intervening work changes this slice as follows:
    and testing. Compatibility with other Node release lines is deferred. The
    matrix binds absolute interpreter paths. GPU checks must run with device
    access rather than treating a sandboxed driver failure as absence.
+8. Candidate execution of the legacy EU7 route passed AC-073 stress
+   (`p99=391 ms`, bound `730 ms`) but its AC-075 assertion failed at recall
+   `0.772`, CI `[0.743, 0.798]`. This is preserved as a real failed stale-protocol
+   result, not relabelled as a pass. HITL decision `seq-31` in
+   `dev/steward/steward-ledger.jsonl` assigned grown-corpus fidelity to TC-5;
+   the completed TC-5 bridge and primary established the corrected frozen
+   query-source-first protocol. Slice 85 therefore retains EU7 for AC-073 and
+   supersedes only its AC-075 cell with one candidate-bound 7,667-document TC-5
+   equivalence bridge. The 17,272-document primary is retained, not repeated.
 
 This reconciliation approves the draft direction with the adjustments below.
 It rejects rebuilding the Slice 75 framework, rerunning the 76/77 experiments,
@@ -64,8 +73,9 @@ version cut as a packaging shortcut.
   test exposes a bounded product/runner defect; such a fix follows RED/GREEN
   and invalidates only affected evidence.
 - **AC85-1:** the Slice 85 manifest accounts for all 26 legacy cell IDs plus
-  runtime configuration and protected-write applicability, with no duplicate
-  ID and a permitted final disposition for every row.
+  runtime configuration, protected-write applicability, Slice 72 CE, AC-034c,
+  and the TC-5 bridge, with no duplicate ID and a permitted final disposition
+  for every row.
 - **AC85-2:** `agent-verify --tier=all`, strict MkDocs, full workspace
   all-target check/clippy, selected long reliability/performance/model tests,
   and installed Linux SDK/CLI workflows pass with positive test/operation
@@ -80,6 +90,11 @@ version cut as a packaging shortcut.
   applicability; otherwise their current route is rerun.
 - **AC85-5:** final status distinguishes release readiness from publication and
   records any blocking non-pass without relaxing an oracle.
+- **AC85-6:** EU7 supplies a candidate-bound positive AC-073 stress receipt.
+  AC-075 is supplied by a candidate-bound TC-5 bridge over the frozen 7,667
+  documents, 100 queries, model, seeds, K=192/top-10 and exact-f32 ground truth;
+  it must reproduce the registered bridge fixture, ground-truth and SUT-result
+  digests and bind the exact candidate wheel, CLI and private benchmark binary.
 
 R25-75/AC25-75 close only through this explicit mapping:
 
@@ -87,8 +102,8 @@ R25-75/AC25-75 close only through this explicit mapping:
 | --- | --- |
 | Cross-SDK and wire parity | Full Rust/Python/TypeScript round, installed Linux/native matrix, the shared frozen-context/database fixture and wire-equivalent values, plus risk-weighted mutation, erasure, eligibility, lifecycle and runtime-mode behavior. |
 | Snapshot concurrency and lifecycle closure | `final-interactions`, populated `schema26-upgrade`, AC-021, AC-059b, AC-034a/b, AC-081c and the installed frozen/dependency/lifecycle workflows. |
-| Predictable cold/steady performance and resource costs | AC-076, accepted AC-081/AC-072 distributions, rerun CE CPU/CUDA profile, rerun protected 71B workloads, EU7 AC-073/075, and recorded cold/steady latency, throughput, RSS/VRAM and uncertainty where the owning protocol defines it. Descriptive resource values are not new limits. |
-| Retrieval-only evaluation | Installed GLOBAL-01 native search and EU7 Engine evidence with positive execution/model counts; no answer-quality or spend claim. |
+| Predictable cold/steady performance and resource costs | AC-076, accepted AC-081/AC-072 distributions, rerun CE CPU/CUDA profile, rerun protected 71B workloads, EU7 AC-073, the TC-5 AC-075 equivalence bridge, and recorded cold/steady latency, throughput, RSS/VRAM and uncertainty where the owning protocol defines it. Descriptive resource values are not new limits. |
+| Retrieval-only evaluation | Installed GLOBAL-01 native search, EU7 AC-073 Engine evidence and the TC-5 AC-075 bridge with positive execution/model counts; no answer-quality or spend claim. |
 | Missing platform/lifecycle evidence fails | Final manifest validator plus exact-candidate five-platform, CUDA/Tegra and hosted-CI receipts; AC-034c remains the sole authorized unavailable cell, and the CUDA Engine comparison links the [accepted disposition](ce-engine-p95-exception.md). |
 
 The detailed architecture and execution ownership are in [the design](design.md).
@@ -140,8 +155,9 @@ rewrite old result files to look like the final candidate.
    successor on its registered executor
    (seq-277; see [design](../slice-80/design.md)); AC-020 is retired, not a
    continuing ratio gate. AC-072 10k/384d at
-   p50 <=80 ms/p99 <=300 ms; AC-076 text latency; real AC-073 stress and
-   AC-075 vector-stage fidelity with positive execution/model counts.
+   p50 <=80 ms/p99 <=300 ms; AC-076 text latency; real EU7 AC-073 stress and
+   candidate-bound TC-5 AC-075 vector-stage fidelity with positive execution/
+   model counts. Preserve the failed legacy EU7 AC-075 result separately.
    Consume exact Slice 80 recovery evidence where final-input identity
    permits; do not rerun the 76/77 experimental matrix. AC-072 host-wide swap
    remains diagnostic under the approved Slice 80 policy, not an automatic

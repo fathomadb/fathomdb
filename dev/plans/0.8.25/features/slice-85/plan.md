@@ -72,7 +72,9 @@ version cut as a packaging shortcut.
   counts; output records exact commands and identities.
 - **AC85-3:** the five-row native matrix, CUDA/Tegra routes and required hosted
   CI pass at the exact candidate, or an already-authorized unavailable cell is
-  named as a non-pass. AC-034c is the only pre-authorized unavailable cell.
+  named as a non-pass. AC-034c is the only pre-authorized unavailable cell;
+  the CUDA Engine comparison uses the accepted disposition in the
+  [CUDA Engine p95 exception](ce-engine-p95-exception.md).
 - **AC85-4:** retained AC-081, AC-072, 71B, Slice 72 CE and Slice 73 Windows
   receipts are reused only when an explicit relevant-input comparison proves
   applicability; otherwise their current route is rerun.
@@ -87,7 +89,7 @@ R25-75/AC25-75 close only through this explicit mapping:
 | Snapshot concurrency and lifecycle closure | `final-interactions`, populated `schema26-upgrade`, AC-021, AC-059b, AC-034a/b, AC-081c and the installed frozen/dependency/lifecycle workflows. |
 | Predictable cold/steady performance and resource costs | AC-076, accepted AC-081/AC-072 distributions, rerun CE CPU/CUDA profile, rerun protected 71B workloads, EU7 AC-073/075, and recorded cold/steady latency, throughput, RSS/VRAM and uncertainty where the owning protocol defines it. Descriptive resource values are not new limits. |
 | Retrieval-only evaluation | Installed GLOBAL-01 native search and EU7 Engine evidence with positive execution/model counts; no answer-quality or spend claim. |
-| Missing platform/lifecycle evidence fails | Final manifest validator plus exact-candidate five-platform, CUDA/Tegra and hosted-CI receipts; AC-034c remains the sole authorized unavailable non-pass. |
+| Missing platform/lifecycle evidence fails | Final manifest validator plus exact-candidate five-platform, CUDA/Tegra and hosted-CI receipts; AC-034c remains the sole authorized unavailable cell, and the CUDA Engine comparison links the [accepted disposition](ce-engine-p95-exception.md). |
 
 The detailed architecture and execution ownership are in [the design](design.md).
 
@@ -259,7 +261,9 @@ a distinct owner decision after this slice.
 
 Every inherited and new required obligation has verified passing or explicitly
 authorized non-pass disposition; the Slice 80 successor has applicable passing
-acceptance. AC-020 remains retired/superseded, not retroactively passing.
+acceptance. The CUDA Engine comparison disposition is recorded in the
+[CUDA Engine p95 exception](ce-engine-p95-exception.md). AC-020 remains
+retired/superseded, not retroactively passing.
 Publish durable final manifest/results/reviews under
 dev/plans/runs/0.8.25-slice-85/, reconcile release-state generated views and
 the package inventory, and hand off remaining publishing authority separately.

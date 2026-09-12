@@ -20,9 +20,12 @@ make completeness and false-pass rules executable; a new scheduler is not.
 has a unique ID, legacy/additional origin, relevant input set, disposition,
 candidate/source identity, command or retained receipt, raw-log paths, positive
 counts, and verdict. Dispositions are `run`, `rerun`, `reuse`, `unavailable`,
-or `blocked`. Only `reuse` and successful `run`/`rerun` may satisfy an
-obligation. `unavailable` is valid only for an explicitly authorized exception;
-the sole initial exception is AC-034c. `blocked` is honest incomplete evidence.
+`blocked`, or `accepted-non-pass`. Only `reuse`, successful `run`/`rerun`, and
+the specifically authorized `accepted-non-pass` may satisfy an obligation.
+`unavailable` is valid only for an explicitly authorized exception; AC-034c is
+the sole unavailable cell. `accepted-non-pass` is valid only for the Slice 72
+CE row with the [CUDA Engine p95 exception](ce-engine-p95-exception.md) as its
+retained disposition reference. `blocked` is honest incomplete evidence.
 
 The candidate identity has three layers:
 

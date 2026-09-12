@@ -47,7 +47,10 @@ input digest is `95e15e3e4c089212431b7a173fca291539a072d98c87d3394c1fb9b4f357327
 identical to the accepted receipts. Slice 72 CE, Slice 79 protected writes,
 Slice 73 Windows, all original unexecuted Slice 75 cells, installed artifacts, native
 platforms and hosted CI are `run`/`rerun`. AC-034c alone is `unavailable` under
-its pre-existing accepted disposition. Nothing else begins as a pass.
+its pre-existing accepted disposition. The completed CUDA Engine comparison is
+closed by the [CUDA Engine p95 exception](ce-engine-p95-exception.md), recorded
+as `accepted-non-pass`; this does not change any other threshold or verdict.
+Nothing else begins as a pass.
 
 ## Sealed added and override routes
 
@@ -135,7 +138,9 @@ baseline. A short implementation/runner review is needed only where that route
 changes; do not repeat historical design reviews. Preserve one final broad
 round, with focused reruns for actual fixes and a second broad round only by
 explicit approval. Close when required rows have passing or authorized non-pass
-dispositions; publication remains outside scope.
+dispositions, using the
+[CUDA Engine p95 exception](ce-engine-p95-exception.md) as the Slice 72 CE
+disposition reference; publication remains outside scope.
 
 After a passing evidence review, merge to `release/0.8.25`, verify ancestry and
 tree identity, and remove the temporary Slice 85 branch/worktree. Main remains

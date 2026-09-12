@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
 from typing import Any, Optional, Sequence
@@ -83,7 +84,7 @@ def _scalar(con: sqlite3.Connection, sql: str, params: Sequence[Any] = ()) -> in
     return int(row[0]) if row and row[0] is not None else 0
 
 
-def inspect_embed_db(
+def _inspect_embed_db_local(
     db_path: str,
     *,
     kind: str = "doc",
@@ -92,13 +93,13 @@ def inspect_embed_db(
     expected_embedder: Optional[str] = DEFAULT_EMBEDDER,
     min_coverage: float = 1.0,
 ) -> VerifyReport:
-    """Inspect a DB and return a :class:`VerifyReport`. Read-only; never mutates.
+    """Inspect one SQLite image locally; callers normally use the child boundary.
 
-    Opens ``mode=ro`` (NOT ``immutable=1``): the verifier must see committed-but-
-    not-yet-checkpointed rows in the **-wal** file when run as a post-``drain()`` gate
-    while the engine still holds the DB open. ``immutable=1`` reads only the main DB
-    file and would report an empty DB for a freshly-built (uncheckpointed) embed —
-    falsely failing every live fused build."""
+    Opens ``mode=ro`` (not ``immutable=1``) so the verifier sees committed rows
+    in the WAL when it runs after ``drain()`` while the engine remains open.
+    Immutable mode reads only the main database and would falsely report an
+    empty freshly built embed whose WAL has not yet been checkpointed.
+    """
     con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         # --- raw measurements -------------------------------------------------
@@ -205,6 +206,56 @@ def inspect_embed_db(
         con.close()
 
 
+def inspect_embed_db(
+    db_path: str,
+    *,
+    kind: str = "doc",
+    expected_docs: Optional[int] = None,
+    expected_dim: int = DEFAULT_DIM,
+    expected_embedder: Optional[str] = DEFAULT_EMBEDDER,
+    min_coverage: float = 1.0,
+) -> VerifyReport:
+    """Inspect a DB read-only in an isolated process and return its report.
+
+    FathomDB and Python can load separate SQLite images. Keeping their WAL
+    connections in one process is unsafe because POSIX advisory locks are
+    process-scoped; a close in one image can invalidate the other's shared WAL
+    mapping. A child process preserves live-WAL visibility while giving the raw
+    inspector independent lock ownership.
+    """
+    payload = json.dumps(
+        {
+            "db_path": db_path,
+            "kind": kind,
+            "expected_docs": expected_docs,
+            "expected_dim": expected_dim,
+            "expected_embedder": expected_embedder,
+            "min_coverage": min_coverage,
+        }
+    )
+    source = """
+import json
+import sys
+
+from eval.verify_embed_db import _inspect_embed_db_local
+
+report = _inspect_embed_db_local(**json.loads(sys.argv[1]))
+print(json.dumps(report.to_dict()))
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", source, payload],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "embed DB inspection child failed")
+    raw = json.loads(result.stdout)
+    raw.pop("ok", None)
+    raw["checks"] = [Check(**check) for check in raw["checks"]]
+    return VerifyReport(**raw)
+
+
 def assert_embed_complete(
     db_path: str, *, expected_docs: Optional[int] = None, kind: str = "doc"
 ) -> VerifyReport:
@@ -264,7 +315,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--json", action="store_true", help="emit the full report as JSON")
     args = ap.parse_args(argv)
 
-    report = inspect_embed_db(
+    report = _inspect_embed_db_local(
         args.db,
         kind=args.kind,
         expected_docs=args.expected_docs,

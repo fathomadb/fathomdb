@@ -17,6 +17,7 @@ CHECKER = ROOT / "scripts/release/verify-slice85-manifest.py"
 LEGACY = ROOT / "dev/plans/0.8.25/features/slice-75/slice75-closure-manifest.json"
 CE_BASE = ROOT / "dev/plans/0.8.25/features/slice-72/ce-profile-manifest.json"
 SMOKE = ROOT / "scripts/release/smoke/smoke-local-native-artifacts.sh"
+WINDOWS_RUNNER = ROOT / "scripts/release/slice75-windows-runner.sh"
 HASH = "2" * 64
 
 
@@ -571,6 +572,10 @@ class Slice85InstalledRuntimeContractTest(unittest.TestCase):
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, text)
+
+    def test_windows_runner_normalizes_powershell_crlf_status(self) -> None:
+        text = WINDOWS_RUNNER.read_text(encoding="utf-8")
+        self.assertIn("tr -d '\\r' | grep -Fx Running", text)
 
 
 class Slice85NodeSupportContractTest(unittest.TestCase):

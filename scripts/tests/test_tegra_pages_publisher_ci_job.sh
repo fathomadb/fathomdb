@@ -83,12 +83,13 @@ assert_job_contains deploy-tegra-pages 'inputs.publish_to_pages == true' "Pages 
 assert_contains 'name: github-pages' "Pages deployment uses the dedicated GitHub environment"
 assert_job_contains deploy-tegra-pages 'pages: write' "Pages deploy route requests Pages write access"
 assert_job_contains deploy-tegra-pages 'id-token: write' "Pages deploy route requests its OIDC token"
+assert_job_contains deploy-tegra-pages "format('github-pages-{0}', github.repository)" "Pages deploy serializes with documentation publication"
 assert_job_absent tegra-cuda-evidence 'pages: write' "Jetson evidence remains unable to deploy Pages"
 assert_job_absent prepare-tegra-pages 'pages: write' "Pages preparation remains unable to deploy Pages"
 assert_contains 'actions/download-artifact@' "hosted publisher consumes the Jetson artifact"
 assert_contains 'jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}' "publisher accepts only this run's retained Jetson artifact"
 assert_contains 'fathomdb-${expected_version}-*-linux_aarch64.whl' "publisher accepts only the honest Tegra wheel tag"
-assert_contains 'bash scripts/release/build-tegra-pages-index.sh' "publisher delegates index construction to the exercised helper"
+assert_contains 'bash scripts/release/build-pages-site.sh' "publisher preserves public docs alongside the Tegra index"
 assert_contains '--version "$expected_version"' "publisher passes the exact +tegra version to the index helper"
 assert_job_contains validate-candidate 'candidate version must match the dispatched release branch' "Jetson preflight binds version to its release branch"
 assert_job_contains prepare-tegra-pages 'require-tegra-pages-release-version.sh' "publisher rejects stale project metadata before publication"
@@ -135,15 +136,15 @@ if [ "${TEGRA_PAGES_CI_FIXTURE:-0}" != "1" ]; then
     fail "publication-condition mutation did not fail its assertion: $mutation_out"
   fi
 
-  sed '0,/build-tegra-pages-index\.sh/s//missing-tegra-pages-index.sh/' "$WORKFLOW" >"$MUTATED"
+  sed '0,/build-pages-site\.sh/s//missing-pages-site.sh/' "$WORKFLOW" >"$MUTATED"
   set +e
   mutation_out="$(TEGRA_PAGES_CI_FIXTURE=1 JETSON_TEGRA_CI_YML="$MUTATED" bash "$0" 2>&1)"
   mutation_rc=$?
   set -e
-  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'publisher delegates index construction to the exercised helper' <<<"$mutation_out"; then
-    pass "mutation proves the publisher cannot bypass the exercised index helper"
+  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'publisher preserves public docs alongside the Tegra index' <<<"$mutation_out"; then
+    pass "mutation proves the publisher cannot bypass the combined site helper"
   else
-    fail "index-helper mutation did not fail its assertion: $mutation_out"
+    fail "combined-site-helper mutation did not fail its assertion: $mutation_out"
   fi
 
   sed '0,/require-tegra-pages-release-version\.sh/s//missing-tegra-pages-release-version.sh/' "$WORKFLOW" >"$MUTATED"

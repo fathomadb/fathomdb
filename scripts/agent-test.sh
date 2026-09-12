@@ -372,6 +372,7 @@ run_tier_suite fast test-windows-wal-attribution-ci-job bash scripts/tests/test_
 run_tier_suite fast test-jetson-tegra-cuda-evidence-ci-job bash scripts/tests/test_jetson_tegra_cuda_evidence_ci_job.sh
 run_tier_suite fast test-tegra-pages-publisher-ci-job bash scripts/tests/test_tegra_pages_publisher_ci_job.sh
 run_tier_suite fast test-tegra-pages-index bash scripts/tests/test_tegra_pages_index.sh
+run_tier_suite fast test-pages-site bash scripts/tests/test_pages_site.sh
 run_tier_suite fast test-tegra-pages-release-version bash scripts/tests/test_tegra_pages_release_version.sh
 
 # Slice 15: each release-ready runner must consume its locally built wheel and

@@ -282,10 +282,11 @@ jobs:
           if-no-files-found: warn
 
   # The Jetson has no publication credential. This hosted job receives only
-  # its retained artifact and constructs the interim, exact-version PEP 503
-  # site. It is deliberately opt-in for the matching release branch.
+  # its retained artifact and constructs the public docs plus the interim,
+  # exact-version PEP 503 site. It is deliberately opt-in for the matching
+  # release branch.
   prepare-tegra-pages:
-    name: Prepare interim Tegra PEP 503 Pages artifact
+    name: Prepare docs and Tegra PEP 503 Pages artifact
     needs: tegra-cuda-evidence
     if: ${{ inputs.publish_to_pages == true && startsWith(github.ref, 'refs/heads/release/') }}
     runs-on: ubuntu-latest
@@ -304,8 +305,10 @@ jobs:
         with:
           name: jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: evidence
+      - name: Install the documentation builder
+        run: python3 -m pip install --disable-pip-version-check mkdocs
       - id: index
-        name: Verify wheel and construct the static PEP 503 index
+        name: Verify wheel and construct the combined Pages site
         shell: bash
         env:
           CANDIDATE_VERSION: ${{ inputs.candidate_version }}
@@ -323,7 +326,7 @@ jobs:
           }
           wheel="${wheels[0]}"
           site_root="$RUNNER_TEMP/fathomdb-tegra-pages-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          index_result="$(bash scripts/release/build-tegra-pages-index.sh \
+          index_result="$(bash scripts/release/build-pages-site.sh \
             --wheel "$wheel" --out "$site_root" --version "$expected_version")"
           wheel_sha256="${index_result#wheel_sha256=}"
           [ "$wheel_sha256" != "$index_result" ] || {
@@ -339,10 +342,13 @@ jobs:
           path: ${{ steps.index.outputs.site_root }}
 
   deploy-tegra-pages:
-    name: Deploy interim Tegra PEP 503 Pages index
+    name: Deploy docs and Tegra PEP 503 Pages index
     needs: prepare-tegra-pages
     if: ${{ inputs.publish_to_pages == true && startsWith(github.ref, 'refs/heads/release/') }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ format('github-pages-{0}', github.repository) }}
+      cancel-in-progress: false
     permissions:
       actions: read
       pages: write
@@ -352,5 +358,5 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        name: Deploy static PEP 503 artifact to GitHub Pages
+        name: Deploy combined artifact to GitHub Pages
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

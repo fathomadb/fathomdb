@@ -1,0 +1,87 @@
+name: Publish public documentation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/docs-pages.yml
+      - docs/**
+      - mkdocs.yml
+      - scripts/release/build-pages-site.sh
+      - scripts/release/build-tegra-pages-index.sh
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ format('github-pages-{0}', github.repository) }}
+  cancel-in-progress: false
+
+jobs:
+  prepare-pages:
+    name: Build docs with retained Tegra package index
+    runs-on: ubuntu-latest
+    outputs:
+      site_root: ${{ steps.site.outputs.site_root }}
+      wheel_sha256: ${{ steps.site.outputs.wheel_sha256 }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Install the documentation builder
+        run: python3 -m pip install --disable-pip-version-check mkdocs
+      - id: site
+        name: Build the combined Pages artifact
+        shell: bash
+        env:
+          TEGRA_VERSION: 0.8.24+tegra
+          TEGRA_WHEEL_FILENAME: fathomdb-0.8.24+tegra-cp310-abi3-linux_aarch64.whl
+          TEGRA_WHEEL_SHA256: 652ad6926b17c9580365b012ec9cb925fa1aabc6fe83047874c718dc5c5e5897
+          TEGRA_WHEEL_URL: https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-0.8.24+tegra-cp310-abi3-linux_aarch64.whl
+        run: |
+          set -euo pipefail
+          wheel_dir="$RUNNER_TEMP/fathomdb-retained-tegra-wheel"
+          mkdir -p "$wheel_dir"
+          wheel="$wheel_dir/$TEGRA_WHEEL_FILENAME"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --retry 4 --retry-all-errors "$TEGRA_WHEEL_URL" --output "$wheel"
+          actual_sha256="$(sha256sum "$wheel" | awk '{print $1}')"
+          if [ "$actual_sha256" != "$TEGRA_WHEEL_SHA256" ]; then
+            printf 'retained Tegra wheel SHA-256 mismatch: expected %s, got %s\n' \
+              "$TEGRA_WHEEL_SHA256" "$actual_sha256" >&2
+            exit 1
+          fi
+          site_root="$RUNNER_TEMP/fathomdb-pages-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          site_result="$(bash scripts/release/build-pages-site.sh \
+            --wheel "$wheel" --out "$site_root" --version "$TEGRA_VERSION")"
+          wheel_sha256="${site_result#wheel_sha256=}"
+          [ "$wheel_sha256" = "$TEGRA_WHEEL_SHA256" ] || {
+            printf 'combined site builder returned an unexpected wheel SHA-256\n' >&2
+            exit 1
+          }
+          printf 'site_root=%s\n' "$site_root" >> "$GITHUB_OUTPUT"
+          printf 'wheel_sha256=%s\n' "$wheel_sha256" >> "$GITHUB_OUTPUT"
+      - name: Upload combined Pages artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          name: github-pages
+          path: ${{ steps.site.outputs.site_root }}
+
+  deploy-pages:
+    name: Deploy public documentation
+    needs: prepare-pages
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        name: Deploy combined site to GitHub Pages
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

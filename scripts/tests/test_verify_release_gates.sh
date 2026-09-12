@@ -12,6 +12,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 VRG="$REPO_ROOT/scripts/verify-release-gates.sh"
 
+# The ordinary tag-gate cases below must not inherit a workflow-dispatch
+# context from the CI job that happens to execute this test. Individual
+# dispatch cases override this value explicitly.
+export GITHUB_EVENT_NAME=push
+
 CARGO="$REPO_ROOT/Cargo.toml"
 
 FAILED=0

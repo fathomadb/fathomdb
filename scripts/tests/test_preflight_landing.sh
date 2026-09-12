@@ -49,8 +49,8 @@ cleanup() {
 trap cleanup EXIT
 
 # --- Fixture: a throwaway primary checkout + a linked worktree inside it -------
-# preflight.sh does `git rev-parse main` under `set -euo pipefail`, so the fixture
-# repo must actually have a `main` branch with a commit.
+# Most arms model a developer checkout with a local `main`; Arm 9 separately
+# models GitHub's checkout shape with only `origin/main`.
 #
 # The fixture must not inherit the developer's/CI image's global git config: a
 # global `commit.gpgsign = true` makes the fixture commit try to GPG-sign with the
@@ -274,6 +274,26 @@ if [ "$RC" -ne 0 ]; then
   pass "hostile-config fixture: --landing in the primary checkout still fails"
 else
   fail "hostile-config fixture: primary MUST fail; got rc=0, out: $OUT"
+fi
+
+# --- Arm 9: GitHub checkout shape resolves origin/main without local main -----
+ORIGIN_PRIMARY="$TMPROOT/origin-primary"
+ORIGIN_LINKED="$TMPROOT/origin-linked"
+make_fixture "$ORIGIN_PRIMARY" "$ORIGIN_LINKED"
+ORIGIN_MAIN_SHA="$(git -C "$ORIGIN_PRIMARY" rev-parse refs/heads/main)"
+git -C "$ORIGIN_PRIMARY" update-ref refs/remotes/origin/main "$ORIGIN_MAIN_SHA"
+git -C "$ORIGIN_PRIMARY" update-ref -d refs/heads/main
+
+run_preflight "$ORIGIN_LINKED"
+if [ "$RC" -eq 0 ]; then
+  pass "checkout without local main falls back to origin/main"
+else
+  fail "origin/main fallback should pass; got rc=$RC, out: $OUT"
+fi
+if printf '%s' "$OUT" | grep -q '"main_sha":"'"$ORIGIN_MAIN_SHA"'"'; then
+  pass "origin/main fallback reports the resolved main SHA"
+else
+  fail "origin/main fallback should report $ORIGIN_MAIN_SHA; got: $OUT"
 fi
 
 # Dependency-state and generic active/PENDING/COMPLETE lifecycle coverage moved

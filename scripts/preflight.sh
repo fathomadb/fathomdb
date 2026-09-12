@@ -72,7 +72,11 @@ ok()   { printf 'ok    %s\n' "$1" >&2; }
 # (and returns non-zero) if the path is not a reachable directory.
 abs_dir() { ( cd "$1" 2>/dev/null && pwd -P ); }
 
-MAIN_SHA="$(git rev-parse main)"
+if git rev-parse --verify main >/dev/null 2>&1; then
+  MAIN_SHA="$(git rev-parse main)"
+else
+  MAIN_SHA="$(git rev-parse origin/main)"
+fi
 
 # --- 1. Canonical repo is not mid-operation -------------------------------------
 GITDIR="$(git rev-parse --git-dir)"

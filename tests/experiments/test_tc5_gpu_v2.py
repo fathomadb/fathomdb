@@ -27,11 +27,14 @@ def _candidate_config(tmp_path: Path) -> Path:
     wheel = tmp_path / "candidate.whl"
     cli = tmp_path / "fathomdb"
     benchmark = tmp_path / "fathomdb-tc5-benchmark"
+    model = tmp_path / "model"
     for path in (python, wheel, cli, benchmark):
         path.write_text(path.name, encoding="utf-8")
+    model.mkdir()
     value["release"] = "0.8.25"
     value["runtime"]["python"] = str(python)
     value["runtime"]["fathomdb_bin"] = str(cli)
+    value["inputs"]["model_asset_directory"] = str(model)
     value["candidate"] = {
         "sha": "1" * 40,
         "version": "0.8.25",
@@ -56,7 +59,10 @@ def test_committed_configuration_freezes_the_two_gpu_fidelity_arms():
     assert config.query_count == 100
     assert config.bootstrap_resamples == 1000
     assert config.cuda_uuid.startswith("GPU-")
-    assert config.model_asset_directory.is_dir()
+    assert config.model_asset_directory.is_absolute()
+    assert config.model_asset_digest == (
+        "7a7edec71b9b8c9ce82cae05c4be673b274c36eaa474cc40ca2ef81b77847ea2"
+    )
 
 
 def test_candidate_configuration_requires_and_loads_exact_artifact_bindings(tmp_path):

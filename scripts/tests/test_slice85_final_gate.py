@@ -589,6 +589,33 @@ class Slice85FinalGateTest(unittest.TestCase):
         self.row(value, "default-tree")["disposition"] = "accepted-non-pass"
         self.assert_rejected(value, "accepted non-pass")
 
+    def test_final_rejects_quarantined_evidence_and_artifacts(self) -> None:
+        for kind in ("evidence", "artifact"):
+            with self.subTest(kind=kind):
+                value = self.manifest()
+                self.complete(value)
+                if kind == "evidence":
+                    source = self.repo / self.row(value, "default-tree")["evidence"][0][
+                        "path"
+                    ]
+                    target = (
+                        self.repo
+                        / "dev/plans/runs/0.8.25-slice-85/invalid-evidence/log.txt"
+                    )
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(source.read_bytes())
+                    self.row(value, "default-tree")["evidence"][0]["path"] = str(
+                        target.relative_to(self.repo)
+                    )
+                else:
+                    artifact = value["candidate"]["artifacts"]["python-wheel"]
+                    source = self.repo / artifact["path"]
+                    target = self.repo / "invalid-artifacts/python-wheel.bin"
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(source.read_bytes())
+                    artifact["path"] = str(target.relative_to(self.repo))
+                self.assert_rejected(value, "quarantined", phase="final")
+
 
 class Slice85InstalledRuntimeContractTest(unittest.TestCase):
     def test_smoke_runs_six_fresh_runtime_configuration_processes(self) -> None:

@@ -27,7 +27,7 @@
     "dev/fixtures/slice20-dependency-conformance-v1.json": "1572d7bb921867100d0f1c3b283e60be9ed6fcf1e012224c5d74b37519635a5c",
     "dev/fixtures/slice25-actuation-conformance-v1.json": "a325f6b3c2b5db943cc99bc431061d66e170dd935dcfb98584fa84bf1653a475",
     "dev/fixtures/slice60-graph-expand-conformance-v1.json": "ec43aec001ebfa2b6e3696559e31bfcb19b3c88f109e021ff3aa281a28563baf",
-    "experiments/configs/measurement-classification/native-search.slice75.v2.json": "6ef62916f4ba2b770594db25bcb0d5e9215b7af95482165847e56d26b301954d"
+    "experiments/configs/measurement-classification/native-search.slice75.v2.json": "bae0d08133d356ce0c9f66cbcfa1cba744677885ad1e3ff62452b9111bad8ab1"
   },
   "input_sets": {
     "tracked-tree": ["@git-ls-files"],

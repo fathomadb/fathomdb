@@ -282,6 +282,10 @@ def repo_file(repo: Path, relative: object, label: str) -> Path:
     require(isinstance(relative, str) and relative, f"{label} path must be nonempty")
     path = (repo / relative).resolve()
     require(path != repo and repo in path.parents, f"{label} path escapes repository")
+    require(
+        not {"invalid-evidence", "invalid-artifacts"}.intersection(path.parts),
+        f"{label} path is quarantined: {relative}",
+    )
     require(path.is_file(), f"{label} file missing: {relative}")
     return path
 

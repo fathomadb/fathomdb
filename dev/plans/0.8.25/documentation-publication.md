@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.25 documentation publication
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.25
 ---
 
@@ -43,3 +43,19 @@ move `v0.8.25`, alter package artifacts, or require 0.8.26.
 - `https://fathomadb.github.io/fathomdb/tegra/simple/` still exposes the exact
   retained wheel and digest.
 - No package registry or tag is changed.
+
+## Result
+
+Completed on 2026-09-12 at `a642e391`. GitHub Actions run `34708289546`
+built and deployed the combined Pages artifact successfully.
+
+Post-publish smoke confirmed:
+
+- the documentation root identifies 0.8.25 as the current published release;
+- the 0.8.25 release notes and Rust, Python, and TypeScript API pages load;
+- the retained Tegra index still names the exact accepted wheel and SHA-256.
+
+Focused builder and workflow-contract tests, actionlint, new-script shellcheck,
+Markdown lint, strict MkDocs, Git diff checks, and repository push hooks passed.
+The workflow emitted a non-blocking upstream Node.js runtime deprecation notice
+for the pinned Pages upload action; publication itself was green.

@@ -1,7 +1,7 @@
 # Slice 85 — compact execution matrix
 
-Status: execution in progress; local functional, package, model, reliability,
-and runtime-floor routes have executed. Hosted/native closure is not yet ready.
+Status: complete on `release/0.8.25`; all required local, hosted/native,
+Windows and direct-SSH Jetson routes are closed for candidate `18fefc67`.
 Scope follows [the plan](plan.md). Commands/timeouts for named legacy cells
 come from [the Slice 75 manifest](../slice-75/slice75-closure-manifest.json),
 with the overrides below. Keep that historical manifest unchanged.

@@ -62,6 +62,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/0.8.25/prework/slice-{1-dependency-sweep,2-cruft-review}.md` | Dependency/pinning evidence and repository cruft action proposals | 0.8.25 Slices 1–2 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-{3-contract-and-architecture-drafts,4-architecture-and-code-alignment,5-verification-adequacy}.md` | Draft contracts, as-built alignment, and verification-gap allocation | 0.8.25 Slices 3–5 | 2026-08-31 |
 | `dev/plans/memex-0.6.0-needs-in-fathomdb-0.8.25.md` | Code-grounded Memex needs crosswalk and slice allocation | 0.8.25 Slice 3 | 2026-08-31 |
+| `dev/plans/memex-0.6.0-collaboration/` | Three-slice plan for frozen-search docs, graph-target evidence, and atomic derived-edge actuation | Memex 0.6.0 collaboration | 2026-09-12 |
 | `dev/plans/fathomdb-data-plane-foldback-v2.md` | Active dependency-linear requirements/design/TDD delivery plan | 0.8.25 Slice 7 | 2026-09-02 |
 | `dev/plans/fathomdb-data-plane-foldback-v1.md` | Superseded four-workstream foldback plan retained as history | 0.8.25 history | 2026-09-02 |
 | `dev/plans/fathomdb-data-plane-architecture-review-v1.md` | Independent two-cycle approval record for data-plane architecture v1 | 0.8.25 | 2026-08-31 |

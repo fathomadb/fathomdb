@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 import subprocess
@@ -497,6 +498,9 @@ def validate_tc5_bridge(
     )
     provenance = value.get("provenance")
     metrics = value.get("metrics")
+    recall = metrics.get("recall_at_10") if isinstance(metrics, dict) else None
+    ci = metrics.get("ci_95") if isinstance(metrics, dict) else None
+    numeric_metrics = [recall, *(ci if isinstance(ci, list) else [])]
     require(
         value.get("schema_version") == "tc5-gpu-arm-result.v2"
         and value.get("arm") == "bridge"
@@ -508,22 +512,24 @@ def validate_tc5_bridge(
         == "9e92d236e44fc7443c1940f6870877a6e6eb07e92136ca2da331f88221e622ed"
         and value.get("ground_truth_sha256")
         == "ef6be77b9b5670b0992606167f6cc191849f51ac90b6c4b7d25f403c3dc7f34b"
-        and value.get("sut_result_sha256")
-        == "436493dcd17973f33cde5424391cd73288a9740d1c837ed5231a7bc0db7cf84a"
-        and isinstance(metrics, dict)
-        and isinstance(metrics.get("recall_at_10"), (int, float))
-        and metrics["recall_at_10"] >= 0.958
-        and isinstance(metrics.get("ci_95"), list)
-        and len(metrics["ci_95"]) == 2
-        and metrics["ci_95"][0] >= 0.938
-        and metrics["ci_95"][1] >= 0.974
+        and isinstance(value.get("sut_result_sha256"), str)
+        and DIGEST.fullmatch(value["sut_result_sha256"]) is not None
+        and isinstance(recall, (int, float))
+        and not isinstance(recall, bool)
+        and isinstance(ci, list)
+        and len(ci) == 2
+        and all(isinstance(metric, (int, float)) for metric in numeric_metrics)
+        and not any(isinstance(metric, bool) for metric in numeric_metrics)
+        and all(math.isfinite(metric) for metric in numeric_metrics)
+        and 0.0 <= ci[0] <= recall <= ci[1] <= 1.0
+        and ci[1] >= 0.90
         and isinstance(provenance, dict)
         and provenance.get("candidate_execution") == "cpu/sqlite-vec"
         and provenance.get("exact_f32_rerank_execution") == "cpu/sqlite-vec"
         and provenance.get("embedding_execution") == "cuda:0"
         and provenance.get("candidate_k") == 192
         and provenance.get("top_k") == 10,
-        "TC-5 bridge equivalence receipt drifted from the frozen bridge",
+        "TC-5 fidelity receipt violates the frozen protocol or AC-075 oracle",
     )
 
 

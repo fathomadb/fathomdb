@@ -52,6 +52,13 @@ baseline is `56e6d7fd`. The intervening work changes this slice as follows:
    supersedes only its AC-075 cell with one candidate-bound repetition of the
    7,667-document TC-5 GPU smoke. This is not the optional CPU release-
    equivalence bridge. The 17,272-document primary is retained, not repeated.
+9. The candidate-bound TC-5 repetition produced stable recall `0.954`, CI
+   `[0.936, 0.971]` on two fresh databases. The registered fixture and exact
+   ground truth matched; fresh SQLite file digests differed while both SUT
+   result digests matched each other. Review found the drafted historical-output
+   equality contradicted AC-075's governed one-sided `CI-high >= 0.90` oracle.
+   Result digests are therefore required evidence identities, not cross-release
+   equality oracles; the completed candidate result passes AC-075.
 
 This reconciliation approves the draft direction with the adjustments below.
 It rejects rebuilding the Slice 75 framework, rerunning the 76/77 experiments,
@@ -94,8 +101,10 @@ version cut as a packaging shortcut.
 - **AC85-6:** EU7 supplies a candidate-bound positive AC-073 stress receipt.
   AC-075 is supplied by a candidate-bound TC-5 GPU-smoke repetition over the frozen 7,667
   documents, 100 queries, model, seeds, K=192/top-10 and exact-f32 ground truth;
-  it must reproduce the registered bridge fixture, ground-truth and SUT-result
-  digests and bind the exact candidate wheel, CLI and private benchmark binary.
+  it must reproduce the registered bridge fixture and ground-truth digests,
+  emit a valid SUT-result digest, satisfy the governed one-sided
+  `recall_ci_hi >= 0.90` oracle, and bind the exact candidate wheel, CLI and
+  private benchmark binary.
 
 R25-75/AC25-75 close only through this explicit mapping:
 

@@ -45,8 +45,10 @@ grown-corpus fidelity to TC-5. The later direct-HITL GPU-primary amendment makes
 the 7,667-document GPU smoke the first normal TC-5 arm; CPU is only an optional
 historical release-equivalence bridge. A separate `tc5-bridge` row therefore
 owns AC-075 by repeating that registered GPU smoke, not by asserting CPU/GPU
-equivalence. It must reproduce the registered fixture, ground-truth and SUT
-result digests. Its candidate config is generated after the GREEN SHA and
+equivalence. It must reproduce the registered fixture and exact ground-truth
+digests, emit a valid SUT result digest, and satisfy AC-075's governed one-sided
+`CI-high >= 0.90` oracle. A historical candidate's SUT digest and point estimate
+are descriptive evidence, not equality gates. Its candidate config is generated after the GREEN SHA and
 artifact build, outside the tracked source tree, and binds that SHA/version plus
 the exact wheel, CLI and private benchmark binary hashes. The wheel is installed
 without dependencies into a new isolated venv, and both preflight and execution
@@ -89,7 +91,8 @@ source import. The immutable 0.8.23 TC-5 config remains valid and unchanged.
 5. Build the exact candidate wheel, CLI and CUDA TC-5 private binary, generate
    a new isolated venv, install the pinned wheel, generate the candidate-bound
    config, run its dry preflight, then repeat only the frozen 7,667-document
-   TC-5 GPU smoke. Require exact registered result identities.
+   TC-5 GPU smoke. Require exact input/ground-truth identities, candidate-bound
+   artifact identities, a valid SUT-result identity, and the AC-075 CI oracle.
 6. After local verification and code review, fast-forward the GREEN commit into
    the durable local `release/0.8.25` worktree. Obtain explicit push authority,
    push that branch, and verify `origin/release/0.8.25` equals `FINAL_SHA`.

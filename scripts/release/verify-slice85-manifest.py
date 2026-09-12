@@ -205,16 +205,23 @@ def validate_override_commands(row_id: str, commands: list[str]) -> None:
         )
     elif row_id == "tc5-bridge":
         require(
-            len(commands) == 3
+            len(commands) == 5
             and "cargo build --locked --release -p fathomdb-tc5-benchmark" in commands[0]
             and "--features tc5-benchmark-cuda" in commands[0]
-            and "experiments.tc5_gpu_v2 dry-run" in commands[1]
-            and "--config ${RUN_DIR}/tc5-candidate-config.json" in commands[1]
-            and "--arm bridge" in commands[1]
-            and "experiments.tc5_gpu_v2 run" in commands[2]
-            and "--config ${RUN_DIR}/tc5-candidate-config.json" in commands[2]
-            and "--arm bridge" in commands[2]
-            and "--binary ${RUN_DIR}/artifacts/fathomdb-tc5-benchmark" in commands[2],
+            and commands[1] == "python3 -m venv ${RUN_DIR}/tc5-runtime"
+            and commands[2].startswith("${RUN_DIR}/tc5-runtime/bin/python -m pip install --no-deps ")
+            and "${RUN_DIR}/artifacts/python/fathomdb-0.8.24-" in commands[2]
+            and commands[3].startswith(
+                "${RUN_DIR}/tc5-runtime/bin/python -m experiments.tc5_gpu_v2 dry-run"
+            )
+            and "--config ${RUN_DIR}/tc5-candidate-config.json" in commands[3]
+            and "--arm bridge" in commands[3]
+            and commands[4].startswith(
+                "${RUN_DIR}/tc5-runtime/bin/python -m experiments.tc5_gpu_v2 run"
+            )
+            and "--config ${RUN_DIR}/tc5-candidate-config.json" in commands[4]
+            and "--arm bridge" in commands[4]
+            and "--binary ${RUN_DIR}/artifacts/fathomdb-tc5-benchmark" in commands[4],
             "TC-5 bridge command contract changed",
         )
     elif row_id == "runtime-configuration":
@@ -472,6 +479,10 @@ def validate_tc5_bridge(
         candidate.get("fathomdb_bin_sha256"),
         candidate.get("benchmark_binary_sha256"),
     }
+    require(
+        candidate.get("package_version") == "0.8.24",
+        "TC-5 candidate package version is missing or stale",
+    )
     require(
         len(candidate_artifacts) == 3
         and all(

@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
 import math
 import os
 import sqlite3
 import statistics
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -52,6 +54,7 @@ class Tc5GpuConfig:
     release: str
     candidate_sha: str | None
     candidate_version: str | None
+    package_version: str | None
     python_wheel: Path | None
     python_wheel_sha256: str | None
     fathomdb_bin_sha256: str | None
@@ -102,6 +105,7 @@ _RUNTIME_KEYS = {"python", "fathomdb_bin", "embed_device", "cuda_uuid", "binary_
 _CANDIDATE_KEYS = {
     "sha",
     "version",
+    "package_version",
     "python_wheel",
     "python_wheel_sha256",
     "fathomdb_bin_sha256",
@@ -198,6 +202,7 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
         or len(candidate["sha"]) != 40
         or any(character not in "0123456789abcdef" for character in candidate["sha"])
         or candidate.get("version") != document["release"]
+        or candidate.get("package_version") != "0.8.24"
         or not all(
             isinstance(candidate.get(key), str) and candidate[key]
             for key in ("python_wheel", "benchmark_binary")
@@ -233,6 +238,7 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
         release=document["release"],
         candidate_sha=candidate["sha"] if candidate else None,
         candidate_version=candidate["version"] if candidate else None,
+        package_version=candidate["package_version"] if candidate else None,
         python_wheel=Path(candidate["python_wheel"]) if candidate else None,
         python_wheel_sha256=candidate["python_wheel_sha256"] if candidate else None,
         fathomdb_bin_sha256=candidate["fathomdb_bin_sha256"] if candidate else None,
@@ -464,6 +470,7 @@ def dry_run(config_path: str | Path, arm: str, *, output_root: Path) -> dict[str
     if missing:
         raise Tc5GpuV2Error("runtime or cache input is unavailable")
     _validate_candidate_artifacts(config)
+    _validate_candidate_runtime(config)
     report: dict[str, object] = {
         "schema_version": "tc5-gpu-dry-run.v2",
         "state": "ready",
@@ -506,6 +513,26 @@ def _validate_candidate_artifacts(
         raise Tc5GpuV2Error("candidate artifact digest drifted")
     if binary is not None and binary.resolve() != config.benchmark_binary.resolve():
         raise Tc5GpuV2Error("candidate benchmark binary path drifted")
+
+
+def _validate_candidate_runtime(config: Tc5GpuConfig) -> None:
+    """Require the candidate run to import its package from its isolated venv."""
+    if config.candidate_sha is None:
+        return
+    if Path(sys.executable).resolve() != config.python.resolve():
+        raise Tc5GpuV2Error("candidate Python interpreter is not the configured runtime")
+    try:
+        distribution = importlib.metadata.distribution("fathomdb")
+        import fathomdb
+        import fathomdb._fathomdb as native
+    except (ImportError, importlib.metadata.PackageNotFoundError) as exc:
+        raise Tc5GpuV2Error("candidate wheel is not installed in the configured runtime") from exc
+    runtime_root = Path(sys.prefix).resolve()
+    module_paths = (Path(fathomdb.__file__).resolve(), Path(native.__file__).resolve())
+    if distribution.version != config.package_version or any(
+        path != runtime_root and runtime_root not in path.parents for path in module_paths
+    ):
+        raise Tc5GpuV2Error("candidate wheel is not installed in the configured runtime")
 
 
 def _bootstrap(config: Tc5GpuConfig, values: tuple[float, ...]) -> tuple[float, float, float]:
@@ -622,6 +649,7 @@ def aggregate_results(
         receipt["candidate"] = {
             "sha": config.candidate_sha,
             "version": config.candidate_version,
+            "package_version": config.package_version,
             "python_wheel_sha256": config.python_wheel_sha256,
             "fathomdb_bin_sha256": config.fathomdb_bin_sha256,
             "benchmark_binary_sha256": config.benchmark_binary_sha256,
@@ -723,6 +751,7 @@ def run_arm(
     """Create and execute one new GPU arm, returning its safe receipt path."""
     config = load_config(config_path)
     _validate_candidate_artifacts(config, binary=binary)
+    _validate_candidate_runtime(config)
     inputs = _load_arm_inputs(config, arm)
     if output_root.exists() or output_root.is_symlink():
         raise Tc5GpuV2Error("TC-5 output root must be new")

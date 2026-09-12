@@ -41,12 +41,17 @@ The legacy `eu7-real` row now owns only AC-073. Its structured receipt records
 the passing stress sub-result and explicitly names AC-075 as superseded; the
 failed legacy fidelity output remains retained and non-countable. Decision
 `seq-31` in `dev/steward/steward-ledger.jsonl` is the authority for moving
-grown-corpus fidelity to TC-5. A separate `tc5-bridge` row owns AC-075 and must
-reproduce the registered 7,667-document bridge's fixture, ground-truth and SUT
+grown-corpus fidelity to TC-5. The later direct-HITL GPU-primary amendment makes
+the 7,667-document GPU smoke the first normal TC-5 arm; CPU is only an optional
+historical release-equivalence bridge. A separate `tc5-bridge` row therefore
+owns AC-075 by repeating that registered GPU smoke, not by asserting CPU/GPU
+equivalence. It must reproduce the registered fixture, ground-truth and SUT
 result digests. Its candidate config is generated after the GREEN SHA and
 artifact build, outside the tracked source tree, and binds that SHA/version plus
-the exact wheel, CLI and private benchmark binary hashes. The immutable 0.8.23
-TC-5 config remains valid and unchanged.
+the exact wheel, CLI and private benchmark binary hashes. The wheel is installed
+without dependencies into a new isolated venv, and both preflight and execution
+must use that venv's interpreter; the runner rejects an ambient interpreter or
+source import. The immutable 0.8.23 TC-5 config remains valid and unchanged.
 
 ## Reuse decisions
 
@@ -82,8 +87,9 @@ TC-5 config remains valid and unchanged.
 4. Build Linux CPU artifacts once; consume those exact bytes in fresh Python,
    Node and CLI processes and runtime-floor/GLOBAL-01 checks.
 5. Build the exact candidate wheel, CLI and CUDA TC-5 private binary, generate
-   the candidate-bound config, run its dry preflight, then run only the frozen
-   7,667-document TC-5 bridge. Require exact registered result identities.
+   a new isolated venv, install the pinned wheel, generate the candidate-bound
+   config, run its dry preflight, then repeat only the frozen 7,667-document
+   TC-5 GPU smoke. Require exact registered result identities.
 6. After local verification and code review, fast-forward the GREEN commit into
    the durable local `release/0.8.25` worktree. Obtain explicit push authority,
    push that branch, and verify `origin/release/0.8.25` equals `FINAL_SHA`.
@@ -119,8 +125,9 @@ choice.
 The validator RED/GREEN cases are specified in the plan. Tests use temporary
 manifests and never edit retained receipts. The TC-5 runner extension is
 backward-compatible: it preserves the frozen 0.8.23 configuration and requires
-an explicit candidate block for 0.8.25, verifies artifact digests before corpus
-work, and emits candidate provenance. If execution discovers a defect,
+an explicit candidate block for 0.8.25, verifies artifact digests and the
+isolated installed runtime before corpus work, and emits candidate provenance.
+If execution discovers a defect,
 first add the narrowest failing test at the owning layer, demonstrate RED,
 implement GREEN, refactor, and run blast-radius checks. A product/runner fix
 does not authorize a second full round: only affected rows rerun unless the

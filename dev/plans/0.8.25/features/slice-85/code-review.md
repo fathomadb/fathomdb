@@ -31,3 +31,11 @@ venv executable symlinks cannot collapse candidate identity to the ambient
 interpreter, `sys.prefix` must name the configured non-base venv, and retries
 clear the environment and force-reinstall the exact wheel. The focused result
 was 39 tests and 36 subtests passing, with a clean diff check.
+
+The final validator review at `e1dee526` also returned **PASS**. The AC-075
+receipt check now requires finite ordered recall/CI values, a valid SUT-result
+digest and `CI-high >= 0.90`, while preserving exact fixture, ground-truth,
+route and candidate-artifact bindings. Mutation tests cover malformed digest,
+low CI and unordered CI. The reviewer confirmed that candidate `2e52602c`
+remains valid because the subsequent commits change only closeout tests,
+validation and documentation, not product or artifact bytes.

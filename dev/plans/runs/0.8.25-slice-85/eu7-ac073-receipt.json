@@ -1,0 +1,15 @@
+{
+  "schema_version": "fathomdb.slice85-eu7-ac073/v1",
+  "candidate_sha": "2e52602c937993f4fc2f3c49e942a56aa580bd6c",
+  "ac073_stress": "pass",
+  "stress_p99_ms": 391,
+  "stress_bound_ms": 730,
+  "ac075": "superseded-by-tc5",
+  "source_receipt": "dev/plans/runs/0.8.25-slice-85/eu7.json",
+  "source_receipt_sha256": "006bf4d28b46197d092953e20955627d7d1e2bde2ad9db353f0702cbb44f9d3c",
+  "retained_ac075_result": {
+    "verdict": "fail",
+    "recall_at_10": 0.772,
+    "ci_95": [0.743, 0.798]
+  }
+}

@@ -68,3 +68,12 @@ The execution-ready refresh at `137cf86e` also verified that the candidate TC-5
 runtime is recreated, force-installs the pinned wheel, binds both the lexical
 interpreter path and `sys.prefix` to that venv, and rejects the base prefix.
 Focused coverage passed 39 tests and 36 subtests. No design findings remain.
+
+The completed candidate TC-5 run then exposed one over-strict drafted rule:
+equality with the historical candidate's SUT digest and point estimate. The
+independent review traced the governing AC-075 oracle to `dev/acceptance.md`:
+complete qualified evidence passes when the one-sided 95% CI high bound is at
+least `0.90`. The candidate's stable recall `0.954`, CI `[0.936, 0.971]`
+therefore passes. The design now retains exact fixture, ground-truth, protocol,
+route and artifact identity while treating the emitted SUT digest as evidence,
+not a cross-release equality oracle. This narrow correction is **PASS**.

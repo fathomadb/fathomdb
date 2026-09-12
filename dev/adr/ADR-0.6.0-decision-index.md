@@ -138,6 +138,7 @@ Slice-0 gate before Slices 15 and 25 open.
 | 49 | interface | Add an eligibility-bound one-hop dependency trace, bounded operator integrity, and additive content-free explained-search structure/correlation | accepted by approved 0.8.25 scope and Slice 55 execution authorization | ADR-0.8.25-governed-dependency-trace-and-integrity.md |
 | 50 | architecture | Let the application-owned SQLite runtime select startup-only performance or diagnostics mode; performance is the first-open default and disables global memory statistics | accepted (HITL `seq-276`) | ADR-0.8.25-sqlite-runtime-configuration.md |
 | 51 | acceptance | Retire AC-020's relative ratio; adopt absolute sequential/concurrent batch limits and an independent same-Engine reader-progress witness | accepted (HITL `seq-277`) | ADR-0.8.25-absolute-read-performance-successor.md |
+| 52 | architecture | Linux x86_64 CUDA-capable artifacts must map and run CPU mode without a dynamic CUDA runtime or NVIDIA driver dependency; inspect real package bytes and retain separate CPU/GPU evidence | approved for implementation (HITL 2026-08-31) | ADR-0.8.25-driverless-cuda-runtime-linkage.md |
 
 ## Categories
 

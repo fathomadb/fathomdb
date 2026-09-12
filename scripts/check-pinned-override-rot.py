@@ -60,11 +60,12 @@ CANDLE_MANIFEST = "Cargo.toml"
 CANDLE_MECHANISM = "patch.crates-io"
 CANDLE_PACKAGES = (
     "candle-core-fathomdb",
+    "candle-kernels",
     "candle-nn-fathomdb",
     "candle-transformers-fathomdb",
 )
 CANDLE_GIT = "https://github.com/coreyt/candle-fathomdb.git"
-CANDLE_REV = "5719d90e60edd14c4c1a3bf87952648131b2153a"
+CANDLE_REV = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"
 CANDLE_VERSION = "0.10.2"
 
 

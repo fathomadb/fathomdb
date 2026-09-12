@@ -341,6 +341,7 @@ jobs:
     env:
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
       CUDA_HOME: /usr/local/cuda-12.6
+      CUDA_PATH: /usr/local/cuda-12.6
       LIBRARY_PATH: /usr/local/cuda-12.6/targets/x86_64-linux/lib
       CUDARC_CUDA_VERSION: "12060"
       CUDA_PREFLIGHT_WITNESS_DIR: ${{ github.workspace }}/cuda-preflight-witness-${{ github.run_id }}-${{ github.run_attempt }}
@@ -602,6 +603,7 @@ jobs:
     env:
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
       CUDA_HOME: /usr/local/cuda-12.6
+      CUDA_PATH: /usr/local/cuda-12.6
       LIBRARY_PATH: /usr/local/cuda-12.6/targets/x86_64-linux/lib
       CUDARC_CUDA_VERSION: "12060"
     timeout-minutes: 45
@@ -744,6 +746,7 @@ jobs:
     env:
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
       CUDA_HOME: /usr/local/cuda-12.6
+      CUDA_PATH: /usr/local/cuda-12.6
       LIBRARY_PATH: /usr/local/cuda-12.6/targets/x86_64-linux/lib
       CUDARC_CUDA_VERSION: "12060"
     timeout-minutes: 45
@@ -870,6 +873,7 @@ jobs:
     env:
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
       CUDA_HOME: /usr/local/cuda-12.6
+      CUDA_PATH: /usr/local/cuda-12.6
       LIBRARY_PATH: /usr/local/cuda-12.6/targets/x86_64-linux/lib
       CUDARC_CUDA_VERSION: "12060"
     timeout-minutes: 45
@@ -886,6 +890,7 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "25.9.0"
+          package-manager-cache: false
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
         with:
           toolchain: "1.95.0"

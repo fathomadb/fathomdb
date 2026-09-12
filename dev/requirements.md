@@ -636,6 +636,19 @@ finding with a user-visible falsifiable outcome.
   [post-0.8.25 design notes](design/0.8.x-after-0.8.25-design-notes.md) and
   [experimental review schedule](plans/0.8.29-0.8.33-experimental-review-schedule.md).
 
+- **REQ-068 — CUDA-capable Linux artifacts remain CPU-loadable without CUDA.**
+  The supported Linux x86_64 Python and npm artifacts that include CUDA support
+  must load and complete CPU operation when the host has no CUDA runtime,
+  NVIDIA driver, or NVIDIA device nodes. No packaged ELF member dynamically
+  depends on, or archive payload bundles, a CUDA/NVIDIA user-mode library.
+  Unset/`auto` resolves to CPU on such a host; explicit `cpu` performs no CUDA
+  initialization even on a CUDA host; forced `cuda:N` fails typed and never
+  executes CPU work. The contract covers both embedder and reranker CUDA
+  features in the shared artifact.
+  _Source:_ HITL-approved 0.8.24 corrective release decision (2026-08-31).
+  _Cross-cite:_ ADR-0.8.25-driverless-cuda-runtime-linkage;
+  `design/0.8.25-driverless-cuda-runtime.md`.
+
 ## Non-goals
 
 (Carried from `plan.md` for cross-linking; authoritative in `plan.md`.)

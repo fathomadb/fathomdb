@@ -1253,6 +1253,7 @@ Every REQ in `requirements.md` has ≥1 AC:
 | REQ-065  | AC-069                |
 | REQ-066  | AC-070                |
 | REQ-067  | AC-077 (RESERVED — IR-eval IR-1/IR-2; thresholds TBD) |
+| REQ-068  | AC-082a/b/c/d           |
 | R-20-AC | AC-079                |
 | R-20-E1, R-20-E5 | AC-080       |
 
@@ -1383,3 +1384,53 @@ snapshot.
 acquisition; the next round-robin request must complete on worker 1 before the
 held reader is released.
 **Fixture:** reader-pool-independence real-database fixture.
+
+## AC-082a: CUDA-capable package has no dynamic CUDA runtime or driver dependency
+
+**Requirement ref:** REQ-068
+**Test id:** T-082a (`cuda_artifact_dynamic_dependency_contract`)
+**Assertion:** Every ELF member of the release-equivalent Linux x86_64 Python
+wheel and N-API tarball contains no `NEEDED` CUDA/NVIDIA user-mode library, and
+the archives contain no CUDA/NVIDIA shared-library payload. Missing inspection,
+a substituted member, or a forbidden dependency/payload fails the release
+contract.
+**Measurement:** Build the final artifact pair on the trusted runner; retain
+the archive/member inventory, SHA-256 digests, and each `readelf -d` output.
+**Fixture:** CUDA artifact-contract negative fixtures plus the trusted-runner
+candidate artifact pair.
+
+## AC-082b: Driverless CPU lifecycle works for both installed bindings
+
+**Requirement ref:** REQ-068
+**Test id:** T-082b (`cuda_driverless_installed_python_and_napi`)
+**Assertion:** Fresh-installed Linux x86_64 Python and npm packages complete
+import, open, write, search, close, and process exit under unset/`auto` and
+explicit `cpu` in network-isolated containers with no CUDA library mount,
+CUDA-library search path, or NVIDIA device node. Both policy modes report CPU.
+**Measurement:** Run each lifecycle in a fresh driverless container and reject
+any fixture that adds a CUDA runtime mount or `LD_LIBRARY_PATH`.
+**Fixture:** preseeded model cache and release-equivalent Python/npm artifacts.
+
+## AC-082c: CUDA behavior remains explicit and evidenced
+
+**Requirement ref:** REQ-068
+**Test id:** T-082c (`cuda_driverless_forced_failure_and_gpu_witness`)
+**Assertion:** On the driverless fixture, explicit `cuda:0` fails typed without
+CPU fallback. On the trusted runner, the same installed artifacts with explicit
+CUDA complete the lifecycle and bind their process PID to the selected GPU UUID.
+**Measurement:** Run the forced-negative container evidence and the trusted
+GPU PID/UUID witness against the exact release-equivalent artifact digests.
+**Fixture:** no-GPU container plus the configured trusted CUDA runner.
+
+## AC-082d: Explicit CPU does not initialize CUDA on a CUDA host
+
+**Requirement ref:** REQ-068
+**Test id:** T-082d (`cuda_explicit_cpu_nonuse_witness`)
+**Assertion:** On the trusted CUDA runner, fresh-installed Python and npm
+artifacts with explicit `FATHOMDB_EMBED_DEVICE=cpu` complete the lifecycle
+without CUDA driver/library access, a selected device, or a smoke PID appearing
+in GPU compute processes.
+**Measurement:** Retain bounded loader/system-call evidence plus GPU-process
+observations for each binding, bound to the installed artifact digests.
+**Fixture:** trusted CUDA runner with a selected-device UUID and explicit CPU
+policy for Python and npm consumers.

@@ -133,6 +133,7 @@ import sys
 Path(sys.argv[1]).write_text(json.dumps({
     "schema_version": "fathomdb.cuda-package-cpu-smoke/v1",
     "consumer": sys.argv[2], "network": "none", "environment": "env -i",
+    "policies": ["auto", "cpu"],
     "gpu_nodes_visible": False, "source_imported": False, "outcome": "passed",
 }, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 PY
@@ -247,17 +248,21 @@ docker run --rm --network none \
     test ! -e /dev/nvidiactl
     python -m pip install --no-deps "/input/$WHEEL_FILENAME"
     exec python -c '"'"'
-import os, tempfile
+import os
+import tempfile
 from pathlib import Path
 from fathomdb import Engine
-with tempfile.TemporaryDirectory() as d:
-    engine=Engine.open(str(Path(d) / "cpu.fdb"), use_default_embedder=True)
-    engine.embed("CUDA package rehearsal installed Python CPU smoke")
-    engine.write([{"kind":"doc","body":"cuda package rerank smoke one","source_id":"cuda-package-cpu"},{"kind":"doc","body":"cuda package rerank smoke two","source_id":"cuda-package-cpu"}])
-    result=engine.search("cuda package rerank smoke", rerank_depth=2 if os.environ["RERANKER_ENABLED"] == "true" else 0, limit=2)
-    assert len(result.results) == 2
-    assert os.environ["RERANKER_ENABLED"] != "true" or all(hit.ce_score is not None for hit in result.results)
-    engine.close()
+for policy in ("auto", "cpu"):
+    if policy == "auto": os.environ.pop("FATHOMDB_EMBED_DEVICE", None)
+    else: os.environ["FATHOMDB_EMBED_DEVICE"] = policy
+    with tempfile.TemporaryDirectory() as d:
+        engine=Engine.open(str(Path(d) / f"cpu-{policy}.fdb"), use_default_embedder=True)
+        engine.embed(f"CUDA package rehearsal installed Python {policy} CPU smoke")
+        engine.write([{"kind":"doc","body":"cuda package rerank smoke one","source_id":f"cuda-package-cpu-{policy}"},{"kind":"doc","body":"cuda package rerank smoke two","source_id":f"cuda-package-cpu-{policy}"}])
+        result=engine.search("cuda package rerank smoke", rerank_depth=2 if os.environ["RERANKER_ENABLED"] == "true" else 0, limit=2)
+        assert len(result.results) == 2
+        assert os.environ["RERANKER_ENABLED"] != "true" or all(hit.ce_score is not None for hit in result.results)
+        engine.close()
 '"'"'
   '
 write_cpu python
@@ -266,7 +271,6 @@ docker run --rm --network none \
   --mount "type=bind,src=$npm_main_abs,dst=/input/fathomdb.tgz,readonly" \
   --mount "type=bind,src=$napi_platform_abs,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
-  --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
   "${RERANKER_RUNTIME_MOUNT[@]}" \
   -e "RERANKER_ENABLED=$RERANKER_ENABLED" \
   "$CUDA_DRIVERLESS_NODE_IMAGE" \
@@ -275,7 +279,7 @@ docker run --rm --network none \
     mkdir /consumer && cd /consumer
     printf "%s\n" "{\"private\":true,\"type\":\"module\",\"dependencies\":{\"fathomdb\":\"file:/input/fathomdb.tgz\",\"fathomdb-linux-x64-gnu\":\"file:/input/fathomdb-linux-x64-gnu.tgz\"}}" > package.json
     npm install --offline --ignore-scripts --no-audit --no-fund
-    node --input-type=module -e "import { Engine } from \"fathomdb\"; const e=await Engine.open(\"/tmp/cpu.fdb\",{useDefaultEmbedder:true}); await e.embed(\"CUDA package rehearsal installed N-API CPU smoke\"); await e.write([{kind:\"doc\",body:\"cuda package rerank smoke one\",sourceId:\"cuda-package-cpu\"},{kind:\"doc\",body:\"cuda package rerank smoke two\",sourceId:\"cuda-package-cpu\"}]); const rerank=process.env.RERANKER_ENABLED===\"true\"; const r=await e.search(\"cuda package rerank smoke\",undefined,rerank?2:0,undefined,undefined,undefined,undefined,{limit:2}); if(r.results.length!==2||(rerank&&!r.results.every(x=>x.ceScore!==null)))throw new Error(\"rerank model forward missing\"); await e.close();"
+    node --input-type=module -e "import { Engine } from \"fathomdb\"; for (const policy of [\"auto\",\"cpu\"]) { if (policy === \"auto\") delete process.env.FATHOMDB_EMBED_DEVICE; else process.env.FATHOMDB_EMBED_DEVICE=policy; const e=await Engine.open(\`/tmp/cpu-\${policy}.fdb\`,{useDefaultEmbedder:true}); await e.embed(\`CUDA package rehearsal installed N-API \${policy} CPU smoke\`); await e.write([{kind:\"doc\",body:\"cuda package rerank smoke one\",sourceId:\`cuda-package-cpu-\${policy}\`},{kind:\"doc\",body:\"cuda package rerank smoke two\",sourceId:\`cuda-package-cpu-\${policy}\`}]); const rerank=process.env.RERANKER_ENABLED===\"true\"; const r=await e.search(\"cuda package rerank smoke\",undefined,rerank?2:0,undefined,undefined,undefined,undefined,{limit:2}); if(r.results.length!==2||(rerank&&!r.results.every(x=>x.ceScore!==null)))throw new Error(\"rerank model forward missing\"); await e.close(); }"
   '
 write_cpu napi
 
@@ -295,7 +299,6 @@ for mode in cpu forced-cuda-unavailable; do
   docker run --rm --network none \
     --mount "type=bind,src=$cli_archive_abs,dst=/input/fathomdb-cli.tar.gz,readonly" \
     --mount "type=bind,src=$smoke_dir_abs,dst=/evidence" \
-    --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
     "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
     env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable \
       "${doctor_env[@]}" sh -ceu '
@@ -314,7 +317,6 @@ if [ -n "$reranker_cache_manifest_abs" ]; then
   set +e
   docker run --rm --network none \
     --mount "type=bind,src=$cli_archive_abs,dst=/input/fathomdb-cli.tar.gz,readonly" \
-    --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
     "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
     env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable \
       sh -ceu '

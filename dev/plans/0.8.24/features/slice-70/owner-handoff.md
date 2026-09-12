@@ -1,18 +1,17 @@
 ---
 title: 0.8.24 Slice 70 — owner handoff
-status: PREPARED
+status: SUPERSEDED
 target_release: 0.8.24
+superseded_by: dev/plans/plan-0.8.25.md
+closure_source: steward-ledger seq-259
 ---
 
-# Owner handoff
+# Superseded owner handoff
 
-Do not act on this file without explicit owner authorization. After the final
-local release gate is green, the owner may choose whether to push the release
-branch, integrate to main, tag `v0.8.24`, and run the configured publication
-route. Those actions can publish immutable package versions.
+This historical handoff is closed by the repository owner's ruling at
+`steward-ledger seq-259`. Its former tag, GitHub Release, and publication
+actions are not pending and must not be attempted for 0.8.24.
 
-Before declaring release completion, query the exact registry versions and run
-the configured public installed-package smokes. Do not republish a matching
-immutable artifact; fail closed on uncertain registry state. The completed
-Tegra public-index proof is retained in Slice 60; CPU registry publication and
-post-publication smokes remain pending owner actions.
+Retain the completed Slice 60 public-index proof and the Slice 70 release
+evidence as historical inputs only. The active 0.8.25 plan owns corrective
+delivery of the immutable registry-artifact defect.

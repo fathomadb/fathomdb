@@ -12,7 +12,7 @@ from fathomdb import Engine
 from fathomdb.errors import EmbedDevicePolicyError
 
 
-ARGV = ["/opt/python/cp311-cp311/bin/python", "/fathomdb-harness/forced-python-open.py"]
+ARGV = ["python", "/fathomdb-harness/forced-python-open.py"]
 
 
 def main() -> int:

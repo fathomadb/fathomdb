@@ -33,6 +33,7 @@ CUDA_CONTRACT = ROOT / "scripts/release/cuda-artifact-contract.sh"
 CUDA_NAPI_BUILD = ROOT / "scripts/release/build-napi-cuda.sh"
 CUDA_TEGRA_PYTHON_BUILD = ROOT / "scripts/release/build-python-cuda-tegra.sh"
 CUDA_PREFLIGHT = ROOT / "scripts/release/cuda-preflight.sh"
+CUDA_ARTIFACT_INSPECTOR = ROOT / "scripts/release/inspect-cuda-artifacts.py"
 CUDA_MANYLINUX_DOCKERFILE = ROOT / "scripts/release/Dockerfile.cuda-manylinux"
 CUDA_MANYLINUX_PROVISIONER = ROOT / "scripts/release/provision-cuda-manylinux.sh"
 CUDA_IMAGE_ATTESTATION = ROOT / "scripts/release/cuda-image-attestation.sh"
@@ -91,6 +92,10 @@ CUDA_NAPI_HOST_CXX = "/usr/bin/g++-13"
 CUDA_HOST_GCC_VERSION_TEGRA_ORIN = "11.4.0"
 CUDA_HOST_CC_TEGRA_ORIN = "/usr/bin/gcc"
 CUDA_HOST_CXX_TEGRA_ORIN = "/usr/bin/g++"
+CUDA_X64_HOST_TOOLKIT_ROOT = "/usr/local/cuda-12.6"
+CUDA_X64_HOST_CUDART_LIBRARY_DIR = (
+    "/usr/local/cuda-12.6/targets/x86_64-linux/lib"
+)
 # Measured on the Jetson Orin AGX (design § 2.7): lib64 is a symlink to the
 # aarch64-linux target lib dir, and the driver library lives in an
 # L4T-specific `nvidia/` subdirectory rather than at the bare multiarch path.
@@ -98,9 +103,10 @@ CUDA_TEGRA_HOST_CUDART_LIB = "/usr/local/cuda-12.6/targets/aarch64-linux/lib"
 CUDA_TEGRA_HOST_DRIVER_LIB = "/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1"
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 CANDLE_GIT_URL = "https://github.com/coreyt/candle-fathomdb.git"
-CANDLE_GIT_REV = "5719d90e60edd14c4c1a3bf87952648131b2153a"
+CANDLE_GIT_REV = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"
 CANDLE_PACKAGES = (
     "candle-core-fathomdb",
+    "candle-kernels",
     "candle-nn-fathomdb",
     "candle-transformers-fathomdb",
 )
@@ -175,6 +181,20 @@ def require_fragment(block: str, fragment: str, label: str) -> None:
 def forbid_fragment(block: str, fragment: str, label: str, why: str) -> None:
     if fragment in block:
         fail(f"{label} must not contain {fragment!r}: {why}")
+
+
+def require_x64_cuda_toolkit_environment(block: str, label: str) -> None:
+    """Require host search paths for the statically linked Candle CUDART."""
+    require_fragment(
+        block,
+        f"CUDA_PATH: {CUDA_X64_HOST_TOOLKIT_ROOT}",
+        f"{label} CUDA toolkit environment",
+    )
+    require_fragment(
+        block,
+        f"LIBRARY_PATH: {CUDA_X64_HOST_CUDART_LIBRARY_DIR}",
+        f"{label} CUDART library environment",
+    )
 
 
 def require_unmerged_candidate_control_plane() -> None:
@@ -295,6 +315,23 @@ def require_driverless_device_absence(preflight: str) -> None:
             docker_env = re.compile(rf"(?:^|\s)-e\s+{variable}(?:=|\s|$)", re.MULTILINE)
             if assignment.search(section) or docker_env.search(section):
                 fail(f"CUDA preflight driverless smoke injects device-selection variable {variable}")
+
+
+def require_driverless_runtime_absence(preflight: str) -> None:
+    start = "printf 'cuda-preflight: prove the installed Python wheel defaults to CPU in a driverless container\\n'"
+    end = "cat > \"$WORK_DIR/gpu-python-smoke.py\""
+    try:
+        isolated = preflight[preflight.index(start):preflight.index(end)]
+    except ValueError:
+        fail("CUDA preflight must delimit CPU and forced-driverless evidence before GPU smoke setup")
+    for forbidden in (
+        "dst=/opt/cuda/lib64,readonly",
+        "dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly",
+        "LD_LIBRARY_PATH=/opt/cuda/lib64",
+        "LD_LIBRARY_PATH=/usr/local/cuda/lib64",
+    ):
+        if forbidden in isolated:
+            fail(f"CUDA preflight CPU or forced-driverless evidence exposes CUDA runtime: {forbidden!r}")
 
 
 def require_cuda_package_rehearsal() -> None:
@@ -424,6 +461,7 @@ def require_cuda_package_rehearsal() -> None:
     require_fragment(canonical, "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]", "canonical CUDA builder")
     require_fragment(canonical, "environment: cuda-unmerged-preflight", "canonical CUDA builder")
     require_fragment(canonical, CUDA_GPU_UUID_ENV, "canonical CUDA builder GPU UUID binding")
+    require_x64_cuda_toolkit_environment(canonical, "canonical CUDA builder")
     if not re.search(r"^    permissions:\n      contents: read$", canonical, re.MULTILINE):
         fail("canonical CUDA builder must declare read-only contents permission")
     if "id-token: write" in canonical or "registry-url:" in canonical:
@@ -752,7 +790,7 @@ def main() -> None:
     require_fragment(napi_build, 'export NVCC_CCBIN="$CUDA_NAPI_HOST_CXX"', "CUDA N-API build wrapper")
     require_fragment(
         napi_build,
-        'export LIBRARY_PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64${LIBRARY_PATH:+:$LIBRARY_PATH}"',
+        'export LIBRARY_PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/targets/x86_64-linux/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"',
         "CUDA N-API build wrapper",
     )
     require_fragment(napi_build, '"$CUDA_NAPI_HOST_CC" --version | grep -F "$CUDA_NAPI_HOST_GCC_VERSION"', "CUDA N-API build wrapper")
@@ -809,6 +847,7 @@ def main() -> None:
             "Slice 80.6 builds and proves the Tegra artifact but publishes nothing (D-80.6-1)",
         )
     preflight = read_text(CUDA_PREFLIGHT)
+    inspector = read_text(CUDA_ARTIFACT_INSPECTOR)
     selection = read_text(CUDA_GPU_SELECTION)
     for fragment in (
         "FATHOMDB_CUDA_GPU_UUID must be a canonical GPU UUID",
@@ -850,8 +889,7 @@ def main() -> None:
         'maturin build --release --out /witness/python-dist',
         '--features "$CUDA_PYTHON_FEATURES"',
         '--manylinux "$CUDA_MANYLINUX"',
-        'readelf -d "$NAPI_BINARY"',
-        'readelf -d "$PYTHON_EXTENSION"',
+        'inspect-cuda-artifacts.py',
         'docker run --rm --network none',
         'CUDA_MANYLINUX_IMAGE',
         'maturin --version',
@@ -882,10 +920,10 @@ def main() -> None:
         'CUDA_DRIVERLESS_PYTHON_IMAGE',
         'CUDA_DRIVERLESS_NODE_IMAGE',
         'DEFAULT_EMBEDDER_HF_HOME',
-        'Engine.open(str(pathlib.Path(directory) / "driverless.fdb"), use_default_embedder=True)',
-        'engine.embed("driverless Python CPU fallback proof")',
+        'Engine.open(str(pathlib.Path(directory) / f"driverless-{policy}.fdb"), use_default_embedder=True)',
+        'engine.embed(f"driverless Python {policy} CPU proof")',
         '{ useDefaultEmbedder: true }',
-        'await engine.embed("driverless N-API CPU fallback proof")',
+        'await engine.embed(`driverless N-API ${policy} CPU proof`)',
         'npm install --offline --ignore-scripts --no-audit --no-fund',
         'test ! -e /dev/nvidiactl',
         'sha256sum --check --status',
@@ -905,7 +943,7 @@ def main() -> None:
         "forced-cuda-unavailable-python.json",
         "forced-cuda-unavailable-napi.json",
         "smoke-cache-topology.json",
-        '/opt/python/cp311-cp311/bin/python /fathomdb-harness/forced-python-open.py',
+        'python /fathomdb-harness/forced-python-open.py',
         'src=$FORCED_PYTHON_SITE,dst=/fathomdb-site,readonly',
         'PYTHONPATH=/fathomdb-site',
         'src=$WORK_DIR/forced-napi-open.mjs,dst=/fathomdb-harness/forced-napi-open.mjs,readonly',
@@ -929,6 +967,14 @@ def main() -> None:
         "WHEEL_FILENAME",
     ):
         require_fragment(preflight, fragment, "CUDA preflight")
+    for fragment in (
+        "fathomdb.cuda-artifact-linkage/v1",
+        "forbidden CUDA/NVIDIA ELF dependency or SONAME",
+        "forbidden CUDA/NVIDIA shared-library payload",
+        "--python-wheel",
+        "--napi-tarball",
+    ):
+        require_fragment(inspector, fragment, "CUDA artifact linkage inspector")
     if preflight.count("FATHOMDB_GPU_ALLOCATION_WITNESS=1") != 2:
         fail("CUDA preflight must request one in-process allocation witness for each GPU consumer")
     if "/input/fathomdb.whl" in preflight or "/input/fathomdb.whl" in read_text(PACKAGE_REHEARSAL_SMOKE):
@@ -1012,6 +1058,7 @@ def main() -> None:
     if preflight.count("--query-compute-apps=pid,process_name --format=csv,noheader") != 1:
         fail("CUDA preflight must observe each spawned GPU runtime PID and process name")
     require_driverless_device_absence(preflight)
+    require_driverless_runtime_absence(preflight)
     for fragment in (
         "FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE",
         "dst=/fathomdb-reranker-cache-root,readonly",
@@ -1090,6 +1137,7 @@ def main() -> None:
     if "contents: write" in job or "id-token: write" in job:
         fail("cuda-contract-preflight must not inherit release publishing permissions")
     require_fragment(job, "bash scripts/release/cuda-preflight.sh", "cuda-contract-preflight")
+    require_x64_cuda_toolkit_environment(job, "cuda-contract-preflight")
     require_fragment(job, "${{ env.RELEASE_CHECKOUT_REF }}", "cuda-contract-preflight checkout")
     require_fragment(job, UPLOAD_ARTIFACT_ACTION, "cuda-contract-preflight witness upload")
     require_fragment(job, "name: cuda-preflight-witness", "cuda-contract-preflight witness upload")
@@ -1112,6 +1160,12 @@ def main() -> None:
         reranker_job,
         CUDA_GPU_UUID_ENV,
         "cuda-reranker-package-rehearsal GPU UUID binding",
+    )
+    require_x64_cuda_toolkit_environment(
+        workflow_job("cuda-package-rehearsal"), "cuda-package-rehearsal"
+    )
+    require_x64_cuda_toolkit_environment(
+        reranker_job, "cuda-reranker-package-rehearsal"
     )
 
     print("cuda-release-contract: pass")

@@ -364,8 +364,8 @@ class Slice85FinalGateTest(unittest.TestCase):
                     "synthetic_document_count": 0,
                     "fixture_digest": "9e92d236e44fc7443c1940f6870877a6e6eb07e92136ca2da331f88221e622ed",
                     "ground_truth_sha256": "ef6be77b9b5670b0992606167f6cc191849f51ac90b6c4b7d25f403c3dc7f34b",
-                    "sut_result_sha256": "436493dcd17973f33cde5424391cd73288a9740d1c837ed5231a7bc0db7cf84a",
-                    "metrics": {"recall_at_10": 0.958, "ci_95": [0.938, 0.974]},
+                    "sut_result_sha256": "d5eb518391656a4a8ed0adc19744006fc3dbc69cc7acabc54b09c55ff66350e1",
+                    "metrics": {"recall_at_10": 0.954, "ci_95": [0.936, 0.971]},
                     "provenance": {
                         "candidate_execution": "cpu/sqlite-vec",
                         "exact_f32_rerank_execution": "cpu/sqlite-vec",
@@ -553,10 +553,12 @@ class Slice85FinalGateTest(unittest.TestCase):
                     row["evidence"][0]["tests"] = 1
                 self.assert_rejected(value, fragment, "final")
 
-    def test_final_rejects_tc5_bridge_candidate_or_fidelity_drift(self) -> None:
+    def test_final_rejects_tc5_candidate_or_invalid_fidelity_evidence(self) -> None:
         for mutation, fragment in (
             ("candidate", "TC-5 candidate binding"),
-            ("fidelity", "TC-5 bridge equivalence"),
+            ("sut-digest", "TC-5 fidelity receipt"),
+            ("low-ci", "TC-5 fidelity receipt"),
+            ("unordered-ci", "TC-5 fidelity receipt"),
         ):
             with self.subTest(mutation=mutation):
                 value = self.manifest()
@@ -566,8 +568,12 @@ class Slice85FinalGateTest(unittest.TestCase):
                 receipt = json.loads(path.read_text(encoding="utf-8"))
                 if mutation == "candidate":
                     receipt["candidate"]["sha"] = "9" * 40
+                elif mutation == "sut-digest":
+                    receipt["sut_result_sha256"] = "not-a-digest"
+                elif mutation == "low-ci":
+                    receipt["metrics"]["ci_95"] = [0.85, 0.89]
                 else:
-                    receipt["sut_result_sha256"] = "9" * 64
+                    receipt["metrics"]["ci_95"] = [0.98, 0.97]
                 path.write_text(json.dumps(receipt), encoding="utf-8")
                 row["evidence"][0]["sha256"] = digest(path)
                 self.assert_rejected(value, fragment, "final")

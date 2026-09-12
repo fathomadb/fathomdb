@@ -85,7 +85,11 @@ MINIMUM_COUNTS = {
     "protected-writes": 6,
     "slice72-ce": 4,
 }
-OVERRIDDEN_LEGACY = {"performance", "linux-runtime-floor-smokes"}
+OVERRIDDEN_LEGACY = {
+    "performance",
+    "linux-artifact-build",
+    "linux-runtime-floor-smokes",
+}
 SLICE80_INPUT_PATHS = [
     "Cargo.toml",
     "Cargo.lock",
@@ -131,6 +135,17 @@ def validate_override_commands(row_id: str, commands: list[str]) -> None:
             and all(value in joined for value in required)
             and all("FATHOMDB_SMOKE_LIGHTWEIGHT=1" in value for value in commands),
             "runtime-floor override command contract changed",
+        )
+    elif row_id == "linux-artifact-build":
+        require(
+            len(commands) == 4
+            and "cd src/python && maturin build" in commands[0]
+            and "pyo3/extension-module,default-embedder" in commands[0]
+            and commands[1] == "npm ci --prefix src/ts"
+            and commands[2] == "npm run build:native --prefix src/ts"
+            and commands[3]
+            == "src/ts/node_modules/.bin/tsc -p src/ts/tsconfig.build.json",
+            "Linux artifact build command contract changed",
         )
     elif row_id == "runtime-configuration":
         required = (

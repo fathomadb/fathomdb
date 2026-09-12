@@ -564,7 +564,7 @@ PY
 import re, sys
 text=sys.stdin.read()
 def one(name):
-    found=re.findall(rf"^# {name} (\\d+)\\s*$", text, re.M)
+    found=re.findall(rf"^# {name} (\d+)\s*$", text, re.M)
     if len(found) != 1: raise SystemExit(f"missing unique TAP count: {name}")
     return int(found[0])
 tests=one("tests"); passed=one("pass")

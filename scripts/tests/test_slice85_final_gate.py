@@ -228,8 +228,10 @@ class Slice85FinalGateTest(unittest.TestCase):
                     "additional",
                     [
                         "cargo build --locked --release -p fathomdb-tc5-benchmark --features tc5-benchmark-cuda",
-                        "python3 -m experiments.tc5_gpu_v2 dry-run --config ${RUN_DIR}/tc5-candidate-config.json --arm bridge --output-root ${RUN_DIR}/tc5-bridge",
-                        "python3 -m experiments.tc5_gpu_v2 run --config ${RUN_DIR}/tc5-candidate-config.json --arm bridge --output-root ${RUN_DIR}/tc5-bridge --binary ${RUN_DIR}/artifacts/fathomdb-tc5-benchmark",
+                        "python3 -m venv ${RUN_DIR}/tc5-runtime",
+                        "${RUN_DIR}/tc5-runtime/bin/python -m pip install --no-deps ${RUN_DIR}/artifacts/python/fathomdb-0.8.24-cp310-abi3-manylinux_2_28_x86_64.whl",
+                        "${RUN_DIR}/tc5-runtime/bin/python -m experiments.tc5_gpu_v2 dry-run --config ${RUN_DIR}/tc5-candidate-config.json --arm bridge --output-root ${RUN_DIR}/tc5-bridge",
+                        "${RUN_DIR}/tc5-runtime/bin/python -m experiments.tc5_gpu_v2 run --config ${RUN_DIR}/tc5-candidate-config.json --arm bridge --output-root ${RUN_DIR}/tc5-bridge --binary ${RUN_DIR}/artifacts/fathomdb-tc5-benchmark",
                     ],
                 ),
             ]
@@ -350,6 +352,7 @@ class Slice85FinalGateTest(unittest.TestCase):
                     "candidate": {
                         "sha": self.candidate_sha,
                         "version": "0.8.25",
+                        "package_version": "0.8.24",
                         "python_wheel_sha256": self.artifacts["python-wheel"]["sha256"],
                         "fathomdb_bin_sha256": self.artifacts["cli-linux-x64-gnu"]["sha256"],
                         "benchmark_binary_sha256": self.artifacts["tc5-benchmark"]["sha256"],
@@ -579,6 +582,16 @@ class Slice85FinalGateTest(unittest.TestCase):
         path.write_text(json.dumps(receipt), encoding="utf-8")
         row["evidence"][0]["sha256"] = digest(path)
         self.assert_rejected(value, "EU7 AC-073 stress", "final")
+
+    def test_tc5_route_installs_and_invokes_the_pinned_wheel(self) -> None:
+        value = self.manifest()
+        row = self.row(value, "tc5-bridge")
+        row["commands"] = [
+            command
+            for command in row["commands"]
+            if "pip install --no-deps" not in command
+        ]
+        self.assert_rejected(value, "TC-5 bridge command contract")
 
     def test_runtime_route_requires_fresh_typescript_test_compilation(self) -> None:
         value = self.manifest()

@@ -10,8 +10,8 @@ AC-050c) gates merges against this invariant.
 
 ## 0.8.25 — 2026-09-12
 
-**Publication status: authorized and pending.** The release is published only
-after the version-cut commit and protected release rehearsals pass.
+**Publication status: published.** Tagged as `v0.8.25` and released on
+2026-09-12 from commit `e2934867`.
 
 Schema version **26 → 33**.
 

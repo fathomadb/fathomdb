@@ -223,7 +223,7 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice — release ladder complete
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-landed-roll-up -->
-**COMPLETED on `origin/release/0.8.25`; `origin/main` integration is PENDING, in full:** no slices. local candidate SCHEMA is 33; `origin/main` remains at 26 until the candidate's unlanded schema migration lands; remaining ladder = none.<!-- END GENERATED release-state:0.8.25:plan-landed-roll-up -->
+**LANDED on `origin/main`, in full:** Slices 0 (`321ca576`) · 1 (`51043e20`) · 2 (`51043e20`) · 3 (`51043e20`) · 4 (`51043e20`) · 5 (`51043e20`) · 6 (`3a35c1e6`) · 7 (`fdbae48a`) · 10 (`f383ec82`) · 15 (`9a53e26a`) · 20 (`7766d4c4`) · 25 (`131053da`) · 30 (`75617521`) · 35 (`071ff7d1`) · 40 (`ccf7c695`) · 45 (`2f48e657`) · 50 (`e741542d`) · 55 (`5a6942bc`) · 60 (`59208028`) · 71 (`84c056c6`) · 72 (`2e14f5ba`) · 73 (`6eb7cd18`) · 75 (`5056db9e`) · 76 (`8027546d`) · 77 (`b3ccba83`) · 79 (`e2db3ffc`) · 80 (`e54ad00c`) · 85 (`18fefc67`). local candidate SCHEMA is 33; `origin/main` remains at 26 until the candidate's unlanded schema migration lands; remaining ladder = none.<!-- END GENERATED release-state:0.8.25:plan-landed-roll-up -->
 
 The release candidate passed its separate publication decision. The repository
 owner authorized the full release train, `main` integration, registry

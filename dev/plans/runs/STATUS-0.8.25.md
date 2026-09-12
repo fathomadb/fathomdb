@@ -12,9 +12,10 @@ there, then regenerate its declared release views. The release plan is
 
 ## Current state
 
-**The release ladder is complete on `origin/release/0.8.25`.** Integration to
-`origin/main` remains pending. The repository owner authorized the full release
-train, main integration, and publication including `v0.8.25` at `seq-278`.
+**FathomDB 0.8.25 is released.** Commit `e2934867` is integrated on
+`origin/main`; annotated tag `v0.8.25` resolves to that commit. The GitHub
+Release and crates.io, PyPI, and npm packages were published on 2026-09-12 by
+[release run 34703662459](https://github.com/fathomadb/fathomdb/actions/runs/34703662459).
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -111,17 +112,14 @@ Slice 85 completes the final 31-obligation verification matrix at candidate
   establish host absence.
 - Release-branch Python/native behavior is certified through the isolated
   release-wheel verifier; the primary-checkout `.venv` is not evidence.
-- Generic release-state completion now distinguishes release-branch completion
-  from `origin/main` reachability. The `landed` set remains empty until an
-  independently authorized push and integration.
-- Publication, tags, registry mutation, and `main` integration remain outside
-  the completed Slice 85 scope; the separate owner authorization is `seq-278`.
+- Main integration and publication completed under owner authorization
+  `seq-278`. The release tag and candidate resolve to `e2934867`.
 
 ## Immediate next action
 
 | | |
 |---|---|
-| **Immediate next action** | Execute the owner-authorized release train at `seq-278`: reconcile and integrate the candidate to `main`, cut version `0.8.25`, pass the pre-publish rehearsals, push `v0.8.25`, verify registry-installed artifacts, and record closure. |
+| **Immediate next action** | None for 0.8.25; the release is published and closed. |
 
 ## Verification
 
@@ -132,9 +130,13 @@ lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
   local/hosted dry-runs and package rehearsals for this release cut; they are
   not rerun absent a publication blocker.
 - The generic commission-manifest end-of-ladder check expects `LANDED` state.
-  Its pre-integration failure is a known state-ordering mismatch: 0.8.25 stays
-  truthfully `COMPLETE_ON_RELEASE_BRANCH` until the candidate reaches `main`.
-  This is non-product release bookkeeping and does not block publication.
+  Its pre-integration failure was a state-ordering mismatch and is closed now
+  that every ladder entry is landed on `main`.
+- The real publish run passed all required builds, seven ordered Rust publishes,
+  PyPI and npm publication, five platform registry-installed smokes, npm
+  `latest` promotion, and GitHub Release creation. The Intel macOS smoke passed
+  on retry after ordinary PyPI propagation. The independent full-history
+  Gitleaks job remained advisory; Slice 85's accepted guards disposition it.
 
 - Slice 7 fast verification passes 103/103 suites; the appropriately sized
   heavy route passes 2/3 applicable suites with one explicit exclusion.

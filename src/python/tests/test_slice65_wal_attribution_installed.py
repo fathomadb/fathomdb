@@ -208,7 +208,7 @@ def run_serial_incident(
                         assert "control=python_serial phase=after" in after
                         assert "writer_autocommit=1" in before
                         assert "writer_autocommit=1" in after
-                        assert "direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=autocommit;dispatcher=autocommit;workers=2-autocommit;registry=complete;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2;complete=1" in before
+                        assert "direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=autocommit;dispatcher=autocommit;workers=2-autocommit;registry=complete;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0;complete=1" in before
                         assert "collector_roles=idle" in after
                         assert "elapsed_ms=" in after and "busy=" in after
                         print(f"slice65_wal actual_checkpoint {before}", flush=True)

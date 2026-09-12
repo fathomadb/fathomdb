@@ -9413,7 +9413,7 @@ impl Engine {
             .unwrap_or(false);
         let expected_runtime_probes = match observer.control {
             "direct_rust" => 0,
-            "python_serial" => 2,
+            "python_serial" => 0,
             _ => 2,
         };
         let direct_inventory =

@@ -543,6 +543,10 @@ assert_before_in_text \
   'let checkpoint_result = self.wal_checkpoint_truncate_once(false);' \
   'checkpoint_result.as_ref().ok().cloned()' \
   "actual observer records immediately after the existing checkpoint call"
+actual_checkpoint_observer_body="$(function_body "$ENGINE_SOURCE" "actual_checkpoint_observation_for_test")"
+assert_contains "$actual_checkpoint_observer_body" \
+  '"python_serial" => 0' \
+  "feature-built Python observer expects no cfg(test)-only runtime probes"
 normal_runtime_inventory_body="$(function_body "$ENGINE_SOURCE" "report_runtime_connection_inventory_for_test")"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'respond: SyncSender<(WalAttributionRole, usize, bool)>' \
@@ -575,6 +579,9 @@ assert_absent "$actual_direct_inventory_body" \
   'report_runtime_native_state_inventory_for_test' \
   "normal actual observer cannot request runtime native facts"
 serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident")"
+assert_contains "$serial_incident_body" \
+  'creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0;complete=1' \
+  "installed Python serial expects no cfg(test)-only runtime probes"
 assert_contains "$serial_incident_body" \
   'test_hooks._arm_actual_checkpoint_observation_for_test()' \
   "installed Python serial arms the private observer immediately before erase"

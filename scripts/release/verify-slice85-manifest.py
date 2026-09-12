@@ -88,6 +88,7 @@ MINIMUM_COUNTS = {
 OVERRIDDEN_LEGACY = {
     "performance",
     "linux-artifact-build",
+    "linux-cuda-package",
     "linux-runtime-floor-smokes",
 }
 SLICE80_INPUT_PATHS = [
@@ -146,6 +147,25 @@ def validate_override_commands(row_id: str, commands: list[str]) -> None:
             and commands[3]
             == "src/ts/node_modules/.bin/tsc -p src/ts/tsconfig.build.json",
             "Linux artifact build command contract changed",
+        )
+    elif row_id == "linux-cuda-package":
+        gpu_uuid = "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b"
+        require(
+            len(commands) == 5
+            and "FATHOMDB_CANDIDATE_SHA=${FINAL_SHA}" in commands[0]
+            and f"FATHOMDB_CUDA_GPU_UUID={gpu_uuid}" in commands[0]
+            and "cuda-preflight.sh" in commands[0]
+            and "--rerank-cuda" in commands[0]
+            and "CUDA_HOME=/usr/local/cuda-12.6" in commands[1]
+            and "LIBRARY_PATH=/usr/local/cuda-12.6/lib64" in commands[1]
+            and "cargo build --locked --release -p fathomdb-cli" in commands[1]
+            and "--features embed-cuda,rerank-cuda" in commands[1]
+            and "seal-cuda-cli-archive.sh" in commands[2]
+            and "seal-slice75-cuda-packages.py" in commands[3]
+            and f"FATHOMDB_CUDA_GPU_UUID={gpu_uuid}" in commands[4]
+            and "CUDA_HOME=/usr/local/cuda-12.6" in commands[4]
+            and "slice75-cuda-package-smoke.sh" in commands[4],
+            "Linux CUDA package command contract changed",
         )
     elif row_id == "runtime-configuration":
         required = (

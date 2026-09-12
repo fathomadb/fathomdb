@@ -34,6 +34,7 @@ def _candidate_config(tmp_path: Path) -> Path:
     value["candidate"] = {
         "sha": "1" * 40,
         "version": "0.8.25",
+        "package_version": "0.8.24",
         "python_wheel": str(wheel),
         "python_wheel_sha256": _sha(wheel),
         "fathomdb_bin_sha256": _sha(cli),
@@ -64,6 +65,7 @@ def test_candidate_configuration_requires_and_loads_exact_artifact_bindings(tmp_
     assert config.release == "0.8.25"
     assert config.candidate_sha == "1" * 40
     assert config.candidate_version == "0.8.25"
+    assert config.package_version == "0.8.24"
     assert config.python_wheel_sha256 == _sha(config.python_wheel)
     assert config.fathomdb_bin_sha256 == _sha(config.fathomdb_bin)
     assert config.benchmark_binary_sha256 == _sha(config.benchmark_binary)
@@ -86,6 +88,18 @@ def test_candidate_dry_run_rejects_artifact_digest_drift(tmp_path, monkeypatch):
     config.fathomdb_bin.write_text("tampered", encoding="utf-8")
 
     with pytest.raises(tc5_gpu_v2.Tc5GpuV2Error, match="candidate artifact digest"):
+        tc5_gpu_v2.dry_run(path, "bridge", output_root=tmp_path / "new")
+
+
+def test_candidate_dry_run_rejects_an_ambient_interpreter(tmp_path, monkeypatch):
+    path = _candidate_config(tmp_path)
+    monkeypatch.setattr(
+        tc5_gpu_v2,
+        "_load_arm_inputs",
+        lambda _config, _arm: tc5_gpu_v2.ArmInputs((), (), "1" * 64),
+    )
+
+    with pytest.raises(tc5_gpu_v2.Tc5GpuV2Error, match="candidate Python interpreter"):
         tc5_gpu_v2.dry_run(path, "bridge", output_root=tmp_path / "new")
 
 
@@ -279,6 +293,7 @@ def test_aggregate_emits_fidelity_and_uncertainty_without_payloads_or_latency_cl
             release="0.8.25",
             candidate_sha="1" * 40,
             candidate_version="0.8.25",
+            package_version="0.8.24",
             python_wheel=Path("candidate.whl"),
             python_wheel_sha256="4" * 64,
             fathomdb_bin_sha256="5" * 64,
@@ -294,6 +309,7 @@ def test_aggregate_emits_fidelity_and_uncertainty_without_payloads_or_latency_cl
     assert candidate_receipt["candidate"] == {
         "sha": "1" * 40,
         "version": "0.8.25",
+        "package_version": "0.8.24",
         "python_wheel_sha256": "4" * 64,
         "fathomdb_bin_sha256": "5" * 64,
         "benchmark_binary_sha256": "6" * 64,

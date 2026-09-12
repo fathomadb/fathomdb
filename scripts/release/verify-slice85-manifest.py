@@ -208,8 +208,11 @@ def validate_override_commands(row_id: str, commands: list[str]) -> None:
             len(commands) == 5
             and "cargo build --locked --release -p fathomdb-tc5-benchmark" in commands[0]
             and "--features tc5-benchmark-cuda" in commands[0]
-            and commands[1] == "python3 -m venv ${RUN_DIR}/tc5-runtime"
-            and commands[2].startswith("${RUN_DIR}/tc5-runtime/bin/python -m pip install --no-deps ")
+            and commands[1] == "python3 -m venv --clear ${RUN_DIR}/tc5-runtime"
+            and commands[2].startswith(
+                "${RUN_DIR}/tc5-runtime/bin/python -m pip install "
+                "--no-deps --force-reinstall "
+            )
             and "${RUN_DIR}/cuda-preflight.packages/fathomdb-0.8.24-" in commands[2]
             and commands[3].startswith(
                 "${RUN_DIR}/tc5-runtime/bin/python -m experiments.tc5_gpu_v2 dry-run"

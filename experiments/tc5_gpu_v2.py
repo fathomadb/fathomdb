@@ -519,6 +519,17 @@ def _validate_candidate_runtime(config: Tc5GpuConfig) -> None:
     """Require the candidate run to import its package from its isolated venv."""
     if config.candidate_sha is None:
         return
+    configured_python = config.python.absolute()
+    runtime_root = Path(sys.prefix).resolve()
+    configured_runtime_root = configured_python.parent.parent.resolve()
+    if (
+        Path(sys.executable).absolute() != configured_python
+        or runtime_root != configured_runtime_root
+        or runtime_root == Path(sys.base_prefix).resolve()
+    ):
+        raise Tc5GpuV2Error(
+            "candidate Python interpreter is not the configured runtime environment"
+        )
     if Path(sys.executable).resolve() != config.python.resolve():
         raise Tc5GpuV2Error("candidate Python interpreter is not the configured runtime")
     try:
@@ -527,7 +538,6 @@ def _validate_candidate_runtime(config: Tc5GpuConfig) -> None:
         import fathomdb._fathomdb as native
     except (ImportError, importlib.metadata.PackageNotFoundError) as exc:
         raise Tc5GpuV2Error("candidate wheel is not installed in the configured runtime") from exc
-    runtime_root = Path(sys.prefix).resolve()
     module_paths = (Path(fathomdb.__file__).resolve(), Path(native.__file__).resolve())
     if distribution.version != config.package_version or any(
         path != runtime_root and runtime_root not in path.parents for path in module_paths

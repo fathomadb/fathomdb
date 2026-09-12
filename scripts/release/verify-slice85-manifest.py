@@ -138,10 +138,14 @@ def validate_override_commands(row_id: str, commands: list[str]) -> None:
             "runtime-floor override command contract changed",
         )
     elif row_id == "linux-artifact-build":
+        python_build = (
+            "bash -c 'cd src/python && maturin build --locked --release --out "
+            "../../${RUN_DIR}/artifacts/python --features "
+            "pyo3/extension-module,default-embedder'"
+        )
         require(
             len(commands) == 4
-            and "cd src/python && maturin build" in commands[0]
-            and "pyo3/extension-module,default-embedder" in commands[0]
+            and commands[0] == python_build
             and commands[1] == "npm ci --prefix src/ts"
             and commands[2] == "npm run build:native --prefix src/ts"
             and commands[3]
@@ -158,13 +162,27 @@ def validate_override_commands(row_id: str, commands: list[str]) -> None:
             and "--rerank-cuda" in commands[0]
             and "CUDA_HOME=/usr/local/cuda-12.6" in commands[1]
             and "LIBRARY_PATH=/usr/local/cuda-12.6/lib64" in commands[1]
+            and "PATH=/usr/local/cuda-12.6/bin:${PATH}" in commands[1]
             and "cargo build --locked --release -p fathomdb-cli" in commands[1]
             and "--features embed-cuda,rerank-cuda" in commands[1]
             and "seal-cuda-cli-archive.sh" in commands[2]
+            and "--output ${RUN_DIR}/cuda-preflight.packages/"
+            "fathomdb-0.8.24-x86_64-unknown-linux-gnu.tar.gz"
+            in commands[2]
             and "seal-slice75-cuda-packages.py" in commands[3]
+            and "--candidate-sha ${FINAL_SHA}" in commands[3]
+            and "--packages ${RUN_DIR}/cuda-preflight.packages" in commands[3]
+            and "--witness ${RUN_DIR}/cuda-preflight" in commands[3]
+            and "--output ${RUN_DIR}/cuda-package-manifest.json" in commands[3]
             and f"FATHOMDB_CUDA_GPU_UUID={gpu_uuid}" in commands[4]
             and "CUDA_HOME=/usr/local/cuda-12.6" in commands[4]
-            and "slice75-cuda-package-smoke.sh" in commands[4],
+            and "slice75-cuda-package-smoke.sh" in commands[4]
+            and "--candidate-sha ${FINAL_SHA}" in commands[4]
+            and "--packages ${RUN_DIR}/cuda-preflight.packages" in commands[4]
+            and "--package-manifest ${RUN_DIR}/cuda-package-manifest.json"
+            in commands[4]
+            and "--witness ${RUN_DIR}/cuda-preflight" in commands[4]
+            and "--output ${RUN_DIR}/cuda-package-smoke" in commands[4],
             "Linux CUDA package command contract changed",
         )
     elif row_id == "runtime-configuration":

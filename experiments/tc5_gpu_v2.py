@@ -49,6 +49,14 @@ class Tc5GpuConfig:
     python: Path
     fathomdb_bin: Path
     cuda_uuid: str
+    release: str
+    candidate_sha: str | None
+    candidate_version: str | None
+    python_wheel: Path | None
+    python_wheel_sha256: str | None
+    fathomdb_bin_sha256: str | None
+    benchmark_binary: Path | None
+    benchmark_binary_sha256: str | None
 
 
 @dataclass(frozen=True)
@@ -91,6 +99,15 @@ _INPUT_KEYS = {
     "model_asset_digest",
 }
 _RUNTIME_KEYS = {"python", "fathomdb_bin", "embed_device", "cuda_uuid", "binary_feature"}
+_CANDIDATE_KEYS = {
+    "sha",
+    "version",
+    "python_wheel",
+    "python_wheel_sha256",
+    "fathomdb_bin_sha256",
+    "benchmark_binary",
+    "benchmark_binary_sha256",
+}
 _DIGEST = 64
 
 
@@ -130,13 +147,16 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
         document = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise Tc5GpuV2Error("TC-5 v2 configuration is unavailable or invalid") from exc
-    if not isinstance(document, dict) or set(document) != _TOP_KEYS:
+    if not isinstance(document, dict) or set(document) not in (
+        _TOP_KEYS,
+        _TOP_KEYS | {"candidate"},
+    ):
         raise Tc5GpuV2Error("TC-5 v2 configuration keys drifted")
     measurement, inputs, runtime = document["measurement"], document["inputs"], document["runtime"]
     if (
         document["schema_version"] != "tc5-gpu-execution.v2"
         or document["program_track"] != "SCALE-01"
-        or document["release"] != "0.8.23"
+        or document["release"] not in {"0.8.23", "0.8.25"}
         or document["arms"] != {"bridge": 7667, "primary": 17272}
         or document["claim_boundary"] != "fidelity_and_uncertainty_only"
         or not isinstance(measurement, dict)
@@ -167,6 +187,31 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
     for key in ("corpus_index_sha256", "qualified_manifest_sha256", "model_asset_digest"):
         if not _is_digest(inputs[key]):
             raise Tc5GpuV2Error(f"{key} is not a lowercase sha256")
+    candidate = document.get("candidate")
+    if document["release"] == "0.8.23":
+        if candidate is not None:
+            raise Tc5GpuV2Error("historical TC-5 configuration cannot carry a candidate binding")
+    elif (
+        not isinstance(candidate, dict)
+        or set(candidate) != _CANDIDATE_KEYS
+        or not isinstance(candidate.get("sha"), str)
+        or len(candidate["sha"]) != 40
+        or any(character not in "0123456789abcdef" for character in candidate["sha"])
+        or candidate.get("version") != document["release"]
+        or not all(
+            isinstance(candidate.get(key), str) and candidate[key]
+            for key in ("python_wheel", "benchmark_binary")
+        )
+        or not all(
+            _is_digest(candidate.get(key))
+            for key in (
+                "python_wheel_sha256",
+                "fathomdb_bin_sha256",
+                "benchmark_binary_sha256",
+            )
+        )
+    ):
+        raise Tc5GpuV2Error("0.8.25 TC-5 requires an exact candidate binding")
     return Tc5GpuConfig(
         arms=dict(document["arms"]),
         candidate_k=measurement["candidate_k"],
@@ -185,6 +230,14 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
         python=Path(runtime["python"]),
         fathomdb_bin=Path(runtime["fathomdb_bin"]),
         cuda_uuid=runtime["cuda_uuid"],
+        release=document["release"],
+        candidate_sha=candidate["sha"] if candidate else None,
+        candidate_version=candidate["version"] if candidate else None,
+        python_wheel=Path(candidate["python_wheel"]) if candidate else None,
+        python_wheel_sha256=candidate["python_wheel_sha256"] if candidate else None,
+        fathomdb_bin_sha256=candidate["fathomdb_bin_sha256"] if candidate else None,
+        benchmark_binary=Path(candidate["benchmark_binary"]) if candidate else None,
+        benchmark_binary_sha256=(candidate["benchmark_binary_sha256"] if candidate else None),
     )
 
 
@@ -283,7 +336,7 @@ def build_query_job(
         "seed_digest": _sha_bytes(
             f"{config.query_select_seed}\n{config.bootstrap_seed}".encode()
         ),
-        "runtime_identity": "fathomdb-0.8.23-tc5-cuda",
+        "runtime_identity": f"fathomdb-{config.release}-tc5-cuda",
         "build_identity": binary_digest,
         "cuda_uuid": config.cuda_uuid,
     }
@@ -410,7 +463,8 @@ def dry_run(config_path: str | Path, arm: str, *, output_root: Path) -> dict[str
     ]
     if missing:
         raise Tc5GpuV2Error("runtime or cache input is unavailable")
-    return {
+    _validate_candidate_artifacts(config)
+    report: dict[str, object] = {
         "schema_version": "tc5-gpu-dry-run.v2",
         "state": "ready",
         "arm": arm,
@@ -425,6 +479,33 @@ def dry_run(config_path: str | Path, arm: str, *, output_root: Path) -> dict[str
         "new_database_required": True,
         "output_root_exists": output_root.exists(),
     }
+    if config.candidate_sha is not None:
+        report["candidate_sha"] = config.candidate_sha
+        report["candidate_version"] = config.candidate_version
+    return report
+
+
+def _validate_candidate_artifacts(
+    config: Tc5GpuConfig, *, binary: Path | None = None
+) -> None:
+    """Fail closed when a candidate config or its executable bytes drift."""
+    if config.candidate_sha is None:
+        return
+    artifacts = (
+        (config.python_wheel, config.python_wheel_sha256),
+        (config.fathomdb_bin, config.fathomdb_bin_sha256),
+        (config.benchmark_binary, config.benchmark_binary_sha256),
+    )
+    if any(
+        path is None
+        or expected is None
+        or not path.is_file()
+        or _sha_file(path) != expected
+        for path, expected in artifacts
+    ):
+        raise Tc5GpuV2Error("candidate artifact digest drifted")
+    if binary is not None and binary.resolve() != config.benchmark_binary.resolve():
+        raise Tc5GpuV2Error("candidate benchmark binary path drifted")
 
 
 def _bootstrap(config: Tc5GpuConfig, values: tuple[float, ...]) -> tuple[float, float, float]:
@@ -500,7 +581,7 @@ def aggregate_results(
         rerank_digests.append(str(result["rerank_ids_digest"]))
         truth_digests.append(str(result["ground_truth_ids_digest"]))
     low, high, sigma = _bootstrap(config, tuple(recalls))
-    return {
+    receipt: dict[str, object] = {
         "schema_version": "tc5-gpu-arm-result.v2",
         "program_track": "SCALE-01",
         "action": "tc5-gpu-smoke" if arm == "bridge" else "tc5-gpu-primary",
@@ -520,7 +601,7 @@ def aggregate_results(
             "bootstrap_sigma": sigma,
         },
         "provenance": {
-            "release": "0.8.23",
+            "release": config.release,
             "embed_device": "cuda:0",
             "embedding_execution": "cuda:0",
             "candidate_execution": "cpu/sqlite-vec",
@@ -537,6 +618,15 @@ def aggregate_results(
         },
         "claim_boundary": "fidelity_and_uncertainty_only",
     }
+    if config.candidate_sha is not None:
+        receipt["candidate"] = {
+            "sha": config.candidate_sha,
+            "version": config.candidate_version,
+            "python_wheel_sha256": config.python_wheel_sha256,
+            "fathomdb_bin_sha256": config.fathomdb_bin_sha256,
+            "benchmark_binary_sha256": config.benchmark_binary_sha256,
+        }
+    return receipt
 
 
 def _write_new_json(path: Path, value: object) -> None:
@@ -632,6 +722,7 @@ def run_arm(
 ) -> Path:
     """Create and execute one new GPU arm, returning its safe receipt path."""
     config = load_config(config_path)
+    _validate_candidate_artifacts(config, binary=binary)
     inputs = _load_arm_inputs(config, arm)
     if output_root.exists() or output_root.is_symlink():
         raise Tc5GpuV2Error("TC-5 output root must be new")

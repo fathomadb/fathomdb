@@ -79,7 +79,12 @@ class Slice85FinalGateTest(unittest.TestCase):
         overlay_path.write_text(json.dumps(overlay), encoding="utf-8")
         self.input_hash = digest(self.repo / "source-input.txt")
         self.artifacts = {}
-        for name in ("python-wheel", "napi-linux-x64-gnu", "cli-linux-x64-gnu"):
+        for name in (
+            "python-wheel",
+            "napi-linux-x64-gnu",
+            "cli-linux-x64-gnu",
+            "tc5-benchmark",
+        ):
             path = self.repo / "artifacts" / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(name, encoding="utf-8")
@@ -342,7 +347,13 @@ class Slice85FinalGateTest(unittest.TestCase):
             json.dumps(
                 {
                     "schema_version": "tc5-gpu-arm-result.v2",
-                    "candidate": {"sha": self.candidate_sha, "version": "0.8.25"},
+                    "candidate": {
+                        "sha": self.candidate_sha,
+                        "version": "0.8.25",
+                        "python_wheel_sha256": self.artifacts["python-wheel"]["sha256"],
+                        "fathomdb_bin_sha256": self.artifacts["cli-linux-x64-gnu"]["sha256"],
+                        "benchmark_binary_sha256": self.artifacts["tc5-benchmark"]["sha256"],
+                    },
                     "arm": "bridge",
                     "document_count": 7667,
                     "query_completion_count": 100,

@@ -41,7 +41,13 @@ ROW_KEYS = {
     "verdict",
 }
 EVIDENCE_KEYS = {"path", "sha256", "tests", "skipped", "verdict"}
-ADDITIONAL_IDS = {"runtime-configuration", "protected-writes", "slice72-ce", "ac034c"}
+ADDITIONAL_IDS = {
+    "runtime-configuration",
+    "protected-writes",
+    "slice72-ce",
+    "tc5-bridge",
+    "ac034c",
+}
 DISPOSITIONS = {
     "run",
     "rerun",
@@ -95,6 +101,7 @@ MINIMUM_COUNTS = {
     "runtime-configuration": 6,
     "protected-writes": 6,
     "slice72-ce": 4,
+    "tc5-bridge": 100,
 }
 OVERRIDDEN_LEGACY = {
     "performance",
@@ -195,6 +202,20 @@ def validate_override_commands(row_id: str, commands: list[str]) -> None:
             and "--witness ${RUN_DIR}/cuda-preflight" in commands[4]
             and "--output ${RUN_DIR}/cuda-package-smoke" in commands[4],
             "Linux CUDA package command contract changed",
+        )
+    elif row_id == "tc5-bridge":
+        require(
+            len(commands) == 3
+            and "cargo build --locked --release -p fathomdb-tc5-benchmark" in commands[0]
+            and "--features tc5-benchmark-cuda" in commands[0]
+            and "experiments.tc5_gpu_v2 dry-run" in commands[1]
+            and "--config ${RUN_DIR}/tc5-candidate-config.json" in commands[1]
+            and "--arm bridge" in commands[1]
+            and "experiments.tc5_gpu_v2 run" in commands[2]
+            and "--config ${RUN_DIR}/tc5-candidate-config.json" in commands[2]
+            and "--arm bridge" in commands[2]
+            and "--binary ${RUN_DIR}/artifacts/fathomdb-tc5-benchmark" in commands[2],
+            "TC-5 bridge command contract changed",
         )
     elif row_id == "runtime-configuration":
         required = (
@@ -410,6 +431,88 @@ def validate_ce_overlay(
     require(overlay == expected, "CE overlay may only change candidate_sha")
 
 
+def evidence_json(repo: Path, row: dict[str, Any]) -> dict[str, Any]:
+    require(len(row["evidence"]) == 1, f"{row['id']}: requires one structured receipt")
+    path = repo_file(repo, row["evidence"][0]["path"], "evidence")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise InvalidManifest(f"{row['id']}: structured receipt is invalid JSON") from exc
+    require(isinstance(value, dict), f"{row['id']}: structured receipt must be an object")
+    return value
+
+
+def validate_eu7_ac073(repo: Path, row: dict[str, Any], candidate_sha: str) -> None:
+    value = evidence_json(repo, row)
+    require(
+        value.get("schema_version") == "fathomdb.slice85-eu7-ac073/v1"
+        and value.get("candidate_sha") == candidate_sha
+        and value.get("ac073_stress") == "pass"
+        and value.get("ac075") == "superseded-by-tc5"
+        and isinstance(value.get("stress_p99_ms"), (int, float))
+        and isinstance(value.get("stress_bound_ms"), (int, float))
+        and value["stress_p99_ms"] <= value["stress_bound_ms"],
+        "EU7 AC-073 stress receipt is not a candidate-bound pass",
+    )
+
+
+def validate_tc5_bridge(
+    repo: Path, row: dict[str, Any], candidate_sha: str, artifact_hashes: set[str]
+) -> None:
+    value = evidence_json(repo, row)
+    candidate = value.get("candidate")
+    require(
+        isinstance(candidate, dict)
+        and candidate.get("sha") == candidate_sha
+        and candidate.get("version") == "0.8.25",
+        "TC-5 candidate binding is missing or stale",
+    )
+    candidate_artifacts = {
+        candidate.get("python_wheel_sha256"),
+        candidate.get("fathomdb_bin_sha256"),
+        candidate.get("benchmark_binary_sha256"),
+    }
+    require(
+        len(candidate_artifacts) == 3
+        and all(
+            isinstance(value, str) and DIGEST.fullmatch(value) is not None
+            for value in candidate_artifacts
+        )
+        and candidate_artifacts <= artifact_hashes,
+        "TC-5 candidate artifact binding is missing or stale",
+    )
+    provenance = value.get("provenance")
+    metrics = value.get("metrics")
+    require(
+        value.get("schema_version") == "tc5-gpu-arm-result.v2"
+        and value.get("arm") == "bridge"
+        and value.get("document_count") == 7667
+        and value.get("query_completion_count") == 100
+        and value.get("bootstrap_resamples") == 1000
+        and value.get("synthetic_document_count") == 0
+        and value.get("fixture_digest")
+        == "9e92d236e44fc7443c1940f6870877a6e6eb07e92136ca2da331f88221e622ed"
+        and value.get("ground_truth_sha256")
+        == "ef6be77b9b5670b0992606167f6cc191849f51ac90b6c4b7d25f403c3dc7f34b"
+        and value.get("sut_result_sha256")
+        == "436493dcd17973f33cde5424391cd73288a9740d1c837ed5231a7bc0db7cf84a"
+        and isinstance(metrics, dict)
+        and isinstance(metrics.get("recall_at_10"), (int, float))
+        and metrics["recall_at_10"] >= 0.958
+        and isinstance(metrics.get("ci_95"), list)
+        and len(metrics["ci_95"]) == 2
+        and metrics["ci_95"][0] >= 0.938
+        and metrics["ci_95"][1] >= 0.974
+        and isinstance(provenance, dict)
+        and provenance.get("candidate_execution") == "cpu/sqlite-vec"
+        and provenance.get("exact_f32_rerank_execution") == "cpu/sqlite-vec"
+        and provenance.get("embedding_execution") == "cuda:0"
+        and provenance.get("candidate_k") == 192
+        and provenance.get("top_k") == 10,
+        "TC-5 bridge equivalence receipt drifted from the frozen bridge",
+    )
+
+
 def validate(manifest: dict[str, Any], repo: Path, phase: str) -> None:
     require(set(manifest) == TOP_LEVEL_KEYS, "top-level manifest keys changed")
     require(manifest["schema_version"] == SCHEMA, "wrong schema_version")
@@ -613,6 +716,10 @@ def validate(manifest: dict[str, Any], repo: Path, phase: str) -> None:
                 total >= MINIMUM_COUNTS[row_id],
                 f"{row_id}: positive count contract requires {MINIMUM_COUNTS[row_id]}",
             )
+            if row_id == "eu7-real":
+                validate_eu7_ac073(repo, row, candidate_sha)
+            elif row_id == "tc5-bridge":
+                validate_tc5_bridge(repo, row, candidate_sha, artifact_hashes)
 
     require(
         unavailable == {"ac034c"}, "AC-034c must be the only unavailable obligation"

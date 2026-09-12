@@ -273,6 +273,32 @@ def test_aggregate_emits_fidelity_and_uncertainty_without_payloads_or_latency_cl
     assert receipt["action"] == "tc5-gpu-smoke"
     assert primary_receipt["action"] == "tc5-gpu-primary"
 
+    candidate_receipt = tc5_gpu_v2.aggregate_results(
+        replace(
+            config,
+            release="0.8.25",
+            candidate_sha="1" * 40,
+            candidate_version="0.8.25",
+            python_wheel=Path("candidate.whl"),
+            python_wheel_sha256="4" * 64,
+            fathomdb_bin_sha256="5" * 64,
+            benchmark_binary=Path("fathomdb-tc5-benchmark"),
+            benchmark_binary_sha256="6" * 64,
+        ),
+        arm="bridge",
+        results=results,
+        fixture_digest="1" * 64,
+        index_digest="2" * 64,
+        binary_digest="6" * 64,
+    )
+    assert candidate_receipt["candidate"] == {
+        "sha": "1" * 40,
+        "version": "0.8.25",
+        "python_wheel_sha256": "4" * 64,
+        "fathomdb_bin_sha256": "5" * 64,
+        "benchmark_binary_sha256": "6" * 64,
+    }
+
 
 def test_aggregate_rejects_partial_or_wrong_device_results():
     config = tc5_gpu_v2.load_config(CONFIG)

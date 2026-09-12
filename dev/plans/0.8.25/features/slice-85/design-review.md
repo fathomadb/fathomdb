@@ -63,3 +63,8 @@ compilation, broad-round deduplication, protected-write rationale and Node
 25-only scope are closed. It treats the
 [CUDA Engine p95 exception](ce-engine-p95-exception.md) only as the accepted
 Slice 72 CE disposition reference. The independent verdict remains **PASS**.
+
+The execution-ready refresh at `137cf86e` also verified that the candidate TC-5
+runtime is recreated, force-installs the pinned wheel, binds both the lexical
+interpreter path and `sys.prefix` to that venv, and rejects the base prefix.
+Focused coverage passed 39 tests and 36 subtests. No design findings remain.

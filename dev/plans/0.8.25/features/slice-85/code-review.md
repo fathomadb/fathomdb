@@ -25,3 +25,9 @@ Python workflow assertion, both registered shell contract guards, the Node 25
 TypeScript runtime selector, actionlint, Ruff and a clean `git diff --check`.
 The validator intentionally remains a basic completion/correctness guard; it
 does not add signing or adversarial anti-forgery infrastructure.
+
+The final correction review at `137cf86e` returned **PASS**. It confirmed that
+venv executable symlinks cannot collapse candidate identity to the ambient
+interpreter, `sys.prefix` must name the configured non-base venv, and retries
+clear the environment and force-reinstall the exact wheel. The focused result
+was 39 tests and 36 subtests passing, with a clean diff check.

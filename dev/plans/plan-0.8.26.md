@@ -54,15 +54,17 @@ Out of scope:
 - a second writer, shadow dependency store, body re-search, or logical-ID
   search workaround;
 - arbitrary dependency DAGs or liveness languages;
-- unrelated platform/dependency work unless Slice 6 explicitly selects it as
+- unrelated platform/dependency work unless Slice 8 explicitly selects it as
   required preparation; and
 - tag, registry, release, or merge actions without a separate owner decision.
 
 ## Slice ladder
 
-Prework is sequential. Slices 0–5 inspect and draft only; Slice 6 obtains HITL
-decisions and replaces the provisional Slice 7 plan; Slice 7 implements only
-approved preparation. Feature work then remains sequential.
+Prework is sequential. Slices 0–7 inspect evidence and draft only; Slice 8
+obtains HITL decisions and replaces the provisional Slice 9 plan; Slice 9
+implements only approved preparation. Findings from Slices 6–7 may instead be
+allocated to a numbered hardening slice after Slice 10 or to Slice 50 when the
+fix depends on built product artifacts or belongs at the release boundary.
 
 | Slice | Outcome | Depends on | State |
 | ---: | --- | --- | --- |
@@ -72,9 +74,11 @@ approved preparation. Feature work then remains sequential.
 | 3 | Draft user-need, requirement, acceptance, interface, ADR, and architecture CRUD; allocate every draft to one slice. | 2 | Draft |
 | 4 | Review the proposed architecture and high-level code alignment; propose corrections only. | 3 | Draft |
 | 5 | Review verification adequacy from need through test and critical path. | 4 | Draft |
-| 6 | Score all proposals, conduct interactive HITL decisions, replace/review Slice 7, and update this plan. | 5 | Draft |
-| 7 | Implement only HITL-approved repository preparation under the reviewed Slice 7 plan. | 6 | Provisional draft |
-| 10 | Repair frozen explanation, complete public guidance, and add the installed-artifact conformance witness. | 7 | Draft |
+| 6 | Review local build, preflight, transcript, and `agent-verify` failure evidence; propose pragmatic corrections without implementing them. | 5 | Draft |
+| 7 | Review post-build CI/CD, packaging, gitleaks, and registry failure evidence; propose pragmatic corrections and delivery placement. | 6 | Draft |
+| 8 | Score all proposals, conduct interactive HITL decisions, replace/review Slice 9, and update this plan. | 7 | Draft |
+| 9 | Implement only HITL-approved repository preparation under the reviewed Slice 9 plan. | 8 | Provisional draft |
+| 10 | Repair frozen explanation, complete public guidance, and add the installed-artifact conformance witness. | 9 | Draft |
 | 20 | Add immutable-revision graph-target and terminal-edge evidence resolution under frozen authority. | 10 | Draft |
 | 30 | Package and document a version-matched read-only operator integrity inspection route. | 20 | Draft |
 | 40 | Add versioned atomic derived-edge actuation and its minimum truthful receipt evolution. | 30 | Draft |
@@ -83,17 +87,19 @@ approved preparation. Feature work then remains sequential.
 ## Requirements and acceptance criteria
 
 Prework requirements are defined in
-[`0.8.26-prework-slices-0-7.md`](0.8.26-prework-slices-0-7.md).
+[`0.8.26-prework-slices-0-9.md`](0.8.26-prework-slices-0-9.md).
 Feature requirements and draft acceptance criteria live in each Slice 10+
-plan. Slice 3 may draft contract changes but cannot accept them; Slice 6 owns
+plan. Slice 3 may draft contract changes but cannot accept them; Slice 8 owns
 the interactive scope decision.
 
 No feature is accepted merely because it appears in this plan. New global
-acceptance IDs are prohibited unless Slice 6 explicitly authorizes them.
+acceptance IDs are prohibited unless Slice 8 explicitly authorizes them.
 
 ## Cross-cutting definition of done
 
-Every feature slice must:
+Every slice follows the
+[`lean slice execution contract`](0.8.26/slice-execution-contract.md).
+Every feature slice must additionally:
 
 1. reconcile its draft design against the Slice 3–5 findings;
 2. obtain independent design review and resolve findings before READY;
@@ -111,7 +117,9 @@ and post-publication registry tests require separate authorization.
 ## Reserved-gap policy
 
 Every prework finding is recorded and receives an include, postpone, reject, or
-needs-more-information ruling in Slice 6. The earlier
+needs-more-information ruling in Slice 8. Slices 6–7 findings must also receive
+an explicit delivery placement: Slice 9, a reserved post-10 hardening slice,
+Slice 50, postpone, or reject. The earlier
 [`0.8.26 draft scope`](0.8.26-draft-scope.md) is input, not authority: its
 platform, dependency, evidence-manifest, multi-source, liveness, and broad-batch
 items must be re-evaluated. Priority 3+ Memex items remain outside 0.8.26 even

@@ -46,7 +46,7 @@ status: DRAFT
   no-mutation guarantees.
 - Keep doctor/recovery methods out of the governed Python and TypeScript SDKs.
 - Prove the route from release artifacts on supported target classes selected
-  in Slice 6.
+  in Slice 8.
 
 ### Slice 40
 
@@ -74,11 +74,11 @@ status: DRAFT
 | --- | --- | ---: |
 | frozen explanation completion | Update interface and public guide; add a defect-closure note if no ADR decision changes | 10 |
 | artifact evidence resolution | Create a successor ADR or accepted addendum defining immutable-revision authorization and non-disclosure | 20 |
-| graph response identity | Update wire/Rust/Python/TypeScript interfaces with a compatible additive or successor response selected in Slice 6 | 20 |
+| graph response identity | Update wire/Rust/Python/TypeScript interfaces with a compatible additive or successor response selected in Slice 8 | 20 |
 | operator integrity distribution | Update CLI, packaging, release, and operator documentation; preserve the SDK recovery denylist | 30 |
 | actuation grammar | Create a successor ADR for V2 batch semantics and prospective endpoint validation | 40 |
 | mutation receipt | Update interfaces only for the minimum accepted V2 fields and digest domain | 40 |
 | release conformance | Update release/package documentation and artifact test contract | 50 |
 
 No schema migration is presently expected. Slice 4 must challenge that claim.
-Nothing in this register is accepted until Slice 6 records the HITL ruling.
+Nothing in this register is accepted until Slice 8 records the HITL ruling.

@@ -5,6 +5,13 @@ status: DRAFT
 
 # Slice 5 plan — verification adequacy review
 
+## Slice-complete workflow
+
+This plan adopts the [lean slice execution contract](../../slice-execution-contract.md).
+It is analysis-only: reconcile test and requirement deltas, independently
+review the verification design, validate the evidence matrix, write status, and
+perform no test or product implementation.
+
 ## Purpose
 
 Determine whether every draft requirement has acceptance criteria, every
@@ -20,7 +27,8 @@ the layer where failures occur. This slice writes findings only.
    duplicate, concurrency, lifecycle, and package behavior.
 4. Identify missing property, fault-injection, cross-SDK, package, or manual
    evidence.
-5. Allocate every proposed test change to Slice 7, 10, 20, 30, 40, or 50.
+5. Propose allocation of every test change to Slice 9, a reserved post-10
+   hardening slice, an existing feature slice, or Slice 50.
 
 ## Exit criteria
 

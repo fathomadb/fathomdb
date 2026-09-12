@@ -5,6 +5,13 @@ status: DRAFT
 
 # Slice 10 plan — frozen evidence contract repair
 
+## Slice-complete workflow
+
+This plan adopts the full [lean slice execution contract](../../slice-execution-contract.md):
+enumerate intervening changes and allocations, finalize needs/requirements/AC,
+obtain design review, implement RED/GREEN, obtain code review and independent
+verification, write status, and clean up temporary workspaces.
+
 ## Outcome
 
 Explanation-enabled frozen retrieval returns a valid non-empty correlation ID,

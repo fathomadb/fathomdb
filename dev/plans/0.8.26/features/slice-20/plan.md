@@ -5,6 +5,13 @@ status: DRAFT
 
 # Slice 20 plan — exact graph artifact evidence
 
+## Slice-complete workflow
+
+This plan adopts the full [lean slice execution contract](../../slice-execution-contract.md):
+enumerate intervening changes and allocations, finalize needs/requirements/AC,
+obtain design review, implement RED/GREEN, obtain code review and independent
+verification, write status, and clean up temporary workspaces.
+
 ## Outcome
 
 A consumer can take a constrained graph target or terminal edge and resolve

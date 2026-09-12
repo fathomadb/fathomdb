@@ -34,7 +34,7 @@ status: DRAFT
 - Tests encode human-approved intent and no snapshot/golden oracle is
   regenerated autonomously.
 
-## Baseline concerns for Slice 6
+## Baseline concerns for Slices 6–8
 
 - Re-run the public-documentation truth gate because the current checker may
   still encode a prior release version.
@@ -42,5 +42,6 @@ status: DRAFT
   not a clean advisory result.
 - Confirm the full native matrix versus the narrower Memex cutover target
   before assigning external evidence.
-- Keep prework test-infrastructure fixes in Slice 7 and feature assertions in
-  their owning feature slice.
+- Keep feature-independent test-infrastructure fixes eligible for Slice 9;
+  assign feature-dependent or final-artifact assertions to their owning
+  feature, reserved hardening, or Slice 50 plan.

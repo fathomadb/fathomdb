@@ -5,6 +5,13 @@ status: DRAFT
 
 # Slice 30 plan — distributable operator integrity route
 
+## Slice-complete workflow
+
+This plan adopts the full [lean slice execution contract](../../slice-execution-contract.md):
+enumerate intervening changes and allocations, finalize needs/requirements/AC,
+obtain design review, implement RED/GREEN, obtain code review and independent
+verification, write status, and clean up temporary workspaces.
+
 ## Outcome
 
 Memex operators can install and run FathomDB's existing bounded read-only data
@@ -14,7 +21,7 @@ without adding doctor or recovery authority to governed SDKs.
 ## Requirements
 
 - Distribute `fathomdb doctor data-plane-integrity --json` for the target
-  matrix approved in Slice 6.
+  matrix approved in Slice 8.
 - Define executable/binding/database version matching and fail closed on an
   incompatible combination.
 - Specify quiescence, locking, bounds, privacy, JSON schema, and exit codes.

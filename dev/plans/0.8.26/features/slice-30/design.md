@@ -19,7 +19,7 @@ HITL decision authorizes the larger authority surface.
 - The tool and database format must be compatible with the owning FathomDB
   release; mismatch refuses before inspection.
 - Invocation occurs under a documented quiescent/locking precondition selected
-  in Slice 6. The tool must not claim a coherent cutover proof while writers
+  in Slice 8. The tool must not claim a coherent cutover proof while writers
   can invalidate its boundary.
 - JSON carries a stable schema version, check set, boundary, bounded findings,
   truncation state, status, and privacy-safe locators.
@@ -28,7 +28,7 @@ HITL decision authorizes the larger authority surface.
 - The operation opens the real database read-only in behavior and produces no
   repair, rebuild, lifecycle, projection, or mutation side effect.
 
-## Distribution choices for Slice 6
+## Distribution choices for Slice 8
 
 1. Add the CLI binary to existing native release artifacts.
 2. Publish a separate version-locked operator artifact.

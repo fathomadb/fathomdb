@@ -7,6 +7,13 @@ depends_on: 0
 
 # Slice 1 plan
 
+## Slice-complete workflow
+
+This plan adopts the [lean slice execution contract](../../slice-execution-contract.md).
+It is evidence-only: reconcile draft deltas, complete and independently review
+the dependency findings, verify them, write status, and mark behavioral
+TDD/code review not applicable unless scope changes.
+
 ## Outcome
 
 Produce a complete, current dependency/advisory/pin register and an ordered

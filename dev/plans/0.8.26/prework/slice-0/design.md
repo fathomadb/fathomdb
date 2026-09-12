@@ -43,4 +43,4 @@ public-doc truth test has been observed to demand a stale 0.8.23 statement even
 though the README names published 0.8.25; Slice 0 records it and Slice 5 decides
 the test repair allocation.
 
-No decision in this note is accepted until Slice 6.
+No decision in this note is accepted until Slice 8.

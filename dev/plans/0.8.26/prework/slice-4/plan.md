@@ -5,6 +5,13 @@ status: DRAFT
 
 # Slice 4 plan — architecture and code alignment review
 
+## Slice-complete workflow
+
+This plan adopts the [lean slice execution contract](../../slice-execution-contract.md).
+It is analysis-only: reconcile draft and code deltas, complete and independently
+review the architecture findings, verify traceability, write status, and mark
+behavioral TDD/code review not applicable.
+
 ## Purpose
 
 Review the Slice 3 proposals against accepted architecture and the as-built
@@ -20,7 +27,7 @@ either.
 3. Review transaction ownership, frozen-read authority, authorization,
    disclosure, replay, erasure, projection, and upgrade boundaries.
 4. Reject designs that move Memex semantic policy into FathomDB.
-5. Feed exact decisions and risk mitigations into Slice 6.
+5. Feed exact decisions and risk mitigations into Slice 8.
 
 ## Exit criteria
 

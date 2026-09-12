@@ -13,11 +13,12 @@ publication, dependency changes, cleanup, or accepted-contract changes.
 ## Reading order
 
 1. [`../plan-0.8.26.md`](../plan-0.8.26.md)
-2. [`../0.8.26-prework-slices-0-7.md`](../0.8.26-prework-slices-0-7.md)
-3. [`prework/README.md`](prework/README.md)
-4. [`features/README.md`](features/README.md)
-5. Slice-local `plan.md`, then `design.md`
+2. [`../0.8.26-prework-slices-0-9.md`](../0.8.26-prework-slices-0-9.md)
+3. [`slice-execution-contract.md`](slice-execution-contract.md)
+4. [`prework/README.md`](prework/README.md)
+5. [`features/README.md`](features/README.md)
+6. Slice-local `plan.md`, then `design.md`
 
-Slice 6 must replace the provisional Slice 7 scope after interactive HITL
+Slice 8 must replace the provisional Slice 9 scope after interactive HITL
 decisions and independent review. Feature designs remain DRAFT until their
 dependencies close and their formal design review passes.

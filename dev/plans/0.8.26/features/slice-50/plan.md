@@ -5,6 +5,14 @@ status: DRAFT
 
 # Slice 50 plan — integrated release verification
 
+## Slice-complete workflow
+
+This plan adopts the full [lean slice execution contract](../../slice-execution-contract.md):
+enumerate candidate and allocation deltas, finalize release acceptance criteria
+and evidence design, obtain design review, add RED/GREEN harness changes when
+needed, obtain code review and independent verification, write status, and
+clean up temporary workspaces without publishing.
+
 ## Outcome
 
 Fresh non-published release artifacts prove the combined P0–P2 Memex profile,
@@ -18,7 +26,7 @@ truth before any release decision.
 - Install into clean environments and execute the Slice 10–40 contract flows.
 - Reopen the same real database across supported bindings where the public
   contract permits it.
-- Run the target-platform matrix approved in Slice 6 and distinguish local
+- Run the target-platform matrix approved in Slice 8 and distinguish local
   proof from externally owned evidence.
 - Produce a reproducible manifest binding commit, toolchain, artifacts,
   hashes, platform, commands, and outcomes.

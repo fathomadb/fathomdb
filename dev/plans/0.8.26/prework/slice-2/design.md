@@ -7,7 +7,7 @@ status: DRAFT
 
 ## Initial proposal seeds
 
-| ID | Surface | Initial action hypothesis | Evidence required before Slice 6 |
+| ID | Surface | Initial action hypothesis | Evidence required before Slice 8 |
 | --- | --- | --- | --- |
 | C26-01 | `dev/plans/0.8.26-draft-scope.md` | Deprecate-in-place after accepted 0.8.26 plan supersedes it | Every D26 item has a durable disposition. |
 | C26-02 | Completed `dev/plans/0.8.25/**` execution corpus | Keep/archive-in-place with clearer historical navigation | Preserve reviews, receipts, and experiment evidence; measure active-index noise. |

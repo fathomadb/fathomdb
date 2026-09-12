@@ -5,6 +5,13 @@ status: DRAFT
 
 # Slice 40 plan — atomic derived-edge actuation
 
+## Slice-complete workflow
+
+This plan adopts the full [lean slice execution contract](../../slice-execution-contract.md):
+enumerate intervening changes and allocations, finalize needs/requirements/AC,
+obtain design review, implement RED/GREEN, obtain code review and independent
+verification, write status, and clean up temporary workspaces.
+
 ## Outcome
 
 One governed actuation transaction can commit a derived node, its canonical
@@ -15,7 +22,7 @@ and a truthful bounded receipt.
 
 - Preserve `ActuationBatchV1` encoding, digest, replay, and behavior.
 - Introduce a successor batch/operation contract containing
-  `put_derived_edge(ProvenancedEdgeV1)` if approved in Slice 6.
+  `put_derived_edge(ProvenancedEdgeV1)` if approved in Slice 8.
 - Validate edge endpoints against persisted plus earlier same-batch prospective
   state before any write.
 - Reuse canonical edge persistence, lifecycle, provenance, projection, and

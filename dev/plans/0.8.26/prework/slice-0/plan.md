@@ -6,6 +6,13 @@ target_release: 0.8.26
 
 # Slice 0 plan
 
+## Slice-complete workflow
+
+This plan adopts the [lean slice execution contract](../../slice-execution-contract.md).
+It is evidence-only after the already requested workspace setup: reconcile
+draft deltas, complete and review its findings, verify the records, write
+status, and mark behavioral TDD/code review not applicable unless scope changes.
+
 ## Outcome
 
 Establish the isolated release workspace and produce a durable, read-only
@@ -42,5 +49,6 @@ version, runner, or release-state action.
 - The exact branch, worktree, and base commit are recorded.
 - Every language/tool/platform surface has current, required, and unknown state.
 - Worktree-local tools cannot silently build against the primary checkout.
-- Project-infrastructure proposals are allocated to Slice 7 or a feature slice.
+- Project-infrastructure proposals are allocated by Slice 8 to Slice 9 or a
+  feature/hardening slice.
 - No product or environment configuration changed.

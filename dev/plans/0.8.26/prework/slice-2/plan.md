@@ -7,6 +7,13 @@ depends_on: 1
 
 # Slice 2 plan
 
+## Slice-complete workflow
+
+This plan adopts the [lean slice execution contract](../../slice-execution-contract.md).
+It is evidence-only: reconcile draft deltas, complete and independently review
+the disposition design, verify the inventory, write status, and mark behavioral
+TDD/code review not applicable unless scope changes.
+
 ## Outcome
 
 Produce a repo-wide, evidence-backed cruft proposal without moving, renaming,

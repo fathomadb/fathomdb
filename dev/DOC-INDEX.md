@@ -59,8 +59,9 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/plan-0.8.25.md` | Proposed dependency-linear performance and Memex data-plane foldback plan | 0.8.25 | 2026-08-31 |
 | `dev/plans/0.8.26-draft-scope.md` | Non-authoritative intake preserving work postponed from 0.8.24 and 0.8.25 | 0.8.26 draft | 2026-09-01 |
 | `dev/plans/plan-0.8.26.md` | Draft dependency-linear Memex P0–P2 contract-completion release plan | 0.8.26 | 2026-09-12 |
-| `dev/plans/0.8.26-prework-slices-0-7.md` | Draft environment-to-HITL prework contract and Slice 7 boundary | 0.8.26 Slices 0–7 | 2026-09-12 |
+| `dev/plans/0.8.26-prework-slices-0-9.md` | Draft environment, failure-evidence, HITL, and approved-prework contract | 0.8.26 Slices 0–9 | 2026-09-12 |
 | `dev/plans/0.8.26/` | Draft per-slice plans and designs for prework and Memex P0–P2 features | 0.8.26 | 2026-09-12 |
+| `dev/plans/0.8.26/slice-execution-contract.md` | Lean requirements-to-status workflow adopted by every 0.8.26 slice | 0.8.26 | 2026-09-12 |
 | `dev/plans/0.8.25-prework-slices-0-7.md` | Environment-to-HITL prework and approved preparation contract | 0.8.25 Slices 0–7 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-{1-dependency-sweep,2-cruft-review}.md` | Dependency/pinning evidence and repository cruft action proposals | 0.8.25 Slices 1–2 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-{3-contract-and-architecture-drafts,4-architecture-and-code-alignment,5-verification-adequacy}.md` | Draft contracts, as-built alignment, and verification-gap allocation | 0.8.25 Slices 3–5 | 2026-08-31 |

@@ -34,8 +34,8 @@ assert_absent() {
 
 function_body() {
   awk -v name="$2" '
-    $0 ~ "^    fn " name "\\(" { inside = 1 }
-    inside && $0 ~ "^    fn " && $0 !~ "^    fn " name "\\(" { exit }
+    $0 ~ "^    (pub )?fn " name "\\(" { inside = 1 }
+    inside && $0 ~ "^    (pub )?fn " && $0 !~ "^    (pub )?fn " name "\\(" { exit }
     inside { print }
   ' "$1"
 }
@@ -154,6 +154,7 @@ assert_absent "$CODE" 'python_binding_completion_ack collector=idle' "job does n
 assert_contains "$CODE" "\$artifact -SimpleMatch 'slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle'" "job requires the binding completion acknowledgement in the retained artifact"
 assert_absent "$CODE" 'python_binding_snapshot_released' "job does not require the removed binding post-release marker"
 assert_contains "$CODE" 'python_binding_direct_inventory=' "job requires direct installed binding inventory"
+assert_contains "$CODE" 'python_binding_direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0' "installed binding expects no cfg(test)-only runtime probes"
 assert_contains "$CODE" 'python_binding_held_reader_native_state=' "job requires the held reader native-state positive control"
 assert_contains "$CODE" 'readers:0(auto=0,txn=read,' "job requires held reader autocommit-off/read-state evidence"
 assert_contains "$CODE" 'python_binding_native_state_inventory=state_inventory=complete reason=complete' "job requires post-release complete native-state inventory"
@@ -582,6 +583,10 @@ serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident"
 assert_contains "$serial_incident_body" \
   'creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0;complete=1' \
   "installed Python serial expects no cfg(test)-only runtime probes"
+binding_inventory_body="$(function_body "$ENGINE_SOURCE" "binding_connection_inventory_for_test")"
+assert_contains "$binding_inventory_body" \
+  'creation != (1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 0)' \
+  "installed binding inventory rejects cfg(test)-only runtime probes"
 assert_contains "$serial_incident_body" \
   'test_hooks._arm_actual_checkpoint_observation_for_test()' \
   "installed Python serial arms the private observer immediately before erase"
@@ -646,6 +651,34 @@ done
 if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"
   trap 'rm -rf "$TMPROOT"' EXIT
+
+  BINDING_WORKFLOW_PROBES_MUTATED="$TMPROOT/ci-with-binding-probes-two.yml"
+  sed '/python_binding_direct_inventory=/ s/workers:2,probes:0/workers:2,probes:2/' \
+    "$CI" >"$BINDING_WORKFLOW_PROBES_MUTATED"
+  set +e
+  binding_workflow_probes_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BINDING_WORKFLOW_PROBES_MUTATED" bash "$0" 2>&1)"
+  binding_workflow_probes_rc=$?
+  set -e
+  if [ "$binding_workflow_probes_rc" -ne 0 ] \
+    && grep -Fq 'installed binding expects no cfg(test)-only runtime probes' <<<"$binding_workflow_probes_out"; then
+    pass "mutation proves installed-binding workflow probe count is load-bearing"
+  else
+    fail "mutation did not fail installed-binding workflow probe count: $binding_workflow_probes_out"
+  fi
+
+  BINDING_ENGINE_PROBES_MUTATED="$TMPROOT/lib-with-binding-probes-two.rs"
+  sed '/pub fn binding_connection_inventory_for_test/,/^    pub fn / s/PROJECTION_WORKERS, 0/PROJECTION_WORKERS, 2/' \
+    "$ENGINE_SOURCE" >"$BINDING_ENGINE_PROBES_MUTATED"
+  set +e
+  binding_engine_probes_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$BINDING_ENGINE_PROBES_MUTATED" bash "$0" 2>&1)"
+  binding_engine_probes_rc=$?
+  set -e
+  if [ "$binding_engine_probes_rc" -ne 0 ] \
+    && grep -Fq 'installed binding inventory rejects cfg(test)-only runtime probes' <<<"$binding_engine_probes_out"; then
+    pass "mutation proves installed-binding engine probe count is load-bearing"
+  else
+    fail "mutation did not fail installed-binding engine probe count: $binding_engine_probes_out"
+  fi
 
   RETAINED_RUST_CLASSIFICATION_MUTATED="$TMPROOT/lib-without-retained-unattributed.rs"
   sed '/fn wal_attribution_retained_materialized_result_is_idle_at_checkpoint/,/^    fn / s/unclassified_external/retained-classification-removed/' \

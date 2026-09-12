@@ -9704,7 +9704,7 @@ impl Engine {
             return Err(EngineError::Storage);
         }
         let creation = self.managed_connections.creation_counts().ok_or(EngineError::Storage)?;
-        if creation != (1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 2) {
+        if creation != (1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 0) {
             return Err(EngineError::Storage);
         }
         let writer_autocommit = self

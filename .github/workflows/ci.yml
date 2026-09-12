@@ -894,7 +894,7 @@ jobs:
             Write-Error "installed binding diagnostic did not acknowledge direct reader autocommit at completion"
             exit 1
           }
-          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2' -Quiet)) {
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0' -Quiet)) {
             Write-Error "installed binding diagnostic did not retain the exact direct inventory"
             exit 1
           }

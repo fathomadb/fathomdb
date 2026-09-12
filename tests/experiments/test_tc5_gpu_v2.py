@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import venv
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -101,6 +102,20 @@ def test_candidate_dry_run_rejects_an_ambient_interpreter(tmp_path, monkeypatch)
 
     with pytest.raises(tc5_gpu_v2.Tc5GpuV2Error, match="candidate Python interpreter"):
         tc5_gpu_v2.dry_run(path, "bridge", output_root=tmp_path / "new")
+
+
+def test_candidate_runtime_rejects_base_interpreter_behind_venv_symlink(
+    tmp_path, monkeypatch
+):
+    runtime = tmp_path / "runtime"
+    venv.EnvBuilder(with_pip=False).create(runtime)
+    path = _candidate_config(tmp_path)
+    config = replace(tc5_gpu_v2.load_config(path), python=runtime / "bin/python")
+    monkeypatch.setattr(sys, "executable", str(runtime / "bin/python"))
+    monkeypatch.setattr(sys, "prefix", sys.base_prefix)
+
+    with pytest.raises(tc5_gpu_v2.Tc5GpuV2Error, match="configured runtime environment"):
+        tc5_gpu_v2._validate_candidate_runtime(config)
 
 
 def test_dry_run_qualifies_inputs_without_creating_a_database(tmp_path, monkeypatch):

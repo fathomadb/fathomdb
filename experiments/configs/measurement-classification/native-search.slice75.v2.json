@@ -32,7 +32,7 @@
   "fathomdb_bin": "target/release/fathomdb",
   "measurement_plan": {
     "path": "experiments/configs/measurement-classification/native-search.measurement-plan.v2.json",
-    "sha256": "ae6c068ab7d67f7b0ec2b5e756dee2619c31825d73e1197dd7be4dab32bdb40c",
+    "sha256": "efe2656c55dd2aefc8145835c1be3a7af1eefc344ef93083aafafb04bdb07661",
     "plan_id": "slice-10-native-search-v2"
   }
 }

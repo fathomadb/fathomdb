@@ -128,7 +128,7 @@ class Slice85FinalGateTest(unittest.TestCase):
         ]
         artifact_build = [
             "bash -c 'cd src/python && maturin build --locked --release --out "
-            "${RUN_DIR}/artifacts/python --features "
+            "../../${RUN_DIR}/artifacts/python --features "
             "pyo3/extension-module,default-embedder'",
             "npm ci --prefix src/ts",
             "npm run build:native --prefix src/ts",
@@ -482,13 +482,31 @@ class Slice85FinalGateTest(unittest.TestCase):
         self.assert_rejected(value, "TypeScript compile order")
 
     def test_linux_artifact_route_uses_package_metadata_and_rooted_tsconfig(self) -> None:
-        value = self.manifest()
-        row = self.row(value, "linux-artifact-build")
-        row["commands"][0] = row["commands"][0].replace("cd src/python && ", "")
-        self.assert_rejected(value, "Linux artifact build command contract")
+        for mutation in ("cwd", "locked", "release", "output", "tsconfig"):
+            with self.subTest(mutation=mutation):
+                value = self.manifest()
+                row = self.row(value, "linux-artifact-build")
+                if mutation == "cwd":
+                    row["commands"][0] = row["commands"][0].replace(
+                        "cd src/python && ", ""
+                    )
+                elif mutation == "locked":
+                    row["commands"][0] = row["commands"][0].replace("--locked ", "")
+                elif mutation == "release":
+                    row["commands"][0] = row["commands"][0].replace("--release ", "")
+                elif mutation == "output":
+                    row["commands"][0] = row["commands"][0].replace(
+                        "../../${RUN_DIR}/artifacts/python",
+                        "${RUN_DIR}/artifacts/python",
+                    )
+                else:
+                    row["commands"][-1] = (
+                        "npm exec --prefix src/ts -- tsc -p tsconfig.build.json"
+                    )
+                self.assert_rejected(value, "Linux artifact build command contract")
 
     def test_linux_cuda_route_seals_executor_and_toolkit_inputs(self) -> None:
-        for mutation in ("gpu", "toolkit"):
+        for mutation in ("gpu", "toolkit", "toolkit-path", "seal-sha", "smoke-sha"):
             with self.subTest(mutation=mutation):
                 value = self.manifest()
                 row = self.row(value, "linux-cuda-package")
@@ -497,15 +515,23 @@ class Slice85FinalGateTest(unittest.TestCase):
                         "FATHOMDB_CUDA_GPU_UUID=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b ",
                         "",
                     )
-                else:
+                elif mutation == "toolkit":
                     row["commands"][1] = row["commands"][1].replace(
                         "CUDA_HOME=/usr/local/cuda-12.6 ", ""
                     )
+                elif mutation == "toolkit-path":
+                    row["commands"][1] = row["commands"][1].replace(
+                        "PATH=/usr/local/cuda-12.6/bin:${PATH} ", ""
+                    )
+                elif mutation == "seal-sha":
+                    row["commands"][3] = row["commands"][3].replace(
+                        "${FINAL_SHA}", "0000000000000000000000000000000000000000"
+                    )
+                else:
+                    row["commands"][4] = row["commands"][4].replace(
+                        "--candidate-sha ${FINAL_SHA} ", ""
+                    )
                 self.assert_rejected(value, "Linux CUDA package command contract")
-        value = self.manifest()
-        row = self.row(value, "linux-artifact-build")
-        row["commands"][-1] = "npm exec --prefix src/ts -- tsc -p tsconfig.build.json"
-        self.assert_rejected(value, "Linux artifact build command contract")
 
     def test_ac034c_is_the_only_unavailable_row_and_never_passes(self) -> None:
         for mutation in ("other-unavailable", "ac034c-pass"):

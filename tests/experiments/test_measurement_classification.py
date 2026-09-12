@@ -956,3 +956,19 @@ def test_committed_blocked_native_run_is_valid_and_ineligible():
     mc.validate_classification(sidecar, repository_root=root, authority=authority)
     assert sidecar["outcome"] == "blocked"
     assert mc.is_successful_evidence(sidecar) is False
+
+
+def test_slice75_native_config_references_its_canonical_measurement_plan():
+    root = Path(mc.__file__).resolve().parents[1]
+    config = json.loads(
+        (
+            root
+            / "experiments/configs/measurement-classification/native-search.slice75.v2.json"
+        ).read_text()
+    )
+
+    authority = mc._load_measurement_plan(  # noqa: SLF001 - receipt contract
+        root, config["measurement_plan"]
+    )
+
+    assert authority["plan_id"] == "slice-10-native-search-v2"

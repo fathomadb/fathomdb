@@ -20,40 +20,48 @@ and a truthful bounded receipt.
 
 ## Requirements
 
-- Preserve `ActuationBatchV1` encoding, digest, replay, and behavior.
-- Introduce a successor batch/operation contract containing
+- **R26-40A:** Preserve `ActuationBatchV1` encoding, digest, replay, and behavior.
+  Introduce a successor batch/operation contract containing
   `put_derived_edge(ProvenancedEdgeV1)` if approved in Slice 8.
-- Validate edge endpoints against persisted plus earlier same-batch prospective
-  state before any write.
+- **R26-40B:** Commit node, dependency, edge, replay record, receipt, and
+  projection work atomically or not at all.
+- **R26-40C:** Apply the Slice 8-approved endpoint policy. Either preserve
+  ordinary flag-and-count dangling behavior or introduce a separately
+  documented governed-edge refusal; both choices evaluate the complete
+  prospective batch state unless order sensitivity is explicitly approved.
 - Reuse canonical edge persistence, lifecycle, provenance, projection, and
   traversal paths.
-- Commit node, dependency, edge, replay record, receipt, and projection work
-  atomically or not at all.
-- Extend receipts only with directly computed information required for this
-  operation.
+- **R26-40D:** First test whether existing receipt storage truthfully represents
+  V2. Extend it only for a demonstrated audit requirement, with explicit
+  integrity/replay and shared operation-ID semantics.
 
 ## TDD and delivery
 
 1. Accept a successor ADR and exact wire/binding contracts.
 2. Commit failing tests for successful mixed batches and every validation,
    crash, duplicate, replay, lifecycle, erasure, and projection boundary.
-3. Implement two-phase prospective validation and one writer transaction.
+3. Implement the approved prospective-state policy and one writer transaction.
 4. Add a V2 digest domain and prove V1 byte/replay preservation.
 5. Bind Rust, Python, TypeScript, and wire surfaces with shared fixtures.
-6. Run property, fault-injection, restart, concurrency, projection, package,
-   and full repository gates.
+6. Run focused property, changed-boundary fault, restart, concurrency,
+   projection, and package checks plus canonical `agent-verify`; reserve the
+   broad platform matrix for Slice 50.
 7. Obtain independent high-risk implementation review.
 
 ## Acceptance
 
-- The complete Memex graph-authoring unit has one transaction and one replay
+- **AC26-40A:** V1 behavior and persisted identity remain unchanged and V2
+  construction is compatible across bindings.
+- **AC26-40B:** The complete Memex graph-authoring unit has one transaction and one replay
   identity/receipt.
-- Missing or invalid endpoints refuse before mutation; same-batch earlier
-  endpoints are accepted deterministically.
+- **AC26-40C:** The approved dangling/endpoint policy is documented and tested
+  against complete same-batch state, including later operations, unless Slice
+  8 explicitly approves order sensitivity.
 - Replay of an identical request returns the original outcome; key reuse with
   different bytes refuses.
-- V1 behavior and persisted identity are unchanged.
-- Receipts contain no Memex semantic verdict or uncomputed consequence claim.
+- **AC26-40D:** Receipt/storage compatibility and cross-version operation-ID
+  collisions are tested; receipts contain no Memex semantic verdict or
+  uncomputed consequence claim.
 
 ## Stop gates
 

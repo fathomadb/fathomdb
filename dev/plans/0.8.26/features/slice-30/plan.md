@@ -20,14 +20,15 @@ without adding doctor or recovery authority to governed SDKs.
 
 ## Requirements
 
-- Distribute `fathomdb doctor data-plane-integrity --json` for the target
-  matrix approved in Slice 8.
-- Define executable/binding/database version matching and fail closed on an
-  incompatible combination.
-- Specify quiescence, locking, bounds, privacy, JSON schema, and exit codes.
-- Guarantee no repair, rebuild, mutation, projection advance, or raw content
+- **R26-30A:** Qualify the published crates.io
+  `fathomdb doctor data-plane-integrity --json` route for Memex's selected
+  deployment target, including named artifact installation/discovery, exact
+  CLI identity, compatible database schema, and fail-closed mismatch behavior.
+  Add packaging only if that route is unusable.
+- **R26-30B:** Specify quiescence, locking, bounds, privacy, JSON schema, and
+  exit codes. Guarantee no repair, rebuild, mutation, projection advance, or raw content
   disclosure.
-- Document the operator workflow and preserve the Python/TypeScript recovery
+- **R26-30C:** Document the operator workflow and preserve the Python/TypeScript recovery
   denylist.
 
 ## TDD and delivery
@@ -37,18 +38,23 @@ without adding doctor or recovery authority to governed SDKs.
 2. Add failing artifact-level tests for install/discovery, version mismatch,
    non-quiescent use, malformed/corrupt state, bounds, JSON, exit codes, and
    zero mutation.
-3. Implement packaging or metadata changes without duplicating engine logic.
+3. Implement only the qualification, non-mutation, documentation, or
+   conditional packaging delta demonstrated by the RED tests.
 4. Add target-specific build/install/run evidence.
 5. Verify that governed SDKs expose no doctor/recovery route.
-6. Run focused, real-database, package, platform, and full repository gates.
+6. Run focused real-database and selected-package checks plus canonical
+   `agent-verify`; reserve the broad platform matrix for Slice 50.
 
 ## Acceptance
 
-- A clean operator environment can install, invoke, parse, and version-check
-  the integrity tool.
-- The tool returns stable machine-readable results and documented exit codes.
-- Before/after database and projection state prove the operation is read-only.
-- Memex needs neither raw SQL nor in-process repair privileges.
+- **AC26-30A:** A clean operator environment can install/discover the named
+  exact CLI artifact, invoke and parse it, and inspect a database with the
+  selected compatible schema while rejecting incompatible combinations.
+- **AC26-30B:** The tool returns stable bounded results and documented exit
+  codes; before/after database and projection state prove the whole invocation
+  is read-only under its locking contract.
+- **AC26-30C:** Memex needs neither raw SQL nor in-process repair privileges,
+  and governed SDKs expose no doctor/recovery route.
 
 ## Stop gates
 

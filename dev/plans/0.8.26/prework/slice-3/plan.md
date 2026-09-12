@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 3 — draft product and architecture CRUD
-status: DRAFT
+status: COMPLETE
 ---
 
 # Slice 3 plan — draft product and architecture CRUD

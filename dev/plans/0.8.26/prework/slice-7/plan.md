@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 7 — CI/CD and release-delivery evidence review
-status: DRAFT
+status: COMPLETE
 ---
 
 # Slice 7 plan — CI/CD and release-delivery evidence review

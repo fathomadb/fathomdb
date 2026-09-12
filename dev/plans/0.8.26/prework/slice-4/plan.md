@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 4 — architecture and code alignment review
-status: DRAFT
+status: COMPLETE
 ---
 
 # Slice 4 plan — architecture and code alignment review

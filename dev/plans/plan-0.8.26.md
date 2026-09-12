@@ -13,9 +13,9 @@ from the
 [`Memex needs prioritization scaffold`](memex-0.6.0-collaboration/memex-needs-prioritization-scaffold.md).
 It repairs the released frozen-explanation contract, completes its public
 guidance and installed-artifact witness, adds exact graph-target evidence,
-provides a distributable read-only integrity route, and—only after the
-write-path decision gate—adds atomic derived-edge actuation with narrowly
-justified receipt evolution.
+qualifies and hardens the existing distributable read-only integrity route,
+and—only after the write-path decision gate—adds atomic derived-edge actuation
+with receipt evolution only if current receipt storage proves insufficient.
 
 Multi-source provenance, source-set liveness, recursive closure, rich graph
 paths/continuation, persisted evidence replay, snapshot leases, candidate
@@ -24,7 +24,7 @@ profiles, and general repair orchestration remain outside this release.
 ## Setup record
 
 - **Baseline:** `40f807f5198cf826ef08ffd50658c8bb23f6f0f0`, the clean
-  Memex-collaboration commit on top of published 0.8.25 `main`.
+  Memex-collaboration planning input on top of published 0.8.25 `main`.
 - **Release branch:** `release/0.8.26`.
 - **Release worktree:**
   `/home/coreyt/projects/fathomdb-worktrees/release-0.8.26`.
@@ -68,20 +68,20 @@ fix depends on built product artifacts or belongs at the release boundary.
 
 | Slice | Outcome | Depends on | State |
 | ---: | --- | --- | --- |
-| 0 | Record environment/project-infrastructure needs and establish the isolated release workspace and draft plan. | 0.8.25 + Memex scaffold | Draft; branch/worktree complete |
-| 1 | Perform a read-only dependency, advisory, Dependabot, and pinning sweep; propose responses without upgrades. | 0 | Draft |
-| 2 | Review repository cruft and propose keep, deprecate-in-place, archive-in-place, or delete. | 1 | Draft |
-| 3 | Draft user-need, requirement, acceptance, interface, ADR, and architecture CRUD; allocate every draft to one slice. | 2 | Draft |
-| 4 | Review the proposed architecture and high-level code alignment; propose corrections only. | 3 | Draft |
-| 5 | Review verification adequacy from need through test and critical path. | 4 | Draft |
-| 6 | Review local build, preflight, transcript, and `agent-verify` failure evidence; propose pragmatic corrections without implementing them. | 5 | Draft |
-| 7 | Review post-build CI/CD, packaging, gitleaks, and registry failure evidence; propose pragmatic corrections and delivery placement. | 6 | Draft |
+| 0 | Record environment/project-infrastructure needs and establish the isolated release workspace and draft plan. | 0.8.25 + Memex scaffold | Complete |
+| 1 | Perform a read-only dependency, advisory, Dependabot, and pinning sweep; propose responses without upgrades. | 0 | Complete |
+| 2 | Review repository cruft and propose keep, deprecate-in-place, archive-in-place, or delete. | 1 | Complete |
+| 3 | Draft user-need, requirement, acceptance, interface, ADR, and architecture CRUD; allocate every draft to one slice. | 2 | Complete |
+| 4 | Review the proposed architecture and high-level code alignment; propose corrections only. | 3 | Complete |
+| 5 | Review verification adequacy from need through test and critical path. | 4 | Complete |
+| 6 | Review local build, preflight, transcript, and `agent-verify` failure evidence; propose pragmatic corrections without implementing them. | 5 | Complete |
+| 7 | Review post-build CI/CD, packaging, gitleaks, and registry failure evidence; propose pragmatic corrections and delivery placement. | 6 | Complete |
 | 8 | Score all proposals, conduct interactive HITL decisions, replace/review Slice 9, and update this plan. | 7 | Draft |
 | 9 | Implement only HITL-approved repository preparation under the reviewed Slice 9 plan. | 8 | Provisional draft |
 | 10 | Repair frozen explanation, complete public guidance, and add the installed-artifact conformance witness. | 9 | Draft |
 | 20 | Add immutable-revision graph-target and terminal-edge evidence resolution under frozen authority. | 10 | Draft |
-| 30 | Package and document a version-matched read-only operator integrity inspection route. | 20 | Draft |
-| 40 | Add versioned atomic derived-edge actuation and its minimum truthful receipt evolution. | 30 | Draft |
+| 30 | Qualify and harden the existing versioned read-only operator integrity inspection route. | 20 | Draft |
+| 40 | Add versioned atomic derived-edge actuation and evolve receipts only if current storage is insufficient. | 30 | Draft |
 | 50 | Run integrated Memex-profile, cross-SDK, platform, package, and non-publishing release verification. | 40 | Draft |
 
 ## Requirements and acceptance criteria
@@ -103,11 +103,13 @@ Every feature slice must additionally:
 
 1. reconcile its draft design against the Slice 3–5 findings;
 2. obtain independent design review and resolve findings before READY;
-3. commit a real failing test before product implementation;
+3. commit a real failing test, or stage it visibly for review, before product
+   implementation;
 4. implement through the existing single-writer/reader architecture;
 5. obtain independent implementation review;
 6. pass focused, property/fault, cross-SDK, restart, concurrency, and package
-   routes proportionate to risk;
+   routes proportionate to risk, with the broad release matrix reserved for a
+   comprehensive change or Slice 50;
 7. verify generated and published-surface documentation; and
 8. write a status record with exact commit and evidence.
 
@@ -127,8 +129,10 @@ if their design is discussed.
 
 ## Immediate next action
 
-Execute Slice 0's read-only environment and project-infrastructure inventory,
-then write its findings. Do not begin dependency changes or feature work.
+Review the completed Slice 0–7 proposal package in Slice 8. Score and decide
+each proposal interactively, then replace the provisional Slice 9 plan. Do not
+activate release state, change dependencies, clean up evidence, or begin
+feature work before that decision.
 
 ## Stop gates
 

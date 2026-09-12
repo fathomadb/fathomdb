@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 5 — verification adequacy review
-status: DRAFT
+status: COMPLETE
 ---
 
 # Slice 5 plan — verification adequacy review

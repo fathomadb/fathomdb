@@ -16,7 +16,7 @@ actionable root cause found by Slices 6–7 before the session.
 | complete frozen/evidence guide | integration safety | high | low | S | include |
 | installed Memex-shaped witness | release stability | high | low | M | include |
 | exact artifact-revision graph evidence | enables evidence-gated graph use | high | medium | M | include after contract decision |
-| distribute operator integrity route | cutover assurance | high | medium | M | include with SDK denylist preserved |
+| qualify/harden existing operator integrity route | cutover assurance | high | medium | S–M | qualify crates.io CLI first; preserve SDK denylist |
 | atomic derived-edge actuation | graph-authoring blocker | high | high | L | include only with V2 and invariant gates |
 | minimum receipt evolution | truthful edge audit | medium | medium | M | fold into edge actuation only |
 | environment/tooling corrections from Slice 0 | enabling | pending | pending | pending | decide from evidence |
@@ -43,10 +43,13 @@ actionable root cause found by Slices 6–7 before the session.
    boundary for 0.8.26.
 2. Choose additive graph fields or successor response types.
 3. Approve the exact frozen artifact-evidence contract and non-disclosure rule.
-4. Choose the CLI artifact target matrix and exact version-match policy.
+4. Confirm whether Memex can deploy the crates.io CLI; choose a prebuilt target
+   only if needed, and approve exact tool identity plus schema compatibility.
 5. Confirm that doctor/recovery authority remains absent from public SDKs.
 6. Approve or reject `ActuationBatchV2` plus `PutDerivedEdge`.
-7. Approve endpoint, replay/digest, and minimum receipt semantics.
+7. Choose ordinary flag/count or stricter governed derived-edge endpoint
+   semantics; approve replay/digest, cross-version operation-ID, and conditional
+   receipt-storage behavior.
 8. Rule every environment, dependency, cruft, documentation, architecture,
    test-infrastructure, build, preflight, verification, and CI/CD proposal from
    Slices 0–7.

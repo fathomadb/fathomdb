@@ -20,10 +20,11 @@ governed derived graph authoring.
 
 1. Validate batch size, operation grammar, identities, provenance, and V2
    idempotency digest without writing.
-2. Build a bounded prospective identity set from persisted endpoints and
-   earlier node operations in deterministic batch order.
-3. Validate dependencies and derived-edge endpoints against that prospective
-   state; dangling endpoints refuse.
+2. Build a bounded prospective identity set from persisted endpoints and all
+   same-batch node operations without making order semantically significant.
+3. Apply the Slice 8 endpoint decision: preserve ordinary flag-and-count
+   dangling semantics, or refuse dangling derived edges under an explicitly
+   different governed-edge contract.
 4. In one writer transaction, apply nodes, dependencies, derived edges,
    lifecycle effects, replay record, receipt, and projection work.
 5. Commit once. Any error or injected interruption rolls back the complete
@@ -31,11 +32,12 @@ governed derived graph authoring.
 
 ## Receipt boundary
 
-The successor receipt may add only approved fields already known in the
-transaction, such as affected artifact class/revision, directly changed
-lifecycle before/after state, dependency generation/boundary, and exact
-projection work correlation. It does not compute Memex support/refutation
-meaning, downstream semantic consequences, or a general dependency manifest.
+First prove whether the existing V1 receipt columns can truthfully represent a
+V2 request. A successor receipt/storage version is added only for a concrete
+audit requirement and may contain only fields already known in the
+transaction. It does not compute Memex support/refutation meaning, downstream
+semantic consequences, or a general dependency manifest. Shared operation-ID
+storage requires an explicit cross-version collision rule.
 
 ## Persistence and compatibility
 

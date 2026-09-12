@@ -20,17 +20,19 @@ and a clean installed artifact proves the supported one-source Memex profile.
 
 ## Requirements
 
-- Repair `search_frozen(explain=True)` and
+- **R26-10A:** Repair `search_frozen(explain=True)` and
   `search_with_evidence(include_explanation=True)` through the shared
   completion/finalization boundary.
-- Preserve frozen eligibility, ranking, evidence references, and
+- **R26-10B:** Preserve frozen eligibility, ranking, evidence references, and
   explanation-disabled behavior.
-- Document `freeze_read_context → search_with_evidence → resolve_evidence` as
+- **R26-10C:** Document
+  `freeze_read_context → search_with_evidence → resolve_evidence` as
   the evidence-exposing route and `search_frozen` as a ranked diagnostic or
   non-exposing route.
 - Document expiry, refusal, pagination, drift, correlation, and unsafe
   double-search/retry behavior.
-- Run a clean installed-artifact witness over actuation/replay/restart, frozen
+- **R26-10D:** Verify the public contract through a clean installed-wheel
+  black-box witness over actuation/replay/restart, frozen
   explained evidence, exact resolution, pagination, dependency lookup, and
   projection readiness.
 
@@ -43,17 +45,20 @@ and a clean installed artifact proves the supported one-source Memex profile.
 4. Write and execute the public recipe against built artifacts.
 5. Add the black-box one-source profile without importing Memex or asserting
    Memex semantic policy.
-6. Run focused, binding, documentation, package, and full repository gates.
+6. Run focused, binding, documentation, and package checks, then the canonical
+   `agent-verify` gate. Reserve broader platform release proof for Slice 50.
 7. Obtain independent review before closing.
 
 ## Acceptance
 
-- Both explanation-enabled methods validate and return non-empty correlation
-  identity from source and installed artifacts.
-- Explanation-disabled results remain valid and ranking/evidence identity is
-  unchanged by requesting explanation.
-- The published-surface guide is complete and executable.
-- No fixed-version claim is made until a freshly built artifact passes.
+- **AC26-10A:** Both explanation-enabled frozen methods validate with telemetry
+  enabled and disabled and return valid, non-empty correlation identity.
+- **AC26-10B:** Normalized explanation-on/off results preserve ordered hits,
+  scores, identities, projections, and evidence sidecars.
+- **AC26-10C:** API reference and executable recipe cover freeze, evidence
+  search, resolution, expiry, and drift.
+- **AC26-10D:** A freshly built wheel black-box probe passes without importing
+  worktree sources; no fixed-version claim precedes that result.
 
 ## Stop gates
 

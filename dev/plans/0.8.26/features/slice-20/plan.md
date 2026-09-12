@@ -20,13 +20,14 @@ authority, without probabilistic body re-search.
 
 ## Requirements
 
-- Expose immutable target revision and terminal-edge revision separately.
-- Add a frozen point-evidence lookup by artifact revision.
-- Reuse canonical bytes/span, identities, hash, lifecycle, dependency, and
-  projection-origin materialization where applicable.
-- Return intrinsic evidence without fabricated ranking contribution.
-- Preserve authorization, eligibility, expiry, and non-disclosure behavior.
-- Bind Rust, Python, TypeScript, and wire models consistently.
+- **R26-20A:** Expose immutable target revision and terminal-edge revision
+  separately through an additive sidecar or successor result, preserving V1.
+- **R26-20B:** Add a frozen point-evidence lookup by artifact revision.
+- **R26-20C:** Return intrinsic canonical bytes/span, identities, hash,
+  lifecycle, dependency, and projection origin where applicable, without
+  inventing ranked contribution.
+- **R26-20D:** Specify and preserve authorization, eligibility, nondisclosure,
+  expiry, restart, and cross-binding behavior.
 
 ## TDD and delivery
 
@@ -36,16 +37,21 @@ authority, without probabilistic body re-search.
 3. Implement lookup and materialization in one reader transaction.
 4. Add property/round-trip and cross-SDK fixtures.
 5. Add installed-package probes and public examples.
-6. Run focused, privacy, concurrency, restart, binding, package, and full gates.
+6. Run focused privacy, concurrency, restart, binding, and package checks plus
+   canonical `agent-verify`; reserve the full platform matrix for Slice 50.
 
 ## Acceptance
 
-- A graph result contains enough immutable identity for exact point evidence.
-- Resolution reproduces or fails; it never re-searches, silently refreshes, or
-  reveals an ineligible artifact.
-- Target and terminal-edge proof are distinct, and edge proof is not described
-  as full-path proof.
-- No logical-ID search predicate is introduced as a workaround.
+- **AC26-20A:** An additive sidecar or successor result returns distinct exact
+  target and terminal-edge artifact identities across Rust, Python, and
+  TypeScript without changing V1 incompatibly.
+- **AC26-20B:** Exact resolution succeeds after restart and otherwise preserves
+  nondisclosure for expired, mismatched-context, ineligible, revoked,
+  superseded, and nonexistent revisions in one reader transaction.
+- **AC26-20C:** Point evidence contains no fabricated rank or contribution; a
+  target proves that artifact and a terminal edge makes no full-path claim.
+- **AC26-20D:** Interfaces, successor ADR, shared fixtures, and bindings agree;
+  no logical-ID search predicate is introduced as a workaround.
 
 ## Stop gates
 

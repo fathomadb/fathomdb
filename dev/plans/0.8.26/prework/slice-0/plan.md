@@ -1,6 +1,6 @@
 ---
 title: 0.8.26 Slice 0 — environment and project-infrastructure prework
-status: DRAFT
+status: COMPLETE
 target_release: 0.8.26
 ---
 

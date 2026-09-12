@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 5 — draft verification matrix
-status: DRAFT
+status: COMPLETE
 ---
 
 # Slice 5 design — draft verification matrix
@@ -45,3 +45,32 @@ status: DRAFT
 - Keep feature-independent test-infrastructure fixes eligible for Slice 9;
   assign feature-dependent or final-artifact assertions to their owning
   feature, reserved hardening, or Slice 50 plan.
+
+## Completed adequacy findings
+
+Existing evidence, actuation, dependency-closure, and integrity suites provide
+a broad baseline. This release needs focused delta proofs, not a new global
+test program. The explicit R26/AC26 register in Slice 3 closes the prior
+ownership gap; owning slices must replace draft criteria with accepted global
+or release-local trace before implementation.
+
+Additional required cases are:
+
+- Slice 10: telemetry-enabled identity, telemetry-disabled unique fallback,
+  both frozen APIs, disabled control, and Rust/TypeScript/Python public proof;
+- Slice 20: separate target/edge identities, restart and one-transaction
+  linearization, plus indistinguishable lifecycle/refusal cases;
+- Slice 30: published-artifact invocation, lock-held/quiescence behavior,
+  incompatible schema response, and before/after process mutation evidence;
+- Slice 40: cross-version operation-ID collision, approved endpoint policy,
+  edge revision/digest round-trip property, and closure/supersession/erasure
+  effects; and
+- Slice 50: fresh-artifact cross-SDK/native matrix with no publication.
+
+Fault injection is required only at interruption boundaries introduced or
+materially changed by a slice. Thin bindings should share fixtures and test
+their conversion boundary instead of duplicating engine semantics. Focused
+blast-radius verification is appropriate during feature work; the full gate
+and platform matrix belong at slice close or Slice 50. The executable frozen
+retrieval recipe belongs in Slice 10, while Slice 50 validates the published
+shape.

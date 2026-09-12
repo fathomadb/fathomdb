@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 prework index
-status: DRAFT
+status: ACTIVE
 ---
 
 # 0.8.26 prework index
@@ -21,3 +21,6 @@ Slice 9 implements only approved items allocated before feature work.
 | 7 | CI/CD, packaging, secret-scan, and registry failures | Evidence and proposals only |
 | 8 | Proposal scoring, allocation, and HITL | Planning records only |
 | 9 | Approved preparation | Only approved items allocated to Slice 9 |
+
+Slices 0–7 are complete evidence/draft records. Slice 8 is next; no proposal is
+approved and the provisional Slice 9 plan has not been replaced.

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 6 — build and local verification evidence review
-status: DRAFT
+status: COMPLETE
 ---
 
 # Slice 6 plan — build and local verification evidence review

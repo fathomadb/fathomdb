@@ -7,12 +7,13 @@ status: DRAFT
 
 ## Recommended approach
 
-Use the existing Rust CLI operation
+First qualify the already published crates.io Rust CLI operation
 `fathomdb doctor data-plane-integrity --json <db-path>` as the operator
-boundary. Package that executable, or a narrowly scoped artifact containing
-it, alongside version metadata. Do not mirror the doctor surface into Python
-or TypeScript unless artifact distribution is proven insufficient and a new
-HITL decision authorizes the larger authority surface.
+boundary. Require exact CLI artifact identity and database-schema
+compatibility. Add a new/prebuilt artifact only if Slice 8 confirms that Memex
+cannot deploy the existing route. Do not mirror the doctor surface into Python
+or TypeScript unless distribution is proven insufficient and a new HITL
+decision authorizes the larger authority surface.
 
 ## Contract
 
@@ -30,10 +31,11 @@ HITL decision authorizes the larger authority surface.
 
 ## Distribution choices for Slice 8
 
-1. Add the CLI binary to existing native release artifacts.
-2. Publish a separate version-locked operator artifact.
+1. Use the existing exact-version crates.io CLI if it fits deployment.
+2. If it does not, add the smallest named prebuilt artifact for the selected
+   target rather than assuming a full new matrix.
 3. Limit 0.8.26 evidence to Memex's named cutover platforms or require the full
    Linux x86_64/aarch64, macOS x86_64/arm64, and Windows x86_64 matrix.
 
-The recommendation is the smallest separately invocable version-locked
-artifact that reuses the current CLI and engine implementation.
+The recommendation is the existing separately invocable CLI unless concrete
+deployment evidence requires a smaller prebuilt form.

@@ -1,6 +1,6 @@
 ---
 title: 0.8.26 Slice 2 — repository cruft review
-status: DRAFT
+status: COMPLETE
 target_release: 0.8.26
 depends_on: 1
 ---
@@ -29,8 +29,11 @@ archiving, deprecating, or deleting anything.
 - developer notes and intermediate findings; and
 - public docs, examples, release notes, API references, and package metadata.
 
-For every finding record exact target, inbound references, authority, evidence,
-risk, and one action: keep, deprecate-in-place, archive-in-place, or delete.
+For every finding record an exact path or reproducible tracked-file pattern,
+inbound-reference class, authority, evidence, risk, and one action: keep,
+deprecate-in-place, archive-in-place, or candidate-delete. Per-file reachability
+proof for a large candidate group is deferred to the implementation slice and
+must pass before any deletion.
 Historical scientific/release evidence is presumed valuable until proven
 otherwise.
 
@@ -38,6 +41,12 @@ otherwise.
 
 - Every repository domain has a reviewed inventory and explicit no-finding row
   where appropriate.
-- Proposed deletion proves no authority, consumer, evidence, or inbound link.
+- Candidate deletion names the proof still required; actual deletion later
+  proves no authority, consumer, evidence, or inbound link.
 - Active-versus-historical navigation is distinguished from deletion.
 - No repository content under review is changed.
+
+The delta review rejected per-file proof for hundreds of logs during an
+evidence-only proposal slice as overbuilt and unsafe before Slices 6–7 were
+complete. Grouped reproducible patterns are the review unit; deletion remains
+individually fail-closed.

@@ -1,6 +1,6 @@
 {
   "release": "0.8.25",
-  "release_kind": "release candidate ready; publication not authorized",
+  "release_kind": "release train authorized; main integration and publication pending",
   "board": "dev/plans/runs/STATUS-0.8.25.md",
   "plan": "dev/plans/plan-0.8.25.md",
   "active_ref": "refs/heads/release/0.8.25",
@@ -91,6 +91,7 @@
   "decisions": {
     "unruled": [],
     "ruled": [
+      {"id":"release-0.8.25-publication","title":"Authorize the full FathomDB 0.8.25 release train, main integration, and publishing including the v0.8.25 tag.","source":"seq-278; TC-75677a47-9cf1-44a9-b016-91d92ca0fc88; repository owner 2026-09-12"},
       {"id":"ac020-absolute-successor","title":"Retire AC-020; approve absolute successor budgets and bounded contract replacement in Slice 80; preserve Slice 85 final verification and all other read/write gates.","source":"seq-277; TC-ac020-successor-0825; repository owner 2026-09-11"},
       {"id":"ac020-recovery-ladder","title":"Close Slice 75 as an evidence checkpoint, not passing acceptance; plan experiments 76/77, consulted implementation 80 and final verification/CI/non-publishing packaging 85. Preserve AC-020 and reject shared-runtime statistics disabling; reserve 78-79 and 81-84.","source":"repository owner 2026-09-10; dev/plans/0.8.25/scope-adjustment-2026-09-10-ac020.md"},
       {"id":"slice79-memstatus-runtime","title":"Allocate Slice 79 after Slice 77 and authorize MEMSTATUS=0 in an explicitly configured performance mode; FathomDB is the application owner of the SQLite runtime. This supersedes the prior shared-runtime MEMSTATUS prohibition for this scope.","source":"seq-276; repository owner 2026-09-10"},

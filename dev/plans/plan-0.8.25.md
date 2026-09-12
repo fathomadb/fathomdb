@@ -225,9 +225,9 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 <!-- BEGIN GENERATED release-state:0.8.25:plan-landed-roll-up -->
 **COMPLETED on `origin/release/0.8.25`; `origin/main` integration is PENDING, in full:** no slices. local candidate SCHEMA is 33; `origin/main` remains at 26 until the candidate's unlanded schema migration lands; remaining ladder = none.<!-- END GENERATED release-state:0.8.25:plan-landed-roll-up -->
 
-The release candidate is ready for a separate publication decision;
-publication, tags, registry mutation and integration to `main` remain
-unauthorized.
+The release candidate passed its separate publication decision. The repository
+owner authorized the full release train, `main` integration, registry
+publication, and the `v0.8.25` tag at `seq-278`.
 
 Slices 60, 71, and 72 are durably closed. Slice 71 preserved the 71B general-write
 correction at `eda95b07` and restored AC-072 at `84c056c6` without changing

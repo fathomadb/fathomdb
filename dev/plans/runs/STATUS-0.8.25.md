@@ -13,7 +13,8 @@ there, then regenerate its declared release views. The release plan is
 ## Current state
 
 **The release ladder is complete on `origin/release/0.8.25`.** Integration to
-`origin/main` remains pending, and publication is not authorized.
+`origin/main` remains pending. The repository owner authorized the full release
+train, main integration, and publication including `v0.8.25` at `seq-278`.
 
 Prework and Slices 10 through 60 are complete on the durable `release/0.8.25`
 worktree. Slice 60 closed minimal constrained graph expansion, deterministic
@@ -114,12 +115,13 @@ Slice 85 completes the final 31-obligation verification matrix at candidate
   from `origin/main` reachability. The `landed` set remains empty until an
   independently authorized push and integration.
 - Publication, tags, registry mutation, and `main` integration remain outside
-  the completed Slice 85 scope.
+  the completed Slice 85 scope; the separate owner authorization is `seq-278`.
 
 ## Immediate next action
 
-Seek the repository owner's separate publication decision. Do not tag, publish,
-mutate registries or integrate to `main` from this status alone.
+Execute the owner-authorized release train at `seq-278`: reconcile and integrate
+the candidate to `main`, cut version `0.8.25`, pass the pre-publish rehearsals,
+push `v0.8.25`, verify registry-installed artifacts, and record closure.
 
 ## Verification
 

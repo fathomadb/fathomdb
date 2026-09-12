@@ -12,8 +12,8 @@ These are seed assessments for review, not HITL decisions.
 | Proposal | Value | Understood | Risk | Effort | Initial recommendation |
 | --- | --- | --- | --- | --- | --- |
 | repair frozen explanation correlation | cutover observability | high | low | S | include |
-| complete frozen/evidence guide | integration safety | high | high | S | include |
-| installed Memex-shaped witness | release stability | high | high | M | include |
+| complete frozen/evidence guide | integration safety | high | low | S | include |
+| installed Memex-shaped witness | release stability | high | low | M | include |
 | exact artifact-revision graph evidence | enables evidence-gated graph use | high | medium | M | include after contract decision |
 | distribute operator integrity route | cutover assurance | high | medium | M | include with SDK denylist preserved |
 | atomic derived-edge actuation | graph-authoring blocker | high | high | L | include only with V2 and invariant gates |
@@ -22,10 +22,6 @@ These are seed assessments for review, not HITL decisions.
 | dependency upgrades from Slice 1 | maintenance/security | pending | pending | pending | decide individually |
 | cruft actions from Slice 2 | maintainability | pending | pending | pending | decide individually |
 | Priority 3+ Memex requests | future value | variable | high/critical | L–XL | postpone from 0.8.26 |
-
-Documentation's direct stability leverage is scored as risk avoided: incomplete
-or incorrect public guidance can cause unsafe integration even though the edit
-itself is mechanically small.
 
 ## HITL decision agenda
 

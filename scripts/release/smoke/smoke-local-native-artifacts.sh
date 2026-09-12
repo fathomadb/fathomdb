@@ -66,6 +66,7 @@ fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+WORK="$(cd "$WORK" && pwd -P)"
 unset PYTHONPATH
 
 "$PYTHON_BASE" -m venv "$WORK/python-venv"

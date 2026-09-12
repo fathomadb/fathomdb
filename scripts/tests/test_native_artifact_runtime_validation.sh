@@ -571,6 +571,8 @@ if [ "${NATIVE_RUNTIME_VALIDATION_FIXTURE:-0}" != "1" ]; then
   SH_HELPER="$REPO_ROOT/scripts/release/smoke/smoke-local-native-artifacts.sh"
   grep -Fq 'cp310-abi3' "$SH_HELPER" \
     || fail 'Bash smoke must assert the shipped cp310-abi3 wheel tag'
+  grep -Fq 'WORK="$(cd "$WORK" && pwd -P)"' "$SH_HELPER" \
+    || fail 'Bash smoke must canonicalize its temporary root before path-containment checks'
   abi3_root="$(mktemp -d)"
   trap 'rm -f "$fixture" "$ps1_fixture"; rm -rf "$abi3_root"' EXIT
   mkdir -p "$abi3_root/ts"

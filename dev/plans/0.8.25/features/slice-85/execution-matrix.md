@@ -1,6 +1,7 @@
 # Slice 85 — compact execution matrix
 
-Status: approved for execution; execution not started.
+Status: execution in progress; local functional, package, model, reliability,
+and runtime-floor routes have executed. Hosted/native closure is not yet ready.
 Scope follows [the plan](plan.md). Commands/timeouts for named legacy cells
 come from [the Slice 75 manifest](../slice-75/slice75-closure-manifest.json),
 with the overrides below. Keep that historical manifest unchanged.
@@ -33,7 +34,7 @@ duplicate a test already positively exercised by the broad round or another row.
 | Runtime configuration — added after Slice 75 | Require 7/4/3/3 source tests and six installed fresh-process cases. Positive selector/count evidence from the broad round satisfies a source row; otherwise run the exact focused command below. |
 | Rust/CLI — `rust-release-build`, `rust-leaf-packages`, `cli-installed-smoke` | Retain release build and local package rehearsals. Prepare the CLI smoke database with the existing fixture workflow before integrity checks. Distinguish a build-tree CLI check from a staged/installed archive smoke. |
 | Linux CPU packages — `linux-artifact-build`, `linux-artifact-current-smoke`, `linux-runtime-floor-smokes` | Run the legacy build with Python features `pyo3/extension-module,default-embedder` and the default npm native build, then run the installed helper and reuse those exact bytes for runtime-floor checks. |
-| Linux CUDA — `linux-cuda-package` | Run the legacy CUDA preflight/package/witness route with its `0.8.24` local rehearsal artifact names, including real embedder and reranker forwards. This is a truthful pre-version-cut rehearsal, not the Tegra staging overlay. |
+| Linux CUDA — `linux-cuda-package` | Run the corrected CUDA route below on local `windchill3` with CUDA 12.6 and registered RTX 3090 UUID `GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b`. Preserve its `0.8.24` local rehearsal artifact names and require real embedder and reranker forwards. This is a truthful pre-version-cut rehearsal, not the Tegra staging overlay. |
 | Packaged search — `global-01-native` | Retain installed native data-plane witness with positive search/result counts; no paid evaluation or answer-quality claim. |
 | Windows/native platforms — `windows-runner-preflight`, `hosted-native-validation` | Run the legacy preflight and exact-SHA five-row native matrix. Slice 79 invalidated Slice 73's N-API/TypeScript inputs. Dispatch only with normal remote-execution authority. |
 | Jetson — `jetson-tegra` | Run the existing Python CUDA workflow with branch/version `release/0.8.25`, the workflow's copied `0.8.25+tegra` staging overlay, and `publish_to_pages=false`. Do not add unsupported Tegra N-API or Windows CUDA cells. |
@@ -67,12 +68,21 @@ or replaced routes:
 | AC-081/AC-072 | `slice80/current-evidence.md` and exact input SHA-256 below | Reuse seven AC-081 passes, AC-081c, and C1–C5 AC-072 passes |
 | Protected writes | `slice-79/execution-manifest.json#/protected/write`, using its one offline locked release probe build and exactly three `scale02` plus three `ac013` candidate cells under `$RUN_DIR/write/{scale02,ac013}-production-{1,2,3}` | 1,800 s build; 900 s/cell; Scale-02 ack <=1543.539 ms and total <=1548.545 ms, AC-013 total <=1442.198 ms, each gated spread <=25% |
 | Installed CE | Copy `slice-72/ce-profile-manifest.json` to `$RUN_DIR/slice72-ce-manifest.json`, changing only `candidate_sha` to `$FINAL_SHA`; the Slice 85 validator rejects any other field change. Use that overlay consistently with `scripts/release/slice72_ce_artifact.py`, `run-slice72-ce-profile.py`, and `verify-slice72-ce-profile.py`; reuse baseline cells at `4fc1b890`, build candidate CPU with `pyo3/extension-module,default-reranker` and CUDA with `pyo3/extension-module,rerank-cuda`, run `--role candidate --device cpu` and `--role candidate --device cuda --cuda-visible-devices GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b`, then validate the four-cell aggregate | 7,200 s/device; each path has three cold processes and five steady processes × 20 calls; correctness/tolerance pass and candidate median-p95 <=1.10 × retained matching baseline |
+| Linux CUDA package | `env FATHOMDB_CANDIDATE_SHA=${FINAL_SHA} FATHOMDB_CUDA_GPU_UUID=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b bash scripts/release/cuda-preflight.sh ${RUN_DIR}/cuda-preflight --rerank-cuda`; build the CLI with `CUDA_HOME=/usr/local/cuda-12.6`, `LIBRARY_PATH=/usr/local/cuda-12.6/lib64` and `/usr/local/cuda-12.6/bin` first on `PATH`; seal the four artifacts and manifest; invoke `slice75-cuda-package-smoke.sh` with the same UUID and `CUDA_HOME` | 10,800 s; witness and artifact manifest bind the candidate SHA; driverless CPU plus real-GPU Python/N-API embed and reranker forwards pass, and CLI GPU/reranker doctors are present |
 | Native/CI/Tegra | `slice75-closure-manifest.json#/cells/{windows-runner-preflight,hosted-native-validation,jetson-tegra,hosted-ci}` | Exact legacy timeouts and expected rows/counts; no publication |
 
 The installed runtime helper change is the only planned existing-runner edit.
 Its RED asserts the helper fails to report all six fresh-process cases; GREEN
 adds those cases without changing the retained frozen/dependency/lifecycle or
 13-module N-API workloads.
+
+Three Rust integration binaries intentionally open raw SQLite before `Engine`
+to construct states the public API cannot create: compatibility creates
+old/future/poisoned/mismatched/locked databases, tokenizer recall creates a
+pre-upgrade corpus, and provenance creates legacy/null provenance rows. They
+remain test-only fixture builders. Each configures the process runtime before
+either SQLite image is initialized; the retained 12-test set is the closure
+proof. They do not add a production dual-SQLite mode or an ambient test hazard.
 
 ## Small command and contract corrections
 

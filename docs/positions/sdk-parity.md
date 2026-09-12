@@ -5,7 +5,7 @@ while keeping the CLI as a distinct operator surface. Public docs should
 describe parity at the behavior level rather than exposing internal planning
 artifacts.
 
-## What parity means, concretely (0.8.20)
+## What parity means, concretely (0.8.25)
 
 Parity is **enforced**, not aspirational. A single governed-surface allowlist
 (`src/conformance/governed-surface-allowlist.json`) is loaded by both the
@@ -17,7 +17,7 @@ Both bindings therefore expose:
 
 - the same governed commands, in each language's idiomatic spelling
   (`read.get_many` / `read.getMany`, `erase_source` / `eraseSource`);
-- the same 27-class error taxonomy under a single catch-all root
+- the same 41-class error taxonomy under a single catch-all root
   (`EngineError` in Python, `FathomDbError` in TypeScript), with the same
   typed payload fields in snake_case / camelCase;
 - the same result shapes, including the typed `SearchHit.id`.

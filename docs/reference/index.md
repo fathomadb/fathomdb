@@ -1,30 +1,30 @@
 # Reference
 
-Reference for the published 0.8.23 surface. APIs not yet available from a
-registry are marked separately. Field spellings and type-level details are authoritative
+Reference for the published 0.8.25 surface. Field spellings and type-level details are authoritative
 in the locked internal interface specs (`dev/interfaces/{python,typescript,cli}.md`);
 this section is the client-facing view.
 
-- [Python API](python-api.md) — `Engine`, `admin.configure`, data
-  shapes, instrumentation methods.
-- [TypeScript API](typescript-api.md) — Promise-based `Engine`,
-  `admin.configure`, data shapes, instrumentation methods.
+- [Python API](python-api.md) — `Engine`, `admin`, governed reads,
+  data-plane additions, data shapes, and instrumentation methods.
+- [TypeScript API](typescript-api.md) — Promise-based `Engine`, `admin`,
+  governed reads, data-plane additions, data shapes, and instrumentation.
+- [Rust API](rust-api.md) — facade model, Engine methods, public carrier
+  families, feature boundary, and links to generated rustdoc.
 - [CLI](cli.md) — `fathomdb doctor` + `fathomdb recover` verbs, flag
   spelling, exit-code classes, JSON output shape.
-- [Errors](errors.md) — the 27-class error taxonomy, base class,
-  trigger, recovery hint codes.
+- [Errors](errors.md) — the shared typed error taxonomy, base class,
+  triggers, structured payloads, and recovery hint codes.
 - [Config](config.md) — `EngineConfig` knobs (Python snake_case + TS
   camelCase column).
 
-Rust API reference is auto-published to `docs.rs/fathomdb` once the
-crate publishes; until then run `cargo doc --open` or read
-[`src/rust/crates/fathomdb/`](https://github.com/fathomadb/fathomdb/tree/main/src/rust/crates/fathomdb).
+Item-level Rust API documentation is published at `docs.rs/fathomdb`; the page
+above explains how that generated surface maps to FathomDB's governed facade.
 
-## Known gaps in the published surface
+## Known limitations
 
 The reference reflects the shipped surface. These are documented gaps:
 
-- Performance gates AC-012, AC-013, AC-019, AC-020 remain open; see
+- Published performance evidence is not a general latency SLA; see
   [compatibility § performance posture](../compatibility/index.md).
 - The `SearchFilter.status` field is wired end-to-end but has no
   population source, so a `status=`-filtered query prunes every row.

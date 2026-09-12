@@ -4,21 +4,21 @@ The `fathomdb` npm package is a [napi-rs](https://napi.rs/) binding
 over the native Rust runtime. The published package selects a
 platform-tagged `.node` binary at load time.
 
-> **0.8.23 is published on npm's `next` dist-tag.** It ships Linux
+> **0.8.25 is published on npm's `next` dist-tag.** It ships Linux
 > x86_64/glibc and Linux AArch64/glibc native packages; other hosts must build
 > from source.
 > FathomDB is pre-1.0 and the surface is **beta**.
 >
 > **TS SDK parity caveat.** Both bindings expose the same governed command
 > surface (`src/conformance/governed-surface-allowlist.json`) and the same
-> 27-class error taxonomy, but Python remains the more heavily exercised
+> typed error taxonomy, but Python remains the more heavily exercised
 > binding. For production pilots, prefer Python. See
 > [SDK parity](../positions/sdk-parity.md).
 
 ## Requirements
 
 - Node **25.x** (release CI uses Node 25.9.0).
-- The published `0.8.23` npm package supports Linux
+- The published `0.8.25` npm package supports Linux
   `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`. Other hosts
   must build from source.
 - Linux glibc floor: **2.28** (both architectures — see

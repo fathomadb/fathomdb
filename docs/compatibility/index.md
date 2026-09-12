@@ -1,7 +1,7 @@
 # Compatibility
 
 Supported platforms, toolchains, and version-alignment policy for the
-published **0.8.23** release.
+published **0.8.25** release.
 
 > **Pre-1.0 = beta.** FathomDB is on a pre-1.0 line. The surface may
 > change between micro releases; consult the
@@ -28,7 +28,7 @@ and release jobs.
 
 ## Prebuilt artifacts — Linux x86_64 and AArch64 published
 
-⚠ **The published 0.8.23 wheel and npm platform binaries support Linux
+⚠ **The published 0.8.25 wheel and npm platform binaries support Linux
 `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` glibc.** Linux
 aarch64 is published for Python and npm. Do not expect the published npm
 package to install on macOS, Windows, or Linux musl.
@@ -96,8 +96,8 @@ published Python and npm packages in this release.
 
 ## On-disk schema
 
-The published 0.8.23 line sets `SCHEMA_VERSION` to **26** (the released
-0.8.21 line is **25**; 0.8.20 shipped **24**). Migration runs at
+The published 0.8.25 line sets `SCHEMA_VERSION` to **33** (0.8.23 shipped
+**26**, 0.8.21 shipped **25**, and 0.8.20 shipped **24**). Migration runs at
 `Engine.open` and only there.
 
 ⚠ **Migration step 23 does not preserve edge data.** The step recreates
@@ -109,7 +109,7 @@ after upgrading** rather than relying on an in-place upgrade.
 
 ## Versioning — two axes
 
-0.8.23 follows two-axis versioning:
+0.8.25 follows two-axis versioning:
 
 - **Axis W (workspace lockstep)** — the runtime / binding / CLI crates
   plus the Python and TypeScript packages all carry the same workspace
@@ -142,29 +142,30 @@ is the authoritative list.
 binaries at a 0.5.x database. Databases created by 0.6.x–0.8.x migrate
 forward at open, subject to the step-23 edge caveat above.
 
-## Performance posture — open gates
+## Performance posture
 
-Four performance ACs remain open. Clients evaluating FathomDB for
-perf-sensitive workloads should measure on their own corpus rather than
-relying on a published number.
+The 0.8.25 release acceptance is complete. Its measurements are validation
+evidence for the tested workloads and machines, not a general latency SLA.
+The historical AC-020 scaling-ratio gate was explicitly retired and replaced
+by independent absolute sequential, concurrent, and reader-independence
+budgets; those successor checks passed. The final bounded AC-012 rerun also
+passed. The exact dispositions and retained measurements are recorded in the
+[0.8.25 release status](https://github.com/fathomadb/fathomdb/blob/main/dev/plans/runs/STATUS-0.8.25.md).
 
-| AC      | Surface                                                 | Status |
-| ------- | ------------------------------------------------------- | ------ |
-| AC-012  | text query latency on FTS5 (p50 ≤ 20 ms / p99 ≤ 150 ms) | open   |
-| AC-013  | vector retrieval latency (p50 ≤ 50 ms / p99 ≤ 200 ms)   | open   |
-| AC-019  | mixed-retrieval stress tail                             | open (inherits AC-013) |
-| AC-020  | N=8 concurrent reader scaling (architectural)           | open   |
+Clients evaluating FathomDB for performance-sensitive workloads should still
+measure on their own corpus and hardware rather than treating a release-gate
+number as a service-level objective.
 
 Vector retrieval is a **full scan** over `sqlite-vec` (1-bit sign-quant
 bit-KNN, then an f32 rerank of the shortlist) — **there is no ANN
 index**, so latency grows with corpus size rather than staying flat.
-Engine surfaces these as documented gates, not weakened ones. See
-`dev/test-plan.md` § Current Perf Attribution.
+See `dev/test-plan.md` and the release status for the maintained acceptance and
+attribution records.
 
 ## SDK maturity posture
 
 Both bindings expose the same governed command surface and the same
-27-class error taxonomy. **Python is the more heavily exercised
+typed error taxonomy. **Python is the more heavily exercised
 binding; prefer it for production pilots.** See
 [SDK parity](../positions/sdk-parity.md).
 

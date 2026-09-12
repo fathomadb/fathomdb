@@ -1,7 +1,6 @@
 # Guides
 
-Guides cover the published 0.8.23 surface. APIs not yet available from a
-registry are marked separately.
+Guides cover the published 0.8.25 surface.
 
 - [Working with structured search hits](structured-search-hits.md) — read the
   typed `id` (`IdSpace`), `kind`, `body`, `score`, `branch`, `source_id` and

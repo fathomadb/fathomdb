@@ -30,6 +30,7 @@ recovery semantics owned by `dev/design/recovery.md`.
 | Verb              | Synopsis                                                                       | Exit codes        |
 | ----------------- | ------------------------------------------------------------------------------ | ----------------- |
 | `check-integrity` | `fathomdb doctor check-integrity [--quick] [--full] [--round-trip] [--pretty]` | `0` / `65` / `70` / `71` |
+| `data-plane-integrity` | `fathomdb doctor data-plane-integrity [--check <kind>]... [--max-work <n>] [--max-findings <n>] [--json] <db_path>` | `0` / `65` / `70` / `71` |
 | `safe-export`     | `fathomdb doctor safe-export <out> [--manifest <path>]`                        | `0` / `66` / `71` |
 | `verify-embedder` | `fathomdb doctor verify-embedder --identity <s> --dimension <n>`               | `0` / `65`        |
 | `trace`           | `fathomdb doctor trace --source-ref <id>`                                      | `0` / `65` / `70` / `71` |
@@ -45,6 +46,29 @@ recovery semantics owned by `dev/design/recovery.md`.
 
 `check-integrity --full` may emit doctor-only finding codes such as
 `E_CORRUPT_INTEGRITY_CHECK`.
+
+### Data-plane integrity
+
+`fathomdb doctor data-plane-integrity` runs bounded read-only checks over
+dependency and serving-projection authority. The four check kinds—
+`dependency_chain`, `active_searchable_orphans`, `projection_generation`, and
+`mutation_readiness`—run in canonical order; omit `--check` to select all.
+`--max-work` accepts 1 through 10,000 and `--max-findings` accepts 1 through
+100. A failure returns no partial report.
+
+```bash
+fathomdb doctor data-plane-integrity \
+  --check dependency_chain --check projection_generation \
+  --max-work 10000 --max-findings 100 --json ./store.sqlite
+```
+
+The versioned JSON success envelope is
+`{schemaVersion:"fathomdb.doctor.data-plane-integrity.v1",status,report}`.
+Errors use the same schema with `status:"error"`,
+`verb:"data-plane-integrity"`, `code:"FDB_DATA_PLANE_INTEGRITY"`, a stable
+lower-snake `reason`, and RFC 6901 `fieldPath`. Clean exits `0`, findings exit
+`65`, request/bound/integrity failures exit `70`, and an open-time lock exits
+`71`.
 
 ### GPU and platform diagnostics
 

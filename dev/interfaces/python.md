@@ -1,8 +1,8 @@
 ---
 title: Python Public Interface
-date: 2026-07-29
-target_release: 0.8.21
-desc: Public Python surface for 0.8.21
+date: 2026-09-12
+target_release: 0.8.25
+desc: Public Python surface for 0.8.25
 blast_radius: src/python/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---
@@ -31,6 +31,16 @@ loads: the core five plus `engine.search_text_only`, `engine.embed`,
 the BYO-LLM verbs
 (`engine.ingest_with_extractor`, `engine.consolidate_with_provider`),
 `engine.configure_projections`, and the lifecycle/erasure verbs below.
+
+The 0.8.25 additions are `engine.register_source_dependency`,
+`engine.dependencies_for_source`, `engine.dependency_for_derived`,
+`engine.actuate`, `engine.read_dependency_closure`,
+`engine.freeze_read_context`, `engine.search_frozen`,
+`engine.search_expand_frozen`, `engine.search_with_evidence`,
+`engine.resolve_evidence`, `engine.trace_dependency`,
+`read.projection_generation_status`, `read.mutation_projection_status`,
+`read.canonical_page`, `read.operational_state`,
+`read.operational_state_page`, and `graph.expand`.
 
 `admin.configure_runtime(sqlite_mode="performance" | "diagnostics")` is a
 synchronous startup runtime control, not a governed application command. It
@@ -695,7 +705,7 @@ memory quota, scheduler, or evidence that retrieval/FTS/fusion/graph work used
 the GPU.
 
 Python exposes one catch-all base class, `EngineError`, plus one concrete
-subclass per canonical row in `design/errors.md` — **30** of them as of 0.8.25,
+subclass per canonical row in `design/errors.md` — **41** of them as of 0.8.25,
 1:1 with the TypeScript set below `FathomDbError`.
 
 Examples of caller-visible subclasses:
@@ -721,6 +731,14 @@ The 0.8.19/0.8.20 additions, all of which the governed verbs above can raise:
 - `ProjectionDestructiveError` (`name`, `delta`)
 - `VectorEquivalenceMismatchError` (`reason`)
 - `ConsolidatorError`
+
+The 0.8.25 additions are `RuntimeConfigurationError`,
+`ProjectionGenerationError`, `ProvenanceError`, `DependencyError`,
+`DependencyClosureError`, `ActuationError`, `FrozenReadError`, `PageError`,
+`EvidenceError`, `DependencyTraceError`, and `GraphExpansionError`. Their
+request-facing payloads use stable `reason` and `field_path` attributes except
+for runtime configuration, which exposes its requested/effective modes and
+optional SQLite code.
 
 Payload fields remain typed attributes; callers do not dispatch on message
 text. ⚠ `WriteValidationError` is **message-less** since decision #18 — its

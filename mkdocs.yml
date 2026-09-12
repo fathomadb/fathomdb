@@ -16,6 +16,7 @@ nav:
       - Rust: install/rust.md
   - Reference:
       - Overview: reference/index.md
+      - Rust API: reference/rust-api.md
       - Python API: reference/python-api.md
       - TypeScript API: reference/typescript-api.md
       - CLI: reference/cli.md
@@ -34,6 +35,7 @@ nav:
       - Hybrid Search & Filtering: guides/hybrid-search-filtering.md
       - Retrieve by Id: guides/retrieve-by-id.md
   - Release Notes:
+      - 0.8.25: release-notes/0.8.25.md
       - 0.6.0: release-notes/0.6.0.md
       - 0.6.1: release-notes/0.6.1.md
       - 0.8.0: release-notes/0.8.0.md

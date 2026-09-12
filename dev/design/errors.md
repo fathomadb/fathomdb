@@ -65,6 +65,7 @@ different remediation or cross-doc ownership.
 | ------------------------------- | -------------------------------------------------- | ----------------- | ----------------------- | ------------------------------------------------------------------------------- |
 | `StorageError`                  | canonical SQLite read/write path                   | `EngineError`     | `design/engine.md`      | physical storage / transaction failures are not projection or op-store failures |
 | `ProjectionError`               | projection-row commit / terminal-state accounting  | `EngineError`     | `design/projections.md` | projection freshness and failure-state rules are distinct from canonical writes |
+| `ProjectionGenerationError`     | projection generation and receipt-keyed readiness  | `EngineError`     | `plans/0.8.25/features/slice-40/design.md` | closed reason and field path for generation authority |
 | `VectorError`                   | `sqlite-vec` encode/load/query path                | `EngineError`     | `design/vector.md`      | vector capability / encoding failures have vector-specific recovery             |
 | `EmbedderError`                 | embedder dispatch, timeout, invalid vector return  | `EngineError`     | `design/embedder.md`    | caller remediation is "fix or replace embedder," not "retry generic write"      |
 | `EmbedderRequired`              | pending embedding work with no configured runtime  | `EngineError`     | `design/0.8.23-embedding-configuration-feedback.md` | immediate typed configuration feedback; equivalence refusal and worker failure remain operational outcomes |
@@ -73,6 +74,14 @@ different remediation or cross-doc ownership.
 | `WriteValidationError`          | malformed typed write shape                        | `EngineError`     | `design/engine.md`      | fix caller-submitted field shape / variant construction                         |
 | `ProvenanceError`               | versioned identity/provenance validation             | `EngineError` | `plans/0.8.25/features/slice-15/design.md` | closed reason plus canonical JSON-pointer field path; distinct remediation from legacy write-shape failures |
 | `DependencyError`               | dependency request validation or refusal             | `EngineError` | `plans/0.8.25/features/slice-20/design.md` | closed reason plus canonical JSON-pointer field path; dependency remediation is distinct from provenance construction |
+| `DependencyClosureError`        | dependency-closure keyed status validation         | `EngineError`     | `plans/0.8.25/features/slice-30/design.md` | closed reason and field path; no public administrative queue |
+| `ActuationError`                | bounded actuation envelope or idempotency refusal  | `EngineError`     | `plans/0.8.25/features/slice-25/design.md` | malformed requests differ from terminal domain-refusal receipts |
+| `FrozenReadError`               | frozen context authentication or state binding     | `EngineError`     | `plans/0.8.25/features/slice-35/design.md` | stable reason and field path for tamper, foreign DB, or drift |
+| `PageError`                     | frozen pagination request or continuation          | `EngineError`     | `plans/0.8.25/features/slice-45/design.md` | bounded page remediation is distinct from generic argument failure |
+| `EvidenceErrorV1`               | compact evidence search or resolution              | `EngineError`     | `plans/0.8.25/features/slice-50/design.md` | preserves nondisclosure precedence through a closed reason |
+| `DependencyTraceErrorV1`        | bounded dependency trace                           | `EngineError`     | `plans/0.8.25/features/slice-55/design.md` | trace root, context, and work-bound failures remain distinct |
+| `GraphExpansionErrorV1`         | constrained graph expansion                        | `EngineError`     | `plans/0.8.25/features/slice-60/design.md` | closed recursive request and work-accounting failures |
+| `RuntimeConfigurationError`     | process-start SQLite mode selection                | direct / `EngineOpenError` | `plans/0.8.25/features/slice-79/design.md` | late/conflicting/runtime failure carries requested/effective mode |
 | `InvalidArgument { msg }`       | caller-argument rejections OUTSIDE the write-validation boundary | `EngineError`     | `design/engine.md`      | carries an actionable message naming the offending argument; `WriteValidation` is a unit variant and cannot |
 | `SchemaValidationError`         | JSON Schema rejection for op-store payloads        | `EngineError`     | `design/op-store.md`    | fix payload contents against registered `schema_id`                             |
 | `EmbedderIdentityMismatchError` | open-time stored-vs-supplied identity comparison   | `EngineOpenError` | `design/embedder.md`    | open-time incompatibility, not runtime write/query failure                      |
@@ -218,7 +227,8 @@ This file owns the stable inputs bindings map from:
 
 ## Binding-facing class matrix
 
-The matrix below is the canonical cross-binding class-stem table for 0.6.0.
+The matrix below is the canonical 41-row cross-binding class-stem table for
+0.8.25.
 Per-language interface docs may apply idiomatic casing, but they must not
 rename the semantic class stems or collapse distinct rows.
 
@@ -236,18 +246,33 @@ configuration error.
 | ------------------------------------ | -------------------------------- | -------------------------------- | --------------------- |
 | `StorageError`                       | `StorageError`                   | `StorageError`                   | runtime failure       |
 | `ProjectionError`                    | `ProjectionError`                | `ProjectionError`                | runtime failure       |
+| `EngineError::ProjectionGeneration`  | `ProjectionGenerationError`      | `ProjectionGenerationError`      | runtime failure       |
 | `VectorError`                        | `VectorError`                    | `VectorError`                    | runtime failure       |
 | `EmbedderError`                      | `EmbedderError`                  | `EmbedderError`                  | runtime failure       |
+| `EngineOpenError::EmbedDevicePolicy` | `EmbedDevicePolicyError`         | `EmbedDevicePolicyError`         | open/runtime policy   |
+| `EngineOpenError::RerankerDevicePolicy` / `EngineError::RerankerDevicePolicy` | `RerankerDevicePolicyError` | `RerankerDevicePolicyError` | open/runtime policy |
 | `EngineError::EmbedderRequired`      | `EmbedderRequiredError`          | `EmbedderRequiredError`          | `EmbedderRequiredError` |
 | `SchedulerError`                     | `SchedulerError`                 | `SchedulerError`                 | runtime failure       |
 | `OpStoreError`                       | `OpStoreError`                   | `OpStoreError`                   | runtime failure       |
 | `WriteValidationError`               | `WriteValidationError`           | `WriteValidationError`           | runtime failure       |
+| `EngineError::Provenance`             | `ProvenanceError`                | `ProvenanceError`                | runtime failure       |
 | `EngineError::Dependency`             | `DependencyError`                | `DependencyError`                | runtime failure       |
+| `EngineError::DependencyClosure`      | `DependencyClosureError`         | `DependencyClosureError`         | runtime failure       |
+| `EngineError::Actuation`              | `ActuationError`                 | `ActuationError`                 | runtime failure       |
+| `EngineError::FrozenRead`             | `FrozenReadError`                | `FrozenReadError`                | runtime failure       |
+| `EngineError::Page`                   | `PageError`                      | `PageError`                      | runtime failure       |
+| `EngineError::Evidence`               | `EvidenceError`                  | `EvidenceError`                  | runtime failure       |
+| `EngineError::DependencyTrace`        | `DependencyTraceError`           | `DependencyTraceError`           | runtime failure       |
+| `EngineError::GraphExpansion`         | `GraphExpansionError`            | `GraphExpansionError`            | runtime failure       |
 | `EngineError::InvalidArgument`       | `InvalidArgumentError`           | `InvalidArgumentError`           | runtime failure       |
 | `SchemaValidationError`              | `SchemaValidationError`          | `SchemaValidationError`          | runtime failure       |
 | `Overloaded`                         | `OverloadedError`                | `OverloadedError`                | runtime failure       |
 | `Closing`                            | `ClosingError`                   | `ClosingError`                   | runtime failure       |
+| `EngineError::Extractor`              | `ExtractorError`                 | `ExtractorError`                 | runtime failure       |
+| `EngineError::Consolidator`           | `ConsolidatorError`              | `ConsolidatorError`              | runtime failure       |
+| `EngineError::InvalidFilter`          | `InvalidFilterError`             | `InvalidFilterError`             | runtime failure       |
 | `DatabaseLocked`                     | `DatabaseLockedError`            | `DatabaseLockedError`            | lock-held             |
+| `EngineOpenError::RuntimeConfiguration` | `RuntimeConfigurationError`    | `RuntimeConfigurationError`      | startup configuration |
 | `Corruption(CorruptionDetail)`       | `CorruptionError`                | `CorruptionError`                | corruption            |
 | `IncompatibleSchemaVersion`          | `IncompatibleSchemaVersionError` | `IncompatibleSchemaVersionError` | incompatible-schema   |
 | `MigrationError`                     | `MigrationError`                 | `MigrationError`                 | migration-failed      |
@@ -256,6 +281,10 @@ configuration error.
 | `EngineError::EmbedderNotConfigured` | `EmbedderNotConfiguredError`     | `EmbedderNotConfiguredError`     | runtime failure       |
 | `EngineError::KindNotVectorIndexed`  | `KindNotVectorIndexedError`      | `KindNotVectorIndexedError`      | runtime failure       |
 | `EngineError::VectorEquivalenceMismatch` | `VectorEquivalenceMismatchError` | `VectorEquivalenceMismatchError` | dense refused (query-time) |
+| `EngineError::IllegalTransition`      | `IllegalTransitionError`         | `IllegalTransitionError`         | runtime failure       |
+| `EngineError::NotLifecycleAddressable` | `NotLifecycleAddressableError`  | `NotLifecycleAddressableError`   | runtime failure       |
+| `EngineError::ErasureIncomplete`      | `ErasureIncompleteError`         | `ErasureIncompleteError`         | retryable incomplete erasure |
+| `EngineError::ProjectionDestructive`  | `ProjectionDestructiveError`     | `ProjectionDestructiveError`     | caller confirmation required |
 
 2026-07-28 amendment (0.8.20 Slice 22, R-20-VC decision #18): `InvalidArgument`
 added to BOTH tables above. It was absent from the module taxonomy and from this

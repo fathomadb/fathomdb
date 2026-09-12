@@ -189,7 +189,7 @@ sequence per AC-056.
 - [Concepts](../concepts/index.md) — engine lifecycle, canonical rows,
   embedder model, recovery surface.
 - [Reference — Python API](../reference/python-api.md) — full surface.
-- [Reference — errors](../reference/errors.md) — the 27-class taxonomy
+- [Reference — errors](../reference/errors.md) — the 41-class taxonomy
   and recovery hints.
 - [Reference — CLI](../reference/cli.md) — operator verbs (`doctor`,
   `recover`).

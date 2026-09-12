@@ -1,7 +1,6 @@
 # Concepts
 
-Mental model for the published 0.8.23 release. APIs not yet available from a
-registry are marked separately. Detailed treatment lives in internal design
+Mental model for the published 0.8.25 release. Detailed treatment lives in internal design
 docs under
 [`dev/design/`](https://github.com/fathomadb/fathomdb/tree/main/dev/design);
 this page is the consumer-facing overview.
@@ -56,6 +55,38 @@ Engine-attached instrumentation (`open_report`, `drain`, `counters`,
 an additional top-level verb; it is a method namespace on the
 `Engine` handle.
 
+## 0.8.25 data-plane model
+
+Versioned write provenance assigns immutable artifact, source-version, and
+source-revision identities plus an exact whole-body or UTF-8 byte-span locator.
+A caller may then register one immutable source-to-derived dependency. The
+engine stores and validates that relationship; it does not infer semantic
+meaning.
+
+`actuate` applies a bounded caller-decided set of canonical writes, derived
+writes, dependency registrations, and lifecycle transitions atomically. Its
+operation identifier makes exact replay idempotent. Source-losing lifecycle and
+erasure operations close direct registered dependents and expose one keyed
+closure status rather than a public administrative queue.
+
+A `ReadContextV1` combines validity and eligibility policy. The Engine can mint
+an authenticated frozen form that binds retrieval, pagination, evidence,
+dependency trace, and frozen graph expansion to one resolved read authority.
+Callers may change ranking controls, but cannot weaken the frozen validity or
+eligibility boundary.
+
+Projection generation is distinct from logical writes and dependency
+generation. Generation-status reads expose the current serving identity and
+physical readiness; mutation-status reads correlate a pending cursor from an
+actuation receipt with that generation. Neither read schedules or repairs
+projection work.
+
+Evidence and explanation are opt-in. Evidence search returns compact
+source-bound references, resolution returns the exact authorized source bytes,
+dependency trace is bounded to the registered relationship graph, and
+`graph.expand` uses explicit work limits with deterministic ordering and
+degradation codes.
+
 ## Provenance is mandatory
 
 Every canonical node and edge carries a **`source_id`** — the
@@ -108,7 +139,7 @@ to re-open with a different embedder raises
 
 Vector identity belongs to the embedder per `ADR-0.6.0-vector-identity-embedder-owned`.
 
-Detailed trait + lifecycle docs: see Rust API docs (`docs.rs/fathomdb-embedder-api` post-publish; pre-GA, see
+Detailed trait + lifecycle docs: see Rust API docs (`docs.rs/fathomdb-embedder-api`) or
 [`src/rust/crates/fathomdb-embedder-api/`](https://github.com/fathomadb/fathomdb/tree/main/src/rust/crates/fathomdb-embedder-api)).
 
 ## Recovery surface
@@ -116,7 +147,7 @@ Detailed trait + lifecycle docs: see Rust API docs (`docs.rs/fathomdb-embedder-a
 The CLI exposes two roots:
 
 - `fathomdb doctor <verb>` — read-only or artifact-producing
-  diagnostics. `check-integrity`, `safe-export`, `verify-embedder`,
+  diagnostics. `check-integrity`, `data-plane-integrity`, `safe-export`, `verify-embedder`,
   `trace`, `dump-schema`, `dump-row-counts`, `dump-profile`,
   `dump-mutations`, `orphan-provenance`, `warm-cache`,
   `recompute-mean`.

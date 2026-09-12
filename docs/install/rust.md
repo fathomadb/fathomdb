@@ -8,7 +8,7 @@ Two consumption paths for Rust users:
   `fathomdb recover` verbs. Operator-only; does **not**
   ship `search` / `get` / `list` query verbs.
 
-> **0.8.23 is published to crates.io.** FathomDB is pre-1.0 and the surface
+> **0.8.25 is published to crates.io.** FathomDB is pre-1.0 and the surface
 > is **beta**.
 
 ## Requirements
@@ -32,7 +32,7 @@ cargo add fathomdb
 CLI:
 
 ```bash
-cargo install fathomdb-cli --version 0.8.23
+cargo install fathomdb-cli --version 0.8.25
 ```
 
 ## Install (current path — from git)
@@ -108,8 +108,9 @@ fathomdb doctor check-integrity --quick --json
 
 ## See also
 
+- [Reference — Rust API](../reference/rust-api.md)
 - [Reference — CLI](../reference/cli.md)
 - [Reference — errors](../reference/errors.md)
-- Rust API docs are auto-published to `docs.rs/fathomdb` once the crate
-  publishes. Until then, run `cargo doc --open`, or read
+- Rust API docs are published at `docs.rs/fathomdb`. For the current source,
+  run `cargo doc --open`, or read
   [`src/rust/crates/fathomdb/`](https://github.com/fathomadb/fathomdb/tree/main/src/rust/crates/fathomdb).

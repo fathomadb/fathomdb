@@ -3,10 +3,12 @@
 Module: `fathomdb`. Authoritative spec:
 [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/python.md).
 
-> **Release state.** 0.8.23 is the current published release. APIs not yet
-> available from a registry are marked separately.
+> **Release state.** 0.8.25 is the current published release.
 
-## Top-level
+## Representative top-level imports
+
+The package exports the core symbols below plus the versioned 0.8.25 carrier
+families summarized in [0.8.25 data-plane additions](#0825-data-plane-additions).
 
 ```python
 from fathomdb import (
@@ -305,6 +307,82 @@ mapped to `logging.LogRecord` with the stable `fathomdb` payload.
 - `engine.path` (`str`) — DB path supplied to `open`.
 - `engine.config` (`EngineConfig`) — resolved config.
 
+## 0.8.25 data-plane additions
+
+The additions below are available in the published 0.8.25 wheel. Request and
+response objects use `schema_version=1`; new counters, cursors, generations,
+and boundaries that cross the SDK boundary use canonical unsigned decimal
+strings rather than JSON numbers.
+
+### Versioned provenance
+
+A node or edge write may include a closed `provenance` mapping. Python uses
+snake-case fields: `artifact_revision_id`, `source_version_id`,
+`source_revision_id`, `source_locator`, and `canonical_source_hash`.
+`source_locator` is either whole-body or an exact UTF-8 byte span. Malformed or
+unknown fields raise `ProvenanceError(reason, field_path)` before database
+access. Existing writes without the versioned mapping remain valid.
+
+The public carrier family is `CanonicalHash`, `WholeBodySourceLocator`,
+`Utf8BytesSourceLocator`, `SourceLocator`, `CanonicalWriteProvenanceV1`,
+`DerivedWriteProvenanceV1`, and `WriteProvenanceV1`.
+
+### Dependencies, actuation, and closure
+
+| Method | Result | Contract |
+| ------ | ------ | -------- |
+| `engine.register_source_dependency(request)` | `SourceDependencyV1` | Register or exactly replay one immutable source-to-derived relation. |
+| `engine.dependencies_for_source(request)` | `DependencyListV1` | Return at most 100 dependencies in stable order. |
+| `engine.dependency_for_derived(request)` | `SourceDependencyV1 \| None` | Resolve the single source dependency for a derived revision. |
+| `engine.actuate(request)` | `ActuationReceiptV1` | Atomically apply 1–128 caller-decided operations with idempotent replay. |
+| `engine.read_dependency_closure(request)` | `ClosureStatusV1 \| None` | Read one Engine-minted closure operation; there is no public list or resume verb. |
+
+Dependency requests use `SourceDependencyRegistrationV1`,
+`DependencySourceLookupV1`, and `DependencyDerivedLookupV1`. Actuation uses
+`ActuationBatchV1` / `ActuationOperationV1`; its operation set is canonical
+node put, derived node put, dependency registration, and lifecycle transition.
+Domain refusals are terminal receipts while malformed requests raise
+`ActuationError`. Closure reads use `ClosureLookupV1`, `ClosureStatusV1`, and
+`ClosureProofV1`.
+
+### Frozen reads, pages, evidence, and trace
+
+| Method | Result | Contract |
+| ------ | ------ | -------- |
+| `engine.freeze_read_context(context)` | `FrozenReadContextV1` | Authenticate a resolved `ReadContextV1` for this database. |
+| `engine.search_frozen(query, context, **options)` | `SearchResult` | Search without weakening the frozen validity or eligibility policy. |
+| `engine.search_expand_frozen(query, context, depth, *, limit=10)` | `SearchExpandResult` | Search and graph-expand in one frozen read context. |
+| `engine.search_with_evidence(request)` | `EvidenceSearchResultV1` | Return normal hits plus one positional evidence reference per hit. |
+| `engine.resolve_evidence(request)` | `ResolvedEvidenceV1` | Resolve exact canonical bytes and the selected UTF-8 span. |
+| `engine.trace_dependency(request)` | `DependencyTraceResultV1` | Perform a bounded reciprocal dependency trace under a frozen context. |
+| `read.canonical_page(engine, kind, context, page)` | `PageV1[NodeRecord]` | Read a stable page of canonical logical nodes. |
+| `read.operational_state(engine, collection, record_key, context=None)` | `OperationalStateRecordV1 \| None` | Point-read a registered `latest_state` collection. |
+| `read.operational_state_page(engine, collection, context, page)` | `PageV1[OperationalStateRecordV1]` | Read a stable operational-state page. |
+
+`PageRequestV1` limits are 1 through 250 and continuations are opaque
+`PageCursor` values. Frozen-context failures raise `FrozenReadError`; page,
+evidence, and trace failures raise `PageError`, `EvidenceError`, and
+`DependencyTraceError`, each with stable `reason` and `field_path`.
+
+### Projection generation and constrained graph expansion
+
+- `read.projection_generation_status(engine) -> ProjectionGenerationStatusV1`
+  reports the serving projection generation and exact readiness without
+  scheduling work.
+- `read.mutation_projection_status(engine, request) ->
+  MutationProjectionStatusV1` reads completion for one pending cursor already
+  named by an actuation receipt.
+- `graph.expand(engine, request) -> GraphExpandResultV1` accepts query or
+  explicit seeds plus current or frozen read-context carriers. It returns
+  deterministic ordered seeds and targets, complete work accounting,
+  degradation codes, and an optional compact explanation.
+
+The principal graph carriers are `GraphExpandRequestV1`, `GraphExpandResultV1`,
+`GraphQuerySeedV1`, `GraphExplicitSeedV1`, `GraphReadContextV1`,
+`GraphTargetV1`, and `GraphExpansionExplanationV1`. Invalid graph requests
+raise `GraphExpansionError`; invalid projection-generation reads raise
+`ProjectionGenerationError`.
+
 ## `admin.configure`
 
 ```python
@@ -317,6 +395,23 @@ receipt = admin.configure(engine, name="my-schema", body=schema_json)
 
 Submit an admin schema configuration. The writer thread applies
 it; the returned cursor places the apply in the global write order.
+
+### `admin.configure_runtime(*, sqlite_mode) -> RuntimeConfiguration`
+
+Select process-wide SQLite startup behavior before the first Engine opens:
+
+```python
+from fathomdb import admin
+
+runtime = admin.configure_runtime(sqlite_mode="performance")
+assert runtime.sqlite_mode == "performance"
+```
+
+The closed modes are `"performance"` and `"diagnostics"`. With no explicit
+call, the first Engine open selects performance. Repeating the effective mode
+is idempotent; conflicting or late calls raise `RuntimeConfigurationError` and
+changing mode requires a process restart. This startup control is not a
+database permission or a governed application command.
 
 ## `read.*` — governed read verbs (including 0.8.22 Slice 22)
 
@@ -675,7 +770,7 @@ Returned by `graph.search_expand`. `all_logical_ids` contains the
 
 ## Errors
 
-`fathomdb.errors` exports `EngineError` (the catch-all base) plus **27**
+`fathomdb.errors` exports `EngineError` (the catch-all base) plus **41**
 concrete classes below it. See [errors reference](errors.md) for the full
 matrix and recovery-hint codes.
 

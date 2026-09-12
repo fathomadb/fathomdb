@@ -1,8 +1,8 @@
 ---
 title: TypeScript Public Interface
-date: 2026-07-29
-target_release: 0.8.21
-desc: Public TypeScript surface for 0.8.21
+date: 2026-09-12
+target_release: 0.8.25
+desc: Public TypeScript surface for 0.8.25
 blast_radius: src/ts/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---
@@ -33,6 +33,16 @@ namespace (`neighbors`, `searchExpand`), the BYO-LLM verbs
 lifecycle/erasure verbs below. Verb NAMES are camelCase in TS; the governed
 allowlist entries stay dotted snake_case where the two differ
 (`read.get_many` ↔ `read.getMany`).
+
+The 0.8.25 additions are `engine.registerSourceDependency`,
+`engine.dependenciesForSource`, `engine.dependencyForDerived`,
+`engine.actuate`, `engine.readDependencyClosure`,
+`engine.freezeReadContext`, `engine.searchFrozen`,
+`engine.searchExpandFrozen`, `engine.searchWithEvidence`,
+`engine.resolveEvidence`, `engine.traceDependency`,
+`read.projectionGenerationStatus`, `read.mutationProjectionStatus`,
+`read.canonicalPage`, `read.operationalState`, `read.operationalStatePage`, and
+`graph.expand`.
 
 `admin.configureRuntime({ sqliteMode: "performance" | "diagnostics" })` is a
 synchronous startup runtime control, not a governed application command. It
@@ -722,7 +732,7 @@ reservation, memory quota, scheduler, or evidence that retrieval/FTS/fusion/
 graph work used the GPU.
 
 TypeScript exposes one concrete class per canonical row in
-`design/errors.md` — **30** of them as of 0.8.25, 1:1 with the Python set
+`design/errors.md` — **41** of them as of 0.8.25, 1:1 with the Python set
 below `EngineError`.
 
 Class examples:
@@ -749,12 +759,20 @@ The 0.8.19/0.8.20 additions, all of which the governed verbs above can throw:
 - `VectorEquivalenceMismatchError` (`reason`)
 - `ConsolidatorError`
 
+The 0.8.25 additions are `RuntimeConfigurationError`,
+`ProjectionGenerationError`, `ProvenanceError`, `DependencyError`,
+`DependencyClosureError`, `ActuationError`, `FrozenReadError`, `PageError`,
+`EvidenceError`, `DependencyTraceError`, and `GraphExpansionError`. Their
+request-facing payloads use stable `reason` and `fieldPath` properties except
+for runtime configuration, which exposes requested/effective modes and the
+optional SQLite code.
+
 TypeScript exports one catch-all base class, `FathomDbError`, and every
 concrete class in the `design/errors.md` matrix extends it. Open-time and
 runtime classes remain distinct, but callers can catch `FathomDbError` for
 both. `FathomDbPanicError` extends `Error`, **not** `FathomDbError`, and is
 deliberately outside the catch-all root — it is TS-only (the Python peer is
-PyO3's `PanicException`) and is therefore not one of the 27.
+PyO3's `PanicException`) and is therefore not one of the 41.
 
 ⚠ `WriteValidationError` is **message-less** since decision #18: the envelope
 is `FDB_WRITE_VALIDATION` with the fixed message `"write validation error"` and

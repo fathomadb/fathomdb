@@ -6,7 +6,7 @@ fresh engine has no embedder configured and vector writes fail with
 `EmbedderNotConfiguredError` until you either enable the default embedder or supply
 your own (Rust only, today).
 
-> Status: shipped; 0.8.23 is the current published release. The ANN-fidelity
+> Status: shipped; 0.8.25 is the current published release. The ANN-fidelity
 > recall@10,
 > measured on the pre-fusion **vector stage** (the SUT the 0.90 floor gates), is
 > **0.896** (95% CI 0.864–0.925, N=7,667) and holds the **0.90 floor under the

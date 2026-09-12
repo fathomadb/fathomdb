@@ -3,18 +3,21 @@
 Package: `fathomdb`. Authoritative spec:
 [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/typescript.md).
 
-> **Release state.** 0.8.23 is the current published release. APIs not yet
-> available from a registry are marked separately.
+> **Release state.** 0.8.25 is the current published release.
 
 **TS SDK parity caveat.** The TS surface covers the same governed command set
 and the same error taxonomy as Python, but Python remains the more heavily
 exercised binding. Prefer Python for production pilots. See
 [SDK parity](../positions/sdk-parity.md).
 
-All runtime operations are Promise-returning. The TS↔Python parity
+Governed Engine operations are Promise-returning. Process-start runtime
+configuration and instrumentation snapshots/setters are synchronous. The TS↔Python parity
 matrix is in [`dev/notes/12-TX-parity-matrix.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md).
 
-## Top-level
+## Representative top-level imports
+
+The package exports the core symbols below plus the versioned 0.8.25 carrier
+families summarized in [0.8.25 data-plane additions](#0825-data-plane-additions).
 
 ```ts
 import {
@@ -45,7 +48,7 @@ import {
   type AttachSubscriberOptions,
   type AdminConfigureOptions,
   FathomDbError,
-  // ...27 concrete classes below the root, see errors reference
+  // ...typed classes below the root, see errors reference
 } from "fathomdb";
 ```
 
@@ -314,6 +317,82 @@ is optional.
 
 - `engine.config` (`EngineConfig`) — resolved config.
 
+## 0.8.25 data-plane additions
+
+The additions below are available in the published 0.8.25 npm package. Request
+and response objects use `schemaVersion: 1`; new counters, cursors,
+generations, and boundaries use canonical unsigned decimal strings rather than
+JavaScript numbers.
+
+### Versioned provenance
+
+A node or edge write may include a closed `provenance` object. TypeScript uses
+camel-case fields: `artifactRevisionId`, `sourceVersionId`,
+`sourceRevisionId`, `sourceLocator`, and `canonicalSourceHash`.
+`sourceLocator` is either whole-body or an exact UTF-8 byte span. Malformed or
+unknown fields throw `ProvenanceError` with stable `reason` and `fieldPath`.
+Existing writes without the versioned object remain valid.
+
+The exported carrier family is `CanonicalHash`, `WholeBodySourceLocator`,
+`Utf8BytesSourceLocator`, `SourceLocator`, `CanonicalWriteProvenanceV1`,
+`DerivedWriteProvenanceV1`, and `WriteProvenanceV1`.
+
+### Dependencies, actuation, and closure
+
+| Method | Result | Contract |
+| ------ | ------ | -------- |
+| `engine.registerSourceDependency(request)` | `Promise<SourceDependencyV1>` | Register or exactly replay one immutable source-to-derived relation. |
+| `engine.dependenciesForSource(request)` | `Promise<DependencyListV1>` | Return at most 100 dependencies in stable order. |
+| `engine.dependencyForDerived(request)` | `Promise<SourceDependencyV1 \| null>` | Resolve the single source dependency for a derived revision. |
+| `engine.actuate(request)` | `Promise<ActuationReceiptV1>` | Atomically apply 1–128 caller-decided operations with idempotent replay. |
+| `engine.readDependencyClosure(request)` | `Promise<ClosureStatusV1 \| null>` | Read one Engine-minted closure operation; there is no public list or resume verb. |
+
+Dependency requests use `SourceDependencyRegistrationV1`,
+`DependencySourceLookupV1`, and `DependencyDerivedLookupV1`. Actuation uses
+`ActuationBatchV1` / `ActuationOperationV1`; its operation set is canonical
+node put, derived node put, dependency registration, and lifecycle transition.
+Domain refusals are terminal receipts while malformed requests throw
+`ActuationError`. Closure reads use `ClosureLookupV1`, `ClosureStatusV1`, and
+`ClosureProofV1`.
+
+### Frozen reads, pages, evidence, and trace
+
+| Method | Result | Contract |
+| ------ | ------ | -------- |
+| `engine.freezeReadContext(context)` | `Promise<FrozenReadContextV1>` | Authenticate a resolved `ReadContextV1` for this database. |
+| `engine.searchFrozen(query, context, options?)` | `Promise<SearchResult>` | Search without weakening the frozen validity or eligibility policy. |
+| `engine.searchExpandFrozen(query, context, depth, options?)` | `Promise<SearchExpandResult>` | Search and graph-expand in one frozen read context. |
+| `engine.searchWithEvidence(request)` | `Promise<EvidenceSearchResultV1>` | Return normal hits plus one positional evidence reference per hit. |
+| `engine.resolveEvidence(request)` | `Promise<ResolvedEvidenceV1>` | Resolve exact canonical bytes and the selected UTF-8 span. |
+| `engine.traceDependency(request)` | `Promise<DependencyTraceResultV1>` | Perform a bounded reciprocal dependency trace under a frozen context. |
+| `read.canonicalPage(engine, kind, context, page)` | `Promise<PageV1<NodeRecord>>` | Read a stable page of canonical logical nodes. |
+| `read.operationalState(engine, collection, recordKey, context?)` | `Promise<OperationalStateRecordV1 \| null>` | Point-read a registered `latest_state` collection. |
+| `read.operationalStatePage(engine, collection, context, page)` | `Promise<PageV1<OperationalStateRecordV1>>` | Read a stable operational-state page. |
+
+`PageRequestV1` limits are 1 through 250 and continuations are opaque
+`PageCursor` values. Frozen-context failures throw `FrozenReadError`; page,
+evidence, and trace failures throw `PageError`, `EvidenceError`, and
+`DependencyTraceError`, each with stable `reason` and `fieldPath`.
+
+### Projection generation and constrained graph expansion
+
+- `read.projectionGenerationStatus(engine):
+  Promise<ProjectionGenerationStatusV1>` reports the serving projection
+  generation and exact readiness without scheduling work.
+- `read.mutationProjectionStatus(engine, request):
+  Promise<MutationProjectionStatusV1>` reads completion for one pending cursor
+  already named by an actuation receipt.
+- `graph.expand(engine, request): Promise<GraphExpandResultV1>` accepts query or
+  explicit seeds plus current or frozen read-context carriers. It returns
+  deterministic ordered seeds and targets, complete work accounting,
+  degradation codes, and an optional compact explanation.
+
+The principal graph carriers are `GraphExpandRequestV1`, `GraphExpandResultV1`,
+`GraphQuerySeedV1`, `GraphExplicitSeedV1`, `GraphReadContextV1`,
+`GraphTargetV1`, and `GraphExpansionExplanationV1`. Invalid graph requests
+throw `GraphExpansionError`; invalid projection-generation reads throw
+`ProjectionGenerationError`.
+
 ## `admin.configure`
 
 ```ts
@@ -325,6 +404,23 @@ const receipt = await admin.configure(engine, { name: "my-schema", body: schemaJ
 `admin.configure(engine: Engine, options: AdminConfigureOptions):
 Promise<WriteReceipt>` where `AdminConfigureOptions = { name:
 string; body: string }`.
+
+### `admin.configureRuntime(options) -> RuntimeConfiguration`
+
+Select process-wide SQLite startup behavior before the first Engine opens:
+
+```ts
+import { admin } from "fathomdb";
+
+const runtime = admin.configureRuntime({ sqliteMode: "performance" });
+console.assert(runtime.sqliteMode === "performance");
+```
+
+`RuntimeSqliteMode` is `"performance" | "diagnostics"`. With no explicit
+call, the first Engine open selects performance. Repeating the effective mode
+is idempotent; conflicting or late calls throw `RuntimeConfigurationError` and
+changing mode requires a process restart. This synchronous startup control is
+not a database permission or a governed application command.
 
 ## `read.*` — governed read verbs (including 0.8.22 Slice 22)
 
@@ -673,7 +769,7 @@ interface SearchExpandResult {
 
 ## Errors
 
-`fathomdb` exports `FathomDbError` (the catch-all base) plus **27**
+`fathomdb` exports `FathomDbError` (the catch-all base) plus **41**
 concrete classes below it. See [errors reference](errors.md).
 
 The lifecycle / erasure verbs reject with `IllegalTransitionError`,

@@ -18,10 +18,15 @@ operator CLI.
 - Lifecycle and erasure verbs in the SDK — `transition`, `purge`,
   `erase_source` — so a consumer with no CLI on `PATH` can still discharge a
   deletion obligation.
+- Versioned source provenance and immutable source-to-derived dependencies,
+  with atomic caller-decided actuation and dependency-aware closure.
+- Authenticated frozen reads, stable pagination, source evidence, dependency
+  tracing, and constrained graph expansion across the Python and TypeScript
+  SDKs and Rust facade.
 - Optional in-process default embedder (`bge-small-en-v1.5`, pure Rust).
 
-**Status: 0.8.23, pre-1.0 beta.** The surface may change between micro
-releases. **v0.8.23 is published** to crates.io, PyPI, and npm; native Python
+**Status: 0.8.25, pre-1.0 beta.** The surface may change between micro
+releases. **v0.8.25 is published** to crates.io, PyPI, and npm; native Python
 and npm artifacts cover Linux x86_64/glibc and Linux AArch64/glibc. The main npm
 package is on the `next` dist-tag.
 Licensed **MIT** (see `LICENSE`).

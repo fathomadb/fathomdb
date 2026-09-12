@@ -1,5 +1,28 @@
 # Config
 
+## Process-start SQLite mode (0.8.25)
+
+Before any Engine opens, a process may select one of two SQLite runtime modes:
+
+| Mode | Python | TypeScript | Rust |
+| ---- | ------ | ---------- | ---- |
+| Performance | `admin.configure_runtime(sqlite_mode="performance")` | `admin.configureRuntime({ sqliteMode: "performance" })` | `admin::configure_runtime(RuntimeSqliteMode::Performance)` |
+| Diagnostics | `admin.configure_runtime(sqlite_mode="diagnostics")` | `admin.configureRuntime({ sqliteMode: "diagnostics" })` | `admin::configure_runtime(RuntimeSqliteMode::Diagnostics)` |
+
+Performance is the default selected by the first Engine open. It disables
+SQLite global memory statistics and heap-limit enforcement for lower shared
+runtime overhead. Diagnostics preserves those facilities for measurement and
+troubleshooting. The 0.8.25 runtime also performs bounded prepared-statement
+reuse internally; there is no caller tuning knob for its cache.
+
+The choice is process-wide and lasts until restart. An identical repeat is
+idempotent; a conflicting or post-open request raises
+`RuntimeConfigurationError` with the requested/effective mode and optional
+SQLite code. This API does not call `sqlite3_shutdown()` and is not a database
+permission or file-access boundary.
+
+## Engine configuration
+
 Engine-owned runtime knobs (0.8.20). The same five knobs are exposed by
 every binding in idiomatic spelling (Python snake_case, TS camelCase,
 Rust snake_case).
@@ -66,7 +89,10 @@ field, and has no Python counterpart by design.
 ## Non-fields
 
 Python executor usage is caller-owned and is not an engine config
-field. Path is positional on `Engine.open` and is not a config field.
+field. Path is positional on `Engine.open` and is not a config field. The
+process-start SQLite mode above is also intentionally separate from
+`EngineConfig` because it applies to the loaded runtime before any connection
+exists.
 
 ## Mutable-at-runtime
 

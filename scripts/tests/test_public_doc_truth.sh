@@ -126,6 +126,20 @@ path.write_text(json.dumps(state) + "\n")
 PY
 expect_fail "$FIXTURE" 'rejects a malformed published tag record'
 
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/dev/plans/release-state-0.8.25.json" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+state = json.loads(path.read_text())
+state["published"]["published_on"] = "2026-02-30"
+path.write_text(json.dumps(state) + "\n")
+PY
+expect_fail "$FIXTURE" 'rejects a syntactically ISO but invalid calendar date'
+
+make_fixture "$FIXTURE"
 sed -i 's/v0\.8\.25 is published/v0.8.25 is not yet published/' "$FIXTURE/README.md"
 expect_fail "$FIXTURE" 'rejects an unpublished claim for the published release'
 

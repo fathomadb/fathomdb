@@ -167,6 +167,30 @@ else
   fail "malformed publication: rc=$RC out=$OUT"
 fi
 
+INVALID_CALENDAR_DATE="$TMPROOT/invalid-calendar-date"
+make_repo "$INVALID_CALENDAR_DATE"
+write_pair "$INVALID_CALENDAR_DATE" 0.8.21 'CLOSED — historical record'
+python3 - "$INVALID_CALENDAR_DATE/dev/plans/release-state-0.8.21.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+d['release_kind'] = 'released; publication complete'
+d['published'] = {
+    'tag': 'v0.8.21',
+    'tag_commit': '0' * 40,
+    'published_on': '2026-02-30',
+    'npm_dist_tag': 'latest',
+}
+open(p, 'w').write(json.dumps(d))
+PY
+(cd "$INVALID_CALENDAR_DATE" && git add -A && git commit -qm fixture)
+run "$INVALID_CALENDAR_DATE"
+if [ "$RC" -ne 0 ] && grep -qi 'invalid published receipt.*ISO date' <<<"$OUT"; then
+  pass 'invalid calendar date hard-fails'
+else
+  fail "invalid calendar date: rc=$RC out=$OUT"
+fi
+
 MULTI="$TMPROOT/multiple"
 make_repo "$MULTI"
 write_pair "$MULTI" 0.8.20 LIVE

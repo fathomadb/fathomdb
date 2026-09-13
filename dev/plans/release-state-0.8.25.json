@@ -158,6 +158,13 @@
     ]
   },
   "release_readiness": null,
+  "published": {
+    "tag": "v0.8.25",
+    "tag_commit": "e2934867436eb9859f31574ad05abf632314906a",
+    "published_on": "2026-09-12",
+    "npm_dist_tag": "latest",
+    "evidence": "The signed v0.8.25 tag peels to the recorded release commit; the release board records successful crates.io, PyPI, and npm publication plus registry-installed smoke verification."
+  },
   "generated_views": [
     {
       "id": "plan-landed-roll-up",

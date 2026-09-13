@@ -76,6 +76,9 @@ def published_record(state: dict, version: str, relative: Path) -> dict | None:
     """Validate the canonical nullable publication record for one state."""
     published = state.get("published")
     if published is None:
+        release_kind = state.get("release_kind")
+        if isinstance(release_kind, str) and "publication complete" in release_kind.casefold():
+            fail(f"{relative} declares publication complete without a published receipt")
         return None
     if not isinstance(published, dict):
         fail(f"{relative} has a non-object published record")

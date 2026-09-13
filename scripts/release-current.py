@@ -15,9 +15,12 @@ import json
 import re
 import subprocess
 import sys
+
 STATE_RE = re.compile(r"dev/plans/release-state-([0-9][0-9.]*)\.json$")
 BOARD_RE = re.compile(r"dev/plans/runs/STATUS-([0-9][0-9.]*)\.md$")
 CLOSED_MARKER = "closed — historical record"
+COMMIT_RE = re.compile(r"[0-9a-f]{40}$")
+DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}$")
 
 
 def tracked(pattern: str) -> list[str]:
@@ -35,6 +38,35 @@ def tracked(pattern: str) -> list[str]:
 def closed(path: str) -> bool:
     with open(path, encoding="utf-8") as fh:
         return CLOSED_MARKER in "".join(fh.readline() for _ in range(15)).casefold()
+
+
+def published_receipt_error(data: dict, release: str) -> str | None:
+    """Return an error for an inconsistent publication lifecycle or receipt."""
+    published = data.get("published")
+    release_kind = data.get("release_kind")
+    publication_complete = (
+        isinstance(release_kind, str)
+        and "publication complete" in release_kind.casefold()
+    )
+    if published is None:
+        if publication_complete:
+            return "declares publication complete without a published receipt"
+        return None
+    if not isinstance(published, dict):
+        return "has an invalid published receipt: expected an object"
+    required = ("tag", "tag_commit", "published_on", "npm_dist_tag")
+    if any(
+        not isinstance(published.get(field), str) or not published[field]
+        for field in required
+    ):
+        return "has an invalid published receipt: required fields are incomplete"
+    if published["tag"] != f"v{release}":
+        return "has an invalid published receipt: tag does not match the release"
+    if not COMMIT_RE.fullmatch(published["tag_commit"]):
+        return "has an invalid published receipt: tag_commit is not a full lowercase SHA"
+    if not DATE_RE.fullmatch(published["published_on"]):
+        return "has an invalid published receipt: published_on is not an ISO date"
+    return None
 
 
 def main() -> int:
@@ -64,6 +96,10 @@ def main() -> int:
                 f"inconsistent release link in {state}: filename requires release "
                 f"{release!r} and board {expected_board!r}"
             )
+            continue
+        receipt_error = published_receipt_error(data, release)
+        if receipt_error is not None:
+            errors.append(f"{state} {receipt_error}")
             continue
         # A published state is historical even if its retained board has not
         # yet acquired the newer CLOSED banner convention.

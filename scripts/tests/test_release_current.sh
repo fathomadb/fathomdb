@@ -69,7 +69,12 @@ python3 - "$FIX/dev/plans/release-state-0.8.20.json" <<'PY'
 import json, sys
 p = sys.argv[1]
 d = json.load(open(p))
-d['published'] = {'tag': 'v0.8.20'}
+d['published'] = {
+    'tag': 'v0.8.20',
+    'tag_commit': '0' * 40,
+    'published_on': '2026-08-20',
+    'npm_dist_tag': 'latest',
+}
 open(p, 'w').write(json.dumps(d))
 PY
 printf '# retained 0.8.20 board without a CLOSED banner\nLIVE\n' \
@@ -101,7 +106,12 @@ python3 - "$COMPLETE/dev/plans/release-state-0.8.21.json" <<'PY'
 import json, sys
 p = sys.argv[1]
 d = json.load(open(p))
-d['published'] = {'tag': 'v0.8.21'}
+d['published'] = {
+    'tag': 'v0.8.21',
+    'tag_commit': '0' * 40,
+    'published_on': '2026-08-21',
+    'npm_dist_tag': 'latest',
+}
 open(p, 'w').write(json.dumps(d))
 PY
 (cd "$COMPLETE" && git add -A && git commit -qm fixture)

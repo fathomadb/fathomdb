@@ -60,8 +60,10 @@ unfixed. Recommendations are proposals pending HITL ruling.
   or successor graph result?
 - **Options:** (A) additive sidecar/successor result; (B) add required fields to
   `GraphTargetV1`; (C) defer exact graph evidence.
-- **Recommendation:** A. It satisfies Memex without the binding and fixture
-  breakage of B; C leaves graph evidence gated.
+- **Recommendation:** A, conditional on a named Slice 15 performance and
+  erasure-linearization spike before Slice 20. It satisfies Memex without the
+  binding and fixture breakage of B; C leaves graph evidence gated. See
+  [`spike-d26-01-graph-evidence-impact.md`](spike-d26-01-graph-evidence-impact.md).
 - **What changes it:** Evidence that every V1 decoder tolerates the exact field
   addition and that no fixture/schema contract closes the shape; cheaply
   checkable, but current code evidence points the other way.
@@ -96,8 +98,12 @@ unfixed. Recommendations are proposals pending HITL ruling.
   `ActuationBatchV2`/`PutDerivedEdge`?
 - **Options:** (A) versioned V2 successor; (B) extend/reinterpret V1; (C) retain
   the non-atomic two-call boundary.
-- **Recommendation:** A. It meets the atomic invariant while preserving V1;
-  B risks replay drift and C does not meet Memex's requirement.
+- **Recommendation:** A, specifically a full successor grammar containing all
+  V1 operations plus `PutDerivedEdge`, with a named Slice 35 contract and
+  performance spike before Slice 40. It meets the atomic invariant while
+  preserving V1; B risks replay drift and C does not meet Memex's requirement.
+  See
+  [`spike-d26-03-05-actuation-shape.md`](spike-d26-03-05-actuation-shape.md).
 - **What changes it:** Proof that the public V1 grammar is safely extensible
   without digest, replay, or decoder change. Current exhaustive models make
   that unlikely.
@@ -114,9 +120,12 @@ unfixed. Recommendations are proposals pending HITL ruling.
 - **Options:** (A) preserve flag/count semantics over complete prospective
   state; (B) require endpoints over complete prospective state; (C) require
   earlier-operation order.
-- **Recommendation:** A. It preserves one edge model and still lets Memex write
-  complete node/dependency/edge units. B is defensible if governed atomicity is
-  intended to guarantee referential completeness; C adds needless ordering.
+- **Recommendation:** B. Ordinary flag/count behavior cannot be truthfully
+  replayed through the current actuation receipt because it has no dangling
+  count. B preserves current receipt storage, accepts endpoints anywhere in
+  the complete batch, and minimizes durable-schema risk. A remains available
+  only if Memex explicitly needs incomplete-graph admission; C adds needless
+  ordering.
 - **What changes it:** A Memex requirement that the governed batch itself—not
   Memex validation—must reject incomplete endpoint sets.
 - **Blocked/reversible:** Slice 40 transaction tests and error contract are
@@ -133,9 +142,10 @@ unfixed. Recommendations are proposals pending HITL ruling.
   behavior explicitly?
 - **Options:** (A) conditional receipt/storage evolution; (B) mandate a new
   receipt schema now; (C) omit collision semantics.
-- **Recommendation:** A. It preserves persisted stability and permits only an
-  evidenced minimum. B adds migration risk without a demonstrated need; C
-  leaves replay ambiguous.
+- **Recommendation:** A together with D26-04 option B. Keep current receipt
+  storage, share the V1/V2 operation-ID namespace, and make cross-version reuse
+  conflict through distinct digest domains. D26-04 option A would instead
+  require receipt persistence evolution and materially increase risk.
 - **What changes it:** An approved audit field that current columns cannot
   truthfully encode, established by a human-authored RED contract test.
 - **Blocked/reversible:** Receipt design within Slice 40 is blocked; schema
@@ -145,17 +155,19 @@ unfixed. Recommendations are proposals pending HITL ruling.
 
 ### D26-06 — Slice 9 preparation scope
 
-- **Situation:** P26-01 through P26-09 contain the highest-value
-  feature-independent prerequisites. P26-06 has a security driver but no safe
-  automatic upgrade; P26-08 is safest when split between comment truth and
-  runtime migration.
-- **Question:** Should Slice 9 implement P26-01–05 and P26-09, perform a bounded
-  P26-06 remediation attempt, and apply only the comment-truth half of P26-08?
-- **Options:** (A) recommended bounded bundle; (B) lifecycle/state/preflight
-  only; (C) all dependency, CI, and cleanup proposals; (D) no preparation.
+- **Situation:** The owner's narrow-release ruling removes unrelated dependency
+  remediation from the default bundle. P26-01 and P26-02 are mandatory release
+  truth; P26-03, exact P26-05 corrections, P26-08 comment truth, and P26-09 are
+  bounded corrections to known release failures. P26-04 is an execution
+  condition, not product scope.
+- **Question:** Should Slice 9 implement P26-01, P26-02, P26-03, exact P26-05,
+  P26-08 comment truth, and P26-09, with P26-04 enforced as execution
+  conditions?
+- **Options:** (A) revised narrow bundle; (B) ultra-narrow P26-01 and P26-02
+  only; (C) name individual exceptions; (D) no preparation.
 - **Recommendation:** A. It removes deterministic release blockers and repeated
-  candidate failures without pulling broad dependency/cleanup churn into the
-  feature release. B leaves known low-risk CI inventory debt; C is overbroad.
+  candidate failures without dependency or cleanup churn. P26-06 is postponed
+  unless it becomes a hard build blocker.
 - **What changes it:** A requirement to minimize any pre-feature diff beyond
   release-state activation, or evidence that the markdown advisory has no
   viable bounded fix.
@@ -170,14 +182,16 @@ unfixed. Recommendations are proposals pending HITL ruling.
 - **Situation:** P26-11 through P26-13 have clear value but belong after
   features or at final artifact/release boundaries. P26-10 and P26-14 lack
   enough evidence for implementation.
-- **Question:** Should the release include P26-11 in Slice 50, P26-12 in one
-  reserved post-10 security slice, and P26-13 in Slice 50/release, while
-  postponing P26-10 and P26-14?
-- **Options:** (A) recommended placements; (B) move all five into Slice 9; (C)
-  postpone all five; (D) choose individual exceptions.
-- **Recommendation:** A. It aligns proof with the first available artifact and
-  prevents speculative runner/dispatch work. B would front-load risk; C leaves
-  known release friction untreated.
+- **Question:** Should Slice 50 include P26-11 exact generated-evidence digest
+  registration and P26-13 registry visibility polling logic, while postponing
+  P26-10, P26-12, and P26-14?
+- **Options:** (A) revised narrow placement; (B) postpone all five; (C) choose
+  individual exceptions.
+- **Recommendation:** A. Slice 50 is the final integrated non-publishing
+  verification slice, not publication itself. Actual registry exercise and
+  publication remain a separate gate. This placement prevents known release
+  friction without pulling unrelated full-history security triage or
+  speculative runner work into 0.8.26.
 - **What changes it:** Confirmation that Windows runner drift or duplicate
   dispatch is recurring on current infrastructure, which would promote the
   relevant item.

@@ -79,9 +79,11 @@ fix depends on built product artifacts or belongs at the release boundary.
 | 8 | Score all proposals, conduct interactive HITL decisions, replace/review Slice 9, and update this plan. | 7 | Draft |
 | 9 | Implement only HITL-approved repository preparation under the reviewed Slice 9 plan. | 8 | Provisional draft |
 | 10 | Repair frozen explanation, complete public guidance, and add the installed-artifact conformance witness. | 9 | Draft |
-| 20 | Add immutable-revision graph-target and terminal-edge evidence resolution under frozen authority. | 10 | Draft |
+| 15 | Run the bounded graph-evidence performance and erasure-linearization implementation spike; accept or narrow the Slice 20 design. | 10 | Proposed by Slice 8 evidence |
+| 20 | Add immutable-revision graph-target and terminal-edge evidence resolution under frozen authority. | 15 | Draft |
 | 30 | Qualify and harden the existing versioned read-only operator integrity inspection route. | 20 | Draft |
-| 40 | Add versioned atomic derived-edge actuation and evolve receipts only if current storage is insufficient. | 30 | Draft |
+| 35 | Run the bounded actuation V2 contract and performance implementation spike; accept or narrow the Slice 40 design. | 30 | Proposed by Slice 8 evidence |
+| 40 | Add versioned atomic derived-edge actuation under the Slice 35 contract; evolve receipts only if explicitly approved. | 35 | Draft |
 | 50 | Run integrated Memex-profile, cross-SDK, platform, package, and non-publishing release verification. | 40 | Draft |
 
 ## Requirements and acceptance criteria

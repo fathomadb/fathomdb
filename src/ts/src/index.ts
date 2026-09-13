@@ -2033,9 +2033,9 @@ function mapCandidateNativeExplanation(
 
 /**
  * 0.8.8 EXP-OBS (Slice 10) — opt-in retrieval explanation sidecar (mirror of the
- * Rust `Explanation`): a query-level `trace` + a per-hit breakdown. Returned on
- * `SearchResult.explanation` only when `search(..., { explain: true })`; `null`
- * (default) keeps the result byte-identical to the pre-0.8.8 shape.
+ * Rust `Explanation`): a query-level `trace` + a per-hit breakdown. Returned when
+ * ordinary or frozen retrieval explicitly requests explanation; `null` (default)
+ * keeps the result byte-identical to the pre-0.8.8 shape.
  */
 export interface Explanation {
   trace: QueryTrace;
@@ -2048,8 +2048,7 @@ export interface SearchResult {
   softFallback: SoftFallback | null;
   results: SearchHit[];
   /**
-   * 0.8.8 EXP-OBS (Slice 10) — opt-in explanation sidecar; `null` unless
-   * `search(..., { explain: true })`.
+   * Opt-in explanation sidecar; `null` unless the retrieval requests explanation.
    */
   explanation: Explanation | null;
 }
@@ -2743,7 +2742,10 @@ export class Engine {
     return validateDependencyTraceResponse(value);
   }
 
-  /** Search under an Engine-authenticated frozen validity/eligibility context. */
+  /**
+   * Search under an Engine-authenticated frozen context. `explain: true` returns a
+   * finalized nonempty correlation identity.
+   */
   async searchFrozen(
     query: string,
     context: FrozenReadContextV1,
@@ -2809,7 +2811,10 @@ export class Engine {
     return mapNativeSearchResult(result);
   }
 
-  /** Search under a frozen context and attach one evidence reference per hit. */
+  /**
+   * Attach one evidence reference per frozen hit. `includeExplanation: true`
+   * finalizes the nested correlation identity.
+   */
   async searchWithEvidence(request: EvidenceSearchRequestV1): Promise<EvidenceSearchResultV1> {
     assertKnownEvidenceKeys(request, [
       "schemaVersion",

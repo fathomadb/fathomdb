@@ -1123,7 +1123,9 @@ the runtime `Engine` does NOT gain corresponding SDK methods.
 object and reject tampering, another database, unsupported versions, or state
 drift with `EngineError::FrozenRead`. Frozen combined search and expansion run
 on one reader transaction. Eligibility is applied before candidate limits in
-the lexical, dense, and graph paths.
+the lexical, dense, and graph paths. `search_frozen(..., explain=true)` returns
+the same ranked result with a finalized non-empty explanation correlation
+identity; explanation-disabled frozen search does not capture telemetry.
 
 ## Frozen pagination and operational state (0.8.25 Slice 45)
 
@@ -1145,6 +1147,11 @@ hybrid search under a `FrozenReadContextV1` and returns
 `EvidenceSidecarEntryV1` per hit. `Engine::resolve_evidence` accepts the opaque
 reference and an equivalent frozen context and returns exact one-source
 `ResolvedEvidenceV1` only after current authorization is rechecked.
+
+When requested, the nested explanation has the same finalized correlation
+contract as ordinary explained search. Explanation enablement does not change
+ranked hits or positional evidence artifact identities, and opaque evidence
+reference bytes are not stable across independent calls.
 
 The reference contains keyed commitments, not caller or stored identities.
 Resolution is stateless and uses one reader transaction. Ordinary search,

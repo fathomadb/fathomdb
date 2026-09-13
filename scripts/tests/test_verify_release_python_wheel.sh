@@ -42,8 +42,13 @@ if [ -n "${FATHOMDB_VERIFY_REPORT:-}" ]; then
   venv="${FAKE_VENV:?}"
   module="${FAKE_MODULE:-$venv/lib/python3.12/site-packages/fathomdb/__init__.py}"
   native="${FAKE_NATIVE:-$venv/lib/python3.12/site-packages/fathomdb/_fathomdb.so}"
-  printf '%s\n%s\n%s\n' "$module" "$native" "${FAKE_EDITABLE:-false}" >"$FATHOMDB_VERIFY_REPORT"
-  printf 'wheel smoke: ok\n'
+  if [ "${FAKE_SKIP_PROFILE:-0}" = 1 ]; then
+    printf '%s\n%s\n%s\n' "$module" "$native" "${FAKE_EDITABLE:-false}" >"$FATHOMDB_VERIFY_REPORT"
+  else
+    printf '%s\n%s\n%s\nfrozen-evidence-profile-v1\n' \
+      "$module" "$native" "${FAKE_EDITABLE:-false}" >"$FATHOMDB_VERIFY_REPORT"
+  fi
+  printf 'frozen evidence wheel profile: ok\n'
   exit 0
 fi
 exit 0
@@ -84,5 +89,10 @@ run_case editable env FAKE_EDITABLE=true
 [ "$rc" -ne 0 ] && grep -q 'editable install' <<<"$output" \
   || fail "editable installation is rejected: $output"
 pass "editable installation is rejected"
+
+run_case skipped-profile env FAKE_SKIP_PROFILE=1
+[ "$rc" -ne 0 ] && grep -q 'invalid wheel provenance report' <<<"$output" \
+  || fail "skipped frozen evidence profile is rejected: $output"
+pass "skipped frozen evidence profile is rejected"
 
 printf '\nAll release wheel verifier tests passed\n'

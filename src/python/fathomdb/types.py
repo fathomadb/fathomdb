@@ -1086,7 +1086,7 @@ class Explanation:
     """0.8.8 EXP-OBS — opt-in retrieval explanation sidecar (mirror of engine
     `Explanation`): a query-level ``trace`` + a per-hit breakdown.
 
-    Returned on ``SearchResult.explanation`` only when ``search(..., explain=True)``;
+    Returned when ordinary or frozen retrieval explicitly requests explanation;
     ``None`` (default) keeps the result byte-identical to the pre-0.8.8 shape.
     """
 
@@ -1097,14 +1097,14 @@ class Explanation:
 
 @dataclass(frozen=True)
 class SearchResult:
-    """Result returned by `engine.search`."""
+    """Result returned by ordinary, frozen, or evidence-bearing search."""
 
     projection_cursor: int
     soft_fallback: SoftFallback | None = None
     results: list[SearchHit] = field(default_factory=list)
     #: 0.8.8 EXP-OBS (Slice 10) — opt-in explanation sidecar; ``None`` unless
-    #: ``search(..., explain=True)``. New optional field appended with a default
-    #: (the Python evolution rule), so the non-explain shape is unchanged.
+    #: retrieval explicitly requests explanation. New optional field with a
+    #: default (the Python evolution rule), so the non-explain shape is unchanged.
     explanation: Explanation | None = None
 
 

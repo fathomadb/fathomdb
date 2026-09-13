@@ -10,5 +10,7 @@ Guides cover the published 0.8.25 surface.
 - [Retrieve by id](retrieve-by-id.md) — point lookups by `logical_id`
   (`read.get` / `read.get_many`) and paginated op-store read-back
   (`read.collection` / `read.mutations`).
+- [Frozen evidence](frozen-evidence.md) — choose frozen ranking, exact source
+  evidence, or canonical pagination without weakening read authority.
 
 See also [Erasure](../operations/erasure.md) for `purge` / `erase_source`.

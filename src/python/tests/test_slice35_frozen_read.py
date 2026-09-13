@@ -83,9 +83,7 @@ def test_frozen_search_expand_uses_the_same_context(db_path: str) -> None:
     _configure_owner_filter(engine)
     engine.write([_doc("root", "expand needle", "alice")])
     frozen = engine.freeze_read_context(
-        fathomdb.ReadContextV1(
-            eligibility=fathomdb.SearchFilter(attributes=(("owner", "alice"),))
-        )
+        fathomdb.ReadContextV1(eligibility=fathomdb.SearchFilter(attributes=(("owner", "alice"),)))
     )
 
     result = engine.search_expand_frozen("expand needle", frozen, depth=0)

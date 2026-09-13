@@ -133,7 +133,7 @@ test("evidence explanation maps and disabled control is unchanged", async () => 
     });
 
     assert.equal(plain.searchResult.explanation, null);
-    assert.ok(explained.searchResult.explanation?.correlationId.startsWith("x"));
+    assert.ok(explained.searchResult.explanation?.correlationId?.startsWith("x"));
     assert.deepEqual(plain.searchResult.results, explained.searchResult.results);
     assert.deepEqual(
       plain.evidence.map((entry) => entry.artifactRevisionId),

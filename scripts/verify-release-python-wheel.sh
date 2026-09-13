@@ -42,71 +42,21 @@ fi
 "$python_bin" -m venv "$venv_dir"
 "$venv_dir/bin/python" -m pip install --no-index --no-deps "${wheels[0]}"
 report="$wheel_dir/install-provenance.txt"
+profile="$wheel_dir/frozen-evidence-profile.py"
+cp "$repo/scripts/release/smoke/frozen-evidence-python.py" "$profile"
 env -u PYTHONPATH -u VIRTUAL_ENV \
   FATHOMDB_VERIFY_REPORT="$report" \
   FAKE_VENV="$venv_dir" \
-  "$venv_dir/bin/python" - <<'PY'
-import importlib.metadata
-import json
-import os
-import pathlib
-import tempfile
-
-import fathomdb
-from fathomdb import _fathomdb
-
-module_path = pathlib.Path(fathomdb.__file__).resolve()
-native_path = pathlib.Path(_fathomdb.__file__).resolve()
-editable = False
-dist = importlib.metadata.distribution("fathomdb")
-direct_url = next(
-    (
-        pathlib.Path(dist.locate_file(item))
-        for item in (dist.files or ())
-        if item.name == "direct_url.json" and any(part.endswith(".dist-info") for part in item.parts)
-    ),
-    None,
-)
-if direct_url is not None and direct_url.exists():
-    data = json.loads(direct_url.read_text(encoding="utf-8"))
-    editable = bool(data.get("dir_info", {}).get("editable"))
-
-with tempfile.TemporaryDirectory() as root:
-    db = pathlib.Path(root) / "wheel-smoke.sqlite"
-    engine = fathomdb.Engine.open(str(db), use_default_embedder=False)
-    try:
-        engine.write([{
-            "kind": "doc",
-            "body": "durable wheel provenance smoke",
-            "source_id": "slice7-wheel-smoke",
-        }])
-        hits = engine.search("durable wheel").results
-        assert any(hit.body == "durable wheel provenance smoke" for hit in hits)
-        frozen = engine.freeze_read_context(
-            fathomdb.ReadContextV1(
-                eligibility=fathomdb.SearchFilter(kind="doc"),
-            )
-        )
-        frozen_hits = engine.search_frozen("durable wheel", frozen).results
-        assert any(hit.body == "durable wheel provenance smoke" for hit in frozen_hits)
-        expanded = engine.search_expand_frozen("durable wheel", frozen, depth=0)
-        assert expanded.search_hits
-    finally:
-        engine.close()
-
-pathlib.Path(os.environ["FATHOMDB_VERIFY_REPORT"]).write_text(
-    f"{module_path}\n{native_path}\n{str(editable).lower()}\n",
-    encoding="utf-8",
-)
-print("wheel smoke: ok")
-PY
+  "$venv_dir/bin/python" "$profile"
 
 mapfile -t provenance <"$report"
-[ "${#provenance[@]}" -eq 3 ] || { echo "invalid wheel provenance report" >&2; exit 1; }
+[ "${#provenance[@]}" -eq 4 ] || { echo "invalid wheel provenance report" >&2; exit 1; }
 venv_real="$(cd "$venv_dir" && pwd -P)"
 case "${provenance[0]}" in "$venv_real"/*) ;; *) echo "module escaped fresh venv: ${provenance[0]}" >&2; exit 1 ;; esac
 case "${provenance[1]}" in "$venv_real"/*) ;; *) echo "native module escaped fresh venv: ${provenance[1]}" >&2; exit 1 ;; esac
 [ "${provenance[2]}" = false ] || { echo "editable install is not release evidence" >&2; exit 1; }
+[ "${provenance[3]}" = frozen-evidence-profile-v1 ] \
+  || { echo "frozen evidence profile did not complete" >&2; exit 1; }
 
 sha256sum "${wheels[0]}"
 printf 'module=%s\nnative=%s\n' "${provenance[0]}" "${provenance[1]}"

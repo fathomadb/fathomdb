@@ -955,6 +955,10 @@ tampered, foreign, unsupported, unavailable, or drifted context. Search
 controls may change ranking or result count but cannot weaken the bound view or
 eligibility.
 
+With `explain=True`, `engine.search_frozen` returns a mapper-valid explanation
+with a non-empty Engine correlation identity. With `explain=False`, explanation
+is `None` and the frozen call does not capture telemetry.
+
 ## Frozen pagination and operational state (0.8.25 Slice 45)
 
 `fathomdb.read.canonical_page(engine, kind, context, PageRequestV1(...))`
@@ -976,6 +980,10 @@ Both requests require an Engine-minted `FrozenReadContextV1`. Failures use the
 exported `EvidenceError` with `reason` and `field_path`; unauthorized states
 collapse to `evidence_unavailable` at `/evidenceRef`. Existing `Engine.search`
 and `SearchHit` are unchanged.
+
+`include_explanation=True` finalizes the nested search explanation without
+changing ranked hits or positional evidence artifact identities. Independently
+minted opaque evidence-reference strings are intentionally not equality keys.
 
 ## Dependency trace and structural explanation (0.8.25 Slice 55)
 

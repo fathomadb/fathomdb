@@ -364,6 +364,11 @@ Domain refusals are terminal receipts while malformed requests raise
 evidence, and trace failures raise `PageError`, `EvidenceError`, and
 `DependencyTraceError`, each with stable `reason` and `field_path`.
 
+Set `explain=True` on `search_frozen`, or `include_explanation=True` on
+`search_with_evidence`, to receive a validated non-empty correlation identity.
+See [Frozen evidence](../guides/frozen-evidence.md) for the grounded retrieval
+workflow and retry rules.
+
 ### Projection generation and constrained graph expansion
 
 - `read.projection_generation_status(engine) -> ProjectionGenerationStatusV1`

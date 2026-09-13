@@ -72,7 +72,7 @@ test("frozen explanation maps and disabled control is unchanged", async () => {
     const explained = await engine.searchFrozen("frozen explanation", frozen, { explain: true });
 
     assert.equal(plain.explanation, null);
-    assert.ok(explained.explanation?.correlationId.startsWith("x"));
+    assert.ok(explained.explanation?.correlationId?.startsWith("x"));
     assert.deepEqual(plain.results, explained.results);
   } finally {
     await engine.close();

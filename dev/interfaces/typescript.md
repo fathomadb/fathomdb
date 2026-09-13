@@ -993,6 +993,10 @@ token must be echoed to `engine.searchFrozen` or
 `reason` and `fieldPath`. Frozen search options can affect ranking and result
 count only; they cannot weaken the authenticated view or eligibility.
 
+With `{ explain: true }`, `engine.searchFrozen` returns a validated explanation
+with a nonempty Engine correlation identity. Explanation-disabled frozen calls
+return `null` explanation and do not capture telemetry.
+
 ## Frozen pagination and operational state (0.8.25 Slice 45)
 
 `read.canonicalPage(engine, kind, context, request)` returns
@@ -1013,6 +1017,10 @@ The two methods are additive governed reads. Failures are mapped through
 `FDB_EVIDENCE` to `EvidenceError` with `reason` and `fieldPath`; unauthorized
 states expose only `evidence_unavailable` at `/evidenceRef`. Existing
 `Engine.search` and `SearchHit` are unchanged.
+
+`includeExplanation: true` finalizes the nested explanation without changing
+ranked hits or positional evidence artifact identities. Independently minted
+opaque evidence-reference strings are intentionally not equality keys.
 
 ## Dependency trace and structural explanation (0.8.25 Slice 55)
 

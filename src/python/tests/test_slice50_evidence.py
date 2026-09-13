@@ -224,9 +224,7 @@ def test_unsupported_evidence_schema_is_typed(db_path: str) -> None:
                 rerank_depth=-1,
             )
         )
-    with pytest.raises(
-        InvalidArgumentError, match="rerank_depth must be <= 4294967295"
-    ):
+    with pytest.raises(InvalidArgumentError, match="rerank_depth must be <= 4294967295"):
         engine.search_with_evidence(
             fathomdb.EvidenceSearchRequestV1(
                 query="needle",

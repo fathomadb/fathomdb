@@ -324,6 +324,11 @@ and response objects use `schemaVersion: 1`; new counters, cursors,
 generations, and boundaries use canonical unsigned decimal strings rather than
 JavaScript numbers.
 
+Set `explain: true` on `searchFrozen`, or `includeExplanation: true` on
+`searchWithEvidence`, to receive a validated nonempty correlation identity.
+See [Frozen evidence](../guides/frozen-evidence.md) for the grounded retrieval
+workflow and retry rules.
+
 ### Versioned provenance
 
 A node or edge write may include a closed `provenance` object. TypeScript uses

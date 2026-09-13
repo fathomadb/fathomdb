@@ -2131,7 +2131,10 @@ class Engine:
         explain: bool = False,
         limit: int = 10,
     ) -> SearchResult:
-        """Search under an Engine-authenticated frozen validity/eligibility context."""
+        """Search under an Engine-authenticated frozen context.
+
+        ``explain=True`` returns a finalized non-empty correlation identity.
+        """
         if not isinstance(context, FrozenReadContextV1):
             raise TypeError(
                 f"context must be a FrozenReadContextV1, got {type(context).__name__!r}"
@@ -2171,7 +2174,10 @@ class Engine:
         self,
         request: EvidenceSearchRequestV1,
     ) -> EvidenceSearchResultV1:
-        """Search under a frozen context and attach one evidence reference per hit."""
+        """Attach one evidence reference per frozen hit.
+
+        ``include_explanation=True`` finalizes the nested correlation identity.
+        """
         if not isinstance(request, EvidenceSearchRequestV1):
             raise TypeError("request must be an EvidenceSearchRequestV1")
         if request.schema_version != 1:

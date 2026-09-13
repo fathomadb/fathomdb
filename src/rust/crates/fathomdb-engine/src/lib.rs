@@ -5266,8 +5266,9 @@ pub struct SearchResult {
     pub soft_fallback: Option<SoftFallback>,
     pub results: Vec<SearchHit>,
     /// 0.8.8 EXP-OBS (Slice 5) — opt-in retrieval explanation **sidecar**.
-    /// `Some` ONLY on the `search_explained` path; `None` for every default
-    /// (`explain=false`) search, so `results` + `projection_cursor` stay
+    /// `Some` only when an ordinary or frozen retrieval requests explanation;
+    /// `None` for every default (`explain=false`) search, so `results` and
+    /// `projection_cursor` stay
     /// byte-identical to the pre-0.8.8 shape (R-OBS-2 zero-cost contract,
     /// HITL-ratified sidecar carrier — see
     /// `dev/design/0.8.8-explain-and-telemetry-adr.md` §A.2). Field-set is
@@ -8258,7 +8259,8 @@ impl Engine {
     ///
     /// Eligibility and validity come exclusively from `frozen`; callers cannot
     /// weaken them while consuming the token. A stale or foreign token is a
-    /// typed [`EngineError::FrozenRead`] refusal.
+    /// typed [`EngineError::FrozenRead`] refusal. When `explain` is true, the
+    /// returned explanation carries a finalized non-empty correlation identity.
     #[allow(clippy::too_many_arguments)]
     pub fn search_frozen(
         &self,
@@ -8303,7 +8305,8 @@ impl Engine {
     ///
     /// The ordinary [`SearchHit`] and [`SearchResult`] contracts are unchanged.
     /// Evidence creation fails as a whole if any returned artifact lacks complete
-    /// source provenance.
+    /// source provenance. When `include_explanation` is true, the nested result's
+    /// explanation carries a finalized non-empty correlation identity.
     pub fn search_with_evidence(
         &self,
         request: &EvidenceSearchRequestV1,

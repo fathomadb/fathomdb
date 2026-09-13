@@ -146,6 +146,13 @@ lifecycle-state, and degradation enums. Trace errors use
 `FDB_DEPENDENCY_TRACE`; integrity CLI errors use
 `FDB_DATA_PLANE_INTEGRITY`.
 
+The non-empty `Explanation.correlationId` requirement applies equally to
+ordinary explained search, `searchFrozen` with explanation enabled, and the
+nested search result from `searchWithEvidence` with explanation included.
+Explanation-disabled frozen responses carry no explanation and do not create a
+telemetry record. Independent explained calls mint independent correlation IDs;
+independent evidence calls also mint independent opaque evidence references.
+
 ## Graph-expansion wire objects (0.8.25 Slice 60)
 
 `GraphExpandRequestV1` uses `schemaVersion: 1`, a closed query or explicit seed,

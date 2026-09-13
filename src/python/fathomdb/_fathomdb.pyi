@@ -174,7 +174,7 @@ class SearchResult:
     projection_cursor: int
     soft_fallback: SoftFallback | None
     results: list[SearchHit]
-    # 0.8.8 EXP-OBS (Slice 10) — opt-in; None unless search(..., explain=True).
+    # Opt-in; None unless ordinary or frozen retrieval requests explanation.
     explanation: Explanation | None
 
 class EvidenceSidecarEntryV1:

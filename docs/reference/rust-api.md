@@ -58,6 +58,11 @@ dependency, closure, and actuation families are closed version-1 contracts.
 Rust uses `u64` for native counters and boundaries; Python and TypeScript
 serialize the corresponding values as canonical decimal strings.
 
+Explained `search_frozen` and `search_with_evidence` results carry finalized,
+non-empty correlation identities. See
+[Frozen evidence](../guides/frozen-evidence.md) for the canonical evidence flow
+and retry rules.
+
 ## Errors
 
 Methods return `EngineError` or `EngineOpenError` and preserve the typed

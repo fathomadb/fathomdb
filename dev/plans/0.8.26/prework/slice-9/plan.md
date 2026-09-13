@@ -29,8 +29,9 @@ Per `seq-286`, implement only:
    and board, generate their owned views, and prove release preflight.
 3. **P26-03:** make preflight select an explicit authoritative main ref and
    cover stale-local, remote-only, and offline behavior.
-4. **P26-05:** correct only the maintained authority, platform, and CLI
-   inventory documentation enumerated by Slice 2.
+4. **P26-05:** correct only `dev/platform-capabilities.json`,
+   `src/ts/README.md`, `dev/plans/README.md`, and `AGENTS.md` as enumerated by
+   Slice 2. CLI verb/reference work remains in Slice 30.
 5. **P26-08:** correct the inaccurate `download-artifact` v4.3.0 comments; do
    not upgrade its runtime version.
 
@@ -71,6 +72,11 @@ needs, requirements, and acceptance criteria before implementation.
 8. Write `status.md` with RED/GREEN commits, review verdicts, exact evidence,
    deferred items, and the next slice. Merge and remove a temporary branch or
    worktree if one was used.
+
+The P26-03 implementation performs no fetch: prefer `origin/main`, fall back
+to local `main` with a loud warning only when the remote-tracking ref is
+absent, hard-fail when neither resolves, and emit `main_ref` with `main_sha`.
+P26-08 changes only the seven `d3f86a...` pin comments to v4.3.0.
 
 ## Exit criteria
 

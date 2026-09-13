@@ -72,10 +72,17 @@ ok()   { printf 'ok    %s\n' "$1" >&2; }
 # (and returns non-zero) if the path is not a reachable directory.
 abs_dir() { ( cd "$1" 2>/dev/null && pwd -P ); }
 
-if git rev-parse --verify main >/dev/null 2>&1; then
-  MAIN_SHA="$(git rev-parse main)"
+MAIN_REF=""
+MAIN_SHA=""
+if git rev-parse --verify 'origin/main^{commit}' >/dev/null 2>&1; then
+  MAIN_REF="origin/main"
+  MAIN_SHA="$(git rev-parse 'origin/main^{commit}')"
+elif git rev-parse --verify 'main^{commit}' >/dev/null 2>&1; then
+  MAIN_REF="main"
+  MAIN_SHA="$(git rev-parse 'main^{commit}')"
+  warn "origin/main is unavailable; using local main as the offline authority fallback"
 else
-  MAIN_SHA="$(git rev-parse origin/main)"
+  hard "neither origin/main nor local main resolves — main authority is unavailable"
 fi
 
 # --- 1. Canonical repo is not mid-operation -------------------------------------
@@ -461,8 +468,8 @@ json_arr() { local out="" x; for x in "$@"; do out="${out:+$out,}\"$(printf '%s'
 STATUS=$([ ${#HARD_FAILS[@]} -eq 0 ] && echo pass || echo fail)
 HARD_FAILS_JSON="$(json_arr "${HARD_FAILS[@]+"${HARD_FAILS[@]}"}")"
 WARNINGS_JSON="$(json_arr "${WARNS[@]+"${WARNS[@]}"}")"
-printf '{"preflight":"%s","main_sha":"%s","worktree":"%s","release":"%s","state":"%s","baseline_ref":"%s","dependency_sha":"%s","hard_fails":%s,"warnings":%s}\n' \
-  "$STATUS" "$MAIN_SHA" "${WT:-}" "$SELECTED_RELEASE" "$SELECTED_STATE_FILE" \
+printf '{"preflight":"%s","main_ref":"%s","main_sha":"%s","worktree":"%s","release":"%s","state":"%s","baseline_ref":"%s","dependency_sha":"%s","hard_fails":%s,"warnings":%s}\n' \
+  "$STATUS" "$MAIN_REF" "$MAIN_SHA" "${WT:-}" "$SELECTED_RELEASE" "$SELECTED_STATE_FILE" \
   "$RELEASE_BASELINE_REF" "$DEPENDENCY_SHA" \
   "$HARD_FAILS_JSON" "$WARNINGS_JSON"
 

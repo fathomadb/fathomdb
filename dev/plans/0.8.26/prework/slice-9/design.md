@@ -49,7 +49,7 @@ The complete ladder is 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 30, 35, 40,
 45, 46, and 50. Ruled and unruled decisions are copied from current plan
 authority. The state owns these exact generated regions:
 
-- `plan-immediate-next` under `## Immediate next action` in
+- `plan-immediate-next` under `## Immediate next slice` in
   `dev/plans/plan-0.8.26.md`;
 - `status-current-state` under `## Current state` in
   `dev/plans/runs/STATUS-0.8.26.md`;

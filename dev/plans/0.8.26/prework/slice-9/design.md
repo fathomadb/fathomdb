@@ -37,17 +37,27 @@ The exact 0.8.25 repair records tag `v0.8.25`, peeled commit
 and npm dist-tag `latest`.
 
 The 0.8.26 single-writer state and board are created only after that invariant
-is green. Activation first records Slices 0–8 as landed, Slice 9 as active,
-`active_ref` as `refs/heads/release/0.8.26`, `published` as null, and the
-remaining ladder beginning with Slice 9. Closeout then records Slice 9 against
-the prior implementation commit, advances `next_slice` and the remaining
+is green. Activation records Slices 0–7 as `COMPLETE_ON_RELEASE_BRANCH` at
+closeout commit `880a86ea857105fac61b04e695c08bd76b5ac85d`, Slice 8 with that
+status at `7a5682796bc446ac38e5053cff5a18e9d33e9c00`, and Slice 9 as
+`IN_PROGRESS`. It sets `landed` to an empty list, `active_ref` to
+`refs/heads/release/0.8.26`, `published` to null, and the remaining ladder to
+begin with Slice 9. Closeout changes Slice 9 to `COMPLETE_ON_RELEASE_BRANCH`
+at the prior implementation commit, advances `next_slice` and the remaining
 ladder to Slice 10, and never records the closeout commit as its own evidence.
 The complete ladder is 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 30, 35, 40,
 45, 46, and 50. Ruled and unruled decisions are copied from current plan
-authority. The state owns generated regions in the master plan and new board
-for ladder progress, current state, next action, and open-decision visibility;
-the exact supported renderer IDs are selected from the existing release-state
-view contract. All regions are produced with
+authority. The state owns these exact generated regions:
+
+- `plan-immediate-next` under `## Immediate next action` in
+  `dev/plans/plan-0.8.26.md`;
+- `status-current-state` under `## Current state` in
+  `dev/plans/runs/STATUS-0.8.26.md`;
+- `status-next-action` under `## Immediate next action` in that board; and
+- `status-live-open-count` under `## Open decisions` in that board.
+
+It does not select `status-unblocks` or its additional fact schema. All regions
+are produced with
 `scripts/check-release-state-views.sh --write`, never hand-edited.
 
 ### Preflight authority
@@ -86,7 +96,7 @@ the existing CUDA release-contract check are the focused witnesses.
 
 | ID | Requirement | Acceptance criterion |
 | --- | --- | --- |
-| R26-09A | Published lifecycle state is internally complete and consistently interpreted. | AC26-09A: both state readers reject publication-complete/null and malformed receipts; repaired 0.8.25 truth selects 0.8.25. |
+| R26-09A | Published lifecycle state is internally complete and consistently interpreted. | AC26-09A: both state readers reject publication-complete/null and malformed receipts; the public-document reader selects 0.8.25 as newest published, while the active-release selector is empty until 0.8.26 activation and then selects 0.8.26. |
 | R26-09B | The active 0.8.26 release has one valid machine state, board, and generated view set. | AC26-09B: state/view and release-current checks pass, normal 0.8.26 worktree preflight selects the 0.8.26 plan, and closeout points to Slice 10 without a self-referential SHA. |
 | R26-09C | Preflight reports a deterministic no-network main authority. | AC26-09C: stale-local, remote-only, local-only fallback, and neither-ref fixtures prove the defined ref and diagnostic behavior, including `main_ref` and `main_sha`. |
 | R26-09D | Maintained planning/platform/SDK guidance reflects current repository truth. | AC26-09D: only the four enumerated documents change and their statements match manifests, workspace membership, and release state. |
@@ -118,7 +128,9 @@ Before broad verification, record a checkout-local environment witness. The
 shared root `node_modules` symlink is inadmissible: replace it with a clean
 checkout-owned `npm ci` result using the declared lockfile/tool contract.
 Because repository policy forbids editable Python installation from a linked
-worktree, use the already installed exact lint/typecheck tools when available
-and fresh external wheel environments for artifact claims; do not create an
-editable worktree `.venv`. Record free disk and require the existing preflight
-minimum before running the broad non-publishing gate.
+worktree, use version-verified standalone lint/typecheck executables or a
+non-editable checkout-local tool environment, and use fresh external wheel
+environments for artifact claims; do not create an editable worktree `.venv`.
+The primary checkout's environment is not evidence. Record free disk and
+require the existing preflight minimum before running the broad
+non-publishing gate.

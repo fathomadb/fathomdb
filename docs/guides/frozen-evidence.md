@@ -20,6 +20,8 @@ diagnostic ranking experiments.
 ## Grounded Python flow
 
 ```python
+import fathomdb
+
 context = engine.freeze_read_context(
     fathomdb.ReadContextV1(
         eligibility=fathomdb.SearchFilter(kind="claim"),

@@ -295,6 +295,62 @@ if printf '%s' "$OUT" | grep -q '"main_sha":"'"$ORIGIN_MAIN_SHA"'"'; then
 else
   fail "origin/main fallback should report $ORIGIN_MAIN_SHA; got: $OUT"
 fi
+if printf '%s' "$OUT" | grep -q '"main_ref":"origin/main"'; then
+  pass "remote-only checkout reports origin/main as the authoritative ref"
+else
+  fail "remote-only checkout should report main_ref=origin/main; got: $OUT"
+fi
+
+# --- Arm 10: origin/main wins when local main is stale ------------------------
+STALE_PRIMARY="$TMPROOT/stale-primary"
+STALE_LINKED="$TMPROOT/stale-linked"
+make_fixture "$STALE_PRIMARY" "$STALE_LINKED"
+STALE_LOCAL_SHA="$(git -C "$STALE_PRIMARY" rev-parse main)"
+git -C "$STALE_PRIMARY" commit -q --allow-empty -m 'remote main advanced'
+AUTHORITATIVE_SHA="$(git -C "$STALE_PRIMARY" rev-parse HEAD)"
+git -C "$STALE_PRIMARY" update-ref refs/remotes/origin/main "$AUTHORITATIVE_SHA"
+git -C "$STALE_PRIMARY" update-ref refs/heads/main "$STALE_LOCAL_SHA"
+
+run_preflight "$STALE_LINKED"
+if [ "$RC" -eq 0 ] \
+  && printf '%s' "$OUT" | grep -q '"main_ref":"origin/main"' \
+  && printf '%s' "$OUT" | grep -q '"main_sha":"'"$AUTHORITATIVE_SHA"'"'; then
+  pass "stale local main cannot masquerade as authoritative origin/main"
+else
+  fail "stale-local fixture should select origin/main at $AUTHORITATIVE_SHA; rc=$RC out: $OUT"
+fi
+
+# --- Arm 11: local-only offline fallback is explicit and loud ----------------
+LOCAL_PRIMARY="$TMPROOT/local-primary"
+LOCAL_LINKED="$TMPROOT/local-linked"
+make_fixture "$LOCAL_PRIMARY" "$LOCAL_LINKED"
+LOCAL_MAIN_SHA="$(git -C "$LOCAL_PRIMARY" rev-parse main)"
+
+run_preflight "$LOCAL_LINKED"
+if [ "$RC" -eq 0 ] \
+  && printf '%s' "$OUT" | grep -q '"main_ref":"main"' \
+  && printf '%s' "$OUT" | grep -q '"main_sha":"'"$LOCAL_MAIN_SHA"'"' \
+  && printf '%s' "$OUT" | grep -q '^WARN .*origin/main.*unavailable.*local main'; then
+  pass "local-only offline fallback reports main and warns loudly"
+else
+  fail "local-only fixture should warn and report main at $LOCAL_MAIN_SHA; rc=$RC out: $OUT"
+fi
+
+# --- Arm 12: absence of both authority refs fails closed ----------------------
+NEITHER_PRIMARY="$TMPROOT/neither-primary"
+NEITHER_LINKED="$TMPROOT/neither-linked"
+make_fixture "$NEITHER_PRIMARY" "$NEITHER_LINKED"
+git -C "$NEITHER_PRIMARY" update-ref -d refs/heads/main
+git -C "$NEITHER_PRIMARY" update-ref -d refs/remotes/origin/main
+
+run_preflight "$NEITHER_LINKED"
+if [ "$RC" -ne 0 ] \
+  && printf '%s' "$OUT" | grep -q '^HARD .*neither origin/main nor local main resolves' \
+  && printf '%s' "$OUT" | grep -q '"preflight":"fail"'; then
+  pass "missing origin/main and local main hard-fails with a structured summary"
+else
+  fail "neither-ref fixture must hard-fail explicitly; rc=$RC out: $OUT"
+fi
 
 # Dependency-state and generic active/PENDING/COMPLETE lifecycle coverage moved
 # to test_preflight_release_state.py when prose ceased to be authoritative.

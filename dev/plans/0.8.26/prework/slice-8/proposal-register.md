@@ -1,6 +1,7 @@
 ---
 title: FathomDB 0.8.26 Slice 8 — scored proposal register
-status: AWAITING_HITL
+status: COMPLETE
+deferred_decision: D26-01 to Slice 15
 observed_on: 2026-09-12
 last_updated: 2026-09-13
 ---

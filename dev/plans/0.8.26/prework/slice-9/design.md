@@ -1,6 +1,7 @@
 ---
 title: FathomDB 0.8.26 Slice 9 — approved preparation design
-status: DRAFT — HITL SCOPE RULED, REVIEW PENDING
+status: ACTIVE
+execution_authorized: seq-289
 ---
 
 # Slice 9 design — approved preparation design

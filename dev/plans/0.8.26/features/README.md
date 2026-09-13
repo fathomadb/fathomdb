@@ -29,4 +29,5 @@ applying ruled D26-03 through D26-05. Slice 15 has an authorized
 decision-support plan/design; D26-01 remains open until its results return to
 HITL. Slices 45 and 46 are post-implementation documentation convergence gates:
 architecture authority is reconciled first, then technical designs align to
-that hierarchy before integrated verification.
+that hierarchy before integrated verification. HITL approved that placement at
+`seq-288`.

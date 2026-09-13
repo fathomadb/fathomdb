@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 8 — proposal review and HITL decisions
-status: DRAFT
+status: COMPLETE
 ---
 
 # Slice 8 plan — proposal review and HITL decisions
@@ -16,8 +16,8 @@ coverage, writes status, and performs no product implementation.
 
 Collect Slices 0–7 into a concise decision package, obtain interactive owner
 rulings, allocate each approved item to the correct release stage, and replace
-the provisional Slice 9 plan with an approved implementation plan. This
-document describes the future session; it records no decisions prematurely.
+the provisional Slice 9 plan with an approved implementation plan. Completed
+outputs record decisions only where backed by cited HITL ledger rulings.
 
 ## Proposal scoring
 

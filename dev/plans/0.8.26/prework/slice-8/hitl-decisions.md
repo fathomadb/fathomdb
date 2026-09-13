@@ -1,6 +1,7 @@
 ---
 title: FathomDB 0.8.26 Slice 8 — HITL decision record
-status: PARTIAL
+status: COMPLETE
+deferred_decision: D26-01 to Slice 15
 observed_on: 2026-09-12
 last_updated: 2026-09-13
 ---
@@ -18,6 +19,8 @@ last_updated: 2026-09-13
 | D26-05 | Option A: change the compact `ActuationReceiptV1` contract in place and add only proven edge fields. | `seq-285` | Compatible with D26-04 B; no dangling count, consequence manifest, or historical compatibility. |
 | D26-06 | Revised narrow option A for Slice 9. | `seq-286` | Slice 9 implements P26-01/02/03, exact P26-05 corrections, and P26-08 comment truth; P26-09 moves to Slice 50. |
 | D26-07 | Revised narrow option A for Slice 50. | `seq-287` | Include P26-09/P26-13 and conditional P26-11; postpone P26-10/P26-12/P26-14. Publication remains separately gated. |
+| Slice 45/46 placement | Place architecture convergence at Slice 45, technical-design convergence at Slice 46, then integrated verification at Slice 50. | `seq-288` | The post-implementation documentation sequence is fixed. |
+| Slice 9 execution | Approve the independently reviewed narrow Slice 9 plan for execution. | `seq-289` | Slice 8 closes and Slice 9 may begin; publication is not authorized. |
 
 The 0.8.26 machine-readable release state does not yet exist; its creation is
 part of the now-ruled Slice 9 preparation decision. These ledger-backed
@@ -119,7 +122,7 @@ full-history Gitleaks triage (P26-12) and speculative runner/dispatch work
 ## Still required
 
 Only D26-01 remains open, explicitly deferred until Slice 15 reports. Slice 8
-has replaced the provisional Slice 9 plan and finalized the Slice 15 and Slice
-35 draft plan/design documents. Required independent review and any focused
-corrections remain before Slice 8 can prepare Slice 9 for execution. Slice 20
-remains blocked until the post-Slice-15 D26-01 ruling.
+has replaced and independently reviewed the Slice 9 plan, finalized the Slice
+15 and Slice 35 draft plan/design documents, and closed under `seq-289`. Slice
+9 is authorized. Slice 20 remains blocked until the post-Slice-15 D26-01
+ruling.

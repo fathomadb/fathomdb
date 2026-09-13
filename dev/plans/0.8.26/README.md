@@ -6,9 +6,9 @@ target_release: 0.8.26
 
 # FathomDB 0.8.26 planning package
 
-This directory contains draft-only prework and feature plans for the P0–P2
-Memex contract-completion scope. No document here authorizes implementation,
-publication, dependency changes, cleanup, or accepted-contract changes.
+This directory contains prework records and draft feature plans for the P0–P2
+Memex contract-completion scope. Slice 9 execution is authorized only within
+`seq-286` and `seq-289`. Nothing here authorizes publication or unruled scope.
 
 ## Reading order
 
@@ -19,7 +19,7 @@ publication, dependency changes, cleanup, or accepted-contract changes.
 5. [`features/README.md`](features/README.md)
 6. Slice-local `plan.md`, then `design.md`
 
-Slice 8 has replaced the provisional Slice 9 scope from recorded HITL
-decisions. Independent review remains required before Slice 9 execution.
-Feature designs remain DRAFT until their dependencies close and their formal
-design review passes; D26-01 remains open until Slice 15 reports.
+Slice 8 is complete. The replacement Slice 9 scope passed independent review
+and is authorized at `seq-289`. Feature designs remain DRAFT until their
+dependencies close and formal design review passes; D26-01 remains open until
+Slice 15 reports.

@@ -22,7 +22,7 @@ Slice 9 implements only approved items allocated before feature work.
 | 8 | Proposal scoring, allocation, and HITL | Planning records only |
 | 9 | Approved preparation | Only approved items allocated to Slice 9 |
 
-Slices 0–7 are complete evidence/draft records. Slice 8 has recorded D26-02
-through D26-08 and replaced the Slice 9 plan; independent review/correction is
-in progress. D26-01 remains open until the authorized Slice 15
-decision-support spike reports, and Slice 20 remains blocked on that ruling.
+Slices 0–8 are complete. The replacement Slice 9 plan passed independent
+review and is authorized at `seq-289`. D26-01 remains open until the authorized
+Slice 15 decision-support spike reports, and Slice 20 remains blocked on that
+ruling.

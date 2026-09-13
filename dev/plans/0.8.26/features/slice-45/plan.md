@@ -7,10 +7,11 @@ status: DRAFT
 
 ## Purpose and placement
 
-Make the maintained architecture documentation current, coherent, navigable,
-and correct after Slice 40 fixes the as-built product shape and before Slice 50
-asserts release readiness. This is documentation convergence, not permission to
-change product behavior or rewrite historical decisions.
+Per placement ruling `seq-288`, make the maintained architecture documentation
+current, coherent, navigable, and correct after Slice 40 fixes the as-built
+product shape and before Slice 50 asserts release readiness. This is
+documentation convergence, not permission to change product behavior or
+rewrite historical decisions.
 
 ## Slice-complete workflow
 

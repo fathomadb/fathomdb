@@ -7,10 +7,11 @@ status: DRAFT
 
 ## Purpose and placement
 
-Make the existing technical design documentation current, well organized, and
-correct after Slice 45 establishes the architecture hierarchy and before Slice
-50 verifies the integrated release. This slice owns design-document lifecycle
-and navigation, not product redesign or historical rewriting.
+Per placement ruling `seq-288`, make the existing technical design
+documentation current, well organized, and correct after Slice 45 establishes
+the architecture hierarchy and before Slice 50 verifies the integrated
+release. This slice owns design-document lifecycle and navigation, not product
+redesign or historical rewriting.
 
 ## Slice-complete workflow
 

@@ -16,7 +16,7 @@ clean up temporary workspaces without publishing.
 ## Outcome
 
 Fresh non-published release artifacts prove the combined P0–P2 Memex profile,
-cross-SDK V2 behavior, restart behavior, the fresh-database boundary, platform
+cross-SDK current V1 behavior, restart behavior, the fresh-database boundary, platform
 support, and documentation truth before any release decision.
 
 ## Requirements
@@ -42,8 +42,8 @@ support, and documentation truth before any release decision.
 3. Run clean installed-artifact witnesses for frozen explanation/evidence,
    graph artifact resolution, operator integrity, and atomic derived-edge
    replay/restart.
-4. Run the V1-retired ingress and earlier-database refusal witnesses, then
-   cross-SDK V2 and selected platform witnesses.
+4. Run the no-parallel-V2-surface and earlier-database refusal witnesses, then
+   cross-SDK current V1 and selected platform witnesses.
 5. Audit package metadata, public docs, changelog/release notes, and absence of
    unapproved SDK authority.
 6. Record all evidence and unresolved external gates for the HITL release

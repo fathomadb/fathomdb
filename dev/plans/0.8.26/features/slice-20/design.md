@@ -18,8 +18,8 @@ canonical bytes/span or locator, source identity/version, hash, lifecycle,
 dependency, and projection origin where applicable. Ranked contribution
 remains exclusive to `resolve_evidence` handles produced by ranked search.
 
-Exact names and additive-versus-successor graph response shape remain Slice 8
-decisions.
+Exact names and in-place-result-versus-first-generation-V1-sidecar shape remain
+Slice 8 decisions. `seq-283` excludes a parallel V2 result or graph method.
 
 ## Transaction and disclosure model
 

@@ -144,7 +144,7 @@ Slice-0 gate before Slices 15 and 25 open.
 
 | # | Category | Candidate decision | HITL verdict | ADR file |
 | - | -------- | ------------------ | ------------ | -------- |
-| 53 | interface | Make 0.8.26 a breaking V2-only actuation release, retain only a non-executing V1-retired direction at dynamic ingress, carry no V1 receipt/replay/integrity/data compatibility, and accept fresh databases only | accepted (HITL `seq-282`) | ADR-0.8.26-breaking-v2-actuation-and-fresh-database-boundary.md |
+| 53 | interface | Introduce no parallel functional V1/V2 public API pairs in 0.8.26; change affected V1 contracts in place, make the release breaking and fresh-database-only, carry no historical compatibility or migration machinery, and defer parallel API generations until post-1.0 | accepted (HITL `seq-283`, superseding `seq-282` as to V2 naming and redirects) | ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md |
 
 ## Categories
 

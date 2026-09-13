@@ -1,40 +1,40 @@
 ---
-title: FathomDB 0.8.26 Slice 35 — breaking V2 actuation spike design
+title: FathomDB 0.8.26 Slice 35 — breaking V1 actuation spike design
 status: DRAFT
 ---
 
-# Slice 35 design — breaking V2 actuation spike
+# Slice 35 design — breaking V1 actuation spike
 
 ## Fixed decisions
 
-- 0.8.26 is a breaking V2-only actuation release (`seq-282`).
-- There is one actuation method per binding and one functional V2 grammar.
-- V2 includes canonical node, derived node, derived edge, source dependency,
+- 0.8.26 changes affected V1 contracts in place and introduces no parallel
+  functional V1/V2 API pairs (`seq-283`).
+- There is one actuation method per binding and one functional V1 grammar.
+- Current V1 includes canonical node, derived node, derived edge, source dependency,
   and lifecycle transition operations.
-- V1-shaped dynamic ingress receives only a loud non-executing V2 direction.
-- No V1 request, digest, replay, receipt, integrity, data, operation-ID, upgrade,
-  downgrade, or database-migration compatibility is retained.
+- No V2 parser, method, router, redirect, or interaction mode is introduced.
+- No historical request, digest, replay, receipt, integrity, data, operation-ID,
+  upgrade, downgrade, or database-migration compatibility is retained.
 - 0.8.26 accepts fresh databases only.
 
 ## Open inputs
 
-D26-04 still selects strict complete-state endpoint refusal versus a V2
-dangling-count receipt. D26-05 still selects the exact minimum V2 receipt
+D26-04 still selects strict complete-state endpoint refusal versus a current V1
+dangling-count receipt. D26-05 still selects the exact minimum changed V1 receipt
 fields. No option may reintroduce historical compatibility.
 
 ## Prototype seams
 
 ### Ingress
 
-The Rust facade exports V2 types only. Python, TypeScript, PyO3, and N-API
-validate V2 as a closed schema. If a dynamic boundary recognizes the retired
-top-level V1 discriminator, it returns the approved upgrade direction before
-nested parsing and before opening a write transaction.
+The Rust facade continues to export V1 types. Python, TypeScript, PyO3, and
+N-API validate the changed V1 contract as one closed schema. The package
+version identifies the breaking revision; the public schema-generation name
+does not change.
 
-Implement this as the generic unsupported-schema path: one V2 parser accepts
-schema 2 and every other schema receives a response naming schema 2 as the
-supported contract. Do not add a V1 parser, a V1/V2 union input, a version
-router, or separate `actuate_v1`/`actuate_v2` methods.
+Use one V1 parser and the existing actuation method. Do not add V2 types, a
+V1/V2 union input, a version router, a redirect response, or separate
+`actuate_v1`/`actuate_v2` methods.
 
 ### Fresh database
 
@@ -44,20 +44,21 @@ the latter is refused before any DDL, metadata, WAL, receipt, or domain-row
 mutation. The spike proves one representative earlier database, not every
 historical version.
 
-### V2 transaction
+### Current V1 transaction
 
-V2 validates its closed grammar and digest, simulates the bounded complete
+Current V1 validates its closed grammar and digest, simulates the bounded complete
 batch, then applies it under the existing single-writer transaction. The edge
 uses canonical `ProvenancedEdgeV1` validation, identity, provenance,
 projection, lifecycle, and traversal machinery as implementation reuse, not as
 historical database compatibility.
 
-### V2 receipt and replay
+### Current V1 receipt and replay
 
-Use one V2 digest domain, operation-ID namespace, receipt schema, source-reference
+Use one current V1 digest domain, operation-ID namespace, receipt schema, source-reference
 model, integrity checker, erasure behavior, and replay loader. Do not add a
-request-version column or branch for V1. Exact V2 replay returns its V2 receipt;
-changed V2 bytes conflict; erased V2 IDs remain reserved.
+request-version column or cross-release branch. Exact current V1 replay returns
+its current V1 receipt; changed bytes conflict; erased operation IDs remain
+reserved.
 
 ## Performance design
 
@@ -69,7 +70,7 @@ shows a shared defect that cannot be isolated.
 
 ## Stop conditions
 
-Stop on functional V1 parsing or execution, V1 receipt/integrity loading,
-earlier-database mutation, migration code, partial commit, ambiguous V2 replay,
+Stop on a parallel V2 parser or execution path, historical receipt/integrity
+loading, earlier-database mutation, migration code, partial commit, ambiguous replay,
 unindexed endpoint work, cross-binding drift, or semantic policy entering the
 engine.

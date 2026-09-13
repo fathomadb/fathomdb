@@ -21,7 +21,7 @@ actionable root cause found by Slices 6–7 before the session.
 | installed Memex-shaped witness | release stability | high | low | M | include |
 | exact artifact-revision graph evidence | enables evidence-gated graph use | high | medium | M | include after contract decision |
 | qualify/harden existing operator integrity route | cutover assurance | high | medium | S–M | qualify crates.io CLI first; preserve SDK denylist |
-| atomic derived-edge actuation | graph-authoring blocker | high | high | L | include only with V2 and invariant gates |
+| atomic derived-edge actuation | graph-authoring blocker | high | high | L | include only through a changed-in-place V1 contract and invariant gates |
 | minimum receipt evolution | truthful edge audit | medium | medium | M | fold into edge actuation only |
 | environment/tooling corrections from Slice 0 | enabling | pending | pending | pending | decide from evidence |
 | dependency upgrades from Slice 1 | maintenance/security | pending | pending | pending | decide individually |
@@ -45,15 +45,18 @@ actionable root cause found by Slices 6–7 before the session.
 
 1. Confirm that P0.1–P0.3, P1.1–P1.2, and P2.1–P2.2 are the entire feature
    boundary for 0.8.26.
-2. Choose additive graph fields or successor response types.
+2. Choose an in-place graph V1 change or first-generation V1 sidecar; introduce
+   no parallel V2 result or method.
 3. Approve the exact frozen artifact-evidence contract and non-disclosure rule.
 4. Confirm whether Memex can deploy the crates.io CLI; choose a prebuilt target
    only if needed, and approve exact tool identity plus schema compatibility.
 5. Confirm that doctor/recovery authority remains absent from public SDKs.
-6. Apply ruled D26-03 (`seq-282`): breaking V2-only actuation, non-executing V1
-   direction, fresh databases only, and no V1/migration compatibility.
+6. Apply superseding ruled D26-03 (`seq-283`): no parallel functional V1/V2
+   APIs, affected V1 contracts change in place, fresh databases only, and no
+   historical compatibility or migration machinery.
 7. Choose ordinary flag/count or stricter governed derived-edge endpoint
-   semantics and approve the exact minimum V2-only receipt/storage behavior.
+   semantics and approve the exact minimum changed-in-place V1
+   receipt/storage behavior.
 8. Rule every environment, dependency, cruft, documentation, architecture,
    test-infrastructure, build, preflight, verification, and CI/CD proposal from
    Slices 0–7.

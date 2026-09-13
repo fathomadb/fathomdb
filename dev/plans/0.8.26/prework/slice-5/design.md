@@ -16,7 +16,7 @@ status: COMPLETE
 | operator integrity | real database, quiescence refusal or contract, JSON schema/exit codes, bounds/privacy, no mutation, version mismatch | 30 |
 | CLI distribution | clean artifact install/run on selected native targets and absence of doctor/recovery in governed SDKs | 30, 50 |
 | derived-edge batch | red tests for all-or-none commit, prospective endpoints, digest/replay, crash/restart, duplicate key, dependency/lifecycle/erasure/projection effects | 40 |
-| breaking V2 boundary | only V2 executes; V1-shaped dynamic ingress refuses loudly without mutation; no V1 replay/receipt/integrity path remains | 35, 40 |
+| breaking V1 boundary | the changed-in-place V1 contract is the only actuation grammar; no V2 pair or historical replay/receipt/integrity path exists | 35, 40 |
 | fresh database boundary | fresh bootstrap succeeds; representative earlier database refuses before mutation; no migration matrix | 35, 40, 50 |
 | integrated release | clean wheel/npm/native/CLI matrix, cross-SDK reopen, restart, package metadata, non-publishing release gate | 50 |
 
@@ -63,9 +63,10 @@ Additional required cases are:
   linearization, plus indistinguishable lifecycle/refusal cases;
 - Slice 30: published-artifact invocation, lock-held/quiescence behavior,
   incompatible schema response, and before/after process mutation evidence;
-- Slice 35/40: V2-only ingress, V1-retired refusal, fresh-database boundary,
-  approved endpoint policy, V2 edge revision/digest round-trip property, and
-  closure/supersession/erasure effects; and
+- Slice 35/40: single changed-in-place V1 ingress, absence of V2 routing,
+  fresh-database boundary, approved endpoint policy, current V1 edge
+  revision/digest round-trip property, and closure/supersession/erasure effects;
+  and
 - Slice 50: fresh-artifact cross-SDK/native matrix with no publication.
 
 Fault injection is required only at interruption boundaries introduced or

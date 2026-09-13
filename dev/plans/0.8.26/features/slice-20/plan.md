@@ -21,7 +21,8 @@ authority, without probabilistic body re-search.
 ## Requirements
 
 - **R26-20A:** Expose immutable target revision and terminal-edge revision
-  separately through an additive sidecar or successor result, preserving V1.
+  separately through an in-place V1 result change or first-generation V1
+  sidecar. Introduce no parallel V2 graph result or method.
 - **R26-20B:** Add a frozen point-evidence lookup by artifact revision.
 - **R26-20C:** Return intrinsic canonical bytes/span, identities, hash,
   lifecycle, dependency, and projection origin where applicable, without
@@ -31,7 +32,7 @@ authority, without probabilistic body re-search.
 
 ## TDD and delivery
 
-1. Approve the successor ADR/interface design and response-version decision.
+1. Approve the ADR/interface design and exact V1 response shape.
 2. Add failing tests for target and edge success plus nonexistent, stale,
    expired, unauthorized, ineligible, and mismatched-context refusals.
 3. Implement lookup and materialization in one reader transaction.
@@ -42,15 +43,15 @@ authority, without probabilistic body re-search.
 
 ## Acceptance
 
-- **AC26-20A:** An additive sidecar or successor result returns distinct exact
-  target and terminal-edge artifact identities across Rust, Python, and
-  TypeScript without changing V1 incompatibly.
+- **AC26-20A:** The selected V1 result or first-generation V1 sidecar returns
+  distinct exact target and terminal-edge artifact identities across Rust,
+  Python, and TypeScript, with no parallel V2 pair.
 - **AC26-20B:** Exact resolution succeeds after restart and otherwise preserves
   nondisclosure for expired, mismatched-context, ineligible, revoked,
   superseded, and nonexistent revisions in one reader transaction.
 - **AC26-20C:** Point evidence contains no fabricated rank or contribution; a
   target proves that artifact and a terminal edge makes no full-path claim.
-- **AC26-20D:** Interfaces, successor ADR, shared fixtures, and bindings agree;
+- **AC26-20D:** Interfaces, accepted ADR/addendum, shared fixtures, and bindings agree;
   no logical-ID search predicate is introduced as a workaround.
 
 ## Stop gates

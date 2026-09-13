@@ -169,8 +169,9 @@ be bundled with unrelated scope.
 
 Reuse `ProvenancedEdgeV1` and the existing edge storage/projection path. The
 working shape is `put_derived_edge`, not unqualified `put_edge`: provenance and
-immutable revision identity are mandatory. Prefer `ActuationBatchV2` if adding
-to the closed/exhaustive V1 operation grammar cannot be proven compatible.
+immutable revision identity are mandatory. Per HITL `seq-283`, change
+`ActuationBatchV1` and its closed/exhaustive operation grammar in place; do not
+introduce a parallel V2 surface during pre-1.0 development.
 
 ### P2.2 Improve mutation receipts only as part of actuation evolution
 

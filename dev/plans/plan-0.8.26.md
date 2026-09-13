@@ -14,9 +14,10 @@ from the
 It repairs the released frozen-explanation contract, completes its public
 guidance and installed-artifact witness, adds exact graph-target evidence,
 qualifies and hardens the existing distributable read-only integrity route,
-and adds a single breaking V2 actuation grammar with atomic derived-edge
-support. The release accepts fresh databases only and carries no V1 actuation,
-receipt, replay, integrity, operation-ID, or database-migration compatibility.
+and changes the single V1 actuation grammar in place to add atomic derived-edge
+support. The release accepts fresh databases only and carries no historical
+actuation, receipt, replay, integrity, operation-ID, or database-migration
+compatibility. It introduces no parallel functional V1/V2 public API pairs.
 
 Multi-source provenance, source-set liveness, recursive closure, rich graph
 paths/continuation, persisted evidence replay, snapshot leases, candidate
@@ -43,8 +44,8 @@ In scope:
 - immutable-revision, frozen, eligibility-bound graph-target and terminal-edge
   evidence resolution;
 - a version-matched, read-only, operator-scoped integrity inspection route;
-- versioned atomic `put_derived_edge` actuation over `ProvenancedEdgeV1`; and
-- one V2 request, receipt, replay, and integrity contract for fresh 0.8.26
+- current-V1 atomic `put_derived_edge` actuation over `ProvenancedEdgeV1`; and
+- one changed-in-place V1 request, receipt, replay, and integrity contract for fresh 0.8.26
   databases.
 
 Out of scope:
@@ -54,9 +55,9 @@ Out of scope:
 - any repair/rebuild verb on the governed SDK;
 - a second writer, shadow dependency store, body re-search, or logical-ID
   search workaround;
-- functional V1 actuation, V1-to-V2 request translation, V1 receipt/replay or
-  integrity support, cross-version operation-ID behavior, and database
-  migration from any earlier release;
+- parallel functional V1/V2 surfaces, historical request translation,
+  historical receipt/replay or integrity support, cross-release operation-ID
+  behavior, and database migration from any earlier release;
 - arbitrary dependency DAGs or liveness languages;
 - unrelated platform/dependency work unless Slice 8 explicitly selects it as
   required preparation; and
@@ -86,8 +87,8 @@ fix depends on built product artifacts or belongs at the release boundary.
 | 15 | Run the bounded graph-evidence performance and erasure-linearization implementation spike; accept or narrow the Slice 20 design. | 10 | Proposed by Slice 8 evidence |
 | 20 | Add immutable-revision graph-target and terminal-edge evidence resolution under frozen authority. | 15 | Draft |
 | 30 | Qualify and harden the existing versioned read-only operator integrity inspection route. | 20 | Draft |
-| 35 | Prove the breaking V2-only actuation, fresh-database, receipt, and performance contract; accept or narrow the Slice 40 design. | 30 | Required by `seq-282` |
-| 40 | Replace V1 actuation with the accepted V2-only atomic derived-edge contract and fresh-database boundary. | 35 | Draft |
+| 35 | Prove the breaking changed-in-place V1 actuation, fresh-database, receipt, and performance contract; accept or narrow the Slice 40 design. | 30 | Required by `seq-283` |
+| 40 | Extend V1 actuation in place with the accepted atomic derived-edge contract and fresh-database boundary. | 35 | Draft |
 | 50 | Run integrated Memex-profile, cross-SDK, platform, package, and non-publishing release verification. | 40 | Draft |
 
 ## Requirements and acceptance criteria

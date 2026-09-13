@@ -54,22 +54,23 @@ unfixed. Recommendations are proposals pending HITL ruling.
 ### D26-01 — exact graph-evidence public shape
 
 - **Draft HITL position:** Generally accepts the recommendation, not final.
-- **Re-evaluation after `seq-282`:** The actuation/database break does not
-  authorize or technically simplify graph-reader erasure linearization. Keep
-  graph evidence opt-in and preserve V1; broadening the break would expose all
-  graph callers and make the added hydration cost unconditional.
+- **Re-evaluation after `seq-283`:** The no-parallel-version ruling requires
+  graph evidence to remain V1. It does not simplify graph-reader erasure
+  linearization or make added hydration cost acceptable on every call.
 
 - **Situation:** Graph traversal already reads exact target and terminal-edge
   revisions in one reader transaction, while `GraphTargetV1` is closed across
   dynamic bindings and fixtures. Exact evidence resolution can reuse the
   existing frozen eligibility and nondisclosure machinery.
-- **Question:** Should Slice 20 preserve V1 and add a versioned evidence sidecar
-  or successor graph result?
-- **Options:** (A) additive sidecar/successor result; (B) add required fields to
-  `GraphTargetV1`; (C) defer exact graph evidence.
+- **Question:** Should Slice 20 add a first-generation V1 evidence sidecar or
+  change `GraphTargetV1` in place?
+- **Options:** (A) first-generation V1 sidecar; (B) add required fields to
+  `GraphTargetV1` in place; (C) defer exact graph evidence. A parallel V2 result
+  or graph method is excluded by `seq-283`.
 - **Recommendation:** A, conditional on a named Slice 15 performance and
-  erasure-linearization spike before Slice 20. It satisfies Memex without the
-  binding and fixture breakage of B; C leaves graph evidence gated. See
+  erasure-linearization spike before Slice 20. It satisfies Memex while keeping
+  hydration opt-in; B makes the added work part of every graph result; C leaves
+  graph evidence gated. See
   [`spike-d26-01-graph-evidence-impact.md`](spike-d26-01-graph-evidence-impact.md).
 - **What changes it:** Evidence that every V1 decoder tolerates the exact field
   addition and that no fixture/schema contract closes the shape; cheaply
@@ -96,30 +97,32 @@ unfixed. Recommendations are proposals pending HITL ruling.
 - **Blocked/reversible:** Slice 30 scope is blocked. Packaging remains fully
   reversible and no artifact has been published.
 
-### D26-03 — derived-edge actuation version
+### D26-03 — derived-edge actuation contract
 
-- **HITL ruling:** Breaking V2-only actuation and fresh databases, `seq-282`.
+- **HITL ruling:** No parallel functional V1/V2 public APIs; change affected V1
+  contracts in place, breaking and fresh-database-only, `seq-283`. This
+  supersedes `seq-282` as to V2 naming and redirects.
 
 - **Situation:** Ordinary provenance-bearing edge writes already exist, but the
-  closed V1 actuation grammar has no edge operation. Reinterpreting V1 would
-  change encoding, digest, replay, and cross-binding contracts.
-- **Decision:** Replace V1 with one full V2 grammar containing the inherited
+  closed V1 actuation grammar has no edge operation. Adding it changes encoding,
+  digest, replay, and cross-binding contracts.
+- **Decision:** Change the V1 grammar in place to contain the inherited
   operation capabilities plus `PutDerivedEdge`; keep one actuation method per
-  binding. V1-shaped dynamic ingress may only return a loud V2 direction and
-  must not parse, translate, execute, digest, or replay V1. Carry no V1 receipt,
-  integrity, data, or operation-ID compatibility. Accept fresh 0.8.26 databases
-  only and provide no migration from earlier versions.
-- **Placement:** Slice 35 proves the V2/fresh-database contract and performance;
+  binding. Add no V2 types, parser, method, router, redirect, interaction tests,
+  or compatibility layer. Carry no historical receipt, integrity, data, or
+  operation-ID compatibility. Accept fresh 0.8.26 databases only and provide no
+  migration from earlier versions.
+- **Placement:** Slice 35 proves the changed V1/fresh-database contract and performance;
   Slice 40 implements it. See accepted
-  [`ADR-0.8.26-breaking-v2-actuation-and-fresh-database-boundary.md`](../../../../adr/ADR-0.8.26-breaking-v2-actuation-and-fresh-database-boundary.md).
+  [`ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md`](../../../../adr/ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md).
 - **Blocked/reversible:** D26-03 no longer blocks design. D26-04 endpoint
-  semantics and D26-05's exact V2 receipt remain open. Publication and product
+  semantics and D26-05's exact changed-in-place V1 receipt remain open. Publication and product
   implementation remain unauthorized.
 
 ### D26-04 — derived-edge endpoint semantics
 
 - **Draft HITL position:** Generally accepts option B, not final and coupled to
-  the reframed D26-05 V2 receipt decision.
+  the reframed D26-05 current-V1 receipt decision.
 
 - **Situation:** Ordinary edge writes intentionally flag/count dangling edges
   and evaluate the complete batch, including later operations. A stricter
@@ -131,13 +134,13 @@ unfixed. Recommendations are proposals pending HITL ruling.
   earlier-operation order.
 - **Recommendation:** B. Ordinary flag/count behavior cannot be truthfully
   represented without a dangling count. Under the fresh-database ruling, B
-  still gives the smallest V2 receipt and accepts endpoints anywhere in the
+  still gives the smallest current V1 receipt and accepts endpoints anywhere in the
   complete batch. A remains available only if Memex explicitly needs
   incomplete-graph admission; C adds needless ordering.
 - **Re-evaluation after `seq-282`:** Removing migration risk narrows the effort
   difference between A and B, but does not create a Memex need for incomplete
   graphs. B remains the recommendation because it prevents incomplete atomic
-  graph units and omits durable dangling-state semantics from V2.
+  graph units and omits durable dangling-state semantics from the current V1 contract.
 - **What changes it:** A Memex requirement that the governed batch itself—not
   Memex validation—must reject incomplete endpoint sets.
 - **Blocked/reversible:** Slice 40 transaction tests and error contract are
@@ -146,23 +149,25 @@ unfixed. Recommendations are proposals pending HITL ruling.
 
 ### D26-05 — receipt and operation-ID evolution
 
-- **HITL status:** Open and reframed by `seq-282`; the prior draft acceptance of
-  current receipt storage is no longer operative.
+- **HITL status:** Open and reframed by `seq-282` and `seq-283`; the prior draft
+  acceptance of current receipt storage is no longer operative.
 
-- **Situation:** 0.8.26 needs one V2 receipt, replay, integrity, and operation-ID
-  contract for a fresh database. It must not retain V1 receipt readers,
-  integrity checks, replay, collision rules, or migration code.
-- **Question:** What is the minimum truthful V2 receipt for committed and
+- **Situation:** 0.8.26 needs one changed-in-place V1 receipt, replay,
+  integrity, and operation-ID contract for a fresh database. It must not retain
+  historical receipt readers, integrity checks, replay, collision rules, or
+  migration code.
+- **Question:** What is the minimum truthful current V1 receipt for committed and
   refused derived-edge batches under the chosen D26-04 endpoint policy?
-- **Options:** (A) create `ActuationReceiptV2` with the current compact outcome,
-  affected-revision, boundary, projection, generation, closure, and V2
+- **Options:** (A) change `ActuationReceiptV1` in place with the current compact
+  outcome, affected-revision, boundary, projection, generation, closure, and
+  current V1
   source-reference concepts plus only edge fields proven necessary; (B) add a
   broad graph-consequence manifest; (C) return no durable receipt.
-- **Recommendation:** A. It preserves idempotent V2 replay and bounded audit
+- **Recommendation:** A. It preserves idempotent current-contract replay and bounded audit
   truth without any historical compatibility or Memex semantic inference. B
   is overbuilt; C loses the core actuation guarantee.
 - **What changes it:** Proof that a named current concept is unnecessary for
-  V2 replay/integrity, or that D26-04 option A requires one explicit dangling
+  current V1 replay/integrity, or that D26-04 option A requires one explicit dangling
   count.
 - **Blocked/reversible:** Exact Slice 35/40 receipt design remains blocked. No
   V1 storage constrains the choice, and no migration is permitted.

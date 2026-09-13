@@ -25,13 +25,15 @@ accepts the design or records an approved narrower replacement.
 
 ### Compatibility and ordinary-path impact
 
-An opt-in successor graph result leaves existing `GraphExpandResultV1` bytes,
-fixtures, and ordinary search paths unchanged. Adding required fields directly
-to V1 would change a compatibility-sensitive serialized shape.
+An opt-in, first-generation V1 evidence sidecar leaves the core
+`GraphExpandResultV1` payload and ordinary search paths unchanged. Adding
+required fields directly to `GraphTargetV1` changes its serialized shape in
+place. Both are permitted breaking V1 approaches; `seq-283` excludes a
+parallel V2 result or method.
 
 Existing AC-081a and AC-081b measure ordinary `Engine::search`; AC-081c proves
 ordinary reader-pool independence. AC-072, AC-073, AC-075, and AC-076 likewise
-exercise existing search behavior. A successor graph method and point resolver
+exercise existing search behavior. An opt-in V1 graph result and point resolver
 do not invalidate those criteria unless their implementation changes shared
 reader dispatch, caching, or ordinary search code. Slice 15 must nevertheless
 run an identity-bound AC-081a/b observation and AC-081c as sentinels.
@@ -40,7 +42,7 @@ The graph path itself retains its existing bounds: result limit 50, work limit
 10,000, and maximum depth 3. The current query-plan and RSS tests remain stop
 gates.
 
-### Bounded successor-result cost
+### Bounded V1 evidence-result cost
 
 The traversal already holds each target write cursor and each terminal-edge
 write cursor. The lowest-risk seam is to retain the winning terminal-edge
@@ -60,7 +62,7 @@ That would change the new cost from `O(result_limit)` to `O(work_units)`.
 
 ### Sequential, concurrent, and write effects
 
-The successor graph operation remains one WAL reader transaction. Two final
+The V1 graph-evidence operation remains one WAL reader transaction. Two final
 indexed hydration statements slightly extend its snapshot but do not acquire
 the writer lock. Existing graph and ordinary search behavior remains unchanged
 when the path is opt-in.
@@ -117,7 +119,8 @@ close.
 
 ### GREEN prototype and measurements
 
-- Compare V1 with the successor result for one target, 50 targets, and 10,000
+- Compare the current graph result with the selected V1 evidence shape for one
+  target, 50 targets, and 10,000
   work units with 50 results. Use 1,000 measured release-mode iterations for
   the small cases and at least 30 for the 10,000-work case.
 - Compare existing opaque-handle resolution with point resolution for node and
@@ -138,7 +141,7 @@ run its established multi-process campaign before attributing a regression.
 ## Recommendation to HITL
 
 Approve D26-01 option A only with Slice 15 inserted before Slice 20. The
-approved initial shape should be a successor graph-evidence result with
-post-selection indexed hydration and a primary-connection point resolver.
+approved initial shape should be a first-generation V1 graph-evidence sidecar
+with post-selection indexed hydration and a primary-connection point resolver.
 Reader-pool and batch resolution remain later options requiring new evidence
 and erasure-linearization design.

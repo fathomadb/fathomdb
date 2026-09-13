@@ -13,8 +13,8 @@ status: COMPLETE
 | evidence substrate | Exact source resolution and edge artifact revision identity already exist internally, while the public resolved shape includes ranked-search contribution fields. | Factor intrinsic artifact evidence from ranked contribution; add exact frozen artifact resolution without invented ranks. |
 | graph results | Graph targets expose logical/kind/body/cursor/origin but insufficient immutable evidence identity for exact follow-up. | Expose target and terminal-edge revision identity separately and bind resolution to frozen eligibility. |
 | integrity | Engine and CLI already implement bounded `data-plane-integrity`; distribution and consumer contract are incomplete. | Package the existing read-only operator route before considering any in-process SDK method. |
-| edge writes | `ProvenancedEdgeV1` and the ordinary prepared-write/projection path exist; the actuation grammar is a closed four-operation V1 set. | Prefer `ActuationBatchV2` with `PutDerivedEdge`, reusing canonical edge storage. |
-| replay/receipts | Actuation digest, replay identity, and compact receipt are persisted contract-sensitive state. | Define one fresh-database V2 receipt/digest/integrity contract; do not retain V1 compatibility. |
+| edge writes | `ProvenancedEdgeV1` and the ordinary prepared-write/projection path exist; the actuation grammar is a closed four-operation V1 set. | Change `ActuationBatchV1` in place with `PutDerivedEdge`, reusing canonical edge storage and adding no V2 pair. |
+| replay/receipts | Actuation digest, replay identity, and compact receipt are persisted contract-sensitive state. | Define one fresh-database changed-in-place V1 receipt/digest/integrity contract; do not retain historical compatibility. |
 
 ## Architectural invariants
 
@@ -27,21 +27,20 @@ status: COMPLETE
 - Operator diagnostics remain read-only; recovery remains separately
   authorized and absent from governed SDKs.
 - Endpoint validation considers the prospective batch state before any write.
-- V2 is the only functional actuation grammar; V1-shaped dynamic ingress may
-  only return the approved non-executing upgrade direction.
+- V1 remains the only functional actuation grammar and changes in place; no V2
+  types, methods, parser, router, or redirect path are introduced.
 - 0.8.26 accepts fresh databases only and does not migrate prior databases.
 - FathomDB stores caller-declared provenance and relation semantics but does
   not decide supports/refutes/corrects policy for Memex.
 
 ## Decisions required before READY
 
-1. Additive graph-response fields versus a successor response type.
+1. In-place graph V1 fields versus a first-generation V1 evidence sidecar.
 2. Exact artifact-evidence request/response version and expiry semantics.
 3. CLI artifact distribution targets and version-match rule.
-4. V2 digest domain, endpoint policy, and exact binding rejection shape for V1
-   ingress.
-5. The exact V2 receipt; no omnibus consequence manifest and no V1 receipt
-   compatibility.
+4. Current V1 digest semantics and endpoint policy.
+5. The exact changed-in-place V1 receipt; no omnibus consequence manifest and
+   no historical receipt compatibility.
 6. How fresh bootstrap reuses internal schema construction while any existing
    earlier database is refused before mutation.
 
@@ -60,7 +59,8 @@ requested observability fields rather than demand byte identity.
 Traversal already has target-node and terminal-edge rows within one reader
 transaction, and the evidence resolver already enforces context, eligibility,
 commitments, and nondisclosure. The lowest-risk architecture is an additive
-graph evidence sidecar or successor result carrying both immutable revisions,
+first-generation V1 graph evidence sidecar or an in-place V1 result carrying
+both immutable revisions,
 plus a context-bound point resolver that reuses those checks. Logical-ID search
 and full-path evidence remain out of scope.
 
@@ -86,13 +86,13 @@ make operation order semantically significant.
 
 The receipt table and integrity checker hard-check schema version 1, while the
 request digest is domain-separated as V1. They are replacement surfaces, not
-compatibility constraints. Slice 35 defines one V2 receipt/storage/integrity
-shape for a fresh database and proves that V1 request, replay, receipt, and
-integrity code does not remain functional.
+compatibility constraints. Slice 35 defines one current V1
+receipt/storage/integrity shape for a fresh database and proves that no
+historical compatibility or parallel V2 code remains.
 
 ## Stop conditions
 
-Stop for functional V1 actuation, migration of an earlier database, implicit
+Stop for parallel functional V1/V2 APIs, migration of an earlier database, implicit
 edge-policy change, invented ranking facts, duplicate telemetry, process
-mutation in a claimed read-only operator route, or unreviewed V2 persisted
+mutation in a claimed read-only operator route, or unreviewed changed V1 persisted
 state.

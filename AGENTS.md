@@ -26,7 +26,7 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 
 ## 2. Repo shape
 
-- **Rust workspace** under `src/rust/crates/` — 9 crates: `fathomdb`, `fathomdb-cli`, `fathomdb-engine`, `fathomdb-query`, `fathomdb-schema`, `fathomdb-embedder`, `fathomdb-embedder-api`, `fathomdb-napi`, and `fathomdb-py`.
+- **Rust workspace** under `src/rust/crates/` — 10 crates: `fathomdb`, `fathomdb-cli`, `fathomdb-engine`, `fathomdb-query`, `fathomdb-schema`, `fathomdb-embedder`, `fathomdb-embedder-api`, `fathomdb-napi`, `fathomdb-py`, and `fathomdb-tc5-benchmark`.
 - **Python bindings** under `src/python/` (package: `fathomdb`).
 - **TypeScript bindings** under `src/ts/`.
 - **Public docs** under `docs/` (MkDocs-built).
@@ -124,8 +124,8 @@ Do not paraphrase, summarize, or shorten compiler diagnostics — pass them thro
 
 ### Release state — where the current release actually lives
 
-- **Board of record:** `dev/plans/runs/STATUS-<version>.md` — one per release; slice ladder, what landed at which sha, current state, immediate next action. **Find the live one via the single writer below** — `ls dev/plans/release-state-*.json` resolves to exactly one file; its `board` key names the live board. ⛔ Do not `ls dev/plans/runs/`: it holds 24 `STATUS-*.md` and nothing marks which is current. Update at every slice close; verify state from git, never from narration.
-- **Single writer:** `dev/plans/release-state-<version>.json` — machine-readable ladder, `next_slice`, acceptance + publish gate, ruled/unruled decisions. It owns generated regions in the board and the master plan — HTML comments beginning `BEGIN GENERATED release-state:` — enforced by `scripts/check-release-state-views.sh`. **Edit the JSON, never the generated blocks.** ⛔ That marker is written INCOMPLETE on purpose: the checker hard-fails on any orphan occurrence in any tracked `.md`, so spelling it out here would red the gate. Do not "complete" it, and never paste a real marker into a file the state file does not declare.
+- **Board of record:** `dev/plans/runs/STATUS-<version>.md` — one per release; slice ladder, what landed at which sha, current state, immediate next action. **Find the live one with `scripts/release-current.py`** — its tracked state/board tuple names the live release. ⛔ Do not infer currency by listing `dev/plans/runs/`; it contains historical boards too. Update at every slice close; verify state from git, never from narration.
+- **Single writer per release:** `dev/plans/release-state-<version>.json` — machine-readable ladder, `next_slice`, acceptance + publish gate, ruled/unruled decisions. Historical state files remain tracked; `scripts/release-current.py` selects the one live state. Each state owns generated regions in its board and master plan — HTML comments beginning `BEGIN GENERATED release-state:` — enforced by `scripts/check-release-state-views.sh`. **Edit the JSON, never the generated blocks.** ⛔ That marker is written INCOMPLETE on purpose: the checker hard-fails on any orphan occurrence in any tracked `.md`, so spelling it out here would red the gate. Do not "complete" it, and never paste a real marker into a file the state file does not declare.
 - **Ledgers (append-only JSONL):** `dev/steward/steward-ledger.jsonl` (program decisions, `seq-N`) · `dev/todos-and-considerations-ledger.jsonl`. Read/write only via the `ledgerwatch` / `ledgerwrite` tools under `dev/agent-tools/` — never hand-edit.
 - **Role contracts (durable):** `dev/plans/prompts/0.8.x-STEWARD-HANDOFF.md` · `dev/plans/prompts/0.8.x-RELEASE-ORCHESTRATOR-HANDOFF.md`
 - **Session hand-offs (dated, newest wins):** `dev/plans/runs/STEWARD-SESSION-HANDOFF-<YYYY-MM-DD>-<A|B|…>.md` — the trailing letter is a per-day sequence. `scripts/steward-orient.sh` prints the newest; read that one, not the series.

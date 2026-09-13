@@ -5,6 +5,10 @@ status: DRAFT
 
 # Slice 8 design — initial decision scaffold
 
+The completed, scored decision package is
+[`proposal-register.md`](proposal-register.md). This initial scaffold remains
+the pre-review seed and is not a second authority.
+
 ## Initial proposal register
 
 These are seed assessments for review, not HITL decisions. Slice 8 adds every

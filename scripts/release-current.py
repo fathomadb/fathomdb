@@ -15,6 +15,7 @@ import json
 import re
 import subprocess
 import sys
+from datetime import date
 
 STATE_RE = re.compile(r"dev/plans/release-state-([0-9][0-9.]*)\.json$")
 BOARD_RE = re.compile(r"dev/plans/runs/STATUS-([0-9][0-9.]*)\.md$")
@@ -64,7 +65,11 @@ def published_receipt_error(data: dict, release: str) -> str | None:
         return "has an invalid published receipt: tag does not match the release"
     if not COMMIT_RE.fullmatch(published["tag_commit"]):
         return "has an invalid published receipt: tag_commit is not a full lowercase SHA"
-    if not DATE_RE.fullmatch(published["published_on"]):
+    try:
+        parsed_date = date.fromisoformat(published["published_on"])
+    except ValueError:
+        parsed_date = None
+    if not DATE_RE.fullmatch(published["published_on"]) or parsed_date is None:
         return "has an invalid published receipt: published_on is not an ISO date"
     return None
 

@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 
@@ -89,7 +90,11 @@ def published_record(state: dict, version: str, relative: Path) -> dict | None:
         fail(f"{relative} published tag {published['tag']!r} does not match v{version}")
     if not COMMIT_RE.fullmatch(published["tag_commit"]):
         fail(f"{relative} published tag_commit is not a full lowercase commit SHA")
-    if not DATE_RE.fullmatch(published["published_on"]):
+    try:
+        parsed_date = date.fromisoformat(published["published_on"])
+    except ValueError:
+        parsed_date = None
+    if not DATE_RE.fullmatch(published["published_on"]) or parsed_date is None:
         fail(f"{relative} published_on is not an ISO date")
     return published
 

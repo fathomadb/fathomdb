@@ -18,6 +18,22 @@ part of the unresolved Slice 9 preparation decision. These ledger-backed
 rulings must be copied into that state by the state-authoring tool when P26-02
 is implemented. They must not be inferred or rewritten.
 
+## Draft HITL positions — not rulings
+
+The HITL is generally accepting of the following recommendations but has
+explicitly directed that they remain draft, not final decisions:
+
+| Decision | Draft position | Effect now |
+| --- | --- | --- |
+| D26-01 | Generally accepts option A with Slice 15. | Continue design discussion; do not approve or execute Slice 15 or Slice 20. |
+| D26-04 and D26-05 | Generally accepts strict complete-state endpoint refusal with current receipt storage. | Continue V2 discussion; do not fix the endpoint or receipt contract yet. |
+| D26-06 | Generally accepts the revised narrow Slice 9 bundle. | Do not replace or authorize Slice 9 until the decision is final. |
+| D26-07 | Generally accepts the revised narrow Slice 50 placement. | Preserve the proposed placement; publication remains separately gated. |
+
+These positions are deliberately absent from the append-only decision ledger
+and future release-state `decisions.ruled` array. They become rulings only after
+an explicit final HITL decision.
+
 ## Clarified decisions awaiting explicit ruling
 
 ### D26-01
@@ -33,7 +49,9 @@ and erasure linearization. See
 Option A means a full successor grammar containing all V1 operations plus
 `PutDerivedEdge`, with separate V2 entry points and digest domain. It does not
 mean an edge-only request. V1 remains unchanged. A named Slice 35 before Slice
-40 will prototype and measure the contract.
+40 will prototype and measure the contract. The HITL has not accepted this
+proposal and requested further discussion of its scope and mixed-version client
+behavior.
 
 ### D26-04 and D26-05
 
@@ -85,8 +103,9 @@ triage (P26-12) and speculative runner/dispatch work (P26-10 and P26-14).
 
 ## Still required
 
-Explicit HITL rulings remain required for D26-01, D26-03, the combined
-D26-04/D26-05 bundle, D26-06, and clarified D26-07. After those rulings are
-recorded, Slice 8 will replace the provisional Slice 9 plan, add approved Slice
-15 and Slice 35 plan/design documents, obtain the required independent review,
-and return the reviewed plan for execution approval.
+Explicit final HITL rulings remain required for D26-01, D26-03, the combined
+D26-04/D26-05 bundle, D26-06, and clarified D26-07. D26-03 requires further
+conversation first. After final rulings are recorded, Slice 8 will replace the
+provisional Slice 9 plan, add approved Slice 15 and Slice 35 plan/design
+documents, obtain the required independent review, and return the reviewed
+plan for execution approval.

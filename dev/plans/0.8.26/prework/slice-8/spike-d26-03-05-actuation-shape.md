@@ -45,6 +45,55 @@ points and the digest domain `fathomdb.actuation.v2\0`. Both public versions
 should normalize to one private executor representation rather than copy the
 existing actuation implementation.
 
+## Proposed V1 and V2 compatibility contract
+
+V2 is comprehensive only within the actuation-batch family. It is not a new
+version of the entire Engine, SDK, database, read surface, search surface, or
+graph surface. It introduces one additional batch type and one corresponding
+entry point per binding. Existing clients that use only V1 require no change.
+
+At the capability level, V2 is a strict superset of V1: it contains equivalent
+forms of every V1 operation plus `PutDerivedEdge`. At the type and wire level,
+the versions remain separate closed schemas. A V1 batch is not silently parsed
+as V2, a V2 batch is not accepted by the V1 entry point, and no V1 digest or
+canonical byte sequence changes. A caller may explicitly construct the V2
+equivalent of a V1 request when it wants the successor surface.
+
+There is no session-wide version negotiation or version mode. One Engine or
+SDK client may issue calls in any order, including:
+
+```text
+actuate(V1) -> actuate_v2(V2) -> actuate(V1) -> actuate(V1) -> actuate_v2(V2)
+```
+
+Sequential mixed-version calls operate on the same database state and obey
+the same transaction, provenance, lifecycle, projection, and erasure rules.
+Concurrent V1 and V2 calls are also allowed, but the existing single-writer
+boundary serializes their commits. Concurrency changes arrival and completion
+order, not atomicity.
+
+The operation-ID namespace is shared across versions:
+
+- different operation IDs work in any sequential or concurrent V1/V2 order;
+- an exact V1 replay uses the V1 digest and returns its stored receipt;
+- an exact V2 replay uses the V2 digest and returns its stored receipt;
+- reusing one operation ID across V1 and V2 conflicts, even when the listed
+  domain operations appear equivalent, because the versioned digest domains
+  differ; and
+- an erased operation ID remains reserved against both versions.
+
+The proposal returns the existing `ActuationReceiptV1` from both entry points
+under strict endpoint refusal. This is intentional: the receipt describes a
+committed or refused operation outcome and already carries the required
+revision, cursor, dependency, lifecycle, and source-reference truth. Request
+schema version and receipt schema version are independent. A RED audit must
+prove that claim before Slice 40; otherwise receipt evolution returns to HITL.
+
+Thus V2 is best described as **a separate, full successor grammar for one API
+family**, not “an updated V1” and not “a comprehensive new FathomDB surface.”
+Internally the two versions share execution logic; publicly they remain
+unambiguous and independently replayable.
+
 The expected scope is approximately 15–20 code/contract files and 8–12 focused
 test or fixture files. Risk is medium and concentrated in the actuation
 executor and bindings; storage risk remains low under the strict endpoint

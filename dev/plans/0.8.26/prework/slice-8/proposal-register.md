@@ -52,6 +52,8 @@ unfixed. Recommendations are proposals pending HITL ruling.
 
 ### D26-01 — exact graph-evidence public shape
 
+- **Draft HITL position:** Generally accepts the recommendation, not final.
+
 - **Situation:** Graph traversal already reads exact target and terminal-edge
   revisions in one reader transaction, while `GraphTargetV1` is closed across
   dynamic bindings and fixtures. Exact evidence resolution can reuse the
@@ -91,6 +93,9 @@ unfixed. Recommendations are proposals pending HITL ruling.
 
 ### D26-03 — derived-edge actuation version
 
+- **HITL status:** Open. Further discussion is required about the V2 boundary
+  and mixed V1/V2 client behavior.
+
 - **Situation:** Ordinary provenance-bearing edge writes already exist, but the
   closed V1 actuation grammar has no edge operation. Reinterpreting V1 would
   change encoding, digest, replay, and cross-binding contracts.
@@ -111,6 +116,9 @@ unfixed. Recommendations are proposals pending HITL ruling.
   but no persisted data has changed.
 
 ### D26-04 — derived-edge endpoint semantics
+
+- **Draft HITL position:** Generally accepts option B, not final and coupled to
+  D26-05 and the open D26-03 boundary.
 
 - **Situation:** Ordinary edge writes intentionally flag/count dangling edges
   and evaluate the complete batch, including later operations. A stricter
@@ -134,6 +142,9 @@ unfixed. Recommendations are proposals pending HITL ruling.
 
 ### D26-05 — receipt and operation-ID evolution
 
+- **Draft HITL position:** Generally accepts option A, not final and coupled to
+  D26-04 and the open D26-03 boundary.
+
 - **Situation:** V1 receipt columns may already represent an edge-bearing V2
   request, but receipt storage and integrity checks hard-code schema 1. V1 and
   V2 may share operation-ID storage.
@@ -154,6 +165,9 @@ unfixed. Recommendations are proposals pending HITL ruling.
 ## Preparation bundle decision
 
 ### D26-06 — Slice 9 preparation scope
+
+- **Draft HITL position:** Generally accepts the revised narrow option A, not
+  final.
 
 - **Situation:** The owner's narrow-release ruling removes unrelated dependency
   remediation from the default bundle. P26-01 and P26-02 are mandatory release
@@ -178,6 +192,8 @@ unfixed. Recommendations are proposals pending HITL ruling.
 ## Later-delivery bundle decision
 
 ### D26-07 — hardening and release-boundary scope
+
+- **Draft HITL position:** Generally accepts the revised option A, not final.
 
 - **Situation:** P26-11 through P26-13 have clear value but belong after
   features or at final artifact/release boundaries. P26-10 and P26-14 lack

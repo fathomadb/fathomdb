@@ -31,6 +31,11 @@ validate V2 as a closed schema. If a dynamic boundary recognizes the retired
 top-level V1 discriminator, it returns the approved upgrade direction before
 nested parsing and before opening a write transaction.
 
+Implement this as the generic unsupported-schema path: one V2 parser accepts
+schema 2 and every other schema receives a response naming schema 2 as the
+supported contract. Do not add a V1 parser, a V1/V2 union input, a version
+router, or separate `actuate_v1`/`actuate_v2` methods.
+
 ### Fresh database
 
 Fresh creation may reuse internal ordered schema-construction functions. Open

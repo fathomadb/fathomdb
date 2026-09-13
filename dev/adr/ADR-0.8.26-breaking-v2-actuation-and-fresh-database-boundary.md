@@ -26,6 +26,11 @@ return a loud, deterministic refusal directing the caller to V2. That refusal
 must not parse V1 operations, execute them, translate them, compute their
 digest, replay them, or act as a compatibility shim.
 
+This is not a version router. There is one V2 parser and one V2 executor. The
+ordinary closed-schema guard rejects every unsupported actuation schema before
+nested parsing and reports that schema 2 is required; it does not dispatch on
+V1 versus V2 or retain a V1-specific implementation branch.
+
 0.8.26 accepts fresh databases only. It provides no supported database
 migration from any earlier FathomDB version. Fresh-database bootstrap may
 reuse internal schema-construction machinery, but an existing non-current
@@ -55,6 +60,8 @@ are defined only within fresh 0.8.26 databases.
   guidance must label 0.8.26 as breaking and fresh-database-only.
 - An old-shaped dynamic request receives the minimal V1-retired direction and
   causes no database mutation.
+- No public method accepts a functional union of V1 and V2, and no internal
+  router selects between versioned actuation implementations.
 - A fresh 0.8.26 database opens and exercises the complete V2 surface.
 - A representative earlier-version database is refused before mutation. No
   historical-version migration matrix is required.

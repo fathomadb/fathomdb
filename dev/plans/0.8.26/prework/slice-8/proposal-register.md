@@ -54,6 +54,10 @@ unfixed. Recommendations are proposals pending HITL ruling.
 ### D26-01 — exact graph-evidence public shape
 
 - **Draft HITL position:** Generally accepts the recommendation, not final.
+- **Re-evaluation after `seq-282`:** The actuation/database break does not
+  authorize or technically simplify graph-reader erasure linearization. Keep
+  graph evidence opt-in and preserve V1; broadening the break would expose all
+  graph callers and make the added hydration cost unconditional.
 
 - **Situation:** Graph traversal already reads exact target and terminal-edge
   revisions in one reader transaction, while `GraphTargetV1` is closed across
@@ -130,6 +134,10 @@ unfixed. Recommendations are proposals pending HITL ruling.
   still gives the smallest V2 receipt and accepts endpoints anywhere in the
   complete batch. A remains available only if Memex explicitly needs
   incomplete-graph admission; C adds needless ordering.
+- **Re-evaluation after `seq-282`:** Removing migration risk narrows the effort
+  difference between A and B, but does not create a Memex need for incomplete
+  graphs. B remains the recommendation because it prevents incomplete atomic
+  graph units and omits durable dangling-state semantics from V2.
 - **What changes it:** A Memex requirement that the governed batch itself—not
   Memex validation—must reject incomplete endpoint sets.
 - **Blocked/reversible:** Slice 40 transaction tests and error contract are
@@ -163,22 +171,22 @@ unfixed. Recommendations are proposals pending HITL ruling.
 
 ### D26-06 — Slice 9 preparation scope
 
-- **Draft HITL position:** Generally accepts the revised narrow option A, not
-  final.
+- **Draft HITL position:** Generally accepted the prior narrow option A, not
+  final. The re-evaluated option is narrower because P26-09 moves to Slice 50.
 
-- **Situation:** The owner's narrow-release ruling removes unrelated dependency
-  remediation from the default bundle. P26-01 and P26-02 are mandatory release
-  truth; P26-03, exact P26-05 corrections, P26-08 comment truth, and P26-09 are
-  bounded corrections to known release failures. P26-04 is an execution
-  condition, not product scope.
+- **Situation:** P26-01 and P26-02 are mandatory release truth. P26-03, exact
+  P26-05 corrections, and P26-08 comment truth are small deterministic
+  preparation fixes. P26-09 is valuable but depends on release-wheel evidence
+  and can move to Slice 50. P26-04 is an execution condition, not product
+  scope.
 - **Question:** Should Slice 9 implement P26-01, P26-02, P26-03, exact P26-05,
-  P26-08 comment truth, and P26-09, with P26-04 enforced as execution
-  conditions?
-- **Options:** (A) revised narrow bundle; (B) ultra-narrow P26-01 and P26-02
-  only; (C) name individual exceptions; (D) no preparation.
-- **Recommendation:** A. It removes deterministic release blockers and repeated
-  candidate failures without dependency or cleanup churn. P26-06 is postponed
-  unless it becomes a hard build blocker.
+  and P26-08 comment truth, with P26-04 enforced as execution conditions and
+  P26-09 moved to Slice 50?
+- **Options:** (A) revised narrower bundle; (B) ultra-narrow P26-01 and P26-02
+  only; (C) restore P26-09 to Slice 9; (D) name individual exceptions.
+- **Recommendation:** A. It removes deterministic preflight/state blockers
+  without dependency, cleanup, or candidate-only tooling work. P26-06 is
+  postponed unless it becomes a hard build blocker.
 - **What changes it:** A requirement to minimize any pre-feature diff beyond
   release-state activation, or evidence that the markdown advisory has no
   viable bounded fix.
@@ -190,21 +198,23 @@ unfixed. Recommendations are proposals pending HITL ruling.
 
 ### D26-07 — hardening and release-boundary scope
 
-- **Draft HITL position:** Generally accepts the revised option A, not final.
+- **Draft HITL position:** Generally accepted the prior option A, not final.
+  The re-evaluated option adds P26-09 and makes P26-11 evidence-conditional.
 
-- **Situation:** P26-11 through P26-13 have clear value but belong after
-  features or at final artifact/release boundaries. P26-10 and P26-14 lack
-  enough evidence for implementation.
-- **Question:** Should Slice 50 include P26-11 exact generated-evidence digest
-  registration and P26-13 registry visibility polling logic, while postponing
-  P26-10, P26-12, and P26-14?
+- **Situation:** P26-09, P26-11, and P26-13 depend on candidate or release
+  artifact behavior. P26-10, P26-12, and P26-14 remain speculative, unrelated,
+  or high-risk for the narrow Memex release.
+- **Question:** Should Slice 50 include P26-09 Windows inventory consolidation,
+  P26-13 registry visibility polling logic, and P26-11 only if exact generated
+  benign evidence requires digest registration, while postponing P26-10,
+  P26-12, and P26-14?
 - **Options:** (A) revised narrow placement; (B) postpone all five; (C) choose
   individual exceptions.
-- **Recommendation:** A. Slice 50 is the final integrated non-publishing
-  verification slice, not publication itself. Actual registry exercise and
-  publication remain a separate gate. This placement prevents known release
-  friction without pulling unrelated full-history security triage or
-  speculative runner work into 0.8.26.
+- **Recommendation:** A. Slice 50 is the first point with the real wheel
+  inventories and generated evidence, so it can solve P26-09/P26-11 against
+  actual inputs. It remains the final integrated non-publishing verification
+  slice, not publication itself. Actual registry exercise and publication
+  remain a separate gate.
 - **What changes it:** Confirmation that Windows runner drift or duplicate
   dispatch is recurring on current infrastructure, which would promote the
   relevant item.

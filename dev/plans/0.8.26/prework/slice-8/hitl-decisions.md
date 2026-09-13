@@ -30,8 +30,8 @@ explicitly directed that they remain draft, not final decisions:
 | D26-01 | Generally accepts option A with Slice 15. | Continue design discussion; do not approve or execute Slice 15 or Slice 20. |
 | D26-04 | Generally accepts strict complete-state endpoint refusal. | Re-evaluate against the V2-only fresh-database contract; do not finalize yet. |
 | D26-05 | Earlier conditional acceptance of current receipt storage is displaced by `seq-282`. | Reframe as the exact V2-only receipt shape; no V1 compatibility question remains. |
-| D26-06 | Generally accepts the revised narrow Slice 9 bundle. | Do not replace or authorize Slice 9 until the decision is final. |
-| D26-07 | Generally accepts the revised narrow Slice 50 placement. | Preserve the proposed placement; publication remains separately gated. |
+| D26-06 | Generally accepted the prior narrow Slice 9 bundle; re-evaluation now moves P26-09 to Slice 50. | Confirm or reject the narrower replacement before Slice 9 is replaced. |
+| D26-07 | Generally accepted the prior narrow Slice 50 placement; re-evaluation adds P26-09 and makes P26-11 conditional on real evidence. | Confirm or reject the adjusted placement; publication remains separately gated. |
 
 These positions are deliberately absent from the append-only decision ledger
 and future release-state `decisions.ruled` array. They become rulings only after
@@ -46,6 +46,9 @@ Slice 20. Slice 15 prototypes and measures post-selection revision hydration,
 primary-connection point resolution, ordinary-search sentinels, mixed writes,
 and erasure linearization. See
 [`spike-d26-01-graph-evidence-impact.md`](spike-d26-01-graph-evidence-impact.md).
+The `seq-282` actuation/database break does not authorize a graph API break and
+does not reduce the graph reader/erasure risk, so the recommendation remains
+an opt-in successor that preserves graph V1.
 
 ### D26-03 — ruled
 
@@ -60,6 +63,14 @@ receipt storage. `seq-282` removes V1 receipt and cross-version compatibility,
 so D26-04 remains provisionally strict while D26-05 must now select the exact
 V2-only receipt fields and integrity contract for a fresh database. See
 [`spike-d26-03-05-actuation-shape.md`](spike-d26-03-05-actuation-shape.md).
+
+The revised D26-05 recommendation is `ActuationReceiptV2` with the compact
+operation ID, V2 request digest, terminal outcome/refusal location and reasons,
+affected revisions, resulting write/dependency boundaries, pending projection
+cursors, projection generation, and closure-operation concepts that V2
+actually produces. Edge revisions use `affected_revision_ids`. Under strict
+D26-04 there is no dangling count. V2 source references remain internal for
+V2 erasure/integrity; none is interpreted as historical V1 data.
 
 ### D26-06
 
@@ -78,10 +89,10 @@ The proposal IDs mean:
 - P26-09: derive duplicated Windows release-wheel probe inventories from one
   machine-readable contract.
 
-The revised narrow recommendation is: implement P26-01, P26-02, P26-03, the
-exact P26-05 corrections, the P26-08 comment correction, and P26-09 in Slice 9;
-treat P26-04 as execution conditions rather than product work. Drop P26-06's
-markdown dependency remediation from Slice 9 unless it becomes a hard build
+The revised narrow recommendation is: implement P26-01, P26-02, P26-03, exact
+P26-05 corrections, and the P26-08 comment correction in Slice 9; treat P26-04
+as execution conditions rather than product work; move P26-09 to Slice 50.
+Drop P26-06's markdown dependency remediation unless it becomes a hard build
 blocker. An ultra-narrow alternative implements only P26-01 and P26-02 and
 defers all other corrections.
 
@@ -94,10 +105,12 @@ the P26-01 correction.
 
 Slice 50 is the final integrated, non-publishing candidate/package/platform
 verification slice. It is not the tag or publication step; those remain a
-separate explicit gate. The revised narrow option A places exact generated
-Gitleaks digest registration (P26-11) and registry visibility polling logic
-(P26-13) in Slice 50, while postponing the unrelated full-history Gitleaks
-triage (P26-12) and speculative runner/dispatch work (P26-10 and P26-14).
+separate explicit gate. The revised narrow option A moves P26-09 Windows probe
+inventory consolidation there, adds registry visibility polling logic
+(P26-13), and performs exact generated Gitleaks digest registration (P26-11)
+only if the actual benign evidence requires it. It postpones unrelated
+full-history Gitleaks triage (P26-12) and speculative runner/dispatch work
+(P26-10 and P26-14).
 
 ## Still required
 

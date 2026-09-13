@@ -25,7 +25,8 @@ The repository owner's existing direction already settles these points:
 ## Scored proposals
 
 Risk is implementation stability risk, not the severity of leaving a problem
-unfixed. Recommendations are proposals pending HITL ruling.
+unfixed. The table preserves the scored proposals presented to HITL; the
+recorded decisions below override its recommendation and placement columns.
 
 | ID | Proposal | Value | Understood | Risk | Effort | Recommendation | Placement |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -34,13 +35,13 @@ unfixed. Recommendations are proposals pending HITL ruling.
 | P26-03 | Make preflight select an explicit authoritative main ref; cover stale-local/remote-only/offline cases | removes misleading stale-base evidence | high | low | S | include | 9 |
 | P26-04 | Establish checkout-owned dev tools and fresh artifact environments; add disk budget before full matrix | prevents stale environment and ENOSPC recurrence | high | low | S | include narrowly | 9 setup + 50 budget |
 | P26-05 | Correct maintained authority/platform/CLI inventory documentation found by Slice 2 | removes stale operator/developer truth | high | low | S | include exact files only | 9 and owning feature docs |
-| P26-06 | Attempt bounded remediation of root markdownlint/`smol-toml` high advisory | supply-chain hygiene on a gating tool | high | medium | S–M | include investigation; adopt only with AST/lint proof | 9 |
+| P26-06 | Attempt bounded remediation of root markdownlint/`smol-toml` high advisory | supply-chain hygiene on a gating tool | high | medium | S–M | postpone unless hard build blocker | outside release / conditional HITL |
 | P26-07 | Upgrade uncovered Mermaid/DOMPurify toolchain | developer-tool security | medium | medium | S | postpone from feature release | separate housekeeping |
 | P26-08 | Correct download-artifact v4.3.0 comments now; defer v8 runtime upgrade pending all-runner proof | restores pin truth without runtime churn | high | low for comment; medium-high for runtime | XS / M | split: include comment, postpone runtime | 9 / later |
-| P26-09 | Derive Windows structural and installed-binding inventories from one machine-readable contract | prevents repeated candidate-only mismatch | high | medium | M | include | 9 |
+| P26-09 | Derive Windows structural and installed-binding inventories from one machine-readable contract | prevents repeated candidate-only mismatch | high | medium | M | include | 50 |
 | P26-10 | Add Windows runner prerequisite probe | may prevent host-drift reruns | medium | medium | M | needs more information | post-10 if confirmed |
-| P26-11 | Register versioned benign digest evidence through exact, mutation-tested release inputs | avoids Gitleaks closeout false positives without broad suppression | high | medium | S | include checklist/input work, not generalized suppression | 50 |
-| P26-12 | Triage 21 unknown full-history Gitleaks fingerprints | reduces persistent advisory debt | medium-high | high | M | include outside critical feature path | post-10 security slice |
+| P26-11 | Register versioned benign digest evidence through exact, mutation-tested release inputs | avoids Gitleaks closeout false positives without broad suppression | high | medium | S | include only if candidate evidence requires it | 50 |
+| P26-12 | Triage 21 unknown full-history Gitleaks fingerprints | reduces persistent advisory debt | medium-high | high | M | postpone | separate security effort |
 | P26-13 | Poll/retry only exact-version-unavailable registry responses before package-smoke fan-out | removes known PyPI/npm propagation reruns | high | low-medium | M | include | 50/release |
 | P26-14 | Reuse an in-progress exact-SHA candidate workflow | possible runner savings | low | medium | M | postpone pending proof dispatches were accidental | later |
 | P26-15 | Broad Cargo refresh or immediate `paste` replacement | general maintenance, no current RustSec vulnerability | low-medium | high | L | postpone; investigate only with Candle driver | later library sweep |
@@ -53,7 +54,7 @@ unfixed. Recommendations are proposals pending HITL ruling.
 
 ### D26-01 — exact graph-evidence public shape
 
-- **Draft HITL position:** Generally accepts the recommendation, not final.
+- **HITL status:** Open; decide only after Slice 15 reports.
 - **Re-evaluation after `seq-283`:** The no-parallel-version ruling requires
   graph evidence to remain V1. It does not simplify graph-reader erasure
   linearization or make added hydration cost acceptable on every call.
@@ -62,23 +63,31 @@ unfixed. Recommendations are proposals pending HITL ruling.
   revisions in one reader transaction, while `GraphTargetV1` is closed across
   dynamic bindings and fixtures. Exact evidence resolution can reuse the
   existing frozen eligibility and nondisclosure machinery.
-- **Question:** Should Slice 20 add a first-generation V1 evidence sidecar or
+- **Question after Slice 15:** Should Slice 20 add a first-generation V1 evidence sidecar or
   change `GraphTargetV1` in place?
 - **Options:** (A) first-generation V1 sidecar; (B) add required fields to
   `GraphTargetV1` in place; (C) defer exact graph evidence. A parallel V2 result
   or graph method is excluded by `seq-283`.
-- **Recommendation:** A, conditional on a named Slice 15 performance and
-  erasure-linearization spike before Slice 20. It satisfies Memex while keeping
-  hydration opt-in; B makes the added work part of every graph result; C leaves
-  graph evidence gated. See
+- **Provisional recommendation:** A, implemented as an opt-in sidecar on the
+  existing V1 graph operation, not a new graph method or API generation. The
+  existing V1 request changes in place to request evidence references, and the
+  existing V1 result changes in place to carry the optional sidecar; a new
+  point-evidence response begins at V1. This satisfies Memex while keeping
+  hydration off the ordinary path. B makes added work part of every graph
+  target; C leaves graph evidence gated. Slice 15 must confirm or overturn this
+  recommendation. See
   [`spike-d26-01-graph-evidence-impact.md`](spike-d26-01-graph-evidence-impact.md).
 - **What changes it:** Evidence that every V1 decoder tolerates the exact field
   addition and that no fixture/schema contract closes the shape; cheaply
   checkable, but current code evidence points the other way.
-- **Blocked/reversible:** Slice 20 design/implementation is blocked. No
-  irreversible action has occurred.
+- **Blocked/reversible:** Slice 15 is authorized as decision support; Slice 20
+  design/implementation is blocked pending its result and the final D26-01
+  ruling. No irreversible action has occurred.
 
 ### D26-02 — operator integrity delivery
+
+- **HITL ruling:** Option A, `seq-280`, with a loud warning before any
+  prebuilt-artifact fallback is used.
 
 - **Situation:** The CLI command, crates.io distribution, registry smoke, and
   docs already exist. The unresolved questions are whether Memex can deploy
@@ -94,8 +103,9 @@ unfixed. Recommendations are proposals pending HITL ruling.
 - **What changes it:** A confirmed Memex deployment constraint that forbids a
   crates.io-installed Rust CLI. This requires the owner's knowledge or a cheap
   deployment check.
-- **Blocked/reversible:** Slice 30 scope is blocked. Packaging remains fully
-  reversible and no artifact has been published.
+- **Effect:** Slice 30 is unblocked to qualify the existing crates.io CLI.
+  Prebuilt packaging remains conditional, must warn loudly before use, and no
+  artifact has been published.
 
 ### D26-03 — derived-edge actuation contract
 
@@ -115,24 +125,23 @@ unfixed. Recommendations are proposals pending HITL ruling.
 - **Placement:** Slice 35 proves the changed V1/fresh-database contract and performance;
   Slice 40 implements it. See accepted
   [`ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md`](../../../../adr/ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md).
-- **Blocked/reversible:** D26-03 no longer blocks design. D26-04 endpoint
-  semantics and D26-05's exact changed-in-place V1 receipt remain open. Publication and product
-  implementation remain unauthorized.
+- **Effect:** D26-03 through D26-05 are ruled. Slice 35 may prove the combined
+  contract and performance characteristics before Slice 40 implementation.
+  Publication remains unauthorized.
 
 ### D26-04 — derived-edge endpoint semantics
 
-- **Draft HITL position:** Generally accepts option B, not final and coupled to
-  the reframed D26-05 current-V1 receipt decision.
+- **HITL ruling:** Option B, `seq-284`.
 
 - **Situation:** Ordinary edge writes intentionally flag/count dangling edges
   and evaluate the complete batch, including later operations. A stricter
   governed-derived-edge refusal would be a new semantic distinction.
-- **Question:** Should derived-edge actuation preserve ordinary dangling-edge
-  behavior or refuse missing endpoints?
+- **Decision:** Derived-edge actuation refuses missing endpoints against the
+  complete prospective batch state. Endpoints may occur later in the batch.
 - **Options:** (A) preserve flag/count semantics over complete prospective
   state; (B) require endpoints over complete prospective state; (C) require
   earlier-operation order.
-- **Recommendation:** B. Ordinary flag/count behavior cannot be truthfully
+- **Basis:** Ordinary flag/count behavior cannot be truthfully
   represented without a dangling count. Under the fresh-database ruling, B
   still gives the smallest current V1 receipt and accepts endpoints anywhere in the
   complete batch. A remains available only if Memex explicitly needs
@@ -141,94 +150,82 @@ unfixed. Recommendations are proposals pending HITL ruling.
   difference between A and B, but does not create a Memex need for incomplete
   graphs. B remains the recommendation because it prevents incomplete atomic
   graph units and omits durable dangling-state semantics from the current V1 contract.
-- **What changes it:** A Memex requirement that the governed batch itself—not
-  Memex validation—must reject incomplete endpoint sets.
-- **Blocked/reversible:** Slice 40 transaction tests and error contract are
-  blocked. B would create a durable behavioral distinction; C is rejected by
-  current architecture evidence.
+- **Effect:** Slice 35/40 transaction tests and the error contract are
+  unblocked. No dangling count or earlier-operation ordering is required.
 
 ### D26-05 — receipt and operation-ID evolution
 
-- **HITL status:** Open and reframed by `seq-282` and `seq-283`; the prior draft
-  acceptance of current receipt storage is no longer operative.
+- **HITL ruling:** Option A, `seq-285`; compatible with D26-04 B at `seq-284`.
 
 - **Situation:** 0.8.26 needs one changed-in-place V1 receipt, replay,
   integrity, and operation-ID contract for a fresh database. It must not retain
   historical receipt readers, integrity checks, replay, collision rules, or
   migration code.
-- **Question:** What is the minimum truthful current V1 receipt for committed and
-  refused derived-edge batches under the chosen D26-04 endpoint policy?
+- **Decision:** Change `ActuationReceiptV1` in place, retaining the existing
+  compact truthful concepts and adding only edge fields proven necessary.
 - **Options:** (A) change `ActuationReceiptV1` in place with the current compact
   outcome, affected-revision, boundary, projection, generation, closure, and
   current V1
   source-reference concepts plus only edge fields proven necessary; (B) add a
   broad graph-consequence manifest; (C) return no durable receipt.
-- **Recommendation:** A. It preserves idempotent current-contract replay and bounded audit
+- **Basis:** This preserves idempotent current-contract replay and bounded audit
   truth without any historical compatibility or Memex semantic inference. B
   is overbuilt; C loses the core actuation guarantee.
-- **What changes it:** Proof that a named current concept is unnecessary for
-  current V1 replay/integrity, or that D26-04 option A requires one explicit dangling
-  count.
-- **Blocked/reversible:** Exact Slice 35/40 receipt design remains blocked. No
-  V1 storage constrains the choice, and no migration is permitted.
+- **Effect:** Exact Slice 35/40 receipt design is unblocked. D26-04 B means no
+  dangling count is needed. No broad consequence manifest or historical
+  compatibility is permitted.
 
 ## Preparation bundle decision
 
 ### D26-06 — Slice 9 preparation scope
 
-- **Draft HITL position:** Generally accepted the prior narrow option A, not
-  final. The re-evaluated option is narrower because P26-09 moves to Slice 50.
+- **HITL ruling:** Revised narrow option A, `seq-286`.
 
 - **Situation:** P26-01 and P26-02 are mandatory release truth. P26-03, exact
   P26-05 corrections, and P26-08 comment truth are small deterministic
   preparation fixes. P26-09 is valuable but depends on release-wheel evidence
   and can move to Slice 50. P26-04 is an execution condition, not product
   scope.
-- **Question:** Should Slice 9 implement P26-01, P26-02, P26-03, exact P26-05,
+- **Decision:** Slice 9 implements P26-01, P26-02, P26-03, exact P26-05,
   and P26-08 comment truth, with P26-04 enforced as execution conditions and
-  P26-09 moved to Slice 50?
+  P26-09 moved to Slice 50.
 - **Options:** (A) revised narrower bundle; (B) ultra-narrow P26-01 and P26-02
   only; (C) restore P26-09 to Slice 9; (D) name individual exceptions.
-- **Recommendation:** A. It removes deterministic preflight/state blockers
+- **Basis:** This removes deterministic preflight/state blockers
   without dependency, cleanup, or candidate-only tooling work. P26-06 is
   postponed unless it becomes a hard build blocker.
-- **What changes it:** A requirement to minimize any pre-feature diff beyond
-  release-state activation, or evidence that the markdown advisory has no
-  viable bounded fix.
-- **Blocked/reversible:** Slice 9 plan replacement and all later slices are
-  blocked. Changes are repository-local and reversible; state history must
-  remain truthful rather than be rewritten.
+- **Effect:** Slice 9 plan replacement is unblocked. P26-06 remains postponed
+  unless it becomes a hard build blocker.
 
 ## Later-delivery bundle decision
 
 ### D26-07 — hardening and release-boundary scope
 
-- **Draft HITL position:** Generally accepted the prior option A, not final.
+- **HITL ruling:** Revised narrow option A, `seq-287`.
   The re-evaluated option adds P26-09 and makes P26-11 evidence-conditional.
 
 - **Situation:** P26-09, P26-11, and P26-13 depend on candidate or release
   artifact behavior. P26-10, P26-12, and P26-14 remain speculative, unrelated,
   or high-risk for the narrow Memex release.
-- **Question:** Should Slice 50 include P26-09 Windows inventory consolidation,
+- **Decision:** Slice 50 includes P26-09 Windows inventory consolidation,
   P26-13 registry visibility polling logic, and P26-11 only if exact generated
   benign evidence requires digest registration, while postponing P26-10,
-  P26-12, and P26-14?
+  P26-12, and P26-14.
 - **Options:** (A) revised narrow placement; (B) postpone all five; (C) choose
   individual exceptions.
-- **Recommendation:** A. Slice 50 is the first point with the real wheel
+- **Basis:** Slice 50 is the first point with the real wheel
   inventories and generated evidence, so it can solve P26-09/P26-11 against
   actual inputs. It remains the final integrated non-publishing verification
   slice, not publication itself. Actual registry exercise and publication
   remain a separate gate.
-- **What changes it:** Confirmation that Windows runner drift or duplicate
-  dispatch is recurring on current infrastructure, which would promote the
-  relevant item.
-- **Blocked/reversible:** Reserved-slice and Slice 50 planning are blocked, but
-  feature implementation need not wait once the placements are recorded.
+- **Effect:** Reserved-slice and Slice 50 planning are unblocked. Publication
+  remains a separate HITL gate.
 
 ## Maintenance disposition decision
 
 ### D26-08 — non-feature maintenance
+
+- **HITL ruling:** Option A, `seq-281`.
 
 - **Situation:** P26-07 and P26-15 through P26-17 have no immediate product
   driver and carry disproportionate regression or evidence-loss risk. P26-18
@@ -242,13 +239,12 @@ unfixed. Recommendations are proposals pending HITL ruling.
   shipped vulnerability or hard build blocker appears.
 - **What changes it:** A new shipped advisory, toolchain incompatibility, or
   proven unreachable evidence group.
-- **Blocked/reversible:** Nothing in the feature path is blocked; this controls
-  scope and prevents premature deletion.
+- **Effect:** P26-07 and P26-15 through P26-17 are postponed; P26-18 and
+  P26-19 are rejected. A shipped vulnerability or hard build blocker must
+  return to HITL rather than silently expanding this release.
 
-## Requested HITL response
+## Remaining HITL response
 
-Reply with rulings for `D26-01` through `D26-08`. “Approve all recommendations”
-is sufficient. Any exception can name the ID and selected option or wording.
-After the explicit response, the rulings will be recorded durably, Slice 9 will
-be replaced and independently reviewed, and the reviewed package will return
-for final execution approval.
+Only `D26-01` remains open. Slice 15 supplies its performance, response-shape,
+and erasure evidence; the graph-evidence shape is ruled afterward. Slice 20
+does not begin before that ruling. All other Slice 8 decisions are recorded.

@@ -22,6 +22,7 @@ renumbering the release.
 Each implementation slice and approved spike contains a draft execution plan
 and draft design note. Slice 8 may narrow or postpone them; it must not
 silently broaden them. Slice 15 and Slice 35 were inserted by Slice 8 evidence
-after the initial mod-10 ladder was drafted. Slice 35 now has a draft
-plan/design applying ruled D26-03; Slice 15 remains conditional on final
-D26-01 approval.
+after the initial mod-10 ladder was drafted. Slice 35 has a draft plan/design
+applying ruled D26-03 through D26-05. Slice 15 has an authorized
+decision-support plan/design; D26-01 remains open until its results return to
+HITL.

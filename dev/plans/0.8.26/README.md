@@ -19,6 +19,7 @@ publication, dependency changes, cleanup, or accepted-contract changes.
 5. [`features/README.md`](features/README.md)
 6. Slice-local `plan.md`, then `design.md`
 
-Slice 8 must replace the provisional Slice 9 scope after interactive HITL
-decisions and independent review. Feature designs remain DRAFT until their
-dependencies close and their formal design review passes.
+Slice 8 has replaced the provisional Slice 9 scope from recorded HITL
+decisions. Independent review remains required before Slice 9 execution.
+Feature designs remain DRAFT until their dependencies close and their formal
+design review passes; D26-01 remains open until Slice 15 reports.

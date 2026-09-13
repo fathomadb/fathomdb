@@ -55,7 +55,7 @@ executor and bindings; storage risk remains low under the strict endpoint
 policy below. An edge-only API touches fewer surfaces but fails the atomic
 graph-unit requirement and is rejected.
 
-## D26-04 and reframed D26-05 remain open
+## D26-04 and reframed D26-05 rulings
 
 Ordinary `Engine::write` returns its dangling endpoint count in
 `WriteReceipt.dangling_edge_endpoints`. `ActuationReceiptV1` and its durable
@@ -65,13 +65,13 @@ receipt/storage contract, bindings, erasure, integrity, and corruption checks.
 Recomputing the count during replay would be wrong because endpoint state can
 change.
 
-The lower-risk first implementation is D26-04 option B: refuse a derived edge
+HITL selected D26-04 option B at `seq-284`: refuse a derived edge
 whose endpoints are absent from the complete prospective batch state. An edge
 may precede endpoints that occur later in the same batch. Only endpoint
 existence receives this complete-batch exception; provenance and dependency
 ordering retain their existing semantics.
 
-Under option B, D26-05 can define a compact changed-in-place
+HITL selected D26-05 option A at `seq-285`: define a compact changed-in-place
 `ActuationReceiptV1` without a dangling count. There is one fresh-database
 current-contract operation-ID namespace and no cross-release behavior.
 
@@ -150,9 +150,9 @@ close.
 - Use measurements to decide whether a narrowly scoped internal endpoint-probe
   change is justified; do not refactor the ordinary write path speculatively.
 
-## Recommendation to HITL
+## Final disposition
 
-D26-03 is accepted at `seq-283`. Remaining HITL work is to rule D26-04's
-endpoint policy and D26-05's minimum truthful changed-in-place V1 receipt
-shape. The prior V2 and current-receipt/cross-version recommendations are
-superseded.
+D26-03 is accepted at `seq-283`, D26-04 at `seq-284`, and D26-05 at
+`seq-285`. Slice 35 may now prove the changed V1 contract and performance
+before Slice 40 implementation. The prior V2 and cross-version
+recommendations are superseded.

@@ -100,8 +100,10 @@ in-engine data conversion path.
 The breaking boundary applies to affected V1 contracts and database opening. It
 does not authorize unrelated API churn. Frozen search, evidence resolution,
 operator, write, and other unaffected APIs retain their existing names and
-contracts. Slice 8 still decides the exact graph-evidence shape, derived-edge
-endpoint policy, and minimum truthful receipt fields within this boundary.
+contracts. D26-04 (`seq-284`) requires derived-edge endpoints in the complete
+prospective batch state, and D26-05 (`seq-285`) selects the compact
+changed-in-place V1 receipt with only proven edge fields. The graph-evidence
+shape remains open pending Slice 15 and a later D26-01 ruling.
 
 ## Supersession
 
@@ -119,5 +121,6 @@ no-historical-compatibility portions of `seq-282` remain in force.
 ## Authority
 
 HITL ruling `seq-283` establishes the release-wide no-parallel-V1/V2 rule and
-the changed-in-place V1 contract. This ADR records that ruling without adding a
-compatibility exception.
+the changed-in-place V1 contract. Rulings `seq-284` and `seq-285` establish its
+endpoint and receipt boundaries. This ADR records those rulings without adding
+a compatibility exception.

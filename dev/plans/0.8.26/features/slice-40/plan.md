@@ -26,10 +26,12 @@ and a truthful bounded changed-in-place V1 receipt in a fresh 0.8.26 database.
   router, redirect, or method.
 - **R26-40B:** Commit node, dependency, edge, replay record, receipt, and
   projection work atomically or not at all.
-- **R26-40C:** Apply the Slice 8-approved endpoint policy. Either preserve
-  ordinary flag-and-count dangling behavior or introduce a separately
-  documented governed-edge refusal; both choices evaluate the complete
-  prospective batch state unless order sensitivity is explicitly approved.
+- **R26-40C:** Require both derived-edge endpoints in the complete prospective
+  batch state, including endpoints introduced later in the batch. Refuse the
+  whole batch when either endpoint is absent; do not admit or count dangling
+  derived edges. Evaluate the final active state after all same-batch node and
+  lifecycle effects. The edge's own position is irrelevant; existing
+  node/lifecycle ordering rules determine the final state.
 - Reuse canonical edge persistence, lifecycle, provenance, projection, and
   traversal paths.
 - **R26-40D:** Implement one changed-in-place V1 receipt, digest, replay,
@@ -58,9 +60,10 @@ and a truthful bounded changed-in-place V1 receipt in a fresh 0.8.26 database.
   public or internal parallel V2 parser, method, or router exists.
 - **AC26-40B:** The complete Memex graph-authoring unit has one transaction and one replay
   identity/receipt.
-- **AC26-40C:** The approved dangling/endpoint policy is documented and tested
-  against complete same-batch state, including later operations, unless Slice
-  8 explicitly approves order sensitivity.
+- **AC26-40C:** Missing `from`, `to`, or both refuse deterministically without
+  domain commits; an edge whose endpoints occur later in the same batch
+  succeeds; a same-batch lifecycle transition that leaves an endpoint
+  non-active refuses regardless of whether the edge appears before or after it.
 - Replay of an identical request returns the original outcome; key reuse with
   different bytes refuses.
 - **AC26-40D:** Current V1 receipt/storage, replay, integrity, and operation-ID behavior

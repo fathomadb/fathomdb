@@ -81,10 +81,10 @@ fix depends on built product artifacts or belongs at the release boundary.
 | 5 | Review verification adequacy from need through test and critical path. | 4 | Complete |
 | 6 | Review local build, preflight, transcript, and `agent-verify` failure evidence; propose pragmatic corrections without implementing them. | 5 | Complete |
 | 7 | Review post-build CI/CD, packaging, gitleaks, and registry failure evidence; propose pragmatic corrections and delivery placement. | 6 | Complete |
-| 8 | Score all proposals, conduct interactive HITL decisions, replace/review Slice 9, and update this plan. | 7 | Draft |
-| 9 | Implement only HITL-approved repository preparation under the reviewed Slice 9 plan. | 8 | Provisional draft |
+| 8 | Score all proposals, conduct interactive HITL decisions, replace/review Slice 9, and update this plan. | 7 | In progress; D26-01 deferred to Slice 15 |
+| 9 | Implement only HITL-approved repository preparation under the reviewed Slice 9 plan. | 8 | Draft; HITL scope ruled, review pending |
 | 10 | Repair frozen explanation, complete public guidance, and add the installed-artifact conformance witness. | 9 | Draft |
-| 15 | Run the bounded graph-evidence performance and erasure-linearization implementation spike; accept or narrow the Slice 20 design. | 10 | Proposed by Slice 8 evidence |
+| 15 | Run the bounded graph-evidence performance and erasure-linearization implementation spike; accept or narrow the Slice 20 design. | 10 | Authorized decision support; draft plan/design |
 | 20 | Add immutable-revision graph-target and terminal-edge evidence resolution under frozen authority. | 15 | Draft |
 | 30 | Qualify and harden the existing versioned read-only operator integrity inspection route. | 20 | Draft |
 | 35 | Prove the breaking changed-in-place V1 actuation, fresh-database, receipt, and performance contract; accept or narrow the Slice 40 design. | 30 | Required by `seq-283` |
@@ -140,15 +140,16 @@ if their design is discussed.
 
 ## Immediate next action
 
-Review the completed Slice 0–7 proposal package in Slice 8. Score and decide
-each proposal interactively, then replace the provisional Slice 9 plan. Do not
-activate release state, change dependencies, clean up evidence, or begin
-feature work before that decision.
+Obtain independent review of the ruled Slice 9 preparation plan and the Slice
+15/35 spike plans, apply at most two focused correction cycles, and return the
+reviewed Slice 9 package for execution approval. D26-01 remains open until
+Slice 15 reports. Do not activate release state, change dependencies, clean up
+evidence, or begin feature work before the applicable gate.
 
 ## Stop gates
 
-Stop on an unresolved public-contract versioning decision; any path that
-migrates a pre-0.8.26 database or functionally accepts V1 actuation; weakened
+Stop on an unresolved public-contract shape at its owning slice; any path that
+migrates a pre-0.8.26 database or introduces a parallel V2 actuation surface; weakened
 frozen eligibility or evidence
 non-disclosure; a repair verb leaking onto the governed SDK; partial graph
 mutation; binding incompatibility; or semantic policy moving into FathomDB.

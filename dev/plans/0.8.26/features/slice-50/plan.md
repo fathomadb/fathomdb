@@ -30,6 +30,12 @@ support, and documentation truth before any release decision.
   run or claim a historical migration matrix.
 - Run the target-platform matrix approved in Slice 8 and distinguish local
   proof from externally owned evidence.
+- Derive Windows structural and installed-binding inventories from one
+  machine-readable contract, and prove the package witness consumes it.
+- Add bounded polling/retry only for exact-version-unavailable registry
+  responses in the non-publishing release-smoke logic.
+- Register an exact benign Gitleaks digest only if candidate-generated evidence
+  proves it necessary; do not add a generalized suppression.
 - Produce a reproducible manifest binding commit, toolchain, artifacts,
   hashes, platform, commands, and outcomes.
 - Perform no tag, registry publication, or release mutation.
@@ -43,7 +49,8 @@ support, and documentation truth before any release decision.
    graph artifact resolution, operator integrity, and atomic derived-edge
    replay/restart.
 4. Run the no-parallel-V2-surface and earlier-database refusal witnesses, then
-   cross-SDK current V1 and selected platform witnesses.
+   cross-SDK current V1 and selected platform witnesses using the consolidated
+   Windows inventory.
 5. Audit package metadata, public docs, changelog/release notes, and absence of
    unapproved SDK authority.
 6. Record all evidence and unresolved external gates for the HITL release
@@ -59,6 +66,6 @@ not occurred.
 ## Stop gates
 
 Any package/source mismatch, cross-SDK incompatibility, target failure,
-non-reproducible artifact, accidental V1 execution, earlier-database mutation,
+non-reproducible artifact, parallel V2 execution, earlier-database mutation,
 stale documentation claim, or missing high-risk fault proof blocks release
 readiness.

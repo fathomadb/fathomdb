@@ -17,11 +17,16 @@ status: DRAFT
   upgrade, downgrade, or database-migration compatibility is retained.
 - 0.8.26 accepts fresh databases only.
 
-## Open inputs
+## Endpoint and receipt decisions
 
-D26-04 still selects strict complete-state endpoint refusal versus a current V1
-dangling-count receipt. D26-05 still selects the exact minimum changed V1 receipt
-fields. No option may reintroduce historical compatibility.
+- Derived edges require both endpoints in the complete prospective batch
+  state; endpoints later in the batch count (`seq-284`). Missing endpoints
+  refuse the batch, and no dangling count is admitted.
+- `ActuationReceiptV1` changes in place and stays compact (`seq-285`). Retain
+  the current truthful outcome, operation identity and digest, refusal,
+  affected revisions, transaction/projection boundaries, generation/closure,
+  and internal source-reference concepts; add only edge fields the spike
+  proves necessary. Do not add a graph-consequence manifest.
 
 ## Prototype seams
 
@@ -46,8 +51,12 @@ historical version.
 
 ### Current V1 transaction
 
-Current V1 validates its closed grammar and digest, simulates the bounded complete
-batch, then applies it under the existing single-writer transaction. The edge
+Current V1 validates its closed grammar and digest, simulates the bounded
+complete batch with the existing node/lifecycle ordering rules, and computes
+the final active logical-identity set. It refuses any derived edge whose
+endpoints are absent or non-active in that complete prospective state,
+including when a same-batch lifecycle operation removes eligibility after a
+node put. The edge's own position in the batch does not change this test. The edge
 uses canonical `ProvenancedEdgeV1` validation, identity, provenance,
 projection, lifecycle, and traversal machinery as implementation reuse, not as
 historical database compatibility.
@@ -67,6 +76,11 @@ serialized writer occupancy. Endpoint checks must use bounded indexed probes
 over the complete prospective state. The spike measures before refactoring;
 ordinary `Engine.write` is outside the optimization scope unless evidence
 shows a shared defect that cannot be isolated.
+
+The spike crosses the edge's position with node-put and lifecycle-operation
+orderings so the endpoint test cannot accidentally use the edge's insertion
+position or pre-batch active state. Existing last-operation/lifecycle semantics
+still determine the final prospective state.
 
 ## Stop conditions
 

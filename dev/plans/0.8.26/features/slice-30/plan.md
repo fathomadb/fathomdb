@@ -24,7 +24,8 @@ without adding doctor or recovery authority to governed SDKs.
   `fathomdb doctor data-plane-integrity --json` route for Memex's selected
   deployment target, including named artifact installation/discovery, exact
   CLI identity, compatible database schema, and fail-closed mismatch behavior.
-  Add packaging only if that route is unusable.
+  If that route is unusable, stop and warn HITL loudly before proposing any
+  prebuilt packaging scope.
 - **R26-30B:** Specify quiescence, locking, bounds, privacy, JSON schema, and
   exit codes. Guarantee no repair, rebuild, mutation, projection advance, or raw content
   disclosure.
@@ -33,13 +34,15 @@ without adding doctor or recovery authority to governed SDKs.
 
 ## TDD and delivery
 
-1. Inventory the existing CLI and release artifact topology; decide the
-   smallest distribution change.
+1. Inventory the existing CLI and release artifact topology; qualify that
+   route without adding a second distribution form.
 2. Add failing artifact-level tests for install/discovery, version mismatch,
    non-quiescent use, malformed/corrupt state, bounds, JSON, exit codes, and
    zero mutation.
-3. Implement only the qualification, non-mutation, documentation, or
-   conditional packaging delta demonstrated by the RED tests.
+3. Implement only the qualification, non-mutation, and documentation delta
+   demonstrated by the RED tests. If deployment evidence rejects the route,
+   stop with a visible HITL warning and a bounded prebuilt proposal; do not
+   implement the fallback under this plan.
 4. Add target-specific build/install/run evidence.
 5. Verify that governed SDKs expose no doctor/recovery route.
 6. Run focused real-database and selected-package checks plus canonical
@@ -59,5 +62,6 @@ without adding doctor or recovery authority to governed SDKs.
 ## Stop gates
 
 Stop if safe operation requires an SDK doctor method, concurrent inspection
-cannot be made explicit and safe, packaging creates ambiguous version pairing,
-or the route can mutate state.
+cannot be made explicit and safe, the existing CLI cannot meet the deployment
+need, packaging would be required, version pairing is ambiguous, or the route
+can mutate state.

@@ -30,3 +30,28 @@ The manifest is generated evidence, not a manually asserted green status. It
 separates locally executed targets, externally executed targets, skips with
 owner/reason, and failures. Slice 50 can establish a release candidate; only a
 separate explicit HITL action may tag or publish it.
+
+## Windows inventory contract
+
+One machine-readable inventory owns the Windows structural and installed-wheel
+module/symbol expectations. Source-tree checks, built-wheel inspection, and
+clean-environment import probes consume that same inventory and report the
+candidate commit and wheel hash. No test keeps a second handwritten list.
+
+## Registry visibility seam
+
+The non-publishing release-smoke harness tests a bounded classifier and polling
+policy with local fixtures. Retry applies only when the exact requested version
+is not yet visible; authentication, metadata mismatch, hash mismatch, install,
+import, and general network failures fail immediately. Bounds, interval, final
+diagnostic, and registry identity are recorded. Slice 50 does not perform a
+real publish or treat fixture success as registry evidence.
+
+## Gitleaks evidence admission
+
+Run the exact candidate evidence generator and scan its actual output. If—and
+only if—a stable benign generated value is rejected, propose or register that
+exact digest through the existing versioned release input, with a mutation test
+showing nearby values still fail. Do not add a path, regex, blanket allowlist,
+or full-history triage. If no candidate evidence requires registration, make no
+Gitleaks configuration change.

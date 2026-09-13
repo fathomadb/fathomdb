@@ -75,7 +75,7 @@ status: COMPLETE
 | --- | --- | ---: |
 | frozen explanation completion | Update interface and public guide; add a defect-closure note if no ADR decision changes | 10 |
 | artifact evidence resolution | Create an accepted ADR or addendum defining immutable-revision authorization and non-disclosure | 20 |
-| graph response identity | Update existing V1 interfaces in place or add a first-generation V1 sidecar selected in Slice 8; create no V2 pair | 20 |
+| graph response identity | After Slice 15 evidence and the D26-01 HITL ruling, update V1 in place or add a first-generation V1 sidecar; create no V2 pair | 15, 20 |
 | operator integrity distribution | Update CLI, packaging, release, and operator documentation; preserve the SDK recovery denylist | 30 |
 | actuation grammar | Apply accepted ADR-0.8.26 for one breaking changed-in-place V1 batch and prospective endpoint validation | 35, 40 |
 | mutation receipt | Define one changed-in-place V1 receipt/digest/integrity contract without historical compatibility | 35, 40 |
@@ -119,7 +119,8 @@ Slice 8 records the HITL ruling.
   result/target or parallel graph method.
 - Slice 30 updates the incomplete CLI verb inventory and qualifies the route
   already shipped. It does not create an SDK operator API by default.
-- Slice 40 applies accepted ADR-0.8.26. D26-04 endpoint semantics and the exact
-  current V1 receipt shape remain for Slice 8 review; historical and database
-  compatibility do not.
+- Slice 40 applies accepted ADR-0.8.26. D26-04 (`seq-284`) requires endpoints
+  in the complete prospective active state, and D26-05 (`seq-285`) selects the
+  compact changed-in-place V1 receipt; historical and database compatibility
+  remain excluded.
 - Slice 50 owns integrated artifact evidence, not feature contract authoring.

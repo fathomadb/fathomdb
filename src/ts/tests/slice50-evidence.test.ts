@@ -75,6 +75,76 @@ test("search and resolve exact source evidence", async () => {
   }
 });
 
+test("evidence explanation maps and disabled control is unchanged", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "fathomdb-slice10-explanation-"));
+  try {
+    const engine = await Engine.open(join(directory, "evidence.fathom"), {
+      useDefaultEmbedder: false,
+    });
+    const sourceBody = "typescript canonical explanation evidence";
+    await engine.write([
+      {
+        kind: "document",
+        body: sourceBody,
+        sourceId: "ts-explanation-source",
+        logicalId: "ts-explanation-source",
+        provenance: {
+          schemaVersion: 1,
+          role: "canonical",
+          artifactRevisionId: "ts-explanation-source-r1",
+          sourceVersionId: "ts-explanation-version-r1",
+        },
+      },
+      {
+        kind: "fact",
+        body: "tsevidenceexplanationneedle",
+        sourceId: "ts-explanation-source",
+        logicalId: "ts-explanation-claim",
+        provenance: {
+          schemaVersion: 1,
+          role: "derived",
+          artifactRevisionId: "ts-explanation-claim-r1",
+          sourceVersionId: "ts-explanation-version-r1",
+          sourceRevisionId: "ts-explanation-source-r1",
+          sourceLocator: { kind: "whole_body" },
+          canonicalSourceHash: {
+            algorithm: "sha256",
+            digestHex: createHash("sha256").update(sourceBody).digest("hex"),
+          },
+        },
+      },
+    ]);
+    const context = await engine.freezeReadContext({
+      schemaVersion: 1,
+      view: {},
+      eligibility: {},
+    });
+    const plain = await engine.searchWithEvidence({
+      schemaVersion: 1,
+      query: "tsevidenceexplanationneedle",
+      context,
+      includeExplanation: false,
+    });
+    const explained = await engine.searchWithEvidence({
+      schemaVersion: 1,
+      query: "tsevidenceexplanationneedle",
+      context,
+      includeExplanation: true,
+    });
+
+    assert.equal(plain.searchResult.explanation, null);
+    assert.ok(explained.searchResult.explanation?.correlationId.startsWith("x"));
+    assert.deepEqual(plain.searchResult.results, explained.searchResult.results);
+    assert.deepEqual(
+      plain.evidence.map((entry) => entry.artifactRevisionId),
+      explained.evidence.map((entry) => entry.artifactRevisionId),
+    );
+    await engine.close();
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("evidence request schema and unknown fields are typed", async () => {
   const directory = await mkdtemp(join(tmpdir(), "fathomdb-slice50-errors-"));
   try {

@@ -52,6 +52,21 @@ def test_frozen_search_preserves_context_and_filters_before_ranking(db_path: str
     engine.close()
 
 
+def test_frozen_explanation_maps_and_disabled_control_is_unchanged(db_path: str) -> None:
+    engine = fathomdb.Engine.open(db_path, use_default_embedder=False)
+    engine.write([_doc("explained", "frozen explanation needle", "alice")])
+    frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
+
+    plain = engine.search_frozen("frozen explanation", frozen, explain=False)
+    explained = engine.search_frozen("frozen explanation", frozen, explain=True)
+
+    assert plain.explanation is None
+    assert explained.explanation is not None
+    assert explained.explanation.correlation_id.startswith("x")
+    assert plain.results == explained.results
+    engine.close()
+
+
 def test_frozen_context_rejects_state_drift(db_path: str) -> None:
     engine = fathomdb.Engine.open(db_path, use_default_embedder=False)
     engine.write([_doc("before", "needle before", "alice")])

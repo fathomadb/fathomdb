@@ -125,6 +125,69 @@ def test_search_and_resolve_exact_source_evidence(db_path: str) -> None:
     engine.close()
 
 
+def test_evidence_explanation_maps_and_disabled_control_is_unchanged(db_path: str) -> None:
+    source_body = "canonical explanation evidence"
+    engine = fathomdb.Engine.open(db_path, use_default_embedder=False)
+    engine.write(
+        [
+            {
+                "kind": "document",
+                "body": source_body,
+                "source_id": "python-explanation-source",
+                "logical_id": "python-explanation-source",
+                "provenance": {
+                    "schema_version": 1,
+                    "role": "canonical",
+                    "artifact_revision_id": "python-explanation-source-r1",
+                    "source_version_id": "python-explanation-version-r1",
+                },
+            },
+            {
+                "kind": "fact",
+                "body": "pythonevidenceexplanationneedle",
+                "source_id": "python-explanation-source",
+                "logical_id": "python-explanation-claim",
+                "provenance": {
+                    "schema_version": 1,
+                    "role": "derived",
+                    "artifact_revision_id": "python-explanation-claim-r1",
+                    "source_version_id": "python-explanation-version-r1",
+                    "source_revision_id": "python-explanation-source-r1",
+                    "source_locator": {"kind": "whole_body"},
+                    "canonical_source_hash": {
+                        "algorithm": "sha256",
+                        "digest_hex": hashlib.sha256(source_body.encode()).hexdigest(),
+                    },
+                },
+            },
+        ]
+    )
+    frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
+    plain = engine.search_with_evidence(
+        fathomdb.EvidenceSearchRequestV1(
+            query="pythonevidenceexplanationneedle",
+            context=frozen,
+            include_explanation=False,
+        )
+    )
+    explained = engine.search_with_evidence(
+        fathomdb.EvidenceSearchRequestV1(
+            query="pythonevidenceexplanationneedle",
+            context=frozen,
+            include_explanation=True,
+        )
+    )
+
+    assert plain.search_result.explanation is None
+    assert explained.search_result.explanation is not None
+    assert explained.search_result.explanation.correlation_id.startswith("x")
+    assert plain.search_result.results == explained.search_result.results
+    assert [entry.artifact_revision_id for entry in plain.evidence] == [
+        entry.artifact_revision_id for entry in explained.evidence
+    ]
+    engine.close()
+
+
 def test_unsupported_evidence_schema_is_typed(db_path: str) -> None:
     engine = fathomdb.Engine.open(db_path, use_default_embedder=False)
     frozen = engine.freeze_read_context(fathomdb.ReadContextV1())

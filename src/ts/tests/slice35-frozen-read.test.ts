@@ -56,6 +56,29 @@ test("frozen search expansion returns the governed union", async () => {
   }
 });
 
+test("frozen explanation maps and disabled control is unchanged", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    await engine.write([
+      {
+        kind: "doc",
+        body: "typescript frozen explanation needle",
+        logicalId: "explained",
+        sourceId: SOURCE_ID,
+      },
+    ]);
+    const frozen = await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+    const plain = await engine.searchFrozen("frozen explanation", frozen, { explain: false });
+    const explained = await engine.searchFrozen("frozen explanation", frozen, { explain: true });
+
+    assert.equal(plain.explanation, null);
+    assert.ok(explained.explanation?.correlationId.startsWith("x"));
+    assert.deepEqual(plain.results, explained.results);
+  } finally {
+    await engine.close();
+  }
+});
+
 test("frozen authentication precedes query, shape, and range validation", async () => {
   const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
   try {

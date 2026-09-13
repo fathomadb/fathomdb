@@ -104,7 +104,7 @@ the interactive scope decision.
 No feature is accepted merely because it appears in this plan. New global
 acceptance IDs are prohibited unless Slice 8 explicitly authorizes them.
 
-## Cross-cutting DoD
+## Cross-cutting definition of done
 
 Every slice follows the
 [`lean slice execution contract`](0.8.26/slice-execution-contract.md).
@@ -140,15 +140,13 @@ platform, dependency, evidence-manifest, multi-source, liveness, and broad-batch
 items must be re-evaluated. Priority 3+ Memex items remain outside 0.8.26 even
 if their design is discussed.
 
-## Immediate next slice
+## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.26:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 9** (`PREWORK-IMPLEMENTATION`) — approved repository preparation
-
-**Remaining ladder:** 9 → 10 → 15 → 20 → 30 → 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
-
-D26-01 remains open until Slice 15 reports and blocks Slice 20 only. Do not
-publish or begin feature work outside the current slice.
+Execute Slice 9 only within the reviewed scope ruled at `seq-286` and
+authorized at `seq-289`. Repair P26-01 before creating and validating the
+0.8.26 release state and board under P26-02. D26-01 remains open until Slice 15
+reports and blocks Slice 20 only. Do not publish or begin feature work from
+Slice 9.
 
 ## Stop gates
 

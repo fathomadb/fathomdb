@@ -248,7 +248,7 @@ class PreflightReleaseStateTests(unittest.TestCase):
 
 
 class RealPreflightRegressionTest(unittest.TestCase):
-    def test_current_release_worktree_and_slice8_are_accepted(self) -> None:
+    def test_current_release_worktree_and_slice71_are_accepted(self) -> None:
         result = subprocess.run(
             [
                 "bash",
@@ -256,9 +256,9 @@ class RealPreflightRegressionTest(unittest.TestCase):
                 "--worktree",
                 str(ROOT),
                 "--expect-closed",
-                "8",
+                "71",
                 "--plan",
-                "dev/plans/plan-0.8.26.md",
+                "dev/plans/plan-0.8.25.md",
                 "--min-disk-gb",
                 "1",
             ],
@@ -269,7 +269,7 @@ class RealPreflightRegressionTest(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('"release":"0.8.26"', result.stdout)
+        self.assertIn('"release":"0.8.25"', result.stdout)
 
 
 if __name__ == "__main__":

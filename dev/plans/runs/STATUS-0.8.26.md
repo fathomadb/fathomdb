@@ -11,15 +11,15 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 9 (PREWORK-IMPLEMENTATION), IN_PROGRESS.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 10 (FROZEN-EXPLANATION), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
 
-Slices 0–8 are complete on `release/0.8.26`. Slice 9 implements only the narrow
-preparation bundle authorized at `seq-289`; no product feature or publication
-is authorized here.
+Slices 0–9 are complete on the 0.8.26 release line. Slice 9 implemented only
+the narrow preparation bundle authorized at `seq-289`; no product feature or
+publication was authorized or performed.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Continue Slice 9 (PREWORK-IMPLEMENTATION)** — approved repository preparation. **Remaining ladder:** 9 → 10 → 15 → 20 → 30 → 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 10 (FROZEN-EXPLANATION)** — frozen explanation repair, guidance, and conformance. **Remaining ladder:** 10 → 15 → 20 → 30 → 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:status-next-action -->
 
 ## Open decisions
 

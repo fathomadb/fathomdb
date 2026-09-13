@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 9 — approved-prework implementation
-status: ACTIVE
+status: COMPLETE
 execution_authorized: seq-289
 ---
 

@@ -8290,7 +8290,12 @@ impl Engine {
             limit,
             Some(binding),
         )
-        .map(|(result, _stats, _expanded)| result)
+        .map(|(mut result, _stats, _expanded)| {
+            if result.explanation.is_some() {
+                self.finalize_search_observability(query, &mut result);
+            }
+            result
+        })
     }
 
     /// Run an opt-in frozen search and return one authenticated evidence
@@ -8416,6 +8421,9 @@ impl Engine {
             let identity = &self.runtime_embedder_identity;
             explanation.trace.embedder_id =
                 format!("{}@{} (dim={})", identity.name, identity.revision, identity.dimension);
+        }
+        if result.search_result.explanation.is_some() {
+            self.finalize_search_observability(&request.query, &mut result.search_result);
         }
         Ok(result)
     }

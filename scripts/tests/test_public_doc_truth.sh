@@ -71,6 +71,23 @@ git -C "$FIXTURE" add dev/plans/release-state-0.8.24.json
 expect_pass "$FIXTURE" 'newer unpublished state is ignored for public release truth'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/dev/plans/release-state-0.8.24.json" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+state = {
+    "release": "0.8.24",
+    "release_kind": "released; publication complete",
+    "board": "dev/plans/runs/STATUS-0.8.24.md",
+    "published": None,
+}
+Path(sys.argv[1]).write_text(json.dumps(state) + "\n")
+PY
+git -C "$FIXTURE" add dev/plans/release-state-0.8.24.json
+expect_fail "$FIXTURE" 'publication-complete lifecycle without a receipt fails closed'
+
+make_fixture "$FIXTURE"
 python3 - "$FIXTURE/dev/plans/release-state-9.9.9.json" <<'PY'
 import json
 from pathlib import Path

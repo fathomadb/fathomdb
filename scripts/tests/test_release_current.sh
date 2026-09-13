@@ -112,6 +112,51 @@ else
   fail "complete: rc=$RC out=$OUT"
 fi
 
+# A release that declares publication complete cannot silently remain live or
+# be treated as historical without the canonical complete receipt.
+INCOMPLETE_PUBLICATION="$TMPROOT/incomplete-publication"
+make_repo "$INCOMPLETE_PUBLICATION"
+write_pair "$INCOMPLETE_PUBLICATION" 0.8.21 LIVE
+python3 - "$INCOMPLETE_PUBLICATION/dev/plans/release-state-0.8.21.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+d['release_kind'] = 'released; publication complete'
+d['published'] = None
+open(p, 'w').write(json.dumps(d))
+PY
+(cd "$INCOMPLETE_PUBLICATION" && git add -A && git commit -qm fixture)
+run "$INCOMPLETE_PUBLICATION"
+if [ "$RC" -ne 0 ] && grep -qi 'publication complete.*published receipt' <<<"$OUT"; then
+  pass 'publication-complete lifecycle without a receipt hard-fails'
+else
+  fail "incomplete publication: rc=$RC out=$OUT"
+fi
+
+MALFORMED_PUBLICATION="$TMPROOT/malformed-publication"
+make_repo "$MALFORMED_PUBLICATION"
+write_pair "$MALFORMED_PUBLICATION" 0.8.21 'CLOSED — historical record'
+python3 - "$MALFORMED_PUBLICATION/dev/plans/release-state-0.8.21.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+d['release_kind'] = 'released; publication complete'
+d['published'] = {
+    'tag': 'v0.8.20',
+    'tag_commit': 'not-a-sha',
+    'published_on': 'yesterday',
+    'npm_dist_tag': '',
+}
+open(p, 'w').write(json.dumps(d))
+PY
+(cd "$MALFORMED_PUBLICATION" && git add -A && git commit -qm fixture)
+run "$MALFORMED_PUBLICATION"
+if [ "$RC" -ne 0 ] && grep -qi 'invalid published receipt' <<<"$OUT"; then
+  pass 'malformed publication receipt hard-fails'
+else
+  fail "malformed publication: rc=$RC out=$OUT"
+fi
+
 MULTI="$TMPROOT/multiple"
 make_repo "$MULTI"
 write_pair "$MULTI" 0.8.20 LIVE

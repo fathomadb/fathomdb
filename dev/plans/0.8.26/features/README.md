@@ -17,6 +17,8 @@ renumbering the release.
 | 30 | Distributable read-only operator integrity inspection | P1 |
 | 35 | Breaking changed-in-place V1 actuation, fresh-database, receipt, and performance spike | P2 feasibility |
 | 40 | V1 atomic derived-edge actuation and fresh-database boundary | P2 |
+| 45 | Architecture documentation convergence | release documentation |
+| 46 | Technical design documentation convergence | release documentation |
 | 50 | Integrated package, platform, cross-SDK, and release verification | P0–P2 |
 
 Each implementation slice and approved spike contains a draft execution plan
@@ -25,4 +27,6 @@ silently broaden them. Slice 15 and Slice 35 were inserted by Slice 8 evidence
 after the initial mod-10 ladder was drafted. Slice 35 has a draft plan/design
 applying ruled D26-03 through D26-05. Slice 15 has an authorized
 decision-support plan/design; D26-01 remains open until its results return to
-HITL.
+HITL. Slices 45 and 46 are post-implementation documentation convergence gates:
+architecture authority is reconciled first, then technical designs align to
+that hierarchy before integrated verification.

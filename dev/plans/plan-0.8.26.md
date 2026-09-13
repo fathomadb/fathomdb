@@ -89,7 +89,9 @@ fix depends on built product artifacts or belongs at the release boundary.
 | 30 | Qualify and harden the existing versioned read-only operator integrity inspection route. | 20 | Draft |
 | 35 | Prove the breaking changed-in-place V1 actuation, fresh-database, receipt, and performance contract; accept or narrow the Slice 40 design. | 30 | Required by `seq-283` |
 | 40 | Extend V1 actuation in place with the accepted atomic derived-edge contract and fresh-database boundary. | 35 | Draft |
-| 50 | Run integrated Memex-profile, cross-SDK, platform, package, and non-publishing release verification. | 40 | Draft |
+| 45 | Reconcile maintained architecture documentation with accepted decisions, public contracts, and the as-built 0.8.26 system. | 40 | Draft |
+| 46 | Reconcile and organize maintained technical design documentation under the Slice 45 architecture hierarchy. | 45 | Draft |
+| 50 | Run integrated Memex-profile, cross-SDK, platform, package, documentation, and non-publishing release verification. | 46 | Draft |
 
 ## Requirements and acceptance criteria
 

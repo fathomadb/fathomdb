@@ -14,7 +14,7 @@ status: COMPLETE
 | graph results | Graph targets expose logical/kind/body/cursor/origin but insufficient immutable evidence identity for exact follow-up. | Expose target and terminal-edge revision identity separately and bind resolution to frozen eligibility. |
 | integrity | Engine and CLI already implement bounded `data-plane-integrity`; distribution and consumer contract are incomplete. | Package the existing read-only operator route before considering any in-process SDK method. |
 | edge writes | `ProvenancedEdgeV1` and the ordinary prepared-write/projection path exist; the actuation grammar is a closed four-operation V1 set. | Prefer `ActuationBatchV2` with `PutDerivedEdge`, reusing canonical edge storage. |
-| replay/receipts | Actuation digest, replay identity, and compact receipt are persisted contract-sensitive state. | Use a V2 digest domain and add the smallest truthful receipt delta; preserve V1 bytes and replay. |
+| replay/receipts | Actuation digest, replay identity, and compact receipt are persisted contract-sensitive state. | Define one fresh-database V2 receipt/digest/integrity contract; do not retain V1 compatibility. |
 
 ## Architectural invariants
 
@@ -27,7 +27,9 @@ status: COMPLETE
 - Operator diagnostics remain read-only; recovery remains separately
   authorized and absent from governed SDKs.
 - Endpoint validation considers the prospective batch state before any write.
-- V1 request encoding, digest, replay, and receipt remain unchanged.
+- V2 is the only functional actuation grammar; V1-shaped dynamic ingress may
+  only return the approved non-executing upgrade direction.
+- 0.8.26 accepts fresh databases only and does not migrate prior databases.
 - FathomDB stores caller-declared provenance and relation semantics but does
   not decide supports/refutes/corrects policy for Memex.
 
@@ -36,11 +38,12 @@ status: COMPLETE
 1. Additive graph-response fields versus a successor response type.
 2. Exact artifact-evidence request/response version and expiry semantics.
 3. CLI artifact distribution targets and version-match rule.
-4. `ActuationBatchV2` naming, digest domain, endpoint policy, and binding
-   coexistence.
-5. The exact minimum receipt extension; no omnibus consequence manifest.
-6. Whether any proposal unexpectedly requires a schema migration. A positive
-   finding is a release stop pending separate approval.
+4. V2 digest domain, endpoint policy, and exact binding rejection shape for V1
+   ingress.
+5. The exact V2 receipt; no omnibus consequence manifest and no V1 receipt
+   compatibility.
+6. How fresh bootstrap reuses internal schema construction while any existing
+   earlier database is refused before mutation.
 
 ## Completed code-alignment findings
 
@@ -82,13 +85,14 @@ introduces a stricter documented governed-edge rule; it must not accidentally
 make operation order semantically significant.
 
 The receipt table and integrity checker hard-check schema version 1, while the
-request digest is domain-separated as V1. First determine whether current
-receipt columns can truthfully represent a V2 edge request. Add receipt fields
-or a storage version only for a demonstrated audit need, and define
-cross-version operation-ID collision behavior if V1 and V2 share the table.
+request digest is domain-separated as V1. They are replacement surfaces, not
+compatibility constraints. Slice 35 defines one V2 receipt/storage/integrity
+shape for a fresh database and proves that V1 request, replay, receipt, and
+integrity code does not remain functional.
 
 ## Stop conditions
 
-Stop for direct incompatible mutation of V1 public models, implicit edge-policy
-change, invented ranking facts, duplicate telemetry, process mutation in a
-claimed read-only operator route, or an unapproved persisted schema change.
+Stop for functional V1 actuation, migration of an earlier database, implicit
+edge-policy change, invented ranking facts, duplicate telemetry, process
+mutation in a claimed read-only operator route, or unreviewed V2 persisted
+state.

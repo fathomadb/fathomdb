@@ -1,10 +1,10 @@
 ---
-title: FathomDB 0.8.26 — Memex contract completion
+title: FathomDB 0.8.26 — breaking Memex contract completion
 status: PROPOSED
 target_release: 0.8.26
 ---
 
-# FathomDB 0.8.26 — release plan
+# FathomDB 0.8.26 — breaking release plan
 
 ## Goals and scope
 
@@ -14,8 +14,9 @@ from the
 It repairs the released frozen-explanation contract, completes its public
 guidance and installed-artifact witness, adds exact graph-target evidence,
 qualifies and hardens the existing distributable read-only integrity route,
-and—only after the write-path decision gate—adds atomic derived-edge actuation
-with receipt evolution only if current receipt storage proves insufficient.
+and adds a single breaking V2 actuation grammar with atomic derived-edge
+support. The release accepts fresh databases only and carries no V1 actuation,
+receipt, replay, integrity, operation-ID, or database-migration compatibility.
 
 Multi-source provenance, source-set liveness, recursive closure, rich graph
 paths/continuation, persisted evidence replay, snapshot leases, candidate
@@ -43,8 +44,8 @@ In scope:
   evidence resolution;
 - a version-matched, read-only, operator-scoped integrity inspection route;
 - versioned atomic `put_derived_edge` actuation over `ProvenancedEdgeV1`; and
-- only the mutation-receipt additions required to represent and replay that
-  new operation truthfully.
+- one V2 request, receipt, replay, and integrity contract for fresh 0.8.26
+  databases.
 
 Out of scope:
 
@@ -53,6 +54,9 @@ Out of scope:
 - any repair/rebuild verb on the governed SDK;
 - a second writer, shadow dependency store, body re-search, or logical-ID
   search workaround;
+- functional V1 actuation, V1-to-V2 request translation, V1 receipt/replay or
+  integrity support, cross-version operation-ID behavior, and database
+  migration from any earlier release;
 - arbitrary dependency DAGs or liveness languages;
 - unrelated platform/dependency work unless Slice 8 explicitly selects it as
   required preparation; and
@@ -82,8 +86,8 @@ fix depends on built product artifacts or belongs at the release boundary.
 | 15 | Run the bounded graph-evidence performance and erasure-linearization implementation spike; accept or narrow the Slice 20 design. | 10 | Proposed by Slice 8 evidence |
 | 20 | Add immutable-revision graph-target and terminal-edge evidence resolution under frozen authority. | 15 | Draft |
 | 30 | Qualify and harden the existing versioned read-only operator integrity inspection route. | 20 | Draft |
-| 35 | Run the bounded actuation V2 contract and performance implementation spike; accept or narrow the Slice 40 design. | 30 | Proposed by Slice 8 evidence |
-| 40 | Add versioned atomic derived-edge actuation under the Slice 35 contract; evolve receipts only if explicitly approved. | 35 | Draft |
+| 35 | Prove the breaking V2-only actuation, fresh-database, receipt, and performance contract; accept or narrow the Slice 40 design. | 30 | Required by `seq-282` |
+| 40 | Replace V1 actuation with the accepted V2-only atomic derived-edge contract and fresh-database boundary. | 35 | Draft |
 | 50 | Run integrated Memex-profile, cross-SDK, platform, package, and non-publishing release verification. | 40 | Draft |
 
 ## Requirements and acceptance criteria
@@ -118,6 +122,10 @@ Every feature slice must additionally:
 The fixed package/version claim requires a fresh built artifact. Publication
 and post-publication registry tests require separate authorization.
 
+0.8.26 is not an in-place upgrade. Every installed-artifact witness creates a
+fresh database. One representative prior-version database must be refused
+before mutation; no historical migration matrix is required.
+
 ## Reserved-gap policy
 
 Every prework finding is recorded and receives an include, postpone, reject, or
@@ -138,8 +146,8 @@ feature work before that decision.
 
 ## Stop gates
 
-Stop on an unresolved public-contract versioning decision; any schema/data
-migration not explicitly approved; weakened frozen eligibility or evidence
+Stop on an unresolved public-contract versioning decision; any path that
+migrates a pre-0.8.26 database or functionally accepts V1 actuation; weakened
+frozen eligibility or evidence
 non-disclosure; a repair verb leaking onto the governed SDK; partial graph
-mutation; V1 digest/replay drift; binding incompatibility; or semantic policy
-moving into FathomDB.
+mutation; binding incompatibility; or semantic policy moving into FathomDB.

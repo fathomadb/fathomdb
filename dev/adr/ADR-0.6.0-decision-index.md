@@ -140,6 +140,12 @@ Slice-0 gate before Slices 15 and 25 open.
 | 51 | acceptance | Retire AC-020's relative ratio; adopt absolute sequential/concurrent batch limits and an independent same-Engine reader-progress witness | accepted (HITL `seq-277`) | ADR-0.8.25-absolute-read-performance-successor.md |
 | 52 | architecture | Linux x86_64 CUDA-capable artifacts must map and run CPU mode without a dynamic CUDA runtime or NVIDIA driver dependency; inspect real package bytes and retain separate CPU/GPU evidence | approved for implementation (HITL 2026-08-31) | ADR-0.8.25-driverless-cuda-runtime-linkage.md |
 
+## Phase 0.8.26 (breaking actuation decision)
+
+| # | Category | Candidate decision | HITL verdict | ADR file |
+| - | -------- | ------------------ | ------------ | -------- |
+| 53 | interface | Make 0.8.26 a breaking V2-only actuation release, retain only a non-executing V1-retired direction at dynamic ingress, carry no V1 receipt/replay/integrity/data compatibility, and accept fresh databases only | accepted (HITL `seq-282`) | ADR-0.8.26-breaking-v2-actuation-and-fresh-database-boundary.md |
+
 ## Categories
 
 acceptance | architecture | design | interface.

@@ -26,3 +26,11 @@ transaction, lifecycle, process-level non-mutation, and artifact boundaries.
 
 Feature slices use RED/GREEN focused tests; Slice 50 owns the full candidate
 and platform matrix.
+
+## Subsequent Slice 8 reconciliation
+
+HITL `seq-282` supersedes the draft V1-preservation and cross-version receipt
+test allocations recorded by this Slice 5 review. Slice 35/40 now own V2-only
+receipt/replay/integrity proof, non-executing V1-shaped ingress refusal, and
+fresh-database-only opening. This status remains a truthful record of the
+earlier review rather than silently rewriting its findings.

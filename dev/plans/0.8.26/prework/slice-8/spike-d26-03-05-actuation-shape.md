@@ -21,7 +21,7 @@ RED tests, minimal GREEN prototype, code review, independent verification,
 status record, and cleanup. Slice 40 may proceed only from the accepted Slice
 35 contract.
 
-## D26-03: V2 is a full successor grammar
+## D26-03 final ruling: breaking V2-only grammar
 
 The recommended public request is:
 
@@ -34,65 +34,20 @@ ActuationBatchV2
   TransitionLifecycle(LifecycleActuationV1)
 ```
 
-V2 includes the complete V1 operation surface plus `PutDerivedEdge`; it is not
-an edge-only request. An edge-only request cannot atomically combine Memex's
-derived node, dependency registration, and semantic edge. A composite graph
-unit would duplicate node and dependency contracts and unnecessarily constrain
-multi-edge batches.
+V2 contains the four operation capabilities introduced by V1 plus
+`PutDerivedEdge`; it is not edge-only. An edge-only request cannot atomically
+combine Memex's derived node, dependency registration, and semantic edge.
 
-V1 remains unchanged. V2 receives separate Rust, Python, and TypeScript entry
-points and the digest domain `fathomdb.actuation.v2\0`. Both public versions
-should normalize to one private executor representation rather than copy the
-existing actuation implementation.
+HITL `seq-282` rejects coexistence. V2 is the only functional grammar and uses
+one actuation method per binding. Static V1 types are removed. Dynamic/native
+V1-shaped ingress may only inspect the discriminator needed to return a loud
+V2 direction; it cannot parse operations, translate, execute, digest, replay,
+or load V1 receipts.
 
-## Proposed V1 and V2 compatibility contract
-
-V2 is comprehensive only within the actuation-batch family. It is not a new
-version of the entire Engine, SDK, database, read surface, search surface, or
-graph surface. It introduces one additional batch type and one corresponding
-entry point per binding. Existing clients that use only V1 require no change.
-
-At the capability level, V2 is a strict superset of V1: it contains equivalent
-forms of every V1 operation plus `PutDerivedEdge`. At the type and wire level,
-the versions remain separate closed schemas. A V1 batch is not silently parsed
-as V2, a V2 batch is not accepted by the V1 entry point, and no V1 digest or
-canonical byte sequence changes. A caller may explicitly construct the V2
-equivalent of a V1 request when it wants the successor surface.
-
-There is no session-wide version negotiation or version mode. One Engine or
-SDK client may issue calls in any order, including:
-
-```text
-actuate(V1) -> actuate_v2(V2) -> actuate(V1) -> actuate(V1) -> actuate_v2(V2)
-```
-
-Sequential mixed-version calls operate on the same database state and obey
-the same transaction, provenance, lifecycle, projection, and erasure rules.
-Concurrent V1 and V2 calls are also allowed, but the existing single-writer
-boundary serializes their commits. Concurrency changes arrival and completion
-order, not atomicity.
-
-The operation-ID namespace is shared across versions:
-
-- different operation IDs work in any sequential or concurrent V1/V2 order;
-- an exact V1 replay uses the V1 digest and returns its stored receipt;
-- an exact V2 replay uses the V2 digest and returns its stored receipt;
-- reusing one operation ID across V1 and V2 conflicts, even when the listed
-  domain operations appear equivalent, because the versioned digest domains
-  differ; and
-- an erased operation ID remains reserved against both versions.
-
-The proposal returns the existing `ActuationReceiptV1` from both entry points
-under strict endpoint refusal. This is intentional: the receipt describes a
-committed or refused operation outcome and already carries the required
-revision, cursor, dependency, lifecycle, and source-reference truth. Request
-schema version and receipt schema version are independent. A RED audit must
-prove that claim before Slice 40; otherwise receipt evolution returns to HITL.
-
-Thus V2 is best described as **a separate, full successor grammar for one API
-family**, not “an updated V1” and not “a comprehensive new FathomDB surface.”
-Internally the two versions share execution logic; publicly they remain
-unambiguous and independently replayable.
+0.8.26 accepts fresh databases only. It carries no V1 receipt, integrity,
+provenance-row, lifecycle-row, dependency-row, source-reference,
+operation-ID, upgrade, or downgrade compatibility. V2 still validates all of
+its own corresponding invariants.
 
 The expected scope is approximately 15–20 code/contract files and 8–12 focused
 test or fixture files. Risk is medium and concentrated in the actuation
@@ -100,7 +55,7 @@ executor and bindings; storage risk remains low under the strict endpoint
 policy below. An edge-only API touches perhaps 8–12 surfaces but fails the
 atomic graph-unit requirement and is rejected.
 
-## D26-04 and D26-05 are coupled
+## D26-04 and reframed D26-05 remain open
 
 Ordinary `Engine::write` returns its dangling endpoint count in
 `WriteReceipt.dangling_edge_endpoints`. `ActuationReceiptV1` and its durable
@@ -116,12 +71,9 @@ may precede endpoints that occur later in the same batch. Only endpoint
 existence receives this complete-batch exception; provenance and dependency
 ordering retain their existing semantics.
 
-Under option B, D26-05 option A can return the existing
-`ActuationReceiptV1`, retain existing receipt tables, and treat receipt version
-and request version as independent. The V1 and V2 operation-ID namespace is
-shared. Exact V2 replay returns the stored receipt; reuse of one ID with V1 and
-V2 conflicts because the digest domains differ; erased IDs remain reserved for
-both versions.
+Under option B, D26-05 can define a compact `ActuationReceiptV2` without a
+dangling count. There is one fresh-database V2 operation-ID namespace and no
+cross-version behavior.
 
 Missing endpoints can reuse `reference_unavailable` with deterministic first
 paths: `/operations/{i}/record/from` before `/to`. This avoids a new public
@@ -134,10 +86,9 @@ incomplete graphs and replayable dangling counts.
 
 ## Performance assessment
 
-V1 keeps its entry point, digest, encoding, and execution behavior. Its
-sequential and concurrent performance should therefore remain stable unless
-shared executor refactoring changes the path; Slice 35 must measure this
-sentinel.
+There is no V1 performance-preservation requirement. Slice 35 measures V2
+against the 0.8.25 V1 implementation only as characterization, not as a
+compatibility gate.
 
 Current actuation performs domain work once in rollback-only simulation and
 again in the committed transaction. A V2 edge therefore performs provenance,
@@ -163,28 +114,32 @@ close.
 
 ### Requirements and RED evidence
 
-1. Add V2 digest golden and property tests while proving every V1 golden byte
-   remains unchanged.
-2. Prove every inherited V1 operation produces equivalent domain effects
-   through V2.
+1. Add V2 digest golden and property tests; do not retain a functional V1
+   encoder or replay path.
+2. Prove every inherited operation capability produces its required V2 domain
+   effects without comparing historical persisted data.
 3. Prove one derived node, dependency, and derived edge commit atomically with
    one operation ID, receipt, and transaction.
 4. Prove an edge before endpoints later in the batch succeeds, while missing
    `from`, `to`, or both refuse deterministically without domain commits.
 5. Prove invalid provenance/hash, revision collision, projection failure, and
    injected post-operation failures roll back the unit.
-6. Prove exact V2 replay across restart, changed-byte conflict, sequential and
-   concurrent V1/V2 ID collision behavior, and erased-ID reservation.
+6. Prove exact V2 replay across restart, changed-byte conflict, concurrent V2
+   behavior, and erased V2 ID reservation.
 7. Prove edge supersession, source-erasure receipt redaction, FTS/vector
    projection, traversal, and lifecycle behavior.
 8. Add a cross-binding V2 conformance fixture and exact closed-shape,
    precedence, Unicode, NUL, and JSON-pointer tests.
+9. Prove V1-shaped dynamic ingress returns only the approved V2 direction and
+   causes no write; remove static public V1 types and functional V1 internals.
+10. Prove fresh bootstrap and one representative earlier database refusal
+    before mutation; do not build a historical migration matrix.
 
 ### GREEN prototype and measurements
 
-- Normalize V1 and V2 to one private executor representation without changing
-  V1 construction, digest, public entry point, or behavior.
-- Compare 1,000 sequential V1 node/dependency batches with V2
+- Implement only the V2 executor and minimal non-executing V1 discriminator
+  refusal.
+- Compare the 0.8.25 V1 baseline with 1,000 sequential V2
   node/dependency/edge batches.
 - Exercise the canonical three-operation Memex unit and a 128-operation
   edge-heavy bound.
@@ -192,13 +147,11 @@ close.
   exact ID.
 - Record median, p95, total throughput, writer-lock and slow-event incidence,
   pending projection count, receipt size, and database growth.
-- Require no repeatable V1 regression beyond normal noise. Use measured
-  evidence to decide whether a narrowly scoped internal endpoint-probe change
-  is justified; do not refactor the ordinary write path speculatively.
+- Use measurements to decide whether a narrowly scoped internal endpoint-probe
+  change is justified; do not refactor the ordinary write path speculatively.
 
 ## Recommendation to HITL
 
-Approve D26-03 option A as the full successor grammar above. Rule D26-04 and
-D26-05 together: approve strict complete-state endpoint refusal and current
-receipt storage. Preserve flag/count only if Memex supplies an affirmative
-incomplete-graph requirement and accepts the added durable-schema work.
+D26-03 is accepted at `seq-282`. Remaining HITL work is to rule D26-04's
+endpoint policy and D26-05's minimum truthful V2-only receipt shape. The prior
+current-receipt/cross-version recommendation is superseded.

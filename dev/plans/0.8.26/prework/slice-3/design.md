@@ -49,14 +49,17 @@ status: COMPLETE
 
 ### Slice 40
 
-- Preserve `ActuationBatchV1` and introduce a versioned batch containing
-  `put_derived_edge(ProvenancedEdgeV1)` if compatibility review confirms that
-  a V1 extension is unsafe.
+- Replace functional V1 actuation with one V2 grammar containing
+  `put_derived_edge(ProvenancedEdgeV1)` and the four inherited operation
+  capabilities. Permit only a loud non-executing V1-retired direction at
+  dynamic ingress.
 - Validate endpoints against the prospective transaction state, commit all
   operations or none, and preserve deterministic digest/replay behavior.
-- Add only receipt fields that are directly known and required to represent
-  the edge mutation, lifecycle transition, dependency boundary, or projection
-  work correlation.
+- Define one V2 receipt and integrity contract. Carry no V1 receipt, replay,
+  operation-ID, provenance, lifecycle, dependency, or source-reference
+  compatibility.
+- Accept fresh 0.8.26 databases only and refuse an existing earlier-version
+  database before mutation; do not implement a migration matrix.
 - Prove restart, duplicate-key, fault-injection, endpoint, dependency,
   lifecycle, erasure, and projection invariants across bindings.
 
@@ -75,8 +78,9 @@ status: COMPLETE
 | artifact evidence resolution | Create a successor ADR or accepted addendum defining immutable-revision authorization and non-disclosure | 20 |
 | graph response identity | Update wire/Rust/Python/TypeScript interfaces with a compatible additive or successor response selected in Slice 8 | 20 |
 | operator integrity distribution | Update CLI, packaging, release, and operator documentation; preserve the SDK recovery denylist | 30 |
-| actuation grammar | Create a successor ADR for V2 batch semantics and prospective endpoint validation | 40 |
-| mutation receipt | Update interfaces only for the minimum accepted V2 fields and digest domain | 40 |
+| actuation grammar | Apply accepted ADR-0.8.26 for one breaking V2-only batch and prospective endpoint validation | 35, 40 |
+| mutation receipt | Define one V2 receipt/digest/integrity contract without V1 compatibility | 35, 40 |
+| database boundary | Refuse pre-0.8.26 databases before mutation; retain only fresh-database bootstrap | 35, 40, 50 |
 | release conformance | Update release/package documentation and artifact test contract | 50 |
 
 Receipt sufficiency is a requirement under N26-04, not an independent user
@@ -99,10 +103,11 @@ Slice 8 records the HITL ruling.
 | R26-30A: qualify the published CLI operator route for Memex deployment | AC26-30A: named exact artifact is installable/discoverable and accepts the selected database schema | 30, 50 |
 | R26-30B: make the whole integrity invocation observably non-mutating and bounded | AC26-30B: before/after process-level witness, lock/quiescence behavior, exit codes, and output bounds pass | 30 |
 | R26-30C: preserve the governed SDK boundary | AC26-30C: doctor/recovery remain absent from Python and TypeScript public SDKs | 30, 50 |
-| R26-40A: preserve V1 while adding versioned derived-edge actuation | AC26-40A: V1 encoding/digest/replay remain stable and V2 construction is cross-binding compatible | 40 |
+| R26-40A: replace functional V1 actuation with one cross-binding V2 grammar and a non-executing V1-retired direction | AC26-40A: only V2 executes; V1-shaped dynamic ingress returns the approved direction without parsing operations or writing | 35, 40 |
 | R26-40B: commit node, dependency, and provenance-bearing edge all-or-none | AC26-40B: transactional fault, duplicate, restart, endpoint, dependency, lifecycle, erasure, and projection tests pass | 40 |
 | R26-40C: define endpoint semantics explicitly | AC26-40C: approved dangling policy is documented and tested against complete prospective batch state unless order sensitivity is explicitly approved | 40 |
-| R26-40D: evolve receipts only when existing V1 fields cannot truthfully represent the request, with explicit shared operation-ID semantics | AC26-40D: receipt/storage compatibility, integrity, replay, and cross-version operation-ID collision behavior are proved | 40 |
+| R26-40D: define one V2 receipt, digest, replay, operation-ID, and integrity contract without historical compatibility | AC26-40D: fresh-database V2 receipt/replay/integrity tests pass and no V1 compatibility path remains | 35, 40 |
+| R26-40E: accept fresh 0.8.26 databases only | AC26-40E: fresh bootstrap succeeds and a representative earlier database is refused before mutation without a historical migration matrix | 35, 40, 50 |
 
 ## CRUD allocation and compatibility gates
 
@@ -114,6 +119,7 @@ Slice 8 records the HITL ruling.
   do not add required fields directly to `GraphTargetV1`.
 - Slice 30 updates the incomplete CLI verb inventory and qualifies the route
   already shipped. It does not create an SDK operator API by default.
-- Slice 40 needs a successor actuation decision. A receipt schema/storage
-  change is conditional, not presumed absent.
+- Slice 40 applies accepted ADR-0.8.26. D26-04 endpoint semantics and the exact
+  V2 receipt shape remain for Slice 8 review; V1 and database compatibility do
+  not.
 - Slice 50 owns integrated artifact evidence, not feature contract authoring.

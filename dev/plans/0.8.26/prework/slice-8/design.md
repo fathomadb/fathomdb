@@ -50,10 +50,10 @@ actionable root cause found by Slices 6–7 before the session.
 4. Confirm whether Memex can deploy the crates.io CLI; choose a prebuilt target
    only if needed, and approve exact tool identity plus schema compatibility.
 5. Confirm that doctor/recovery authority remains absent from public SDKs.
-6. Approve or reject `ActuationBatchV2` plus `PutDerivedEdge`.
+6. Apply ruled D26-03 (`seq-282`): breaking V2-only actuation, non-executing V1
+   direction, fresh databases only, and no V1/migration compatibility.
 7. Choose ordinary flag/count or stricter governed derived-edge endpoint
-   semantics; approve replay/digest, cross-version operation-ID, and conditional
-   receipt-storage behavior.
+   semantics and approve the exact minimum V2-only receipt/storage behavior.
 8. Rule every environment, dependency, cruft, documentation, architecture,
    test-infrastructure, build, preflight, verification, and CI/CD proposal from
    Slices 0–7.

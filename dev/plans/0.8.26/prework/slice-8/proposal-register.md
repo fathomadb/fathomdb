@@ -2,6 +2,7 @@
 title: FathomDB 0.8.26 Slice 8 — scored proposal register
 status: AWAITING_HITL
 observed_on: 2026-09-12
+last_updated: 2026-09-13
 ---
 
 # Slice 8 scored proposal register
@@ -93,32 +94,28 @@ unfixed. Recommendations are proposals pending HITL ruling.
 
 ### D26-03 — derived-edge actuation version
 
-- **HITL status:** Open. Further discussion is required about the V2 boundary
-  and mixed V1/V2 client behavior.
+- **HITL ruling:** Breaking V2-only actuation and fresh databases, `seq-282`.
 
 - **Situation:** Ordinary provenance-bearing edge writes already exist, but the
   closed V1 actuation grammar has no edge operation. Reinterpreting V1 would
   change encoding, digest, replay, and cross-binding contracts.
-- **Question:** Should Slice 40 preserve V1 and introduce
-  `ActuationBatchV2`/`PutDerivedEdge`?
-- **Options:** (A) versioned V2 successor; (B) extend/reinterpret V1; (C) retain
-  the non-atomic two-call boundary.
-- **Recommendation:** A, specifically a full successor grammar containing all
-  V1 operations plus `PutDerivedEdge`, with a named Slice 35 contract and
-  performance spike before Slice 40. It meets the atomic invariant while
-  preserving V1; B risks replay drift and C does not meet Memex's requirement.
-  See
-  [`spike-d26-03-05-actuation-shape.md`](spike-d26-03-05-actuation-shape.md).
-- **What changes it:** Proof that the public V1 grammar is safely extensible
-  without digest, replay, or decoder change. Current exhaustive models make
-  that unlikely.
-- **Blocked/reversible:** Slice 40 is blocked; this is a public-contract choice
-  but no persisted data has changed.
+- **Decision:** Replace V1 with one full V2 grammar containing the inherited
+  operation capabilities plus `PutDerivedEdge`; keep one actuation method per
+  binding. V1-shaped dynamic ingress may only return a loud V2 direction and
+  must not parse, translate, execute, digest, or replay V1. Carry no V1 receipt,
+  integrity, data, or operation-ID compatibility. Accept fresh 0.8.26 databases
+  only and provide no migration from earlier versions.
+- **Placement:** Slice 35 proves the V2/fresh-database contract and performance;
+  Slice 40 implements it. See accepted
+  [`ADR-0.8.26-breaking-v2-actuation-and-fresh-database-boundary.md`](../../../../adr/ADR-0.8.26-breaking-v2-actuation-and-fresh-database-boundary.md).
+- **Blocked/reversible:** D26-03 no longer blocks design. D26-04 endpoint
+  semantics and D26-05's exact V2 receipt remain open. Publication and product
+  implementation remain unauthorized.
 
 ### D26-04 — derived-edge endpoint semantics
 
 - **Draft HITL position:** Generally accepts option B, not final and coupled to
-  D26-05 and the open D26-03 boundary.
+  the reframed D26-05 V2 receipt decision.
 
 - **Situation:** Ordinary edge writes intentionally flag/count dangling edges
   and evaluate the complete batch, including later operations. A stricter
@@ -129,11 +126,10 @@ unfixed. Recommendations are proposals pending HITL ruling.
   state; (B) require endpoints over complete prospective state; (C) require
   earlier-operation order.
 - **Recommendation:** B. Ordinary flag/count behavior cannot be truthfully
-  replayed through the current actuation receipt because it has no dangling
-  count. B preserves current receipt storage, accepts endpoints anywhere in
-  the complete batch, and minimizes durable-schema risk. A remains available
-  only if Memex explicitly needs incomplete-graph admission; C adds needless
-  ordering.
+  represented without a dangling count. Under the fresh-database ruling, B
+  still gives the smallest V2 receipt and accepts endpoints anywhere in the
+  complete batch. A remains available only if Memex explicitly needs
+  incomplete-graph admission; C adds needless ordering.
 - **What changes it:** A Memex requirement that the governed batch itself—not
   Memex validation—must reject incomplete endpoint sets.
 - **Blocked/reversible:** Slice 40 transaction tests and error contract are
@@ -142,25 +138,26 @@ unfixed. Recommendations are proposals pending HITL ruling.
 
 ### D26-05 — receipt and operation-ID evolution
 
-- **Draft HITL position:** Generally accepts option A, not final and coupled to
-  D26-04 and the open D26-03 boundary.
+- **HITL status:** Open and reframed by `seq-282`; the prior draft acceptance of
+  current receipt storage is no longer operative.
 
-- **Situation:** V1 receipt columns may already represent an edge-bearing V2
-  request, but receipt storage and integrity checks hard-code schema 1. V1 and
-  V2 may share operation-ID storage.
-- **Question:** Should Slice 40 keep current receipt storage unless a RED audit
-  test proves it insufficient, while defining cross-version ID collision
-  behavior explicitly?
-- **Options:** (A) conditional receipt/storage evolution; (B) mandate a new
-  receipt schema now; (C) omit collision semantics.
-- **Recommendation:** A together with D26-04 option B. Keep current receipt
-  storage, share the V1/V2 operation-ID namespace, and make cross-version reuse
-  conflict through distinct digest domains. D26-04 option A would instead
-  require receipt persistence evolution and materially increase risk.
-- **What changes it:** An approved audit field that current columns cannot
-  truthfully encode, established by a human-authored RED contract test.
-- **Blocked/reversible:** Receipt design within Slice 40 is blocked; schema
-  evolution would be the least reversible choice and remains a stop gate.
+- **Situation:** 0.8.26 needs one V2 receipt, replay, integrity, and operation-ID
+  contract for a fresh database. It must not retain V1 receipt readers,
+  integrity checks, replay, collision rules, or migration code.
+- **Question:** What is the minimum truthful V2 receipt for committed and
+  refused derived-edge batches under the chosen D26-04 endpoint policy?
+- **Options:** (A) create `ActuationReceiptV2` with the current compact outcome,
+  affected-revision, boundary, projection, generation, closure, and V2
+  source-reference concepts plus only edge fields proven necessary; (B) add a
+  broad graph-consequence manifest; (C) return no durable receipt.
+- **Recommendation:** A. It preserves idempotent V2 replay and bounded audit
+  truth without any historical compatibility or Memex semantic inference. B
+  is overbuilt; C loses the core actuation guarantee.
+- **What changes it:** Proof that a named current concept is unnecessary for
+  V2 replay/integrity, or that D26-04 option A requires one explicit dangling
+  count.
+- **Blocked/reversible:** Exact Slice 35/40 receipt design remains blocked. No
+  V1 storage constrains the choice, and no migration is permitted.
 
 ## Preparation bundle decision
 

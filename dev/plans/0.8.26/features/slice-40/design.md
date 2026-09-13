@@ -5,12 +5,19 @@ status: DRAFT
 
 # Slice 40 design — atomic derived-edge actuation
 
-## Proposed contract
+## Accepted breaking boundary and proposed remaining contract
 
-Preserve the exhaustive V1 grammar. Introduce `ActuationBatchV2` and an
+Per accepted
+[`ADR-0.8.26-breaking-v2-actuation-and-fresh-database-boundary.md`](../../../../adr/ADR-0.8.26-breaking-v2-actuation-and-fresh-database-boundary.md),
+replace the V1 grammar with `ActuationBatchV2` and
 `ActuationOperationV2::PutDerivedEdge` carrying the existing
-`ProvenancedEdgeV1` shape. Provide versioned engine and binding entry points;
-do not silently reinterpret V1 request bytes.
+`ProvenancedEdgeV1` shape. Keep one actuation method per binding. Do not add a
+parallel V1/V2 method family.
+
+Static V1 request types are removed. Dynamic/native ingress may inspect only
+the top-level request discriminator needed to return a loud V1-retired
+direction. It must not parse operations, translate, execute, digest, replay,
+or load a V1 receipt.
 
 The operation is deliberately `put_derived_edge`, not arbitrary `put_edge`:
 immutable revision identity and source/dependency provenance are mandatory for
@@ -18,7 +25,7 @@ governed derived graph authoring.
 
 ## Transaction algorithm
 
-1. Validate batch size, operation grammar, identities, provenance, and V2
+1. Validate V2 batch size, operation grammar, identities, provenance, and
    idempotency digest without writing.
 2. Build a bounded prospective identity set from persisted endpoints and all
    same-batch node operations without making order semantically significant.
@@ -30,18 +37,23 @@ governed derived graph authoring.
 5. Commit once. Any error or injected interruption rolls back the complete
    unit; restart uses the durable replay record.
 
-## Receipt boundary
+## V2 receipt boundary
 
-First prove whether the existing V1 receipt columns can truthfully represent a
-V2 request. A successor receipt/storage version is added only for a concrete
-audit requirement and may contain only fields already known in the
+Define one V2 receipt/storage version containing only fields known in the
 transaction. It does not compute Memex support/refutation meaning, downstream
-semantic consequences, or a general dependency manifest. Shared operation-ID
-storage requires an explicit cross-version collision rule.
+semantic consequences, or a general dependency manifest. There is no V1
+receipt reader, integrity path, replay path, or shared cross-version
+operation-ID rule.
 
-## Persistence and compatibility
+## Persistence and fresh-database boundary
 
-Reuse existing node, edge, provenance, dependency, mutation, and projection
-tables. A new schema or migration is not assumed and triggers a stop. V2 uses
-an explicit digest domain/version; all V1 golden bytes and replay fixtures must
-remain unchanged.
+V2 may reuse the current node, edge, provenance, dependency, and projection
+designs as its fresh schema. It does not interpret their earlier-version rows.
+Fresh-database creation may reuse internal schema-construction code, but open
+must refuse an existing non-current database before mutation. No upgrade or
+downgrade path, historical migration matrix, V1 receipt table reader, or V1
+integrity compatibility is implemented.
+
+V2 uses one explicit digest domain and operation-ID namespace. The exact V2
+receipt shape and D26-04 endpoint policy remain subject to the unfinished Slice
+8 review.

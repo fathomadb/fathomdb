@@ -173,6 +173,52 @@ fn opt_in_sidecar_resolves_exact_target_and_winning_edge() {
     );
 }
 
+#[test]
+fn evidence_pins_the_traversal_winner_among_parallel_edges() {
+    let (_directory, engine, mut request) = fixture();
+    let source = "canonical source bytes";
+    engine
+        .write(&[PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+            logical_id: Some("aaa-first-by-order".into()),
+            kind: "supports".into(),
+            from: "root".into(),
+            to: "target".into(),
+            source_id: SourceId::new("owner").unwrap(),
+            body: None,
+            t_valid: None,
+            t_invalid: None,
+            confidence: Some(0.8),
+            extractor_model_id: None,
+            temporal_fallback: None,
+            provenance: WriteProvenanceV1::derived(
+                ArtifactRevisionId::new("edge-parallel-r1").unwrap(),
+                SourceVersionId::new("source-v1").unwrap(),
+                SourceRevisionId::new("source-r1").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(digest(source)).unwrap(),
+            ),
+        })])
+        .unwrap();
+    engine.drain(30_000).unwrap();
+    let mut filter = SearchFilter::default();
+    filter.kind = Some("claim".into());
+    let frozen = engine
+        .freeze_read_context(
+            &ReadContextV1::new(
+                ReadView { valid_as_of: Some(1_800_000_000), ..ReadView::default() },
+                filter,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen };
+    request.include_evidence = true;
+    let result = engine.graph_expand(&request).unwrap();
+    let entry = &result.evidence.unwrap().entries[0];
+    assert_eq!(entry.terminal_edge_artifact_revision_id.as_str(), "edge-parallel-r1");
+    assert_eq!(result.targets[0].origin.terminal_edge_kind, "supports");
+}
+
 fn reopen_after_sql(directory: &TempDir, engine: Engine, sql: &str) -> Engine {
     engine.close().unwrap();
     let path = directory.path().join("graph-evidence.fdb");

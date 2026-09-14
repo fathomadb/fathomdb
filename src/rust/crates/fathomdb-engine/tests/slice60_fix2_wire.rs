@@ -31,6 +31,7 @@ fn unicode_request() -> GraphExpandRequestV1 {
         result_limit: 1,
         max_work_units: 1,
         include_explanation: false,
+        include_evidence: false,
     }
 }
 

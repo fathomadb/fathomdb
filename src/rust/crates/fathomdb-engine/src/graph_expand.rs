@@ -23,6 +23,10 @@ use serde::Serialize;
 
 const SCHEMA_VERSION: u32 = 1;
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 #[cfg(feature = "test-hooks")]
 static GRAPH_EXPAND_RSS_SAMPLE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -175,6 +179,7 @@ pub struct GraphExpandRequestV1 {
     pub result_limit: u32,
     pub max_work_units: u64,
     pub include_explanation: bool,
+    pub include_evidence: bool,
 }
 
 /// A logical seed resolved inside the graph-expansion snapshot.
@@ -250,6 +255,7 @@ pub struct GraphExpandResultV1 {
     pub work_units: u64,
     pub degradation_codes: Vec<GraphExpansionDegradationCodeV1>,
     pub explanation: Option<GraphExpansionExplanationV1>,
+    pub evidence: Option<crate::GraphEvidenceSidecarV1>,
 }
 
 /// Closed graph-expansion refusal reason.
@@ -518,16 +524,6 @@ pub struct GraphExpandProjectionGenerationForTest {
 }
 
 #[cfg(feature = "test-hooks")]
-type SelectedArtifactsForTest = std::sync::Arc<Mutex<Vec<(u64, u64)>>>;
-
-#[cfg(feature = "test-hooks")]
-type EvidenceOutputForTest = std::sync::Arc<
-    Mutex<
-        Option<(Vec<crate::GraphEvidenceEntryForTest>, crate::GraphEvidencePreflightStatsForTest)>,
-    >,
->;
-
-#[cfg(feature = "test-hooks")]
 #[derive(Default)]
 pub(crate) struct GraphExpandReaderControlsForTest {
     pub(crate) rendezvous: Option<GraphExpandRendezvousForTest>,
@@ -535,9 +531,6 @@ pub(crate) struct GraphExpandReaderControlsForTest {
     pub(crate) projection_generation: Option<GraphExpandProjectionGenerationForTest>,
     pub(crate) rss_peak_bytes: Option<std::sync::Arc<AtomicU64>>,
     pub(crate) retention_counters: Option<std::sync::Arc<GraphExpandRetentionCountersForTest>>,
-    pub(crate) selected_artifacts: Option<SelectedArtifactsForTest>,
-    pub(crate) evidence_authority: Option<crate::evidence::IntrinsicAuthorityForTest>,
-    pub(crate) evidence_output: Option<EvidenceOutputForTest>,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -1100,6 +1093,10 @@ impl Engine {
         #[cfg(feature = "test-hooks")] test_controls: GraphExpandReaderControlsForTest,
     ) -> Result<GraphExpandResultV1, EngineError> {
         self.ensure_open()?;
+        if request.include_evidence && matches!(request.context, GraphReadContextV1::Current { .. })
+        {
+            return Err(graph_error(GraphExpansionErrorReasonV1::GraphContextInvalid, "/context"));
+        }
         let frozen_binding = match &request.context {
             GraphReadContextV1::Current { schema_version, context } => {
                 if *schema_version != SCHEMA_VERSION {
@@ -1143,6 +1140,14 @@ impl Engine {
         #[cfg(feature = "test-hooks")]
         self.graph_expand_rss_baseline_bytes
             .store(crate::process_current_rss_bytes(), AtomicOrdering::Relaxed);
+        let evidence_authority = match (&request.context, request.include_evidence) {
+            (GraphReadContextV1::Frozen { context, .. }, true) => {
+                let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+                let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+                Some(crate::evidence::graph_evidence_authority(connection, context)?)
+            }
+            _ => None,
+        };
         let (respond, receive) = std::sync::mpsc::sync_channel(1);
         self.reader_pool
             .dispatch(crate::ReaderRequest::GraphExpand(Box::new(
@@ -1150,6 +1155,7 @@ impl Engine {
                     request: request.clone(),
                     frozen_binding,
                     projection_runtime_state,
+                    evidence_authority,
                     #[cfg(feature = "test-hooks")]
                     test_controls,
                     respond,
@@ -1418,6 +1424,7 @@ pub(crate) fn read_graph_expand_in_tx(
     request: &GraphExpandRequestV1,
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
     projection_runtime_state: ProjectionRuntimeStateV1,
+    evidence_authority: Option<&crate::evidence::GraphEvidenceAuthority>,
     #[cfg(feature = "test-hooks")] test_controls: &GraphExpandReaderControlsForTest,
     attribution: &std::sync::Arc<WalAttributionCollector>,
     worker_idx: usize,
@@ -1684,80 +1691,73 @@ pub(crate) fn read_graph_expand_in_tx(
     let mut selected = candidates.into_values().collect::<Vec<_>>();
     selected.sort_by(|left, right| origin_cmp(&left.target.origin, &right.target.origin));
     selected.truncate(request.result_limit as usize);
-    #[cfg(feature = "test-hooks")]
-    if let Some(capture) = test_controls.selected_artifacts.as_ref() {
-        *capture.lock().map_err(|_| EngineError::Storage)? = selected
-            .iter()
-            .map(|candidate| (candidate.target.write_cursor, candidate.terminal_edge_cursor))
-            .collect();
-    }
-    let targets = selected.into_iter().map(|candidate| candidate.target).collect::<Vec<_>>();
-    #[cfg(feature = "test-hooks")]
-    if let Some(output) = test_controls.evidence_output.as_ref() {
+    let evidence = if request.include_evidence {
         let frozen = match &request.context {
             GraphReadContextV1::Frozen { context, .. } => context,
             GraphReadContextV1::Current { .. } => {
-                return Err(crate::EvidenceErrorV1::unavailable().into())
+                return Err(graph_error(
+                    GraphExpansionErrorReasonV1::GraphContextInvalid,
+                    "/context",
+                ))
             }
         };
-        let selected_artifacts = test_controls
-            .selected_artifacts
-            .as_ref()
-            .ok_or(EngineError::Storage)?
-            .lock()
-            .map_err(|_| EngineError::Storage)?
-            .clone();
-        let node_cursors = selected_artifacts.iter().map(|pair| pair.0).collect::<Vec<_>>();
-        let edge_cursors = selected_artifacts.iter().map(|pair| pair.1).collect::<Vec<_>>();
-        let preflight = crate::evidence::preflight_intrinsic_batches_for_test(
-            &tx,
-            frozen,
-            &node_cursors,
-            &edge_cursors,
-        )?;
-        let authority = test_controls.evidence_authority.as_ref().ok_or(EngineError::Storage)?;
-        let request_commitment = encode_graph_expand_request_v1(request)
-            .map_err(|_| EngineError::Evidence(crate::EvidenceErrorV1::unavailable()))?;
-        let mut entries = Vec::with_capacity(targets.len());
-        for (index, (target, (target_cursor, edge_cursor))) in
-            targets.iter().zip(selected_artifacts).enumerate()
-        {
-            if target.write_cursor != target_cursor {
-                return Err(crate::EvidenceErrorV1::unavailable().into());
+        let authority = evidence_authority.ok_or(EngineError::Storage)?;
+        let node_cursors = selected.iter().map(|item| item.target.write_cursor).collect::<Vec<_>>();
+        let edge_cursors =
+            selected.iter().map(|item| item.terminal_edge_cursor).collect::<Vec<_>>();
+        if selected.is_empty() {
+            Some(crate::GraphEvidenceSidecarV1 { schema_version: 1, entries: Vec::new() })
+        } else {
+            let preflight = crate::evidence::preflight_graph_evidence(
+                &tx,
+                frozen,
+                &node_cursors,
+                &edge_cursors,
+            )?;
+            let request_commitment = encode_graph_expand_request_v1(request)
+                .map_err(|_| EngineError::Evidence(crate::EvidenceErrorV1::unavailable()))?;
+            let mut entries = Vec::with_capacity(selected.len());
+            for (index, candidate) in selected.iter().enumerate() {
+                let target_material = preflight.nodes.get(index).ok_or(EngineError::Storage)?;
+                let edge_material = preflight.edges.get(index).ok_or(EngineError::Storage)?;
+                let mut disclosure = request_commitment.clone();
+                disclosure.extend_from_slice(&(index as u64).to_be_bytes());
+                disclosure.extend_from_slice(&candidate.target.write_cursor.to_be_bytes());
+                disclosure.extend_from_slice(&candidate.terminal_edge_cursor.to_be_bytes());
+                let (target_revision, target_reference) =
+                    crate::evidence::mint_graph_evidence_reference(
+                        &tx,
+                        authority,
+                        frozen,
+                        target_material,
+                        None,
+                        &disclosure,
+                    )?;
+                disclosure.extend_from_slice(b"terminal-edge");
+                let (edge_revision, edge_reference) =
+                    crate::evidence::mint_graph_evidence_reference(
+                        &tx,
+                        authority,
+                        frozen,
+                        edge_material,
+                        Some(candidate.target.origin.terminal_direction),
+                        &disclosure,
+                    )?;
+                entries.push(crate::GraphEvidenceSidecarEntryV1 {
+                    schema_version: 1,
+                    target_index: u32::try_from(index).map_err(|_| EngineError::Storage)?,
+                    target_artifact_revision_id: target_revision,
+                    target_evidence_ref: target_reference,
+                    terminal_edge_artifact_revision_id: edge_revision,
+                    terminal_edge_evidence_ref: edge_reference,
+                });
             }
-            let mut target_disclosure = request_commitment.clone();
-            target_disclosure.extend_from_slice(&(index as u64).to_be_bytes());
-            target_disclosure.extend_from_slice(&target_cursor.to_be_bytes());
-            target_disclosure.extend_from_slice(&edge_cursor.to_be_bytes());
-            let target_material = preflight.nodes.get(index).ok_or(EngineError::Storage)?;
-            let edge_material = preflight.edges.get(index).ok_or(EngineError::Storage)?;
-            let (target_revision_id, target_ref) =
-                crate::evidence::mint_intrinsic_reference_for_test(
-                    authority,
-                    frozen,
-                    target_material,
-                    None,
-                    &target_disclosure,
-                )?;
-            let mut edge_disclosure = target_disclosure;
-            edge_disclosure.extend_from_slice(b"terminal-edge");
-            let (edge_revision, edge_reference) =
-                crate::evidence::mint_intrinsic_reference_for_test(
-                    authority,
-                    frozen,
-                    edge_material,
-                    Some(target.origin.terminal_direction),
-                    &edge_disclosure,
-                )?;
-            entries.push(crate::GraphEvidenceEntryForTest {
-                target_revision_id,
-                target_ref,
-                terminal_edge_revision_id: Some(edge_revision),
-                terminal_edge_ref: Some(edge_reference),
-            });
+            Some(crate::GraphEvidenceSidecarV1 { schema_version: 1, entries })
         }
-        *output.lock().map_err(|_| EngineError::Storage)? = Some((entries, preflight.stats));
-    }
+    } else {
+        None
+    };
+    let targets = selected.into_iter().map(|candidate| candidate.target).collect::<Vec<_>>();
     let per_target = if request.include_explanation {
         targets
             .iter()
@@ -1801,6 +1801,7 @@ pub(crate) fn read_graph_expand_in_tx(
         work_units,
         degradation_codes,
         explanation,
+        evidence,
     })
 }
 
@@ -1917,6 +1918,8 @@ struct RequestWire<'a> {
     result_limit: u32,
     max_work_units: String,
     include_explanation: bool,
+    #[serde(skip_serializing_if = "is_false")]
+    include_evidence: bool,
 }
 
 fn direction_str(value: TraversalDirection) -> &'static str {
@@ -2007,6 +2010,7 @@ pub fn encode_graph_expand_request_v1(
         result_limit: value.result_limit,
         max_work_units: value.max_work_units.to_string(),
         include_explanation: value.include_explanation,
+        include_evidence: value.include_evidence,
     })
     .map_err(|_| GraphExpansionErrorV1::new(GraphExpansionErrorReasonV1::GraphCorrupt, ""))
 }
@@ -2270,6 +2274,7 @@ pub fn decode_graph_expand_request_v1(
             "resultLimit",
             "maxWorkUnits",
             "includeExplanation",
+            "includeEvidence",
         ],
         "",
     )?;
@@ -2548,6 +2553,18 @@ pub fn decode_graph_expand_request_v1(
         .ok_or_else(|| {
             request_error(GraphExpansionErrorReasonV1::GraphContextInvalid, "/includeExplanation")
         })?,
+        include_evidence: root
+            .get("includeEvidence")
+            .map(|value| {
+                value.as_bool().ok_or_else(|| {
+                    request_error(
+                        GraphExpansionErrorReasonV1::GraphContextInvalid,
+                        "/includeEvidence",
+                    )
+                })
+            })
+            .transpose()?
+            .unwrap_or(false),
     };
     Ok(request)
 }
@@ -2662,6 +2679,24 @@ struct ExplanationWire<'a> {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+struct EvidenceEntryWire<'a> {
+    schema_version: u32,
+    target_index: u32,
+    target_artifact_revision_id: &'a str,
+    target_evidence_ref: &'a str,
+    terminal_edge_artifact_revision_id: &'a str,
+    terminal_edge_evidence_ref: &'a str,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EvidenceSidecarWire<'a> {
+    schema_version: u32,
+    entries: Vec<EvidenceEntryWire<'a>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ResultWire<'a> {
     schema_version: u32,
     seeds: Vec<ResolvedSeedWire<'a>>,
@@ -2670,6 +2705,8 @@ struct ResultWire<'a> {
     work_units: String,
     degradation_codes: Vec<&'static str>,
     explanation: Option<ExplanationWire<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    evidence: Option<EvidenceSidecarWire<'a>>,
 }
 
 fn origin_wire(value: &GraphOriginV1) -> OriginWire<'_> {
@@ -2750,6 +2787,23 @@ pub fn encode_graph_expand_result_v1(
         work_units: value.work_units.to_string(),
         degradation_codes: value.degradation_codes.iter().copied().map(degradation_str).collect(),
         explanation,
+        evidence: value.evidence.as_ref().map(|sidecar| EvidenceSidecarWire {
+            schema_version: sidecar.schema_version,
+            entries: sidecar
+                .entries
+                .iter()
+                .map(|entry| EvidenceEntryWire {
+                    schema_version: entry.schema_version,
+                    target_index: entry.target_index,
+                    target_artifact_revision_id: entry.target_artifact_revision_id.as_str(),
+                    target_evidence_ref: entry.target_evidence_ref.as_str(),
+                    terminal_edge_artifact_revision_id: entry
+                        .terminal_edge_artifact_revision_id
+                        .as_str(),
+                    terminal_edge_evidence_ref: entry.terminal_edge_evidence_ref.as_str(),
+                })
+                .collect(),
+        }),
     })
     .map_err(|_| GraphExpansionErrorV1::new(GraphExpansionErrorReasonV1::GraphCorrupt, ""))
 }
@@ -2996,6 +3050,19 @@ fn validate_response_coherence(value: &GraphExpandResultV1) -> Result<(), GraphE
             ));
         }
     }
+    if let Some(evidence) = &value.evidence {
+        if evidence.schema_version != 1 || evidence.entries.len() != value.targets.len() {
+            return Err(response_error(GraphExpansionErrorReasonV1::GraphCorrupt, "/evidence"));
+        }
+        for (index, entry) in evidence.entries.iter().enumerate() {
+            if entry.schema_version != 1 || entry.target_index as usize != index {
+                return Err(response_error(
+                    GraphExpansionErrorReasonV1::GraphCorrupt,
+                    format!("/evidence/entries/{index}"),
+                ));
+            }
+        }
+    }
     if let Some(explanation) = &value.explanation {
         if explanation.per_target.len() != value.targets.len() {
             return Err(response_error(
@@ -3203,6 +3270,59 @@ pub fn decode_graph_expand_result_v1(
             per_target,
         })
     };
+    let evidence = match root.get("evidence") {
+        None => None,
+        Some(value) => {
+            let object = response_object(value, "/evidence")?;
+            response_schema(object, "/evidence/schemaVersion")?;
+            let values = response_required(object, "entries", "/evidence/entries")?
+                .as_array()
+                .ok_or_else(|| {
+                    response_error(GraphExpansionErrorReasonV1::GraphCorrupt, "/evidence/entries")
+                })?;
+            let mut entries = Vec::with_capacity(values.len());
+            for (index, value) in values.iter().enumerate() {
+                let base = format!("/evidence/entries/{index}");
+                let object = response_object(value, &base)?;
+                response_schema(object, &format!("{base}/schemaVersion"))?;
+                let string = |name: &str| {
+                    response_string(
+                        response_required(object, name, &format!("{base}/{name}"))?,
+                        &format!("{base}/{name}"),
+                    )
+                };
+                let revision = |name: &str| {
+                    let value = string(name)?;
+                    crate::ArtifactRevisionId::new(value).map_err(|_| {
+                        response_error(
+                            GraphExpansionErrorReasonV1::GraphCorrupt,
+                            format!("{base}/{name}"),
+                        )
+                    })
+                };
+                let reference = |name: &str| {
+                    crate::GraphEvidenceRefV1::new(string(name)?).map_err(|_| {
+                        response_error(
+                            GraphExpansionErrorReasonV1::GraphCorrupt,
+                            format!("{base}/{name}"),
+                        )
+                    })
+                };
+                entries.push(crate::GraphEvidenceSidecarEntryV1 {
+                    schema_version: 1,
+                    target_index: response_u32(
+                        response_required(object, "targetIndex", &format!("{base}/targetIndex"))?,
+                        &format!("{base}/targetIndex"),
+                    )?,
+                    target_artifact_revision_id: revision("targetArtifactRevisionId")?,
+                    target_evidence_ref: reference("targetEvidenceRef")?,
+                    terminal_edge_artifact_revision_id: revision("terminalEdgeArtifactRevisionId")?,
+                    terminal_edge_evidence_ref: reference("terminalEdgeEvidenceRef")?,
+                });
+            }
+            Some(crate::GraphEvidenceSidecarV1 { schema_version: 1, entries })
+        }
+    };
     let result = GraphExpandResultV1 {
         schema_version: 1,
         seeds,
@@ -3211,6 +3331,7 @@ pub fn decode_graph_expand_result_v1(
         work_units,
         degradation_codes,
         explanation,
+        evidence,
     };
     validate_response_coherence(&result)?;
     Ok(result)

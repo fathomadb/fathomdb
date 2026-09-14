@@ -85,10 +85,13 @@ pub use dependency_trace::{
     decode_dependency_trace_root_for_test, encode_dependency_trace_root_for_test,
 };
 pub use evidence::{
-    EvidenceArmV1, EvidenceArtifactClassV1, EvidenceArtifactLifecycleV1, EvidenceContributionV1,
-    EvidenceErrorReasonV1, EvidenceErrorV1, EvidenceGraphOriginV1, EvidenceProjectionOriginV1,
-    EvidenceRefV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1, EvidenceSearchResultV1,
-    EvidenceSidecarEntryV1, ResolvedEvidenceV1,
+    encode_resolved_graph_evidence_v1, EvidenceArmV1, EvidenceArtifactClassV1,
+    EvidenceArtifactLifecycleV1, EvidenceContributionV1, EvidenceErrorReasonV1, EvidenceErrorV1,
+    EvidenceGraphOriginV1, EvidenceProjectionOriginV1, EvidenceRefV1, EvidenceResolveRequestV1,
+    EvidenceSearchRequestV1, EvidenceSearchResultV1, EvidenceSidecarEntryV1,
+    GraphEvidenceArtifactV1, GraphEvidenceRefV1, GraphEvidenceResolveRequestV1,
+    GraphEvidenceSidecarEntryV1, GraphEvidenceSidecarV1, ResolvedEvidenceV1,
+    ResolvedGraphEvidenceV1,
 };
 pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};
 pub use graph_expand::{
@@ -2105,6 +2108,7 @@ struct GraphExpandReaderRequest {
     request: GraphExpandRequestV1,
     frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
     projection_runtime_state: ProjectionRuntimeStateV1,
+    evidence_authority: Option<evidence::GraphEvidenceAuthority>,
     #[cfg(feature = "test-hooks")]
     test_controls: graph_expand::GraphExpandReaderControlsForTest,
     respond: SyncSender<Result<GraphExpandResultV1, EngineError>>,
@@ -2863,6 +2867,7 @@ fn reader_worker_loop(
                     &request.request,
                     request.frozen_binding.as_deref(),
                     request.projection_runtime_state,
+                    request.evidence_authority.as_ref(),
                     #[cfg(feature = "test-hooks")]
                     &request.test_controls,
                     &wal_attribution,
@@ -3210,79 +3215,6 @@ mod slice15_erasure_lock_hook {
 #[doc(hidden)]
 pub fn arm_erasure_before_primary_lock_hook_for_test(hook: Box<dyn Fn() + Send>) {
     slice15_erasure_lock_hook::arm(hook);
-}
-
-#[cfg(feature = "test-hooks")]
-#[doc(hidden)]
-pub type GraphArtifactClassForTest = EvidenceArtifactClassV1;
-
-#[cfg(feature = "test-hooks")]
-#[derive(Clone, Debug)]
-#[doc(hidden)]
-pub struct GraphEvidenceEntryForTest {
-    pub target_revision_id: String,
-    pub target_ref: EvidenceRefV1,
-    pub terminal_edge_revision_id: Option<String>,
-    pub terminal_edge_ref: Option<EvidenceRefV1>,
-}
-
-#[cfg(feature = "test-hooks")]
-#[derive(Clone, Debug)]
-#[doc(hidden)]
-pub struct GraphEvidenceResultForTest {
-    pub graph: GraphExpandResultV1,
-    pub evidence: Vec<GraphEvidenceEntryForTest>,
-    pub preflight_data_statement_count: usize,
-    pub preflight_node_rows: usize,
-    pub preflight_edge_rows: usize,
-    pub preflight_source_hash_count: usize,
-    pub preflight_source_bytes_hashed: usize,
-}
-
-#[cfg(feature = "test-hooks")]
-#[derive(Clone, Debug, Default)]
-#[doc(hidden)]
-pub struct GraphEvidencePreflightStatsForTest {
-    pub data_statement_count: usize,
-    pub node_rows: usize,
-    pub edge_rows: usize,
-    pub source_hash_count: usize,
-    pub source_bytes_hashed: usize,
-}
-
-#[cfg(feature = "test-hooks")]
-#[derive(Clone, Debug)]
-#[doc(hidden)]
-pub struct ResolvedGraphEvidenceForTest {
-    pub artifact_class: EvidenceArtifactClassV1,
-    pub artifact_revision_id: String,
-    pub logical_id: Option<String>,
-    pub canonical_source_body: String,
-    pub evidence_text: String,
-    pub artifact_kind: String,
-    pub artifact_body: Option<String>,
-    pub source_id: String,
-    pub source_version_id: String,
-    pub source_revision_id: String,
-    pub canonical_source_hash: String,
-    pub source_lifecycle: String,
-    pub source_locator: SourceLocator,
-    pub canonical_source_span: (u64, u64),
-    pub node_state: Option<String>,
-    pub node_valid_from: Option<i64>,
-    pub node_valid_until: Option<i64>,
-    pub edge_t_valid: Option<i64>,
-    pub edge_t_invalid: Option<i64>,
-    pub edge_temporal_fallback: bool,
-    pub artifact_superseded_at: Option<i64>,
-    pub source_state: String,
-    pub source_superseded_at: Option<i64>,
-    pub source_valid_from: Option<i64>,
-    pub source_valid_until: Option<i64>,
-    pub dependency: Option<SourceDependencyV1>,
-    pub edge_from: Option<String>,
-    pub edge_to: Option<String>,
-    pub edge_direction: Option<TraversalDirection>,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -8562,52 +8494,86 @@ impl Engine {
         Ok(result)
     }
 
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn graph_expand_with_graph_evidence_for_test(
+    /// Resolve one exact graph artifact previously disclosed by frozen expansion.
+    ///
+    /// The opaque reference is not authority: invalid, foreign, stale, erased,
+    /// or context-mismatched references share the nondisclosing unavailable error.
+    pub fn resolve_graph_evidence(
         &self,
-        request: &GraphExpandRequestV1,
-    ) -> Result<GraphEvidenceResultForTest, EngineError> {
-        match &request.context {
-            GraphReadContextV1::Frozen { .. } => {}
-            GraphReadContextV1::Current { .. } => return Err(EvidenceErrorV1::unavailable().into()),
+        request: &GraphEvidenceResolveRequestV1,
+    ) -> Result<ResolvedGraphEvidenceV1, EngineError> {
+        if request.schema_version != 1 {
+            return Err(EvidenceErrorV1::new(
+                EvidenceErrorReasonV1::UnsupportedSchemaVersion,
+                "/schemaVersion",
+            )
+            .into());
         }
-        let authority = {
-            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-            let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-            evidence::intrinsic_authority_for_test(
-                connection,
-                match &request.context {
-                    GraphReadContextV1::Frozen { context, .. } => context,
-                    GraphReadContextV1::Current { .. } => unreachable!(),
-                },
-            )?
-        };
-        let selected_artifacts = std::sync::Arc::new(Mutex::new(Vec::new()));
-        let evidence_output = std::sync::Arc::new(Mutex::new(None));
-        let graph = self.graph_expand_inner(
-            request,
-            graph_expand::GraphExpandReaderControlsForTest {
-                selected_artifacts: Some(std::sync::Arc::clone(&selected_artifacts)),
-                evidence_authority: Some(authority),
-                evidence_output: Some(std::sync::Arc::clone(&evidence_output)),
-                ..graph_expand::GraphExpandReaderControlsForTest::default()
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        let binding = frozen_read::authenticate(&tx, &request.context)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        frozen_read::validate_snapshot(&tx, &binding)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        let resolved =
+            evidence::resolve_graph_evidence(&tx, &request.evidence_ref, &request.context)?;
+        evidence_linearization_hooks::fire_before_resolve_return();
+        frozen_read::validate_snapshot(&tx, &binding)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        let artifact = match resolved.artifact_class {
+            EvidenceArtifactClassV1::Node => GraphEvidenceArtifactV1::Node {
+                logical_id: resolved.logical_id.ok_or_else(EvidenceErrorV1::unavailable)?,
+                kind: resolved.artifact_kind,
+                body: resolved.artifact_body.ok_or_else(EvidenceErrorV1::unavailable)?,
             },
-        )?;
-        let (evidence, stats) = evidence_output
-            .lock()
-            .map_err(|_| EngineError::Storage)?
-            .take()
-            .ok_or(EngineError::Storage)?;
-        Ok(GraphEvidenceResultForTest {
-            graph,
-            evidence,
-            preflight_data_statement_count: stats.data_statement_count,
-            preflight_node_rows: stats.node_rows,
-            preflight_edge_rows: stats.edge_rows,
-            preflight_source_hash_count: stats.source_hash_count,
-            preflight_source_bytes_hashed: stats.source_bytes_hashed,
-        })
+            EvidenceArtifactClassV1::Edge => GraphEvidenceArtifactV1::Edge {
+                logical_id: resolved.logical_id,
+                kind: resolved.artifact_kind,
+                body: resolved.artifact_body,
+                from: resolved.edge_from.ok_or_else(EvidenceErrorV1::unavailable)?,
+                to: resolved.edge_to.ok_or_else(EvidenceErrorV1::unavailable)?,
+            },
+        };
+        let artifact_lifecycle = match resolved.artifact_class {
+            EvidenceArtifactClassV1::Node => EvidenceArtifactLifecycleV1::Node {
+                state: LifecycleState::from_str_opt(resolved.node_state.as_deref().unwrap_or(""))
+                    .ok_or_else(EvidenceErrorV1::unavailable)?,
+                superseded: resolved.artifact_superseded_at.is_some(),
+            },
+            EvidenceArtifactClassV1::Edge => EvidenceArtifactLifecycleV1::Edge {
+                superseded: resolved.artifact_superseded_at.is_some(),
+                valid_at_effective: resolved
+                    .edge_t_valid
+                    .is_none_or(|at| at <= request.context.effective_valid_at)
+                    && resolved
+                        .edge_t_invalid
+                        .is_none_or(|at| at > request.context.effective_valid_at),
+            },
+        };
+        let value = ResolvedGraphEvidenceV1 {
+            schema_version: 1,
+            artifact_revision_id: ArtifactRevisionId::new(resolved.artifact_revision_id)
+                .map_err(|_| EvidenceErrorV1::unavailable())?,
+            artifact,
+            source_id: resolved.source_id,
+            source_version_id: resolved.source_version_id,
+            source_revision_id: SourceRevisionId::new(resolved.source_revision_id)
+                .map_err(|_| EvidenceErrorV1::unavailable())?,
+            locator: resolved.source_locator,
+            canonical_source_body: resolved.canonical_source_body,
+            evidence_text: resolved.evidence_text,
+            canonical_source_hash: CanonicalHash::sha256(resolved.canonical_source_hash)
+                .map_err(|_| EvidenceErrorV1::unavailable())?,
+            effective_valid_at: request.context.effective_valid_at,
+            artifact_lifecycle,
+            source_lifecycle_state: LifecycleState::from_str_opt(&resolved.source_state)
+                .ok_or_else(EvidenceErrorV1::unavailable)?,
+            dependency: resolved.dependency,
+        };
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        Ok(value)
     }
 
     #[cfg(feature = "test-hooks")]
@@ -8617,59 +8583,6 @@ impl Engine {
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         evidence::explain_intrinsic_preflights_for_test(connection)
-    }
-
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn resolve_graph_evidence_for_test(
-        &self,
-        reference: &EvidenceRefV1,
-        frozen: &FrozenReadContextV1,
-    ) -> Result<ResolvedGraphEvidenceForTest, EngineError> {
-        self.ensure_open()?;
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let binding = frozen_read::authenticate(connection, frozen)
-            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-        frozen_read::validate_snapshot(connection, &binding)
-            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
-        let resolved = evidence::resolve_intrinsic_reference_for_test(&tx, reference, frozen)?;
-        evidence_linearization_hooks::fire_before_resolve_return();
-        frozen_read::validate_snapshot(&tx, &binding)
-            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-        tx.commit().map_err(|_| EngineError::Storage)?;
-        Ok(ResolvedGraphEvidenceForTest {
-            artifact_class: resolved.artifact_class,
-            artifact_revision_id: resolved.artifact_revision_id,
-            logical_id: resolved.logical_id,
-            canonical_source_body: resolved.canonical_source_body,
-            evidence_text: resolved.evidence_text,
-            artifact_kind: resolved.artifact_kind,
-            artifact_body: resolved.artifact_body,
-            source_id: resolved.source_id,
-            source_version_id: resolved.source_version_id,
-            source_revision_id: resolved.source_revision_id,
-            canonical_source_hash: resolved.canonical_source_hash,
-            source_lifecycle: resolved.source_lifecycle,
-            source_locator: resolved.source_locator,
-            canonical_source_span: resolved.canonical_source_span,
-            node_state: resolved.node_state,
-            node_valid_from: resolved.node_valid_from,
-            node_valid_until: resolved.node_valid_until,
-            edge_t_valid: resolved.edge_t_valid,
-            edge_t_invalid: resolved.edge_t_invalid,
-            edge_temporal_fallback: resolved.edge_temporal_fallback,
-            artifact_superseded_at: resolved.artifact_superseded_at,
-            source_state: resolved.source_state,
-            source_superseded_at: resolved.source_superseded_at,
-            source_valid_from: resolved.source_valid_from,
-            source_valid_until: resolved.source_valid_until,
-            dependency: resolved.dependency,
-            edge_from: resolved.edge_from,
-            edge_to: resolved.edge_to,
-            edge_direction: resolved.edge_direction,
-        })
     }
 
     /// Hybrid search plus bounded expansion on one reader transaction under an

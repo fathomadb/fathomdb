@@ -31,6 +31,7 @@ fn current_request(seed: GraphSeedV1) -> GraphExpandRequestV1 {
         result_limit: 1,
         max_work_units: 1,
         include_explanation: true,
+        include_evidence: false,
     }
 }
 

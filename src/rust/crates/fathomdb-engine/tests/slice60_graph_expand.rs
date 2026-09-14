@@ -112,6 +112,7 @@ fn explicit_request(ids: &[&str], direction: TraversalDirection) -> GraphExpandR
         result_limit: 50,
         max_work_units: 10_000,
         include_explanation: false,
+        include_evidence: false,
     }
 }
 
@@ -614,6 +615,7 @@ fn query_seed_declines_dense_before_embedding_and_nonlogical_vector_cap() {
         result_limit: 1,
         max_work_units: 1,
         include_explanation: true,
+        include_evidence: false,
     };
     let result = opened.engine.graph_expand(&request).unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), 0, "query graph seeding entered embedding/KNN");

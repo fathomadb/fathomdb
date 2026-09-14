@@ -31,6 +31,7 @@ fn request(work: u64) -> GraphExpandRequestV1 {
         result_limit: 1,
         max_work_units: work,
         include_explanation: false,
+        include_evidence: false,
     }
 }
 

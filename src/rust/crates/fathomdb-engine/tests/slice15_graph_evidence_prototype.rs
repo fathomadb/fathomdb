@@ -267,6 +267,7 @@ fn measurement_matrix_emits_raw_samples() {
     use std::time::Instant;
 
     let (_directory, engine, request) = fixture();
+    let engine = Arc::new(engine);
     for _ in 0..50 {
         engine.graph_expand(&request).unwrap();
         engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
@@ -310,11 +311,68 @@ fn measurement_matrix_emits_raw_samples() {
             .unwrap();
         point_edge_us.push(start.elapsed().as_nanos() as u64 / 1_000);
     }
+    let mut concurrent_control_us = Vec::with_capacity(1_600);
+    let mut concurrent_hydrated_us = Vec::with_capacity(1_600);
+    for hydrated in [false, true] {
+        let barrier = Arc::new(Barrier::new(9));
+        let mut workers = Vec::new();
+        for _ in 0..8 {
+            let engine = Arc::clone(&engine);
+            let request = request.clone();
+            let barrier = Arc::clone(&barrier);
+            workers.push(thread::spawn(move || {
+                barrier.wait();
+                (0..200)
+                    .map(|_| {
+                        let start = Instant::now();
+                        if hydrated {
+                            engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+                        } else {
+                            engine.graph_expand(&request).unwrap();
+                        }
+                        start.elapsed().as_nanos() as u64 / 1_000
+                    })
+                    .collect::<Vec<_>>()
+            }));
+        }
+        barrier.wait();
+        let destination =
+            if hydrated { &mut concurrent_hydrated_us } else { &mut concurrent_control_us };
+        for worker in workers {
+            destination.extend(worker.join().unwrap());
+        }
+    }
+    let mut concurrent_point_us = Vec::with_capacity(1_600);
+    let barrier = Arc::new(Barrier::new(9));
+    let mut workers = Vec::new();
+    for _ in 0..8 {
+        let engine = Arc::clone(&engine);
+        let frozen = frozen.clone();
+        let reference = treated.evidence[0].target_ref.clone();
+        let barrier = Arc::clone(&barrier);
+        workers.push(thread::spawn(move || {
+            barrier.wait();
+            (0..200)
+                .map(|_| {
+                    let start = Instant::now();
+                    engine.resolve_graph_evidence_for_test(&reference, &frozen).unwrap();
+                    start.elapsed().as_nanos() as u64 / 1_000
+                })
+                .collect::<Vec<_>>()
+        }));
+    }
+    barrier.wait();
+    for worker in workers {
+        concurrent_point_us.extend(worker.join().unwrap());
+    }
     println!(
         "SLICE15_RAW={}",
         serde_json::json!({
             "unit": "microseconds", "control_1": control_us, "hydrated_1": hydrated_us,
             "point_node_1k": point_node_us, "point_edge_1k": point_edge_us,
+            "concurrent_control_8x200": concurrent_control_us,
+            "concurrent_hydrated_8x200": concurrent_hydrated_us,
+            "concurrent_point_8x200": concurrent_point_us,
             "control_response_bytes": encode_graph_expand_result_v1(&treated.graph).unwrap().len(),
             "sidecar_reference_bytes": treated.evidence[0].target_ref.as_str().len()
                 + treated.evidence[0].terminal_edge_ref.as_ref().unwrap().as_str().len()

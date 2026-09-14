@@ -1,14 +1,13 @@
 //! Slice 20 contract tests for exact frozen graph evidence.
 
 use fathomdb_engine::{
-    arm_erasure_before_primary_lock_hook_for_test, decode_graph_expand_result_v1,
-    encode_graph_expand_result_v1, ArtifactRevisionId, CanonicalHash, Engine, EngineError,
-    EvidenceErrorReasonV1, FrozenReadErrorReason, GraphEvidenceArtifactV1, GraphEvidenceRefV1,
-    GraphEvidenceResolveRequestV1, GraphExpandRequestV1, GraphExpansionErrorReasonV1,
-    GraphReadContextV1, GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProjectionRole,
-    ProjectionSpec, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
-    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
-    WriteProvenanceV1,
+    decode_graph_expand_result_v1, encode_graph_expand_result_v1, ArtifactRevisionId,
+    CanonicalHash, Engine, EngineError, EvidenceErrorReasonV1, FrozenReadErrorReason,
+    GraphEvidenceArtifactV1, GraphEvidenceRefV1, GraphEvidenceResolveRequestV1,
+    GraphExpandRequestV1, GraphExpansionErrorReasonV1, GraphReadContextV1, GraphSeedV1, IdSpace,
+    InitialState, PreparedWrite, ProjectionRole, ProjectionSpec, ProvenancedEdgeV1,
+    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceId, SourceLocator,
+    SourceRevisionId, SourceVersionId, TraversalDirection, WriteProvenanceV1,
 };
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
@@ -833,7 +832,9 @@ fn resolver_linearizes_before_erasure(use_operator_spelling: bool) {
     ready.wait();
 
     let (lock_tx, lock_rx) = mpsc::channel();
-    arm_erasure_before_primary_lock_hook_for_test(Box::new(move || lock_tx.send(()).unwrap()));
+    engine.arm_erasure_before_primary_lock_hook_for_test(Box::new(move || {
+        lock_tx.send(()).unwrap();
+    }));
     let (done_tx, done_rx) = mpsc::channel();
     let eraser = {
         let engine = Arc::clone(&engine);

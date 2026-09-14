@@ -381,3 +381,78 @@ fn measurement_matrix_emits_raw_samples() {
         })
     );
 }
+
+#[test]
+#[ignore = "Slice 15 writer-interference campaigns"]
+fn writer_interference_emits_campaigns() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::Instant;
+
+    let mut output = Vec::new();
+    for campaign in 0..5 {
+        for mode in ["alone", "graph", "point"] {
+            let (_directory, engine, request) = fixture();
+            let engine = Arc::new(engine);
+            let running = Arc::new(AtomicBool::new(true));
+            let background = if mode == "alone" {
+                None
+            } else {
+                let engine = Arc::clone(&engine);
+                let running = Arc::clone(&running);
+                let template = request.clone();
+                Some(thread::spawn(move || {
+                    let context = match &template.context {
+                        GraphReadContextV1::Frozen { context, .. } => context.context.clone(),
+                        _ => unreachable!(),
+                    };
+                    while running.load(Ordering::Acquire) {
+                        let Ok(frozen) = engine.freeze_read_context(&context) else { continue };
+                        let mut request = template.clone();
+                        request.context = GraphReadContextV1::Frozen {
+                            schema_version: 1,
+                            context: frozen.clone(),
+                        };
+                        if let Ok(treated) =
+                            engine.graph_expand_with_graph_evidence_for_test(&request)
+                        {
+                            if mode == "point" {
+                                let _ = engine.resolve_graph_evidence_for_test(
+                                    &treated.evidence[0].target_ref,
+                                    &frozen,
+                                );
+                            }
+                        }
+                    }
+                }))
+            };
+            let mut latencies = Vec::with_capacity(200);
+            let started = Instant::now();
+            for index in 0..200 {
+                let write_started = Instant::now();
+                engine
+                    .write(&[PreparedWrite::Node {
+                        logical_id: Some(format!("writer-{campaign}-{mode}-{index}")),
+                        kind: "noise".into(),
+                        body: "writer interference payload".into(),
+                        source_id: SourceId::new("writer-campaign").unwrap(),
+                        state: InitialState::Active,
+                        reason: None,
+                        valid_from: None,
+                        valid_until: None,
+                    }])
+                    .unwrap();
+                latencies.push(write_started.elapsed().as_nanos() as u64 / 1_000);
+            }
+            let elapsed = started.elapsed().as_secs_f64();
+            running.store(false, Ordering::Release);
+            if let Some(background) = background {
+                background.join().unwrap();
+            }
+            output.push(serde_json::json!({
+                "campaign": campaign, "mode": mode, "elapsed_us": (elapsed * 1_000_000.0) as u64,
+                "throughput_per_s": 200.0 / elapsed, "latencies_us": latencies,
+            }));
+        }
+    }
+    println!("SLICE15_WRITER={}", serde_json::Value::Array(output));
+}

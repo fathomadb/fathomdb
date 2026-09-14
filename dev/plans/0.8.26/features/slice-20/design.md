@@ -8,15 +8,20 @@ status: DRAFT
 ## Proposed public shape
 
 Add immutable artifact-revision identity to graph output for the target and,
-when present, the terminal edge. Add a frozen point operation provisionally
-named `resolve_artifact_evidence(context, artifact_revision)`.
+when present, the terminal edge through the V1 shape selected by D26-01. Stable
+identity supports joining but is not authorization. If the sidecar is selected,
+it also carries authenticated opaque references bound to the frozen graph
+disclosure; resolution accepts a reference plus equivalent frozen context,
+never an arbitrary raw revision ID.
 
 The response should be a versioned intrinsic `ResolvedArtifactEvidenceV1`, not
 the ranked-search response with invented values. It contains only facts the
-artifact and frozen authority establish: artifact and logical identity, kind,
-canonical bytes/span or locator, source identity/version, hash, lifecycle,
-dependency, and projection origin where applicable. Ranked contribution
-remains exclusive to `resolve_evidence` handles produced by ranked search.
+artifact and frozen authority establish: artifact class and logical identity,
+kind/body or edge endpoints, canonical bytes/span or locator, source
+identity/version, hash, lifecycle, and direct dependency when applicable. It
+does not fabricate ranking contribution, query score, projection generation,
+or projection origin. Ranked contribution remains exclusive to
+`resolve_evidence` handles produced by ranked search.
 
 Exact names and the in-place-result-versus-first-generation-V1-sidecar shape
 remain open pending Slice 15 evidence and a subsequent D26-01 HITL ruling.
@@ -24,11 +29,19 @@ remain open pending Slice 15 evidence and a subsequent D26-01 HITL ruling.
 
 ## Transaction and disclosure model
 
-One reader transaction validates the frozen context, finds the exact immutable
-revision, evaluates eligibility/authorization, and materializes the response.
+Evidence-bearing graph expansion requires a frozen context. One primary-
+connection transaction validates the equivalent frozen context and the
+authenticated disclosure reference, finds the exact immutable revision,
+evaluates eligibility/authorization, and materializes the response.
 Nonexistent, ineligible, unauthorized, and outside-boundary revisions use the
 same privacy-safe refusal family. The method never falls back to current state,
 logical ID, body search, or a new snapshot.
+
+Target resolution applies frozen target-node eligibility. Terminal-edge
+resolution rechecks lifecycle/source access and the graph request's committed
+edge selection; it must not apply the target-oriented `SearchFilter.kind` as an
+edge-kind rule. Evidence-bearing expansion refuses as a whole if any selected
+target or terminal edge has incomplete provenance.
 
 ## Graph semantics
 

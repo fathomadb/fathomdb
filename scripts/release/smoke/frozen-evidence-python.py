@@ -67,6 +67,45 @@ def _seed(engine: fathomdb.Engine, source_body: str) -> None:
                     },
                 },
             },
+            {
+                "kind": "claim",
+                "body": "slice20 wheel graph root",
+                "source_id": "slice10-wheel-source",
+                "logical_id": "slice20-wheel-root",
+                "provenance": {
+                    "schema_version": 1,
+                    "role": "derived",
+                    "artifact_revision_id": "slice20-wheel-root-r1",
+                    "source_version_id": "slice10-wheel-v1",
+                    "source_revision_id": "slice10-wheel-source-r1",
+                    "source_locator": {"kind": "whole_body"},
+                    "canonical_source_hash": {
+                        "algorithm": "sha256",
+                        "digest_hex": digest,
+                    },
+                },
+            },
+            {
+                "edge": {
+                    "kind": "supports",
+                    "from": "slice20-wheel-root",
+                    "to": "slice10-wheel-claim",
+                    "source_id": "slice10-wheel-source",
+                    "logical_id": "slice20-wheel-edge",
+                    "provenance": {
+                        "schema_version": 1,
+                        "role": "derived",
+                        "artifact_revision_id": "slice20-wheel-edge-r1",
+                        "source_version_id": "slice10-wheel-v1",
+                        "source_revision_id": "slice10-wheel-source-r1",
+                        "source_locator": {"kind": "whole_body"},
+                        "canonical_source_hash": {
+                            "algorithm": "sha256",
+                            "digest_hex": digest,
+                        },
+                    },
+                }
+            },
         ]
     )
     engine.register_source_dependency(
@@ -146,6 +185,52 @@ def _run_profile() -> None:
             assert resolved.canonical_source_body == source_body
             assert resolved.dependency is not None
             assert resolved.dependency.dependency_id == "slice10-wheel-dependency"
+
+            graph_result = fathomdb.graph.expand(
+                engine,
+                fathomdb.GraphExpandRequestV1(
+                    schema_version=1,
+                    seed=fathomdb.GraphExplicitSeedV1(
+                        schema_version=1,
+                        type="explicit",
+                        logical_ids=(
+                            fathomdb.IdSpace(space="logical", value="slice20-wheel-root"),
+                        ),
+                    ),
+                    direction="outgoing",
+                    edge_kinds=("supports",),
+                    target_kinds=("claim",),
+                    context=fathomdb.FrozenGraphReadContextV1(
+                        schema_version=1,
+                        type="frozen",
+                        context=frozen,
+                    ),
+                    max_depth=1,
+                    result_limit=1,
+                    max_work_units="10",
+                    include_explanation=False,
+                    include_evidence=True,
+                ),
+            )
+            assert graph_result.evidence is not None
+            graph_entry = graph_result.evidence.entries[0]
+            graph_target = engine.resolve_graph_evidence(
+                fathomdb.GraphEvidenceResolveRequestV1(
+                    evidence_ref=graph_entry.target_evidence_ref,
+                    context=frozen,
+                )
+            )
+            graph_edge = engine.resolve_graph_evidence(
+                fathomdb.GraphEvidenceResolveRequestV1(
+                    evidence_ref=graph_entry.terminal_edge_evidence_ref,
+                    context=frozen,
+                )
+            )
+            assert graph_target.artifact.logical_id == "slice10-wheel-claim"
+            assert graph_target.canonical_source_body == source_body
+            assert graph_edge.artifact.artifact_class == "edge"
+            assert graph_edge.artifact.from_id == "slice20-wheel-root"
+            assert graph_edge.artifact.to_id == "slice10-wheel-claim"
         finally:
             engine.close()
 

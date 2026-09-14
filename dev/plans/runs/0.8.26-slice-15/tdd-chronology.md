@@ -68,6 +68,11 @@ overlap. Its teardown remains reachable rather than rewritten.
 
 FIX-2's authoritative campaign follows `06a54027` and replaces all earlier
 decision numbers rather than mixing measurements from different treatments. A
-subsequent teardown commit preserves the experimental chain in history while
-leaving no prototype public method, field, codec, binding, schema, persistence
-path, or runtime behavior in the final tree.
+subsequent teardown preserves the experimental chain in history while leaving
+no prototype public method, field, codec, binding, schema, persistence path, or
+runtime behavior in the final tree.
+
+- `b7fb1878`: replaces all earlier decision evidence with the complete FIX-2
+  campaign and records the crossed writer-throughput reconsideration trigger.
+- `9e4d9d3f`, `0ac0ccf1`, `107e536f`, `8d744d53`, `11be9218`, and `09b4bfae`:
+  exact reverse-order teardown of FIX-2 and its restored transient scaffold.

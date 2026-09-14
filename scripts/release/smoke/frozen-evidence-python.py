@@ -90,6 +90,10 @@ def _run_profile() -> None:
         try:
             _seed(engine, source_body)
             frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
+            ordinary = engine.search("slice10wheelevidenceneedle")
+            expanded = engine.search_expand_frozen(
+                "slice10wheelevidenceneedle", frozen, depth=0
+            )
             plain_frozen = engine.search_frozen(
                 "slice10wheelevidenceneedle", frozen, explain=False
             )
@@ -111,6 +115,8 @@ def _run_profile() -> None:
                 )
             )
 
+            assert ordinary.results[0].body == "slice10wheelevidenceneedle"
+            assert expanded.search_hits[0].body == "slice10wheelevidenceneedle"
             assert plain_frozen.explanation is None
             assert plain_evidence.search_result.explanation is None
             assert explained_frozen.explanation is not None

@@ -1,6 +1,6 @@
 # Guides
 
-Guides cover the published 0.8.25 surface.
+Guides cover the current public surface.
 
 - [Working with structured search hits](structured-search-hits.md) — read the
   typed `id` (`IdSpace`), `kind`, `body`, `score`, `branch`, `source_id` and

@@ -30,6 +30,8 @@ ready for independent re-review.
   globally ordered exact missing-link paths RED/GREEN.
 - `a5389d3c` / `e47bdce0` — engine-scoped resolver rendezvous and both
   resolver/erase/excise transaction-order outcomes RED/GREEN.
+- `3fc9ed6e` / `6f3662b0` — engine-scoped erasure rendezvous RED/GREEN and
+  cross-engine non-consumption proof.
 - `5e84f837` — real release injection/pack/offline-install N-API graph-evidence
   proof, including declarations, exports, loader, target, and terminal edge.
 
@@ -45,7 +47,7 @@ record at `4747d4f2`.
 - Private semantic request-normalization tests: 2/2 PASS.
 - Deterministic parallel-edge evidence test: PASS.
 - Full focused graph-evidence integration suite with `test-hooks,operator`:
-  24/24 PASS.
+  25/25 PASS.
 - Runtime SQL differential: empty 0, one target 2, multiple targets and distinct
   sources 2 PASS.
 - TypeScript typecheck and focused suite: 3/3 PASS, including real-engine target

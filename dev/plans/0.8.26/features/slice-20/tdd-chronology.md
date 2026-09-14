@@ -145,6 +145,12 @@ changing the approved public contract.
   resolver-first may return its authorized copied result; erase-first and
   excise-first make graph resolution nondisclosingly unavailable. No SDK
   delivery-order claim is made.
+- `3fc9ed6e` then strengthened the same finding by moving the erasure-side
+  rendezvous off its legacy process-global seam. Its RED failed with `E0599`:
+  no method named `arm_erasure_before_primary_lock_hook_for_test` existed on
+  `Arc<Engine>`. `6f3662b0` adds the engine-scoped erasure seam, retains the
+  legacy hook only for older unrelated tests, and proves neither resolver nor
+  erasure rendezvous can be consumed by a different Engine.
 - `5e84f837` extends the repository-owned local-native release smoke. It uses the
   real publish-time optional-dependency injection, packs the matched platform
   package and thin main package, performs a clean offline install, checks the
@@ -154,7 +160,7 @@ changing the approved public contract.
   `slice20 installed N-API graph evidence: pass` was observed, followed by the
   canonical smoke completion marker.
 
-Final focused verification passed: Rust graph evidence 24/24, selector property
+Final focused verification passed: Rust graph evidence 25/25, selector property
 and framing 3/3, request normalization 2/2, no-SQL nonce 1/1, engine check,
 engine Clippy with `-D warnings`, TypeScript typecheck and real-NAPI 3/3, shell
 syntax, and strict public documentation.

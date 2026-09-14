@@ -598,6 +598,141 @@ fn measurement_matrix_emits_raw_samples() {
         }
         memex_batch_50_us.push(started.elapsed().as_nanos() as u64 / 1_000);
     }
+    let mut concurrent_control_50_us = Vec::with_capacity(1_600);
+    let mut concurrent_hydrated_50_us = Vec::with_capacity(1_600);
+    let many = Arc::new(many);
+    for hydrated in [false, true] {
+        let barrier = Arc::new(Barrier::new(9));
+        let mut workers = Vec::new();
+        for _ in 0..8 {
+            let engine = Arc::clone(&many);
+            let request = many_request.clone();
+            let barrier = Arc::clone(&barrier);
+            workers.push(thread::spawn(move || {
+                barrier.wait();
+                (0..200)
+                    .map(|_| {
+                        let started = Instant::now();
+                        if hydrated {
+                            engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+                        } else {
+                            engine.graph_expand(&request).unwrap();
+                        }
+                        started.elapsed().as_nanos() as u64 / 1_000
+                    })
+                    .collect::<Vec<_>>()
+            }));
+        }
+        barrier.wait();
+        let destination =
+            if hydrated { &mut concurrent_hydrated_50_us } else { &mut concurrent_control_50_us };
+        for worker in workers {
+            destination.extend(worker.join().unwrap());
+        }
+    }
+
+    let (_max_directory, max_engine, max_request) = fixture_max_work();
+    assert_eq!(max_engine.graph_expand(&max_request).unwrap().work_units, 10_000);
+    let mut control_10k_us = Vec::with_capacity(30);
+    let mut hydrated_10k_us = Vec::with_capacity(30);
+    for index in 0..30 {
+        let measure_control = || {
+            let started = Instant::now();
+            let result = max_engine.graph_expand(&max_request).unwrap();
+            assert_eq!(result.work_units, 10_000);
+            started.elapsed().as_nanos() as u64 / 1_000
+        };
+        let measure_hydrated = || {
+            let started = Instant::now();
+            let result =
+                max_engine.graph_expand_with_graph_evidence_for_test(&max_request).unwrap();
+            assert_eq!(result.graph.work_units, 10_000);
+            started.elapsed().as_nanos() as u64 / 1_000
+        };
+        if index % 2 == 0 {
+            control_10k_us.push(measure_control());
+            hydrated_10k_us.push(measure_hydrated());
+        } else {
+            hydrated_10k_us.push(measure_hydrated());
+            control_10k_us.push(measure_control());
+        }
+    }
+
+    let large_source = "x".repeat(100 * 1_024);
+    let (_large_directory, large, large_request) = fixture_with_source(&large_source);
+    let large_treated = large.graph_expand_with_graph_evidence_for_test(&large_request).unwrap();
+    let large_frozen = match &large_request.context {
+        GraphReadContextV1::Frozen { context, .. } => context,
+        _ => unreachable!(),
+    };
+    let mut point_node_100k_us = Vec::with_capacity(100);
+    let mut point_edge_100k_us = Vec::with_capacity(100);
+    for index in 0..100 {
+        let (first, second) = if index % 2 == 0 {
+            (
+                large_treated.evidence[0].target_ref.clone(),
+                large_treated.evidence[0].terminal_edge_ref.clone().unwrap(),
+            )
+        } else {
+            (
+                large_treated.evidence[0].terminal_edge_ref.clone().unwrap(),
+                large_treated.evidence[0].target_ref.clone(),
+            )
+        };
+        let started = Instant::now();
+        large.resolve_graph_evidence_for_test(&first, large_frozen).unwrap();
+        let first_us = started.elapsed().as_nanos() as u64 / 1_000;
+        let started = Instant::now();
+        large.resolve_graph_evidence_for_test(&second, large_frozen).unwrap();
+        let second_us = started.elapsed().as_nanos() as u64 / 1_000;
+        if index % 2 == 0 {
+            point_node_100k_us.push(first_us);
+            point_edge_100k_us.push(second_us);
+        } else {
+            point_edge_100k_us.push(first_us);
+            point_node_100k_us.push(second_us);
+        }
+    }
+
+    let sidecar_1_bytes = serde_json::to_vec(&serde_json::json!({
+        "graph": serde_json::from_slice::<serde_json::Value>(&encode_graph_expand_result_v1(&treated.graph).unwrap()).unwrap(),
+        "evidence": treated.evidence.iter().map(|entry| serde_json::json!({
+            "targetRevisionId": entry.target_revision_id,
+            "targetEvidenceRef": entry.target_ref.as_str(),
+            "terminalEdgeRevisionId": entry.terminal_edge_revision_id,
+            "terminalEdgeEvidenceRef": entry.terminal_edge_ref.as_ref().map(EvidenceRefV1::as_str),
+        })).collect::<Vec<_>>(),
+    })).unwrap().len();
+    let sidecar_50_bytes = serde_json::to_vec(&serde_json::json!({
+        "graph": serde_json::from_slice::<serde_json::Value>(&encode_graph_expand_result_v1(&many_treated.graph).unwrap()).unwrap(),
+        "evidence": many_treated.evidence.iter().map(|entry| serde_json::json!({
+            "targetRevisionId": entry.target_revision_id,
+            "targetEvidenceRef": entry.target_ref.as_str(),
+            "terminalEdgeRevisionId": entry.terminal_edge_revision_id,
+            "terminalEdgeEvidenceRef": entry.terminal_edge_ref.as_ref().map(EvidenceRefV1::as_str),
+        })).collect::<Vec<_>>(),
+    })).unwrap().len();
+    let inline_50_bytes = serde_json::to_vec(&serde_json::json!({
+        "targets": many_treated.graph.targets.iter().zip(&many_treated.evidence).map(|(target, entry)| serde_json::json!({
+            "logicalId": target.logical_id, "kind": target.kind, "body": target.body,
+            "writeCursor": target.write_cursor.to_string(), "origin": {
+                "seedLogicalId": target.origin.seed_logical_id,
+                "predecessorLogicalId": target.origin.predecessor_logical_id,
+                "targetLogicalId": target.origin.target_logical_id,
+                "hopCount": target.origin.hop_count,
+                "terminalEdgeKind": target.origin.terminal_edge_kind,
+                "terminalDirection": match target.origin.terminal_direction {
+                    TraversalDirection::Outgoing => "outgoing",
+                    TraversalDirection::Incoming => "incoming",
+                    TraversalDirection::Both => "both",
+                },
+            },
+            "targetRevisionId": entry.target_revision_id,
+            "targetEvidenceRef": entry.target_ref.as_str(),
+            "terminalEdgeRevisionId": entry.terminal_edge_revision_id,
+            "terminalEdgeEvidenceRef": entry.terminal_edge_ref.as_ref().map(EvidenceRefV1::as_str),
+        })).collect::<Vec<_>>()
+    })).unwrap().len();
     println!(
         "SLICE15_RAW={}",
         serde_json::json!({
@@ -607,9 +742,16 @@ fn measurement_matrix_emits_raw_samples() {
             "concurrent_hydrated_8x200": concurrent_hydrated_us,
             "concurrent_point_8x200": concurrent_point_us,
             "control_50": control_50_us, "hydrated_50": hydrated_50_us,
+            "concurrent_control_50_8x200": concurrent_control_50_us,
+            "concurrent_hydrated_50_8x200": concurrent_hydrated_50_us,
+            "control_10k_work": control_10k_us, "hydrated_10k_work": hydrated_10k_us,
             "memex_batch_50": memex_batch_50_us,
+            "point_node_100k": point_node_100k_us, "point_edge_100k": point_edge_100k_us,
+            "canonical_source_100k_bytes": large_source.len(),
             "control_response_50_bytes": encode_graph_expand_result_v1(&many_treated.graph).unwrap().len(),
             "control_response_bytes": encode_graph_expand_result_v1(&treated.graph).unwrap().len(),
+            "sidecar_1_bytes": sidecar_1_bytes, "sidecar_50_bytes": sidecar_50_bytes,
+            "inline_50_bytes": inline_50_bytes,
             "sidecar_reference_bytes": treated.evidence[0].target_ref.as_str().len()
                 + treated.evidence[0].terminal_edge_ref.as_ref().unwrap().as_str().len()
                 + treated.evidence[0].target_revision_id.len()
@@ -691,4 +833,143 @@ fn writer_interference_emits_campaigns() {
         }
     }
     println!("SLICE15_WRITER={}", serde_json::Value::Array(output));
+}
+
+#[cfg(target_os = "linux")]
+fn peak_rss_bytes() -> u64 {
+    std::fs::read_to_string("/proc/self/status")
+        .unwrap()
+        .lines()
+        .find_map(|line| line.strip_prefix("VmHWM:"))
+        .and_then(|value| value.split_whitespace().next())
+        .unwrap()
+        .parse::<u64>()
+        .unwrap()
+        * 1_024
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "Slice 15 process-isolated RSS campaigns"]
+fn isolated_rss_emits_campaigns() {
+    const CHILD: &str = "FATHOMDB_SLICE15_RSS_CHILD";
+    const PREFIX: &str = "SLICE15_RSS_CHILD=";
+    if let Ok(mode) = std::env::var(CHILD) {
+        let (_directory, engine, request) = fixture_many(50);
+        let baseline = peak_rss_bytes();
+        if mode == "treatment" {
+            engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+        } else {
+            engine.graph_expand(&request).unwrap();
+        }
+        println!("{PREFIX}{}", peak_rss_bytes().saturating_sub(baseline));
+        return;
+    }
+
+    let executable = std::env::current_exe().unwrap();
+    let mut samples = Vec::new();
+    for campaign in 0..5 {
+        let order =
+            if campaign % 2 == 0 { ["control", "treatment"] } else { ["treatment", "control"] };
+        for mode in order {
+            let output = std::process::Command::new(&executable)
+                .arg("--exact")
+                .arg("isolated_rss_emits_campaigns")
+                .arg("--ignored")
+                .arg("--nocapture")
+                .arg("--test-threads=1")
+                .env(CHILD, mode)
+                .output()
+                .unwrap();
+            assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            let bytes = stdout
+                .lines()
+                .find_map(|line| line.split_once(PREFIX).map(|(_, value)| value))
+                .unwrap()
+                .parse::<u64>()
+                .unwrap();
+            samples.push(serde_json::json!({
+                "campaign": campaign, "mode": mode, "peak_rss_delta_bytes": bytes,
+            }));
+        }
+    }
+    println!("SLICE15_RSS={}", serde_json::Value::Array(samples));
+}
+
+#[cfg(feature = "operator")]
+#[test]
+#[ignore = "Slice 15 paired erase/excise latency campaigns"]
+fn erasure_latency_emits_paired_observations() {
+    use std::time::Instant;
+
+    fn held_observation(excise: bool) -> (u64, &'static str) {
+        let (_directory, engine, request) = fixture();
+        let engine = Arc::new(engine);
+        let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+        let frozen = match &request.context {
+            GraphReadContextV1::Frozen { context, .. } => context.clone(),
+            _ => unreachable!(),
+        };
+        let reference = treated.evidence[0].target_ref.clone();
+        let entered = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let hook_entered = Arc::clone(&entered);
+        let hook_release = Arc::clone(&release);
+        arm_evidence_before_resolve_return_hook_for_test(Box::new(move || {
+            hook_entered.wait();
+            hook_release.wait();
+        }));
+        let resolver_engine = Arc::clone(&engine);
+        let resolver = thread::spawn(move || {
+            resolver_engine.resolve_graph_evidence_for_test(&reference, &frozen)
+        });
+        entered.wait();
+        let eraser_engine = Arc::clone(&engine);
+        let eraser = thread::spawn(move || {
+            let started = Instant::now();
+            let outcome = if excise {
+                eraser_engine.excise_source("source-owner").map(|_| ())
+            } else {
+                eraser_engine.erase_source("source-owner").map(|_| ())
+            };
+            (started.elapsed().as_nanos() as u64 / 1_000, outcome)
+        });
+        thread::yield_now();
+        release.wait();
+        resolver.join().unwrap().unwrap();
+        let (elapsed, outcome) = eraser.join().unwrap();
+        let label = match outcome {
+            Ok(()) => "complete",
+            Err(fathomdb_engine::EngineError::ErasureIncomplete { stage, .. })
+                if stage == "wal_checkpoint" =>
+            {
+                "wal_checkpoint"
+            }
+            Err(error) => panic!("unexpected erasure result: {error:?}"),
+        };
+        (elapsed, label)
+    }
+
+    let mut samples = Vec::new();
+    for campaign in 0..20 {
+        for excise in [false, true] {
+            let (_directory, engine, _request) = fixture();
+            let started = Instant::now();
+            let idle = if excise {
+                engine.excise_source("source-owner").map(|_| ())
+            } else {
+                engine.erase_source("source-owner").map(|_| ())
+            };
+            let idle_us = started.elapsed().as_nanos() as u64 / 1_000;
+            assert!(idle.is_ok());
+            let (held_us, outcome) = held_observation(excise);
+            samples.push(serde_json::json!({
+                "campaign": campaign,
+                "operation": if excise { "excise" } else { "erase" },
+                "idle_us": idle_us, "held_us": held_us, "held_outcome": outcome,
+            }));
+        }
+    }
+    println!("SLICE15_ERASURE={}", serde_json::Value::Array(samples));
 }

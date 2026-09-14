@@ -7,15 +7,16 @@ use fathomdb_engine::{
     arm_evidence_before_resolve_return_hook_for_test, encode_graph_expand_result_v1,
     ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, CanonicalHash, Engine,
     EvidenceErrorReasonV1, EvidenceRefV1, GraphArtifactClassForTest, GraphExpandRequestV1,
-    GraphReadContextV1, GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProvenancedEdgeV1,
-    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1,
-    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
-    WriteProvenanceV1,
+    GraphReadContextV1, GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProjectionRole,
+    ProjectionSpec, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
+    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    TraversalDirection, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
+use std::collections::BTreeSet;
 use std::sync::{Arc, Barrier, Mutex, MutexGuard};
 use std::thread;
 
@@ -168,6 +169,123 @@ fn fixture_1k() -> (TempDir, Engine, GraphExpandRequestV1) {
     fixture_with_source(&"x".repeat(1_024))
 }
 
+fn eligibility_fixture() -> (TempDir, Engine, ReadView) {
+    let directory = TempDir::new().unwrap();
+    let path = directory.path().join(format!("eligibility{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "owner".into(),
+                roles: BTreeSet::from([ProjectionRole::Filterable]),
+                fts: None,
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    let source = r#"{"owner":"alice","text":"canonical source"}"#;
+    let provenance = |revision: &str| {
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(revision).unwrap(),
+            SourceVersionId::new("filter-v1").unwrap(),
+            SourceRevisionId::new("filter-source-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(digest(source)).unwrap(),
+        )
+    };
+    opened
+        .engine
+        .write(&[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("filter-source".into()),
+                kind: "note".into(),
+                body: source.into(),
+                source_id: SourceId::new("filter-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("filter-source-r1").unwrap(),
+                    SourceVersionId::new("filter-v1").unwrap(),
+                ),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("filter-root".into()),
+                kind: "note".into(),
+                body: r#"{"owner":"alice","text":"root"}"#.into(),
+                source_id: SourceId::new("filter-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: provenance("filter-root-r1"),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("filter-target".into()),
+                kind: "note".into(),
+                body: r#"{"owner":"alice","text":"target"}"#.into(),
+                source_id: SourceId::new("filter-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: provenance("filter-target-r1"),
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("filter-edge".into()),
+                kind: "supports".into(),
+                from: "filter-root".into(),
+                to: "filter-target".into(),
+                source_id: SourceId::new("filter-owner").unwrap(),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: Some(0.8),
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: provenance("filter-edge-r1"),
+            }),
+        ])
+        .unwrap();
+    register_dependencies(
+        &opened.engine,
+        "slice15-filter-dependencies",
+        &["filter-target-r1".into(), "filter-edge-r1".into()],
+    );
+    opened.engine.drain(30_000).unwrap();
+    (directory, opened.engine, ReadView { valid_as_of: Some(1_800_000_000), ..ReadView::default() })
+}
+
+fn eligibility_request(
+    engine: &Engine,
+    view: &ReadView,
+    filter: SearchFilter,
+) -> GraphExpandRequestV1 {
+    let context = ReadContextV1::new(view.clone(), filter).unwrap();
+    GraphExpandRequestV1 {
+        schema_version: 1,
+        seed: GraphSeedV1::Explicit {
+            schema_version: 1,
+            logical_ids: vec![IdSpace::logical("filter-root")],
+        },
+        direction: TraversalDirection::Outgoing,
+        edge_kinds: vec!["supports".into()],
+        target_kinds: vec!["note".into()],
+        context: GraphReadContextV1::Frozen {
+            schema_version: 1,
+            context: engine.freeze_read_context(&context).unwrap(),
+        },
+        max_depth: 1,
+        result_limit: 50,
+        max_work_units: 10_000,
+        include_explanation: false,
+    }
+}
+
 fn unavailable(error: fathomdb_engine::EngineError) {
     assert!(matches!(error, fathomdb_engine::EngineError::Evidence(ref value)
         if value.reason == EvidenceErrorReasonV1::EvidenceUnavailable
@@ -307,14 +425,54 @@ fn authenticated_target_and_edge_refs_resolve_intrinsic_evidence() {
     assert_eq!(target.source_version_id, "source-v1");
     assert_eq!(target.source_revision_id, "source-r1");
     assert_eq!(target.canonical_source_hash, digest("canonical source bytes"));
-    assert_eq!(target.artifact_lifecycle, "active");
-    assert_eq!(target.source_lifecycle, "active");
-    assert!(target.dependency_id.is_some());
+    assert_eq!(target.source_locator, SourceLocator::WholeBody);
+    assert_eq!(target.canonical_source_span, (0, 22));
+    assert_eq!(target.node_state.as_deref(), Some("active"));
+    assert!(target.edge_t_valid.is_none());
+    assert_eq!(target.source_state, "active");
+    let dependency = target.dependency.as_ref().unwrap();
+    assert_eq!(dependency.source_revision_id.as_str(), "source-r1");
+    assert_eq!(dependency.derived_revision_id.as_str(), "target-r1");
+    assert!(dependency.registered_dependency_generation > 0);
     assert_eq!(edge.artifact_kind, "supports");
     assert_eq!(edge.edge_from.as_deref(), Some("root"));
     assert_eq!(edge.edge_to.as_deref(), Some("target"));
     assert_eq!(edge.edge_direction, Some(TraversalDirection::Outgoing));
-    assert!(edge.dependency_id.is_some());
+    assert!(edge.node_state.is_none());
+    assert!(edge.edge_t_valid.is_none());
+    assert!(!edge.edge_temporal_fallback);
+    assert_eq!(edge.dependency.as_ref().unwrap().derived_revision_id.as_str(), "edge-winner-r1");
+}
+
+#[test]
+fn target_filters_govern_nodes_but_do_not_reject_disclosed_terminal_edges() {
+    let _serial = serialize_fixture();
+    let (_directory, engine, view) = eligibility_fixture();
+    let mut source_type = SearchFilter::default();
+    source_type.source_type = Some("note".into());
+    let mut status = SearchFilter::default();
+    status.status = Some(String::new());
+    let mut created_after = SearchFilter::default();
+    created_after.created_after = Some(0);
+    let mut attributes = SearchFilter::default();
+    attributes.attributes = vec![("owner".into(), "alice".into())];
+    let filters = [source_type, status, created_after, attributes];
+    for filter in filters {
+        let request = eligibility_request(&engine, &view, filter);
+        let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+        assert_eq!(treated.graph.targets[0].logical_id, "filter-target");
+        let frozen = match &request.context {
+            GraphReadContextV1::Frozen { context, .. } => context,
+            _ => unreachable!(),
+        };
+        engine.resolve_graph_evidence_for_test(&treated.evidence[0].target_ref, frozen).unwrap();
+        engine
+            .resolve_graph_evidence_for_test(
+                treated.evidence[0].terminal_edge_ref.as_ref().unwrap(),
+                frozen,
+            )
+            .unwrap();
+    }
 }
 
 #[test]
@@ -983,7 +1141,7 @@ fn writer_interference_emits_campaigns() {
             running.store(false, Ordering::Release);
             let successful_background_ops =
                 background.map_or(0, |background| background.join().unwrap());
-            assert!(mode == "alone" || successful_background_ops > 0);
+            assert!(mode == "alone" || successful_background_ops >= 20);
             output.push(serde_json::json!({
                 "campaign": campaign, "mode": mode, "elapsed_us": (elapsed * 1_000_000.0) as u64,
                 "throughput_per_s": 200.0 / elapsed, "latencies_us": latencies,

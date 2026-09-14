@@ -125,6 +125,104 @@ fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
     fixture_with_pre_freeze_sql(None)
 }
 
+fn fixture_with_two_targets() -> (TempDir, Engine, GraphExpandRequestV1) {
+    let (directory, engine, request) = fixture();
+    let source = "canonical source bytes";
+    let derived = |revision: &str| {
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(revision).unwrap(),
+            SourceVersionId::new("source-v1").unwrap(),
+            SourceRevisionId::new("source-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(digest(source)).unwrap(),
+        )
+    };
+    engine
+        .write(&[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("target-two".into()),
+                kind: "claim".into(),
+                body: "target two".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived("target-two-r1"),
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("winner-two".into()),
+                kind: "supports".into(),
+                from: "root".into(),
+                to: "target-two".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: Some(0.8),
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived("edge-two-r1"),
+            }),
+        ])
+        .unwrap();
+    engine.drain(30_000).unwrap();
+    let context = match request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.context,
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let request = GraphExpandRequestV1 {
+        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        ..request
+    };
+    (directory, engine, request)
+}
+
+#[test]
+fn evidence_hydration_executes_zero_or_exactly_two_sql_statements() {
+    let (_directory, engine, mut one) = fixture();
+    one.include_evidence = true;
+    let (without_one, baseline_one) = engine
+        .graph_expand_with_statement_count_for_test(&GraphExpandRequestV1 {
+            include_evidence: false,
+            ..one.clone()
+        })
+        .unwrap();
+    assert_eq!(without_one.targets.len(), 1);
+    let (with_one, evidence_one) = engine.graph_expand_with_statement_count_for_test(&one).unwrap();
+    assert_eq!(with_one.targets.len(), 1);
+    assert_eq!(evidence_one - baseline_one, 2);
+
+    let mut empty = one;
+    empty.target_kinds = vec!["no-such-kind".into()];
+    let (without_empty, baseline_empty) = engine
+        .graph_expand_with_statement_count_for_test(&GraphExpandRequestV1 {
+            include_evidence: false,
+            ..empty.clone()
+        })
+        .unwrap();
+    assert!(without_empty.targets.is_empty());
+    let (with_empty, evidence_empty) =
+        engine.graph_expand_with_statement_count_for_test(&empty).unwrap();
+    assert!(with_empty.targets.is_empty());
+    assert_eq!(evidence_empty - baseline_empty, 0);
+
+    let (_directory, engine, mut multiple) = fixture_with_two_targets();
+    multiple.include_evidence = true;
+    let (without_multiple, baseline_multiple) = engine
+        .graph_expand_with_statement_count_for_test(&GraphExpandRequestV1 {
+            include_evidence: false,
+            ..multiple.clone()
+        })
+        .unwrap();
+    assert_eq!(without_multiple.targets.len(), 2);
+    let (with_multiple, evidence_multiple) =
+        engine.graph_expand_with_statement_count_for_test(&multiple).unwrap();
+    assert_eq!(with_multiple.targets.len(), 2);
+    assert_eq!(evidence_multiple - baseline_multiple, 2);
+}
+
 fn temporal_fixture(
     effective_valid_at: i64,
     source_window: (Option<i64>, Option<i64>),

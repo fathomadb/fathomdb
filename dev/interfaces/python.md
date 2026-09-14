@@ -1026,3 +1026,10 @@ ordinary result shape is unchanged.
 canonical source bytes. Invalid, foreign, stale, context-mismatched, or
 unauthorized references raise nondisclosing `EvidenceError`. There is no raw-ID
 lookup or batch resolver.
+
+`GraphTargetV1.write_cursor` remains unchanged; sidecars and resolved evidence
+are cursor-free. Evidence refuses `include_out_of_window=True` at
+`/context/context/view/includeOutOfWindow` and applies start-inclusive,
+end-exclusive validity to the target, winning edge, and canonical source.
+Post-mint database mutation remains a frozen `state_drifted` failure before
+evidence hydration.

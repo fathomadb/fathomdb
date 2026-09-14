@@ -91,6 +91,13 @@ terminal edge. Resolution rechecks the frozen authority and present visibility.
 Do not persist or reinterpret opaque references, and do not substitute
 non-frozen graph expansion if exact evidence is required.
 
+Graph evidence uses actual start-inclusive, end-exclusive validity for the
+target, winning edge, and canonical source. It refuses a frozen context whose
+view enables `includeOutOfWindow`; mint a normal frozen context instead. A
+database mutation after the context was minted is reported as frozen-state
+drift before provenance detail is inspected. Rerun the whole freeze, expand,
+and resolve sequence after any such mutation.
+
 When requested, both frozen search operations return a non-empty correlation
 identity. With local telemetry enabled it is the matching `q...` query identity;
 without telemetry it is an Engine-minted `x...` identity. Disabling explanation

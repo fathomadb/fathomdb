@@ -182,3 +182,9 @@ union and canonical source material. References use the graph-only `fdbgev1`
 domain and are not interchangeable with ranked evidence references. Evidence
 request/refusal envelopes use `FDB_EVIDENCE`; malformed graph result sidecars
 use `FDB_GRAPH_EXPANSION` with exact RFC 6901 paths.
+
+The reference wire grammar is exactly `fdbgev1.` followed by 696 lowercase hex
+characters (`nonce[16] || ciphertext[300] || mac[32]`), 704 characters total.
+The evidence sidecar and resolver carry no write cursor; the pre-existing graph
+target `writeCursor` is unchanged. `includeOutOfWindow: true` is refused at
+`/context/context/view/includeOutOfWindow` for evidence-bearing expansion.

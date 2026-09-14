@@ -1060,3 +1060,10 @@ shape.
 returns `ResolvedGraphEvidenceV1`: the exact closed node-or-edge artifact,
 canonical source bytes/locator/hash, lifecycle, source identities, and optional
 direct dependency. It accepts no raw identity and makes no ranking claim.
+
+`GraphTargetV1.writeCursor` remains unchanged; sidecars and resolved evidence
+are cursor-free. Evidence refuses `includeOutOfWindow: true` at
+`/context/context/view/includeOutOfWindow` and applies start-inclusive,
+end-exclusive validity to the target, winning edge, and canonical source.
+Post-mint database mutation remains a frozen `state_drifted` failure before
+evidence hydration.

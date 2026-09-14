@@ -34,11 +34,37 @@ tamper-evident, and confidentiality-protected. Invalid, foreign, stale, or
 unauthorized references fail nondisclosingly. Ordinary expansion request and
 response bytes remain unchanged when the option is omitted or false.
 
+The public reference grammar is exactly `fdbgev1.` plus 696 lowercase
+hexadecimal characters encoding a 16-byte nonce, encrypted 300-byte selector,
+and 32-byte MAC. The selector commits independently to database, semantic frozen
+context, normalized request, target and predecessor identities, terminal edge
+kind, and both revision identities. Encryption uses ten counter-separated HMAC
+stream blocks; stream, MAC, and every commitment have distinct domains.
+
+Evidence hydration retains the already-selected terminal edge cursor. Parallel
+edges therefore use the traversal's existing ascending incident-edge tuple; no
+second edge selection occurs during hydration. Nonempty results issue exactly
+two bounded hydration statements. Nullable ordinal-preserving joins allow a
+global authorization phase over target and edge rows before any locator, hash,
+or source bytes are interpreted. Eligibility predicates, including source
+metadata and attributes, are compiled into those statements rather than issued
+as helper queries.
+
+Evidence always applies start-inclusive, end-exclusive validity to targets,
+winning edges, and canonical sources. An authenticated frozen context with
+`includeOutOfWindow=true` is refused at
+`/context/context/view/includeOutOfWindow`. Snapshot validation remains first:
+storage mutation after context mint returns frozen-read `state_drifted`; detailed
+provenance precedence is observable only for state authenticated by the supplied
+frozen context.
+
 ## Consequences
 
 - Memex can cite the exact graph artifacts selected by one frozen traversal.
 - Empty evidence-bearing results need no hydration query; nonempty results use
   exactly two bounded class-specific hydration statements.
+- `GraphTargetV1.writeCursor` remains public and unchanged; evidence sidecars
+  and resolved evidence expose immutable revision identity, not mutable cursors.
 - No schema, durable evidence table, raw-ID resolver, batch resolver, migration,
   or parallel V2 API is introduced.
 - Current-context graph evidence is deliberately refused rather than weakened.

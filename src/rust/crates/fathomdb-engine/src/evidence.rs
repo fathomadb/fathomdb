@@ -2084,7 +2084,17 @@ pub(crate) fn resolve_graph_evidence(
         EvidenceArtifactClassV1::Edge => Ok(true),
     }
     .map_err(|_| EngineError::Storage)?;
-    if !eligible || stored.completeness != "complete" {
+    let mut source_filter = frozen.context.eligibility.clone();
+    source_filter.kind = None;
+    source_filter.source_type = None;
+    let source_eligible = crate::text_hit_passes_filter(
+        connection,
+        stored.source_cursor,
+        &stored.source_kind,
+        Some(&source_filter),
+    )
+    .map_err(|_| EngineError::Storage)?;
+    if !eligible || !source_eligible || stored.completeness != "complete" {
         return Err(EvidenceErrorV1::unavailable().into());
     }
     validate_source_bytes(&stored)?;

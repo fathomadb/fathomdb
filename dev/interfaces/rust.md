@@ -1206,3 +1206,11 @@ returns `ResolvedGraphEvidenceV1`: the exact node-or-edge artifact, canonical
 source bytes and locator, hash, lifecycle, source identities, and optional
 direct dependency. It returns no ranking or projection claims. Current context,
 raw logical/revision IDs, batching, and schema changes are outside this contract.
+`GraphTargetV1.write_cursor` remains part of the graph result; the evidence
+sidecar and resolver add no cursor field. Evidence rejects an authenticated
+frozen view with `include_out_of_window=true` at
+`/context/context/view/includeOutOfWindow` and otherwise applies
+start-inclusive, end-exclusive target, terminal-edge, and source validity.
+Mutation after context mint is a frozen snapshot drift error before evidence
+hydration. For authenticated state, missing provenance is distinguished from an
+unavailable linked source only after global target-and-edge authorization.

@@ -2937,6 +2937,8 @@ mod tests {
     #[cfg(feature = "test-hooks")]
     #[test]
     fn graph_nonce_generation_executes_no_sql_statement() {
+        // Raw connections must share Engine's configure-before-open ordering.
+        crate::configure_runtime_for_open().unwrap();
         let connection = Connection::open_in_memory().unwrap();
         NONCE_SQL_STATEMENTS.store(0, Ordering::SeqCst);
         connection

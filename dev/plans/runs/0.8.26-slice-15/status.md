@@ -41,6 +41,12 @@ Final-tree verification:
 - `cargo clippy --workspace --all-targets -- -D warnings`: passed;
 - `cargo check --workspace --all-targets`: passed.
 
+After the final writer-harness correction, the repository markdown/plan checks
+and the 68-test focused final-tree suite passed again. The correction changed
+only transient measurement code and durable evidence; exact teardown returned
+the product tree to the same bytes covered by the canonical and workspace
+gates above.
+
 The canonical verifier used a disposable worktree virtual environment containing
 the exact-source test-hooks wheel and pinned dev tools. `PYTHONPATH` named the
 worktree source so Python child processes imported the repo-only `eval` package.

@@ -72,7 +72,26 @@ subsequent teardown preserves the experimental chain in history while leaving
 no prototype public method, field, codec, binding, schema, persistence path, or
 runtime behavior in the final tree.
 
-- `b7fb1878`: replaces all earlier decision evidence with the complete FIX-2
-  campaign and records the crossed writer-throughput reconsideration trigger.
+- `b7fb1878`: replaces the earlier decision evidence after the first FIX-2
+  review. Its non-writer measurements remain authoritative, but its writer
+  subset is superseded below because the foreground loop contained
+  load-dependent progress waits.
 - `9e4d9d3f`, `0ac0ccf1`, `107e536f`, `8d744d53`, `11be9218`, and `09b4bfae`:
   exact reverse-order teardown of FIX-2 and its restored transient scaffold.
+- `0c2367e3`, `52ce6762`, `2e0bd4a8`, `ab9b702f`, `42f7adb3`, and `6afd362d`:
+  restore the complete transient prototype in history-preserving order for the
+  final writer-harness correction.
+- `80161bfc`: RED contract for a fixed-duration foreground writer helper whose
+  signature cannot observe background progress.
+- `d47574fb`: GREEN independent one-second writer issuance. Its first run
+  correctly refused the point arm because the common 250-microsecond pacing
+  allowed no natural timed overlap; no sample from that run was retained.
+- `b7a03ca2`: changes the common control/loaded pacing to two milliseconds,
+  allowing natural sustained overlap without any load-dependent timed wait.
+- `eef87183`: replaces only the invalid writer subset and derived conclusions.
+  Five balanced campaigns naturally observed 807–828 background graph
+  operations and 339–363 background point operations; neither reconsideration
+  threshold fired.
+- `705d67d5`, `47080769`, `85e3bf67`, `cb80a0cc`, `69f4d87a`, `5762cdac`,
+  `9ff4d775`, `34e6de90`, and `a20554c5`: exact reverse-order teardown of the
+  final writer correction and restored transient scaffold.

@@ -518,16 +518,6 @@ pub struct GraphExpandProjectionGenerationForTest {
 }
 
 #[cfg(feature = "test-hooks")]
-type SelectedArtifactsForTest = std::sync::Arc<Mutex<Vec<(u64, u64)>>>;
-
-#[cfg(feature = "test-hooks")]
-type EvidenceOutputForTest = std::sync::Arc<
-    Mutex<
-        Option<(Vec<crate::GraphEvidenceEntryForTest>, crate::GraphEvidencePreflightStatsForTest)>,
-    >,
->;
-
-#[cfg(feature = "test-hooks")]
 #[derive(Default)]
 pub(crate) struct GraphExpandReaderControlsForTest {
     pub(crate) rendezvous: Option<GraphExpandRendezvousForTest>,
@@ -535,9 +525,9 @@ pub(crate) struct GraphExpandReaderControlsForTest {
     pub(crate) projection_generation: Option<GraphExpandProjectionGenerationForTest>,
     pub(crate) rss_peak_bytes: Option<std::sync::Arc<AtomicU64>>,
     pub(crate) retention_counters: Option<std::sync::Arc<GraphExpandRetentionCountersForTest>>,
-    pub(crate) selected_artifacts: Option<SelectedArtifactsForTest>,
-    pub(crate) evidence_authority: Option<crate::evidence::IntrinsicAuthorityForTest>,
-    pub(crate) evidence_output: Option<EvidenceOutputForTest>,
+    pub(crate) selected_artifacts: Option<std::sync::Arc<Mutex<Vec<(u64, u64)>>>>,
+    pub(crate) evidence_output:
+        Option<std::sync::Arc<Mutex<Option<(Vec<crate::GraphEvidenceEntryForTest>, Vec<String>)>>>>,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -1709,18 +1699,16 @@ pub(crate) fn read_graph_expand_in_tx(
             .clone();
         let node_cursors = selected_artifacts.iter().map(|pair| pair.0).collect::<Vec<_>>();
         let edge_cursors = selected_artifacts.iter().map(|pair| pair.1).collect::<Vec<_>>();
-        let preflight = crate::evidence::preflight_intrinsic_batches_for_test(
+        let plans = crate::evidence::preflight_intrinsic_batches_for_test(
             &tx,
-            frozen,
             &node_cursors,
             &edge_cursors,
         )?;
-        let authority = test_controls.evidence_authority.as_ref().ok_or(EngineError::Storage)?;
         let request_commitment = encode_graph_expand_request_v1(request)
             .map_err(|_| EngineError::Evidence(crate::EvidenceErrorV1::unavailable()))?;
         let mut entries = Vec::with_capacity(targets.len());
         for (index, (target, (target_cursor, edge_cursor))) in
-            targets.iter().zip(selected_artifacts).enumerate()
+            targets.iter().zip(selected_artifacts.into_iter()).enumerate()
         {
             if target.write_cursor != target_cursor {
                 return Err(crate::EvidenceErrorV1::unavailable().into());
@@ -1729,24 +1717,22 @@ pub(crate) fn read_graph_expand_in_tx(
             target_disclosure.extend_from_slice(&(index as u64).to_be_bytes());
             target_disclosure.extend_from_slice(&target_cursor.to_be_bytes());
             target_disclosure.extend_from_slice(&edge_cursor.to_be_bytes());
-            let target_material = preflight.nodes.get(index).ok_or(EngineError::Storage)?;
-            let edge_material = preflight.edges.get(index).ok_or(EngineError::Storage)?;
             let (target_revision_id, target_ref) =
                 crate::evidence::mint_intrinsic_reference_for_test(
-                    authority,
+                    &tx,
                     frozen,
-                    target_material,
-                    None,
+                    crate::EvidenceArtifactClassV1::Node,
+                    target_cursor,
                     &target_disclosure,
                 )?;
             let mut edge_disclosure = target_disclosure;
             edge_disclosure.extend_from_slice(b"terminal-edge");
             let (edge_revision, edge_reference) =
                 crate::evidence::mint_intrinsic_reference_for_test(
-                    authority,
+                    &tx,
                     frozen,
-                    edge_material,
-                    Some(target.origin.terminal_direction),
+                    crate::EvidenceArtifactClassV1::Edge,
+                    edge_cursor,
                     &edge_disclosure,
                 )?;
             entries.push(crate::GraphEvidenceEntryForTest {
@@ -1756,7 +1742,7 @@ pub(crate) fn read_graph_expand_in_tx(
                 terminal_edge_ref: Some(edge_reference),
             });
         }
-        *output.lock().map_err(|_| EngineError::Storage)? = Some((entries, preflight.stats));
+        *output.lock().map_err(|_| EngineError::Storage)? = Some((entries, plans));
     }
     let per_target = if request.include_explanation {
         targets

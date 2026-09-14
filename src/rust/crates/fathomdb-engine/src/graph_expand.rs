@@ -526,6 +526,8 @@ pub(crate) struct GraphExpandReaderControlsForTest {
     pub(crate) rss_peak_bytes: Option<std::sync::Arc<AtomicU64>>,
     pub(crate) retention_counters: Option<std::sync::Arc<GraphExpandRetentionCountersForTest>>,
     pub(crate) selected_artifacts: Option<std::sync::Arc<Mutex<Vec<(u64, u64)>>>>,
+    pub(crate) evidence_output:
+        Option<std::sync::Arc<Mutex<Option<(Vec<crate::GraphEvidenceEntryForTest>, Vec<String>)>>>>,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -1680,6 +1682,68 @@ pub(crate) fn read_graph_expand_in_tx(
             .collect();
     }
     let targets = selected.into_iter().map(|candidate| candidate.target).collect::<Vec<_>>();
+    #[cfg(feature = "test-hooks")]
+    if let Some(output) = test_controls.evidence_output.as_ref() {
+        let frozen = match &request.context {
+            GraphReadContextV1::Frozen { context, .. } => context,
+            GraphReadContextV1::Current { .. } => {
+                return Err(crate::EvidenceErrorV1::unavailable().into())
+            }
+        };
+        let selected_artifacts = test_controls
+            .selected_artifacts
+            .as_ref()
+            .ok_or(EngineError::Storage)?
+            .lock()
+            .map_err(|_| EngineError::Storage)?
+            .clone();
+        let node_cursors = selected_artifacts.iter().map(|pair| pair.0).collect::<Vec<_>>();
+        let edge_cursors = selected_artifacts.iter().map(|pair| pair.1).collect::<Vec<_>>();
+        let plans = crate::evidence::preflight_intrinsic_batches_for_test(
+            &tx,
+            &node_cursors,
+            &edge_cursors,
+        )?;
+        let request_commitment = encode_graph_expand_request_v1(request)
+            .map_err(|_| EngineError::Evidence(crate::EvidenceErrorV1::unavailable()))?;
+        let mut entries = Vec::with_capacity(targets.len());
+        for (index, (target, (target_cursor, edge_cursor))) in
+            targets.iter().zip(selected_artifacts.into_iter()).enumerate()
+        {
+            if target.write_cursor != target_cursor {
+                return Err(crate::EvidenceErrorV1::unavailable().into());
+            }
+            let mut target_disclosure = request_commitment.clone();
+            target_disclosure.extend_from_slice(&(index as u64).to_be_bytes());
+            target_disclosure.extend_from_slice(&target_cursor.to_be_bytes());
+            target_disclosure.extend_from_slice(&edge_cursor.to_be_bytes());
+            let (target_revision_id, target_ref) =
+                crate::evidence::mint_intrinsic_reference_for_test(
+                    &tx,
+                    frozen,
+                    crate::EvidenceArtifactClassV1::Node,
+                    target_cursor,
+                    &target_disclosure,
+                )?;
+            let mut edge_disclosure = target_disclosure;
+            edge_disclosure.extend_from_slice(b"terminal-edge");
+            let (edge_revision, edge_reference) =
+                crate::evidence::mint_intrinsic_reference_for_test(
+                    &tx,
+                    frozen,
+                    crate::EvidenceArtifactClassV1::Edge,
+                    edge_cursor,
+                    &edge_disclosure,
+                )?;
+            entries.push(crate::GraphEvidenceEntryForTest {
+                target_revision_id,
+                target_ref,
+                terminal_edge_revision_id: Some(edge_revision),
+                terminal_edge_ref: Some(edge_reference),
+            });
+        }
+        *output.lock().map_err(|_| EngineError::Storage)? = Some((entries, plans));
+    }
     let per_target = if request.include_explanation {
         targets
             .iter()

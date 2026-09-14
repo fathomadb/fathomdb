@@ -2,7 +2,7 @@
 
 use fathomdb_engine::{
     encode_graph_expand_result_v1, ArtifactRevisionId, CanonicalHash, Engine, EngineError,
-    EvidenceErrorReasonV1, GraphEvidenceArtifactV1, GraphEvidenceRefV1,
+    EvidenceErrorReasonV1, FrozenReadErrorReason, GraphEvidenceArtifactV1, GraphEvidenceRefV1,
     GraphEvidenceResolveRequestV1, GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1, IdSpace,
     InitialState, PreparedWrite, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView,
     SearchFilter, SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
@@ -16,7 +16,7 @@ fn digest(body: &str) -> String {
     Sha256::digest(body.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
+fn fixture_with_pre_freeze_sql(sql: Option<&str>) -> (TempDir, Engine, GraphExpandRequestV1) {
     let directory = TempDir::new().unwrap();
     let path = directory.path().join("graph-evidence.fdb");
     let opened = Engine::open(&path).unwrap();
@@ -86,10 +86,13 @@ fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
         ])
         .unwrap();
     opened.engine.drain(30_000).unwrap();
+    let engine = match sql {
+        Some(sql) => reopen_after_sql(&directory, opened.engine, sql),
+        None => opened.engine,
+    };
     let mut filter = SearchFilter::default();
     filter.kind = Some("claim".into());
-    let frozen = opened
-        .engine
+    let frozen = engine
         .freeze_read_context(
             &ReadContextV1::new(
                 ReadView { valid_as_of: Some(1_800_000_000), ..ReadView::default() },
@@ -114,7 +117,11 @@ fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
         include_explanation: false,
         include_evidence: false,
     };
-    (directory, opened.engine, request)
+    (directory, engine, request)
+}
+
+fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
+    fixture_with_pre_freeze_sql(None)
 }
 
 fn temporal_fixture(
@@ -331,7 +338,7 @@ fn reopen_after_sql(directory: &TempDir, engine: Engine, sql: &str) -> Engine {
 }
 
 #[test]
-fn denied_source_precedes_visible_corrupt_locator_globally() {
+fn post_freeze_denied_source_and_corrupt_locator_is_state_drift() {
     let (directory, engine, mut request) = fixture();
     request.include_evidence = true;
     let engine = reopen_after_sql(
@@ -342,13 +349,27 @@ fn denied_source_precedes_visible_corrupt_locator_globally() {
            WHERE artifact_revision_id='target-r1';",
     );
     let error = engine.graph_expand(&request).unwrap_err();
+    assert!(matches!(error, EngineError::FrozenRead(ref error)
+        if error.reason == FrozenReadErrorReason::StateDrifted
+            && error.field_path == "/token"));
+}
+
+#[test]
+fn denied_source_precedes_visible_corrupt_locator_globally() {
+    let (_directory, engine, mut request) = fixture_with_pre_freeze_sql(Some(
+        "UPDATE canonical_nodes SET state='deleted' WHERE logical_id='source';
+         UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes',start_byte=0,end_byte=999999 \
+           WHERE artifact_revision_id='target-r1';",
+    ));
+    request.include_evidence = true;
+    let error = engine.graph_expand(&request).unwrap_err();
     assert!(matches!(error, EngineError::Evidence(ref error)
         if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
             && error.field_path == "/evidence"));
 }
 
 #[test]
-fn missing_link_is_incomplete_but_linked_missing_source_is_unavailable() {
+fn post_freeze_missing_source_storage_is_state_drift() {
     let (directory, engine, mut request) = fixture();
     request.include_evidence = true;
     let engine = reopen_after_sql(
@@ -357,9 +378,9 @@ fn missing_link_is_incomplete_but_linked_missing_source_is_unavailable() {
         "DELETE FROM _fathomdb_source_links WHERE artifact_revision_id='target-r1';",
     );
     let error = engine.graph_expand(&request).unwrap_err();
-    assert!(matches!(error, EngineError::Evidence(ref error)
-        if error.reason == EvidenceErrorReasonV1::EvidenceIncomplete
-            && error.field_path == "/targets/0/provenance"));
+    assert!(matches!(error, EngineError::FrozenRead(ref error)
+        if error.reason == FrozenReadErrorReason::StateDrifted
+            && error.field_path == "/token"));
 
     let (directory, engine, mut request) = fixture();
     request.include_evidence = true;
@@ -368,6 +389,26 @@ fn missing_link_is_incomplete_but_linked_missing_source_is_unavailable() {
         engine,
         "DELETE FROM canonical_nodes WHERE logical_id='source';",
     );
+    let error = engine.graph_expand(&request).unwrap_err();
+    assert!(matches!(error, EngineError::FrozenRead(ref error)
+        if error.reason == FrozenReadErrorReason::StateDrifted
+            && error.field_path == "/token"));
+}
+
+#[test]
+fn missing_link_is_incomplete_but_linked_missing_source_is_unavailable() {
+    let (_directory, engine, mut request) = fixture_with_pre_freeze_sql(Some(
+        "DELETE FROM _fathomdb_source_links WHERE artifact_revision_id='target-r1';",
+    ));
+    request.include_evidence = true;
+    let error = engine.graph_expand(&request).unwrap_err();
+    assert!(matches!(error, EngineError::Evidence(ref error)
+        if error.reason == EvidenceErrorReasonV1::EvidenceIncomplete
+            && error.field_path == "/targets/0/provenance"));
+
+    let (_directory, engine, mut request) =
+        fixture_with_pre_freeze_sql(Some("DELETE FROM canonical_nodes WHERE logical_id='source';"));
+    request.include_evidence = true;
     let error = engine.graph_expand(&request).unwrap_err();
     assert!(matches!(error, EngineError::Evidence(ref error)
         if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable

@@ -1,7 +1,7 @@
 # Slice 20 implementation status
 
-Status: FIX-2 implementation and focused verification complete; stable tip is
-ready for independent re-review.
+Status: mandatory post-review corrections and focused verification complete;
+stable tip is ready for independent re-review.
 
 ## Landed on the implementation branch
 
@@ -34,6 +34,12 @@ ready for independent re-review.
   cross-engine non-consumption proof.
 - `5e84f837` — real release injection/pack/offline-install N-API graph-evidence
   proof, including declarations, exports, loader, target, and terminal edge.
+- `28fb8ef0` / `abc77847` — canonical non-`test-hooks` Rust lint RED/GREEN;
+  trace-only nonce instrumentation is correctly feature-scoped.
+- `919180d5` / `6ec740e4` — Python artifact-revision grammar and cross-binding
+  resolved-dependency identity-coherence RED/GREEN.
+- `2b7ee5d3` — registered-dependency, restart, nondisclosure, lifecycle/storage,
+  token-integrity, and ranked/graph domain-separation acceptance coverage.
 
 The branch also contains merge commits for the approved corrected design at
 `bc8123a8`, frozen-drift reconciliation at `fa39e5e9`, and Astra follow-up PASS
@@ -65,6 +71,15 @@ record at `4747d4f2`.
   offline in a clean consumer, loaded without source fallback, and exercised
   exact target plus terminal-edge resolution.
 - Strict documentation lint/build: PASS.
+- Corrected-tip graph evidence: 28/28 PASS; installed-wheel Python: 13/13 PASS.
+- Corrected-tip wheel SHA-256:
+  `2ae529add9a59a54456256ab4ef044d41ebf75dcc32cded172a810f7559b3865`.
+- Canonical `agent-verify`: lint, typecheck, security, Rust workspace, and 109 of
+  110 registered test suites passed. Python collection alone failed because
+  the linked worktree `.venv` points at the primary checkout and has no native
+  module for this checkout. The environment was not rebound through the
+  forbidden editable/maturin worktree path; fresh installed-wheel evidence
+  covers the changed Python surface.
 
 The source-tree Python collection still intentionally cannot load a native
 extension from this worktree; no editable install or `maturin develop` was used.

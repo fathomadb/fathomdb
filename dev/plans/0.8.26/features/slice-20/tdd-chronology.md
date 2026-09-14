@@ -175,3 +175,45 @@ lint step compiled `fathomdb-engine` library tests without the optional
 method. The trace-dependent nonce SQL-counter test must therefore be scoped to
 the feature that supplies its instrumentation; the product nonce and token
 tests remain unconditional.
+
+Commit `abc77847` applied that narrow scoping. The original trace diagnostics
+disappeared from the canonical Rust lint, whose spill log then contained only
+`ok lint-rust`. The focused no-SQL nonce oracle still passed with `test-hooks`.
+
+Commit `919180d5` added binding REDs. The TypeScript test failed with the exact
+`AssertionError: Missing expected rejection` when a dependency carried a
+different source or derived revision than its enclosing resolved evidence.
+The Python source suite could not collect in the linked worktree because its
+shared `.venv` has no native module for this checkout; that environment was not
+rebound. Commit `6ec740e4` makes Python sidecar revision IDs use the artifact
+revision grammar and makes both Python and TypeScript reject incoherent nested
+dependency identities at `/dependency/sourceRevisionId` or
+`/dependency/derivedRevisionId`. The TypeScript GREEN passed.
+
+Commit `2b7ee5d3` completes the previously missing acceptance oracles. Exact
+registered dependencies, including generations 1 and 2, resolve for both a
+node and its winning edge. Target and terminal-edge references both survive an
+unchanged restart, as does a canonical-source target. Foreign databases,
+mismatched frozen contexts, supersession, revocation, an active closure fence,
+missing storage, ranked/graph cross-domain references, truncation, extension,
+and a wrong prefix all collapse to `evidence_unavailable` at `/evidenceRef`.
+These additions were GREEN against the corrected implementation and therefore
+strengthen coverage without a product-code change.
+
+The corrected-tip focused gates passed: graph evidence 28/28, no-SQL nonce 1/1,
+engine library check and Clippy with warnings denied, TypeScript 3/3, and strict
+documentation. The repository-sanctioned isolated wheel path built
+`fathomdb-0.8.25-cp310-abi3-manylinux_2_39_x86_64.whl` with SHA-256
+`2ae529add9a59a54456256ab4ef044d41ebf75dcc32cded172a810f7559b3865`.
+Its release profile passed, and a second clean import-isolated environment ran
+all 13 focused Python cases, including real target and edge resolution.
+
+The canonical `./scripts/agent-verify.sh` completed lint, typecheck, security,
+the entire serial Rust workspace, TypeScript, and 108 other registered suites.
+Its final accounting was 109/110 PASS. The sole failure was Python collection:
+the linked worktree `.venv` points at the primary checkout and cannot import a
+native module for this worktree. Passing that suite would require rebinding the
+shared environment with the forbidden worktree editable-install path. The
+fresh installed-wheel evidence above covers the changed Python surface without
+polluting that environment. The two verifier-produced untracked Slice 55
+SQLite/lock artifacts were inspected and then removed by exact path.

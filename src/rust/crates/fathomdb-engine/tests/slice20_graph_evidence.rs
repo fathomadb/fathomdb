@@ -117,6 +117,108 @@ fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
     (directory, opened.engine, request)
 }
 
+fn temporal_fixture(
+    source_window: (Option<i64>, Option<i64>),
+    target_window: (Option<i64>, Option<i64>),
+    edge_window: (Option<i64>, Option<i64>),
+) -> (TempDir, Engine, GraphExpandRequestV1) {
+    let directory = TempDir::new().unwrap();
+    let opened = Engine::open(directory.path().join("temporal-graph-evidence.fdb")).unwrap();
+    let source = "temporal canonical bytes";
+    let derived = |revision: &str| {
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(revision).unwrap(),
+            SourceVersionId::new("temporal-v1").unwrap(),
+            SourceRevisionId::new("temporal-source-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(digest(source)).unwrap(),
+        )
+    };
+    opened
+        .engine
+        .write(&[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("temporal-source".into()),
+                kind: "document".into(),
+                body: source.into(),
+                source_id: SourceId::new("temporal-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: source_window.0,
+                valid_until: source_window.1,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("temporal-source-r1").unwrap(),
+                    SourceVersionId::new("temporal-v1").unwrap(),
+                ),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("temporal-root".into()),
+                kind: "claim".into(),
+                body: "root".into(),
+                source_id: SourceId::new("temporal-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived("temporal-root-r1"),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("temporal-target".into()),
+                kind: "claim".into(),
+                body: "target".into(),
+                source_id: SourceId::new("temporal-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: target_window.0,
+                valid_until: target_window.1,
+                provenance: derived("temporal-target-r1"),
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("temporal-edge".into()),
+                kind: "supports".into(),
+                from: "temporal-root".into(),
+                to: "temporal-target".into(),
+                source_id: SourceId::new("temporal-owner").unwrap(),
+                body: None,
+                t_valid: edge_window.0,
+                t_invalid: edge_window.1,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived("temporal-edge-r1"),
+            }),
+        ])
+        .unwrap();
+    opened.engine.drain(30_000).unwrap();
+    let frozen = opened
+        .engine
+        .freeze_read_context(
+            &ReadContextV1::new(
+                ReadView { valid_as_of: Some(100), ..ReadView::default() },
+                SearchFilter::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let request = GraphExpandRequestV1 {
+        schema_version: 1,
+        seed: GraphSeedV1::Explicit {
+            schema_version: 1,
+            logical_ids: vec![IdSpace::logical("temporal-root")],
+        },
+        direction: TraversalDirection::Outgoing,
+        edge_kinds: vec!["supports".into()],
+        target_kinds: vec!["claim".into()],
+        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        max_depth: 1,
+        result_limit: 1,
+        max_work_units: 10,
+        include_explanation: false,
+        include_evidence: true,
+    };
+    (directory, opened.engine, request)
+}
+
 fn unavailable(error: EngineError) {
     assert!(matches!(error, EngineError::Evidence(ref error)
         if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
@@ -295,6 +397,27 @@ fn authenticated_relaxed_window_context_is_refused_before_mint() {
         if error.reason == fathomdb_engine::GraphExpansionErrorReasonV1::GraphContextInvalid
             && error.field_path == "/context/context/view/includeOutOfWindow")
     );
+}
+
+#[test]
+fn evidence_validity_is_start_inclusive_and_end_exclusive_for_all_three_artifacts() {
+    let (_directory, engine, request) =
+        temporal_fixture((Some(100), Some(101)), (Some(100), Some(101)), (Some(100), Some(101)));
+    assert_eq!(engine.graph_expand(&request).unwrap().targets.len(), 1);
+
+    let (_directory, engine, request) =
+        temporal_fixture((None, None), (None, Some(100)), (None, None));
+    assert!(engine.graph_expand(&request).unwrap().targets.is_empty());
+
+    let (_directory, engine, request) =
+        temporal_fixture((None, None), (None, None), (None, Some(100)));
+    assert!(engine.graph_expand(&request).unwrap().targets.is_empty());
+
+    let (_directory, engine, request) =
+        temporal_fixture((None, Some(100)), (None, None), (None, None));
+    assert!(matches!(engine.graph_expand(&request).unwrap_err(), EngineError::Evidence(ref error)
+        if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+            && error.field_path == "/evidence"));
 }
 
 #[test]

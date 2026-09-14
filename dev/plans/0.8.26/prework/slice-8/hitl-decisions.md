@@ -1,7 +1,7 @@
 ---
 title: FathomDB 0.8.26 Slice 8 — HITL decision record
 status: COMPLETE
-deferred_decision: D26-01 to Slice 15
+deferred_decision: resolved by seq-290 after Slice 15
 observed_on: 2026-09-12
 last_updated: 2026-09-13
 ---
@@ -21,28 +21,29 @@ last_updated: 2026-09-13
 | D26-07 | Revised narrow option A for Slice 50. | `seq-287` | Include P26-09/P26-13 and conditional P26-11; postpone P26-10/P26-12/P26-14. Publication remains separately gated. |
 | Slice 45/46 placement | Place architecture convergence at Slice 45, technical-design convergence at Slice 46, then integrated verification at Slice 50. | `seq-288` | The post-implementation documentation sequence is fixed. |
 | Slice 9 execution | Approve the independently reviewed narrow Slice 9 plan for execution. | `seq-289` | Slice 8 closes and Slice 9 may begin; publication is not authorized. |
+| D26-01 | Option A: use an opt-in first-generation V1 graph-evidence sidecar under frozen authority. | `seq-290` | Slice 20 is unblocked; ordinary graph responses remain unchanged and no raw-ID resolver or parallel V2 API is introduced. |
 
 The 0.8.26 machine-readable release state does not yet exist; its creation is
 part of the now-ruled Slice 9 preparation decision. These ledger-backed
 rulings must be copied into that state by the state-authoring tool when P26-02
 is implemented. They must not be inferred or rewritten.
 
-## Open HITL position
+## Resolved HITL position
 
-The following decision remains open:
+The formerly deferred decision is now resolved:
 
 | Decision | Position | Effect now |
 | --- | --- | --- |
-| D26-01 | Defer the public-shape decision until Slice 15 produces performance and erasure-linearization evidence. | Slice 15 may run as a decision-support spike; Slice 20 remains blocked. |
+| D26-01 | Option A: opt-in first-generation V1 graph-evidence sidecar. | Slice 20 may implement the selected frozen, authenticated V1 shape. |
 
-This position remains absent from the append-only decision ledger and future
-release-state `decisions.ruled` array until the HITL selects the public shape.
+The ruling is recorded at `seq-290` and in the release-state
+`decisions.ruled` array.
 
 ## Decision detail
 
 ### D26-01
 
-No public shape is selected before Slice 15. Slice 15 prototypes and measures
+No public shape was selected before Slice 15. Slice 15 prototyped and measured
 post-selection revision hydration,
 primary-connection point resolution, ordinary-search sentinels, mixed writes,
 and erasure linearization. See
@@ -51,7 +52,11 @@ The `seq-283` release-wide rule requires graph evidence to retain V1 naming. It
 does not reduce graph reader/erasure risk, so the shape decision is now between
 an in-place graph V1 change and an opt-in first-generation V1 evidence sidecar
 on the existing V1 graph operation. A parallel graph V2 result or method is
-excluded.
+excluded. After reviewing that evidence, HITL `seq-290` selected the opt-in
+first-generation V1 sidecar. Ordinary graph expansion retains its existing
+response path; evidence requires frozen authority, stable revision identities,
+and authenticated graph-disclosure-bound references. No raw-revision-ID
+resolver is introduced.
 
 ### D26-03 — ruled
 
@@ -121,8 +126,7 @@ full-history Gitleaks triage (P26-12) and speculative runner/dispatch work
 
 ## Still required
 
-Only D26-01 remains open, explicitly deferred until Slice 15 reports. Slice 8
-has replaced and independently reviewed the Slice 9 plan, finalized the Slice
-15 and Slice 35 draft plan/design documents, and closed under `seq-289`. Slice
-9 is authorized. Slice 20 remains blocked until the post-Slice-15 D26-01
-ruling.
+No 0.8.26 HITL decision remains open. Slice 8 replaced and independently
+reviewed the Slice 9 plan, finalized the Slice 15 and Slice 35 draft plan/design
+documents, and closed under `seq-289`. Slice 15 supplied the deferred evidence,
+and `seq-290` selected the Slice 20 public shape.

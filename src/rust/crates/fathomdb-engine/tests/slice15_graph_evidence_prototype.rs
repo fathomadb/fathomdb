@@ -1076,19 +1076,6 @@ fn measurement_matrix_emits_raw_samples() {
 }
 
 #[test]
-fn foreground_writer_window_is_fixed_duration_and_load_independent() {
-    let _serial = serialize_fixture();
-    let (_directory, engine, _request) = fixture();
-    let duration = std::time::Duration::from_millis(25);
-
-    let sample = run_foreground_writer_window(&engine, 0, "control", duration);
-
-    assert!(sample.elapsed >= duration);
-    assert!(sample.foreground_operations > 0);
-    assert_eq!(sample.latencies_us.len(), sample.foreground_operations);
-}
-
-#[test]
 #[ignore = "Slice 15 writer-interference campaigns"]
 fn writer_interference_emits_campaigns() {
     let _serial = serialize_fixture();

@@ -369,6 +369,14 @@ def _graph_json_resolved_evidence(value: Any) -> ResolvedGraphEvidenceV1:
         valid_at_effective=valid_at,
     )
 
+    artifact_revision_id = _graph_revision(
+        _graph_json_field(root, "artifactRevisionId", "/artifactRevisionId"),
+        "/artifactRevisionId",
+    )
+    source_revision_id = _graph_revision(
+        _graph_json_field(root, "sourceRevisionId", "/sourceRevisionId"),
+        "/sourceRevisionId",
+    )
     dependency_raw = _graph_json_field(root, "dependency", "/dependency")
     dependency = None
     if dependency_raw is not None:
@@ -386,20 +394,26 @@ def _graph_json_resolved_evidence(value: Any) -> ResolvedGraphEvidenceV1:
         )
         if _graph_json_field(item, "schemaVersion", "/dependency/schemaVersion") != 1:
             _graph_refuse("unsupported_schema_version", "/dependency/schemaVersion")
+        dependency_source_revision_id = _graph_revision(
+            _graph_json_field(item, "sourceRevisionId", "/dependency/sourceRevisionId"),
+            "/dependency/sourceRevisionId",
+        )
+        if dependency_source_revision_id != source_revision_id:
+            _graph_refuse("graph_corrupt", "/dependency/sourceRevisionId")
+        dependency_derived_revision_id = _graph_revision(
+            _graph_json_field(item, "derivedRevisionId", "/dependency/derivedRevisionId"),
+            "/dependency/derivedRevisionId",
+        )
+        if dependency_derived_revision_id != artifact_revision_id:
+            _graph_refuse("graph_corrupt", "/dependency/derivedRevisionId")
         dependency = SourceDependencyV1(
             schema_version=1,
             dependency_id=_graph_string(
                 _graph_json_field(item, "dependencyId", "/dependency/dependencyId"),
                 "/dependency/dependencyId",
             ),
-            source_revision_id=_graph_revision(
-                _graph_json_field(item, "sourceRevisionId", "/dependency/sourceRevisionId"),
-                "/dependency/sourceRevisionId",
-            ),
-            derived_revision_id=_graph_revision(
-                _graph_json_field(item, "derivedRevisionId", "/dependency/derivedRevisionId"),
-                "/dependency/derivedRevisionId",
-            ),
+            source_revision_id=dependency_source_revision_id,
+            derived_revision_id=dependency_derived_revision_id,
             registered_dependency_generation=_graph_u64(
                 _graph_json_field(
                     item,
@@ -420,19 +434,13 @@ def _graph_json_resolved_evidence(value: Any) -> ResolvedGraphEvidenceV1:
     )
     return ResolvedGraphEvidenceV1(
         schema_version=1,
-        artifact_revision_id=_graph_revision(
-            _graph_json_field(root, "artifactRevisionId", "/artifactRevisionId"),
-            "/artifactRevisionId",
-        ),
+        artifact_revision_id=artifact_revision_id,
         artifact=artifact,
         source_id=_graph_string(_graph_json_field(root, "sourceId", "/sourceId"), "/sourceId"),
         source_version_id=_graph_string(
             _graph_json_field(root, "sourceVersionId", "/sourceVersionId"), "/sourceVersionId"
         ),
-        source_revision_id=_graph_revision(
-            _graph_json_field(root, "sourceRevisionId", "/sourceRevisionId"),
-            "/sourceRevisionId",
-        ),
+        source_revision_id=source_revision_id,
         locator=locator,
         canonical_source_body=_graph_string(
             _graph_json_field(root, "canonicalSourceBody", "/canonicalSourceBody"),
@@ -733,7 +741,7 @@ def _map_native_graph_expand_result(result: Any) -> GraphExpandResultV1:
                 GraphEvidenceSidecarEntryV1(
                     schema_version=1,
                     target_index=target_index,
-                    target_artifact_revision_id=_graph_string(
+                    target_artifact_revision_id=_graph_revision(
                         _graph_field(
                             item,
                             "target_artifact_revision_id",
@@ -745,7 +753,7 @@ def _map_native_graph_expand_result(result: Any) -> GraphExpandResultV1:
                         _graph_field(item, "target_evidence_ref", f"{base}/targetEvidenceRef"),
                         f"{base}/targetEvidenceRef",
                     ),
-                    terminal_edge_artifact_revision_id=_graph_string(
+                    terminal_edge_artifact_revision_id=_graph_revision(
                         _graph_field(
                             item,
                             "terminal_edge_artifact_revision_id",

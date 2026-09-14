@@ -3956,17 +3956,37 @@ function validateResolvedGraphEvidence(value: unknown): ResolvedGraphEvidenceV1 
     ["pending", "active", "deleted"] as const,
     "/sourceLifecycleState",
   );
+  const artifactRevisionId = graphArtifactRevision(
+    graphField(root, "artifactRevisionId", "/artifactRevisionId"),
+    "/artifactRevisionId",
+  );
+  const sourceRevisionId = graphArtifactRevision(
+    graphField(root, "sourceRevisionId", "/sourceRevisionId"),
+    "/sourceRevisionId",
+  );
   const dependencyRaw = graphField(root, "dependency", "/dependency");
   let dependency: SourceDependencyV1 | null = null;
   if (dependencyRaw !== null) {
     const item = graphObject(dependencyRaw, "/dependency");
     graphExactKeys(item, ["schemaVersion", "dependencyId", "sourceRevisionId", "derivedRevisionId", "registeredDependencyGeneration"], "/dependency");
     graphSchema(item, "/dependency/schemaVersion");
+    const dependencySourceRevisionId = graphArtifactRevision(
+      item.sourceRevisionId,
+      "/dependency/sourceRevisionId",
+    );
+    if (dependencySourceRevisionId !== sourceRevisionId)
+      graphRefuse("graph_corrupt", "/dependency/sourceRevisionId");
+    const dependencyDerivedRevisionId = graphArtifactRevision(
+      item.derivedRevisionId,
+      "/dependency/derivedRevisionId",
+    );
+    if (dependencyDerivedRevisionId !== artifactRevisionId)
+      graphRefuse("graph_corrupt", "/dependency/derivedRevisionId");
     dependency = {
       schemaVersion: 1,
       dependencyId: graphString(item.dependencyId, "/dependency/dependencyId"),
-      sourceRevisionId: graphArtifactRevision(item.sourceRevisionId, "/dependency/sourceRevisionId"),
-      derivedRevisionId: graphArtifactRevision(item.derivedRevisionId, "/dependency/derivedRevisionId"),
+      sourceRevisionId: dependencySourceRevisionId,
+      derivedRevisionId: dependencyDerivedRevisionId,
       registeredDependencyGeneration: graphU64(item.registeredDependencyGeneration, "/dependency/registeredDependencyGeneration"),
     };
   }
@@ -3974,11 +3994,11 @@ function validateResolvedGraphEvidence(value: unknown): ResolvedGraphEvidenceV1 
   if (typeof effectiveValidAt !== "number" || !Number.isSafeInteger(effectiveValidAt)) graphRefuse("graph_corrupt", "/effectiveValidAt");
   return {
     schemaVersion: 1,
-    artifactRevisionId: graphArtifactRevision(graphField(root, "artifactRevisionId", "/artifactRevisionId"), "/artifactRevisionId"),
+    artifactRevisionId,
     artifact: parsedArtifact,
     sourceId: graphString(graphField(root, "sourceId", "/sourceId"), "/sourceId"),
     sourceVersionId: graphString(graphField(root, "sourceVersionId", "/sourceVersionId"), "/sourceVersionId"),
-    sourceRevisionId: graphArtifactRevision(graphField(root, "sourceRevisionId", "/sourceRevisionId"), "/sourceRevisionId"),
+    sourceRevisionId,
     locator,
     canonicalSourceBody: graphString(graphField(root, "canonicalSourceBody", "/canonicalSourceBody"), "/canonicalSourceBody"),
     evidenceText: graphString(graphField(root, "evidenceText", "/evidenceText"), "/evidenceText"),

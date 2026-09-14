@@ -43,6 +43,19 @@ agent was prevented by the execution security reviewer from changing those test
 oracles despite the additive reconciliation; the release branch must land that
 test-only reconciliation for merge and verification here.
 
+The independently reviewed additive correction was cherry-picked as
+`d8ae9a50`: it retains the post-mint mutations as explicit frozen
+`StateDrifted` regressions and adds separately authenticated pre-freeze fault
+fixtures for the nondisclosure and positional-incomplete precedence contracts.
+The full focused graph-evidence suite then passed 13/13.
+
+Commit `588a1b67` preserved a separate temporal RED. Its exact setup failure was
+`Provenance(SourceRevisionIneligible, /provenance/sourceRevisionId)`: the first
+fixture had made its canonical source historical before the governed derived
+write. Commit `f7f7853a` corrected only fixture timing, keeping the source valid
+at write while pinning frozen `validAsOf` exactly to tested start/end instants.
+The target, winning-edge, and canonical-source half-open boundary test passed.
+
 ## External gate observed
 
 `cargo check -p fathomdb-engine --all-targets --features test-hooks` reached an

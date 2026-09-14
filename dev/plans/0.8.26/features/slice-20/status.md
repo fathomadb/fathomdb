@@ -1,7 +1,7 @@
 # Slice 20 implementation status
 
-Status: implementation substantially complete; independent review not ready
-until the reconciled frozen-drift fixtures land.
+Status: implementation and focused verification complete; ready for independent
+code review.
 
 ## Landed on the implementation branch
 
@@ -13,6 +13,8 @@ until the reconciled frozen-drift fixtures land.
   and durable TDD chronology.
 - `55a95163` — deterministic parallel-edge winning revision regression.
 - `6af2502e` — warnings-denied reader-dispatch boundary annotation.
+- `588a1b67` / `f7f7853a` — temporal-boundary RED/GREEN.
+- `d8ae9a50` — independently reviewed additive frozen-drift oracle correction.
 
 The branch also contains merge commits for the approved corrected design at
 `bc8123a8`, frozen-drift reconciliation at `fa39e5e9`, and Astra follow-up PASS
@@ -25,6 +27,7 @@ record at `4747d4f2`.
 - Private selector tests: 2/2 PASS.
 - Private semantic request-normalization tests: 2/2 PASS.
 - Deterministic parallel-edge evidence test: PASS.
+- Full focused graph-evidence integration suite: 13/13 PASS.
 - TypeScript build/native build and test suite: PASS, including the Slice 20
   positional sidecar contract.
 - Strict documentation lint/build: PASS.
@@ -38,13 +41,9 @@ The full workspace all-target check is presently blocked outside Slice 20 by
 `rebuild_projections` API. Full release verification is intentionally deferred
 until that ladder dependency lands.
 
-## Open reconciliation gate
+## Resolved reconciliation gate
 
-Two tests in `884d34bd` mutate SQLite after frozen-context mint but still expect
-hydration-level evidence errors. The approved correction requires preserving
-those mutations as explicit `FrozenRead(StateDrifted, /token)` regressions and
-adding separate pre-freeze provenance fault fixtures. The implementation agent's
-execution security reviewer blocked that additive test-oracle edit. No production
-code weakened or deferred snapshot validation. The release branch must land the
-test-only reconciliation, after which this branch can merge it, rerun the focused
-suite, and proceed to independent code review.
+Post-mint mutations remain explicit `FrozenRead(StateDrifted, /token)` security
+regressions. Separate pre-freeze provenance fixtures prove the global
+authorization-before-detail behavior. No production code weakened or deferred
+snapshot validation.

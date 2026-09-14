@@ -2,12 +2,14 @@
 
 use fathomdb_engine::{
     decode_graph_expand_result_v1, encode_graph_expand_result_v1, ArtifactRevisionId,
-    CanonicalHash, Engine, EngineError, EvidenceErrorReasonV1, FrozenReadErrorReason,
+    CanonicalHash, Engine, EngineError, EvidenceErrorReasonV1, EvidenceRefV1,
+    EvidenceResolveRequestV1, EvidenceSearchRequestV1, FrozenReadErrorReason,
     GraphEvidenceArtifactV1, GraphEvidenceRefV1, GraphEvidenceResolveRequestV1,
     GraphExpandRequestV1, GraphExpansionErrorReasonV1, GraphReadContextV1, GraphSeedV1, IdSpace,
     InitialState, PreparedWrite, ProjectionRole, ProjectionSpec, ProvenancedEdgeV1,
-    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceId, SourceLocator,
-    SourceRevisionId, SourceVersionId, TraversalDirection, WriteProvenanceV1,
+    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1,
+    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
+    WriteProvenanceV1,
 };
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
@@ -1066,7 +1068,7 @@ fn opaque_graph_references_survive_clean_restart() {
     let (directory, engine, mut request) = fixture();
     request.include_evidence = true;
     let result = engine.graph_expand(&request).unwrap();
-    let reference = result.evidence.unwrap().entries[0].target_evidence_ref.clone();
+    let entry = result.evidence.unwrap().entries[0].clone();
     let frozen = match request.context {
         GraphReadContextV1::Frozen { context, .. } => context,
         GraphReadContextV1::Current { .. } => unreachable!(),
@@ -1076,11 +1078,258 @@ fn opaque_graph_references_survive_clean_restart() {
     let resolved = reopened
         .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
             schema_version: 1,
-            evidence_ref: reference,
-            context: frozen,
+            evidence_ref: entry.target_evidence_ref,
+            context: frozen.clone(),
         })
         .unwrap();
     assert_eq!(resolved.artifact_revision_id.as_str(), "target-r1");
+    let edge = reopened
+        .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: entry.terminal_edge_evidence_ref,
+            context: frozen,
+        })
+        .unwrap();
+    assert_eq!(edge.artifact_revision_id.as_str(), "edge-r1");
+}
+
+#[test]
+fn graph_evidence_carries_exact_registered_dependency_for_node_and_edge() {
+    let (_directory, engine, mut request) = fixture();
+    let target_dependency = engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("target-dep", "source-r1", "target-r1").unwrap(),
+        )
+        .unwrap();
+    let edge_dependency = engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("edge-dep", "source-r1", "edge-r1").unwrap(),
+        )
+        .unwrap();
+    assert_eq!(target_dependency.registered_dependency_generation, 1);
+    assert_eq!(edge_dependency.registered_dependency_generation, 2);
+    let context = match request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.context,
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() };
+    request.include_evidence = true;
+    let entry = engine.graph_expand(&request).unwrap().evidence.unwrap().entries[0].clone();
+    for (reference, expected) in [
+        (entry.target_evidence_ref, target_dependency),
+        (entry.terminal_edge_evidence_ref, edge_dependency),
+    ] {
+        let resolved = engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference,
+                context: frozen.clone(),
+            })
+            .unwrap();
+        assert_eq!(resolved.source_revision_id.as_str(), "source-r1");
+        assert_eq!(resolved.dependency, Some(expected));
+    }
+}
+
+#[test]
+fn graph_evidence_references_are_nondisclosing_across_authority_and_token_failures() {
+    let (_directory, engine, mut request) = fixture();
+    request.include_evidence = true;
+    let expanded = engine.graph_expand(&request).unwrap();
+    let graph_reference = expanded.evidence.unwrap().entries[0].target_evidence_ref.clone();
+    let frozen = match &request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.clone(),
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+
+    let (_foreign_directory, foreign, _) = fixture();
+    unavailable(
+        foreign
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: graph_reference.clone(),
+                context: frozen.clone(),
+            })
+            .unwrap_err(),
+    );
+
+    let mut mismatch_filter = SearchFilter::default();
+    mismatch_filter.kind = Some("document".into());
+    let mismatched = engine
+        .freeze_read_context(
+            &ReadContextV1::new(
+                ReadView { valid_as_of: Some(1_800_000_000), ..ReadView::default() },
+                mismatch_filter,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    unavailable(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: graph_reference.clone(),
+                context: mismatched,
+            })
+            .unwrap_err(),
+    );
+
+    let token = graph_reference.as_str();
+    for malformed in [
+        token[..token.len() - 1].to_owned(),
+        format!("{token}0"),
+        format!("badgev1.{}", &token["fdbgev1.".len()..]),
+    ] {
+        unavailable(
+            engine
+                .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: GraphEvidenceRefV1::new(malformed).unwrap(),
+                    context: frozen.clone(),
+                })
+                .unwrap_err(),
+        );
+    }
+
+    let ranked = engine
+        .search_with_evidence(&EvidenceSearchRequestV1 {
+            schema_version: 1,
+            query: "target".into(),
+            context: frozen.clone(),
+            rerank_depth: 0,
+            use_graph_arm: false,
+            alpha: 0.5,
+            pool_n: 10,
+            include_explanation: false,
+            limit: 10,
+        })
+        .unwrap();
+    let ranked_reference = ranked.evidence[0].evidence_ref.clone();
+    unavailable(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: GraphEvidenceRefV1::new(ranked_reference.as_str()).unwrap(),
+                context: frozen.clone(),
+            })
+            .unwrap_err(),
+    );
+    unavailable(
+        engine
+            .resolve_evidence(&EvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: EvidenceRefV1::new(graph_reference.as_str()).unwrap(),
+                context: frozen,
+            })
+            .unwrap_err(),
+    );
+}
+
+fn minted_target_reference(
+    engine: &Engine,
+    request: &mut GraphExpandRequestV1,
+) -> (GraphEvidenceRefV1, fathomdb_engine::FrozenReadContextV1) {
+    request.include_evidence = true;
+    let reference = engine.graph_expand(request).unwrap().evidence.unwrap().entries[0]
+        .target_evidence_ref
+        .clone();
+    let frozen = match &request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.clone(),
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+    (reference, frozen)
+}
+
+#[test]
+fn superseded_revoked_closure_fenced_and_missing_artifacts_are_nondisclosing() {
+    let (_directory, engine, mut request) = fixture();
+    let (reference, frozen) = minted_target_reference(&engine, &mut request);
+    engine
+        .write(&[PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+            logical_id: Some("target".into()),
+            kind: "claim".into(),
+            body: "superseding target".into(),
+            source_id: SourceId::new("owner").unwrap(),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            provenance: WriteProvenanceV1::derived(
+                ArtifactRevisionId::new("target-r2").unwrap(),
+                SourceVersionId::new("source-v1").unwrap(),
+                SourceRevisionId::new("source-r1").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(digest("canonical source bytes")).unwrap(),
+            ),
+        })])
+        .unwrap();
+    unavailable(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference,
+                context: frozen,
+            })
+            .unwrap_err(),
+    );
+
+    let (_directory, engine, mut request) = fixture();
+    let (reference, frozen) = minted_target_reference(&engine, &mut request);
+    engine.erase_source("owner").unwrap();
+    unavailable(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference,
+                context: frozen,
+            })
+            .unwrap_err(),
+    );
+
+    let (directory, engine, mut request) = fixture();
+    let (reference, frozen) = minted_target_reference(&engine, &mut request);
+    let engine = reopen_after_sql(
+        &directory,
+        engine,
+        "UPDATE _fathomdb_open_state SET value='1' \
+           WHERE key='_fathomdb_closure_sequence';
+         INSERT INTO _fathomdb_dependency_closures(
+           schema_version,closure_operation_id,root_kind,root_value,cause,
+           effective_at_epoch_s,admitted_write_boundary,admitted_dependency_generation,
+           closure_sequence,retry_fingerprint,phase,affected_count,blocker_code,
+           structural_proof_write_boundary,proof_json
+         ) VALUES(1,'_fdb:c:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+           'source_revision','source-r1','soft_deleted',0,4,0,1,
+           'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+           'proving',1,NULL,NULL,NULL);",
+    );
+    unavailable(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference,
+                context: frozen,
+            })
+            .unwrap_err(),
+    );
+
+    let (directory, engine, mut request) = fixture();
+    let (reference, frozen) = minted_target_reference(&engine, &mut request);
+    let engine = reopen_after_sql(
+        &directory,
+        engine,
+        "DELETE FROM canonical_nodes WHERE logical_id='target';",
+    );
+    unavailable(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference,
+                context: frozen,
+            })
+            .unwrap_err(),
+    );
 }
 
 #[test]
@@ -1177,11 +1426,13 @@ fn canonical_source_graph_target_resolves_without_dependency() {
             include_evidence: true,
         })
         .unwrap();
-    let target = opened
-        .engine
+    let reference = result.evidence.unwrap().entries[0].target_evidence_ref.clone();
+    opened.engine.close().unwrap();
+    let reopened = Engine::open(directory.path().join("canonical-target.fdb")).unwrap().engine;
+    let target = reopened
         .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
             schema_version: 1,
-            evidence_ref: result.evidence.unwrap().entries[0].target_evidence_ref.clone(),
+            evidence_ref: reference,
             context: frozen,
         })
         .unwrap();

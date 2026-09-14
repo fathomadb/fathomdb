@@ -31,7 +31,7 @@ default = []
 tc5-benchmark = []
 # Slice 65: test-only rendezvous used by the disposable Python control wheel.
 # This feature is intentionally absent from every shipped-wheel feature list.
-test-hooks = ["rusqlite/hooks", "dep:libc"]
+test-hooks = ["rusqlite/hooks", "rusqlite/trace", "dep:libc"]
 # Slice 27 fix-1 (Q5=BIND-RUST, AC-074): the operator/recovery seam
 # (rebuild_*, excise_source, dump_*, trace_source_ref, truncate_wal,
 # verify_embedder, check_integrity, safe_export, recompute_mean + their

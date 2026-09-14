@@ -2566,6 +2566,13 @@ impl PayloadCursor<'_> {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static NONCE_SQL_STATEMENTS: AtomicUsize = AtomicUsize::new(0);
+
+    fn count_nonce_sql(_: &str) {
+        NONCE_SQL_STATEMENTS.fetch_add(1, Ordering::SeqCst);
+    }
 
     proptest! {
         #[test]
@@ -2746,5 +2753,16 @@ mod tests {
             .map(|(byte, mask)| byte ^ mask)
             .collect::<Vec<_>>();
         assert_ne!(&graph_ciphertext[..32], wrong_first_block.as_slice());
+    }
+
+    #[test]
+    fn graph_nonce_generation_executes_no_sql_statement() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        NONCE_SQL_STATEMENTS.store(0, Ordering::SeqCst);
+        connection.trace(Some(count_nonce_sql));
+        let nonce = random_nonce(&connection).unwrap();
+        connection.trace(None);
+        assert_ne!(nonce, [0; 16]);
+        assert_eq!(NONCE_SQL_STATEMENTS.load(Ordering::SeqCst), 0);
     }
 }

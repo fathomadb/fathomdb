@@ -3188,6 +3188,40 @@ pub fn arm_evidence_before_resolve_return_hook_for_test(hook: Box<dyn Fn() + Sen
 }
 
 #[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub type GraphArtifactClassForTest = EvidenceArtifactClassV1;
+
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Debug)]
+#[doc(hidden)]
+pub struct GraphEvidenceEntryForTest {
+    pub target_revision_id: String,
+    pub target_ref: EvidenceRefV1,
+    pub terminal_edge_revision_id: Option<String>,
+    pub terminal_edge_ref: Option<EvidenceRefV1>,
+}
+
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Debug)]
+#[doc(hidden)]
+pub struct GraphEvidenceResultForTest {
+    pub graph: GraphExpandResultV1,
+    pub evidence: Vec<GraphEvidenceEntryForTest>,
+    pub preflight_plans: Vec<String>,
+}
+
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Debug)]
+#[doc(hidden)]
+pub struct ResolvedGraphEvidenceForTest {
+    pub artifact_class: EvidenceArtifactClassV1,
+    pub artifact_revision_id: String,
+    pub logical_id: Option<String>,
+    pub canonical_source_body: String,
+    pub evidence_text: String,
+}
+
+#[cfg(feature = "test-hooks")]
 mod explanation_finalization_hooks {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
@@ -8462,6 +8496,63 @@ impl Engine {
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         Ok(result)
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn graph_expand_with_graph_evidence_for_test(
+        &self,
+        request: &GraphExpandRequestV1,
+    ) -> Result<GraphEvidenceResultForTest, EngineError> {
+        match &request.context {
+            GraphReadContextV1::Frozen { .. } => {}
+            GraphReadContextV1::Current { .. } => return Err(EvidenceErrorV1::unavailable().into()),
+        }
+        let selected_artifacts = std::sync::Arc::new(Mutex::new(Vec::new()));
+        let evidence_output = std::sync::Arc::new(Mutex::new(None));
+        let graph = self.graph_expand_inner(
+            request,
+            graph_expand::GraphExpandReaderControlsForTest {
+                selected_artifacts: Some(std::sync::Arc::clone(&selected_artifacts)),
+                evidence_output: Some(std::sync::Arc::clone(&evidence_output)),
+                ..graph_expand::GraphExpandReaderControlsForTest::default()
+            },
+        )?;
+        let (evidence, preflight_plans) = evidence_output
+            .lock()
+            .map_err(|_| EngineError::Storage)?
+            .take()
+            .ok_or(EngineError::Storage)?;
+        Ok(GraphEvidenceResultForTest { graph, evidence, preflight_plans })
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn resolve_graph_evidence_for_test(
+        &self,
+        reference: &EvidenceRefV1,
+        frozen: &FrozenReadContextV1,
+    ) -> Result<ResolvedGraphEvidenceForTest, EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let binding = frozen_read::authenticate(connection, frozen)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        frozen_read::validate_snapshot(connection, &binding)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        let resolved = evidence::resolve_intrinsic_reference_for_test(&tx, reference, frozen)?;
+        evidence_linearization_hooks::fire_before_resolve_return();
+        frozen_read::validate_snapshot(&tx, &binding)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        Ok(ResolvedGraphEvidenceForTest {
+            artifact_class: resolved.artifact_class,
+            artifact_revision_id: resolved.artifact_revision_id,
+            logical_id: resolved.logical_id,
+            canonical_source_body: resolved.canonical_source_body,
+            evidence_text: resolved.evidence_text,
+        })
     }
 
     /// Hybrid search plus bounded expansion on one reader transaction under an

@@ -164,3 +164,14 @@ Final focused verification passed: Rust graph evidence 25/25, selector property
 and framing 3/3, request normalization 2/2, no-SQL nonce 1/1, engine check,
 engine Clippy with `-D warnings`, TypeScript typecheck and real-NAPI 3/3, shell
 syntax, and strict public documentation.
+
+## Mandatory verification-gate RED
+
+The canonical `./scripts/agent-verify.sh` gate exposed a configuration-specific
+compile failure that the focused `test-hooks` runs had not exercised. The Rust
+lint step compiled `fathomdb-engine` library tests without the optional
+`rusqlite/trace` feature and failed with four `E0433` diagnostics for
+`rusqlite::trace` plus two `E0599` diagnostics for the unavailable `trace_v2`
+method. The trace-dependent nonce SQL-counter test must therefore be scoped to
+the feature that supplies its instrumentation; the product nonce and token
+tests remain unconditional.

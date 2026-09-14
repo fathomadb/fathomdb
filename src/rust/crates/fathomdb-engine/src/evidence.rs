@@ -2633,10 +2633,13 @@ impl PayloadCursor<'_> {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+    #[cfg(feature = "test-hooks")]
     use std::sync::atomic::{AtomicUsize, Ordering};
 
+    #[cfg(feature = "test-hooks")]
     static NONCE_SQL_STATEMENTS: AtomicUsize = AtomicUsize::new(0);
 
+    #[cfg(feature = "test-hooks")]
     fn count_nonce_sql(event: rusqlite::trace::TraceEvent<'_>) {
         if matches!(event, rusqlite::trace::TraceEvent::Stmt(_, _)) {
             NONCE_SQL_STATEMENTS.fetch_add(1, Ordering::SeqCst);
@@ -2824,6 +2827,7 @@ mod tests {
         assert_ne!(&graph_ciphertext[..32], wrong_first_block.as_slice());
     }
 
+    #[cfg(feature = "test-hooks")]
     #[test]
     fn graph_nonce_generation_executes_no_sql_statement() {
         let connection = Connection::open_in_memory().unwrap();

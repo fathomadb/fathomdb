@@ -1087,6 +1087,148 @@ fn keyed(key: &[u8], domain: &[u8], value: &[u8]) -> [u8; 32] {
     frozen_read::hmac_sha256(key, domain, value)
 }
 
+#[cfg(feature = "test-hooks")]
+pub(crate) fn mint_intrinsic_reference_for_test(
+    connection: &Connection,
+    frozen: &FrozenReadContextV1,
+    artifact_class: EvidenceArtifactClassV1,
+    write_cursor: u64,
+) -> Result<(String, EvidenceRefV1), EngineError> {
+    let (database_id, key) = frozen_read::page_cursor_material(connection)?;
+    let context_bytes = frozen_read::validate_context(&frozen.context)?;
+    let stored = load_stored(
+        connection,
+        artifact_class,
+        write_cursor,
+        frozen.effective_valid_at,
+        frozen.context.view.include_out_of_window,
+    )?;
+    if stored.completeness != "complete" {
+        return Err(
+            EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, "/provenance").into()
+        );
+    }
+    validate_source_bytes(&stored)?;
+    validate_full_provenance(connection, &stored)?;
+    let generation = crate::projection_generation::current_generation_id(connection)?;
+    let nonce = random_nonce(connection)?;
+    let locator = locator_bytes(&stored.locator);
+    let payload = Payload {
+        artifact_class,
+        write_cursor,
+        effective_valid_at: frozen.effective_valid_at,
+        database_commitment: keyed(&key, DATABASE_DOMAIN, database_id.as_bytes()),
+        context_commitment: keyed(&key, CONTEXT_DOMAIN, &context_bytes),
+        artifact_commitment: keyed(&key, ARTIFACT_DOMAIN, stored.artifact_revision_id.as_bytes()),
+        source_commitment: keyed(&key, SOURCE_DOMAIN, stored.source_revision_id.as_bytes()),
+        locator_commitment: keyed(&key, LOCATOR_DOMAIN, &locator),
+        hash_commitment: keyed(&key, HASH_DOMAIN, stored.hash_digest.as_bytes()),
+        generation_nonce: nonce,
+        generation_ciphertext: protect_generation(&key, &nonce, generation.as_str().as_bytes()),
+        arm: if artifact_class == EvidenceArtifactClassV1::Edge {
+            EvidenceArmV1::TextEdge
+        } else {
+            EvidenceArmV1::Text
+        },
+        contribution: EvidenceContributionV1 {
+            schema_version: 1,
+            vector_rank: None,
+            text_rank: None,
+            graph_rank: None,
+            fused_score: 0.0,
+            ce_score: None,
+            blended_score: 0.0,
+            importance: None,
+            confidence: None,
+        },
+        graph_origin: None,
+        graph_edge_commitment: None,
+    };
+    Ok((stored.artifact_revision_id, EvidenceRefV1(encode_token(&key, &payload)?)))
+}
+
+#[cfg(feature = "test-hooks")]
+pub(crate) struct IntrinsicEvidenceForTest {
+    pub artifact_class: EvidenceArtifactClassV1,
+    pub artifact_revision_id: String,
+    pub logical_id: Option<String>,
+    pub canonical_source_body: String,
+    pub evidence_text: String,
+}
+
+#[cfg(feature = "test-hooks")]
+pub(crate) fn resolve_intrinsic_reference_for_test(
+    connection: &Connection,
+    reference: &EvidenceRefV1,
+    frozen: &FrozenReadContextV1,
+) -> Result<IntrinsicEvidenceForTest, EngineError> {
+    let (database_id, key) = frozen_read::page_cursor_material(connection)?;
+    let payload = decode_token(&key, reference.as_str())?;
+    let context_bytes = frozen_read::validate_context(&frozen.context)?;
+    if payload.database_commitment != keyed(&key, DATABASE_DOMAIN, database_id.as_bytes())
+        || payload.context_commitment != keyed(&key, CONTEXT_DOMAIN, &context_bytes)
+        || payload.effective_valid_at != frozen.effective_valid_at
+    {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    let stored = load_stored(
+        connection,
+        payload.artifact_class,
+        payload.write_cursor,
+        payload.effective_valid_at,
+        frozen.context.view.include_out_of_window,
+    )
+    .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+    if payload.artifact_commitment
+        != keyed(&key, ARTIFACT_DOMAIN, stored.artifact_revision_id.as_bytes())
+        || payload.source_commitment
+            != keyed(&key, SOURCE_DOMAIN, stored.source_revision_id.as_bytes())
+        || payload.locator_commitment
+            != keyed(&key, LOCATOR_DOMAIN, &locator_bytes(&stored.locator))
+        || payload.hash_commitment != keyed(&key, HASH_DOMAIN, stored.hash_digest.as_bytes())
+        || stored.artifact_superseded
+        || stored.source_superseded
+        || crate::dependency_closure::active_barrier_for_source(
+            connection,
+            &stored.source_revision_id,
+        )?
+    {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    let eligible = match payload.artifact_class {
+        EvidenceArtifactClassV1::Node => crate::text_hit_passes_filter(
+            connection,
+            payload.write_cursor,
+            &stored.artifact_kind,
+            Some(&frozen.context.eligibility),
+        ),
+        EvidenceArtifactClassV1::Edge => {
+            let mut edge_filter = frozen.context.eligibility.clone();
+            edge_filter.kind = None;
+            crate::edge_fts_hit_passes_filter(
+                connection,
+                payload.write_cursor,
+                &stored.artifact_kind,
+                Some(&edge_filter),
+            )
+        }
+    }
+    .map_err(|_| EngineError::Storage)?;
+    if !eligible || stored.completeness != "complete" {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    validate_source_bytes(&stored)?;
+    validate_full_provenance(connection, &stored)?;
+    let evidence_text = slice(&stored.source_body, &stored.locator)?;
+    Ok(IntrinsicEvidenceForTest {
+        artifact_class: payload.artifact_class,
+        artifact_revision_id: stored.artifact_revision_id,
+        logical_id: stored.logical_id,
+        canonical_source_body: stored.source_body,
+        evidence_text,
+    })
+}
+
 fn locator_bytes(locator: &SourceLocator) -> Vec<u8> {
     match locator {
         SourceLocator::WholeBody => vec![0],

@@ -3188,6 +3188,39 @@ pub fn arm_evidence_before_resolve_return_hook_for_test(hook: Box<dyn Fn() + Sen
 }
 
 #[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub type GraphArtifactClassForTest = EvidenceArtifactClassV1;
+
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Debug)]
+#[doc(hidden)]
+pub struct GraphEvidenceEntryForTest {
+    pub target_revision_id: String,
+    pub target_ref: EvidenceRefV1,
+    pub terminal_edge_revision_id: Option<String>,
+    pub terminal_edge_ref: Option<EvidenceRefV1>,
+}
+
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Debug)]
+#[doc(hidden)]
+pub struct GraphEvidenceResultForTest {
+    pub graph: GraphExpandResultV1,
+    pub evidence: Vec<GraphEvidenceEntryForTest>,
+}
+
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Debug)]
+#[doc(hidden)]
+pub struct ResolvedGraphEvidenceForTest {
+    pub artifact_class: EvidenceArtifactClassV1,
+    pub artifact_revision_id: String,
+    pub logical_id: Option<String>,
+    pub canonical_source_body: String,
+    pub evidence_text: String,
+}
+
+#[cfg(feature = "test-hooks")]
 mod explanation_finalization_hooks {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
@@ -8462,6 +8495,105 @@ impl Engine {
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         Ok(result)
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn graph_expand_with_graph_evidence_for_test(
+        &self,
+        request: &GraphExpandRequestV1,
+    ) -> Result<GraphEvidenceResultForTest, EngineError> {
+        let frozen = match &request.context {
+            GraphReadContextV1::Frozen { context, .. } => context,
+            GraphReadContextV1::Current { .. } => return Err(EvidenceErrorV1::unavailable().into()),
+        };
+        let graph = self.graph_expand(request)?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let binding = frozen_read::authenticate(connection, frozen)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        frozen_read::validate_snapshot(connection, &binding)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        let mut evidence = Vec::with_capacity(graph.targets.len());
+        for target in &graph.targets {
+            let (edge_from, edge_to) = match target.origin.terminal_direction {
+                TraversalDirection::Outgoing => (
+                    target.origin.predecessor_logical_id.as_str(),
+                    target.origin.target_logical_id.as_str(),
+                ),
+                TraversalDirection::Incoming => (
+                    target.origin.target_logical_id.as_str(),
+                    target.origin.predecessor_logical_id.as_str(),
+                ),
+                TraversalDirection::Both => return Err(EvidenceErrorV1::unavailable().into()),
+            };
+            let edge_cursor = tx
+                .query_row(
+                    "SELECT write_cursor FROM canonical_edges \
+                     WHERE from_id=?1 AND to_id=?2 AND kind=?3 AND superseded_at IS NULL \
+                       AND (t_valid IS NULL OR t_valid<=?4) AND (t_invalid IS NULL OR t_invalid>?4) \
+                     ORDER BY COALESCE(logical_id,''),write_cursor LIMIT 1",
+                    rusqlite::params![edge_from, edge_to, target.origin.terminal_edge_kind,
+                        frozen.effective_valid_at],
+                    |row| row.get::<_, i64>(0),
+                )
+                .optional()
+                .map_err(|_| EngineError::Storage)?
+                .and_then(|cursor| u64::try_from(cursor).ok())
+                .ok_or_else(EvidenceErrorV1::unavailable)?;
+            let (target_revision_id, target_ref) = evidence::mint_intrinsic_reference_for_test(
+                &tx,
+                frozen,
+                EvidenceArtifactClassV1::Node,
+                target.write_cursor,
+            )?;
+            let (edge_revision, edge_reference) = evidence::mint_intrinsic_reference_for_test(
+                &tx,
+                frozen,
+                EvidenceArtifactClassV1::Edge,
+                edge_cursor,
+            )?;
+            evidence.push(GraphEvidenceEntryForTest {
+                target_revision_id,
+                target_ref,
+                terminal_edge_revision_id: Some(edge_revision),
+                terminal_edge_ref: Some(edge_reference),
+            });
+        }
+        frozen_read::validate_snapshot(&tx, &binding)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        Ok(GraphEvidenceResultForTest { graph, evidence })
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn resolve_graph_evidence_for_test(
+        &self,
+        reference: &EvidenceRefV1,
+        frozen: &FrozenReadContextV1,
+    ) -> Result<ResolvedGraphEvidenceForTest, EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let binding = frozen_read::authenticate(connection, frozen)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        frozen_read::validate_snapshot(connection, &binding)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        let resolved = evidence::resolve_intrinsic_reference_for_test(&tx, reference, frozen)?;
+        evidence_linearization_hooks::fire_before_resolve_return();
+        frozen_read::validate_snapshot(&tx, &binding)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        Ok(ResolvedGraphEvidenceForTest {
+            artifact_class: resolved.artifact_class,
+            artifact_revision_id: resolved.artifact_revision_id,
+            logical_id: resolved.logical_id,
+            canonical_source_body: resolved.canonical_source_body,
+            evidence_text: resolved.evidence_text,
+        })
     }
 
     /// Hybrid search plus bounded expansion on one reader transaction under an

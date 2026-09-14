@@ -131,6 +131,59 @@ fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
     (directory, opened.engine, request)
 }
 
+fn fixture_many(count: usize) -> (TempDir, Engine, GraphExpandRequestV1) {
+    let (directory, engine, mut request) = fixture();
+    let source = "canonical source bytes";
+    let mut writes = Vec::new();
+    for index in 1..count {
+        let provenance = |revision: String| {
+            WriteProvenanceV1::derived(
+                ArtifactRevisionId::new(revision).unwrap(),
+                SourceVersionId::new("source-v1").unwrap(),
+                SourceRevisionId::new("source-r1").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(digest(source)).unwrap(),
+            )
+        };
+        writes.push(PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+            logical_id: Some(format!("target-{index:02}")),
+            kind: "claim".into(),
+            body: format!("target {index}"),
+            source_id: SourceId::new("source-owner").unwrap(),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            provenance: provenance(format!("target-{index:02}-r1")),
+        }));
+        writes.push(PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+            logical_id: Some(format!("edge-{index:02}")),
+            kind: "supports".into(),
+            from: "root".into(),
+            to: format!("target-{index:02}"),
+            source_id: SourceId::new("source-owner").unwrap(),
+            body: None,
+            t_valid: None,
+            t_invalid: None,
+            confidence: Some(0.8),
+            extractor_model_id: None,
+            temporal_fallback: None,
+            provenance: provenance(format!("edge-{index:02}-r1")),
+        }));
+    }
+    engine.write(&writes).unwrap();
+    engine.drain(30_000).unwrap();
+    let context = match &request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.context.clone(),
+        _ => unreachable!(),
+    };
+    request.context = GraphReadContextV1::Frozen {
+        schema_version: 1,
+        context: engine.freeze_read_context(&context).unwrap(),
+    };
+    (directory, engine, request)
+}
+
 #[test]
 fn treatment_off_preserves_literal_bytes_and_winning_parallel_edge() {
     let (_directory, engine, request) = fixture();
@@ -365,6 +418,51 @@ fn measurement_matrix_emits_raw_samples() {
     for worker in workers {
         concurrent_point_us.extend(worker.join().unwrap());
     }
+    let (_many_directory, many, many_request) = fixture_many(50);
+    for _ in 0..20 {
+        many.graph_expand(&many_request).unwrap();
+        many.graph_expand_with_graph_evidence_for_test(&many_request).unwrap();
+    }
+    let mut control_50_us = Vec::with_capacity(1_000);
+    let mut hydrated_50_us = Vec::with_capacity(1_000);
+    for index in 0..1_000 {
+        let control_first = index % 2 == 0;
+        let measure_control = || {
+            let started = Instant::now();
+            many.graph_expand(&many_request).unwrap();
+            started.elapsed().as_nanos() as u64 / 1_000
+        };
+        let measure_hydrated = || {
+            let started = Instant::now();
+            many.graph_expand_with_graph_evidence_for_test(&many_request).unwrap();
+            started.elapsed().as_nanos() as u64 / 1_000
+        };
+        if control_first {
+            control_50_us.push(measure_control());
+            hydrated_50_us.push(measure_hydrated());
+        } else {
+            hydrated_50_us.push(measure_hydrated());
+            control_50_us.push(measure_control());
+        }
+    }
+    let many_treated = many.graph_expand_with_graph_evidence_for_test(&many_request).unwrap();
+    let many_frozen = match &many_request.context {
+        GraphReadContextV1::Frozen { context, .. } => context,
+        _ => unreachable!(),
+    };
+    let mut memex_batch_50_us = Vec::with_capacity(30);
+    for _ in 0..30 {
+        let started = Instant::now();
+        for entry in many_treated.evidence.iter().take(25) {
+            many.resolve_graph_evidence_for_test(&entry.target_ref, many_frozen).unwrap();
+            many.resolve_graph_evidence_for_test(
+                entry.terminal_edge_ref.as_ref().unwrap(),
+                many_frozen,
+            )
+            .unwrap();
+        }
+        memex_batch_50_us.push(started.elapsed().as_nanos() as u64 / 1_000);
+    }
     println!(
         "SLICE15_RAW={}",
         serde_json::json!({
@@ -373,6 +471,9 @@ fn measurement_matrix_emits_raw_samples() {
             "concurrent_control_8x200": concurrent_control_us,
             "concurrent_hydrated_8x200": concurrent_hydrated_us,
             "concurrent_point_8x200": concurrent_point_us,
+            "control_50": control_50_us, "hydrated_50": hydrated_50_us,
+            "memex_batch_50": memex_batch_50_us,
+            "control_response_50_bytes": encode_graph_expand_result_v1(&many_treated.graph).unwrap().len(),
             "control_response_bytes": encode_graph_expand_result_v1(&treated.graph).unwrap().len(),
             "sidecar_reference_bytes": treated.evidence[0].target_ref.as_str().len()
                 + treated.evidence[0].terminal_edge_ref.as_ref().unwrap().as_str().len()

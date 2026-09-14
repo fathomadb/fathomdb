@@ -1539,29 +1539,39 @@ fn authorize_graph_evidence(
             return Err(EvidenceErrorV1::unavailable().into());
         }
         if pending_i64(row, 16).is_some()
-            && (pending_i64(row, 25).is_none()
+            && (pending_i64(row, 25) != Some(1)
+                || pending_string(row, 26).as_deref() != Some("node")
+                || pending_string(row, 27).as_deref() != Some("canonical_source")
+                || pending_string(row, 28).as_deref() != Some("complete")
                 || pending_string(row, 29).is_none()
+                || pending_string(row, 30) != pending_string(row, 17)
                 || pending_string(row, 31).as_deref() != Some("active")
                 || pending_i64(row, 32).is_some()
                 || !in_window(pending_i64(row, 33), pending_i64(row, 34))
+                || pending_i64(row, 54).is_none()
                 || pending_i64(row, 55) != Some(0)
                 || pending_i64(row, 57) != Some(1))
         {
             return Err(EvidenceErrorV1::unavailable().into());
         }
     }
-    for row in batches.iter().flat_map(|batch| batch.iter()) {
-        if pending_i64(row, 16).is_none() {
-            let ordinal = row.target_index;
-            let path = if row.artifact_class == EvidenceArtifactClassV1::Node {
-                format!("/targets/{ordinal}/provenance")
-            } else {
-                format!("/targets/{ordinal}/terminalEdgeProvenance")
-            };
-            return Err(
-                EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, path).into()
-            );
-        }
+    let missing = batches
+        .iter()
+        .flat_map(|batch| batch.iter())
+        .filter(|row| pending_i64(row, 16).is_none())
+        .min_by_key(|row| {
+            (
+                row.target_index,
+                if row.artifact_class == EvidenceArtifactClassV1::Node { 0 } else { 1 },
+            )
+        });
+    if let Some(row) = missing {
+        let path = if row.artifact_class == EvidenceArtifactClassV1::Node {
+            format!("/targets/{}/provenance", row.target_index)
+        } else {
+            format!("/targets/{}/terminalEdge/provenance", row.target_index)
+        };
+        return Err(EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, path).into());
     }
     Ok(())
 }

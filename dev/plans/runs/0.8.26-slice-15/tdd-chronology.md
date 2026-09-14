@@ -52,8 +52,22 @@ that finding auditable; its numbers are not used as decision evidence.
 
 The first RED commit covered only the initial contract. It did not cover the
 later review findings; `50a49d7d` is the tests-first record for FIX-1. The
-corrected authoritative campaign followed `081a1eea` and exercises the complete
-approved functional and measurement matrix. A subsequent teardown commit
-preserves the experimental chain in history while leaving no prototype public
-method, field, codec, binding, schema, persistence path, or runtime behavior in
-the final tree.
+first corrected campaign followed `081a1eea`; it was superseded by FIX-2 after
+review found incomplete intrinsic material and insufficient timed writer
+overlap. Its teardown remains reachable rather than rewritten.
+
+- `d4901595`, `7d8b60c1`, `3a60767e`, and `fcb5791f`: restore the transient
+  prototype and FIX-1 fixture in history-preserving order for FIX-2.
+- `37a7ed99`: FIX-2 RED tests require complete intrinsic source locator/span,
+  direct dependency generation, class-specific lifecycle, shipped target
+  filter semantics, terminal-edge graph-disclosure semantics, and repeated
+  writer overlap counted only inside the timed interval.
+- `06a54027`: FIX-2 GREEN completes the intrinsic carrier and resolver,
+  corrects class-aware eligibility, and adds balanced readiness/progress
+  rendezvous with timed successful-operation accounting.
+
+FIX-2's authoritative campaign follows `06a54027` and replaces all earlier
+decision numbers rather than mixing measurements from different treatments. A
+subsequent teardown commit preserves the experimental chain in history while
+leaving no prototype public method, field, codec, binding, schema, persistence
+path, or runtime behavior in the final tree.

@@ -1,6 +1,6 @@
 # Slice 15 decision-measurement environment
 
-- Source prototype: `081a1eea`
+- Source prototype: `06a54027`
 - Date: 2026-09-14
 - Host: Linux `7.0.0-30-generic`, x86_64
 - CPU: AMD Ryzen Threadripper PRO 5945WX, 12 cores / 24 threads
@@ -28,6 +28,9 @@ The point-resolution 1 KiB arms use exactly 1,024 canonical-source bytes. The
 timed treatment executes two class-specific data statements total after
 selection. Plan inspection is outside the timed path; minting consumes the
 validated, source-deduplicated material without further SQL or hashing. Writer
-arms rotate order across isolated fixtures and begin only after the background
-operation reports its first successful commit. Erasure arms use a before-
-primary-lock rendezvous and alternate idle/held order.
+arms rotate order across isolated fixtures. Each writer reports readiness
+before timing; loaded arms require repeated successful commits during the
+timed interval, and the recorded operation count excludes setup and shutdown.
+The common 250-microsecond inter-write pacing keeps the three writer arms
+comparable. Erasure arms use a before-primary-lock rendezvous and alternate
+idle/held order.

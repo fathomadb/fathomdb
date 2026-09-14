@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 20 — implementation pause record
-status: PAUSED FOR GPT-6 ASTRA MEDIUM DESIGN RE-REVIEW
+status: DESIGN REVIEW PASSED — PAUSED FOR IMPLEMENTATION CONFORMANCE AUDIT
 observed_on: 2026-09-14
 ---
 
@@ -11,11 +11,12 @@ observed_on: 2026-09-14
 The repository owner paused implementation after the first implementation pass
 had begun and required a fresh GPT-6 Astra medium review because the graph-
 evidence authorization, token, transaction, erasure, and cross-binding design is
-complex. The first review returned `REQUEST CHANGES`; its six findings are now
+complex. The first review returned `REQUEST CHANGES`; its six findings were
 reconciled in the plan/design and
-`astra-design-reconciliation-2026-09-14.md`. No implementation work may resume
-until a fresh GPT-6 Astra medium re-review returns `PASS` with no P0/P1/P2
-finding.
+`astra-design-reconciliation-2026-09-14.md`. The fresh re-review recorded in
+`astra-design-rereview-2026-09-14.md` returned `PASS` with no P0/P1/P2 finding.
+The design gate is complete; implementation remains paused until its existing
+diff is audited against the corrected design.
 
 ## Durable state at interruption
 
@@ -70,23 +71,19 @@ their presence does not establish correctness or GREEN status.
 
 ## Remaining work
 
-1. Obtain a fresh GPT-6 Astra medium re-review and require `PASS` with no
-   P0/P1/P2 findings. If a finding changes the
-   authorized public contract or crosses a plan stop gate, return to HITL before
-   implementation.
-2. Audit the paused implementation diff against the corrected design. Preserve
+1. Audit the paused implementation diff against the corrected design. Preserve
    valid RED/GREEN history; supersede incorrect implementation additively rather
    than rewriting it.
-3. Finish or correct Rust core/facade, Python/PyO3, TypeScript/N-API, ADR,
+2. Finish or correct Rust core/facade, Python/PyO3, TypeScript/N-API, ADR,
    interfaces, public docs, changelog, governed-surface metadata, and focused
    tests as required by the final design.
-4. Classify and clean only proven-owned transient test artifacts.
-5. Run focused blast-radius tests, canonical `agent-verify`, workspace Clippy
+3. Classify and clean only proven-owned transient test artifacts.
+4. Run focused blast-radius tests, canonical `agent-verify`, workspace Clippy
    with warnings denied, workspace check, strict docs build, and fresh installed
    Python/TypeScript probes.
-6. Obtain independent code review and verifier review; perform at most two
+5. Obtain independent code review and verifier review; perform at most two
    focused FIX-n cycles.
-7. Write the final Slice 20 status, land the reviewed tip on `release/0.8.26`,
+6. Write the final Slice 20 status, land the reviewed tip on `release/0.8.26`,
    update release state/generated views, run post-landing preflight, and remove
    the clean implementation worktree/branch.
 

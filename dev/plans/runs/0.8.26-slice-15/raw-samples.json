@@ -72895,7 +72895,7 @@
         546,
         505
       ],
-      "mode": "point",
+      "mode": "hydrated_graph_plus_point_resolution",
       "successful_background_ops": 359,
       "throughput_per_s": 359.83405604804045
     },
@@ -73639,7 +73639,7 @@
         468,
         504
       ],
-      "mode": "point",
+      "mode": "hydrated_graph_plus_point_resolution",
       "successful_background_ops": 351,
       "throughput_per_s": 350.50220170154876
     },
@@ -74400,7 +74400,7 @@
         448,
         620
       ],
-      "mode": "point",
+      "mode": "hydrated_graph_plus_point_resolution",
       "successful_background_ops": 363,
       "throughput_per_s": 362.2747191290839
     },
@@ -76308,7 +76308,7 @@
         468,
         436
       ],
-      "mode": "point",
+      "mode": "hydrated_graph_plus_point_resolution",
       "successful_background_ops": 358,
       "throughput_per_s": 359.8953892072191
     },
@@ -77045,7 +77045,7 @@
         594,
         601
       ],
-      "mode": "point",
+      "mode": "hydrated_graph_plus_point_resolution",
       "successful_background_ops": 339,
       "throughput_per_s": 345.15079443687546
     },

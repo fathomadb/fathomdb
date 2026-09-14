@@ -795,38 +795,40 @@
         "campaign": 0,
         "graph_throughput_ratio": 0.9690859229820143,
         "graph_p99_ratio": 0.9729809104258443,
-        "point_throughput_ratio": 0.952093768630432,
-        "point_p99_ratio": 0.9444933920704845
+        "composite_throughput_ratio": 0.952093768630432,
+        "composite_p99_ratio": 0.9444933920704845
       },
       {
         "campaign": 1,
         "graph_throughput_ratio": 0.987491889159637,
         "graph_p99_ratio": 1.02143906020558,
-        "point_throughput_ratio": 0.9293422394754948,
-        "point_p99_ratio": 0.84640234948605
+        "composite_throughput_ratio": 0.9293422394754948,
+        "composite_p99_ratio": 0.84640234948605
       },
       {
         "campaign": 2,
         "graph_throughput_ratio": 0.9923211840851652,
         "graph_p99_ratio": 0.9558659217877095,
-        "point_throughput_ratio": 0.9619167119675497,
-        "point_p99_ratio": 0.7837988826815643
+        "composite_throughput_ratio": 0.9619167119675497,
+        "composite_p99_ratio": 0.7837988826815643
       },
       {
         "campaign": 3,
         "graph_throughput_ratio": 0.971977889124824,
         "graph_p99_ratio": 1.017909571344686,
-        "point_throughput_ratio": 0.9510415588503527,
-        "point_p99_ratio": 0.8523194362889019
+        "composite_throughput_ratio": 0.9510415588503527,
+        "composite_p99_ratio": 0.8523194362889019
       },
       {
         "campaign": 4,
         "graph_throughput_ratio": 0.9770603788508373,
         "graph_p99_ratio": 1.0500745156482862,
-        "point_throughput_ratio": 0.9103117918546492,
-        "point_p99_ratio": 0.8634873323397914
+        "composite_throughput_ratio": 0.9103117918546492,
+        "composite_p99_ratio": 0.8634873323397914
       }
     ],
+    "p99_ratios_are_descriptive": true,
+    "p99_samples_per_arm_are_below": 1000,
     "sample_windows": [
       {
         "campaign": 0,
@@ -846,7 +848,7 @@
       },
       {
         "campaign": 0,
-        "mode": "point",
+        "mode": "hydrated_graph_plus_point_resolution",
         "elapsed_us": 1000461,
         "foreground_operations": 360,
         "successful_background_ops": 359,
@@ -862,7 +864,7 @@
       },
       {
         "campaign": 1,
-        "mode": "point",
+        "mode": "hydrated_graph_plus_point_resolution",
         "elapsed_us": 1001420,
         "foreground_operations": 351,
         "successful_background_ops": 351,
@@ -878,7 +880,7 @@
       },
       {
         "campaign": 2,
-        "mode": "point",
+        "mode": "hydrated_graph_plus_point_resolution",
         "elapsed_us": 1002002,
         "foreground_operations": 363,
         "successful_background_ops": 363,
@@ -918,7 +920,7 @@
       },
       {
         "campaign": 3,
-        "mode": "point",
+        "mode": "hydrated_graph_plus_point_resolution",
         "elapsed_us": 1000290,
         "foreground_operations": 360,
         "successful_background_ops": 358,
@@ -934,7 +936,7 @@
       },
       {
         "campaign": 4,
-        "mode": "point",
+        "mode": "hydrated_graph_plus_point_resolution",
         "elapsed_us": 1002460,
         "foreground_operations": 346,
         "successful_background_ops": 339,
@@ -957,7 +959,7 @@
       },
       {
         "campaign": 0,
-        "mode": "point",
+        "mode": "hydrated_graph_plus_point_resolution",
         "successful_background_ops": 359
       },
       {
@@ -967,12 +969,12 @@
       },
       {
         "campaign": 1,
-        "mode": "point",
+        "mode": "hydrated_graph_plus_point_resolution",
         "successful_background_ops": 351
       },
       {
         "campaign": 2,
-        "mode": "point",
+        "mode": "hydrated_graph_plus_point_resolution",
         "successful_background_ops": 363
       },
       {
@@ -987,7 +989,7 @@
       },
       {
         "campaign": 3,
-        "mode": "point",
+        "mode": "hydrated_graph_plus_point_resolution",
         "successful_background_ops": 358
       },
       {
@@ -997,7 +999,7 @@
       },
       {
         "campaign": 4,
-        "mode": "point",
+        "mode": "hydrated_graph_plus_point_resolution",
         "successful_background_ops": 339
       }
     ],
@@ -1039,7 +1041,7 @@
         "resamples": 3125
       }
     },
-    "point_throughput_ratio": {
+    "hydrated_graph_plus_point_resolution_throughput_ratio": {
       "campaign_ratios": [
         0.952093768630432,
         0.9293422394754948,
@@ -1058,7 +1060,7 @@
         "resamples": 3125
       }
     },
-    "point_p99_ratio": {
+    "hydrated_graph_plus_point_resolution_p99_ratio": {
       "campaign_ratios": [
         0.9444933920704845,
         0.84640234948605,

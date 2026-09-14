@@ -23,10 +23,13 @@ class-specific lifecycle material and aligns node eligibility with shipped
 target filters while keeping target-only filters out of terminal-edge
 resolution. Its final writer campaign uses independent fixed-duration issuance
 with no load-dependent timed waits and counts only successful background
-operations during the interval. The valid campaign did not cross either writer
-reconsideration threshold: median throughput ratios were 0.977 for graph
-hydration and 0.951 for point resolution, while p99 ratios were 1.018 and
-0.852. No writer-performance stop gate is allocated to Slice 20.
+operations during the interval. The valid campaign did not cross the writer
+throughput threshold: median ratios were 0.977 for graph hydration and 0.951
+for composite hydrated-graph-plus-point-resolution load. That composite cycle
+includes a freeze, hydrated graph expansion, and one target resolution; it is
+not isolated point resolution. Writer p99 ratios of 1.018 and 0.852 are
+descriptive because the arms contain only 345–380 latency samples. No writer-
+performance stop gate is allocated to Slice 20.
 
 Teardown restored every transient shipping-code path byte-for-byte to the
 pre-spike tree and removed the transient prototype tests. Only the durable

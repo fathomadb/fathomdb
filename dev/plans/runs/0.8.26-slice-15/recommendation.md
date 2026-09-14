@@ -51,12 +51,16 @@ p99 values are descriptive because they are undersampled.
 Writer triggers did not fire under valid independent sustained concurrency.
 All arms issued foreground writes for the same fixed one-second window, with
 no load-dependent wait, poll, or quota in the timed loop. Graph arms naturally
-completed 807–828 background graph operations and point arms 339–363 background
-point operations during those windows. With hydrated graph load, median writer
-throughput ratio was 0.977 (bootstrap 0.969–0.992) and p99 ratio 1.018
-(0.956–1.050). With point-resolution load, throughput ratio was 0.951
-(0.910–0.962) and p99 ratio 0.852 (0.784–0.944). Neither the greater-than-10%
-throughput-loss nor greater-than-25% p99-growth threshold crossed.
+completed 807–828 background graph operations. Composite arms completed
+339–363 background cycles, each comprising a freeze, hydrated graph expansion,
+and one target evidence resolution; this is not isolated point resolution.
+With hydrated graph load, median writer throughput ratio was 0.977 (bootstrap
+0.969–0.992). With composite hydrated-graph-plus-point-resolution load, it was
+0.951 (0.910–0.962). These throughput estimates are trigger evidence. The
+corresponding p99 ratios were 1.018 (0.956–1.050) and 0.852 (0.784–0.944), but
+are descriptive because each arm contains only 345–380 latency samples, below
+the design's 1,000-sample p99 threshold. Neither throughput nor descriptive p99
+indicates a reconsideration trigger.
 
 Process-isolated peak-RSS growth was 280–300 KiB for control and 464–560 KiB
 for treatment, with a median paired ratio of 1.676 (1.547–2.000). This is a

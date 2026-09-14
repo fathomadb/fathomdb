@@ -1,6 +1,7 @@
 # Slice 15 decision-measurement environment
 
-- Source prototype: `06a54027`
+- Retained non-writer prototype/evidence: `06a54027` / `b7fb1878`
+- Replacement writer prototype/evidence: `b7a03ca2` / `eef87183`
 - Date: 2026-09-14
 - Host: Linux `7.0.0-30-generic`, x86_64
 - CPU: AMD Ryzen Threadripper PRO 5945WX, 12 cores / 24 threads
@@ -33,5 +34,9 @@ before timing. All arms issue foreground writes independently for the same
 fixed one-second window with common two-millisecond pacing and no
 load-dependent wait, poll, or quota inside the timed writer loop. Loaded arms
 must naturally complete at least 20 background operations; recorded background
-counts exclude setup and shutdown. Erasure arms use a before-primary-lock
+counts exclude setup and shutdown. The composite writer-load arm performs one
+freeze, one hydrated graph expansion, and one target evidence resolution per
+background cycle; it is not an isolated point-resolution workload. Each writer
+arm contains 345–380 service-latency samples, so writer p99 values and their
+ratios/intervals are descriptive. Erasure arms use a before-primary-lock
 rendezvous and alternate idle/held order.

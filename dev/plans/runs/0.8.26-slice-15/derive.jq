@@ -38,13 +38,14 @@ def arm($name): [.campaigns[] | .[$name] | stats];
 | [range(0; 5) as $campaign
     | ($root.writer_campaigns[] | select(.campaign == $campaign and .mode == "alone")) as $alone
     | ($root.writer_campaigns[] | select(.campaign == $campaign and .mode == "graph")) as $graph
-    | ($root.writer_campaigns[] | select(.campaign == $campaign and .mode == "point")) as $point
+    | ($root.writer_campaigns[]
+        | select(.campaign == $campaign and .mode == "hydrated_graph_plus_point_resolution")) as $composite
     | {
         campaign: $campaign,
         graph_throughput_ratio: ($graph.throughput_per_s / $alone.throughput_per_s),
         graph_p99_ratio: (($graph.latencies_us | nr(0.99)) / ($alone.latencies_us | nr(0.99))),
-        point_throughput_ratio: ($point.throughput_per_s / $alone.throughput_per_s),
-        point_p99_ratio: (($point.latencies_us | nr(0.99)) / ($alone.latencies_us | nr(0.99)))
+        composite_throughput_ratio: ($composite.throughput_per_s / $alone.throughput_per_s),
+        composite_p99_ratio: (($composite.latencies_us | nr(0.99)) / ($alone.latencies_us | nr(0.99)))
       }] as $writers
 | [range(0; 5) as $campaign
     | ($root.rss_campaigns[] | select(.campaign == $campaign and .mode == "control")) as $control
@@ -101,6 +102,8 @@ def arm($name): [.campaigns[] | .[$name] | stats];
     },
     writer: {
       campaigns: $writers,
+      p99_ratios_are_descriptive: true,
+      p99_samples_per_arm_are_below: 1000,
       sample_windows: ($root.writer_campaigns
         | map({campaign, mode, elapsed_us, foreground_operations,
           successful_background_ops, throughput_per_s})),
@@ -109,8 +112,10 @@ def arm($name): [.campaigns[] | .[$name] | stats];
           | {campaign, mode, successful_background_ops})),
       graph_throughput_ratio: ($writers | map(.graph_throughput_ratio) | five_summary),
       graph_p99_ratio: ($writers | map(.graph_p99_ratio) | five_summary),
-      point_throughput_ratio: ($writers | map(.point_throughput_ratio) | five_summary),
-      point_p99_ratio: ($writers | map(.point_p99_ratio) | five_summary)
+      hydrated_graph_plus_point_resolution_throughput_ratio:
+        ($writers | map(.composite_throughput_ratio) | five_summary),
+      hydrated_graph_plus_point_resolution_p99_ratio:
+        ($writers | map(.composite_p99_ratio) | five_summary)
     },
     rss: {
       campaigns: $rss,

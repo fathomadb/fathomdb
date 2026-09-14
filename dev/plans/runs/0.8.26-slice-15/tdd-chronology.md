@@ -66,11 +66,14 @@ overlap. Its teardown remains reachable rather than rewritten.
   corrects class-aware eligibility, and adds balanced readiness/progress
   rendezvous with timed successful-operation accounting.
 
-FIX-2's authoritative campaign follows `06a54027` and replaces all earlier
-decision numbers rather than mixing measurements from different treatments. A
-subsequent teardown preserves the experimental chain in history while leaving
-no prototype public method, field, codec, binding, schema, persistence path, or
-runtime behavior in the final tree.
+FIX-2's non-writer authoritative campaign follows `06a54027` and replaces the
+earlier non-writer decision numbers without mixing different treatments. The
+final evidence intentionally combines that retained non-writer campaign with
+the later `b7a03ca2` replacement writer campaign; each subset is internally
+consistent and identified in the environment record. A subsequent teardown
+preserves the experimental chain in history while leaving no prototype public
+method, field, codec, binding, schema, persistence path, or runtime behavior in
+the final tree.
 
 - `b7fb1878`: replaces the earlier decision evidence after the first FIX-2
   review. Its non-writer measurements remain authoritative, but its writer
@@ -90,8 +93,9 @@ runtime behavior in the final tree.
   allowing natural sustained overlap without any load-dependent timed wait.
 - `eef87183`: replaces only the invalid writer subset and derived conclusions.
   Five balanced campaigns naturally observed 807–828 background graph
-  operations and 339–363 background point operations; neither reconsideration
-  threshold fired.
+  operations and 339–363 hydrated-graph-plus-point-resolution cycles; the
+  throughput trigger did not fire, while undersampled writer p99 remains
+  descriptive.
 - `705d67d5`, `47080769`, `85e3bf67`, `cb80a0cc`, `69f4d87a`, `5762cdac`,
   `9ff4d775`, `34e6de90`, and `a20554c5`: exact reverse-order teardown of the
   final writer correction and restored transient scaffold.

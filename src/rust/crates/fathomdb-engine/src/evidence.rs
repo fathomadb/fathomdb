@@ -1521,7 +1521,8 @@ fn authorize_graph_evidence(
         };
         let effective_lifecycle = match row.artifact_class {
             EvidenceArtifactClassV1::Node => {
-                pending_string(row, 9).as_deref() == Some("active")
+                pending_string(row, 5).is_some()
+                    && pending_string(row, 9).as_deref() == Some("active")
                     && pending_i64(row, 10).is_none()
                     && in_window(pending_i64(row, 11), pending_i64(row, 12))
             }
@@ -1531,10 +1532,7 @@ fn authorize_graph_evidence(
                     && in_window(pending_i64(row, 11), pending_i64(row, 12))
             }
         };
-        if pending_i64(row, 1).is_none()
-            || pending_string(row, 5).is_none()
-            || pending_i64(row, 56) != Some(1)
-            || !effective_lifecycle
+        if pending_i64(row, 1).is_none() || pending_i64(row, 56) != Some(1) || !effective_lifecycle
         {
             return Err(EvidenceErrorV1::unavailable().into());
         }
@@ -1714,9 +1712,15 @@ fn materialize_graph_evidence_batch(
             && artifact_lifecycle_valid
             && dependency_valid
             && !closure_active;
-        if CanonicalHash::sha256(hash_digest.clone()).is_err()
-            || crate::canonical_body_hash(&source_body) != hash_digest
-        {
+        let source_hash_valid =
+            if let Some((existing_body, existing_digest)) = sources.get(&source_revision_id) {
+                // Each row must agree with the already validated canonical bytes and digest.
+                existing_body.as_str() == source_body && existing_digest == &hash_digest
+            } else {
+                CanonicalHash::sha256(hash_digest.clone()).is_ok()
+                    && crate::canonical_body_hash(&source_body) == hash_digest
+            };
+        if !source_hash_valid {
             return Err(EvidenceErrorV1::new(
                 EvidenceErrorReasonV1::EvidenceCorrupt,
                 "/provenance/canonicalSourceHash",
@@ -1740,15 +1744,7 @@ fn materialize_graph_evidence_batch(
             )
             .into());
         }
-        if let Some((existing_body, existing_digest)) = sources.get(&source_revision_id) {
-            if existing_body.as_str() != source_body || existing_digest != &hash_digest {
-                return Err(EvidenceErrorV1::new(
-                    EvidenceErrorReasonV1::EvidenceCorrupt,
-                    "/provenance",
-                )
-                .into());
-            }
-        } else {
+        if !sources.contains_key(&source_revision_id) {
             stats.source_hash_count += 1;
             stats.source_bytes_hashed += source_body.len();
             let source = std::sync::Arc::new(source_body);

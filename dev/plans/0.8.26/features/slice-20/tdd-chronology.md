@@ -63,3 +63,56 @@ unrelated future-slice test and failed because
 `slice75_schema26_upgrade.rs` calls the not-yet-present `rebuild_projections`
 method. This is outside Slice 20; targeted library and focused Slice 20 checks
 remain the appropriate gate until that release-ladder dependency lands.
+
+## Independent review FIX-1
+
+The independent code review requested four corrections. The response remained
+additive and preserved every earlier security oracle.
+
+- `b5b47d33` added the nonce RED. The focused failure was the exact assertion
+  `left: 1`, `right: 0`: minting still executed SQLite
+  `SELECT randomblob(16)`. `d14fff43` replaced that query with the existing
+  platform RNG mechanism through `getrandom::fill`; token framing and length
+  stayed unchanged.
+- `5242b0ab` added exact phase-two stored-fault and precedence oracles.
+  `fbce32ae` made phase two classify all material before returning, order by
+  target index with target before terminal edge, and report the exact
+  `/targets/{i}/provenance` or
+  `/targets/{i}/terminalEdge/provenance` path.
+- `7be5aea4` added the runtime statement-count RED. Compilation failed with six
+  unchanged `E0599` diagnostics because
+  `graph_expand_with_statement_count_for_test` did not exist. `bf4f3525`
+  instruments every statement executed on the real reader connection. The
+  differential oracle proves zero evidence-hydration statements for an empty
+  result and exactly two for one or multiple targets backed by multiple
+  canonical sources.
+- `ca66f23a` added recursively closed Rust sidecar/entry decoder REDs. The exact
+  failure was `unwrap_err()` receiving `Ok(GraphExpandResultV1 ...)` for the
+  unknown `/evidence/z~1future~0field`. `6986d44f` rejects sidecar and entry
+  unknowns at escaped RFC 6901 paths.
+- `dfaf33a0` added Python/TypeScript malformed resolved-response REDs. The
+  TypeScript diagnostic was `AssertionError: Missing expected rejection` for
+  `/z~1future~0field`. `48b9a5c3` closed the outer and nested response shapes,
+  validates revision identities, union coherence, nullability, lifecycle
+  coherence, canonical numeric strings, and exact paths. Python now validates
+  decoded native JSON before indexing any member.
+- `0ad5df62`, `cf5c9895`, and `36e80852` add the remaining real-engine oracles:
+  edge-at-index-zero versus target-at-index-one precedence, target-before-edge
+  at one index, absent versus present-empty source attributes, source status and
+  created-after behavior with missing vector metadata, multiple distinct
+  sources under the two-statement bound, primary-mutex ordering for both
+  governed erase and operator excise, and real TypeScript target/edge
+  resolution. The two global erasure hooks are intentionally exercised in one
+  serial test; the first parallel spelling exposed a test-only hook race and was
+  stopped rather than normalized into a product claim.
+- `ecf60335` extends the source-independent wheel profile with installed-package
+  graph expansion and exact target/terminal-edge resolution.
+
+The fresh wheel gate built
+`fathomdb-0.8.25-cp310-abi3-manylinux_2_39_x86_64.whl` with SHA-256
+`df36b7886157527ecd30d3cf6d49270dcb90431cc9ea2a9a34302874c59991c5`.
+The installed profile passed, and the nine focused Python tests passed against
+that installed wheel with repository source injection disabled. A fresh local
+npm install is deferred to the release packaging ladder because the committed
+main package intentionally excludes the native binary and requires the
+platform-package injection step; source-level real-NAPI coverage passed here.

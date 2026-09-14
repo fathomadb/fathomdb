@@ -1508,10 +1508,10 @@ fn query_graph_evidence_batch(
 }
 
 fn authorize_graph_evidence(
-    rows: &[PendingGraphEvidence],
+    batches: &[&[PendingGraphEvidence]],
     frozen: &FrozenReadContextV1,
 ) -> Result<(), EngineError> {
-    for row in rows {
+    for row in batches.iter().flat_map(|batch| batch.iter()) {
         let effective = frozen.effective_valid_at;
         let in_window = |start: Option<i64>, end: Option<i64>| {
             start.is_none_or(|value| value <= effective)
@@ -1536,6 +1536,19 @@ fn authorize_graph_evidence(
         {
             return Err(EvidenceErrorV1::unavailable().into());
         }
+        if pending_i64(row, 16).is_some()
+            && (pending_i64(row, 25).is_none()
+                || pending_string(row, 29).is_none()
+                || pending_string(row, 31).as_deref() != Some("active")
+                || pending_i64(row, 32).is_some()
+                || !in_window(pending_i64(row, 33), pending_i64(row, 34))
+                || pending_i64(row, 55) != Some(0)
+                || pending_i64(row, 57) != Some(1))
+        {
+            return Err(EvidenceErrorV1::unavailable().into());
+        }
+    }
+    for row in batches.iter().flat_map(|batch| batch.iter()) {
         if pending_i64(row, 16).is_none() {
             let ordinal = pending_i64(row, 0).unwrap_or(0);
             let path = if row.artifact_class == EvidenceArtifactClassV1::Node {
@@ -1546,16 +1559,6 @@ fn authorize_graph_evidence(
             return Err(
                 EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, path).into()
             );
-        }
-        if pending_i64(row, 25).is_none()
-            || pending_string(row, 29).is_none()
-            || pending_string(row, 31).as_deref() != Some("active")
-            || pending_i64(row, 32).is_some()
-            || !in_window(pending_i64(row, 33), pending_i64(row, 34))
-            || pending_i64(row, 55) != Some(0)
-            || pending_i64(row, 57) != Some(1)
-        {
-            return Err(EvidenceErrorV1::unavailable().into());
         }
     }
     Ok(())
@@ -1803,8 +1806,7 @@ pub(crate) fn preflight_graph_evidence(
         frozen,
         &mut stats,
     )?;
-    authorize_graph_evidence(&pending_nodes, frozen)?;
-    authorize_graph_evidence(&pending_edges, frozen)?;
+    authorize_graph_evidence(&[&pending_nodes, &pending_edges], frozen)?;
     let mut sources = std::collections::HashMap::new();
     let nodes = materialize_graph_evidence_batch(pending_nodes, frozen, &mut sources, &mut stats)?;
     stats.node_rows = nodes.len();
@@ -1843,6 +1845,21 @@ fn protect_graph_selector(key: &[u8], nonce: &[u8; 16], value: &[u8]) -> Vec<u8>
         output.extend(chunk.iter().zip(mask).map(|(byte, mask)| byte ^ mask));
     }
     output
+}
+
+fn frame_graph_selector(key: &[u8], nonce: &[u8; 16], payload: &[u8]) -> String {
+    let ciphertext = protect_graph_selector(key, nonce, payload);
+    let mut authenticated =
+        Vec::with_capacity(GRAPH_TOKEN_PREFIX.len() + nonce.len() + ciphertext.len());
+    authenticated.extend_from_slice(GRAPH_TOKEN_PREFIX.as_bytes());
+    authenticated.extend_from_slice(nonce);
+    authenticated.extend_from_slice(&ciphertext);
+    let mac = frozen_read::hmac_sha256(key, GRAPH_MAC_DOMAIN, &authenticated);
+    let mut framed = Vec::with_capacity(nonce.len() + ciphertext.len() + mac.len());
+    framed.extend_from_slice(nonce);
+    framed.extend_from_slice(&ciphertext);
+    framed.extend_from_slice(&mac);
+    format!("{GRAPH_TOKEN_PREFIX}{}", frozen_read::hex_encode(&framed))
 }
 
 pub(crate) fn mint_graph_evidence_reference(
@@ -1900,18 +1917,7 @@ pub(crate) fn mint_graph_evidence_reference(
     ));
     debug_assert_eq!(payload.len(), GRAPH_SELECTOR_BYTES);
     let nonce = random_nonce(connection)?;
-    let ciphertext = protect_graph_selector(&authority.key, &nonce, &payload);
-    let mut authenticated =
-        Vec::with_capacity(GRAPH_TOKEN_PREFIX.len() + nonce.len() + ciphertext.len());
-    authenticated.extend_from_slice(GRAPH_TOKEN_PREFIX.as_bytes());
-    authenticated.extend_from_slice(&nonce);
-    authenticated.extend_from_slice(&ciphertext);
-    let mac = frozen_read::hmac_sha256(&authority.key, GRAPH_MAC_DOMAIN, &authenticated);
-    let mut framed = Vec::with_capacity(nonce.len() + ciphertext.len() + mac.len());
-    framed.extend_from_slice(&nonce);
-    framed.extend_from_slice(&ciphertext);
-    framed.extend_from_slice(&mac);
-    let reference = format!("{GRAPH_TOKEN_PREFIX}{}", frozen_read::hex_encode(&framed));
+    let reference = frame_graph_selector(&authority.key, &nonce, &payload);
     debug_assert_eq!(reference.len(), GRAPH_TOKEN_BYTES);
     Ok((
         ArtifactRevisionId::new(material.artifact_revision_id.clone())
@@ -2608,5 +2614,59 @@ mod tests {
             .map(|(cipher, mask)| cipher ^ mask)
             .collect::<Vec<_>>();
         assert_ne!(cross_token_guess, generation);
+    }
+
+    #[test]
+    fn graph_selector_uses_ten_blocks_and_exact_fixed_nonce_framing() {
+        let key = [0x31; 32];
+        let nonce = [0x42; 16];
+        let mut selector = [0_u8; GRAPH_SELECTOR_BYTES];
+        selector[0..4].copy_from_slice(&1_u32.to_be_bytes());
+        selector[4] = 0;
+        selector[5] = EvidenceArtifactClassV1::Node.tag();
+        selector[6] = 0;
+        selector[8..12].copy_from_slice(&7_u32.to_be_bytes());
+        selector[12..20].copy_from_slice(&11_u64.to_be_bytes());
+        selector[20..28].copy_from_slice(&11_u64.to_be_bytes());
+        selector[28..36].copy_from_slice(&19_u64.to_be_bytes());
+        selector[36..44].copy_from_slice(&23_i64.to_be_bytes());
+        for (index, byte) in selector[44..].iter_mut().enumerate() {
+            *byte = u8::try_from(index % 251).unwrap();
+        }
+
+        let ciphertext = protect_graph_selector(&key, &nonce, &selector);
+        assert_eq!(ciphertext.len(), GRAPH_SELECTOR_BYTES);
+        assert_eq!(protect_graph_selector(&key, &nonce, &ciphertext), selector);
+        assert_ne!(&ciphertext[64..96], &selector[64..96]);
+        assert_ne!(&ciphertext[288..300], &selector[288..300]);
+
+        let token = frame_graph_selector(&key, &nonce, &selector);
+        assert_eq!(token.len(), GRAPH_TOKEN_BYTES);
+        assert!(token.starts_with(GRAPH_TOKEN_PREFIX));
+        assert!(token[GRAPH_TOKEN_PREFIX.len()..]
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));
+        let reference = GraphEvidenceRefV1::new(token).unwrap();
+        let decoded = decode_graph_evidence_reference(&reference, &key).unwrap();
+        assert_eq!(decoded.target_index, 7);
+        assert_eq!(decoded.artifact_cursor, 11);
+        assert_eq!(decoded.terminal_edge_cursor, 19);
+    }
+
+    #[test]
+    fn graph_selector_domains_are_not_interchangeable() {
+        let key = [0x5a; 32];
+        let nonce = [0x24; 16];
+        let payload = [0x17; GRAPH_SELECTOR_BYTES];
+        let graph_ciphertext = protect_graph_selector(&key, &nonce, &payload);
+        let mut input = Vec::from(nonce);
+        input.extend_from_slice(&0_u32.to_be_bytes());
+        let wrong_domain_mask = frozen_read::hmac_sha256(&key, GRAPH_MAC_DOMAIN, &input);
+        let wrong_first_block = payload[..32]
+            .iter()
+            .zip(wrong_domain_mask)
+            .map(|(byte, mask)| byte ^ mask)
+            .collect::<Vec<_>>();
+        assert_ne!(&graph_ciphertext[..32], wrong_first_block.as_slice());
     }
 }

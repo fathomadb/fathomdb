@@ -1426,6 +1426,8 @@ fn resolve_seeds(
     }
 }
 
+// Reader dispatch keeps each snapshot, evidence, attribution, and test seam explicit.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn read_graph_expand_in_tx(
     reader: &mut Connection,
     request: &GraphExpandRequestV1,

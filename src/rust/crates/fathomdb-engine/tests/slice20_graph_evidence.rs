@@ -373,9 +373,12 @@ fn unavailable(error: EngineError) {
 }
 
 fn expansion_unavailable(error: EngineError) {
-    assert!(matches!(error, EngineError::Evidence(ref error)
+    assert!(
+        matches!(&error, EngineError::Evidence(error)
         if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
-            && error.field_path == "/evidence"));
+            && error.field_path == "/evidence"),
+        "{error:?}"
+    );
 }
 
 #[test]
@@ -608,6 +611,71 @@ fn phase_two_faults_use_exact_target_then_terminal_edge_paths() {
     assert!(matches!(engine.graph_expand(&request).unwrap_err(), EngineError::Evidence(ref error)
         if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
             && error.field_path == "/targets/0/provenance/sourceLocator"));
+}
+
+#[test]
+fn canonical_source_registry_authority_precedes_malformed_provenance_detail() {
+    for registry_fault in [
+        "artifact_role='derived_semantic'",
+        "artifact_class='edge'",
+        "completeness='migrated_incomplete'",
+    ] {
+        let sql = format!(
+            "UPDATE _fathomdb_artifact_revisions SET {registry_fault} \
+             WHERE revision_id='source-r1'; \
+             UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes', \
+               start_byte=0,end_byte=999999, \
+               hash_digest='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' \
+             WHERE artifact_revision_id='target-r1';"
+        );
+        let (_directory, engine, mut request) = fixture_with_pre_freeze_sql(Some(&sql));
+        request.include_evidence = true;
+        expansion_unavailable(engine.graph_expand(&request).unwrap_err());
+    }
+}
+
+#[test]
+fn missing_links_are_globally_ordered_and_use_exact_terminal_edge_path() {
+    let (_directory, engine, mut request) = fixture_with_pre_freeze_sql(Some(
+        "DELETE FROM _fathomdb_source_links WHERE artifact_revision_id='edge-r1';",
+    ));
+    request.include_evidence = true;
+    let error = engine.graph_expand(&request).unwrap_err();
+    assert!(
+        matches!(&error, EngineError::Evidence(error)
+        if error.reason == EvidenceErrorReasonV1::EvidenceIncomplete
+            && error.field_path == "/targets/0/terminalEdge/provenance"),
+        "{error:?}"
+    );
+
+    let (_directory, engine, mut request) = fixture_with_pre_freeze_sql(Some(
+        "DELETE FROM _fathomdb_source_links WHERE artifact_revision_id IN ('target-r1','edge-r1');",
+    ));
+    request.include_evidence = true;
+    assert!(matches!(engine.graph_expand(&request).unwrap_err(), EngineError::Evidence(ref error)
+        if error.reason == EvidenceErrorReasonV1::EvidenceIncomplete
+            && error.field_path == "/targets/0/provenance"));
+
+    let (directory, engine, request) = fixture_with_two_targets();
+    let context = match request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.context,
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+    let engine = reopen_after_sql(
+        &directory,
+        engine,
+        "DELETE FROM _fathomdb_source_links \
+         WHERE artifact_revision_id IN ('edge-r1','target-two-r1');",
+    );
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let request = GraphExpandRequestV1 {
+        include_evidence: true,
+        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        ..request
+    };
+    assert!(matches!(engine.graph_expand(&request).unwrap_err(), EngineError::Evidence(ref error)
+        if error.reason == EvidenceErrorReasonV1::EvidenceIncomplete
+            && error.field_path == "/targets/0/terminalEdge/provenance"));
 }
 
 #[test]

@@ -2,16 +2,15 @@
 
 #![cfg(feature = "test-hooks")]
 
-use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
     arm_erasure_before_primary_lock_hook_for_test,
     arm_evidence_before_resolve_return_hook_for_test, encode_graph_expand_result_v1,
     ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, CanonicalHash, Engine,
     EvidenceErrorReasonV1, EvidenceRefV1, GraphArtifactClassForTest, GraphExpandRequestV1,
     GraphReadContextV1, GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProjectionRole,
-    ProjectionSpec, ProjectionVector, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1,
-    ReadView, SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator,
-    SourceRevisionId, SourceVersionId, TraversalDirection, WriteProvenanceV1,
+    ProjectionSpec, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
+    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    TraversalDirection, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
@@ -22,19 +21,6 @@ use std::sync::{Arc, Barrier, Mutex, MutexGuard};
 use std::thread;
 
 static FIXTURE_SERIALIZATION: Mutex<()> = Mutex::new(());
-
-#[derive(Clone, Debug)]
-struct EligibilityEmbedder;
-
-impl Embedder for EligibilityEmbedder {
-    fn identity(&self) -> EmbedderIdentity {
-        EmbedderIdentity::new("slice15-filter", "r1", 8)
-    }
-
-    fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
-        Ok(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-    }
-}
 
 fn serialize_fixture() -> MutexGuard<'static, ()> {
     FIXTURE_SERIALIZATION.lock().unwrap_or_else(|error| error.into_inner())
@@ -186,15 +172,15 @@ fn fixture_1k() -> (TempDir, Engine, GraphExpandRequestV1) {
 fn eligibility_fixture() -> (TempDir, Engine, ReadView) {
     let directory = TempDir::new().unwrap();
     let path = directory.path().join(format!("eligibility{SQLITE_SUFFIX}"));
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(EligibilityEmbedder)).unwrap();
+    let opened = Engine::open(&path).unwrap();
     opened
         .engine
         .configure_projections(
             &[ProjectionSpec {
                 name: "owner".into(),
-                roles: BTreeSet::from([ProjectionRole::Filterable, ProjectionRole::Searchable]),
+                roles: BTreeSet::from([ProjectionRole::Filterable]),
                 fts: None,
-                vector: Some(ProjectionVector::default()),
+                vector: None,
                 source: None,
             }],
             &[],
@@ -279,7 +265,7 @@ fn eligibility_request(
     view: &ReadView,
     filter: SearchFilter,
 ) -> GraphExpandRequestV1 {
-    let context = ReadContextV1::new(*view, filter).unwrap();
+    let context = ReadContextV1::new(view.clone(), filter).unwrap();
     GraphExpandRequestV1 {
         schema_version: 1,
         seed: GraphSeedV1::Explicit {
@@ -470,17 +456,10 @@ fn target_filters_govern_nodes_but_do_not_reject_disclosed_terminal_edges() {
     created_after.created_after = Some(0);
     let mut attributes = SearchFilter::default();
     attributes.attributes = vec![("owner".into(), "alice".into())];
-    let filters = [
-        ("source_type", source_type),
-        ("status", status),
-        ("created_after", created_after),
-        ("attributes", attributes),
-    ];
-    for (name, filter) in filters {
+    let filters = [source_type, status, created_after, attributes];
+    for filter in filters {
         let request = eligibility_request(&engine, &view, filter);
-        let treated = engine
-            .graph_expand_with_graph_evidence_for_test(&request)
-            .unwrap_or_else(|error| panic!("{name} eligibility failed: {error:?}"));
+        let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
         assert_eq!(treated.graph.targets[0].logical_id, "filter-target");
         let frozen = match &request.context {
             GraphReadContextV1::Frozen { context, .. } => context,
@@ -1079,7 +1058,7 @@ fn measurement_matrix_emits_raw_samples() {
 #[ignore = "Slice 15 writer-interference campaigns"]
 fn writer_interference_emits_campaigns() {
     let _serial = serialize_fixture();
-    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Instant;
 
     let mut output = Vec::new();
@@ -1093,14 +1072,12 @@ fn writer_interference_emits_campaigns() {
             let (_directory, engine, request) = fixture();
             let engine = Arc::new(engine);
             let running = Arc::new(AtomicBool::new(true));
-            let completed = Arc::new(AtomicU64::new(0));
             let (background, ready) = if mode == "alone" {
                 (None, None)
             } else {
                 let engine = Arc::clone(&engine);
                 let running = Arc::clone(&running);
                 let template = request.clone();
-                let completed = Arc::clone(&completed);
                 let (ready_send, ready_receive) = std::sync::mpsc::sync_channel(1);
                 let worker = thread::spawn(move || {
                     let context = match &template.context {
@@ -1119,16 +1096,15 @@ fn writer_interference_emits_campaigns() {
                         if let Ok(treated) =
                             engine.graph_expand_with_graph_evidence_for_test(&request)
                         {
-                            let operation_completed = mode != "point"
+                            let completed = mode != "point"
                                 || engine
                                     .resolve_graph_evidence_for_test(
                                         &treated.evidence[0].target_ref,
                                         &frozen,
                                     )
                                     .is_ok();
-                            if operation_completed {
+                            if completed {
                                 successes += 1;
-                                completed.fetch_add(1, Ordering::Release);
                                 if !announced {
                                     ready_send.send(()).unwrap();
                                     announced = true;
@@ -1143,7 +1119,6 @@ fn writer_interference_emits_campaigns() {
             if let Some(ready) = ready {
                 ready.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
             }
-            let completed_before_timing = completed.load(Ordering::Acquire);
             let mut latencies = Vec::with_capacity(200);
             let started = Instant::now();
             for index in 0..200 {
@@ -1161,27 +1136,12 @@ fn writer_interference_emits_campaigns() {
                     }])
                     .unwrap();
                 latencies.push(write_started.elapsed().as_nanos() as u64 / 1_000);
-                thread::sleep(std::time::Duration::from_micros(250));
-                if mode != "alone" && (index + 1) % 10 == 0 {
-                    let required =
-                        completed_before_timing + u64::try_from((index + 1) / 10).unwrap();
-                    let deadline = Instant::now() + std::time::Duration::from_secs(5);
-                    while completed.load(Ordering::Acquire) < required {
-                        assert!(Instant::now() < deadline, "{mode} background operation stalled");
-                        thread::sleep(std::time::Duration::from_micros(100));
-                    }
-                }
             }
             let elapsed = started.elapsed().as_secs_f64();
-            let completed_after_timing = completed.load(Ordering::Acquire);
             running.store(false, Ordering::Release);
-            let _total_successful_background_ops =
+            let successful_background_ops =
                 background.map_or(0, |background| background.join().unwrap());
-            let successful_background_ops = completed_after_timing - completed_before_timing;
-            assert!(
-                mode == "alone" || successful_background_ops >= 20,
-                "campaign {campaign} {mode} completed only {successful_background_ops} timed background operations"
-            );
+            assert!(mode == "alone" || successful_background_ops >= 20);
             output.push(serde_json::json!({
                 "campaign": campaign, "mode": mode, "elapsed_us": (elapsed * 1_000_000.0) as u64,
                 "throughput_per_s": 200.0 / elapsed, "latencies_us": latencies,

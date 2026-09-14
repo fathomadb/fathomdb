@@ -9,9 +9,10 @@
 //! Two roots:
 //!
 //! - `fathomdb doctor <verb>` — read-only or artifact-producing diagnostics:
-//!   `check-integrity`, `safe-export`, `verify-embedder`, `trace`,
-//!   `dump-schema`, `dump-row-counts`, `dump-profile`, `dump-mutations`,
-//!   `orphan-provenance`, `warm-cache`, `recompute-mean`.
+//!   `check-integrity`, `data-plane-integrity`, `safe-export`,
+//!   `verify-embedder`, `trace`, `dump-schema`, `dump-row-counts`,
+//!   `dump-profile`, `dump-mutations`, `orphan-provenance`, `warm-cache`,
+//!   `recompute-mean`.
 //! - `fathomdb recover --accept-data-loss <flag>` — the only lossy,
 //!   non-bit-preserving root: `--truncate-wal`, `--rebuild-vec0`,
 //!   `--rebuild-projections`, `--excise-source`, and the
@@ -31,9 +32,10 @@
 //! which is what un-gates the recovery seam it drives.
 //!
 //! Surface owned by `dev/interfaces/cli.md`; verb semantics by
-//! `dev/design/recovery.md`. Each verb invokes the corresponding
-//! [`fathomdb::Engine`] method and serializes the typed report under a per-verb
-//! JSON discriminator.
+//! `dev/design/recovery.md`. Each verb invokes its governed facade seam and
+//! serializes the typed report under a per-verb JSON discriminator. The
+//! immutable data-plane inspection seam is a free function rather than an
+//! [`fathomdb::Engine`] method.
 
 use std::{
     io::Read,

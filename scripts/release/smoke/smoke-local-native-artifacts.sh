@@ -471,6 +471,103 @@ if (!drifted) throw new Error("stale frozen context was accepted");
 await engine.close();
 console.log("local N-API package runtime validation: ok");
 JS
+  "$NODE_CMD" --input-type=module - "$WORK/npm-graph-evidence.fdb" <<'JS'
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { Engine, graph } from "fathomdb";
+
+const declarations = readFileSync("node_modules/fathomdb/dist/index.d.ts", "utf8");
+assert.match(declarations, /interface GraphEvidenceResolveRequestV1/);
+assert.match(declarations, /resolveGraphEvidence/);
+
+const sourceBody = "installed npm graph evidence bytes";
+const digestHex = createHash("sha256").update(sourceBody).digest("hex");
+const derived = (artifactRevisionId) => ({
+  schemaVersion: 1,
+  role: "derived",
+  artifactRevisionId,
+  sourceVersionId: "npm-graph-v1",
+  sourceRevisionId: "npm-graph-source-r1",
+  sourceLocator: { kind: "whole_body" },
+  canonicalSourceHash: { algorithm: "sha256", digestHex },
+});
+const engine = await Engine.open(process.argv[2], { useDefaultEmbedder: false });
+await engine.write([{
+  kind: "document",
+  body: sourceBody,
+  sourceId: "npm-graph-owner",
+  logicalId: "npm-graph-source",
+  provenance: {
+    schemaVersion: 1,
+    role: "canonical",
+    artifactRevisionId: "npm-graph-source-r1",
+    sourceVersionId: "npm-graph-v1",
+  },
+}, {
+  kind: "claim",
+  body: "installed root",
+  sourceId: "npm-graph-owner",
+  logicalId: "npm-graph-root",
+  provenance: derived("npm-graph-root-r1"),
+}, {
+  kind: "claim",
+  body: "installed target",
+  sourceId: "npm-graph-owner",
+  logicalId: "npm-graph-target",
+  provenance: derived("npm-graph-target-r1"),
+}, {
+  edge: {
+    kind: "supports",
+    from: "npm-graph-root",
+    to: "npm-graph-target",
+    sourceId: "npm-graph-owner",
+    logicalId: "npm-graph-edge",
+    provenance: derived("npm-graph-edge-r1"),
+  },
+}]);
+await engine.drain(30_000);
+const context = await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+const expanded = await graph.expand(engine, {
+  schemaVersion: 1,
+  seed: {
+    schemaVersion: 1,
+    type: "explicit",
+    logicalIds: [{ space: "logical", value: "npm-graph-root" }],
+  },
+  direction: "outgoing",
+  edgeKinds: ["supports"],
+  targetKinds: ["claim"],
+  context: { schemaVersion: 1, type: "frozen", context },
+  maxDepth: 1,
+  resultLimit: 1,
+  maxWorkUnits: "10",
+  includeExplanation: false,
+  includeEvidence: true,
+});
+assert.equal(expanded.targets[0]?.logicalId, "npm-graph-target");
+assert.equal(expanded.evidence?.entries.length, 1);
+const entry = expanded.evidence.entries[0];
+const target = await engine.resolveGraphEvidence({
+  schemaVersion: 1,
+  evidenceRef: entry.targetEvidenceRef,
+  context,
+});
+const edge = await engine.resolveGraphEvidence({
+  schemaVersion: 1,
+  evidenceRef: entry.terminalEdgeEvidenceRef,
+  context,
+});
+assert.deepEqual(
+  [target.artifact.artifactClass, target.artifact.logicalId, target.canonicalSourceBody],
+  ["node", "npm-graph-target", sourceBody],
+);
+assert.equal(edge.artifact.artifactClass, "edge");
+assert.equal(edge.artifact.from, "npm-graph-root");
+assert.equal(edge.artifact.to, "npm-graph-target");
+await engine.close();
+console.log("slice20 installed N-API graph evidence: pass");
+JS
 )
 printf 'slice85-runtime-configuration-result: python=3 node=3 skipped=0\n'
 

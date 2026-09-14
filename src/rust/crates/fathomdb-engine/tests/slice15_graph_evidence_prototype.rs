@@ -1106,7 +1106,7 @@ fn run_foreground_writer_window(
             .unwrap();
         latencies_us.push(write_started.elapsed().as_nanos() as u64 / 1_000);
         index += 1;
-        thread::sleep(std::time::Duration::from_micros(250));
+        thread::sleep(std::time::Duration::from_millis(2));
     }
     ForegroundWriterSample {
         elapsed: started.elapsed(),

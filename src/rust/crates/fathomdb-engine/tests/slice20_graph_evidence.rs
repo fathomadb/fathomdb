@@ -13,6 +13,7 @@ use fathomdb_engine::{
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc, Barrier};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -900,6 +901,51 @@ fn erase_and_excise_that_linearize_first_make_resolution_unavailable() {
     erasure_linearizes_before_resolver(false);
     #[cfg(feature = "operator")]
     erasure_linearizes_before_resolver(true);
+}
+
+#[test]
+fn graph_resolver_rendezvous_is_engine_scoped() {
+    let (_first_directory, first, mut first_request) = fixture();
+    first_request.include_evidence = true;
+    let first_reference = first.graph_expand(&first_request).unwrap().evidence.unwrap().entries[0]
+        .target_evidence_ref
+        .clone();
+    let first_context = match first_request.context {
+        GraphReadContextV1::Frozen { context, .. } => context,
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+    let (_second_directory, second, mut second_request) = fixture();
+    second_request.include_evidence = true;
+    let second_reference = second.graph_expand(&second_request).unwrap().evidence.unwrap().entries
+        [0]
+    .target_evidence_ref
+    .clone();
+    let second_context = match second_request.context {
+        GraphReadContextV1::Frozen { context, .. } => context,
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+
+    let fired = Arc::new(AtomicUsize::new(0));
+    let hook_fired = Arc::clone(&fired);
+    first.arm_graph_evidence_before_resolve_return_hook_for_test(Box::new(move || {
+        hook_fired.fetch_add(1, Ordering::SeqCst);
+    }));
+    second
+        .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: second_reference,
+            context: second_context,
+        })
+        .unwrap();
+    assert_eq!(fired.load(Ordering::SeqCst), 0);
+    first
+        .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: first_reference,
+            context: first_context,
+        })
+        .unwrap();
+    assert_eq!(fired.load(Ordering::SeqCst), 1);
 }
 
 #[test]

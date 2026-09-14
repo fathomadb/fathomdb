@@ -811,6 +811,8 @@ pub struct Engine {
     graph_expand_rss_baseline_bytes: AtomicU64,
     #[cfg(feature = "test-hooks")]
     graph_expand_rss_delta_bytes: AtomicU64,
+    #[cfg(feature = "test-hooks")]
+    graph_evidence_before_resolve_return_hook: Mutex<Option<Box<dyn Fn() + Send>>>,
     closed: AtomicBool,
     lock: Mutex<Option<File>>,
     connection: Mutex<Option<Connection>>,
@@ -3201,6 +3203,21 @@ pub fn arm_evidence_before_sidecar_hook_for_test(hook: Box<dyn Fn() + Send>) {
 #[doc(hidden)]
 pub fn arm_evidence_before_resolve_return_hook_for_test(hook: Box<dyn Fn() + Send>) {
     evidence_linearization_hooks::arm_before_resolve_return(hook);
+}
+
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+impl Engine {
+    /// Arm one graph-evidence resolver rendezvous on this engine only.
+    pub fn arm_graph_evidence_before_resolve_return_hook_for_test(
+        &self,
+        hook: Box<dyn Fn() + Send>,
+    ) {
+        *self
+            .graph_evidence_before_resolve_return_hook
+            .lock()
+            .expect("graph evidence resolver hook mutex") = Some(hook);
+    }
 }
 
 #[cfg(feature = "test-hooks")]
@@ -8530,7 +8547,15 @@ impl Engine {
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         let resolved =
             evidence::resolve_graph_evidence(&tx, &request.evidence_ref, &request.context)?;
-        evidence_linearization_hooks::fire_before_resolve_return();
+        #[cfg(feature = "test-hooks")]
+        if let Some(hook) = self
+            .graph_evidence_before_resolve_return_hook
+            .lock()
+            .map_err(|_| EngineError::Storage)?
+            .take()
+        {
+            hook();
+        }
         frozen_read::validate_snapshot(&tx, &binding)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         let artifact = match resolved.artifact_class {
@@ -9023,6 +9048,8 @@ impl Engine {
                         graph_expand_rss_baseline_bytes: AtomicU64::new(0),
                         #[cfg(feature = "test-hooks")]
                         graph_expand_rss_delta_bytes: AtomicU64::new(0),
+                        #[cfg(feature = "test-hooks")]
+                        graph_evidence_before_resolve_return_hook: Mutex::new(None),
                         closed: AtomicBool::new(false),
                         lock: Mutex::new(Some(lock)),
                         connection: Mutex::new(Some(connection)),

@@ -813,6 +813,8 @@ pub struct Engine {
     graph_expand_rss_delta_bytes: AtomicU64,
     #[cfg(feature = "test-hooks")]
     graph_evidence_before_resolve_return_hook: Mutex<Option<Box<dyn Fn() + Send>>>,
+    #[cfg(feature = "test-hooks")]
+    erasure_before_primary_lock_hook: Mutex<Option<Box<dyn Fn() + Send>>>,
     closed: AtomicBool,
     lock: Mutex<Option<File>>,
     connection: Mutex<Option<Connection>>,
@@ -3217,6 +3219,12 @@ impl Engine {
             .graph_evidence_before_resolve_return_hook
             .lock()
             .expect("graph evidence resolver hook mutex") = Some(hook);
+    }
+
+    /// Arm one pre-primary-lock erasure rendezvous on this engine only.
+    pub fn arm_erasure_before_primary_lock_hook_for_test(&self, hook: Box<dyn Fn() + Send>) {
+        *self.erasure_before_primary_lock_hook.lock().expect("engine erasure hook mutex") =
+            Some(hook);
     }
 }
 
@@ -9050,6 +9058,8 @@ impl Engine {
                         graph_expand_rss_delta_bytes: AtomicU64::new(0),
                         #[cfg(feature = "test-hooks")]
                         graph_evidence_before_resolve_return_hook: Mutex::new(None),
+                        #[cfg(feature = "test-hooks")]
+                        erasure_before_primary_lock_hook: Mutex::new(None),
                         closed: AtomicBool::new(false),
                         lock: Mutex::new(Some(lock)),
                         connection: Mutex::new(Some(connection)),
@@ -15440,7 +15450,17 @@ impl Engine {
         self.ensure_open()?;
 
         #[cfg(feature = "test-hooks")]
-        slice15_erasure_lock_hook::fire();
+        {
+            if let Some(hook) = self
+                .erasure_before_primary_lock_hook
+                .lock()
+                .map_err(|_| EngineError::Storage)?
+                .take()
+            {
+                hook();
+            }
+            slice15_erasure_lock_hook::fire();
+        }
 
         let pending = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;

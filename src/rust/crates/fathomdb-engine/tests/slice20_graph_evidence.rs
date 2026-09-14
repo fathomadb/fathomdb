@@ -950,6 +950,21 @@ fn graph_resolver_rendezvous_is_engine_scoped() {
 }
 
 #[test]
+fn erasure_rendezvous_is_engine_scoped() {
+    let (_first_directory, first, _first_request) = fixture();
+    let (_second_directory, second, _second_request) = fixture();
+    let fired = Arc::new(AtomicUsize::new(0));
+    let hook_fired = Arc::clone(&fired);
+    first.arm_erasure_before_primary_lock_hook_for_test(Box::new(move || {
+        hook_fired.fetch_add(1, Ordering::SeqCst);
+    }));
+    second.erase_source("owner").unwrap();
+    assert_eq!(fired.load(Ordering::SeqCst), 0);
+    first.erase_source("owner").unwrap();
+    assert_eq!(fired.load(Ordering::SeqCst), 1);
+}
+
+#[test]
 fn authenticated_relaxed_window_context_is_refused_before_mint() {
     let (_directory, engine, mut request) = fixture();
     let frozen = engine

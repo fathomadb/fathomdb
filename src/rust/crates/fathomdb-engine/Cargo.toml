@@ -93,6 +93,10 @@ name = "slice60_graph_expand"
 required-features = ["test-hooks"]
 
 [[test]]
+name = "slice20_graph_evidence"
+required-features = ["test-hooks"]
+
+[[test]]
 name = "slice60_fix1_wire"
 required-features = ["test-hooks"]
 

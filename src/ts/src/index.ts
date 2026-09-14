@@ -3872,6 +3872,22 @@ export function validateGraphExpandResult(value: unknown): GraphExpandResultV1 {
 function validateResolvedGraphEvidence(value: unknown): ResolvedGraphEvidenceV1 {
   const root = graphObject(value, "");
   graphSchema(root, "/schemaVersion");
+  graphExactKeys(root, [
+    "schemaVersion",
+    "artifactRevisionId",
+    "artifact",
+    "sourceId",
+    "sourceVersionId",
+    "sourceRevisionId",
+    "locator",
+    "canonicalSourceBody",
+    "evidenceText",
+    "canonicalSourceHash",
+    "effectiveValidAt",
+    "artifactLifecycle",
+    "sourceLifecycleState",
+    "dependency",
+  ], "");
   const artifact = graphObject(graphField(root, "artifact", "/artifact"), "/artifact");
   const artifactClass = graphField(artifact, "artifactClass", "/artifact/artifactClass");
   if (artifactClass !== "node" && artifactClass !== "edge") {
@@ -3924,6 +3940,7 @@ function validateResolvedGraphEvidence(value: unknown): ResolvedGraphEvidenceV1 
   const lifecycleRaw = graphObject(graphField(root, "artifactLifecycle", "/artifactLifecycle"), "/artifactLifecycle");
   graphExactKeys(lifecycleRaw, ["kind", "state", "superseded", "validAtEffective"], "/artifactLifecycle");
   const lifecycleKind = graphEnum(lifecycleRaw.kind, ["node", "edge"] as const, "/artifactLifecycle/kind");
+  if (lifecycleKind !== artifactClass) graphRefuse("graph_corrupt", "/artifactLifecycle/kind");
   if (typeof lifecycleRaw.superseded !== "boolean") graphRefuse("graph_corrupt", "/artifactLifecycle/superseded");
   const state = lifecycleRaw.state;
   const validAtEffective = lifecycleRaw.validAtEffective;
@@ -3961,7 +3978,7 @@ function validateResolvedGraphEvidence(value: unknown): ResolvedGraphEvidenceV1 
     artifact: parsedArtifact,
     sourceId: graphString(graphField(root, "sourceId", "/sourceId"), "/sourceId"),
     sourceVersionId: graphString(graphField(root, "sourceVersionId", "/sourceVersionId"), "/sourceVersionId"),
-    sourceRevisionId: graphString(graphField(root, "sourceRevisionId", "/sourceRevisionId"), "/sourceRevisionId"),
+    sourceRevisionId: graphArtifactRevision(graphField(root, "sourceRevisionId", "/sourceRevisionId"), "/sourceRevisionId"),
     locator,
     canonicalSourceBody: graphString(graphField(root, "canonicalSourceBody", "/canonicalSourceBody"), "/canonicalSourceBody"),
     evidenceText: graphString(graphField(root, "evidenceText", "/evidenceText"), "/evidenceText"),

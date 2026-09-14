@@ -199,6 +199,256 @@ def _graph_list(value: Any, path: str) -> list[Any]:
     return list(value)
 
 
+def _graph_json_object(value: Any, path: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        _graph_refuse("graph_corrupt", path)
+    return value
+
+
+def _graph_json_closed(value: dict[str, Any], allowed: set[str], path: str) -> None:
+    unknown = sorted(set(value) - allowed)
+    if unknown:
+        escaped = unknown[0].replace("~", "~0").replace("/", "~1")
+        _graph_refuse("graph_corrupt", f"{path}/{escaped}")
+
+
+def _graph_json_field(value: dict[str, Any], name: str, path: str) -> Any:
+    if name not in value:
+        _graph_refuse("graph_corrupt", path)
+    return value[name]
+
+
+def _graph_revision(value: Any, path: str) -> str:
+    value = _graph_string(value, path)
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", value) is None or value.startswith(
+        "_fdb:"
+    ):
+        _graph_refuse("graph_corrupt", path)
+    return value
+
+
+def _graph_json_resolved_evidence(value: Any) -> ResolvedGraphEvidenceV1:
+    root = _graph_json_object(value, "")
+    _graph_json_closed(
+        root,
+        {
+            "schemaVersion",
+            "artifactRevisionId",
+            "artifact",
+            "sourceId",
+            "sourceVersionId",
+            "sourceRevisionId",
+            "locator",
+            "canonicalSourceBody",
+            "evidenceText",
+            "canonicalSourceHash",
+            "effectiveValidAt",
+            "artifactLifecycle",
+            "sourceLifecycleState",
+            "dependency",
+        },
+        "",
+    )
+    if _graph_json_field(root, "schemaVersion", "/schemaVersion") != 1:
+        _graph_refuse("unsupported_schema_version", "/schemaVersion")
+
+    artifact_raw = _graph_json_object(_graph_json_field(root, "artifact", "/artifact"), "/artifact")
+    artifact_class = _graph_enum(
+        _graph_json_field(artifact_raw, "artifactClass", "/artifact/artifactClass"),
+        {"node", "edge"},
+        "/artifact/artifactClass",
+    )
+    artifact_fields = {"artifactClass", "logicalId", "kind", "body"}
+    if artifact_class == "edge":
+        artifact_fields.update({"from", "to"})
+    _graph_json_closed(artifact_raw, artifact_fields, "/artifact")
+    logical_id_raw = _graph_json_field(artifact_raw, "logicalId", "/artifact/logicalId")
+    body_raw = _graph_json_field(artifact_raw, "body", "/artifact/body")
+    if artifact_class == "node" and (logical_id_raw is None or body_raw is None):
+        _graph_refuse(
+            "graph_corrupt",
+            "/artifact/logicalId" if logical_id_raw is None else "/artifact/body",
+        )
+    artifact = GraphEvidenceArtifactV1(
+        artifact_class=cast(Any, artifact_class),
+        logical_id=(
+            None if logical_id_raw is None else _graph_string(logical_id_raw, "/artifact/logicalId")
+        ),
+        kind=_graph_string(
+            _graph_json_field(artifact_raw, "kind", "/artifact/kind"), "/artifact/kind"
+        ),
+        body=None if body_raw is None else _graph_string(body_raw, "/artifact/body"),
+        from_id=(
+            None
+            if artifact_class == "node"
+            else _graph_string(
+                _graph_json_field(artifact_raw, "from", "/artifact/from"), "/artifact/from"
+            )
+        ),
+        to_id=(
+            None
+            if artifact_class == "node"
+            else _graph_string(
+                _graph_json_field(artifact_raw, "to", "/artifact/to"), "/artifact/to"
+            )
+        ),
+    )
+
+    locator_raw = _graph_json_object(_graph_json_field(root, "locator", "/locator"), "/locator")
+    _graph_json_closed(locator_raw, {"kind", "startInclusive", "endExclusive"}, "/locator")
+    locator_kind = _graph_enum(
+        _graph_json_field(locator_raw, "kind", "/locator/kind"),
+        {"whole_body", "utf8_bytes"},
+        "/locator/kind",
+    )
+    start = _graph_json_field(locator_raw, "startInclusive", "/locator/startInclusive")
+    end = _graph_json_field(locator_raw, "endExclusive", "/locator/endExclusive")
+    locator: Any = {"kind": locator_kind}
+    if locator_kind == "whole_body":
+        if start is not None:
+            _graph_refuse("graph_corrupt", "/locator/startInclusive")
+        if end is not None:
+            _graph_refuse("graph_corrupt", "/locator/endExclusive")
+    else:
+        start_value = _graph_u64(start, "/locator/startInclusive")
+        end_value = _graph_u64(end, "/locator/endExclusive")
+        if int(start_value) > int(end_value):
+            _graph_refuse("graph_corrupt", "/locator")
+        locator.update(start_inclusive=start_value, end_exclusive=end_value)
+
+    hash_raw = _graph_json_object(
+        _graph_json_field(root, "canonicalSourceHash", "/canonicalSourceHash"),
+        "/canonicalSourceHash",
+    )
+    _graph_json_closed(hash_raw, {"algorithm", "digestHex"}, "/canonicalSourceHash")
+    if _graph_json_field(hash_raw, "algorithm", "/canonicalSourceHash/algorithm") != "sha256":
+        _graph_refuse("graph_corrupt", "/canonicalSourceHash/algorithm")
+    digest_hex = _graph_string(
+        _graph_json_field(hash_raw, "digestHex", "/canonicalSourceHash/digestHex"),
+        "/canonicalSourceHash/digestHex",
+    )
+    if re.fullmatch(r"[0-9a-f]{64}", digest_hex) is None:
+        _graph_refuse("graph_corrupt", "/canonicalSourceHash/digestHex")
+
+    lifecycle_raw = _graph_json_object(
+        _graph_json_field(root, "artifactLifecycle", "/artifactLifecycle"),
+        "/artifactLifecycle",
+    )
+    _graph_json_closed(
+        lifecycle_raw,
+        {"kind", "state", "superseded", "validAtEffective"},
+        "/artifactLifecycle",
+    )
+    lifecycle_kind = _graph_enum(
+        _graph_json_field(lifecycle_raw, "kind", "/artifactLifecycle/kind"),
+        {"node", "edge"},
+        "/artifactLifecycle/kind",
+    )
+    if lifecycle_kind != artifact_class:
+        _graph_refuse("graph_corrupt", "/artifactLifecycle/kind")
+    state = _graph_json_field(lifecycle_raw, "state", "/artifactLifecycle/state")
+    valid_at = _graph_json_field(
+        lifecycle_raw, "validAtEffective", "/artifactLifecycle/validAtEffective"
+    )
+    if lifecycle_kind == "node":
+        state = _graph_enum(state, {"pending", "active", "deleted"}, "/artifactLifecycle/state")
+        if valid_at is not None:
+            _graph_refuse("graph_corrupt", "/artifactLifecycle/validAtEffective")
+    else:
+        if state is not None:
+            _graph_refuse("graph_corrupt", "/artifactLifecycle/state")
+        if type(valid_at) is not bool:
+            _graph_refuse("graph_corrupt", "/artifactLifecycle/validAtEffective")
+    superseded = _graph_json_field(lifecycle_raw, "superseded", "/artifactLifecycle/superseded")
+    if type(superseded) is not bool:
+        _graph_refuse("graph_corrupt", "/artifactLifecycle/superseded")
+    lifecycle = EvidenceArtifactLifecycleV1(
+        kind=cast(Any, lifecycle_kind),
+        state=cast(Any, state),
+        superseded=superseded,
+        valid_at_effective=valid_at,
+    )
+
+    dependency_raw = _graph_json_field(root, "dependency", "/dependency")
+    dependency = None
+    if dependency_raw is not None:
+        item = _graph_json_object(dependency_raw, "/dependency")
+        _graph_json_closed(
+            item,
+            {
+                "schemaVersion",
+                "dependencyId",
+                "sourceRevisionId",
+                "derivedRevisionId",
+                "registeredDependencyGeneration",
+            },
+            "/dependency",
+        )
+        if _graph_json_field(item, "schemaVersion", "/dependency/schemaVersion") != 1:
+            _graph_refuse("unsupported_schema_version", "/dependency/schemaVersion")
+        dependency = SourceDependencyV1(
+            schema_version=1,
+            dependency_id=_graph_string(
+                _graph_json_field(item, "dependencyId", "/dependency/dependencyId"),
+                "/dependency/dependencyId",
+            ),
+            source_revision_id=_graph_revision(
+                _graph_json_field(item, "sourceRevisionId", "/dependency/sourceRevisionId"),
+                "/dependency/sourceRevisionId",
+            ),
+            derived_revision_id=_graph_revision(
+                _graph_json_field(item, "derivedRevisionId", "/dependency/derivedRevisionId"),
+                "/dependency/derivedRevisionId",
+            ),
+            registered_dependency_generation=_graph_u64(
+                _graph_json_field(
+                    item,
+                    "registeredDependencyGeneration",
+                    "/dependency/registeredDependencyGeneration",
+                ),
+                "/dependency/registeredDependencyGeneration",
+            ),
+        )
+
+    effective_valid_at = _graph_json_field(root, "effectiveValidAt", "/effectiveValidAt")
+    if type(effective_valid_at) is not int or not -(2**63) <= effective_valid_at < 2**63:
+        _graph_refuse("graph_corrupt", "/effectiveValidAt")
+    source_state = _graph_enum(
+        _graph_json_field(root, "sourceLifecycleState", "/sourceLifecycleState"),
+        {"pending", "active", "deleted"},
+        "/sourceLifecycleState",
+    )
+    return ResolvedGraphEvidenceV1(
+        schema_version=1,
+        artifact_revision_id=_graph_revision(
+            _graph_json_field(root, "artifactRevisionId", "/artifactRevisionId"),
+            "/artifactRevisionId",
+        ),
+        artifact=artifact,
+        source_id=_graph_string(_graph_json_field(root, "sourceId", "/sourceId"), "/sourceId"),
+        source_version_id=_graph_string(
+            _graph_json_field(root, "sourceVersionId", "/sourceVersionId"), "/sourceVersionId"
+        ),
+        source_revision_id=_graph_revision(
+            _graph_json_field(root, "sourceRevisionId", "/sourceRevisionId"),
+            "/sourceRevisionId",
+        ),
+        locator=locator,
+        canonical_source_body=_graph_string(
+            _graph_json_field(root, "canonicalSourceBody", "/canonicalSourceBody"),
+            "/canonicalSourceBody",
+        ),
+        evidence_text=_graph_string(
+            _graph_json_field(root, "evidenceText", "/evidenceText"), "/evidenceText"
+        ),
+        canonical_source_hash={"algorithm": "sha256", "digest_hex": digest_hex},
+        effective_valid_at=effective_valid_at,
+        artifact_lifecycle=lifecycle,
+        source_lifecycle_state=source_state,
+        dependency=dependency,
+    )
+
+
 def _map_graph_origin(value: Any, path: str) -> GraphOriginV1:
     _graph_schema(value, f"{path}/schemaVersion")
     return GraphOriginV1(
@@ -2311,57 +2561,13 @@ class Engine:
                 field_path="/schemaVersion",
             )
         native_context = _to_native_frozen_context(request.context)
-        raw = json.loads(
-            self._native.resolve_graph_evidence(request.evidence_ref, native_context)
-        )
-        artifact_raw = raw["artifact"]
-        artifact = GraphEvidenceArtifactV1(
-            artifact_class=artifact_raw["artifactClass"],
-            logical_id=artifact_raw["logicalId"],
-            kind=artifact_raw["kind"],
-            body=artifact_raw["body"],
-            from_id=artifact_raw.get("from"),
-            to_id=artifact_raw.get("to"),
-        )
-        locator_raw = raw["locator"]
-        locator: Any = {"kind": locator_raw["kind"]}
-        if locator_raw["kind"] == "utf8_bytes":
-            locator["start_inclusive"] = locator_raw["startInclusive"]
-            locator["end_exclusive"] = locator_raw["endExclusive"]
-        lifecycle_raw = raw["artifactLifecycle"]
-        lifecycle = EvidenceArtifactLifecycleV1(
-            kind=lifecycle_raw["kind"],
-            state=lifecycle_raw["state"],
-            superseded=lifecycle_raw["superseded"],
-            valid_at_effective=lifecycle_raw["validAtEffective"],
-        )
-        dependency_raw = raw["dependency"]
-        dependency = None if dependency_raw is None else SourceDependencyV1(
-            schema_version=dependency_raw["schemaVersion"],
-            dependency_id=dependency_raw["dependencyId"],
-            source_revision_id=dependency_raw["sourceRevisionId"],
-            derived_revision_id=dependency_raw["derivedRevisionId"],
-            registered_dependency_generation=dependency_raw["registeredDependencyGeneration"],
-        )
-        return ResolvedGraphEvidenceV1(
-            schema_version=raw["schemaVersion"],
-            artifact_revision_id=raw["artifactRevisionId"],
-            artifact=artifact,
-            source_id=raw["sourceId"],
-            source_version_id=raw["sourceVersionId"],
-            source_revision_id=raw["sourceRevisionId"],
-            locator=locator,
-            canonical_source_body=raw["canonicalSourceBody"],
-            evidence_text=raw["evidenceText"],
-            canonical_source_hash={
-                "algorithm": raw["canonicalSourceHash"]["algorithm"],
-                "digest_hex": raw["canonicalSourceHash"]["digestHex"],
-            },
-            effective_valid_at=raw["effectiveValidAt"],
-            artifact_lifecycle=lifecycle,
-            source_lifecycle_state=raw["sourceLifecycleState"],
-            dependency=dependency,
-        )
+        try:
+            raw = json.loads(
+                self._native.resolve_graph_evidence(request.evidence_ref, native_context)
+            )
+        except (TypeError, ValueError):
+            _graph_refuse("graph_corrupt", "")
+        return _graph_json_resolved_evidence(raw)
 
     def search_expand_frozen(
         self,

@@ -1,6 +1,7 @@
 import hashlib
 import json
 from types import SimpleNamespace
+from typing import Any, Callable, cast
 
 import fathomdb
 import pytest
@@ -193,7 +194,7 @@ def test_real_engine_resolves_exact_target_and_terminal_edge(db_path: str) -> No
         engine.close()
 
 
-def _resolved_payload() -> dict[str, object]:
+def _resolved_payload() -> dict[str, Any]:
     return {
         "schemaVersion": 1,
         "artifactRevisionId": "target-r1",
@@ -259,7 +260,7 @@ def _resolved_payload() -> dict[str, object]:
     ],
 )
 def test_resolved_graph_evidence_json_is_recursively_closed_and_coherent(
-    mutate: object, path: str
+    mutate: Callable[[dict[str, Any]], None], path: str
 ) -> None:
     payload = _resolved_payload()
     mutate(payload)
@@ -268,7 +269,7 @@ def test_resolved_graph_evidence_json_is_recursively_closed_and_coherent(
         def resolve_graph_evidence(self, _reference: str, _context: object) -> str:
             return json.dumps(payload)
 
-    engine = fathomdb.Engine(Native(), path="unused", config=fathomdb.EngineConfig())
+    engine = fathomdb.Engine(cast(Any, Native()), path="unused", config=fathomdb.EngineConfig())
     frozen = fathomdb.FrozenReadContextV1(
         effective_valid_at=1_700_000_000,
         context=fathomdb.ReadContextV1(),

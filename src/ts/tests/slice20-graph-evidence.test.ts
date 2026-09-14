@@ -130,6 +130,29 @@ test("resolved graph evidence response is recursively closed", async () => {
         error.reason === "graph_corrupt" &&
         error.fieldPath === "/z~1future~0field",
     );
+
+    for (const [field, value, path] of [
+      ["sourceRevisionId", "other-source-r1", "/dependency/sourceRevisionId"],
+      ["derivedRevisionId", "other-target-r1", "/dependency/derivedRevisionId"],
+    ] as const) {
+      const incoherent = resolvedPayload();
+      incoherent.dependency = {
+        schemaVersion: 1,
+        dependencyId: "dep-1",
+        sourceRevisionId: "source-r1",
+        derivedRevisionId: "target-r1",
+        registeredDependencyGeneration: "1",
+        [field]: value,
+      };
+      engine._native.resolveGraphEvidence = async () => JSON.stringify(incoherent);
+      await assert.rejects(
+        engine.resolveGraphEvidence({ schemaVersion: 1, evidenceRef: "fdbgev1.ref", context }),
+        (error: unknown) =>
+          error instanceof GraphExpansionError &&
+          error.reason === "graph_corrupt" &&
+          error.fieldPath === path,
+      );
+    }
   } finally {
     await engine.close();
     await rm(directory, { recursive: true, force: true });

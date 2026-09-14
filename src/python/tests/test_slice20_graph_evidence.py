@@ -61,6 +61,27 @@ def test_graph_evidence_sidecar_maps_positionally() -> None:
     assert result.evidence.entries[0].target_artifact_revision_id == "target-r1"
 
 
+@pytest.mark.parametrize(
+    ("field", "path"),
+    [
+        ("target_artifact_revision_id", "/evidence/entries/0/targetArtifactRevisionId"),
+        (
+            "terminal_edge_artifact_revision_id",
+            "/evidence/entries/0/terminalEdgeArtifactRevisionId",
+        ),
+    ],
+)
+def test_graph_evidence_sidecar_revisions_use_artifact_revision_grammar(
+    field: str, path: str
+) -> None:
+    native = _native_result()
+    setattr(native.evidence.entries[0], field, "_fdb:reserved")
+    with pytest.raises(fathomdb.GraphExpansionError) as captured:
+        _map_native_graph_expand_result(native)
+    assert captured.value.reason == "graph_corrupt"
+    assert captured.value.field_path == path
+
+
 def test_graph_expand_request_defaults_to_no_evidence() -> None:
     request = fathomdb.GraphExpandRequestV1(
         schema_version=1,
@@ -256,6 +277,34 @@ def _resolved_payload() -> dict[str, Any]:
                 }
             ),
             "/dependency/future",
+        ),
+        (
+            lambda value: value.update(
+                {
+                    "dependency": {
+                        "schemaVersion": 1,
+                        "dependencyId": "dep-1",
+                        "sourceRevisionId": "other-source-r1",
+                        "derivedRevisionId": "target-r1",
+                        "registeredDependencyGeneration": "1",
+                    }
+                }
+            ),
+            "/dependency/sourceRevisionId",
+        ),
+        (
+            lambda value: value.update(
+                {
+                    "dependency": {
+                        "schemaVersion": 1,
+                        "dependencyId": "dep-1",
+                        "sourceRevisionId": "source-r1",
+                        "derivedRevisionId": "other-target-r1",
+                        "registeredDependencyGeneration": "1",
+                    }
+                }
+            ),
+            "/dependency/derivedRevisionId",
         ),
     ],
 )

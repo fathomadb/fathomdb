@@ -3188,6 +3188,31 @@ pub fn arm_evidence_before_resolve_return_hook_for_test(hook: Box<dyn Fn() + Sen
 }
 
 #[cfg(feature = "test-hooks")]
+mod slice15_erasure_lock_hook {
+    use std::sync::Mutex;
+
+    static HOOK: Mutex<Option<Box<dyn Fn() + Send>>> = Mutex::new(None);
+
+    pub(crate) fn arm(hook: Box<dyn Fn() + Send>) {
+        *HOOK.lock().expect("Slice 15 erasure lock hook mutex") = Some(hook);
+    }
+
+    pub(crate) fn fire() {
+        if let Some(hook) = HOOK.lock().expect("Slice 15 erasure lock hook mutex").take() {
+            hook();
+        }
+    }
+}
+
+/// Arm a one-shot Slice 15 rendezvous immediately before erasure attempts the
+/// primary connection lock.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub fn arm_erasure_before_primary_lock_hook_for_test(hook: Box<dyn Fn() + Send>) {
+    slice15_erasure_lock_hook::arm(hook);
+}
+
+#[cfg(feature = "test-hooks")]
 #[doc(hidden)]
 pub type GraphArtifactClassForTest = EvidenceArtifactClassV1;
 
@@ -3207,7 +3232,22 @@ pub struct GraphEvidenceEntryForTest {
 pub struct GraphEvidenceResultForTest {
     pub graph: GraphExpandResultV1,
     pub evidence: Vec<GraphEvidenceEntryForTest>,
-    pub preflight_plans: Vec<String>,
+    pub preflight_data_statement_count: usize,
+    pub preflight_node_rows: usize,
+    pub preflight_edge_rows: usize,
+    pub preflight_source_hash_count: usize,
+    pub preflight_source_bytes_hashed: usize,
+}
+
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Debug, Default)]
+#[doc(hidden)]
+pub struct GraphEvidencePreflightStatsForTest {
+    pub data_statement_count: usize,
+    pub node_rows: usize,
+    pub edge_rows: usize,
+    pub source_hash_count: usize,
+    pub source_bytes_hashed: usize,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -3219,6 +3259,18 @@ pub struct ResolvedGraphEvidenceForTest {
     pub logical_id: Option<String>,
     pub canonical_source_body: String,
     pub evidence_text: String,
+    pub artifact_kind: String,
+    pub artifact_body: Option<String>,
+    pub source_id: String,
+    pub source_version_id: String,
+    pub source_revision_id: String,
+    pub canonical_source_hash: String,
+    pub artifact_lifecycle: String,
+    pub source_lifecycle: String,
+    pub dependency_id: Option<String>,
+    pub edge_from: Option<String>,
+    pub edge_to: Option<String>,
+    pub edge_direction: Option<TraversalDirection>,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -8508,22 +8560,51 @@ impl Engine {
             GraphReadContextV1::Frozen { .. } => {}
             GraphReadContextV1::Current { .. } => return Err(EvidenceErrorV1::unavailable().into()),
         }
+        let authority = {
+            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+            evidence::intrinsic_authority_for_test(
+                connection,
+                match &request.context {
+                    GraphReadContextV1::Frozen { context, .. } => context,
+                    GraphReadContextV1::Current { .. } => unreachable!(),
+                },
+            )?
+        };
         let selected_artifacts = std::sync::Arc::new(Mutex::new(Vec::new()));
         let evidence_output = std::sync::Arc::new(Mutex::new(None));
         let graph = self.graph_expand_inner(
             request,
             graph_expand::GraphExpandReaderControlsForTest {
                 selected_artifacts: Some(std::sync::Arc::clone(&selected_artifacts)),
+                evidence_authority: Some(authority),
                 evidence_output: Some(std::sync::Arc::clone(&evidence_output)),
                 ..graph_expand::GraphExpandReaderControlsForTest::default()
             },
         )?;
-        let (evidence, preflight_plans) = evidence_output
+        let (evidence, stats) = evidence_output
             .lock()
             .map_err(|_| EngineError::Storage)?
             .take()
             .ok_or(EngineError::Storage)?;
-        Ok(GraphEvidenceResultForTest { graph, evidence, preflight_plans })
+        Ok(GraphEvidenceResultForTest {
+            graph,
+            evidence,
+            preflight_data_statement_count: stats.data_statement_count,
+            preflight_node_rows: stats.node_rows,
+            preflight_edge_rows: stats.edge_rows,
+            preflight_source_hash_count: stats.source_hash_count,
+            preflight_source_bytes_hashed: stats.source_bytes_hashed,
+        })
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn explain_graph_evidence_preflights_for_test(&self) -> Result<Vec<String>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        evidence::explain_intrinsic_preflights_for_test(connection)
     }
 
     #[cfg(feature = "test-hooks")]
@@ -8552,6 +8633,18 @@ impl Engine {
             logical_id: resolved.logical_id,
             canonical_source_body: resolved.canonical_source_body,
             evidence_text: resolved.evidence_text,
+            artifact_kind: resolved.artifact_kind,
+            artifact_body: resolved.artifact_body,
+            source_id: resolved.source_id,
+            source_version_id: resolved.source_version_id,
+            source_revision_id: resolved.source_revision_id,
+            canonical_source_hash: resolved.canonical_source_hash,
+            artifact_lifecycle: resolved.artifact_lifecycle,
+            source_lifecycle: resolved.source_lifecycle,
+            dependency_id: resolved.dependency_id,
+            edge_from: resolved.edge_from,
+            edge_to: resolved.edge_to,
+            edge_direction: resolved.edge_direction,
         })
     }
 
@@ -15370,6 +15463,9 @@ impl Engine {
         source_id: &str,
     ) -> Result<ExciseReport, EngineError> {
         self.ensure_open()?;
+
+        #[cfg(feature = "test-hooks")]
+        slice15_erasure_lock_hook::fire();
 
         let pending = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;

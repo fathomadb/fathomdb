@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 20 — exact graph artifact evidence design
-status: APPROVED — INDEPENDENT DESIGN REVIEW PASS
+status: CHANGES REQUIRED — GPT-6 ASTRA MEDIUM REVIEW
 decision: D26-01 option A at seq-290
 ---
 

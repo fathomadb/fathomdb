@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 20 — exact graph artifact evidence
-status: IMPLEMENTATION PAUSED — GPT-6 ASTRA MEDIUM DESIGN REVIEW REQUIRED
+status: IMPLEMENTATION PAUSED — GPT-6 ASTRA MEDIUM DESIGN CHANGES REQUIRED
 decision: D26-01 option A at seq-290
 ---
 

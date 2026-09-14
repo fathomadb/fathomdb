@@ -67,9 +67,10 @@ their presence does not establish correctness or GREEN status.
 
 ## Remaining work
 
-1. Obtain the requested independent GPT-6 Astra medium review of the approved
-   Slice 20 plan/design, with code and Slice 15 evidence as witnesses.
-2. Reconcile every accepted design finding durably. If a finding changes the
+1. Reconcile the six findings in `astra-design-review-2026-09-14.md` durably.
+   The requested GPT-6 Astra medium review returned `REQUEST CHANGES`.
+2. Obtain a fresh GPT-6 Astra medium re-review and require `PASS` with no
+   P0/P1/P2 findings. If a finding changes the
    authorized public contract or crosses a plan stop gate, return to HITL before
    implementation.
 3. Audit the paused implementation diff against the corrected design. Preserve

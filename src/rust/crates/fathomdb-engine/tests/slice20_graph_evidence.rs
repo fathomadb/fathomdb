@@ -203,3 +203,141 @@ fn graph_references_are_frozen_context_bound_and_tamper_safe() {
         if error.field_path == "/context")
     );
 }
+
+#[test]
+fn empty_evidence_expansion_has_present_empty_sidecar() {
+    let (_directory, engine, mut request) = fixture();
+    request.target_kinds = vec!["absent-kind".into()];
+    request.include_evidence = true;
+    let result = engine.graph_expand(&request).unwrap();
+    assert!(result.targets.is_empty());
+    assert!(result.evidence.unwrap().entries.is_empty());
+}
+
+#[test]
+fn opaque_graph_references_survive_clean_restart() {
+    let (directory, engine, mut request) = fixture();
+    request.include_evidence = true;
+    let result = engine.graph_expand(&request).unwrap();
+    let reference = result.evidence.unwrap().entries[0].target_evidence_ref.clone();
+    let frozen = match request.context {
+        GraphReadContextV1::Frozen { context, .. } => context,
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+    engine.close().unwrap();
+    let reopened = Engine::open(directory.path().join("graph-evidence.fdb")).unwrap().engine;
+    let resolved = reopened
+        .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: reference,
+            context: frozen,
+        })
+        .unwrap();
+    assert_eq!(resolved.artifact_revision_id.as_str(), "target-r1");
+}
+
+#[test]
+fn graph_preflights_remain_two_indexed_class_specific_statements() {
+    let (_directory, engine, _request) = fixture();
+    let plans = engine.explain_graph_evidence_preflights_for_test().unwrap();
+    assert_eq!(plans.len(), 2);
+    assert!(plans[0].contains("canonical_nodes_write_cursor_idx"));
+    assert!(plans[1].contains("canonical_edges_write_cursor_idx"));
+    assert!(plans.iter().all(|plan| plan.contains("USING INDEX")));
+}
+
+#[test]
+fn canonical_source_graph_target_resolves_without_dependency() {
+    let directory = TempDir::new().unwrap();
+    let opened = Engine::open(directory.path().join("canonical-target.fdb")).unwrap();
+    let source = "canonical graph target";
+    let derived = |revision: &str| {
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(revision).unwrap(),
+            SourceVersionId::new("source-v1").unwrap(),
+            SourceRevisionId::new("source-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(digest(source)).unwrap(),
+        )
+    };
+    opened
+        .engine
+        .write(&[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("source".into()),
+                kind: "document".into(),
+                body: source.into(),
+                source_id: SourceId::new("owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("source-r1").unwrap(),
+                    SourceVersionId::new("source-v1").unwrap(),
+                ),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("root".into()),
+                kind: "claim".into(),
+                body: "root".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived("root-r1"),
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("edge".into()),
+                kind: "cites".into(),
+                from: "root".into(),
+                to: "source".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived("edge-r1"),
+            }),
+        ])
+        .unwrap();
+    opened.engine.drain(30_000).unwrap();
+    let frozen = opened
+        .engine
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+        )
+        .unwrap();
+    let result = opened
+        .engine
+        .graph_expand(&GraphExpandRequestV1 {
+            schema_version: 1,
+            seed: GraphSeedV1::Explicit {
+                schema_version: 1,
+                logical_ids: vec![IdSpace::logical("root")],
+            },
+            direction: TraversalDirection::Outgoing,
+            edge_kinds: vec!["cites".into()],
+            target_kinds: vec!["document".into()],
+            context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+            max_depth: 1,
+            result_limit: 1,
+            max_work_units: 10,
+            include_explanation: false,
+            include_evidence: true,
+        })
+        .unwrap();
+    let target = opened
+        .engine
+        .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: result.evidence.unwrap().entries[0].target_evidence_ref.clone(),
+            context: frozen,
+        })
+        .unwrap();
+    assert_eq!(target.artifact_revision_id.as_str(), "source-r1");
+    assert!(target.dependency.is_none());
+}

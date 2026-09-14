@@ -1439,6 +1439,7 @@ fn parse_locator(
 struct PendingGraphEvidence {
     artifact_class: EvidenceArtifactClassV1,
     write_cursor: u64,
+    target_index: u32,
     values: Vec<rusqlite::types::Value>,
 }
 
@@ -1461,6 +1462,7 @@ fn query_graph_evidence_batch(
     sql: &str,
     artifact_class: EvidenceArtifactClassV1,
     cursors: &[u64],
+    target_indices: &[u32],
     frozen: &FrozenReadContextV1,
     stats: &mut GraphEvidencePreflightStats,
 ) -> Result<Vec<PendingGraphEvidence>, EngineError> {
@@ -1495,11 +1497,12 @@ fn query_graph_evidence_batch(
         let ordinal: i64 = row.get(0).map_err(|_| EngineError::Storage)?;
         let ordinal = usize::try_from(ordinal).map_err(|_| EngineError::Storage)?;
         let write_cursor = cursors.get(ordinal).copied().ok_or(EngineError::Storage)?;
+        let target_index = target_indices.get(ordinal).copied().ok_or(EngineError::Storage)?;
         let mut values = Vec::with_capacity(58);
         for index in 0..58 {
             values.push(row.get(index).map_err(|_| EngineError::Storage)?);
         }
-        pending.push(PendingGraphEvidence { artifact_class, write_cursor, values });
+        pending.push(PendingGraphEvidence { artifact_class, write_cursor, target_index, values });
     }
     if pending.len() != cursors.len() {
         return Err(EvidenceErrorV1::unavailable().into());
@@ -1550,7 +1553,7 @@ fn authorize_graph_evidence(
     }
     for row in batches.iter().flat_map(|batch| batch.iter()) {
         if pending_i64(row, 16).is_none() {
-            let ordinal = pending_i64(row, 0).unwrap_or(0);
+            let ordinal = row.target_index;
             let path = if row.artifact_class == EvidenceArtifactClassV1::Node {
                 format!("/targets/{ordinal}/provenance")
             } else {
@@ -1789,12 +1792,32 @@ pub(crate) fn preflight_graph_evidence(
     node_cursors: &[u64],
     edge_cursors: &[u64],
 ) -> Result<GraphEvidencePreflight, EngineError> {
+    fn deduplicate(cursors: &[u64]) -> (Vec<u64>, Vec<u32>, Vec<usize>) {
+        let mut unique = Vec::new();
+        let mut first_positions = Vec::new();
+        let mut positions = Vec::with_capacity(cursors.len());
+        let mut by_cursor = std::collections::HashMap::new();
+        for (target_index, cursor) in cursors.iter().copied().enumerate() {
+            let unique_index = *by_cursor.entry(cursor).or_insert_with(|| {
+                let index = unique.len();
+                unique.push(cursor);
+                first_positions.push(u32::try_from(target_index).unwrap_or(u32::MAX));
+                index
+            });
+            positions.push(unique_index);
+        }
+        (unique, first_positions, positions)
+    }
+
     let mut stats = GraphEvidencePreflightStats::default();
+    let (unique_node_cursors, node_target_indices, node_positions) = deduplicate(node_cursors);
+    let (unique_edge_cursors, edge_target_indices, edge_positions) = deduplicate(edge_cursors);
     let pending_nodes = query_graph_evidence_batch(
         connection,
         INTRINSIC_NODE_PREFLIGHT_SQL,
         EvidenceArtifactClassV1::Node,
-        node_cursors,
+        &unique_node_cursors,
+        &node_target_indices,
         frozen,
         &mut stats,
     )?;
@@ -1802,16 +1825,21 @@ pub(crate) fn preflight_graph_evidence(
         connection,
         INTRINSIC_EDGE_PREFLIGHT_SQL,
         EvidenceArtifactClassV1::Edge,
-        edge_cursors,
+        &unique_edge_cursors,
+        &edge_target_indices,
         frozen,
         &mut stats,
     )?;
     authorize_graph_evidence(&[&pending_nodes, &pending_edges], frozen)?;
     let mut sources = std::collections::HashMap::new();
-    let nodes = materialize_graph_evidence_batch(pending_nodes, frozen, &mut sources, &mut stats)?;
-    stats.node_rows = nodes.len();
-    let edges = materialize_graph_evidence_batch(pending_edges, frozen, &mut sources, &mut stats)?;
-    stats.edge_rows = edges.len();
+    let unique_nodes =
+        materialize_graph_evidence_batch(pending_nodes, frozen, &mut sources, &mut stats)?;
+    let unique_edges =
+        materialize_graph_evidence_batch(pending_edges, frozen, &mut sources, &mut stats)?;
+    stats.node_rows = unique_nodes.len();
+    stats.edge_rows = unique_edges.len();
+    let nodes = node_positions.iter().map(|index| unique_nodes[*index].clone()).collect();
+    let edges = edge_positions.iter().map(|index| unique_edges[*index].clone()).collect();
     Ok(GraphEvidencePreflight { nodes, edges, stats })
 }
 

@@ -1075,6 +1075,46 @@ fn measurement_matrix_emits_raw_samples() {
     );
 }
 
+struct ForegroundWriterSample {
+    elapsed: std::time::Duration,
+    foreground_operations: usize,
+    latencies_us: Vec<u64>,
+}
+
+fn run_foreground_writer_window(
+    engine: &Engine,
+    campaign: usize,
+    mode: &str,
+    duration: std::time::Duration,
+) -> ForegroundWriterSample {
+    let mut latencies_us = Vec::new();
+    let started = std::time::Instant::now();
+    let mut index = 0_usize;
+    while started.elapsed() < duration {
+        let write_started = std::time::Instant::now();
+        engine
+            .write(&[PreparedWrite::Node {
+                logical_id: Some(format!("writer-{campaign}-{mode}-{index}")),
+                kind: "noise".into(),
+                body: "writer interference payload".into(),
+                source_id: SourceId::new("writer-campaign").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .unwrap();
+        latencies_us.push(write_started.elapsed().as_nanos() as u64 / 1_000);
+        index += 1;
+        thread::sleep(std::time::Duration::from_micros(250));
+    }
+    ForegroundWriterSample {
+        elapsed: started.elapsed(),
+        foreground_operations: index,
+        latencies_us,
+    }
+}
+
 #[test]
 fn foreground_writer_window_is_fixed_duration_and_load_independent() {
     let _serial = serialize_fixture();
@@ -1093,7 +1133,6 @@ fn foreground_writer_window_is_fixed_duration_and_load_independent() {
 fn writer_interference_emits_campaigns() {
     let _serial = serialize_fixture();
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-    use std::time::Instant;
 
     let mut output = Vec::new();
     for campaign in 0..5 {
@@ -1157,35 +1196,12 @@ fn writer_interference_emits_campaigns() {
                 ready.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
             }
             let completed_before_timing = completed.load(Ordering::Acquire);
-            let mut latencies = Vec::with_capacity(200);
-            let started = Instant::now();
-            for index in 0..200 {
-                let write_started = Instant::now();
-                engine
-                    .write(&[PreparedWrite::Node {
-                        logical_id: Some(format!("writer-{campaign}-{mode}-{index}")),
-                        kind: "noise".into(),
-                        body: "writer interference payload".into(),
-                        source_id: SourceId::new("writer-campaign").unwrap(),
-                        state: InitialState::Active,
-                        reason: None,
-                        valid_from: None,
-                        valid_until: None,
-                    }])
-                    .unwrap();
-                latencies.push(write_started.elapsed().as_nanos() as u64 / 1_000);
-                thread::sleep(std::time::Duration::from_micros(250));
-                if mode != "alone" && (index + 1) % 10 == 0 {
-                    let required =
-                        completed_before_timing + u64::try_from((index + 1) / 10).unwrap();
-                    let deadline = Instant::now() + std::time::Duration::from_secs(5);
-                    while completed.load(Ordering::Acquire) < required {
-                        assert!(Instant::now() < deadline, "{mode} background operation stalled");
-                        thread::sleep(std::time::Duration::from_micros(100));
-                    }
-                }
-            }
-            let elapsed = started.elapsed().as_secs_f64();
+            let sample = run_foreground_writer_window(
+                &engine,
+                campaign,
+                mode,
+                std::time::Duration::from_secs(1),
+            );
             let completed_after_timing = completed.load(Ordering::Acquire);
             running.store(false, Ordering::Release);
             let _total_successful_background_ops =
@@ -1196,8 +1212,11 @@ fn writer_interference_emits_campaigns() {
                 "campaign {campaign} {mode} completed only {successful_background_ops} timed background operations"
             );
             output.push(serde_json::json!({
-                "campaign": campaign, "mode": mode, "elapsed_us": (elapsed * 1_000_000.0) as u64,
-                "throughput_per_s": 200.0 / elapsed, "latencies_us": latencies,
+                "campaign": campaign, "mode": mode,
+                "elapsed_us": sample.elapsed.as_micros() as u64,
+                "foreground_operations": sample.foreground_operations,
+                "throughput_per_s": sample.foreground_operations as f64 / sample.elapsed.as_secs_f64(),
+                "latencies_us": sample.latencies_us,
                 "successful_background_ops": successful_background_ops,
             }));
         }

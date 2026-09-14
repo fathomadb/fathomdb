@@ -8,6 +8,7 @@ use fathomdb_engine::{
     SearchFilter, SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
     WriteProvenanceV1,
 };
+use rusqlite::Connection;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
@@ -136,6 +137,7 @@ fn opt_in_sidecar_resolves_exact_target_and_winning_edge() {
     assert_eq!(sidecar.entries[0].target_artifact_revision_id.as_str(), "target-r1");
     assert_eq!(sidecar.entries[0].terminal_edge_artifact_revision_id.as_str(), "edge-r1");
     assert!(sidecar.entries[0].target_evidence_ref.as_str().starts_with("fdbgev1."));
+    assert_eq!(sidecar.entries[0].target_evidence_ref.as_str().len(), 704);
     assert!(!sidecar.entries[0].target_evidence_ref.as_str().contains("target-r1"));
     let frozen = match &request.context {
         GraphReadContextV1::Frozen { context, .. } => context.clone(),
@@ -168,6 +170,84 @@ fn opt_in_sidecar_resolves_exact_target_and_winning_edge() {
     assert_eq!(
         encode_graph_expand_result_v1(&engine.graph_expand(&request).unwrap()).unwrap(),
         ordinary_bytes
+    );
+}
+
+fn reopen_after_sql(directory: &TempDir, engine: Engine, sql: &str) -> Engine {
+    engine.close().unwrap();
+    let path = directory.path().join("graph-evidence.fdb");
+    let connection = Connection::open(&path).unwrap();
+    connection.execute_batch(sql).unwrap();
+    drop(connection);
+    Engine::open(path).unwrap().engine
+}
+
+#[test]
+fn denied_source_precedes_visible_corrupt_locator_globally() {
+    let (directory, engine, mut request) = fixture();
+    request.include_evidence = true;
+    let engine = reopen_after_sql(
+        &directory,
+        engine,
+        "UPDATE canonical_nodes SET state='deleted' WHERE logical_id='source';
+         UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes',start_byte=0,end_byte=999999 \
+           WHERE artifact_revision_id='target-r1';",
+    );
+    let error = engine.graph_expand(&request).unwrap_err();
+    assert!(matches!(error, EngineError::Evidence(ref error)
+        if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+            && error.field_path == "/evidence"));
+}
+
+#[test]
+fn missing_link_is_incomplete_but_linked_missing_source_is_unavailable() {
+    let (directory, engine, mut request) = fixture();
+    request.include_evidence = true;
+    let engine = reopen_after_sql(
+        &directory,
+        engine,
+        "DELETE FROM _fathomdb_source_links WHERE artifact_revision_id='target-r1';",
+    );
+    let error = engine.graph_expand(&request).unwrap_err();
+    assert!(matches!(error, EngineError::Evidence(ref error)
+        if error.reason == EvidenceErrorReasonV1::EvidenceIncomplete
+            && error.field_path == "/targets/0/provenance"));
+
+    let (directory, engine, mut request) = fixture();
+    request.include_evidence = true;
+    let engine = reopen_after_sql(
+        &directory,
+        engine,
+        "DELETE FROM canonical_nodes WHERE logical_id='source';",
+    );
+    let error = engine.graph_expand(&request).unwrap_err();
+    assert!(matches!(error, EngineError::Evidence(ref error)
+        if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+            && error.field_path == "/evidence"));
+}
+
+#[test]
+fn authenticated_relaxed_window_context_is_refused_before_mint() {
+    let (_directory, engine, mut request) = fixture();
+    let frozen = engine
+        .freeze_read_context(
+            &ReadContextV1::new(
+                ReadView {
+                    include_out_of_window: true,
+                    valid_as_of: Some(1_800_000_000),
+                    ..ReadView::default()
+                },
+                SearchFilter::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen };
+    request.include_evidence = true;
+    assert!(
+        matches!(engine.graph_expand(&request).unwrap_err(), EngineError::GraphExpansion(ref error)
+        if error.reason == fathomdb_engine::GraphExpansionErrorReasonV1::GraphContextInvalid
+            && error.field_path == "/context/context/view/includeOutOfWindow")
     );
 }
 

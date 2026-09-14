@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 15 — graph-evidence impact spike
-status: ACTIVE — FIX-1 EVIDENCE COMPLETE; FINAL TEARDOWN AND GATES PENDING
+status: COMPLETE — AWAITING INDEPENDENT REVIEW AND HITL D26-01
 execution_authorized: repository owner 2026-09-13
 ---
 

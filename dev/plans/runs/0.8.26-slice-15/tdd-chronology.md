@@ -38,6 +38,12 @@
 - `081a1eea`: records the exact 1,024-byte fixture size in every real campaign.
 - `12b59f69`: retains the behavior-neutral literal ordinary graph-response
   regression independently of the transient prototype.
+- `924e95c2`: replaces the invalid first campaign with corrected raw samples,
+  reproducible expected-mean analysis, environment, surface count, and
+  recommendation.
+- `c50ccdf6`, `7f748269`, `ef204aa2`, and `e9a57498`: exact reverse-order
+  teardown of the FIX-1 fixture metadata, GREEN prototype, RED tests, and
+  restored prototype scaffold.
 
 The two RED corrections repair setup preconditions and do not weaken any
 oracle. The subsequent exploratory result exposed that the shortcut was not the

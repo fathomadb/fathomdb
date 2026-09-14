@@ -1,36 +1,42 @@
 # Slice 15 status
 
-Status: spike implementation, measurement, teardown, and final gates complete;
-ready for independent review.
+Status: corrected spike implementation, measurement, exact teardown, and final
+gates complete; ready for independent review.
 
-The approved RED → GREEN → corrected reader-transaction treatment → complete
-measurement → teardown chain is committed and reachable. Decision-quality
-evidence covers every registered functional and measurement arm. The
-recommendation is option A, subject to HITL ruling of D26-01.
+The committed history preserves both the rejected exploratory shortcut and the
+FIX-1 RED → GREEN → corrected measurement → teardown chain. The corrected
+decision evidence covers the approved functional, provenance, concurrency,
+writer, RSS, erasure, carrier, 10,000-work-unit, 1 KiB, 100 KiB, and
+Memex-shaped arms. The recommendation is option A, subject to HITL ruling of
+D26-01.
+
+FIX-1 corrected the decision treatment to exactly two class-specific joined
+data statements after selection, with plan inspection outside the timed path
+and no per-artifact SQL or re-hashing during mint. The intrinsic carrier no
+longer reuses ranked-search payloads or fabricates search fields. Writer and
+erasure campaigns now use explicit readiness rendezvous and balanced order;
+the workload model uses expected mean rather than invalid p50 interpolation.
 
 Teardown restored every transient shipping-code path byte-for-byte to the
-approved pre-spike tree and removed the transient prototype tests. Diff checks
-against `e5581b23` are empty for the exercised Rust runtime files, Python and
-TypeScript bindings, public interface documentation, public documentation, and
-schema/migrations. No public API, schema, binding, persistence, or release-state
-decision has been made by this spike. D26-01 remains open.
+pre-spike tree and removed the transient prototype tests. Only the durable
+evidence and a behavior-neutral literal ordinary graph-response regression
+remain. No public API, schema, binding, persistence, migration, or release-state
+decision was made. D26-01 remains open.
 
 Final-tree verification:
 
-- focused graph/evidence/reader/erasure tests: 58 passed;
-- complete Python suite in a worktree-owned virtual environment against the
-  exact-source test-hooks wheel: 1,519 passed, 8 skipped;
-- canonical `agent-verify`, with the worktree `src/python` inherited by its
-  isolated Python subprocesses: 109 of 110 suites passed, 1 intended skip;
+- focused graph/evidence/reader/erasure tests: 70 passed serially;
+- canonical `agent-verify`: 109 of 110 suites passed, one intended skip;
 - `cargo clippy --workspace --all-targets -- -D warnings`: passed;
 - `cargo check --workspace --all-targets`: passed.
 
-The inherited Python source path is required because editable installs are
-forbidden in worktrees and two `verify_embed_db` tests launch child processes
-that must import the repo-only `eval` package. A preceding canonical run without
-that path passed 108 of 109 executed suites, including the complete Rust
-workspace, but those two child processes failed with `ModuleNotFoundError: No
-module named 'eval'`; the corrected canonical run passed.
+The canonical verifier used a disposable worktree virtual environment containing
+the exact-source test-hooks wheel and pinned dev tools. `PYTHONPATH` named the
+worktree source so Python child processes imported the repo-only `eval` package.
+Earlier setup attempts are retained in diagnostics: one lacked the worktree
+tools/native module, and one used a broken relative native-module link. After
+the link was corrected to its verified absolute target, the unchanged canonical
+gate passed.
 
-Next step: independent review of the committed chronology and durable evidence,
-then HITL consideration of D26-01.
+Next step: independent review of the committed chronology and evidence, then
+HITL consideration of D26-01.

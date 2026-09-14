@@ -1,8 +1,7 @@
 //! Slice 20 contract tests for exact frozen graph evidence.
 
 use fathomdb_engine::{
-    arm_erasure_before_primary_lock_hook_for_test,
-    arm_evidence_before_resolve_return_hook_for_test, decode_graph_expand_result_v1,
+    arm_erasure_before_primary_lock_hook_for_test, decode_graph_expand_result_v1,
     encode_graph_expand_result_v1, ArtifactRevisionId, CanonicalHash, Engine, EngineError,
     EvidenceErrorReasonV1, FrozenReadErrorReason, GraphEvidenceArtifactV1, GraphEvidenceRefV1,
     GraphEvidenceResolveRequestV1, GraphExpandRequestV1, GraphExpansionErrorReasonV1,
@@ -816,7 +815,7 @@ fn resolver_linearizes_before_erasure(use_operator_spelling: bool) {
     let release = Arc::new(Barrier::new(2));
     let hook_ready = Arc::clone(&ready);
     let hook_release = Arc::clone(&release);
-    arm_evidence_before_resolve_return_hook_for_test(Box::new(move || {
+    engine.arm_graph_evidence_before_resolve_return_hook_for_test(Box::new(move || {
         hook_ready.wait();
         hook_release.wait();
     }));
@@ -866,6 +865,41 @@ fn graph_resolver_and_erasure_spellings_linearize_under_the_primary_mutex() {
     resolver_linearizes_before_erasure(false);
     #[cfg(feature = "operator")]
     resolver_linearizes_before_erasure(true);
+}
+
+fn erasure_linearizes_before_resolver(use_operator_spelling: bool) {
+    let (_directory, engine, mut request) = fixture();
+    request.include_evidence = true;
+    let result = engine.graph_expand(&request).unwrap();
+    let reference = result.evidence.unwrap().entries[0].target_evidence_ref.clone();
+    let context = match request.context {
+        GraphReadContextV1::Frozen { context, .. } => context,
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+    if use_operator_spelling {
+        #[cfg(feature = "operator")]
+        engine.excise_source("owner").unwrap();
+        #[cfg(not(feature = "operator"))]
+        unreachable!();
+    } else {
+        engine.erase_source("owner").unwrap();
+    }
+    unavailable(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference,
+                context,
+            })
+            .unwrap_err(),
+    );
+}
+
+#[test]
+fn erase_and_excise_that_linearize_first_make_resolution_unavailable() {
+    erasure_linearizes_before_resolver(false);
+    #[cfg(feature = "operator")]
+    erasure_linearizes_before_resolver(true);
 }
 
 #[test]

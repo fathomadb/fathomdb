@@ -174,3 +174,66 @@ fn current_context_and_incomplete_provenance_refuse_atomically() {
     request.context = GraphReadContextV1::Current { schema_version: 1, context };
     assert!(engine.graph_expand_with_graph_evidence_for_test(&request).is_err());
 }
+
+#[test]
+#[ignore = "Slice 15 controlled release-mode measurement"]
+fn measurement_matrix_emits_raw_samples() {
+    use std::time::Instant;
+
+    let (_directory, engine, request) = fixture();
+    for _ in 0..50 {
+        engine.graph_expand(&request).unwrap();
+        engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+    }
+    let mut control_us = Vec::with_capacity(1_000);
+    let mut hydrated_us = Vec::with_capacity(1_000);
+    for index in 0..1_000 {
+        if index % 2 == 0 {
+            let start = Instant::now();
+            engine.graph_expand(&request).unwrap();
+            control_us.push(start.elapsed().as_nanos() as u64 / 1_000);
+            let start = Instant::now();
+            engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+            hydrated_us.push(start.elapsed().as_nanos() as u64 / 1_000);
+        } else {
+            let start = Instant::now();
+            engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+            hydrated_us.push(start.elapsed().as_nanos() as u64 / 1_000);
+            let start = Instant::now();
+            engine.graph_expand(&request).unwrap();
+            control_us.push(start.elapsed().as_nanos() as u64 / 1_000);
+        }
+    }
+    let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+    let frozen = match &request.context {
+        GraphReadContextV1::Frozen { context, .. } => context,
+        _ => unreachable!(),
+    };
+    let mut point_node_us = Vec::with_capacity(1_000);
+    let mut point_edge_us = Vec::with_capacity(1_000);
+    for _ in 0..1_000 {
+        let start = Instant::now();
+        engine.resolve_graph_evidence_for_test(&treated.evidence[0].target_ref, frozen).unwrap();
+        point_node_us.push(start.elapsed().as_nanos() as u64 / 1_000);
+        let start = Instant::now();
+        engine
+            .resolve_graph_evidence_for_test(
+                treated.evidence[0].terminal_edge_ref.as_ref().unwrap(),
+                frozen,
+            )
+            .unwrap();
+        point_edge_us.push(start.elapsed().as_nanos() as u64 / 1_000);
+    }
+    println!(
+        "SLICE15_RAW={}",
+        serde_json::json!({
+            "unit": "microseconds", "control_1": control_us, "hydrated_1": hydrated_us,
+            "point_node_1k": point_node_us, "point_edge_1k": point_edge_us,
+            "control_response_bytes": encode_graph_expand_result_v1(&treated.graph).unwrap().len(),
+            "sidecar_reference_bytes": treated.evidence[0].target_ref.as_str().len()
+                + treated.evidence[0].terminal_edge_ref.as_ref().unwrap().as_str().len()
+                + treated.evidence[0].target_revision_id.len()
+                + treated.evidence[0].terminal_edge_revision_id.as_ref().unwrap().len(),
+        })
+    );
+}

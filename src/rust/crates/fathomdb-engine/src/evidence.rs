@@ -292,6 +292,7 @@ struct StoredEvidence {
     artifact_kind: String,
     artifact_state: Option<String>,
     artifact_superseded: bool,
+    artifact_superseded_at: Option<i64>,
     edge_valid: bool,
     source_id: String,
     source_version_id: String,
@@ -303,6 +304,9 @@ struct StoredEvidence {
     source_kind: String,
     source_state: String,
     source_superseded: bool,
+    source_superseded_at: Option<i64>,
+    source_valid_from: Option<i64>,
+    source_valid_until: Option<i64>,
 }
 
 type SourceLinkRow = (String, String, String, String, Option<i64>, Option<i64>, String);
@@ -834,7 +838,15 @@ fn load_stored(
     {
         return Err(EvidenceErrorV1::unavailable().into());
     }
-    let (logical_id, artifact_kind, artifact_state, artifact_superseded, edge_valid) = match class {
+    let (
+        logical_id,
+        artifact_kind,
+        artifact_state,
+        artifact_superseded_at,
+        _artifact_valid_from,
+        _artifact_valid_until,
+        edge_valid,
+    ) = match class {
         EvidenceArtifactClassV1::Node => {
             let row: Option<NodeArtifactRow> = connection
                 .query_row(
@@ -861,7 +873,7 @@ fn load_stored(
             if !include_out_of_window && !valid {
                 return Err(EvidenceErrorV1::unavailable().into());
             }
-            (logical, kind, Some(state), superseded.is_some(), true)
+            (logical, kind, Some(state), superseded, valid_from, valid_until, true)
         }
         EvidenceArtifactClassV1::Edge => {
             let row: Option<EdgeArtifactRow> = connection
@@ -878,7 +890,7 @@ fn load_stored(
             let valid = include_out_of_window
                 || (valid_from.is_none_or(|start| start <= effective)
                     && valid_until.is_none_or(|end| end > effective));
-            (logical, kind, None, superseded.is_some(), valid)
+            (logical, kind, None, superseded, valid_from, valid_until, valid)
         }
     };
     Ok(StoredEvidence {
@@ -887,7 +899,8 @@ fn load_stored(
         logical_id,
         artifact_kind,
         artifact_state,
-        artifact_superseded,
+        artifact_superseded: artifact_superseded_at.is_some(),
+        artifact_superseded_at,
         edge_valid,
         source_id,
         source_version_id,
@@ -899,6 +912,9 @@ fn load_stored(
         source_kind,
         source_state,
         source_superseded: source_superseded_at.is_some(),
+        source_superseded_at,
+        source_valid_from,
+        source_valid_until,
     })
 }
 
@@ -1180,13 +1196,22 @@ pub(crate) struct IntrinsicMaterialForTest {
     logical_id: Option<String>,
     artifact_kind: String,
     artifact_body: Option<String>,
-    artifact_lifecycle: String,
+    node_state: Option<String>,
+    node_valid_from: Option<i64>,
+    node_valid_until: Option<i64>,
+    edge_t_valid: Option<i64>,
+    edge_t_invalid: Option<i64>,
+    edge_temporal_fallback: bool,
+    artifact_superseded_at: Option<i64>,
     source_id: String,
     source_version_id: String,
     source_revision_id: String,
     locator: SourceLocator,
     hash_digest: String,
     source_lifecycle: String,
+    source_superseded_at: Option<i64>,
+    source_valid_from: Option<i64>,
+    source_valid_until: Option<i64>,
     dependency_id: Option<String>,
     dependency_generation: Option<u64>,
     edge_from: Option<String>,
@@ -1280,7 +1305,7 @@ fn load_intrinsic_batch_for_test(
         let source_superseded: Option<i64> = row.get(32).map_err(|_| EngineError::Storage)?;
         let source_valid_from: Option<i64> = row.get(33).map_err(|_| EngineError::Storage)?;
         let source_valid_until: Option<i64> = row.get(34).map_err(|_| EngineError::Storage)?;
-        let source_kind: String = row.get(35).map_err(|_| EngineError::Storage)?;
+        let _source_kind: String = row.get(35).map_err(|_| EngineError::Storage)?;
         let version_schema: i64 = row.get(36).map_err(|_| EngineError::Storage)?;
         let version_source_id: String = row.get(37).map_err(|_| EngineError::Storage)?;
         let version_id: String = row.get(38).map_err(|_| EngineError::Storage)?;
@@ -1340,12 +1365,6 @@ fn load_intrinsic_batch_for_test(
                     && in_window(artifact_valid_from, artifact_valid_until)
             }
         };
-        let source_type_valid = frozen
-            .context
-            .eligibility
-            .source_type
-            .as_deref()
-            .is_none_or(|expected| expected == source_kind);
         let metadata_valid = registry_schema == 1
             && role == "derived_semantic"
             && link_schema == 1
@@ -1371,7 +1390,6 @@ fn load_intrinsic_batch_for_test(
             && source_state == "active"
             && source_superseded.is_none()
             && in_window(source_valid_from, source_valid_until)
-            && source_type_valid
             && artifact_lifecycle_valid
             && dependency_valid
             && !closure_active;
@@ -1417,13 +1435,38 @@ fn load_intrinsic_batch_for_test(
             logical_id,
             artifact_kind,
             artifact_body,
-            artifact_lifecycle: artifact_state.unwrap_or_else(|| "active".to_string()),
+            node_state: artifact_state,
+            node_valid_from: if artifact_class == EvidenceArtifactClassV1::Node {
+                artifact_valid_from
+            } else {
+                None
+            },
+            node_valid_until: if artifact_class == EvidenceArtifactClassV1::Node {
+                artifact_valid_until
+            } else {
+                None
+            },
+            edge_t_valid: if artifact_class == EvidenceArtifactClassV1::Edge {
+                artifact_valid_from
+            } else {
+                None
+            },
+            edge_t_invalid: if artifact_class == EvidenceArtifactClassV1::Edge {
+                artifact_valid_until
+            } else {
+                None
+            },
+            edge_temporal_fallback: temporal_fallback.unwrap_or(0) != 0,
+            artifact_superseded_at: artifact_superseded,
             source_id,
             source_version_id,
             source_revision_id,
             locator,
             hash_digest,
             source_lifecycle: source_state,
+            source_superseded_at: source_superseded,
+            source_valid_from,
+            source_valid_until,
             dependency_id,
             dependency_generation: dependency_generation_u64,
             edge_from,
@@ -1502,13 +1545,22 @@ fn encode_intrinsic_material_for_test(
     push_string(&mut bytes, material.logical_id.as_deref().unwrap_or(""));
     push_string(&mut bytes, &material.artifact_kind);
     push_string(&mut bytes, material.artifact_body.as_deref().unwrap_or(""));
-    push_string(&mut bytes, &material.artifact_lifecycle);
+    push_string(&mut bytes, material.node_state.as_deref().unwrap_or(""));
+    frozen_read::encode_i64(&mut bytes, material.node_valid_from.unwrap_or(i64::MIN));
+    frozen_read::encode_i64(&mut bytes, material.node_valid_until.unwrap_or(i64::MIN));
+    frozen_read::encode_i64(&mut bytes, material.edge_t_valid.unwrap_or(i64::MIN));
+    frozen_read::encode_i64(&mut bytes, material.edge_t_invalid.unwrap_or(i64::MIN));
+    bytes.push(u8::from(material.edge_temporal_fallback));
+    frozen_read::encode_i64(&mut bytes, material.artifact_superseded_at.unwrap_or(i64::MIN));
     push_string(&mut bytes, &material.source_id);
     push_string(&mut bytes, &material.source_version_id);
     push_string(&mut bytes, &material.source_revision_id);
     bytes.extend_from_slice(&locator_bytes(&material.locator));
     push_string(&mut bytes, &material.hash_digest);
     push_string(&mut bytes, &material.source_lifecycle);
+    frozen_read::encode_i64(&mut bytes, material.source_superseded_at.unwrap_or(i64::MIN));
+    frozen_read::encode_i64(&mut bytes, material.source_valid_from.unwrap_or(i64::MIN));
+    frozen_read::encode_i64(&mut bytes, material.source_valid_until.unwrap_or(i64::MIN));
     push_string(&mut bytes, material.dependency_id.as_deref().unwrap_or(""));
     frozen_read::encode_u64(&mut bytes, material.dependency_generation.unwrap_or(0));
     push_string(&mut bytes, material.edge_from.as_deref().unwrap_or(""));
@@ -1572,9 +1624,21 @@ pub(crate) struct IntrinsicEvidenceForTest {
     pub source_version_id: String,
     pub source_revision_id: String,
     pub canonical_source_hash: String,
-    pub artifact_lifecycle: String,
     pub source_lifecycle: String,
-    pub dependency_id: Option<String>,
+    pub source_locator: SourceLocator,
+    pub canonical_source_span: (u64, u64),
+    pub node_state: Option<String>,
+    pub node_valid_from: Option<i64>,
+    pub node_valid_until: Option<i64>,
+    pub edge_t_valid: Option<i64>,
+    pub edge_t_invalid: Option<i64>,
+    pub edge_temporal_fallback: bool,
+    pub artifact_superseded_at: Option<i64>,
+    pub source_state: String,
+    pub source_superseded_at: Option<i64>,
+    pub source_valid_from: Option<i64>,
+    pub source_valid_until: Option<i64>,
+    pub dependency: Option<SourceDependencyV1>,
     pub edge_from: Option<String>,
     pub edge_to: Option<String>,
     pub edge_direction: Option<crate::TraversalDirection>,
@@ -1682,16 +1746,7 @@ pub(crate) fn resolve_intrinsic_reference_for_test(
             &stored.artifact_kind,
             Some(&frozen.context.eligibility),
         ),
-        EvidenceArtifactClassV1::Edge => {
-            let mut edge_filter = frozen.context.eligibility.clone();
-            edge_filter.kind = None;
-            crate::edge_fts_hit_passes_filter(
-                connection,
-                payload.write_cursor,
-                &stored.artifact_kind,
-                Some(&edge_filter),
-            )
-        }
+        EvidenceArtifactClassV1::Edge => Ok(true),
     }
     .map_err(|_| EngineError::Storage)?;
     if !eligible || stored.completeness != "complete" {
@@ -1699,25 +1754,55 @@ pub(crate) fn resolve_intrinsic_reference_for_test(
     }
     validate_source_bytes(&stored)?;
     validate_full_provenance(connection, &stored)?;
-    let (artifact_body, edge_from, edge_to) = match payload.artifact_class {
-        EvidenceArtifactClassV1::Node => (
-            Some(
-                connection
-                    .query_row(
-                        "SELECT body FROM canonical_nodes WHERE write_cursor=?1",
-                        [i64::try_from(payload.write_cursor).map_err(|_| EngineError::Storage)?],
-                        |row| row.get(0),
-                    )
-                    .map_err(|_| EngineError::Storage)?,
-            ),
-            None,
-            None,
-        ),
+    let cursor = i64::try_from(payload.write_cursor).map_err(|_| EngineError::Storage)?;
+    let (
+        artifact_body,
+        edge_from,
+        edge_to,
+        node_state,
+        node_valid_from,
+        node_valid_until,
+        edge_t_valid,
+        edge_t_invalid,
+        edge_temporal_fallback,
+    ) = match payload.artifact_class {
+        EvidenceArtifactClassV1::Node => connection
+            .query_row(
+                "SELECT body,state,valid_from,valid_until FROM canonical_nodes WHERE write_cursor=?1",
+                [cursor],
+                |row| {
+                    Ok((
+                        Some(row.get(0)?),
+                        None,
+                        None,
+                        Some(row.get(1)?),
+                        row.get(2)?,
+                        row.get(3)?,
+                        None,
+                        None,
+                        false,
+                    ))
+                },
+            )
+            .map_err(|_| EngineError::Storage)?,
         EvidenceArtifactClassV1::Edge => connection
             .query_row(
-                "SELECT body,from_id,to_id FROM canonical_edges WHERE write_cursor=?1",
-                [i64::try_from(payload.write_cursor).map_err(|_| EngineError::Storage)?],
-                |row| Ok((row.get(0)?, Some(row.get(1)?), Some(row.get(2)?))),
+                "SELECT body,from_id,to_id,t_valid,t_invalid,temporal_fallback \
+                 FROM canonical_edges WHERE write_cursor=?1",
+                [cursor],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        Some(row.get(1)?),
+                        Some(row.get(2)?),
+                        None,
+                        None,
+                        None,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get::<_, Option<i64>>(5)?.unwrap_or(0) != 0,
+                    ))
+                },
             )
             .map_err(|_| EngineError::Storage)?,
     };
@@ -1729,13 +1814,22 @@ pub(crate) fn resolve_intrinsic_reference_for_test(
         logical_id: stored.logical_id.clone(),
         artifact_kind: stored.artifact_kind.clone(),
         artifact_body: artifact_body.clone(),
-        artifact_lifecycle: stored.artifact_state.clone().unwrap_or_else(|| "active".to_string()),
+        node_state: node_state.clone(),
+        node_valid_from,
+        node_valid_until,
+        edge_t_valid,
+        edge_t_invalid,
+        edge_temporal_fallback,
+        artifact_superseded_at: stored.artifact_superseded_at,
         source_id: stored.source_id.clone(),
         source_version_id: stored.source_version_id.clone(),
         source_revision_id: stored.source_revision_id.clone(),
         locator: stored.locator.clone(),
         hash_digest: stored.hash_digest.clone(),
         source_lifecycle: stored.source_state.clone(),
+        source_superseded_at: stored.source_superseded_at,
+        source_valid_from: stored.source_valid_from,
+        source_valid_until: stored.source_valid_until,
         dependency_id: dependency.as_ref().map(|value| value.dependency_id.as_str().to_string()),
         dependency_generation: dependency
             .as_ref()
@@ -1752,6 +1846,12 @@ pub(crate) fn resolve_intrinsic_reference_for_test(
         return Err(EvidenceErrorV1::unavailable().into());
     }
     let evidence_text = slice(&stored.source_body, &stored.locator)?;
+    let canonical_source_span = match &stored.locator {
+        SourceLocator::WholeBody => (0, stored.source_body.len() as u64),
+        SourceLocator::Utf8Bytes { start_inclusive, end_exclusive } => {
+            (*start_inclusive, *end_exclusive)
+        }
+    };
     Ok(IntrinsicEvidenceForTest {
         artifact_class: payload.artifact_class,
         artifact_revision_id: stored.artifact_revision_id,
@@ -1764,9 +1864,21 @@ pub(crate) fn resolve_intrinsic_reference_for_test(
         source_version_id: stored.source_version_id,
         source_revision_id: stored.source_revision_id,
         canonical_source_hash: stored.hash_digest,
-        artifact_lifecycle: stored.artifact_state.unwrap_or_else(|| "active".to_string()),
-        source_lifecycle: stored.source_state,
-        dependency_id: dependency.map(|value| value.dependency_id.as_str().to_string()),
+        source_lifecycle: stored.source_state.clone(),
+        source_locator: stored.locator,
+        canonical_source_span,
+        node_state,
+        node_valid_from,
+        node_valid_until,
+        edge_t_valid,
+        edge_t_invalid,
+        edge_temporal_fallback,
+        artifact_superseded_at: stored.artifact_superseded_at,
+        source_state: stored.source_state,
+        source_superseded_at: stored.source_superseded_at,
+        source_valid_from: stored.source_valid_from,
+        source_valid_until: stored.source_valid_until,
+        dependency,
         edge_from,
         edge_to,
         edge_direction: payload.direction,

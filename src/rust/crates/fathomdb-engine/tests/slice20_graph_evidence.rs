@@ -10,6 +10,7 @@ use fathomdb_engine::{
 };
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tempfile::TempDir;
 
 fn digest(body: &str) -> String {
@@ -125,6 +126,7 @@ fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
 }
 
 fn temporal_fixture(
+    effective_valid_at: i64,
     source_window: (Option<i64>, Option<i64>),
     target_window: (Option<i64>, Option<i64>),
     edge_window: (Option<i64>, Option<i64>),
@@ -201,7 +203,7 @@ fn temporal_fixture(
         .engine
         .freeze_read_context(
             &ReadContextV1::new(
-                ReadView { valid_as_of: Some(100), ..ReadView::default() },
+                ReadView { valid_as_of: Some(effective_valid_at), ..ReadView::default() },
                 SearchFilter::default(),
             )
             .unwrap(),
@@ -442,20 +444,28 @@ fn authenticated_relaxed_window_context_is_refused_before_mint() {
 
 #[test]
 fn evidence_validity_is_start_inclusive_and_end_exclusive_for_all_three_artifacts() {
-    let (_directory, engine, request) =
-        temporal_fixture((Some(100), Some(101)), (Some(100), Some(101)), (Some(100), Some(101)));
+    let now =
+        i64::try_from(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()).unwrap();
+    let start = now - 10;
+    let end = now + 100;
+    let (_directory, engine, request) = temporal_fixture(
+        start,
+        (Some(start), Some(end)),
+        (Some(start), Some(end)),
+        (Some(start), Some(end)),
+    );
     assert_eq!(engine.graph_expand(&request).unwrap().targets.len(), 1);
 
     let (_directory, engine, request) =
-        temporal_fixture((None, None), (None, Some(100)), (None, None));
+        temporal_fixture(end, (None, None), (None, Some(end)), (None, None));
     assert!(engine.graph_expand(&request).unwrap().targets.is_empty());
 
     let (_directory, engine, request) =
-        temporal_fixture((None, None), (None, None), (None, Some(100)));
+        temporal_fixture(end, (None, None), (None, None), (None, Some(end)));
     assert!(engine.graph_expand(&request).unwrap().targets.is_empty());
 
     let (_directory, engine, request) =
-        temporal_fixture((None, Some(100)), (None, None), (None, None));
+        temporal_fixture(end, (None, Some(end)), (None, None), (None, None));
     assert!(matches!(engine.graph_expand(&request).unwrap_err(), EngineError::Evidence(ref error)
         if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
             && error.field_path == "/evidence"));

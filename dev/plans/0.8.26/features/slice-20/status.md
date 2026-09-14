@@ -1,6 +1,6 @@
 # Slice 20 implementation status
 
-Status: FIX-1 implementation and focused verification complete; stable tip is
+Status: FIX-2 implementation and focused verification complete; stable tip is
 ready for independent re-review.
 
 ## Landed on the implementation branch
@@ -26,6 +26,12 @@ ready for independent re-review.
 - `0ad5df62`, `cf5c9895`, `36e80852` — missing precedence, metadata,
   multi-source, erase/excise linearization, and real-NAPI oracles.
 - `ecf60335` — fresh installed-wheel graph-evidence profile.
+- `6666b906` / `6f7b946d` — canonical-source authority-before-detail and
+  globally ordered exact missing-link paths RED/GREEN.
+- `a5389d3c` / `e47bdce0` — engine-scoped resolver rendezvous and both
+  resolver/erase/excise transaction-order outcomes RED/GREEN.
+- `5e84f837` — real release injection/pack/offline-install N-API graph-evidence
+  proof, including declarations, exports, loader, target, and terminal edge.
 
 The branch also contains merge commits for the approved corrected design at
 `bc8123a8`, frozen-drift reconciliation at `fa39e5e9`, and Astra follow-up PASS
@@ -39,7 +45,7 @@ record at `4747d4f2`.
 - Private semantic request-normalization tests: 2/2 PASS.
 - Deterministic parallel-edge evidence test: PASS.
 - Full focused graph-evidence integration suite with `test-hooks,operator`:
-  20/20 PASS.
+  24/24 PASS.
 - Runtime SQL differential: empty 0, one target 2, multiple targets and distinct
   sources 2 PASS.
 - TypeScript typecheck and focused suite: 3/3 PASS, including real-engine target
@@ -50,14 +56,20 @@ record at `4747d4f2`.
   `df36b7886157527ecd30d3cf6d49270dcb90431cc9ea2a9a34302874c59991c5`.
 - Engine library check with `test-hooks,operator`: PASS.
 - Engine library Clippy with `test-hooks,operator` and `-D warnings`: PASS.
+- Selector property/framing/domain suite: 3/3 PASS; request normalization: 2/2
+  PASS; no-SQL nonce: 1/1 PASS.
+- Repository release-path npm proof: PASS. The thin main and matched
+  `fathomdb-linux-x64-gnu` platform package were injected, packed, installed
+  offline in a clean consumer, loaded without source fallback, and exercised
+  exact target plus terminal-edge resolution.
 - Strict documentation lint/build: PASS.
 
 The source-tree Python collection still intentionally cannot load a native
 extension from this worktree; no editable install or `maturin develop` was used.
 The fresh wheel and import-isolated pytest route replaces that invalid evidence.
-A fresh local npm install remains assigned to the release packaging ladder: the
-committed main package excludes its native binary until platform-package
-injection, while this slice's source-level real-NAPI test passes.
+The prior fresh-local-npm deferral is closed by FIX-2 using the repository's
+actual platform-package injection and pack route. Hosted registry and
+cross-platform publication remain release-ladder concerns, not Slice 20 gates.
 
 The full workspace all-target check is presently blocked outside Slice 20 by
 `slice75_schema26_upgrade.rs` referring to the later-slice

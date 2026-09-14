@@ -116,3 +116,45 @@ that installed wheel with repository source injection disabled. A fresh local
 npm install is deferred to the release packaging ladder because the committed
 main package intentionally excludes the native binary and requires the
 platform-package injection step; source-level real-NAPI coverage passed here.
+
+## Independent re-review FIX-2
+
+The final planned correction cycle closed all four re-review findings without
+changing the approved public contract.
+
+- `6666b906` added canonical-source authority and globally ordered missing-link
+  REDs. A wrong canonical-source registry role/class/completeness combined with
+  malformed target locator/hash returned
+  `EvidenceCorrupt` at
+  `/targets/0/provenance/canonicalSourceHash`, violating nondisclosure
+  precedence. A missing terminal-edge link returned `EvidenceIncomplete` at the
+  incorrect `/targets/0/terminalEdgeProvenance` path. The same RED also covers
+  two targets where edge index 0 must precede target index 1, and same-index
+  target-before-edge ordering.
+- `6f7b946d` moves the complete canonical-source authority predicate into phase
+  1: registry schema, node class, `canonical_source` role, complete provenance,
+  canonical-row/source identity, lifecycle, half-open window, compiled filter,
+  and closure state. Only after global authority passes are missing links
+  collected, sorted by target index and target-before-edge, and returned at the
+  exact target or `terminalEdge/provenance` path. Both focused REDs pass.
+- `a5389d3c` added the engine-scoped rendezvous RED. Compilation failed with the
+  unchanged `E0599` diagnostic: no method named
+  `arm_graph_evidence_before_resolve_return_hook_for_test` existed on
+  `Arc<Engine>`. `e47bdce0` adds the test-only rendezvous to each Engine instance,
+  proves another engine cannot consume it, and proves both transaction orders:
+  resolver-first may return its authorized copied result; erase-first and
+  excise-first make graph resolution nondisclosingly unavailable. No SDK
+  delivery-order claim is made.
+- `5e84f837` extends the repository-owned local-native release smoke. It uses the
+  real publish-time optional-dependency injection, packs the matched platform
+  package and thin main package, performs a clean offline install, checks the
+  installed declarations and exports, loads through the installed platform
+  package, and resolves both target and terminal-edge evidence through the real
+  installed N-API package. The marker
+  `slice20 installed N-API graph evidence: pass` was observed, followed by the
+  canonical smoke completion marker.
+
+Final focused verification passed: Rust graph evidence 24/24, selector property
+and framing 3/3, request normalization 2/2, no-SQL nonce 1/1, engine check,
+engine Clippy with `-D warnings`, TypeScript typecheck and real-NAPI 3/3, shell
+syntax, and strict public documentation.

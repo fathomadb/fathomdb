@@ -829,6 +829,10 @@
     ],
     "p99_ratios_are_descriptive": true,
     "p99_samples_per_arm_are_below": 1000,
+    "p99_sample_count_range": {
+      "minimum": 346,
+      "maximum": 380
+    },
     "sample_windows": [
       {
         "campaign": 0,

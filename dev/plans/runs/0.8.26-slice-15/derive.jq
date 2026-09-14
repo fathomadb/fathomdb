@@ -104,6 +104,10 @@ def arm($name): [.campaigns[] | .[$name] | stats];
       campaigns: $writers,
       p99_ratios_are_descriptive: true,
       p99_samples_per_arm_are_below: 1000,
+      p99_sample_count_range: {
+        minimum: ($root.writer_campaigns | map(.latencies_us | length) | min),
+        maximum: ($root.writer_campaigns | map(.latencies_us | length) | max)
+      },
       sample_windows: ($root.writer_campaigns
         | map({campaign, mode, elapsed_us, foreground_operations,
           successful_background_ops, throughput_per_s})),

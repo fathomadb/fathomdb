@@ -28,7 +28,7 @@ throughput threshold: median ratios were 0.977 for graph hydration and 0.951
 for composite hydrated-graph-plus-point-resolution load. That composite cycle
 includes a freeze, hydrated graph expansion, and one target resolution; it is
 not isolated point resolution. Writer p99 ratios of 1.018 and 0.852 are
-descriptive because the arms contain only 345–380 latency samples. No writer-
+descriptive because the arms contain only 346–380 latency samples. No writer-
 performance stop gate is allocated to Slice 20.
 
 Teardown restored every transient shipping-code path byte-for-byte to the

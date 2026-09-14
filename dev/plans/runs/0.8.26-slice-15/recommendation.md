@@ -58,7 +58,7 @@ With hydrated graph load, median writer throughput ratio was 0.977 (bootstrap
 0.969–0.992). With composite hydrated-graph-plus-point-resolution load, it was
 0.951 (0.910–0.962). These throughput estimates are trigger evidence. The
 corresponding p99 ratios were 1.018 (0.956–1.050) and 0.852 (0.784–0.944), but
-are descriptive because each arm contains only 345–380 latency samples, below
+are descriptive because each arm contains only 346–380 latency samples, below
 the design's 1,000-sample p99 threshold. Neither throughput nor descriptive p99
 indicates a reconsideration trigger.
 

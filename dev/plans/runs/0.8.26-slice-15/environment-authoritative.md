@@ -37,6 +37,6 @@ must naturally complete at least 20 background operations; recorded background
 counts exclude setup and shutdown. The composite writer-load arm performs one
 freeze, one hydrated graph expansion, and one target evidence resolution per
 background cycle; it is not an isolated point-resolution workload. Each writer
-arm contains 345–380 service-latency samples, so writer p99 values and their
+arm contains 346–380 service-latency samples, so writer p99 values and their
 ratios/intervals are descriptive. Erasure arms use a before-primary-lock
 rendezvous and alternate idle/held order.

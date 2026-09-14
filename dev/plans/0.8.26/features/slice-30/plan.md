@@ -64,8 +64,9 @@ as overbuild.
   under the existing product lock and with no non-empty WAL or non-empty
   rollback journal pending. A normal persistent `-shm` file is permitted but
   remains unchanged.
-  Open SQLite read-only with query-only enforcement; never create a database or
-  lock file, migrate, repair, rebuild, advance a projection, or start a worker.
+  Open SQLite through a percent-encoded `file:` URI with `immutable=1`,
+  `READ_ONLY|URI`, and query-only enforcement; never create a database or lock
+  file, migrate, repair, rebuild, advance a projection, or start a worker.
 - **R26-30C — stable bounded result:** Preserve the V1 check/report model,
   bounds, privacy-safe locators, canonical check order, and exits 0/65/70/71.
   All post-parse semantic and runtime failures for this verb use the V1 error
@@ -99,15 +100,18 @@ as overbuild.
 
 1. **RED:** Add CLI process tests for byte-identical clean inspection,
    down-level schema refusal without migration, active-engine/non-empty
-   WAL/non-empty-journal refusal, persistent-`-shm` success, missing-path
-   no-creation, and the uniform post-parse V1 error/exit contract. Retain
-   existing 0.8.25 engine tests as the oracle for check semantics and bounds.
+   WAL/non-empty-journal refusal, persistent-`-shm` success, URI-reserved path
+   bytes, missing-path no-creation, and the uniform post-parse V1 error/exit
+   contract. Retain existing 0.8.25 engine tests as the oracle for check
+   semantics and bounds.
 2. **GREEN:** Add the smallest operator-gated static inspection path: validate
    the existing lock without creating or rewriting it, reject non-empty
    WAL/rollback-journal recovery, initialize the SQLite runtime in canonical order, open
-   exact-compiled-schema SQLite read-only/query-only, and call the unchanged integrity
-   executor in one read transaction. Route only `data-plane-integrity` through
-   it and serialize typed failures without raw detail.
+   exact-compiled-schema SQLite through a percent-encoded `file:` URI with
+   `immutable=1`, `READ_ONLY|URI`, and query-only enforcement, and call the
+   unchanged integrity executor in one read transaction. Route only
+   `data-plane-integrity` through it and serialize typed failures without raw
+   detail.
 3. **REFACTOR:** Centralize this verb's error envelope and keep ordinary doctor
    verbs unchanged. Update CLI/interface/operator docs and the release-local
    trace; do not add package or binding code.

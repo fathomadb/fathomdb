@@ -28,3 +28,16 @@ All P1/P2 findings were incorporated before implementation:
 
 The corrected design was returned to the same reviewer, which returned PASS
 with no remaining P0-P2 findings before RED implementation began.
+
+## Post-implementation clarification
+
+The first GREEN run proved that `SQLITE_OPEN_READ_ONLY` alone can create or
+alter SQLite shared-memory state. The design was narrowed to require a
+percent-encoded `file:` URI with `immutable=1`, `READ_ONLY|URI`, and
+`query_only`. The same reviewer requested three propagation fixes: name this
+boundary in R26-30B and the GREEN step, document that raw external SQLite
+writers must be stopped, and acceptance-test URI-reserved filename bytes.
+
+Those corrections landed in the plan, public API contract, and an 11th process
+test using `reserved space#%3F.sqlite`. The focused suite passed 11/11. The
+reviewer then returned final PASS with no remaining P0-P2 findings.

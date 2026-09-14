@@ -1,15 +1,15 @@
 ---
 title: CLI Public Interface
-date: 2026-09-12
-target_release: 0.8.25
-desc: Public CLI surface for 0.8.25
+date: 2026-09-14
+target_release: 0.8.26
+desc: Public CLI surface for 0.8.26
 blast_radius: src/rust/crates/fathomdb-cli/src/lib.rs; design/recovery.md; design/errors.md
 status: locked
 ---
 
 # CLI Interface
 
-Public CLI surface for the 0.8.25 operator binary. The canonical verb table and
+Public CLI surface for the 0.8.26 operator binary. The canonical verb table and
 recovery semantics are owned by `design/recovery.md`; this file owns concrete
 flag spelling, root command paths, and exit-code classes.
 
@@ -56,6 +56,7 @@ see that ADR's 2026-06-06 amendment).
 | Verb              | Synopsis                                                                       | Exit class                          |
 | ----------------- | ------------------------------------------------------------------------------ | ----------------------------------- |
 | `check-integrity` | `fathomdb doctor check-integrity [--quick] [--full] [--round-trip] [--pretty]` | `doctor-check-*` = 0 / 65 / 70 / 71 |
+| `data-plane-integrity` | `fathomdb doctor data-plane-integrity [--check <kind>]... [--max-work <n>] [--max-findings <n>] [--json] <db_path>` | `0 / 65 / 70 / 71` |
 | `safe-export`     | `fathomdb doctor safe-export <out> [--manifest <path>]`                        | `doctor-export-*` = 0 / 66 / 71     |
 | `verify-embedder` | `fathomdb doctor verify-embedder --identity <s> --dimension <n>`               | `doctor-check-*` = 0 / 65           |
 | `trace`           | `fathomdb doctor trace --source-ref <id>`                                      | `doctor-check-*`                    |
@@ -332,16 +333,25 @@ typed report structs; the CLI serializes them under a `verb` discriminator.
   field spellings lives in the CLI serialization layer; the engine report
   structs are not renamed to satisfy CLI spelling requirements.
 
-## Data-plane integrity (0.8.25 Slice 55)
+## Data-plane integrity (0.8.25 Slice 55; immutable route in 0.8.26 Slice 30)
 
 `fathomdb doctor data-plane-integrity --check <kind>... --max-work <1..10000>
 --max-findings <1..100> [--json] <db_path>` runs the four checks in canonical
-order; omitting `--check` selects all. It is read-only and returns no partial
-report. Clean exits 0, findings exit 65, request/bound/integrity failure exits
-70, and an open-time lock exits 71.
+order; omitting `--check` selects all. The command does not call
+`Engine::open`: it requires an existing database and product lock, acquires the
+lock without rewriting it, refuses a non-empty WAL or rollback journal, then
+uses SQLite URI `immutable=1` plus read-only/query-only enforcement. A
+persistent `-shm` is permitted and left unchanged. The on-disk `user_version`
+must exactly match the binary's compiled schema; the command never migrates,
+repairs, rebuilds, starts workers, or creates product files. It returns no
+partial report. Clean exits 0, findings exit 65, request/bound/integrity or
+schema failure exits 70, and non-quiescent state exits 71.
 
 JSON success is
 `{schemaVersion:"fathomdb.doctor.data-plane-integrity.v1",status,report}`.
 Errors use the same schema, `status:"error"`, `verb:"data-plane-integrity"`,
 `code:"FDB_DATA_PLANE_INTEGRITY"`, lower-snake `reason`, and RFC 6901
-`fieldPath`. Existing doctor verbs and their envelopes are unchanged.
+`fieldPath`. The added stable reasons are `inspection_unavailable`,
+`inspection_lock_missing`, `inspection_not_quiescent`,
+`runtime_configuration`, and `database_schema_mismatch`; corruption remains
+`integrity_corrupt`. Existing doctor verbs and their envelopes are unchanged.

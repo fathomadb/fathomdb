@@ -4155,6 +4155,11 @@ fn immutable_sqlite_uri(path: &Path) -> String {
 /// enabled; migrations, projection reconciliation, worker startup, and lock
 /// metadata writes are never performed.
 ///
+/// FathomDB writers are excluded by the product lock. Callers must also stop
+/// raw external SQLite writers, which do not participate in that lock protocol,
+/// before invoking this function. The connection uses a percent-encoded
+/// `file:` URI with SQLite `immutable=1`, `READ_ONLY|URI`, and `query_only`.
+///
 /// # Errors
 ///
 /// Returns a typed [`DataPlaneIntegrityErrorV1`] through [`EngineError`] for

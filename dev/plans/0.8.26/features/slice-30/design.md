@@ -39,9 +39,12 @@ these steps in order:
 4. Preserve runtime initialization order: call the existing
    `configure_runtime_for_open()` before extension registration or any SQLite
    call, then register the process-local SQLite extension, open the database
-   with `SQLITE_OPEN_READ_ONLY`, and enable `PRAGMA query_only=ON`. Do not run
-   the migration/open-recovery pipeline and do not construct an `Engine`,
-   reader pool, embedder, or projection runtime.
+   through a percent-encoded `file:` URI with `immutable=1`,
+   `SQLITE_OPEN_READ_ONLY`, and `SQLITE_OPEN_URI`, then enable
+   `PRAGMA query_only=ON`. SQLite's immutable mode is required because plain
+   read-only WAL access can still create or alter `-shm`. Do not run the
+   migration/open-recovery pipeline and do not construct an `Engine`, reader
+   pool, embedder, or projection runtime.
 5. Read `PRAGMA user_version` and require exact equality with the binary's
    compiled `SCHEMA_VERSION` (33 for this slice). Both older and newer versions
    refuse; neither is migrated.

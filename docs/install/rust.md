@@ -35,6 +35,33 @@ CLI:
 cargo install fathomdb-cli --version 0.8.25
 ```
 
+For the immutable 0.8.26 data-plane inspection route, wait until 0.8.26 is
+published, pin the exact version, and verify the discovered binary:
+
+```bash
+cargo install fathomdb-cli --version '=0.8.26' --locked
+fathomdb --version
+```
+
+Do not treat 0.8.25 as an immutable-inspection substitute even though it uses
+the same database schema version: its data-plane command still enters through
+the ordinary writable engine-open path.
+
+## Qualify a source candidate
+
+From a trusted FathomDB checkout, install into a clean root and invoke that
+exact binary:
+
+```bash
+candidate_root="$(mktemp -d)"
+cargo install --path src/rust/crates/fathomdb-cli --root "$candidate_root" --locked
+"$candidate_root/bin/fathomdb" --version
+```
+
+This proves the current checkout and host, not the future crates.io artifact.
+The release candidate repeats this check after version integration; the
+post-publication smoke is the only evidence for crates.io 0.8.26.
+
 ## Install (current path — from git)
 
 Library:
@@ -103,8 +130,13 @@ release, so `match` on it with a `_` arm.
 For the CLI:
 
 ```bash
-fathomdb doctor check-integrity --quick --json
+fathomdb doctor data-plane-integrity --json ./store.sqlite
 ```
+
+Stop all FathomDB processes using the store first. The command requires the
+existing product lock and an exact database-schema match, refuses non-empty
+WAL/rollback-journal sidecars, and performs no migration or repair. See the
+[integrity inspection procedure](../operations/integrity-inspection.md).
 
 ## See also
 

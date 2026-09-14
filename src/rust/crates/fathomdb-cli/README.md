@@ -16,7 +16,8 @@ releases.
 ## Install
 
 ```bash
-cargo install fathomdb-cli
+cargo install fathomdb-cli --version '=0.8.26' --locked
+fathomdb --version
 ```
 
 That installs a binary named `fathomdb`.
@@ -41,6 +42,7 @@ none.
 | Verb | What it does |
 | --- | --- |
 | `check-integrity` | Structural integrity check; reports typed findings with locators |
+| `data-plane-integrity` | Bounded dependency/projection checks through an immutable, exact-schema operator boundary |
 | `safe-export` | Materialise a safe export of the database |
 | `verify-embedder` | Confirm the embedder identity recorded in the database matches this build |
 | `trace` | Trace the resolution chain for a source reference |
@@ -51,6 +53,13 @@ none.
 | `orphan-provenance` | Per-`source_id` census; reports rows reachable by **no** erasure verb |
 | `warm-cache` | Pre-fetch and verify the pinned default-embedder weights (needs the `default-embedder` feature) |
 | `recompute-mean` | Re-derive and re-pin the corpus mean, re-quantizing every vector in one transaction |
+
+Before `doctor data-plane-integrity`, stop every FathomDB process using the
+store. The command requires an existing product `.lock`, refuses a non-empty
+`-wal` or `-journal`, and requires the database schema to exactly match the
+binary. It uses immutable read-only SQLite and never migrates, repairs, starts
+workers, or rewrites product files. A persistent `-shm` is allowed and left
+unchanged.
 
 ### `recover` flags
 

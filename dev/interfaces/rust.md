@@ -1058,6 +1058,15 @@ types without renaming them.
 
 ## Recovery / operator seam re-exports
 
+With the `operator` feature, the facade exports the free function
+`inspect_data_plane_integrity(path, DataPlaneIntegrityRequestV1) ->
+Result<DataPlaneIntegrityResultV1, EngineError>`. It is deliberately not an
+`Engine` method: it validates first, acquires the existing product lock without
+rewriting it, refuses non-quiescent sidecars, and opens exact-schema SQLite via
+an immutable read-only/query-only connection. The function does not migrate,
+repair, reconcile projections, or construct a serving runtime. It and its
+inspection-specific error reasons are absent when `operator` is disabled.
+
 The `fathomdb` facade re-exports the following recovery and reporting types
 from `fathomdb-engine` so that `fathomdb-cli` (the only public consumer of
 these types) compiles against the public Rust surface, not engine internals.

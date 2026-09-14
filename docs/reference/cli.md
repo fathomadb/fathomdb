@@ -54,7 +54,13 @@ dependency and serving-projection authority. The four check kinds—
 `dependency_chain`, `active_searchable_orphans`, `projection_generation`, and
 `mutation_readiness`—run in canonical order; omit `--check` to select all.
 `--max-work` accepts 1 through 10,000 and `--max-findings` accepts 1 through
-100. A failure returns no partial report.
+100. A failure returns no partial report. Stop every FathomDB process using the
+store first. The command requires the existing product `.lock`, refuses a
+non-empty `-wal` or `-journal`, and permits an existing `-shm` without changing
+it. It opens the database through SQLite's immutable read-only mode with
+query-only enforcement; it does not migrate, repair, rebuild, start projection
+workers, create files, or rewrite lock metadata. The database `user_version`
+must exactly match the installed binary's compiled schema.
 
 ```bash
 fathomdb doctor data-plane-integrity \
@@ -67,8 +73,24 @@ The versioned JSON success envelope is
 Errors use the same schema with `status:"error"`,
 `verb:"data-plane-integrity"`, `code:"FDB_DATA_PLANE_INTEGRITY"`, a stable
 lower-snake `reason`, and RFC 6901 `fieldPath`. Clean exits `0`, findings exit
-`65`, request/bound/integrity failures exit `70`, and an open-time lock exits
-`71`.
+`65`, request/bound/integrity, unavailable-input, runtime, and schema failures
+exit `70`; a held product lock or non-empty recovery sidecar exits `71`.
+Inspection failures use `inspection_unavailable`, `inspection_lock_missing`,
+`inspection_not_quiescent`, `runtime_configuration`,
+`database_schema_mismatch`, or `integrity_corrupt` without exposing raw SQLite
+diagnostics.
+
+For the 0.8.26 boundary, install the exact CLI version and confirm its identity:
+
+```bash
+cargo install fathomdb-cli --version '=0.8.26' --locked
+fathomdb --version
+```
+
+That registry command is valid only after 0.8.26 is published. During source
+qualification, use the [Rust install procedure](../install/rust.md). The
+published 0.8.25 binary has the same schema version but does not implement this
+immutable process boundary.
 
 ### GPU and platform diagnostics
 

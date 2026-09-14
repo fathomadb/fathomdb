@@ -120,6 +120,18 @@ fn persistent_shm_without_wal_is_allowed_and_unchanged() {
 }
 
 #[test]
+fn uri_reserved_path_bytes_are_encoded_and_unchanged() {
+    let (_directory, path) = fresh_database("reserved space#%3F.sqlite");
+    let before = file_set(&path);
+
+    let output = run(&path, &[]);
+
+    assert_eq!(output.status.code(), Some(exit_code::OK), "{output:#?}");
+    assert_eq!(payload(&output)["status"], "clean");
+    assert!(file_set(&path) == before, "URI-reserved path fixture changed");
+}
+
+#[test]
 fn held_product_lock_refuses_with_private_v1_error() {
     let directory = TempDir::new().expect("temporary database directory");
     let path = directory.path().join("held.sqlite");

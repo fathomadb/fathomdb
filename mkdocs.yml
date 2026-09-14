@@ -27,6 +27,7 @@ nav:
   - Compatibility: compatibility/index.md
   - Operations:
       - Overview: operations/index.md
+      - Immutable Integrity Inspection: operations/integrity-inspection.md
       - Erasure: operations/erasure.md
       - Worktree and Branch Consolidation: operations/worktree-consolidation.md
   - Guides:

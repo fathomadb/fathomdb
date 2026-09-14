@@ -794,13 +794,9 @@ fn resolver_linearizes_before_erasure(use_operator_spelling: bool) {
 }
 
 #[test]
-fn graph_resolver_and_governed_erase_linearize_under_the_primary_mutex() {
+fn graph_resolver_and_erasure_spellings_linearize_under_the_primary_mutex() {
     resolver_linearizes_before_erasure(false);
-}
-
-#[cfg(feature = "operator")]
-#[test]
-fn graph_resolver_and_operator_excise_linearize_under_the_primary_mutex() {
+    #[cfg(feature = "operator")]
     resolver_linearizes_before_erasure(true);
 }
 

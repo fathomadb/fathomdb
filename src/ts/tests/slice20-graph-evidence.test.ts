@@ -23,12 +23,13 @@ const request: GraphExpandRequestV1 = {
     type: "frozen",
     context: {
       schemaVersion: 1,
-      snapshotWriteCursor: "3",
-      projectionGeneration: "1",
-      validityPolicyId: "fathomdb.validity.explicit-v1",
       effectiveValidAt: 1_700_000_000,
-      eligibilityCommitment: "a".repeat(64),
-      integrityTag: "b".repeat(64),
+      context: {
+        schemaVersion: 1,
+        view: { validAsOf: 1_700_000_000 },
+        eligibility: {},
+      },
+      token: "opaque-frozen-token",
     },
   },
   maxDepth: 1,
@@ -43,6 +44,7 @@ test("graph.expand returns the positional evidence sidecar", async () => {
   const evidence: GraphEvidenceSidecarV1 = {
     schemaVersion: 1,
     entries: [{
+      schemaVersion: 1,
       targetIndex: 0,
       targetArtifactRevisionId: "target-r1",
       targetEvidenceRef: "fdbgev1.target",
@@ -56,8 +58,9 @@ test("graph.expand returns the positional evidence sidecar", async () => {
         requestWire = wire;
         return JSON.stringify({
           schemaVersion: 1,
-          seeds: [],
+          seeds: [{ schemaVersion: 1, logicalId: "root", seedOrdinal: 0, queryScore: null }],
           targets: [{
+            schemaVersion: 1,
             logicalId: "target",
             kind: "claim",
             body: "target body",
@@ -65,14 +68,17 @@ test("graph.expand returns the positional evidence sidecar", async () => {
             origin: {
               schemaVersion: 1,
               seedLogicalId: "root",
+              seedOrdinal: 0,
+              predecessorLogicalId: "root",
               targetLogicalId: "target",
-              hopDepth: 1,
+              hopCount: 1,
               terminalEdgeKind: "supports",
               terminalDirection: "outgoing",
             },
           }],
           workUnits: "1",
           complete: true,
+          degradationCodes: [],
           explanation: null,
           evidence,
         });

@@ -51,7 +51,8 @@ use fathomdb_embedder::{
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
     decode_graph_expand_request_v1, encode_dependency_trace_result_v1,
-    encode_graph_expand_result_v1, rerank_passages as rust_rerank_passages, ActuationBatchV1,
+    encode_graph_expand_result_v1, encode_resolved_graph_evidence_v1,
+    rerank_passages as rust_rerank_passages, ActuationBatchV1,
     ActuationError as RustActuationError, ActuationOperationV1, ActuationOutcomeV1,
     ActuationReceiptV1 as RustActuationReceiptV1, ArtifactRevisionId,
     BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ClosureLookupV1, ClosureRootV1,
@@ -74,8 +75,10 @@ use fathomdb_engine::{
     EvidenceSidecarEntryV1 as RustEvidenceSidecarEntryV1, ExciseReport as RustExciseReport,
     Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
     FilterTerm as RustFilterTerm, FrozenReadContextV1 as RustFrozenReadContextV1,
-    IdSpace as RustIdSpace, IngestWithExtractorReceipt as RustIngestWithExtractorReceipt,
-    InitialState, LifecycleActuationV1, LifecycleState as RustLifecycleState,
+    GraphEvidenceRefV1 as RustGraphEvidenceRefV1,
+    GraphEvidenceResolveRequestV1 as RustGraphEvidenceResolveRequestV1, IdSpace as RustIdSpace,
+    IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
+    LifecycleActuationV1, LifecycleState as RustLifecycleState,
     MutationProjectionStatusRequestV1 as RustMutationProjectionStatusRequestV1,
     MutationProjectionStatusV1 as RustMutationProjectionStatusV1, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
@@ -2818,6 +2821,27 @@ impl PyEngine {
         };
         let engine = Arc::clone(&self.inner);
         call_engine(py, move || engine.resolve_evidence(&request)).map(Into::into)
+    }
+
+    /// Resolve one exact artifact disclosed by frozen graph expansion.
+    fn resolve_graph_evidence(
+        &self,
+        py: Python<'_>,
+        evidence_ref: String,
+        context: &PyFrozenReadContextV1,
+    ) -> PyResult<String> {
+        validate_ffi_string_py(&evidence_ref)?;
+        let request = RustGraphEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: RustGraphEvidenceRefV1::new(evidence_ref)
+                .map_err(|error| engine_error_to_py(RustEngineError::Evidence(error)))?,
+            context: context.inner.clone(),
+        };
+        let engine = Arc::clone(&self.inner);
+        let value = call_engine(py, move || engine.resolve_graph_evidence(&request))?;
+        let bytes = encode_resolved_graph_evidence_v1(&value)
+            .map_err(|error| engine_error_to_py(RustEngineError::Evidence(error)))?;
+        String::from_utf8(bytes).map_err(|_| PyValueError::new_err("evidence_corrupt at "))
     }
 
     /// Search and expand under a frozen context.

@@ -54,6 +54,10 @@ from fathomdb.types import (
     FrozenReadContextV1,
     GpuAllocationWitness,
     GraphExpandResultV1,
+    GraphEvidenceSidecarEntryV1,
+    GraphEvidenceSidecarV1,
+    GraphEvidenceResolveRequestV1,
+    GraphEvidenceArtifactV1,
     GraphExpansionDegradationCodeV1,
     GraphExpansionExplanationV1,
     GraphOriginV1,
@@ -71,6 +75,7 @@ from fathomdb.types import (
     ReadView,
     ResolvedGraphSeedV1,
     ResolvedEvidenceV1,
+    ResolvedGraphEvidenceV1,
     SearchExpandResult,
     SearchFilter,
     SearchHit,
@@ -455,6 +460,61 @@ def _map_native_graph_expand_result(result: Any) -> GraphExpandResultV1:
             per_target=tuple(per_target),
         )
 
+    evidence_value = getattr(result, "evidence", None)
+    evidence: GraphEvidenceSidecarV1 | None = None
+    if evidence_value is not None:
+        _graph_schema(evidence_value, "/evidence/schemaVersion")
+        raw_entries = _graph_list(
+            _graph_field(evidence_value, "entries", "/evidence/entries"), "/evidence/entries"
+        )
+        if len(raw_entries) != len(targets):
+            _graph_refuse("graph_corrupt", "/evidence")
+        entries: list[GraphEvidenceSidecarEntryV1] = []
+        for index, item in enumerate(raw_entries):
+            base = f"/evidence/entries/{index}"
+            _graph_schema(item, f"{base}/schemaVersion")
+            target_index = _graph_u32(
+                _graph_field(item, "target_index", f"{base}/targetIndex"),
+                f"{base}/targetIndex",
+            )
+            if target_index != index:
+                _graph_refuse("graph_corrupt", f"{base}/targetIndex")
+            entries.append(
+                GraphEvidenceSidecarEntryV1(
+                    schema_version=1,
+                    target_index=target_index,
+                    target_artifact_revision_id=_graph_string(
+                        _graph_field(
+                            item,
+                            "target_artifact_revision_id",
+                            f"{base}/targetArtifactRevisionId",
+                        ),
+                        f"{base}/targetArtifactRevisionId",
+                    ),
+                    target_evidence_ref=_graph_string(
+                        _graph_field(item, "target_evidence_ref", f"{base}/targetEvidenceRef"),
+                        f"{base}/targetEvidenceRef",
+                    ),
+                    terminal_edge_artifact_revision_id=_graph_string(
+                        _graph_field(
+                            item,
+                            "terminal_edge_artifact_revision_id",
+                            f"{base}/terminalEdgeArtifactRevisionId",
+                        ),
+                        f"{base}/terminalEdgeArtifactRevisionId",
+                    ),
+                    terminal_edge_evidence_ref=_graph_string(
+                        _graph_field(
+                            item,
+                            "terminal_edge_evidence_ref",
+                            f"{base}/terminalEdgeEvidenceRef",
+                        ),
+                        f"{base}/terminalEdgeEvidenceRef",
+                    ),
+                )
+            )
+        evidence = GraphEvidenceSidecarV1(entries=tuple(entries))
+
     return GraphExpandResultV1(
         schema_version=1,
         seeds=tuple(seeds),
@@ -463,6 +523,7 @@ def _map_native_graph_expand_result(result: Any) -> GraphExpandResultV1:
         work_units=work_units,
         degradation_codes=degradation_codes,
         explanation=explanation,
+        evidence=evidence,
     )
 
 
@@ -2235,6 +2296,71 @@ class Engine:
         native_context = _to_native_frozen_context(request.context)
         return _map_native_resolved_evidence(
             self._native.resolve_evidence(request.evidence_ref, native_context)
+        )
+
+    def resolve_graph_evidence(
+        self, request: GraphEvidenceResolveRequestV1
+    ) -> ResolvedGraphEvidenceV1:
+        """Resolve one exact artifact disclosed by frozen graph expansion."""
+        if not isinstance(request, GraphEvidenceResolveRequestV1):
+            raise TypeError("request must be a GraphEvidenceResolveRequestV1")
+        if request.schema_version != 1:
+            raise EvidenceError(
+                "unsupported_schema_version at /schemaVersion",
+                reason="unsupported_schema_version",
+                field_path="/schemaVersion",
+            )
+        native_context = _to_native_frozen_context(request.context)
+        raw = json.loads(
+            self._native.resolve_graph_evidence(request.evidence_ref, native_context)
+        )
+        artifact_raw = raw["artifact"]
+        artifact = GraphEvidenceArtifactV1(
+            artifact_class=artifact_raw["artifactClass"],
+            logical_id=artifact_raw["logicalId"],
+            kind=artifact_raw["kind"],
+            body=artifact_raw["body"],
+            from_id=artifact_raw.get("from"),
+            to_id=artifact_raw.get("to"),
+        )
+        locator_raw = raw["locator"]
+        locator: Any = {"kind": locator_raw["kind"]}
+        if locator_raw["kind"] == "utf8_bytes":
+            locator["start_inclusive"] = locator_raw["startInclusive"]
+            locator["end_exclusive"] = locator_raw["endExclusive"]
+        lifecycle_raw = raw["artifactLifecycle"]
+        lifecycle = EvidenceArtifactLifecycleV1(
+            kind=lifecycle_raw["kind"],
+            state=lifecycle_raw["state"],
+            superseded=lifecycle_raw["superseded"],
+            valid_at_effective=lifecycle_raw["validAtEffective"],
+        )
+        dependency_raw = raw["dependency"]
+        dependency = None if dependency_raw is None else SourceDependencyV1(
+            schema_version=dependency_raw["schemaVersion"],
+            dependency_id=dependency_raw["dependencyId"],
+            source_revision_id=dependency_raw["sourceRevisionId"],
+            derived_revision_id=dependency_raw["derivedRevisionId"],
+            registered_dependency_generation=dependency_raw["registeredDependencyGeneration"],
+        )
+        return ResolvedGraphEvidenceV1(
+            schema_version=raw["schemaVersion"],
+            artifact_revision_id=raw["artifactRevisionId"],
+            artifact=artifact,
+            source_id=raw["sourceId"],
+            source_version_id=raw["sourceVersionId"],
+            source_revision_id=raw["sourceRevisionId"],
+            locator=locator,
+            canonical_source_body=raw["canonicalSourceBody"],
+            evidence_text=raw["evidenceText"],
+            canonical_source_hash={
+                "algorithm": raw["canonicalSourceHash"]["algorithm"],
+                "digest_hex": raw["canonicalSourceHash"]["digestHex"],
+            },
+            effective_valid_at=raw["effectiveValidAt"],
+            artifact_lifecycle=lifecycle,
+            source_lifecycle_state=raw["sourceLifecycleState"],
+            dependency=dependency,
         )
 
     def search_expand_frozen(

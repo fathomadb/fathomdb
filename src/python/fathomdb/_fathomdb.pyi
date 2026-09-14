@@ -467,6 +467,11 @@ class Engine:
         evidence_ref: str,
         context: FrozenReadContextV1,
     ) -> ResolvedEvidenceV1: ...
+    def resolve_graph_evidence(
+        self,
+        evidence_ref: str,
+        context: FrozenReadContextV1,
+    ) -> str: ...
     def search_expand_frozen(
         self,
         query: str,

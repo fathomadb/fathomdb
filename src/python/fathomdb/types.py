@@ -552,6 +552,7 @@ class GraphExpandRequestV1:
     result_limit: int
     max_work_units: str
     include_explanation: bool
+    include_evidence: bool = False
 
 
 @dataclass(frozen=True)
@@ -617,6 +618,26 @@ class GraphExpansionExplanationV1:
 
 
 @dataclass(frozen=True)
+class GraphEvidenceSidecarEntryV1:
+    """Exact identities and opaque references for one graph target position."""
+
+    target_index: int
+    target_artifact_revision_id: str
+    target_evidence_ref: str
+    terminal_edge_artifact_revision_id: str
+    terminal_edge_evidence_ref: str
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class GraphEvidenceSidecarV1:
+    """Opt-in exact-evidence sidecar for graph expansion."""
+
+    entries: tuple[GraphEvidenceSidecarEntryV1, ...]
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
 class GraphExpandResultV1:
     """Complete all-or-nothing graph-expansion result."""
 
@@ -627,6 +648,48 @@ class GraphExpandResultV1:
     work_units: str
     degradation_codes: tuple[GraphExpansionDegradationCodeV1, ...]
     explanation: GraphExpansionExplanationV1 | None
+    evidence: GraphEvidenceSidecarV1 | None = None
+
+
+@dataclass(frozen=True)
+class GraphEvidenceResolveRequestV1:
+    """Resolve one opaque graph reference under equivalent frozen authority."""
+
+    evidence_ref: str
+    context: FrozenReadContextV1
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class GraphEvidenceArtifactV1:
+    """Closed node-or-edge graph artifact returned by exact resolution."""
+
+    artifact_class: Literal["node", "edge"]
+    logical_id: str | None
+    kind: str
+    body: str | None
+    from_id: str | None = None
+    to_id: str | None = None
+
+
+@dataclass(frozen=True)
+class ResolvedGraphEvidenceV1:
+    """Canonical intrinsic evidence for an exact graph artifact revision."""
+
+    artifact_revision_id: str
+    artifact: GraphEvidenceArtifactV1
+    source_id: str
+    source_version_id: str
+    source_revision_id: str
+    locator: SourceLocator
+    canonical_source_body: str
+    evidence_text: str
+    canonical_source_hash: CanonicalHash
+    effective_valid_at: int
+    artifact_lifecycle: "EvidenceArtifactLifecycleV1"
+    source_lifecycle_state: str
+    dependency: SourceDependencyV1 | None
+    schema_version: int = 1
 
 
 @dataclass(frozen=True)
@@ -1412,6 +1475,10 @@ __all__ = [
     "FrozenGraphReadContextV1",
     "GraphExpandRequestV1",
     "GraphExpandResultV1",
+    "GraphEvidenceArtifactV1",
+    "GraphEvidenceResolveRequestV1",
+    "GraphEvidenceSidecarEntryV1",
+    "GraphEvidenceSidecarV1",
     "GraphExpansionDegradationCodeV1",
     "GraphExpansionExplanationV1",
     "GraphExplicitSeedV1",
@@ -1426,6 +1493,7 @@ __all__ = [
     "GraphTargetExplanationV1",
     "GraphTargetV1",
     "ResolvedGraphSeedV1",
+    "ResolvedGraphEvidenceV1",
     "TraversalDirection",
     "ReadView",
     "ReadContextV1",

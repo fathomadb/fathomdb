@@ -1713,7 +1713,18 @@ pub(crate) fn read_graph_expand_in_tx(
                 frozen,
                 &node_cursors,
                 &edge_cursors,
-            )?;
+            )
+            .map_err(|error| match error {
+                EngineError::Evidence(error)
+                    if error.reason == crate::EvidenceErrorReasonV1::EvidenceUnavailable =>
+                {
+                    EngineError::Evidence(crate::EvidenceErrorV1::new(
+                        crate::EvidenceErrorReasonV1::EvidenceUnavailable,
+                        "/evidence",
+                    ))
+                }
+                other => other,
+            })?;
             let request_commitment = encode_graph_expand_request_v1(request)
                 .map_err(|_| EngineError::Evidence(crate::EvidenceErrorV1::unavailable()))?;
             let mut entries = Vec::with_capacity(selected.len());

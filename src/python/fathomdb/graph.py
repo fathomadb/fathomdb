@@ -270,6 +270,7 @@ def _request_wire(request: GraphExpandRequestV1) -> dict[str, object]:
         "resultLimit": request.result_limit,
         "maxWorkUnits": request.max_work_units,
         "includeExplanation": request.include_explanation,
+        **({"includeEvidence": True} if request.include_evidence else {}),
     }
 
 
@@ -320,6 +321,8 @@ def _validate_graph_expand_request(request: GraphExpandRequestV1) -> None:
         string(pair[0], "graph_context_invalid", f"{context_path}/eligibility/attributes/{index}/0")
         string(pair[1], "graph_context_invalid", f"{context_path}/eligibility/attributes/{index}/1")
     string(request.max_work_units, "graph_work_limit_invalid", "/maxWorkUnits")
+    if type(request.include_evidence) is not bool:
+        refuse("graph_context_invalid", "/includeEvidence")
 
 
 def expand(engine: "Engine", request: GraphExpandRequestV1) -> GraphExpandResultV1:

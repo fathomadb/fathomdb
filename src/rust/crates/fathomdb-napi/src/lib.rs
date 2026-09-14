@@ -41,10 +41,10 @@ use fathomdb_embedder::{
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
     decode_graph_expand_request_v1, encode_dependency_trace_result_v1,
-    encode_graph_expand_result_v1, ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1,
-    ActuationReceiptV1 as RustActuationReceiptV1, ArtifactRevisionId,
-    BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ClosureLookupV1, ClosureRootV1,
-    ClosureStatusV1 as RustClosureStatusV1, ComparisonOp as RustComparisonOp,
+    encode_graph_expand_result_v1, encode_resolved_graph_evidence_v1, ActuationBatchV1,
+    ActuationOperationV1, ActuationOutcomeV1, ActuationReceiptV1 as RustActuationReceiptV1,
+    ArtifactRevisionId, BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ClosureLookupV1,
+    ClosureRootV1, ClosureStatusV1 as RustClosureStatusV1, ComparisonOp as RustComparisonOp,
     ConsolidateAxis as RustConsolidateAxis, ConsolidateReceipt as RustConsolidateReceipt,
     CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness,
     DependencyDerivedLookupV1, DependencyListV1 as RustDependencyListV1, DependencySourceLookupV1,
@@ -62,8 +62,10 @@ use fathomdb_engine::{
     EvidenceSidecarEntryV1 as RustEvidenceSidecarEntryV1, ExciseReport as RustExciseReport,
     Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
     FilterTerm as RustFilterTerm, FrozenReadContextV1 as RustFrozenReadContextV1,
-    IdSpace as RustIdSpace, IngestWithExtractorReceipt as RustIngestWithExtractorReceipt,
-    InitialState, LifecycleActuationV1, LifecycleState as RustLifecycleState,
+    GraphEvidenceRefV1 as RustGraphEvidenceRefV1,
+    GraphEvidenceResolveRequestV1 as RustGraphEvidenceResolveRequestV1, IdSpace as RustIdSpace,
+    IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
+    LifecycleActuationV1, LifecycleState as RustLifecycleState,
     MutationProjectionStatusRequestV1 as RustMutationProjectionStatusRequestV1,
     MutationProjectionStatusV1 as RustMutationProjectionStatusV1, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
@@ -2912,6 +2914,27 @@ impl Engine {
         };
         let engine = Arc::clone(&self.inner);
         call_engine(move || engine.resolve_evidence(&request)).await.map(Into::into)
+    }
+
+    /// Resolve one exact artifact disclosed by frozen graph expansion.
+    #[napi]
+    pub async fn resolve_graph_evidence(
+        &self,
+        evidence_ref: String,
+        context: FrozenReadContextV1,
+    ) -> Result<String> {
+        let request = RustGraphEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: RustGraphEvidenceRefV1::new(evidence_ref)
+                .map_err(|error| engine_error_to_napi(RustEngineError::Evidence(error)))?,
+            context: frozen_context_to_rust(context)?,
+        };
+        let engine = Arc::clone(&self.inner);
+        let value = call_engine(move || engine.resolve_graph_evidence(&request)).await?;
+        let bytes = encode_resolved_graph_evidence_v1(&value)
+            .map_err(|error| engine_error_to_napi(RustEngineError::Evidence(error)))?;
+        String::from_utf8(bytes)
+            .map_err(|_| typed_error(CODE_EVIDENCE, "evidence_corrupt at ", JsonValue::Null))
     }
 
     /// Search and expand on one frozen reader transaction.

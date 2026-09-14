@@ -2898,6 +2898,31 @@ export class Engine {
     );
   }
 
+  /** Resolve one exact artifact disclosed by frozen graph expansion. */
+  async resolveGraphEvidence(
+    request: GraphEvidenceResolveRequestV1,
+  ): Promise<ResolvedGraphEvidenceV1> {
+    assertKnownEvidenceKeys(request, ["schemaVersion", "evidenceRef", "context"]);
+    if (request.schemaVersion !== 1) {
+      evidenceRequestError("unsupported_schema_version", "/schemaVersion");
+    }
+    validateFfiString(request.evidenceRef);
+    validateEvidenceFrozenContext(request.context);
+    const encoded = await intercept(() =>
+      this.#native.resolveGraphEvidence(
+        request.evidenceRef,
+        nativeFrozenContext(request.context),
+      ),
+    );
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(encoded);
+    } catch {
+      evidenceRequestError("evidence_corrupt", "");
+    }
+    return validateResolvedGraphEvidence(decoded);
+  }
+
   /** Search and graph-expand on one frozen reader transaction. */
   async searchExpandFrozen(
     query: string,
@@ -3399,6 +3424,21 @@ export interface GraphExpandRequestV1 {
   resultLimit: number;
   maxWorkUnits: string;
   includeExplanation: boolean;
+  includeEvidence?: boolean;
+}
+
+export interface GraphEvidenceSidecarEntryV1 {
+  schemaVersion: 1;
+  targetIndex: number;
+  targetArtifactRevisionId: string;
+  targetEvidenceRef: string;
+  terminalEdgeArtifactRevisionId: string;
+  terminalEdgeEvidenceRef: string;
+}
+
+export interface GraphEvidenceSidecarV1 {
+  schemaVersion: 1;
+  entries: GraphEvidenceSidecarEntryV1[];
 }
 
 export interface ResolvedGraphSeedV1 {
@@ -3470,6 +3510,42 @@ export interface GraphExpandResultV1 {
   workUnits: string;
   degradationCodes: GraphExpansionDegradationCodeV1[];
   explanation: GraphExpansionExplanationV1 | null;
+  evidence?: GraphEvidenceSidecarV1;
+}
+
+export interface GraphEvidenceResolveRequestV1 {
+  schemaVersion: 1;
+  evidenceRef: string;
+  context: FrozenReadContextV1;
+}
+
+export type GraphEvidenceArtifactV1 =
+  | { artifactClass: "node"; logicalId: string; kind: string; body: string }
+  | {
+      artifactClass: "edge";
+      logicalId: string | null;
+      kind: string;
+      body: string | null;
+      from: string;
+      to: string;
+    };
+
+export interface ResolvedGraphEvidenceV1 {
+  schemaVersion: 1;
+  artifactRevisionId: string;
+  artifact: GraphEvidenceArtifactV1;
+  sourceId: string;
+  sourceVersionId: string;
+  sourceRevisionId: string;
+  locator: { kind: "whole_body"; startInclusive: null; endExclusive: null } |
+    { kind: "utf8_bytes"; startInclusive: string; endExclusive: string };
+  canonicalSourceBody: string;
+  evidenceText: string;
+  canonicalSourceHash: { algorithm: "sha256"; digestHex: string };
+  effectiveValidAt: number;
+  artifactLifecycle: EvidenceArtifactLifecycleV1;
+  sourceLifecycleState: LifecycleState;
+  dependency: SourceDependencyV1 | null;
 }
 
 type GraphObject = Record<string, unknown>;
@@ -3488,6 +3564,19 @@ function graphObject(value: unknown, path: string): GraphObject {
 function graphField(value: GraphObject, name: string, path: string): unknown {
   if (!Object.hasOwn(value, name)) graphRefuse("graph_corrupt", path);
   return value[name];
+}
+
+function graphExactKeys(value: GraphObject, allowed: readonly string[], path: string): void {
+  const unknown = Object.keys(value).filter((key) => !allowed.includes(key)).sort()[0];
+  if (unknown !== undefined) graphRefuse("graph_corrupt", `${path}/${evidencePointerSegment(unknown)}`);
+}
+
+function graphArtifactRevision(value: unknown, path: string): string {
+  const revision = graphString(value, path);
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(revision) || revision.startsWith("_fdb:")) {
+    graphRefuse("graph_corrupt", path);
+  }
+  return revision;
 }
 
 function graphSchema(value: GraphObject, path: string): void {
@@ -3726,6 +3815,48 @@ export function validateGraphExpandResult(value: unknown): GraphExpandResultV1 {
       perTarget,
     };
   }
+  let evidence: GraphEvidenceSidecarV1 | undefined;
+  if (Object.hasOwn(root, "evidence")) {
+    const object = graphObject(root.evidence, "/evidence");
+    graphExactKeys(object, ["schemaVersion", "entries"], "/evidence");
+    graphSchema(object, "/evidence/schemaVersion");
+    const entries = graphArray(graphField(object, "entries", "/evidence/entries"), "/evidence/entries")
+      .map((raw, index) => {
+        const base = `/evidence/entries/${index}`;
+        const entry = graphObject(raw, base);
+        graphExactKeys(entry, [
+          "schemaVersion", "targetIndex", "targetArtifactRevisionId", "targetEvidenceRef",
+          "terminalEdgeArtifactRevisionId", "terminalEdgeEvidenceRef",
+        ], base);
+        graphSchema(entry, `${base}/schemaVersion`);
+        const targetIndex = graphU32(
+          graphField(entry, "targetIndex", `${base}/targetIndex`),
+          `${base}/targetIndex`,
+        );
+        if (targetIndex !== index) graphRefuse("graph_corrupt", `${base}/targetIndex`);
+        const reference = (name: string): string => {
+          const value = graphString(graphField(entry, name, `${base}/${name}`), `${base}/${name}`);
+          if (value.length === 0 || value.length > 2048) graphRefuse("graph_corrupt", `${base}/${name}`);
+          return value;
+        };
+        return {
+          schemaVersion: 1 as const,
+          targetIndex,
+          targetArtifactRevisionId: graphArtifactRevision(
+            graphField(entry, "targetArtifactRevisionId", `${base}/targetArtifactRevisionId`),
+            `${base}/targetArtifactRevisionId`,
+          ),
+          targetEvidenceRef: reference("targetEvidenceRef"),
+          terminalEdgeArtifactRevisionId: graphArtifactRevision(
+            graphField(entry, "terminalEdgeArtifactRevisionId", `${base}/terminalEdgeArtifactRevisionId`),
+            `${base}/terminalEdgeArtifactRevisionId`,
+          ),
+          terminalEdgeEvidenceRef: reference("terminalEdgeEvidenceRef"),
+        };
+      });
+    if (entries.length !== targets.length) graphRefuse("graph_corrupt", "/evidence");
+    evidence = { schemaVersion: 1, entries };
+  }
   return {
     schemaVersion: 1,
     seeds,
@@ -3734,6 +3865,116 @@ export function validateGraphExpandResult(value: unknown): GraphExpandResultV1 {
     workUnits,
     degradationCodes,
     explanation,
+    ...(evidence === undefined ? {} : { evidence }),
+  };
+}
+
+function validateResolvedGraphEvidence(value: unknown): ResolvedGraphEvidenceV1 {
+  const root = graphObject(value, "");
+  graphSchema(root, "/schemaVersion");
+  const artifact = graphObject(graphField(root, "artifact", "/artifact"), "/artifact");
+  const artifactClass = graphField(artifact, "artifactClass", "/artifact/artifactClass");
+  if (artifactClass !== "node" && artifactClass !== "edge") {
+    graphRefuse("graph_corrupt", "/artifact/artifactClass");
+  }
+  graphExactKeys(
+    artifact,
+    artifactClass === "node"
+      ? ["artifactClass", "logicalId", "kind", "body"]
+      : ["artifactClass", "logicalId", "kind", "body", "from", "to"],
+    "/artifact",
+  );
+  const parsedArtifact: GraphEvidenceArtifactV1 = artifactClass === "node"
+    ? {
+        artifactClass,
+        logicalId: graphString(graphField(artifact, "logicalId", "/artifact/logicalId"), "/artifact/logicalId"),
+        kind: graphString(graphField(artifact, "kind", "/artifact/kind"), "/artifact/kind"),
+        body: graphString(graphField(artifact, "body", "/artifact/body"), "/artifact/body"),
+      }
+    : {
+        artifactClass,
+        logicalId: artifact.logicalId === null ? null : graphString(artifact.logicalId, "/artifact/logicalId"),
+        kind: graphString(graphField(artifact, "kind", "/artifact/kind"), "/artifact/kind"),
+        body: artifact.body === null ? null : graphString(artifact.body, "/artifact/body"),
+        from: graphString(graphField(artifact, "from", "/artifact/from"), "/artifact/from"),
+        to: graphString(graphField(artifact, "to", "/artifact/to"), "/artifact/to"),
+      };
+  const locatorRaw = graphObject(graphField(root, "locator", "/locator"), "/locator");
+  const locatorKind = graphField(locatorRaw, "kind", "/locator/kind");
+  let locator: ResolvedGraphEvidenceV1["locator"];
+  if (locatorKind === "whole_body") {
+    graphExactKeys(locatorRaw, ["kind", "startInclusive", "endExclusive"], "/locator");
+    if (locatorRaw.startInclusive !== null) graphRefuse("graph_corrupt", "/locator/startInclusive");
+    if (locatorRaw.endExclusive !== null) graphRefuse("graph_corrupt", "/locator/endExclusive");
+    locator = { kind: "whole_body", startInclusive: null, endExclusive: null };
+  } else if (locatorKind === "utf8_bytes") {
+    graphExactKeys(locatorRaw, ["kind", "startInclusive", "endExclusive"], "/locator");
+    const startInclusive = graphU64(graphField(locatorRaw, "startInclusive", "/locator/startInclusive"), "/locator/startInclusive");
+    const endExclusive = graphU64(graphField(locatorRaw, "endExclusive", "/locator/endExclusive"), "/locator/endExclusive");
+    if (BigInt(startInclusive) > BigInt(endExclusive)) graphRefuse("graph_corrupt", "/locator");
+    locator = { kind: "utf8_bytes", startInclusive, endExclusive };
+  } else {
+    graphRefuse("graph_corrupt", "/locator/kind");
+  }
+  const hashRaw = graphObject(graphField(root, "canonicalSourceHash", "/canonicalSourceHash"), "/canonicalSourceHash");
+  graphExactKeys(hashRaw, ["algorithm", "digestHex"], "/canonicalSourceHash");
+  if (hashRaw.algorithm !== "sha256") graphRefuse("graph_corrupt", "/canonicalSourceHash/algorithm");
+  const digestHex = graphString(hashRaw.digestHex, "/canonicalSourceHash/digestHex");
+  if (!/^[0-9a-f]{64}$/.test(digestHex)) graphRefuse("graph_corrupt", "/canonicalSourceHash/digestHex");
+  const lifecycleRaw = graphObject(graphField(root, "artifactLifecycle", "/artifactLifecycle"), "/artifactLifecycle");
+  graphExactKeys(lifecycleRaw, ["kind", "state", "superseded", "validAtEffective"], "/artifactLifecycle");
+  const lifecycleKind = graphEnum(lifecycleRaw.kind, ["node", "edge"] as const, "/artifactLifecycle/kind");
+  if (typeof lifecycleRaw.superseded !== "boolean") graphRefuse("graph_corrupt", "/artifactLifecycle/superseded");
+  const state = lifecycleRaw.state;
+  const validAtEffective = lifecycleRaw.validAtEffective;
+  if (lifecycleKind === "node") {
+    graphEnum(state, ["pending", "active", "deleted"] as const, "/artifactLifecycle/state");
+    if (validAtEffective !== null) graphRefuse("graph_corrupt", "/artifactLifecycle/validAtEffective");
+  } else {
+    if (state !== null) graphRefuse("graph_corrupt", "/artifactLifecycle/state");
+    if (typeof validAtEffective !== "boolean") graphRefuse("graph_corrupt", "/artifactLifecycle/validAtEffective");
+  }
+  const sourceLifecycleState = graphEnum(
+    graphField(root, "sourceLifecycleState", "/sourceLifecycleState"),
+    ["pending", "active", "deleted"] as const,
+    "/sourceLifecycleState",
+  );
+  const dependencyRaw = graphField(root, "dependency", "/dependency");
+  let dependency: SourceDependencyV1 | null = null;
+  if (dependencyRaw !== null) {
+    const item = graphObject(dependencyRaw, "/dependency");
+    graphExactKeys(item, ["schemaVersion", "dependencyId", "sourceRevisionId", "derivedRevisionId", "registeredDependencyGeneration"], "/dependency");
+    graphSchema(item, "/dependency/schemaVersion");
+    dependency = {
+      schemaVersion: 1,
+      dependencyId: graphString(item.dependencyId, "/dependency/dependencyId"),
+      sourceRevisionId: graphArtifactRevision(item.sourceRevisionId, "/dependency/sourceRevisionId"),
+      derivedRevisionId: graphArtifactRevision(item.derivedRevisionId, "/dependency/derivedRevisionId"),
+      registeredDependencyGeneration: graphU64(item.registeredDependencyGeneration, "/dependency/registeredDependencyGeneration"),
+    };
+  }
+  const effectiveValidAt = graphField(root, "effectiveValidAt", "/effectiveValidAt");
+  if (typeof effectiveValidAt !== "number" || !Number.isSafeInteger(effectiveValidAt)) graphRefuse("graph_corrupt", "/effectiveValidAt");
+  return {
+    schemaVersion: 1,
+    artifactRevisionId: graphArtifactRevision(graphField(root, "artifactRevisionId", "/artifactRevisionId"), "/artifactRevisionId"),
+    artifact: parsedArtifact,
+    sourceId: graphString(graphField(root, "sourceId", "/sourceId"), "/sourceId"),
+    sourceVersionId: graphString(graphField(root, "sourceVersionId", "/sourceVersionId"), "/sourceVersionId"),
+    sourceRevisionId: graphString(graphField(root, "sourceRevisionId", "/sourceRevisionId"), "/sourceRevisionId"),
+    locator,
+    canonicalSourceBody: graphString(graphField(root, "canonicalSourceBody", "/canonicalSourceBody"), "/canonicalSourceBody"),
+    evidenceText: graphString(graphField(root, "evidenceText", "/evidenceText"), "/evidenceText"),
+    canonicalSourceHash: { algorithm: "sha256", digestHex },
+    effectiveValidAt,
+    artifactLifecycle: {
+      kind: lifecycleKind,
+      state: state as LifecycleState | null,
+      superseded: lifecycleRaw.superseded as boolean,
+      validAtEffective: validAtEffective as boolean | null,
+    },
+    sourceLifecycleState,
+    dependency,
   };
 }
 
@@ -3765,6 +4006,7 @@ function validateGraphExpandRequest(value: unknown): asserts value is GraphExpan
     "resultLimit",
     "maxWorkUnits",
     "includeExplanation",
+    "includeEvidence",
   ]);
   const unknown = Object.keys(root)
     .filter((key) => !allowed.has(key))
@@ -3910,6 +4152,8 @@ function validateGraphExpandRequest(value: unknown): asserts value is GraphExpan
     graphRefuse("graph_work_limit_invalid", "/maxWorkUnits");
   if (typeof root.includeExplanation !== "boolean")
     graphRefuse("graph_context_invalid", "/includeExplanation");
+  if (root.includeEvidence !== undefined && typeof root.includeEvidence !== "boolean")
+    graphRefuse("graph_context_invalid", "/includeEvidence");
   // The canonical Rust decoder remains the semantic authority for bounds,
   // duplicate seeds, eligibility values, and frozen authentication precedence.
 }
@@ -3974,6 +4218,7 @@ function canonicalGraphRequest(request: GraphExpandRequestV1): GraphObject {
     resultLimit: request.resultLimit,
     maxWorkUnits: request.maxWorkUnits,
     includeExplanation: request.includeExplanation,
+    ...(request.includeEvidence === true ? { includeEvidence: true } : {}),
   };
 }
 

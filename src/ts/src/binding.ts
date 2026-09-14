@@ -694,6 +694,10 @@ export interface NativeEngine {
     evidenceRef: string,
     context: NativeFrozenReadContextV1,
   ): Promise<NativeResolvedEvidenceV1>;
+  resolveGraphEvidence(
+    evidenceRef: string,
+    context: NativeFrozenReadContextV1,
+  ): Promise<string>;
   searchExpandFrozen(
     query: string,
     context: NativeFrozenReadContextV1,

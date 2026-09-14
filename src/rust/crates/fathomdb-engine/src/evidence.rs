@@ -1704,11 +1704,25 @@ fn materialize_graph_evidence_batch(
             && artifact_lifecycle_valid
             && dependency_valid
             && !closure_active;
+        if CanonicalHash::sha256(hash_digest.clone()).is_err()
+            || crate::canonical_body_hash(&source_body) != hash_digest
+        {
+            return Err(EvidenceErrorV1::new(
+                EvidenceErrorReasonV1::EvidenceCorrupt,
+                "/provenance/canonicalSourceHash",
+            )
+            .into());
+        }
+        if slice(&source_body, &locator).is_err() {
+            return Err(EvidenceErrorV1::new(
+                EvidenceErrorReasonV1::EvidenceCorrupt,
+                "/provenance/sourceLocator",
+            )
+            .into());
+        }
         if !metadata_valid
             || ArtifactRevisionId::new(artifact_revision_id.clone()).is_err()
             || SourceRevisionId::new(source_revision_id.clone()).is_err()
-            || CanonicalHash::sha256(hash_digest.clone()).is_err()
-            || slice(&source_body, &locator).is_err()
         {
             return Err(EvidenceErrorV1::new(
                 EvidenceErrorReasonV1::EvidenceCorrupt,
@@ -1725,13 +1739,6 @@ fn materialize_graph_evidence_batch(
                 .into());
             }
         } else {
-            if crate::canonical_body_hash(&source_body) != hash_digest {
-                return Err(EvidenceErrorV1::new(
-                    EvidenceErrorReasonV1::EvidenceCorrupt,
-                    "/provenance",
-                )
-                .into());
-            }
             stats.source_hash_count += 1;
             stats.source_bytes_hashed += source_body.len();
             let source = std::sync::Arc::new(source_body);
@@ -1830,16 +1837,68 @@ pub(crate) fn preflight_graph_evidence(
         &mut stats,
     )?;
     authorize_graph_evidence(&[&pending_nodes, &pending_edges], frozen)?;
+    let mut ordered = pending_nodes.into_iter().chain(pending_edges).collect::<Vec<_>>();
+    ordered.sort_by_key(|row| {
+        (row.target_index, if row.artifact_class == EvidenceArtifactClassV1::Node { 0 } else { 1 })
+    });
     let mut sources = std::collections::HashMap::new();
-    let unique_nodes =
-        materialize_graph_evidence_batch(pending_nodes, frozen, &mut sources, &mut stats)?;
-    let unique_edges =
-        materialize_graph_evidence_batch(pending_edges, frozen, &mut sources, &mut stats)?;
+    let mut unique_nodes_by_cursor = std::collections::HashMap::new();
+    let mut unique_edges_by_cursor = std::collections::HashMap::new();
+    for row in ordered {
+        let class = row.artifact_class;
+        let target_index = row.target_index;
+        let cursor = row.write_cursor;
+        let item = materialize_graph_evidence_batch(vec![row], frozen, &mut sources, &mut stats)
+            .map_err(|error| contextualize_graph_detail_error(error, class, target_index))?
+            .pop()
+            .ok_or(EngineError::Storage)?;
+        match class {
+            EvidenceArtifactClassV1::Node => unique_nodes_by_cursor.insert(cursor, item),
+            EvidenceArtifactClassV1::Edge => unique_edges_by_cursor.insert(cursor, item),
+        };
+    }
+    let unique_nodes = unique_node_cursors
+        .iter()
+        .map(|cursor| unique_nodes_by_cursor.remove(cursor).ok_or(EngineError::Storage))
+        .collect::<Result<Vec<_>, _>>()?;
+    let unique_edges = unique_edge_cursors
+        .iter()
+        .map(|cursor| unique_edges_by_cursor.remove(cursor).ok_or(EngineError::Storage))
+        .collect::<Result<Vec<_>, _>>()?;
     stats.node_rows = unique_nodes.len();
     stats.edge_rows = unique_edges.len();
     let nodes = node_positions.iter().map(|index| unique_nodes[*index].clone()).collect();
     let edges = edge_positions.iter().map(|index| unique_edges[*index].clone()).collect();
     Ok(GraphEvidencePreflight { nodes, edges, stats })
+}
+
+fn contextualize_graph_detail_error(
+    error: EngineError,
+    class: EvidenceArtifactClassV1,
+    target_index: u32,
+) -> EngineError {
+    let base = if class == EvidenceArtifactClassV1::Node {
+        format!("/targets/{target_index}/provenance")
+    } else {
+        format!("/targets/{target_index}/terminalEdge/provenance")
+    };
+    match error {
+        EngineError::Evidence(mut evidence)
+            if matches!(
+                evidence.reason,
+                EvidenceErrorReasonV1::EvidenceIncomplete | EvidenceErrorReasonV1::EvidenceCorrupt
+            ) =>
+        {
+            let suffix = evidence.field_path.strip_prefix("/provenance").unwrap_or("");
+            evidence.field_path = format!("{base}{suffix}");
+            EngineError::Evidence(evidence)
+        }
+        EngineError::Storage => EngineError::Evidence(EvidenceErrorV1::new(
+            EvidenceErrorReasonV1::EvidenceCorrupt,
+            base,
+        )),
+        other => other,
+    }
 }
 
 #[cfg(feature = "test-hooks")]

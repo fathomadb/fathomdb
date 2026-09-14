@@ -134,7 +134,9 @@ Acceptance criteria:
   classes. Only after all authority checks pass may it diagnose incomplete
   provenance or corrupt locator/hash detail. An unauthorized source plus corrupt
   locator is always nondisclosing; missing source and missing source-link cases
-  remain distinguishable under the specified precedence.
+  remain distinguishable under the specified precedence when present in the
+  authenticated snapshot. Post-freeze mutation remains `state_drifted` and must
+  not be reclassified by weakening snapshot validation.
 - **AC26-20F2:** The graph reference has one exact fixed selector/framing grammar,
   counter-based stream protection beyond 64 bytes, separated MAC/stream/
   commitment domains, and canonical request normalization. Fixed-nonce tests

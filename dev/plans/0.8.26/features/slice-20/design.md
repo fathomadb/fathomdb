@@ -343,6 +343,16 @@ missing linked source with missing source-link, and mixed target/edge faults. Th
 assert that neither returned reason/path nor logs/traces parse or identify an
 unauthorized source before the global authority phase completes.
 
+Those expansion fixtures establish their stored incomplete/corrupt state before
+minting the frozen context, then expand under the authenticated snapshot of that
+state. A mutation after frozen-context mint is state drift and the existing
+`FrozenReadErrorV1(state_drifted)` wins before hydration; the implementation must
+not defer or bypass snapshot validation to expose a more specific evidence error.
+Likewise, storage drift after an evidence reference is minted fails frozen
+authority before resolver provenance detail. The mixed-fault precedence above
+governs faults already present in the authenticated snapshot, not post-mint
+mutation.
+
 ## Point resolution and erasure ordering
 
 Resolution uses one primary-connection transaction for frozen revalidation,

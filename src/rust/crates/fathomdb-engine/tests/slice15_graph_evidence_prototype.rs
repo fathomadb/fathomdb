@@ -21,11 +21,10 @@ fn digest(body: &str) -> String {
     Sha256::digest(body.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
+fn fixture_with_source(source: &str) -> (TempDir, Engine, GraphExpandRequestV1) {
     let directory = TempDir::new().unwrap();
     let path = directory.path().join(format!("slice15{SQLITE_SUFFIX}"));
     let opened = Engine::open(&path).unwrap();
-    let source = "canonical source bytes";
     let provenance = |revision: &str| {
         WriteProvenanceV1::derived(
             ArtifactRevisionId::new(revision).unwrap(),
@@ -131,6 +130,16 @@ fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
     (directory, opened.engine, request)
 }
 
+fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
+    fixture_with_source("canonical source bytes")
+}
+
+fn unavailable(error: fathomdb_engine::EngineError) {
+    assert!(matches!(error, fathomdb_engine::EngineError::Evidence(ref value)
+        if value.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+            && value.field_path == "/evidenceRef"));
+}
+
 fn fixture_many(count: usize) -> (TempDir, Engine, GraphExpandRequestV1) {
     let (directory, engine, mut request) = fixture();
     let source = "canonical source bytes";
@@ -170,6 +179,37 @@ fn fixture_many(count: usize) -> (TempDir, Engine, GraphExpandRequestV1) {
             temporal_fallback: None,
             provenance: provenance(format!("edge-{index:02}-r1")),
         }));
+    }
+    engine.write(&writes).unwrap();
+    engine.drain(30_000).unwrap();
+    let context = match &request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.context.clone(),
+        _ => unreachable!(),
+    };
+    request.context = GraphReadContextV1::Frozen {
+        schema_version: 1,
+        context: engine.freeze_read_context(&context).unwrap(),
+    };
+    (directory, engine, request)
+}
+
+fn fixture_max_work() -> (TempDir, Engine, GraphExpandRequestV1) {
+    let (directory, engine, mut request) = fixture_many(50);
+    let mut writes = Vec::with_capacity(9_949);
+    for index in 0..9_949 {
+        writes.push(PreparedWrite::Edge {
+            logical_id: Some(format!("noise-edge-{index:04}")),
+            kind: "noise".into(),
+            from: "root".into(),
+            to: format!("missing-noise-target-{index:04}"),
+            source_id: SourceId::new("noise-owner").unwrap(),
+            body: None,
+            t_valid: None,
+            t_invalid: None,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        });
     }
     engine.write(&writes).unwrap();
     engine.drain(30_000).unwrap();
@@ -275,7 +315,102 @@ fn restart_tamper_and_incomplete_provenance_are_fail_closed() {
         )
         .unwrap();
     let incomplete = Engine::open(&path).unwrap().engine;
-    assert!(incomplete.graph_expand_with_graph_evidence_for_test(&request).is_err());
+    let context = match &request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.context.clone(),
+        _ => unreachable!(),
+    };
+    let mut incomplete_request = request;
+    incomplete_request.context = GraphReadContextV1::Frozen {
+        schema_version: 1,
+        context: incomplete.freeze_read_context(&context).unwrap(),
+    };
+    assert!(incomplete.graph_expand_with_graph_evidence_for_test(&incomplete_request).is_err());
+}
+
+#[test]
+fn corrupt_hash_and_locator_refuse_the_entire_treatment() {
+    for (name, sql) in [
+        (
+            "hash",
+            "UPDATE _fathomdb_source_links SET hash_digest=\
+             'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' \
+             WHERE artifact_revision_id='target-r1'",
+        ),
+        (
+            "locator",
+            "UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes',start_byte=999,end_byte=1000 \
+             WHERE artifact_revision_id='target-r1'",
+        ),
+    ] {
+        let (directory, engine, mut request) = fixture();
+        engine.close().unwrap();
+        let path = directory.path().join(format!("slice15{SQLITE_SUFFIX}"));
+        rusqlite::Connection::open(&path).unwrap().execute(sql, []).unwrap();
+        let reopened = Engine::open(&path).unwrap().engine;
+        let context = match &request.context {
+            GraphReadContextV1::Frozen { context, .. } => context.context.clone(),
+            _ => unreachable!(),
+        };
+        request.context = GraphReadContextV1::Frozen {
+            schema_version: 1,
+            context: reopened.freeze_read_context(&context).unwrap(),
+        };
+        let error = reopened.graph_expand_with_graph_evidence_for_test(&request).unwrap_err();
+        assert!(matches!(error, fathomdb_engine::EngineError::Evidence(_)), "{name}: {error:?}");
+    }
+}
+
+#[test]
+fn context_mismatch_foreign_context_and_post_erasure_share_nondisclosure() {
+    let (_directory, engine, request) = fixture();
+    let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+    let reference = treated.evidence[0].target_ref.clone();
+    let context = match &request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.context.clone(),
+        _ => unreachable!(),
+    };
+    let mut different_filter = SearchFilter::default();
+    different_filter.kind = Some("document".into());
+    let mismatch = engine
+        .freeze_read_context(&ReadContextV1::new(context.view.clone(), different_filter).unwrap())
+        .unwrap();
+    unavailable(engine.resolve_graph_evidence_for_test(&reference, &mismatch).unwrap_err());
+
+    let foreign_directory = TempDir::new().unwrap();
+    let foreign = Engine::open(foreign_directory.path().join(format!("foreign{SQLITE_SUFFIX}")))
+        .unwrap()
+        .engine;
+    let foreign_context = foreign.freeze_read_context(&context).unwrap();
+    unavailable(engine.resolve_graph_evidence_for_test(&reference, &foreign_context).unwrap_err());
+
+    engine.erase_source("source-owner").unwrap();
+    unavailable(
+        engine
+            .resolve_graph_evidence_for_test(
+                &reference,
+                &match &request.context {
+                    GraphReadContextV1::Frozen { context, .. } => context.clone(),
+                    _ => unreachable!(),
+                },
+            )
+            .unwrap_err(),
+    );
+}
+
+#[test]
+fn held_wal_reader_preserves_typed_erasure_incomplete() {
+    let (directory, engine, _request) = fixture();
+    let path = directory.path().join(format!("slice15{SQLITE_SUFFIX}"));
+    let holder = rusqlite::Connection::open(&path).unwrap();
+    holder.execute_batch("BEGIN; SELECT COUNT(*) FROM canonical_nodes;").unwrap();
+    let result = engine.erase_source("source-owner");
+    holder.execute_batch("ROLLBACK").unwrap();
+    match result {
+        Err(fathomdb_engine::EngineError::ErasureIncomplete { stage, .. }) => {
+            assert_eq!(stage, "wal_checkpoint");
+        }
+        other => panic!("expected typed held-WAL refusal, got {other:?}"),
+    }
 }
 
 #[test]

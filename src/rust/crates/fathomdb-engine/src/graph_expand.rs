@@ -525,6 +525,9 @@ pub(crate) struct GraphExpandReaderControlsForTest {
     pub(crate) projection_generation: Option<GraphExpandProjectionGenerationForTest>,
     pub(crate) rss_peak_bytes: Option<std::sync::Arc<AtomicU64>>,
     pub(crate) retention_counters: Option<std::sync::Arc<GraphExpandRetentionCountersForTest>>,
+    pub(crate) selected_artifacts: Option<std::sync::Arc<Mutex<Vec<(u64, u64)>>>>,
+    pub(crate) evidence_output:
+        Option<std::sync::Arc<Mutex<Option<(Vec<crate::GraphEvidenceEntryForTest>, Vec<String>)>>>>,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -1081,7 +1084,7 @@ impl Engine {
         )
     }
 
-    fn graph_expand_inner(
+    pub(crate) fn graph_expand_inner(
         &self,
         request: &GraphExpandRequestV1,
         #[cfg(feature = "test-hooks")] test_controls: GraphExpandReaderControlsForTest,
@@ -1183,6 +1186,11 @@ struct EdgeRow {
     logical_id: Option<String>,
     superseded_at: Option<i64>,
     t_invalid: Option<i64>,
+}
+
+struct GraphCandidate {
+    target: GraphTargetV1,
+    terminal_edge_cursor: u64,
 }
 
 fn load_node(
@@ -1484,7 +1492,7 @@ pub(crate) fn read_graph_expand_in_tx(
 
     let all_seed_ids = seeds.iter().map(|seed| seed.logical_id.clone()).collect::<HashSet<_>>();
     let mut work_units = 0_u64;
-    let mut candidates: HashMap<String, GraphTargetV1> = HashMap::new();
+    let mut candidates: HashMap<String, GraphCandidate> = HashMap::new();
     let mut visited_by_seed =
         seeds.iter().map(|seed| HashSet::from([seed.logical_id.clone()])).collect::<Vec<_>>();
     let mut frontier = seeds
@@ -1616,20 +1624,29 @@ pub(crate) fn read_graph_expand_in_tx(
                     origin,
                 };
                 if let Some(existing) = candidates.get_mut(next) {
-                    if origin_cmp(&target.origin, &existing.origin).is_lt() {
-                        *existing = target;
+                    if origin_cmp(&target.origin, &existing.target.origin).is_lt() {
+                        *existing =
+                            GraphCandidate { target, terminal_edge_cursor: edge.write_cursor };
                     }
                 } else if candidates.len() < request.result_limit as usize {
-                    candidates.insert(next.to_string(), target);
+                    candidates.insert(
+                        next.to_string(),
+                        GraphCandidate { target, terminal_edge_cursor: edge.write_cursor },
+                    );
                 } else {
                     let worst = candidates
                         .iter()
-                        .max_by(|(_, left), (_, right)| origin_cmp(&left.origin, &right.origin))
+                        .max_by(|(_, left), (_, right)| {
+                            origin_cmp(&left.target.origin, &right.target.origin)
+                        })
                         .map(|(logical_id, _)| logical_id.clone())
                         .expect("result limit is validated nonzero");
-                    if origin_cmp(&target.origin, &candidates[&worst].origin).is_lt() {
+                    if origin_cmp(&target.origin, &candidates[&worst].target.origin).is_lt() {
                         candidates.remove(&worst);
-                        candidates.insert(next.to_string(), target);
+                        candidates.insert(
+                            next.to_string(),
+                            GraphCandidate { target, terminal_edge_cursor: edge.write_cursor },
+                        );
                     }
                 }
                 #[cfg(feature = "test-hooks")]
@@ -1654,9 +1671,79 @@ pub(crate) fn read_graph_expand_in_tx(
             candidates.len(),
         );
     }
-    let mut targets = candidates.into_values().collect::<Vec<_>>();
-    targets.sort_by(|left, right| origin_cmp(&left.origin, &right.origin));
-    targets.truncate(request.result_limit as usize);
+    let mut selected = candidates.into_values().collect::<Vec<_>>();
+    selected.sort_by(|left, right| origin_cmp(&left.target.origin, &right.target.origin));
+    selected.truncate(request.result_limit as usize);
+    #[cfg(feature = "test-hooks")]
+    if let Some(capture) = test_controls.selected_artifacts.as_ref() {
+        *capture.lock().map_err(|_| EngineError::Storage)? = selected
+            .iter()
+            .map(|candidate| (candidate.target.write_cursor, candidate.terminal_edge_cursor))
+            .collect();
+    }
+    let targets = selected.into_iter().map(|candidate| candidate.target).collect::<Vec<_>>();
+    #[cfg(feature = "test-hooks")]
+    if let Some(output) = test_controls.evidence_output.as_ref() {
+        let frozen = match &request.context {
+            GraphReadContextV1::Frozen { context, .. } => context,
+            GraphReadContextV1::Current { .. } => {
+                return Err(crate::EvidenceErrorV1::unavailable().into())
+            }
+        };
+        let selected_artifacts = test_controls
+            .selected_artifacts
+            .as_ref()
+            .ok_or(EngineError::Storage)?
+            .lock()
+            .map_err(|_| EngineError::Storage)?
+            .clone();
+        let node_cursors = selected_artifacts.iter().map(|pair| pair.0).collect::<Vec<_>>();
+        let edge_cursors = selected_artifacts.iter().map(|pair| pair.1).collect::<Vec<_>>();
+        let plans = crate::evidence::preflight_intrinsic_batches_for_test(
+            &tx,
+            &node_cursors,
+            &edge_cursors,
+        )?;
+        let request_commitment = encode_graph_expand_request_v1(request)
+            .map_err(|_| EngineError::Evidence(crate::EvidenceErrorV1::unavailable()))?;
+        let mut entries = Vec::with_capacity(targets.len());
+        for (index, (target, (target_cursor, edge_cursor))) in
+            targets.iter().zip(selected_artifacts.into_iter()).enumerate()
+        {
+            if target.write_cursor != target_cursor {
+                return Err(crate::EvidenceErrorV1::unavailable().into());
+            }
+            let mut target_disclosure = request_commitment.clone();
+            target_disclosure.extend_from_slice(&(index as u64).to_be_bytes());
+            target_disclosure.extend_from_slice(&target_cursor.to_be_bytes());
+            target_disclosure.extend_from_slice(&edge_cursor.to_be_bytes());
+            let (target_revision_id, target_ref) =
+                crate::evidence::mint_intrinsic_reference_for_test(
+                    &tx,
+                    frozen,
+                    crate::EvidenceArtifactClassV1::Node,
+                    target_cursor,
+                    &target_disclosure,
+                )?;
+            let mut edge_disclosure = target_disclosure;
+            edge_disclosure.extend_from_slice(b"terminal-edge");
+            let (edge_revision, edge_reference) =
+                crate::evidence::mint_intrinsic_reference_for_test(
+                    &tx,
+                    frozen,
+                    crate::EvidenceArtifactClassV1::Edge,
+                    edge_cursor,
+                    &edge_disclosure,
+                )?;
+            entries.push(crate::GraphEvidenceEntryForTest {
+                target_revision_id,
+                target_ref,
+                terminal_edge_revision_id: Some(edge_revision),
+                terminal_edge_ref: Some(edge_reference),
+            });
+        }
+        *output.lock().map_err(|_| EngineError::Storage)? = Some((entries, plans));
+    }
     let per_target = if request.include_explanation {
         targets
             .iter()

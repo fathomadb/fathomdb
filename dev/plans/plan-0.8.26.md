@@ -84,7 +84,7 @@ fix depends on built product artifacts or belongs at the release boundary.
 | 8 | Score all proposals, conduct interactive HITL decisions, replace/review Slice 9, and update this plan. | 7 | Complete; D26-01 deferred to Slice 15 |
 | 9 | Implement only HITL-approved repository preparation under the reviewed Slice 9 plan. | 8 | Complete on release branch at `ded6c72f` |
 | 10 | Repair frozen explanation, complete public guidance, and add the installed-artifact conformance witness. | 9 | Draft |
-| 15 | Run the bounded graph-evidence performance and erasure-linearization implementation spike; accept or narrow the Slice 20 design. | 10 | Authorized decision support; draft plan/design |
+| 15 | Run the bounded graph-evidence performance and erasure-linearization implementation spike; accept or narrow the Slice 20 design. | 10 | Complete on release branch; recommends opt-in V1 sidecar; D26-01 remains open |
 | 20 | Add immutable-revision graph-target and terminal-edge evidence resolution under frozen authority. | 15 | Draft |
 | 30 | Qualify and harden the existing versioned read-only operator integrity inspection route. | 20 | Draft |
 | 35 | Prove the breaking changed-in-place V1 actuation, fresh-database, receipt, and performance contract; accept or narrow the Slice 40 design. | 30 | Required by `seq-283` |
@@ -143,11 +143,11 @@ if their design is discussed.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.26:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 15** (`GRAPH-EVIDENCE-SPIKE`) — graph-evidence performance and erasure-linearization spike
+**IMMEDIATE NEXT: Slice 20** (`GRAPH-EVIDENCE`) — immutable-revision frozen graph evidence
 
-**Remaining ladder:** 15 → 20 → 30 → 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
+**Remaining ladder:** 20 → 30 → 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
 
-D26-01 remains open until Slice 15 reports and blocks Slice 20 only. Do not
+D26-01 remains open after Slice 15 reported and blocks Slice 20 only. Do not
 publish or begin feature work outside the current slice.
 
 ## Stop gates

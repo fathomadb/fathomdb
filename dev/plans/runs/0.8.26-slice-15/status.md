@@ -1,7 +1,8 @@
 # Slice 15 status
 
-Status: corrected spike implementation, measurement, exact teardown, and final
-gates complete; ready for independent review.
+Status: `COMPLETE_ON_RELEASE_BRANCH`. Corrected spike implementation,
+measurement, exact teardown, final gates, code review, and independent
+verification passed at `422b267929c75f614e03f951463fea8bead03e20`.
 
 The committed history preserves the rejected exploratory shortcut and both
 review corrections through their RED → GREEN → measurement → teardown chains.
@@ -58,5 +59,5 @@ tools/native module, and one used a broken relative native-module link. The
 final unchanged canonical gate passed with the verified absolute native-module
 target. The disposable virtual environment and links were removed afterward.
 
-Next step: independent review of the committed chronology and evidence, then
-HITL consideration of D26-01.
+Next step: HITL consideration of D26-01. Slice 20 remains blocked until that
+decision selects the public graph-evidence shape.

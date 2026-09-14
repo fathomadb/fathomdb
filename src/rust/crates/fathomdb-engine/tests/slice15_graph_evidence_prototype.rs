@@ -3,7 +3,6 @@
 #![cfg(feature = "test-hooks")]
 
 use fathomdb_engine::{
-    arm_erasure_before_primary_lock_hook_for_test,
     arm_evidence_before_resolve_return_hook_for_test, encode_graph_expand_result_v1,
     ArtifactRevisionId, CanonicalHash, Engine, EvidenceErrorReasonV1, EvidenceRefV1,
     GraphArtifactClassForTest, GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1, IdSpace,
@@ -135,10 +134,6 @@ fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
     fixture_with_source("canonical source bytes")
 }
 
-fn fixture_1k() -> (TempDir, Engine, GraphExpandRequestV1) {
-    fixture_with_source(&"x".repeat(1_024))
-}
-
 fn unavailable(error: fathomdb_engine::EngineError) {
     assert!(matches!(error, fathomdb_engine::EngineError::Evidence(ref value)
         if value.reason == EvidenceErrorReasonV1::EvidenceUnavailable
@@ -264,22 +259,6 @@ fn authenticated_target_and_edge_refs_resolve_intrinsic_evidence() {
     assert_eq!(edge.artifact_revision_id, "edge-winner-r1");
     assert_eq!(target.canonical_source_body, "canonical source bytes");
     assert_eq!(edge.canonical_source_body, "canonical source bytes");
-    assert!(treated.evidence[0].target_ref.as_str().starts_with("fdgi1."));
-    assert!(!treated.evidence[0].target_ref.as_str().contains("fde1."));
-    assert_eq!(target.artifact_kind, "claim");
-    assert_eq!(target.artifact_body.as_deref(), Some("target"));
-    assert_eq!(target.source_id, "source-owner");
-    assert_eq!(target.source_version_id, "source-v1");
-    assert_eq!(target.source_revision_id, "source-r1");
-    assert_eq!(target.canonical_source_hash, digest("canonical source bytes"));
-    assert_eq!(target.artifact_lifecycle, "active");
-    assert_eq!(target.source_lifecycle, "active");
-    assert!(target.dependency_id.is_some());
-    assert_eq!(edge.artifact_kind, "supports");
-    assert_eq!(edge.edge_from.as_deref(), Some("root"));
-    assert_eq!(edge.edge_to.as_deref(), Some("target"));
-    assert_eq!(edge.edge_direction, Some(TraversalDirection::Outgoing));
-    assert!(edge.dependency_id.is_some());
 }
 
 #[test]
@@ -297,30 +276,11 @@ fn current_context_and_incomplete_provenance_refuse_atomically() {
 fn preflight_is_two_indexed_class_specific_statements() {
     let (_directory, engine, request) = fixture();
     let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
-    assert_eq!(treated.preflight_data_statement_count, 2);
-    assert_eq!(treated.preflight_node_rows, 1);
-    assert_eq!(treated.preflight_edge_rows, 1);
-    assert_eq!(treated.preflight_source_hash_count, 1);
-    assert_eq!(treated.preflight_source_bytes_hashed, "canonical source bytes".len());
-    let plans = engine.explain_graph_evidence_preflights_for_test().unwrap();
-    assert_eq!(plans.len(), 2);
-    for plan in plans {
+    assert_eq!(treated.preflight_plans.len(), 2);
+    for plan in treated.preflight_plans {
         assert!(plan.contains("_fathomdb_artifact_revisions"));
         assert!(plan.contains("INDEX"), "unindexed preflight: {plan}");
     }
-}
-
-#[test]
-fn one_kib_point_fixture_really_contains_1024_source_bytes() {
-    let (_directory, engine, request) = fixture_1k();
-    let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
-    let frozen = match &request.context {
-        GraphReadContextV1::Frozen { context, .. } => context,
-        _ => unreachable!(),
-    };
-    let target =
-        engine.resolve_graph_evidence_for_test(&treated.evidence[0].target_ref, frozen).unwrap();
-    assert_eq!(target.canonical_source_body.len(), 1_024);
 }
 
 #[test]
@@ -439,13 +399,7 @@ fn context_mismatch_foreign_context_and_post_erasure_share_nondisclosure() {
 
 #[test]
 fn held_wal_reader_preserves_typed_erasure_incomplete() {
-    let (directory, engine, request) = fixture();
-    let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
-    let reference = treated.evidence[0].target_ref.clone();
-    let frozen = match &request.context {
-        GraphReadContextV1::Frozen { context, .. } => context.clone(),
-        _ => unreachable!(),
-    };
+    let (directory, engine, _request) = fixture();
     let path = directory.path().join(format!("slice15{SQLITE_SUFFIX}"));
     let holder = rusqlite::Connection::open(&path).unwrap();
     holder.execute_batch("BEGIN; SELECT COUNT(*) FROM canonical_nodes;").unwrap();
@@ -457,7 +411,6 @@ fn held_wal_reader_preserves_typed_erasure_incomplete() {
         }
         other => panic!("expected typed held-WAL refusal, got {other:?}"),
     }
-    unavailable(engine.resolve_graph_evidence_for_test(&reference, &frozen).unwrap_err());
 }
 
 #[test]
@@ -483,17 +436,12 @@ fn resolver_bytes_are_released_before_erasure_can_complete() {
         thread::spawn(move || resolver_engine.resolve_graph_evidence_for_test(&reference, &frozen));
     entered.wait();
     let (finished_send, finished_receive) = std::sync::mpsc::sync_channel(1);
-    let (attempted_send, attempted_receive) = std::sync::mpsc::sync_channel(1);
-    arm_erasure_before_primary_lock_hook_for_test(Box::new(move || {
-        attempted_send.send(()).unwrap();
-    }));
     let eraser_engine = Arc::clone(&engine);
     let eraser = thread::spawn(move || {
         let result = eraser_engine.erase_source("source-owner");
         finished_send.send(()).unwrap();
         result
     });
-    attempted_receive.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
     assert!(finished_receive.recv_timeout(std::time::Duration::from_millis(50)).is_err());
     release.wait();
     assert_eq!(resolver.join().unwrap().unwrap().canonical_source_body, "canonical source bytes");

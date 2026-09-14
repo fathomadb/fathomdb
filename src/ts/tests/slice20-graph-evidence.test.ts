@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
+  Engine,
+  GraphExpansionError,
   graph,
-  type Engine,
   type GraphExpandRequestV1,
   type GraphEvidenceSidecarV1,
 } from "../src/index.js";
@@ -89,4 +93,44 @@ test("graph.expand returns the positional evidence sidecar", async () => {
   const result = await graph.expand(engine, request);
   assert.equal(JSON.parse(requestWire).includeEvidence, true);
   assert.deepEqual(result.evidence, evidence);
+});
+
+function resolvedPayload(): Record<string, unknown> {
+  return {
+    schemaVersion: 1,
+    artifactRevisionId: "target-r1",
+    artifact: { artifactClass: "node", logicalId: "target", kind: "claim", body: "target" },
+    sourceId: "owner",
+    sourceVersionId: "source-v1",
+    sourceRevisionId: "source-r1",
+    locator: { kind: "whole_body", startInclusive: null, endExclusive: null },
+    canonicalSourceBody: "source",
+    evidenceText: "source",
+    canonicalSourceHash: { algorithm: "sha256", digestHex: "0".repeat(64) },
+    effectiveValidAt: 1_700_000_000,
+    artifactLifecycle: { kind: "node", state: "active", superseded: false, validAtEffective: null },
+    sourceLifecycleState: "active",
+    dependency: null,
+  };
+}
+
+test("resolved graph evidence response is recursively closed", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "fathomdb-slice20-codec-"));
+  const engine = await Engine.open(join(directory, "codec.fathom"), { useDefaultEmbedder: false });
+  try {
+    const context = await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+    const payload = resolvedPayload();
+    payload["z/future~field"] = true;
+    engine._native.resolveGraphEvidence = async () => JSON.stringify(payload);
+    await assert.rejects(
+      engine.resolveGraphEvidence({ schemaVersion: 1, evidenceRef: "fdbgev1.ref", context }),
+      (error: unknown) =>
+        error instanceof GraphExpansionError &&
+        error.reason === "graph_corrupt" &&
+        error.fieldPath === "/z~1future~0field",
+    );
+  } finally {
+    await engine.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });

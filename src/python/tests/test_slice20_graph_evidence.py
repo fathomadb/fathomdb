@@ -1,7 +1,9 @@
 import hashlib
+import json
 from types import SimpleNamespace
 
 import fathomdb
+import pytest
 from fathomdb.engine import _map_native_graph_expand_result
 
 
@@ -19,9 +21,7 @@ def _native_result() -> SimpleNamespace:
     return SimpleNamespace(
         schema_version=1,
         seeds=[
-            SimpleNamespace(
-                schema_version=1, logical_id="root", seed_ordinal=0, query_score=None
-            )
+            SimpleNamespace(schema_version=1, logical_id="root", seed_ordinal=0, query_score=None)
         ],
         targets=[
             SimpleNamespace(
@@ -74,7 +74,9 @@ def test_graph_expand_request_defaults_to_no_evidence() -> None:
         context=fathomdb.CurrentGraphReadContextV1(
             schema_version=1,
             type="current",
-            context=fathomdb.ReadContextV1(view=fathomdb.ReadView(), eligibility=fathomdb.SearchFilter())
+            context=fathomdb.ReadContextV1(
+                view=fathomdb.ReadView(), eligibility=fathomdb.SearchFilter()
+            ),
         ),
         max_depth=1,
         result_limit=1,
@@ -189,3 +191,92 @@ def test_real_engine_resolves_exact_target_and_terminal_edge(db_path: str) -> No
         assert target.canonical_source_body == source_body
     finally:
         engine.close()
+
+
+def _resolved_payload() -> dict[str, object]:
+    return {
+        "schemaVersion": 1,
+        "artifactRevisionId": "target-r1",
+        "artifact": {
+            "artifactClass": "node",
+            "logicalId": "target",
+            "kind": "claim",
+            "body": "target",
+        },
+        "sourceId": "owner",
+        "sourceVersionId": "source-v1",
+        "sourceRevisionId": "source-r1",
+        "locator": {"kind": "whole_body", "startInclusive": None, "endExclusive": None},
+        "canonicalSourceBody": "source",
+        "evidenceText": "source",
+        "canonicalSourceHash": {"algorithm": "sha256", "digestHex": "0" * 64},
+        "effectiveValidAt": 1_700_000_000,
+        "artifactLifecycle": {
+            "kind": "node",
+            "state": "active",
+            "superseded": False,
+            "validAtEffective": None,
+        },
+        "sourceLifecycleState": "active",
+        "dependency": None,
+    }
+
+
+@pytest.mark.parametrize(
+    ("mutate", "path"),
+    [
+        (lambda value: value.update({"z/future~field": True}), "/z~1future~0field"),
+        (
+            lambda value: value["artifact"].update({"from": "root"}),
+            "/artifact/from",
+        ),
+        (lambda value: value.update({"artifactRevisionId": ""}), "/artifactRevisionId"),
+        (
+            lambda value: value.update(
+                {"locator": {"kind": "utf8_bytes", "startInclusive": 0, "endExclusive": "1"}}
+            ),
+            "/locator/startInclusive",
+        ),
+        (
+            lambda value: value["artifactLifecycle"].update({"validAtEffective": True}),
+            "/artifactLifecycle/validAtEffective",
+        ),
+        (
+            lambda value: value.update(
+                {
+                    "dependency": {
+                        "schemaVersion": 1,
+                        "dependencyId": "dep-1",
+                        "sourceRevisionId": "source-r1",
+                        "derivedRevisionId": "target-r1",
+                        "registeredDependencyGeneration": "1",
+                        "future": True,
+                    }
+                }
+            ),
+            "/dependency/future",
+        ),
+    ],
+)
+def test_resolved_graph_evidence_json_is_recursively_closed_and_coherent(
+    mutate: object, path: str
+) -> None:
+    payload = _resolved_payload()
+    mutate(payload)
+
+    class Native:
+        def resolve_graph_evidence(self, _reference: str, _context: object) -> str:
+            return json.dumps(payload)
+
+    engine = fathomdb.Engine(Native(), path="unused", config=fathomdb.EngineConfig())
+    frozen = fathomdb.FrozenReadContextV1(
+        effective_valid_at=1_700_000_000,
+        context=fathomdb.ReadContextV1(),
+        token="frozen",
+    )
+    with pytest.raises(fathomdb.GraphExpansionError) as captured:
+        engine.resolve_graph_evidence(
+            fathomdb.GraphEvidenceResolveRequestV1(evidence_ref="fdbgev1.ref", context=frozen)
+        )
+    assert captured.value.reason == "graph_corrupt"
+    assert captured.value.field_path == path

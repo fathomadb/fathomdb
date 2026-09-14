@@ -1,9 +1,10 @@
 //! Slice 20 contract tests for exact frozen graph evidence.
 
 use fathomdb_engine::{
-    encode_graph_expand_result_v1, ArtifactRevisionId, CanonicalHash, Engine, EngineError,
-    EvidenceErrorReasonV1, FrozenReadErrorReason, GraphEvidenceArtifactV1, GraphEvidenceRefV1,
-    GraphEvidenceResolveRequestV1, GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1, IdSpace,
+    decode_graph_expand_result_v1, encode_graph_expand_result_v1, ArtifactRevisionId,
+    CanonicalHash, Engine, EngineError, EvidenceErrorReasonV1, FrozenReadErrorReason,
+    GraphEvidenceArtifactV1, GraphEvidenceRefV1, GraphEvidenceResolveRequestV1,
+    GraphExpandRequestV1, GraphExpansionErrorReasonV1, GraphReadContextV1, GraphSeedV1, IdSpace,
     InitialState, PreparedWrite, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView,
     SearchFilter, SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
     WriteProvenanceV1,
@@ -221,6 +222,26 @@ fn evidence_hydration_executes_zero_or_exactly_two_sql_statements() {
         engine.graph_expand_with_statement_count_for_test(&multiple).unwrap();
     assert_eq!(with_multiple.targets.len(), 2);
     assert_eq!(evidence_multiple - baseline_multiple, 2);
+}
+
+#[test]
+fn graph_evidence_response_sidecar_and_entries_are_closed() {
+    let (_directory, engine, mut request) = fixture();
+    request.include_evidence = true;
+    let result = engine.graph_expand(&request).unwrap();
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&encode_graph_expand_result_v1(&result).unwrap()).unwrap();
+    value["evidence"]["z/future~field"] = serde_json::json!(true);
+    let error = decode_graph_expand_result_v1(&serde_json::to_vec(&value).unwrap()).unwrap_err();
+    assert_eq!(error.reason, GraphExpansionErrorReasonV1::GraphCorrupt);
+    assert_eq!(error.field_path, "/evidence/z~1future~0field");
+
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&encode_graph_expand_result_v1(&result).unwrap()).unwrap();
+    value["evidence"]["entries"][0]["a/future~field"] = serde_json::json!(true);
+    let error = decode_graph_expand_result_v1(&serde_json::to_vec(&value).unwrap()).unwrap_err();
+    assert_eq!(error.reason, GraphExpansionErrorReasonV1::GraphCorrupt);
+    assert_eq!(error.field_path, "/evidence/entries/0/a~1future~0field");
 }
 
 fn temporal_fixture(

@@ -50,7 +50,7 @@ fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("root".into()),
-                kind: "entity".into(),
+                kind: "claim".into(),
                 body: "root".into(),
                 source_id: SourceId::new("source-owner").unwrap(),
                 state: InitialState::Active,

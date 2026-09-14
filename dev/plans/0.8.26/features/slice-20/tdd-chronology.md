@@ -217,3 +217,32 @@ shared environment with the forbidden worktree editable-install path. The
 fresh installed-wheel evidence above covers the changed Python surface without
 polluting that environment. The two verifier-produced untracked Slice 55
 SQLite/lock artifacts were inspected and then removed by exact path.
+
+## Post-close review FIX-3
+
+Commit `316f92be` added a RED proving that an otherwise authorized winning
+terminal edge with no logical ID must resolve. Before GREEN it returned
+`EvidenceUnavailable` at `/evidence`, because the shared artifact predicate
+incorrectly required a logical ID for both nodes and edges.
+
+Commit `0b4294e6` added a private RED around the actual canonical-body hash
+operation. Two targets and two terminal edges sharing one canonical source
+performed four body hashes instead of one; cache-insertion statistics were not
+used as a proxy for the operation count.
+
+Commit `ee1eab9a` moved the logical-ID requirement into the node-only lifecycle
+branch and moved canonical-source digest validation and body hashing into the
+cache-miss branch. Edge source, artifact, provenance, lifecycle, locator,
+metadata, and authority checks remain unchanged. A cache hit still verifies
+body/digest coherence and all per-artifact evidence detail, but does not hash
+the shared body again.
+
+Independent parallel re-review found that the new Engine-backed unit test could
+race the existing raw SQLite nonce fixture. The exact four-thread evidence unit
+group reproduced one `RuntimeConfiguration(TooLate)` failure. Commit `d335ae9a`
+initializes that fixture through the shared SQLite runtime guard. Five repeated
+four-thread runs passed in the isolated worktree, and the integrated release
+branch passed 7/7 once more. The graph-evidence integration suite passed 29/29;
+engine library check and Clippy with `test-hooks,operator` and warnings denied
+also passed. The independent reviewer returned `PASS` with no remaining
+finding.

@@ -1,7 +1,7 @@
 # Slice 20 implementation status
 
 Status: COMPLETE ON `release/0.8.26` at reviewed implementation tip
-`c0a567d5867c89b4f26caaaaa188373222d6c2f6`.
+`d335ae9a4ba839001779a4031ee668d2c65942e1`.
 
 ## Landed on the implementation branch
 
@@ -40,6 +40,10 @@ Status: COMPLETE ON `release/0.8.26` at reviewed implementation tip
   resolved-dependency identity-coherence RED/GREEN.
 - `2b7ee5d3` — registered-dependency, restart, nondisclosure, lifecycle/storage,
   token-integrity, and ranked/graph domain-separation acceptance coverage.
+- `316f92be` / `ee1eab9a` — anonymous terminal-edge evidence RED/GREEN.
+- `0b4294e6` / `ee1eab9a` — actual shared-source hash-count RED/GREEN.
+- `d335ae9a` — shared SQLite runtime initialization for the parallel nonce
+  fixture, closing the independent review's test-isolation finding.
 
 The branch also contains merge commits for the approved corrected design at
 `bc8123a8`, frozen-drift reconciliation at `fa39e5e9`, and Astra follow-up PASS
@@ -72,6 +76,11 @@ record at `4747d4f2`.
   exact target plus terminal-edge resolution.
 - Strict documentation lint/build: PASS.
 - Corrected-tip graph evidence: 28/28 PASS; installed-wheel Python: 13/13 PASS.
+- Post-review graph evidence: 29/29 PASS, including an anonymous winning
+  terminal edge; evidence unit tests: 7/7 PASS with four test threads,
+  including the actual one-hash-per-shared-source oracle.
+- Post-review engine library check and Clippy with `test-hooks,operator` and
+  warnings denied: PASS.
 - Corrected-tip wheel SHA-256:
   `2ae529add9a59a54456256ab4ef044d41ebf75dcc32cded172a810f7559b3865`.
 - Canonical `agent-verify`: lint, typecheck, security, Rust workspace, and 109 of
@@ -104,5 +113,8 @@ snapshot validation.
 
 Independent code review and independent verification both returned `PASS` at
 the exact clean implementation tip with no remaining P0, P1, or P2 finding.
+The final correction permits the contractually anonymous terminal edge while
+retaining all source, artifact, provenance, and authority checks, and computes
+each shared canonical-source body hash only once per expansion.
 The durable verdict and the bounded canonical-gate environment exception are in
 `review-verification.md`. Slice 20 is complete; Slice 30 is next.

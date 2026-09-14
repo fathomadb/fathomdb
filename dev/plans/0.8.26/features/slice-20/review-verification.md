@@ -1,7 +1,7 @@
 ---
 title: FathomDB 0.8.26 Slice 20 — final review and verification
 status: PASS
-implementation_tip: c0a567d5867c89b4f26caaaaa188373222d6c2f6
+implementation_tip: d335ae9a4ba839001779a4031ee668d2c65942e1
 verified_on: 2026-09-14
 ---
 
@@ -9,17 +9,22 @@ verified_on: 2026-09-14
 
 ## Independent code review
 
-`PASS` with no P0, P1, or P2 findings at exact tip `c0a567d5`. Two formal
+`PASS` with no P0, P1, or P2 findings at exact tip `d335ae9a`. Three formal
 FIX cycles closed the initial query-count, error-precedence, acceptance-oracle,
 decoder, source-authorization, missing-link, erasure-rendezvous, and installed-
-package findings. A final delta review confirmed the verifier corrections did
-not introduce a new actionable finding.
+package findings, followed by the anonymous-edge and redundant-source-hashing
+findings. The final delta review also caught and closed a parallel-test runtime
+initialization race without weakening assertions or serializing the suite.
 
 ## Independent verification
 
 `PASS` at the same clean tip. Verified evidence includes:
 
 - corrected graph-evidence Rust acceptance matrix: 28/28;
+- post-review graph-evidence Rust acceptance matrix: 29/29, including an
+  anonymous winning terminal edge;
+- evidence unit group: 7/7 with four test threads, including actual
+  one-hash-per-shared-source measurement;
 - selector/no-SQL nonce, request normalization, statement-count, dependency,
   restart, nondisclosure, temporal, and erase/excise ordering oracles;
 - engine check and workspace Clippy with warnings denied;

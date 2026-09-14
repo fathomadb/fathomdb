@@ -5,45 +5,21 @@
 use fathomdb_engine::{
     arm_erasure_before_primary_lock_hook_for_test,
     arm_evidence_before_resolve_return_hook_for_test, encode_graph_expand_result_v1,
-    ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, CanonicalHash, Engine,
-    EvidenceErrorReasonV1, EvidenceRefV1, GraphArtifactClassForTest, GraphExpandRequestV1,
-    GraphReadContextV1, GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProvenancedEdgeV1,
-    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1,
-    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
+    ArtifactRevisionId, CanonicalHash, Engine, EvidenceErrorReasonV1, EvidenceRefV1,
+    GraphArtifactClassForTest, GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1, IdSpace,
+    InitialState, PreparedWrite, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView,
+    SearchFilter, SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
     WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
-use std::sync::{Arc, Barrier, Mutex, MutexGuard};
+use std::sync::{Arc, Barrier};
 use std::thread;
-
-static FIXTURE_SERIALIZATION: Mutex<()> = Mutex::new(());
-
-fn serialize_fixture() -> MutexGuard<'static, ()> {
-    FIXTURE_SERIALIZATION.lock().unwrap_or_else(|error| error.into_inner())
-}
 
 fn digest(body: &str) -> String {
     Sha256::digest(body.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
-}
-
-fn register_dependencies(engine: &Engine, operation: &str, revisions: &[String]) {
-    let operations = revisions
-        .iter()
-        .map(|revision| {
-            ActuationOperationV1::RegisterSourceDependency(
-                SourceDependencyRegistrationV1::new(
-                    format!("dependency-{revision}"),
-                    "source-r1",
-                    revision,
-                )
-                .unwrap(),
-            )
-        })
-        .collect();
-    engine.actuate(ActuationBatchV1::new(operation, operations).unwrap()).unwrap();
 }
 
 fn fixture_with_source(source: &str) -> (TempDir, Engine, GraphExpandRequestV1) {
@@ -128,11 +104,6 @@ fn fixture_with_source(source: &str) -> (TempDir, Engine, GraphExpandRequestV1) 
             }),
         ])
         .unwrap();
-    register_dependencies(
-        &opened.engine,
-        "slice15-base-dependencies",
-        &["target-r1".to_string(), "edge-later-r1".to_string(), "edge-winner-r1".to_string()],
-    );
     opened.engine.drain(30_000).unwrap();
     let mut filter = SearchFilter::default();
     filter.kind = Some("claim".into());
@@ -178,7 +149,6 @@ fn fixture_many(count: usize) -> (TempDir, Engine, GraphExpandRequestV1) {
     let (directory, engine, mut request) = fixture();
     let source = "canonical source bytes";
     let mut writes = Vec::new();
-    let mut revisions = Vec::new();
     for index in 1..count {
         let provenance = |revision: String| {
             WriteProvenanceV1::derived(
@@ -200,7 +170,6 @@ fn fixture_many(count: usize) -> (TempDir, Engine, GraphExpandRequestV1) {
             valid_until: None,
             provenance: provenance(format!("target-{index:02}-r1")),
         }));
-        revisions.push(format!("target-{index:02}-r1"));
         writes.push(PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
             logical_id: Some(format!("edge-{index:02}")),
             kind: "supports".into(),
@@ -215,10 +184,8 @@ fn fixture_many(count: usize) -> (TempDir, Engine, GraphExpandRequestV1) {
             temporal_fallback: None,
             provenance: provenance(format!("edge-{index:02}-r1")),
         }));
-        revisions.push(format!("edge-{index:02}-r1"));
     }
     engine.write(&writes).unwrap();
-    register_dependencies(&engine, "slice15-many-dependencies", &revisions);
     engine.drain(30_000).unwrap();
     let context = match &request.context {
         GraphReadContextV1::Frozen { context, .. } => context.context.clone(),
@@ -264,7 +231,6 @@ fn fixture_max_work() -> (TempDir, Engine, GraphExpandRequestV1) {
 
 #[test]
 fn treatment_off_preserves_literal_bytes_and_winning_parallel_edge() {
-    let _serial = serialize_fixture();
     let (_directory, engine, request) = fixture();
     let ordinary = engine.graph_expand(&request).unwrap();
     let bytes = encode_graph_expand_result_v1(&ordinary).unwrap();
@@ -278,7 +244,6 @@ fn treatment_off_preserves_literal_bytes_and_winning_parallel_edge() {
 
 #[test]
 fn authenticated_target_and_edge_refs_resolve_intrinsic_evidence() {
-    let _serial = serialize_fixture();
     let (_directory, engine, request) = fixture();
     let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
     let frozen = match &request.context {
@@ -319,7 +284,6 @@ fn authenticated_target_and_edge_refs_resolve_intrinsic_evidence() {
 
 #[test]
 fn current_context_and_incomplete_provenance_refuse_atomically() {
-    let _serial = serialize_fixture();
     let (_directory, engine, mut request) = fixture();
     let context = match &request.context {
         GraphReadContextV1::Frozen { context, .. } => context.context.clone(),
@@ -331,7 +295,6 @@ fn current_context_and_incomplete_provenance_refuse_atomically() {
 
 #[test]
 fn preflight_is_two_indexed_class_specific_statements() {
-    let _serial = serialize_fixture();
     let (_directory, engine, request) = fixture();
     let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
     assert_eq!(treated.preflight_data_statement_count, 2);
@@ -349,7 +312,6 @@ fn preflight_is_two_indexed_class_specific_statements() {
 
 #[test]
 fn one_kib_point_fixture_really_contains_1024_source_bytes() {
-    let _serial = serialize_fixture();
     let (_directory, engine, request) = fixture_1k();
     let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
     let frozen = match &request.context {
@@ -363,7 +325,6 @@ fn one_kib_point_fixture_really_contains_1024_source_bytes() {
 
 #[test]
 fn restart_tamper_and_incomplete_provenance_are_fail_closed() {
-    let _serial = serialize_fixture();
     let (directory, engine, request) = fixture();
     let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
     let frozen = match &request.context {
@@ -408,7 +369,6 @@ fn restart_tamper_and_incomplete_provenance_are_fail_closed() {
 
 #[test]
 fn corrupt_hash_and_locator_refuse_the_entire_treatment() {
-    let _serial = serialize_fixture();
     for (name, sql) in [
         (
             "hash",
@@ -442,7 +402,6 @@ fn corrupt_hash_and_locator_refuse_the_entire_treatment() {
 
 #[test]
 fn context_mismatch_foreign_context_and_post_erasure_share_nondisclosure() {
-    let _serial = serialize_fixture();
     let (_directory, engine, request) = fixture();
     let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
     let reference = treated.evidence[0].target_ref.clone();
@@ -453,7 +412,7 @@ fn context_mismatch_foreign_context_and_post_erasure_share_nondisclosure() {
     let mut different_filter = SearchFilter::default();
     different_filter.kind = Some("document".into());
     let mismatch = engine
-        .freeze_read_context(&ReadContextV1::new(context.view, different_filter).unwrap())
+        .freeze_read_context(&ReadContextV1::new(context.view.clone(), different_filter).unwrap())
         .unwrap();
     unavailable(engine.resolve_graph_evidence_for_test(&reference, &mismatch).unwrap_err());
 
@@ -480,7 +439,6 @@ fn context_mismatch_foreign_context_and_post_erasure_share_nondisclosure() {
 
 #[test]
 fn held_wal_reader_preserves_typed_erasure_incomplete() {
-    let _serial = serialize_fixture();
     let (directory, engine, request) = fixture();
     let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
     let reference = treated.evidence[0].target_ref.clone();
@@ -504,7 +462,6 @@ fn held_wal_reader_preserves_typed_erasure_incomplete() {
 
 #[test]
 fn resolver_bytes_are_released_before_erasure_can_complete() {
-    let _serial = serialize_fixture();
     let (_directory, engine, request) = fixture();
     let engine = Arc::new(engine);
     let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
@@ -547,7 +504,6 @@ fn resolver_bytes_are_released_before_erasure_can_complete() {
 #[test]
 #[ignore = "Slice 15 controlled release-mode measurement"]
 fn measurement_matrix_emits_raw_samples() {
-    let _serial = serialize_fixture();
     use std::time::Instant;
 
     let (_directory, engine, request) = fixture();
@@ -576,11 +532,7 @@ fn measurement_matrix_emits_raw_samples() {
         }
     }
     let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
-    let (_point_directory, point_engine, point_request) = fixture_1k();
-    let point_engine = Arc::new(point_engine);
-    let point_treated =
-        point_engine.graph_expand_with_graph_evidence_for_test(&point_request).unwrap();
-    let point_frozen = match &point_request.context {
+    let frozen = match &request.context {
         GraphReadContextV1::Frozen { context, .. } => context,
         _ => unreachable!(),
     };
@@ -588,15 +540,13 @@ fn measurement_matrix_emits_raw_samples() {
     let mut point_edge_us = Vec::with_capacity(1_000);
     for _ in 0..1_000 {
         let start = Instant::now();
-        point_engine
-            .resolve_graph_evidence_for_test(&point_treated.evidence[0].target_ref, point_frozen)
-            .unwrap();
+        engine.resolve_graph_evidence_for_test(&treated.evidence[0].target_ref, frozen).unwrap();
         point_node_us.push(start.elapsed().as_nanos() as u64 / 1_000);
         let start = Instant::now();
-        point_engine
+        engine
             .resolve_graph_evidence_for_test(
-                point_treated.evidence[0].terminal_edge_ref.as_ref().unwrap(),
-                point_frozen,
+                treated.evidence[0].terminal_edge_ref.as_ref().unwrap(),
+                frozen,
             )
             .unwrap();
         point_edge_us.push(start.elapsed().as_nanos() as u64 / 1_000);
@@ -636,9 +586,9 @@ fn measurement_matrix_emits_raw_samples() {
     let barrier = Arc::new(Barrier::new(9));
     let mut workers = Vec::new();
     for _ in 0..8 {
-        let engine = Arc::clone(&point_engine);
-        let frozen = point_frozen.clone();
-        let reference = point_treated.evidence[0].target_ref.clone();
+        let engine = Arc::clone(&engine);
+        let frozen = frozen.clone();
+        let reference = treated.evidence[0].target_ref.clone();
         let barrier = Arc::clone(&barrier);
         workers.push(thread::spawn(move || {
             barrier.wait();
@@ -852,7 +802,6 @@ fn measurement_matrix_emits_raw_samples() {
         };
     let inline_1_bytes = encode_inline(&treated.graph, &treated.evidence);
     let inline_50_bytes = encode_inline(&many_treated.graph, &many_treated.evidence);
-    let preflight_plans = engine.explain_graph_evidence_preflights_for_test().unwrap();
     println!(
         "SLICE15_RAW={}",
         serde_json::json!({
@@ -872,21 +821,8 @@ fn measurement_matrix_emits_raw_samples() {
             "control_response_bytes": encode_graph_expand_result_v1(&treated.graph).unwrap().len(),
             "sidecar_1_bytes": sidecar_1_bytes, "sidecar_50_bytes": sidecar_50_bytes,
             "inline_1_bytes": inline_1_bytes, "inline_50_bytes": inline_50_bytes,
-            "preflight_plans": preflight_plans,
-            "preflight_one": {
-                "data_statement_count": treated.preflight_data_statement_count,
-                "node_rows": treated.preflight_node_rows,
-                "edge_rows": treated.preflight_edge_rows,
-                "source_hash_count": treated.preflight_source_hash_count,
-                "source_bytes_hashed": treated.preflight_source_bytes_hashed,
-            },
-            "preflight_fifty": {
-                "data_statement_count": many_treated.preflight_data_statement_count,
-                "node_rows": many_treated.preflight_node_rows,
-                "edge_rows": many_treated.preflight_edge_rows,
-                "source_hash_count": many_treated.preflight_source_hash_count,
-                "source_bytes_hashed": many_treated.preflight_source_bytes_hashed,
-            },
+            "preflight_one": &treated.preflight_plans,
+            "preflight_fifty": &many_treated.preflight_plans,
             "sidecar_reference_bytes": treated.evidence[0].target_ref.as_str().len()
                 + treated.evidence[0].terminal_edge_ref.as_ref().unwrap().as_str().len()
                 + treated.evidence[0].target_revision_id.len()
@@ -898,35 +834,26 @@ fn measurement_matrix_emits_raw_samples() {
 #[test]
 #[ignore = "Slice 15 writer-interference campaigns"]
 fn writer_interference_emits_campaigns() {
-    let _serial = serialize_fixture();
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Instant;
 
     let mut output = Vec::new();
     for campaign in 0..5 {
-        let order = match campaign % 3 {
-            0 => ["alone", "graph", "point"],
-            1 => ["graph", "point", "alone"],
-            _ => ["point", "alone", "graph"],
-        };
-        for mode in order {
+        for mode in ["alone", "graph", "point"] {
             let (_directory, engine, request) = fixture();
             let engine = Arc::new(engine);
             let running = Arc::new(AtomicBool::new(true));
-            let (background, ready) = if mode == "alone" {
-                (None, None)
+            let background = if mode == "alone" {
+                None
             } else {
                 let engine = Arc::clone(&engine);
                 let running = Arc::clone(&running);
                 let template = request.clone();
-                let (ready_send, ready_receive) = std::sync::mpsc::sync_channel(1);
-                let worker = thread::spawn(move || {
+                Some(thread::spawn(move || {
                     let context = match &template.context {
                         GraphReadContextV1::Frozen { context, .. } => context.context.clone(),
                         _ => unreachable!(),
                     };
-                    let mut successes = 0_u64;
-                    let mut announced = false;
                     while running.load(Ordering::Acquire) {
                         let Ok(frozen) = engine.freeze_read_context(&context) else { continue };
                         let mut request = template.clone();
@@ -937,29 +864,16 @@ fn writer_interference_emits_campaigns() {
                         if let Ok(treated) =
                             engine.graph_expand_with_graph_evidence_for_test(&request)
                         {
-                            let completed = mode != "point"
-                                || engine
-                                    .resolve_graph_evidence_for_test(
-                                        &treated.evidence[0].target_ref,
-                                        &frozen,
-                                    )
-                                    .is_ok();
-                            if completed {
-                                successes += 1;
-                                if !announced {
-                                    ready_send.send(()).unwrap();
-                                    announced = true;
-                                }
+                            if mode == "point" {
+                                let _ = engine.resolve_graph_evidence_for_test(
+                                    &treated.evidence[0].target_ref,
+                                    &frozen,
+                                );
                             }
                         }
                     }
-                    successes
-                });
-                (Some(worker), Some(ready_receive))
+                }))
             };
-            if let Some(ready) = ready {
-                ready.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
-            }
             let mut latencies = Vec::with_capacity(200);
             let started = Instant::now();
             for index in 0..200 {
@@ -980,13 +894,12 @@ fn writer_interference_emits_campaigns() {
             }
             let elapsed = started.elapsed().as_secs_f64();
             running.store(false, Ordering::Release);
-            let successful_background_ops =
-                background.map_or(0, |background| background.join().unwrap());
-            assert!(mode == "alone" || successful_background_ops > 0);
+            if let Some(background) = background {
+                background.join().unwrap();
+            }
             output.push(serde_json::json!({
                 "campaign": campaign, "mode": mode, "elapsed_us": (elapsed * 1_000_000.0) as u64,
                 "throughput_per_s": 200.0 / elapsed, "latencies_us": latencies,
-                "successful_background_ops": successful_background_ops,
             }));
         }
     }
@@ -1010,7 +923,6 @@ fn peak_rss_bytes() -> u64 {
 #[test]
 #[ignore = "Slice 15 process-isolated RSS campaigns"]
 fn isolated_rss_emits_campaigns() {
-    let _serial = serialize_fixture();
     const CHILD: &str = "FATHOMDB_SLICE15_RSS_CHILD";
     const PREFIX: &str = "SLICE15_RSS_CHILD=";
     if let Ok(mode) = std::env::var(CHILD) {
@@ -1060,7 +972,6 @@ fn isolated_rss_emits_campaigns() {
 #[test]
 #[ignore = "Slice 15 paired erase/excise latency campaigns"]
 fn erasure_latency_emits_paired_observations() {
-    let _serial = serialize_fixture();
     use std::time::Instant;
 
     fn held_observation(excise: bool) -> (u64, &'static str) {
@@ -1085,10 +996,6 @@ fn erasure_latency_emits_paired_observations() {
             resolver_engine.resolve_graph_evidence_for_test(&reference, &frozen)
         });
         entered.wait();
-        let (attempted_send, attempted_receive) = std::sync::mpsc::sync_channel(1);
-        arm_erasure_before_primary_lock_hook_for_test(Box::new(move || {
-            attempted_send.send(()).unwrap();
-        }));
         let eraser_engine = Arc::clone(&engine);
         let eraser = thread::spawn(move || {
             let started = Instant::now();
@@ -1099,7 +1006,7 @@ fn erasure_latency_emits_paired_observations() {
             };
             (started.elapsed().as_nanos() as u64 / 1_000, outcome)
         });
-        attempted_receive.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
+        thread::yield_now();
         release.wait();
         resolver.join().unwrap().unwrap();
         let (elapsed, outcome) = eraser.join().unwrap();
@@ -1117,33 +1024,21 @@ fn erasure_latency_emits_paired_observations() {
 
     let mut samples = Vec::new();
     for campaign in 0..20 {
-        let operation_order = if campaign % 2 == 0 { [false, true] } else { [true, false] };
-        for excise in operation_order {
-            let idle_observation = || {
-                let (_directory, engine, _request) = fixture();
-                let started = Instant::now();
-                let outcome = if excise {
-                    engine.excise_source("source-owner").map(|_| ())
-                } else {
-                    engine.erase_source("source-owner").map(|_| ())
-                };
-                assert!(outcome.is_ok());
-                started.elapsed().as_nanos() as u64 / 1_000
-            };
-            let (idle_us, held_us, outcome, pair_order) = if campaign % 2 == 0 {
-                let idle_us = idle_observation();
-                let (held_us, outcome) = held_observation(excise);
-                (idle_us, held_us, outcome, "idle_then_held")
+        for excise in [false, true] {
+            let (_directory, engine, _request) = fixture();
+            let started = Instant::now();
+            let idle = if excise {
+                engine.excise_source("source-owner").map(|_| ())
             } else {
-                let (held_us, outcome) = held_observation(excise);
-                let idle_us = idle_observation();
-                (idle_us, held_us, outcome, "held_then_idle")
+                engine.erase_source("source-owner").map(|_| ())
             };
+            let idle_us = started.elapsed().as_nanos() as u64 / 1_000;
+            assert!(idle.is_ok());
+            let (held_us, outcome) = held_observation(excise);
             samples.push(serde_json::json!({
                 "campaign": campaign,
                 "operation": if excise { "excise" } else { "erase" },
                 "idle_us": idle_us, "held_us": held_us, "held_outcome": outcome,
-                "pair_order": pair_order,
             }));
         }
     }

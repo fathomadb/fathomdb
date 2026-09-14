@@ -2628,6 +2628,46 @@ mod tests {
             );
             prop_assert!(is_unavailable);
         }
+
+        #[test]
+        fn graph_selector_round_trips_and_single_character_tamper_fails(
+            nonce in any::<[u8; 16]>(),
+            seed in any::<[u8; 32]>(),
+            encoded_index in 0_usize..696,
+        ) {
+            let key = [0x6b; 32];
+            let mut selector = [0_u8; GRAPH_SELECTOR_BYTES];
+            selector[0..4].copy_from_slice(&1_u32.to_be_bytes());
+            selector[4] = 0;
+            selector[5] = EvidenceArtifactClassV1::Node.tag();
+            selector[6] = 0;
+            selector[8..12].copy_from_slice(&1_u32.to_be_bytes());
+            selector[12..20].copy_from_slice(&7_u64.to_be_bytes());
+            selector[20..28].copy_from_slice(&7_u64.to_be_bytes());
+            selector[28..36].copy_from_slice(&9_u64.to_be_bytes());
+            selector[36..44].copy_from_slice(&11_i64.to_be_bytes());
+            for chunk in selector[44..].chunks_mut(32) {
+                chunk.copy_from_slice(&seed[..chunk.len()]);
+            }
+            let token = frame_graph_selector(&key, &nonce, &selector);
+            let reference = GraphEvidenceRefV1::new(token.clone()).unwrap();
+            let decoded = decode_graph_evidence_reference(&reference, &key).unwrap();
+            prop_assert_eq!(decoded.artifact_cursor, 7);
+
+            let mut tampered = token.into_bytes();
+            let index = GRAPH_TOKEN_PREFIX.len() + encoded_index;
+            tampered[index] = if tampered[index] == b'0' { b'1' } else { b'0' };
+            let reference =
+                GraphEvidenceRefV1::new(String::from_utf8(tampered).unwrap()).unwrap();
+            let unavailable = matches!(
+                decode_graph_evidence_reference(&reference, &key),
+                Err(EngineError::Evidence(EvidenceErrorV1 {
+                    reason: EvidenceErrorReasonV1::EvidenceUnavailable,
+                    ..
+                }))
+            );
+            prop_assert!(unavailable);
+        }
     }
 
     #[test]

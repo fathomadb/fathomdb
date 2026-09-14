@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 20 — exact graph artifact evidence
-status: IMPLEMENTATION PAUSED — GPT-6 ASTRA MEDIUM DESIGN CHANGES REQUIRED
+status: IMPLEMENTATION PAUSED — ASTRA FINDINGS RECONCILED; RE-REVIEW REQUIRED
 decision: D26-01 option A at seq-290
 ---
 
@@ -58,8 +58,9 @@ re-search or an ID-addressable disclosure surface.
 - **R26-20B — exact identities and references:** Each entry binds one target
   position to required target and terminal-edge `ArtifactRevisionId` strings
   plus nominal `GraphEvidenceRefV1` opaque references. Stable IDs support
-  joining but confer no resolution authority; internal write cursors are never
-  public.
+  joining but confer no resolution authority. The pre-existing
+  `GraphTargetV1.writeCursor` remains byte-for-byte public and likewise grants no
+  evidence authority; the new sidecar and resolver arguments expose no cursor.
 - **R26-20C — intrinsic resolver:** Add `resolve_graph_evidence`/
   `resolveGraphEvidence` accepting only an opaque graph evidence reference and
   equivalent `FrozenReadContextV1`. Return `ResolvedGraphEvidenceV1` intrinsic
@@ -77,11 +78,14 @@ re-search or an ID-addressable disclosure surface.
   artifact kind/source-type predicates to a differently typed source.
 - **R26-20E — nondisclosure and linearization:** Bind references to database,
   frozen eligibility, graph request/disclosure, target position, artifact role,
-  and selected target/edge revisions. A confidentiality-protected authenticated
-  selector carries bounded internal cursors and revalidation claims; public
-  identities remain outside the token. Authentication and authority precede
-  materialization. Point resolution uses one primary-connection transaction and
-  the existing before-return rendezvous so erase/excise cannot complete first.
+  and selected target/edge revisions. A fixed-layout, confidentiality-protected,
+  authenticated selector carries bounded internal cursors and revalidation
+  claims; public identities remain outside the token. Authentication and global
+  source authority classification precede detailed provenance parsing or
+  materialization. Point resolution linearizes at final frozen validation and
+  transaction commit while holding the primary mutex: erasure that wins first
+  makes resolution unavailable, while a resolver that wins may return its copied
+  bytes after erasure completes without implying retroactive revocation.
 - **R26-20F — complete public parity:** Rust, Python, TypeScript, canonical JSON,
   interface docs, public docs, accepted ADR, and governed-surface metadata agree.
   Dynamic decoders retain closed fields, exact RFC 6901 paths, strict booleans,
@@ -100,15 +104,20 @@ Acceptance criteria:
   and artifact facts after unchanged restart. Canonical-source nodes have no
   direct dependency; derived nodes/edges work both without a dependency and
   with an exact registered dependency generation.
-- **AC26-20D:** Tampered, foreign, mismatched-context, drifted, out-of-window,
-  ineligible, revoked, superseded, erased, closure-fenced, and nonexistent
-  references collapse to the nondisclosing evidence-unavailable contract.
+- **AC26-20D:** Tampered, foreign, mismatched-context, drifted, ineligible,
+  revoked, superseded, erased, closure-fenced, and nonexistent references
+  collapse to the nondisclosing evidence-unavailable contract. Evidence-bearing
+  expansion rejects a frozen context with `includeOutOfWindow=true` before mint;
+  accepted contexts enforce start-inclusive/end-exclusive target, terminal-edge,
+  and canonical-source validity.
 - **AC26-20E:** Corrupt hash/locator or incomplete provenance on either selected
   class prevents any sidecar. Target filters are rechecked for nodes but are not
   misapplied to terminal edges or canonical sources. Derived node/edge artifacts
   that pass while their source attribute/status/time eligibility fails remain
-  nondisclosing; canonical-source self-rows are covered. Resolution and
-  erase/excise ordering is proven.
+  nondisclosing; canonical-source self-rows are covered. Missing vector metadata
+  fails only predicates that require it, absent attributes differ from
+  present-empty attributes, and resolution/erase/excise transaction ordering is
+  proven without claiming SDK delivery order.
 - **AC26-20E1:** After authenticated selection, a missing or ineligible canonical
   source refuses the whole expansion as `evidence_unavailable` at `/evidence`
   without identifying the target or source; all bindings preserve that envelope.
@@ -117,6 +126,21 @@ Acceptance criteria:
   50 target cursors plus 50 edge cursors, independent of traversal work. SQL
   inputs deduplicate by cursor while reconstruction preserves positional entries
   and shared-source associations; source validation/hashing is deduplicated.
+  Every SQL statement, including any helper-issued query, counts toward this
+  limit; hydration therefore compiles artifact and source metadata/attribute
+  predicates into those two statements and issues no per-row eligibility query.
+- **AC26-20F1:** Hydration first retains every requested ordinal through nullable
+  joins and globally classifies artifact/source authority across both result
+  classes. Only after all authority checks pass may it diagnose incomplete
+  provenance or corrupt locator/hash detail. An unauthorized source plus corrupt
+  locator is always nondisclosing; missing source and missing source-link cases
+  remain distinguishable under the specified precedence.
+- **AC26-20F2:** The graph reference has one exact fixed selector/framing grammar,
+  counter-based stream protection beyond 64 bytes, separated MAC/stream/
+  commitment domains, and canonical request normalization. Fixed-nonce tests
+  cover equivalent kind-set order, preserved explicit-seed order, equivalent
+  freshly minted frozen contexts, cross-domain rejection, and full-length round
+  trips.
 - **AC26-20G:** Rust/Python/TypeScript round trips and installed-package probes
   agree; interfaces and public examples describe the same V1 contract; no V2,
   raw-ID resolver, migration, new table, or ordinary-path response drift exists.
@@ -141,12 +165,16 @@ publication is authorized.
 
 ## TDD implementation sequence
 
-1. Commit the reviewed plan/design and record design-review findings.
+1. Commit the reconciled plan/design and reconciliation record; obtain a fresh
+   GPT-6 Astra medium `PASS` with no P0/P1/P2 findings before resuming RED.
 2. **RED:** add Rust contract/engine tests first for request/result wire behavior,
    positional coherence, winning-edge identity, canonical and derived resolution,
    optional dependency, source-byte authorization, provenance refusal,
-   nondisclosure, non-vacuous fixed-nonce request-commitment binding, restart, bounded SQL, and
-   erase/excise ordering. Preserve the failing test commit and exact diagnostics.
+   nondisclosure and global mixed-fault precedence, non-vacuous fixed-nonce
+   request-commitment binding, selector payloads beyond 64 bytes, validity
+   boundaries, relaxed-window refusal, restart, bounded SQL with nonempty filters
+   and multiple sources, and erase/excise transaction ordering. Preserve the
+   failing test commit and exact diagnostics.
 3. **GREEN core:** promote the reviewed FIX-2 mechanisms with production token
    domains and minimal public carriers. Retain final edge cursors internally,
    hydrate after selection in the same reader transaction, and add the primary-

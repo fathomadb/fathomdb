@@ -143,9 +143,9 @@ if their design is discussed.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.26:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 10** (`FROZEN-EXPLANATION`) — frozen explanation repair, guidance, and conformance
+**IMMEDIATE NEXT: Slice 15** (`GRAPH-EVIDENCE-SPIKE`) — graph-evidence performance and erasure-linearization spike
 
-**Remaining ladder:** 10 → 15 → 20 → 30 → 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
+**Remaining ladder:** 15 → 20 → 30 → 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
 
 D26-01 remains open until Slice 15 reports and blocks Slice 20 only. Do not
 publish or begin feature work outside the current slice.

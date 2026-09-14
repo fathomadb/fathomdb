@@ -769,6 +769,8 @@ fn measurement_matrix_emits_raw_samples() {
             "control_response_bytes": encode_graph_expand_result_v1(&treated.graph).unwrap().len(),
             "sidecar_1_bytes": sidecar_1_bytes, "sidecar_50_bytes": sidecar_50_bytes,
             "inline_1_bytes": inline_1_bytes, "inline_50_bytes": inline_50_bytes,
+            "preflight_one": &treated.preflight_plans,
+            "preflight_fifty": &many_treated.preflight_plans,
             "sidecar_reference_bytes": treated.evidence[0].target_ref.as_str().len()
                 + treated.evidence[0].terminal_edge_ref.as_ref().unwrap().as_str().len()
                 + treated.evidence[0].target_revision_id.len()

@@ -1120,7 +1120,7 @@ pub(crate) fn preflight_intrinsic_batches_for_test(
             .map_err(|_| EngineError::Storage)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;
-        plans.push(details.join(" | "));
+        let plan = details.join(" | ");
 
         let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
         let mut rows = statement
@@ -1130,6 +1130,8 @@ pub(crate) fn preflight_intrinsic_batches_for_test(
             ])
             .map_err(|_| EngineError::Storage)?;
         let mut count = 0_usize;
+        let mut distinct_source_validations = 0_usize;
+        let mut source_bytes_hashed = 0_usize;
         while let Some(row) = rows.next().map_err(|_| EngineError::Storage)? {
             count += 1;
             let completeness: String = row.get(2).map_err(|_| EngineError::Storage)?;
@@ -1154,10 +1156,12 @@ pub(crate) fn preflight_intrinsic_batches_for_test(
                 }
                 _ => false,
             };
-            if !locator_valid
-                || (validated_sources.insert(source_revision)
-                    && crate::canonical_body_hash(&body) != digest)
-            {
+            let newly_validated = validated_sources.insert(source_revision);
+            if newly_validated {
+                distinct_source_validations += 1;
+                source_bytes_hashed += body.len();
+            }
+            if !locator_valid || (newly_validated && crate::canonical_body_hash(&body) != digest) {
                 return Err(EvidenceErrorV1::new(
                     EvidenceErrorReasonV1::EvidenceCorrupt,
                     "/provenance",
@@ -1168,6 +1172,10 @@ pub(crate) fn preflight_intrinsic_batches_for_test(
         if count != cursors.len() {
             return Err(EvidenceErrorV1::unavailable().into());
         }
+        plans.push(format!(
+            "class={class};input_count={};returned_rows={count};distinct_source_validations={distinct_source_validations};source_bytes_hashed={source_bytes_hashed};plan={plan}",
+            cursors.len()
+        ));
     }
     Ok(plans)
 }

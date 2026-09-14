@@ -24,6 +24,14 @@ support, and documentation truth before any release decision.
 - Build fresh Rust, Python, TypeScript/native, and CLI artifacts from the exact
   candidate commit.
 - Install into clean environments and execute the Slice 10–40 contract flows.
+- **M20-03 consumer evidence:** From those installed artifacts, produce a
+  Memex-consumable graph-evidence matrix covering explicit and query-derived
+  seeds; outgoing, incoming, and both-direction traversal; and depth-one and
+  multihop results. For every selected result, preserve positional sidecar
+  identity and resolve both the graph target and winning terminal-edge
+  references to their intrinsic artifact/source evidence. Record graph-route
+  selection provenance separately; do not synthesize ranked-search projection
+  or ranking-contribution fields when they are not applicable.
 - Create the database with 0.8.26 artifacts and reopen that same real database
   across supported bindings where the public contract permits it.
 - Prove one representative earlier database is refused before mutation. Do not
@@ -47,7 +55,10 @@ support, and documentation truth before any release decision.
 2. Build packages once from a clean candidate state and record hashes.
 3. Run clean installed-artifact witnesses for frozen explanation/evidence,
    graph artifact resolution, operator integrity, and atomic derived-edge
-   replay/restart.
+   replay/restart. Exercise the M20-03 matrix with an ordinary persisted edge
+   and at least one edge committed through Slice 40 actuation, and bind each
+   case, returned sidecar, resolved target/terminal-edge evidence, command, and
+   outcome into the reproducible candidate manifest.
 4. Run the no-parallel-V2-surface and earlier-database refusal witnesses, then
    cross-SDK current V1 and selected platform witnesses using the consolidated
    Windows inventory.
@@ -61,7 +72,11 @@ support, and documentation truth before any release decision.
 All in-scope requirements trace to passing artifact-level evidence; no
 source-only test substitutes for a package claim; platform claims match actual
 execution; documentation matches the candidate artifact; and publication has
-not occurred.
+not occurred. The M20-03 matrix is complete across seed, direction, and depth
+variants; its target and winning terminal-edge references resolve under the
+same frozen authority; and its recorded output distinguishes route-specific
+selection provenance from intrinsic artifact/source evidence without inventing
+ranked-only fields.
 
 ## Stop gates
 

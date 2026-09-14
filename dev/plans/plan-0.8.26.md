@@ -83,9 +83,9 @@ fix depends on built product artifacts or belongs at the release boundary.
 | 7 | Review post-build CI/CD, packaging, gitleaks, and registry failure evidence; propose pragmatic corrections and delivery placement. | 6 | Complete |
 | 8 | Score all proposals, conduct interactive HITL decisions, replace/review Slice 9, and update this plan. | 7 | Complete; D26-01 later resolved at `seq-290` |
 | 9 | Implement only HITL-approved repository preparation under the reviewed Slice 9 plan. | 8 | Complete on release branch at `ded6c72f` |
-| 10 | Repair frozen explanation, complete public guidance, and add the installed-artifact conformance witness. | 9 | Draft |
+| 10 | Repair frozen explanation, complete public guidance, and add the installed-artifact conformance witness. | 9 | Complete on release branch at `c2795caf` |
 | 15 | Run the bounded graph-evidence performance and erasure-linearization implementation spike; accept or narrow the Slice 20 design. | 10 | Complete on release branch; opt-in V1 sidecar selected at `seq-290` |
-| 20 | Add immutable-revision graph-target and terminal-edge evidence resolution under frozen authority. | 15 | Draft |
+| 20 | Add immutable-revision graph-target and terminal-edge evidence resolution under frozen authority. | 15 | Complete on release branch at `c0a567d5` |
 | 30 | Qualify and harden the existing versioned read-only operator integrity inspection route. | 20 | Draft |
 | 35 | Prove the breaking changed-in-place V1 actuation, fresh-database, receipt, and performance contract; accept or narrow the Slice 40 design. | 30 | Required by `seq-283` |
 | 40 | Extend V1 actuation in place with the accepted atomic derived-edge contract and fresh-database boundary. | 35 | Draft |

@@ -6,12 +6,14 @@ use fathomdb_engine::{
     encode_graph_expand_result_v1, ArtifactRevisionId, CanonicalHash, Engine, EngineError,
     EvidenceErrorReasonV1, FrozenReadErrorReason, GraphEvidenceArtifactV1, GraphEvidenceRefV1,
     GraphEvidenceResolveRequestV1, GraphExpandRequestV1, GraphExpansionErrorReasonV1,
-    GraphReadContextV1, GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProvenancedEdgeV1,
-    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceId, SourceLocator,
-    SourceRevisionId, SourceVersionId, TraversalDirection, WriteProvenanceV1,
+    GraphReadContextV1, GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProjectionRole,
+    ProjectionSpec, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
+    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
+    WriteProvenanceV1,
 };
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
+use std::collections::BTreeSet;
 use std::sync::{mpsc, Arc, Barrier};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -131,12 +133,12 @@ fn fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
 
 fn fixture_with_two_targets() -> (TempDir, Engine, GraphExpandRequestV1) {
     let (directory, engine, request) = fixture();
-    let source = "canonical source bytes";
+    let source = "second canonical source bytes";
     let derived = |revision: &str| {
         WriteProvenanceV1::derived(
             ArtifactRevisionId::new(revision).unwrap(),
-            SourceVersionId::new("source-v1").unwrap(),
-            SourceRevisionId::new("source-r1").unwrap(),
+            SourceVersionId::new("source-v2").unwrap(),
+            SourceRevisionId::new("source-r2").unwrap(),
             SourceLocator::whole_body(),
             CanonicalHash::sha256(digest(source)).unwrap(),
         )
@@ -144,10 +146,24 @@ fn fixture_with_two_targets() -> (TempDir, Engine, GraphExpandRequestV1) {
     engine
         .write(&[
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("source-two".into()),
+                kind: "document".into(),
+                body: source.into(),
+                source_id: SourceId::new("owner-two").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("source-r2").unwrap(),
+                    SourceVersionId::new("source-v2").unwrap(),
+                ),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("target-two".into()),
                 kind: "claim".into(),
                 body: "target two".into(),
-                source_id: SourceId::new("owner").unwrap(),
+                source_id: SourceId::new("owner-two").unwrap(),
                 state: InitialState::Active,
                 reason: None,
                 valid_from: None,
@@ -159,7 +175,7 @@ fn fixture_with_two_targets() -> (TempDir, Engine, GraphExpandRequestV1) {
                 kind: "supports".into(),
                 from: "root".into(),
                 to: "target-two".into(),
-                source_id: SourceId::new("owner").unwrap(),
+                source_id: SourceId::new("owner-two").unwrap(),
                 body: None,
                 t_valid: None,
                 t_invalid: None,
@@ -354,6 +370,12 @@ fn unavailable(error: EngineError) {
     assert!(matches!(error, EngineError::Evidence(ref error)
         if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
             && error.field_path == "/evidenceRef"));
+}
+
+fn expansion_unavailable(error: EngineError) {
+    assert!(matches!(error, EngineError::Evidence(ref error)
+        if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+            && error.field_path == "/evidence"));
 }
 
 #[test]
@@ -609,6 +631,107 @@ fn lower_target_index_precedes_later_target_even_when_the_lower_fault_is_an_edge
     assert!(matches!(engine.graph_expand(&request).unwrap_err(), EngineError::Evidence(ref error)
         if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
             && error.field_path == "/targets/0/terminalEdge/provenance/sourceLocator"));
+}
+
+#[test]
+fn source_attribute_eligibility_distinguishes_absent_from_present_empty() {
+    let (_directory, engine, request) = fixture();
+    let mut roles = BTreeSet::new();
+    roles.insert(ProjectionRole::Filterable);
+    engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "tenant".into(),
+                roles,
+                fts: None,
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    engine
+        .execute_for_test(
+            "INSERT INTO canonical_attributes(write_cursor,attr_name,attr_value) \
+             SELECT write_cursor,'tenant','' FROM canonical_nodes \
+             WHERE logical_id IN ('root','target');",
+        )
+        .unwrap();
+    let mut filter = SearchFilter::default();
+    filter.kind = Some("claim".into());
+    filter.attributes = vec![("tenant".into(), "".into())];
+    let context = ReadContextV1::new(
+        ReadView { valid_as_of: Some(1_800_000_000), ..ReadView::default() },
+        filter,
+    )
+    .unwrap();
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let request = GraphExpandRequestV1 {
+        include_evidence: true,
+        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        ..request
+    };
+    expansion_unavailable(engine.graph_expand(&request).unwrap_err());
+
+    engine
+        .execute_for_test(
+            "INSERT INTO canonical_attributes(write_cursor,attr_name,attr_value) \
+             SELECT write_cursor,'tenant','' FROM canonical_nodes WHERE logical_id='source';",
+        )
+        .unwrap();
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let request = GraphExpandRequestV1 {
+        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        ..request
+    };
+    assert_eq!(engine.graph_expand(&request).unwrap().targets.len(), 1);
+}
+
+#[test]
+fn source_status_and_created_after_require_vector_metadata_only_when_filtered() {
+    let (_directory, engine, request) = fixture();
+    engine
+        .execute_for_test(
+            "DROP TABLE vector_default; \
+             CREATE TABLE vector_default( \
+               rowid INTEGER PRIMARY KEY, embedding BLOB, embedding_bin BLOB, \
+               source_type TEXT, kind TEXT, created_at INTEGER, status TEXT \
+             ); \
+             INSERT INTO vector_default(rowid,source_type,kind,created_at,status) \
+             SELECT write_cursor,'node_body',kind,20,'ready' FROM canonical_nodes \
+             WHERE logical_id IN ('root','target');",
+        )
+        .unwrap();
+    let mut filter = SearchFilter::default();
+    filter.kind = Some("claim".into());
+    filter.created_after = Some(10);
+    filter.status = Some("ready".into());
+    let context = ReadContextV1::new(
+        ReadView { valid_as_of: Some(1_800_000_000), ..ReadView::default() },
+        filter,
+    )
+    .unwrap();
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let request = GraphExpandRequestV1 {
+        include_evidence: true,
+        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        ..request
+    };
+    expansion_unavailable(engine.graph_expand(&request).unwrap_err());
+
+    engine
+        .execute_for_test(
+            "INSERT INTO vector_default(rowid,source_type,kind,created_at,status) \
+             SELECT write_cursor,'node_body',kind,20,'ready' FROM canonical_nodes \
+             WHERE logical_id='source';",
+        )
+        .unwrap();
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let request = GraphExpandRequestV1 {
+        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        ..request
+    };
+    assert_eq!(engine.graph_expand(&request).unwrap().targets.len(), 1);
 }
 
 fn resolver_linearizes_before_erasure(use_operator_spelling: bool) {

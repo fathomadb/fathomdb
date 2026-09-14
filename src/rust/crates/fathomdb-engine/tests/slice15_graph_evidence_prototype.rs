@@ -712,27 +712,44 @@ fn measurement_matrix_emits_raw_samples() {
             "terminalEdgeEvidenceRef": entry.terminal_edge_ref.as_ref().map(EvidenceRefV1::as_str),
         })).collect::<Vec<_>>(),
     })).unwrap().len();
-    let inline_50_bytes = serde_json::to_vec(&serde_json::json!({
-        "targets": many_treated.graph.targets.iter().zip(&many_treated.evidence).map(|(target, entry)| serde_json::json!({
-            "logicalId": target.logical_id, "kind": target.kind, "body": target.body,
-            "writeCursor": target.write_cursor.to_string(), "origin": {
-                "seedLogicalId": target.origin.seed_logical_id,
-                "predecessorLogicalId": target.origin.predecessor_logical_id,
-                "targetLogicalId": target.origin.target_logical_id,
-                "hopCount": target.origin.hop_count,
-                "terminalEdgeKind": target.origin.terminal_edge_kind,
-                "terminalDirection": match target.origin.terminal_direction {
-                    TraversalDirection::Outgoing => "outgoing",
-                    TraversalDirection::Incoming => "incoming",
-                    TraversalDirection::Both => "both",
-                },
-            },
-            "targetRevisionId": entry.target_revision_id,
-            "targetEvidenceRef": entry.target_ref.as_str(),
-            "terminalEdgeRevisionId": entry.terminal_edge_revision_id,
-            "terminalEdgeEvidenceRef": entry.terminal_edge_ref.as_ref().map(EvidenceRefV1::as_str),
-        })).collect::<Vec<_>>()
-    })).unwrap().len();
+    let encode_inline =
+        |graph: &fathomdb_engine::GraphExpandResultV1,
+         evidence: &[fathomdb_engine::GraphEvidenceEntryForTest]| {
+            let mut value = serde_json::from_slice::<serde_json::Value>(
+                &encode_graph_expand_result_v1(graph).unwrap(),
+            )
+            .unwrap();
+            for (target, entry) in value["targets"].as_array_mut().unwrap().iter_mut().zip(evidence)
+            {
+                let target = target.as_object_mut().unwrap();
+                target.insert(
+                    "targetRevisionId".into(),
+                    serde_json::Value::String(entry.target_revision_id.clone()),
+                );
+                target.insert(
+                    "targetEvidenceRef".into(),
+                    serde_json::Value::String(entry.target_ref.as_str().into()),
+                );
+                target.insert(
+                    "terminalEdgeRevisionId".into(),
+                    entry
+                        .terminal_edge_revision_id
+                        .as_ref()
+                        .map_or(serde_json::Value::Null, |value| {
+                            serde_json::Value::String(value.clone())
+                        }),
+                );
+                target.insert(
+                    "terminalEdgeEvidenceRef".into(),
+                    entry.terminal_edge_ref.as_ref().map_or(serde_json::Value::Null, |value| {
+                        serde_json::Value::String(value.as_str().into())
+                    }),
+                );
+            }
+            serde_json::to_vec(&value).unwrap().len()
+        };
+    let inline_1_bytes = encode_inline(&treated.graph, &treated.evidence);
+    let inline_50_bytes = encode_inline(&many_treated.graph, &many_treated.evidence);
     println!(
         "SLICE15_RAW={}",
         serde_json::json!({
@@ -751,7 +768,7 @@ fn measurement_matrix_emits_raw_samples() {
             "control_response_50_bytes": encode_graph_expand_result_v1(&many_treated.graph).unwrap().len(),
             "control_response_bytes": encode_graph_expand_result_v1(&treated.graph).unwrap().len(),
             "sidecar_1_bytes": sidecar_1_bytes, "sidecar_50_bytes": sidecar_50_bytes,
-            "inline_50_bytes": inline_50_bytes,
+            "inline_1_bytes": inline_1_bytes, "inline_50_bytes": inline_50_bytes,
             "sidecar_reference_bytes": treated.evidence[0].target_ref.as_str().len()
                 + treated.evidence[0].terminal_edge_ref.as_ref().unwrap().as_str().len()
                 + treated.evidence[0].target_revision_id.len()

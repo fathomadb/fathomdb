@@ -8,6 +8,22 @@ released section MUST list every removed public symbol under a `### Removed` hea
 the removal-detect linter (`scripts/security/check-removal-changelog.sh`,
 AC-050c) gates merges against this invariant.
 
+## 0.8.26 — Unreleased
+
+**Publication status: in development.** This pre-1.0 release is breaking and
+supports fresh databases only.
+
+### Added
+
+- Opt-in, frozen-only exact graph evidence: `graph.expand` can return a
+  positional sidecar for each selected target and winning terminal edge;
+  `resolve_graph_evidence` / `resolveGraphEvidence` resolves those opaque,
+  authenticated references to the exact artifact and canonical source bytes.
+
+### Removed
+
+None in Slice 20.
+
 ## 0.8.25 — 2026-09-12
 
 **Publication status: published.** Tagged as `v0.8.25` and released on

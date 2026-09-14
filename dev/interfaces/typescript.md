@@ -1047,3 +1047,16 @@ The wrapper recursively validates and canonicalizes requests before
 cross-field coherence. Refusals use `GraphExpansionError` with code
 `FDB_GRAPH_EXPANSION`, `reason`, and `fieldPath`; frozen authentication and
 state failures remain `FrozenReadError`.
+
+## Exact graph artifact evidence (0.8.26 Slice 20)
+
+Set `GraphExpandRequestV1.includeEvidence: true` only with a frozen graph
+context. `GraphExpandResultV1.evidence` then contains one positional
+`GraphEvidenceSidecarEntryV1` per target, carrying exact target and terminal-edge
+revision IDs plus opaque references. Omission/false preserves the ordinary wire
+shape.
+
+`engine.resolveGraphEvidence({ schemaVersion: 1, evidenceRef, context })`
+returns `ResolvedGraphEvidenceV1`: the exact closed node-or-edge artifact,
+canonical source bytes/locator/hash, lifecycle, source identities, and optional
+direct dependency. It accepts no raw identity and makes no ranking claim.

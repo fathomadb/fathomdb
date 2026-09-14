@@ -354,6 +354,7 @@ Domain refusals are terminal receipts while malformed requests raise
 | `engine.search_expand_frozen(query, context, depth, *, limit=10)` | `SearchExpandResult` | Search and graph-expand in one frozen read context. |
 | `engine.search_with_evidence(request)` | `EvidenceSearchResultV1` | Return normal hits plus one positional evidence reference per hit. |
 | `engine.resolve_evidence(request)` | `ResolvedEvidenceV1` | Resolve exact canonical bytes and the selected UTF-8 span. |
+| `engine.resolve_graph_evidence(request)` | `ResolvedGraphEvidenceV1` | Resolve an exact target or terminal edge disclosed by frozen graph expansion. |
 | `engine.trace_dependency(request)` | `DependencyTraceResultV1` | Perform a bounded reciprocal dependency trace under a frozen context. |
 | `read.canonical_page(engine, kind, context, page)` | `PageV1[NodeRecord]` | Read a stable page of canonical logical nodes. |
 | `read.operational_state(engine, collection, record_key, context=None)` | `OperationalStateRecordV1 \| None` | Point-read a registered `latest_state` collection. |
@@ -380,7 +381,9 @@ workflow and retry rules.
 - `graph.expand(engine, request) -> GraphExpandResultV1` accepts query or
   explicit seeds plus current or frozen read-context carriers. It returns
   deterministic ordered seeds and targets, complete work accounting,
-  degradation codes, and an optional compact explanation.
+  degradation codes, an optional compact explanation, and—when
+  `include_evidence=True` under frozen authority—a positional exact-evidence
+  sidecar.
 
 The principal graph carriers are `GraphExpandRequestV1`, `GraphExpandResultV1`,
 `GraphQuerySeedV1`, `GraphExplicitSeedV1`, `GraphReadContextV1`,

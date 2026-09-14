@@ -369,6 +369,7 @@ Domain refusals are terminal receipts while malformed requests throw
 | `engine.searchExpandFrozen(query, context, depth, options?)` | `Promise<SearchExpandResult>` | Search and graph-expand in one frozen read context. |
 | `engine.searchWithEvidence(request)` | `Promise<EvidenceSearchResultV1>` | Return normal hits plus one positional evidence reference per hit. |
 | `engine.resolveEvidence(request)` | `Promise<ResolvedEvidenceV1>` | Resolve exact canonical bytes and the selected UTF-8 span. |
+| `engine.resolveGraphEvidence(request)` | `Promise<ResolvedGraphEvidenceV1>` | Resolve an exact target or terminal edge disclosed by frozen graph expansion. |
 | `engine.traceDependency(request)` | `Promise<DependencyTraceResultV1>` | Perform a bounded reciprocal dependency trace under a frozen context. |
 | `read.canonicalPage(engine, kind, context, page)` | `Promise<PageV1<NodeRecord>>` | Read a stable page of canonical logical nodes. |
 | `read.operationalState(engine, collection, recordKey, context?)` | `Promise<OperationalStateRecordV1 \| null>` | Point-read a registered `latest_state` collection. |
@@ -390,7 +391,9 @@ evidence, and trace failures throw `PageError`, `EvidenceError`, and
 - `graph.expand(engine, request): Promise<GraphExpandResultV1>` accepts query or
   explicit seeds plus current or frozen read-context carriers. It returns
   deterministic ordered seeds and targets, complete work accounting,
-  degradation codes, and an optional compact explanation.
+  degradation codes, an optional compact explanation, and—when
+  `includeEvidence` is true under frozen authority—a positional exact-evidence
+  sidecar.
 
 The principal graph carriers are `GraphExpandRequestV1`, `GraphExpandResultV1`,
 `GraphQuerySeedV1`, `GraphExplicitSeedV1`, `GraphReadContextV1`,

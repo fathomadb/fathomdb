@@ -1012,3 +1012,17 @@ reject malformed schema, enum, integer, completeness, or cross-field
 coherence. Refusals use `GraphExpansionError` with code
 `FDB_GRAPH_EXPANSION`, `reason`, and `field_path`; frozen authentication and
 state failures remain `FrozenReadError`.
+
+## Exact graph artifact evidence (0.8.26 Slice 20)
+
+Set `GraphExpandRequestV1.include_evidence=True` only with a
+`FrozenGraphReadContextV1`. A successful `GraphExpandResultV1.evidence` contains
+one `GraphEvidenceSidecarEntryV1` per target, in target order, with exact target
+and terminal-edge revision IDs and opaque references. The default is false and
+ordinary result shape is unchanged.
+
+`engine.resolve_graph_evidence(GraphEvidenceResolveRequestV1(...))` returns
+`ResolvedGraphEvidenceV1`, including the exact node or edge and authorized
+canonical source bytes. Invalid, foreign, stale, context-mismatched, or
+unauthorized references raise nondisclosing `EvidenceError`. There is no raw-ID
+lookup or batch resolver.

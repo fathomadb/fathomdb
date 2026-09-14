@@ -40,6 +40,7 @@ the first open selects performance.
 | Frozen search plus expansion | `Engine::search_expand_frozen` | `SearchExpandResult` |
 | Evidence-bearing retrieval | `Engine::search_with_evidence` | `EvidenceSearchResultV1` |
 | Exact evidence resolution | `Engine::resolve_evidence` | `ResolvedEvidenceV1` |
+| Exact graph artifact evidence | `Engine::resolve_graph_evidence` | `ResolvedGraphEvidenceV1` |
 | Dependency trace | `Engine::trace_dependency` | `DependencyTraceResultV1` |
 | Canonical pagination | `Engine::read_canonical_page` | `PageV1<NodeRecord>` |
 | Operational-state point read | `Engine::read_operational_state` | `Option<OperationalStateRecordV1>` |

@@ -10,7 +10,7 @@ validity, eligibility, and database state.
 | Frozen top-K ranking without source evidence | `freeze_read_context` → `search_frozen` |
 | Evidence-backed answer | `freeze_read_context` → `search_with_evidence` → `resolve_evidence` for selected hits |
 | Stable collection pagination | `read.canonical_page`; search is top-K, not a page stream |
-| Evidence for an exact graph target | Not supported by the current public surface; do not re-search body text or logical ID |
+| Evidence for an exact graph target and winning edge | `graph.expand` with `include_evidence=True` / `includeEvidence: true` → `resolve_graph_evidence` / `resolveGraphEvidence` |
 
 Do not call `search_frozen` before `search_with_evidence` in the normal grounded
 path. That double-search adds work and does not transfer evidence identity.
@@ -50,6 +50,46 @@ governed evidence but is not authorization by itself; resolution rechecks the
 equivalent frozen context and current visibility. Reference strings contain
 fresh randomness, so compare artifact revision identity and resolved semantics,
 not reference bytes from separate searches.
+
+## Exact graph evidence
+
+Graph evidence is also frozen and opt-in. It does not use body re-search or a
+raw ID lookup:
+
+```python
+from dataclasses import replace
+
+evidence_request = replace(
+    base_graph_request,
+    context=fathomdb.FrozenGraphReadContextV1(
+        schema_version=1, type="frozen", context=context
+    ),
+    include_evidence=True,
+)
+graph_result = fathomdb.graph.expand(
+    engine,
+    evidence_request,
+)
+
+selected = graph_result.evidence.entries[0]
+target_evidence = engine.resolve_graph_evidence(
+    fathomdb.GraphEvidenceResolveRequestV1(
+        evidence_ref=selected.target_evidence_ref,
+        context=context,
+    )
+)
+edge_evidence = engine.resolve_graph_evidence(
+    fathomdb.GraphEvidenceResolveRequestV1(
+        evidence_ref=selected.terminal_edge_evidence_ref,
+        context=context,
+    )
+)
+```
+
+The sidecar is positional and covers both the returned target and the winning
+terminal edge. Resolution rechecks the frozen authority and present visibility.
+Do not persist or reinterpret opaque references, and do not substitute
+non-frozen graph expansion if exact evidence is required.
 
 When requested, both frozen search operations return a non-empty correlation
 identity. With local telemetry enabled it is the matching `q...` query identity;

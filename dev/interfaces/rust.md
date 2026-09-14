@@ -1191,3 +1191,18 @@ validity and eligibility before admission, always enforces shipped edge
 recency, and globally selects top-N only after traversal completes. Query
 seeding is FTS-first and records its projection status and text-fallback
 degradation.
+
+## Exact graph artifact evidence (0.8.26 Slice 20)
+
+`GraphExpandRequestV1.include_evidence` is opt-in and defaults to false. It is
+accepted only with a frozen graph context. When true,
+`GraphExpandResultV1.evidence` has exactly one positional entry per target and
+identifies both the target revision and its winning terminal-edge revision with
+distinct `GraphEvidenceRefV1` values. The member is absent when not requested.
+
+`Engine::resolve_graph_evidence(&GraphEvidenceResolveRequestV1)` resolves only
+one of those opaque references under its equivalent `FrozenReadContextV1`. It
+returns `ResolvedGraphEvidenceV1`: the exact node-or-edge artifact, canonical
+source bytes and locator, hash, lifecycle, source identities, and optional
+direct dependency. It returns no ranking or projection claims. Current context,
+raw logical/revision IDs, batching, and schema changes are outside this contract.

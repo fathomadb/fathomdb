@@ -167,3 +167,18 @@ coherent with seeds and enclosing targets, and an explanation whose per-target
 entries and degradation codes exactly match the top-level result. The typed
 envelope code is `FDB_GRAPH_EXPANSION` with closed `reason` and exact RFC 6901
 `fieldPath`; frozen-context failures retain `FDB_FROZEN_READ`.
+
+## Exact graph artifact evidence wire (0.8.26 Slice 20)
+
+`GraphExpandRequestV1` accepts optional `includeEvidence`; omission and false
+are byte-equivalent. True requires a frozen context. The response then includes
+`evidence: { schemaVersion: 1, entries: [...] }`, with entry `targetIndex`
+equal to its zero-based position and one entry for every target. Each entry has
+validated artifact revision strings and opaque target/terminal-edge references.
+
+`GraphEvidenceResolveRequestV1` is closed to `schemaVersion`, `evidenceRef`, and
+`context`. `ResolvedGraphEvidenceV1` carries a closed `artifactClass` node/edge
+union and canonical source material. References use the graph-only `fdbgev1`
+domain and are not interchangeable with ranked evidence references. Evidence
+request/refusal envelopes use `FDB_EVIDENCE`; malformed graph result sidecars
+use `FDB_GRAPH_EXPANSION` with exact RFC 6901 paths.

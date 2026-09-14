@@ -31,6 +31,16 @@ fn is_false(value: &bool) -> bool {
 static GRAPH_EXPAND_RSS_SAMPLE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[cfg(feature = "test-hooks")]
+static GRAPH_EXPAND_SQL_STATEMENTS: AtomicU64 = AtomicU64::new(0);
+
+#[cfg(feature = "test-hooks")]
+pub(crate) fn count_graph_expand_sql_statement(event: rusqlite::trace::TraceEvent<'_>) {
+    if matches!(event, rusqlite::trace::TraceEvent::Stmt(_, _)) {
+        GRAPH_EXPAND_SQL_STATEMENTS.fetch_add(1, AtomicOrdering::SeqCst);
+    }
+}
+
+#[cfg(feature = "test-hooks")]
 fn observe_current_rss_peak(test_controls: &GraphExpandReaderControlsForTest) {
     let Some(peak) = test_controls.rss_peak_bytes.as_ref() else { return };
     let observed = crate::process_current_rss_bytes();
@@ -531,6 +541,7 @@ pub(crate) struct GraphExpandReaderControlsForTest {
     pub(crate) projection_generation: Option<GraphExpandProjectionGenerationForTest>,
     pub(crate) rss_peak_bytes: Option<std::sync::Arc<AtomicU64>>,
     pub(crate) retention_counters: Option<std::sync::Arc<GraphExpandRetentionCountersForTest>>,
+    pub(crate) count_sql_statements: bool,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -1065,6 +1076,25 @@ impl Engine {
                 ..GraphExpandReaderControlsForTest::default()
             },
         )
+    }
+
+    /// Execute one graph expansion while counting every SQLite statement on
+    /// its reader connection.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn graph_expand_with_statement_count_for_test(
+        &self,
+        request: &GraphExpandRequestV1,
+    ) -> Result<(GraphExpandResultV1, u64), EngineError> {
+        GRAPH_EXPAND_SQL_STATEMENTS.store(0, AtomicOrdering::SeqCst);
+        let result = self.graph_expand_inner(
+            request,
+            GraphExpandReaderControlsForTest {
+                count_sql_statements: true,
+                ..GraphExpandReaderControlsForTest::default()
+            },
+        )?;
+        Ok((result, GRAPH_EXPAND_SQL_STATEMENTS.load(AtomicOrdering::SeqCst)))
     }
 
     #[doc(hidden)]

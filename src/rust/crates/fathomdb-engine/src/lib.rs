@@ -2862,6 +2862,13 @@ fn reader_worker_loop(
                 let _ = respond.send(result);
             }
             ReaderRequest::GraphExpand(request) => {
+                #[cfg(feature = "test-hooks")]
+                if request.test_controls.count_sql_statements {
+                    connection.trace_v2(
+                        rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
+                        Some(graph_expand::count_graph_expand_sql_statement),
+                    );
+                }
                 let result = graph_expand::read_graph_expand_in_tx(
                     &mut connection,
                     &request.request,
@@ -2873,6 +2880,10 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
+                #[cfg(feature = "test-hooks")]
+                if request.test_controls.count_sql_statements {
+                    connection.trace_v2(rusqlite::trace::TraceEventCodes::empty(), None);
+                }
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = request.respond.send(result);
             }

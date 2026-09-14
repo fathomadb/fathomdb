@@ -858,6 +858,7 @@ fn measurement_matrix_emits_raw_samples() {
         serde_json::json!({
             "unit": "microseconds", "control_1": control_us, "hydrated_1": hydrated_us,
             "point_node_1k": point_node_us, "point_edge_1k": point_edge_us,
+            "canonical_source_1k_bytes": 1_024,
             "concurrent_control_8x200": concurrent_control_us,
             "concurrent_hydrated_8x200": concurrent_hydrated_us,
             "concurrent_point_8x200": concurrent_point_us,

@@ -2633,6 +2633,117 @@ impl PayloadCursor<'_> {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+
+    #[test]
+    fn graph_expansion_hashes_each_shared_source_once() {
+        use crate::{
+            GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1, InitialState, PreparedWrite,
+            ProvenancedEdgeV1, ProvenancedNodeV1, SourceId, SourceVersionId, WriteProvenanceV1,
+        };
+        let directory = tempfile::TempDir::new().unwrap();
+        let engine = crate::Engine::open(directory.path().join("hash-count.fdb")).unwrap().engine;
+        let body = "shared canonical source bytes";
+        let derived = |revision: &str| {
+            WriteProvenanceV1::derived(
+                ArtifactRevisionId::new(revision).unwrap(),
+                SourceVersionId::new("v1").unwrap(),
+                SourceRevisionId::new("source-r1").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(crate::canonical_body_hash(body)).unwrap(),
+            )
+        };
+        let mut writes = vec![PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+            logical_id: Some("root".into()),
+            kind: "document".into(),
+            body: body.into(),
+            source_id: SourceId::new("owner").unwrap(),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            provenance: WriteProvenanceV1::canonical(
+                ArtifactRevisionId::new("source-r1").unwrap(),
+                SourceVersionId::new("v1").unwrap(),
+            ),
+        })];
+        for index in 0..2 {
+            writes.push(PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some(format!("target-{index}")),
+                kind: "claim".into(),
+                body: format!("claim {index}"),
+                source_id: SourceId::new("owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived(&format!("target-r{index}")),
+            }));
+            writes.push(PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some(format!("edge-{index}")),
+                kind: "supports".into(),
+                from: "root".into(),
+                to: format!("target-{index}"),
+                source_id: SourceId::new("owner").unwrap(),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: Some(0.9),
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived(&format!("edge-r{index}")),
+            }));
+        }
+        engine.write(&writes).unwrap();
+        engine.drain(30_000).unwrap();
+        let frozen = engine
+            .freeze_read_context(
+                &crate::ReadContextV1::new(
+                    crate::ReadView::default(),
+                    crate::SearchFilter::default(),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        let request = GraphExpandRequestV1 {
+            schema_version: 1,
+            seed: GraphSeedV1::Explicit {
+                schema_version: 1,
+                logical_ids: vec![crate::IdSpace::logical("root")],
+            },
+            direction: crate::TraversalDirection::Outgoing,
+            edge_kinds: vec!["supports".into()],
+            target_kinds: vec!["claim".into()],
+            context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+            max_depth: 1,
+            result_limit: 50,
+            max_work_units: 10_000,
+            include_explanation: false,
+            include_evidence: true,
+        };
+        let mut guard = engine.connection.lock().unwrap();
+        let connection = guard.as_mut().unwrap();
+        let binding = frozen_read::authenticate(connection, &frozen).unwrap();
+        let authority = graph_evidence_authority(connection, &frozen).unwrap();
+        // Run the real reader transaction on this thread to isolate the hash observer
+        // from background workers and parallel tests without a process-global counter.
+        crate::CANONICAL_BODY_HASH_CALLS.with(|calls| calls.set(0));
+        let result = crate::graph_expand::read_graph_expand_in_tx(
+            connection,
+            &request,
+            Some(&binding),
+            crate::ProjectionRuntimeStateV1::Absent,
+            Some(&authority),
+            #[cfg(feature = "test-hooks")]
+            &crate::graph_expand::GraphExpandReaderControlsForTest::default(),
+            &std::sync::Arc::new(crate::WalAttributionCollector::new()),
+            0,
+        )
+        .unwrap();
+        let calls = crate::CANONICAL_BODY_HASH_CALLS.with(|calls| calls.get());
+        assert_eq!(result.targets.len(), 2);
+        assert_eq!(result.evidence.unwrap().entries.len(), 2);
+        assert_eq!(calls, 1, "four selected artifacts share one canonical source");
+    }
     #[cfg(feature = "test-hooks")]
     use std::sync::atomic::{AtomicUsize, Ordering};
 

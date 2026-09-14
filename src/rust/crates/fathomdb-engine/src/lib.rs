@@ -29592,7 +29592,14 @@ fn legacy_revision_id(
     format!("_fdb:m:{}", hex_encode(&hasher.finalize()))
 }
 
+#[cfg(test)]
+thread_local! {
+    static CANONICAL_BODY_HASH_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 fn canonical_body_hash(body: &str) -> String {
+    #[cfg(test)]
+    CANONICAL_BODY_HASH_CALLS.with(|calls| calls.set(calls.get() + 1));
     hex_encode(&Sha256::digest(body.as_bytes()))
 }
 

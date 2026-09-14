@@ -21,6 +21,19 @@ const HASH_DOMAIN: &[u8] = b"fathomdb.evidence.hash.v1\0";
 const GENERATION_DOMAIN: &[u8] = b"fathomdb.evidence.generation.v1\0";
 const GENERATION_TAIL_DOMAIN: &[u8] = b"fathomdb.evidence.generation-tail.v1\0";
 const GRAPH_EDGE_DOMAIN: &[u8] = b"fathomdb.evidence.graph-edge.v1\0";
+const GRAPH_DATABASE_DOMAIN: &[u8] = b"fathomdb.graph-evidence.commit.database.v1\0";
+const GRAPH_CONTEXT_DOMAIN: &[u8] = b"fathomdb.graph-evidence.commit.context.v1\0";
+const GRAPH_REQUEST_DOMAIN: &[u8] = b"fathomdb.graph-evidence.commit.request.v1\0";
+const GRAPH_TARGET_DOMAIN: &[u8] = b"fathomdb.graph-evidence.commit.target.v1\0";
+const GRAPH_PREDECESSOR_DOMAIN: &[u8] = b"fathomdb.graph-evidence.commit.predecessor.v1\0";
+const GRAPH_EDGE_KIND_DOMAIN: &[u8] = b"fathomdb.graph-evidence.commit.edge-kind.v1\0";
+const GRAPH_TARGET_REVISION_DOMAIN: &[u8] = b"fathomdb.graph-evidence.commit.target-revision.v1\0";
+const GRAPH_EDGE_REVISION_DOMAIN: &[u8] = b"fathomdb.graph-evidence.commit.edge-revision.v1\0";
+const GRAPH_STREAM_DOMAIN: &[u8] = b"fathomdb.graph-evidence.stream.v1\0";
+const GRAPH_MAC_DOMAIN: &[u8] = b"fathomdb.graph-evidence.mac.v1\0";
+const GRAPH_TOKEN_PREFIX: &str = "fdbgev1.";
+const GRAPH_SELECTOR_BYTES: usize = 300;
+const GRAPH_TOKEN_BYTES: usize = 704;
 
 /// Closed canonical artifact class carried by source evidence.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1264,18 +1277,20 @@ const INTRINSIC_NODE_PREFLIGHT_SQL: &str = "WITH requested(ordinal,write_cursor)
            CAST(g.value AS INTEGER),sr.write_cursor,\
            EXISTS(SELECT 1 FROM _fathomdb_dependency_closures c WHERE c.phase!='complete' AND (\
              (c.root_kind='source_revision' AND c.root_value=l.source_revision_id) OR\
-             (c.root_kind='source_bucket' AND c.root_value=l.source_id)))\
+             (c.root_kind='source_bucket' AND c.root_value=l.source_id))),\
+           CASE WHEN n.write_cursor IS NOT NULL /*TARGET_ELIGIBILITY*/ THEN 1 ELSE 0 END,\
+           CASE WHEN sn.write_cursor IS NOT NULL /*SOURCE_ELIGIBILITY*/ THEN 1 ELSE 0 END \
      FROM requested q \
-     JOIN _fathomdb_artifact_revisions r \
+     LEFT JOIN _fathomdb_artifact_revisions r \
        ON r.artifact_class='node' AND r.write_cursor=q.write_cursor \
-     JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
-     JOIN _fathomdb_source_links l ON l.artifact_revision_id=r.revision_id \
-     JOIN _fathomdb_artifact_revisions sr ON sr.revision_id=l.source_revision_id \
-     JOIN canonical_nodes sn ON sn.write_cursor=sr.write_cursor \
-     JOIN _fathomdb_source_versions sv ON sv.source_revision_id=l.source_revision_id \
-     JOIN _fathomdb_source_links sl ON sl.artifact_revision_id=l.source_revision_id \
+     LEFT JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
+     LEFT JOIN _fathomdb_source_links l ON l.artifact_revision_id=r.revision_id \
+     LEFT JOIN _fathomdb_artifact_revisions sr ON sr.revision_id=l.source_revision_id \
+     LEFT JOIN canonical_nodes sn ON sn.write_cursor=sr.write_cursor \
+     LEFT JOIN _fathomdb_source_versions sv ON sv.source_revision_id=l.source_revision_id \
+     LEFT JOIN _fathomdb_source_links sl ON sl.artifact_revision_id=l.source_revision_id \
      LEFT JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id \
-     JOIN _fathomdb_open_state g ON g.key='_fathomdb_dependency_generation' \
+     LEFT JOIN _fathomdb_open_state g ON g.key='_fathomdb_dependency_generation' \
      ORDER BY q.ordinal";
 
 const INTRINSIC_EDGE_PREFLIGHT_SQL: &str = "WITH requested(ordinal,write_cursor) AS (\
@@ -1294,18 +1309,20 @@ const INTRINSIC_EDGE_PREFLIGHT_SQL: &str = "WITH requested(ordinal,write_cursor)
            CAST(g.value AS INTEGER),sr.write_cursor,\
            EXISTS(SELECT 1 FROM _fathomdb_dependency_closures c WHERE c.phase!='complete' AND (\
              (c.root_kind='source_revision' AND c.root_value=l.source_revision_id) OR\
-             (c.root_kind='source_bucket' AND c.root_value=l.source_id)))\
+             (c.root_kind='source_bucket' AND c.root_value=l.source_id))),\
+           CASE WHEN e.write_cursor IS NOT NULL /*TARGET_ELIGIBILITY*/ THEN 1 ELSE 0 END,\
+           CASE WHEN sn.write_cursor IS NOT NULL /*SOURCE_ELIGIBILITY*/ THEN 1 ELSE 0 END \
      FROM requested q \
-     JOIN _fathomdb_artifact_revisions r \
+     LEFT JOIN _fathomdb_artifact_revisions r \
        ON r.artifact_class='edge' AND r.write_cursor=q.write_cursor \
-     JOIN canonical_edges e ON e.write_cursor=r.write_cursor \
-     JOIN _fathomdb_source_links l ON l.artifact_revision_id=r.revision_id \
-     JOIN _fathomdb_artifact_revisions sr ON sr.revision_id=l.source_revision_id \
-     JOIN canonical_nodes sn ON sn.write_cursor=sr.write_cursor \
-     JOIN _fathomdb_source_versions sv ON sv.source_revision_id=l.source_revision_id \
-     JOIN _fathomdb_source_links sl ON sl.artifact_revision_id=l.source_revision_id \
+     LEFT JOIN canonical_edges e ON e.write_cursor=r.write_cursor \
+     LEFT JOIN _fathomdb_source_links l ON l.artifact_revision_id=r.revision_id \
+     LEFT JOIN _fathomdb_artifact_revisions sr ON sr.revision_id=l.source_revision_id \
+     LEFT JOIN canonical_nodes sn ON sn.write_cursor=sr.write_cursor \
+     LEFT JOIN _fathomdb_source_versions sv ON sv.source_revision_id=l.source_revision_id \
+     LEFT JOIN _fathomdb_source_links sl ON sl.artifact_revision_id=l.source_revision_id \
      LEFT JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id \
-     JOIN _fathomdb_open_state g ON g.key='_fathomdb_dependency_generation' \
+     LEFT JOIN _fathomdb_open_state g ON g.key='_fathomdb_dependency_generation' \
      ORDER BY q.ordinal";
 
 #[derive(Clone)]
@@ -1322,13 +1339,34 @@ pub(crate) fn graph_evidence_authority(
     let (database_id, key) = frozen_read::page_cursor_material(connection)?;
     let context = frozen_read::validate_context(&frozen.context)?;
     Ok(GraphEvidenceAuthority {
-        database_commitment: keyed(&key, DATABASE_DOMAIN, database_id.as_bytes()),
-        context_commitment: keyed(&key, CONTEXT_DOMAIN, &context),
+        database_commitment: keyed(&key, GRAPH_DATABASE_DOMAIN, database_id.as_bytes()),
+        context_commitment: keyed(&key, GRAPH_CONTEXT_DOMAIN, &context),
         key,
     })
 }
 
+pub(crate) fn graph_request_commitment(
+    authority: &GraphEvidenceAuthority,
+    canonical_request: &[u8],
+) -> [u8; 32] {
+    keyed(&authority.key, GRAPH_REQUEST_DOMAIN, canonical_request)
+}
+
+pub(crate) struct GraphEvidenceDisclosure<'a> {
+    pub target_index: u32,
+    pub target_cursor: u64,
+    pub terminal_edge_cursor: u64,
+    pub direction: crate::TraversalDirection,
+    pub target_logical_id: &'a str,
+    pub predecessor_logical_id: &'a str,
+    pub terminal_edge_kind: &'a str,
+    pub target_revision_id: &'a str,
+    pub terminal_edge_revision_id: &'a str,
+    pub request_commitment: [u8; 32],
+}
+
 #[derive(Clone)]
+#[allow(dead_code)]
 pub(crate) struct GraphEvidenceMaterial {
     artifact_class: EvidenceArtifactClassV1,
     write_cursor: u64,
@@ -1356,6 +1394,12 @@ pub(crate) struct GraphEvidenceMaterial {
     dependency_generation: Option<u64>,
     edge_from: Option<String>,
     edge_to: Option<String>,
+}
+
+impl GraphEvidenceMaterial {
+    pub(crate) fn artifact_revision_id(&self) -> &str {
+        &self.artifact_revision_id
+    }
 }
 
 pub(crate) struct GraphEvidencePreflight {
@@ -1392,93 +1436,203 @@ fn parse_locator(
     }
 }
 
-fn load_graph_evidence_batch(
+struct PendingGraphEvidence {
+    artifact_class: EvidenceArtifactClassV1,
+    write_cursor: u64,
+    values: Vec<rusqlite::types::Value>,
+}
+
+fn pending_i64(row: &PendingGraphEvidence, index: usize) -> Option<i64> {
+    match row.values.get(index) {
+        Some(rusqlite::types::Value::Integer(value)) => Some(*value),
+        _ => None,
+    }
+}
+
+fn pending_string(row: &PendingGraphEvidence, index: usize) -> Option<String> {
+    match row.values.get(index) {
+        Some(rusqlite::types::Value::Text(value)) => Some(value.clone()),
+        _ => None,
+    }
+}
+
+fn query_graph_evidence_batch(
     connection: &Connection,
     sql: &str,
     artifact_class: EvidenceArtifactClassV1,
     cursors: &[u64],
     frozen: &FrozenReadContextV1,
-    sources: &mut std::collections::HashMap<String, (std::sync::Arc<String>, String)>,
     stats: &mut GraphEvidencePreflightStats,
-) -> Result<Vec<GraphEvidenceMaterial>, EngineError> {
+) -> Result<Vec<PendingGraphEvidence>, EngineError> {
     if cursors.len() > 50 {
         return Err(EvidenceErrorV1::unavailable().into());
     }
     stats.data_statement_count += 1;
     let json = serde_json::to_string(cursors).map_err(|_| EngineError::Storage)?;
-    let mut statement = connection.prepare(sql).map_err(|error| {
+    let mut params = vec![rusqlite::types::Value::Text(json)];
+    let target_filter = if artifact_class == EvidenceArtifactClassV1::Node {
+        crate::append_node_eligibility_sql(Some(&frozen.context.eligibility), "n", &mut params)
+    } else {
+        String::new()
+    };
+    let mut source_filter = frozen.context.eligibility.clone();
+    source_filter.kind = None;
+    source_filter.source_type = None;
+    let source_filter = crate::append_node_eligibility_sql(Some(&source_filter), "sn", &mut params);
+    let sql = sql
+        .replace("/*TARGET_ELIGIBILITY*/", &target_filter)
+        .replace("/*SOURCE_ELIGIBILITY*/", &source_filter);
+    let mut statement = connection.prepare(&sql).map_err(|error| {
         eprintln!("Slice 15 preflight prepare: {error}");
         EngineError::Storage
     })?;
-    let mut rows = statement.query([json]).map_err(|error| {
+    let mut rows = statement.query(rusqlite::params_from_iter(params.iter())).map_err(|error| {
         eprintln!("Slice 15 preflight query: {error}");
         EngineError::Storage
     })?;
-    let mut material = Vec::with_capacity(cursors.len());
+    let mut pending = Vec::with_capacity(cursors.len());
     while let Some(row) = rows.next().map_err(|_| EngineError::Storage)? {
-        let registry_schema: i64 = row.get(1).map_err(|_| EngineError::Storage)?;
-        let artifact_revision_id: String = row.get(2).map_err(|_| EngineError::Storage)?;
-        let role: String = row.get(3).map_err(|_| EngineError::Storage)?;
-        let completeness: String = row.get(4).map_err(|_| EngineError::Storage)?;
-        let logical_id: Option<String> = row.get(5).map_err(|_| EngineError::Storage)?;
-        let artifact_kind: String = row.get(6).map_err(|_| EngineError::Storage)?;
-        let artifact_body: Option<String> = row.get(7).map_err(|_| EngineError::Storage)?;
-        let artifact_source_id: Option<String> = row.get(8).map_err(|_| EngineError::Storage)?;
-        let artifact_state: Option<String> = row.get(9).map_err(|_| EngineError::Storage)?;
-        let artifact_superseded: Option<i64> = row.get(10).map_err(|_| EngineError::Storage)?;
-        let artifact_valid_from: Option<i64> = row.get(11).map_err(|_| EngineError::Storage)?;
-        let artifact_valid_until: Option<i64> = row.get(12).map_err(|_| EngineError::Storage)?;
-        let edge_from: Option<String> = row.get(13).map_err(|_| EngineError::Storage)?;
-        let edge_to: Option<String> = row.get(14).map_err(|_| EngineError::Storage)?;
-        let temporal_fallback: Option<i64> = row.get(15).map_err(|_| EngineError::Storage)?;
-        let link_schema: i64 = row.get(16).map_err(|_| EngineError::Storage)?;
-        let source_id: String = row.get(17).map_err(|_| EngineError::Storage)?;
-        let source_version_id: String = row.get(18).map_err(|_| EngineError::Storage)?;
-        let source_revision_id: String = row.get(19).map_err(|_| EngineError::Storage)?;
-        let locator = parse_locator(
-            row.get(20).map_err(|_| EngineError::Storage)?,
-            row.get(21).map_err(|_| EngineError::Storage)?,
-            row.get(22).map_err(|_| EngineError::Storage)?,
-        )?;
-        let hash_algorithm: String = row.get(23).map_err(|_| EngineError::Storage)?;
-        let hash_digest: String = row.get(24).map_err(|_| EngineError::Storage)?;
-        let source_registry_schema: i64 = row.get(25).map_err(|_| EngineError::Storage)?;
-        let source_class: String = row.get(26).map_err(|_| EngineError::Storage)?;
-        let source_role: String = row.get(27).map_err(|_| EngineError::Storage)?;
-        let source_completeness: String = row.get(28).map_err(|_| EngineError::Storage)?;
-        let source_body: String = row.get(29).map_err(|_| EngineError::Storage)?;
-        let canonical_source_id: Option<String> = row.get(30).map_err(|_| EngineError::Storage)?;
-        let source_state: String = row.get(31).map_err(|_| EngineError::Storage)?;
-        let source_superseded: Option<i64> = row.get(32).map_err(|_| EngineError::Storage)?;
-        let source_valid_from: Option<i64> = row.get(33).map_err(|_| EngineError::Storage)?;
-        let source_valid_until: Option<i64> = row.get(34).map_err(|_| EngineError::Storage)?;
-        let _source_kind: String = row.get(35).map_err(|_| EngineError::Storage)?;
-        let version_schema: i64 = row.get(36).map_err(|_| EngineError::Storage)?;
-        let version_source_id: String = row.get(37).map_err(|_| EngineError::Storage)?;
-        let version_id: String = row.get(38).map_err(|_| EngineError::Storage)?;
-        let version_revision: String = row.get(39).map_err(|_| EngineError::Storage)?;
-        let self_schema: i64 = row.get(40).map_err(|_| EngineError::Storage)?;
-        let self_source_id: String = row.get(41).map_err(|_| EngineError::Storage)?;
-        let self_version_id: String = row.get(42).map_err(|_| EngineError::Storage)?;
-        let self_revision: String = row.get(43).map_err(|_| EngineError::Storage)?;
-        let self_locator: String = row.get(44).map_err(|_| EngineError::Storage)?;
-        let self_start: Option<i64> = row.get(45).map_err(|_| EngineError::Storage)?;
-        let self_end: Option<i64> = row.get(46).map_err(|_| EngineError::Storage)?;
-        let self_algorithm: String = row.get(47).map_err(|_| EngineError::Storage)?;
-        let self_hash: String = row.get(48).map_err(|_| EngineError::Storage)?;
-        let dependency_schema: Option<i64> = row.get(49).map_err(|_| EngineError::Storage)?;
-        let dependency_id: Option<String> = row.get(50).map_err(|_| EngineError::Storage)?;
-        let dependency_revision: Option<String> = row.get(51).map_err(|_| EngineError::Storage)?;
-        let dependency_generation: Option<i64> = row.get(52).map_err(|_| EngineError::Storage)?;
-        let current_dependency_generation: i64 = row.get(53).map_err(|_| EngineError::Storage)?;
-        let source_cursor_i64: i64 = row.get(54).map_err(|_| EngineError::Storage)?;
-        let closure_active: bool = row.get(55).map_err(|_| EngineError::Storage)?;
-        let source_cursor = u64::try_from(source_cursor_i64).map_err(|_| EngineError::Storage)?;
+        let ordinal: i64 = row.get(0).map_err(|_| EngineError::Storage)?;
+        let ordinal = usize::try_from(ordinal).map_err(|_| EngineError::Storage)?;
+        let write_cursor = cursors.get(ordinal).copied().ok_or(EngineError::Storage)?;
+        let mut values = Vec::with_capacity(58);
+        for index in 0..58 {
+            values.push(row.get(index).map_err(|_| EngineError::Storage)?);
+        }
+        pending.push(PendingGraphEvidence { artifact_class, write_cursor, values });
+    }
+    if pending.len() != cursors.len() {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    Ok(pending)
+}
+
+fn authorize_graph_evidence(
+    rows: &[PendingGraphEvidence],
+    frozen: &FrozenReadContextV1,
+) -> Result<(), EngineError> {
+    for row in rows {
         let effective = frozen.effective_valid_at;
         let in_window = |start: Option<i64>, end: Option<i64>| {
-            frozen.context.view.include_out_of_window
-                || (start.is_none_or(|value| value <= effective)
-                    && end.is_none_or(|value| value > effective))
+            start.is_none_or(|value| value <= effective)
+                && end.is_none_or(|value| value > effective)
+        };
+        let effective_lifecycle = match row.artifact_class {
+            EvidenceArtifactClassV1::Node => {
+                pending_string(row, 9).as_deref() == Some("active")
+                    && pending_i64(row, 10).is_none()
+                    && in_window(pending_i64(row, 11), pending_i64(row, 12))
+            }
+            EvidenceArtifactClassV1::Edge => {
+                pending_i64(row, 10).is_none()
+                    && pending_i64(row, 15).unwrap_or(0) == 0
+                    && in_window(pending_i64(row, 11), pending_i64(row, 12))
+            }
+        };
+        if pending_i64(row, 1).is_none()
+            || pending_string(row, 5).is_none()
+            || pending_i64(row, 56) != Some(1)
+            || !effective_lifecycle
+        {
+            return Err(EvidenceErrorV1::unavailable().into());
+        }
+        if pending_i64(row, 16).is_none() {
+            let ordinal = pending_i64(row, 0).unwrap_or(0);
+            let path = if row.artifact_class == EvidenceArtifactClassV1::Node {
+                format!("/targets/{ordinal}/provenance")
+            } else {
+                format!("/targets/{ordinal}/terminalEdgeProvenance")
+            };
+            return Err(
+                EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, path).into()
+            );
+        }
+        if pending_i64(row, 25).is_none()
+            || pending_string(row, 29).is_none()
+            || pending_string(row, 31).as_deref() != Some("active")
+            || pending_i64(row, 32).is_some()
+            || !in_window(pending_i64(row, 33), pending_i64(row, 34))
+            || pending_i64(row, 55) != Some(0)
+            || pending_i64(row, 57) != Some(1)
+        {
+            return Err(EvidenceErrorV1::unavailable().into());
+        }
+    }
+    Ok(())
+}
+
+fn materialize_graph_evidence_batch(
+    pending: Vec<PendingGraphEvidence>,
+    frozen: &FrozenReadContextV1,
+    sources: &mut std::collections::HashMap<String, (std::sync::Arc<String>, String)>,
+    stats: &mut GraphEvidencePreflightStats,
+) -> Result<Vec<GraphEvidenceMaterial>, EngineError> {
+    let mut material = Vec::with_capacity(pending.len());
+    for raw in pending {
+        let row = &raw;
+        let artifact_class = raw.artifact_class;
+        let write_cursor = raw.write_cursor;
+        let registry_schema = pending_i64(row, 1).ok_or(EngineError::Storage)?;
+        let artifact_revision_id = pending_string(row, 2).ok_or(EngineError::Storage)?;
+        let role = pending_string(row, 3).ok_or(EngineError::Storage)?;
+        let completeness = pending_string(row, 4).ok_or(EngineError::Storage)?;
+        let logical_id = pending_string(row, 5);
+        let artifact_kind = pending_string(row, 6).ok_or(EngineError::Storage)?;
+        let artifact_body = pending_string(row, 7);
+        let artifact_source_id = pending_string(row, 8);
+        let artifact_state = pending_string(row, 9);
+        let artifact_superseded = pending_i64(row, 10);
+        let artifact_valid_from = pending_i64(row, 11);
+        let artifact_valid_until = pending_i64(row, 12);
+        let edge_from = pending_string(row, 13);
+        let edge_to = pending_string(row, 14);
+        let temporal_fallback = pending_i64(row, 15);
+        let link_schema = pending_i64(row, 16).ok_or(EngineError::Storage)?;
+        let source_id = pending_string(row, 17).ok_or(EngineError::Storage)?;
+        let source_version_id = pending_string(row, 18).ok_or(EngineError::Storage)?;
+        let source_revision_id = pending_string(row, 19).ok_or(EngineError::Storage)?;
+        let locator = parse_locator(
+            pending_string(row, 20).ok_or(EngineError::Storage)?,
+            pending_i64(row, 21),
+            pending_i64(row, 22),
+        )?;
+        let hash_algorithm = pending_string(row, 23).ok_or(EngineError::Storage)?;
+        let hash_digest = pending_string(row, 24).ok_or(EngineError::Storage)?;
+        let source_registry_schema = pending_i64(row, 25).ok_or(EngineError::Storage)?;
+        let source_class = pending_string(row, 26).ok_or(EngineError::Storage)?;
+        let source_role = pending_string(row, 27).ok_or(EngineError::Storage)?;
+        let source_completeness = pending_string(row, 28).ok_or(EngineError::Storage)?;
+        let source_body = pending_string(row, 29).ok_or(EngineError::Storage)?;
+        let canonical_source_id = pending_string(row, 30);
+        let source_state = pending_string(row, 31).ok_or(EngineError::Storage)?;
+        let source_superseded = pending_i64(row, 32);
+        let source_valid_from = pending_i64(row, 33);
+        let source_valid_until = pending_i64(row, 34);
+        let version_schema = pending_i64(row, 36).ok_or(EngineError::Storage)?;
+        let version_source_id = pending_string(row, 37).ok_or(EngineError::Storage)?;
+        let version_id = pending_string(row, 38).ok_or(EngineError::Storage)?;
+        let version_revision = pending_string(row, 39).ok_or(EngineError::Storage)?;
+        let self_schema = pending_i64(row, 40).ok_or(EngineError::Storage)?;
+        let self_source_id = pending_string(row, 41).ok_or(EngineError::Storage)?;
+        let self_version_id = pending_string(row, 42).ok_or(EngineError::Storage)?;
+        let self_revision = pending_string(row, 43).ok_or(EngineError::Storage)?;
+        let self_locator = pending_string(row, 44).ok_or(EngineError::Storage)?;
+        let self_start = pending_i64(row, 45);
+        let self_end = pending_i64(row, 46);
+        let self_algorithm = pending_string(row, 47).ok_or(EngineError::Storage)?;
+        let self_hash = pending_string(row, 48).ok_or(EngineError::Storage)?;
+        let dependency_schema = pending_i64(row, 49);
+        let dependency_id = pending_string(row, 50);
+        let dependency_revision = pending_string(row, 51);
+        let dependency_generation = pending_i64(row, 52);
+        let current_dependency_generation = pending_i64(row, 53).ok_or(EngineError::Storage)?;
+        let source_cursor_i64 = pending_i64(row, 54).ok_or(EngineError::Storage)?;
+        let closure_active = pending_i64(row, 55) != Some(0);
+        let _source_cursor = u64::try_from(source_cursor_i64).map_err(|_| EngineError::Storage)?;
+        let effective = frozen.effective_valid_at;
+        let in_window = |start: Option<i64>, end: Option<i64>| {
+            start.is_none_or(|value| value <= effective)
+                && end.is_none_or(|value| value > effective)
         };
         if completeness != "complete" || source_completeness != "complete" {
             return Err(EvidenceErrorV1::new(
@@ -1545,31 +1699,7 @@ fn load_graph_evidence_batch(
             && artifact_lifecycle_valid
             && dependency_valid
             && !closure_active;
-        let write_cursor =
-            cursors.get(material.len()).copied().ok_or_else(EvidenceErrorV1::unavailable)?;
-        let artifact_eligible = match artifact_class {
-            EvidenceArtifactClassV1::Node => crate::text_hit_passes_filter(
-                connection,
-                write_cursor,
-                &artifact_kind,
-                Some(&frozen.context.eligibility),
-            ),
-            EvidenceArtifactClassV1::Edge => Ok(true),
-        }
-        .map_err(|_| EngineError::Storage)?;
-        let mut source_filter = frozen.context.eligibility.clone();
-        source_filter.kind = None;
-        source_filter.source_type = None;
-        let source_eligible = crate::text_hit_passes_filter(
-            connection,
-            source_cursor,
-            &_source_kind,
-            Some(&source_filter),
-        )
-        .map_err(|_| EngineError::Storage)?;
         if !metadata_valid
-            || !artifact_eligible
-            || !source_eligible
             || ArtifactRevisionId::new(artifact_revision_id.clone()).is_err()
             || SourceRevisionId::new(source_revision_id.clone()).is_err()
             || CanonicalHash::sha256(hash_digest.clone()).is_err()
@@ -1647,9 +1777,6 @@ fn load_graph_evidence_batch(
             edge_to,
         });
     }
-    if material.len() != cursors.len() {
-        return Err(EvidenceErrorV1::unavailable().into());
-    }
     Ok(material)
 }
 
@@ -1660,26 +1787,28 @@ pub(crate) fn preflight_graph_evidence(
     edge_cursors: &[u64],
 ) -> Result<GraphEvidencePreflight, EngineError> {
     let mut stats = GraphEvidencePreflightStats::default();
-    let mut sources = std::collections::HashMap::new();
-    let nodes = load_graph_evidence_batch(
+    let pending_nodes = query_graph_evidence_batch(
         connection,
         INTRINSIC_NODE_PREFLIGHT_SQL,
         EvidenceArtifactClassV1::Node,
         node_cursors,
         frozen,
-        &mut sources,
         &mut stats,
     )?;
-    stats.node_rows = nodes.len();
-    let edges = load_graph_evidence_batch(
+    let pending_edges = query_graph_evidence_batch(
         connection,
         INTRINSIC_EDGE_PREFLIGHT_SQL,
         EvidenceArtifactClassV1::Edge,
         edge_cursors,
         frozen,
-        &mut sources,
         &mut stats,
     )?;
+    authorize_graph_evidence(&pending_nodes, frozen)?;
+    authorize_graph_evidence(&pending_edges, frozen)?;
+    let mut sources = std::collections::HashMap::new();
+    let nodes = materialize_graph_evidence_batch(pending_nodes, frozen, &mut sources, &mut stats)?;
+    stats.node_rows = nodes.len();
+    let edges = materialize_graph_evidence_batch(pending_edges, frozen, &mut sources, &mut stats)?;
     stats.edge_rows = edges.len();
     Ok(GraphEvidencePreflight { nodes, edges, stats })
 }
@@ -1704,55 +1833,13 @@ pub(crate) fn explain_intrinsic_preflights_for_test(
         .collect()
 }
 
-fn encode_graph_evidence_material(
-    material: &GraphEvidenceMaterial,
-    direction: Option<crate::TraversalDirection>,
-) -> Vec<u8> {
-    fn push_string(bytes: &mut Vec<u8>, value: &str) {
-        frozen_read::encode_string(bytes, value);
-    }
-
-    let mut bytes = Vec::new();
-    push_string(&mut bytes, material.artifact_revision_id.as_str());
-    push_string(&mut bytes, material.logical_id.as_deref().unwrap_or(""));
-    push_string(&mut bytes, &material.artifact_kind);
-    push_string(&mut bytes, material.artifact_body.as_deref().unwrap_or(""));
-    push_string(&mut bytes, material.node_state.as_deref().unwrap_or(""));
-    frozen_read::encode_i64(&mut bytes, material.node_valid_from.unwrap_or(i64::MIN));
-    frozen_read::encode_i64(&mut bytes, material.node_valid_until.unwrap_or(i64::MIN));
-    frozen_read::encode_i64(&mut bytes, material.edge_t_valid.unwrap_or(i64::MIN));
-    frozen_read::encode_i64(&mut bytes, material.edge_t_invalid.unwrap_or(i64::MIN));
-    bytes.push(u8::from(material.edge_temporal_fallback));
-    frozen_read::encode_i64(&mut bytes, material.artifact_superseded_at.unwrap_or(i64::MIN));
-    push_string(&mut bytes, &material.source_id);
-    push_string(&mut bytes, &material.source_version_id);
-    push_string(&mut bytes, &material.source_revision_id);
-    bytes.extend_from_slice(&locator_bytes(&material.locator));
-    push_string(&mut bytes, &material.hash_digest);
-    push_string(&mut bytes, &material.source_lifecycle);
-    frozen_read::encode_i64(&mut bytes, material.source_superseded_at.unwrap_or(i64::MIN));
-    frozen_read::encode_i64(&mut bytes, material.source_valid_from.unwrap_or(i64::MIN));
-    frozen_read::encode_i64(&mut bytes, material.source_valid_until.unwrap_or(i64::MIN));
-    push_string(&mut bytes, material.dependency_id.as_deref().unwrap_or(""));
-    frozen_read::encode_u64(&mut bytes, material.dependency_generation.unwrap_or(0));
-    push_string(&mut bytes, material.edge_from.as_deref().unwrap_or(""));
-    push_string(&mut bytes, material.edge_to.as_deref().unwrap_or(""));
-    bytes.push(match direction {
-        None => 0,
-        Some(crate::TraversalDirection::Outgoing) => 1,
-        Some(crate::TraversalDirection::Incoming) => 2,
-        Some(crate::TraversalDirection::Both) => 3,
-    });
-    bytes
-}
-
 fn protect_graph_selector(key: &[u8], nonce: &[u8; 16], value: &[u8]) -> Vec<u8> {
     let mut output = Vec::with_capacity(value.len());
     for (block_index, chunk) in value.chunks(32).enumerate() {
-        let mut input = Vec::with_capacity(24);
+        let mut input = Vec::with_capacity(20);
         input.extend_from_slice(nonce);
-        input.extend_from_slice(&(block_index as u64).to_be_bytes());
-        let mask = frozen_read::hmac_sha256(key, b"fathomdb.graph-selector.v1\0", &input);
+        input.extend_from_slice(&(block_index as u32).to_be_bytes());
+        let mask = frozen_read::hmac_sha256(key, GRAPH_STREAM_DOMAIN, &input);
         output.extend(chunk.iter().zip(mask).map(|(byte, mask)| byte ^ mask));
     }
     output
@@ -1763,44 +1850,69 @@ pub(crate) fn mint_graph_evidence_reference(
     authority: &GraphEvidenceAuthority,
     frozen: &FrozenReadContextV1,
     material: &GraphEvidenceMaterial,
-    direction: Option<crate::TraversalDirection>,
-    disclosure: &[u8],
+    role: u8,
+    disclosure: &GraphEvidenceDisclosure<'_>,
 ) -> Result<(ArtifactRevisionId, GraphEvidenceRefV1), EngineError> {
-    let mut payload = Vec::new();
+    let artifact_class = material.artifact_class.tag();
+    if !matches!((role, artifact_class), (0, 0) | (1, 1)) {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    let direction = match disclosure.direction {
+        crate::TraversalDirection::Outgoing => 0,
+        crate::TraversalDirection::Incoming => 1,
+        crate::TraversalDirection::Both => 2,
+    };
+    let mut payload = Vec::with_capacity(GRAPH_SELECTOR_BYTES);
     frozen_read::encode_u32(&mut payload, 1);
-    payload.push(material.artifact_class.tag());
+    payload.extend_from_slice(&[role, artifact_class, direction, 0]);
+    frozen_read::encode_u32(&mut payload, disclosure.target_index);
     frozen_read::encode_u64(&mut payload, material.write_cursor);
+    frozen_read::encode_u64(&mut payload, disclosure.target_cursor);
+    frozen_read::encode_u64(&mut payload, disclosure.terminal_edge_cursor);
     frozen_read::encode_i64(&mut payload, frozen.effective_valid_at);
     payload.extend_from_slice(&authority.database_commitment);
     payload.extend_from_slice(&authority.context_commitment);
+    payload.extend_from_slice(&disclosure.request_commitment);
     payload.extend_from_slice(&keyed(
         &authority.key,
-        b"fathomdb.graph-intrinsic.v1\0",
-        &encode_graph_evidence_material(material, direction),
+        GRAPH_TARGET_DOMAIN,
+        disclosure.target_logical_id.as_bytes(),
     ));
-    payload.extend_from_slice(&frozen_read::hmac_sha256(
+    payload.extend_from_slice(&keyed(
         &authority.key,
-        b"fathomdb.graph-disclosure.v1\0",
-        disclosure,
+        GRAPH_PREDECESSOR_DOMAIN,
+        disclosure.predecessor_logical_id.as_bytes(),
     ));
-    payload.push(match direction {
-        None => 0,
-        Some(crate::TraversalDirection::Outgoing) => 1,
-        Some(crate::TraversalDirection::Incoming) => 2,
-        Some(crate::TraversalDirection::Both) => 3,
-    });
+    payload.extend_from_slice(&keyed(
+        &authority.key,
+        GRAPH_EDGE_KIND_DOMAIN,
+        disclosure.terminal_edge_kind.as_bytes(),
+    ));
+    payload.extend_from_slice(&keyed(
+        &authority.key,
+        GRAPH_TARGET_REVISION_DOMAIN,
+        disclosure.target_revision_id.as_bytes(),
+    ));
+    payload.extend_from_slice(&keyed(
+        &authority.key,
+        GRAPH_EDGE_REVISION_DOMAIN,
+        disclosure.terminal_edge_revision_id.as_bytes(),
+    ));
+    debug_assert_eq!(payload.len(), GRAPH_SELECTOR_BYTES);
     let nonce = random_nonce(connection)?;
     let ciphertext = protect_graph_selector(&authority.key, &nonce, &payload);
-    let mut authenticated = Vec::with_capacity(nonce.len() + ciphertext.len());
+    let mut authenticated =
+        Vec::with_capacity(GRAPH_TOKEN_PREFIX.len() + nonce.len() + ciphertext.len());
+    authenticated.extend_from_slice(GRAPH_TOKEN_PREFIX.as_bytes());
     authenticated.extend_from_slice(&nonce);
     authenticated.extend_from_slice(&ciphertext);
-    let mac = frozen_read::hmac_sha256(&authority.key, b"fathomdb.graph-ref.v1\0", &authenticated);
-    let reference = format!(
-        "fdbgev1.{}.{}.{}",
-        frozen_read::hex_encode(&nonce),
-        frozen_read::hex_encode(&ciphertext),
-        frozen_read::hex_encode(&mac)
-    );
+    let mac = frozen_read::hmac_sha256(&authority.key, GRAPH_MAC_DOMAIN, &authenticated);
+    let mut framed = Vec::with_capacity(nonce.len() + ciphertext.len() + mac.len());
+    framed.extend_from_slice(&nonce);
+    framed.extend_from_slice(&ciphertext);
+    framed.extend_from_slice(&mac);
+    let reference = format!("{GRAPH_TOKEN_PREFIX}{}", frozen_read::hex_encode(&framed));
+    debug_assert_eq!(reference.len(), GRAPH_TOKEN_BYTES);
     Ok((
         ArtifactRevisionId::new(material.artifact_revision_id.clone())
             .map_err(|_| EvidenceErrorV1::unavailable())?,
@@ -1831,40 +1943,51 @@ pub(crate) struct GraphEvidenceResolvedMaterial {
     pub edge_to: Option<String>,
 }
 
+#[allow(dead_code)]
 struct GraphEvidenceSelector {
+    role: u8,
     artifact_class: EvidenceArtifactClassV1,
-    write_cursor: u64,
+    artifact_cursor: u64,
+    target_index: u32,
+    target_cursor: u64,
+    terminal_edge_cursor: u64,
     effective_valid_at: i64,
     database_commitment: [u8; 32],
     context_commitment: [u8; 32],
-    material_commitment: [u8; 32],
-    direction: Option<crate::TraversalDirection>,
+    request_commitment: [u8; 32],
+    target_commitment: [u8; 32],
+    predecessor_commitment: [u8; 32],
+    edge_kind_commitment: [u8; 32],
+    target_revision_commitment: [u8; 32],
+    edge_revision_commitment: [u8; 32],
+    direction: crate::TraversalDirection,
 }
 
 fn decode_graph_evidence_reference(
     reference: &GraphEvidenceRefV1,
     key: &[u8],
 ) -> Result<GraphEvidenceSelector, EngineError> {
-    let mut parts = reference.as_str().split('.');
-    let (Some("fdbgev1"), Some(nonce_hex), Some(ciphertext_hex), Some(mac_hex), None) =
-        (parts.next(), parts.next(), parts.next(), parts.next(), parts.next())
-    else {
-        return Err(EvidenceErrorV1::unavailable().into());
-    };
-    let nonce_bytes =
-        frozen_read::hex_decode(nonce_hex).ok_or_else(EvidenceErrorV1::unavailable)?;
-    let nonce: [u8; 16] = nonce_bytes.try_into().map_err(|_| EvidenceErrorV1::unavailable())?;
-    let ciphertext =
-        frozen_read::hex_decode(ciphertext_hex).ok_or_else(EvidenceErrorV1::unavailable)?;
-    let mac = frozen_read::hex_decode(mac_hex).ok_or_else(EvidenceErrorV1::unavailable)?;
-    let mut authenticated = Vec::with_capacity(nonce.len() + ciphertext.len());
-    authenticated.extend_from_slice(&nonce);
-    authenticated.extend_from_slice(&ciphertext);
-    let expected = frozen_read::hmac_sha256(key, b"fathomdb.graph-ref.v1\0", &authenticated);
-    if !frozen_read::constant_time_eq(&mac, &expected) || ciphertext.len() != 150 {
+    let encoded = reference
+        .as_str()
+        .strip_prefix(GRAPH_TOKEN_PREFIX)
+        .filter(|_| reference.as_str().len() == GRAPH_TOKEN_BYTES)
+        .ok_or_else(EvidenceErrorV1::unavailable)?;
+    if encoded.bytes().any(|byte| !matches!(byte, b'0'..=b'9' | b'a'..=b'f')) {
         return Err(EvidenceErrorV1::unavailable().into());
     }
-    let payload = protect_graph_selector(key, &nonce, &ciphertext);
+    let framed = frozen_read::hex_decode(encoded).ok_or_else(EvidenceErrorV1::unavailable)?;
+    let nonce: [u8; 16] = framed[0..16].try_into().map_err(|_| EvidenceErrorV1::unavailable())?;
+    let ciphertext = &framed[16..316];
+    let mac = &framed[316..348];
+    let mut authenticated = Vec::with_capacity(GRAPH_TOKEN_PREFIX.len() + 316);
+    authenticated.extend_from_slice(GRAPH_TOKEN_PREFIX.as_bytes());
+    authenticated.extend_from_slice(&nonce);
+    authenticated.extend_from_slice(ciphertext);
+    let expected = frozen_read::hmac_sha256(key, GRAPH_MAC_DOMAIN, &authenticated);
+    if !frozen_read::constant_time_eq(mac, &expected) {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    let payload = protect_graph_selector(key, &nonce, ciphertext);
     let read_u32 = |range: std::ops::Range<usize>| {
         u32::from_be_bytes(payload[range].try_into().expect("fixed intrinsic payload"))
     };
@@ -1877,25 +2000,39 @@ fn decode_graph_evidence_reference(
     if read_u32(0..4) != 1 {
         return Err(EvidenceErrorV1::unavailable().into());
     }
+    let role = payload[4];
     let artifact_class =
-        EvidenceArtifactClassV1::from_tag(payload[4]).ok_or_else(EvidenceErrorV1::unavailable)?;
-    let direction = match payload[149] {
-        0 => None,
-        1 => Some(crate::TraversalDirection::Outgoing),
-        2 => Some(crate::TraversalDirection::Incoming),
-        3 => Some(crate::TraversalDirection::Both),
+        EvidenceArtifactClassV1::from_tag(payload[5]).ok_or_else(EvidenceErrorV1::unavailable)?;
+    let direction = match payload[6] {
+        0 => crate::TraversalDirection::Outgoing,
+        1 => crate::TraversalDirection::Incoming,
+        2 => crate::TraversalDirection::Both,
         _ => return Err(EvidenceErrorV1::unavailable().into()),
     };
-    if (artifact_class == EvidenceArtifactClassV1::Node) != direction.is_none() {
+    if payload[7] != 0
+        || !matches!(
+            (role, artifact_class),
+            (0, EvidenceArtifactClassV1::Node) | (1, EvidenceArtifactClassV1::Edge)
+        )
+    {
         return Err(EvidenceErrorV1::unavailable().into());
     }
     Ok(GraphEvidenceSelector {
+        role,
         artifact_class,
-        write_cursor: read_u64(5..13),
-        effective_valid_at: read_i64(13..21),
-        database_commitment: payload[21..53].try_into().expect("fixed intrinsic payload"),
-        context_commitment: payload[53..85].try_into().expect("fixed intrinsic payload"),
-        material_commitment: payload[85..117].try_into().expect("fixed intrinsic payload"),
+        target_index: read_u32(8..12),
+        artifact_cursor: read_u64(12..20),
+        target_cursor: read_u64(20..28),
+        terminal_edge_cursor: read_u64(28..36),
+        effective_valid_at: read_i64(36..44),
+        database_commitment: payload[44..76].try_into().expect("fixed intrinsic payload"),
+        context_commitment: payload[76..108].try_into().expect("fixed intrinsic payload"),
+        request_commitment: payload[108..140].try_into().expect("fixed intrinsic payload"),
+        target_commitment: payload[140..172].try_into().expect("fixed intrinsic payload"),
+        predecessor_commitment: payload[172..204].try_into().expect("fixed intrinsic payload"),
+        edge_kind_commitment: payload[204..236].try_into().expect("fixed intrinsic payload"),
+        target_revision_commitment: payload[236..268].try_into().expect("fixed intrinsic payload"),
+        edge_revision_commitment: payload[268..300].try_into().expect("fixed intrinsic payload"),
         direction,
     })
 }
@@ -1908,8 +2045,8 @@ pub(crate) fn resolve_graph_evidence(
     let (database_id, key) = frozen_read::page_cursor_material(connection)?;
     let payload = decode_graph_evidence_reference(reference, &key)?;
     let context_bytes = frozen_read::validate_context(&frozen.context)?;
-    if payload.database_commitment != keyed(&key, DATABASE_DOMAIN, database_id.as_bytes())
-        || payload.context_commitment != keyed(&key, CONTEXT_DOMAIN, &context_bytes)
+    if payload.database_commitment != keyed(&key, GRAPH_DATABASE_DOMAIN, database_id.as_bytes())
+        || payload.context_commitment != keyed(&key, GRAPH_CONTEXT_DOMAIN, &context_bytes)
         || payload.effective_valid_at != frozen.effective_valid_at
     {
         return Err(EvidenceErrorV1::unavailable().into());
@@ -1917,7 +2054,7 @@ pub(crate) fn resolve_graph_evidence(
     let stored = load_stored(
         connection,
         payload.artifact_class,
-        payload.write_cursor,
+        payload.artifact_cursor,
         payload.effective_valid_at,
         frozen.context.view.include_out_of_window,
     )
@@ -1934,7 +2071,7 @@ pub(crate) fn resolve_graph_evidence(
     let eligible = match payload.artifact_class {
         EvidenceArtifactClassV1::Node => crate::text_hit_passes_filter(
             connection,
-            payload.write_cursor,
+            payload.artifact_cursor,
             &stored.artifact_kind,
             Some(&frozen.context.eligibility),
         ),
@@ -1946,7 +2083,7 @@ pub(crate) fn resolve_graph_evidence(
     }
     validate_source_bytes(&stored)?;
     validate_full_provenance(connection, &stored)?;
-    let cursor = i64::try_from(payload.write_cursor).map_err(|_| EngineError::Storage)?;
+    let cursor = i64::try_from(payload.artifact_cursor).map_err(|_| EngineError::Storage)?;
     let (
         artifact_body,
         edge_from,
@@ -1999,9 +2136,9 @@ pub(crate) fn resolve_graph_evidence(
             .map_err(|_| EngineError::Storage)?,
     };
     let dependency = load_dependency(connection, &stored.artifact_revision_id)?;
-    let material = GraphEvidenceMaterial {
+    let _material = GraphEvidenceMaterial {
         artifact_class: payload.artifact_class,
-        write_cursor: payload.write_cursor,
+        write_cursor: payload.artifact_cursor,
         artifact_revision_id: stored.artifact_revision_id.clone(),
         logical_id: stored.logical_id.clone(),
         artifact_kind: stored.artifact_kind.clone(),
@@ -2029,12 +2166,44 @@ pub(crate) fn resolve_graph_evidence(
         edge_from: edge_from.clone(),
         edge_to: edge_to.clone(),
     };
-    let expected_material = keyed(
-        &key,
-        b"fathomdb.graph-intrinsic.v1\0",
-        &encode_graph_evidence_material(&material, payload.direction),
-    );
-    if payload.material_commitment != expected_material {
+    let target_cursor = i64::try_from(payload.target_cursor).map_err(|_| EngineError::Storage)?;
+    let edge_cursor =
+        i64::try_from(payload.terminal_edge_cursor).map_err(|_| EngineError::Storage)?;
+    let target: (String, String) = connection
+        .query_row(
+            "SELECT r.revision_id,n.logical_id FROM _fathomdb_artifact_revisions r \
+             JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
+             WHERE r.artifact_class='node' AND r.write_cursor=?1",
+            [target_cursor],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+    let edge: (String, String, String, String) = connection
+        .query_row(
+            "SELECT r.revision_id,e.kind,e.from_id,e.to_id FROM _fathomdb_artifact_revisions r \
+             JOIN canonical_edges e ON e.write_cursor=r.write_cursor \
+             WHERE r.artifact_class='edge' AND r.write_cursor=?1",
+            [edge_cursor],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+    let predecessor = match payload.direction {
+        crate::TraversalDirection::Outgoing if edge.3 == target.1 => edge.2.as_str(),
+        crate::TraversalDirection::Incoming if edge.2 == target.1 => edge.3.as_str(),
+        _ => return Err(EvidenceErrorV1::unavailable().into()),
+    };
+    let expected_artifact_cursor =
+        if payload.role == 0 { payload.target_cursor } else { payload.terminal_edge_cursor };
+    if payload.artifact_cursor != expected_artifact_cursor
+        || payload.target_commitment != keyed(&key, GRAPH_TARGET_DOMAIN, target.1.as_bytes())
+        || payload.predecessor_commitment
+            != keyed(&key, GRAPH_PREDECESSOR_DOMAIN, predecessor.as_bytes())
+        || payload.edge_kind_commitment != keyed(&key, GRAPH_EDGE_KIND_DOMAIN, edge.1.as_bytes())
+        || payload.target_revision_commitment
+            != keyed(&key, GRAPH_TARGET_REVISION_DOMAIN, target.0.as_bytes())
+        || payload.edge_revision_commitment
+            != keyed(&key, GRAPH_EDGE_REVISION_DOMAIN, edge.0.as_bytes())
+    {
         return Err(EvidenceErrorV1::unavailable().into());
     }
     let evidence_text = slice(&stored.source_body, &stored.locator)?;

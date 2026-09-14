@@ -1126,6 +1126,12 @@ impl Engine {
             GraphReadContextV1::Current { context, .. } => context,
             GraphReadContextV1::Frozen { context, .. } => &context.context,
         };
+        if request.include_evidence && context.view.include_out_of_window {
+            return Err(graph_error(
+                GraphExpansionErrorReasonV1::GraphContextInvalid,
+                "/context/context/view/includeOutOfWindow",
+            ));
+        }
         if context.view.include_superseded || context.view.include_inactive {
             return Err(graph_error(GraphExpansionErrorReasonV1::GraphContextInvalid, "/context"));
         }
@@ -1162,7 +1168,8 @@ impl Engine {
                 },
             )))
             .map_err(|_| EngineError::Closing)?;
-        let mut result = receive.recv().map_err(|_| EngineError::Storage)??;
+        let received = receive.recv().map_err(|_| EngineError::Storage)?;
+        let mut result = received?;
         #[cfg(feature = "test-hooks")]
         {
             let baseline = self.graph_expand_rss_baseline_bytes.load(AtomicOrdering::Relaxed);
@@ -1725,33 +1732,41 @@ pub(crate) fn read_graph_expand_in_tx(
                 }
                 other => other,
             })?;
-            let request_commitment = encode_graph_expand_request_v1(request)
-                .map_err(|_| EngineError::Evidence(crate::EvidenceErrorV1::unavailable()))?;
+            let canonical_request = encode_graph_evidence_request(request);
+            let request_commitment =
+                crate::evidence::graph_request_commitment(authority, &canonical_request);
             let mut entries = Vec::with_capacity(selected.len());
             for (index, candidate) in selected.iter().enumerate() {
                 let target_material = preflight.nodes.get(index).ok_or(EngineError::Storage)?;
                 let edge_material = preflight.edges.get(index).ok_or(EngineError::Storage)?;
-                let mut disclosure = request_commitment.clone();
-                disclosure.extend_from_slice(&(index as u64).to_be_bytes());
-                disclosure.extend_from_slice(&candidate.target.write_cursor.to_be_bytes());
-                disclosure.extend_from_slice(&candidate.terminal_edge_cursor.to_be_bytes());
+                let disclosure = crate::evidence::GraphEvidenceDisclosure {
+                    target_index: u32::try_from(index).map_err(|_| EngineError::Storage)?,
+                    target_cursor: candidate.target.write_cursor,
+                    terminal_edge_cursor: candidate.terminal_edge_cursor,
+                    direction: candidate.target.origin.terminal_direction,
+                    target_logical_id: &candidate.target.logical_id,
+                    predecessor_logical_id: &candidate.target.origin.predecessor_logical_id,
+                    terminal_edge_kind: &candidate.target.origin.terminal_edge_kind,
+                    target_revision_id: target_material.artifact_revision_id(),
+                    terminal_edge_revision_id: edge_material.artifact_revision_id(),
+                    request_commitment,
+                };
                 let (target_revision, target_reference) =
                     crate::evidence::mint_graph_evidence_reference(
                         &tx,
                         authority,
                         frozen,
                         target_material,
-                        None,
+                        0,
                         &disclosure,
                     )?;
-                disclosure.extend_from_slice(b"terminal-edge");
                 let (edge_revision, edge_reference) =
                     crate::evidence::mint_graph_evidence_reference(
                         &tx,
                         authority,
                         frozen,
                         edge_material,
-                        Some(candidate.target.origin.terminal_direction),
+                        1,
                         &disclosure,
                     )?;
                 entries.push(crate::GraphEvidenceSidecarEntryV1 {
@@ -1814,6 +1829,54 @@ pub(crate) fn read_graph_expand_in_tx(
         explanation,
         evidence,
     })
+}
+
+fn encode_graph_evidence_request(value: &GraphExpandRequestV1) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    frozen_read::encode_u32(&mut bytes, value.schema_version);
+    match &value.seed {
+        GraphSeedV1::Query { schema_version, text, ranked_limit } => {
+            bytes.push(0);
+            frozen_read::encode_u32(&mut bytes, *schema_version);
+            frozen_read::encode_string(&mut bytes, text);
+            frozen_read::encode_u32(&mut bytes, *ranked_limit);
+        }
+        GraphSeedV1::Explicit { schema_version, logical_ids } => {
+            bytes.push(1);
+            frozen_read::encode_u32(&mut bytes, *schema_version);
+            frozen_read::encode_u32(
+                &mut bytes,
+                u32::try_from(logical_ids.len()).unwrap_or(u32::MAX),
+            );
+            for logical_id in logical_ids {
+                frozen_read::encode_string(&mut bytes, logical_id.space.as_str());
+                frozen_read::encode_string(&mut bytes, &logical_id.value);
+            }
+        }
+    }
+    bytes.push(match value.direction {
+        TraversalDirection::Outgoing => 0,
+        TraversalDirection::Incoming => 1,
+        TraversalDirection::Both => 2,
+    });
+    let mut edge_kinds = value.edge_kinds.iter().map(String::as_str).collect::<Vec<_>>();
+    edge_kinds.sort_unstable_by(|left, right| left.as_bytes().cmp(right.as_bytes()));
+    frozen_read::encode_u32(&mut bytes, u32::try_from(edge_kinds.len()).unwrap_or(u32::MAX));
+    for kind in edge_kinds {
+        frozen_read::encode_string(&mut bytes, kind);
+    }
+    let mut target_kinds = value.target_kinds.iter().map(String::as_str).collect::<Vec<_>>();
+    target_kinds.sort_unstable_by(|left, right| left.as_bytes().cmp(right.as_bytes()));
+    frozen_read::encode_u32(&mut bytes, u32::try_from(target_kinds.len()).unwrap_or(u32::MAX));
+    for kind in target_kinds {
+        frozen_read::encode_string(&mut bytes, kind);
+    }
+    frozen_read::encode_u32(&mut bytes, value.max_depth);
+    frozen_read::encode_u32(&mut bytes, value.result_limit);
+    frozen_read::encode_u64(&mut bytes, value.max_work_units);
+    bytes.push(u8::from(value.include_explanation));
+    bytes.push(u8::from(value.include_evidence));
+    bytes
 }
 
 // Codec implementation follows the runtime implementation so the request and

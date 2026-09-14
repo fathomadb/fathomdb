@@ -3,7 +3,8 @@
 #![cfg(feature = "test-hooks")]
 
 use fathomdb_engine::{
-    encode_graph_expand_result_v1, ArtifactRevisionId, CanonicalHash, Engine,
+    arm_evidence_before_resolve_return_hook_for_test, encode_graph_expand_result_v1,
+    ArtifactRevisionId, CanonicalHash, Engine, EvidenceErrorReasonV1, EvidenceRefV1,
     GraphArtifactClassForTest, GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1, IdSpace,
     InitialState, PreparedWrite, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView,
     SearchFilter, SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
@@ -12,6 +13,9 @@ use fathomdb_engine::{
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
+
+use std::sync::{Arc, Barrier};
+use std::thread;
 
 fn digest(body: &str) -> String {
     Sha256::digest(body.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
@@ -173,6 +177,88 @@ fn current_context_and_incomplete_provenance_refuse_atomically() {
     };
     request.context = GraphReadContextV1::Current { schema_version: 1, context };
     assert!(engine.graph_expand_with_graph_evidence_for_test(&request).is_err());
+}
+
+#[test]
+fn preflight_is_two_indexed_class_specific_statements() {
+    let (_directory, engine, request) = fixture();
+    let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+    assert_eq!(treated.preflight_plans.len(), 2);
+    for plan in treated.preflight_plans {
+        assert!(plan.contains("_fathomdb_artifact_revisions"));
+        assert!(plan.contains("INDEX"), "unindexed preflight: {plan}");
+    }
+}
+
+#[test]
+fn restart_tamper_and_incomplete_provenance_are_fail_closed() {
+    let (directory, engine, request) = fixture();
+    let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+    let frozen = match &request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.clone(),
+        _ => unreachable!(),
+    };
+    let reference = treated.evidence[0].target_ref.clone();
+    engine.close().unwrap();
+    let path = directory.path().join(format!("slice15{SQLITE_SUFFIX}"));
+    let reopened = Engine::open(&path).unwrap().engine;
+    assert_eq!(
+        reopened.resolve_graph_evidence_for_test(&reference, &frozen).unwrap().artifact_revision_id,
+        "target-r1"
+    );
+    let mut tampered = reference.as_str().as_bytes().to_vec();
+    *tampered.last_mut().unwrap() = if tampered.last() == Some(&b'0') { b'1' } else { b'0' };
+    let tampered = EvidenceRefV1::new(String::from_utf8(tampered).unwrap()).unwrap();
+    let error = reopened.resolve_graph_evidence_for_test(&tampered, &frozen).unwrap_err();
+    assert!(matches!(error, fathomdb_engine::EngineError::Evidence(ref value)
+        if value.reason == EvidenceErrorReasonV1::EvidenceUnavailable));
+    reopened.close().unwrap();
+    rusqlite::Connection::open(&path)
+        .unwrap()
+        .execute(
+            "UPDATE _fathomdb_artifact_revisions SET completeness='migrated_incomplete' \
+         WHERE revision_id='target-r1'",
+            [],
+        )
+        .unwrap();
+    let incomplete = Engine::open(&path).unwrap().engine;
+    assert!(incomplete.graph_expand_with_graph_evidence_for_test(&request).is_err());
+}
+
+#[test]
+fn resolver_bytes_are_released_before_erasure_can_complete() {
+    let (_directory, engine, request) = fixture();
+    let engine = Arc::new(engine);
+    let treated = engine.graph_expand_with_graph_evidence_for_test(&request).unwrap();
+    let frozen = match &request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.clone(),
+        _ => unreachable!(),
+    };
+    let reference = treated.evidence[0].target_ref.clone();
+    let entered = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    let hook_entered = Arc::clone(&entered);
+    let hook_release = Arc::clone(&release);
+    arm_evidence_before_resolve_return_hook_for_test(Box::new(move || {
+        hook_entered.wait();
+        hook_release.wait();
+    }));
+    let resolver_engine = Arc::clone(&engine);
+    let resolver =
+        thread::spawn(move || resolver_engine.resolve_graph_evidence_for_test(&reference, &frozen));
+    entered.wait();
+    let (finished_send, finished_receive) = std::sync::mpsc::sync_channel(1);
+    let eraser_engine = Arc::clone(&engine);
+    let eraser = thread::spawn(move || {
+        let result = eraser_engine.erase_source("source-owner");
+        finished_send.send(()).unwrap();
+        result
+    });
+    assert!(finished_receive.recv_timeout(std::time::Duration::from_millis(50)).is_err());
+    release.wait();
+    assert_eq!(resolver.join().unwrap().unwrap().canonical_source_body, "canonical source bytes");
+    let _ = eraser.join().unwrap();
+    finished_receive.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
 }
 
 #[test]

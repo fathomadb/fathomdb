@@ -1088,11 +1088,97 @@ fn keyed(key: &[u8], domain: &[u8], value: &[u8]) -> [u8; 32] {
 }
 
 #[cfg(feature = "test-hooks")]
+pub(crate) fn preflight_intrinsic_batches_for_test(
+    connection: &Connection,
+    node_cursors: &[u64],
+    edge_cursors: &[u64],
+) -> Result<Vec<String>, EngineError> {
+    if node_cursors.len() > 50 || edge_cursors.len() > 50 {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    let sql = "WITH requested(write_cursor) AS (SELECT CAST(value AS INTEGER) FROM json_each(?1)) \
+        SELECT r.write_cursor,r.revision_id,r.completeness,l.locator_kind,l.start_byte,l.end_byte, \
+               l.hash_digest,l.source_revision_id,sr.completeness,n.body \
+        FROM requested q \
+        JOIN _fathomdb_artifact_revisions r \
+          ON r.artifact_class=?2 AND r.write_cursor=q.write_cursor \
+        JOIN _fathomdb_source_links l ON l.artifact_revision_id=r.revision_id \
+        JOIN _fathomdb_artifact_revisions sr \
+          ON sr.revision_id=l.source_revision_id AND sr.artifact_class='node' \
+             AND sr.artifact_role='canonical_source' \
+        JOIN canonical_nodes n ON n.write_cursor=sr.write_cursor \
+        ORDER BY r.write_cursor";
+    let mut plans = Vec::new();
+    let mut validated_sources = std::collections::HashSet::new();
+    for (class, cursors) in [("node", node_cursors), ("edge", edge_cursors)] {
+        let json = serde_json::to_string(cursors).map_err(|_| EngineError::Storage)?;
+        let explain = format!("EXPLAIN QUERY PLAN {sql}");
+        let mut explain_statement =
+            connection.prepare(&explain).map_err(|_| EngineError::Storage)?;
+        let details = explain_statement
+            .query_map(rusqlite::params![json, class], |row| row.get::<_, String>(3))
+            .map_err(|_| EngineError::Storage)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|_| EngineError::Storage)?;
+        plans.push(details.join(" | "));
+
+        let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
+        let mut rows = statement
+            .query(rusqlite::params![
+                serde_json::to_string(cursors).map_err(|_| EngineError::Storage)?,
+                class
+            ])
+            .map_err(|_| EngineError::Storage)?;
+        let mut count = 0_usize;
+        while let Some(row) = rows.next().map_err(|_| EngineError::Storage)? {
+            count += 1;
+            let completeness: String = row.get(2).map_err(|_| EngineError::Storage)?;
+            let locator_kind: String = row.get(3).map_err(|_| EngineError::Storage)?;
+            let start: Option<i64> = row.get(4).map_err(|_| EngineError::Storage)?;
+            let end: Option<i64> = row.get(5).map_err(|_| EngineError::Storage)?;
+            let digest: String = row.get(6).map_err(|_| EngineError::Storage)?;
+            let source_revision: String = row.get(7).map_err(|_| EngineError::Storage)?;
+            let source_completeness: String = row.get(8).map_err(|_| EngineError::Storage)?;
+            let body: String = row.get(9).map_err(|_| EngineError::Storage)?;
+            if completeness != "complete" || source_completeness != "complete" {
+                return Err(EvidenceErrorV1::new(
+                    EvidenceErrorReasonV1::EvidenceIncomplete,
+                    "/provenance",
+                )
+                .into());
+            }
+            let locator_valid = match (locator_kind.as_str(), start, end) {
+                ("whole_body", None, None) => true,
+                ("utf8_bytes", Some(start), Some(end)) if start >= 0 && end >= start => {
+                    body.get(start as usize..end as usize).is_some()
+                }
+                _ => false,
+            };
+            if !locator_valid
+                || (validated_sources.insert(source_revision)
+                    && crate::canonical_body_hash(&body) != digest)
+            {
+                return Err(EvidenceErrorV1::new(
+                    EvidenceErrorReasonV1::EvidenceCorrupt,
+                    "/provenance",
+                )
+                .into());
+            }
+        }
+        if count != cursors.len() {
+            return Err(EvidenceErrorV1::unavailable().into());
+        }
+    }
+    Ok(plans)
+}
+
+#[cfg(feature = "test-hooks")]
 pub(crate) fn mint_intrinsic_reference_for_test(
     connection: &Connection,
     frozen: &FrozenReadContextV1,
     artifact_class: EvidenceArtifactClassV1,
     write_cursor: u64,
+    disclosure: &[u8],
 ) -> Result<(String, EvidenceRefV1), EngineError> {
     let (database_id, key) = frozen_read::page_cursor_material(connection)?;
     let context_bytes = frozen_read::validate_context(&frozen.context)?;
@@ -1144,7 +1230,20 @@ pub(crate) fn mint_intrinsic_reference_for_test(
         graph_origin: None,
         graph_edge_commitment: None,
     };
-    Ok((stored.artifact_revision_id, EvidenceRefV1(encode_token(&key, &payload)?)))
+    let inner = encode_token(&key, &payload)?;
+    let commitment =
+        frozen_read::hmac_sha256(&key, b"fathomdb.graph-disclosure.slice15\0", disclosure);
+    let mut authenticated = Vec::with_capacity(32 + inner.len());
+    authenticated.extend_from_slice(&commitment);
+    authenticated.extend_from_slice(inner.as_bytes());
+    let mac = frozen_read::hmac_sha256(&key, b"fathomdb.graph-ref.slice15\0", &authenticated);
+    let wrapped = format!(
+        "fdg15.{}.{}.{}",
+        frozen_read::hex_encode(&commitment),
+        inner,
+        frozen_read::hex_encode(&mac)
+    );
+    Ok((stored.artifact_revision_id, EvidenceRefV1::new(wrapped)?))
 }
 
 #[cfg(feature = "test-hooks")]
@@ -1163,7 +1262,27 @@ pub(crate) fn resolve_intrinsic_reference_for_test(
     frozen: &FrozenReadContextV1,
 ) -> Result<IntrinsicEvidenceForTest, EngineError> {
     let (database_id, key) = frozen_read::page_cursor_material(connection)?;
-    let payload = decode_token(&key, reference.as_str())?;
+    let mut parts = reference.as_str().splitn(4, '.');
+    let (Some("fdg15"), Some(commitment_hex), Some(inner_prefix), Some(rest)) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
+        return Err(EvidenceErrorV1::unavailable().into());
+    };
+    let Some((inner_tail, mac_hex)) = rest.rsplit_once('.') else {
+        return Err(EvidenceErrorV1::unavailable().into());
+    };
+    let inner = format!("{inner_prefix}.{inner_tail}");
+    let commitment =
+        frozen_read::hex_decode(commitment_hex).ok_or_else(EvidenceErrorV1::unavailable)?;
+    let mac = frozen_read::hex_decode(mac_hex).ok_or_else(EvidenceErrorV1::unavailable)?;
+    let mut authenticated = Vec::with_capacity(commitment.len() + inner.len());
+    authenticated.extend_from_slice(&commitment);
+    authenticated.extend_from_slice(inner.as_bytes());
+    let expected = frozen_read::hmac_sha256(&key, b"fathomdb.graph-ref.slice15\0", &authenticated);
+    if commitment.len() != 32 || !frozen_read::constant_time_eq(&mac, &expected) {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    let payload = decode_token(&key, &inner)?;
     let context_bytes = frozen_read::validate_context(&frozen.context)?;
     if payload.database_commitment != keyed(&key, DATABASE_DOMAIN, database_id.as_bytes())
         || payload.context_commitment != keyed(&key, CONTEXT_DOMAIN, &context_bytes)

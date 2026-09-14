@@ -3207,6 +3207,7 @@ pub struct GraphEvidenceEntryForTest {
 pub struct GraphEvidenceResultForTest {
     pub graph: GraphExpandResultV1,
     pub evidence: Vec<GraphEvidenceEntryForTest>,
+    pub preflight_plans: Vec<String>,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -8507,7 +8508,16 @@ impl Engine {
             GraphReadContextV1::Frozen { context, .. } => context,
             GraphReadContextV1::Current { .. } => return Err(EvidenceErrorV1::unavailable().into()),
         };
-        let graph = self.graph_expand(request)?;
+        let selected_artifacts = std::sync::Arc::new(Mutex::new(Vec::new()));
+        let graph = self.graph_expand_inner(
+            request,
+            graph_expand::GraphExpandReaderControlsForTest {
+                selected_artifacts: Some(std::sync::Arc::clone(&selected_artifacts)),
+                ..graph_expand::GraphExpandReaderControlsForTest::default()
+            },
+        )?;
+        let selected_artifacts =
+            selected_artifacts.lock().map_err(|_| EngineError::Storage)?.clone();
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let binding = frozen_read::authenticate(connection, frozen)
@@ -8515,44 +8525,41 @@ impl Engine {
         frozen_read::validate_snapshot(connection, &binding)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        let node_cursors = selected_artifacts.iter().map(|pair| pair.0).collect::<Vec<_>>();
+        let edge_cursors = selected_artifacts.iter().map(|pair| pair.1).collect::<Vec<_>>();
+        let preflight_plans =
+            evidence::preflight_intrinsic_batches_for_test(&tx, &node_cursors, &edge_cursors)?;
+        let request_commitment = encode_graph_expand_request_v1(request)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         let mut evidence = Vec::with_capacity(graph.targets.len());
-        for target in &graph.targets {
-            let (edge_from, edge_to) = match target.origin.terminal_direction {
-                TraversalDirection::Outgoing => (
-                    target.origin.predecessor_logical_id.as_str(),
-                    target.origin.target_logical_id.as_str(),
-                ),
-                TraversalDirection::Incoming => (
-                    target.origin.target_logical_id.as_str(),
-                    target.origin.predecessor_logical_id.as_str(),
-                ),
-                TraversalDirection::Both => return Err(EvidenceErrorV1::unavailable().into()),
-            };
-            let edge_cursor = tx
-                .query_row(
-                    "SELECT write_cursor FROM canonical_edges \
-                     WHERE from_id=?1 AND to_id=?2 AND kind=?3 AND superseded_at IS NULL \
-                       AND (t_valid IS NULL OR t_valid<=?4) AND (t_invalid IS NULL OR t_invalid>?4) \
-                     ORDER BY COALESCE(logical_id,''),write_cursor LIMIT 1",
-                    rusqlite::params![edge_from, edge_to, target.origin.terminal_edge_kind,
-                        frozen.effective_valid_at],
-                    |row| row.get::<_, i64>(0),
-                )
-                .optional()
-                .map_err(|_| EngineError::Storage)?
-                .and_then(|cursor| u64::try_from(cursor).ok())
-                .ok_or_else(EvidenceErrorV1::unavailable)?;
+        if selected_artifacts.len() != graph.targets.len() {
+            return Err(EvidenceErrorV1::unavailable().into());
+        }
+        for (index, (target, (target_cursor, edge_cursor))) in
+            graph.targets.iter().zip(selected_artifacts.iter().copied()).enumerate()
+        {
+            if target.write_cursor != target_cursor {
+                return Err(EvidenceErrorV1::unavailable().into());
+            }
+            let mut target_disclosure = request_commitment.clone();
+            target_disclosure.extend_from_slice(&(index as u64).to_be_bytes());
+            target_disclosure.extend_from_slice(&target_cursor.to_be_bytes());
+            target_disclosure.extend_from_slice(&edge_cursor.to_be_bytes());
             let (target_revision_id, target_ref) = evidence::mint_intrinsic_reference_for_test(
                 &tx,
                 frozen,
                 EvidenceArtifactClassV1::Node,
                 target.write_cursor,
+                &target_disclosure,
             )?;
+            let mut edge_disclosure = target_disclosure;
+            edge_disclosure.extend_from_slice(b"terminal-edge");
             let (edge_revision, edge_reference) = evidence::mint_intrinsic_reference_for_test(
                 &tx,
                 frozen,
                 EvidenceArtifactClassV1::Edge,
                 edge_cursor,
+                &edge_disclosure,
             )?;
             evidence.push(GraphEvidenceEntryForTest {
                 target_revision_id,
@@ -8564,7 +8571,7 @@ impl Engine {
         frozen_read::validate_snapshot(&tx, &binding)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         tx.commit().map_err(|_| EngineError::Storage)?;
-        Ok(GraphEvidenceResultForTest { graph, evidence })
+        Ok(GraphEvidenceResultForTest { graph, evidence, preflight_plans })
     }
 
     #[cfg(feature = "test-hooks")]

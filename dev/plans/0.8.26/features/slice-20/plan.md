@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 20 — exact graph artifact evidence
-status: DESIGN APPROVED — IMPLEMENTATION PAUSED FOR CONFORMANCE AUDIT
+status: COMPLETE ON RELEASE BRANCH
 decision: D26-01 option A at seq-290
 ---
 

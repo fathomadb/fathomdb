@@ -1,7 +1,7 @@
 # Slice 20 implementation status
 
-Status: mandatory post-review corrections and focused verification complete;
-stable tip is ready for independent re-review.
+Status: COMPLETE ON `release/0.8.26` at reviewed implementation tip
+`c0a567d5867c89b4f26caaaaa188373222d6c2f6`.
 
 ## Landed on the implementation branch
 
@@ -99,3 +99,10 @@ Post-mint mutations remain explicit `FrozenRead(StateDrifted, /token)` security
 regressions. Separate pre-freeze provenance fixtures prove the global
 authorization-before-detail behavior. No production code weakened or deferred
 snapshot validation.
+
+## Final verdict
+
+Independent code review and independent verification both returned `PASS` at
+the exact clean implementation tip with no remaining P0, P1, or P2 finding.
+The durable verdict and the bounded canonical-gate environment exception are in
+`review-verification.md`. Slice 20 is complete; Slice 30 is next.

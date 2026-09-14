@@ -143,9 +143,9 @@ if their design is discussed.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.26:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 20** (`GRAPH-EVIDENCE`) — immutable-revision frozen graph evidence
+**IMMEDIATE NEXT: Slice 30** (`INTEGRITY`) — read-only operator integrity inspection
 
-**Remaining ladder:** 20 → 30 → 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
+**Remaining ladder:** 30 → 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
 
 D26-01 is ruled at `seq-290`; Slice 20 implements the selected option A. Do not
 publish or begin feature work outside the current slice.

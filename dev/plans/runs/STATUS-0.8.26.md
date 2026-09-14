@@ -11,7 +11,7 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 20 (GRAPH-EVIDENCE), IN_PROGRESS.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 30 (INTEGRITY), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
 
 Slices 0–9 are complete on the 0.8.26 release line. Slice 9 implemented only
 the narrow preparation bundle authorized at `seq-289`; no product feature or
@@ -19,7 +19,7 @@ publication was authorized or performed.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Continue Slice 20 (GRAPH-EVIDENCE)** — immutable-revision frozen graph evidence. **Remaining ladder:** 20 → 30 → 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 30 (INTEGRITY)** — read-only operator integrity inspection. **Remaining ladder:** 30 → 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:status-next-action -->
 
 ## Open decisions
 

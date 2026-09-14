@@ -601,7 +601,7 @@ pub(crate) fn build_search_result(
         })?;
         let locator_bytes = locator_bytes(&stored.locator);
         let contribution = contribution(per_hit)?;
-        let generation_nonce = random_nonce(connection)?;
+        let generation_nonce = random_nonce()?;
         let payload = Payload {
             artifact_class,
             write_cursor: hit.write_cursor,
@@ -1172,11 +1172,10 @@ fn protect_generation(key: &[u8], nonce: &[u8; 16], value: &[u8]) -> Vec<u8> {
     value.iter().zip(first.iter().chain(second.iter())).map(|(value, mask)| value ^ mask).collect()
 }
 
-fn random_nonce(connection: &Connection) -> Result<[u8; 16], EngineError> {
-    let bytes: Vec<u8> = connection
-        .query_row("SELECT randomblob(16)", [], |row| row.get(0))
-        .map_err(|_| EngineError::Storage)?;
-    bytes.try_into().map_err(|_| EngineError::Storage)
+fn random_nonce() -> Result<[u8; 16], EngineError> {
+    let mut bytes = [0_u8; 16];
+    getrandom::fill(&mut bytes).map_err(|_| EngineError::Storage)?;
+    Ok(bytes)
 }
 
 fn validate_full_provenance(
@@ -1891,7 +1890,6 @@ fn frame_graph_selector(key: &[u8], nonce: &[u8; 16], payload: &[u8]) -> String 
 }
 
 pub(crate) fn mint_graph_evidence_reference(
-    connection: &Connection,
     authority: &GraphEvidenceAuthority,
     frozen: &FrozenReadContextV1,
     material: &GraphEvidenceMaterial,
@@ -1944,7 +1942,7 @@ pub(crate) fn mint_graph_evidence_reference(
         disclosure.terminal_edge_revision_id.as_bytes(),
     ));
     debug_assert_eq!(payload.len(), GRAPH_SELECTOR_BYTES);
-    let nonce = random_nonce(connection)?;
+    let nonce = random_nonce()?;
     let reference = frame_graph_selector(&authority.key, &nonce, &payload);
     debug_assert_eq!(reference.len(), GRAPH_TOKEN_BYTES);
     Ok((
@@ -2570,8 +2568,10 @@ mod tests {
 
     static NONCE_SQL_STATEMENTS: AtomicUsize = AtomicUsize::new(0);
 
-    fn count_nonce_sql(_: &str) {
-        NONCE_SQL_STATEMENTS.fetch_add(1, Ordering::SeqCst);
+    fn count_nonce_sql(event: rusqlite::trace::TraceEvent<'_>) {
+        if matches!(event, rusqlite::trace::TraceEvent::Stmt(_, _)) {
+            NONCE_SQL_STATEMENTS.fetch_add(1, Ordering::SeqCst);
+        }
     }
 
     proptest! {
@@ -2757,11 +2757,12 @@ mod tests {
 
     #[test]
     fn graph_nonce_generation_executes_no_sql_statement() {
-        let mut connection = Connection::open_in_memory().unwrap();
+        let connection = Connection::open_in_memory().unwrap();
         NONCE_SQL_STATEMENTS.store(0, Ordering::SeqCst);
-        connection.trace(Some(count_nonce_sql));
-        let nonce = random_nonce(&connection).unwrap();
-        connection.trace(None);
+        connection
+            .trace_v2(rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT, Some(count_nonce_sql));
+        let nonce = random_nonce().unwrap();
+        connection.trace_v2(rusqlite::trace::TraceEventCodes::empty(), None);
         assert_ne!(nonce, [0; 16]);
         assert_eq!(NONCE_SQL_STATEMENTS.load(Ordering::SeqCst), 0);
     }

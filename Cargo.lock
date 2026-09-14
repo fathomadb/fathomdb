@@ -951,6 +951,7 @@ dependencies = [
  "fathomdb-embedder-api",
  "fathomdb-query",
  "fathomdb-schema",
+ "getrandom 0.3.4",
  "jsonschema",
  "libc",
  "proptest",

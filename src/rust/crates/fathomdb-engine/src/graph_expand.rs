@@ -1755,7 +1755,6 @@ pub(crate) fn read_graph_expand_in_tx(
                 };
                 let (target_revision, target_reference) =
                     crate::evidence::mint_graph_evidence_reference(
-                        &tx,
                         authority,
                         frozen,
                         target_material,
@@ -1764,7 +1763,6 @@ pub(crate) fn read_graph_expand_in_tx(
                     )?;
                 let (edge_revision, edge_reference) =
                     crate::evidence::mint_graph_evidence_reference(
-                        &tx,
                         authority,
                         frozen,
                         edge_material,

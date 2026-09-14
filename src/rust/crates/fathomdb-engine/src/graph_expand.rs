@@ -2934,6 +2934,21 @@ fn response_required<'a>(
     object.get(field).ok_or_else(|| response_error(GraphExpansionErrorReasonV1::GraphCorrupt, path))
 }
 
+fn response_closed(
+    object: &serde_json::Map<String, serde_json::Value>,
+    allowed: &[&str],
+    base: &str,
+) -> Result<(), GraphExpansionErrorV1> {
+    if let Some(field) = object.keys().filter(|field| !allowed.contains(&field.as_str())).min() {
+        let escaped = field.replace('~', "~0").replace('/', "~1");
+        return Err(response_error(
+            GraphExpansionErrorReasonV1::GraphCorrupt,
+            format!("{base}/{escaped}"),
+        ));
+    }
+    Ok(())
+}
+
 fn response_schema(
     object: &serde_json::Map<String, serde_json::Value>,
     path: &str,
@@ -3379,6 +3394,7 @@ pub fn decode_graph_expand_result_v1(
         Some(value) => {
             let object = response_object(value, "/evidence")?;
             response_schema(object, "/evidence/schemaVersion")?;
+            response_closed(object, &["schemaVersion", "entries"], "/evidence")?;
             let values = response_required(object, "entries", "/evidence/entries")?
                 .as_array()
                 .ok_or_else(|| {
@@ -3389,6 +3405,18 @@ pub fn decode_graph_expand_result_v1(
                 let base = format!("/evidence/entries/{index}");
                 let object = response_object(value, &base)?;
                 response_schema(object, &format!("{base}/schemaVersion"))?;
+                response_closed(
+                    object,
+                    &[
+                        "schemaVersion",
+                        "targetIndex",
+                        "targetArtifactRevisionId",
+                        "targetEvidenceRef",
+                        "terminalEdgeArtifactRevisionId",
+                        "terminalEdgeEvidenceRef",
+                    ],
+                    &base,
+                )?;
                 let string = |name: &str| {
                     response_string(
                         response_required(object, name, &format!("{base}/{name}"))?,

@@ -45,12 +45,12 @@ use std::{
 
 use clap::{Args, Parser, Subcommand};
 use fathomdb::{
-    CheckIntegrityOpts, CorruptionLocator, DataPlaneIntegrityCheckV1, DataPlaneIntegrityRequestV1,
-    DataPlaneIntegrityResultV1, DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Engine,
-    EngineError, EngineOpenError, ExciseRecordReport, ExciseReport, Finding, IntegrityReport,
-    MeanRecomputeReport, OrphanProvenanceReport, RebuildKind, RebuildReport, SafeExportArtifact,
-    SchemaObject, Section, TraceReport, TruncateWalReport, TruncateWalStatus, VerifyEmbedderReport,
-    VerifyEmbedderStatus,
+    inspect_data_plane_integrity, CheckIntegrityOpts, CorruptionLocator, DataPlaneIntegrityCheckV1,
+    DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityRequestV1, DataPlaneIntegrityResultV1,
+    DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Engine, EngineError, EngineOpenError,
+    ExciseRecordReport, ExciseReport, Finding, IntegrityReport, MeanRecomputeReport,
+    OrphanProvenanceReport, RebuildKind, RebuildReport, SafeExportArtifact, SchemaObject, Section,
+    TraceReport, TruncateWalReport, TruncateWalStatus, VerifyEmbedderReport, VerifyEmbedderStatus,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -559,18 +559,11 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
                         "projection_generation" => DataPlaneIntegrityCheckV1::ProjectionGeneration,
                         "mutation_readiness" => DataPlaneIntegrityCheckV1::MutationReadiness,
                         _ => {
-                            println!(
-                                "{}",
-                                json!({
-                                    "schemaVersion": "fathomdb.doctor.data-plane-integrity.v1",
-                                    "status": "error",
-                                    "verb": "data-plane-integrity",
-                                    "code": "FDB_DATA_PLANE_INTEGRITY",
-                                    "reason": "integrity_check_invalid",
-                                    "fieldPath": format!("/checks/{index}"),
-                                })
+                            return emit_data_plane_integrity_error_fields(
+                                "integrity_check_invalid",
+                                &format!("/checks/{index}"),
+                                CliOutcome::Unrecoverable,
                             );
-                            return exit_code::UNRECOVERABLE;
                         }
                     });
                 }
@@ -585,23 +578,21 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
             let request = match request_result {
                 Ok(request) => request,
                 Err(error) => {
-                    println!(
-                        "{}",
-                        json!({
-                            "schemaVersion": "fathomdb.doctor.data-plane-integrity.v1",
-                            "status": "error",
-                            "verb": "data-plane-integrity",
-                            "code": "FDB_DATA_PLANE_INTEGRITY",
-                            "reason": error.reason.as_str(),
-                            "fieldPath": error.field_path,
-                        })
+                    return emit_data_plane_integrity_error_fields(
+                        error.reason.as_str(),
+                        &error.field_path,
+                        CliOutcome::Unrecoverable,
                     );
-                    return exit_code::UNRECOVERABLE;
                 }
             };
-            run_doctor_verb(&args.db_path, "data-plane-integrity", |engine| {
-                engine.check_data_plane_integrity(request).map(data_plane_integrity_outcome)
-            })
+            match inspect_data_plane_integrity(&args.db_path, request) {
+                Ok(report) => {
+                    let (value, outcome) = data_plane_integrity_outcome(report);
+                    println!("{value}");
+                    outcome_to_exit_code(outcome)
+                }
+                Err(error) => emit_data_plane_integrity_error(&error),
+            }
         }
         DoctorCommand::SafeExport(args) => {
             let manifest = args.manifest.clone().unwrap_or_else(|| {
@@ -1408,6 +1399,46 @@ fn emit_engine_error_with_outcome(verb: &str, err: &EngineError, outcome: CliOut
         "verb": verb,
         "code": engine_error_code(err),
         "detail": err.to_string(),
+    });
+    println!("{payload}");
+    outcome_to_exit_code(outcome)
+}
+
+fn emit_data_plane_integrity_error(error: &EngineError) -> i32 {
+    match error {
+        EngineError::DataPlaneIntegrity(error) => {
+            let outcome = if error.reason == DataPlaneIntegrityErrorReasonV1::InspectionNotQuiescent
+            {
+                CliOutcome::LockHeld
+            } else {
+                CliOutcome::Unrecoverable
+            };
+            emit_data_plane_integrity_error_fields(
+                error.reason.as_str(),
+                &error.field_path,
+                outcome,
+            )
+        }
+        _ => emit_data_plane_integrity_error_fields(
+            DataPlaneIntegrityErrorReasonV1::IntegrityCorrupt.as_str(),
+            "",
+            CliOutcome::Unrecoverable,
+        ),
+    }
+}
+
+fn emit_data_plane_integrity_error_fields(
+    reason: &str,
+    field_path: &str,
+    outcome: CliOutcome,
+) -> i32 {
+    let payload = json!({
+        "schemaVersion": "fathomdb.doctor.data-plane-integrity.v1",
+        "status": "error",
+        "verb": "data-plane-integrity",
+        "code": "FDB_DATA_PLANE_INTEGRITY",
+        "reason": reason,
+        "fieldPath": field_path,
     });
     println!("{payload}");
     outcome_to_exit_code(outcome)

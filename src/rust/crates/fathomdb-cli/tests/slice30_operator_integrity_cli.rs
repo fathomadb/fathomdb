@@ -6,7 +6,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use fathomdb::{admin, Engine, RuntimeSqliteMode};
+use fathomdb::{
+    admin, inspect_data_plane_integrity, DataPlaneIntegrityRequestV1, Engine, RuntimeSqliteMode,
+};
 use fathomdb_cli::exit_code;
 use rusqlite::Connection;
 use serde_json::Value;
@@ -75,6 +77,14 @@ fn clean_inspection_reuses_compatible_runtime_and_changes_no_product_file() {
     admin::configure_runtime(RuntimeSqliteMode::Performance).expect("compatible runtime reuse");
     let before = file_set(&path);
 
+    let direct = inspect_data_plane_integrity(
+        &path,
+        DataPlaneIntegrityRequestV1::all(10_000, 100).expect("valid request"),
+    )
+    .expect("compatible in-process runtime inspection");
+    assert!(direct.findings.is_empty());
+    assert!(file_set(&path) == before, "direct inspection changed product files");
+
     let output = run(&path, &[]);
 
     assert_eq!(output.status.code(), Some(exit_code::OK), "{output:#?}");
@@ -82,6 +92,18 @@ fn clean_inspection_reuses_compatible_runtime_and_changes_no_product_file() {
     assert_eq!(value["schemaVersion"], SCHEMA);
     assert_eq!(value["status"], "clean");
     assert!(file_set(&path) == before, "clean inspection changed product files");
+}
+
+#[test]
+fn existing_database_without_product_lock_refuses_without_creation() {
+    let (_directory, path) = fresh_database("missing-lock.sqlite");
+    fs::remove_file(sidecar(&path, ".lock")).expect("remove lock fixture");
+    let before = file_set(&path);
+
+    let output = run(&path, &[]);
+
+    assert_error(&output, exit_code::UNRECOVERABLE, "inspection_lock_missing", "/dbPath");
+    assert!(file_set(&path) == before, "missing lock was recreated");
 }
 
 #[test]

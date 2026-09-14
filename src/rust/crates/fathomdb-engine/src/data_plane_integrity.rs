@@ -579,6 +579,11 @@ pub enum DataPlaneIntegrityErrorReasonV1 {
     IntegrityLimitInvalid,
     IntegrityBoundExceeded,
     IntegrityCorrupt,
+    InspectionUnavailable,
+    InspectionLockMissing,
+    InspectionNotQuiescent,
+    RuntimeConfiguration,
+    DatabaseSchemaMismatch,
 }
 
 impl DataPlaneIntegrityErrorReasonV1 {
@@ -592,6 +597,11 @@ impl DataPlaneIntegrityErrorReasonV1 {
             Self::IntegrityLimitInvalid => "integrity_limit_invalid",
             Self::IntegrityBoundExceeded => "integrity_bound_exceeded",
             Self::IntegrityCorrupt => "integrity_corrupt",
+            Self::InspectionUnavailable => "inspection_unavailable",
+            Self::InspectionLockMissing => "inspection_lock_missing",
+            Self::InspectionNotQuiescent => "inspection_not_quiescent",
+            Self::RuntimeConfiguration => "runtime_configuration",
+            Self::DatabaseSchemaMismatch => "database_schema_mismatch",
         }
     }
 }
@@ -2298,10 +2308,7 @@ fn mutation_readiness_findings(
 }
 
 #[cfg(feature = "operator")]
-pub(crate) fn execute(
-    connection: &mut Connection,
-    mut request: DataPlaneIntegrityRequestV1,
-) -> Result<DataPlaneIntegrityResultV1, EngineError> {
+pub(crate) fn validate_request(request: &DataPlaneIntegrityRequestV1) -> Result<(), EngineError> {
     if request.schema_version != SCHEMA_VERSION {
         return Err(DataPlaneIntegrityErrorV1::new(
             DataPlaneIntegrityErrorReasonV1::UnsupportedSchemaVersion,
@@ -2340,6 +2347,15 @@ pub(crate) fn execute(
         )
         .into());
     }
+    Ok(())
+}
+
+#[cfg(feature = "operator")]
+pub(crate) fn execute(
+    connection: &mut Connection,
+    mut request: DataPlaneIntegrityRequestV1,
+) -> Result<DataPlaneIntegrityResultV1, EngineError> {
+    validate_request(&request)?;
     request.checks.sort_unstable();
     let transaction = connection.transaction().map_err(|_| EngineError::Storage)?;
     let effective_at_epoch_s = current_epoch_seconds();

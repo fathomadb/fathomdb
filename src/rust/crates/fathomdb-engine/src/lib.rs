@@ -475,7 +475,7 @@ use jsonschema::JSONSchema;
 #[cfg(any(test, feature = "test-hooks"))]
 use rusqlite::TransactionState;
 use rusqlite::{
-    config::DbConfig, params, CachedStatement, Connection, OptionalExtension, Statement,
+    config::DbConfig, params, CachedStatement, Connection, OpenFlags, OptionalExtension, Statement,
 };
 use serde_json::Value;
 // `sha2::Digest` + `sha2::Sha256` — used by `safe_export` (operator-gated)
@@ -4109,6 +4109,164 @@ pub fn configure_runtime(
 
 fn configure_runtime_for_open() -> Result<RuntimeConfiguration, RuntimeConfigurationError> {
     configure_runtime_locked(None)
+}
+
+#[cfg(feature = "operator")]
+fn data_plane_inspection_error(
+    reason: DataPlaneIntegrityErrorReasonV1,
+    field_path: &'static str,
+) -> EngineError {
+    DataPlaneIntegrityErrorV1::new(reason, field_path).into()
+}
+
+#[cfg(feature = "operator")]
+fn data_plane_sidecar_path(path: &Path, suffix: &str) -> PathBuf {
+    let mut sidecar = path.as_os_str().to_os_string();
+    sidecar.push(suffix);
+    PathBuf::from(sidecar)
+}
+
+#[cfg(feature = "operator")]
+fn immutable_sqlite_uri(path: &Path) -> String {
+    let mut uri = String::from("file:");
+    for byte in path.as_os_str().as_encoded_bytes() {
+        match *byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' => {
+                uri.push(char::from(*byte))
+            }
+            byte => {
+                const HEX: &[u8; 16] = b"0123456789ABCDEF";
+                uri.push('%');
+                uri.push(char::from(HEX[usize::from(byte >> 4)]));
+                uri.push(char::from(HEX[usize::from(byte & 0x0f)]));
+            }
+        }
+    }
+    uri.push_str("?immutable=1");
+    uri
+}
+
+/// Inspect a quiescent database through a strictly read-only operator boundary.
+///
+/// The request is validated before filesystem access. The database and its
+/// pre-existing lock file must both exist, the lock must be exclusively
+/// acquirable without modifying it, and non-empty WAL or rollback-journal
+/// sidecars are refused. SQLite is then opened read-only with `query_only`
+/// enabled; migrations, projection reconciliation, worker startup, and lock
+/// metadata writes are never performed.
+///
+/// # Errors
+///
+/// Returns a typed [`DataPlaneIntegrityErrorV1`] through [`EngineError`] for
+/// invalid requests, unavailable or non-quiescent inputs, runtime setup,
+/// incompatible schema versions, corruption, or bounded inspection failures.
+#[cfg(feature = "operator")]
+pub fn inspect_data_plane_integrity(
+    path: impl Into<PathBuf>,
+    request: DataPlaneIntegrityRequestV1,
+) -> Result<DataPlaneIntegrityResultV1, EngineError> {
+    data_plane_integrity::validate_request(&request)?;
+
+    let requested_path = path.into();
+    let canonical_path = canonical_database_path(&requested_path).map_err(|_| {
+        data_plane_inspection_error(
+            DataPlaneIntegrityErrorReasonV1::InspectionUnavailable,
+            "/dbPath",
+        )
+    })?;
+    if !canonical_path.is_file() {
+        return Err(data_plane_inspection_error(
+            DataPlaneIntegrityErrorReasonV1::InspectionUnavailable,
+            "/dbPath",
+        ));
+    }
+
+    let inspection_lock_path = lock_path(&canonical_path);
+    if !inspection_lock_path.is_file() {
+        return Err(data_plane_inspection_error(
+            DataPlaneIntegrityErrorReasonV1::InspectionLockMissing,
+            "/dbPath",
+        ));
+    }
+    let inspection_lock =
+        OpenOptions::new().read(true).open(&inspection_lock_path).map_err(|_| {
+            data_plane_inspection_error(
+                DataPlaneIntegrityErrorReasonV1::InspectionUnavailable,
+                "/dbPath",
+            )
+        })?;
+    match inspection_lock.try_lock() {
+        Ok(()) => {}
+        Err(std::fs::TryLockError::WouldBlock) => {
+            return Err(data_plane_inspection_error(
+                DataPlaneIntegrityErrorReasonV1::InspectionNotQuiescent,
+                "/dbPath",
+            ));
+        }
+        Err(_) => {
+            return Err(data_plane_inspection_error(
+                DataPlaneIntegrityErrorReasonV1::InspectionUnavailable,
+                "/dbPath",
+            ));
+        }
+    }
+
+    for suffix in ["-wal", "-journal"] {
+        match std::fs::metadata(data_plane_sidecar_path(&canonical_path, suffix)) {
+            Ok(metadata) if metadata.len() > 0 => {
+                return Err(data_plane_inspection_error(
+                    DataPlaneIntegrityErrorReasonV1::InspectionNotQuiescent,
+                    "/dbPath",
+                ));
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => {
+                return Err(data_plane_inspection_error(
+                    DataPlaneIntegrityErrorReasonV1::InspectionUnavailable,
+                    "/dbPath",
+                ));
+            }
+        }
+    }
+
+    configure_runtime_for_open().map_err(|_| {
+        data_plane_inspection_error(
+            DataPlaneIntegrityErrorReasonV1::RuntimeConfiguration,
+            "/runtimeConfiguration",
+        )
+    })?;
+    register_sqlite_vec_extension();
+    let mut connection = Connection::open_with_flags(
+        immutable_sqlite_uri(&canonical_path),
+        OpenFlags::SQLITE_OPEN_READ_ONLY
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | OpenFlags::SQLITE_OPEN_URI,
+    )
+    .map_err(|_| {
+        data_plane_inspection_error(
+            DataPlaneIntegrityErrorReasonV1::InspectionUnavailable,
+            "/dbPath",
+        )
+    })?;
+    connection.pragma_update(None, "query_only", "ON").map_err(|_| {
+        data_plane_inspection_error(DataPlaneIntegrityErrorReasonV1::IntegrityCorrupt, "")
+    })?;
+    let database_schema_version =
+        connection.pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0)).map_err(
+            |_| data_plane_inspection_error(DataPlaneIntegrityErrorReasonV1::IntegrityCorrupt, ""),
+        )?;
+    if database_schema_version != SCHEMA_VERSION {
+        return Err(data_plane_inspection_error(
+            DataPlaneIntegrityErrorReasonV1::DatabaseSchemaMismatch,
+            "/databaseSchemaVersion",
+        ));
+    }
+
+    data_plane_integrity::execute(&mut connection, request).map_err(|error| match error {
+        EngineError::DataPlaneIntegrity(_) => error,
+        _ => data_plane_inspection_error(DataPlaneIntegrityErrorReasonV1::IntegrityCorrupt, ""),
+    })
 }
 
 fn configure_runtime_locked(

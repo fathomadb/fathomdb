@@ -418,6 +418,55 @@ fn missing_link_is_incomplete_but_linked_missing_source_is_unavailable() {
 }
 
 #[test]
+fn phase_two_faults_use_exact_target_then_terminal_edge_paths() {
+    let cases = [
+        (
+            "UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes',start_byte=0,end_byte=999999 WHERE artifact_revision_id='target-r1';",
+            "/targets/0/provenance/sourceLocator",
+        ),
+        (
+            "UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes',start_byte=0,end_byte=999999 WHERE artifact_revision_id='edge-r1';",
+            "/targets/0/terminalEdge/provenance/sourceLocator",
+        ),
+        (
+            "UPDATE _fathomdb_source_links SET hash_digest='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' WHERE artifact_revision_id='target-r1';",
+            "/targets/0/provenance/canonicalSourceHash",
+        ),
+        (
+            "UPDATE _fathomdb_source_links SET hash_digest='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' WHERE artifact_revision_id='edge-r1';",
+            "/targets/0/terminalEdge/provenance/canonicalSourceHash",
+        ),
+        (
+            "DELETE FROM _fathomdb_source_versions WHERE source_revision_id='source-r1';",
+            "/targets/0/provenance",
+        ),
+        (
+            "DELETE FROM _fathomdb_source_links WHERE artifact_revision_id='source-r1';",
+            "/targets/0/provenance",
+        ),
+    ];
+    for (sql, expected_path) in cases {
+        let (_directory, engine, mut request) = fixture_with_pre_freeze_sql(Some(sql));
+        request.include_evidence = true;
+        let error = engine.graph_expand(&request).unwrap_err();
+        assert!(
+            matches!(error, EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
+                && error.field_path == expected_path),
+            "unexpected error for {sql}: {error:?}"
+        );
+    }
+
+    let (_directory, engine, mut request) = fixture_with_pre_freeze_sql(Some(
+        "UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes',start_byte=0,end_byte=999999 WHERE artifact_revision_id IN ('target-r1','edge-r1');",
+    ));
+    request.include_evidence = true;
+    assert!(matches!(engine.graph_expand(&request).unwrap_err(), EngineError::Evidence(ref error)
+        if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
+            && error.field_path == "/targets/0/provenance/sourceLocator"));
+}
+
+#[test]
 fn authenticated_relaxed_window_context_is_refused_before_mint() {
     let (_directory, engine, mut request) = fixture();
     let frozen = engine

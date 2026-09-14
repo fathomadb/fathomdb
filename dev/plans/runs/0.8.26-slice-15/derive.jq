@@ -8,6 +8,7 @@ def stats: {
   maximum: max
 };
 def median: sort | .[(length / 2 | floor)];
+def mean: add / length;
 def iqr: sort | {q1: nr(0.25), q3: nr(0.75)};
 def five_summary:
   . as $values
@@ -54,8 +55,8 @@ def arm($name): [.campaigns[] | .[$name] | stats];
         treatment_bytes: $treatment.peak_rss_delta_bytes,
         ratio: ($treatment.peak_rss_delta_bytes / $control.peak_rss_delta_bytes)
       }] as $rss
-| ($root.campaigns | map(.control_50 | nr(0.50)) | median) as $control50
-| ($root.campaigns | map(.hydrated_50 | nr(0.50)) | median) as $hydrated50
+| ($root.campaigns | map(.control_50 | mean) | median) as $control50
+| ($root.campaigns | map(.hydrated_50 | mean) | median) as $hydrated50
 | ($hydrated50 - $control50) as $increment50
 | {
     schema_version: 1,
@@ -100,6 +101,9 @@ def arm($name): [.campaigns[] | .[$name] | stats];
     },
     writer: {
       campaigns: $writers,
+      successful_background_ops: ($root.writer_campaigns
+        | map(select(.mode != "alone")
+          | {campaign, mode, successful_background_ops})),
       graph_throughput_ratio: ($writers | map(.graph_throughput_ratio) | five_summary),
       graph_p99_ratio: ($writers | map(.graph_p99_ratio) | five_summary),
       point_throughput_ratio: ($writers | map(.point_throughput_ratio) | five_summary),
@@ -124,7 +128,7 @@ def arm($name): [.campaigns[] | .[$name] | stats];
       sidecar_fifty_bytes: $root.campaigns[0].sidecar_50_bytes,
       inline_fifty_bytes: $root.campaigns[0].inline_50_bytes
     },
-    workload_model_fifty_result_p50: [0, 0.01, 0.1, 0.5, 1]
+    workload_model_fifty_result_expected_mean: [0, 0.01, 0.1, 0.5, 1]
       | map({
           evidence_request_fraction: .,
           option_a_expected_us: ($control50 + (. * $increment50)),

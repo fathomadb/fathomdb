@@ -27,14 +27,27 @@
   surface manifest, analysis, and recommendation.
 - `bf6a698e`: planned teardown of all transient runtime, test-hook, and test
   code while retaining the durable decision evidence.
+- `6ecbdc32`: history-preserving restoration of the transient prototype after
+  independent review found that the first decision campaign measured an N+1
+  loader and ranked-payload surrogate rather than the approved treatment.
+- `50a49d7d`: FIX-1 RED tests for the intrinsic carrier, exact two-statement
+  treatment, source-deduplicated hashing, writer/erasure rendezvous, true 1 KiB
+  fixture, and post-`ErasureIncomplete` observability.
+- `7748dadb`: FIX-1 GREEN implementation of those corrected prototype and
+  measurement contracts.
+- `081a1eea`: records the exact 1,024-byte fixture size in every real campaign.
+- `12b59f69`: retains the behavior-neutral literal ordinary graph-response
+  regression independently of the transient prototype.
 
 The two RED corrections repair setup preconditions and do not weaken any
 oracle. The subsequent exploratory result exposed that the shortcut was not the
 approved post-selection hydration design. The commit remains reachable to make
 that finding auditable; its numbers are not used as decision evidence.
 
-The authoritative campaign followed the reader-transaction correction and
-exercised the complete approved functional and measurement matrix. The final
-teardown commit preserves the full experimental chain in history while leaving
-no prototype public method, field, codec, binding, schema, persistence path, or
-runtime behavior in the final tree.
+The first RED commit covered only the initial contract. It did not cover the
+later review findings; `50a49d7d` is the tests-first record for FIX-1. The
+corrected authoritative campaign followed `081a1eea` and exercises the complete
+approved functional and measurement matrix. A subsequent teardown commit
+preserves the experimental chain in history while leaving no prototype public
+method, field, codec, binding, schema, persistence path, or runtime behavior in
+the final tree.

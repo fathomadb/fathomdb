@@ -1,14 +1,15 @@
 # Slice 15 graph-evidence surface manifest
 
-The current maintained graph family occurs in 39 files, found with:
+The current maintained graph family occurs in 43 files, found with:
 
 ```text
 rg -l "GraphTargetV1|GraphExpandResultV1|GraphExpandRequestV1|graph_expand|graphExpand" \
-  src/rust src/python src/ts docs dev/interfaces
+  src/rust src/python src/ts docs dev/interfaces \
+  | rg -v 'slice15_graph_evidence_prototype.rs|Cargo.toml$'
 ```
 
-The prototype-only test and its Cargo feature declaration are excluded from
-the maintained count.
+The command and count exclude the prototype-only test and Cargo feature
+declaration.
 
 | Category | Files | Affected concern |
 | --- | ---: | --- |
@@ -28,4 +29,3 @@ an opt-in first-generation evidence sidecar and adds intrinsic resolution, but
 leaves treatment-off target bytes and semantics unchanged. Neither option
 requires a V2 family, schema, migration, evidence table, cache, or raw-ID
 resolver.
-

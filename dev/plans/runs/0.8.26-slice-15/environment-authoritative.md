@@ -1,7 +1,7 @@
 # Slice 15 decision-measurement environment
 
-- Source prototype: `52d1565f`
-- Date: 2026-09-13
+- Source prototype: `081a1eea`
+- Date: 2026-09-14
 - Host: Linux `7.0.0-30-generic`, x86_64
 - CPU: AMD Ryzen Threadripper PRO 5945WX, 12 cores / 24 threads
 - Rust: `rustc 1.95.0 (59807616e 2026-04-14)`
@@ -24,3 +24,10 @@ Its values have page/allocation granularity and are comparative, not an object-
 allocation census. The 100 KiB arms use exactly 102,400 canonical-source bytes.
 The maximum-work arm visits exactly 10,000 edges and returns 50 targets.
 
+The point-resolution 1 KiB arms use exactly 1,024 canonical-source bytes. The
+timed treatment executes two class-specific data statements total after
+selection. Plan inspection is outside the timed path; minting consumes the
+validated, source-deduplicated material without further SQL or hashing. Writer
+arms rotate order across isolated fixtures and begin only after the background
+operation reports its first successful commit. Erasure arms use a before-
+primary-lock rendezvous and alternate idle/held order.

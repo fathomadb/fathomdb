@@ -433,6 +433,56 @@ fn opt_in_sidecar_resolves_exact_target_and_winning_edge() {
 }
 
 #[test]
+fn anonymous_winning_terminal_edge_resolves_with_no_logical_id() {
+    let (_directory, engine, mut request) = fixture();
+    engine
+        .write(&[PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+            logical_id: None,
+            kind: "supports".into(),
+            from: "root".into(),
+            to: "target".into(),
+            source_id: SourceId::new("owner").unwrap(),
+            body: None,
+            t_valid: None,
+            t_invalid: None,
+            confidence: Some(0.8),
+            extractor_model_id: None,
+            temporal_fallback: None,
+            provenance: WriteProvenanceV1::derived(
+                ArtifactRevisionId::new("anonymous-edge-r1").unwrap(),
+                SourceVersionId::new("source-v1").unwrap(),
+                SourceRevisionId::new("source-r1").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(digest("canonical source bytes")).unwrap(),
+            ),
+        })])
+        .unwrap();
+    engine.drain(30_000).unwrap();
+    let GraphReadContextV1::Frozen { context, .. } = &request.context else { unreachable!() };
+    let frozen = engine.freeze_read_context(&context.context).unwrap();
+    request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() };
+    request.include_evidence = true;
+    let result = engine.graph_expand(&request).unwrap();
+    assert_eq!(result.targets.len(), 1);
+    let sidecar = result.evidence.unwrap();
+    assert_eq!(sidecar.entries.len(), 1);
+    let entry = &sidecar.entries[0];
+    assert_eq!(entry.terminal_edge_artifact_revision_id.as_str(), "anonymous-edge-r1");
+    let resolved = engine
+        .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: entry.terminal_edge_evidence_ref.clone(),
+            context: frozen,
+        })
+        .unwrap();
+    assert_eq!(resolved.artifact_revision_id, entry.terminal_edge_artifact_revision_id);
+    assert_eq!(resolved.canonical_source_body, "canonical source bytes");
+    assert!(matches!(resolved.artifact, GraphEvidenceArtifactV1::Edge {
+        logical_id: None, ref from, ref to, ..
+    } if from == "root" && to == "target"));
+}
+
+#[test]
 fn evidence_pins_the_traversal_winner_among_parallel_edges() {
     let (_directory, engine, mut request) = fixture();
     let source = "canonical source bytes";

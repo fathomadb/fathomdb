@@ -7,11 +7,12 @@ use std::time::Duration;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    graph_expansion_degradation_codes_for_test, Engine, EngineError, GraphExpandRendezvousForTest,
-    GraphExpandRequestV1, GraphExpansionDegradationCodeV1, GraphExpansionErrorReasonV1,
-    GraphProjectionOriginV1, GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1,
-    GraphSeedSourceV1, GraphSeedV1, IdSpace, InitialState, LifecycleState, PreparedWrite,
-    ReadContextV1, ReadView, SearchFilter, SourceId, TraversalDirection, TOP_K_BIT_CANDIDATES,
+    encode_graph_expand_result_v1, graph_expansion_degradation_codes_for_test, Engine, EngineError,
+    GraphExpandRendezvousForTest, GraphExpandRequestV1, GraphExpansionDegradationCodeV1,
+    GraphExpansionErrorReasonV1, GraphProjectionOriginV1, GraphProjectionReadinessV1,
+    GraphReadContextV1, GraphReadModeV1, GraphSeedSourceV1, GraphSeedV1, IdSpace, InitialState,
+    LifecycleState, PreparedWrite, ReadContextV1, ReadView, SearchFilter, SourceId,
+    TraversalDirection, TOP_K_BIT_CANDIDATES,
 };
 use fathomdb_schema::{SCHEMA_VERSION, SQLITE_SUFFIX};
 use tempfile::TempDir;
@@ -125,6 +126,29 @@ fn graph_error(
 
 fn target_ids(result: &fathomdb_engine::GraphExpandResultV1) -> Vec<&str> {
     result.targets.iter().map(|target| target.logical_id.as_str()).collect()
+}
+
+#[test]
+fn ordinary_graph_response_bytes_remain_literal_with_parallel_edges() {
+    let dir = TempDir::new().unwrap();
+    let opened = Engine::open(path(&dir, "literal-response")).unwrap();
+    opened
+        .engine
+        .write(&[
+            node("root", "claim", "root"),
+            node("target", "claim", "target"),
+            edge("edge-later", "supports", "root", "target"),
+            edge("edge-winner", "supports", "root", "target"),
+        ])
+        .unwrap();
+    let mut request = explicit_request(&["root"], TraversalDirection::Outgoing);
+    request.edge_kinds = vec!["supports".into()];
+    request.target_kinds = vec!["claim".into()];
+    request.max_depth = 1;
+
+    let bytes =
+        encode_graph_expand_result_v1(&opened.engine.graph_expand(&request).unwrap()).unwrap();
+    assert_eq!(bytes, br#"{"schemaVersion":1,"seeds":[{"schemaVersion":1,"logicalId":"root","seedOrdinal":0,"queryScore":null}],"targets":[{"schemaVersion":1,"logicalId":"target","kind":"claim","body":"target","writeCursor":"2","origin":{"schemaVersion":1,"seedLogicalId":"root","seedOrdinal":0,"predecessorLogicalId":"root","targetLogicalId":"target","hopCount":1,"terminalEdgeKind":"supports","terminalDirection":"outgoing"}}],"complete":true,"workUnits":"2","degradationCodes":[],"explanation":null}"#);
 }
 
 #[test]

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -129,6 +130,91 @@ test("resolved graph evidence response is recursively closed", async () => {
         error.reason === "graph_corrupt" &&
         error.fieldPath === "/z~1future~0field",
     );
+  } finally {
+    await engine.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("real engine resolves exact target and terminal edge graph evidence", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "fathomdb-slice20-real-"));
+  const engine = await Engine.open(join(directory, "graph-evidence.fathom"), {
+    useDefaultEmbedder: false,
+  });
+  try {
+    const source = "typescript canonical graph evidence bytes";
+    const derived = (artifactRevisionId: string) => ({
+      schemaVersion: 1 as const,
+      role: "derived" as const,
+      artifactRevisionId,
+      sourceVersionId: "ts-source-v1",
+      sourceRevisionId: "ts-source-r1",
+      sourceLocator: { kind: "whole_body" as const },
+      canonicalSourceHash: {
+        algorithm: "sha256" as const,
+        digestHex: createHash("sha256").update(source).digest("hex"),
+      },
+    });
+    await engine.write([
+      {
+        kind: "document",
+        body: source,
+        sourceId: "ts-owner",
+        logicalId: "ts-source",
+        provenance: {
+          schemaVersion: 1,
+          role: "canonical",
+          artifactRevisionId: "ts-source-r1",
+          sourceVersionId: "ts-source-v1",
+        },
+      },
+      { kind: "claim", body: "root", sourceId: "ts-owner", logicalId: "ts-root", provenance: derived("ts-root-r1") },
+      { kind: "claim", body: "target", sourceId: "ts-owner", logicalId: "ts-target", provenance: derived("ts-target-r1") },
+      {
+        edge: {
+          kind: "supports",
+          from: "ts-root",
+          to: "ts-target",
+          sourceId: "ts-owner",
+          logicalId: "ts-winner",
+          provenance: derived("ts-edge-r1"),
+        },
+      },
+    ]);
+    await engine.drain(30_000);
+    const context = await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+    const expanded = await graph.expand(engine, {
+      schemaVersion: 1,
+      seed: { schemaVersion: 1, type: "explicit", logicalIds: [{ space: "logical", value: "ts-root" }] },
+      direction: "outgoing",
+      edgeKinds: ["supports"],
+      targetKinds: ["claim"],
+      context: { schemaVersion: 1, type: "frozen", context },
+      maxDepth: 1,
+      resultLimit: 1,
+      maxWorkUnits: "10",
+      includeExplanation: false,
+      includeEvidence: true,
+    });
+    const entry = expanded.evidence!.entries[0]!;
+    const target = await engine.resolveGraphEvidence({
+      schemaVersion: 1,
+      evidenceRef: entry.targetEvidenceRef,
+      context,
+    });
+    const edge = await engine.resolveGraphEvidence({
+      schemaVersion: 1,
+      evidenceRef: entry.terminalEdgeEvidenceRef,
+      context,
+    });
+    assert.deepEqual(
+      [target.artifact.artifactClass, target.artifact.logicalId, target.canonicalSourceBody],
+      ["node", "ts-target", source],
+    );
+    assert.equal(edge.artifact.artifactClass, "edge");
+    if (edge.artifact.artifactClass === "edge") {
+      assert.deepEqual([edge.artifact.from, edge.artifact.to], ["ts-root", "ts-target"]);
+    }
   } finally {
     await engine.close();
     await rm(directory, { recursive: true, force: true });

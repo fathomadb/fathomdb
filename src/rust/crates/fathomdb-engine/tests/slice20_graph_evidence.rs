@@ -1,17 +1,20 @@
 //! Slice 20 contract tests for exact frozen graph evidence.
 
 use fathomdb_engine::{
-    decode_graph_expand_result_v1, encode_graph_expand_result_v1, ArtifactRevisionId,
-    CanonicalHash, Engine, EngineError, EvidenceErrorReasonV1, FrozenReadErrorReason,
-    GraphEvidenceArtifactV1, GraphEvidenceRefV1, GraphEvidenceResolveRequestV1,
-    GraphExpandRequestV1, GraphExpansionErrorReasonV1, GraphReadContextV1, GraphSeedV1, IdSpace,
-    InitialState, PreparedWrite, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView,
-    SearchFilter, SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
-    WriteProvenanceV1,
+    arm_erasure_before_primary_lock_hook_for_test,
+    arm_evidence_before_resolve_return_hook_for_test, decode_graph_expand_result_v1,
+    encode_graph_expand_result_v1, ArtifactRevisionId, CanonicalHash, Engine, EngineError,
+    EvidenceErrorReasonV1, FrozenReadErrorReason, GraphEvidenceArtifactV1, GraphEvidenceRefV1,
+    GraphEvidenceResolveRequestV1, GraphExpandRequestV1, GraphExpansionErrorReasonV1,
+    GraphReadContextV1, GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProvenancedEdgeV1,
+    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceId, SourceLocator,
+    SourceRevisionId, SourceVersionId, TraversalDirection, WriteProvenanceV1,
 };
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::{mpsc, Arc, Barrier};
+use std::thread;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tempfile::TempDir;
 
 fn digest(body: &str) -> String {
@@ -583,6 +586,99 @@ fn phase_two_faults_use_exact_target_then_terminal_edge_paths() {
     assert!(matches!(engine.graph_expand(&request).unwrap_err(), EngineError::Evidence(ref error)
         if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
             && error.field_path == "/targets/0/provenance/sourceLocator"));
+}
+
+#[test]
+fn lower_target_index_precedes_later_target_even_when_the_lower_fault_is_an_edge() {
+    let (directory, engine, request) = fixture_with_two_targets();
+    let context = match request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.context,
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+    let engine = reopen_after_sql(
+        &directory,
+        engine,
+        "UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes',start_byte=0,end_byte=999999 WHERE artifact_revision_id IN ('edge-r1','target-two-r1');",
+    );
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let request = GraphExpandRequestV1 {
+        include_evidence: true,
+        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        ..request
+    };
+    assert!(matches!(engine.graph_expand(&request).unwrap_err(), EngineError::Evidence(ref error)
+        if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
+            && error.field_path == "/targets/0/terminalEdge/provenance/sourceLocator"));
+}
+
+fn resolver_linearizes_before_erasure(use_operator_spelling: bool) {
+    let (_directory, engine, mut request) = fixture();
+    request.include_evidence = true;
+    let result = engine.graph_expand(&request).unwrap();
+    let reference = result.evidence.unwrap().entries[0].target_evidence_ref.clone();
+    let context = match request.context {
+        GraphReadContextV1::Frozen { context, .. } => context,
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+    let engine = Arc::new(engine);
+    let ready = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    let hook_ready = Arc::clone(&ready);
+    let hook_release = Arc::clone(&release);
+    arm_evidence_before_resolve_return_hook_for_test(Box::new(move || {
+        hook_ready.wait();
+        hook_release.wait();
+    }));
+    let resolver = {
+        let engine = Arc::clone(&engine);
+        thread::spawn(move || {
+            engine.resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference,
+                context,
+            })
+        })
+    };
+    ready.wait();
+
+    let (lock_tx, lock_rx) = mpsc::channel();
+    arm_erasure_before_primary_lock_hook_for_test(Box::new(move || lock_tx.send(()).unwrap()));
+    let (done_tx, done_rx) = mpsc::channel();
+    let eraser = {
+        let engine = Arc::clone(&engine);
+        thread::spawn(move || {
+            let result = if use_operator_spelling {
+                #[cfg(feature = "operator")]
+                {
+                    engine.excise_source("owner")
+                }
+                #[cfg(not(feature = "operator"))]
+                {
+                    unreachable!()
+                }
+            } else {
+                engine.erase_source("owner")
+            };
+            done_tx.send(()).unwrap();
+            result
+        })
+    };
+    lock_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    assert!(matches!(done_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+    release.wait();
+    assert_eq!(resolver.join().unwrap().unwrap().artifact_revision_id.as_str(), "target-r1");
+    eraser.join().unwrap().unwrap();
+}
+
+#[test]
+fn graph_resolver_and_governed_erase_linearize_under_the_primary_mutex() {
+    resolver_linearizes_before_erasure(false);
+}
+
+#[cfg(feature = "operator")]
+#[test]
+fn graph_resolver_and_operator_excise_linearize_under_the_primary_mutex() {
+    resolver_linearizes_before_erasure(true);
 }
 
 #[test]

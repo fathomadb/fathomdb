@@ -29,8 +29,9 @@ timed treatment executes two class-specific data statements total after
 selection. Plan inspection is outside the timed path; minting consumes the
 validated, source-deduplicated material without further SQL or hashing. Writer
 arms rotate order across isolated fixtures. Each writer reports readiness
-before timing; loaded arms require repeated successful commits during the
-timed interval, and the recorded operation count excludes setup and shutdown.
-The common 250-microsecond inter-write pacing keeps the three writer arms
-comparable. Erasure arms use a before-primary-lock rendezvous and alternate
-idle/held order.
+before timing. All arms issue foreground writes independently for the same
+fixed one-second window with common two-millisecond pacing and no
+load-dependent wait, poll, or quota inside the timed writer loop. Loaded arms
+must naturally complete at least 20 background operations; recorded background
+counts exclude setup and shutdown. Erasure arms use a before-primary-lock
+rendezvous and alternate idle/held order.

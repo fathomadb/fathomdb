@@ -48,17 +48,15 @@ and edge 1 KiB p50 values were 0.306–0.341 ms; eight-caller point p50 was
 25 edge resolutions was 15.305–17.921 ms p50. The 100 KiB and 30-sample batch
 p99 values are descriptive because they are undersampled.
 
-The writer-throughput reconsideration trigger fired after FIX-2 corrected the
-harness to require repeated overlap. With hydrated graph load, the median
-writer throughput ratio was 0.781 (bootstrap 0.618–0.963), a 21.9 percent loss;
-with point-resolution load it was 0.661 (0.598–0.767), a 33.9 percent loss.
-Graph arms recorded 110–187 successful timed-interval writes and point arms 20;
-setup and shutdown successes are excluded. Writer p99 did not grow: median
-ratios were 0.542 (0.438–1.046) and 0.781 (0.693–1.013), respectively. The
-throughput result is repeatable enough to require Slice 20 design
-reconsideration, not to reject A: opt-in treatment limits the observed
-interference to calls that actually request evidence, whereas B imposes it on
-every graph expansion.
+Writer triggers did not fire under valid independent sustained concurrency.
+All arms issued foreground writes for the same fixed one-second window, with
+no load-dependent wait, poll, or quota in the timed loop. Graph arms naturally
+completed 807–828 background graph operations and point arms 339–363 background
+point operations during those windows. With hydrated graph load, median writer
+throughput ratio was 0.977 (bootstrap 0.969–0.992) and p99 ratio 1.018
+(0.956–1.050). With point-resolution load, throughput ratio was 0.951
+(0.910–0.962) and p99 ratio 0.852 (0.784–0.944). Neither the greater-than-10%
+throughput-loss nor greater-than-25% p99-growth threshold crossed.
 
 Process-isolated peak-RSS growth was 280–300 KiB for control and 464–560 KiB
 for treatment, with a median paired ratio of 1.676 (1.547–2.000). This is a
@@ -89,11 +87,8 @@ B imposes the 1.53× single-caller and 1.55× concurrent 50-result work on every
 graph call, grows every response, and either rejects existing current-context
 calls or creates mixed required-field semantics. A keeps one V1 family and one
 treatment implementation without those ordinary-path consequences. The
-writer-throughput trigger means Slice 20 must reduce or explicitly bound
-interference before shipping either shape; it is additional evidence against
-making treatment mandatory. The 43-file maintained graph surface still needs
-coordinated Slice 20 review, but A preserves the established target encoding
-when evidence is not requested.
+43-file maintained graph surface still needs coordinated Slice 20 review, but
+A preserves the established target encoding when evidence is not requested.
 
 The real samples and reproducible derivation are in `raw-samples.json`,
 `derived-analysis.json`, and `derive.jq` in this directory.

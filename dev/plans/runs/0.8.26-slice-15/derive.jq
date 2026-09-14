@@ -101,6 +101,9 @@ def arm($name): [.campaigns[] | .[$name] | stats];
     },
     writer: {
       campaigns: $writers,
+      sample_windows: ($root.writer_campaigns
+        | map({campaign, mode, elapsed_us, foreground_operations,
+          successful_background_ops, throughput_per_s})),
       successful_background_ops: ($root.writer_campaigns
         | map(select(.mode != "alone")
           | {campaign, mode, successful_background_ops})),

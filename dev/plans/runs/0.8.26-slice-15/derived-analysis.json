@@ -793,165 +793,287 @@
     "campaigns": [
       {
         "campaign": 0,
-        "graph_throughput_ratio": 0.7814407612734176,
-        "graph_p99_ratio": 0.5418758256274769,
-        "point_throughput_ratio": 0.7671857472163944,
-        "point_p99_ratio": 0.8206076618229855
+        "graph_throughput_ratio": 0.9690859229820143,
+        "graph_p99_ratio": 0.9729809104258443,
+        "point_throughput_ratio": 0.952093768630432,
+        "point_p99_ratio": 0.9444933920704845
       },
       {
         "campaign": 1,
-        "graph_throughput_ratio": 0.9630939938197336,
-        "graph_p99_ratio": 1.020969855832241,
-        "point_throughput_ratio": 0.5977576645509922,
-        "point_p99_ratio": 0.6926605504587156
+        "graph_throughput_ratio": 0.987491889159637,
+        "graph_p99_ratio": 1.02143906020558,
+        "point_throughput_ratio": 0.9293422394754948,
+        "point_p99_ratio": 0.84640234948605
       },
       {
         "campaign": 2,
-        "graph_throughput_ratio": 0.9527990871824616,
-        "graph_p99_ratio": 1.0459921156373193,
-        "point_throughput_ratio": 0.6605461995307722,
-        "point_p99_ratio": 0.7805519053876478
+        "graph_throughput_ratio": 0.9923211840851652,
+        "graph_p99_ratio": 0.9558659217877095,
+        "point_throughput_ratio": 0.9619167119675497,
+        "point_p99_ratio": 0.7837988826815643
       },
       {
         "campaign": 3,
-        "graph_throughput_ratio": 0.6233049624887794,
-        "graph_p99_ratio": 0.4384442301510768,
-        "point_throughput_ratio": 0.6946350108817724,
-        "point_p99_ratio": 0.7720990035358406
+        "graph_throughput_ratio": 0.971977889124824,
+        "graph_p99_ratio": 1.017909571344686,
+        "point_throughput_ratio": 0.9510415588503527,
+        "point_p99_ratio": 0.8523194362889019
       },
       {
         "campaign": 4,
-        "graph_throughput_ratio": 0.6183564536550996,
-        "graph_p99_ratio": 0.4536489151873767,
-        "point_throughput_ratio": 0.6513784675410075,
-        "point_p99_ratio": 1.0134779750164367
+        "graph_throughput_ratio": 0.9770603788508373,
+        "graph_p99_ratio": 1.0500745156482862,
+        "point_throughput_ratio": 0.9103117918546492,
+        "point_p99_ratio": 0.8634873323397914
+      }
+    ],
+    "sample_windows": [
+      {
+        "campaign": 0,
+        "mode": "alone",
+        "elapsed_us": 1000159,
+        "foreground_operations": 378,
+        "successful_background_ops": 0,
+        "throughput_per_s": 377.93972390519326
+      },
+      {
+        "campaign": 0,
+        "mode": "graph",
+        "elapsed_us": 1002031,
+        "foreground_operations": 367,
+        "successful_background_ops": 814,
+        "throughput_per_s": 366.2560661722319
+      },
+      {
+        "campaign": 0,
+        "mode": "point",
+        "elapsed_us": 1000461,
+        "foreground_operations": 360,
+        "successful_background_ops": 359,
+        "throughput_per_s": 359.83405604804045
+      },
+      {
+        "campaign": 1,
+        "mode": "graph",
+        "elapsed_us": 1001521,
+        "foreground_operations": 373,
+        "successful_background_ops": 822,
+        "throughput_per_s": 372.4333906400486
+      },
+      {
+        "campaign": 1,
+        "mode": "point",
+        "elapsed_us": 1001420,
+        "foreground_operations": 351,
+        "successful_background_ops": 351,
+        "throughput_per_s": 350.50220170154876
+      },
+      {
+        "campaign": 1,
+        "mode": "alone",
+        "elapsed_us": 1002251,
+        "foreground_operations": 378,
+        "successful_background_ops": 0,
+        "throughput_per_s": 377.1508350888757
+      },
+      {
+        "campaign": 2,
+        "mode": "point",
+        "elapsed_us": 1002002,
+        "foreground_operations": 363,
+        "successful_background_ops": 363,
+        "throughput_per_s": 362.2747191290839
+      },
+      {
+        "campaign": 2,
+        "mode": "alone",
+        "elapsed_us": 1001015,
+        "foreground_operations": 377,
+        "successful_background_ops": 0,
+        "throughput_per_s": 376.6175539128228
+      },
+      {
+        "campaign": 2,
+        "mode": "graph",
+        "elapsed_us": 1000734,
+        "foreground_operations": 374,
+        "successful_background_ops": 807,
+        "throughput_per_s": 373.7255770460309
+      },
+      {
+        "campaign": 3,
+        "mode": "alone",
+        "elapsed_us": 1001526,
+        "foreground_operations": 379,
+        "successful_background_ops": 0,
+        "throughput_per_s": 378.4223579485542
+      },
+      {
+        "campaign": 3,
+        "mode": "graph",
+        "elapsed_us": 1000494,
+        "foreground_operations": 368,
+        "successful_background_ops": 828,
+        "throughput_per_s": 367.8181646764742
+      },
+      {
+        "campaign": 3,
+        "mode": "point",
+        "elapsed_us": 1000290,
+        "foreground_operations": 360,
+        "successful_background_ops": 358,
+        "throughput_per_s": 359.8953892072191
+      },
+      {
+        "campaign": 4,
+        "mode": "graph",
+        "elapsed_us": 1001460,
+        "foreground_operations": 371,
+        "successful_background_ops": 808,
+        "throughput_per_s": 370.45896690637124
+      },
+      {
+        "campaign": 4,
+        "mode": "point",
+        "elapsed_us": 1002460,
+        "foreground_operations": 346,
+        "successful_background_ops": 339,
+        "throughput_per_s": 345.15079443687546
+      },
+      {
+        "campaign": 4,
+        "mode": "alone",
+        "elapsed_us": 1002224,
+        "foreground_operations": 380,
+        "successful_background_ops": 0,
+        "throughput_per_s": 379.15667744309104
       }
     ],
     "successful_background_ops": [
       {
         "campaign": 0,
         "mode": "graph",
-        "successful_background_ops": 152
+        "successful_background_ops": 814
       },
       {
         "campaign": 0,
         "mode": "point",
-        "successful_background_ops": 20
+        "successful_background_ops": 359
       },
       {
         "campaign": 1,
         "mode": "graph",
-        "successful_background_ops": 110
+        "successful_background_ops": 822
       },
       {
         "campaign": 1,
         "mode": "point",
-        "successful_background_ops": 20
+        "successful_background_ops": 351
       },
       {
         "campaign": 2,
         "mode": "point",
-        "successful_background_ops": 20
+        "successful_background_ops": 363
       },
       {
         "campaign": 2,
         "mode": "graph",
-        "successful_background_ops": 111
+        "successful_background_ops": 807
       },
       {
         "campaign": 3,
         "mode": "graph",
-        "successful_background_ops": 186
+        "successful_background_ops": 828
       },
       {
         "campaign": 3,
         "mode": "point",
-        "successful_background_ops": 20
+        "successful_background_ops": 358
       },
       {
         "campaign": 4,
         "mode": "graph",
-        "successful_background_ops": 187
+        "successful_background_ops": 808
       },
       {
         "campaign": 4,
         "mode": "point",
-        "successful_background_ops": 20
+        "successful_background_ops": 339
       }
     ],
     "graph_throughput_ratio": {
       "campaign_ratios": [
-        0.7814407612734176,
-        0.9630939938197336,
-        0.9527990871824616,
-        0.6233049624887794,
-        0.6183564536550996
+        0.9690859229820143,
+        0.987491889159637,
+        0.9923211840851652,
+        0.971977889124824,
+        0.9770603788508373
       ],
-      "median_ratio": 0.7814407612734176,
+      "median_ratio": 0.9770603788508373,
       "iqr": {
-        "q1": 0.6233049624887794,
-        "q3": 0.9527990871824616
+        "q1": 0.971977889124824,
+        "q3": 0.987491889159637
       },
       "deterministic_exhaustive_bootstrap_95": {
-        "low": 0.6183564536550996,
-        "high": 0.9630939938197336,
+        "low": 0.9690859229820143,
+        "high": 0.9923211840851652,
         "resamples": 3125
       }
     },
     "graph_p99_ratio": {
       "campaign_ratios": [
-        0.5418758256274769,
-        1.020969855832241,
-        1.0459921156373193,
-        0.4384442301510768,
-        0.4536489151873767
+        0.9729809104258443,
+        1.02143906020558,
+        0.9558659217877095,
+        1.017909571344686,
+        1.0500745156482862
       ],
-      "median_ratio": 0.5418758256274769,
+      "median_ratio": 1.017909571344686,
       "iqr": {
-        "q1": 0.4536489151873767,
-        "q3": 1.020969855832241
+        "q1": 0.9729809104258443,
+        "q3": 1.02143906020558
       },
       "deterministic_exhaustive_bootstrap_95": {
-        "low": 0.4384442301510768,
-        "high": 1.0459921156373193,
+        "low": 0.9558659217877095,
+        "high": 1.0500745156482862,
         "resamples": 3125
       }
     },
     "point_throughput_ratio": {
       "campaign_ratios": [
-        0.7671857472163944,
-        0.5977576645509922,
-        0.6605461995307722,
-        0.6946350108817724,
-        0.6513784675410075
+        0.952093768630432,
+        0.9293422394754948,
+        0.9619167119675497,
+        0.9510415588503527,
+        0.9103117918546492
       ],
-      "median_ratio": 0.6605461995307722,
+      "median_ratio": 0.9510415588503527,
       "iqr": {
-        "q1": 0.6513784675410075,
-        "q3": 0.6946350108817724
+        "q1": 0.9293422394754948,
+        "q3": 0.952093768630432
       },
       "deterministic_exhaustive_bootstrap_95": {
-        "low": 0.5977576645509922,
-        "high": 0.7671857472163944,
+        "low": 0.9103117918546492,
+        "high": 0.9619167119675497,
         "resamples": 3125
       }
     },
     "point_p99_ratio": {
       "campaign_ratios": [
-        0.8206076618229855,
-        0.6926605504587156,
-        0.7805519053876478,
-        0.7720990035358406,
-        1.0134779750164367
+        0.9444933920704845,
+        0.84640234948605,
+        0.7837988826815643,
+        0.8523194362889019,
+        0.8634873323397914
       ],
-      "median_ratio": 0.7805519053876478,
+      "median_ratio": 0.8523194362889019,
       "iqr": {
-        "q1": 0.7720990035358406,
-        "q3": 0.8206076618229855
+        "q1": 0.84640234948605,
+        "q3": 0.8634873323397914
       },
       "deterministic_exhaustive_bootstrap_95": {
-        "low": 0.6926605504587156,
-        "high": 1.0134779750164367,
+        "low": 0.7837988826815643,
+        "high": 0.9444933920704845,
         "resamples": 3125
       }
     }

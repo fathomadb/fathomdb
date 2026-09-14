@@ -19,14 +19,14 @@ erasure campaigns now use explicit readiness rendezvous and balanced order;
 the workload model uses expected mean rather than invalid p50 interpolation.
 
 FIX-2 completes the intrinsic locator, span, direct dependency generation, and
-class-specific lifecycle material; aligns node eligibility with shipped target
-filters while keeping target-only filters out of terminal-edge resolution; and
-counts only successful writer operations during the timed interval. Every
-loaded writer arm achieved at least 20 overlapping commits. The corrected
-campaign crossed the writer-throughput reconsideration threshold: median
-throughput ratios were 0.781 for graph hydration and 0.661 for point
-resolution. This strengthens the option-A recommendation but requires Slice 20
-to reduce or explicitly bound interference before shipping.
+class-specific lifecycle material and aligns node eligibility with shipped
+target filters while keeping target-only filters out of terminal-edge
+resolution. Its final writer campaign uses independent fixed-duration issuance
+with no load-dependent timed waits and counts only successful background
+operations during the interval. The valid campaign did not cross either writer
+reconsideration threshold: median throughput ratios were 0.977 for graph
+hydration and 0.951 for point resolution, while p99 ratios were 1.018 and
+0.852. No writer-performance stop gate is allocated to Slice 20.
 
 Teardown restored every transient shipping-code path byte-for-byte to the
 pre-spike tree and removed the transient prototype tests. Only the durable

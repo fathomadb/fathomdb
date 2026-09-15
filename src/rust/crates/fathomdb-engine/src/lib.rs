@@ -4260,10 +4260,10 @@ pub fn inspect_data_plane_integrity(
         data_plane_inspection_error(DataPlaneIntegrityErrorReasonV1::IntegrityCorrupt, "")
     })?;
     let database_schema_version =
-        connection.pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0)).map_err(
+        connection.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0)).map_err(
             |_| data_plane_inspection_error(DataPlaneIntegrityErrorReasonV1::IntegrityCorrupt, ""),
         )?;
-    if database_schema_version != SCHEMA_VERSION {
+    if database_schema_version != i64::from(SCHEMA_VERSION) {
         return Err(data_plane_inspection_error(
             DataPlaneIntegrityErrorReasonV1::DatabaseSchemaMismatch,
             "/databaseSchemaVersion",

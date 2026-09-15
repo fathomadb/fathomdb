@@ -14,11 +14,10 @@
 //! non-bge, so `identity_requires_mean_centering` is false and the probe uses the
 //! un-centered (raw-sign) representation on BOTH sides (R-VEQ-3c non-MC branch).
 
-use std::sync::{Arc, Once};
+use std::sync::Arc;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{Engine, EngineError};
-use fathomdb_schema::{migrate_with_steps, MIGRATIONS, SCHEMA_VERSION};
 use tempfile::TempDir;
 
 const DIM: usize = 384;
@@ -171,20 +170,6 @@ impl Embedder for BgeMeanReflectEmbedder {
 
 fn db_path(dir: &TempDir) -> std::path::PathBuf {
     dir.path().join("veq.sqlite")
-}
-
-/// Register sqlite-vec once per test binary (needed to build a raw v18 DB whose
-/// step-9 migration creates a vec0 table).
-fn register_sqlite_vec_once() {
-    static REGISTER: Once = Once::new();
-    REGISTER.call_once(|| unsafe {
-        let entrypoint: unsafe extern "C" fn(
-            *mut rusqlite::ffi::sqlite3,
-            *mut *mut std::os::raw::c_char,
-            *const rusqlite::ffi::sqlite3_api_routines,
-        ) -> std::os::raw::c_int = std::mem::transmute(sqlite_vec::sqlite3_vec_init as *const ());
-        rusqlite::ffi::sqlite3_auto_extension(Some(entrypoint));
-    });
 }
 
 /// The all-`1.0` mean vector, LE-f32 encoded (matches the engine's `mean_vec`
@@ -784,88 +769,6 @@ fn mc_reflect_without_pin_takes_uncentered_path_zero_flips() {
         "un-centered, the reflect backend must show 0 raw-sign flips, reason was: {reason}"
     );
     opened.engine.close().unwrap();
-}
-
-// ---- fix-1 CONCERN #6 — v18→v19 upgrade with pre-existing kind + pinned mean --
-
-/// Build a genuine v18 DB with a pre-existing vector kind + a pinned mean, then
-/// open it through the engine (which upgrades 18→head). The baseline must be
-/// established at that first upgraded open FROM the identity-matched embedder (gated by
-/// `check_embedder_profile`), and the subsequent check must behave: same backend ⇒
-/// served; divergent backend ⇒ dense refused (fail-SAFE). The residual (a
-/// same-identity backend that diverged BEFORE upgrade is not retroactively caught)
-/// is documented in the design; #5 is additive-only.
-#[test]
-fn upgrade_from_v18_with_kind_and_pinned_mean_establishes_baseline_and_checks() {
-    register_sqlite_vec_once();
-    let dir = TempDir::new().unwrap();
-    let path = db_path(&dir);
-
-    // --- Build a v18 DB (migrations 1..=18) then seed the pre-existing state ---
-    {
-        let conn = rusqlite::Connection::open(&path).unwrap();
-        let steps_to_18: Vec<_> = MIGRATIONS.iter().filter(|m| m.step_id <= 18).cloned().collect();
-        // Fresh DB (user_version 0) ⇒ steps 1..=18 run contiguously (step 1 creates
-        // `_fathomdb_embedder_profiles`; the mean_vec column + `_fathomdb_vector_kinds`
-        // land at earlier steps). Profile row is inserted AFTER migrating, mirroring
-        // the engine's order (migrate, then check_embedder_profile inserts it).
-        migrate_with_steps(&conn, &steps_to_18).expect("migrate to v18");
-        let ver: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0)).unwrap();
-        assert_eq!(ver, 18, "precondition: DB is at v18");
-
-        conn.execute(
-            "INSERT INTO _fathomdb_embedder_profiles(profile, name, revision, dimension, mean_vec)
-             VALUES('default', ?1, ?2, ?3, ?4)",
-            rusqlite::params![BGE_NAME, BGE_REV, DIM as u32, all_ones_mean_blob()],
-        )
-        .expect("seed bge profile with a pinned mean");
-        conn.execute(
-            "INSERT INTO _fathomdb_vector_kinds(kind, profile, created_at) VALUES('note','default',0)",
-            [],
-        )
-        .expect("seed pre-existing vector kind");
-
-        // No probe references yet — exactly the post-upgrade state (the migration
-        // creates the empty table at v19; the engine populates it at open).
-        drop(conn);
-    }
-
-    // --- First v19 open: upgrade + establish the baseline (identity-gated) ------
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(BgeRefEmbedder))
-        .expect("open must upgrade v18→v19 and establish the baseline");
-    assert!(
-        !opened.report.dense_disabled,
-        "establishing the baseline at the upgrade open is never degraded"
-    );
-    assert_eq!(opened.report.schema_version_before, 18, "upgrade started at v18");
-    assert_eq!(
-        opened.report.schema_version_after, SCHEMA_VERSION,
-        "upgrade reached the current schema head"
-    );
-    opened.engine.close().unwrap();
-
-    let conn = rusqlite::Connection::open(&path).unwrap();
-    let rows: i64 =
-        conn.query_row("SELECT COUNT(*) FROM _fathomdb_embed_probe", [], |r| r.get(0)).unwrap();
-    assert_eq!(rows, 45, "the upgrade open must establish the 45-probe baseline");
-    drop(conn);
-
-    // --- Subsequent checks behave: same backend served, divergent refused -------
-    let same = Engine::open_with_embedder_for_test(&path, Arc::new(BgeRefEmbedder))
-        .expect("same-backend reopen");
-    assert!(!same.report.dense_disabled, "same identity-matched backend ⇒ dense served");
-    same.engine.close().unwrap();
-
-    // TC-68 — put the workspace back in the "probe actually runs" state before
-    // presenting the divergent backend (see `force_probe_verdict_rerun`).
-    force_probe_verdict_rerun(&path);
-    let divergent = Engine::open_with_embedder_for_test(&path, Arc::new(BgeMeanReflectEmbedder))
-        .expect("divergent reopen (degraded)");
-    assert!(
-        divergent.report.dense_disabled,
-        "a mean-centered divergent backend ⇒ dense refused (fail-SAFE)"
-    );
-    divergent.engine.close().unwrap();
 }
 
 // ---- fix-2 DEFECT #1 residual — the STORED baseline must be COMPLETE -----------

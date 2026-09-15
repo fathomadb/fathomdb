@@ -9134,14 +9134,23 @@ impl Engine {
         #[cfg(not(feature = "default-reranker"))]
         let reranker_device_resolution = None;
         let canonical_path = canonical_database_path(&path.into())?;
-        let pending_lock = acquire_lock_without_metadata_mutation(&canonical_path)?;
-        configure_runtime_for_open().map_err(EngineOpenError::RuntimeConfiguration)?;
+        let report_preopen_error = |error| {
+            if let Some(subscriber) = initial_subscriber.as_ref() {
+                emit_open_error_event(subscriber, &error);
+            }
+            error
+        };
+        let pending_lock = acquire_lock_without_metadata_mutation(&canonical_path)
+            .map_err(&report_preopen_error)?;
+        configure_runtime_for_open()
+            .map_err(EngineOpenError::RuntimeConfiguration)
+            .map_err(&report_preopen_error)?;
         #[cfg(test)]
         run_admission_locked_hook_for_test(&canonical_path);
         if plan.admission == DatabaseAdmission::CurrentOnly {
-            admit_current_database(&canonical_path)?;
+            admit_current_database(&canonical_path).map_err(&report_preopen_error)?;
         }
-        let lock = pending_lock.initialize()?;
+        let lock = pending_lock.initialize().map_err(&report_preopen_error)?;
         #[cfg(any(test, feature = "test-hooks"))]
         let managed_connections = Arc::new(ManagedConnectionRegistry::default());
         let open_result = Self::open_locked(

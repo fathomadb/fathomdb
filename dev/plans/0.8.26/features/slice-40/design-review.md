@@ -67,3 +67,10 @@ and its evidence:
 The design and plan now state the corrected ordering and exact evidence. The
 implementation and focused tests contain both remediations; final Astra
 rereview is recorded below after verification.
+
+The same GPT-6 Astra medium reviewer rereviewed RED `7eadeb94` and remediated
+HEAD `68152886` and returned **PASS** with no remaining P1/P2 finding. It
+confirmed `DatabaseLocked` precedence, runtime-before-admission ordering, the
+three fresh-process cases, both race directions, untouched pending-lock
+metadata, and exact `0 -> 34` winner evidence. The reviewer also confirmed the
+path-scoped `cfg(test)` hook adds no shipped API or production behavior.

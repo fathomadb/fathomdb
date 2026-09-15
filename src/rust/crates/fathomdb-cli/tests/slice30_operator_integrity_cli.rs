@@ -160,15 +160,11 @@ fn nonempty_wal_and_journal_refuse_without_alteration() {
 }
 
 #[test]
-fn lower_and_higher_schema_refuse_without_migration() {
-    for delta in [-1_i64, 1] {
-        let (_directory, path) = fresh_database(&format!("schema-{delta}.sqlite"));
+fn every_mismatched_signed_schema_refuses_without_migration() {
+    for version in [32_i64, 34, -1] {
+        let (_directory, path) = fresh_database(&format!("schema-{version}.sqlite"));
         let connection = Connection::open(&path).expect("open schema fixture");
-        let current: i64 =
-            connection.query_row("PRAGMA user_version", [], |row| row.get(0)).unwrap();
-        connection
-            .pragma_update(None, "user_version", current + delta)
-            .expect("stamp mismatched schema");
+        connection.pragma_update(None, "user_version", version).expect("stamp mismatched schema");
         drop(connection);
         let before = file_set(&path);
 
@@ -180,7 +176,7 @@ fn lower_and_higher_schema_refuse_without_migration() {
             "database_schema_mismatch",
             "/databaseSchemaVersion",
         );
-        assert!(file_set(&path) == before, "schema delta {delta} was changed");
+        assert!(file_set(&path) == before, "schema version {version} was changed");
     }
 }
 

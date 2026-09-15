@@ -478,7 +478,7 @@ fn source_reference_limit_rejects_the_first_over_bound_row() {
 }
 
 #[test]
-fn source_reference_limit_reserves_affected_revision_capacity_per_receipt() {
+fn source_reference_integrity_rejects_extra_rows_below_capacity_ceiling() {
     let dir = TempDir::new().unwrap();
     let db_path = path(&dir, "ref-formula");
     let operation_id = "ref-formula";
@@ -487,34 +487,16 @@ fn source_reference_limit_reserves_affected_revision_capacity_per_receipt() {
         let opened = Engine::open(&db_path).unwrap();
         opened.engine.actuate(batch.clone()).unwrap();
     }
-    let mut connection = Connection::open(&db_path).unwrap();
-    let tx = connection.transaction().unwrap();
-    tx.execute(
-        "DELETE FROM _fathomdb_actuation_receipt_source_refs WHERE operation_id=?1",
-        [operation_id],
-    )
-    .unwrap();
-    for index in 0..10 {
-        tx.execute(
-            "INSERT INTO _fathomdb_actuation_receipt_source_refs(\
-               operation_id,schema_version,ref_kind,ref_value\
-             ) VALUES(?1,1,'artifact_revision_id',?2)",
-            [operation_id, &format!("artifact-{index}")],
-        )
-        .unwrap();
-    }
-    tx.commit().unwrap();
-    let reopened = Engine::open(&db_path).unwrap();
-    assert!(reopened.engine.actuate(batch.clone()).is_ok());
-    Connection::open(&db_path)
-        .unwrap()
+    let connection = Connection::open(&db_path).unwrap();
+    connection
         .execute(
             "INSERT INTO _fathomdb_actuation_receipt_source_refs(\
                operation_id,schema_version,ref_kind,ref_value\
-             ) VALUES(?1,1,'artifact_revision_id','artifact-10')",
+             ) VALUES(?1,1,'artifact_revision_id','artifact-extra')",
             [operation_id],
         )
         .unwrap();
+    let reopened = Engine::open(&db_path).unwrap();
     assert!(matches!(reopened.engine.actuate(batch), Err(EngineError::Storage)));
 }
 

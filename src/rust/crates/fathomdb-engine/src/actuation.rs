@@ -672,7 +672,7 @@ pub(super) fn load_receipt(
             && pending_json == "[]"
             && closure_json == "[]"
             && projection_generation_id.is_none()
-            && validate_source_refs(connection, operation_id, 0)? == 0;
+            && validate_source_refs(connection, operation_id, 0)?.is_empty();
         if !erased_is_canonical {
             return Err(EngineError::Storage);
         }
@@ -906,11 +906,26 @@ pub(super) fn load_receipt(
             )?;
         }
     }
-    validate_source_refs(
+    if let Some(request) = request {
+        let expected_affected = expected_affected_revisions(connection, request, outcome)?;
+        if affected_revision_ids != expected_affected {
+            return Err(EngineError::Storage);
+        }
+    }
+    let stored_source_refs = validate_source_refs(
         connection,
         operation_id,
         source_ref_limit(operations_count, affected_revision_ids.len()),
     )?;
+    if let Some(request) = request {
+        let mut expected_source_refs = collect_source_refs(request);
+        if outcome != ActuationOutcomeV1::Refused {
+            enrich_affected_refs(connection, &affected_revision_ids, &mut expected_source_refs)?;
+        }
+        if stored_source_refs != expected_source_refs {
+            return Err(EngineError::Storage);
+        }
+    }
     Ok(Some(ActuationReceiptV1 {
         schema_version: 1,
         operation_id: operation_id.to_string(),
@@ -982,7 +997,7 @@ fn validate_source_refs(
     connection: &Connection,
     operation_id: &str,
     max_refs: usize,
-) -> Result<usize, EngineError> {
+) -> Result<BTreeSet<(&'static str, String)>, EngineError> {
     let limit = i64::try_from(max_refs.saturating_add(1)).map_err(|_| EngineError::Storage)?;
     let mut statement = connection
         .prepare(
@@ -1001,23 +1016,29 @@ fn validate_source_refs(
     if rows.len() > max_refs || rows.len() > MAX_SOURCE_REFS {
         return Err(EngineError::Storage);
     }
-    for (schema, kind, value) in &rows {
-        let valid = match kind.as_str() {
+    let mut validated = BTreeSet::new();
+    for (schema, kind, value) in rows {
+        let kind = match kind.as_str() {
             "source_id" => {
-                SourceId::new(value.clone()).is_ok()
+                let valid = SourceId::new(value.clone()).is_ok()
                     || value.starts_with(SourceId::ENGINE_PREFIX)
-                    || value == SourceId::LEGACY_PRE_0_8_20
+                    || value == SourceId::LEGACY_PRE_0_8_20;
+                valid.then_some("source_id")
             }
             "source_revision_id" | "artifact_revision_id" => {
-                stored_artifact_revision_id_is_valid(value)
+                stored_artifact_revision_id_is_valid(&value).then_some(match kind.as_str() {
+                    "source_revision_id" => "source_revision_id",
+                    _ => "artifact_revision_id",
+                })
             }
-            _ => false,
+            _ => None,
         };
-        if *schema != 1 || !valid {
+        if schema != 1 || kind.is_none() {
             return Err(EngineError::Storage);
         }
+        validated.insert((kind.expect("validated source-reference kind"), value));
     }
-    Ok(rows.len())
+    Ok(validated)
 }
 
 fn store_receipt(
@@ -1120,49 +1141,53 @@ fn collect_source_refs(request: &ActuationBatchV1) -> BTreeSet<(&'static str, St
     refs
 }
 
-fn enrich_resolved_refs(
+fn enrich_affected_refs(
     connection: &Connection,
-    request: &ActuationBatchV1,
+    affected_revision_ids: &[String],
     refs: &mut BTreeSet<(&'static str, String)>,
 ) -> Result<(), EngineError> {
-    for operation in &request.operations {
-        if let ActuationOperationV1::PutDerivedEdge(edge) = operation {
-            for (revision, source_id) in
-                prior_edge_revisions(connection, edge, MAX_AFFECTED_REVISIONS + 1)?
-            {
-                refs.insert(("artifact_revision_id", revision));
-                refs.insert(("source_id", source_id));
-            }
-            continue;
-        }
-        let logical_id = match operation {
-            ActuationOperationV1::PutCanonicalNode(node)
-            | ActuationOperationV1::PutDerivedNode(node) => node.logical_id.as_deref(),
-            ActuationOperationV1::TransitionLifecycle(lifecycle) => {
-                Some(lifecycle.logical_id.as_str())
-            }
-            ActuationOperationV1::PutDerivedEdge(_) => unreachable!("handled above"),
-            ActuationOperationV1::RegisterSourceDependency(_) => None,
-        };
-        let Some(logical_id) = logical_id else {
-            continue;
-        };
-        let Some((revision, _, role)) = current_revision_for_logical(connection, logical_id)?
-        else {
-            continue;
-        };
+    for revision in affected_revision_ids {
         refs.insert(("artifact_revision_id", revision.clone()));
-        if role == "canonical_source" {
-            refs.insert(("source_revision_id", revision.clone()));
-        }
-        let source_id: Option<String> = connection
+        let row: Option<(String, i64, String, Option<String>)> = connection
             .query_row(
-                "SELECT source_id FROM _fathomdb_source_links WHERE artifact_revision_id=?1",
-                [&revision],
-                |row| row.get(0),
+                "SELECT ar.artifact_class,ar.write_cursor,ar.artifact_role,link.source_id \
+                 FROM _fathomdb_artifact_revisions ar \
+                 LEFT JOIN _fathomdb_source_links link \
+                   ON link.artifact_revision_id=ar.revision_id \
+                 WHERE ar.revision_id=?1",
+                [revision],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .optional()
             .map_err(|_| EngineError::Storage)?;
+        let Some((artifact_class, write_cursor, role, linked_source_id)) = row else {
+            return Err(EngineError::Storage);
+        };
+        if role != "legacy" && linked_source_id.is_none() {
+            return Err(EngineError::Storage);
+        }
+        if role == "canonical_source" {
+            refs.insert(("source_revision_id", revision.clone()));
+        }
+        let source_id = match linked_source_id {
+            Some(source_id) => Some(source_id),
+            None => {
+                let table = match artifact_class.as_str() {
+                    "node" => "canonical_nodes",
+                    "edge" => "canonical_edges",
+                    _ => return Err(EngineError::Storage),
+                };
+                connection
+                    .query_row(
+                        &format!("SELECT source_id FROM {table} WHERE write_cursor=?1"),
+                        [write_cursor],
+                        |row| row.get(0),
+                    )
+                    .optional()
+                    .map_err(|_| EngineError::Storage)?
+                    .flatten()
+            }
+        };
         if let Some(source_id) = source_id {
             refs.insert(("source_id", source_id));
         }
@@ -1332,6 +1357,115 @@ fn prior_edge_revisions(
         }
     }
     Ok(revisions)
+}
+
+fn expected_affected_revisions(
+    connection: &Connection,
+    request: &ActuationBatchV1,
+    outcome: ActuationOutcomeV1,
+) -> Result<Vec<String>, EngineError> {
+    if outcome == ActuationOutcomeV1::Refused {
+        return Ok(Vec::new());
+    }
+    let mut revisions = Vec::new();
+    let mut seen = BTreeSet::new();
+    let mut push = |revision: String| {
+        if seen.insert(revision.clone()) {
+            revisions.push(revision);
+        }
+    };
+    for operation in &request.operations {
+        match operation {
+            ActuationOperationV1::PutCanonicalNode(node)
+            | ActuationOperationV1::PutDerivedNode(node) => {
+                let revision = node.provenance.artifact_revision_id.as_str();
+                let cursor = request_revision_cursor(connection, revision, "node")?;
+                push(revision.to_string());
+                if let Some(logical_id) = node.logical_id.as_deref() {
+                    let mut statement = connection
+                        .prepare(
+                            "SELECT ar.revision_id FROM canonical_nodes n \
+                             JOIN _fathomdb_artifact_revisions ar \
+                               ON ar.artifact_class='node' AND ar.write_cursor=n.write_cursor \
+                             WHERE n.logical_id=?1 AND n.superseded_at=?2 \
+                             ORDER BY n.write_cursor",
+                        )
+                        .map_err(|_| EngineError::Storage)?;
+                    let prior = statement
+                        .query_map(params![logical_id, cursor], |row| row.get::<_, String>(0))
+                        .map_err(|_| EngineError::Storage)?
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                        .map_err(|_| EngineError::Storage)?;
+                    if prior.len() > 1 {
+                        return Err(EngineError::Storage);
+                    }
+                    for revision in prior {
+                        push(revision);
+                    }
+                }
+            }
+            ActuationOperationV1::PutDerivedEdge(edge) => {
+                let revision = edge.provenance.artifact_revision_id.as_str();
+                let cursor = request_revision_cursor(connection, revision, "edge")?;
+                push(revision.to_string());
+                let mut statement = connection
+                    .prepare(
+                        "SELECT ar.revision_id,e.logical_id,e.from_id,e.to_id,e.kind \
+                         FROM canonical_edges e JOIN _fathomdb_artifact_revisions ar \
+                           ON ar.artifact_class='edge' AND ar.write_cursor=e.write_cursor \
+                         WHERE e.superseded_at=?1 ORDER BY e.write_cursor",
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+                let prior = statement
+                    .query_map([cursor], |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, Option<String>>(1)?,
+                            row.get::<_, String>(2)?,
+                            row.get::<_, String>(3)?,
+                            row.get::<_, String>(4)?,
+                        ))
+                    })
+                    .map_err(|_| EngineError::Storage)?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(|_| EngineError::Storage)?;
+                if let Some(logical_id) = edge.logical_id.as_deref() {
+                    for (revision, prior_logical, _, _, _) in &prior {
+                        if prior_logical.as_deref() == Some(logical_id) {
+                            push(revision.clone());
+                        }
+                    }
+                }
+                if edge.body.is_some() {
+                    for (revision, _, from, to, kind) in prior {
+                        if from == edge.from && to == edge.to && kind == edge.kind {
+                            push(revision);
+                        }
+                    }
+                }
+            }
+            ActuationOperationV1::RegisterSourceDependency(_) => {}
+            ActuationOperationV1::TransitionLifecycle(lifecycle) => {
+                push(lifecycle.expected_current_revision_id.as_str().to_string());
+            }
+        }
+    }
+    Ok(revisions)
+}
+
+fn request_revision_cursor(
+    connection: &Connection,
+    revision_id: &str,
+    artifact_class: &str,
+) -> Result<i64, EngineError> {
+    connection
+        .query_row(
+            "SELECT write_cursor FROM _fathomdb_artifact_revisions \
+             WHERE revision_id=?1 AND artifact_class=?2",
+            params![revision_id, artifact_class],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)
 }
 
 fn simulation_cursor_base(
@@ -1975,7 +2109,6 @@ impl Engine {
             tx.commit().map_err(|_| EngineError::Storage)?;
             return Ok(ActuationAttempt::New(receipt));
         }
-        enrich_resolved_refs(&tx, request, &mut refs)?;
         let batch_writes = request
             .operations
             .iter()
@@ -2273,9 +2406,7 @@ impl Engine {
         if affected.len() > MAX_AFFECTED_REVISIONS {
             return Err(EngineError::Storage);
         }
-        for revision in &affected {
-            refs.insert(("artifact_revision_id", revision.clone()));
-        }
+        enrich_affected_refs(&tx, &affected, &mut refs)?;
         let projection_generation_id = if pending.is_empty() {
             None
         } else {

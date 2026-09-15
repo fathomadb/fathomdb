@@ -1,7 +1,7 @@
 # Slice 30 implementation status
 
 Status: COMPLETE ON `release/0.8.26` at reviewed implementation tip
-`067d74b4`.
+`6d80e7a8`.
 
 ## Completed scope
 
@@ -21,7 +21,11 @@ Status: COMPLETE ON `release/0.8.26` at reviewed implementation tip
   and evidence-scope procedure across the CLI/Rust interfaces, install/reference
   docs, CLI crate README, and the new operations guide.
 - Strengthened the future crates.io smoke with exact binary identity and a
-  complete product-file no-mutation witness.
+  complete product-file no-mutation witness. Its registry install now requires
+  the requested version exactly rather than accepting a compatible release.
+- Resolved the database file itself before deriving the product lock, recovery
+  sidecars, SQLite URI, and immutable open target, so a symlink alias cannot
+  bypass a target lock or target WAL/journal refusal.
 
 ## TDD and review
 
@@ -32,19 +36,28 @@ Status: COMPLETE ON `release/0.8.26` at reviewed implementation tip
   procedure, and post-publication smoke.
 - `0794bcf0` — operator-off warnings-denied feature-scoping correction.
 - `e267f652` / `067d74b4` — code-review signed-schema RED/GREEN.
+- `84e96e72` — adversarial remediation requirements, acceptance criteria,
+  design, blast-radius analysis, and direct design-review PASS.
+- `a66a4639` / `6d80e7a8` — symlink-identity and exact-version RED/GREEN.
 
-Independent design review, code review, and verification all returned PASS
-with no remaining P0-P2 findings. Detailed chronology and evidence are in
-`tdd-chronology.md`, `design-review.md`, and `review-verification.md`.
+The initial independent design review, code review, and verification returned
+PASS at `067d74b4`. A post-closeout adversarial review then found three issues;
+the direct remediation design review passed before its RED/GREEN implementation,
+and all three findings are now resolved. Detailed chronology and evidence are
+in `tdd-chronology.md`, `design-review.md`,
+`adversarial-remediation-design-review.md`, and `review-verification.md`.
 
 ## Verification
 
-- Slice 30 CLI process suite: 11/11 PASS.
+- Slice 30 CLI process suite: 13/13 PASS, including target-lock and target-WAL
+  refusal through a database symlink alias.
 - Legacy Slice 55 CLI suite: 3/3 PASS.
 - Existing Slice 55 engine integrity suite: 66/66 PASS.
 - Operator-off and operator-on governed-surface checks and doctests: PASS.
 - CLI all-target Clippy with warnings denied: PASS.
 - Markdown/public-doc lint, shell syntax, and shellcheck: PASS.
+- Release-smoke structural tests: PASS, including exact crates.io version
+  selection.
 - Clean-root source install/discovery on Linux x86_64: PASS; binary identity is
   the expected pre-integration `fathomdb 0.8.25`.
 - Canonical `agent-verify` reached only the known durable-worktree environment
@@ -55,8 +68,8 @@ with no remaining P0-P2 findings. Detailed chronology and evidence are in
 
 ## Final verdict
 
-AC26-30A-E are satisfied at the source-candidate boundary. The command is
-bounded, exact-schema, private, out-of-process, and product-file immutable on
-the qualified host. Final version integration, wider target evidence, and the
-post-publication registry witness remain correctly assigned to Slice 50 and the
-release smoke. Slice 35 is next.
+AC26-30A-E and AC26-30R1-R3 are satisfied at the source-candidate boundary. The
+command is bounded, exact-schema, private, out-of-process, and product-file
+immutable on the qualified host. Final version integration, wider target
+evidence, and the post-publication registry witness remain correctly assigned
+to Slice 50 and the release smoke. Slice 35 is next.

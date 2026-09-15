@@ -59,6 +59,26 @@ Commit `067d74b4` reads the pragma as `i64` and compares it with
 tests passed 3/3, and the independent reviewer returned PASS with no remaining
 P0-P2 findings.
 
+## Adversarial remediation RED/GREEN
+
+A post-closeout adversarial review found that inspection canonicalized only the
+database parent. SQLite followed a database-file symlink to its target, while
+the product lock and recovery sidecars were still derived beside the alias. It
+also found that the future crates.io smoke's bare `--version "$VERSION"`
+accepted Cargo's compatible-version requirement semantics.
+
+Commit `a66a4639` added two Unix process regressions that inspect through a
+database symlink alias. One holds the target product lock; the other creates a
+non-empty target WAL. Both RED cases returned clean exit 0 instead of refusing
+with exit 71. The same commit tightened the structural smoke oracle to require
+the literal exact-version form, which failed against the compatible range.
+
+Commit `6d80e7a8` canonicalizes the database file after parent normalization and
+uses that single resolved path for file validation, product-lock and sidecar
+derivation, SQLite URI construction, and immutable open. It also changes the
+registry smoke to `--version "=$VERSION"`. The Slice 30 process suite then
+passed 13/13, and the release-smoke structural suite passed.
+
 ## Distribution witness
 
 A clean temporary root installed the source candidate with:

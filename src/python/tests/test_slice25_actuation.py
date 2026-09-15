@@ -30,6 +30,8 @@ def _snake_wire(value: Any) -> Any:
         "logicalId": "logical_id",
         "validFrom": "valid_from",
         "validUntil": "valid_until",
+        "tValid": "t_valid",
+        "tInvalid": "t_invalid",
         "artifactRevisionId": "artifact_revision_id",
         "sourceVersionId": "source_version_id",
         "sourceRevisionId": "source_revision_id",

@@ -3,9 +3,11 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
 
-use fathomdb_engine::{Engine, EngineOpenError};
+use fathomdb_engine::{configure_runtime, Engine, EngineOpenError, RuntimeSqliteMode};
 use fathomdb_schema::{MIGRATIONS, SCHEMA_VERSION};
 use rusqlite::Connection;
 use tempfile::TempDir;
@@ -15,6 +17,9 @@ const WAL_CHILD_PATH: &str = "FATHOMDB_SLICE40_WAL_CHILD_PATH";
 const OPEN_CHILD_MODE: &str = "FATHOMDB_SLICE40_OPEN_CHILD_MODE";
 const OPEN_CHILD_PATH: &str = "FATHOMDB_SLICE40_OPEN_CHILD_PATH";
 const OPEN_CHILD_SECOND_PATH: &str = "FATHOMDB_SLICE40_OPEN_CHILD_SECOND_PATH";
+const OLDER_CHILD_PATH: &str = "FATHOMDB_SLICE40_OLDER_CHILD_PATH";
+const OLDER_CHILD_READY: &str = "FATHOMDB_SLICE40_OLDER_CHILD_READY";
+const OLDER_CHILD_RELEASE: &str = "FATHOMDB_SLICE40_OLDER_CHILD_RELEASE";
 
 fn path(dir: &TempDir, name: &str) -> PathBuf {
     dir.path().join(format!("{name}.sqlite"))
@@ -37,11 +42,34 @@ fn directory_bytes(dir: &TempDir) -> BTreeMap<String, Vec<u8>> {
 }
 
 fn create_versioned_sqlite(path: &Path, version: u32) {
+    configure_runtime(RuntimeSqliteMode::Performance).expect("configure test runtime");
     let connection = Connection::open(path).unwrap();
     connection.execute("CREATE TABLE marker(value TEXT NOT NULL)", []).unwrap();
     connection.execute("INSERT INTO marker VALUES('preserve-me')", []).unwrap();
     connection.pragma_update(None, "user_version", version).unwrap();
     connection.close().unwrap();
+}
+
+#[test]
+fn slice40_locked_older_child() {
+    let Some(path) = std::env::var_os(OLDER_CHILD_PATH).map(PathBuf::from) else {
+        return;
+    };
+    let ready = PathBuf::from(std::env::var_os(OLDER_CHILD_READY).unwrap());
+    let release = PathBuf::from(std::env::var_os(OLDER_CHILD_RELEASE).unwrap());
+    let lock_path = sidecar(&path, ".lock");
+    let mut lock =
+        OpenOptions::new().read(true).write(true).create_new(true).open(lock_path).unwrap();
+    lock.lock().unwrap();
+    lock.write_all(b"4242").unwrap();
+    create_versioned_sqlite(&path, 33);
+    fs::write(&ready, b"ready").unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !release.is_file() {
+        assert!(Instant::now() < deadline, "parent did not release older opener");
+        thread::sleep(Duration::from_millis(10));
+    }
 }
 
 fn assert_incompatible(result: Result<fathomdb_engine::OpenedEngine, EngineOpenError>, seen: u32) {
@@ -299,21 +327,53 @@ fn refused_schema_33_wal_state_restores_existing_or_missing_shm() {
 fn locked_older_opener_cannot_be_migrated_by_the_current_opener() {
     let dir = TempDir::new().unwrap();
     let db = path(&dir, "older-winner");
-    let lock_path = sidecar(&db, ".lock");
-    let mut older_lock =
-        OpenOptions::new().read(true).write(true).create_new(true).open(&lock_path).unwrap();
-    older_lock.lock().unwrap();
-    older_lock.write_all(b"4242").unwrap();
-    create_versioned_sqlite(&db, 33);
+    let control = TempDir::new().unwrap();
+    let ready = control.path().join("ready");
+    let release = control.path().join("release");
+    let mut child = Command::new(std::env::current_exe().unwrap())
+        .arg("--exact")
+        .arg("slice40_locked_older_child")
+        .arg("--nocapture")
+        .env(OLDER_CHILD_PATH, &db)
+        .env(OLDER_CHILD_READY, &ready)
+        .env(OLDER_CHILD_RELEASE, &release)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
 
-    match Engine::open(&db).expect_err("the current opener must respect the older lock") {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !ready.is_file() {
+        assert!(child.try_wait().unwrap().is_none(), "older opener exited before readiness");
+        if Instant::now() >= deadline {
+            fs::write(&release, b"release").unwrap();
+            let output = child.wait_with_output().unwrap();
+            panic!(
+                "older opener did not become ready:\nstdout:\n{}\nstderr:\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    let locked = Engine::open(&db).expect_err("the current opener must respect the older lock");
+    fs::write(&release, b"release").unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(
+        output.status.success(),
+        "older opener failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    match locked {
         EngineOpenError::DatabaseLocked { holder_pid } => {
             assert_eq!(holder_pid, Some(4242));
         }
         other => panic!("expected DatabaseLocked, got {other:?}"),
     }
 
-    drop(older_lock);
     let before = directory_bytes(&dir);
     assert_incompatible(Engine::open(&db), 33);
     assert_eq!(directory_bytes(&dir), before);

@@ -210,6 +210,13 @@ the approved execution details without widening product scope:
    The deterministic unit test conditionally attempts the older schema-33
    install, proves lock refusal, and checks the winning `0 -> 34` report. The
    existing older-wins integration case remains.
+3. **P1 verification follow-up — process isolation:** independent verification
+   showed that the older-wins fixture created schema 33 through raw SQLite in
+   the tested process, so an isolated run could make product runtime
+   configuration `TooLate` and the parallel target was order-dependent. The
+   fixture now uses a coordinated lock-holding child process; same-process raw
+   fixture helpers configure the test runtime before SQLite access. Isolated
+   older-wins and default-parallel full-target runs are both required evidence.
 
 Both findings refine R26-40E/F and their tests; neither changes the public API,
 schema contents, binding behavior, or allocated later-slice scope.

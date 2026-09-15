@@ -69,9 +69,11 @@ admission sequence:
    startup.
 
 Holding the product lock across runtime configuration, classification, and
-writable open closes the cooperating-writer TOCTOU window. The older-wins
-integration case first holds the product lock, installs schema 33, and proves
-the current opener returns `DatabaseLocked` before later typed refusal. The
+writable open closes the cooperating-writer TOCTOU window. In the older-wins
+integration case, a coordinated child process configures SQLite, acquires the
+product lock, installs schema 33, and signals readiness without initializing
+SQLite in the tested parent. The fresh parent proves the current opener returns
+`DatabaseLocked`, signals child release, then proves later typed refusal. The
 current-wins unit case uses a path-scoped, `cfg(test)` rendezvous immediately
 after the current opener acquires the lock and configures SQLite but before
 classification. A competing older opener conditionally installs schema 33

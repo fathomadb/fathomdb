@@ -133,3 +133,51 @@ Linux-x86_64 source-candidate install/discovery witness, and canonical
 `agent-verify` close the slice. The five-target native and staged-candidate
 matrix remains Slice 50 work; only post-publication smoke can prove crates.io
 0.8.26.
+
+## Adversarial remediation design
+
+### Resolved database identity
+
+The inspection-only path setup will retain `canonical_database_path` for its
+existing parent-directory normalization, then canonicalize the now-required
+database file itself. Every later operation—the product-lock lookup,
+`-wal`/`-journal` checks, immutable URI construction, and SQLite open—uses that
+single resolved path. Ordinary `Engine::open` is unchanged because it must
+still support creating a database that does not exist.
+
+The regression uses a real database opened once through a symlink so the alias
+lock exists naturally. It then proves that inspection through the alias sees a
+lock held on the target path. A second case proves that a WAL beside the target
+cannot be hidden by the alias namespace. These are Unix tests because creating
+unprivileged symlinks is a stable Unix facility; the path-resolution code is
+platform-neutral and the existing Slice 50 matrix retains final multi-platform
+ownership.
+
+Blast radius is limited to the operator-gated free inspection function and the
+Slice 30 CLI process test. No serving open, migration, schema, report, binding,
+or integrity-query behavior changes. Hard-link aliases do not resolve through
+filesystem canonicalization and remain outside this narrowly reported symlink
+defect; this change introduces no new hard-link support claim.
+
+### Truthful closeout state
+
+After GREEN produces a stable implementation tip, update the manually
+maintained Slice 30 ladder row and the Slice 30 entry in
+`release-state-0.8.26.json` to that tip. Regenerate only declared views, retain
+Slice 35 as `next_slice`, and update the Slice 30 status/review evidence with
+the remediation and verification results.
+
+Blast radius is documentation and release-state only. No decision, dependency,
+remaining-ladder order, schema version, or `origin/main` claim changes.
+
+### Exact crates.io selection
+
+Change the smoke command to
+`cargo install fathomdb-cli --version "=$VERSION" ...`. Keep the existing
+SemVer input validation and post-install binary identity check. The structural
+test will require the exact literal spelling, providing a network-free oracle
+for the registry command assembled by the post-publication job.
+
+Blast radius is one crates.io smoke command and its structural test. PyPI, npm,
+Windows smoke scripts, release workflow routing, publication, and registry
+state are unchanged.

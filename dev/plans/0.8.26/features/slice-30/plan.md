@@ -134,3 +134,50 @@ Write `status.md` with exact commits, review and verification verdicts,
 artifact limitations, and Slice 35 as the next dependency. This work uses the
 existing durable release worktree and branch; create no temporary worktree or
 branch.
+
+## Adversarial remediation
+
+The post-closeout adversarial review of implementation tip `067d74b4` and
+closeout `1e6a75ef` reopened Slice 30 for three bounded corrections.
+
+### Requirements
+
+- **R26-30R1 — resolved database identity:** Resolve the existing database
+  file itself, not only its parent directory, before deriving the product lock,
+  recovery-sidecar paths, or immutable SQLite URI. A symlink alias must not
+  create a second quiescence namespace for the same database.
+- **R26-30R2 — one truthful ladder state:** The maintained release-plan row,
+  machine release state, Slice 30 status, and next-slice pointer must agree
+  after remediation. Slice 30 may advance to Slice 35 only after the runtime
+  and smoke regressions pass.
+- **R26-30R3 — exact registry selection:** The crates.io smoke must request the
+  exact supplied version rather than a compatible SemVer range, while retaining
+  the independent binary-identity assertion.
+
+### Acceptance criteria
+
+- **AC26-30R1:** With a database reachable through a symlink alias and an
+  alias lock created by a prior normal open, inspection through the alias exits
+  71 when the resolved target lock is held. With no held lock but a non-empty
+  WAL beside the resolved target, the alias also exits 71. Both refusals use
+  `inspection_not_quiescent` and leave both path namespaces unchanged.
+- **AC26-30R2:** The Slice 30 ladder row and release-state entry both name the
+  final remediation implementation tip as complete, generated views remain
+  current, and Slice 35 remains the next dependency.
+- **AC26-30R3:** The structural smoke test rejects the former
+  `--version "$VERSION"` spelling and requires
+  `--version "=$VERSION"`; the smoke retains the runtime
+  `fathomdb <version>` identity check.
+
+### Ordered implementation
+
+1. Review the remediation design and blast radius to PASS before changing a
+   test or implementation file.
+2. RED: add the two symlink-alias process regressions and strengthen the smoke
+   structural assertion; run both suites and preserve their failures.
+3. GREEN: resolve the final database path before deriving every product path,
+   and make the registry request exact. Do not change the RED assertions.
+4. Re-run focused and legacy integrity suites, smoke structural tests, Rust
+   lint/type checks, release-state rendering, and the proportionate repository
+   gate. Then reconcile the ladder row, release state, status, and review
+   evidence at the final implementation tip.

@@ -84,9 +84,9 @@ PYPI_WINDOWS="$SMOKE_DIR/smoke-pypi-wheel.ps1"
 NPM_WINDOWS="$SMOKE_DIR/smoke-npm-package.ps1"
 
 check_common "$CRATES" "smoke-crates-cli"
-# Version-pinned cargo install (--version "$VERSION", not "latest").
-assert_contains "smoke-crates-cli: pinned cargo install" "$CRATES" \
-  'cargo install fathomdb-cli --version "$VERSION"'
+# Exact-version cargo install (--version "=$VERSION", not a compatible range).
+assert_contains "smoke-crates-cli: exact cargo install" "$CRATES" \
+  'cargo install fathomdb-cli --version "=$VERSION"'
 # JSON parses post-run.
 assert_contains "smoke-crates-cli: jq parses check-integrity output" "$CRATES" \
   'jq -e . >/dev/null'

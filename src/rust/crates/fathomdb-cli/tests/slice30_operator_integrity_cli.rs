@@ -131,6 +131,48 @@ fn uri_reserved_path_bytes_are_encoded_and_unchanged() {
     assert!(file_set(&path) == before, "URI-reserved path fixture changed");
 }
 
+#[cfg(unix)]
+#[test]
+fn symlink_alias_uses_the_resolved_target_product_lock() {
+    let (directory, path) = fresh_database("symlink-target-lock.sqlite");
+    let alias = directory.path().join("symlink-alias-lock.sqlite");
+    std::os::unix::fs::symlink(&path, &alias).expect("create database symlink");
+    let opened_through_alias = Engine::open(&alias).expect("seed the alias product lock");
+    opened_through_alias.engine.close().expect("close alias engine");
+    drop(opened_through_alias);
+
+    let held_target = Engine::open(&path).expect("hold the target product lock");
+    let target_before = file_set(&path);
+    let alias_before = file_set(&alias);
+
+    let output = run(&alias, &[]);
+
+    assert_error(&output, exit_code::LOCK_HELD, "inspection_not_quiescent", "/dbPath");
+    assert_eq!(file_set(&path), target_before, "target product files changed");
+    assert_eq!(file_set(&alias), alias_before, "alias product files changed");
+    held_target.engine.close().expect("close target engine");
+}
+
+#[cfg(unix)]
+#[test]
+fn symlink_alias_uses_the_resolved_target_recovery_sidecars() {
+    let (directory, path) = fresh_database("symlink-target-wal.sqlite");
+    let alias = directory.path().join("symlink-alias-wal.sqlite");
+    std::os::unix::fs::symlink(&path, &alias).expect("create database symlink");
+    let opened_through_alias = Engine::open(&alias).expect("seed the alias product lock");
+    opened_through_alias.engine.close().expect("close alias engine");
+    drop(opened_through_alias);
+    fs::write(sidecar(&path, "-wal"), b"pending-target-state").expect("write target WAL");
+    let target_before = file_set(&path);
+    let alias_before = file_set(&alias);
+
+    let output = run(&alias, &[]);
+
+    assert_error(&output, exit_code::LOCK_HELD, "inspection_not_quiescent", "/dbPath");
+    assert_eq!(file_set(&path), target_before, "target product files changed");
+    assert_eq!(file_set(&alias), alias_before, "alias product files changed");
+}
+
 #[test]
 fn held_product_lock_refuses_with_private_v1_error() {
     let directory = TempDir::new().expect("temporary database directory");

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -42,10 +43,19 @@ def front_matter(text: str, relative: str) -> dict[str, str]:
     for line in lines[1:]:
         if line == "---":
             return values
+        if line.startswith((" ", "\t")):
+            continue
         if ":" in line:
             key, value = line.split(":", 1)
-            values[key.strip()] = value.strip().strip('"\'')
+            key = key.strip()
+            if key in values:
+                fail(f"{relative} has duplicate front-matter key {key!r}")
+            values[key] = value.strip().strip('"\'')
     fail(f"{relative} has unterminated YAML front matter")
+
+
+def has_markdown_target(text: str, target: str) -> bool:
+    return re.search(rf"\]\({re.escape(target)}(?:#[^)]+)?\)", text) is not None
 
 
 def main() -> None:
@@ -72,6 +82,14 @@ def main() -> None:
     ):
         fail(f"{historical_relative} must carry the exact supersession banner before its body")
 
+    try:
+        historical_target = Path(successor_relative).relative_to("dev").as_posix()
+    except ValueError:
+        fail(f"{historical_relative} superseded_by must stay under dev/")
+    banner_text = historical_text[banner:heading]
+    if not has_markdown_target(banner_text, historical_target):
+        fail(f"{historical_relative} banner must link declared successor {historical_target}")
+
     successor_path = root / successor_relative
     successor_text = read(successor_path, successor_relative)
     successor = front_matter(successor_text, successor_relative)
@@ -91,9 +109,13 @@ def main() -> None:
         )
 
     successor_name = Path(successor_relative).name
-    for index_relative in ("dev/README.md", "dev/design/README.md"):
-        if successor_name not in read(root / index_relative, index_relative):
-            fail(f"{index_relative} must link {successor_name}")
+    index_targets = {
+        "dev/README.md": historical_target,
+        "dev/design/README.md": successor_name,
+    }
+    for index_relative, target in index_targets.items():
+        if not has_markdown_target(read(root / index_relative, index_relative), target):
+            fail(f"{index_relative} must link active architecture target {target}")
 
     print(f"ok    architecture-authority: {successor_relative}")
 

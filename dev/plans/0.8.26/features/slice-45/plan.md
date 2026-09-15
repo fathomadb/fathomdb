@@ -95,9 +95,10 @@ Acceptance criteria:
   witnesses; every normative ownership claim has independent accepted authority
   plus design-review evidence.
 - **AC26-45C:** The architecture describes ten Rust workspace members, schema
-  34, one writer, pooled readers, frozen authenticated evidence, CLI-only
-  integrity inspection, one changed-in-place five-operation V1 actuation
-  grammar, and fresh-database refusal consistently with source and interfaces.
+  34, one primary caller-mutation writer, serialized projection-worker commits,
+  pooled readers, frozen authenticated evidence, CLI-only integrity inspection,
+  one changed-in-place five-operation V1 actuation grammar, and fresh-database
+  refusal consistently with source and interfaces.
 - **AC26-45D:** The new guard is demonstrated RED against the pre-convergence
   documents, then GREEN; its focused negative fixtures cover every R26-45D
   failure mode, prove both local and Markdown-only CI invocation, and it runs

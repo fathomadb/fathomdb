@@ -70,8 +70,17 @@ sed -i 's#(design/fathomdb-data-plane-architecture-v2\.md)#(design/missing.md)#'
 expect_fail "$FIXTURE" 'historical banner must link the declared successor'
 
 make_fixture "$FIXTURE"
+sed -i 's#(design/fathomdb-data-plane-architecture-v2\.md)##' \
+  "$FIXTURE/dev/architecture.md"
+expect_fail "$FIXTURE" 'plain banner text is not a successor link'
+
+make_fixture "$FIXTURE"
 sed -i 's#^superseded_by: .*#superseded_by: dev/design/missing.md#' "$FIXTURE/dev/architecture.md"
 expect_fail "$FIXTURE" 'historical successor path must resolve'
+
+make_fixture "$FIXTURE"
+sed -i 's#^superseded_by: .*#superseded_by:#' "$FIXTURE/dev/architecture.md"
+expect_fail "$FIXTURE" 'blank required successor metadata fails closed'
 
 make_fixture "$FIXTURE"
 sed -i '0,/^status: ACTIVE$/s//status: SUPERSEDED/' "$FIXTURE/dev/design/fathomdb-data-plane-architecture-v2.md"
@@ -88,6 +97,11 @@ make_fixture "$FIXTURE"
 sed -i 's#(design/fathomdb-data-plane-architecture-v2\.md)#(design/missing.md)#' \
   "$FIXTURE/dev/README.md"
 expect_fail "$FIXTURE" 'dev index must link the correct active architecture target'
+
+make_fixture "$FIXTURE"
+sed -i 's#(design/fathomdb-data-plane-architecture-v2\.md)##g' \
+  "$FIXTURE/dev/README.md"
+expect_fail "$FIXTURE" 'plain dev-index text is not an architecture link'
 
 make_fixture "$FIXTURE"
 sed -i 's#(fathomdb-data-plane-architecture-v2\.md)#(missing.md)#' \

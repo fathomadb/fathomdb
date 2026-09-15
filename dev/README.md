@@ -31,9 +31,10 @@ root.
 
 ## Engineering reference
 
-- `design/fathomdb-data-plane-architecture-v2.md` — the active 0.8.26 system
-  and data-plane architecture
-- `architecture.md` — the retained superseded 0.6.0 architecture snapshot
+- [`design/fathomdb-data-plane-architecture-v2.md`](design/fathomdb-data-plane-architecture-v2.md)
+  — the active 0.8.26 system and data-plane architecture
+- [`architecture.md`](architecture.md) — the retained superseded 0.6.0
+  architecture snapshot
 - `adr/` architectural decisions and their decision index
 - `design/` subsystem design docs beneath the active architecture
 - `interfaces/` maintained, section-status-qualified interface contracts
@@ -75,8 +76,9 @@ root.
 - `needs.md`
 - `requirements.md`
 - `acceptance.md`
-- `design/fathomdb-data-plane-architecture-v2.md` — current architecture
-- `architecture.md` — superseded 0.6.0 snapshot
+- [`design/fathomdb-data-plane-architecture-v2.md`](design/fathomdb-data-plane-architecture-v2.md)
+  — current architecture
+- [`architecture.md`](architecture.md) — superseded 0.6.0 snapshot
 - `test-plan.md`
 - `traceability.md`
 - `security-review.md`

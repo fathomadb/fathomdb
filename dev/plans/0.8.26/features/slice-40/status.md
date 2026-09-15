@@ -1,7 +1,7 @@
 # Slice 40 implementation status
 
 Status: COMPLETE ON `release/0.8.26` at corrected implementation tip
-`7b1dc0a8`.
+`bfb2132b`.
 
 ## Completed scope
 
@@ -41,6 +41,8 @@ Status: COMPLETE ON `release/0.8.26` at corrected implementation tip
   current-wins race proof.
 - `7b1dc0a8` — canonical-gate remediation preserving pre-admission corruption
   events and retiring one superseded v18 public-upgrade oracle.
+- `bfb2132b` — independent-verification remediation moving the older-wins
+  fixture into a coordinated child process and removing runtime/order coupling.
 
 The GPT-6 Astra medium design review found one P1 and one P2. P1 required
 process-global SQLite configuration after product-lock acquisition but before
@@ -55,7 +57,7 @@ surface.
 
 ## Verification
 
-- Slice 40 fresh-cutover integration: 12/12 PASS.
+- Slice 40 fresh-cutover integration: 13/13 PASS in default parallel mode.
 - Deterministic current-wins race unit test: 1/1 PASS; the existing older-wins
   case passes in the integration target.
 - Fresh-process RED reproduced `RuntimeConfiguration(TooLate)` before the fix;
@@ -67,6 +69,13 @@ surface.
 - Canonical `./scripts/agent-verify.sh`: PASS, including lint, typecheck,
   security, and `agent-test.sh: 110/110 suites passed (skipped=0 excluded=0)`.
 - `git diff --check` and the pre-commit Rust/Markdown guards pass.
+
+The independent verification subagent initially returned FAIL because the
+older-wins fixture initialized raw SQLite in the tested process. After
+remediation it returned PASS at `bfb2132b`: the formerly failing isolated test
+passes 1/1, the default-parallel target passes 13/13, synchronization is
+bounded, the child is reaped, and no P1/P2 finding remains. Detailed evidence
+is in `review-verification.md`.
 
 The first canonical attempt was not hidden: it failed the two pre-admission
 corruption-event tests and the superseded v18 public-upgrade test. The focused

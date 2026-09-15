@@ -5449,6 +5449,12 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
 mod tests {
     use super::*;
 
+    fn rewrite_schema_header(path: &std::path::Path, version: u32) {
+        let mut bytes = std::fs::read(path).unwrap();
+        bytes[60..64].copy_from_slice(&version.to_be_bytes());
+        std::fs::write(path, bytes).unwrap();
+    }
+
     fn derived_edge_actuation_json() -> &'static str {
         r#"{
           "schema_version": 1,
@@ -5648,6 +5654,25 @@ mod tests {
                 "cuda_not_compiled"
             );
             assert_eq!(value.getattr("ordinal").unwrap().extract::<usize>().unwrap(), 2);
+        });
+    }
+
+    #[test]
+    fn python_open_maps_schema_33_refusal_to_the_typed_exception() {
+        Python::initialize();
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("schema-33.sqlite");
+        RustEngine::open(&path).unwrap().engine.close().unwrap();
+        rewrite_schema_header(&path, 33);
+
+        Python::attach(|py| {
+            let error = match PyEngine::open(py, path.to_string_lossy().into_owned(), false) {
+                Ok(_) => panic!("Python open must refuse schema 33"),
+                Err(error) => error,
+            };
+            assert!(error.is_instance_of::<IncompatibleSchemaVersionError>(py));
+            assert!(error.to_string().contains("schema version 33"));
+            assert!(error.to_string().contains("supported version 34"));
         });
     }
 

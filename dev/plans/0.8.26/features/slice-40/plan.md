@@ -101,7 +101,7 @@ an earlier database.
   - **E4:** Retain no public migration, translator, historical receipt/replay
     reader, version router, or version-by-version matrix. Move the custom-
     migration helper from all debug builds to the existing non-forwarded
-    `test-hooks` feature.
+    dedicated non-forwarded `migration-test-hooks` feature.
 - **R26-40F — current restart integrity:** A schema-34 database reopens and
   replays an identical edge-bearing actuation receipt exactly; changed bytes
   conflict. The pre-open check must observe current committed WAL state rather
@@ -152,7 +152,7 @@ an earlier database.
 3. **GREEN-1 — cutover:** add content-free migration step 34 and route every
    public open through one pre-mutation current-schema check. Keep
    `open_with_migrations_for_test` explicitly outside that product policy and
-   compile it only under the non-forwarded `test-hooks` feature.
+   compile it only under the non-forwarded `migration-test-hooks` feature.
 4. **RED-2/GREEN-2 — binding and graph unit:** add focused PyO3/N-API policy
    mapping and fresh schema-34 mixed-unit/replay tests, then make only the
    smallest implementation or fixture changes required. Existing passing

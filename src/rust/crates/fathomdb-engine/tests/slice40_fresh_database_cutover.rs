@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -173,4 +175,28 @@ fn refused_schema_33_wal_state_restores_existing_or_missing_shm() {
         assert_incompatible(Engine::open(&db), 33);
         assert_eq!(directory_bytes(&dir), before);
     }
+}
+
+#[test]
+fn locked_older_opener_cannot_be_migrated_by_the_current_opener() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "older-winner");
+    let lock_path = sidecar(&db, ".lock");
+    let mut older_lock =
+        OpenOptions::new().read(true).write(true).create_new(true).open(&lock_path).unwrap();
+    older_lock.lock().unwrap();
+    older_lock.write_all(b"4242").unwrap();
+    create_versioned_sqlite(&db, 33);
+
+    match Engine::open(&db).expect_err("the current opener must respect the older lock") {
+        EngineOpenError::DatabaseLocked { holder_pid } => {
+            assert_eq!(holder_pid, Some(4242));
+        }
+        other => panic!("expected DatabaseLocked, got {other:?}"),
+    }
+
+    drop(older_lock);
+    let before = directory_bytes(&dir);
+    assert_incompatible(Engine::open(&db), 33);
+    assert_eq!(directory_bytes(&dir), before);
 }

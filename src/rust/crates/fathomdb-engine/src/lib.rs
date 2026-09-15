@@ -4128,7 +4128,16 @@ fn data_plane_sidecar_path(path: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(sidecar)
 }
 
+#[cfg(feature = "operator")]
 fn immutable_sqlite_uri(path: &Path) -> String {
+    sqlite_uri(path, "immutable=1")
+}
+
+fn read_only_sqlite_uri(path: &Path) -> String {
+    sqlite_uri(path, "mode=ro")
+}
+
+fn sqlite_uri(path: &Path, query: &str) -> String {
     let mut uri = String::from("file:");
     for byte in path.as_os_str().as_encoded_bytes() {
         match *byte {
@@ -4143,7 +4152,8 @@ fn immutable_sqlite_uri(path: &Path) -> String {
             }
         }
     }
-    uri.push_str("?immutable=1");
+    uri.push('?');
+    uri.push_str(query);
     uri
 }
 
@@ -8990,7 +9000,7 @@ impl Engine {
         )
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(feature = "migration-test-hooks")]
     #[doc(hidden)]
     pub fn open_with_migrations_for_test(
         path: impl Into<PathBuf>,
@@ -9005,6 +9015,7 @@ impl Engine {
             None,
             &mut emit_migration_event,
             None,
+            DatabaseAdmission::TestMigrations,
         )
     }
 
@@ -9069,6 +9080,7 @@ impl Engine {
             loader_info,
             emit_migration_event,
             initial_subscriber,
+            DatabaseAdmission::CurrentOnly,
         )
     }
 
@@ -9080,6 +9092,7 @@ impl Engine {
         loader_info: Option<LoaderInfo>,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         initial_subscriber: Option<Arc<dyn lifecycle::Subscriber>>,
+        admission: DatabaseAdmission,
     ) -> Result<OpenedEngine, EngineOpenError> {
         // Resolve at open rather than piggybacking on embedding selection. This
         // probes no model/cache/database and makes an invalid or forced CUDA
@@ -9092,7 +9105,11 @@ impl Engine {
         #[cfg(not(feature = "default-reranker"))]
         let reranker_device_resolution = None;
         let canonical_path = canonical_database_path(&path.into())?;
-        let lock = acquire_lock(&canonical_path)?;
+        let pending_lock = acquire_lock_without_metadata_mutation(&canonical_path)?;
+        if admission == DatabaseAdmission::CurrentOnly {
+            admit_current_database(&canonical_path)?;
+        }
+        let lock = pending_lock.initialize()?;
         #[cfg(any(test, feature = "test-hooks"))]
         let managed_connections = Arc::new(ManagedConnectionRegistry::default());
         let open_result = Self::open_locked(
@@ -23912,21 +23929,75 @@ fn projection_status(
     }
 }
 
-/// Read-only Slice 35 prototype for the 0.8.26 fresh-database cutover.
-///
-/// Missing and zero-length paths are fresh candidates. A non-empty database is
-/// admitted only when its `user_version` already equals `expected_version`.
-/// This helper creates no database or sidecar and is not wired into public open
-/// until Slice 40 supplies the real schema step and activation.
-#[cfg(debug_assertions)]
-#[doc(hidden)]
-pub fn classify_fresh_database_candidate_for_test(
-    path: &Path,
-    expected_version: u32,
-) -> Result<bool, EngineOpenError> {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DatabaseAdmission {
+    CurrentOnly,
+    #[cfg(feature = "migration-test-hooks")]
+    TestMigrations,
+}
+
+struct ShmSnapshot {
+    path: PathBuf,
+    bytes: Option<Vec<u8>>,
+}
+
+impl ShmSnapshot {
+    fn capture(database_path: &Path) -> Result<Self, EngineOpenError> {
+        let mut shm_path = database_path.as_os_str().to_os_string();
+        shm_path.push("-shm");
+        let path = PathBuf::from(shm_path);
+        let bytes = match std::fs::read(&path) {
+            Ok(bytes) => Some(bytes),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(_) => {
+                return Err(EngineOpenError::Io {
+                    message: "database shared-memory sidecar is not accessible".to_string(),
+                })
+            }
+        };
+        Ok(Self { path, bytes })
+    }
+
+    fn restore(self) -> Result<(), EngineOpenError> {
+        match self.bytes {
+            Some(bytes) => std::fs::write(self.path, bytes).map_err(|_| EngineOpenError::Io {
+                message: "database shared-memory sidecar could not be restored".to_string(),
+            }),
+            None => match std::fs::remove_file(self.path) {
+                Ok(()) => Ok(()),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(_) => Err(EngineOpenError::Io {
+                    message: "temporary database shared-memory sidecar could not be removed"
+                        .to_string(),
+                }),
+            },
+        }
+    }
+}
+
+fn read_effective_schema_version(path: &Path) -> Result<u32, EngineOpenError> {
+    probe_wal_sidecar(path)?;
+    let connection = Connection::open_with_flags(
+        read_only_sqlite_uri(path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
+            | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+    )
+    .map_err(|error| map_open_sqlite_error(error, OpenStage::HeaderProbe))?;
+    connection
+        .pragma_update(None, "query_only", "ON")
+        .map_err(|error| map_open_sqlite_error(error, OpenStage::SchemaProbe))?;
+    probe_database_header(&connection)?;
+    probe_open_integrity(&connection)?;
+    connection
+        .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
+        .map_err(|error| map_open_sqlite_error(error, OpenStage::SchemaProbe))
+}
+
+fn admit_current_database(path: &Path) -> Result<(), EngineOpenError> {
     let metadata = match std::fs::metadata(path) {
         Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
         Err(_) => {
             return Err(EngineOpenError::Io {
                 message: "database candidate metadata is not accessible".to_string(),
@@ -23934,23 +24005,20 @@ pub fn classify_fresh_database_candidate_for_test(
         }
     };
     if metadata.len() == 0 {
-        return Ok(true);
+        return Ok(());
     }
-    let connection = Connection::open_with_flags(
-        immutable_sqlite_uri(path),
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
-            | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
-            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
-    )
-    .map_err(|_| EngineOpenError::Io {
-        message: "database candidate could not be opened read-only".to_string(),
-    })?;
-    let seen = connection
-        .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
-        .map_err(|_| EngineOpenError::Io {
-            message: "database candidate schema could not be read".to_string(),
-        })?;
-    Ok(seen == expected_version)
+    let shm = ShmSnapshot::capture(path)?;
+    match read_effective_schema_version(path) {
+        Ok(seen) if seen == SCHEMA_VERSION => Ok(()),
+        Ok(seen) => {
+            shm.restore()?;
+            Err(EngineOpenError::IncompatibleSchemaVersion { seen, supported: SCHEMA_VERSION })
+        }
+        Err(error) => {
+            shm.restore()?;
+            Err(error)
+        }
+    }
 }
 
 fn canonical_database_path(path: &Path) -> Result<PathBuf, EngineOpenError> {
@@ -23968,25 +24036,67 @@ fn canonical_database_path(path: &Path) -> Result<PathBuf, EngineOpenError> {
     Ok(canonical_parent.join(file_name))
 }
 
-fn acquire_lock(path: &Path) -> Result<File, EngineOpenError> {
-    let lock_path = lock_path(path);
-    let mut options = OpenOptions::new();
-    options.read(true).write(true).create(true);
-    #[cfg(unix)]
-    options.mode(0o600);
+struct PendingDatabaseLock {
+    file: Option<File>,
+    path: PathBuf,
+    created: bool,
+}
 
-    let mut file = options.open(&lock_path).map_err(|_| EngineOpenError::Io {
-        message: "could not open database lock file".to_string(),
-    })?;
+impl PendingDatabaseLock {
+    fn initialize(mut self) -> Result<File, EngineOpenError> {
+        let file = self.file.as_mut().expect("pending database lock retains its file");
+        let pid = std::process::id().to_string();
+        file.set_len(0).map_err(|_| EngineOpenError::Io {
+            message: "could not initialize database lock file".to_string(),
+        })?;
+        file.seek(SeekFrom::Start(0)).map_err(|_| EngineOpenError::Io {
+            message: "could not initialize database lock file".to_string(),
+        })?;
+        file.write_all(pid.as_bytes()).map_err(|_| EngineOpenError::Io {
+            message: "could not initialize database lock file".to_string(),
+        })?;
+        self.created = false;
+        Ok(self.file.take().expect("initialized database lock retains its file"))
+    }
+}
 
-    match file.try_lock() {
-        Ok(()) => {
-            let pid = std::process::id().to_string();
-            let _ = file.set_len(0);
-            let _ = file.seek(SeekFrom::Start(0));
-            let _ = file.write_all(pid.as_bytes());
-            Ok(file)
+impl Drop for PendingDatabaseLock {
+    fn drop(&mut self) {
+        if self.created {
+            drop(self.file.take());
+            let _ = std::fs::remove_file(&self.path);
         }
+    }
+}
+
+fn acquire_lock_without_metadata_mutation(
+    path: &Path,
+) -> Result<PendingDatabaseLock, EngineOpenError> {
+    let lock_path = lock_path(path);
+    let mut create_options = OpenOptions::new();
+    create_options.read(true).write(true).create_new(true);
+    #[cfg(unix)]
+    create_options.mode(0o600);
+    let (file, created) = match create_options.open(&lock_path) {
+        Ok(file) => (file, true),
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            let mut existing_options = OpenOptions::new();
+            existing_options.read(true).write(true);
+            let file = existing_options.open(&lock_path).map_err(|_| EngineOpenError::Io {
+                message: "could not open database lock file".to_string(),
+            })?;
+            (file, false)
+        }
+        Err(_) => {
+            return Err(EngineOpenError::Io {
+                message: "could not open database lock file".to_string(),
+            })
+        }
+    };
+    let pending = PendingDatabaseLock { file: Some(file), path: lock_path.clone(), created };
+
+    match pending.file.as_ref().expect("pending database lock retains its file").try_lock() {
+        Ok(()) => Ok(pending),
         Err(std::fs::TryLockError::WouldBlock) => {
             Err(EngineOpenError::DatabaseLocked { holder_pid: read_holder_pid(&lock_path) })
         }

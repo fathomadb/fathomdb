@@ -6,7 +6,10 @@ use fathomdb_engine::{
     ProjectionGenerationErrorReason, ProjectionGenerationOriginV1, ProjectionReadinessV1,
     ProjectionRole, ProjectionRuntimeStateV1, ProjectionSpec, ProjectionVector, SourceId,
 };
-use fathomdb_schema::{migrate_with_steps, MIGRATIONS, SQLITE_SUFFIX};
+use fathomdb_schema::SQLITE_SUFFIX;
+#[cfg(feature = "migration-test-hooks")]
+use fathomdb_schema::{migrate_with_steps, MIGRATIONS};
+#[cfg(feature = "migration-test-hooks")]
 use rusqlite::Connection;
 use tempfile::TempDir;
 
@@ -137,6 +140,7 @@ fn each_operator_rebuild_mints_a_distinct_generation() {
     assert_eq!(second.origin, ProjectionGenerationOriginV1::Rebuild);
 }
 
+#[cfg(feature = "migration-test-hooks")]
 #[test]
 fn upgraded_nonempty_database_bootstraps_as_legacy_degraded() {
     let dir = TempDir::new().unwrap();
@@ -153,7 +157,7 @@ fn upgraded_nonempty_database_bootstraps_as_legacy_degraded() {
         .unwrap();
     drop(connection);
 
-    let opened = Engine::open(&path).unwrap();
+    let opened = Engine::open_with_migrations_for_test(&path, MIGRATIONS, |_| {}).unwrap();
     let status = opened.engine.read_projection_generation_status().unwrap();
     assert_eq!(status.origin, ProjectionGenerationOriginV1::LegacyUnverified);
     assert_eq!(status.readiness, ProjectionReadinessV1::Degraded);

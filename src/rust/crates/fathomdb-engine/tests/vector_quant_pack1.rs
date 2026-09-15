@@ -4,7 +4,11 @@
 use std::sync::Arc;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{Engine, EngineOpenError};
+use fathomdb_engine::Engine;
+#[cfg(feature = "migration-test-hooks")]
+use fathomdb_engine::EngineOpenError;
+#[cfg(feature = "migration-test-hooks")]
+use fathomdb_schema::MIGRATIONS;
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::{params, Connection};
 use tempfile::TempDir;
@@ -72,6 +76,7 @@ fn binary_quant_roundtrip_popcount_384() {
     assert_eq!(popcount(&bin), 384, "half-half vector must yield popcount 384");
 }
 
+#[cfg(feature = "migration-test-hooks")]
 #[test]
 fn migration_preflight_rejects_unknown_kind() {
     let dir = TempDir::new().unwrap();
@@ -98,7 +103,8 @@ fn migration_preflight_rejects_unknown_kind() {
 
     // 3. Re-open. Migration step 9's preflight CHECK must fire and
     //    surface as EngineOpenError::MigrationError { step_id: 9, .. }.
-    let err = Engine::open(&path).expect_err("preflight must reject 'banana'");
+    let err = Engine::open_with_migrations_for_test(&path, MIGRATIONS, |_| {})
+        .expect_err("preflight must reject 'banana'");
     match err {
         EngineOpenError::MigrationError { step_id, .. } => {
             assert_eq!(step_id, 9, "preflight failure must surface as step 9");

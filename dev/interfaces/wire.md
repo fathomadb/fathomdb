@@ -1,10 +1,10 @@
 ---
 title: Wire Format
-date: 2026-09-04
-target_release: 0.8.25
-desc: On-disk + IPC formats (if any) for 0.8.25; short OK
+date: 2026-09-15
+target_release: 0.8.26
+desc: On-disk + IPC formats (if any) for 0.8.26; short OK
 blast_radius: architecture.md § 5; design/engine.md; design/migrations.md
-status: draft-0.8.25
+status: draft-0.8.26
 ---
 
 # Wire Format
@@ -27,7 +27,7 @@ The authoritative layout owner remains `architecture.md` § 5.
 ## Schema-version sentinel
 
 The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
-0.8.25 development line `fathomdb-schema::SCHEMA_VERSION` is **33**. Step 28
+0.8.26 development line `fathomdb-schema::SCHEMA_VERSION` is **34**. Step 28
 adds the source-dependency registry and generation singleton. Step 29 adds the
 bounded terminal actuation-receipt and source-reference tables without
 backfilling legacy rows. Actuation request bodies and source locators are never
@@ -48,7 +48,8 @@ has grammar `pgen1:<32-lower-hex>`.
 Slice 60 adds no migration: constrained graph expansion reuses the endpoint
 indexes introduced in step 12 and recreated in step 23. Step 33 instead adds
 Slice 45 page indexes and visibility state/triggers; it has no data migration
-or canonical/projection rewrite.
+or canonical/projection rewrite. Step 34 is content-free: it identifies a
+database bootstrapped for the breaking 0.8.26 contract and changes no rows.
 
 Ownership split:
 
@@ -59,16 +60,13 @@ Ownership split:
 
 ## Compatibility contract
 
-- opening a supported pre-current database may auto-migrate and advance
-  `PRAGMA user_version`
-- ⚠ **migration step 23 (TC-33) is NOT data-preserving for edges.** It
-  recreates `canonical_edges` with INTEGER `t_valid`/`t_invalid` and type
-  CHECKs; per the HITL ruling of 2026-07-21 there is NO data migration —
-  existing edge rows do not survive and no stored ISO-8601 value is converted.
-  Nodes are unaffected. This is the one on-disk compatibility break in the
-  0.8.9 → 0.8.20 span and must be disclosed wherever upgrade is described.
-- opening a 0.5.x-shaped database hard-errors before partial read/write
-- there is no compatibility reader for 0.5.x layouts
+- a missing or zero-length path bootstraps directly to schema 34
+- a non-empty database opens only when its effective committed
+  `PRAGMA user_version` is exactly 34; schema 33, future versions, and
+  non-empty zero-version SQLite files return the typed incompatible-schema
+  error before product mutation
+- there is no public automatic migration, compatibility reader, translator,
+  or historical receipt/replay reader for earlier database layouts
 
 ## Non-surface
 

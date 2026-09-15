@@ -24,7 +24,7 @@ fn state_nonce(connection: &Connection) -> String {
 
 #[test]
 fn step33_installs_unique_page_indexes_and_state_visibility_triggers() {
-    assert_eq!(SCHEMA_VERSION, 33);
+    assert_eq!(SCHEMA_VERSION, 34);
     let connection = Connection::open_in_memory().unwrap();
     migrate(&connection).unwrap();
     for name in

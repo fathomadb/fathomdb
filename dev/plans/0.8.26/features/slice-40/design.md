@@ -37,8 +37,8 @@ The full ordered migration table remains the implementation used to bootstrap
 a missing/empty database. It is not an upgrade promise. Production refuses any
 non-empty database whose effective version is not 34 before the migration
 runner is called. The `open_with_migrations_for_test` seam retains direct
-access to the runner only under the engine's existing non-forwarded
-`test-hooks` feature. Default engine, facade, Python, TypeScript, and CLI builds
+access to the runner only under the engine's dedicated non-forwarded
+`migration-test-hooks` feature. Default engine, facade, Python, TypeScript, and CLI builds
 do not compile or forward that helper. Internal migration-mechanism targets
 opt into the feature explicitly.
 
@@ -98,9 +98,9 @@ necessary to observe the effective version in a valid current crash artifact;
 silently ignoring its WAL would be incorrect.
 
 The classifier returns the observed version, not a boolean, so the existing
-typed incompatible-schema error remains truthful. Before reading the version,
-it performs the same ordered header, schema-tree, and WAL-header probes as the
-ordinary open and maps failures through the existing sanitized
+typed incompatible-schema error remains truthful. It validates the WAL header
+before asking SQLite to read the sidecar, then performs the ordinary header and
+schema-tree probes and maps failures through the existing sanitized
 `EngineOpenError::Corruption` stages. A classifier failure is final; detailed
 corruption is not deferred to an unreachable later open. After admission, the
 ordinary open remains authoritative for deeper current-schema validation. The

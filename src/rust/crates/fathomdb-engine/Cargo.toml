@@ -33,6 +33,9 @@ tc5-benchmark = []
 # Slice 65: test-only rendezvous used by the disposable Python control wheel.
 # This feature is intentionally absent from every shipped-wheel feature list.
 test-hooks = ["rusqlite/hooks", "rusqlite/trace", "dep:libc"]
+# Private migration seam for historical migration fixtures. Unlike `test-hooks`,
+# this is deliberately not forwarded by the facade or any language binding.
+migration-test-hooks = []
 # Slice 27 fix-1 (Q5=BIND-RUST, AC-074): the operator/recovery seam
 # (rebuild_*, excise_source, dump_*, trace_source_ref, truncate_wal,
 # verify_embedder, check_integrity, safe_export, recompute_mean + their
@@ -159,7 +162,11 @@ required-features = ["operator"]
 
 [[test]]
 name = "provenance_mandatory"
-required-features = ["operator"]
+required-features = ["operator", "migration-test-hooks"]
+
+[[test]]
+name = "slice75_schema26_upgrade"
+required-features = ["operator", "test-hooks", "migration-test-hooks"]
 
 [[test]]
 name = "excise_source"
@@ -258,6 +265,18 @@ required-features = ["operator", "test-hooks"]
 [[test]]
 name = "slice55_explanation"
 required-features = ["test-hooks"]
+
+[[test]]
+name = "pr_g1_tokenizer_recall"
+required-features = ["migration-test-hooks"]
+
+[[test]]
+name = "pr_g1_tokenizer_crash_recovery"
+required-features = ["migration-test-hooks"]
+
+[[test]]
+name = "slice19_measurement"
+required-features = ["migration-test-hooks"]
 
 [dev-dependencies]
 libc = "0.2"

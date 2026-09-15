@@ -4941,6 +4941,12 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    fn rewrite_schema_header(path: &std::path::Path, version: u32) {
+        let mut bytes = std::fs::read(path).unwrap();
+        bytes[60..64].copy_from_slice(&version.to_be_bytes());
+        std::fs::write(path, bytes).unwrap();
+    }
+
     fn derived_edge_actuation_request() -> JsonValue {
         json!({
             "schemaVersion": 1,
@@ -5138,6 +5144,25 @@ mod tests {
         assert_eq!(envelope["code"], "FDB_EMBED_DEVICE_POLICY");
         assert_eq!(envelope["payload"]["kind"], "cuda_not_compiled");
         assert_eq!(envelope["payload"]["ordinal"], 2);
+    }
+
+    #[test]
+    fn napi_open_maps_schema_33_refusal_to_the_typed_envelope() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("schema-33.sqlite");
+        RustEngine::open(&path).unwrap().engine.close().unwrap();
+        rewrite_schema_header(&path, 33);
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let error = match runtime.block_on(Engine::open(path.to_string_lossy().into_owned(), None))
+        {
+            Ok(_) => panic!("N-API open must refuse schema 33"),
+            Err(error) => error,
+        };
+        let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
+        assert_eq!(envelope["code"], CODE_INCOMPATIBLE_SCHEMA_VERSION);
+        assert_eq!(envelope["payload"]["seen"], 33);
+        assert_eq!(envelope["payload"]["supported"], 34);
     }
 
     #[test]

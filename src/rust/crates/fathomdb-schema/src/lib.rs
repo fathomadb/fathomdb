@@ -1,27 +1,26 @@
 //! **FathomDB schema** — the versioned migration registry and bootstrap.
 //!
 //! An internal leaf crate of the FathomDB workspace. It owns `SCHEMA_VERSION`,
-//! the ordered `MIGRATIONS` table, and the routine that brings an on-disk
-//! SQLite database up to the current version. `fathomdb-engine` calls it on the
-//! open path; **application code should depend on the `fathomdb` facade crate
-//! instead** and never invoke migration directly.
+//! the ordered `MIGRATIONS` table, and the routine that bootstraps the current
+//! on-disk shape. `fathomdb-engine` uses the full sequence for fresh databases;
+//! historical migration fixtures can invoke it only through a private
+//! feature-gated test seam. **Application code should depend on the `fathomdb`
+//! facade crate instead** and never invoke migration directly.
 //!
 //! The on-disk sentinel is SQLite's `PRAGMA user_version`. A migration step is
 //! applied inside one `BEGIN IMMEDIATE` together with the version bump, so a
 //! crash mid-step rolls back and the step re-runs whole.
 //!
-//! ⚠ Most steps are accretive, but not all are. Step 23 (TC-33) recreates
-//! `canonical_edges` with INTEGER epoch-second temporal columns and **does not
-//! migrate the data**: existing edge rows do not survive and no stored ISO-8601
-//! value is converted. Nodes are unaffected. Anything that describes upgrading
-//! an existing workspace must disclose this.
+//! The ordered historical steps remain testable, but 0.8.26 has no public
+//! automatic-upgrade route: every non-empty database must already carry the
+//! exact current `PRAGMA user_version` before product open.
 
 use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
 use rusqlite::Connection;
 
-pub const SCHEMA_VERSION: u32 = 33;
+pub const SCHEMA_VERSION: u32 = 34;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -1332,6 +1331,10 @@ pub const MIGRATIONS: &[Migration] = &[
                   ("os", "operational_state"),
               )
         ),
+    },
+    Migration {
+        step_id: 34,
+        sql: "-- MIGRATION-ACCRETION-EXEMPTION: 0.8.26 fresh-database-only release sentinel; content-free marker only, no historical row, schema, or projection change.\nSELECT 1;",
     },
 ];
 

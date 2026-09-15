@@ -1,8 +1,8 @@
 ---
 title: Rust Public Interface
-date: 2026-09-12
-target_release: 0.8.25
-desc: Public Rust surface (traits, functions, types, errors) for 0.8.25
+date: 2026-09-15
+target_release: 0.8.26
+desc: Public Rust surface (traits, functions, types, errors) for 0.8.26
 blast_radius: src/rust/crates/fathomdb; design/engine.md; design/bindings.md; design/errors.md; design/lifecycle.md
 status: locked
 ---
@@ -11,6 +11,16 @@ status: locked
 
 This file owns Rust-visible symbol spelling and result shape. Cross-binding
 parity rules remain owned by `design/bindings.md`.
+
+## Fresh-database open boundary (0.8.26 Slice 40)
+
+All public `Engine::open*` routes bootstrap a missing or zero-length path at
+schema 34. A non-empty database is admitted only when its effective committed
+`PRAGMA user_version` is exactly 34. Any other version returns
+`EngineOpenError::IncompatibleSchemaVersion { seen, supported: 34 }` before
+product mutation or migration events. There is no public automatic-upgrade
+route; the custom migration seam is private to explicitly feature-gated engine
+tests and is not forwarded by the facade.
 
 ## SQLite runtime configuration (0.8.25 Slice 79)
 

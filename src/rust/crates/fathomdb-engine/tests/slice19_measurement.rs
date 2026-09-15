@@ -271,7 +271,8 @@ fn measure_migration() -> (Vec<u64>, Vec<u64>) {
         legacy.engine.close().expect("close schema-25 fixture");
 
         let started = Instant::now();
-        let upgraded = Engine::open(&path).expect("run schema-25 to schema-26 migration");
+        let upgraded = Engine::open_with_migrations_for_test(&path, MIGRATIONS, |_| {})
+            .expect("run schema-25 to head migration through the private test seam");
         wall_clock_us.push(elapsed_us(started));
         let report_ms = upgraded
             .report

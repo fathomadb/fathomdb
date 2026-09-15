@@ -751,8 +751,8 @@ fn hook_test_lock() -> std::sync::MutexGuard<'static, ()> {
 }
 
 #[test]
-fn endpoint_plans_use_shipped_indexes_without_full_edge_scan_and_schema_stays_33() {
-    assert_eq!(SCHEMA_VERSION, 33);
+fn endpoint_plans_use_shipped_indexes_without_full_edge_scan_and_schema_stays_34() {
+    assert_eq!(SCHEMA_VERSION, 34);
     let dir = TempDir::new().unwrap();
     let opened = Engine::open(path(&dir, "plans")).unwrap();
     for direction in

@@ -1,8 +1,8 @@
 ---
 title: Python Public Interface
-date: 2026-09-12
-target_release: 0.8.25
-desc: Public Python surface for 0.8.25
+date: 2026-09-15
+target_release: 0.8.26
+desc: Public Python surface for 0.8.26
 blast_radius: src/python/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---
@@ -11,6 +11,14 @@ status: locked
 
 This file owns Python-visible symbol spelling and attribute casing.
 Cross-binding parity remains owned by `design/bindings.md`.
+
+## Fresh-database open boundary (0.8.26 Slice 40)
+
+`Engine.open` bootstraps a missing or zero-length path at schema 34. A
+non-empty database is admitted only when its effective committed
+`PRAGMA user_version` is exactly 34; any other version raises
+`IncompatibleSchemaVersionError` before product mutation. Python exposes no
+automatic-upgrade or custom-migration route.
 
 ## Runtime surface
 

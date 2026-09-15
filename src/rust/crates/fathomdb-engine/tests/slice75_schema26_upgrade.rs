@@ -26,11 +26,15 @@ struct FixedEmbedder;
 
 impl Embedder for FixedEmbedder {
     fn identity(&self) -> EmbedderIdentity {
-        EmbedderIdentity::new("slice75-schema26", "v1", 8)
+        EmbedderIdentity::new(
+            "fathomdb-bge-small-en-v1.5",
+            "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+            384,
+        )
     }
 
     fn embed(&self, text: &str) -> Result<Vector, EmbedderError> {
-        let mut vector = vec![0.0_f32; 8];
+        let mut vector = vec![0.0_f32; 384];
         for (index, byte) in text.bytes().enumerate() {
             vector[index % 8] += f32::from(byte) / 255.0;
         }
@@ -135,6 +139,18 @@ fn open_current(path: &std::path::Path) -> fathomdb_engine::OpenedEngine {
     Engine::open_with_embedder_for_test(path, Arc::new(FixedEmbedder)).expect("open current schema")
 }
 
+fn migrate_fixture_to_current(path: &std::path::Path) -> (u32, u32, Vec<u32>) {
+    let migrated = Engine::open_with_migrations_for_test(path, MIGRATIONS, |_| {})
+        .expect("migrate fixture through the private test seam");
+    let summary = (
+        migrated.report.schema_version_before,
+        migrated.report.schema_version_after,
+        migrated.report.migration_steps.iter().map(|step| step.step_id).collect(),
+    );
+    migrated.engine.close().expect("close migrated fixture");
+    summary
+}
+
 fn body_hash(body: &str) -> CanonicalHash {
     let digest = Sha256::digest(body.as_bytes())
         .iter()
@@ -170,13 +186,11 @@ fn populated_schema26_upgrades_through_every_step_then_reopens_and_projects() {
     let before = seed_schema26(&path);
     assert_eq!(before.len(), 3);
 
+    let migration = migrate_fixture_to_current(&path);
+    assert_eq!(migration.0, 26);
+    assert_eq!(migration.1, SCHEMA_VERSION);
+    assert_eq!(migration.2, (27..=SCHEMA_VERSION).collect::<Vec<_>>());
     let upgraded = open_current(&path);
-    assert_eq!(upgraded.report.schema_version_before, 26);
-    assert_eq!(upgraded.report.schema_version_after, SCHEMA_VERSION);
-    assert_eq!(
-        upgraded.report.migration_steps.iter().map(|step| step.step_id).collect::<Vec<_>>(),
-        (27..=SCHEMA_VERSION).collect::<Vec<_>>()
-    );
     assert_legacy_projection_state(&upgraded.engine);
     println!(
         "SLICE75_SCHEMA26_RESULT before=26 after={SCHEMA_VERSION} steps=27,28,29,30,31,32,33 reopen_steps=0"
@@ -215,6 +229,7 @@ fn schema26_upgrade_supports_lifecycle_dependency_erasure_recreation_and_reopen(
     let dir = TempDir::new().expect("tempdir");
     let path = db_path(&dir, "lifecycle");
     seed_schema26(&path);
+    migrate_fixture_to_current(&path);
     let upgraded = open_current(&path);
     assert_legacy_projection_state(&upgraded.engine);
     upgraded.engine.configure_vector_kind_for_test("doc").expect("configure vector projection");

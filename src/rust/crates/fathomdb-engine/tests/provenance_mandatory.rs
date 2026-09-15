@@ -182,7 +182,12 @@ fn excise_legacy_source_deletes_no_governed_row() {
     let dir = TempDir::new().expect("tempdir");
     let path = seed_pre_0_8_20_database(&dir, "legacy_excise");
 
-    let opened = Engine::open_without_embedder_for_test(&path).expect("open migrates to head");
+    Engine::open_with_migrations_for_test(&path, fathomdb_schema::MIGRATIONS, |_| {})
+        .expect("migrate legacy fixture through the private test seam")
+        .engine
+        .close()
+        .expect("close migrated fixture");
+    let opened = Engine::open_without_embedder_for_test(&path).expect("open current database");
     let engine = &opened.engine;
 
     let report = engine.excise_source(LEGACY_SOURCE_ID).expect("excise legacy source");

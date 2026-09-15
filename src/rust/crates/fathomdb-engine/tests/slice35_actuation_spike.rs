@@ -7,7 +7,7 @@ use fathomdb_engine::{
     ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator,
     SourceRevisionId, SourceVersionId, TraversalDirection, WriteProvenanceV1,
 };
-use fathomdb_schema::{Migration, MIGRATIONS, SQLITE_SUFFIX};
+use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
 use std::sync::{Arc, Barrier};
@@ -15,18 +15,6 @@ use tempfile::TempDir;
 
 fn path(dir: &TempDir, name: &str) -> std::path::PathBuf {
     dir.path().join(format!("{name}{SQLITE_SUFFIX}"))
-}
-
-fn directory_bytes(dir: &TempDir) -> Vec<(String, Vec<u8>)> {
-    let mut files = std::fs::read_dir(dir.path())
-        .unwrap()
-        .map(|entry| {
-            let entry = entry.unwrap();
-            (entry.file_name().to_string_lossy().into_owned(), std::fs::read(entry.path()).unwrap())
-        })
-        .collect::<Vec<_>>();
-    files.sort_by(|left, right| left.0.cmp(&right.0));
-    files
 }
 
 fn canonical(revision: &str, logical: &str, body: &str) -> ProvenancedNodeV1 {
@@ -733,37 +721,4 @@ fn edge_bearing_receipt_with_missing_source_reference_fails_closed() {
         )
         .unwrap();
     assert!(matches!(opened.engine.actuate(request), Err(EngineError::Storage)));
-}
-
-#[test]
-fn prototype_fresh_boundary_is_read_only_and_distinguishes_schema_33_from_34() {
-    let dir = TempDir::new().unwrap();
-    let old_path = path(&dir, "schema33");
-    {
-        let opened = Engine::open(&old_path).unwrap();
-        opened.engine.close().unwrap();
-    }
-    let before = directory_bytes(&dir);
-    assert!(!fathomdb_engine::classify_fresh_database_candidate_for_test(&old_path, 34).unwrap());
-    assert_eq!(directory_bytes(&dir), before);
-
-    let future_path = path(&dir, "schema34");
-    let mut prototype_migrations = MIGRATIONS.to_vec();
-    prototype_migrations.push(Migration { step_id: 34, sql: "SELECT 1" });
-    let prototype_migrations = Box::leak(prototype_migrations.into_boxed_slice());
-    let opened =
-        Engine::open_with_migrations_for_test(&future_path, prototype_migrations, |_| {}).unwrap();
-    assert_eq!(opened.report.schema_version_after, 34);
-    seed_source_and_anchor(&opened.engine);
-    assert_eq!(
-        opened.engine.actuate(graph_unit("prototype-34", true)).unwrap().outcome,
-        ActuationOutcomeV1::Committed
-    );
-    opened.engine.close().unwrap();
-    assert!(fathomdb_engine::classify_fresh_database_candidate_for_test(&future_path, 34).unwrap());
-    assert!(fathomdb_engine::classify_fresh_database_candidate_for_test(
-        &path(&dir, "missing"),
-        34,
-    )
-    .unwrap());
 }

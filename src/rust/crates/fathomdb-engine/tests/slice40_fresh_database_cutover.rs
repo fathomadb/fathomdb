@@ -12,6 +12,9 @@ use tempfile::TempDir;
 
 const WAL_CHILD_MODE: &str = "FATHOMDB_SLICE40_WAL_CHILD_MODE";
 const WAL_CHILD_PATH: &str = "FATHOMDB_SLICE40_WAL_CHILD_PATH";
+const OPEN_CHILD_MODE: &str = "FATHOMDB_SLICE40_OPEN_CHILD_MODE";
+const OPEN_CHILD_PATH: &str = "FATHOMDB_SLICE40_OPEN_CHILD_PATH";
+const OPEN_CHILD_SECOND_PATH: &str = "FATHOMDB_SLICE40_OPEN_CHILD_SECOND_PATH";
 
 fn path(dir: &TempDir, name: &str) -> PathBuf {
     dir.path().join(format!("{name}.sqlite"))
@@ -69,6 +72,26 @@ fn run_wal_child(path: &Path, version: u32) {
     assert!(sidecar(path, "-shm").is_file(), "child must leave SHM");
 }
 
+fn run_open_child(mode: &str, path: &Path, second_path: Option<&Path>) {
+    let mut command = Command::new(std::env::current_exe().unwrap());
+    command
+        .arg("--exact")
+        .arg("slice40_fresh_process_open_child")
+        .arg("--nocapture")
+        .env(OPEN_CHILD_MODE, mode)
+        .env(OPEN_CHILD_PATH, path);
+    if let Some(second_path) = second_path {
+        command.env(OPEN_CHILD_SECOND_PATH, second_path);
+    }
+    let output = command.output().unwrap();
+    assert!(
+        output.status.success(),
+        "open child failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 #[test]
 fn slice40_wal_fixture_child() {
     let Ok(version) = std::env::var(WAL_CHILD_MODE) else {
@@ -81,6 +104,70 @@ fn slice40_wal_fixture_child() {
     connection.pragma_update(None, "user_version", version.parse::<u32>().unwrap()).unwrap();
     connection.execute_batch("BEGIN IMMEDIATE; CREATE TABLE IF NOT EXISTS slice40_wal_marker(value TEXT); INSERT INTO slice40_wal_marker VALUES('committed'); COMMIT;").unwrap();
     std::mem::forget(connection);
+}
+
+#[test]
+fn slice40_fresh_process_open_child() {
+    let Ok(mode) = std::env::var(OPEN_CHILD_MODE) else {
+        return;
+    };
+    let path = PathBuf::from(std::env::var_os(OPEN_CHILD_PATH).unwrap());
+    match mode.as_str() {
+        "open-current" => {
+            let opened = Engine::open(path).unwrap();
+            assert_eq!(opened.report.schema_version_before, 34);
+            assert_eq!(opened.report.schema_version_after, 34);
+            assert!(opened.report.migration_steps.is_empty());
+            opened.engine.close().unwrap();
+        }
+        "refuse-then-fresh" => {
+            assert_incompatible(Engine::open(path), 33);
+            let fresh_path = PathBuf::from(std::env::var_os(OPEN_CHILD_SECOND_PATH).unwrap());
+            let opened = Engine::open(fresh_path).unwrap();
+            assert_eq!(opened.report.schema_version_before, 0);
+            assert_eq!(opened.report.schema_version_after, 34);
+            opened.engine.close().unwrap();
+        }
+        other => panic!("unknown open child mode: {other}"),
+    }
+}
+
+#[test]
+fn fresh_process_reopens_clean_current_database() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "clean-current");
+    Engine::open(&db).unwrap().engine.close().unwrap();
+
+    run_open_child("open-current", &db, None);
+}
+
+#[test]
+fn fresh_process_reopens_current_wal_with_and_without_shm() {
+    for remove_shm in [false, true] {
+        let dir = TempDir::new().unwrap();
+        let db = path(&dir, if remove_shm { "wal-no-shm" } else { "wal-shm" });
+        Engine::open(&db).unwrap().engine.close().unwrap();
+        let connection = Connection::open(&db).unwrap();
+        connection.pragma_update(None, "journal_mode", "DELETE").unwrap();
+        connection.pragma_update(None, "user_version", 33).unwrap();
+        connection.close().unwrap();
+        run_wal_child(&db, 34);
+        if remove_shm {
+            fs::remove_file(sidecar(&db, "-shm")).unwrap();
+        }
+
+        run_open_child("open-current", &db, None);
+    }
+}
+
+#[test]
+fn schema_33_refusal_does_not_poison_fresh_open_in_same_process() {
+    let dir = TempDir::new().unwrap();
+    let old = path(&dir, "old");
+    let fresh = path(&dir, "fresh-after-refusal");
+    create_versioned_sqlite(&old, 33);
+
+    run_open_child("refuse-then-fresh", &old, Some(&fresh));
 }
 
 #[test]

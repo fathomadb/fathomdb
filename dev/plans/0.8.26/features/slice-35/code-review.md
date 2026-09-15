@@ -41,3 +41,28 @@ conformance without changing the retained Windows smoke inventory. Final
 read-only rereview returned PASS; it verified both fixture digests and parsers,
 the exclusive old/new TypeScript routing, the 5/5 Slice 73 structural tests,
 and the Rust shared-fixture test.
+
+## Post-close adversarial remediation
+
+A later adversarial review reopened Slice 35 with two P1 integrity findings and
+one P2 process-record finding:
+
+1. Affected revisions were validated for syntax, uniqueness, and existence but
+   were not bound to the replayed request, so an unrelated existing revision
+   could be substituted.
+2. Reverse source references were validated only for shape and maximum count,
+   so deleting a required edge source reference still allowed keyed replay.
+3. The durable history did not contain the separately visible RED-2 and RED-3
+   phases that the plan prescribed for bindings and performance.
+
+Commit `5ecb52db` preserves both P1 cases as failing RED tests. Commit
+`9a81a75c` is GREEN: replay reconstructs the exact ordered affected revisions
+from canonical history, reconstructs the exact direct/resolved source-reference
+set, and rejects missing, extra, or substituted valid-looking rows. The stale
+Slice 25 count-only oracle now asserts that an extra row below the count ceiling
+is corruption. The original binding/performance history cannot be made
+retroactively TDD-compliant; `status.md` now records that exception explicitly
+instead of presenting the combined GREEN commit as complete RED/GREEN evidence.
+
+Focused remediation verification passed Slice 35 at 15/15, Slice 25 receipt
+verification at 15/15, and actuation unit/property tests at 6/6.

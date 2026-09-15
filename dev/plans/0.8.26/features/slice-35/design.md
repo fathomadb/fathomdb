@@ -97,6 +97,16 @@ enter the existing reverse source-reference table so erasure redacts the
 receipt. Receipt validation admits the edge-owned pending cursor and the two
 new endpoint refusal paths, but no dangling count or graph manifest.
 
+Post-close adversarial review strengthened that integrity boundary. Keyed
+replay reconstructs the affected-revision sequence from the submitted request,
+the immutable artifact registry, and the canonical rows tombstoned at each
+request-created cursor; a different existing revision is corruption, not merely
+an alternative well-formed receipt. Reverse source references are likewise an
+exact request-relative set: direct request references plus the artifact,
+source, and canonical-source identities resolved from every affected revision.
+Missing or extra well-formed rows fail closed, including when their count stays
+below the receipt-dependent ceiling.
+
 Code-grounded implementation review found that logical-ID G0 selects at most
 one active revision, but fact-edge triple G11 can retire many coexisting active
 regular edges whose bodies are null. The receipt consequence is therefore not

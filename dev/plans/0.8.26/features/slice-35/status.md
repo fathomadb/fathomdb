@@ -1,7 +1,7 @@
 # Slice 35 implementation status
 
-Status: COMPLETE ON `release/0.8.26` at reviewed and independently verified
-implementation tip `88e04f26`.
+Status: COMPLETE ON `release/0.8.26` at corrected implementation tip
+`9a81a75c` after post-close adversarial remediation.
 
 ## Completed scope
 
@@ -33,6 +33,10 @@ implementation tip `88e04f26`.
 - Added a read-only prototype classifier and test-only schema-34 bootstrap that
   prove fresh admission and exact no-mutation refusal of schema 33 without
   activating the production open cutover.
+- Bound keyed replay to the exact ordered affected revisions reconstructed from
+  request-created cursors and canonical supersession history. Bound reverse
+  source references to the exact request-relative direct/resolved set, so
+  missing, extra, and substituted valid-looking rows fail closed.
 
 ## TDD and review
 
@@ -42,6 +46,16 @@ implementation tip `88e04f26`.
   implementation after resolving all initial design and code findings.
 - `13b704ef` — verification-driven Python edge-time fixture translation fix.
 - `88e04f26` — verification-driven sealed-fixture split and final reviewed tip.
+- `5ecb52db` — post-close adversarial RED for valid affected-ID substitution
+  and a missing required edge source reference.
+- `9a81a75c` — GREEN request-relative affected/source-reference integrity.
+
+The original `7f3e4a29` RED covered the engine spike. The binding conformance
+and performance harness landed together with their implementation in
+`261782c2`; separate durable RED-2 and RED-3 commits were not preserved as the
+approved plan required. That historical process gap cannot be repaired
+retroactively and is recorded here rather than claimed as strict TDD. The
+post-close integrity correction used an explicit committed RED/GREEN sequence.
 
 The design reviewer returned final PASS after reviewing the capacity/source-ref
 correction, benchmark protocol, and historical/current fixture boundary. The
@@ -51,8 +65,9 @@ verification findings were resolved. Detailed evidence is in `design-review.md`,
 
 ## Verification
 
-- Engine actuation suites: 32/32 PASS (Slice 25 contract 4, verification 15,
-  Slice 35 spike 13).
+- Engine actuation suites: 34/34 PASS (Slice 25 contract 4, verification 15,
+  and the post-close-expanded Slice 35 spike 15). Actuation unit/property tests
+  additionally passed 6/6.
 - N-API and PyO3 edge parser suites: 2/2 PASS each.
 - Fresh non-editable Python wheel: shared Slice 35 fixture 1/1 and Python
   actuation suite 7/7 PASS; no editable worktree install was used.
@@ -67,6 +82,13 @@ verification findings were resolved. Detailed evidence is in `design-review.md`,
 - Historical closure integrity: sealed Slice 25 digest restored exactly;
   Slice 75 manifest verification and all 12 mutation tests PASS; retained Slice
   73 Windows N-API structural tests 5/5 PASS.
+- Post-close canonical `agent-verify` passed its Slice 35-relevant lint,
+  typecheck, and security stages, then stopped in the unchanged
+  `test-check-license-consistency` self-test: its embedded Python raised
+  `AttributeError: 'str' object has no attribute 'get'` in both the synthetic
+  npm-pack arm and the repository arm. This is recorded as a non-green
+  aggregate, not as Slice 35 evidence; the corrected receipt paths are covered
+  by the focused 34/34 plus 6/6 results above.
 
 ## Performance and prototype disposition
 
@@ -86,5 +108,6 @@ created.
 
 ## Final verdict
 
-AC26-35A through AC26-35H are satisfied at the source-candidate boundary.
-Slice 35 is complete; Slice 40 is next.
+AC26-35A through AC26-35H are satisfied at the corrected source-candidate
+boundary. The two post-close P1 findings are resolved, the P2 history gap is
+recorded accurately, Slice 35 is complete, and Slice 40 is next.

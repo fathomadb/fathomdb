@@ -16,7 +16,10 @@ file and regenerate; keep evidence and qualification prose here.
 Slices 0–10, 15, 20, 30, and 35 are complete on the 0.8.26 release line. Slice
 35 proved the changed-in-place five-operation V1 actuation grammar, complete
 prospective derived-edge endpoints, compact bounded receipts, cross-binding
-conformance, and the fresh-database prototype boundary. Slice 40 owns the real
+conformance, and the fresh-database prototype boundary. Post-close adversarial
+RED/GREEN remediation now binds persisted affected revisions and reverse source
+references exactly to their replayed request; its status record also preserves
+the original binding/performance TDD evidence exception. Slice 40 owns the real
 schema/open cutover; Slice 50 retains exact-version post-publication work.
 
 ## Immediate next action

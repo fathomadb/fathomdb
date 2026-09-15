@@ -1,80 +1,177 @@
 ---
 title: FathomDB 0.8.26 Slice 40 — atomic derived-edge actuation
-status: DRAFT
+status: APPROVED_FOR_IMPLEMENTATION
 ---
 
 # Slice 40 plan — atomic derived-edge actuation
 
-## Slice-complete workflow
-
-This plan adopts the full [lean slice execution contract](../../slice-execution-contract.md):
-enumerate intervening changes and allocations, finalize needs/requirements/AC,
-obtain design review, implement RED/GREEN, obtain code review and independent
-verification, write status, and clean up temporary workspaces.
-
 ## Outcome
 
-One governed actuation transaction can commit a derived node, its canonical
-dependency, and a provenance-bearing semantic edge, with deterministic replay
-and a truthful bounded changed-in-place V1 receipt in a fresh 0.8.26 database.
+Promote the accepted Slice 35 changed-in-place V1 actuation candidate to the
+real schema-34, fresh-database-only product boundary. A fresh database can
+atomically commit and replay the complete derived graph-authoring unit; every
+public engine-open route refuses a non-current database before product
+mutation. No historical migration or parallel API generation is introduced.
 
-## Requirements
+## Entry reconciliation and disposition
 
-- **R26-40A:** Change `ActuationBatchV1`/`ActuationOperationV1` in place to
-  contain the four inherited capabilities plus
-  `put_derived_edge(ProvenancedEdgeV1)`. Add no parallel V2 types, parser,
-  router, redirect, or method.
-- **R26-40B:** Commit node, dependency, edge, replay record, receipt, and
-  projection work atomically or not at all.
-- **R26-40C:** Require both derived-edge endpoints in the complete prospective
-  batch state, including endpoints introduced later in the batch. Refuse the
-  whole batch when either endpoint is absent; do not admit or count dangling
-  derived edges. Evaluate the final active state after all same-batch node and
-  lifecycle effects. The edge's own position is irrelevant; existing
-  node/lifecycle ordering rules determine the final state.
-- Reuse canonical edge persistence, lifecycle, provenance, projection, and
-  traversal paths.
-- **R26-40D:** Implement one changed-in-place V1 receipt, digest, replay,
-  operation-ID, and integrity contract. Do not retain historical request,
-  replay, receipt, integrity, or cross-release operation-ID behavior.
-- **R26-40E:** Accept only fresh 0.8.26 databases. Refuse a representative
-  earlier database before mutation and implement no historical migration
-  matrix.
+The draft was last changed at `7ae1905f` on 2026-09-13. The implementation
+baseline is the clean `release/0.8.26` worktree at `54f1ad99`, after Slice 35
+and its adversarial and verification remediations. The following changes,
+assigned surfaces, and allocated items were reviewed before approval:
 
-## TDD and delivery
+1. Slices 9, 10, 15, 20, 30, and 35 completed after the draft. Slice 20 added
+   frozen graph evidence; Slice 30 hardened read-only operator inspection.
+   Neither changes the derived-edge actuation contract. Slice 35 implemented
+   the fifth V1 operation throughout the engine, bindings, conformance,
+   projection, erasure, replay, and integrity paths and measured it within the
+   accepted bounds.
+2. Slice 35's retained candidate now satisfies the original R26-40A through
+   R26-40D work: complete prospective endpoints, canonical edge reuse, one
+   transaction and digest, bounded exact receipts/source references, rollback,
+   restart, concurrency, and Python/TypeScript parity. Post-close commits
+   `5ecb52db` and `9a81a75c` additionally bind affected revisions and reverse
+   source references to the exact replayed request. Reimplementing those paths
+   here would be duplicate and overbuilt.
+3. Slice 35 deliberately left only a read-only classifier parameterized with
+   prototype schema 34 and a test-only no-op migration. Production remains at
+   `SCHEMA_VERSION = 33`; ordinary `Engine::open` still migrates older
+   databases. Slice 40 therefore owns the real content-free step 34 and the
+   mandatory fresh-only check on the shared public open path.
+4. The assigned implementation surfaces are
+   `fathomdb-schema::{SCHEMA_VERSION,MIGRATIONS}`, the shared engine open path,
+   `EngineOpenError::IncompatibleSchemaVersion`, the Rust/PyO3/N-API open
+   adapters, and the current wire/binding contract documents. The explicit
+   test-only migration seam remains available for migration-mechanism tests;
+   it is not a supported product compatibility route.
+5. The Slice 3–5 allocations and D26-03 through D26-05 are fully represented:
+   changed-in-place V1, complete prospective endpoints, compact receipt, and
+   fresh databases only. No HITL decision remains open. Slice 45/46 retain
+   architecture/design-document convergence; Slice 50 retains clean package,
+   platform, and non-publishing release verification.
+6. The source and interface blast radius contains stale forward-migration
+   oracles and prose. Tests whose sole product assertion is automatic opening
+   of a pre-34 database must be retired or moved to the explicit test-only
+   migration seam. The current interface contract must change in this slice;
+   broad public-document convergence remains allocated to Slices 45/46.
 
-1. Apply accepted ADR-0.8.26 and finalize the exact current V1 wire/binding contracts.
-2. Commit failing tests for successful mixed batches and every validation,
-   crash, duplicate, replay, lifecycle, erasure, and projection boundary.
-3. Implement the approved prospective-state policy and one writer transaction.
-4. Update the one V1 digest contract in place and remove historical compatibility paths.
-5. Bind Rust, Python, TypeScript, and wire surfaces with shared fixtures.
-6. Run focused property, changed-boundary fault, restart, concurrency,
-   projection, and package checks plus canonical `agent-verify`; reserve the
-   broad platform matrix for Slice 50.
-7. Obtain independent high-risk implementation review.
+Disposition: **approve the narrowed plan after independent design review**. Retain the
+reviewed Slice 35 actuation implementation unchanged except for defects exposed
+by cutover tests. Implement schema/open activation, update the directly owned
+contract, and run focused actuation/open regressions plus canonical
+`agent-verify`. Do not repeat the Slice 35 performance campaign or pre-empt
+Slice 45, 46, or 50.
 
-## Acceptance
+## Need, requirements, and acceptance
 
-- **AC26-40A:** Current V1 construction is compatible across bindings; no
-  public or internal parallel V2 parser, method, or router exists.
-- **AC26-40B:** The complete Memex graph-authoring unit has one transaction and one replay
-  identity/receipt.
-- **AC26-40C:** Missing `from`, `to`, or both refuse deterministically without
-  domain commits; an edge whose endpoints occur later in the same batch
-  succeeds; a same-batch lifecycle transition that leaves an endpoint
-  non-active refuses regardless of whether the edge appears before or after it.
-- Replay of an identical request returns the original outcome; key reuse with
-  different bytes refuses.
-- **AC26-40D:** Current V1 receipt/storage, replay, integrity, and operation-ID behavior
-  are tested on a fresh database; receipts contain no Memex semantic verdict or
-  uncomputed consequence claim, and no historical compatibility path remains.
-- **AC26-40E:** Fresh bootstrap succeeds and an earlier database is refused
-  before mutation without version-by-version migration testing.
+Need N26-04: a caller can atomically commit a derived node, its canonical
+dependency, and a provenance-bearing semantic edge. For 0.8.26, that caller
+must create a fresh database rather than accidentally upgrading or interpreting
+an earlier database.
+
+### Requirements
+
+- **R26-40A — changed-in-place grammar:** Retain the reviewed single five-
+  operation `ActuationOperationV1` grammar across bindings with no parallel V2
+  pair. Slice 35 satisfied this requirement; Slice 40 treats it as a regression
+  obligation.
+- **R26-40B — atomic graph unit:** Retain all-or-none commit of node,
+  dependency, provenance-bearing edge, replay record, receipt, and projection
+  work. Slice 35 satisfied this requirement; Slice 40 regresses it after the
+  open cutover.
+- **R26-40C — endpoint semantics:** Retain complete-prospective-state endpoint
+  validation, including later same-batch endpoints and final lifecycle state.
+  Slice 35 satisfied this requirement; Slice 40 regresses it.
+- **R26-40D — current receipt contract:** Retain one changed-in-place V1
+  receipt, digest, replay, operation-ID, and integrity contract without
+  historical compatibility. Slice 35 and its post-close remediation satisfied
+  this requirement; Slice 40 regresses it.
+- **R26-40E — fresh 0.8.26 databases only:**
+  - **E1:** Advance the product schema from 33 to 34 with one content-free
+    bootstrap marker; step 34 changes no historical rows.
+  - **E2:** Missing and zero-length paths bootstrap at schema 34. A non-empty
+    database opens only when its effective committed `PRAGMA user_version` is
+    exactly 34. All public engine-open routes share this policy and use the
+    existing typed incompatible-schema error.
+  - **E3:** Acquire the product lock without rewriting its metadata, then make
+    the authoritative freshness decision while holding it and before
+    write-mode SQLite open, connection PRAGMAs, migration, recovery,
+    projection reconciliation, worker startup, or domain writes. Refused clean
+    and WAL-bearing schema-33 directories are byte-identical afterward.
+  - **E4:** Retain no public migration, translator, historical receipt/replay
+    reader, version router, or version-by-version matrix. Move the custom-
+    migration helper from all debug builds to the existing non-forwarded
+    `test-hooks` feature.
+- **R26-40F — current restart integrity:** A schema-34 database reopens and
+  replays an identical edge-bearing actuation receipt exactly; changed bytes
+  conflict. The pre-open check must observe current committed WAL state rather
+  than treating an uncheckpointed current database as an older one.
+
+### Acceptance criteria
+
+- **AC26-40A:** The one current V1 grammar executes across bindings and no V2
+  parser, method, or router exists; focused Slice 35 binding checks remain
+  green.
+- **AC26-40B:** Transactional fault, duplicate, restart, dependency, lifecycle,
+  erasure, and projection tests for the mixed graph unit remain green.
+- **AC26-40C:** Missing endpoint precedence, later endpoint success, and final
+  inactive endpoint refusal remain deterministic and atomic.
+- **AC26-40D:** Fresh-database current-contract receipt, replay, and integrity
+  tests pass and no historical compatibility path exists.
+- **AC26-40E:**
+  - **E1:** `SCHEMA_VERSION == 34`, `MIGRATIONS` ends contiguously at content-
+    free step 34, fresh open reports `0 -> 34`, and clean reopen reports
+    `34 -> 34` with no migration steps.
+  - **E2:** The shared public route refuses schema 33, schema 35, and non-empty
+    zero-version SQLite as `IncompatibleSchemaVersion { seen, supported: 34 }`
+    without migration events.
+  - **E3:** Clean, WAL/SHM-bearing, and WAL-without-SHM schema-33 directories
+    are byte-identical after refusal; an attempt-created SHM is removed. A
+    deterministic locked-admission test proves a competing product opener
+    cannot turn a fresh candidate into a migrated schema-33 database.
+  - **E4:** Rust direct and migration-event opens, PyO3, N-API, and CLI use the
+    same policy/error mapping; default/facade/binding builds do not compile or
+    forward the feature-gated custom-migration seam.
+- **AC26-40F:** A current schema-34 database with committed state still in WAL
+  is admitted and recovered; an active second open retains the existing
+  `DatabaseLocked` precedence. Default engine, facade, and binding builds do
+  not compile or forward the feature-gated custom-migration seam.
+- **AC26-40G:** The current wire and binding interface contracts state schema
+  34 and fresh-only refusal. Focused tests, `git diff --check`, contract/docs
+  validators, and `./scripts/agent-verify.sh` pass; package/platform matrices
+  remain Slice 50 work.
+
+## TDD RED/GREEN delivery
+
+1. Obtain independent read-only review of [`design.md`](design.md), resolve all
+   material findings, and mark the plan/design approved before implementation.
+2. **RED-1 — schema and open boundary:** add a dedicated Slice 40 integration
+   suite covering AC26-40E/F, including exact no-mutation snapshots and the
+   active-lock/current-WAL cases. Add an internal deterministic locked-
+   admission race test. Preserve the failing test commit.
+3. **GREEN-1 — cutover:** add content-free migration step 34 and route every
+   public open through one pre-mutation current-schema check. Keep
+   `open_with_migrations_for_test` explicitly outside that product policy and
+   compile it only under the non-forwarded `test-hooks` feature.
+4. **RED-2/GREEN-2 — binding and graph unit:** add focused PyO3/N-API policy
+   mapping and fresh schema-34 mixed-unit/replay tests, then make only the
+   smallest implementation or fixture changes required. Existing passing
+   Slice 35 oracles are not rewritten.
+5. Update the directly owned wire/Rust/Python/TypeScript interface contracts.
+   Remove or reroute stale automatic-upgrade tests only when they assert the
+   superseded public behavior; retain migration-runner tests through the
+   feature-gated seam.
+6. Run focused schema/open, actuation, binding, migration-policy, and contract
+   checks. Obtain independent code review of the actual diff, resolve findings
+   with visible RED/GREEN evidence, then use a different read-only subagent for
+   final focused verification and canonical `agent-verify`.
+7. Write `status.md`, advance the single-writer release state to Slice 45 with
+   exact commits/evidence, regenerate its views, and preserve the release
+   worktree. No temporary branch or worktree is planned.
 
 ## Stop gates
 
-Stop on partial commit, replay/digest ambiguity, a parallel V2 surface,
-historical translation or receipt support, migration of an earlier database, unbounded
-work, unclear erasure behavior, projection divergence, or receipt disclosure
-beyond the approved minimum.
+Stop on a partial graph unit, replay/digest ambiguity, a V2/router, an earlier
+database mutation or upgrade, a current-WAL false refusal, weakened corruption
+or lock precedence, unbounded work, migration-test access from production, or
+scope that belongs to Slice 45, 46, or 50.

@@ -11,20 +11,21 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 40 (DERIVED-EDGE), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 45 (ARCHITECTURE-CONVERGENCE), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
 
-Slices 0–10, 15, 20, 30, and 35 are complete on the 0.8.26 release line. Slice
-35 proved the changed-in-place five-operation V1 actuation grammar, complete
-prospective derived-edge endpoints, compact bounded receipts, cross-binding
-conformance, and the fresh-database prototype boundary. Post-close adversarial
-RED/GREEN remediation now binds persisted affected revisions and reverse source
-references exactly to their replayed request; its status record also preserves
-the original binding/performance TDD evidence exception. Slice 40 owns the real
-schema/open cutover; Slice 50 retains exact-version post-publication work.
+Slices 0–10, 15, 20, 30, 35, and 40 are complete on the 0.8.26 release line.
+Slice 35 proved the changed-in-place five-operation V1 actuation grammar,
+complete prospective derived-edge endpoints, compact bounded receipts, and
+cross-binding conformance. Slice 40 activated schema 34 and the fresh-only
+public-open boundary with locked WAL-aware admission, fresh-process runtime
+ordering, exact no-mutation refusal, and deterministic both-direction opener
+races. GPT-6 Astra medium design rereview, independent code review, and the
+canonical 110/110 suite gate pass. Slice 45 is next; Slice 50 retains
+exact-version package/platform verification.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 40 (DERIVED-EDGE)** — atomic derived-edge V1 actuation. **Remaining ladder:** 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 45 (ARCHITECTURE-CONVERGENCE)** — maintained architecture convergence. **Remaining ladder:** 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:status-next-action -->
 
 ## Open decisions
 

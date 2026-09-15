@@ -143,9 +143,9 @@ if their design is discussed.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.26:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 40** (`DERIVED-EDGE`) — atomic derived-edge V1 actuation
+**IMMEDIATE NEXT: Slice 45** (`ARCHITECTURE-CONVERGENCE`) — maintained architecture convergence
 
-**Remaining ladder:** 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
+**Remaining ladder:** 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
 
 D26-01 was ruled at `seq-290` and implemented by Slice 20. Slice 30 completed
 the selected existing-CLI integrity route without a prebuilt fallback. Do not

@@ -1,14 +1,15 @@
 ---
 title: FathomDB data-plane architecture v2
 status: ACTIVE
-architecture_version: 2.1
-implementation_status: active authority; implemented incrementally by feature slices
-target_release: 0.8.25
+architecture_version: 2.2
+implementation_status: active authority; 0.8.26 source-candidate profile implemented through Slice 40
+target_release: 0.8.26
 baseline: dev/design/fathomdb-data-plane-architecture-v1.md
 approval_status: APPROVED
 approved_by: 0.8.25 Slice 6 HITL seq-272..274
 activation_gate: 0.8.25 Slice 7 S7-07 GREEN
 activated_on: 2026-09-02
+last_reconciled: 2026-09-15 by 0.8.26 Slice 45
 ---
 
 # FathomDB data-plane architecture v2
@@ -35,7 +36,7 @@ The boundary is complete when a semantic component can implement its policy
 through governed FathomDB APIs without raw SQL, private shadow indexes,
 duplicated liveness rules, or manual projection cleanup.
 
-## Architecture destination and 0.8.25 profile
+## Architecture destination and executable profiles
 
 Architecture v2 describes the multi-release destination. Version 2.1 adds the
 approved executable profile for 0.8.25; it does not claim that every destination
@@ -60,6 +61,97 @@ Designs deferred beyond that profile are inventoried in
 [`0.8.x-after-0.8.25-design-notes.md`](0.8.x-after-0.8.25-design-notes.md).
 An active 0.8.25 slice design must not expose a deferred destination type or
 behavior merely because it appears later in this document.
+
+## As-built 0.8.26 profile
+
+Version 2.2 records the current 0.8.26 source candidate after Slice 40. It
+applies the accepted 0.8.26 decisions to the v2 model; it does not introduce a
+new decision or claim publication. Detailed field/error contracts remain in
+[`dev/interfaces/`](../interfaces/README.md), accepted decisions remain in the
+[`ADR index`](../adr/ADR-0.6.0-decision-index.md), and topic implementation
+detail remains under [`dev/design/`](README.md).
+
+### Workspace and ownership
+
+The Rust workspace has ten members:
+
+- the thin public `fathomdb` facade;
+- `fathomdb-engine`, which owns runtime, reader/writer coordination,
+  actuation, lifecycle/closure, frozen reads, evidence, graph expansion,
+  pagination, projection generations, and integrity mechanisms;
+- the operator-only `fathomdb-cli`;
+- the pure compiler `fathomdb-query` and migration owner `fathomdb-schema`;
+- `fathomdb-embedder-api` and `fathomdb-embedder`;
+- the `fathomdb-py` and `fathomdb-napi` native binding crates; and
+- the internal `fathomdb-tc5-benchmark` harness.
+
+`src/python/` and `src/ts/` own the Python and TypeScript package layers over
+the native crates. Only documented facade/binding APIs are public contracts;
+engine module/file boundaries remain internal and may change.
+
+### Open, storage, and concurrency
+
+`Engine::open` configures the process SQLite runtime before admission. A
+missing or zero-length path bootstraps directly at schema 34. A nonempty
+database is admitted only when its effective committed schema and required
+shape are current; otherwise it is refused under the persistent admission lock
+before product mutation. There is no 0.8.26 migration from an earlier database.
+
+Canonical records, provenance, dependencies, operational state, actuation
+receipts, projection state, FTS, and vector state remain in one SQLite product
+database with WAL and the existing admission/ownership lock. The single writer
+owns all mutation transactions and schedules post-commit projection work.
+Pooled readers own read transactions; frozen authorization, graph selection,
+and evidence materialization do not move onto the writer.
+
+### Governed read and evidence paths
+
+Both explanation-enabled frozen search paths complete with a valid non-empty
+Engine correlation identity. Explanation-disabled behavior and ranking remain
+unchanged by that repair.
+
+Ranked evidence remains an opt-in frozen search sidecar. Graph evidence is a
+separate opt-in positional V1 sidecar on the existing graph operation. Its
+opaque references bind the authenticated frozen context and normalized graph
+disclosure to distinct immutable target and winning terminal-edge revisions.
+The graph resolver returns intrinsic artifact/source evidence without
+inventing rank, contribution, or full-path claims. Ordinary graph responses
+remain unchanged when evidence is omitted or false.
+
+### Governed mutation path
+
+`Engine::actuate` remains the only actuation entry point and accepts one
+changed-in-place five-operation V1 grammar: canonical-node write, derived-node
+write, source-dependency registration, lifecycle transition, and provenance-
+bearing derived-edge write. The writer validates the complete prospective
+batch before effects, so an edge may name endpoints later in the batch but a
+missing final endpoint refuses the whole operation.
+
+Derived edges reuse canonical edge storage, revision identity, projection,
+lifecycle, dependency, erasure, and integrity mechanisms. Current V1 request
+digests and compact receipts bind the complete request and affected revisions.
+There is no functional V2 pair, router, compatibility adapter, historical
+receipt/replay interpretation, or partial graph commit.
+
+### Operator boundary
+
+`fathomdb doctor data-plane-integrity` is the version-matched, bounded,
+machine-readable integrity route. It resolves the product database identity,
+requires quiescence, opens SQLite immutably, and performs no recovery or
+mutation. Doctor and recovery remain operator-only and absent from governed
+Python and TypeScript SDKs.
+
+### Preserved boundary and deferred destination
+
+FathomDB owns durable identity, provenance, dependency, lifecycle, visibility,
+retrieval, projection, evidence, mutation, and integrity mechanisms. Memex or
+another semantic caller owns extraction, ontology, truth/contradiction,
+retrieval planning, synthesis, answer verification, model/provider choice,
+spend, and HITL policy.
+
+The 0.8.26 profile remains single-source and reproduce-or-fail. Multi-source
+causal provenance/liveness, persisted snapshot leases, graph continuation/full
+paths, persisted evidence replay, and semantic policy remain deferred.
 
 ## Durable artifact classes
 
@@ -184,6 +276,11 @@ hidden inside a FathomDB data-plane claim.
 
 ## Compatibility and safety
 
+The following destination rules are qualified by the accepted breaking 0.8.26
+profile: affected actuation contracts change V1 in place, and noncurrent
+databases are refused rather than migrated. The later graph-evidence decision
+adds a first-generation V1 sidecar without creating a parallel graph API.
+
 - Every new persisted or public request and response carries an explicit
   integer schema/wire version. New revision, dependency, actuation-batch,
   read-context, cursor, evidence, and graph types require Rust, Python,
@@ -230,6 +327,15 @@ evidence and are not rewritten; each 0.8.25 feature design records whether it
 reuses, amends, or supersedes them.
 
 ## Release allocation
+
+The current 0.8.26 profile is allocated by
+[`plan-0.8.26.md`](../plans/plan-0.8.26.md). Its implemented public boundaries
+are recorded in the maintained interface documents and its as-built
+requirements/evidence in Slices 10, 20, 30, 35, and 40. Slice 45 reconciles
+this architecture; Slice 46 owns detailed topic-design convergence; Slice 50
+owns integrated non-publishing package/platform verification.
+
+The predecessor 0.8.25 allocation follows.
 
 The complete allocation is
 [`plan-0.8.25.md`](../plans/plan-0.8.25.md). The requirement inventory is

@@ -21,12 +21,11 @@ surfaces.
 
 Canonical for internal interface intent until replaced by shipped public docs.
 
-The reviewed 0.8.25 interface deltas are indexed by the
-[`design-documentation matrix`](../plans/0.8.25/design-documentation-matrix.md)
-and specified in its fourteen slice designs. They are planned successors, not
-implemented interface authority: this directory continues to describe shipped
-behavior until each owning feature slice lands and updates the applicable Rust,
-Python, TypeScript, CLI, and wire record.
+The Rust, Python, TypeScript, CLI, and wire records are maintained for the
+0.8.26 source candidate. Section-local status remains controlling: implemented,
+accepted, proposed, and unsigned sections can coexist, and this index does not
+promote proposed material. The active architecture is
+[`fathomdb-data-plane-architecture-v2.md`](../design/fathomdb-data-plane-architecture-v2.md).
 
 ## Lifecycle
 

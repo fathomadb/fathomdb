@@ -38,12 +38,13 @@ ADRs.
 
 Canonical for internal subsystem design, subject to ADR and requirement owners.
 
-The active 0.8.25 architecture is
+The active architecture is the reconciled 0.8.26 v2.2 profile in
 [`fathomdb-data-plane-architecture-v2.md`](fathomdb-data-plane-architecture-v2.md).
-Its feature-level design records and predecessor dispositions are indexed by
+Its 0.8.25 feature-level design records and predecessor dispositions are indexed by
 [`../plans/0.8.25/design-documentation-matrix.md`](../plans/0.8.25/design-documentation-matrix.md).
-They document planned contracts; interface documentation remains authoritative
-for implemented behavior until each feature slice lands.
+The maintained interface documents remain section-status-qualified contract
+owners. Slice 46 owns the broader classification and reconciliation of this
+directory; this README remains `UNREVIEWED` until that work completes.
 
 ## Lifecycle
 

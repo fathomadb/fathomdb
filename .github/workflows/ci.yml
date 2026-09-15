@@ -1215,6 +1215,8 @@ jobs:
         run: bash scripts/lint-plans-status.sh
       - name: master §6 findings register — duplicate-id gate (T1c, mirrors agent-lint-md.sh leg)
         run: bash scripts/lint-findings.sh
+      - name: current architecture authority (mirrors agent-lint-md.sh leg)
+        run: python3 scripts/check-architecture-authority.py
       # NOTE: agent-lint-md.sh's `lint-plan-anchors` leg is deliberately NOT
       # mirrored here. This job is `if: docs_only == 'true'`, and the event that
       # breaks a symbol citation is a CODE push (a rename), which this job never

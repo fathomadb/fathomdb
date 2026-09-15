@@ -4,19 +4,26 @@ date: 2026-04-27
 target_release: 0.6.0
 desc: Crate topology, module subsystems, write/read flow, on-disk layout, ADR + REQ traceability
 blast_radius: workspace Cargo.toml; every src/rust/crates/* dir; every design/*.md (subsystem boundaries derive from this doc); every interfaces/*.md (binding boundary derives from this doc); op-store + vector + projection writer paths; rusqlite usage shape
-status: locked
+status: SUPERSEDED
+superseded_by: dev/design/fathomdb-data-plane-architecture-v2.md
 locked_date: 2026-04-29
 ---
 
+> **Superseded architecture:** This 0.6.0 snapshot is historical and is not
+> current architecture authority. The active successor is
+> [`fathomdb-data-plane-architecture-v2.md`](design/fathomdb-data-plane-architecture-v2.md).
+
 # Architecture
 
-Authoritative source for crate boundaries, module subsystems inside
-`fathomdb-engine`, write/read data flow, and on-disk layout. Every
+Historical 0.6.0 source for crate boundaries, module subsystems inside
+`fathomdb-engine`, write/read data flow, and on-disk layout at that release.
+Every
 component traces to ≥1 accepted ADR and/or REQ from `requirements.md`;
 no orphans.
 
-This doc is **load-bearing for `design/*.md`** — each subsystem listed
-below gets one design doc that owns its detailed semantics.
+This document was **load-bearing for the 0.6.0 `design/*.md` set** — each
+subsystem listed below received one design doc that owned its detailed
+semantics at that time.
 
 ---
 

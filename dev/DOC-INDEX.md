@@ -58,9 +58,9 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/plan-0.8.24.md` | Historical 0.8.24 plan; completed work is integrated into main | 0.8.24 history | 2026-09-02 |
 | `dev/plans/plan-0.8.25.md` | Proposed dependency-linear performance and Memex data-plane foldback plan | 0.8.25 | 2026-08-31 |
 | `dev/plans/0.8.26-draft-scope.md` | Non-authoritative intake preserving work postponed from 0.8.24 and 0.8.25 | 0.8.26 draft | 2026-09-01 |
-| `dev/plans/plan-0.8.26.md` | Draft dependency-linear Memex P0–P2 contract-completion release plan | 0.8.26 | 2026-09-12 |
+| `dev/plans/plan-0.8.26.md` | Active dependency-linear Memex P0–P2 contract-completion release plan | 0.8.26 | 2026-09-15 |
 | `dev/plans/0.8.26-prework-slices-0-9.md` | Draft environment, failure-evidence, HITL, and approved-prework contract | 0.8.26 Slices 0–9 | 2026-09-12 |
-| `dev/plans/0.8.26/` | Completed Slice 0–7 evidence/design/status package plus draft Slice 8–50 plans for Memex P0–P2 | 0.8.26 | 2026-09-12 |
+| `dev/plans/0.8.26/` | Release-local plans, designs, reviews, and status records through architecture convergence | 0.8.26 Slice 45 | 2026-09-15 |
 | `dev/plans/0.8.26/slice-execution-contract.md` | Lean requirements-to-status workflow adopted by every 0.8.26 slice | 0.8.26 | 2026-09-12 |
 | `dev/plans/0.8.25-prework-slices-0-7.md` | Environment-to-HITL prework and approved preparation contract | 0.8.25 Slices 0–7 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-{1-dependency-sweep,2-cruft-review}.md` | Dependency/pinning evidence and repository cruft action proposals | 0.8.25 Slices 1–2 | 2026-08-31 |
@@ -90,7 +90,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/interfaces/python.md` | Python public interface (owner of Python-visible spelling + attribute casing); Slice 21 records engine-set dense readiness and Slice 22 records `read.projection_status`. | Slices 21/22 integrated in `main`; parity owned by `design/bindings.md` | 2026-08-08 |
 | `dev/interfaces/typescript.md` | TypeScript public interface (owner of TS-visible spelling + export shape); Slice 21 records engine-set dense readiness and Slice 22 records `read.projectionStatus`. | Slices 21/22 integrated in `main`; parity owned by `design/bindings.md` | 2026-08-08 |
 | `dev/interfaces/cli.md` | CLI public interface (concrete flag spelling, root paths, exit-code classes, `--json` wrapping for the two-root... | 34 (dump-mutations); owned-by ADR-0.6.0-cli-scope | 2026-06-06 |
-| `dev/architecture.md` | System architecture (engine, projections, reader pool, surface); Slice 22 distinguishes pure projection introspection from ReaderWorkerPool retrieval. | 5/10/15/30 update read-path + receipt surface; Slice 22 integrated in `main` | 2026-08-08 |
+| `dev/architecture.md` | Superseded 0.6.0 architecture snapshot with an active-successor pointer | 0.8.26 Slice 45 | 2026-09-15 |
 | `dev/test-plan.md` | Test strategy + tiers (incl. functional-harness tier X1 + the Slice 10 G9/G10/G12-recency tier) | 5 adds functional tier; 10 adds RRF/filter/recency tier | 2026-06-03 |
 | `dev/traceability.md` | REQ ↔ AC ↔ test trace matrix | 25 re-points REQ-053↔new AC; 30 adds read ACs | 2026-05-28 |
 | `dev/security-review.md` | Security review (SR-*) | — (SR-005/SR-011 candidate reserved-gap) | 2026-05-02 |
@@ -119,7 +119,7 @@ refresh in the closing commit when you touch a doc).
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
-| `dev/design/README.md` | Design-notes index | — | (tree) |
+| `dev/design/README.md` | Design index with active-architecture navigation; broader classification remains unreviewed | 0.8.26 Slice 45/46 | 2026-09-15 |
 | `dev/design/steward-cold-start-budget.md` | Steward cold-start token budget — RATIFIED plan (ledger `seq-226`); §3 liveness filter, `steward_cold_start_set` ratchet, repo-prune merge verdict | — (program hygiene; Phase 3 gated on 0.8.20 publish) | 2026-07-31 |
 | `dev/design/gpu-eval-activities-policy.md` | Policy — repo MUST use the 3090s for eval/embed activities when there is room | 0.8.14 Slice 20 (eu7 policy) | 2026-07-05 |
 | `dev/design/0.8.23-gpu-artifacts.md` | Design for Linux CUDA release artifacts and trusted GPU proof | 0.8.23 Slices 0/5 | 2026-08-10 |
@@ -192,7 +192,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/design/0.8.20-slice-31-sbom-survey-tool.md` | Spec of record for `scripts/sbom-survey` — CycloneDX SBOM over tracked manifests, tiering, used-vs-published diff; 23 criteria | 0.8.20 Slice 31 (Library Sweep #3 leg 1/3; no requirement id, TC-76) | 2026-07-29 |
 | `dev/design/chunking-strategy-and-test-guidance.md` | Verbatim chunking strategy and test guidance | performance experiments | 2026-08-15 |
 | `dev/design/fathomdb-data-plane-architecture-v1.md` | Superseded data-plane architecture retained as reviewed history | 0.8.25 history | 2026-09-02 |
-| `dev/design/fathomdb-data-plane-architecture-v2.md` | Active v2.1 data-plane architecture and narrowed 0.8.25 profile | 0.8.25 Slice 7 | 2026-09-02 |
+| `dev/design/fathomdb-data-plane-architecture-v2.md` | Active v2.2 architecture with as-built 0.8.25 and 0.8.26 profiles | 0.8.26 Slice 45 | 2026-09-15 |
 | `scripts/sbom-survey/README.md` | Operating note for the dependency-survey mini-project — how to run the suite, and why it is deliberately not CI-gating | 0.8.20 Slice 31 (Library Sweep #3 leg 1/3) | 2026-07-29 |
 | `scripts/sbom-survey/smoke-install-run.sh` | TC-115 install-then-run smoke — installs the tool into a throwaway venv, invokes the INSTALLED console script, and asserts its artifacts are byte-identical to a source-tree run. Deliberately NOT CI-wired (`seq-172`) | 0.8.20 Slice 33 (Library Sweep #3 leg 3/3) | 2026-07-29 |
 | `dev/plans/runs/0.8.20-slice-33-library-sweep-3-FINDINGS.md` | **Findings of record** for Library Sweep #3 — the ONLINE `sbom-survey` run at `29c2eae0`: 774 components, 28 direct outdated, per-dependency surgical verdicts, and the hand-off to 0.8.22. ASCERTAIN-ONLY; applied nothing | 0.8.20 Slice 33 (Library Sweep #3 leg 3/3; no requirement id, TC-76) | 2026-07-29 |

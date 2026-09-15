@@ -4,6 +4,7 @@ date: 2026-09-14
 target_release: 0.8.26
 status: accepted
 decision: D26-01 option A, HITL seq-290
+refines: ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md
 ---
 
 # Exact graph artifact evidence

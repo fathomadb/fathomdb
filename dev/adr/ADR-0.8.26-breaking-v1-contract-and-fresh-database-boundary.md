@@ -6,6 +6,7 @@ desc: Change affected V1 contracts in place and accept only fresh 0.8.26 databas
 blast_radius: Engine open; actuation request and receipt APIs; graph evidence result APIs; Rust, Python, and TypeScript bindings; schema bootstrap; release and compatibility documentation
 status: accepted by HITL seq-283
 supersedes_in_part: ADR-0.8.25-bounded-atomic-actuation
+subsequent_resolution: ADR-0.8.26-exact-graph-artifact-evidence.md records D26-01 at seq-290
 ---
 
 # ADR-0.8.26 — Breaking V1 contracts and fresh database boundary
@@ -124,3 +125,10 @@ HITL ruling `seq-283` establishes the release-wide no-parallel-V1/V2 rule and
 the changed-in-place V1 contract. Rulings `seq-284` and `seq-285` establish its
 endpoint and receipt boundaries. This ADR records those rulings without adding
 a compatibility exception.
+
+## Subsequent resolution
+
+The graph-evidence shape was open when this ADR recorded `seq-283`. HITL later
+selected D26-01 option A at `seq-290`, recorded without rewriting this decision
+in
+[`ADR-0.8.26-exact-graph-artifact-evidence.md`](ADR-0.8.26-exact-graph-artifact-evidence.md).

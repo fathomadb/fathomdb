@@ -675,6 +675,67 @@ fn edge_bearing_receipt_with_unknown_affected_revision_fails_closed() {
 }
 
 #[test]
+fn edge_bearing_receipt_rejects_existing_affected_revision_substitution() {
+    let dir = TempDir::new().unwrap();
+    let db_path = path(&dir, "corrupt-affected-existing");
+    let opened = Engine::open(&db_path).unwrap();
+    seed_source_and_anchor(&opened.engine);
+    opened
+        .engine
+        .write(&[PreparedWrite::ProvenancedEdge(derived_edge(
+            "edge-old-r1",
+            "edge-shared",
+            "source",
+            "anchor",
+        ))])
+        .unwrap();
+    let request = ActuationBatchV1::new(
+        "corrupt-affected-existing",
+        vec![ActuationOperationV1::PutDerivedEdge(derived_edge(
+            "edge-new-r1",
+            "edge-shared",
+            "source",
+            "anchor",
+        ))],
+    )
+    .unwrap();
+    assert_eq!(
+        opened.engine.actuate(request.clone()).unwrap().affected_revision_ids,
+        vec!["edge-new-r1", "edge-old-r1"]
+    );
+    Connection::open(&db_path)
+        .unwrap()
+        .execute(
+            "UPDATE _fathomdb_actuation_receipts \
+             SET affected_revision_ids_json='[\"edge-new-r1\",\"source-r1\"]' \
+             WHERE operation_id='corrupt-affected-existing'",
+            [],
+        )
+        .unwrap();
+    assert!(matches!(opened.engine.actuate(request), Err(EngineError::Storage)));
+}
+
+#[test]
+fn edge_bearing_receipt_with_missing_source_reference_fails_closed() {
+    let dir = TempDir::new().unwrap();
+    let db_path = path(&dir, "corrupt-source-ref-missing");
+    let opened = Engine::open(&db_path).unwrap();
+    seed_source_and_anchor(&opened.engine);
+    let request = graph_unit("corrupt-source-ref-missing", false);
+    opened.engine.actuate(request.clone()).unwrap();
+    Connection::open(&db_path)
+        .unwrap()
+        .execute(
+            "DELETE FROM _fathomdb_actuation_receipt_source_refs \
+             WHERE operation_id='corrupt-source-ref-missing' \
+               AND ref_kind='source_id'",
+            [],
+        )
+        .unwrap();
+    assert!(matches!(opened.engine.actuate(request), Err(EngineError::Storage)));
+}
+
+#[test]
 fn prototype_fresh_boundary_is_read_only_and_distinguishes_schema_33_from_34() {
     let dir = TempDir::new().unwrap();
     let old_path = path(&dir, "schema33");

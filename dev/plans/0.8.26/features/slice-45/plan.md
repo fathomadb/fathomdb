@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 45 — architecture documentation convergence
-status: APPROVED_FOR_IMPLEMENTATION
+status: COMPLETE
 ---
 
 # Slice 45 plan — architecture documentation convergence

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 45 — architecture inventory and claim matrix
-status: APPROVED
+status: COMPLETE
 ---
 
 # Slice 45 architecture inventory and claim matrix
@@ -21,6 +21,7 @@ status: APPROVED
 | `dev/notes/0.8.23-architecture-tradeoffs.md` | Bounded earlier-release follow-up input, not current authority. | Keep as reference. Slice 45 does not claim all questions are resolved. |
 | `dev/DOC-INDEX.md` | Rows still describe `dev/architecture.md` as current and v2 as 0.8.25-only. | Correct touched architecture/navigation rows. Broad per-design indexing belongs to Slice 46. |
 | Slice 10–40 plan/design/status records | Historical execution evidence with exact requirements and checks. | Keep unchanged; cite as evidence, never promote to current architecture authority. |
+| `dev/plans/plan-0.8.26.md` and `dev/plans/0.8.26/features/README.md` | Active release/navigation documents retained draft/proposed wording after implementation advanced. | Correct lifecycle and current slice truth during closeout; do not change scope. |
 | Slice 46 draft | Owns maintained topic-design lifecycle and detailed reconciliation. | Keep boundary intact; consume this matrix next. |
 
 No file is deleted, moved, or archived. No uncertain document is reclassified.

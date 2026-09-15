@@ -159,6 +159,35 @@ with open(path, "w", encoding="utf-8") as fh:
 PY
 }
 
+FAKE_NPM_BIN="$TMPROOT/fake-npm-bin"
+mkdir -p "$FAKE_NPM_BIN"
+cat >"$FAKE_NPM_BIN/npm" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+case "${FAKE_NPM_PACK_SHAPE:-}" in
+  array)
+    printf '[{"name":"fixture","files":[{"path":"LICENSE"}]}]\n'
+    ;;
+  object)
+    printf '{"fixture":{"name":"fixture","files":[{"path":"LICENSE"}]}}\n'
+    ;;
+  *)
+    printf 'unsupported fake npm shape: %s\n' "${FAKE_NPM_PACK_SHAPE:-unset}" >&2
+    exit 64
+    ;;
+esac
+EOF
+chmod +x "$FAKE_NPM_BIN/npm"
+
+run_checker_with_fake_npm() {
+  local shape="$1"
+  shift
+  set +e
+  OUT="$(PATH="$FAKE_NPM_BIN:$PATH" FAKE_NPM_PACK_SHAPE="$shape" bash "$CHECKER" "$@" 2>&1)"
+  RC=$?
+  set -e
+}
+
 # ===================== arm 1 — the fixture itself is GREEN ====================
 # Without this the RED arms below prove nothing: they could all be failing for
 # a reason baked into the fixture rather than the mutation under test.
@@ -259,6 +288,18 @@ expect 2 "cannot determine the license type" "arm 15: an unrecognised LICENSE ty
 
 run_checker --root "$TMPROOT" --only bogus --skip-packaging
 expect 2 "--only accepts cargo,python,npm" "arm 15b: a bad --only is a usage error, not a silent narrowing"
+
+# ========== arms 15c-15d — supported npm JSON envelopes stay parseable ========
+# npm historically emitted a top-level array, while npm 12 emits an object keyed
+# by package name. Keep both representations under deterministic coverage so the
+# gate does not depend on whichever npm happens to execute the self-test.
+FIX="$(mkfix npm-pack-array-envelope)"
+run_checker_with_fake_npm array --root "$FIX" --only npm
+expect 0 "check-license-consistency: OK (MIT)" "arm 15c: npm array pack envelope is accepted"
+
+FIX="$(mkfix npm-pack-object-envelope)"
+run_checker_with_fake_npm object --root "$FIX" --only npm
+expect 0 "check-license-consistency: OK (MIT)" "arm 15d: npm keyed-object pack envelope is accepted"
 
 # ============ arm 16 — the PACKAGING half fires off REAL tool output ==========
 # npm is the affordable half to prove this with: offline, sub-second, and it

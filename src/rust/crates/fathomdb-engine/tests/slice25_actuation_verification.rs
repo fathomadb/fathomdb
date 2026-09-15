@@ -478,7 +478,7 @@ fn source_reference_limit_rejects_the_first_over_bound_row() {
 }
 
 #[test]
-fn source_reference_limit_is_eight_per_operation_not_only_global() {
+fn source_reference_limit_reserves_affected_revision_capacity_per_receipt() {
     let dir = TempDir::new().unwrap();
     let db_path = path(&dir, "ref-formula");
     let operation_id = "ref-formula";
@@ -494,7 +494,7 @@ fn source_reference_limit_is_eight_per_operation_not_only_global() {
         [operation_id],
     )
     .unwrap();
-    for index in 0..9 {
+    for index in 0..10 {
         tx.execute(
             "INSERT INTO _fathomdb_actuation_receipt_source_refs(\
                operation_id,schema_version,ref_kind,ref_value\
@@ -505,6 +505,16 @@ fn source_reference_limit_is_eight_per_operation_not_only_global() {
     }
     tx.commit().unwrap();
     let reopened = Engine::open(&db_path).unwrap();
+    assert!(reopened.engine.actuate(batch.clone()).is_ok());
+    Connection::open(&db_path)
+        .unwrap()
+        .execute(
+            "INSERT INTO _fathomdb_actuation_receipt_source_refs(\
+               operation_id,schema_version,ref_kind,ref_value\
+             ) VALUES(?1,1,'artifact_revision_id','artifact-10')",
+            [operation_id],
+        )
+        .unwrap();
     assert!(matches!(reopened.engine.actuate(batch), Err(EngineError::Storage)));
 }
 
@@ -656,11 +666,23 @@ fn affected_and_pending_collection_bounds_accept_maxima_and_reject_one_over() {
         .unwrap();
     assert!(matches!(opened.engine.actuate(request.clone()), Err(EngineError::Storage)));
 
-    let too_many_affected = (0..257).map(|index| format!("extra-r{index:03}")).collect::<Vec<_>>();
+    let maximum_affected = (0..256).map(|index| format!("extra-r{index:03}")).collect::<Vec<_>>();
     connection
         .execute(
             "UPDATE _fathomdb_actuation_receipts SET \
-             pending_projection_write_cursors_json='[]',affected_revision_ids_json=?1 \
+             pending_projection_write_cursors_json='[]',projection_generation_id=NULL,\
+             affected_revision_ids_json=?1 \
+             WHERE operation_id='bounds-primary'",
+            [serde_json::to_string(&maximum_affected).unwrap()],
+        )
+        .unwrap();
+    assert!(matches!(opened.engine.actuate(request.clone()), Err(EngineError::Storage)));
+
+    let mut too_many_affected = maximum_affected;
+    too_many_affected.push("extra-r256".to_string());
+    connection
+        .execute(
+            "UPDATE _fathomdb_actuation_receipts SET affected_revision_ids_json=?1 \
              WHERE operation_id='bounds-primary'",
             [serde_json::to_string(&too_many_affected).unwrap()],
         )

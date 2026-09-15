@@ -247,6 +247,7 @@ export interface ClosureStatusV1 {
 export type ActuationOperationV1 =
   | { type: "put_canonical_node"; record: Record<string, unknown> }
   | { type: "put_derived_node"; record: Record<string, unknown> }
+  | { type: "put_derived_edge"; record: Record<string, unknown> }
   | {
       type: "register_source_dependency";
       dependency: SourceDependencyRegistrationV1;

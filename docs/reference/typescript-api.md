@@ -355,7 +355,9 @@ The exported carrier family is `CanonicalHash`, `WholeBodySourceLocator`,
 Dependency requests use `SourceDependencyRegistrationV1`,
 `DependencySourceLookupV1`, and `DependencyDerivedLookupV1`. Actuation uses
 `ActuationBatchV1` / `ActuationOperationV1`; its operation set is canonical
-node put, derived node put, dependency registration, and lifecycle transition.
+node put, derived node put, derived edge put, dependency registration, and
+lifecycle transition. Derived edges require both endpoints in the final active
+state of the complete batch, even when their node puts occur later.
 Domain refusals are terminal receipts while malformed requests throw
 `ActuationError`. Closure reads use `ClosureLookupV1`, `ClosureStatusV1`, and
 `ClosureProofV1`.

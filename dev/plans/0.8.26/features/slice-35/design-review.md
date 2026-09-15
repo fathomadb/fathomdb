@@ -13,10 +13,11 @@ edits were made.
    representative schema-33 earlier database. Resolved by parameterizing the
    read-only classifier with prototype schema 34 and proving fresh bootstrap
    with a test-only no-op step 34. The production step/cutover remains Slice 40.
-2. **P1 — affected-revision bound.** One derived edge can retire distinct G0
-   and G11 revisions, requiring three affected revisions including the new
-   edge. Resolved by specifying collection/deduplication, a three-per-operation
-   formula, global bound 384, and exact-bound corruption tests.
+2. **P1 — affected-revision bound.** The first resolution assumed one active
+   G11 revision and proposed 384. Code-grounded review then proved G11 may retire
+   many coexisting body-null regular edges and that schema 33 enforces 256. The
+   final design retains 256, removes the false per-operation formula, and
+   detects the exact one-over case during rollback-only semantic simulation.
 3. **P1 — false binding precedence.** The draft did not match the current PyO3
    and N-API parse order. Resolved by recording the exact current sequence and
    requiring collision fixtures for every earlier-precedence family.
@@ -26,6 +27,17 @@ edits were made.
 5. **P2 — inherited variants implicit.** Resolved by naming positive domain-
    effect controls for all four existing operations before the fifth is added.
 
-The same read-only reviewer rereviewed the reconciled plan and design and
-returned PASS. All five findings are materially resolved; implementation is
-authorized.
+The same read-only reviewer rereviewed the first reconciliation and returned
+PASS. After the G11 correction it temporarily required a read-only capacity
+preflight and an executable source-reference bound. Code review then showed
+that the preflight masked earlier semantic failures and that a fixed reserve
+weakened receipt integrity. The final design instead validates and applies in
+request order inside the rollback-only savepoint, refuses the exact 257th
+affected revision with no committed effect, and validates source references at
+`min(1024, 8 * operation_count + 2 * affected_revision_count)`. The final
+rereview verdict is recorded below.
+
+The final read-only rereview returned PASS with no material findings. It
+confirmed that the plan, design, capacity implementation, receipt-dependent
+source-reference formula and tests, fixed-order accumulated-state benchmark,
+completion-spread calculation, and performance report are mutually aligned.

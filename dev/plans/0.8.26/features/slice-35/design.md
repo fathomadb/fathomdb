@@ -97,12 +97,27 @@ enter the existing reverse source-reference table so erasure redacts the
 receipt. Receipt validation admits the edge-owned pending cursor and the two
 new endpoint refusal paths, but no dangling count or graph manifest.
 
-Canonical edge application can retire at most two distinct active revisions:
-one selected by logical-ID G0 and one selected by fact-edge triple G11. The new
-edge makes the truthful maximum three affected revisions per operation. Raise
-the per-operation receipt formula from two to three and the global bound from
-256 to 384, collect both prior revisions before application, deduplicate them,
-and add acceptance/corruption tests for exactly three, 384, and one-over-bound.
+Code-grounded implementation review found that logical-ID G0 selects at most
+one active revision, but fact-edge triple G11 can retire many coexisting active
+regular edges whose bodies are null. The receipt consequence is therefore not
+bounded to three revisions per operation. Retain the existing schema-enforced
+global bound of 256 affected revisions and remove the invalid per-operation
+formula. Rollback-only simulation accumulates the exact affected set while it
+performs normal validation and canonical application in request order. This
+preserves semantic error precedence: malformed provenance, identity collision,
+and other operation-local refusals cannot be masked by a coarse capacity scan.
+Each G11 lookup is capped at 257 rows. A request that would require revision
+257 receives a terminal `write_refused` at `/operations/{i}/record`; the
+savepoint is rolled back and no domain effect commits. Exactly 256 remains
+admissible. The committed path retains the same bound as a defensive invariant.
+
+Reverse source-reference storage and loading use the exact receipt-dependent
+ceiling `min(1024, 8 * operation_count + 2 * affected_revision_count)`: eight
+direct/resolved refs per operation plus an artifact-revision/source-ID pair for
+every affected revision. A refusal has no affected revisions and therefore uses
+the request-only ceiling. Add tests for ordinary dual G0/G11
+supersession, exactly 256, 257, persisted one-over-bound affected corruption,
+and exact/one-over source-reference bounds.
 
 ### Bindings and failure precedence
 
@@ -135,20 +150,26 @@ orderings so the endpoint test cannot accidentally use the edge's insertion
 position or pre-batch active state. Existing last-operation/lifecycle semantics
 still determine the final prospective state.
 
-The measurement harness creates a fresh database per arm and scenario, disables
-no product checks, and reports exact logical-unit and API invocation counts. It measures the
-canonical three-operation unit (derived node, dependency, edge), a 128-item
-mixture that remains within the source-reference cap, 1,000 sequential unique
-operation IDs, eight concurrent unique IDs, and eight callers replaying one
-exact ID. The fixed control performs the corresponding pre-edge two-operation
-actuation plus ordinary edge write so the comparison is reproducible in-tree;
-it is characterization, not a claim of byte-identical 0.8.25 packaging.
+The measurement harness creates one fresh database per candidate/control arm,
+disables no product checks, and runs every scenario in a fixed identical order.
+The intentional accumulated state exercises the receipt/index growth relevant
+to the 1,000-call workload and enables one truthful seeded-baseline-to-final
+growth measurement; it is not a clean-database microbenchmark for every
+scenario. The harness reports exact logical-unit and API invocation counts. It
+measures the canonical three-operation unit (derived node, dependency, edge), a
+128-item mixture that remains within the source-reference cap, 1,000 sequential
+unique operation IDs, eight concurrent unique IDs, and eight callers replaying
+one exact ID. The fixed control performs the corresponding pre-edge two-
+operation actuation plus ordinary edge write so the comparison is reproducible
+in-tree; it is characterization, not a claim of byte-identical 0.8.25
+packaging.
 
 Timing surrounds each complete logical unit: one `actuate` call for the
 candidate and one `actuate` plus one ordinary `write` call for the control.
 Response bytes are canonical JSON bytes for the actuation receipt plus the
 ordinary write receipt for the control. Eight-call runs report end-to-end
-latency and completion spread for the in-process connection-mutex queue. The
+latency and the last-minus-first completion spread for the in-process
+connection-mutex queue. The
 lock metric is narrowly the count of calls failing with the public storage/
 locking failure channel; it does not attribute an unexposed SQLite lock owner.
 Slow-event incidence comes from the existing attached lifecycle subscriber.
@@ -166,9 +187,9 @@ receipt persistence/replay/integrity/erasure, indexed active logical-node
 lookup, binding translators for ordinary edges, and writer/slow telemetry.
 
 Net-new in this spike: the fifth V1 operation, edge digest encoding, final-
-prospective endpoint refusal pass, edge receipt/source-reference inclusion,
-closed binding variants/fixtures, read-only fresh-boundary classifier, and
-measurement harness. Public-open enforcement, release version/schema cutover,
+prospective endpoint and receipt-capacity refusal passes, edge receipt/source-
+reference inclusion, closed binding variants/fixtures, read-only fresh-boundary
+classifier, and measurement harness. Public-open enforcement, release version/schema cutover,
 packaging, migration-test retirement, and release smoke remain Slice 40/50.
 
 ## Stop conditions

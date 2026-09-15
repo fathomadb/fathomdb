@@ -12,6 +12,13 @@ const MAX_PENDING_CURSORS: usize = 128;
 const MAX_SOURCE_REFS: usize = 1024;
 const MAX_SOURCE_REFS_PER_OPERATION: usize = 8;
 
+fn source_ref_limit(operations_count: usize, affected_count: usize) -> usize {
+    operations_count
+        .saturating_mul(MAX_SOURCE_REFS_PER_OPERATION)
+        .saturating_add(affected_count.saturating_mul(2))
+        .min(MAX_SOURCE_REFS)
+}
+
 /// One operation in a bounded caller-decided actuation batch.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ActuationOperationV1 {
@@ -19,6 +26,8 @@ pub enum ActuationOperationV1 {
     PutCanonicalNode(ProvenancedNodeV1),
     /// Store one complete derived-semantic node revision.
     PutDerivedNode(ProvenancedNodeV1),
+    /// Store one complete derived-semantic edge revision.
+    PutDerivedEdge(ProvenancedEdgeV1),
     /// Register one immutable source-to-derived dependency.
     RegisterSourceDependency(SourceDependencyRegistrationV1),
     /// Apply one revision-pinned lifecycle transition.
@@ -419,6 +428,10 @@ fn encode_operation(hasher: &mut Sha256, operation: &ActuationOperationV1) {
             hasher.update([0x11]);
             encode_node(hasher, node);
         }
+        ActuationOperationV1::PutDerivedEdge(edge) => {
+            hasher.update([0x14]);
+            encode_edge(hasher, edge);
+        }
         ActuationOperationV1::RegisterSourceDependency(dependency) => {
             hasher.update([0x12, 0x40]);
             encode_u32(hasher, dependency.schema_version);
@@ -492,6 +505,65 @@ fn encode_node(hasher: &mut Sha256, node: &ProvenancedNodeV1) {
     encode_optional(
         hasher,
         node.provenance.canonical_source_hash.as_ref().map(CanonicalHash::digest_hex),
+        encode_string,
+    );
+}
+
+fn encode_edge(hasher: &mut Sha256, edge: &ProvenancedEdgeV1) {
+    hasher.update([0x60]);
+    encode_string(hasher, &edge.kind);
+    hasher.update([0x61]);
+    encode_string(hasher, &edge.from);
+    hasher.update([0x62]);
+    encode_string(hasher, &edge.to);
+    hasher.update([0x63]);
+    encode_string(hasher, edge.source_id.as_str());
+    hasher.update([0x64]);
+    encode_optional(hasher, edge.logical_id.as_deref(), encode_string);
+    hasher.update([0x65]);
+    encode_optional(hasher, edge.body.as_deref(), encode_string);
+    hasher.update([0x66]);
+    encode_optional(hasher, edge.t_valid, encode_i64);
+    hasher.update([0x67]);
+    encode_optional(hasher, edge.t_invalid, encode_i64);
+    hasher.update([0x68]);
+    encode_optional(hasher, edge.confidence, |hasher, value| encode_u64(hasher, value.to_bits()));
+    hasher.update([0x69]);
+    encode_optional(hasher, edge.extractor_model_id.as_deref(), encode_string);
+    hasher.update([0x6a]);
+    encode_optional(hasher, edge.temporal_fallback, |hasher, value| {
+        hasher.update([u8::from(value)]);
+    });
+    hasher.update([0x6b, 0x30]);
+    encode_u32(hasher, edge.provenance.schema_version);
+    hasher.update([0x31]);
+    hasher.update([match edge.provenance.role {
+        ProvenanceRole::Canonical => 0,
+        ProvenanceRole::Derived => 1,
+    }]);
+    hasher.update([0x32]);
+    encode_string(hasher, edge.provenance.artifact_revision_id.as_str());
+    hasher.update([0x33]);
+    encode_string(hasher, edge.provenance.source_version_id.as_str());
+    hasher.update([0x34]);
+    encode_optional(
+        hasher,
+        edge.provenance.source_revision_id.as_ref().map(SourceRevisionId::as_str),
+        encode_string,
+    );
+    hasher.update([0x35]);
+    encode_optional(hasher, edge.provenance.locator.as_ref(), |hasher, locator| match locator {
+        SourceLocator::WholeBody => hasher.update([0]),
+        SourceLocator::Utf8Bytes { start_inclusive, end_exclusive } => {
+            hasher.update([1]);
+            encode_u64(hasher, *start_inclusive);
+            encode_u64(hasher, *end_exclusive);
+        }
+    });
+    hasher.update([0x36]);
+    encode_optional(
+        hasher,
+        edge.provenance.canonical_source_hash.as_ref().map(CanonicalHash::digest_hex),
         encode_string,
     );
 }
@@ -649,12 +721,24 @@ pub(super) fn load_receipt(
         return Err(EngineError::Storage);
     }
     if affected_revision_ids.len() > MAX_AFFECTED_REVISIONS
-        || affected_revision_ids.len() > operations_count.saturating_mul(2)
         || affected_revision_ids.iter().any(|id| !stored_artifact_revision_id_is_valid(id))
         || affected_revision_ids.iter().collect::<BTreeSet<_>>().len()
             != affected_revision_ids.len()
     {
         return Err(EngineError::Storage);
+    }
+    let mut affected_exists = connection
+        .prepare_cached(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE revision_id=?1)",
+        )
+        .map_err(|_| EngineError::Storage)?;
+    for revision_id in &affected_revision_ids {
+        let exists: bool = affected_exists
+            .query_row([revision_id], |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        if !exists {
+            return Err(EngineError::Storage);
+        }
     }
     let pending_strings: Vec<String> =
         serde_json::from_str(&pending_json).map_err(|_| EngineError::Storage)?;
@@ -780,6 +864,10 @@ pub(super) fn load_receipt(
                             ActuationOperationV1::PutCanonicalNode(node)
                                 | ActuationOperationV1::PutDerivedNode(node)
                                 if node.provenance.artifact_revision_id.as_str() == revision_id
+                        ) || matches!(
+                            operation,
+                            ActuationOperationV1::PutDerivedEdge(edge)
+                                if edge.provenance.artifact_revision_id.as_str() == revision_id
                         )
                     });
                     if !created_by_request {
@@ -821,7 +909,7 @@ pub(super) fn load_receipt(
     validate_source_refs(
         connection,
         operation_id,
-        operations_count.saturating_mul(MAX_SOURCE_REFS_PER_OPERATION),
+        source_ref_limit(operations_count, affected_revision_ids.len()),
     )?;
     Ok(Some(ActuationReceiptV1 {
         schema_version: 1,
@@ -874,6 +962,8 @@ fn validate_refusal_shape(
         }
         ActuationRefusalReasonV1::ReferenceUnavailable => matches_one(&[
             "/record/provenance/sourceRevisionId",
+            "/record/from",
+            "/record/to",
             "/dependency/sourceRevisionId",
             "/dependency/derivedRevisionId",
         ]),
@@ -999,6 +1089,16 @@ fn collect_source_refs(request: &ActuationBatchV1) -> BTreeSet<(&'static str, St
                     refs.insert(("source_revision_id", source.as_str().to_string()));
                 }
             }
+            ActuationOperationV1::PutDerivedEdge(edge) => {
+                refs.insert(("source_id", edge.source_id.as_str().to_string()));
+                refs.insert((
+                    "artifact_revision_id",
+                    edge.provenance.artifact_revision_id.as_str().to_string(),
+                ));
+                if let Some(source) = &edge.provenance.source_revision_id {
+                    refs.insert(("source_revision_id", source.as_str().to_string()));
+                }
+            }
             ActuationOperationV1::RegisterSourceDependency(dependency) => {
                 refs.insert((
                     "source_revision_id",
@@ -1026,12 +1126,22 @@ fn enrich_resolved_refs(
     refs: &mut BTreeSet<(&'static str, String)>,
 ) -> Result<(), EngineError> {
     for operation in &request.operations {
+        if let ActuationOperationV1::PutDerivedEdge(edge) = operation {
+            for (revision, source_id) in
+                prior_edge_revisions(connection, edge, MAX_AFFECTED_REVISIONS + 1)?
+            {
+                refs.insert(("artifact_revision_id", revision));
+                refs.insert(("source_id", source_id));
+            }
+            continue;
+        }
         let logical_id = match operation {
             ActuationOperationV1::PutCanonicalNode(node)
             | ActuationOperationV1::PutDerivedNode(node) => node.logical_id.as_deref(),
             ActuationOperationV1::TransitionLifecycle(lifecycle) => {
                 Some(lifecycle.logical_id.as_str())
             }
+            ActuationOperationV1::PutDerivedEdge(_) => unreachable!("handled above"),
             ActuationOperationV1::RegisterSourceDependency(_) => None,
         };
         let Some(logical_id) = logical_id else {
@@ -1065,10 +1175,9 @@ fn store_source_refs(
     operation_id: &str,
     refs: &BTreeSet<(&'static str, String)>,
     operations_count: usize,
+    affected_count: usize,
 ) -> Result<(), EngineError> {
-    if refs.len() > MAX_SOURCE_REFS
-        || refs.len() > operations_count.saturating_mul(MAX_SOURCE_REFS_PER_OPERATION)
-    {
+    if refs.len() > source_ref_limit(operations_count, affected_count) {
         return Err(EngineError::Storage);
     }
     for (kind, value) in refs {
@@ -1168,6 +1277,63 @@ fn current_revision_for_logical(
     .transpose()
 }
 
+fn prior_edge_revisions(
+    connection: &Connection,
+    edge: &ProvenancedEdgeV1,
+    limit: usize,
+) -> Result<Vec<(String, String)>, EngineError> {
+    let limit = i64::try_from(limit).map_err(|_| EngineError::Storage)?;
+    let mut revisions = Vec::new();
+    let mut seen = BTreeSet::new();
+    if let Some(logical_id) = edge.logical_id.as_deref() {
+        let mut statement = connection
+            .prepare(
+                "SELECT ar.revision_id,e.source_id FROM canonical_edges e \
+                 JOIN _fathomdb_artifact_revisions ar \
+                   ON ar.artifact_class='edge' AND ar.write_cursor=e.write_cursor \
+                 WHERE e.logical_id=?1 AND e.superseded_at IS NULL \
+                 ORDER BY e.write_cursor LIMIT ?2",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map(params![logical_id, limit], |row| {
+                Ok((row.get::<_, String>(0)?, row.get(1)?))
+            })
+            .map_err(|_| EngineError::Storage)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|_| EngineError::Storage)?;
+        for (revision, source_id) in rows {
+            if seen.insert(revision.clone()) {
+                revisions.push((revision, source_id));
+            }
+        }
+    }
+    if edge.body.is_some() {
+        let mut statement = connection
+            .prepare(
+                "SELECT ar.revision_id,e.source_id FROM canonical_edges e \
+                 JOIN _fathomdb_artifact_revisions ar \
+                   ON ar.artifact_class='edge' AND ar.write_cursor=e.write_cursor \
+                 WHERE e.from_id=?1 AND e.to_id=?2 AND e.kind=?3 \
+                   AND e.superseded_at IS NULL ORDER BY e.write_cursor LIMIT ?4",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map(params![edge.from, edge.to, edge.kind, limit], |row| {
+                Ok((row.get::<_, String>(0)?, row.get(1)?))
+            })
+            .map_err(|_| EngineError::Storage)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|_| EngineError::Storage)?;
+        for (revision, source_id) in rows {
+            if seen.insert(revision.clone()) {
+                revisions.push((revision, source_id));
+            }
+        }
+    }
+    Ok(revisions)
+}
+
 fn simulation_cursor_base(
     connection: &Connection,
     put_count: u64,
@@ -1205,6 +1371,7 @@ fn simulate_request(
         .map_err(|_| EngineError::Storage)?;
     let outcome = (|| {
         let mut next_cursor = base_cursor;
+        let mut affected = BTreeSet::new();
         for (index, operation) in request.operations.iter().enumerate() {
             match operation {
                 ActuationOperationV1::PutCanonicalNode(node)
@@ -1218,6 +1385,13 @@ fn simulate_request(
                             path: Some(format!("/operations/{index}/record/provenance/role")),
                         }));
                     }
+                    let previous = node
+                        .logical_id
+                        .as_deref()
+                        .map(|logical| current_revision_for_logical(connection, logical))
+                        .transpose()?
+                        .flatten()
+                        .map(|(revision, _, _)| revision);
                     let write = PreparedWrite::ProvenancedNode(node.clone());
                     let plan = match validate_write(connection, &write) {
                         Ok(plan) => plan,
@@ -1232,7 +1406,60 @@ fn simulate_request(
                         &[],
                         dependency_closure::SoftClosureMode::Proving,
                     ) {
-                        Ok(_) => next_cursor = next_cursor.saturating_add(1),
+                        Ok(_) => {
+                            next_cursor = next_cursor.saturating_add(1);
+                            affected
+                                .insert(node.provenance.artifact_revision_id.as_str().to_string());
+                            if let Some(previous) = previous {
+                                affected.insert(previous);
+                            }
+                            if affected.len() > MAX_AFFECTED_REVISIONS {
+                                return Ok(Some(Refusal {
+                                    reason: ActuationRefusalReasonV1::WriteRefused,
+                                    index: Some(index),
+                                    path: Some(format!("/operations/{index}/record")),
+                                }));
+                            }
+                        }
+                        Err(CommitBatchError::Provenance(error)) => {
+                            return map_domain_error(EngineError::Provenance(error), index, None)
+                                .map(Some);
+                        }
+                        Err(CommitBatchError::Sql(_)) => return Err(EngineError::Storage),
+                        Err(CommitBatchError::Engine(error)) => return Err(error),
+                        Err(CommitBatchError::WriterPoisoned) => return Err(EngineError::Storage),
+                    }
+                }
+                ActuationOperationV1::PutDerivedEdge(edge) => {
+                    let previous =
+                        prior_edge_revisions(connection, edge, MAX_AFFECTED_REVISIONS + 1)?;
+                    let write = PreparedWrite::ProvenancedEdge(edge.clone());
+                    let plan = match validate_write(connection, &write) {
+                        Ok(plan) => plan,
+                        Err(error) => return map_domain_error(error, index, None).map(Some),
+                    };
+                    match apply_batch_in_transaction(
+                        connection,
+                        &[write],
+                        &[plan],
+                        next_cursor,
+                        provenance_row_cap,
+                        &[],
+                        dependency_closure::SoftClosureMode::Proving,
+                    ) {
+                        Ok(_) => {
+                            next_cursor = next_cursor.saturating_add(1);
+                            affected
+                                .insert(edge.provenance.artifact_revision_id.as_str().to_string());
+                            affected.extend(previous.into_iter().map(|(revision, _)| revision));
+                            if affected.len() > MAX_AFFECTED_REVISIONS {
+                                return Ok(Some(Refusal {
+                                    reason: ActuationRefusalReasonV1::WriteRefused,
+                                    index: Some(index),
+                                    path: Some(format!("/operations/{index}/record")),
+                                }));
+                            }
+                        }
                         Err(CommitBatchError::Provenance(error)) => {
                             return map_domain_error(EngineError::Provenance(error), index, None)
                                 .map(Some);
@@ -1258,21 +1485,33 @@ fn simulate_request(
                     apply_validated_source_dependency(connection, &validated, 1)?;
                 }
                 ActuationOperationV1::TransitionLifecycle(lifecycle) => {
-                    if let Err(error) = apply_lifecycle(
+                    match apply_lifecycle(
                         connection,
                         lifecycle,
                         index,
                         dependency_closure::SoftClosureMode::Proving,
                     ) {
-                        return match error {
-                            RefusalOrInfrastructure::Refusal(refusal) => Ok(Some(refusal)),
-                            RefusalOrInfrastructure::Infrastructure(error) => Err(error),
-                        };
+                        Ok((revision, _, _)) => {
+                            affected.insert(revision);
+                            if affected.len() > MAX_AFFECTED_REVISIONS {
+                                return Ok(Some(Refusal {
+                                    reason: ActuationRefusalReasonV1::WriteRefused,
+                                    index: Some(index),
+                                    path: Some(format!("/operations/{index}/record")),
+                                }));
+                            }
+                        }
+                        Err(error) => {
+                            return match error {
+                                RefusalOrInfrastructure::Refusal(refusal) => Ok(Some(refusal)),
+                                RefusalOrInfrastructure::Infrastructure(error) => Err(error),
+                            }
+                        }
                     }
                 }
             }
         }
-        Ok(None)
+        validate_prospective_edge_endpoints(connection, request)
     })();
     connection
         .execute_batch(
@@ -1280,6 +1519,35 @@ fn simulate_request(
         )
         .map_err(|_| EngineError::Storage)?;
     outcome
+}
+
+fn validate_prospective_edge_endpoints(
+    connection: &Connection,
+    request: &ActuationBatchV1,
+) -> Result<Option<Refusal>, EngineError> {
+    let mut exists = connection
+        .prepare_cached(
+            "SELECT EXISTS(SELECT 1 FROM canonical_nodes \
+             WHERE logical_id=?1 AND superseded_at IS NULL AND state='active')",
+        )
+        .map_err(|_| EngineError::Storage)?;
+    for (index, operation) in request.operations.iter().enumerate() {
+        let ActuationOperationV1::PutDerivedEdge(edge) = operation else {
+            continue;
+        };
+        for (endpoint, suffix) in [(&edge.from, "from"), (&edge.to, "to")] {
+            let present: bool =
+                exists.query_row([endpoint], |row| row.get(0)).map_err(|_| EngineError::Storage)?;
+            if !present {
+                return Ok(Some(Refusal {
+                    reason: ActuationRefusalReasonV1::ReferenceUnavailable,
+                    index: Some(index),
+                    path: Some(format!("/operations/{index}/record/{suffix}")),
+                }));
+            }
+        }
+    }
+    Ok(None)
 }
 
 fn map_domain_error(
@@ -1542,6 +1810,7 @@ impl Engine {
                                 operation,
                                 ActuationOperationV1::PutCanonicalNode(_)
                                     | ActuationOperationV1::PutDerivedNode(_)
+                                    | ActuationOperationV1::PutDerivedEdge(_)
                             )
                         })
                         .count() as u64
@@ -1605,7 +1874,6 @@ impl Engine {
         }
         self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Writer, None);
         *admitted_started = Some(Instant::now());
-        enrich_resolved_refs(&tx, request, &mut refs)?;
 
         let base_cursor = load_next_cursor(&tx);
         if request.expected_write_boundary.is_some_and(|expected| expected != base_cursor) {
@@ -1619,7 +1887,13 @@ impl Engine {
                 },
             );
             store_receipt(&tx, &receipt, request.operations.len())?;
-            store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
+            store_source_refs(
+                &tx,
+                &request.operation_id,
+                &refs,
+                request.operations.len(),
+                receipt.affected_revision_ids.len(),
+            )?;
             #[cfg(debug_assertions)]
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
@@ -1635,6 +1909,7 @@ impl Engine {
                     operation,
                     ActuationOperationV1::PutCanonicalNode(_)
                         | ActuationOperationV1::PutDerivedNode(_)
+                        | ActuationOperationV1::PutDerivedEdge(_)
                 )
             })
             .count() as u64;
@@ -1649,7 +1924,13 @@ impl Engine {
         )? {
             let receipt = receipt_for_refusal(request, digest.to_string(), refusal);
             store_receipt(&tx, &receipt, request.operations.len())?;
-            store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
+            store_source_refs(
+                &tx,
+                &request.operation_id,
+                &refs,
+                request.operations.len(),
+                receipt.affected_revision_ids.len(),
+            )?;
             #[cfg(debug_assertions)]
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
@@ -1666,6 +1947,7 @@ impl Engine {
                         operation,
                         ActuationOperationV1::PutCanonicalNode(_)
                             | ActuationOperationV1::PutDerivedNode(_)
+                            | ActuationOperationV1::PutDerivedEdge(_)
                     )
                 })
                 .unwrap_or(0);
@@ -1679,7 +1961,13 @@ impl Engine {
                 },
             );
             store_receipt(&tx, &receipt, request.operations.len())?;
-            store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
+            store_source_refs(
+                &tx,
+                &request.operation_id,
+                &refs,
+                request.operations.len(),
+                receipt.affected_revision_ids.len(),
+            )?;
             #[cfg(debug_assertions)]
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
@@ -1687,6 +1975,7 @@ impl Engine {
             tx.commit().map_err(|_| EngineError::Storage)?;
             return Ok(ActuationAttempt::New(receipt));
         }
+        enrich_resolved_refs(&tx, request, &mut refs)?;
         let batch_writes = request
             .operations
             .iter()
@@ -1694,6 +1983,9 @@ impl Engine {
                 ActuationOperationV1::PutCanonicalNode(node)
                 | ActuationOperationV1::PutDerivedNode(node) => {
                     Some(PreparedWrite::ProvenancedNode(node.clone()))
+                }
+                ActuationOperationV1::PutDerivedEdge(edge) => {
+                    Some(PreparedWrite::ProvenancedEdge(edge.clone()))
                 }
                 _ => None,
             })
@@ -1805,6 +2097,71 @@ impl Engine {
                         }
                     }
                 }
+                ActuationOperationV1::PutDerivedEdge(edge) => {
+                    let previous = prior_edge_revisions(&tx, edge, MAX_AFFECTED_REVISIONS + 1)
+                        .map_err(RefusalOrInfrastructure::Infrastructure)?;
+                    let write = PreparedWrite::ProvenancedEdge(edge.clone());
+                    let plan = validate_write(&tx, &write).map_err(|error| {
+                        map_domain_error(error, index, None)
+                            .map(RefusalOrInfrastructure::Refusal)
+                            .unwrap_or_else(RefusalOrInfrastructure::Infrastructure)
+                    })?;
+                    match apply_batch_in_transaction(
+                        &tx,
+                        &[write],
+                        &[plan],
+                        next_cursor,
+                        self.provenance_row_cap.load(Ordering::Relaxed),
+                        &[],
+                        dependency_closure::SoftClosureMode::Proving,
+                    ) {
+                        Ok((_, repaired, closure_ids)) => {
+                            unstranded |= repaired;
+                            closure_operation_ids.extend(closure_ids);
+                            next_cursor += 1;
+                            let new_revision =
+                                edge.provenance.artifact_revision_id.as_str().to_string();
+                            if affected_set.insert(new_revision.clone()) {
+                                affected.push(new_revision);
+                            }
+                            for (revision, _) in previous {
+                                if affected_set.insert(revision.clone()) {
+                                    affected.push(revision);
+                                }
+                            }
+                            let terminal: bool = tx
+                                .query_row(
+                                    "SELECT EXISTS(SELECT 1 FROM _fathomdb_projection_terminal \
+                                     WHERE write_cursor=?1)",
+                                    [next_cursor],
+                                    |row| row.get(0),
+                                )
+                                .map_err(|_| {
+                                    RefusalOrInfrastructure::Infrastructure(EngineError::Storage)
+                                })?;
+                            if !terminal {
+                                pending.push(next_cursor);
+                            }
+                            Ok(())
+                        }
+                        Err(CommitBatchError::Provenance(error)) => {
+                            Err(RefusalOrInfrastructure::Refusal(map_domain_error(
+                                EngineError::Provenance(error),
+                                index,
+                                None,
+                            )?))
+                        }
+                        Err(CommitBatchError::Sql(_)) => {
+                            Err(RefusalOrInfrastructure::Infrastructure(EngineError::Storage))
+                        }
+                        Err(CommitBatchError::Engine(error)) => {
+                            Err(RefusalOrInfrastructure::Infrastructure(error))
+                        }
+                        Err(CommitBatchError::WriterPoisoned) => {
+                            Err(RefusalOrInfrastructure::Infrastructure(EngineError::Storage))
+                        }
+                    }
+                }
                 ActuationOperationV1::RegisterSourceDependency(dependency) => {
                     let prospective = DependencyProspectiveState::default();
                     let validated = validate_source_dependency_registration(
@@ -1895,7 +2252,13 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
             let receipt = receipt_for_refusal(request, digest.to_string(), refusal);
             store_receipt(&tx, &receipt, request.operations.len())?;
-            store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
+            store_source_refs(
+                &tx,
+                &request.operation_id,
+                &refs,
+                request.operations.len(),
+                receipt.affected_revision_ids.len(),
+            )?;
             #[cfg(debug_assertions)]
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
@@ -1941,7 +2304,13 @@ impl Engine {
                 .collect(),
         };
         store_receipt(&tx, &receipt, request.operations.len())?;
-        store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
+        store_source_refs(
+            &tx,
+            &request.operation_id,
+            &refs,
+            request.operations.len(),
+            receipt.affected_revision_ids.len(),
+        )?;
         #[cfg(debug_assertions)]
         if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
             return Err(EngineError::Storage);
@@ -1980,6 +2349,32 @@ mod tests {
         }
     }
 
+    fn derived_edge(body: String, t_valid: i64) -> ProvenancedEdgeV1 {
+        ProvenancedEdgeV1 {
+            kind: "supports".into(),
+            from: "source".into(),
+            to: "target".into(),
+            source_id: SourceId::new("source-a").unwrap(),
+            logical_id: Some("edge-logical".into()),
+            body: Some(body),
+            t_valid: Some(t_valid),
+            t_invalid: None,
+            confidence: Some(0.5),
+            extractor_model_id: Some("model-a".into()),
+            temporal_fallback: Some(false),
+            provenance: WriteProvenanceV1::derived(
+                ArtifactRevisionId::new("edge-r1").unwrap(),
+                SourceVersionId::new("source-v1").unwrap(),
+                SourceRevisionId::new("source-r1").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(
+                    "0000000000000000000000000000000000000000000000000000000000000000",
+                )
+                .unwrap(),
+            ),
+        }
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(32))]
 
@@ -2006,6 +2401,23 @@ mod tests {
 
             prop_assert_eq!(request_digest(&forward), request_digest(&forward));
             prop_assert_ne!(request_digest(&forward), request_digest(&reverse));
+        }
+
+        #[test]
+        fn request_digest_is_sensitive_to_derived_edge_payload(
+            body in ".{0,64}",
+            other_body in ".{0,64}",
+            t_valid in any::<i64>(),
+        ) {
+            prop_assume!(body != other_body);
+            let request = |body| ActuationBatchV1::new(
+                "edge-property-operation",
+                vec![ActuationOperationV1::PutDerivedEdge(derived_edge(body, t_valid))],
+            ).unwrap();
+            let first = request(body);
+            let second = request(other_body);
+            prop_assert_eq!(request_digest(&first), request_digest(&first));
+            prop_assert_ne!(request_digest(&first), request_digest(&second));
         }
 
         #[test]

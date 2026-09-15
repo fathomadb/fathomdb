@@ -275,9 +275,11 @@ field/type, then identity grammar before database-dependent checks.
 
 `engine.actuate(request)` accepts a closed snake-case `ActuationBatchV1` with
 1–128 ordered operations: `put_canonical_node`, `put_derived_node`,
-`register_source_dependency`, or `transition_lifecycle`. It returns the frozen
-`ActuationReceiptV1` dataclass. Write boundaries, dependency generations, and
-projection cursors use canonical unsigned decimal strings.
+`put_derived_edge`, `register_source_dependency`, or `transition_lifecycle`. A
+derived edge is admitted only when both endpoints are active in the complete
+prospective batch state, independent of operation position. The method returns
+the frozen `ActuationReceiptV1` dataclass. Write boundaries, dependency
+generations, and projection cursors use canonical unsigned decimal strings.
 
 Malformed requests and operation-ID conflict/erasure raise `ActuationError`
 with closed `reason` and canonical RFC 6901 `field_path`. Database-dependent

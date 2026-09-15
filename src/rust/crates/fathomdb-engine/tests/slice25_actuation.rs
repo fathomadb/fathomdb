@@ -1,7 +1,7 @@
 use fathomdb_engine::{
     ActuationBatchV1, ActuationErrorReason, ActuationOperationV1, ActuationOutcomeV1,
     ArtifactRevisionId, CanonicalHash, ClosureLookupV1, ClosurePhaseV1, Engine, EngineError,
-    InitialState, LifecycleActuationV1, LifecycleState, ProvenancedNodeV1,
+    InitialState, LifecycleActuationV1, LifecycleState, ProvenancedEdgeV1, ProvenancedNodeV1,
     SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
     WriteProvenanceV1,
 };
@@ -139,7 +139,7 @@ fn shared_all_variant_fixture_has_exact_receipt_and_digest() {
             ActuationOperationV1::PutCanonicalNode(ProvenancedNodeV1 {
                 kind: "document".into(),
                 body: "source body Ω".into(),
-                source_id: SourceId::new("source-bucket").unwrap(),
+                source_id: SourceId::new("source-\0bucket").unwrap(),
                 logical_id: Some("source".into()),
                 state: InitialState::Active,
                 reason: Some("observed".into()),
@@ -153,7 +153,7 @@ fn shared_all_variant_fixture_has_exact_receipt_and_digest() {
             ActuationOperationV1::PutDerivedNode(ProvenancedNodeV1 {
                 kind: "fact".into(),
                 body: "derived β".into(),
-                source_id: SourceId::new("source-bucket").unwrap(),
+                source_id: SourceId::new("source-\0bucket").unwrap(),
                 logical_id: Some("derived".into()),
                 state: InitialState::Active,
                 reason: None,
@@ -161,6 +161,29 @@ fn shared_all_variant_fixture_has_exact_receipt_and_digest() {
                 valid_until: None,
                 provenance: WriteProvenanceV1::derived(
                     ArtifactRevisionId::new("derived-r1").unwrap(),
+                    SourceVersionId::new("source-v1").unwrap(),
+                    SourceRevisionId::new("source-r1").unwrap(),
+                    SourceLocator::utf8_bytes(0, 14),
+                    CanonicalHash::sha256(
+                        "7c4069526a04e70d6d586b7d0cf27d792e2840613530b30244376bcce3274249",
+                    )
+                    .unwrap(),
+                ),
+            }),
+            ActuationOperationV1::PutDerivedEdge(ProvenancedEdgeV1 {
+                kind: "supports".into(),
+                from: "source".into(),
+                to: "source".into(),
+                source_id: SourceId::new("source-\0bucket").unwrap(),
+                logical_id: Some("edge-source-source".into()),
+                body: Some("edge relation λ".into()),
+                t_valid: Some(-11),
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("edge-r1").unwrap(),
                     SourceVersionId::new("source-v1").unwrap(),
                     SourceRevisionId::new("source-r1").unwrap(),
                     SourceLocator::utf8_bytes(0, 14),
@@ -210,7 +233,19 @@ fn shared_all_variant_fixture_has_exact_receipt_and_digest() {
         receipt.resulting_dependency_generation.unwrap().to_string(),
         expected["resultingDependencyGeneration"].as_str().unwrap()
     );
-    assert!(receipt.pending_projection_write_cursors.is_empty());
+    assert_eq!(
+        receipt
+            .pending_projection_write_cursors
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
+        expected["pendingProjectionWriteCursors"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|value| value.as_str().unwrap().to_string())
+            .collect::<Vec<_>>()
+    );
     assert!(receipt.closure_operation_ids.is_empty());
     assert_eq!(opened.engine.actuate(request).unwrap(), receipt);
 }

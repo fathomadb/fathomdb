@@ -10,7 +10,7 @@
         "record": {
           "kind": "document",
           "body": "source body Ω",
-          "sourceId": "source-bucket",
+          "sourceId": "source-\u0000bucket",
           "logicalId": "source",
           "state": "active",
           "reason": "observed",
@@ -29,7 +29,7 @@
         "record": {
           "kind": "fact",
           "body": "derived β",
-          "sourceId": "source-bucket",
+          "sourceId": "source-\u0000bucket",
           "logicalId": "derived",
           "state": "active",
           "reason": null,
@@ -39,6 +39,35 @@
             "schemaVersion": 1,
             "role": "derived",
             "artifactRevisionId": "derived-r1",
+            "sourceVersionId": "source-v1",
+            "sourceRevisionId": "source-r1",
+            "sourceLocator": {
+              "kind": "utf8_bytes",
+              "startInclusive": "0",
+              "endExclusive": "14"
+            },
+            "canonicalSourceHash": {
+              "algorithm": "sha256",
+              "digestHex": "7c4069526a04e70d6d586b7d0cf27d792e2840613530b30244376bcce3274249"
+            }
+          }
+        }
+      },
+      {
+        "type": "put_derived_edge",
+        "record": {
+          "kind": "supports",
+          "from": "source",
+          "to": "source",
+          "sourceId": "source-\u0000bucket",
+          "logicalId": "edge-source-source",
+          "body": "edge relation λ",
+          "tValid": -11,
+          "tInvalid": null,
+          "provenance": {
+            "schemaVersion": 1,
+            "role": "derived",
+            "artifactRevisionId": "edge-r1",
             "sourceVersionId": "source-v1",
             "sourceRevisionId": "source-r1",
             "sourceLocator": {
@@ -72,12 +101,12 @@
     ]
   },
   "expected": {
-    "requestSha256": "aa0def703e90e20dd1bbe9ed254abfe58e97f81cca3b379b800e773673152bbf",
+    "requestSha256": "4e708c5f3104bba06185440b3321961dbe6de4d3e10b6b7a4ba4c5e62c8b7033",
     "outcome": "committed",
-    "affectedRevisionIds": ["source-r1", "derived-r1"],
-    "resultingWriteBoundary": "2",
+    "affectedRevisionIds": ["source-r1", "derived-r1", "edge-r1"],
+    "resultingWriteBoundary": "3",
     "resultingDependencyGeneration": "1",
-    "pendingProjectionWriteCursors": [],
+    "pendingProjectionWriteCursors": ["3"],
     "closureOperationIds": []
   }
 }

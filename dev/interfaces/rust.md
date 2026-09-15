@@ -489,9 +489,11 @@ generation corruption fails closed as `EngineError::Storage`.
 
 `Engine::actuate(ActuationBatchV1)` applies 1–128 ordered, caller-decided
 operations in one transaction. The closed operation set is canonical-node put,
-derived-node put, source-dependency registration, and revision-pinned lifecycle
-transition. FathomDB validates and actuates the decision; it does not extract,
-merge, infer contradiction, or choose truth.
+derived-node put, derived-edge put, source-dependency registration, and
+revision-pinned lifecycle transition. A derived edge is admitted only when both
+endpoints are active in the complete prospective batch state, independent of
+operation position. FathomDB validates and actuates the decision; it does not
+extract, merge, infer contradiction, or choose truth.
 
 An admitted request returns `ActuationReceiptV1` with a terminal `committed` or
 `refused` outcome. Exact `operation_id` and canonical-digest replay returns the

@@ -213,6 +213,13 @@ class PutDerivedNodeActuationV1(TypedDict):
     record: dict[str, object]
 
 
+class PutDerivedEdgeActuationV1(TypedDict):
+    """Actuation operation storing a complete derived edge revision."""
+
+    type: Literal["put_derived_edge"]
+    record: dict[str, object]
+
+
 class RegisterSourceDependencyActuationV1(TypedDict):
     """Actuation operation registering one immutable dependency."""
 
@@ -236,6 +243,7 @@ class TransitionLifecycleActuationV1(_TransitionLifecycleActuationRequiredV1, to
 ActuationOperationV1 = Union[
     PutCanonicalNodeActuationV1,
     PutDerivedNodeActuationV1,
+    PutDerivedEdgeActuationV1,
     RegisterSourceDependencyActuationV1,
     TransitionLifecycleActuationV1,
 ]

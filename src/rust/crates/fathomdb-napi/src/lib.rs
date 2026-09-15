@@ -4273,6 +4273,37 @@ fn translate_actuation_operation(value: &JsonValue, index: usize) -> Result<Actu
                 Ok(ActuationOperationV1::PutDerivedNode(node))
             }
         }
+        "put_derived_edge" => {
+            strict_actuation_object(value, &["type", "record"], &root)?;
+            let record = object
+                .get("record")
+                .ok_or_else(|| actuation_napi_error("field_missing", format!("{root}/record")))?;
+            strict_actuation_object(
+                record,
+                &[
+                    "kind",
+                    "from",
+                    "to",
+                    "sourceId",
+                    "logicalId",
+                    "body",
+                    "tValid",
+                    "tInvalid",
+                    "provenance",
+                ],
+                &format!("{root}/record"),
+            )?;
+            let record_root = format!("{root}/record");
+            let prepared = translate_edge(record)
+                .map_err(|error| nested_actuation_napi_error(error, &record_root))?;
+            let PreparedWrite::ProvenancedEdge(edge) = prepared else {
+                return Err(actuation_napi_error(
+                    "nested_request_invalid",
+                    format!("{root}/record/provenance"),
+                ));
+            };
+            Ok(ActuationOperationV1::PutDerivedEdge(edge))
+        }
         "register_source_dependency" => {
             strict_actuation_object(value, &["type", "dependency"], &root)?;
             let dependency = object.get("dependency").ok_or_else(|| {
@@ -4909,6 +4940,116 @@ fn call_panicking_engine_for_test() -> Result<()> {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+
+    fn derived_edge_actuation_request() -> JsonValue {
+        json!({
+            "schemaVersion": 1,
+            "operationId": "slice35-napi-edge",
+            "operations": [{
+                "type": "put_derived_edge",
+                "record": {
+                    "kind": "supports",
+                    "from": "source",
+                    "to": "target",
+                    "sourceId": "source\u{0}bucket",
+                    "logicalId": "edge-1",
+                    "body": "edge λ",
+                    "tValid": -7,
+                    "tInvalid": null,
+                    "provenance": {
+                        "schemaVersion": 1,
+                        "role": "derived",
+                        "artifactRevisionId": "edge-r1",
+                        "sourceVersionId": "source-v1",
+                        "sourceRevisionId": "source-r1",
+                        "sourceLocator": { "kind": "whole_body" },
+                        "canonicalSourceHash": {
+                            "algorithm": "sha256",
+                            "digestHex": "0000000000000000000000000000000000000000000000000000000000000000"
+                        }
+                    }
+                }
+            }]
+        })
+    }
+
+    #[test]
+    fn derived_edge_actuation_translation_preserves_current_v1_shape() {
+        let translated = translate_actuation_request(&derived_edge_actuation_request()).unwrap();
+        let ActuationOperationV1::PutDerivedEdge(edge) = &translated.operations[0] else {
+            panic!("derived edge discriminator translated to a different variant")
+        };
+        assert_eq!(edge.source_id.as_str().as_bytes(), b"source\0bucket");
+        assert_eq!(edge.body.as_deref(), Some("edge λ"));
+        assert_eq!(edge.t_valid, Some(-7));
+    }
+
+    fn assert_actuation_input_error(request: &JsonValue, reason: &str, path: &str) {
+        let error = translate_actuation_request(request).unwrap_err();
+        let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
+        assert_eq!(envelope["payload"]["reason"], reason);
+        assert_eq!(envelope["payload"]["fieldPath"], path);
+    }
+
+    fn malformed_edge_actuation_request() -> JsonValue {
+        let mut request = derived_edge_actuation_request();
+        request["operations"][0]["record"]["zUnknown"] = json!(true);
+        request
+    }
+
+    #[test]
+    fn malformed_edge_preserves_every_earlier_top_level_precedence_family() {
+        let mut request = malformed_edge_actuation_request();
+        request["schemaVersion"] = json!(2);
+        assert_actuation_input_error(&request, "unsupported_schema_version", "/schemaVersion");
+
+        let mut request = malformed_edge_actuation_request();
+        request["aUnknown"] = json!(true);
+        assert_actuation_input_error(&request, "unknown_field", "/aUnknown");
+
+        let mut request = malformed_edge_actuation_request();
+        request.as_object_mut().unwrap().remove("operationId");
+        assert_actuation_input_error(&request, "field_missing", "/operationId");
+
+        let mut request = malformed_edge_actuation_request();
+        request["operationId"] = json!(true);
+        assert_actuation_input_error(&request, "field_type_invalid", "/operationId");
+
+        let mut request = malformed_edge_actuation_request();
+        request["decisionPolicyId"] = json!(true);
+        assert_actuation_input_error(&request, "field_type_invalid", "/decisionPolicyId");
+
+        let mut request = malformed_edge_actuation_request();
+        request["expectedWriteBoundary"] = json!(true);
+        assert_actuation_input_error(&request, "field_type_invalid", "/expectedWriteBoundary");
+
+        let mut request = malformed_edge_actuation_request();
+        request.as_object_mut().unwrap().remove("operations");
+        assert_actuation_input_error(&request, "field_missing", "/operations");
+
+        let mut request = malformed_edge_actuation_request();
+        request["operations"] = json!({});
+        assert_actuation_input_error(&request, "field_type_invalid", "/operations");
+
+        let mut request = malformed_edge_actuation_request();
+        request["operationId"] = json!("bad id");
+        assert_actuation_input_error(&request, "operation_id_invalid", "/operationId");
+
+        let mut request = malformed_edge_actuation_request();
+        request["decisionPolicyId"] = json!("bad id");
+        assert_actuation_input_error(&request, "decision_policy_id_invalid", "/decisionPolicyId");
+
+        let mut request = malformed_edge_actuation_request();
+        let operation = request["operations"][0].clone();
+        request["operations"] = JsonValue::Array(vec![operation; 129]);
+        assert_actuation_input_error(&request, "operation_count_invalid", "/operations");
+
+        assert_actuation_input_error(
+            &malformed_edge_actuation_request(),
+            "unknown_field",
+            "/operations/0/record/zUnknown",
+        );
+    }
 
     proptest! {
         #[test]

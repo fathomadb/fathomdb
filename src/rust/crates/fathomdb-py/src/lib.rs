@@ -4321,6 +4321,36 @@ fn translate_actuation_operation(
                 Ok(ActuationOperationV1::PutDerivedNode(node))
             }
         }
+        "put_derived_edge" => {
+            strict_actuation_dict(value, &["type", "record"], &root)?;
+            let record = dict_get(dict, "record")?
+                .ok_or_else(|| actuation_input_error("field_missing", format!("{root}/record")))?;
+            strict_actuation_dict(
+                &record,
+                &[
+                    "kind",
+                    "from",
+                    "to",
+                    "source_id",
+                    "logical_id",
+                    "body",
+                    "t_valid",
+                    "t_invalid",
+                    "provenance",
+                ],
+                &format!("{root}/record"),
+            )?;
+            let record_root = format!("{root}/record");
+            let prepared = translate_edge(&record)
+                .map_err(|error| nested_actuation_input_error(error, &record_root))?;
+            let PreparedWrite::ProvenancedEdge(edge) = prepared else {
+                return Err(actuation_input_error(
+                    "nested_request_invalid",
+                    format!("{root}/record/provenance"),
+                ));
+            };
+            Ok(ActuationOperationV1::PutDerivedEdge(edge))
+        }
         "register_source_dependency" => {
             strict_actuation_dict(value, &["type", "dependency"], &root)?;
             let dependency = dict_get(dict, "dependency")?.ok_or_else(|| {
@@ -5418,6 +5448,106 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn derived_edge_actuation_json() -> &'static str {
+        r#"{
+          "schema_version": 1,
+          "operation_id": "slice35-py-edge",
+          "operations": [{
+            "type": "put_derived_edge",
+            "record": {
+              "kind": "supports", "from": "source", "to": "target",
+              "source_id": "source\u0000bucket", "logical_id": "edge-1",
+              "body": "edge λ", "t_valid": -7, "t_invalid": null,
+              "provenance": {
+                "schema_version": 1, "role": "derived",
+                "artifact_revision_id": "edge-r1", "source_version_id": "source-v1",
+                "source_revision_id": "source-r1",
+                "source_locator": {"kind": "whole_body"},
+                "canonical_source_hash": {
+                  "algorithm": "sha256",
+                  "digest_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+                }
+              }
+            }
+          }]
+        }"#
+    }
+
+    #[test]
+    fn derived_edge_actuation_translation_preserves_current_v1_shape() {
+        Python::initialize();
+        Python::attach(|py| {
+            let json = PyModule::import(py, "json").unwrap();
+            let request = json.call_method1("loads", (derived_edge_actuation_json(),)).unwrap();
+            let translated = translate_actuation_request(&request).unwrap();
+            let ActuationOperationV1::PutDerivedEdge(edge) = &translated.operations[0] else {
+                panic!("derived edge discriminator translated to a different variant")
+            };
+            assert_eq!(edge.source_id.as_str().as_bytes(), b"source\0bucket");
+            assert_eq!(edge.body.as_deref(), Some("edge λ"));
+            assert_eq!(edge.t_valid, Some(-7));
+        });
+    }
+
+    #[test]
+    fn malformed_edge_preserves_every_earlier_top_level_precedence_family() {
+        Python::initialize();
+        Python::attach(|py| {
+            let json = PyModule::import(py, "json").unwrap();
+            let mut malformed: serde_json::Value =
+                serde_json::from_str(derived_edge_actuation_json()).unwrap();
+            malformed["operations"][0]["record"]["z_unknown"] = serde_json::json!(true);
+            let assert_error = |value: &serde_json::Value, reason: &str, path: &str| {
+                let request = json.call_method1("loads", (value.to_string(),)).unwrap();
+                let error = translate_actuation_request(&request).unwrap_err();
+                assert_eq!(
+                    error.value(py).getattr("reason").unwrap().extract::<String>().unwrap(),
+                    reason
+                );
+                assert_eq!(
+                    error.value(py).getattr("field_path").unwrap().extract::<String>().unwrap(),
+                    path
+                );
+            };
+
+            let mut request = malformed.clone();
+            request["schema_version"] = serde_json::json!(2);
+            assert_error(&request, "unsupported_schema_version", "/schemaVersion");
+            let mut request = malformed.clone();
+            request["a_unknown"] = serde_json::json!(true);
+            assert_error(&request, "unknown_field", "/aUnknown");
+            let mut request = malformed.clone();
+            request.as_object_mut().unwrap().remove("operation_id");
+            assert_error(&request, "field_missing", "/operationId");
+            let mut request = malformed.clone();
+            request["operation_id"] = serde_json::json!(true);
+            assert_error(&request, "field_type_invalid", "/operationId");
+            let mut request = malformed.clone();
+            request["decision_policy_id"] = serde_json::json!(true);
+            assert_error(&request, "field_type_invalid", "/decisionPolicyId");
+            let mut request = malformed.clone();
+            request["expected_write_boundary"] = serde_json::json!(true);
+            assert_error(&request, "field_type_invalid", "/expectedWriteBoundary");
+            let mut request = malformed.clone();
+            request.as_object_mut().unwrap().remove("operations");
+            assert_error(&request, "field_missing", "/operations");
+            let mut request = malformed.clone();
+            request["operations"] = serde_json::json!({});
+            assert_error(&request, "field_type_invalid", "/operations");
+            let mut request = malformed.clone();
+            request["operation_id"] = serde_json::json!("bad id");
+            assert_error(&request, "operation_id_invalid", "/operationId");
+            let mut request = malformed.clone();
+            request["decision_policy_id"] = serde_json::json!("bad id");
+            assert_error(&request, "decision_policy_id_invalid", "/decisionPolicyId");
+            let mut request = malformed.clone();
+            let operation = request["operations"][0].clone();
+            request["operations"] = serde_json::Value::Array(vec![operation; 129]);
+            assert_error(&request, "operation_count_invalid", "/operations");
+            assert_error(&malformed, "unknown_field", "/operations/0/record/zUnknown");
+        });
+    }
 
     #[test]
     fn mutation_projection_status_rejects_non_string_request_keys() {

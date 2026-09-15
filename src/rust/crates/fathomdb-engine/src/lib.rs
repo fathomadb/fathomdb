@@ -4128,7 +4128,6 @@ fn data_plane_sidecar_path(path: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(sidecar)
 }
 
-#[cfg(feature = "operator")]
 fn immutable_sqlite_uri(path: &Path) -> String {
     let mut uri = String::from("file:");
     for byte in path.as_os_str().as_encoded_bytes() {
@@ -23911,6 +23910,47 @@ fn projection_status(
         Some(state) if state == "failed" => Ok(lifecycle::ProjectionStatus::Failed),
         _ => Ok(lifecycle::ProjectionStatus::UpToDate),
     }
+}
+
+/// Read-only Slice 35 prototype for the 0.8.26 fresh-database cutover.
+///
+/// Missing and zero-length paths are fresh candidates. A non-empty database is
+/// admitted only when its `user_version` already equals `expected_version`.
+/// This helper creates no database or sidecar and is not wired into public open
+/// until Slice 40 supplies the real schema step and activation.
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub fn classify_fresh_database_candidate_for_test(
+    path: &Path,
+    expected_version: u32,
+) -> Result<bool, EngineOpenError> {
+    let metadata = match std::fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(true),
+        Err(_) => {
+            return Err(EngineOpenError::Io {
+                message: "database candidate metadata is not accessible".to_string(),
+            })
+        }
+    };
+    if metadata.len() == 0 {
+        return Ok(true);
+    }
+    let connection = Connection::open_with_flags(
+        immutable_sqlite_uri(path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
+            | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+    )
+    .map_err(|_| EngineOpenError::Io {
+        message: "database candidate could not be opened read-only".to_string(),
+    })?;
+    let seen = connection
+        .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
+        .map_err(|_| EngineOpenError::Io {
+            message: "database candidate schema could not be read".to_string(),
+        })?;
+    Ok(seen == expected_version)
 }
 
 fn canonical_database_path(path: &Path) -> Result<PathBuf, EngineOpenError> {

@@ -97,10 +97,11 @@ an alternate API generation.
   projection, source erasure, and replay use the canonical machinery.
 - **AC26-35D — receipt and integrity:** the current V1 digest is deterministic,
   order-sensitive, and edge-sensitive. Existing compact receipt collections
-  truthfully include the new edge plus as many as two canonically superseded
-  edge revisions per operation, bounded to 384 affected revisions; replay
-  survives restart, changed bytes conflict, erased IDs remain reserved, and
-  corrupt edge-bearing state fails closed.
+  truthfully include the new edge and every canonically superseded edge revision,
+  bounded to the existing 256-revision schema limit. A prospective 257th
+  revision refuses terminally with no committed domain effect; replay survives restart, changed
+  bytes conflict, erased IDs remain reserved, and corrupt edge-bearing state
+  fails closed.
 - **AC26-35E — rollback and concurrency:** invalid provenance, revision
   collision, projection failure, injected post-operation/commit failure, and
   missing endpoints do not partially commit. Eight unique callers complete;

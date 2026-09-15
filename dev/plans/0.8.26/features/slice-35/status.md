@@ -82,13 +82,13 @@ verification findings were resolved. Detailed evidence is in `design-review.md`,
 - Historical closure integrity: sealed Slice 25 digest restored exactly;
   Slice 75 manifest verification and all 12 mutation tests PASS; retained Slice
   73 Windows N-API structural tests 5/5 PASS.
-- Post-close canonical `agent-verify` passed its Slice 35-relevant lint,
-  typecheck, and security stages, then stopped in the unchanged
-  `test-check-license-consistency` self-test: its embedded Python raised
-  `AttributeError: 'str' object has no attribute 'get'` in both the synthetic
-  npm-pack arm and the repository arm. This is recorded as a non-green
-  aggregate, not as Slice 35 evidence; the corrected receipt paths are covered
-  by the focused 34/34 plus 6/6 results above.
+- The post-close `test-check-license-consistency` failure was resolved by
+  `b0bec3b0` and `12ec4bc0`: deterministic tests now cover both the historical
+  array and npm 12 keyed-object `npm pack --json` envelopes, and the checker
+  normalizes those two forms while rejecting malformed records. The focused
+  self-test passes every arm, the real packaging check confirms all seven
+  crates and six npm packages ship `LICENSE`, and the post-remediation canonical
+  `agent-verify` passes 110/110 registered suites with no skips or exclusions.
 
 ## Performance and prototype disposition
 

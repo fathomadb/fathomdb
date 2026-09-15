@@ -4175,7 +4175,13 @@ pub fn inspect_data_plane_integrity(
     data_plane_integrity::validate_request(&request)?;
 
     let requested_path = path.into();
-    let canonical_path = canonical_database_path(&requested_path).map_err(|_| {
+    let unresolved_path = canonical_database_path(&requested_path).map_err(|_| {
+        data_plane_inspection_error(
+            DataPlaneIntegrityErrorReasonV1::InspectionUnavailable,
+            "/dbPath",
+        )
+    })?;
+    let canonical_path = unresolved_path.canonicalize().map_err(|_| {
         data_plane_inspection_error(
             DataPlaneIntegrityErrorReasonV1::InspectionUnavailable,
             "/dbPath",

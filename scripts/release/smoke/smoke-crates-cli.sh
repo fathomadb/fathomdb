@@ -31,7 +31,7 @@ trap 'rm -rf "$WORK"' EXIT
 
 # `cargo install` honors --root for the install prefix; binary lands at
 # $WORK/bin/fathomdb.
-cargo install fathomdb-cli --version "$VERSION" --root "$WORK" --locked
+cargo install fathomdb-cli --version "=$VERSION" --root "$WORK" --locked
 VERSION_OUT="$("$WORK/bin/fathomdb" --version)"
 if [ "$VERSION_OUT" != "fathomdb $VERSION" ]; then
   printf 'smoke-crates-cli: version mismatch — expected "fathomdb %s", got "%s"\n' \

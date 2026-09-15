@@ -472,10 +472,12 @@ use fathomdb_schema::{
 #[cfg(feature = "operator")]
 use fathomdb_schema::CANONICAL_TABLES;
 use jsonschema::JSONSchema;
+#[cfg(feature = "operator")]
+use rusqlite::OpenFlags;
 #[cfg(any(test, feature = "test-hooks"))]
 use rusqlite::TransactionState;
 use rusqlite::{
-    config::DbConfig, params, CachedStatement, Connection, OpenFlags, OptionalExtension, Statement,
+    config::DbConfig, params, CachedStatement, Connection, OptionalExtension, Statement,
 };
 use serde_json::Value;
 // `sha2::Digest` + `sha2::Sha256` — used by `safe_export` (operator-gated)

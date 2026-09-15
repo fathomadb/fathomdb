@@ -11,17 +11,17 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 35 (ACTUATION-SPIKE), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 40 (DERIVED-EDGE), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
 
-Slices 0–10, 15, 20, and 30 are complete on the 0.8.26 release line. Slice 30
-qualified the existing CLI route with an exact-schema immutable inspection
-boundary, source-candidate evidence, and no prebuilt fallback. Version
-integration, wider target evidence, and registry proof remain Slice 50 and
-post-publication work.
+Slices 0–10, 15, 20, 30, and 35 are complete on the 0.8.26 release line. Slice
+35 proved the changed-in-place five-operation V1 actuation grammar, complete
+prospective derived-edge endpoints, compact bounded receipts, cross-binding
+conformance, and the fresh-database prototype boundary. Slice 40 owns the real
+schema/open cutover; Slice 50 retains exact-version post-publication work.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 35 (ACTUATION-SPIKE)** — breaking V1 actuation contract and performance spike. **Remaining ladder:** 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 40 (DERIVED-EDGE)** — atomic derived-edge V1 actuation. **Remaining ladder:** 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:status-next-action -->
 
 ## Open decisions
 

@@ -26,11 +26,14 @@ use fathomdb_engine::{
     configure_runtime, Engine, ExtractDocument, PreparedWrite, RowKind, RuntimeSqliteMode,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
-use rusqlite::{params, Connection};
+#[cfg(feature = "migration-test-hooks")]
+use rusqlite::params;
+use rusqlite::Connection;
 use tempfile::TempDir;
 
 /// The reserved provenance the step-21 migration stamps onto legacy
 /// **ungoverned** rows (R-20-E8).
+#[cfg(feature = "migration-test-hooks")]
 const LEGACY_SOURCE_ID: &str = "_legacy:pre-0.8.20";
 
 fn db_path(dir: &TempDir, name: &str) -> PathBuf {
@@ -141,6 +144,7 @@ fn no_canonical_row_has_null_source_id() {
 /// Build a database at the PRE-0.8.20 head (schema step 20) holding two
 /// NULL-provenance canonical nodes: one ungoverned (`logical_id IS NULL`) and
 /// one governed (`logical_id` set). Returns the db path inside `dir`.
+#[cfg(feature = "migration-test-hooks")]
 fn seed_pre_0_8_20_database(dir: &TempDir, name: &str) -> PathBuf {
     let path = db_path(dir, name);
     let conn = Connection::open(&path).expect("open raw");
@@ -176,6 +180,7 @@ fn seed_pre_0_8_20_database(dir: &TempDir, name: &str) -> PathBuf {
 /// — at the pre-slice baseline no row carries `_legacy:` provenance at all, so
 /// the survival half passes trivially. The load-bearing half is that the
 /// ungoverned row IS erased, which requires the migration to have run.
+#[cfg(feature = "migration-test-hooks")]
 #[test]
 fn excise_legacy_source_deletes_no_governed_row() {
     configure_test_runtime();

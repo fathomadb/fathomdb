@@ -125,11 +125,25 @@ fn schema_33_public_opens_refuse_without_any_durable_change() {
 }
 
 #[test]
+fn schema_33_without_a_lock_sidecar_creates_only_the_persistent_lock_namespace() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "old-no-lock");
+    create_versioned_sqlite(&db, 33);
+    let before = directory_bytes(&dir);
+
+    assert_incompatible(Engine::open(&db), 33);
+    let mut after = directory_bytes(&dir);
+    assert_eq!(after.remove("old-no-lock.sqlite.lock"), Some(Vec::new()));
+    assert_eq!(after, before);
+}
+
+#[test]
 fn future_and_nonempty_zero_version_databases_are_refused() {
     for (name, version) in [("future", 35), ("foreign", 0)] {
         let dir = TempDir::new().unwrap();
         let db = path(&dir, name);
         create_versioned_sqlite(&db, version);
+        fs::write(sidecar(&db, ".lock"), b"historical-lock-bytes").unwrap();
         let before = directory_bytes(&dir);
         assert_incompatible(Engine::open(&db), version);
         assert_eq!(directory_bytes(&dir), before);
@@ -162,18 +176,35 @@ fn current_wal_state_is_admitted_with_and_without_shm() {
 #[test]
 fn refused_schema_33_wal_state_restores_existing_or_missing_shm() {
     for remove_shm in [false, true] {
-        let dir = TempDir::new().unwrap();
-        let db = path(&dir, if remove_shm { "old-no-shm" } else { "old-shm" });
-        create_versioned_sqlite(&db, 32);
-        fs::write(sidecar(&db, ".lock"), b"historical-lock-bytes").unwrap();
-        run_wal_child(&db, 33);
-        if remove_shm {
-            fs::remove_file(sidecar(&db, "-shm")).unwrap();
-        }
-        let before = directory_bytes(&dir);
+        for include_lock in [false, true] {
+            let dir = TempDir::new().unwrap();
+            let name = format!(
+                "old-{}-{}",
+                if remove_shm { "no-shm" } else { "shm" },
+                if include_lock { "lock" } else { "no-lock" }
+            );
+            let db = path(&dir, &name);
+            create_versioned_sqlite(&db, 32);
+            if include_lock {
+                fs::write(sidecar(&db, ".lock"), b"historical-lock-bytes").unwrap();
+            }
+            run_wal_child(&db, 33);
+            if remove_shm {
+                fs::remove_file(sidecar(&db, "-shm")).unwrap();
+            }
+            let mut before = directory_bytes(&dir);
 
-        assert_incompatible(Engine::open(&db), 33);
-        assert_eq!(directory_bytes(&dir), before);
+            assert_incompatible(Engine::open(&db), 33);
+            let mut after = directory_bytes(&dir);
+            let lock_name = format!("{name}.sqlite.lock");
+            if include_lock {
+                assert_eq!(after.get(&lock_name), Some(&b"historical-lock-bytes".to_vec()));
+            } else {
+                assert_eq!(after.remove(&lock_name), Some(Vec::new()));
+                before.remove(&lock_name);
+            }
+            assert_eq!(after, before);
+        }
     }
 }
 

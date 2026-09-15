@@ -9009,13 +9009,12 @@ impl Engine {
     ) -> Result<OpenedEngine, EngineOpenError> {
         Self::open_with_migrations(
             path,
-            migrations,
+            DatabaseOpenPlan { migrations, admission: DatabaseAdmission::TestMigrations },
             default_embedder_identity(),
             None,
             None,
             &mut emit_migration_event,
             None,
-            DatabaseAdmission::TestMigrations,
         )
     }
 
@@ -9074,25 +9073,23 @@ impl Engine {
     ) -> Result<OpenedEngine, EngineOpenError> {
         Self::open_with_migrations(
             path,
-            MIGRATIONS,
+            DatabaseOpenPlan { migrations: MIGRATIONS, admission: DatabaseAdmission::CurrentOnly },
             embedder_identity,
             runtime_embedder,
             loader_info,
             emit_migration_event,
             initial_subscriber,
-            DatabaseAdmission::CurrentOnly,
         )
     }
 
     fn open_with_migrations(
         path: impl Into<PathBuf>,
-        migrations: &'static [fathomdb_schema::Migration],
+        plan: DatabaseOpenPlan,
         embedder_identity: EmbedderIdentity,
         runtime_embedder: Option<Arc<dyn Embedder>>,
         loader_info: Option<LoaderInfo>,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         initial_subscriber: Option<Arc<dyn lifecycle::Subscriber>>,
-        admission: DatabaseAdmission,
     ) -> Result<OpenedEngine, EngineOpenError> {
         // Resolve at open rather than piggybacking on embedding selection. This
         // probes no model/cache/database and makes an invalid or forced CUDA
@@ -9106,7 +9103,7 @@ impl Engine {
         let reranker_device_resolution = None;
         let canonical_path = canonical_database_path(&path.into())?;
         let pending_lock = acquire_lock_without_metadata_mutation(&canonical_path)?;
-        if admission == DatabaseAdmission::CurrentOnly {
+        if plan.admission == DatabaseAdmission::CurrentOnly {
             admit_current_database(&canonical_path)?;
         }
         let lock = pending_lock.initialize()?;
@@ -9114,7 +9111,7 @@ impl Engine {
         let managed_connections = Arc::new(ManagedConnectionRegistry::default());
         let open_result = Self::open_locked(
             canonical_path.clone(),
-            migrations,
+            plan.migrations,
             &embedder_identity,
             emit_migration_event,
             #[cfg(any(test, feature = "test-hooks"))]
@@ -23936,6 +23933,11 @@ enum DatabaseAdmission {
     TestMigrations,
 }
 
+struct DatabaseOpenPlan {
+    migrations: &'static [fathomdb_schema::Migration],
+    admission: DatabaseAdmission,
+}
+
 struct ShmSnapshot {
     path: PathBuf,
     bytes: Option<Vec<u8>>,
@@ -24038,8 +24040,6 @@ fn canonical_database_path(path: &Path) -> Result<PathBuf, EngineOpenError> {
 
 struct PendingDatabaseLock {
     file: Option<File>,
-    path: PathBuf,
-    created: bool,
 }
 
 impl PendingDatabaseLock {
@@ -24055,17 +24055,7 @@ impl PendingDatabaseLock {
         file.write_all(pid.as_bytes()).map_err(|_| EngineOpenError::Io {
             message: "could not initialize database lock file".to_string(),
         })?;
-        self.created = false;
         Ok(self.file.take().expect("initialized database lock retains its file"))
-    }
-}
-
-impl Drop for PendingDatabaseLock {
-    fn drop(&mut self) {
-        if self.created {
-            drop(self.file.take());
-            let _ = std::fs::remove_file(&self.path);
-        }
     }
 }
 
@@ -24077,15 +24067,14 @@ fn acquire_lock_without_metadata_mutation(
     create_options.read(true).write(true).create_new(true);
     #[cfg(unix)]
     create_options.mode(0o600);
-    let (file, created) = match create_options.open(&lock_path) {
-        Ok(file) => (file, true),
+    let file = match create_options.open(&lock_path) {
+        Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
             let mut existing_options = OpenOptions::new();
             existing_options.read(true).write(true);
-            let file = existing_options.open(&lock_path).map_err(|_| EngineOpenError::Io {
+            existing_options.open(&lock_path).map_err(|_| EngineOpenError::Io {
                 message: "could not open database lock file".to_string(),
-            })?;
-            (file, false)
+            })?
         }
         Err(_) => {
             return Err(EngineOpenError::Io {
@@ -24093,7 +24082,7 @@ fn acquire_lock_without_metadata_mutation(
             })
         }
     };
-    let pending = PendingDatabaseLock { file: Some(file), path: lock_path.clone(), created };
+    let pending = PendingDatabaseLock { file: Some(file) };
 
     match pending.file.as_ref().expect("pending database lock retains its file").try_lock() {
         Ok(()) => Ok(pending),

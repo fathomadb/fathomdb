@@ -96,12 +96,17 @@ an earlier database.
   - **E3:** Acquire the product lock without rewriting its metadata, then make
     the authoritative freshness decision while holding it and before
     write-mode SQLite open, connection PRAGMAs, migration, recovery,
-    projection reconciliation, worker startup, or domain writes. Refused clean
-    and WAL-bearing schema-33 directories are byte-identical afterward.
-  - **E4:** Retain no public migration, translator, historical receipt/replay
-    reader, version router, or version-by-version matrix. Move the custom-
-    migration helper from all debug builds to the existing non-forwarded
-    dedicated non-forwarded `migration-test-hooks` feature.
+    projection reconciliation, worker startup, or domain writes. Refusal keeps
+    the database and SQLite sidecars byte-identical. Existing lock bytes are
+    unchanged; when the lock is absent, the attempt may establish only the
+    empty persistent lock namespace required for race-safe future opens.
+  - **E4:** Retain no default or shipped product migration, translator,
+    historical receipt/replay reader, version router, or version-by-version
+    matrix. Move the custom-migration helper from all debug builds to the
+    explicitly opt-in, non-forwarded `migration-test-hooks` engine feature.
+    Its `#[doc(hidden)]` public spelling exists only so Rust integration tests
+    can exercise migration mechanics; it is not re-exported or compiled by any
+    facade, binding, CLI, or shipping feature set.
 - **R26-40F — current restart integrity:** A schema-34 database reopens and
   replays an identical edge-bearing actuation receipt exactly; changed bytes
   conflict. The pre-open check must observe current committed WAL state rather
@@ -125,10 +130,12 @@ an earlier database.
   - **E2:** The shared public route refuses schema 33, schema 35, and non-empty
     zero-version SQLite as `IncompatibleSchemaVersion { seen, supported: 34 }`
     without migration events.
-  - **E3:** Clean, WAL/SHM-bearing, and WAL-without-SHM schema-33 directories
-    are byte-identical after refusal; an attempt-created SHM is removed. A
-    deterministic locked-admission test proves a competing product opener
-    cannot turn a fresh candidate into a migrated schema-33 database.
+  - **E3:** Clean, WAL/SHM-bearing, and WAL-without-SHM schema-33 database and
+    SQLite sidecars are byte-identical after refusal; an attempt-created SHM is
+    removed. Existing lock bytes are exact. A missing lock may become one empty
+    persistent lock file and no other byte may change. A deterministic locked-
+    admission test proves a competing product opener cannot turn a fresh
+    candidate into a migrated schema-33 database.
   - **E4:** Rust direct and migration-event opens, PyO3, N-API, and CLI use the
     same policy/error mapping; default/facade/binding builds do not compile or
     forward the feature-gated custom-migration seam.
@@ -150,9 +157,10 @@ an earlier database.
    active-lock/current-WAL cases. Add an internal deterministic locked-
    admission race test. Preserve the failing test commit.
 3. **GREEN-1 — cutover:** add content-free migration step 34 and route every
-   public open through one pre-mutation current-schema check. Keep
-   `open_with_migrations_for_test` explicitly outside that product policy and
-   compile it only under the non-forwarded `migration-test-hooks` feature.
+   public open through one pre-mutation current-schema check. Keep the
+   integration-test-only `open_with_migrations_for_test` explicitly outside
+   that product policy and compile it only under the non-forwarded
+   `migration-test-hooks` feature.
 4. **RED-2/GREEN-2 — binding and graph unit:** add focused PyO3/N-API policy
    mapping and fresh schema-34 mixed-unit/replay tests, then make only the
    smallest implementation or fixture changes required. Existing passing

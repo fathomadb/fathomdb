@@ -38,9 +38,11 @@ a missing/empty database. It is not an upgrade promise. Production refuses any
 non-empty database whose effective version is not 34 before the migration
 runner is called. The `open_with_migrations_for_test` seam retains direct
 access to the runner only under the engine's dedicated non-forwarded
-`migration-test-hooks` feature. Default engine, facade, Python, TypeScript, and CLI builds
-do not compile or forward that helper. Internal migration-mechanism targets
-opt into the feature explicitly.
+`migration-test-hooks` feature. Its `#[doc(hidden)]` public spelling is the
+minimum Rust integration-test seam, not a supported product API. Default
+engine, facade, Python, TypeScript, and CLI builds do not compile or forward
+that helper. Internal migration-mechanism targets opt into the feature
+explicitly.
 
 ## Shared public-open policy
 
@@ -49,15 +51,14 @@ Every public Rust open variant and both native bindings converge on
 admission sequence:
 
 1. Canonicalize the requested database path without creating the database.
-2. Acquire the product lock without truncating or writing its metadata. When
-   the lock file did not exist, create and lock it provisionally but record
-   ownership of that new file.
+2. Acquire the product lock without truncating or writing its metadata. A new
+   lock path is persistent: unlinking an advisory-lock inode would let a later
+   opener create and lock a second inode while the first remains active.
 3. Classify the path while holding the unmodified lock: missing/zero-length is
    `Bootstrap`; a non-empty SQLite database is `Current` only when its
    effective committed `user_version` is exactly 34. This result is
-   authoritative. A non-current result drops the lock and removes only a
-   provisional lock file created by this attempt; a pre-existing lock and all
-   database sidecars remain byte-identical.
+   authoritative. A non-current result drops the lock without rewriting its
+   metadata; all database and SQLite sidecars remain byte-identical.
 4. Only after the locked check admits the path, write the lock PID metadata
    and continue through the ordinary write-mode open, integrity/WAL probes,
    migration/bootstrap, recovery, projection reconciliation, and worker
@@ -70,6 +71,13 @@ typed refusal, or lose with `DatabaseLocked`; it can never be migrated by the
 0.8.26 caller. A raw SQLite writer that
 ignores the FathomDB product lock remains outside the engine's exclusion
 protocol, as it does on the existing write path.
+
+The lock inode is a persistent namespace object, not database content. A
+refusal preserves every database, WAL, SHM, and journal byte and never rewrites
+an existing lock. If a caller presents a database with no lock sidecar, the
+attempt may leave one empty lock file; removing it cannot be made race-safe
+because another opener may already hold the same inode. This is the sole
+allowed refusal-side namespace change.
 
 `Engine::open`, `open_with_choice`, and `open_with_migration_event_sink` all
 use this policy. PyO3, N-API, and the CLI already call those Rust entries and

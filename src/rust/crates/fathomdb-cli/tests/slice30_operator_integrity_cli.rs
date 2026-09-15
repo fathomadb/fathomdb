@@ -203,7 +203,7 @@ fn nonempty_wal_and_journal_refuse_without_alteration() {
 
 #[test]
 fn every_mismatched_signed_schema_refuses_without_migration() {
-    for version in [32_i64, 34, -1] {
+    for version in [32_i64, 35, -1] {
         let (_directory, path) = fresh_database(&format!("schema-{version}.sqlite"));
         let connection = Connection::open(&path).expect("open schema fixture");
         connection.pragma_update(None, "user_version", version).expect("stamp mismatched schema");

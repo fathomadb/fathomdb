@@ -162,7 +162,7 @@ required-features = ["operator"]
 
 [[test]]
 name = "provenance_mandatory"
-required-features = ["operator", "migration-test-hooks"]
+required-features = ["operator"]
 
 [[test]]
 name = "slice75_schema26_upgrade"

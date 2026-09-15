@@ -24,8 +24,9 @@ The reviewer then identified three material design defects:
    on refusal, preserves exact durable bytes, and tests current and old WAL
    states both with and without pre-existing SHM.
 3. `open_with_migrations_for_test` was public in every debug build. The final
-   design compiles it only under the engine's existing non-forwarded
-   `test-hooks` feature and requires default/facade/binding surface guards.
+   design compiles it only under the dedicated non-forwarded
+   `migration-test-hooks` feature and requires default/facade/binding surface
+   guards.
 
 A traceability rereview also caught recycled requirement identifiers. The
 final plan preserves N26-04 and R26-40A through R26-40E with their Slice 3
@@ -33,3 +34,11 @@ meanings, records A–D as already-satisfied regression obligations, and refines
 R26-40E with schema/open subcriteria. The last rereview confirmed the explicit
 schema-33 WAL-without-SHM restoration oracle and returned PASS with no
 remaining blocker.
+
+After code review exposed the split-inode race caused by unlinking an advisory
+lock path, the design was adjusted to make the lock namespace persistent. A
+final design rereview confirmed that classification remains entirely under the
+held lock; refusal preserves every database/SQLite-sidecar and existing-lock
+byte; and an absent lock may leave only one empty lock file. The reviewer found
+the contract internally consistent, race-safe, covered with lock/SHM/WAL
+present-and-absent tests, and not overbuilt, and returned **PASS**.

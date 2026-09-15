@@ -36,8 +36,11 @@ The following changes and assigned surfaces were reviewed before approval:
    integrity checks, and write counters are node-only where edge support is
    required.
 4. Python/PyO3 and TypeScript/N-API still parse closed four-variant unions.
-   Their exact operation parsers, exported types, shared conformance fixture,
-   native stubs, and interface documents are allocated to this slice.
+   Their exact operation parsers, exported types, a new Slice 35 shared
+   conformance fixture, native stubs, and interface documents are allocated to
+   this slice. The Slice 25 fixture and its retained TypeScript installed-smoke
+   test remain byte-identical because a historical 0.8.25 release-evidence
+   manifest seals their inventory.
 5. The schema remains version 33 and `Engine::open` still migrates earlier
    databases. Enabling the release-wide fresh-database cutover in this spike
    would consume Slice 40 and invalidate unrelated migration tests. This slice
@@ -134,7 +137,7 @@ an alternate API generation.
    committed application, receipt/source-reference handling, and counters by
    reusing canonical edge validation/application. Use one post-simulation
    indexed final-state endpoint pass; operation position stays non-semantic.
-4. RED-2/GREEN-2: update the shared conformance fixture and Python/TypeScript
+4. RED-2/GREEN-2: add the Slice 35 shared conformance fixture and Python/TypeScript
    closed-shape, precedence, Unicode/NUL, and no-V2 tests; extend the existing
    PyO3/N-API parsers and exported unions in place. Update interface docs.
 5. RED-3/GREEN-3: add the deterministic measurement harness, prove its scenario

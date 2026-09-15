@@ -127,7 +127,7 @@ fn mixed_batch_commits_atomically_and_exact_replay_is_idempotent() {
 #[test]
 fn shared_all_variant_fixture_has_exact_receipt_and_digest() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../../../dev/fixtures/slice25-actuation-conformance-v1.json"
+        "../../../../../dev/fixtures/slice35-actuation-conformance-v1.json"
     ))
     .unwrap();
     let expected = &fixture["expected"];

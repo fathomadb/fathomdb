@@ -125,6 +125,13 @@ Python accepts `put_derived_edge` with a snake-case edge record and TypeScript
 accepts the same discriminator with a camel-case record. Both reuse the
 ordinary provenance-bearing edge translators, wrapped by the actuation closed-
 shape validator so nested failures are rooted at `/operations/{i}/record`.
+Cross-binding expected bytes live in the new release-scoped
+`dev/fixtures/slice35-actuation-conformance-v1.json`; the older Slice 25
+fixture remains byte-identical because the 0.8.25 release-evidence seal pins
+its digest. The retained Slice 73 installed-module smoke continues to stage and
+run its historical Slice 25 test/fixture pair. A separate Slice 35 TypeScript
+test consumes the new fixture, so current edge conformance does not mutate the
+sealed smoke inventory.
 The existing top-level precedence is retained exactly: schema version, sorted
 top-level unknown field, required operation ID/type, decision-policy type,
 expected-write-boundary type/canonical number, operations presence/list type,

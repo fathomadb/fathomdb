@@ -41,3 +41,11 @@ The final read-only rereview returned PASS with no material findings. It
 confirmed that the plan, design, capacity implementation, receipt-dependent
 source-reference formula and tests, fixed-order accumulated-state benchmark,
 completion-spread calculation, and performance report are mutually aligned.
+
+Canonical verification later exposed that the original Slice 25 fixture was a
+sealed 0.8.25 release-evidence input. The amended design restores that fixture
+byte-identically and assigns current edge conformance to a new Slice 35 fixture
+and separate TypeScript test, leaving the retained installed-smoke inventory
+unchanged. A final read-only integration rereview returned PASS and confirmed
+the historical/current boundary across Rust, Python, TypeScript, and the
+Python fixture override.

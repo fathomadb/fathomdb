@@ -11,11 +11,11 @@ from fathomdb import ActuationBatchV1, Engine
 from fathomdb.errors import ActuationError
 
 
-_FIXTURE_OVERRIDE = os.environ.get("FATHOMDB_SLICE25_FIXTURE")
+_FIXTURE_OVERRIDE = os.environ.get("FATHOMDB_SLICE35_FIXTURE")
 _FIXTURE_PATH = (
     Path(_FIXTURE_OVERRIDE)
     if _FIXTURE_OVERRIDE is not None
-    else Path(__file__).parents[3] / "dev/fixtures/slice25-actuation-conformance-v1.json"
+    else Path(__file__).parents[3] / "dev/fixtures/slice35-actuation-conformance-v1.json"
 )
 SHARED_FIXTURE = json.loads(_FIXTURE_PATH.read_text())
 

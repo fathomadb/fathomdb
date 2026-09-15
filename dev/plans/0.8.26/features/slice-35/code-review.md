@@ -31,3 +31,13 @@ design reviewer separately returned final PASS on the amended design.
 The final read-only code rereview returned PASS with no material findings. It
 ran the Slice 35 engine suite (13/13), both malformed-edge binding precedence
 matrices, and `git diff --check`; all passed.
+
+Independent verification then found two test-integration gaps. The Python
+fixture adapter omitted `tValid`/`tInvalid`, and the changed Slice 25 fixture
+violated a historical release-evidence digest seal. The adapter now maps the
+two edge time fields. The sealed fixture is restored byte-identically, while a
+new Slice 35 fixture and separate TypeScript test carry current edge
+conformance without changing the retained Windows smoke inventory. Final
+read-only rereview returned PASS; it verified both fixture digests and parsers,
+the exclusive old/new TypeScript routing, the 5/5 Slice 73 structural tests,
+and the Rust shared-fixture test.

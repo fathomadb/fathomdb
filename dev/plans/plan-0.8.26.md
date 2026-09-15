@@ -143,11 +143,12 @@ if their design is discussed.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.26:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 30** (`INTEGRITY`) — read-only operator integrity inspection
+**IMMEDIATE NEXT: Slice 35** (`ACTUATION-SPIKE`) — breaking V1 actuation contract and performance spike
 
-**Remaining ladder:** 30 → 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
+**Remaining ladder:** 35 → 40 → 45 → 46 → 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
 
-D26-01 is ruled at `seq-290`; Slice 20 implements the selected option A. Do not
+D26-01 was ruled at `seq-290` and implemented by Slice 20. Slice 30 completed
+the selected existing-CLI integrity route without a prebuilt fallback. Do not
 publish or begin feature work outside the current slice.
 
 ## Stop gates

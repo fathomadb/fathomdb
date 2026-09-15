@@ -54,23 +54,32 @@ admission sequence:
 2. Acquire the product lock without truncating or writing its metadata. A new
    lock path is persistent: unlinking an advisory-lock inode would let a later
    opener create and lock a second inode while the first remains active.
-3. Classify the path while holding the unmodified lock: missing/zero-length is
+3. Configure the process-global SQLite runtime while holding the product lock
+   and before opening any SQLite connection. This preserves active-lock
+   precedence and ensures a first open of an existing database cannot make the
+   subsequent runtime configuration irreversibly `TooLate`.
+4. Classify the path while holding the unmodified lock: missing/zero-length is
    `Bootstrap`; a non-empty SQLite database is `Current` only when its
    effective committed `user_version` is exactly 34. This result is
    authoritative. A non-current result drops the lock without rewriting its
    metadata; all database and SQLite sidecars remain byte-identical.
-4. Only after the locked check admits the path, write the lock PID metadata
+5. Only after the locked check admits the path, write the lock PID metadata
    and continue through the ordinary write-mode open, integrity/WAL probes,
    migration/bootstrap, recovery, projection reconciliation, and worker
    startup.
 
-Holding the product lock across classification and writable open closes the
-cooperating-writer TOCTOU window. A deterministic internal race test proves an
-older FathomDB opener can either win the lock and leave schema 33 for a later
-typed refusal, or lose with `DatabaseLocked`; it can never be migrated by the
-0.8.26 caller. A raw SQLite writer that
-ignores the FathomDB product lock remains outside the engine's exclusion
-protocol, as it does on the existing write path.
+Holding the product lock across runtime configuration, classification, and
+writable open closes the cooperating-writer TOCTOU window. The older-wins
+integration case first holds the product lock, installs schema 33, and proves
+the current opener returns `DatabaseLocked` before later typed refusal. The
+current-wins unit case uses a path-scoped, `cfg(test)` rendezvous immediately
+after the current opener acquires the lock and configures SQLite but before
+classification. A competing older opener conditionally installs schema 33
+only if it acquires the same product lock; the test observes `DatabaseLocked`,
+proves no install occurred, and then asserts the current opener's exact
+`0 -> 34` migration report. The hook is absent from non-test builds. A raw
+SQLite writer that ignores the FathomDB product lock remains outside the
+engine's exclusion protocol, as it does on the existing write path.
 
 The lock inode is a persistent namespace object, not database content. A
 refusal preserves every database, WAL, SHM, and journal byte and never rewrites
@@ -145,13 +154,17 @@ historical reader, or operation-ID compatibility namespace is added.
   schema error before product mutation or migration events.
 - Missing/empty paths bootstrap all 34 ordered steps; current paths run none.
 - Future and foreign zero-version SQLite files follow the same refusal path.
-- Current corruption, WAL validation, runtime configuration, embedder identity,
-  and lock errors retain their existing typed boundaries after admission.
+- Active product locks are rejected before runtime configuration. Runtime
+  configuration precedes admission SQLite work; current corruption, WAL
+  validation, and embedder identity retain their existing typed boundaries.
 - Locked admission prevents a cooperating older opener from turning a fresh
   path into a silently migrated schema-33 database.
-- Focused integration proves schema/open behavior, clean refusal bytes,
-  current-WAL admission, active-lock precedence, and fresh mixed-unit
-  replay/traversal.
+- Process-isolated integration prepares fixtures outside the tested child and
+  proves first-operation clean schema-34 reopen, current-WAL reopen with and
+  without SHM, and schema-33 refusal followed by fresh creation in the same
+  child. Focused integration also proves clean refusal bytes, active-lock
+  precedence, and fresh mixed-unit replay/traversal; the deterministic unit
+  rendezvous proves the current-wins lock ordering.
 - Existing Slice 35 engine/property, PyO3, N-API, Python, and TypeScript tests
   remain the detailed actuation oracle. Slice 40 adds only cutover coverage and
   adjusts tests whose automatic-upgrade premise the accepted ADR supersedes.

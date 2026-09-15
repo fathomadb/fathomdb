@@ -4113,6 +4113,38 @@ fn configure_runtime_for_open() -> Result<RuntimeConfiguration, RuntimeConfigura
     configure_runtime_locked(None)
 }
 
+#[cfg(test)]
+struct AdmissionLockedHookForTest {
+    path: PathBuf,
+    rendezvous: Arc<Barrier>,
+}
+
+#[cfg(test)]
+static ADMISSION_LOCKED_HOOK_FOR_TEST: Mutex<Option<AdmissionLockedHookForTest>> = Mutex::new(None);
+
+#[cfg(test)]
+fn install_admission_locked_hook_for_test(path: PathBuf, rendezvous: Arc<Barrier>) {
+    *ADMISSION_LOCKED_HOOK_FOR_TEST.lock().expect("admission hook lock") =
+        Some(AdmissionLockedHookForTest { path, rendezvous });
+}
+
+#[cfg(test)]
+fn run_admission_locked_hook_for_test(path: &Path) {
+    let rendezvous = {
+        let mut hook = ADMISSION_LOCKED_HOOK_FOR_TEST.lock().expect("admission hook lock");
+        match hook.as_ref() {
+            Some(candidate) if candidate.path == path => {
+                hook.take().map(|candidate| candidate.rendezvous)
+            }
+            _ => None,
+        }
+    };
+    if let Some(rendezvous) = rendezvous {
+        rendezvous.wait();
+        rendezvous.wait();
+    }
+}
+
 #[cfg(feature = "operator")]
 fn data_plane_inspection_error(
     reason: DataPlaneIntegrityErrorReasonV1,
@@ -9103,6 +9135,9 @@ impl Engine {
         let reranker_device_resolution = None;
         let canonical_path = canonical_database_path(&path.into())?;
         let pending_lock = acquire_lock_without_metadata_mutation(&canonical_path)?;
+        configure_runtime_for_open().map_err(EngineOpenError::RuntimeConfiguration)?;
+        #[cfg(test)]
+        run_admission_locked_hook_for_test(&canonical_path);
         if plan.admission == DatabaseAdmission::CurrentOnly {
             admit_current_database(&canonical_path)?;
         }
@@ -9325,7 +9360,6 @@ impl Engine {
             ManagedConnectionRegistry,
         >,
     ) -> Result<(Connection, Vec<Connection>, OpenReport, Vec<i32>), EngineOpenError> {
-        configure_runtime_for_open().map_err(EngineOpenError::RuntimeConfiguration)?;
         register_sqlite_vec_extension();
         let mut connection = open_managed_connection(
             &path,
@@ -31250,15 +31284,16 @@ mod slice20_fix1_tests;
 #[cfg(test)]
 mod tests {
     use super::{
-        derive_stable_id, legacy_revision_id, native_connection_state_for_test,
-        prepare_search_statement, resolve_source_type, retain_complete_rank_boundary_candidates,
-        DeviceResolution, EmbedderChoice, Engine, EngineError, EngineOpenError, IdSpace,
-        IdSpaceKind, InitialState, LoaderInfo, ManagedConnectionRegistry, NativeTransactionState,
-        PreparedWrite, ProjectionRuntime, ProjectionRuntimeStartupFaultForTest,
-        ProjectionRuntimeStartupRole, ReaderRequest, RuntimeProbeConnection, SearchHit,
-        SoftFallbackBranch, SourceId, WalAttributionCollector, WalAttributionRole,
-        ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS,
-        READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+        acquire_lock_without_metadata_mutation, derive_stable_id,
+        install_admission_locked_hook_for_test, legacy_revision_id,
+        native_connection_state_for_test, prepare_search_statement, resolve_source_type,
+        retain_complete_rank_boundary_candidates, DeviceResolution, EmbedderChoice, Engine,
+        EngineError, EngineOpenError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
+        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, ProjectionRuntime,
+        ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole, ReaderRequest,
+        RuntimeProbeConnection, SearchHit, SoftFallbackBranch, SourceId, WalAttributionCollector,
+        WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL,
+        PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
@@ -31271,10 +31306,46 @@ mod tests {
     use std::path::Path;
     use std::process::Command;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::{mpsc, Arc};
+    use std::sync::{mpsc, Arc, Barrier};
     use std::thread;
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
+
+    #[test]
+    fn current_opener_holds_lock_before_admission_classification() {
+        let dir = TempDir::new().expect("tempdir");
+        let path = dir.path().join("current-wins.sqlite");
+        let rendezvous = Arc::new(Barrier::new(2));
+        install_admission_locked_hook_for_test(path.clone(), Arc::clone(&rendezvous));
+
+        let opener_path = path.clone();
+        let current = thread::spawn(move || Engine::open(opener_path));
+        rendezvous.wait();
+
+        let older_installed_schema = match acquire_lock_without_metadata_mutation(&path) {
+            Ok(pending) => {
+                let lock = pending.initialize().expect("initialize older lock");
+                let connection = Connection::open(&path).expect("open older database");
+                connection.pragma_update(None, "user_version", 33).expect("install schema 33");
+                connection.close().expect("close older database");
+                drop(lock);
+                true
+            }
+            Err(EngineOpenError::DatabaseLocked { holder_pid }) => {
+                assert_eq!(holder_pid, None, "metadata remains untouched during admission");
+                false
+            }
+            Err(other) => panic!("unexpected competing opener result: {other:?}"),
+        };
+
+        rendezvous.wait();
+        assert!(!older_installed_schema, "the losing older opener must not install schema 33");
+        let opened = current.join().expect("current opener thread").expect("current open");
+        assert_eq!(opened.report.schema_version_before, 0);
+        assert_eq!(opened.report.schema_version_after, 34);
+        assert_eq!(opened.report.migration_steps.last().map(|step| step.step_id), Some(34));
+        opened.engine.close().expect("close current engine");
+    }
 
     #[test]
     fn statement_reuse_refreshes_alternating_bindings() {

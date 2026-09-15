@@ -94,12 +94,14 @@ an earlier database.
     exactly 34. All public engine-open routes share this policy and use the
     existing typed incompatible-schema error.
   - **E3:** Acquire the product lock without rewriting its metadata, then make
-    the authoritative freshness decision while holding it and before
-    write-mode SQLite open, connection PRAGMAs, migration, recovery,
-    projection reconciliation, worker startup, or domain writes. Refusal keeps
-    the database and SQLite sidecars byte-identical. Existing lock bytes are
-    unchanged; when the lock is absent, the attempt may establish only the
-    empty persistent lock namespace required for race-safe future opens.
+    process-global runtime configuration and the authoritative freshness
+    decision while holding it. Runtime configuration precedes every admission
+    SQLite connection; classification still precedes write-mode SQLite open,
+    connection PRAGMAs, migration, recovery, projection reconciliation, worker
+    startup, or domain writes. Refusal keeps the database and SQLite sidecars
+    byte-identical. Existing lock bytes are unchanged; when the lock is absent,
+    the attempt may establish only the empty persistent lock namespace required
+    for race-safe future opens.
   - **E4:** Retain no default or shipped product migration, translator,
     historical receipt/replay reader, version router, or version-by-version
     matrix. Move the custom-migration helper from all debug builds to the
@@ -135,14 +137,21 @@ an earlier database.
     removed. Existing lock bytes are exact. A missing lock may become one empty
     persistent lock file and no other byte may change. A deterministic locked-
     admission test proves a competing product opener cannot turn a fresh
-    candidate into a migrated schema-33 database.
+    candidate into a migrated schema-33 database. A path-scoped test-only
+    rendezvous pauses the current opener after lock acquisition and before
+    classification, proves the competing older opener receives
+    `DatabaseLocked` and cannot install schema 33, then verifies the exact
+    current bootstrap report.
   - **E4:** Rust direct and migration-event opens, PyO3, N-API, and CLI use the
     same policy/error mapping; default/facade/binding builds do not compile or
     forward the feature-gated custom-migration seam.
 - **AC26-40F:** A current schema-34 database with committed state still in WAL
   is admitted and recovered; an active second open retains the existing
-  `DatabaseLocked` precedence. Default engine, facade, and binding builds do
-  not compile or forward the feature-gated custom-migration seam.
+  `DatabaseLocked` precedence. Process-isolated tests prepare fixtures outside
+  the tested child and prove first-operation clean reopen, WAL reopen with and
+  without SHM, and schema-33 refusal followed by fresh creation in one process.
+  Default engine, facade, and binding builds do not compile or forward the
+  feature-gated custom-migration seam.
 - **AC26-40G:** The current wire and binding interface contracts state schema
   34 and fresh-only refusal. Focused tests, `git diff --check`, contract/docs
   validators, and `./scripts/agent-verify.sh` pass; package/platform matrices
@@ -183,3 +192,24 @@ Stop on a partial graph unit, replay/digest ambiguity, a V2/router, an earlier
 database mutation or upgrade, a current-WAL false refusal, weakened corruption
 or lock precedence, unbounded work, migration-test access from production, or
 scope that belongs to Slice 45, 46, or 50.
+
+## Post-implementation Astra design-review adjustment
+
+The 2026-09-15 GPT-6 Astra medium review found two material gaps and changed
+the approved execution details without widening product scope:
+
+1. **P1 — runtime configuration ordering:** admission opened SQLite before
+   `configure_runtime_for_open`, so a fresh process reopening a current or WAL
+   database could fail `RuntimeConfiguration(TooLate)`, and a schema-33 refusal
+   could poison a later fresh open. Implementation moves configuration to the
+   held-lock interval before classification and removes the later duplicate.
+   Tests add the three process-isolated cases enumerated in AC26-40F.
+2. **P2 — claimed race proof exceeded its evidence:** the older-wins test did
+   not prove the current-wins interval. Implementation adds only a path-scoped
+   `cfg(test)` rendezvous after lock/configuration and before classification.
+   The deterministic unit test conditionally attempts the older schema-33
+   install, proves lock refusal, and checks the winning `0 -> 34` report. The
+   existing older-wins integration case remains.
+
+Both findings refine R26-40E/F and their tests; neither changes the public API,
+schema contents, binding behavior, or allocated later-slice scope.

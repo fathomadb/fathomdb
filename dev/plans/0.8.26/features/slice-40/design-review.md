@@ -42,3 +42,28 @@ held lock; refusal preserves every database/SQLite-sidecar and existing-lock
 byte; and an absent lock may leave only one empty lock file. The reviewer found
 the contract internally consistent, race-safe, covered with lock/SHM/WAL
 present-and-absent tests, and not overbuilt, and returned **PASS**.
+
+## GPT-6 Astra medium post-implementation review
+
+A fresh GPT-6 Astra medium design review found two gaps in the approved design
+and its evidence:
+
+1. **P1:** `admit_current_database` could open SQLite before process-global
+   runtime configuration. In a fresh process this made a clean schema-34 or
+   current-WAL reopen fail `RuntimeConfiguration(TooLate)`; a schema-33 refusal
+   could likewise poison a later fresh creation. The required implementation
+   change was to configure SQLite under the already-held product lock and
+   before classification, without weakening `DatabaseLocked` precedence. The
+   required tests were child-process first-operation clean reopen, WAL reopen
+   with and without SHM, and schema-33 refusal followed by fresh creation in
+   the same child.
+2. **P2:** the existing older-wins case did not prove the claimed current-wins
+   race ordering. The required implementation change was a minimal test-only
+   synchronization point after lock acquisition and before classification or
+   writable open. The required test pauses there, has a competing older opener
+   attempt the same product lock and conditionally install schema 33, proves it
+   cannot, and verifies the current opener's schema/migration result.
+
+The design and plan now state the corrected ordering and exact evidence. The
+implementation and focused tests contain both remediations; final Astra
+rereview is recorded below after verification.

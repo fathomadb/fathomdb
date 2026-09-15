@@ -230,6 +230,48 @@ def load_json(path):
         die_env("cannot parse %s: %s" % (path, exc))
 
 
+def npm_pack_paths(payload, package_dir):
+    if isinstance(payload, list):
+        packs = payload
+    elif isinstance(payload, dict):
+        packs = list(payload.values())
+    else:
+        die_env(
+            "npm pack --dry-run --json in %s emitted an unexpected top-level "
+            "JSON type %s; expected an array or a package-name object"
+            % (package_dir, type(payload).__name__)
+        )
+
+    if not packs:
+        die_env("npm pack --dry-run --json in %s emitted no package records" % package_dir)
+
+    paths = []
+    for pack_index, pack in enumerate(packs):
+        if not isinstance(pack, dict):
+            die_env(
+                "npm pack --dry-run --json in %s emitted package record %d as %s, "
+                "not an object"
+                % (package_dir, pack_index, type(pack).__name__)
+            )
+        files = pack.get("files")
+        if not isinstance(files, list):
+            die_env(
+                "npm pack --dry-run --json in %s emitted package record %d without "
+                "an array-valued files field" % (package_dir, pack_index)
+            )
+        for file_index, file_record in enumerate(files):
+            if not isinstance(file_record, dict) or not isinstance(
+                file_record.get("path"), str
+            ):
+                die_env(
+                    "npm pack --dry-run --json in %s emitted file record %d for "
+                    "package record %d without a string path"
+                    % (package_dir, file_index, pack_index)
+                )
+            paths.append(file_record["path"])
+    return paths
+
+
 def run(cmd, cwd):
     try:
         return subprocess.run(
@@ -525,7 +567,7 @@ if not SKIP_PACKAGING:
             except ValueError as exc:
                 fail("npm pack --dry-run --json in %s emitted unparseable JSON: %s" % (d, exc))
                 continue
-            paths = [f["path"] for pack in packs for f in pack.get("files", [])]
+            paths = npm_pack_paths(packs, d)
             if "LICENSE" not in paths:
                 fail(
                     "npm package %s: `npm pack --dry-run` file list does NOT contain "

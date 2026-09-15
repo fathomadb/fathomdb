@@ -99,20 +99,21 @@ before product mutation. There is no 0.8.26 migration from an earlier database.
 
 Canonical records, provenance, dependencies, operational state, actuation
 receipts, projection state, FTS, and vector state remain in one SQLite product
-database with WAL and the existing admission/ownership lock. The primary writer
-thread owns caller-submitted mutation transactions and schedules post-commit
-projection work. Projection workers use their own SQLite connections for async
-vector publication; their `BEGIN IMMEDIATE` commits are totally ordered by the
-shared `commit_gate`. Pooled readers own read transactions; frozen
+database with WAL and the existing admission/ownership lock. The primary
+mutex-serialized writer connection owns caller-submitted mutation transactions
+and schedules post-commit projection work. Projection workers use their own
+SQLite connections for async vector publication; their `BEGIN IMMEDIATE`
+commits are totally ordered by the shared `commit_gate`. Pooled readers own read
+transactions; frozen
 authorization, graph selection, and evidence materialization do not move onto
 either write lane.
 
 This is a deliberate refinement of the 0.6.0 single-writer architecture. Its
-one-primary-writer and same-file atomicity rules still govern caller mutation,
+one-primary-write-lane and same-file atomicity rules still govern caller mutation,
 while ratified 0.8.14 EXP-S D2/D5 established and preserved asynchronous vector
 projection workers with serialized commits. There is never more than one
 SQLite write transaction at a time, but projection publication no longer runs
-on the primary writer thread.
+on the primary writer connection.
 
 ### Governed read and evidence paths
 

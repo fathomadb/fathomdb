@@ -102,10 +102,10 @@ guidance.
 | --- | --- |
 | R26-46A: exact lifecycle coverage | AC26-46A: every tracked `dev/design/**/*.md` file is cataloged exactly once with valid class/topic/role/owner/release fields and an existing successor when one is declared. |
 | R26-46B: current design authority | AC26-46B: `dev/design/README.md`, `dev/DOC-INDEX.md`, and `dev/doc-index/design.md` identify the active architecture and maintained technical-design owners without stale manual-current claims or duplicate current ownership. |
-| R26-46C: maintained-owner truth | AC26-46C: every catalog entry classified `maintained` is semantically reviewed against its complete current authority or is narrowed by an explicit successor/reference boundary; no target-release/status heuristic substitutes for that review. |
+| R26-46C: maintained-owner truth | AC26-46C: every catalog entry classified `maintained` has an auditable disposition naming its current ADR/interface/design authority and an implementation/test witness, or the exact bounded reference/policy/method scope that makes a code seam inapplicable; no target-release/status heuristic or unsupported conclusion substitutes for that review. |
 | R26-46D: 0.8.26 design truth | AC26-46D: the owners in the topic matrix agree with accepted ADRs/interfaces and verified Slice 10/20/30/35/40 behavior for frozen/graph evidence, integrity inspection, changed-in-place actuation and persistence, lifecycle/erasure effects, bindings, schema-34 fresh open, performance, release, and explicit deferrals. |
 | R26-46E: historical preservation | AC26-46E: historical, experimental, reference, proposal, deferred, and superseded records stay in place; superseded authorities have valid successor navigation; no unique rationale or evidence is deleted. |
-| R26-46F: recurrence prevention | AC26-46F: a focused RED fixture proves missing/extra/duplicate paths, invalid fields/classes, absent owners/successors, superseded-without-successor, duplicate maintained topic/role ownership, or missing local/CI wiring fail; GREEN makes every arm pass. |
+| R26-46F: recurrence prevention | AC26-46F: a focused RED fixture proves missing/extra/duplicate paths, invalid fields/classes, absent owners/successors, self/cyclic/nonterminating supersession, duplicate maintained topic/role ownership, commented-out local/CI calls, or a checker call outside the intended docs-only CI job fail; a valid internal/external terminal successor and effective local/docs-only wiring pass; GREEN makes every arm pass. |
 | R26-46G: proportional closure | AC26-46G: focused lifecycle, link, Markdown, and docs-build checks plus `agent-verify` pass; no product/ADR/interface/package/publication change and Slice 50 remains the integrated artifact/platform owner. |
 
 ### Topic-owner disposition
@@ -119,7 +119,7 @@ guidance.
 | actuation, receipt persistence, lifecycle/erasure effects | new `actuation.md` | Distill the current five-operation V1 transaction, prospective validation, receipt integrity/replay, projection, supersession, and erasure design; historical slice designs remain evidence. |
 | projections and scheduler | `projections.md`; `scheduler.md` | Review the derived-edge path and update only where current ordering/effect facts are missing. |
 | bindings and errors | `bindings.md`; `errors.md` | Preserve their current-owner role despite old target metadata; add only missing 0.8.26 cross-binding/error rules. |
-| vector, embedder, op-store, lifecycle observability | `vector.md`; `embedder.md`; `op-store.md`; `lifecycle.md` | Semantic review; retain or narrowly bound unchanged when 0.8.26 introduces no owned delta. |
+| vector, embedder, op-store, lifecycle observability | `vector.md`; `embedder.md`; `op-store.md`; `lifecycle.md` | Semantic review; replace the vector stub contradiction with a small current design tied to schema/engine/recovery witnesses, and retain or narrowly bound the other owners when 0.8.26 introduces no owned delta. |
 | performance | `perf-gates.md`; `perf-regression-detection.md` | Review as current measurement owners; no new performance claim. |
 | release | `release.md` | Preserve publish mechanics and point integrated non-publishing evidence to Slice 50. |
 | cross-release method/policies | `orchestration.md`; `pinned-override-rot-guard.md`; `gpu-eval-activities-policy.md` | Review current applicability and catalog as maintained policy/method owners, not 0.8.26 feature designs. |
@@ -129,13 +129,17 @@ guidance.
 
 1. **RED:** add focused lifecycle-catalog checker tests for exact tree coverage,
    duplicate entries, invalid classes, absent owners/successors, and missing
-   local/CI wiring. Commit the failing oracle before the checker/catalog.
+   local/CI wiring. Commit the failing oracle before the checker/catalog. After
+   design review, add a second RED for self/cyclic supersession and commented or
+   misplaced wiring before strengthening the GREEN checker.
 2. **GREEN:** add the smallest checker and complete catalog; replace the stale
    manual-current list with catalog-backed navigation; add `actuation.md` and
    only the necessary topic-owner corrections and successor pointers.
-3. Compare every maintained owner with its complete current authority. For the
-   0.8.26 delta, verify the accepted ADR/interface, implementation seam, and
-   focused Slice 10–40 tests. Correct documentation, not product code.
+3. Compare every maintained owner with its complete current authority. Record a
+   compact authority plus implementation/test-witness disposition for each one;
+   policy/method owners instead name their exact bounded scope. For the 0.8.26
+   delta, verify the accepted ADR/interface, implementation seam, and focused
+   Slice 10–40 tests. Correct documentation, not product code.
 4. Run the focused checker/tests, Markdown/link/docs checks, and independent
    code review. Resolve findings with additional RED/GREEN only if behavior in
    the checker changes.

@@ -60,18 +60,25 @@ document record has:
   `future:<version-or-window>`, or `cross-release`; and
 - `successor`: an existing repository path or `null`.
 
-For `superseded`, `successor` is mandatory and `owner` equals that successor.
-Other classes may name a successor only when verified. A maintained
-`(topic, role)` pair is unique; multi-record sets use distinct roles, so a
-requirements/design/acceptance trio is valid. Classification is based on
-substance and current authority links, never target-release or status text
-alone.
+For `superseded`, `successor` is mandatory and `owner` equals that immediate
+successor. A successor cannot be self-referential. When the successor is another
+cataloged design document, following successors must be acyclic and terminate
+at a non-superseded catalog entry. An existing regular file outside the design
+catalog (for example an accepted ADR, plan, or release-state file) is an
+explicit terminal authority. Other classes may name a successor only when
+verified. A maintained `(topic, role)` pair is unique; multi-record sets use
+distinct roles, so a requirements/design/acceptance trio is valid.
+Classification is based on substance and current authority links, never
+target-release or status text alone.
 
 ## Reconciliation model
 
 Start from the Slice 45 architecture map. For each maintained topic, compare
 the design with accepted ADRs, public interfaces, requirements/acceptance, code
-seams, and focused tests. Update design facts and navigation when authority and
+seams, and focused tests. The disposition matrix records both the governing
+authority and at least one implementation/test witness. A policy or method
+without a product-code seam instead records its exact bounded scope and
+enforcement witness. Update design facts and navigation when authority and
 implementation agree. If they disagree, record the conflict and return it to
 the owning product slice; do not choose a winner inside documentation cleanup.
 
@@ -97,6 +104,14 @@ even when their front matter names an older target. Slice 46 amends
 semantic review finds a current gap. It creates `actuation.md` because no
 maintained topic design currently owns the implemented actuation transaction
 and receipt model.
+
+`vector.md` is not accepted as a current owner while also calling itself a
+stub. Slice 46 replaces that contradiction with a compact current design that
+defines the schema-owned vec0/sidecar shape boundary, LE-f32 plus mean-centered
+sign-bit representation, reader-snapshot query path, projection-generation
+publication, erasure, and rebuild-from-canonical behavior. It links the schema,
+engine, recovery, filter ADR, and focused vector/recovery tests rather than
+repeating historical slice narratives.
 
 `actuation.md` uniquely owns implementation-shape details below the accepted
 ADR and interfaces:
@@ -125,19 +140,28 @@ and publication remain explicit deferrals rather than current design.
 `scripts/check-design-lifecycle.py` parses the catalog as data and compares its
 path set with tracked `dev/design/**/*.md` files. It rejects
 duplicate/missing/extra paths, invalid or missing fields, unknown classes,
-missing owner paths, missing declared successors, a superseded entry without a
-successor, and duplicate maintained `(topic, role)` ownership.
+missing owner paths, missing declared successors, self/cyclic/nonterminating
+supersession, a superseded entry without a successor, and duplicate maintained
+`(topic, role)` ownership.
 `scripts/tests/test_check_design_lifecycle.sh` uses isolated fixture
 repositories so the RED oracle does not depend on the production catalog being
 wrong.
 
-The checker runs from `agent-lint-md.sh` and the corresponding docs-only CI
-leg. It does not lint document prose, infer semantic truth, rewrite files, or
-enforce release-number heuristics. Those are review responsibilities.
+The checker requires an active, non-comment `run_capped
+check-design-lifecycle "$SCRIPT_DIR/check-design-lifecycle.py"` invocation in
+`agent-lint-md.sh`. In CI it requires an active `run: python3
+scripts/check-design-lifecycle.py` step inside the top-level `markdownlint` job,
+whose job-level condition is `needs.changes.outputs.docs_only == 'true'`.
+Commented occurrences and calls in other jobs do not satisfy the contract. This
+is a small indentation-aware structural check of those owned call sites, not a
+general shell or YAML interpreter. The checker does not lint document prose,
+infer semantic truth, rewrite files, or enforce release-number heuristics.
+Those are review responsibilities.
 
 ## Failure and preservation model
 
-- Missing or ambiguous current authority fails the catalog gate.
+- Missing or ambiguous current authority fails the catalog gate; supersession
+  must terminate without self-reference or cycles.
 - A semantic contradiction stops the slice and returns to the owning product
   contract; documentation cleanup does not choose a new product behavior.
 - No path is moved or deleted. Classification changes are ordinary reviewed

@@ -18,13 +18,14 @@ renumbering the release.
 | 35 | Breaking changed-in-place V1 actuation, fresh-database, receipt, and performance spike | P2 feasibility | Complete |
 | 40 | V1 atomic derived-edge actuation and fresh-database boundary | P2 | Complete |
 | 45 | Architecture documentation convergence | release documentation | Complete |
-| 46 | Technical design documentation convergence | release documentation | Next |
-| 50 | Integrated package, platform, cross-SDK, and release verification | P0–P2 | Draft |
+| 46 | Technical design documentation convergence | release documentation | Complete |
+| 50 | Integrated package, platform, cross-SDK, and release verification | P0–P2 | Next |
 
 Each implementation slice and approved spike retains its reviewed execution
 plan, design, review, and status evidence. Slice 15 and Slice 35 were inserted
 by Slice 8 evidence after the initial mod-10 ladder was drafted. D26-01 and
 D26-03 through D26-05 are ruled and implemented. Slices 45 and 46 are the
-post-implementation documentation convergence gates: architecture authority is
-now reconciled, and technical designs align to that hierarchy next before
-integrated verification. HITL approved that placement at `seq-288`.
+post-implementation documentation convergence gates: architecture and technical
+design authority are now reconciled. Slice 50 is the sole next dependency for
+integrated non-publishing verification. HITL approved that placement at
+`seq-288`.

@@ -11,20 +11,20 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 46 (DESIGN-CONVERGENCE), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 50 (RELEASE-VERIFICATION), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
 
-Slices 0–10, 15, 20, 30, 35, 40, and 45 are complete on the 0.8.26 release
-line. Slice 45 establishes one active v2.2 architecture for the as-built source
-candidate, retains the 0.6.0 snapshot as superseded history, reconciles the
-source-accurate caller/projection write lanes and feature boundaries, and adds
-an 18-control authority guard to local and Markdown-only CI. Independent design
-and code reviews pass. The unchanged unconfined canonical gate passes 111/111
-suites after the documented sandbox-only AC-036 ptrace denial. Slice 46 is
-next; Slice 50 retains exact-version package/platform verification.
+Slices 0–10, 15, 20, 30, 35, 40, 45, and 46 are complete on the 0.8.26 release
+line. Slice 45 establishes the active v2.2 architecture; Slice 46 places all 186
+tracked technical-design documents under an exact lifecycle catalog, reconciles
+25 maintained owners, and enforces current ownership plus local/docs-only CI
+wiring. GPT-6 Astra medium design review and independent code review pass. The
+unchanged unconfined canonical gate passes 112/112 suites after the documented
+sandbox-only AC-036 ptrace denial. Slice 50 retains exact-version integrated
+package/platform verification.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 46 (DESIGN-CONVERGENCE)** — maintained technical-design convergence. **Remaining ladder:** 46 → 50.<!-- END GENERATED release-state:0.8.26:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 50 (RELEASE-VERIFICATION)** — integrated non-publishing release verification. **Remaining ladder:** 50.<!-- END GENERATED release-state:0.8.26:status-next-action -->
 
 ## Open decisions
 

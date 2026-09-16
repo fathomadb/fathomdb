@@ -90,8 +90,8 @@ fix depends on built product artifacts or belongs at the release boundary.
 | 35 | Prove the breaking changed-in-place V1 actuation, fresh-database, receipt, and performance contract; accept or narrow the Slice 40 design. | 30 | Complete on release branch at `9a81a75c` |
 | 40 | Extend V1 actuation in place with the accepted atomic derived-edge contract and fresh-database boundary. | 35 | Complete on release branch at `bfb2132b` |
 | 45 | Reconcile maintained architecture documentation with accepted decisions, public contracts, and the as-built 0.8.26 system. | 40 | Complete on release branch at `6f68e2fd` |
-| 46 | Reconcile and organize maintained technical design documentation under the Slice 45 architecture hierarchy. | 45 | Placement approved at `seq-288`; draft |
-| 50 | Run integrated Memex-profile, cross-SDK, platform, package, documentation, and non-publishing release verification. | 46 | Draft |
+| 46 | Reconcile and organize maintained technical design documentation under the Slice 45 architecture hierarchy. | 45 | Complete on release branch at `801586b2` |
+| 50 | Run integrated Memex-profile, cross-SDK, platform, package, documentation, and non-publishing release verification. | 46 | Next |
 
 ## Requirements and acceptance criteria
 
@@ -143,9 +143,9 @@ if their design is discussed.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.26:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 46** (`DESIGN-CONVERGENCE`) — maintained technical-design convergence
+**IMMEDIATE NEXT: Slice 50** (`RELEASE-VERIFICATION`) — integrated non-publishing release verification
 
-**Remaining ladder:** 46 → 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
+**Remaining ladder:** 50.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
 
 D26-01 was ruled at `seq-290` and implemented by Slice 20. Slice 30 completed
 the selected existing-CLI integrity route without a prebuilt fallback. Do not

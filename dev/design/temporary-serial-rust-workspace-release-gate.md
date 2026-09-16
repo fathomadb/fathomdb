@@ -60,8 +60,8 @@ fix for TC-29, TC-72, or any engine concurrency defect.
 
 ## 3. Canonical interface
 
-Add `scripts/test-rust-workspace.sh` as the sole owner of the workspace Rust
-test invocation. It accepts exactly one required mode:
+`scripts/test-rust-workspace.sh` is the sole owner of the workspace Rust test
+invocation. It accepts exactly one required mode:
 
 ```text
 bash scripts/test-rust-workspace.sh --serial
@@ -95,7 +95,7 @@ flag. It has the normal underlying `cargo` exit code. The script itself never
 suppresses a failure, retries, or re-labels it; the CI reporter is the only
 consumer allowed to make that result non-gating.
 
-`scripts/agent-test.sh` changes its `test-rust` registration to:
+`scripts/agent-test.sh` registers `test-rust` as:
 
 ```text
 run_suite test-rust bash scripts/test-rust-workspace.sh --serial
@@ -112,9 +112,8 @@ The CI legs use the runner as follows:
 | --- | --- |
 | Linux `verify` | `agent-verify.sh` → `agent-test.sh` → `test-rust-workspace.sh --serial` |
 
-No native macOS or Windows release leg is active in 0.8.20. The Linux-first
-platform-scope test protects that B4 deferral; native release work resumes in
-0.8.22.
+At adoption in 0.8.20, no native macOS or Windows release leg was active. That
+historical B4 platform deferral does not define the current platform matrix.
 
 ## 4. Local-before-CI evidence protocol
 
@@ -167,8 +166,8 @@ of the Rust-workspace suite remains a normal gate failure. No active 0.8.20
 gating workflow job may retain or add a direct `cargo test --workspace`
 command. No CI-only serial command is permitted.
 
-Add a separate Linux job named `rust-workspace-race-report`. It installs the
-same Rust toolchain/cache as the existing Rust test job, then runs:
+The separate Linux job named `rust-workspace-race-report` installs the same Rust
+toolchain/cache as the gating Rust test job, then runs:
 
 ```text
 bash scripts/test-rust-workspace.sh --parallel-report
@@ -200,24 +199,23 @@ prints the suite label, immediate exit code, and its full spill-log location.
 The CI log is the primary artifact; upload a serial-gate failure log only if
 the implementation can do so without changing the command's exit semantics.
 
-## 6. Red-first implementation tests
+## 6. Retained RED-first implementation evidence
 
-Write these tests before adding the runner or workflow wiring. The tests must
-drive the actual scripts, using a disposable fake `cargo` earlier on `PATH`
-where command arguments and exit propagation need observation; they must not
-reimplement the runner in a helper.
+The implementation added these tests before the runner and workflow wiring.
+They drive the actual scripts, using a disposable fake `cargo` earlier on
+`PATH` where command arguments and exit propagation need observation; they do
+not reimplement the runner in a helper.
 
-1. Add `scripts/tests/test_rust_workspace_gate.sh`.
+1. `scripts/tests/test_rust_workspace_gate.sh`:
    - The `--serial` arm proves the actual fake-Cargo invocation contains
      `test --workspace --quiet --no-fail-fast --jobs 1 -- --test-threads=1`.
    - The `--parallel-report` arm proves neither serialization flag is present.
    - A fake Cargo non-zero exit is returned unchanged in both modes.
    - Missing, repeated, and unknown modes exit `2` before Cargo executes.
-2. Extend the existing `test_agent_test_collect_all.sh` recurrence guard to
-   prove `test-rust` delegates to `test-rust-workspace.sh --serial`, rather
-   than retaining a direct `cargo test --workspace` registration.
-3. Add a workflow recurrence test, for example
-   `scripts/tests/test_ci_rust_workspace_gate.sh`, which parses the real
+2. The extended `test_agent_test_collect_all.sh` recurrence guard proves
+   `test-rust` delegates to `test-rust-workspace.sh --serial`, rather than
+   retaining a direct `cargo test --workspace` registration.
+3. `scripts/tests/test_ci_rust_workspace_gate.sh` parses the real
    `.github/workflows/ci.yml` as YAML rather than searching its text. It proves
    that `verify` still calls `agent-verify.sh`; that no active gating job
    contains a direct `cargo test --workspace` invocation; and that the deferred
@@ -237,31 +235,33 @@ reimplement the runner in a helper.
    writing that summary. A misplaced `rc=$?`, an early `set -e`, a pipeline,
    or an early `exit 0` fails this executed control. `bash -n` remains a syntax
    check; it is not treated as proof of these semantics.
-4. Register both new shell tests with `agent-test.sh` before the Rust suite so
-   the collect-all harness reports their failures. Run actionlint against the
-   edited workflow as part of the normal lint gate.
+4. Both shell tests are registered with `agent-test.sh` before the Rust suite so
+   the collect-all harness reports their failures. The normal lint gate runs
+   actionlint against the workflow.
 
-The initial state is red because neither the canonical runner nor the reporter
-job exists. Green is the exact behavioural contract above, not merely a text
-search for `--jobs 1`.
+The recorded initial state was red because neither the canonical runner nor the
+reporter job existed. The retained green oracle is the exact behavioural
+contract above, not merely a text search for `--jobs 1`.
 
-## 7. Acceptance evidence
+## 7. Original acceptance evidence and ongoing invariant
 
-The change is acceptable only when all of the following are retained:
+The implementation was accepted with the following evidence. The script and
+workflow recurrence controls remain the ongoing invariant; release-specific
+0.8.20 run evidence is historical.
 
 - The red-first test commits/results and the focused script/workflow tests are
   green.
 - The three consecutive clean-clone `agent-verify` attempts have immediate
   `0` results and readable logs on the exact candidate SHA.
-- A pull-request CI run has every applicable 0.8.20 gating job green, including
-  Linux `verify`; the serial Rust suite is visible in Linux's collect-all
-  summary. B4 keeps native macOS and Windows release legs deferred to 0.8.22.
-- The parallel reporter has executed, its artifact is retrievable, and its
-  outcome is recorded separately from the gating result. A reporter red is a
-  race observation to triage, not permission to retry the serial gate until it
-  looks green.
-- An independent review checks both the runner's actual process/exit behaviour
-  and the workflow's failure-reporting semantics, rather than accepting a
+- The 0.8.20 pull-request CI run had every applicable gating job green,
+  including Linux `verify`, with the serial Rust suite visible in the
+  collect-all summary.
+- The parallel reporter executed, its artifact was retrievable, and its outcome
+  was recorded separately from the gating result. A reporter red remains a race
+  observation to triage, not permission to retry the serial gate until it looks
+  green.
+- Independent review checked both the runner's actual process/exit behaviour
+  and the workflow's failure-reporting semantics rather than accepting a
   configuration-only reading.
 
 ## 8. Removal criteria

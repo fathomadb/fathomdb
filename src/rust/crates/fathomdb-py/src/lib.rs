@@ -3401,6 +3401,18 @@ impl PyEngine {
         Ok(())
     }
 
+    #[cfg(feature = "test-hooks")]
+    fn _set_legacy_projection_search_subobjects_for_test(
+        &self,
+        py: Python<'_>,
+        name: &str,
+    ) -> PyResult<()> {
+        validate_ffi_string_py(name)?;
+        let engine = Arc::clone(&self.inner);
+        let name = name.to_string();
+        call_engine(py, move || engine.set_legacy_projection_search_subobjects_for_test(&name))
+    }
+
     #[pyo3(signature = (logger, heartbeat_interval_ms = None))]
     fn attach_logging_subscriber(
         &self,

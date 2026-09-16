@@ -48,6 +48,7 @@ from pathlib import Path
 TEST_HOOK_SYMBOLS: tuple[tuple[str | None, str], ...] = (
     ("Engine", "_configure_vector_kind_for_test"),
     ("Engine", "_write_vector_for_test"),
+    ("Engine", "_set_legacy_projection_search_subobjects_for_test"),
     ("Engine", "_arm_next_reader_snapshot_pause_for_test"),
     ("Engine", "_arm_next_reader_completion_pause_for_test"),
     ("Engine", "_wal_attribution_checkpoint_records_for_test"),

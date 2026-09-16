@@ -13757,7 +13757,7 @@ impl Engine {
     /// registry mutation and matching generation transition are atomic, so the
     /// fixture exercises inert-shape handling without bypassing current
     /// projection-generation authority.
-    #[cfg(debug_assertions)]
+    #[cfg(any(debug_assertions, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_legacy_projection_search_subobjects_for_test(
         &self,

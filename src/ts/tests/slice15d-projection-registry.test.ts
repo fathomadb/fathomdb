@@ -82,56 +82,6 @@ function registryNames(path: string): string[] {
   }
 }
 
-// 0.8.20 Slice 23 (`R-20-SV`) — write a registry row the way the SHIPPED
-// PRE-Slice-23 engine wrote it, back when an `fts`/`vector` sub-object without
-// the `searchable` role was ACCEPTED. A raw INSERT is the only way to reach that
-// at-rest state now that the verb refuses it, and it is the population a real
-// consumer database will be in when it upgrades — so the SDKs must cover it,
-// not only the rejection path nobody in the field is on yet. Mirrors the Rust
-// `seed_legacy_registry_row` in `src/rust/crates/fathomdb-engine/tests/
-// slice23_spec_validation_reject.rs` and the Python `_seed_legacy_registry_row`
-// (same columns, same encoding: `fts_tokenizer = ''` is "an `fts` sub-object
-// with the DEFAULT tokenizer", NULL is "no `fts` sub-object").
-//
-// MUST be called on a CLOSED database. A raw RW connection opened while the
-// engine is live perturbs the async dispatcher (a duplicate embed, the TC-91
-// class — it passes in isolation and fails in a full suite run), so the seed
-// goes between a `close()` and the next `Engine.open`.
-function seedLegacyRegistryRow(
-  path: string,
-  name: string,
-  rolesCsv: string,
-  ftsTokenizer: string | null,
-  vectorDeclared: boolean,
-): void {
-  const db = new DatabaseSync(path);
-  try {
-    // Slice 40 normally treats raw registry changes after generation bootstrap
-    // as corruption.  This fixture represents an actual pre-Slice-40 store,
-    // i.e. step-32 shape committed but generation bootstrap not yet run.
-    db.exec(
-      "DROP TRIGGER _fathomdb_projection_generation_retain;" +
-        "DELETE FROM _fathomdb_projection_generation_current;" +
-        "DELETE FROM _fathomdb_projection_generations;" +
-        "CREATE TRIGGER _fathomdb_projection_generation_retain " +
-        "BEFORE DELETE ON _fathomdb_projection_generations " +
-        "BEGIN SELECT RAISE(ABORT, 'projection generation history is retained'); END;",
-    );
-    db.prepare(
-      "INSERT INTO _fathomdb_projection_registry" +
-        " (name, roles, fts_tokenizer, vector_embedder, vector_declared)" +
-        " VALUES(?, ?, ?, NULL, ?)" +
-        " ON CONFLICT(name) DO UPDATE SET" +
-        " roles = excluded.roles," +
-        " fts_tokenizer = excluded.fts_tokenizer," +
-        " vector_embedder = excluded.vector_embedder," +
-        " vector_declared = excluded.vector_declared",
-    ).run(name, rolesCsv, ftsTokenizer, vectorDeclared ? 1 : 0);
-  } finally {
-    db.close();
-  }
-}
-
 function pftsMatch(path: string, attrName: string, query: string): number[] {
   const db = new DatabaseSync(path);
   try {
@@ -674,19 +624,18 @@ test("R-20-SV — fts/vector without the searchable role is REJECTED (WriteValid
 });
 
 test("R-20-SV — a LEGACY registry row reads back verbatim but no longer re-applies", async () => {
-  // 0.8.20 Slice 23 (`R-20-SV`) — THE UPGRADE PATH, the one a real consumer
-  // database is actually on.
+  // 0.8.20 Slice 23 (`R-20-SV`) — controlled inert registry shape.
   //
-  // Databases that declared `fts`/`vector` without the `searchable` role while
-  // the engine ACCEPTED it still exist. This slice must not make them
-  // unreadable. `read.projections` is a pure read and rejects nothing, so the
-  // legacy row is reported VERBATIM — but feeding that output straight back into
-  // `configureProjections` (the shipped fix-4 read→configure round-trip) now
-  // RAISES `WriteValidationError` (`FDB_WRITE_VALIDATION`).
+  // A debug-only hook atomically changes a valid filterable declaration to the
+  // old `fts`/`vector`-without-`searchable` shape and advances current generation
+  // authority. `read.projections` reports the injected row VERBATIM, but feeding
+  // that output straight back into `configureProjections` RAISES
+  // `WriteValidationError` (`FDB_WRITE_VALIDATION`). This fixture is not an
+  // upgrade-admission promise.
   //
   // That asymmetry is the honest, documented consequence of the HITL ruling
   // (2026-07-24, `dev/plans/plan-0.8.20.md` §11 item 4, option (b)): for the
-  // legacy population the round-trip is broken BY DESIGN, and the remedy is to
+  // injected inert shape the round-trip is broken BY DESIGN, and the remedy is to
   // ADD the `searchable` role (asserted here) or to name the projection in
   // `drop`.
   //
@@ -697,21 +646,33 @@ test("R-20-SV — a LEGACY registry row reads back verbatim but no longer re-app
   // Same seed, same three oracles, same semantics — deliberately NOT a
   // per-binding invention.
   const path = freshDbPath();
+  let injectedGenerationId = "";
   {
     const engine = await Engine.open(path);
     try {
       await engine.write([node("N1", SOURCE, JSON.stringify({ status: "open" }))]);
+      await engine.configureProjections([
+        { name: "status", roles: ["filterable"], fts: false, vector: false },
+      ]);
+      const before = await read.projectionGenerationStatus(engine);
+      const inject = engine._native.setLegacyProjectionSearchSubobjectsForTest;
+      assert.ok(inject, "debug test-hook binding is required");
+      await inject.call(engine._native, "status");
+      const injected = await read.projectionGenerationStatus(engine);
+      assert.notEqual(injected.generationId, before.generationId);
+      assert.equal(injected.origin, "configuration");
+      injectedGenerationId = injected.generationId;
     } finally {
       await engine.close();
     }
   }
 
-  // The legacy state, written the way the shipped pre-Slice-23 engine wrote it.
-  // On a CLOSED database — see the helper's ordering note.
-  seedLegacyRegistryRow(path, "status", "filterable", "", true);
-
   const engine = await Engine.open(path);
   try {
+    const reopenedGeneration = await read.projectionGenerationStatus(engine);
+    assert.equal(reopenedGeneration.generationId, injectedGenerationId);
+    assert.equal(reopenedGeneration.origin, "configuration");
+
     // (a) Still READABLE, and reported verbatim.
     const back = await read.projections(engine);
     assert.equal(back.length, 1, "a legacy row must still be readable");
@@ -725,7 +686,7 @@ test("R-20-SV — a LEGACY registry row reads back verbatim but no longer re-app
     await assert.rejects(
       engine.configureProjections(back),
       WriteValidationError,
-      "BREAKING, by design: for the legacy fts/vector-without-`searchable` population the " +
+      "BREAKING, by design: for the injected fts/vector-without-`searchable` shape the " +
         "read.projections -> configureProjections round-trip no longer closes",
     );
 

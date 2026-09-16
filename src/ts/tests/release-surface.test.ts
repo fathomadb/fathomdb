@@ -4,8 +4,8 @@
 // --features default-embedder, NO test-hooks), loads it directly, and
 // asserts the *actually shipped* binary surface:
 //
-// - AC-FIX1-2: writeVectorForTest / configureVectorKindForTest /
-//   forcePanicForTest are NOT present on the loaded native Engine.
+// - AC-FIX1-2: binding test hooks, including the controlled inert-projection
+//   injector, are NOT present on the loaded native Engine.
 // - AC-FIX1-4: Engine.open(path, { useDefaultEmbedder: true }) succeeds
 //   through the raw N-API `Engine.open` factory (network-gated via
 //   FATHOMDB_SKIP_NETWORK_TESTS, symmetrical with EU-5c).
@@ -101,7 +101,9 @@ test("release-equivalent .node does not expose test-hooks methods", async () => 
 
   const exportedNames = Object.keys(loaded);
   const leakedExports = exportedNames.filter((name) =>
-    /(?:write|configure)VectorForTest|forcePanicForTest/.test(name),
+    /(?:write|configure)VectorForTest|setLegacyProjectionSearchSubobjectsForTest|forcePanicForTest/.test(
+      name,
+    ),
   );
   assert.deepEqual(
     leakedExports,
@@ -112,7 +114,9 @@ test("release-equivalent .node does not expose test-hooks methods", async () => 
   if (engineCtor && typeof engineCtor === "function") {
     const proto = (engineCtor as { prototype?: Record<string, unknown> }).prototype ?? {};
     const protoLeaked = Object.getOwnPropertyNames(proto).filter((name) =>
-      /(?:write|configure)VectorForTest|forcePanicForTest/.test(name),
+      /(?:write|configure)VectorForTest|setLegacyProjectionSearchSubobjectsForTest|forcePanicForTest/.test(
+        name,
+      ),
     );
     assert.deepEqual(
       protoLeaked,

@@ -105,7 +105,7 @@ def _run_in_venv(venv_python: Path, script: str) -> str:
 
 def test_release_wheel_hides_test_hooks_methods(release_venv_python: Path) -> None:
     """AC-FIX1-1: the release-equivalent wheel must NOT expose
-    ``_write_vector_for_test`` or ``_configure_vector_kind_for_test``
+    private test hooks, including the controlled inert-projection injector,
     on the native ``Engine`` PyO3 class."""
 
     script = """
@@ -116,6 +116,7 @@ def test_release_wheel_hides_test_hooks_methods(release_venv_python: Path) -> No
             m for m in (
                 "_write_vector_for_test",
                 "_configure_vector_kind_for_test",
+                "_set_legacy_projection_search_subobjects_for_test",
                 "_force_panic_for_test",
             )
             if m in members

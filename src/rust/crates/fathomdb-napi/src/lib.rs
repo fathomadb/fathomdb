@@ -4896,6 +4896,16 @@ impl Engine {
         let engine = Arc::clone(&self.inner);
         call_engine(move || engine.write_vector_for_test(&kind, &text).map(|_| ())).await
     }
+
+    #[napi]
+    pub async fn set_legacy_projection_search_subobjects_for_test(
+        &self,
+        name: String,
+    ) -> Result<()> {
+        validate_ffi_string_napi(&name)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.set_legacy_projection_search_subobjects_for_test(&name)).await
+    }
 }
 
 /// AC-067 force-panic probe. Gated by `cfg(any(test, feature =

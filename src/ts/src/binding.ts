@@ -765,6 +765,7 @@ export interface NativeEngine {
   // unconditionally and the runtime fails fast if absent.
   configureVectorKindForTest?(kind: string): Promise<void>;
   writeVectorForTest?(kind: string, text: string): Promise<void>;
+  setLegacyProjectionSearchSubobjectsForTest?(name: string): Promise<void>;
 }
 
 export interface NativeModule {

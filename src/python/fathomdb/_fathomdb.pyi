@@ -419,7 +419,8 @@ class OpenReport:
 class Engine:
     @staticmethod
     def open(path: str, use_default_embedder: bool = ...) -> "Engine": ...
-    # NOTE: `_configure_vector_kind_for_test` and `_write_vector_for_test`
+    # NOTE: `_configure_vector_kind_for_test`, `_write_vector_for_test`, and
+    # `_set_legacy_projection_search_subobjects_for_test`
     # are intentionally NOT declared here. They only exist on the binary
     # when the `test-hooks` Cargo feature is enabled (see
     # `src/rust/crates/fathomdb-py/src/lib.rs::#[cfg(any(test, feature =

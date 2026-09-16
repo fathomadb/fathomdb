@@ -1462,6 +1462,162 @@ fn graph_reference_requires_current_active_artifact_and_source_after_equivalent_
 }
 
 #[test]
+fn derived_target_deletion_is_authorized_independently_from_its_active_source() {
+    let (directory, engine, mut request) = fixture();
+    let (reference, original) = minted_target_reference(&engine, &mut request);
+    let equivalent = engine.freeze_read_context(&original.context).unwrap();
+    assert_eq!(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference.clone(),
+                context: equivalent,
+            })
+            .unwrap()
+            .artifact_revision_id
+            .as_str(),
+        "target-r1"
+    );
+
+    engine.transition("target", LifecycleState::Deleted, Some("target only".into())).unwrap();
+    let path = directory.path().join("graph-evidence.fdb");
+    let connection = Connection::open(&path).unwrap();
+    let states: (String, String) = connection
+        .query_row(
+            "SELECT target.state,source.state FROM canonical_nodes target,canonical_nodes source \
+             WHERE target.logical_id='target' AND source.logical_id='source'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(states, ("deleted".into(), "active".into()));
+    drop(connection);
+    engine.close().unwrap();
+    let connection = Connection::open(&path).unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes',start_byte=0,end_byte=999999 \
+             WHERE artifact_revision_id='target-r1'",
+            [],
+        )
+        .unwrap();
+    drop(connection);
+    let reopened = Engine::open(&path).unwrap().engine;
+    let reminted = reopened.freeze_read_context(&original.context).unwrap();
+    unavailable(
+        reopened
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference,
+                context: reminted,
+            })
+            .unwrap_err(),
+    );
+}
+
+#[test]
+fn inactive_source_is_authorized_independently_from_its_active_derived_target() {
+    for source_state in ["pending", "deleted"] {
+        let (directory, engine, mut request) = fixture();
+        let (reference, original) = minted_target_reference(&engine, &mut request);
+        let equivalent = engine.freeze_read_context(&original.context).unwrap();
+        assert_eq!(
+            engine
+                .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: reference.clone(),
+                    context: equivalent,
+                })
+                .unwrap()
+                .artifact_revision_id
+                .as_str(),
+            "target-r1"
+        );
+
+        let path = directory.path().join("graph-evidence.fdb");
+        engine.close().unwrap();
+        let connection = Connection::open(&path).unwrap();
+        connection
+            .execute(
+                "UPDATE canonical_nodes SET state=?1 WHERE logical_id='source'",
+                [source_state],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes',start_byte=0,end_byte=999999 \
+                 WHERE artifact_revision_id='target-r1'",
+                [],
+            )
+            .unwrap();
+        let states: (String, String) = connection
+            .query_row(
+                "SELECT target.state,source.state FROM canonical_nodes target,canonical_nodes source \
+                 WHERE target.logical_id='target' AND source.logical_id='source'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(states, ("active".into(), source_state.into()));
+        drop(connection);
+        let reopened = Engine::open(&path).unwrap().engine;
+        let reminted = reopened.freeze_read_context(&original.context).unwrap();
+        unavailable(
+            reopened
+                .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: reference,
+                    context: reminted,
+                })
+                .unwrap_err(),
+        );
+    }
+}
+
+#[test]
+fn graph_terminal_edge_fallback_revocation_precedes_corrupt_provenance() {
+    let (directory, engine, mut request) = fixture();
+    request.include_evidence = true;
+    let expanded = engine.graph_expand(&request).unwrap();
+    let reference = expanded.evidence.unwrap().entries[0].terminal_edge_evidence_ref.clone();
+    let original = match request.context {
+        GraphReadContextV1::Frozen { context, .. } => context,
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+    let equivalent = engine.freeze_read_context(&original.context).unwrap();
+    assert_eq!(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference.clone(),
+                context: equivalent,
+            })
+            .unwrap()
+            .artifact_revision_id
+            .as_str(),
+        "edge-r1"
+    );
+
+    let reopened = reopen_after_sql(
+        &directory,
+        engine,
+        "UPDATE canonical_edges SET temporal_fallback=1 WHERE logical_id='winner';
+         UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes',start_byte=0,end_byte=999999
+           WHERE artifact_revision_id='edge-r1';",
+    );
+    let reminted = reopened.freeze_read_context(&original.context).unwrap();
+    unavailable(
+        reopened
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference,
+                context: reminted,
+            })
+            .unwrap_err(),
+    );
+}
+
+#[test]
 fn graph_terminal_edge_reference_requires_current_temporal_validity() {
     let (_directory, engine, request) = canonical_target_fixture();
     let expanded = engine.graph_expand(&request).unwrap();

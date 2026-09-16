@@ -330,3 +330,40 @@ def test_resolved_graph_evidence_json_is_recursively_closed_and_coherent(
         )
     assert captured.value.reason == "graph_corrupt"
     assert captured.value.field_path == path
+
+
+@pytest.mark.parametrize("schema_version", [True, False, 1.0, 0.0, "1", 2])
+@pytest.mark.parametrize("location", ["root", "dependency"])
+def test_resolved_graph_evidence_requires_exact_integer_schema_versions(
+    schema_version: object, location: str
+) -> None:
+    payload = _resolved_payload()
+    if location == "root":
+        payload["schemaVersion"] = schema_version
+        expected_path = "/schemaVersion"
+    else:
+        payload["dependency"] = {
+            "schemaVersion": schema_version,
+            "dependencyId": "dep-1",
+            "sourceRevisionId": "source-r1",
+            "derivedRevisionId": "target-r1",
+            "registeredDependencyGeneration": "1",
+        }
+        expected_path = "/dependency/schemaVersion"
+
+    class Native:
+        def resolve_graph_evidence(self, _reference: str, _context: object) -> str:
+            return json.dumps(payload)
+
+    engine = fathomdb.Engine(cast(Any, Native()), path="unused", config=fathomdb.EngineConfig())
+    frozen = fathomdb.FrozenReadContextV1(
+        effective_valid_at=1_700_000_000,
+        context=fathomdb.ReadContextV1(),
+        token="frozen",
+    )
+    with pytest.raises(fathomdb.GraphExpansionError) as captured:
+        engine.resolve_graph_evidence(
+            fathomdb.GraphEvidenceResolveRequestV1(evidence_ref="fdbgev1.ref", context=frozen)
+        )
+    assert captured.value.reason == "unsupported_schema_version"
+    assert captured.value.field_path == expected_path

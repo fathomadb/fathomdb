@@ -4,10 +4,10 @@ use std::sync::Arc;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, Engine, EngineError, InitialState,
-    MutationProjectionStatusRequestV1, ProjectionGenerationErrorReason, ProjectionRole,
-    ProjectionSpec, ProjectionVector, ProvenancedNodeV1, SourceId, SourceVersionId,
-    WriteProvenanceV1,
+    ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, Engine, EngineError,
+    EngineOpenError, InitialState, MutationProjectionStatusRequestV1,
+    ProjectionGenerationErrorReason, ProjectionRole, ProjectionSpec, ProjectionVector,
+    ProvenancedNodeV1, SourceId, SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
@@ -120,6 +120,66 @@ fn pending_receipt_is_bound_to_commit_generation_and_can_be_polled() {
     assert_eq!(status.generation_id, generation);
     assert_eq!(status.write_cursor, cursor);
     assert!(status.pending_count + status.failed_count <= 1);
+}
+
+#[test]
+fn pending_current_receipt_without_generation_is_corrupt_even_with_legacy_looking_authority() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("current-receipt-no-generation{SQLITE_SUFFIX}"));
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(TestEmbedder)).unwrap();
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    let request = ActuationBatchV1::new(
+        "slice40-current-receipt-no-generation",
+        vec![ActuationOperationV1::PutCanonicalNode(canonical())],
+    )
+    .unwrap();
+    let receipt = opened.engine.actuate(request.clone()).unwrap();
+    let cursor = receipt.pending_projection_write_cursors[0];
+    Connection::open(&path)
+        .unwrap()
+        .execute_batch(&format!(
+            "INSERT INTO _fathomdb_projection_generations( \
+               schema_version,generation_id,declaration_sha256,transition_boundary,role,origin,retired_boundary \
+             ) SELECT 1,'pgen1:11111111111111111111111111111111',declaration_sha256, \
+                      {cursor},'retired','legacy_unverified',{cursor} \
+                 FROM _fathomdb_projection_generations WHERE role='serving'; \
+             UPDATE _fathomdb_actuation_receipts SET projection_generation_id=NULL \
+               WHERE operation_id='slice40-current-receipt-no-generation';"
+        ))
+        .unwrap();
+
+    assert!(matches!(opened.engine.actuate(request), Err(EngineError::Storage)));
+}
+
+#[test]
+fn populated_current_database_missing_projection_generation_authority_fails_open() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("missing-current-generation{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .actuate(
+            ActuationBatchV1::new(
+                "slice40-populate-before-generation-loss",
+                vec![ActuationOperationV1::PutCanonicalNode(canonical())],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    opened.engine.close().unwrap();
+    let connection = Connection::open(&path).unwrap();
+    connection
+        .execute_batch(
+            "DROP TRIGGER _fathomdb_projection_generation_retain; \
+             DROP TRIGGER _fathomdb_projection_generation_immutable; \
+             DELETE FROM _fathomdb_projection_generation_current; \
+             DELETE FROM _fathomdb_projection_generations;",
+        )
+        .unwrap();
+    drop(connection);
+
+    assert!(matches!(Engine::open(&path), Err(EngineOpenError::Corruption(_))));
 }
 
 #[test]

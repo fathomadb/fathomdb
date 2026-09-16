@@ -1,12 +1,13 @@
 //! Slice 20 contract tests for exact frozen graph evidence.
 
+use fathomdb_embedder::NoopEmbedder;
 use fathomdb_engine::{
     decode_graph_expand_result_v1, encode_graph_expand_result_v1, ArtifactRevisionId,
-    CanonicalHash, Engine, EngineError, EvidenceErrorReasonV1, EvidenceRefV1,
+    CanonicalHash, ConsolidateAxis, Engine, EngineError, EvidenceErrorReasonV1, EvidenceRefV1,
     EvidenceResolveRequestV1, EvidenceSearchRequestV1, FrozenReadErrorReason,
     GraphEvidenceArtifactV1, GraphEvidenceRefV1, GraphEvidenceResolveRequestV1,
     GraphExpandRequestV1, GraphExpansionErrorReasonV1, GraphReadContextV1, GraphSeedV1, IdSpace,
-    InitialState, PreparedWrite, ProjectionRole, ProjectionSpec, ProvenancedEdgeV1,
+    InitialState, LifecycleState, PreparedWrite, ProjectionRole, ProjectionSpec, ProvenancedEdgeV1,
     ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1,
     SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
     WriteProvenanceV1,
@@ -1289,6 +1290,247 @@ fn minted_target_reference(
         GraphReadContextV1::Current { .. } => unreachable!(),
     };
     (reference, frozen)
+}
+
+fn canonical_target_fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
+    let directory = TempDir::new().unwrap();
+    let path = directory.path().join("canonical-target-lifecycle.fdb");
+    let opened =
+        Engine::open_with_embedder_for_test(&path, Arc::new(NoopEmbedder::default())).unwrap();
+    let edge_source = "independent edge source bytes";
+    let derived = |revision: &str| {
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(revision).unwrap(),
+            SourceVersionId::new("edge-source-v1").unwrap(),
+            SourceRevisionId::new("edge-source-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(digest(edge_source)).unwrap(),
+        )
+    };
+    opened
+        .engine
+        .write(&[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("edge-source".into()),
+                kind: "document".into(),
+                body: edge_source.into(),
+                source_id: SourceId::new("edge-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("edge-source-r1").unwrap(),
+                    SourceVersionId::new("edge-source-v1").unwrap(),
+                ),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("root".into()),
+                kind: "claim".into(),
+                body: "root".into(),
+                source_id: SourceId::new("edge-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived("root-r1"),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("target".into()),
+                kind: "claim".into(),
+                body: "canonical target bytes".into(),
+                source_id: SourceId::new("target-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("target-r1").unwrap(),
+                    SourceVersionId::new("target-v1").unwrap(),
+                ),
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("winner".into()),
+                kind: "supports".into(),
+                from: "root".into(),
+                to: "target".into(),
+                source_id: SourceId::new("edge-owner").unwrap(),
+                body: None,
+                t_valid: Some(1_700_000_000),
+                t_invalid: None,
+                confidence: Some(0.9),
+                extractor_model_id: None,
+                temporal_fallback: Some(false),
+                provenance: derived("edge-r1"),
+            }),
+        ])
+        .unwrap();
+    opened.engine.drain(30_000).unwrap();
+    let context = ReadContextV1::new(
+        ReadView { valid_as_of: Some(1_800_000_000), ..ReadView::default() },
+        SearchFilter::default(),
+    )
+    .unwrap();
+    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let request = GraphExpandRequestV1 {
+        schema_version: 1,
+        seed: GraphSeedV1::Explicit {
+            schema_version: 1,
+            logical_ids: vec![IdSpace::logical("root")],
+        },
+        direction: TraversalDirection::Outgoing,
+        edge_kinds: vec!["supports".into()],
+        target_kinds: vec!["claim".into()],
+        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        max_depth: 1,
+        result_limit: 1,
+        max_work_units: 10,
+        include_explanation: false,
+        include_evidence: true,
+    };
+    (directory, opened.engine, request)
+}
+
+#[test]
+fn graph_reference_requires_current_active_artifact_and_source_after_equivalent_remint() {
+    let (directory, engine, request) = canonical_target_fixture();
+    let ordinary = engine
+        .graph_expand(&GraphExpandRequestV1 { include_evidence: false, ..request.clone() })
+        .unwrap();
+    assert_eq!(ordinary.targets.len(), 1);
+    let expanded = engine.graph_expand(&request).unwrap();
+    let reference = expanded.evidence.unwrap().entries[0].target_evidence_ref.clone();
+    let original = match &request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.clone(),
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+
+    let equivalent = engine.freeze_read_context(&original.context).unwrap();
+    assert_eq!(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference.clone(),
+                context: equivalent,
+            })
+            .unwrap()
+            .artifact_revision_id
+            .as_str(),
+        "target-r1"
+    );
+
+    engine.transition("target", LifecycleState::Deleted, Some("revoked".into())).unwrap();
+    let stale_error = engine.graph_expand(&request).unwrap_err();
+    assert!(
+        matches!(stale_error, EngineError::FrozenRead(ref error)
+            if error.reason == FrozenReadErrorReason::StateDrifted
+                && error.field_path == "/token"),
+        "unexpected stale-context error: {stale_error:?}"
+    );
+
+    let semantic_context = original.context.clone();
+    engine.close().unwrap();
+    let connection =
+        Connection::open(directory.path().join("canonical-target-lifecycle.fdb")).unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes',start_byte=0,end_byte=999999 \
+             WHERE artifact_revision_id='target-r1'",
+            [],
+        )
+        .unwrap();
+    drop(connection);
+    let reopened = Engine::open_with_embedder_for_test(
+        directory.path().join("canonical-target-lifecycle.fdb"),
+        Arc::new(NoopEmbedder::default()),
+    )
+    .unwrap()
+    .engine;
+    let reminted = reopened.freeze_read_context(&semantic_context).unwrap();
+    unavailable(
+        reopened
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference,
+                context: reminted,
+            })
+            .unwrap_err(),
+    );
+}
+
+#[test]
+fn graph_terminal_edge_reference_requires_current_temporal_validity() {
+    let (_directory, engine, request) = canonical_target_fixture();
+    let expanded = engine.graph_expand(&request).unwrap();
+    let reference = expanded.evidence.unwrap().entries[0].terminal_edge_evidence_ref.clone();
+    let original = match request.context {
+        GraphReadContextV1::Frozen { context, .. } => context,
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+    let derived = WriteProvenanceV1::derived(
+        ArtifactRevisionId::new("newer-edge-r1").unwrap(),
+        SourceVersionId::new("edge-source-v1").unwrap(),
+        SourceRevisionId::new("edge-source-r1").unwrap(),
+        SourceLocator::whole_body(),
+        CanonicalHash::sha256(digest("independent edge source bytes")).unwrap(),
+    );
+    engine
+        .write(&[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("other-target".into()),
+                kind: "claim".into(),
+                body: "other".into(),
+                source_id: SourceId::new("edge-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("other-target-r1").unwrap(),
+                    SourceVersionId::new("edge-source-v1").unwrap(),
+                    SourceRevisionId::new("edge-source-r1").unwrap(),
+                    SourceLocator::whole_body(),
+                    CanonicalHash::sha256(digest("independent edge source bytes")).unwrap(),
+                ),
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("newer-winner".into()),
+                kind: "supports".into(),
+                from: "root".into(),
+                to: "other-target".into(),
+                source_id: SourceId::new("edge-owner").unwrap(),
+                body: Some("newer supporting fact".into()),
+                t_valid: Some(1_750_000_000),
+                t_invalid: None,
+                confidence: Some(0.8),
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived,
+            }),
+        ])
+        .unwrap();
+    engine.drain(30_000).unwrap();
+    let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/slice15_consolidate/stub_consolidate_harness.py");
+    let command = ["python3".to_string(), script.to_string_lossy().into_owned()];
+    let command_refs = command.iter().map(String::as_str).collect::<Vec<_>>();
+    let receipt = engine
+        .consolidate_with_provider(
+            &command_refs,
+            &[ConsolidateAxis { subject_logical_id: "root".into(), relation: "supports".into() }],
+        )
+        .unwrap();
+    assert_eq!(receipt.edges_invalidated, 1);
+    let reminted = engine.freeze_read_context(&original.context).unwrap();
+    unavailable(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: reference,
+                context: reminted,
+            })
+            .unwrap_err(),
+    );
 }
 
 #[test]

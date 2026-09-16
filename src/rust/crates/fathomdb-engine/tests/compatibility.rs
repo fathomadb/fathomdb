@@ -185,6 +185,40 @@ fn second_live_open_is_locked_and_close_releases_lock() {
     reopened.engine.close().unwrap();
 }
 
+#[cfg(unix)]
+#[test]
+fn live_open_uses_one_lock_namespace_across_database_symlink_aliases() {
+    let dir = TempDir::new().unwrap();
+    let target = db_path(&dir, "symlink-lock-target");
+    Engine::open(&target).unwrap().engine.close().unwrap();
+    let alias = dir.path().join(format!("symlink-lock-alias{SQLITE_SUFFIX}"));
+    std::os::unix::fs::symlink(&target, &alias).unwrap();
+
+    let held_target = Engine::open(&target).unwrap();
+    assert!(matches!(Engine::open(&alias), Err(EngineOpenError::DatabaseLocked { .. })));
+    held_target.engine.close().unwrap();
+
+    let held_alias = Engine::open(&alias).unwrap();
+    assert!(matches!(Engine::open(&target), Err(EngineOpenError::DatabaseLocked { .. })));
+    assert!(matches!(Engine::open(&alias), Err(EngineOpenError::DatabaseLocked { .. })));
+    held_alias.engine.close().unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn dangling_database_symlink_is_not_bootstrapped_as_a_fresh_path() {
+    let dir = TempDir::new().unwrap();
+    let missing_target = dir.path().join(format!("missing-target{SQLITE_SUFFIX}"));
+    let alias = dir.path().join(format!("dangling-alias{SQLITE_SUFFIX}"));
+    std::os::unix::fs::symlink(&missing_target, &alias).unwrap();
+
+    assert!(matches!(Engine::open(&alias), Err(EngineOpenError::Io { .. })));
+    assert!(!missing_target.exists());
+    let mut alias_lock = alias.as_os_str().to_os_string();
+    alias_lock.push(".lock");
+    assert!(!std::path::PathBuf::from(alias_lock).exists());
+}
+
 #[test]
 fn open_error_display_is_sanitized() {
     let err = EngineOpenError::MigrationError {

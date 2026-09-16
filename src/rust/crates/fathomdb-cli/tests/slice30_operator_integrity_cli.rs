@@ -155,6 +155,29 @@ fn symlink_alias_uses_the_resolved_target_product_lock() {
 
 #[cfg(unix)]
 #[test]
+fn alias_held_engine_blocks_operator_inspection_through_both_spellings() {
+    let (directory, path) = fresh_database("alias-held-target.sqlite");
+    let alias = directory.path().join("alias-held.sqlite");
+    std::os::unix::fs::symlink(&path, &alias).expect("create database symlink");
+    let held_alias = Engine::open(&alias).expect("hold database through alias");
+
+    let checkpoint = Connection::open(&path).expect("open checkpoint connection");
+    checkpoint.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)").expect("truncate idle WAL");
+    drop(checkpoint);
+    assert!(
+        fs::metadata(sidecar(&path, "-wal")).map_or(true, |metadata| metadata.len() == 0),
+        "the lock, not pending WAL bytes, must drive the refusal"
+    );
+
+    for spelling in [&path, &alias] {
+        let output = run(spelling, &[]);
+        assert_error(&output, exit_code::LOCK_HELD, "inspection_not_quiescent", "/dbPath");
+    }
+    held_alias.engine.close().expect("close alias-held engine");
+}
+
+#[cfg(unix)]
+#[test]
 fn symlink_alias_uses_the_resolved_target_recovery_sidecars() {
     let (directory, path) = fresh_database("symlink-target-wal.sqlite");
     let alias = directory.path().join("symlink-alias-wal.sqlite");

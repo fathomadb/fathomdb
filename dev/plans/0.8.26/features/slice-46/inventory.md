@@ -26,32 +26,32 @@ a historical Slice 25/35/40 record.
 
 ## Maintained-owner review
 
-| Owner | Result |
-| --- | --- |
-| `README.md` | Replaced the stale June manual-current list with catalog-backed navigation and lifecycle rules. |
-| `actuation.md` | Added the current five-operation atomic batch, prospective endpoint, receipt, replay, lifecycle, erasure, and projection design. |
-| `bindings.md` | Added cross-binding 0.8.26 actuation, graph-evidence, fresh-schema, and CLI-only integrity boundaries. |
-| `embedder.md` | Reviewed; current bounded embedder owner, with no Slice 46 change needed. |
-| `engine.md` | Corrected public open to fresh schema 34 only and bounded the older migration sequence as historical. |
-| `errors.md` | Redirected current actuation, projection-generation, frozen-read, evidence, and graph-expansion semantics to maintained owners. |
-| `fathomdb-data-plane-architecture-v2.md` | Reviewed as active v2.2; retained the committed A25-04 post-0.8.26 deferral correction. |
-| `gpu-eval-activities-policy.md` | Reviewed as a standing internal policy and marked active; product runtime policy remains ADR-owned. |
-| `lifecycle.md` | Reviewed; current observability/lifecycle owner, with no missing 0.8.26 fact. |
-| `migrations.md` | Distinguished public fresh-only admission from retained migration authorship/bootstrap mechanics. |
-| `nested-source-projections.md` | Corrected the stale candidate-branch claim to the landed PR #195 state. |
-| `op-store.md` | Reviewed as the current operation-store owner; no 0.8.26 delta belongs here. |
-| `orchestration.md` | Reviewed as the current cross-release method; no release-local rewrite. |
-| `perf-gates.md` | Reviewed as the current two-tier performance-gate owner and marked active; no new performance claim. |
-| `perf-regression-detection.md` | Reviewed as landed/current and marked active; append-only evidence rules unchanged. |
-| `pinned-override-rot-guard.md` | Corrected proposal language and marked the already-implemented guard active. |
-| `projections.md` | Added worker-connection, commit-gate, generation, receipt-correlation, and derived-edge scheduling facts. |
-| `recovery-0.8.25.md` | Reviewed as the current recovery successor; immutable 0.8.26 inspection does not alter repair authority. |
-| `recovery.md` | Added the bounded immutable `data-plane-integrity` doctor route and SDK exclusion. |
-| `release.md` | Separated Slice 50 non-publishing candidate verification from publish and post-publish smoke. |
-| `retrieval-result-limits.md` | Reviewed as the bounded result-limit owner; no Slice 46 change needed. |
-| `retrieval.md` | Added frozen-finalizer and exact graph-evidence resolution/nondisclosure/no-ranking-fiction facts. |
-| `scheduler.md` | Added worker connection, commit-gate, generation revalidation, and common derived-edge queue ownership. |
-| `vector.md` | Reviewed as the current vector-store owner; no 0.8.26 delta belongs here. |
+| Owner | Current authority or bounded scope | Implementation/test witness | Result |
+| --- | --- | --- | --- |
+| `README.md` | Lifecycle catalog navigation only; ADRs/interfaces remain higher authority. | `check-design-lifecycle.py`; focused fixture suite | Replaced the stale manual-current list with catalog-backed rules. |
+| `actuation.md` | Breaking V1 boundary ADR and Rust/Python/TypeScript interfaces. | `actuation.rs`; Slice 25/35 actuation suites | Added the current batch, endpoint, receipt, replay, lifecycle, erasure, and projection design. |
+| `bindings.md` | The three binding interface documents and governed SDK surface. | Rust/Python/TypeScript binding sources and Slice 35 conformance | Added the missing 0.8.26 cross-binding boundaries. |
+| `embedder.md` | Embedder identity ADRs and dual-runtime device ADR. | embedder crates; `verify_embedder.rs` | Retained as the bounded embedder owner; no 0.8.26 correction needed. |
+| `engine.md` | Breaking fresh-database ADR and Rust open interface. | engine `lib.rs`; `slice40_fresh_database_cutover.rs` | Corrected public open to fresh schema 34 only. |
+| `errors.md` | Rust/Python/TypeScript error contracts. | engine/binding error conversion; `error_taxonomy.rs` | Redirected current semantics to maintained topic owners. |
+| `fathomdb-data-plane-architecture-v2.md` | Accepted ADR/index hierarchy and maintained interfaces. | architecture authority checker; implementation seams in its profile | Retained active v2.2 plus the committed A25-04 deferral correction. |
+| `gpu-eval-activities-policy.md` | Internal eval allocation only; product runtime is dual-runtime-ADR-owned. | CUDA preflight scripts and witness validators | Marked the still-applicable bounded policy active. |
+| `lifecycle.md` | Lifecycle event contract and interface observability boundary. | `lifecycle.rs`; lifecycle observability/reliability suites | Retained current owner; no missing 0.8.26 fact. |
+| `migrations.md` | Fresh-database ADR plus schema authorship/accretion rules. | schema `lib.rs`; `slice40_fresh_database_cutover.rs` | Bounded historical migration execution away from public open. |
+| `nested-source-projections.md` | Accepted nested-source projection ADR. | projection engine path; `slice45_nested_source_projections.rs` | Corrected stale candidate-branch text to landed PR #195. |
+| `op-store.md` | Rust operation-store/read interfaces. | engine op-store path; `op_store.rs` | Retained current operation-store owner; no 0.8.26 delta. |
+| `orchestration.md` | Cross-release execution method only, subordinate to `AGENTS.md`. | `preflight.sh`; release-state and commission checks | Retained method without a release-local rewrite. |
+| `perf-gates.md` | Accepted performance ADRs and release-gate policy. | `perf_gates*.rs`; recall predicate tests | Marked the current two-tier measurement owner active; no new claim. |
+| `perf-regression-detection.md` | Append-only performance-history contract. | `perf-regression-check.rs`; CLI regression tests | Marked the landed/current detector active. |
+| `pinned-override-rot-guard.md` | Governed pin/exception policy. | `check-pinned-override-rot.py`; shell wrapper and fixture tests | Replaced proposal language with implemented active-guard truth. |
+| `projections.md` | Projection interfaces and generation/readiness decisions. | engine projection runtime/generation paths; Slice 40 generation suites | Added connection, commit-gate, generation, receipt, and derived-edge facts. |
+| `recovery-0.8.25.md` | Current repair-authority successor under recovery ADRs. | engine recovery methods; rebuild/erasure suites | Retained; immutable inspection does not broaden repair authority. |
+| `recovery.md` | CLI interface and accepted immutable-inspection boundary. | CLI/engine doctor paths; Slice 30/55 integrity suites | Added `data-plane-integrity` and its SDK exclusion. |
+| `release.md` | Release ADRs and publication contracts. | `release.yml`; release smoke scripts | Separated Slice 50 candidate evidence from publish/post-publish smoke. |
+| `retrieval-result-limits.md` | Accepted result-limit behavior and retrieval interfaces. | engine retrieval path; `slice18_retrieval_result_limits.rs` | Retained bounded result-limit owner unchanged. |
+| `retrieval.md` | Retrieval interfaces and exact graph-evidence ADR. | frozen/evidence/graph engine paths; Slice 10/20 suites | Added finalizer, resolution, nondisclosure, and no-ranking-fiction facts. |
+| `scheduler.md` | Projection scheduling/backpressure boundary. | engine scheduler/runtime paths; projection race/reliability suites | Added connection, commit-gate, generation, and common queue ownership. |
+| `vector.md` | Filter ADR, schema-owned tables, and projection/retrieval/recovery boundaries. | schema/engine vector paths; quantization, snapshot, erasure, and rebuild suites | Replaced the self-declared stub with a compact current vector design. |
 
 ## Draft, deferred, and superseded allocations
 

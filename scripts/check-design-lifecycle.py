@@ -38,22 +38,82 @@ def existing_repo_path(root: Path, value: object, field: str, path: str) -> bool
     if candidate.is_absolute() or ".." in candidate.parts:
         fail(f"{path}: {field} must stay within the repository: {value!r}")
         return False
-    if not (root / candidate).exists():
-        fail(f"{path}: {field} does not exist: {value}")
+    if not (root / candidate).is_file():
+        fail(f"{path}: {field} is not an existing regular file: {value}")
         return False
     return True
+
+
+def active_lines(path: Path) -> list[str]:
+    return [
+        line.strip()
+        for line in path.read_text().splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+
+def ci_job(lines: list[str], name: str) -> list[str]:
+    header = f"  {name}:"
+    try:
+        start = lines.index(header)
+    except ValueError:
+        return []
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        if re.fullmatch(r"  [A-Za-z0-9_-]+:", lines[index]):
+            end = index
+            break
+    return lines[start:end]
 
 
 def check_wiring(root: Path) -> bool:
     ok = True
     local = root / "scripts/agent-lint-md.sh"
     ci = root / ".github/workflows/ci.yml"
-    if not local.is_file() or "check-design-lifecycle.py" not in local.read_text():
+    local_call = (
+        'run_capped check-design-lifecycle "$SCRIPT_DIR/check-design-lifecycle.py"'
+    )
+    if not local.is_file() or local_call not in active_lines(local):
         fail("scripts/agent-lint-md.sh does not run check-design-lifecycle.py")
         ok = False
-    if not ci.is_file() or "run: python3 scripts/check-design-lifecycle.py" not in ci.read_text():
-        fail(".github/workflows/ci.yml does not mirror check-design-lifecycle.py")
+    ci_lines = ci.read_text().splitlines() if ci.is_file() else []
+    markdownlint = ci_job(ci_lines, "markdownlint")
+    docs_only = "if: needs.changes.outputs.docs_only == 'true'"
+    ci_call = "run: python3 scripts/check-design-lifecycle.py"
+    active_markdownlint = [
+        line.strip()
+        for line in markdownlint
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    if docs_only not in active_markdownlint or ci_call not in active_markdownlint:
+        fail(
+            ".github/workflows/ci.yml markdownlint docs-only job does not run "
+            "check-design-lifecycle.py"
+        )
         ok = False
+    return ok
+
+
+def check_successor_graph(records: dict[str, dict[str, object]]) -> bool:
+    ok = True
+    for path, record in records.items():
+        if record.get("class") != "superseded":
+            continue
+        seen = {path}
+        current = record
+        while current.get("class") == "superseded":
+            successor = current.get("successor")
+            if not isinstance(successor, str):
+                break
+            if successor in seen:
+                fail(f"{path}: supersession cycle reaches {successor}")
+                ok = False
+                break
+            seen.add(successor)
+            next_record = records.get(successor)
+            if next_record is None:
+                break
+            current = next_record
     return ok
 
 
@@ -79,6 +139,7 @@ def validate(root: Path) -> bool:
 
     ok = True
     paths: list[str] = []
+    records: dict[str, dict[str, object]] = {}
     maintained_keys: set[tuple[str, str]] = set()
     for index, record in enumerate(documents):
         label = f"documents[{index}]"
@@ -98,6 +159,7 @@ def validate(root: Path) -> bool:
             ok = False
             continue
         paths.append(path)
+        records[path] = record
         if not path.startswith("dev/design/") or not path.endswith(".md"):
             fail(f"{path}: catalog path must match dev/design/**/*.md")
             ok = False
@@ -163,7 +225,7 @@ def validate(root: Path) -> bool:
         fail(f"catalog paths without documents: {', '.join(extra)}")
         ok = False
 
-    return check_wiring(root) and ok
+    return check_successor_graph(records) and check_wiring(root) and ok
 
 
 def main() -> int:

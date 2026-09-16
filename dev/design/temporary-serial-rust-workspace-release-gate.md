@@ -1,5 +1,5 @@
 ---
-status: PROPOSED
+status: ACTIVE
 ---
 
 # Temporary serial Rust-workspace release gate
@@ -25,23 +25,24 @@ underlying races, and it does not convert a parallel failure into a pass. The
 parallel reporter preserves that diagnostic distinction until race-hunting is
 completed in its separately scheduled work.
 
-The scope is the Rust `cargo test --workspace` result gated by Linux `verify`.
-B4 cancels the native macOS and Windows release legs for 0.8.20; they remain
-deferred to 0.8.22. Python, TypeScript, lint, typecheck, security, and the
-other CI jobs retain their present behaviour.
+At adoption, the scope was the Rust `cargo test --workspace` result gated by
+Linux `verify`; B4 separately deferred native macOS and Windows release legs
+from 0.8.20 to 0.8.22. The serial-workspace control remains active across the
+current local/CI verification path without owning later platform-matrix policy.
+Python, TypeScript, lint, typecheck, and security retain their own gates.
 
-## 2. Current code and required invariant
+## 2. Current enforced invariant
 
-Today `scripts/agent-test.sh` registers `test-rust` directly as:
+`scripts/agent-test.sh` registers the gating Rust workspace suite as:
 
 ```text
-cargo test --workspace --quiet --no-fail-fast
+bash scripts/test-rust-workspace.sh --serial
 ```
 
 `scripts/agent-verify.sh` runs `agent-test.sh` after lint, typecheck, and
-security. Linux CI `verify` invokes `bash scripts/agent-verify.sh`. B4 leaves
-no native macOS or Windows gate active for 0.8.20, so changing the local script
-must remain sufficient to keep local and active CI evidence identical.
+security. CI `verify` invokes `bash scripts/agent-verify.sh`, while the
+`rust-workspace-race-report` job executes the same runner with
+`--parallel-report` as non-gating diagnostic evidence.
 
 The invariant is:
 

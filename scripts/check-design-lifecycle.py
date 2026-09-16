@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -117,6 +118,24 @@ def check_successor_graph(records: dict[str, dict[str, object]]) -> bool:
     return ok
 
 
+def tracked_design_paths(root: Path) -> set[str] | None:
+    result = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "-z", "--", "dev/design"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or f"git exited {result.returncode}"
+        fail(f"cannot enumerate tracked design documents: {detail}")
+        return None
+    return {
+        path
+        for path in result.stdout.split("\0")
+        if path.startswith("dev/design/") and path.endswith(".md")
+    }
+
+
 def validate(root: Path) -> bool:
     catalog_path = root / "dev/design/document-lifecycle.json"
     if not catalog_path.is_file():
@@ -211,10 +230,9 @@ def validate(root: Path) -> bool:
         fail(f"duplicate catalog paths: {', '.join(duplicates)}")
         ok = False
 
-    expected = {
-        path.relative_to(root).as_posix()
-        for path in (root / "dev/design").rglob("*.md")
-    }
+    expected = tracked_design_paths(root)
+    if expected is None:
+        return False
     actual = set(paths)
     missing = sorted(expected - actual)
     extra = sorted(actual - expected)
@@ -238,7 +256,7 @@ def main() -> int:
     args = parser.parse_args()
     root = args.repo_root.resolve()
     if validate(root):
-        count = len(list((root / "dev/design").rglob("*.md")))
+        count = len(tracked_design_paths(root) or ())
         print(f"ok    design-lifecycle: {count} documents")
         return 0
     return 1

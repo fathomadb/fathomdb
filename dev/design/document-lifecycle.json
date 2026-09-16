@@ -1569,9 +1569,9 @@
     },
     {
       "path": "dev/design/temporary-serial-rust-workspace-release-gate.md",
-      "class": "proposal",
+      "class": "maintained",
       "topic": "temporary-serial-rust-workspace-release-gate",
-      "role": "analysis",
+      "role": "gate-design",
       "owner": "dev/design/temporary-serial-rust-workspace-release-gate.md",
       "release": "cross-release",
       "successor": null

@@ -12,11 +12,11 @@ missing actuation owner. No path was deleted, moved, renamed, or archived.
 
 | Class | Count | Review disposition |
 | --- | ---: | --- |
-| maintained | 24 | Semantically reviewed against current ADR, interface, implementation, test, or bounded-owner authority. |
+| maintained | 25 | Semantically reviewed against current ADR, interface, implementation, test, or bounded-owner authority. |
 | reference | 26 | Retained as bounded input; not promoted to current product behavior. |
 | experiment | 15 | Retained as evidence with its recorded outcome or scope. |
 | historical | 93 | Preserved in place; no wholesale prose rewrite. |
-| proposal | 22 | Kept allocated to future decision/work; not treated as shipped. |
+| proposal | 21 | Kept allocated to future decision/work; not treated as shipped. |
 | deferred | 2 | Kept explicit and outside the 0.8.26 implementation boundary. |
 | superseded | 4 | Kept with an existing successor that is also the current owner. |
 
@@ -51,16 +51,17 @@ a historical Slice 25/35/40 record.
 | `retrieval-result-limits.md` | Accepted result-limit behavior and retrieval interfaces. | engine retrieval path; `slice18_retrieval_result_limits.rs` | Retained bounded result-limit owner unchanged. |
 | `retrieval.md` | Retrieval interfaces and exact graph-evidence ADR. | frozen/evidence/graph engine paths; Slice 10/20 suites | Added finalizer, resolution, nondisclosure, and no-ranking-fiction facts. |
 | `scheduler.md` | Projection scheduling/backpressure boundary. | engine scheduler/runtime paths; projection race/reliability suites | Added connection, commit-gate, generation, and common queue ownership. |
+| `temporary-serial-rust-workspace-release-gate.md` | Temporary Rust workspace evidence policy under its HITL ruling. | `test-rust-workspace.sh`; `agent-test.sh`; CI race-report job and recurrence tests | Corrected stale proposal/current-code wording and classified the live gate as maintained. |
 | `vector.md` | Filter ADR, schema-owned tables, and projection/retrieval/recovery boundaries. | schema/engine vector paths; quantization, snapshot, erasure, and rebuild suites | Replaced the self-declared stub with a compact current vector design. |
 
 ## Draft, deferred, and superseded allocations
 
-The 22 proposal records remain proposals: the 0.9.0 readability proposal; the
+The 21 proposal records remain proposals: the 0.9.0 readability proposal; the
 three 1–2M scaling records; the CI/CD hypothesis; the five-document
-FathomDB/Memex roadmap set; memory tiers/expiry; the temporary serial Rust gate;
-and the worktree consolidation/consolidator requirements, design, acceptance,
-execution-status, and retirement-proof sets. None is silently promoted by
-target release or front-matter status.
+FathomDB/Memex roadmap set; memory tiers/expiry; and the worktree
+consolidation/consolidator requirements, design, acceptance, execution-status,
+and retirement-proof sets. None is silently promoted by target release or
+front-matter status.
 
 The two deferred records are `0.8.x-after-0.8.25-design-notes.md` and
 `ann-index-vec0.md`. The four superseded records are the 0.8.20 B5 verification
@@ -72,7 +73,7 @@ successor.
 
 The drafted Slice 46 purpose is approved with the scope adjustment recorded in
 `plan.md`: exact mechanical coverage for the whole tree, semantic maintenance
-for the 24 current owners, and preservation/classification rather than rewriting
+for the 25 current owners, and preservation/classification rather than rewriting
 for all other records. This is complete for the assigned documentation
 convergence and does not absorb Slice 50 release verification or deferred
 product work.

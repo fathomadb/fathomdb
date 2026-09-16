@@ -44,9 +44,12 @@ surface.
 
 ### Lock posture
 
-All operator seams (doctor + recover) serialize on the engine's main
-`Mutex<connection>`. Neither root uses the runtime reader pool; the reader
-pool is runtime-only and is owned by `ReaderWorkerPool`.
+Engine-backed operator seams serialize on the engine's main
+`Mutex<connection>`. They do not use the runtime reader pool, which is
+runtime-only and owned by `ReaderWorkerPool`. The 0.8.26
+`data-plane-integrity` route is the explicit exception: it is a free inspection
+function, does not construct an `Engine`, and opens an immutable SQLite snapshot
+only after the CLI's external lock/recovery-sidecar refusal checks.
 
 - `doctor check-integrity`, `doctor safe-export`, and `doctor trace` hold
   an immutable lock and do not open a transaction.
@@ -54,9 +57,11 @@ pool is runtime-only and is owned by `ReaderWorkerPool`.
   `recover --excise-source` hold a mutable lock plus a SQLite transaction.
   They freeze the projection runtime before acquiring the lock and unfreeze
   on commit or rollback.
-- Concurrent `doctor` and `recover` invocations against the same engine
-  block at the mutex. This is acceptable for operator workflows and matches
-  the `ADR-0.6.0-single-writer-thread` invariant.
+- Concurrent Engine-backed `doctor` and `recover` invocations against the same
+  engine block at the mutex. This is acceptable for those operator workflows
+  and matches the `ADR-0.6.0-single-writer-thread` invariant.
+- `doctor data-plane-integrity` never reaches that mutex. A live product lock or
+  unsafe recovery-sidecar state is a typed refusal, not mutex contention.
 
 ## Machine-readable output
 

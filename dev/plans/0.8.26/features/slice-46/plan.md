@@ -122,7 +122,7 @@ guidance.
 | vector, embedder, op-store, lifecycle observability | `vector.md`; `embedder.md`; `op-store.md`; `lifecycle.md` | Semantic review; replace the vector stub contradiction with a small current design tied to schema/engine/recovery witnesses, and retain or narrowly bound the other owners when 0.8.26 introduces no owned delta. |
 | performance | `perf-gates.md`; `perf-regression-detection.md` | Review as current measurement owners; no new performance claim. |
 | release | `release.md` | Preserve publish mechanics and point integrated non-publishing evidence to Slice 50. |
-| cross-release method/policies | `orchestration.md`; `pinned-override-rot-guard.md`; `gpu-eval-activities-policy.md` | Review current applicability and catalog as maintained policy/method owners, not 0.8.26 feature designs. |
+| cross-release method/policies | `orchestration.md`; `pinned-override-rot-guard.md`; `gpu-eval-activities-policy.md`; `temporary-serial-rust-workspace-release-gate.md` | Review current applicability and catalog as maintained policy/method/gate owners, not 0.8.26 feature designs. |
 | nested projections and result limits | `nested-source-projections.md`; `retrieval-result-limits.md` | Review as bounded current owners; do not fold them into the 0.8.26 delta. |
 
 ## Implementation and TDD sequence

@@ -8,8 +8,8 @@
 //! philosophy, and additive strictness is safe pre-1.0"*, to be implemented *"at
 //! the next `configure_projections` slice"*. That is this slice. It **overturns**
 //! the shipped 15d fix-4 accept-and-round-trip position, which is why the tests
-//! that pinned the old behaviour move to a legacy back door rather than
-//! disappear (see below).
+//! that pin the old inert shape use a debug-only injector with coherent current
+//! generation authority rather than claiming upgrade compatibility (see below).
 //!
 //! ## Why the sub-object cannot confer the role
 //!
@@ -127,51 +127,6 @@ fn eav_values(path: &Path, attr_name: &str) -> Vec<String> {
         .map(|r| r.expect("eav row"))
         .collect();
     v
-}
-
-/// Seed ONE `_fathomdb_projection_registry` row on a raw RW connection, i.e.
-/// through the back door the shipped 15d code used before this slice's reject.
-/// This is the ONLY way to reach the LEGACY population — a database that
-/// declared `fts`/`vector` without `searchable` while the engine still accepted
-/// it — now that the public verb refuses to create it.
-///
-/// The INSERT shape is `persist_projection_row`'s, verbatim
-/// (`name, roles, fts_tokenizer, vector_embedder, vector_declared`); `roles` is
-/// the compact sorted comma-separated list `roles_to_storage` writes, and
-/// `fts_tokenizer` is NULL for "no `fts` sub-object" / `''` for
-/// "`fts` sub-object, engine-default tokenizer".
-fn seed_legacy_registry_row(
-    path: &Path,
-    name: &str,
-    roles_csv: &str,
-    fts_tokenizer: Option<&str>,
-    vector_declared: bool,
-) {
-    let conn = rusqlite::Connection::open(path).expect("open rw");
-    // Slice 40 normally rejects a raw post-bootstrap registry mutation as
-    // generation drift. Model the real upgrade state instead: step-32 shape
-    // committed, but its generation bootstrap has not yet installed authority.
-    conn.execute_batch(
-        "DROP TRIGGER _fathomdb_projection_generation_retain;
-         DELETE FROM _fathomdb_projection_generation_current;
-         DELETE FROM _fathomdb_projection_generations;
-         CREATE TRIGGER _fathomdb_projection_generation_retain
-         BEFORE DELETE ON _fathomdb_projection_generations
-         BEGIN SELECT RAISE(ABORT, 'projection generation history is retained'); END;",
-    )
-    .expect("reset generation authority to the pre-Slice-40 upgrade boundary");
-    conn.execute(
-        "INSERT INTO _fathomdb_projection_registry
-             (name, roles, fts_tokenizer, vector_embedder, vector_declared)
-         VALUES(?1, ?2, ?3, NULL, ?4)
-         ON CONFLICT(name) DO UPDATE SET
-             roles = excluded.roles,
-             fts_tokenizer = excluded.fts_tokenizer,
-             vector_embedder = excluded.vector_embedder,
-             vector_declared = excluded.vector_declared",
-        rusqlite::params![name, roles_csv, fts_tokenizer, i64::from(vector_declared)],
-    )
-    .expect("seed legacy registry row");
 }
 
 // ===========================================================================
@@ -416,33 +371,56 @@ fn name_rejections_keep_invalid_argument_while_the_shape_reject_is_write_validat
 }
 
 // ===========================================================================
-// The LEGACY population — readable, reportable, no longer re-appliable
+// Controlled inert shape — readable, reportable, no longer re-appliable
 // ===========================================================================
 
-/// **The legacy round-trip.** Databases that declared `fts`/`vector` without
-/// `searchable` while the engine ACCEPTED it still exist; this slice must not
-/// make them unreadable. `read_projections` is a pure read and rejects nothing,
-/// so the legacy row is reported **verbatim** — but feeding that output straight
-/// back into `configure_projections` (the shipped fix-4 read→configure
-/// round-trip) now RAISES.
+/// **The inert-shape round-trip.** A controlled debug-only fixture installs the
+/// previously accepted `fts`/`vector`-without-`searchable` shape while retaining
+/// coherent current generation authority. `read_projections` is a pure read and
+/// reports that row **verbatim** — but feeding the output straight back into
+/// `configure_projections` now RAISES.
 ///
 /// That asymmetry is the honest, documented consequence of the ruling and is
-/// pinned here rather than left to be discovered: for the legacy population the
-/// round-trip is broken BY DESIGN, and the remedy is to add the `searchable`
-/// role or drop the sub-object.
+/// pinned here rather than left to be discovered: for the injected inert shape
+/// the round-trip is broken BY DESIGN, and the remedy is to add the
+/// `searchable` role or drop the sub-object. This is not an upgrade-admission
+/// promise.
 #[test]
 fn a_legacy_registry_row_reads_back_verbatim_but_no_longer_re_applies() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "sv_legacy_round_trip");
     let opened = Engine::open(path.clone()).unwrap();
     opened.engine.write(&[node("N1", r#"{"status":"open"}"#)]).unwrap();
+    opened
+        .engine
+        .configure_projections(&[spec("status", &[ProjectionRole::Filterable], false, false)], &[])
+        .expect("install valid filterable declaration");
+    let generation_before_injection = opened
+        .engine
+        .read_projection_generation_status()
+        .expect("generation before inert-shape injection")
+        .generation_id;
+    opened
+        .engine
+        .set_legacy_projection_search_subobjects_for_test("status")
+        .expect("inject inert subobjects with coherent generation authority");
+    let injected_generation = opened
+        .engine
+        .read_projection_generation_status()
+        .expect("generation after inert-shape injection")
+        .generation_id;
+    assert_ne!(injected_generation, generation_before_injection);
     opened.engine.close().unwrap();
-
-    // The legacy state, written the way the shipped pre-Slice-23 engine wrote it.
-    seed_legacy_registry_row(&path, "status", "filterable", Some(""), true);
 
     let opened = Engine::open(path.clone()).unwrap();
     let engine = &opened.engine;
+    assert_eq!(
+        engine
+            .read_projection_generation_status()
+            .expect("coherent generation survives reopen")
+            .generation_id,
+        injected_generation
+    );
 
     let back = engine.read_projections().expect("a legacy row must still be READABLE");
     assert_eq!(back.len(), 1);

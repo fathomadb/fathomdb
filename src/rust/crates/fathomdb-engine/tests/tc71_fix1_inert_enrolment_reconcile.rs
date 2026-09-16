@@ -1,14 +1,12 @@
 //! 0.8.20 Slice 21 fix-1 (codex §9 round 1 `[P2]`, ledger **TC-71**) —
-//! **reconcile the vector kinds an ALREADY-AFFECTED database enrolled before the
-//! role gate landed.**
+//! **reconcile vector kinds in a controlled inert-declaration fixture.**
 //!
 //! ## The defect these tests close
 //!
 //! Slice 21c made `vector_projection_declared` require the `searchable` ROLE, so
 //! a `{roles: [filterable], vector: {}}` declaration no longer turns the dense
-//! arm on. That closes the FORWARD doors only. For a database that already ran
-//! the old code, `_fathomdb_vector_kinds` ALREADY contains the node kinds, and
-//! nothing on the upgrade path removes them:
+//! arm on. The controlled fixture pairs that inert shape with pre-existing
+//! `_fathomdb_vector_kinds` rows to verify the reopen reconciliation:
 //!
 //! - `Engine::vector_kind_needs_enrolment` returns early (`Ok(false)`) as soon as
 //!   `kind_is_vector_indexed` is true, so it never reaches the new role-aware
@@ -17,15 +15,15 @@
 //!   membership (`targets.vector && kind_is_vector_indexed(..)`), never on
 //!   `vector_projection_declared`.
 //!
-//! So upgrading did **not** stop the billable, unexpected embeddings for exactly
-//! the population TC-71 was raised for. The only un-enrol path
+//! Without reconciliation, the fixture continues billable, unexpected
+//! embeddings. The only un-enrol path
 //! (`unenrol_registry_vector_node_kinds`) fires inside `apply_projection_config`
 //! on the `declared_before && !declared_after` edge, which a user who never calls
 //! `configure_projections` again never reaches.
 //!
 //! ## The fix, and the trap it must not fall into
 //!
-//! A boot-time reconciliation un-enrols the node kinds — but ONLY when the
+//! Reopen reconciliation un-enrols the node kinds — but ONLY when the
 //! registry demonstrably governs the dense arm and demonstrably declares no
 //! `searchable→vector` projection. All three of:
 //!
@@ -122,7 +120,8 @@ fn roles(rs: &[ProjectionRole]) -> BTreeSet<ProjectionRole> {
 /// WITHOUT the `searchable` role.
 ///
 /// **0.8.20 Slice 23 (`R-20-SV`) — no longer ACCEPTED by the verb.** Kept so the
-/// reject can be asserted in place; see [`declare_legacy_filterable_vector`].
+/// reject can be asserted in place; see
+/// [`declare_inert_filterable_vector_for_test`].
 fn filterable_vector_spec(name: &str) -> ProjectionSpec {
     ProjectionSpec {
         name: name.to_string(),
@@ -133,24 +132,21 @@ fn filterable_vector_spec(name: &str) -> ProjectionSpec {
     }
 }
 
-/// **0.8.20 Slice 23 (`R-20-SV`) — THE LEGACY BACK DOOR.**
+/// **0.8.20 Slice 23 (`R-20-SV`) — CONTROLLED INERT-SHAPE FIXTURE.**
 ///
 /// The HITL ruled on 2026-07-24 (`plan-0.8.20.md` §11 item 4, option (b)) that
 /// this suite's shape is an INVALID SPEC, and Slice 23 rejects it with
 /// `EngineError::WriteValidation` (pinned in
-/// `tests/slice23_spec_validation_reject.rs`). That makes the shape
-/// unconstructible through the public verb — which is exactly why this suite
-/// matters MORE, not less: it is the suite about databases that already hold the
-/// shape at rest, and after Slice 23 a raw registry write is the ONLY way to
-/// build that state. So the fixture route moves and every ORACLE
+/// `tests/slice23_spec_validation_reject.rs`). The debug-only hook constructs
+/// that otherwise unreachable state with coherent current generation authority;
+/// this is not an upgrade-admission promise. Every ORACLE
 /// (`_fathomdb_vector_kinds`, `_fathomdb_vector_rows`, `vector_default`, the
 /// embedder call count) is unchanged.
 ///
-/// Declares the VALID `filterable` half through the verb, then sets
-/// `vector_declared = 1` with the raw UPDATE the pre-Slice-23
-/// `persist_projection_row` wrote for the same declaration — and asserts the
-/// front door is shut on the way past.
-fn declare_legacy_filterable_vector(engine: &Engine, name: &str) {
+/// Declares the VALID `filterable` half through the verb, then uses the atomic
+/// test hook to set `vector_declared = 1` and transition generation authority —
+/// while asserting the front door is shut on the way past.
+fn declare_inert_filterable_vector_for_test(engine: &Engine, name: &str) {
     assert_eq!(
         engine.configure_projections(&[filterable_vector_spec(name)], &[]).expect_err(
             "R-20-SV: a `vector` sub-object without `searchable` is now an invalid spec"
@@ -162,30 +158,16 @@ fn declare_legacy_filterable_vector(engine: &Engine, name: &str) {
         .expect("the `filterable` half is still a valid declaration");
     let before = engine
         .read_projection_generation_status()
-        .expect("generation before legacy fixture")
+        .expect("generation before inert fixture")
         .generation_id;
     engine
         .set_legacy_projection_vector_declared_for_test(name)
-        .expect("legacy vector sub-object with coherent generation authority");
+        .expect("inert vector sub-object with coherent generation authority");
     let after = engine
         .read_projection_generation_status()
-        .expect("legacy fixture remains an authoritative generation")
+        .expect("inert fixture remains an authoritative generation")
         .generation_id;
     assert_ne!(after, before, "the test-only declaration transition must mint an epoch");
-}
-
-fn reset_generation_authority_for_upgrade(path: &Path) {
-    let connection = rusqlite::Connection::open(path).expect("open upgrade fixture");
-    connection
-        .execute_batch(
-            "DROP TRIGGER _fathomdb_projection_generation_retain;
-             DELETE FROM _fathomdb_projection_generation_current;
-             DELETE FROM _fathomdb_projection_generations;
-             CREATE TRIGGER _fathomdb_projection_generation_retain
-             BEFORE DELETE ON _fathomdb_projection_generations
-             BEGIN SELECT RAISE(ABORT, 'projection generation history is retained'); END;",
-        )
-        .expect("reset authority to the pre-Slice-40 bootstrap boundary");
 }
 
 /// The legitimate dense-arm declaration — the control.
@@ -316,14 +298,13 @@ fn drop_projection_registry(path: &Path) {
 }
 
 // ===========================================================================
-// (1) THE UPGRADE SCENARIO — the codex [P2] itself
+// (1) CONTROLLED INERT REOPEN — the codex [P2] itself
 // ===========================================================================
 
-/// **The finding.** A database that ran the OLD code under
-/// `{roles: [filterable], vector: {}}` already holds `doc` in
-/// `_fathomdb_vector_kinds`. Session 1 below builds exactly that state and
-/// DEMONSTRATES the surviving harm (the write still embeds). Session 2 reopens on
-/// the fixed engine and asserts the harm is over.
+/// **The finding.** The controlled fixture combines
+/// `{roles: [filterable], vector: {}}` with `doc` already present in
+/// `_fathomdb_vector_kinds`. Session 1 demonstrates the surviving harm (the write
+/// still embeds). Session 2 reopens and asserts the harm is over.
 ///
 /// Post-conditions (1 and 3-5 fail at the fix-1 baseline):
 ///   1. reopening un-enrols `doc`;
@@ -336,22 +317,19 @@ fn drop_projection_registry(path: &Path) {
 #[test]
 fn an_already_enrolled_inert_vector_kind_is_un_enrolled_on_reopen() {
     let dir = TempDir::new().unwrap();
-    let path = db_path(&dir, "tc71_fix1_upgrade");
+    let path = db_path(&dir, "tc71_fix1_reopen");
 
-    // ---- session 1: the state the OLD code produced ----
+    // ---- session 1: controlled inert declaration plus enrolled kind ----
     let c1 = {
         let embedder = CountingEmbedder::new();
         let calls = Arc::clone(&embedder.calls);
         let opened = Engine::open_with_embedder_for_test(&path, Arc::new(embedder)).expect("open");
         let engine = &opened.engine;
 
-        declare_legacy_filterable_vector(engine, "summary");
-        // What the OLD `vector_projection_declared` did on that declaration:
-        // enrol the node kind. The `#[doc(hidden)]` hook reproduces the resulting
-        // at-rest state exactly (`INSERT OR REPLACE` into `_fathomdb_vector_kinds`
-        // with `DEFAULT_VECTOR_PROFILE`) — it is the same row the old forward door
-        // wrote.
-        engine.configure_vector_kind_for_test("doc").expect("enrol as the old code did");
+        declare_inert_filterable_vector_for_test(engine, "summary");
+        // Pair the inert declaration with the enrolled node-kind state TC-71
+        // guards. Both hooks retain current generation authority.
+        engine.configure_vector_kind_for_test("doc").expect("inject affected enrolment");
 
         engine.write(&[node("doc", "N1", r#"{"summary":"a dense meaning"}"#)]).expect("write N1");
         engine.drain(30_000).expect("drain");
@@ -365,15 +343,13 @@ fn an_already_enrolled_inert_vector_kind_is_un_enrolled_on_reopen() {
             vector_kind_registered(&conn, "doc"),
             "fixture: the affected database has `doc` enrolled"
         );
-        assert!(vector_row_exists(&conn, c1), "fixture: and the old code embedded N1");
+        assert!(vector_row_exists(&conn, c1), "fixture: the injected enrolment embedded N1");
         assert_eq!(calls.load(Ordering::SeqCst), 1, "fixture: exactly one embed in session 1");
 
         opened.engine.close().unwrap();
         c1
     };
-    reset_generation_authority_for_upgrade(&path);
-
-    // ---- session 2: the upgrade. Reopening must self-heal. ----
+    // ---- session 2: reopening must reconcile the injected inert state. ----
     let embedder = CountingEmbedder::new();
     let calls = Arc::clone(&embedder.calls);
     let delay_ms = Arc::clone(&embedder.delay_ms);
@@ -403,21 +379,23 @@ fn an_already_enrolled_inert_vector_kind_is_un_enrolled_on_reopen() {
 
     // (3)+(4)+(5) the billable harm is actually over.
     delay_ms.store(8_000, Ordering::SeqCst);
-    engine.write(&[node("doc", "N2", r#"{"summary":"written after the upgrade"}"#)]).expect("N2");
+    engine
+        .write(&[node("doc", "N2", r#"{"summary":"written after reconciliation"}"#)])
+        .expect("N2");
     engine
         .drain(2_000)
         .expect("`drain` must not wait: with the kind un-enrolled nothing was ever enqueued");
     assert_eq!(
         calls_since(&calls, after_open),
         0,
-        "fix-1: after the upgrade a write under the inert declaration must not spend a single \
+        "fix-1: after reconciliation a write under the inert declaration must not spend a single \
          embed call — this is TC-71's whole stated harm"
     );
     // …and the healing open itself spends nothing either. `doc` was the ONLY
     // enrolled kind, so once the reconciliation (which runs inside `open_locked`)
     // has removed it the 0.8.18 #5 equivalence probe finds `_fathomdb_vector_kinds`
     // empty and correctly does no work: there is no dense arm left to guard. This
-    // pins the ORDERING — reconcile first, probe second — so the upgrade does not
+    // pins the ORDERING — reconcile first, probe second — so the reopen does not
     // spend 90 probe embeds on an arm it is in the middle of switching off.
     assert_eq!(
         after_open, 0,
@@ -438,12 +416,12 @@ fn an_already_enrolled_inert_vector_kind_is_un_enrolled_on_reopen() {
 // ===========================================================================
 
 /// Slice 35 validates the exact visibility-trigger manifest at open. Removing
-/// the registry from a schema-31 database therefore must fail closed without
+/// the registry from a current schema-34 database therefore must fail closed without
 /// changing the existing dense enrolment.
 #[test]
 fn a_current_database_missing_projection_registry_is_rejected_without_mutation() {
     let dir = TempDir::new().unwrap();
-    let path = db_path(&dir, "tc71_fix1_legacy_no_registry");
+    let path = db_path(&dir, "tc71_fix1_current_no_registry");
 
     // ---- session 1: a legacy dense arm, enrolled with no registry involved ----
     {
@@ -494,12 +472,11 @@ fn a_current_database_missing_projection_registry_is_rejected_without_mutation()
 // (3) CONDITION 2 — a registry with no `vector` sub-object anywhere
 // ===========================================================================
 
-/// The same trap, one step less extreme and far more common after an upgrade:
-/// the registry table EXISTS (step 24 creates it on every open) and is governed —
+/// The same trap, one step less extreme: the current registry table exists and
+/// is governed —
 /// it holds a real `{filterable}` declaration — but NO row carries a `vector`
-/// sub-object. The enrolment therefore came from somewhere the registry never
-/// owned (a pre-registry era, or the `#[doc(hidden)]` hook several shipped suites
-/// use, e.g. `slice15e_prekn_filterable`).
+/// sub-object. The enrolment therefore came from the explicit test hook rather
+/// than from this registry declaration.
 ///
 /// Condition 2 (`EXISTS(vector_declared = 1)`) is the ONLY thing separating this
 /// from the reconciling case, so it is asserted on its own.
@@ -513,7 +490,7 @@ fn a_registry_with_no_vector_subobject_leaves_a_pre_registry_enrolment_untouched
         let calls = Arc::clone(&embedder.calls);
         let opened = Engine::open_with_embedder_for_test(&path, Arc::new(embedder)).expect("open");
         let engine = &opened.engine;
-        engine.configure_vector_kind_for_test("doc").expect("pre-registry enrolment");
+        engine.configure_vector_kind_for_test("doc").expect("independent test enrolment");
         engine.configure_vector_kind_for_test("edge_fact").expect("edge enrolment");
         // A governed registry — but with NO `vector` sub-object anywhere.
         engine
@@ -528,8 +505,6 @@ fn a_registry_with_no_vector_subobject_leaves_a_pre_registry_enrolment_untouched
         opened.engine.close().unwrap();
         c1
     };
-    reset_generation_authority_for_upgrade(&path);
-
     let conn = ro(&path);
     let before = enrolled_kinds(&conn);
     assert_eq!(before, vec!["doc".to_string(), "edge_fact".to_string()], "fixture: both enrolled");
@@ -546,7 +521,7 @@ fn a_registry_with_no_vector_subobject_leaves_a_pre_registry_enrolment_untouched
         enrolled_kinds(&conn),
         before,
         "CONDITION 2: a registry that declares NO `vector` sub-object anywhere is not the \
-         TC-71-affected population, so a pre-registry enrolment under it must be left alone"
+         TC-71-affected population, so an independently injected enrolment must be left alone"
     );
     assert!(vector_row_exists(&conn, c1), "…and the existing embedding survives");
     drop(conn);
@@ -646,8 +621,8 @@ fn edge_fact_survives_the_reconciliation_which_is_idempotent_across_reopens() {
         let embedder = CountingEmbedder::new();
         let opened = Engine::open_with_embedder_for_test(&path, Arc::new(embedder)).expect("open");
         let engine = &opened.engine;
-        declare_legacy_filterable_vector(engine, "summary");
-        engine.configure_vector_kind_for_test("doc").expect("enrol as the old code did");
+        declare_inert_filterable_vector_for_test(engine, "summary");
+        engine.configure_vector_kind_for_test("doc").expect("inject affected enrolment");
         engine.configure_vector_kind_for_test("note").expect("a second affected node kind");
         engine.configure_vector_kind_for_test("edge_fact").expect("the G11 edge enrolment");
         engine.write(&[node("doc", "N1", r#"{"summary":"a dense meaning"}"#)]).expect("write N1");
@@ -664,7 +639,6 @@ fn edge_fact_survives_the_reconciliation_which_is_idempotent_across_reopens() {
     };
 
     // ---- reopen 1: reconciles ----
-    reset_generation_authority_for_upgrade(&path);
     let rows_after_reconcile = {
         let embedder = CountingEmbedder::new();
         let opened =
@@ -729,8 +703,8 @@ fn a_configure_projections_call_reconciles_an_already_enrolled_inert_kind() {
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(embedder)).expect("open");
     let engine = &opened.engine;
 
-    declare_legacy_filterable_vector(engine, "summary");
-    engine.configure_vector_kind_for_test("doc").expect("enrol as the old code did");
+    declare_inert_filterable_vector_for_test(engine, "summary");
+    engine.configure_vector_kind_for_test("doc").expect("inject affected enrolment");
     engine.configure_vector_kind_for_test("edge_fact").expect("the G11 edge enrolment");
 
     let conn = ro(&path);

@@ -165,21 +165,7 @@ fn seed_legacy_non_searchable_vector(engine: &Engine, name: &str) {
         .expect("seed the valid filterable half");
     engine
         .set_legacy_projection_vector_declared_for_test(name)
-        .expect("seed pre-Slice-23 legacy vector row with coherent generation authority");
-}
-
-fn reset_generation_authority_for_upgrade(path: &Path) {
-    let connection = rusqlite::Connection::open(path).expect("open upgrade fixture");
-    connection
-        .execute_batch(
-            "DROP TRIGGER _fathomdb_projection_generation_retain;
-             DELETE FROM _fathomdb_projection_generation_current;
-             DELETE FROM _fathomdb_projection_generations;
-             CREATE TRIGGER _fathomdb_projection_generation_retain
-             BEFORE DELETE ON _fathomdb_projection_generations
-             BEGIN SELECT RAISE(ABORT, 'projection generation history is retained'); END;",
-        )
-        .expect("reset authority to the pre-Slice-40 bootstrap boundary");
+        .expect("seed the inert vector row with coherent generation authority");
 }
 
 fn force_probe_verdict_rerun(path: &Path) {
@@ -323,11 +309,10 @@ fn legacy_non_searchable_vector_is_not_declared_and_never_reports_unsupported_ki
             .expect("declare plain");
         opened.engine.write(&[node("invoice", "I1")]).expect("write unsupported kind");
         seed_legacy_non_searchable_vector(&opened.engine, "legacy_vector");
-        opened.engine.close().expect("close before raw legacy fixture");
+        opened.engine.close().expect("close coherent inert fixture");
     }
-    reset_generation_authority_for_upgrade(&path);
 
-    let opened = Engine::open(&path).expect("reopen legacy fixture");
+    let opened = Engine::open(&path).expect("reopen inert fixture");
     let status = opened.engine.read_projection_status().expect("legacy status");
     assert_eq!(entry(&status, "plain"), ProjectionStatusDenseReadiness::NotDeclared);
     assert_eq!(entry(&status, "legacy_vector"), ProjectionStatusDenseReadiness::NotDeclared);

@@ -28,9 +28,9 @@ same reader transaction for authority, eligibility, disclosure, lifecycle,
 and immutable-revision materialization.
 Intrinsic lifecycle authorization is re-evaluated before provenance details or
 source bytes: canonical sources and node artifacts must remain active, and
-terminal edges must remain effective at the frozen instant. Equivalent freshly
-authenticated semantic contexts remain valid; token-string identity is not an
-authority rule.
+terminal edges must remain effective at the frozen instant and outside the
+temporal-fallback class. Equivalent freshly authenticated semantic contexts
+remain valid; token-string identity is not an authority rule.
 
 Resolution is point evidence, not search. It returns intrinsic revision/source
 evidence and never fabricates rank, score, or contribution. Expired, foreign,

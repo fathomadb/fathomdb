@@ -452,6 +452,7 @@ struct StoredEvidence {
     artifact_superseded: bool,
     artifact_superseded_at: Option<i64>,
     edge_valid: bool,
+    edge_temporal_fallback: bool,
     source_id: String,
     source_version_id: String,
     source_revision_id: String,
@@ -470,7 +471,7 @@ struct StoredEvidence {
 type SourceLinkRow = (String, String, String, String, Option<i64>, Option<i64>, String);
 type SourceArtifactRow = (String, String, Option<i64>, i64, String, Option<i64>, Option<i64>);
 type NodeArtifactRow = (Option<String>, String, String, Option<i64>, Option<i64>, Option<i64>);
-type EdgeArtifactRow = (Option<String>, String, Option<i64>, Option<i64>, Option<i64>);
+type EdgeArtifactRow = (Option<String>, String, Option<i64>, Option<i64>, Option<i64>, Option<i64>);
 
 #[derive(Clone, Debug)]
 struct Payload {
@@ -888,6 +889,18 @@ fn authorize_intrinsic_lifecycle(
     Ok((source_state, artifact_lifecycle))
 }
 
+fn authorize_graph_intrinsic_lifecycle(
+    connection: &Connection,
+    stored: &StoredEvidence,
+    artifact_class: EvidenceArtifactClassV1,
+) -> Result<(), EngineError> {
+    authorize_intrinsic_lifecycle(connection, stored, artifact_class)?;
+    if artifact_class == EvidenceArtifactClassV1::Edge && stored.edge_temporal_fallback {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    Ok(())
+}
+
 fn contribution(per_hit: &crate::PerHitExplain) -> Result<EvidenceContributionV1, EngineError> {
     let values = [
         Some(per_hit.fused_score),
@@ -1016,6 +1029,7 @@ fn load_stored(
         _artifact_valid_from,
         _artifact_valid_until,
         edge_valid,
+        edge_temporal_fallback,
     ) = match class {
         EvidenceArtifactClassV1::Node => {
             let row: Option<NodeArtifactRow> = connection
@@ -1043,24 +1057,42 @@ fn load_stored(
             if !include_out_of_window && !valid {
                 return Err(EvidenceErrorV1::unavailable().into());
             }
-            (logical, kind, Some(state), superseded, valid_from, valid_until, true)
+            (logical, kind, Some(state), superseded, valid_from, valid_until, true, false)
         }
         EvidenceArtifactClassV1::Edge => {
             let row: Option<EdgeArtifactRow> = connection
                 .query_row(
-                    "SELECT logical_id,kind,superseded_at,t_valid,t_invalid FROM canonical_edges \
-                     WHERE write_cursor=?1",
+                    "SELECT logical_id,kind,superseded_at,t_valid,t_invalid,temporal_fallback \
+                     FROM canonical_edges WHERE write_cursor=?1",
                     [cursor],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                        ))
+                    },
                 )
                 .optional()
                 .map_err(|_| EngineError::Storage)?;
-            let (logical, kind, superseded, valid_from, valid_until) =
+            let (logical, kind, superseded, valid_from, valid_until, temporal_fallback) =
                 row.ok_or_else(EvidenceErrorV1::unavailable)?;
             let valid = include_out_of_window
                 || (valid_from.is_none_or(|start| start <= effective)
                     && valid_until.is_none_or(|end| end > effective));
-            (logical, kind, None, superseded, valid_from, valid_until, valid)
+            (
+                logical,
+                kind,
+                None,
+                superseded,
+                valid_from,
+                valid_until,
+                valid,
+                temporal_fallback.unwrap_or(0) != 0,
+            )
         }
     };
     Ok(StoredEvidence {
@@ -1072,6 +1104,7 @@ fn load_stored(
         artifact_superseded: artifact_superseded_at.is_some(),
         artifact_superseded_at,
         edge_valid,
+        edge_temporal_fallback,
         source_id,
         source_version_id,
         source_revision_id,
@@ -2168,7 +2201,7 @@ pub(crate) fn resolve_graph_evidence(
         frozen.context.view.include_out_of_window,
     )
     .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-    authorize_intrinsic_lifecycle(connection, &stored, payload.artifact_class)?;
+    authorize_graph_intrinsic_lifecycle(connection, &stored, payload.artifact_class)?;
     let eligible = match payload.artifact_class {
         EvidenceArtifactClassV1::Node => crate::text_hit_passes_filter(
             connection,

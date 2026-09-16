@@ -157,6 +157,10 @@ run_tier_suite fast test-agent-test-collect-all bash scripts/tests/test_agent_te
 # Scripts (bash): release-time preflight (tag/--check-files/CHANGELOG/metadata).
 run_tier_suite fast test-verify-release-gates bash scripts/tests/test_verify_release_gates.sh
 run_tier_suite fast test-verify-release-python-wheel bash scripts/tests/test_verify_release_python_wheel.sh
+run_tier_suite fast test-slice50-hook-inventory python3 scripts/tests/test_slice50_hook_inventory.py
+run_tier_suite fast test-wait-for-registry-visibility python3 scripts/tests/test_wait_for_registry_visibility.py
+run_tier_suite fast test-native-artifact-receipts python3 scripts/tests/test_native_artifact_receipts.py
+run_tier_suite fast test-slice50-evidence-matrix python3 scripts/tests/test_slice50_evidence_matrix.py
 run_tier_suite fast test-dependency-policy bash scripts/tests/test_check_dependency_policy.sh
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local

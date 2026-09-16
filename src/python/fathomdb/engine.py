@@ -249,7 +249,8 @@ def _graph_json_resolved_evidence(value: Any) -> ResolvedGraphEvidenceV1:
         },
         "",
     )
-    if _graph_json_field(root, "schemaVersion", "/schemaVersion") != 1:
+    schema_version = _graph_json_field(root, "schemaVersion", "/schemaVersion")
+    if type(schema_version) is not int or schema_version != 1:
         _graph_refuse("unsupported_schema_version", "/schemaVersion")
 
     artifact_raw = _graph_json_object(_graph_json_field(root, "artifact", "/artifact"), "/artifact")
@@ -392,7 +393,10 @@ def _graph_json_resolved_evidence(value: Any) -> ResolvedGraphEvidenceV1:
             },
             "/dependency",
         )
-        if _graph_json_field(item, "schemaVersion", "/dependency/schemaVersion") != 1:
+        dependency_schema_version = _graph_json_field(
+            item, "schemaVersion", "/dependency/schemaVersion"
+        )
+        if type(dependency_schema_version) is not int or dependency_schema_version != 1:
             _graph_refuse("unsupported_schema_version", "/dependency/schemaVersion")
         dependency_source_revision_id = _graph_revision(
             _graph_json_field(item, "sourceRevisionId", "/dependency/sourceRevisionId"),

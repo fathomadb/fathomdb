@@ -957,7 +957,7 @@ mod tests {
             )
             .unwrap();
         crate::ensure_vector_partition(&mut connection, crate::DEFAULT_EMBEDDER_DIMENSION).unwrap();
-        crate::projection_generation::bootstrap(&mut connection, 32).unwrap();
+        crate::projection_generation::bootstrap(&mut connection, 32, false).unwrap();
         let (old_id, declaration): (String, String) = connection
             .query_row(
                 "SELECT generation_id,declaration_sha256 \
@@ -1040,7 +1040,7 @@ mod tests {
             )
             .unwrap();
         crate::ensure_vector_partition(&mut connection, crate::DEFAULT_EMBEDDER_DIMENSION).unwrap();
-        crate::projection_generation::bootstrap(&mut connection, 32).unwrap();
+        crate::projection_generation::bootstrap(&mut connection, 32, false).unwrap();
         connection
             .execute(
                 "INSERT INTO operational_collections(\

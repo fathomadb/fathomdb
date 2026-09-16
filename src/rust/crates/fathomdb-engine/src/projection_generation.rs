@@ -606,6 +606,7 @@ pub(crate) fn transition(
 pub(crate) fn bootstrap(
     connection: &mut Connection,
     schema_version: u32,
+    allow_populated_legacy_bootstrap: bool,
 ) -> Result<(), EngineError> {
     if schema_version < 32 {
         return Ok(());
@@ -614,6 +615,9 @@ pub(crate) fn bootstrap(
     let current_rows = count(connection, "_fathomdb_projection_generation_current")?;
     if generation_rows == 0 && current_rows == 0 {
         let fresh = bootstrap_is_fresh(connection)?;
+        if !fresh && !allow_populated_legacy_bootstrap {
+            return Err(corruption());
+        }
         let origin = if fresh { "fresh" } else { "legacy_unverified" };
         let boundary = authoritative_boundary(connection)?;
         let digest = declaration_digest(connection)?;

@@ -9153,9 +9153,15 @@ impl Engine {
         let lock = pending_lock.initialize().map_err(&report_preopen_error)?;
         #[cfg(any(test, feature = "test-hooks"))]
         let managed_connections = Arc::new(ManagedConnectionRegistry::default());
+        #[cfg(feature = "migration-test-hooks")]
+        let allow_populated_legacy_projection_bootstrap =
+            plan.admission == DatabaseAdmission::TestMigrations;
+        #[cfg(not(feature = "migration-test-hooks"))]
+        let allow_populated_legacy_projection_bootstrap = false;
         let open_result = Self::open_locked(
             canonical_path.clone(),
             plan.migrations,
+            allow_populated_legacy_projection_bootstrap,
             &embedder_identity,
             emit_migration_event,
             #[cfg(any(test, feature = "test-hooks"))]
@@ -9363,6 +9369,7 @@ impl Engine {
     fn open_locked(
         path: PathBuf,
         migrations: &'static [fathomdb_schema::Migration],
+        allow_populated_legacy_projection_bootstrap: bool,
         embedder_identity: &EmbedderIdentity,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
@@ -9463,27 +9470,28 @@ impl Engine {
         ensure_vector_partition(&mut connection, embedder_identity.dimension).map_err(|_| {
             EngineOpenError::Io { message: "could not initialize vector partition".to_string() }
         })?;
-        projection_generation::bootstrap(&mut connection, migration.schema_version_after).map_err(
-            |error| match error {
-                EngineError::ProjectionGeneration(_) => {
-                    EngineOpenError::Corruption(CorruptionDetail {
-                        kind: CorruptionKind::ProjectionGenerationDrift,
-                        stage: OpenStage::ProjectionGeneration,
-                        locator: CorruptionLocator::TableRow {
-                            table: "_fathomdb_projection_generation_current",
-                            rowid: 1,
-                        },
-                        recovery_hint: RecoveryHint {
-                            code: "E_CORRUPT_PROJECTION_GENERATION",
-                            doc_anchor: "design/recovery-0.8.25.md#projection-generation",
-                        },
-                    })
-                }
-                _ => EngineOpenError::Io {
-                    message: "could not initialize projection generation".to_string(),
+        projection_generation::bootstrap(
+            &mut connection,
+            migration.schema_version_after,
+            allow_populated_legacy_projection_bootstrap,
+        )
+        .map_err(|error| match error {
+            EngineError::ProjectionGeneration(_) => EngineOpenError::Corruption(CorruptionDetail {
+                kind: CorruptionKind::ProjectionGenerationDrift,
+                stage: OpenStage::ProjectionGeneration,
+                locator: CorruptionLocator::TableRow {
+                    table: "_fathomdb_projection_generation_current",
+                    rowid: 1,
                 },
+                recovery_hint: RecoveryHint {
+                    code: "E_CORRUPT_PROJECTION_GENERATION",
+                    doc_anchor: "design/recovery-0.8.25.md#projection-generation",
+                },
+            }),
+            _ => EngineOpenError::Io {
+                message: "could not initialize projection generation".to_string(),
             },
-        )?;
+        })?;
 
         // 0.8.20 Slice 15c (TC-33) fix-6 [codex §9 P1] — the step-23
         // `canonical_edges` recreate drops every edge row (NO DATA MIGRATION) and
@@ -24067,6 +24075,32 @@ fn admit_current_database(path: &Path) -> Result<(), EngineOpenError> {
 }
 
 fn canonical_database_path(path: &Path) -> Result<PathBuf, EngineOpenError> {
+    match path.canonicalize() {
+        Ok(canonical) => return Ok(canonical),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => {
+            return Err(EngineOpenError::Io {
+                message: "database path is not accessible".to_string(),
+            })
+        }
+    }
+    // `canonicalize` reports NotFound for both a genuinely absent file and a
+    // dangling final-component symlink. Only the former is a legal fresh-path
+    // bootstrap; treating the latter as a filename would create a split lock
+    // namespace beside the alias.
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => {
+            return Err(EngineOpenError::Io {
+                message: "database path does not resolve to an accessible file".to_string(),
+            })
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => {
+            return Err(EngineOpenError::Io {
+                message: "database path is not accessible".to_string(),
+            })
+        }
+    }
     let parent = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())

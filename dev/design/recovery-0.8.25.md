@@ -32,8 +32,11 @@ authority itself cannot be validated sufficiently to enter that workflow,
 safe-export the canonical data and rebuild a new database rather than guessing
 an identity or laundering a legacy generation.
 
-A `legacy_unverified` generation with `degraded` readiness is not corruption.
-It records an upgraded nonempty pre-Slice-40 database whose earlier physical
-state cannot be certified. An explicit governed configuration change or
-operator rebuild may establish a new certifiable epoch; an idempotent replay
-must not.
+An already-persisted, internally coherent `legacy_unverified` generation with
+`degraded` readiness is not corruption. It records an upgraded nonempty
+pre-Slice-40 database whose earlier physical state cannot be certified. Its
+absence from a populated current database is corruption: open must not invent
+that authority, and receipt replay must not use some other legacy row to cover
+a missing commit-time generation identity. An explicit governed configuration
+change or operator rebuild may establish a new certifiable epoch; an
+idempotent replay must not.

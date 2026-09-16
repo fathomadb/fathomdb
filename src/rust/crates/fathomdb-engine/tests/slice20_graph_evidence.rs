@@ -369,9 +369,12 @@ fn temporal_fixture(
 }
 
 fn unavailable(error: EngineError) {
-    assert!(matches!(error, EngineError::Evidence(ref error)
+    assert!(
+        matches!(error, EngineError::Evidence(ref error)
         if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
-            && error.field_path == "/evidenceRef"));
+            && error.field_path == "/evidenceRef"),
+        "unexpected evidence error: {error:?}"
+    );
 }
 
 fn expansion_unavailable(error: EngineError) {

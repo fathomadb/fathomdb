@@ -748,13 +748,8 @@ pub(crate) fn resolve(
             }
             _ => return Err(EvidenceErrorV1::unavailable().into()),
         };
-    if stored.artifact_superseded || stored.source_superseded {
-        return Err(EvidenceErrorV1::unavailable().into());
-    }
-    if crate::dependency_closure::active_barrier_for_source(connection, &stored.source_revision_id)?
-    {
-        return Err(EvidenceErrorV1::unavailable().into());
-    }
+    let (source_state, artifact_lifecycle) =
+        authorize_intrinsic_lifecycle(connection, &stored, payload.artifact_class)?;
     let eligibility = &request.context.context.eligibility;
     let artifact_eligible = match payload.artifact_class {
         EvidenceArtifactClassV1::Node => crate::text_hit_passes_filter(
@@ -790,26 +785,6 @@ pub(crate) fn resolve(
     {
         return Err(EvidenceErrorV1::unavailable().into());
     }
-    let source_state = LifecycleState::from_str_opt(&stored.source_state)
-        .filter(|state| *state == LifecycleState::Active)
-        .ok_or_else(EvidenceErrorV1::unavailable)?;
-    let artifact_lifecycle = match payload.artifact_class {
-        EvidenceArtifactClassV1::Node => {
-            let state = stored
-                .artifact_state
-                .as_deref()
-                .and_then(LifecycleState::from_str_opt)
-                .filter(|state| *state == LifecycleState::Active)
-                .ok_or_else(EvidenceErrorV1::unavailable)?;
-            EvidenceArtifactLifecycleV1::Node { state, superseded: false }
-        }
-        EvidenceArtifactClassV1::Edge => {
-            if !stored.edge_valid {
-                return Err(EvidenceErrorV1::unavailable().into());
-            }
-            EvidenceArtifactLifecycleV1::Edge { superseded: false, valid_at_effective: true }
-        }
-    };
     if stored.completeness != "complete" {
         return Err(
             EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, "/provenance").into()
@@ -874,6 +849,43 @@ pub(crate) fn resolve(
         retrieval_contribution: payload.contribution,
         dependency,
     })
+}
+
+fn authorize_intrinsic_lifecycle(
+    connection: &Connection,
+    stored: &StoredEvidence,
+    artifact_class: EvidenceArtifactClassV1,
+) -> Result<(LifecycleState, EvidenceArtifactLifecycleV1), EngineError> {
+    if stored.artifact_superseded
+        || stored.source_superseded
+        || crate::dependency_closure::active_barrier_for_source(
+            connection,
+            &stored.source_revision_id,
+        )?
+    {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    let source_state = LifecycleState::from_str_opt(&stored.source_state)
+        .filter(|state| *state == LifecycleState::Active)
+        .ok_or_else(EvidenceErrorV1::unavailable)?;
+    let artifact_lifecycle = match artifact_class {
+        EvidenceArtifactClassV1::Node => {
+            let state = stored
+                .artifact_state
+                .as_deref()
+                .and_then(LifecycleState::from_str_opt)
+                .filter(|state| *state == LifecycleState::Active)
+                .ok_or_else(EvidenceErrorV1::unavailable)?;
+            EvidenceArtifactLifecycleV1::Node { state, superseded: false }
+        }
+        EvidenceArtifactClassV1::Edge => {
+            if !stored.edge_valid {
+                return Err(EvidenceErrorV1::unavailable().into());
+            }
+            EvidenceArtifactLifecycleV1::Edge { superseded: false, valid_at_effective: true }
+        }
+    };
+    Ok((source_state, artifact_lifecycle))
 }
 
 fn contribution(per_hit: &crate::PerHitExplain) -> Result<EvidenceContributionV1, EngineError> {
@@ -2156,15 +2168,7 @@ pub(crate) fn resolve_graph_evidence(
         frozen.context.view.include_out_of_window,
     )
     .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-    if stored.artifact_superseded
-        || stored.source_superseded
-        || crate::dependency_closure::active_barrier_for_source(
-            connection,
-            &stored.source_revision_id,
-        )?
-    {
-        return Err(EvidenceErrorV1::unavailable().into());
-    }
+    authorize_intrinsic_lifecycle(connection, &stored, payload.artifact_class)?;
     let eligible = match payload.artifact_class {
         EvidenceArtifactClassV1::Node => crate::text_hit_passes_filter(
             connection,

@@ -27,6 +27,9 @@ publication, and discard stale results after a generation transition. Receipt
 correlation stores the generation current at commit and is never rebound to a
 later generation. Generation status and receipt-keyed mutation status are pure
 reads; they report corruption or unavailability and never repair state.
+Likewise, a populated current database with no generation history/current
+singleton is corrupt on open; current admission does not synthesize an
+upgrade-era generation authority.
 
 Body-bearing derived edges committed through `Engine::actuate` enter this same
 scheduler, terminal-state, generation, and publication path. Their receipt's

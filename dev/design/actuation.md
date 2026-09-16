@@ -70,6 +70,9 @@ dependency-generation boundaries, pending projection cursors, projection
 generation identity, and any dependency-closure operation IDs. Receipt load
 recomputes request-derived consequences and fails closed if affected revisions,
 source references, projection correlation, bounds, or ordering are incoherent.
+A current receipt with pending projection cursors always names its commit-time
+generation; a missing generation identity is corruption and is never covered
+by an unrelated retained legacy generation.
 
 Source erasure or purge redacts receipt content and source-reference rows but
 retains an opaque operation-ID tombstone. The ID therefore remains permanently

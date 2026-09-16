@@ -193,7 +193,12 @@ Cross-binding consequences:
 - Python in process A holding `Engine.open(path)` → TS in process B calling `Engine.open(path)` MUST fail with `DatabaseLocked { holder_pid }` regardless of binding identity. The sidecar flock is the load-bearing layer for cross-process exclusion; it surfaces BEFORE SQLite I/O begins, so Engine.open does not pay migration / embedder warmup cost on a doomed open.
 - The lock's lifetime is bound to the `Engine` instance; closing or dropping the engine releases it (drops the sidecar lock fd + closes SQLite connections). `Engine.close` is required (REQ-020a; AC-022a).
 - Same-process two-`Engine` (Python `Engine` and TS `Engine` in the _same_ process targeting the _same_ path) is also forbidden. The second `Engine.open` opens a NEW `File` handle for the sidecar; per-OFD `flock` semantics return `WouldBlock`, surfacing as `DatabaseLocked`. Bindings do NOT maintain an in-process registry of held paths.
-- Path canonicalization: `Engine.open` canonicalizes the parent directory and appends the leaf filename before deriving `{...}.lock` path, defeating symlink + bind-mount aliasing. Bindings do not perform their own canonicalization.
+- Path canonicalization: for an existing database, `Engine.open` resolves the
+  complete path before deriving `{...}.lock`, so a final-component symlink and
+  its target share one product-lock and recovery-sidecar namespace. A genuinely
+  missing fresh path retains normalized-parent-plus-leaf identity; a dangling
+  final-component symlink is refused rather than bootstrapped. Bindings do not
+  perform their own canonicalization.
 
 The corruption-on-open path (ADR-0.6.0-corruption-open-behavior § 5; AC-035c) MUST release the sidecar lock + close any opened SQLite connection before returning `CorruptionError`. Bindings inherit this guarantee; no binding-level workaround is permitted.
 

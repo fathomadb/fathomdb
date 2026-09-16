@@ -768,18 +768,7 @@ pub(super) fn load_receipt(
         return Err(EngineError::Storage);
     }
     if !pending_projection_write_cursors.is_empty() && projection_generation_id.is_none() {
-        let max_pending = pending_projection_write_cursors.last().copied().unwrap_or(0);
-        let covered_by_legacy: bool = connection
-            .query_row(
-                "SELECT EXISTS(SELECT 1 FROM _fathomdb_projection_generations \
-                 WHERE origin='legacy_unverified' AND transition_boundary>=?1)",
-                [max_pending],
-                |row| row.get(0),
-            )
-            .map_err(|_| EngineError::Storage)?;
-        if !covered_by_legacy {
-            return Err(EngineError::Storage);
-        }
+        return Err(EngineError::Storage);
     }
     if let Some(generation_id) = projection_generation_id.as_ref() {
         let Some(receipt_boundary) = boundary else {

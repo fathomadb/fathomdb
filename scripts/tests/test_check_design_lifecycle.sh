@@ -22,6 +22,10 @@ write_fixture() {
     'run_capped check-design-lifecycle "$SCRIPT_DIR/check-design-lifecycle.py"' \
     >"$root/scripts/agent-lint-md.sh"
   printf '%s\n' \
+    'jobs:' \
+    '  markdownlint:' \
+    "    if: needs.changes.outputs.docs_only == 'true'" \
+    '    steps:' \
     '      - name: design document lifecycle' \
     '        run: python3 scripts/check-design-lifecycle.py' \
     >"$root/.github/workflows/ci.yml"

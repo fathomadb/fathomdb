@@ -30,8 +30,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(401)
             self.end_headers()
             return
+        if prefix == "rate":
+            self.send_response(429)
+            self.end_headers()
+            return
         if prefix == "missing" or (
             prefix == "eventual" and Handler.counts[prefix] == 1
+        ) or (
+            prefix == "delayed" and Handler.counts[prefix] <= 3
         ):
             self.send_response(404)
             self.end_headers()
@@ -43,10 +49,11 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(b"{")
             return
         package = "wrong" if prefix == "mismatch" else "fathomdb"
+        version = "0.8.25" if prefix == "wrongversion" else "0.8.26"
         body = (
-            {"info": {"name": package, "version": "0.8.26"}}
+            {"info": {"name": package, "version": version}}
             if "/pypi/" in self.path
-            else {"name": package, "version": "0.8.26"}
+            else {"name": package, "version": version}
         )
         self.wfile.write(json.dumps(body).encode("utf-8"))
 
@@ -82,6 +89,25 @@ def load_module():
     return module
 
 
+def invoke_release(root: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "wait-release",
+            "--repo-root", str(ROOT),
+            "--version", "0.8.26",
+            "--pypi-base-url", f"{root}/delayed",
+            "--npm-base-url", f"{root}/missing",
+            "--timeout-seconds", "0.08",
+            "--interval-seconds", "0.01",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
 def main() -> None:
     assert SCRIPT.is_file(), f"missing visibility helper: {SCRIPT}"
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -92,25 +118,46 @@ def main() -> None:
         for registry in ("pypi", "npm"):
             present = invoke(f"{root}/present", registry)
             assert present.returncode == 0, present.stderr
+            assert "attempts=1" in present.stdout and "timeout_seconds=0.15" in present.stdout
             Handler.counts["eventual"] = 0
             eventual = invoke(f"{root}/eventual", registry)
             assert eventual.returncode == 0, eventual.stderr
             assert Handler.counts["eventual"] == 2
+            assert "attempts=2" in eventual.stdout
         missing = invoke(f"{root}/missing")
         assert missing.returncode == 1 and "exact_version_unavailable" in missing.stderr
+        assert "registry=pypi" in missing.stderr
+        assert "package=fathomdb" in missing.stderr
+        assert "version=0.8.26" in missing.stderr
+        assert "attempts=" in missing.stderr and "timeout_seconds=0.15" in missing.stderr
+        elapsed = float(missing.stderr.split("elapsed_seconds=", 1)[1].split()[0])
+        assert elapsed <= 0.25, missing.stderr
         for prefix, reason in (
             ("auth", "authentication"),
+            ("rate", "rate_limit"),
             ("server", "http_503"),
             ("malformed", "malformed_metadata"),
             ("mismatch", "package_mismatch"),
+            ("wrongversion", "version_mismatch"),
         ):
             Handler.counts[prefix] = 0
             result = invoke(f"{root}/{prefix}")
             assert result.returncode == 1 and reason in result.stderr, result.stderr
             assert Handler.counts[prefix] == 1
+        Handler.counts["delayed"] = 0
+        shared_deadline = invoke_release(root)
+        assert shared_deadline.returncode == 1, shared_deadline.stderr
+        assert Handler.counts["delayed"] == 4
+        remaining_bound = float(
+            shared_deadline.stderr.split("timeout_seconds=", 1)[1].split()[0]
+        )
+        assert 0 < remaining_bound < 0.06, shared_deadline.stderr
     finally:
         server.shutdown()
         thread.join()
+        server.server_close()
+    transport = invoke(root)
+    assert transport.returncode == 1 and "transport_error" in transport.stderr
 
     module = load_module()
     packages = module.release_packages(ROOT, "0.8.26", include_npm=True)

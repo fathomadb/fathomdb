@@ -1446,17 +1446,47 @@ jobs:
           fi
 
   # --- Post-publish verification --------------------------------------------
+  wait-for-package-registry-visibility:
+    runs-on: ubuntu-latest
+    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.publish-npm.result == 'success') }}
+    needs: [publish-rust-t7-cli, publish-pypi, publish-npm]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, reviewed workflow control plane
+        with:
+          path: control-plane
+          persist-credentials: false
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, immutable release manifests
+        with:
+          ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          path: release-source
+          persist-credentials: false
+      - name: Wait for exact PyPI and npm package versions
+        env:
+          RECOVERY_SKIP_NPM: ${{ inputs.recovery_skip_npm || 'false' }}
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          extra=()
+          if [ "$RECOVERY_SKIP_NPM" = true ] && [ "$version" = 0.8.20 ]; then
+            extra+=(--exclude-npm)
+          fi
+          python3 control-plane/scripts/release/wait-for-registry-version.py wait-release \
+            --repo-root release-source \
+            --version "$version" \
+            --timeout-seconds 900 \
+            --interval-seconds 15 \
+            "${extra[@]}"
+
   # AC-056: a published artifact is not "done" until it installs cleanly from
   # the registry on a fresh machine and the SDK opens + closes + process-exits.
   # Skipped on dry-run — install-from-test.pypi does not mirror prod closely
   # enough to make the smoke meaningful, and npm has no comparable staging.
   post-publish-smoke:
     runs-on: ubuntu-latest
-    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.publish-npm.result == 'success') }}
+    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && needs.wait-for-package-registry-visibility.result == 'success' }}
     needs:
-      - publish-rust-t7-cli
-      - publish-pypi
-      - publish-npm
+      - wait-for-package-registry-visibility
     strategy:
       fail-fast: false
       matrix:
@@ -1489,11 +1519,9 @@ jobs:
   # published wheel and optional npm platform package, not only on x86_64.
   post-publish-smoke-aarch64:
     runs-on: ubuntu-24.04-arm
-    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && needs.publish-npm.result == 'success' }}
+    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.wait-for-package-registry-visibility.result == 'success' }}
     needs:
-      - publish-rust-t7-cli
-      - publish-pypi
-      - publish-npm
+      - wait-for-package-registry-visibility
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
         with:
@@ -1516,8 +1544,8 @@ jobs:
 
   post-publish-smoke-darwin-x64:
     runs-on: macos-15-intel
-    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && needs.publish-npm.result == 'success' }}
-    needs: [publish-rust-t7-cli, publish-pypi, publish-npm]
+    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.wait-for-package-registry-visibility.result == 'success' }}
+    needs: [wait-for-package-registry-visibility]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, candidate SHA or canonical release tag
         with:
@@ -1535,8 +1563,8 @@ jobs:
 
   post-publish-smoke-darwin-arm64:
     runs-on: macos-14
-    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && needs.publish-npm.result == 'success' }}
-    needs: [publish-rust-t7-cli, publish-pypi, publish-npm]
+    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.wait-for-package-registry-visibility.result == 'success' }}
+    needs: [wait-for-package-registry-visibility]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, candidate SHA or canonical release tag
         with:
@@ -1554,8 +1582,8 @@ jobs:
 
   post-publish-smoke-win32-x64:
     runs-on: windows-latest
-    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && needs.publish-npm.result == 'success' }}
-    needs: [publish-rust-t7-cli, publish-pypi, publish-npm]
+    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.wait-for-package-registry-visibility.result == 'success' }}
+    needs: [wait-for-package-registry-visibility]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, candidate SHA or canonical release tag
         with:

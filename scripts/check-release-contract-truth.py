@@ -52,11 +52,16 @@ RELEASE_JOB_NEEDS = {
         "publish-npm-platform-darwin-arm64",
         "publish-npm-platform-win32-x64-msvc",
     ),
-    "post-publish-smoke": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
-    "post-publish-smoke-aarch64": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
-    "post-publish-smoke-darwin-x64": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
-    "post-publish-smoke-darwin-arm64": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
-    "post-publish-smoke-win32-x64": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
+    "wait-for-package-registry-visibility": (
+        "publish-rust-t7-cli",
+        "publish-pypi",
+        "publish-npm",
+    ),
+    "post-publish-smoke": ("wait-for-package-registry-visibility",),
+    "post-publish-smoke-aarch64": ("wait-for-package-registry-visibility",),
+    "post-publish-smoke-darwin-x64": ("wait-for-package-registry-visibility",),
+    "post-publish-smoke-darwin-arm64": ("wait-for-package-registry-visibility",),
+    "post-publish-smoke-win32-x64": ("wait-for-package-registry-visibility",),
     "co-tagging-assert": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
     "promote-npm-latest": (
         "post-publish-smoke",
@@ -296,9 +301,11 @@ def job_condition(job_name: str, block: str) -> str:
 def expected_release_condition(job_name: str, expected_needs: tuple[str, ...]) -> str:
     success = [f"needs.{dependency}.result == 'success'" for dependency in expected_needs]
     candidate_release = "always() && inputs.candidate_commit == '' && inputs.dry_run != true"
-    if job_name == "post-publish-smoke":
+    if job_name == "wait-for-package-registry-visibility":
         guarded = success[:-1] + [f"(({RECOVERY_ROUTE}) || {success[-1]})"]
         return "${{ " + " && ".join([candidate_release, *guarded]) + " }}"
+    if job_name == "post-publish-smoke":
+        return "${{ " + " && ".join([candidate_release, *success]) + " }}"
     if job_name == "record-v0820-partial-registry-recovery":
         return "${{ " + " && ".join(["always()", "inputs.candidate_commit == ''", RECOVERY_ROUTE, *success]) + " }}"
     route = [candidate_release]
@@ -321,6 +328,16 @@ def require_fail_closed_release_job(
         fail(f"{job_name} must use its exact fail-closed canonical/recovery condition")
     if UNSAFE_STATUS_BYPASS.search(condition):
         fail(f"{job_name} must not accept a failed or cancelled dependency state")
+    if job_name == "wait-for-package-registry-visibility":
+        required = (
+            "path: control-plane",
+            "path: release-source",
+            "python3 control-plane/scripts/release/wait-for-registry-version.py wait-release",
+            "--repo-root release-source",
+        )
+        for fragment in required:
+            if fragment not in block:
+                fail(f"{job_name} lacks recovery-safe control/data split: {fragment}")
 
 
 def require_trusted_linux_x64_cuda_producer(jobs: dict[str, str]) -> None:
@@ -518,8 +535,8 @@ def main() -> None:
         if smoke_block is None:
             fail(f"release workflow lacks {smoke_job}")
         require_runner(smoke_job, smoke_block, entry["runner"])
-        if "publish-npm" not in needs(smoke_job, smoke_block):
-            fail(f"{smoke_job} must depend on publish-npm")
+        if "wait-for-package-registry-visibility" not in needs(smoke_job, smoke_block):
+            fail(f"{smoke_job} must depend on registry visibility")
         require_smoke_commands(smoke_job, smoke_block, entry["runner"])
         require_failing_smoke_stops(smoke_job, smoke_block)
         smoke_jobs.append(smoke_job)

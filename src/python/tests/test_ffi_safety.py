@@ -8,7 +8,7 @@ here for Python and mirrored by the napi-rs binding in Phase 11b.
 from __future__ import annotations
 
 import os
-from typing import Callable
+from typing import Callable, cast
 
 import pytest
 
@@ -37,7 +37,11 @@ def test_panic_surfaces_as_python_exception(db_path: str) -> None:
     catch `EngineError` must not silently swallow it.
     """
 
-    from fathomdb._fathomdb import force_panic_for_test  # test-hooks-gated
+    import fathomdb._fathomdb as native
+
+    force_panic_for_test = cast(
+        Callable[[], None], getattr(native, "force_panic_for_test")
+    )
 
     pid_before = os.getpid()
     with pytest.raises(BaseException) as excinfo:

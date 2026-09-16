@@ -375,12 +375,26 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = "    needs: [publish-rust-t7-cli, publish-pypi, publish-npm]\n"
+needle = "    needs: [wait-for-package-registry-visibility]\n"
 if text.count(needle) != 3:
     raise SystemExit("test fixture no longer contains three inline platform-smoke dependencies")
-path.write_text(text.replace(needle, "    needs: [publish-rust-t7-cli, publish-pypi]\n", 1))
+path.write_text(text.replace(needle, "    needs: [publish-npm]\n", 1))
 PY
-expect_fail "$FIXTURE" 'rejects a platform smoke missing publish-npm'
+expect_fail "$FIXTURE" 'rejects a platform smoke bypassing registry visibility'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "python3 control-plane/scripts/release/wait-for-registry-version.py wait-release"
+if text.count(needle) != 1:
+    raise SystemExit("test fixture lacks the recovery-safe registry helper invocation")
+path.write_text(text.replace(needle, "python3 release-source/scripts/release/wait-for-registry-version.py wait-release", 1))
+PY
+expect_fail "$FIXTURE" 'rejects executing the visibility helper from the immutable v0.8.20 tag'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'

@@ -23,7 +23,7 @@ while [ "$#" -gt 0 ]; do
 done
 if [ "${FAKE_NO_WHEEL:-0}" != 1 ]; then
   mkdir -p "$out"
-  : >"$out/fathomdb-0.8.25-cp312-abi3-linux_x86_64.whl"
+  : >"$out/fathomdb-0.8.26-cp312-abi3-linux_x86_64.whl"
 fi
 SH
 chmod +x "$TMP/bin/maturin"
@@ -47,6 +47,42 @@ if [ -n "${FATHOMDB_VERIFY_REPORT:-}" ]; then
   else
     printf '%s\n%s\n%s\nfrozen-evidence-profile-v1\n' \
       "$module" "$native" "${FAKE_EDITABLE:-false}" >"$FATHOMDB_VERIFY_REPORT"
+  fi
+  if [ -n "${FATHOMDB_SLICE50_EVIDENCE_REPORT:-}" ]; then
+    python3 - "$FATHOMDB_SLICE50_EVIDENCE_REPORT" <<'PY'
+import json
+import sys
+
+rows = []
+for seed in ("explicit", "query"):
+    for direction in ("outgoing", "incoming", "both"):
+        for depth in (1, 2):
+            rows.append({
+                "seed": seed,
+                "direction": direction,
+                "depth": depth,
+                "hop_count": depth,
+                "target_index": 0,
+                "target_ref": "target",
+                "terminal_ref": "edge",
+                "resolved_target_revision": "target-r1",
+                "resolved_edge_revision": "edge-r1",
+                "edge_source": "actuated" if not rows else "ordinary",
+                "route_provenance": ["edge"],
+                "intrinsic_evidence": ["target-r1", "edge-r1"],
+            })
+open(sys.argv[1], "w", encoding="utf-8").write(json.dumps({
+    "schema_version": "fathomdb.slice50-graph-evidence/v1",
+    "rows": rows,
+    "schema_33_refusal": {
+        "expected_schema": 33,
+        "supported_schema": 34,
+        "outcome": "typed_refusal",
+        "before": [{"name": "schema-33.sqlite", "size": 1, "sha256": "a" * 64}],
+        "after": [{"name": "schema-33.sqlite", "size": 1, "sha256": "a" * 64}],
+    },
+}))
+PY
   fi
   printf 'frozen evidence wheel profile: ok\n'
   exit 0

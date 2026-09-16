@@ -26,6 +26,7 @@ def row(seed: str, direction: str, depth: int, edge_source: str = "ordinary") ->
         "seed": seed,
         "direction": direction,
         "depth": depth,
+        "hop_count": depth,
         "target_index": 0,
         "target_ref": f"target:{seed}:{direction}:{depth}",
         "terminal_ref": f"terminal:{seed}:{direction}:{depth}",
@@ -76,6 +77,17 @@ def main() -> None:
         assert "ranked-only" in str(error)
     else:
         raise AssertionError("accepted ranked-only contribution in intrinsic profile")
+
+    mislabeled = [
+        dict(item, hop_count=1) if item["depth"] == 2 else dict(item)
+        for item in rows
+    ]
+    try:
+        module.validate_rows(mislabeled)
+    except ValueError as error:
+        assert "multihop" in str(error)
+    else:
+        raise AssertionError("accepted depth-two labels without a two-hop target")
     print("PASS test-slice50-evidence-matrix")
 
 

@@ -8,6 +8,7 @@ control, and the public stub must continue to omit the private hooks.
 
 from __future__ import annotations
 
+import ast
 import json
 import shutil
 import subprocess
@@ -15,25 +16,13 @@ from pathlib import Path
 
 import pytest
 
+from _test_hooks_gate import load_test_hook_symbols
+
 
 _PYTHON_ROOT = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _PYTHON_ROOT.parents[1]
 _CONTROL = _PYTHON_ROOT / "tests" / "test_slice65_wal_attribution_installed.py"
 _PUBLIC_STUB = _PYTHON_ROOT / "fathomdb" / "_fathomdb.pyi"
-_TEST_HOOKS = (
-    "_arm_actual_checkpoint_observation_for_test",
-    "_arm_binding_native_state_observation_for_test",
-    "_arm_next_reader_completion_pause_for_test",
-    "_arm_next_reader_snapshot_pause_for_test",
-    "_checkpoint_at_rest_for_test",
-    "_drain_actual_checkpoint_observations_for_test",
-    "_drain_binding_native_state_observations_for_test",
-    "_native_raw_wal_checkpoint_for_test",
-    "_wal_attribution_binding_inventory_for_test",
-    "_wal_attribution_binding_native_state_inventory_for_test",
-    "_wal_attribution_checkpoint_records_for_test",
-    "_wal_attribution_snapshot_for_test",
-)
 
 
 def _control_pyright_diagnostics() -> list[dict[str, object]]:
@@ -81,6 +70,26 @@ def test_slice65_installed_control_type_checks_without_shipping_test_hooks() -> 
 
 def test_slice65_test_hooks_remain_absent_from_the_public_stub() -> None:
     """The typing boundary must not advertise test-only symbols to SDK users."""
-    stub = _PUBLIC_STUB.read_text(encoding="utf-8")
-    leaked = [hook for hook in _TEST_HOOKS if hook in stub]
+    module = ast.parse(_PUBLIC_STUB.read_text(encoding="utf-8"))
+    module_functions = {
+        node.name for node in module.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    class_functions = {
+        node.name: {
+            member.name
+            for member in node.body
+            if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        for node in module.body
+        if isinstance(node, ast.ClassDef)
+    }
+    leaked = [
+        attribute if owner is None else f"{owner}.{attribute}"
+        for owner, attribute in load_test_hook_symbols()
+        if (
+            attribute in module_functions
+            if owner is None
+            else attribute in class_functions.get(owner, set())
+        )
+    ]
     assert not leaked, f"test-only Slice 65 hooks leaked into the public stub: {leaked}"

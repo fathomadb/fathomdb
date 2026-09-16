@@ -42,10 +42,12 @@ fi
 "$python_bin" -m venv "$venv_dir"
 "$venv_dir/bin/python" -m pip install --no-index --no-deps "${wheels[0]}"
 report="$wheel_dir/install-provenance.txt"
+matrix_report="$wheel_dir/slice50-graph-evidence.json"
 profile="$wheel_dir/frozen-evidence-profile.py"
 cp "$repo/scripts/release/smoke/frozen-evidence-python.py" "$profile"
 env -u PYTHONPATH -u VIRTUAL_ENV \
   FATHOMDB_VERIFY_REPORT="$report" \
+  FATHOMDB_SLICE50_EVIDENCE_REPORT="$matrix_report" \
   FAKE_VENV="$venv_dir" \
   "$venv_dir/bin/python" "$profile"
 
@@ -57,6 +59,25 @@ case "${provenance[1]}" in "$venv_real"/*) ;; *) echo "native module escaped fre
 [ "${provenance[2]}" = false ] || { echo "editable install is not release evidence" >&2; exit 1; }
 [ "${provenance[3]}" = frozen-evidence-profile-v1 ] \
   || { echo "frozen evidence profile did not complete" >&2; exit 1; }
+python3 - "$repo/scripts/release/slice50-evidence-matrix.py" "$matrix_report" <<'PY'
+import importlib.util
+import json
+import sys
+
+module_path, report_path = sys.argv[1:]
+spec = importlib.util.spec_from_file_location("slice50_evidence_matrix", module_path)
+assert spec is not None and spec.loader is not None
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+payload = json.load(open(report_path, encoding="utf-8"))
+assert payload["schema_version"] == "fathomdb.slice50-graph-evidence/v1"
+module.validate_rows(payload["rows"])
+refusal = payload["schema_33_refusal"]
+assert refusal["expected_schema"] == 33
+assert refusal["supported_schema"] == 34
+assert refusal["outcome"] == "typed_refusal"
+assert refusal["before"] == refusal["after"]
+PY
 
 sha256sum "${wheels[0]}"
 printf 'module=%s\nnative=%s\n' "${provenance[0]}" "${provenance[1]}"

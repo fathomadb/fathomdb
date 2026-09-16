@@ -195,6 +195,8 @@ jobs:
               - '!**/*.md'
             windows:
               - 'src/python/tests/test_slice65_wal_attribution_installed.py'
+              - 'scripts/release/smoke/python-test-hooks-v1.json'
+              - 'scripts/release/native-artifact-receipts.py'
             rust:
               - 'src/rust/**'
               - 'Cargo.toml'
@@ -226,6 +228,8 @@ jobs:
               - 'scripts/security/check-removal-changelog.sh'
               - 'scripts/security/check_removal_changelog.py'
             native_artifact_harness:
+              - 'scripts/release/native-artifact-receipts.py'
+              - 'scripts/release/slice50-candidate-manifest.py'
               - 'scripts/release/smoke/smoke-local-native-artifacts.sh'
               - 'scripts/release/smoke/smoke-local-native-artifacts.ps1'
               - 'scripts/release/smoke/slice73-windows-napi-modules.json'
@@ -886,9 +890,9 @@ jobs:
           "slice65_wal current_wheel_path=$currentWheel" | Tee-Object -FilePath $artifact -Append
           "slice65_wal current_wheel_sha256=$((Get-FileHash -LiteralPath $currentWheel -Algorithm SHA256).Hash)" | Tee-Object -FilePath $artifact -Append
           & "$currentEnv\Scripts\python.exe" -m pip install --no-index --no-deps $currentWheel 2>&1 | Tee-Object -FilePath $artifact -Append
-          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version $currentWheelVersion --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
+          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version $currentWheelVersion --wheel-label current-source-test-hooks --require-attribution --test-hooks-contract "$env:GITHUB_WORKSPACE\scripts\release\smoke\python-test-hooks-v1.json" 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control binding --wheel-version $currentWheelVersion --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $bindingLog
+          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control binding --wheel-version $currentWheelVersion --wheel-label current-source-test-hooks --require-attribution --test-hooks-contract "$env:GITHUB_WORKSPACE\scripts\release\smoke\python-test-hooks-v1.json" 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $bindingLog
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle' -Quiet)) {
             Write-Error "installed binding diagnostic did not acknowledge direct reader autocommit at completion"
@@ -924,7 +928,7 @@ jobs:
             Write-Error "installed binding diagnostic did not retain its conditional child outcome"
             exit 1
           }
-          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control retained --wheel-version $currentWheelVersion --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
+          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control retained --wheel-version $currentWheelVersion --wheel-label current-source-test-hooks --require-attribution --test-hooks-contract "$env:GITHUB_WORKSPACE\scripts\release\smoke\python-test-hooks-v1.json" 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $bindingBusy = @(Select-String -Path $bindingLog -Pattern 'slice65_wal checkpoint_attempt=.*busy=1.*classification=owned_reader_snapshot.*active_roles=reader_worker:0').Count
           if ($bindingBusy -ne 5) {
@@ -955,13 +959,17 @@ jobs:
             Write-Error "installed retained-result control did not execute"
             exit 1
           }
+          python scripts/release/native-artifact-receipts.py write-wal --candidate-sha "$env:GITHUB_SHA" --wheel $currentWheel --hook-contract "$env:GITHUB_WORKSPACE\scripts\release\smoke\python-test-hooks-v1.json" --command windows-wal-attribution --output "$env:RUNNER_TEMP\slice50-windows-wal-receipt.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Write-Output "slice65_wal installed_wheel_controls=passed" | Tee-Object -FilePath $artifact -Append
       - name: Upload WAL ownership attribution diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: slice65-windows-wal-attribution-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/slice65-windows-wal-attribution.log
+          path: |
+            ${{ runner.temp }}/slice65-windows-wal-attribution.log
+            ${{ runner.temp }}/slice50-windows-wal-receipt.json
           if-no-files-found: error
 
    # EU-6 FIX-1 / ADR-0.6.0-default-embedder.md EMB-3 — wheel-size gate.
@@ -1189,6 +1197,61 @@ jobs:
         if: matrix.label == 'win32-x64-msvc'
         shell: pwsh
         run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory "$PWD/src/python/dist" -TsDirectory "$PWD/src/ts" -PlatformPackageDirectory "$PWD/src/ts/npm/${{ matrix.label }}" -NapiLabel "${{ matrix.label }}" -RetainedTestManifest "$PWD/scripts/release/smoke/slice73-windows-napi-modules.json"
+      - name: Write exact-candidate native artifact receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          wheels=(src/python/dist/*.whl)
+          if [ "${#wheels[@]}" -ne 1 ]; then
+            printf 'expected one locally built wheel, found %s\n' "${#wheels[@]}" >&2
+            exit 1
+          fi
+          python scripts/release/native-artifact-receipts.py write \
+            --candidate-sha "$GITHUB_SHA" \
+            --target '${{ matrix.target }}' \
+            --label '${{ matrix.label }}' \
+            --runner "$RUNNER_NAME:$RUNNER_OS:$RUNNER_ARCH" \
+            --rust '1.95.0' \
+            --python '3.11' \
+            --node '25.9.0' \
+            --wheel "${wheels[0]}" \
+            --napi 'src/ts/fathomdb.${{ matrix.label }}.node' \
+            --command native-artifact-runtime-validation \
+            --output "$RUNNER_TEMP/native-artifact-receipt-${{ matrix.label }}.json"
+      - name: Upload exact-candidate native artifact receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2
+        with:
+          name: native-artifact-receipt-${{ matrix.label }}
+          path: ${{ runner.temp }}/native-artifact-receipt-${{ matrix.label }}.json
+          if-no-files-found: error
+
+  collect-native-artifact-receipts:
+    needs: [native-artifact-runtime-validation]
+    if: ${{ always() && needs.native-artifact-runtime-validation.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: native-artifact-receipt-*
+          path: ${{ runner.temp }}/native-artifact-receipts
+          merge-multiple: true
+      - name: Reject missing, duplicate, or cross-candidate receipts
+        run: |
+          python scripts/release/native-artifact-receipts.py collect \
+            --candidate-sha "$GITHUB_SHA" \
+            --receipt-dir "$RUNNER_TEMP/native-artifact-receipts" \
+            --output "$RUNNER_TEMP/native-artifact-matrix.json"
+      - name: Upload exact-candidate native artifact matrix
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2
+        with:
+          name: native-artifact-matrix
+          path: ${{ runner.temp }}/native-artifact-matrix.json
+          if-no-files-found: error
 
   # Docs-only fast-path md gate. Runs ONLY when the diff is markdown-only (the
   # heavy `verify` job — which runs scripts/agent-verify.sh -> agent-lint-md.sh —

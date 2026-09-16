@@ -1,0 +1,26 @@
+{
+  "schema_version": "fathomdb.python-test-hooks/v1",
+  "symbols": [
+    {"owner": "Engine", "attribute": "_configure_vector_kind_for_test"},
+    {"owner": "Engine", "attribute": "_write_vector_for_test"},
+    {"owner": "Engine", "attribute": "_set_legacy_projection_search_subobjects_for_test"},
+    {"owner": "Engine", "attribute": "_arm_next_reader_snapshot_pause_for_test"},
+    {"owner": "Engine", "attribute": "_arm_next_reader_completion_pause_for_test"},
+    {"owner": "Engine", "attribute": "_wal_attribution_checkpoint_records_for_test"},
+    {"owner": "Engine", "attribute": "_wal_attribution_snapshot_for_test"},
+    {"owner": "Engine", "attribute": "_arm_actual_checkpoint_observation_for_test"},
+    {"owner": "Engine", "attribute": "_drain_actual_checkpoint_observations_for_test"},
+    {"owner": "Engine", "attribute": "_wal_attribution_binding_inventory_for_test"},
+    {"owner": "Engine", "attribute": "_wal_attribution_binding_native_state_inventory_for_test"},
+    {"owner": "Engine", "attribute": "_arm_binding_native_state_observation_for_test"},
+    {"owner": "Engine", "attribute": "_drain_binding_native_state_observations_for_test"},
+    {"owner": "Engine", "attribute": "_checkpoint_at_rest_for_test"},
+    {"owner": null, "attribute": "_WalSnapshotPause"},
+    {"owner": "_WalSnapshotPause", "attribute": "wait_snapshot_ready"},
+    {"owner": "_WalSnapshotPause", "attribute": "release"},
+    {"owner": "_WalSnapshotPause", "attribute": "reader_connection_autocommit_for_test"},
+    {"owner": "_WalSnapshotPause", "attribute": "reader_native_state_for_test"},
+    {"owner": null, "attribute": "force_panic_for_test"},
+    {"owner": null, "attribute": "_native_raw_wal_checkpoint_for_test"}
+  ]
+}

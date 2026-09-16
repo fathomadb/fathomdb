@@ -37,37 +37,45 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-#: Every callable the `test-hooks` cfg exposes through the Python binding, as
-#: ``(owner, attribute)``; ``owner=None`` means module level. This inventory is
-#: checked against `fathomdb-py/src/lib.rs`, including pyclass registrations and
-#: module-function Python names, so it cannot silently trail a new private hook.
-#:
-#: The probe checks ALL of these. A partial binding is reachable after a stale
-#: or interrupted build; it must report DEGRADED rather than PROCEED. The gate
-#: must be no weaker than the test-hook surface it gates.
-TEST_HOOK_SYMBOLS: tuple[tuple[str | None, str], ...] = (
-    ("Engine", "_configure_vector_kind_for_test"),
-    ("Engine", "_write_vector_for_test"),
-    ("Engine", "_set_legacy_projection_search_subobjects_for_test"),
-    ("Engine", "_arm_next_reader_snapshot_pause_for_test"),
-    ("Engine", "_arm_next_reader_completion_pause_for_test"),
-    ("Engine", "_wal_attribution_checkpoint_records_for_test"),
-    ("Engine", "_wal_attribution_snapshot_for_test"),
-    ("Engine", "_arm_actual_checkpoint_observation_for_test"),
-    ("Engine", "_drain_actual_checkpoint_observations_for_test"),
-    ("Engine", "_wal_attribution_binding_inventory_for_test"),
-    ("Engine", "_wal_attribution_binding_native_state_inventory_for_test"),
-    ("Engine", "_arm_binding_native_state_observation_for_test"),
-    ("Engine", "_drain_binding_native_state_observations_for_test"),
-    ("Engine", "_checkpoint_at_rest_for_test"),
-    (None, "_WalSnapshotPause"),
-    ("_WalSnapshotPause", "wait_snapshot_ready"),
-    ("_WalSnapshotPause", "release"),
-    ("_WalSnapshotPause", "reader_connection_autocommit_for_test"),
-    ("_WalSnapshotPause", "reader_native_state_for_test"),
-    (None, "force_panic_for_test"),
-    (None, "_native_raw_wal_checkpoint_for_test"),
+_DEFAULT_HOOK_CONTRACT = (
+    Path(__file__).resolve().parents[3]
+    / "scripts"
+    / "release"
+    / "smoke"
+    / "python-test-hooks-v1.json"
 )
+
+
+def load_test_hook_symbols(
+    path: Path = _DEFAULT_HOOK_CONTRACT,
+) -> tuple[tuple[str | None, str], ...]:
+    """Load and strictly validate the private Python hook inventory."""
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if set(payload) != {"schema_version", "symbols"}:
+        raise ValueError("test-hook contract must contain only schema_version and symbols")
+    if payload["schema_version"] != "fathomdb.python-test-hooks/v1":
+        raise ValueError("unsupported test-hook contract schema")
+    symbols: list[tuple[str | None, str]] = []
+    for row in payload["symbols"]:
+        if not isinstance(row, dict) or set(row) != {"owner", "attribute"}:
+            raise ValueError("invalid test-hook symbol row")
+        owner = row["owner"]
+        attribute = row["attribute"]
+        if owner is not None and not isinstance(owner, str):
+            raise ValueError("test-hook owner must be a string or null")
+        if not isinstance(attribute, str) or not attribute:
+            raise ValueError("test-hook attribute must be a non-empty string")
+        symbols.append((owner, attribute))
+    if not symbols or len(symbols) != len(set(symbols)):
+        raise ValueError("test-hook contract must be non-empty and unique")
+    return tuple(symbols)
+
+
+#: Every callable the `test-hooks` cfg exposes through the Python binding. The
+#: JSON contract is also consumed by installed-wheel and CI controls, so those
+#: consumers cannot silently disagree about a partial private binding.
+TEST_HOOK_SYMBOLS = load_test_hook_symbols()
 
 
 _ATTRIBUTE_FUNCTION = re.compile(

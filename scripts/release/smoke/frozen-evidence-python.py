@@ -7,10 +7,12 @@ import importlib.metadata
 import json
 import os
 from pathlib import Path
+import sqlite3
 from tempfile import TemporaryDirectory
 
 import fathomdb
 from fathomdb import _fathomdb
+from fathomdb.errors import IncompatibleSchemaVersionError
 
 
 def _assert_import_provenance() -> tuple[Path, Path, bool]:
@@ -86,6 +88,60 @@ def _seed(engine: fathomdb.Engine, source_body: str) -> None:
                 },
             },
             {
+                "kind": "claim",
+                "body": "slice50 graph outgoing terminal",
+                "source_id": "slice10-wheel-source",
+                "logical_id": "slice50-wheel-out2",
+                "provenance": {
+                    "schema_version": 1,
+                    "role": "derived",
+                    "artifact_revision_id": "slice50-wheel-out2-r1",
+                    "source_version_id": "slice10-wheel-v1",
+                    "source_revision_id": "slice10-wheel-source-r1",
+                    "source_locator": {"kind": "whole_body"},
+                    "canonical_source_hash": {
+                        "algorithm": "sha256",
+                        "digest_hex": digest,
+                    },
+                },
+            },
+            {
+                "kind": "claim",
+                "body": "slice50 graph incoming first",
+                "source_id": "slice10-wheel-source",
+                "logical_id": "slice50-wheel-in1",
+                "provenance": {
+                    "schema_version": 1,
+                    "role": "derived",
+                    "artifact_revision_id": "slice50-wheel-in1-r1",
+                    "source_version_id": "slice10-wheel-v1",
+                    "source_revision_id": "slice10-wheel-source-r1",
+                    "source_locator": {"kind": "whole_body"},
+                    "canonical_source_hash": {
+                        "algorithm": "sha256",
+                        "digest_hex": digest,
+                    },
+                },
+            },
+            {
+                "kind": "claim",
+                "body": "slice50 graph incoming terminal",
+                "source_id": "slice10-wheel-source",
+                "logical_id": "slice50-wheel-in2",
+                "provenance": {
+                    "schema_version": 1,
+                    "role": "derived",
+                    "artifact_revision_id": "slice50-wheel-in2-r1",
+                    "source_version_id": "slice10-wheel-v1",
+                    "source_revision_id": "slice10-wheel-source-r1",
+                    "source_locator": {"kind": "whole_body"},
+                    "canonical_source_hash": {
+                        "algorithm": "sha256",
+                        "digest_hex": digest,
+                    },
+                },
+            },
+            {
                 "edge": {
                     "kind": "supports",
                     "from": "slice20-wheel-root",
@@ -96,6 +152,48 @@ def _seed(engine: fathomdb.Engine, source_body: str) -> None:
                         "schema_version": 1,
                         "role": "derived",
                         "artifact_revision_id": "slice20-wheel-edge-r1",
+                        "source_version_id": "slice10-wheel-v1",
+                        "source_revision_id": "slice10-wheel-source-r1",
+                        "source_locator": {"kind": "whole_body"},
+                        "canonical_source_hash": {
+                            "algorithm": "sha256",
+                            "digest_hex": digest,
+                        },
+                    },
+                }
+            },
+            {
+                "edge": {
+                    "kind": "supports",
+                    "from": "slice50-wheel-in1",
+                    "to": "slice20-wheel-root",
+                    "source_id": "slice10-wheel-source",
+                    "logical_id": "slice50-wheel-in-edge1",
+                    "provenance": {
+                        "schema_version": 1,
+                        "role": "derived",
+                        "artifact_revision_id": "slice50-wheel-in-edge1-r1",
+                        "source_version_id": "slice10-wheel-v1",
+                        "source_revision_id": "slice10-wheel-source-r1",
+                        "source_locator": {"kind": "whole_body"},
+                        "canonical_source_hash": {
+                            "algorithm": "sha256",
+                            "digest_hex": digest,
+                        },
+                    },
+                }
+            },
+            {
+                "edge": {
+                    "kind": "supports",
+                    "from": "slice50-wheel-in2",
+                    "to": "slice50-wheel-in1",
+                    "source_id": "slice10-wheel-source",
+                    "logical_id": "slice50-wheel-in-edge2",
+                    "provenance": {
+                        "schema_version": 1,
+                        "role": "derived",
+                        "artifact_revision_id": "slice50-wheel-in-edge2-r1",
                         "source_version_id": "slice10-wheel-v1",
                         "source_revision_id": "slice10-wheel-source-r1",
                         "source_locator": {"kind": "whole_body"},
@@ -117,6 +215,177 @@ def _seed(engine: fathomdb.Engine, source_body: str) -> None:
         }
     )
     engine.drain(timeout_s=30.0)
+    receipt = engine.actuate(
+        {
+            "schema_version": 1,
+            "operation_id": "slice50-wheel-actuated-edge",
+            "operations": [
+                {
+                    "type": "put_derived_edge",
+                    "record": {
+                        "kind": "supports",
+                        "from": "slice10-wheel-claim",
+                        "to": "slice50-wheel-out2",
+                        "source_id": "slice10-wheel-source",
+                        "logical_id": "slice50-wheel-actuated-edge",
+                        "provenance": {
+                            "schema_version": 1,
+                            "role": "derived",
+                            "artifact_revision_id": "slice50-wheel-actuated-edge-r1",
+                            "source_version_id": "slice10-wheel-v1",
+                            "source_revision_id": "slice10-wheel-source-r1",
+                            "source_locator": {"kind": "whole_body"},
+                            "canonical_source_hash": {
+                                "algorithm": "sha256",
+                                "digest_hex": digest,
+                            },
+                        },
+                    },
+                }
+            ],
+        }
+    )
+    assert receipt.outcome in ("committed", "committed_closure_pending")
+    assert receipt.affected_revision_ids == ("slice50-wheel-actuated-edge-r1",)
+    engine.drain(timeout_s=30.0)
+
+
+def _graph_evidence_matrix(
+    engine: fathomdb.Engine, frozen: fathomdb.FrozenReadContextV1
+) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for seed_name in ("explicit", "query"):
+        seed = (
+            fathomdb.GraphExplicitSeedV1(
+                schema_version=1,
+                type="explicit",
+                logical_ids=(fathomdb.IdSpace(space="logical", value="slice20-wheel-root"),),
+            )
+            if seed_name == "explicit"
+            else fathomdb.GraphQuerySeedV1(
+                schema_version=1,
+                type="query",
+                text="slice20 wheel graph root",
+                ranked_limit=1,
+            )
+        )
+        for direction in ("outgoing", "incoming", "both"):
+            for depth in (1, 2):
+                result = fathomdb.graph.expand(
+                    engine,
+                    fathomdb.GraphExpandRequestV1(
+                        schema_version=1,
+                        seed=seed,
+                        direction=direction,
+                        edge_kinds=("supports",),
+                        target_kinds=("claim",),
+                        context=fathomdb.FrozenGraphReadContextV1(
+                            schema_version=1, type="frozen", context=frozen
+                        ),
+                        max_depth=depth,
+                        result_limit=10,
+                        max_work_units="100",
+                        include_explanation=False,
+                        include_evidence=True,
+                    ),
+                )
+                assert result.evidence is not None and result.evidence.entries
+                for entry in result.evidence.entries:
+                    target = result.targets[entry.target_index]
+                    resolved_target = engine.resolve_graph_evidence(
+                        fathomdb.GraphEvidenceResolveRequestV1(
+                            evidence_ref=entry.target_evidence_ref, context=frozen
+                        )
+                    )
+                    resolved_edge = engine.resolve_graph_evidence(
+                        fathomdb.GraphEvidenceResolveRequestV1(
+                            evidence_ref=entry.terminal_edge_evidence_ref, context=frozen
+                        )
+                    )
+                    rows.append(
+                        {
+                            "seed": seed_name,
+                            "direction": direction,
+                            "depth": depth,
+                            "hop_count": target.origin.hop_count,
+                            "target_index": entry.target_index,
+                            "target_ref": entry.target_evidence_ref,
+                            "terminal_ref": entry.terminal_edge_evidence_ref,
+                            "resolved_target_revision": resolved_target.artifact_revision_id,
+                            "resolved_edge_revision": resolved_edge.artifact_revision_id,
+                            "edge_source": (
+                                "actuated"
+                                if resolved_edge.artifact_revision_id
+                                == "slice50-wheel-actuated-edge-r1"
+                                else "ordinary"
+                            ),
+                            "route_provenance": [
+                                target.origin.seed_logical_id,
+                                target.origin.predecessor_logical_id,
+                                target.origin.target_logical_id,
+                                target.origin.terminal_edge_kind,
+                                target.origin.terminal_direction,
+                            ],
+                            "intrinsic_evidence": [
+                                entry.target_artifact_revision_id,
+                                entry.terminal_edge_artifact_revision_id,
+                            ],
+                        }
+                    )
+    required = {
+        (seed, direction, depth)
+        for seed in ("explicit", "query")
+        for direction in ("outgoing", "incoming", "both")
+        for depth in (1, 2)
+    }
+    assert {(row["seed"], row["direction"], row["depth"]) for row in rows} == required
+    assert any(row["edge_source"] == "actuated" for row in rows)
+    assert all("ranking_contribution" not in row for row in rows)
+    return rows
+
+
+def _directory_snapshot(root: Path) -> list[dict[str, object]]:
+    return [
+        {
+            "name": path.name,
+            "size": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+        for path in sorted(root.iterdir())
+        if path.is_file()
+    ]
+
+
+def _assert_schema_33_refusal(root: Path) -> dict[str, object]:
+    database = root / "schema-33.sqlite"
+    connection = sqlite3.connect(database)
+    try:
+        connection.execute("PRAGMA user_version = 33")
+        connection.execute("CREATE TABLE historical(value TEXT NOT NULL)")
+        connection.execute("INSERT INTO historical VALUES ('immutable')")
+        connection.commit()
+    finally:
+        connection.close()
+    database.with_name(database.name + ".lock").write_bytes(b"historical-lock-bytes")
+    before = _directory_snapshot(root)
+    try:
+        fathomdb.Engine.open(str(database), use_default_embedder=False)
+    except IncompatibleSchemaVersionError as error:
+        diagnostic = str(error)
+        assert "schema version 33" in diagnostic
+        assert "supported version 34" in diagnostic
+    else:
+        raise AssertionError("installed artifact accepted schema 33")
+    after = _directory_snapshot(root)
+    assert after == before
+    return {
+        "database": database.name,
+        "expected_schema": 33,
+        "supported_schema": 34,
+        "outcome": "typed_refusal",
+        "before": before,
+        "after": after,
+    }
 
 
 def _run_profile() -> None:
@@ -124,7 +393,9 @@ def _run_profile() -> None:
     source_body = "slice10 canonical wheel evidence bytes"
 
     with TemporaryDirectory() as root:
-        database = Path(root) / "frozen-evidence.sqlite"
+        root_path = Path(root)
+        schema_33_refusal = _assert_schema_33_refusal(root_path)
+        database = root_path / "frozen-evidence.sqlite"
         engine = fathomdb.Engine.open(str(database), use_default_embedder=False)
         try:
             _seed(engine, source_body)
@@ -231,6 +502,7 @@ def _run_profile() -> None:
             assert graph_edge.artifact.artifact_class == "edge"
             assert graph_edge.artifact.from_id == "slice20-wheel-root"
             assert graph_edge.artifact.to_id == "slice10-wheel-claim"
+            matrix_rows = _graph_evidence_matrix(engine, frozen)
         finally:
             engine.close()
 
@@ -258,6 +530,22 @@ def _run_profile() -> None:
             assert dependency.dependency_id == "slice10-wheel-dependency"
         finally:
             reopened.close()
+
+    matrix_report = os.environ.get("FATHOMDB_SLICE50_EVIDENCE_REPORT")
+    if matrix_report is not None:
+        Path(matrix_report).write_text(
+            json.dumps(
+                {
+                    "schema_version": "fathomdb.slice50-graph-evidence/v1",
+                    "rows": matrix_rows,
+                    "schema_33_refusal": schema_33_refusal,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
 
     Path(os.environ["FATHOMDB_VERIFY_REPORT"]).write_text(
         f"{module_path}\n{native_path}\n{str(editable).lower()}\n"

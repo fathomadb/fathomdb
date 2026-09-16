@@ -10,6 +10,7 @@ SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/era
 ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
 PY_SOURCE="${PY_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-py/src/lib.rs}"
 PY_CONTROL="${PY_CONTROL:-$REPO_ROOT/src/python/tests/test_slice65_wal_attribution_installed.py}"
+HOOK_CONTRACT="${HOOK_CONTRACT:-$REPO_ROOT/scripts/release/smoke/python-test-hooks-v1.json}"
 PASSED=0
 FAILED=0
 
@@ -113,6 +114,11 @@ JOB="$(job_block "$CI")"
 CODE="$(grep -v '^[[:space:]]*#' <<<"$JOB" || true)"
 if [ -n "$JOB" ]; then pass "ci.yml defines Windows WAL attribution"; else fail "ci.yml has no windows-wal-attribution job"; fi
 assert_contains "$CODE" 'runs-on: windows-latest' "job runs on hosted Windows x64"
+if [ -f "$HOOK_CONTRACT" ] && python3 "$REPO_ROOT/scripts/tests/test_slice50_hook_inventory.py" >/dev/null; then
+  pass "installed-wheel hook contract is complete"
+else
+  fail "installed-wheel hook contract is complete"
+fi
 assert_contains "$CODE" 'FATHOMDB_WAL_ATTRIBUTION = "1"' "job opts into private attribution"
 assert_contains "$CODE" 'wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' "job runs truthful managed-reader record contract"
 assert_contains "$CODE" 'tests::wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' "job selects the truthful full exact lib-test path"

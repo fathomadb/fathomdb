@@ -257,4 +257,4 @@ __all__ = [
     "read",
     "rerank",
 ]
-__version__ = "0.8.25"
+__version__ = "0.8.26"

@@ -22,6 +22,7 @@ import fathomdb
 import fathomdb._fathomdb as native
 from fathomdb import Engine, graph, read
 from fathomdb.errors import ErasureIncompleteError
+from _test_hooks_gate import load_test_hook_symbols
 
 
 TYPED_BASELINE_OBSERVATION_EXIT = 65
@@ -33,6 +34,18 @@ NATIVE_IDLE_ROLE_FACTS = (
     "workers:0(auto=1,txn=none,busy=0,received=1)",
     "workers:1(auto=1,txn=none,busy=0,received=1)",
 )
+
+
+def assert_installed_hook_contract(path: Path) -> None:
+    """Fail if the disposable wheel omits any contracted private hook."""
+
+    missing = []
+    for owner, attribute in load_test_hook_symbols(path):
+        target = native if owner is None else getattr(native, owner, None)
+        if target is None or not hasattr(target, attribute):
+            missing.append(attribute if owner is None else f"{owner}.{attribute}")
+    if missing:
+        raise SystemExit(f"installed test-hooks wheel is incomplete: {','.join(missing)}")
 
 
 class _WalSnapshotPauseForTest(Protocol):
@@ -411,9 +424,14 @@ def main() -> None:
     parser.add_argument("--wheel-label", required=True)
     parser.add_argument("--control", choices=("serial", "binding", "binding-child", "retained"), required=True)
     parser.add_argument("--require-attribution", action="store_true")
+    parser.add_argument("--test-hooks-contract", type=Path)
     parser.add_argument("--observe-baseline-first-erase", action="store_true")
     parser.add_argument("--child-path")
     args = parser.parse_args()
+    if args.require_attribution:
+        if args.test_hooks_contract is None:
+            raise SystemExit("--require-attribution requires --test-hooks-contract")
+        assert_installed_hook_contract(args.test_hooks_contract)
     if args.control == "serial":
         run_serial_incident(
             args.wheel_version,

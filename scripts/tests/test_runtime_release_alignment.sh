@@ -84,6 +84,7 @@ control_jobs = {
     "cuda-contract-preflight",
     "cuda-package-rehearsal",
     "cuda-reranker-package-rehearsal",
+    "wait-for-package-registry-visibility",
 }
 checkout_count = 0
 control_count = 0
@@ -104,11 +105,11 @@ for job_name, block in jobs.items():
         if "persist-credentials: false" not in step:
             ok = False
             continue
-        if job_name in {"cuda-contract-preflight", "cuda-package-rehearsal", "cuda-reranker-package-rehearsal"} and "path: control-plane" not in step:
+        if job_name in {"cuda-contract-preflight", "cuda-package-rehearsal", "cuda-reranker-package-rehearsal", "wait-for-package-registry-visibility"} and "path: control-plane" not in step:
             ok = False
             continue
         control_count += 1
-print(f"CHECKOUTS {ok and checkout_count > 0 and control_count == 4} total={checkout_count} control={control_count}")
+print(f"CHECKOUTS {ok and checkout_count > 0 and control_count == 5} total={checkout_count} control={control_count}")
 PY
 )"
 if printf '%s\n' "$checkout_policy" | grep -q '^CHECKOUTS True ' \
@@ -245,12 +246,14 @@ else
   fail "recovery dispatch must skip both platform and main npm publish jobs"
 fi
 
+visibility_block="$(job_block wait-for-package-registry-visibility)"
 smoke_block="$(job_block post-publish-smoke)"
-if grep -Fq 'needs.publish-rust-t7-cli.result == '\''success'\''' <<<"$smoke_block" \
-  && grep -Fq 'needs.publish-pypi.result == '\''success'\''' <<<"$smoke_block" \
+if grep -Fq 'needs.publish-rust-t7-cli.result == '\''success'\''' <<<"$visibility_block" \
+  && grep -Fq 'needs.publish-pypi.result == '\''success'\''' <<<"$visibility_block" \
   && grep -Fq 'always()' <<<"$smoke_block" \
   && grep -Fq "$candidate_free_expr" <<<"$smoke_block" \
-  && grep -Fq "$recovery_dispatch_expr) || needs.publish-npm.result == 'success'" <<<"$smoke_block" \
+  && grep -Fq "$recovery_dispatch_expr) || needs.publish-npm.result == 'success'" <<<"$visibility_block" \
+  && grep -Fq "needs.wait-for-package-registry-visibility.result == 'success'" <<<"$smoke_block" \
   && grep -Fq "fromJSON(($recovery_dispatch_expr) && '[\"crates-cli\",\"pypi-wheel\"]' || '[\"crates-cli\",\"pypi-wheel\",\"npm-package\"]')" <<<"$smoke_block"; then
   pass "recovery keeps crates and PyPI smokes while omitting npm smoke"
 else

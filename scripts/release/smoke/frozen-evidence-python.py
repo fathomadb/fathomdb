@@ -290,7 +290,12 @@ def _graph_evidence_matrix(
                     ),
                 )
                 assert result.evidence is not None and result.evidence.entries
-                for entry in result.evidence.entries:
+                entries = result.evidence.entries
+                assert len(entries) == len(result.targets)
+                assert sorted(entry.target_index for entry in entries) == list(
+                    range(len(result.targets))
+                )
+                for entry in entries:
                     target = result.targets[entry.target_index]
                     resolved_target = engine.resolve_graph_evidence(
                         fathomdb.GraphEvidenceResolveRequestV1(
@@ -302,6 +307,34 @@ def _graph_evidence_matrix(
                             evidence_ref=entry.terminal_edge_evidence_ref, context=frozen
                         )
                     )
+                    assert (
+                        resolved_target.artifact_revision_id
+                        == entry.target_artifact_revision_id
+                    )
+                    assert (
+                        resolved_edge.artifact_revision_id
+                        == entry.terminal_edge_artifact_revision_id
+                    )
+                    assert resolved_target.artifact.artifact_class == "node"
+                    assert resolved_target.artifact.logical_id == target.logical_id
+                    assert target.logical_id == target.origin.target_logical_id
+                    assert resolved_edge.artifact.artifact_class == "edge"
+                    assert resolved_edge.artifact.kind == target.origin.terminal_edge_kind
+                    expected_endpoints = (
+                        (
+                            target.origin.predecessor_logical_id,
+                            target.origin.target_logical_id,
+                        )
+                        if target.origin.terminal_direction == "outgoing"
+                        else (
+                            target.origin.target_logical_id,
+                            target.origin.predecessor_logical_id,
+                        )
+                    )
+                    assert (
+                        resolved_edge.artifact.from_id,
+                        resolved_edge.artifact.to_id,
+                    ) == expected_endpoints
                     rows.append(
                         {
                             "seed": seed_name,
@@ -312,7 +345,12 @@ def _graph_evidence_matrix(
                             "target_ref": entry.target_evidence_ref,
                             "terminal_ref": entry.terminal_edge_evidence_ref,
                             "resolved_target_revision": resolved_target.artifact_revision_id,
+                            "resolved_target_logical_id": resolved_target.artifact.logical_id,
                             "resolved_edge_revision": resolved_edge.artifact_revision_id,
+                            "resolved_edge_class": resolved_edge.artifact.artifact_class,
+                            "resolved_edge_kind": resolved_edge.artifact.kind,
+                            "resolved_edge_from": resolved_edge.artifact.from_id,
+                            "resolved_edge_to": resolved_edge.artifact.to_id,
                             "edge_source": (
                                 "actuated"
                                 if resolved_edge.artifact_revision_id
@@ -339,7 +377,7 @@ def _graph_evidence_matrix(
         for depth in (1, 2)
     }
     assert {(row["seed"], row["direction"], row["depth"]) for row in rows} == required
-    assert any(row["edge_source"] == "actuated" for row in rows)
+    assert {row["edge_source"] for row in rows} == {"ordinary", "actuated"}
     assert all("ranking_contribution" not in row for row in rows)
     return rows
 

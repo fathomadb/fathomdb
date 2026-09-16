@@ -34,13 +34,34 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(429)
             self.end_headers()
             return
+        if prefix in {"bad404", "html404", "mismatch404"}:
+            self.send_response(404)
+            self.send_header(
+                "Content-Type",
+                "text/html" if prefix == "html404" else "application/json",
+            )
+            self.end_headers()
+            if prefix == "bad404":
+                self.wfile.write(b"{")
+            elif prefix == "html404":
+                self.wfile.write(b"<html>proxy failure</html>")
+            else:
+                self.wfile.write(json.dumps({"error": "unrelated"}).encode("utf-8"))
+            return
         if prefix == "missing" or (
             prefix == "eventual" and Handler.counts[prefix] == 1
         ) or (
             prefix == "delayed" and Handler.counts[prefix] <= 3
         ):
             self.send_response(404)
+            self.send_header("Content-Type", "application/json")
             self.end_headers()
+            body: object = (
+                {"message": "Not Found"}
+                if "/pypi/" in self.path
+                else "version not found: 0.8.26"
+            )
+            self.wfile.write(json.dumps(body).encode("utf-8"))
             return
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -144,6 +165,16 @@ def main() -> None:
             result = invoke(f"{root}/{prefix}")
             assert result.returncode == 1 and reason in result.stderr, result.stderr
             assert Handler.counts[prefix] == 1
+        for registry in ("pypi", "npm"):
+            for prefix, reason in (
+                ("bad404", "malformed_metadata"),
+                ("html404", "malformed_metadata"),
+                ("mismatch404", "absence_mismatch"),
+            ):
+                Handler.counts[prefix] = 0
+                result = invoke(f"{root}/{prefix}", registry)
+                assert result.returncode == 1 and reason in result.stderr, result.stderr
+                assert Handler.counts[prefix] == 1
         Handler.counts["delayed"] = 0
         shared_deadline = invoke_release(root)
         assert shared_deadline.returncode == 1, shared_deadline.stderr

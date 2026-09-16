@@ -88,6 +88,7 @@ control_jobs = {
     "cuda-contract-preflight",
     "cuda-package-rehearsal",
     "cuda-reranker-package-rehearsal",
+    "wait-for-package-registry-visibility",
 }
 control = [entry for entry in checkouts if entry[1] == "${{ github.workflow_sha }}"]
 ordinary = [entry for entry in checkouts if entry[1] == "${{ env.RELEASE_CHECKOUT_REF }}"]
@@ -98,7 +99,7 @@ ok = (
     and env.get("RELEASE_GATES_CANDIDATE_COMMIT") == "${{ inputs.candidate_commit || '' }}"
     and checkouts
     and len(checkouts) == len(ordinary) + len(control)
-    and len(control) == 4
+    and len(control) == 5
     and {job for job, _, _ in control} == control_jobs
     and all(with_.get("persist-credentials") is False for _, _, with_ in control)
     and all(
@@ -106,6 +107,7 @@ ok = (
             "cuda-contract-preflight",
             "cuda-package-rehearsal",
             "cuda-reranker-package-rehearsal",
+            "wait-for-package-registry-visibility",
         } or with_.get("path") == "control-plane"
         for job, _, with_ in control
     )
@@ -114,7 +116,7 @@ print("CANDIDATE", ok, len(checkouts), len(control))
 PY
 )"
 if printf '%s\n' "$candidate_out" | grep -q '^CANDIDATE True'; then
-  pass "dry-run dispatch allows only the four reviewed main-owned control-plane checkout exceptions"
+  pass "dry-run dispatch allows only the five reviewed main-owned control-plane checkout exceptions"
 else
   fail "release checkout may escape the candidate/tag ref only through the reviewed main-owned control plane: $candidate_out"
 fi

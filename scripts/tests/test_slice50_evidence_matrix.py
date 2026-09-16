@@ -22,6 +22,14 @@ def load_module():
 
 
 def row(seed: str, direction: str, depth: int, edge_source: str = "ordinary") -> dict:
+    predecessor = "root"
+    target = f"target:{seed}:{direction}:{depth}"
+    terminal_direction = "incoming" if direction == "incoming" else "outgoing"
+    edge_from, edge_to = (
+        (target, predecessor)
+        if terminal_direction == "incoming"
+        else (predecessor, target)
+    )
     return {
         "seed": seed,
         "direction": direction,
@@ -30,11 +38,22 @@ def row(seed: str, direction: str, depth: int, edge_source: str = "ordinary") ->
         "target_index": 0,
         "target_ref": f"target:{seed}:{direction}:{depth}",
         "terminal_ref": f"terminal:{seed}:{direction}:{depth}",
-        "resolved_target_revision": 1,
-        "resolved_edge_revision": 1,
+        "resolved_target_revision": "target-r1",
+        "resolved_target_logical_id": target,
+        "resolved_edge_revision": "edge-r1",
+        "resolved_edge_class": "edge",
+        "resolved_edge_kind": "supports",
+        "resolved_edge_from": edge_from,
+        "resolved_edge_to": edge_to,
         "edge_source": edge_source,
-        "route_provenance": ["edge:0"],
-        "intrinsic_evidence": ["matched_node"],
+        "route_provenance": [
+            "seed",
+            predecessor,
+            target,
+            "supports",
+            terminal_direction,
+        ],
+        "intrinsic_evidence": ["target-r1", "edge-r1"],
     }
 
 
@@ -88,6 +107,31 @@ def main() -> None:
         assert "multihop" in str(error)
     else:
         raise AssertionError("accepted depth-two labels without a two-hop target")
+
+    for mutation, expected_error in (
+        ({"target_index": -1}, "target index"),
+        ({"resolved_target_revision": "other-r1"}, "target revision"),
+        ({"resolved_edge_revision": "other-edge-r1"}, "edge revision"),
+        ({"resolved_target_logical_id": "other-target"}, "target identity"),
+        ({"resolved_edge_from": "other-source"}, "edge endpoints"),
+    ):
+        invalid = [dict(item) for item in rows]
+        invalid[0].update(mutation)
+        try:
+            module.validate_rows(invalid)
+        except ValueError as error:
+            assert expected_error in str(error)
+        else:
+            raise AssertionError(f"accepted invalid graph evidence: {mutation}")
+
+    duplicate_position = [dict(item) for item in rows]
+    duplicate_position.insert(1, dict(duplicate_position[0]))
+    try:
+        module.validate_rows(duplicate_position)
+    except ValueError as error:
+        assert "duplicate target index" in str(error)
+    else:
+        raise AssertionError("accepted duplicate target position")
     print("PASS test-slice50-evidence-matrix")
 
 

@@ -1454,6 +1454,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, reviewed workflow control plane
         with:
+          ref: ${{ github.workflow_sha }}
           path: control-plane
           persist-credentials: false
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, immutable release manifests

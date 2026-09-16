@@ -66,9 +66,14 @@ for seed in ("explicit", "query"):
                 "target_ref": "target",
                 "terminal_ref": "edge",
                 "resolved_target_revision": "target-r1",
+                "resolved_target_logical_id": "target",
                 "resolved_edge_revision": "edge-r1",
+                "resolved_edge_class": "edge",
+                "resolved_edge_kind": "supports",
+                "resolved_edge_from": "root",
+                "resolved_edge_to": "target",
                 "edge_source": "actuated" if not rows else "ordinary",
-                "route_provenance": ["edge"],
+                "route_provenance": ["seed", "root", "target", "supports", "outgoing"],
                 "intrinsic_evidence": ["target-r1", "edge-r1"],
             })
 open(sys.argv[1], "w", encoding="utf-8").write(json.dumps({

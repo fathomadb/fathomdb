@@ -83,6 +83,25 @@ def _validate_metadata(registry: str, payload: object, package: str, version: st
         raise ValueError("version_mismatch")
 
 
+def _validate_absence_response(
+    registry: str, error: urllib.error.HTTPError, version: str
+) -> None:
+    content_type = error.headers.get_content_type()
+    if content_type != "application/json":
+        raise ValueError("malformed_metadata")
+    try:
+        payload = json.load(error)
+    except (json.JSONDecodeError, UnicodeDecodeError) as decode_error:
+        raise ValueError("malformed_metadata") from decode_error
+    expected: object = (
+        {"message": "Not Found"}
+        if registry == "pypi"
+        else f"version not found: {version}"
+    )
+    if payload != expected:
+        raise ValueError("absence_mismatch")
+
+
 def wait_for_version(
     package: RegistryPackage,
     *,
@@ -119,7 +138,14 @@ def wait_for_version(
                     ) from error
                 return VisibilityResult(attempts, time.monotonic() - started)
         except urllib.error.HTTPError as error:
-            if error.code != 404:
+            if error.code == 404:
+                try:
+                    _validate_absence_response(package.registry, error, package.version)
+                except ValueError as absence_error:
+                    raise VisibilityFailure(
+                        str(absence_error), attempts, time.monotonic() - started
+                    ) from absence_error
+            else:
                 if error.code in (401, 403):
                     reason = "authentication"
                 elif error.code == 429:

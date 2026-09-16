@@ -35,6 +35,14 @@ write_fixture() {
 ]}
 JSON
       ;;
+    valid_external_successor)
+      write_fixture "$root" valid
+      mkdir -p "$root/dev/adr"
+      printf '# Current authority\n' >"$root/dev/adr/current.md"
+      sed -i \
+        's#"owner":"dev/design/alpha.md","release":"historical:0.8.0","successor":"dev/design/alpha.md"#"owner":"dev/adr/current.md","release":"historical:0.8.0","successor":"dev/adr/current.md"#' \
+        "$root/dev/design/document-lifecycle.json"
+      ;;
     missing)
       cat >"$root/dev/design/document-lifecycle.json" <<'JSON'
 {"schema_version":1,"documents":[
@@ -88,6 +96,20 @@ JSON
       write_fixture "$root" valid
       sed -i 's#"successor":"dev/design/alpha.md"#"successor":null#' "$root/dev/design/document-lifecycle.json"
       ;;
+    self_successor)
+      write_fixture "$root" valid
+      sed -i \
+        's#"owner":"dev/design/alpha.md","release":"historical:0.8.0","successor":"dev/design/alpha.md"#"owner":"dev/design/legacy.md","release":"historical:0.8.0","successor":"dev/design/legacy.md"#' \
+        "$root/dev/design/document-lifecycle.json"
+      ;;
+    successor_cycle)
+      cat >"$root/dev/design/document-lifecycle.json" <<'JSON'
+{"schema_version":1,"documents":[
+  {"path":"dev/design/alpha.md","class":"superseded","topic":"alpha","role":"design","owner":"dev/design/legacy.md","release":"historical:0.8.0","successor":"dev/design/legacy.md"},
+  {"path":"dev/design/legacy.md","class":"superseded","topic":"legacy","role":"design","owner":"dev/design/alpha.md","release":"historical:0.8.0","successor":"dev/design/alpha.md"}
+]}
+JSON
+      ;;
     duplicate_owner)
       cat >"$root/dev/design/document-lifecycle.json" <<'JSON'
 {"schema_version":1,"documents":[
@@ -103,6 +125,35 @@ JSON
     missing_ci_wiring)
       write_fixture "$root" valid
       : >"$root/.github/workflows/ci.yml"
+      ;;
+    commented_local_wiring)
+      write_fixture "$root" valid
+      printf '%s\n' \
+        '# run_capped check-design-lifecycle "$SCRIPT_DIR/check-design-lifecycle.py"' \
+        >"$root/scripts/agent-lint-md.sh"
+      ;;
+    commented_ci_wiring)
+      write_fixture "$root" valid
+      printf '%s\n' \
+        'jobs:' \
+        '  markdownlint:' \
+        "    if: needs.changes.outputs.docs_only == 'true'" \
+        '    steps:' \
+        '      # run: python3 scripts/check-design-lifecycle.py' \
+        >"$root/.github/workflows/ci.yml"
+      ;;
+    wrong_ci_job)
+      write_fixture "$root" valid
+      printf '%s\n' \
+        'jobs:' \
+        '  markdownlint:' \
+        "    if: needs.changes.outputs.docs_only == 'true'" \
+        '    steps:' \
+        '      - run: true' \
+        '  unrelated:' \
+        '    steps:' \
+        '      - run: python3 scripts/check-design-lifecycle.py' \
+        >"$root/.github/workflows/ci.yml"
       ;;
     *)
       echo "unknown fixture mode: $mode" >&2
@@ -129,6 +180,7 @@ run_fail() {
 }
 
 run_ok valid
+run_ok valid_external_successor
 for mode in \
   missing \
   extra \
@@ -140,9 +192,14 @@ for mode in \
   missing_owner \
   missing_successor \
   superseded_without_successor \
+  self_successor \
+  successor_cycle \
   duplicate_owner \
   missing_local_wiring \
-  missing_ci_wiring
+  missing_ci_wiring \
+  commented_local_wiring \
+  commented_ci_wiring \
+  wrong_ci_job
 do
   run_fail "$mode"
 done

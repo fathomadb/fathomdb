@@ -9,6 +9,24 @@ status: locked
 
 # Bindings — Design
 
+## 0.8.26 current-profile additions
+
+Rust, Python, and TypeScript expose one changed-in-place V1 actuation grammar
+with the same five operation capabilities and compact receipt semantics. Thin
+bindings normalize field spelling and validate conversion coherence; they do
+not reinterpret prospective endpoint validation, digest/replay, lifecycle,
+erasure, or projection behavior owned by `design/actuation.md`.
+
+Graph evidence is an opt-in sidecar on the existing graph operation. Binding
+conversion preserves distinct target and terminal-edge selectors and rejects
+incoherent resolved identity fields. It does not turn point resolution into
+ranked search or add a parallel graph API.
+
+All bindings apply the schema-34 fresh-database admission rule and map a
+noncurrent nonempty database to their typed incompatible-schema open error.
+`data-plane-integrity` remains CLI-only and is absent from governed Python and
+TypeScript surfaces.
+
 This file is **cross-cutting**. It commits to invariants that hold _across_ every public binding (Python, TypeScript, CLI) collectively, plus the protocol that connects each binding to the underlying Rust engine. Per-binding signatures, examples, and error cases live in `interfaces/{python,ts,cli}.md`; this file does not duplicate those.
 
 ## 0. Value-test against `interfaces/`

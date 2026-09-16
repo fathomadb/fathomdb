@@ -201,6 +201,11 @@ commit via its `Cargo.toml`.
 
 ## Post-publish smoke
 
+Slice 50 of 0.8.26 owns integrated **non-publishing** candidate verification.
+That pre-publication matrix must not be cited as registry or post-publish
+evidence. Publication and the registry-installed smoke below remain separately
+authorized release actions.
+
 Per `feedback_release_verification`, "green CI + published wheel" is not
 done. Release-evidence sweep installs the published wheel from PyPI and
 runs an end-to-end open + close + exit smoke before the release is

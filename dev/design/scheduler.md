@@ -12,6 +12,19 @@ status: locked
 This file owns projection job spawn policy, queue/backpressure behavior, retry
 policy, and the ordered shutdown path that cooperates with the writer thread.
 
+## Current connection and generation boundary
+
+Workers compute and publish through projection-owned SQLite connections rather
+than the primary caller-write connection. The shared `commit_gate` totally
+orders worker publication transactions with the one-write-transaction
+invariant. Every job carries the serving generation captured at dispatch and
+revalidates membership/generation before publication; a stale job is discarded
+and current pending work is rediscovered.
+
+Canonical node and edge writes, including derived-edge actuation, use the same
+bounded queue/backpressure and retry machinery. Receipt pending cursors do not
+create a separate scheduler or change the retry owner.
+
 ## Fixed retry policy
 
 0.6.0 uses one bounded retry policy for projection jobs:

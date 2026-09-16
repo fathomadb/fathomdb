@@ -1,5 +1,5 @@
 ---
-status: UNREVIEWED
+status: ACTIVE
 ---
 
 # Perf regression detection (0.7.2 PR-7)

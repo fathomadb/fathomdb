@@ -64,6 +64,18 @@ JSON
       write_fixture "$root" valid
       sed -i 's/"class":"maintained"/"class":"current"/' "$root/dev/design/document-lifecycle.json"
       ;;
+    missing_field)
+      write_fixture "$root" valid
+      sed -i 's/,"release":"cross-release"//' "$root/dev/design/document-lifecycle.json"
+      ;;
+    invalid_release)
+      write_fixture "$root" valid
+      sed -i 's/"release":"cross-release"/"release":"soon"/' "$root/dev/design/document-lifecycle.json"
+      ;;
+    invalid_topic)
+      write_fixture "$root" valid
+      sed -i 's/"topic":"alpha"/"topic":"Alpha design"/' "$root/dev/design/document-lifecycle.json"
+      ;;
     missing_owner)
       write_fixture "$root" valid
       sed -i 's#"owner":"dev/design/alpha.md"#"owner":"dev/design/missing.md"#' "$root/dev/design/document-lifecycle.json"
@@ -122,6 +134,9 @@ for mode in \
   extra \
   duplicate_path \
   invalid_class \
+  missing_field \
+  invalid_release \
+  invalid_topic \
   missing_owner \
   missing_successor \
   superseded_without_successor \

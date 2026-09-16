@@ -1,13 +1,14 @@
 ---
 title: Pinned-override rot guard
-status: PROPOSED
+status: ACTIVE
 ---
 
 # Pinned-override rot guard
 
 A dependency pin added to *fix* an advisory can silently become the *cause* of
-the next one. This proposes a mechanical guard, because the failure is invisible
-by construction: the pin still looks like a fix, and its comment still says so.
+the next one. The repository therefore enforces a mechanical guard, because the
+failure is invisible by construction: the pin still looks like a fix, and its
+comment still says so.
 
 ## The case that motivated it
 

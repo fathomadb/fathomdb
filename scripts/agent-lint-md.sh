@@ -73,6 +73,7 @@ run_capped check-track-runner "$SCRIPT_DIR/check-track-runner.sh" --quiet
 run_capped check-release-state-views "$SCRIPT_DIR/check-release-state-views.sh" --quiet
 run_capped check-traceability-contracts "$SCRIPT_DIR/check-traceability-contracts.py" --root .
 run_capped check-architecture-authority "$SCRIPT_DIR/check-architecture-authority.py"
+run_capped check-design-lifecycle "$SCRIPT_DIR/check-design-lifecycle.py"
 
 # docs/** structural lint. The repo .markdownlint-cli2.jsonc IGNORES docs/** (it is
 # otherwise gated only by `mkdocs build --strict`, which does NOT enforce markdownlint

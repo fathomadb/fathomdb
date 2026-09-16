@@ -119,7 +119,9 @@ refresh in the closing commit when you touch a doc).
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
-| `dev/design/README.md` | Design index with active-architecture navigation; broader classification remains unreviewed | 0.8.26 Slice 45/46 | 2026-09-15 |
+| `dev/design/README.md` | Lifecycle-aware design navigation and placement rules | 0.8.26 Slice 46 | 2026-09-15 |
+| `dev/design/document-lifecycle.json` | Exact machine-checked lifecycle and ownership catalog for every design document | 0.8.26 Slice 46 | 2026-09-15 |
+| `dev/design/actuation.md` | Current actuation contract for atomic batches, idempotency, receipts, replay, and erasure | 0.8.26 Slice 46 | 2026-09-15 |
 | `dev/design/steward-cold-start-budget.md` | Steward cold-start token budget — RATIFIED plan (ledger `seq-226`); §3 liveness filter, `steward_cold_start_set` ratchet, repo-prune merge verdict | — (program hygiene; Phase 3 gated on 0.8.20 publish) | 2026-07-31 |
 | `dev/design/gpu-eval-activities-policy.md` | Policy — repo MUST use the 3090s for eval/embed activities when there is room | 0.8.14 Slice 20 (eu7 policy) | 2026-07-05 |
 | `dev/design/0.8.23-gpu-artifacts.md` | Design for Linux CUDA release artifacts and trusted GPU proof | 0.8.23 Slices 0/5 | 2026-08-10 |

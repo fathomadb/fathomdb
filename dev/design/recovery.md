@@ -16,13 +16,22 @@ and recovery.
 [recovery successor](recovery-0.8.25.md); this locked historical contract is
 otherwise unchanged.
 
+0.8.26 adds the read-only
+`fathomdb doctor data-plane-integrity --json <db_path>` inspection route. It
+resolves symlink aliases to the target product namespace, requires exact schema
+compatibility, refuses unsafe lock/recovery-sidecar states, opens the database
+immutably out of process, bounds checks/findings, and never acquires repair
+authority. Exit classes are `0`, `65`, `70`, and `71` as defined by
+`interfaces/cli.md`. The route remains absent from governed Python and
+TypeScript SDKs.
+
 ## Two-root CLI split
 
 0.6.0 recovery tooling splits at the root by mutation semantics:
 
 | Root                                                | Surface                                                                                                        | Mutation class             |
 | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `fathomdb doctor <verb>`                            | `check-integrity`, `safe-export`, `verify-embedder`, `trace`, `dump-schema`, `dump-row-counts`, `dump-profile` | bit-preserving / read-only |
+| `fathomdb doctor <verb>`                            | `check-integrity`, `data-plane-integrity`, `safe-export`, `verify-embedder`, `trace`, `dump-schema`, `dump-row-counts`, `dump-profile` | bit-preserving / read-only |
 | `fathomdb recover --accept-data-loss <sub-flag>...` | `--truncate-wal`, `--rebuild-vec0`, `--rebuild-projections`, `--excise-source <id>`                            | lossy / non-bit-preserving |
 
 `--accept-data-loss` is root-level and mandatory on `recover`. It is not valid

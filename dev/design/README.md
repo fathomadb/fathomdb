@@ -1,51 +1,46 @@
 ---
-status: UNREVIEWED
+status: ACTIVE
 ---
 
-# Design Docs
+# Design documents
 
-> **Current vs historical (2026-06-26 ledger-prune).** The **live** design surface is the
-> cross-cutting *topic* specs (`engine.md`, `retrieval.md`, `vector.md`, `op-store.md`,
-> `migrations.md`, `errors.md`, `embedder.md`, `lifecycle.md`, `scheduler.md`, `recovery.md`,
-> `projections.md`, `bindings.md`, `orchestration.md`, `perf-gates.md`, `ann-index-vec0.md`,
-> `release.md`, `worktree-branch-consolidation.md`, `worktree-branch-consolidator.md`,
-> `worktree-branch-consolidator-requirements.md`,
-> `worktree-branch-consolidator-acceptance-criteria.md`) plus the live experiment decision-tree (`0.8.x-portfolio-features-and-experiment-tree.md`,
-> `0.8.x-parity-portfolio-strategy.md`) and the in-flight `0.8.5-*` slice design.
-> The per-slice memos (`slice-*-design.md`, `0.6.x/0.7.x/0.8.0–0.8.4-*`) are **historical
-> records of closed slices — may be STALE**; their results are distilled in
-> `dev/experiments-ledger.md` and their decisions live in `dev/adr/`. Frozen pre-registrations
-> (`0.8.2-m1-multihop-harness.md`, `0.8.3-mem0-parity.md`) and `ir-recall-measure.md` are kept
-> as load-bearing REFERENCE. See `dev/DOC-INDEX.md` for the authoritative per-doc map.
+This directory holds current subsystem designs, bounded references and
+experiments, proposals, and historical design records. The exact lifecycle
+classification and current owner for every Markdown document is
+[`document-lifecycle.json`](document-lifecycle.json). The catalog is checked for
+complete coverage, valid ownership, and unique maintained topic/role pairs by
+`scripts/check-design-lifecycle.py` in both the local Markdown gate and docs CI.
 
-## Purpose
+## Current owners
 
-Detailed subsystem design documents that elaborate on accepted requirements and
-ADRs.
+The maintained design owners include the data-plane architecture and the active
+engine, retrieval, vector, projection, scheduler, recovery, migration, binding,
+error, actuation, release, performance, and operating-method designs. Discover
+the exact set by filtering the catalog for `"class": "maintained"`; do not copy
+that list into another hand-maintained index.
 
-## Keep here
-
-- engine, retrieval, scheduler, vector, recovery, and release design docs
-- cross-cutting design constraints
-
-## Do not keep here
-
-- public user/operator guidance
-- architectural decision records
-- disposable ideation notes
-
-## Canonicality
-
-Canonical for internal subsystem design, subject to ADR and requirement owners.
-
-The active architecture is the reconciled 0.8.26 v2.2 profile in
+The active architecture profile is
 [`fathomdb-data-plane-architecture-v2.md`](fathomdb-data-plane-architecture-v2.md).
-Its 0.8.25 feature-level design records and predecessor dispositions are indexed by
-[`../plans/0.8.25/design-documentation-matrix.md`](../plans/0.8.25/design-documentation-matrix.md).
-The maintained interface documents remain section-status-qualified contract
-owners. Slice 46 owns the broader classification and reconciliation of this
-directory; this README remains `UNREVIEWED` until that work completes.
+Public contracts remain owned by `dev/interfaces/` and accepted decisions by
+`dev/adr/`; those authorities override explanatory design prose.
 
-## Lifecycle
+## Lifecycle rules
 
-Living until design freeze; update when contracts materially change.
+- `maintained` is a current topic/role owner and must stay consistent with code,
+  interfaces, and accepted ADRs.
+- `reference` and `experiment` remain useful inputs but do not own current
+  product behavior.
+- `proposal` and `deferred` describe unshipped work; they must not be read as
+  current behavior.
+- `historical` records a closed slice or superseded release context.
+- `superseded` must name its current successor, which is also its owner.
+
+Adding, removing, moving, or reclassifying a design document requires updating
+the lifecycle catalog in the same change. Historical records are preserved; a
+new current owner supersedes them without rewriting their original decisions.
+
+## Placement
+
+Keep internal subsystem and cross-cutting design here. Put public operator or
+SDK guidance under `docs/`, accepted decisions under `dev/adr/`, and disposable
+ideation outside the maintained design surface.

@@ -13,6 +13,25 @@ This file owns derived FTS/vector state, projection status semantics, and the
 relationship between canonical writes, terminal projection states, and
 `projection_cursor`.
 
+## Current worker and generation model
+
+The primary writer commits canonical/FTS state and schedules projection work.
+Projection workers use their own SQLite connections for vector publication;
+their `BEGIN IMMEDIATE` commits are serialized by the shared `commit_gate`, so
+there is never more than one SQLite write transaction even though publication
+does not run on the primary writer connection.
+
+The immutable serving generation binds declaration identity and membership.
+Jobs capture that generation, revalidate it before terminal/sidecar/vec0
+publication, and discard stale results after a generation transition. Receipt
+correlation stores the generation current at commit and is never rebound to a
+later generation. Generation status and receipt-keyed mutation status are pure
+reads; they report corruption or unavailability and never repair state.
+
+Body-bearing derived edges committed through `Engine::actuate` enter this same
+scheduler, terminal-state, generation, and publication path. Their receipt's
+pending cursors are correlation metadata, not a second work queue.
+
 ## Push model
 
 0.6.0 projections are eager and post-commit:

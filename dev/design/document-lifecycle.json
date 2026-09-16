@@ -1,0 +1,1679 @@
+{
+  "schema_version": 1,
+  "documents": [
+    {
+      "path": "dev/design/0.5.1x0.8.11.2/00-integrated-design.md",
+      "class": "historical",
+      "topic": "x0-8-11-2-00-integrated-design",
+      "role": "design",
+      "owner": "dev/design/0.5.1x0.8.11.2/00-integrated-design.md",
+      "release": "historical:0.5.1",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.5.1x0.8.11.2/10-fathomdb-side-design.md",
+      "class": "historical",
+      "topic": "x0-8-11-2-10-fathomdb-side-design",
+      "role": "design",
+      "owner": "dev/design/0.5.1x0.8.11.2/10-fathomdb-side-design.md",
+      "release": "historical:0.5.1",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.5.1x0.8.11.2/20-multifield-fts-design.md",
+      "class": "historical",
+      "topic": "x0-8-11-2-20-multifield-fts-design",
+      "role": "design",
+      "owner": "dev/design/0.5.1x0.8.11.2/20-multifield-fts-design.md",
+      "release": "historical:0.5.1",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.5.1x0.8.11.2/30-perkind-tokenizer-fts-design.md",
+      "class": "historical",
+      "topic": "x0-8-11-2-30-perkind-tokenizer-fts-design",
+      "role": "design",
+      "owner": "dev/design/0.5.1x0.8.11.2/30-perkind-tokenizer-fts-design.md",
+      "release": "historical:0.5.1",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.5.1x0.8.11.2/identity-recall-model.md",
+      "class": "historical",
+      "topic": "x0-8-11-2-identity-recall-model",
+      "role": "analysis",
+      "owner": "dev/design/0.5.1x0.8.11.2/identity-recall-model.md",
+      "release": "historical:0.5.1",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.7.0-vector-quant-pack1.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.7.0-vector-quant-pack1.md",
+      "release": "historical:0.7.0",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.7.1-EU-6-FIX-1-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/0.7.1-EU-6-FIX-1-design.md",
+      "release": "historical:0.7.1",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.7.1-EU-6-FIX-2-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/0.7.1-EU-6-FIX-2-design.md",
+      "release": "historical:0.7.1",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.0-agent-memory-fit.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.0-agent-memory-fit.md",
+      "release": "historical:0.8.0",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.0-slice-5-G1-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/0.8.0-slice-5-G1-design.md",
+      "release": "historical:0.8.0",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.0-v05-feature-triage.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.0-v05-feature-triage.md",
+      "release": "historical:0.8.0",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.1-embedder-gpu-and-portability.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.1-embedder-gpu-and-portability.md",
+      "release": "historical:0.8.1",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.1-graph-experiment-plan.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "plan",
+      "owner": "dev/design/0.8.1-graph-experiment-plan.md",
+      "release": "historical:0.8.1",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.1-slice-10-reranker-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/0.8.1-slice-10-reranker-design.md",
+      "release": "historical:0.8.1",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.11-analysis-G10-G4-searchfilt.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.11-analysis-G10-G4-searchfilt.md",
+      "release": "historical:0.8.11",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.11-slice40-f8b-record-feedback-execution-note.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.11-slice40-f8b-record-feedback-execution-note.md",
+      "release": "historical:0.8.11",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.12-coverage-probe-and-value-test.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "evidence",
+      "owner": "dev/design/0.8.12-coverage-probe-and-value-test.md",
+      "release": "historical:0.8.12",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.16-slice-0-f9-onnx-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/0.8.16-slice-0-f9-onnx-design.md",
+      "release": "historical:0.8.16",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.18-slice-0-vector-equivalence-publish-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/0.8.18-slice-0-vector-equivalence-publish-design.md",
+      "release": "historical:0.8.18",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.18-slice-20-publish-pipeline.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.18-slice-20-publish-pipeline.md",
+      "release": "historical:0.8.18",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.18-slice-5-vector-equivalence-probe.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "evidence",
+      "owner": "dev/design/0.8.18-slice-5-vector-equivalence-probe.md",
+      "release": "historical:0.8.18",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.19-slice-0-opp12-phase1-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/0.8.19-slice-0-opp12-phase1-design.md",
+      "release": "historical:0.8.19",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.2-m1-multihop-harness.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.2-m1-multihop-harness.md",
+      "release": "historical:0.8.2",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.20-b5-trusted-test-only-verification-design.md",
+      "class": "superseded",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/plans/release-state-0.8.20.json",
+      "release": "historical:0.8.20",
+      "successor": "dev/plans/release-state-0.8.20.json"
+    },
+    {
+      "path": "dev/design/0.8.20-erasure-and-h-end-state-v4.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.20-erasure-and-h-end-state-v4.md",
+      "release": "historical:0.8.20",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.20-slice-31-sbom-survey-tool.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.20-slice-31-sbom-survey-tool.md",
+      "release": "historical:0.8.20",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.20-slice-39-publish-facing-documentation.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.20-slice-39-publish-facing-documentation.md",
+      "release": "historical:0.8.20",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.20-slice-39.5-collect-all-test-harness.md",
+      "class": "historical",
+      "topic": "5-collect-all-test-harness",
+      "role": "analysis",
+      "owner": "dev/design/0.8.20-slice-39.5-collect-all-test-harness.md",
+      "release": "historical:0.8.20",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.20-slice0-erasure-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/0.8.20-slice0-erasure-design.md",
+      "release": "historical:0.8.20",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.20-sqlite-vec-99-vec0-delete-probe.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "evidence",
+      "owner": "dev/design/0.8.20-sqlite-vec-99-vec0-delete-probe.md",
+      "release": "historical:0.8.20",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.20-tc57-write-race-characterization.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "evidence",
+      "owner": "dev/design/0.8.20-tc57-write-race-characterization.md",
+      "release": "historical:0.8.20",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.20-tc67-unsupported-vector-kind-report.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.20-tc67-unsupported-vector-kind-report.md",
+      "release": "historical:0.8.20",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.20-tc68-equivalence-probe-fingerprint-cache.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "evidence",
+      "owner": "dev/design/0.8.20-tc68-equivalence-probe-fingerprint-cache.md",
+      "release": "historical:0.8.20",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.20-tc90-tc91-characterization.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "evidence",
+      "owner": "dev/design/0.8.20-tc90-tc91-characterization.md",
+      "release": "historical:0.8.20",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.20-tc91-projection-commit-hardening.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.20-tc91-projection-commit-hardening.md",
+      "release": "historical:0.8.20",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.22-slice-19-join-index.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.22-slice-19-join-index.md",
+      "release": "historical:0.8.22",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.22-slice-21-projection-state.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.22-slice-21-projection-state.md",
+      "release": "historical:0.8.22",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.22-slice-22-projection-status.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.22-slice-22-projection-status.md",
+      "release": "historical:0.8.22",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.22-slice-23-text-limit-prefix-stability.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.22-slice-23-text-limit-prefix-stability.md",
+      "release": "historical:0.8.22",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-aarch64-tegra.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-aarch64-tegra.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-embedding-configuration-feedback.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-embedding-configuration-feedback.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-gitleaks-guards.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-gitleaks-guards.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-gpu-artifacts.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-gpu-artifacts.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-memex-integration.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-memex-integration.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-planning-foundation.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "plan",
+      "owner": "dev/design/0.8.23-planning-foundation.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-scale-aggregator-contract.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-scale-aggregator-contract.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-scale-characterization-protocol.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "evidence",
+      "owner": "dev/design/0.8.23-scale-characterization-protocol.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-scale-characterization-v2.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "evidence",
+      "owner": "dev/design/0.8.23-scale-characterization-v2.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-slice-10-cuda-contract.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-slice-10-cuda-contract.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-slice-20-cuda-package-rehearsal.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-slice-20-cuda-package-rehearsal.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-slice-70-dual-runtime-device-policy.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "policy",
+      "owner": "dev/design/0.8.23-slice-70-dual-runtime-device-policy.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-slice-70-tc5-vector-stage-hypothesis.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "proposal",
+      "owner": "dev/design/0.8.23-slice-70-tc5-vector-stage-hypothesis.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-slice-70-tdd-plan.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "plan",
+      "owner": "dev/design/0.8.23-slice-70-tdd-plan.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-slice-71-reranker-dual-runtime.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-slice-71-reranker-dual-runtime.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-slice-72-concurrent-gpu-characterization.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "evidence",
+      "owner": "dev/design/0.8.23-slice-72-concurrent-gpu-characterization.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-unmerged-candidate-provenance.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-unmerged-candidate-provenance.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-wal-attribution-investigation.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-wal-attribution-investigation.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-windows-local-environment.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-windows-local-environment.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.23-windows-wal-checkpoint-reader-conflict.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.23-windows-wal-checkpoint-reader-conflict.md",
+      "release": "historical:0.8.23",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.25-driverless-cuda-runtime.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.25-driverless-cuda-runtime.md",
+      "release": "historical:0.8.25",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.3-ce-rerank-batch-release.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.3-ce-rerank-batch-release.md",
+      "release": "historical:0.8.3",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.3-ce-rerank-precision-probe.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "evidence",
+      "owner": "dev/design/0.8.3-ce-rerank-precision-probe.md",
+      "release": "historical:0.8.3",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.3-gap-decomposition-probe.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "evidence",
+      "owner": "dev/design/0.8.3-gap-decomposition-probe.md",
+      "release": "historical:0.8.3",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.3-mem0-parity.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.3-mem0-parity.md",
+      "release": "historical:0.8.3",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.3-openai-batch-completion-howto.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.3-openai-batch-completion-howto.md",
+      "release": "historical:0.8.3",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.3-rerank-accuracy-arm.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.3-rerank-accuracy-arm.md",
+      "release": "historical:0.8.3",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.3-slice-10-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/0.8.3-slice-10-design.md",
+      "release": "historical:0.8.3",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.3-slice-15a-embedder-probe.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "evidence",
+      "owner": "dev/design/0.8.3-slice-15a-embedder-probe.md",
+      "release": "historical:0.8.3",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.3-slice-15b-d2-proxy.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.3-slice-15b-d2-proxy.md",
+      "release": "historical:0.8.3",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.3-slice-5-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/0.8.3-slice-5-design.md",
+      "release": "historical:0.8.3",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.4-closing-graphrag-gap.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.4-closing-graphrag-gap.md",
+      "release": "historical:0.8.4",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.4-graphrag-sensemaking.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.4-graphrag-sensemaking.md",
+      "release": "historical:0.8.4",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.5-ce-rerank-slice-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/0.8.5-ce-rerank-slice-design.md",
+      "release": "historical:0.8.5",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.8-explain-and-telemetry-adr.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/0.8.8-explain-and-telemetry-adr.md",
+      "release": "historical:0.8.8",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.8-telemetry-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/0.8.8-telemetry-design.md",
+      "release": "historical:0.8.8",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.x-after-0.8.25-design-notes.md",
+      "class": "deferred",
+      "topic": "x-after-0-8-25-design-notes",
+      "role": "design",
+      "owner": "dev/design/0.8.x-after-0.8.25-design-notes.md",
+      "release": "future:0.8.x",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.8.x-parity-portfolio-strategy.md",
+      "class": "reference",
+      "topic": "x-parity-portfolio-strategy",
+      "role": "analysis",
+      "owner": "dev/design/0.8.x-parity-portfolio-strategy.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/0.9.0-readability-refactor-proposal.md",
+      "class": "proposal",
+      "topic": "design",
+      "role": "proposal",
+      "owner": "dev/design/0.9.0-readability-refactor-proposal.md",
+      "release": "future:0.9.0",
+      "successor": null
+    },
+    {
+      "path": "dev/design/1-2M-chunk-scaling-DECISION-BRIEF.md",
+      "class": "proposal",
+      "topic": "1-2m-chunk-scaling-decision-brief",
+      "role": "analysis",
+      "owner": "dev/design/1-2M-chunk-scaling-DECISION-BRIEF.md",
+      "release": "future:1-2m",
+      "successor": null
+    },
+    {
+      "path": "dev/design/1-2M-chunk-scaling-roadmap-divergence.md",
+      "class": "proposal",
+      "topic": "1-2m-chunk-scaling-roadmap-divergence",
+      "role": "proposal",
+      "owner": "dev/design/1-2M-chunk-scaling-roadmap-divergence.md",
+      "release": "future:1-2m",
+      "successor": null
+    },
+    {
+      "path": "dev/design/1-2M-chunk-scaling-vector-latency-roadmap.md",
+      "class": "proposal",
+      "topic": "1-2m-chunk-scaling-vector-latency-roadmap",
+      "role": "proposal",
+      "owner": "dev/design/1-2M-chunk-scaling-vector-latency-roadmap.md",
+      "release": "future:1-2m",
+      "successor": null
+    },
+    {
+      "path": "dev/design/README.md",
+      "class": "maintained",
+      "topic": "design-documentation",
+      "role": "index",
+      "owner": "dev/design/README.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/actuation.md",
+      "class": "maintained",
+      "topic": "actuation",
+      "role": "design",
+      "owner": "dev/design/actuation.md",
+      "release": "current:0.8.26",
+      "successor": null
+    },
+    {
+      "path": "dev/design/agent-memory-impl-strategy.md",
+      "class": "reference",
+      "topic": "agent-memory-impl-strategy",
+      "role": "analysis",
+      "owner": "dev/design/agent-memory-impl-strategy.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/agent-sendmessage-tool-availability-analysis.md",
+      "class": "reference",
+      "topic": "agent-sendmessage-tool-availability-analysis",
+      "role": "analysis",
+      "owner": "dev/design/agent-sendmessage-tool-availability-analysis.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/ann-index-vec0.md",
+      "class": "deferred",
+      "topic": "ann-index-vec0",
+      "role": "analysis",
+      "owner": "dev/design/ann-index-vec0.md",
+      "release": "future:post-1.0",
+      "successor": null
+    },
+    {
+      "path": "dev/design/bindings.md",
+      "class": "maintained",
+      "topic": "bindings",
+      "role": "design",
+      "owner": "dev/design/bindings.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/chunking-strategy-and-test-guidance.md",
+      "class": "reference",
+      "topic": "chunking-strategy-and-test-guidance",
+      "role": "analysis",
+      "owner": "dev/design/chunking-strategy-and-test-guidance.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/ci-cd-best-practices-research-20260821.md",
+      "class": "reference",
+      "topic": "ci-cd-best-practices-research-20260821",
+      "role": "analysis",
+      "owner": "dev/design/ci-cd-best-practices-research-20260821.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/ci-cd-design-hypothesis-20260821.md",
+      "class": "proposal",
+      "topic": "ci-cd-design-hypothesis-20260821",
+      "role": "proposal",
+      "owner": "dev/design/ci-cd-design-hypothesis-20260821.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/ci-cd-final-recommendation-20260821.md",
+      "class": "reference",
+      "topic": "ci-cd-final-recommendation-20260821",
+      "role": "analysis",
+      "owner": "dev/design/ci-cd-final-recommendation-20260821.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/ci-cd-simplified-redesign-20260821.md",
+      "class": "reference",
+      "topic": "ci-cd-simplified-redesign-20260821",
+      "role": "design",
+      "owner": "dev/design/ci-cd-simplified-redesign-20260821.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/ci-challenges-review-20260821.md",
+      "class": "reference",
+      "topic": "ci-challenges-review-20260821",
+      "role": "analysis",
+      "owner": "dev/design/ci-challenges-review-20260821.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/ci-verify-robustness-review.md",
+      "class": "reference",
+      "topic": "ci-verify-robustness-review",
+      "role": "analysis",
+      "owner": "dev/design/ci-verify-robustness-review.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/code-markers-evaluation-2026-07-09.md",
+      "class": "reference",
+      "topic": "code-markers-evaluation-2026-07-09",
+      "role": "evidence",
+      "owner": "dev/design/code-markers-evaluation-2026-07-09.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/dedicated-checkout-per-orchestration-guard-proposal.md",
+      "class": "reference",
+      "topic": "dedicated-checkout-per-orchestration-guard-proposal",
+      "role": "proposal",
+      "owner": "dev/design/dedicated-checkout-per-orchestration-guard-proposal.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/delivery-requirements-map-20260821.md",
+      "class": "reference",
+      "topic": "delivery-requirements-map-20260821",
+      "role": "requirements",
+      "owner": "dev/design/delivery-requirements-map-20260821.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/earp-slice-1-design.md",
+      "class": "experiment",
+      "topic": "earp-slice-1-design",
+      "role": "design",
+      "owner": "dev/design/earp-slice-1-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/earp-slice-10-design.md",
+      "class": "experiment",
+      "topic": "earp-slice-10-design",
+      "role": "design",
+      "owner": "dev/design/earp-slice-10-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/earp-slice-2-design.md",
+      "class": "experiment",
+      "topic": "earp-slice-2-design",
+      "role": "design",
+      "owner": "dev/design/earp-slice-2-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/earp-slice-3-design.md",
+      "class": "experiment",
+      "topic": "earp-slice-3-design",
+      "role": "design",
+      "owner": "dev/design/earp-slice-3-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/earp-slice-4-design.md",
+      "class": "experiment",
+      "topic": "earp-slice-4-design",
+      "role": "design",
+      "owner": "dev/design/earp-slice-4-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/earp-slice-5-design.md",
+      "class": "experiment",
+      "topic": "earp-slice-5-design",
+      "role": "design",
+      "owner": "dev/design/earp-slice-5-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/earp-slice-6-design.md",
+      "class": "experiment",
+      "topic": "earp-slice-6-design",
+      "role": "design",
+      "owner": "dev/design/earp-slice-6-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/earp-slice-6a-design.md",
+      "class": "experiment",
+      "topic": "earp-slice-6a-design",
+      "role": "design",
+      "owner": "dev/design/earp-slice-6a-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/earp-slice-7-design.md",
+      "class": "experiment",
+      "topic": "earp-slice-7-design",
+      "role": "design",
+      "owner": "dev/design/earp-slice-7-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/earp-slice-8-design.md",
+      "class": "experiment",
+      "topic": "earp-slice-8-design",
+      "role": "design",
+      "owner": "dev/design/earp-slice-8-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/earp-slice-9-design.md",
+      "class": "experiment",
+      "topic": "earp-slice-9-design",
+      "role": "design",
+      "owner": "dev/design/earp-slice-9-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/earp.md",
+      "class": "experiment",
+      "topic": "earp",
+      "role": "analysis",
+      "owner": "dev/design/earp.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/embedder-decision.md",
+      "class": "reference",
+      "topic": "embedder-decision",
+      "role": "analysis",
+      "owner": "dev/design/embedder-decision.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/embedder.md",
+      "class": "maintained",
+      "topic": "embedder",
+      "role": "design",
+      "owner": "dev/design/embedder.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/engine.md",
+      "class": "maintained",
+      "topic": "engine",
+      "role": "design",
+      "owner": "dev/design/engine.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/errors.md",
+      "class": "maintained",
+      "topic": "errors",
+      "role": "design",
+      "owner": "dev/design/errors.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/fathomdb-data-plane-architecture-v1.md",
+      "class": "superseded",
+      "topic": "fathomdb-data-plane-architecture-v1",
+      "role": "architecture",
+      "owner": "dev/design/fathomdb-data-plane-architecture-v2.md",
+      "release": "cross-release",
+      "successor": "dev/design/fathomdb-data-plane-architecture-v2.md"
+    },
+    {
+      "path": "dev/design/fathomdb-data-plane-architecture-v2.md",
+      "class": "maintained",
+      "topic": "data-plane",
+      "role": "architecture",
+      "owner": "dev/design/fathomdb-data-plane-architecture-v2.md",
+      "release": "current:0.8.26",
+      "successor": null
+    },
+    {
+      "path": "dev/design/fathomdb-graph-vs-mem0-zep-and-longmemeval-diagnosis.md",
+      "class": "experiment",
+      "topic": "fathomdb-graph-vs-mem0-zep-and-longmemeval-diagnosis",
+      "role": "analysis",
+      "owner": "dev/design/fathomdb-graph-vs-mem0-zep-and-longmemeval-diagnosis.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/fathomdb-memex-overall-roadmap/00-priorities-and-misalignments.md",
+      "class": "proposal",
+      "topic": "fathomdb-memex-overall-roadmap-00-priorities-and-misalignments",
+      "role": "analysis",
+      "owner": "dev/design/fathomdb-memex-overall-roadmap/00-priorities-and-misalignments.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/fathomdb-memex-overall-roadmap/01-overall-roadmap.md",
+      "class": "proposal",
+      "topic": "fathomdb-memex-overall-roadmap-01-overall-roadmap",
+      "role": "proposal",
+      "owner": "dev/design/fathomdb-memex-overall-roadmap/01-overall-roadmap.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/fathomdb-memex-overall-roadmap/02-fathomdb-roadmap-adjustments.md",
+      "class": "proposal",
+      "topic": "fathomdb-memex-overall-roadmap-02-fathomdb-roadmap-adjustments",
+      "role": "proposal",
+      "owner": "dev/design/fathomdb-memex-overall-roadmap/02-fathomdb-roadmap-adjustments.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/fathomdb-memex-overall-roadmap/03-memex-roadmap-adjustments.md",
+      "class": "proposal",
+      "topic": "fathomdb-memex-overall-roadmap-03-memex-roadmap-adjustments",
+      "role": "proposal",
+      "owner": "dev/design/fathomdb-memex-overall-roadmap/03-memex-roadmap-adjustments.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/fathomdb-memex-overall-roadmap/04-phase0-liaison-proposal-to-memex.md",
+      "class": "proposal",
+      "topic": "fathomdb-memex-overall-roadmap-04-phase0-liaison-proposal-to-memex",
+      "role": "proposal",
+      "owner": "dev/design/fathomdb-memex-overall-roadmap/04-phase0-liaison-proposal-to-memex.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/free-threaded-python-value-lift-and-experiments.md",
+      "class": "experiment",
+      "topic": "free-threaded-python-value-lift-and-experiments",
+      "role": "analysis",
+      "owner": "dev/design/free-threaded-python-value-lift-and-experiments.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/gpu-device-allocation-policy.md",
+      "class": "superseded",
+      "topic": "gpu-device-allocation-policy",
+      "role": "policy",
+      "owner": "dev/adr/ADR-0.8.23-dual-runtime-device-policy.md",
+      "release": "cross-release",
+      "successor": "dev/adr/ADR-0.8.23-dual-runtime-device-policy.md"
+    },
+    {
+      "path": "dev/design/gpu-eval-activities-policy.md",
+      "class": "maintained",
+      "topic": "gpu-evaluation",
+      "role": "policy",
+      "owner": "dev/design/gpu-eval-activities-policy.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/initial-arch-planner-router-0.8.x.md",
+      "class": "reference",
+      "topic": "initial-arch-planner-router-0-8-x",
+      "role": "plan",
+      "owner": "dev/design/initial-arch-planner-router-0.8.x.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/ir-recall-measure.md",
+      "class": "experiment",
+      "topic": "ir-recall-measure",
+      "role": "evidence",
+      "owner": "dev/design/ir-recall-measure.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/lifecycle.md",
+      "class": "maintained",
+      "topic": "lifecycle-observability",
+      "role": "design",
+      "owner": "dev/design/lifecycle.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/memory-tiers-and-expiry.md",
+      "class": "proposal",
+      "topic": "memory-tiers-and-expiry",
+      "role": "analysis",
+      "owner": "dev/design/memory-tiers-and-expiry.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/migrations.md",
+      "class": "maintained",
+      "topic": "migrations",
+      "role": "design",
+      "owner": "dev/design/migrations.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/nested-source-projections.md",
+      "class": "maintained",
+      "topic": "nested-source-projections",
+      "role": "design",
+      "owner": "dev/design/nested-source-projections.md",
+      "release": "current:0.8.21",
+      "successor": null
+    },
+    {
+      "path": "dev/design/op-store.md",
+      "class": "maintained",
+      "topic": "op-store",
+      "role": "design",
+      "owner": "dev/design/op-store.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/orchestration.md",
+      "class": "maintained",
+      "topic": "orchestration",
+      "role": "method",
+      "owner": "dev/design/orchestration.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/perf-gates.md",
+      "class": "maintained",
+      "topic": "performance-gates",
+      "role": "design",
+      "owner": "dev/design/perf-gates.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/perf-regression-detection.md",
+      "class": "maintained",
+      "topic": "performance-regression",
+      "role": "design",
+      "owner": "dev/design/perf-regression-detection.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/pinned-override-rot-guard.md",
+      "class": "maintained",
+      "topic": "pinned-override",
+      "role": "policy",
+      "owner": "dev/design/pinned-override-rot-guard.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/planner-router-psd-0.8.x.md",
+      "class": "reference",
+      "topic": "planner-router-psd-0-8-x",
+      "role": "plan",
+      "owner": "dev/design/planner-router-psd-0.8.x.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/planner-router-psd-audit-notes.md",
+      "class": "reference",
+      "topic": "planner-router-psd-audit-notes",
+      "role": "plan",
+      "owner": "dev/design/planner-router-psd-audit-notes.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/planner-router-sequencing-0.8.x.md",
+      "class": "superseded",
+      "topic": "planner-router-sequencing-0-8-x",
+      "role": "plan",
+      "owner": "dev/plans/0.8.6-0.8.16-PROGRAM-SEQUENCING.md",
+      "release": "cross-release",
+      "successor": "dev/plans/0.8.6-0.8.16-PROGRAM-SEQUENCING.md"
+    },
+    {
+      "path": "dev/design/projections.md",
+      "class": "maintained",
+      "topic": "projections",
+      "role": "design",
+      "owner": "dev/design/projections.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/record-lifecycle-protocol/OPP-12-C1-converged-contract.md",
+      "class": "reference",
+      "topic": "record-lifecycle-protocol-opp-12-c1-converged-contract",
+      "role": "analysis",
+      "owner": "dev/design/record-lifecycle-protocol/OPP-12-C1-converged-contract.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/record-lifecycle-protocol/OPP-12-C1-shot1.md",
+      "class": "reference",
+      "topic": "record-lifecycle-protocol-opp-12-c1-shot1",
+      "role": "analysis",
+      "owner": "dev/design/record-lifecycle-protocol/OPP-12-C1-shot1.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/record-lifecycle-protocol/OPP-12-leverage-ledger-update.md",
+      "class": "reference",
+      "topic": "record-lifecycle-protocol-opp-12-leverage-ledger-update",
+      "role": "analysis",
+      "owner": "dev/design/record-lifecycle-protocol/OPP-12-leverage-ledger-update.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/record-lifecycle-protocol/README.md",
+      "class": "reference",
+      "topic": "record-lifecycle-protocol-readme",
+      "role": "index",
+      "owner": "dev/design/record-lifecycle-protocol/README.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/record-lifecycle-protocol/api-surface.md",
+      "class": "reference",
+      "topic": "record-lifecycle-protocol-api-surface",
+      "role": "analysis",
+      "owner": "dev/design/record-lifecycle-protocol/api-surface.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/record-lifecycle-protocol/code-grounded-audit.md",
+      "class": "reference",
+      "topic": "record-lifecycle-protocol-code-grounded-audit",
+      "role": "analysis",
+      "owner": "dev/design/record-lifecycle-protocol/code-grounded-audit.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/record-lifecycle-protocol/projection-registry-and-async-embed.md",
+      "class": "reference",
+      "topic": "record-lifecycle-protocol-projection-registry-and-async-embed",
+      "role": "analysis",
+      "owner": "dev/design/record-lifecycle-protocol/projection-registry-and-async-embed.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/record-lifecycle-protocol/structural-lifecycle-contract.md",
+      "class": "reference",
+      "topic": "record-lifecycle-protocol-structural-lifecycle-contract",
+      "role": "analysis",
+      "owner": "dev/design/record-lifecycle-protocol/structural-lifecycle-contract.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/recovery-0.8.25.md",
+      "class": "maintained",
+      "topic": "recovery",
+      "role": "projection-generation",
+      "owner": "dev/design/recovery-0.8.25.md",
+      "release": "current:0.8.25",
+      "successor": null
+    },
+    {
+      "path": "dev/design/recovery.md",
+      "class": "maintained",
+      "topic": "recovery",
+      "role": "design",
+      "owner": "dev/design/recovery.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/release.md",
+      "class": "maintained",
+      "topic": "release",
+      "role": "design",
+      "owner": "dev/design/release.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/retrieval-result-limits.md",
+      "class": "maintained",
+      "topic": "retrieval",
+      "role": "result-limits",
+      "owner": "dev/design/retrieval-result-limits.md",
+      "release": "current:0.8.22",
+      "successor": null
+    },
+    {
+      "path": "dev/design/retrieval.md",
+      "class": "maintained",
+      "topic": "retrieval",
+      "role": "design",
+      "owner": "dev/design/retrieval.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/scheduler.md",
+      "class": "maintained",
+      "topic": "scheduler",
+      "role": "design",
+      "owner": "dev/design/scheduler.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-0-adr-plan.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "plan",
+      "owner": "dev/design/slice-0-adr-plan.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-10-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-10-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-15-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-15-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-15-g0-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-15-g0-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-20-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-20-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-20-g8-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-20-g8-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-25-conformance-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-25-conformance-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-25-r2-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-25-r2-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-27-fix1-operator-gate-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-27-fix1-operator-gate-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-27-fix2-engine-test-gate-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-27-fix2-engine-test-gate-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-27-rust-allowlist-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-27-rust-allowlist-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-30-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-30-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-31-identity-rescope-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-31-identity-rescope-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-33-cursor-hardening-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-33-cursor-hardening-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-34-cli-op-store-readback-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-34-cli-op-store-readback-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-35-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-35-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-40-gate-restructure-and-ga.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "analysis",
+      "owner": "dev/design/slice-40-gate-restructure-and-ga.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-5-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-5-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/slice-G0-design.md",
+      "class": "historical",
+      "topic": "design",
+      "role": "design",
+      "owner": "dev/design/slice-G0-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/status-board-currency-enforcement.md",
+      "class": "reference",
+      "topic": "status-board-currency-enforcement",
+      "role": "analysis",
+      "owner": "dev/design/status-board-currency-enforcement.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/steward-cold-start-budget.md",
+      "class": "reference",
+      "topic": "steward-cold-start-budget",
+      "role": "analysis",
+      "owner": "dev/design/steward-cold-start-budget.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/temporary-serial-rust-workspace-release-gate.md",
+      "class": "proposal",
+      "topic": "temporary-serial-rust-workspace-release-gate",
+      "role": "analysis",
+      "owner": "dev/design/temporary-serial-rust-workspace-release-gate.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/vector.md",
+      "class": "maintained",
+      "topic": "vector",
+      "role": "design",
+      "owner": "dev/design/vector.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/worktree-branch-consolidation.md",
+      "class": "proposal",
+      "topic": "worktree-branch-consolidation",
+      "role": "analysis",
+      "owner": "dev/design/worktree-branch-consolidation.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/worktree-branch-consolidator-acceptance-criteria.md",
+      "class": "proposal",
+      "topic": "worktree-branch-consolidator-acceptance-criteria",
+      "role": "acceptance",
+      "owner": "dev/design/worktree-branch-consolidator-acceptance-criteria.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/worktree-branch-consolidator-requirements.md",
+      "class": "proposal",
+      "topic": "worktree-branch-consolidator-requirements",
+      "role": "requirements",
+      "owner": "dev/design/worktree-branch-consolidator-requirements.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/worktree-branch-consolidator.md",
+      "class": "proposal",
+      "topic": "worktree-branch-consolidator",
+      "role": "analysis",
+      "owner": "dev/design/worktree-branch-consolidator.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/worktree-consolidator-execution-status-acceptance-criteria.md",
+      "class": "proposal",
+      "topic": "worktree-consolidator-execution-status-acceptance-criteria",
+      "role": "acceptance",
+      "owner": "dev/design/worktree-consolidator-execution-status-acceptance-criteria.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/worktree-consolidator-execution-status-design.md",
+      "class": "proposal",
+      "topic": "worktree-consolidator-execution-status-design",
+      "role": "design",
+      "owner": "dev/design/worktree-consolidator-execution-status-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/worktree-consolidator-execution-status-requirements.md",
+      "class": "proposal",
+      "topic": "worktree-consolidator-execution-status-requirements",
+      "role": "requirements",
+      "owner": "dev/design/worktree-consolidator-execution-status-requirements.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/worktree-consolidator-retirement-proofs-acceptance-criteria.md",
+      "class": "proposal",
+      "topic": "worktree-consolidator-retirement-proofs-acceptance-criteria",
+      "role": "acceptance",
+      "owner": "dev/design/worktree-consolidator-retirement-proofs-acceptance-criteria.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/worktree-consolidator-retirement-proofs-design.md",
+      "class": "proposal",
+      "topic": "worktree-consolidator-retirement-proofs-design",
+      "role": "design",
+      "owner": "dev/design/worktree-consolidator-retirement-proofs-design.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
+      "path": "dev/design/worktree-consolidator-retirement-proofs-requirements.md",
+      "class": "proposal",
+      "topic": "worktree-consolidator-retirement-proofs-requirements",
+      "role": "requirements",
+      "owner": "dev/design/worktree-consolidator-retirement-proofs-requirements.md",
+      "release": "cross-release",
+      "successor": null
+    }
+  ]
+}

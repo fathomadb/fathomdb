@@ -23,8 +23,8 @@ top-level scalar fields, or permit a consumer-owned projection database.
 
 This is a successor to the future-fulfillment mechanics in
 [OPP-12/C-1 converged contract](record-lifecycle-protocol/OPP-12-C1-converged-contract.md).
-It is authorized as FathomDB 0.8.21 Slice 60. The implementation remains on a
-retained candidate branch until a separate HITL decision authorizes its merge.
+It was authorized as FathomDB 0.8.21 Slice 60 and landed through PR #195 at
+`11f3fbf4` after the release gate authorized integration.
 
 ## Problem and current boundary
 

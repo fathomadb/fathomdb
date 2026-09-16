@@ -1,21 +1,20 @@
 # DOC-INDEX detail — `dev/design/`
 
-> Long-form per-doc notes for this area of the doc tree. The thin map at
-> `dev/DOC-INDEX.md` links here; **every path listed below also has its own row in
-> `dev/DOC-INDEX.md`** (path + a ≤120-char purpose clause) — this file carries the
-> full slice-history / decision-record prose that DOC-INDEX.md compresses away.
-> Update this file (not DOC-INDEX.md) when you want to add narrative detail; update
-> BOTH files when you add/rename/materially change a doc (DOC-INDEX.md row +
-> this file's row, same closing commit — mirrors DOC-INDEX.md's own rule).
+> Long-form historical notes for this area of the doc tree. The exact lifecycle
+> class and current owner of every `dev/design/**/*.md` path live in
+> `dev/design/document-lifecycle.json`; this narrative index is not an exhaustive
+> catalog. Update this file only when its retained prose materially changes.
 
 ## `dev/design/` — design notes + ADR-adjacent specs
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
-| `dev/design/README.md` | Design-notes index | — | (tree) |
+| `dev/design/README.md` | Lifecycle-aware design navigation and placement rules | 0.8.26 Slice 46 | 2026-09-15 |
+| `dev/design/document-lifecycle.json` | Exact machine-checked lifecycle, topic/role, owner, release, and successor catalog | 0.8.26 Slice 46 | 2026-09-15 |
+| `dev/design/actuation.md` | Current actuation contract: atomic batches, idempotency, receipts, replay, and erasure | 0.8.26 Slice 46 | 2026-09-15 |
 | `dev/design/chunking-strategy-and-test-guidance.md` | Verbatim research and experiment-design capture: competitor mechanisms, late chunking, and retrieval-specific test implications | performance experiments | 2026-08-15 |
-| `dev/design/fathomdb-data-plane-architecture-v1.md` | **Superseded architecture v1.** Reviewed historical baseline retained with a pointer to v2.1. | 0.8.25 history | 2026-09-02 |
-| `dev/design/fathomdb-data-plane-architecture-v2.md` | **Active architecture v2.1.** Defines the multi-release data-plane destination and narrowed 0.8.25 profile. | 0.8.25 Slice 7 | 2026-09-02 |
+| `dev/design/fathomdb-data-plane-architecture-v1.md` | **Superseded architecture v1.** Reviewed historical baseline retained with a pointer to v2.2. | 0.8.25 history | 2026-09-15 |
+| `dev/design/fathomdb-data-plane-architecture-v2.md` | **Active architecture v2.2.** Reconciles the multi-release data-plane destination with the 0.8.25 as-built profile and 0.8.26 boundaries. | 0.8.25 Slice 7; 0.8.26 Slice 45 | 2026-09-15 |
 | `dev/design/gpu-eval-activities-policy.md` | **Policy — repo MUST use the 3090s for eval/embed activities when there is room** (standing HITL mandate, 2026-07-05): any GPU-acceleratable repo-internal activity (eu7 fidelity harness seed/re-embed, corpus re-embeds, eval sweeps, CE reranking, embedding/rerank-heavy dev/CI) MUST run on `cuda:0`/`cuda:1`; CPU is permitted ONLY for two narrow compatibility probes, not as a general fallback. Grounds the 0.8.14 Slice-20 eu7 policy correction (the fidelity gate itself must run **CPU same-backend** vs its 0.896 baseline — a GPU eu7 run cross-backends it) | 0.8.14 Slice 20 (eu7 policy) | 2026-07-05 |
 | `dev/design/free-threaded-python-value-lift-and-experiments.md` | **Free-threaded Python (PEP 703) for FathomDB — value, lift, experiment plan** (`status: analysis/pre-decision`): raised out of the 0.8.8 pyo3 `0.24.1→0.29.0` bump (0.28+ defaults `#[pymodule]` to FT, forcing the `gil_used` declaration). 0.8.8 ships **`gil_used = true`** (safe); FT *support* (`gil_used = false`) is a separate later data-gated campaign. Key thesis: engine already runs GIL-free (every call `detach`/`allow_threads`; `ReaderWorkerPool` + real `Mutex`/`OnceLock`, `frozen` pyclasses) → **direct throughput value (V2) likely small; the real value (V1) = ecosystem non-poisoning** (a `gil_used=true` module re-enables the GIL **process-wide** on FT interpreters, killing FT for consumers Memex/Hermes/OpenClaw). Lift = MEDIUM, dominated by an FT CI lane + non-abi3 per-version `*t` wheel matrix, NOT engine code. Five experiments (EXP-FT-1 GIL-held fraction / -2 multi-thread scaling / -3 poisoning-cost / **-4 concurrency-safety HARD GATE** / -5 wheel feasibility) with objective data + eval criteria + a decision rule. **Appendix A — Survey** (web research): FathomDB ≈ HF `tokenizers` (Rust core + `RwLock` + GIL released → shipped FT cleanly), NOT polars (GIL-assumed bindings → crashes/deadlocks); benefits caveat confirmed (already-GIL-free native work gains ~0); pydantic-core's pre-fix segfault = why EXP-FT-4 is a hard gate. Cross-links: `dev/plans/plan-0.8.8.md` §1 (Migration approach) + R-SEC-1; scheduled as the **0.8.15** EXP-FT ladder (master §6 F-5; productization a 0.8.15-readout contingency → 0.8.16/0.8.17) | 0.8.15 ladder (pyo3 dep @ 0.8.8) | 2026-06-27 |
 | `dev/design/0.8.18-slice-20-publish-pipeline.md` | **0.8.18 Slice 20 — #11-full full publish pipeline (implementation design)** (`status: IMPLEMENTED`). Reconciles `.github/workflows/release.yml` against the #11-full checklist. The scoped-platform-name portion is superseded by `dev/adr/ADR-0.8.20-unscoped-npm-platform-packages.md`; Linux AArch64 native artifacts are added by `dev/adr/ADR-0.8.20-linux-aarch64-native-artifacts.md`; the thin main package remains on a non-`latest` dist-tag while coverage is partial. | 0.8.18 Slice 20 | 2026-08-02 |

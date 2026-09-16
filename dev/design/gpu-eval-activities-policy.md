@@ -1,5 +1,5 @@
 ---
-status: UNREVIEWED
+status: ACTIVE
 ---
 
 # Policy — the repo MUST use the 3090 GPUs for eval/embed activities when there is room

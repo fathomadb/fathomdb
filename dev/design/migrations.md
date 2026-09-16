@@ -12,6 +12,20 @@ status: locked
 This file owns the migration loop that runs during `Engine.open`, the per-step
 event contract, and the accretion-guard rules cited by REQ-042 / REQ-045.
 
+## 0.8.26 public boundary
+
+The migration loop below is a locked historical implementation/design record.
+The 0.8.26 public runtime does not apply it to a nonempty earlier database.
+Public open accepts a missing/zero-length path and internally constructs the
+current schema at version 34; any nonempty database with another user version
+is refused before product mutation. There is no historical upgrade matrix,
+receipt conversion, or cross-version replay path.
+
+Migration-step definitions and the accretion guard remain maintained developer
+contracts for schema authorship and fresh bootstrap construction. They do not
+override the public fresh-database admission rule in `design/engine.md` and the
+accepted 0.8.26 breaking-boundary ADR.
+
 ## Ownership boundary
 
 This file owns:
@@ -32,7 +46,7 @@ This file does not own:
 Migration step events may be delivered through the lifecycle subscriber route,
 but the step payload itself remains migration-owned.
 
-## Open-path contract
+## Historical migration-loop contract
 
 0.6.0 runs schema migration automatically during `Engine.open`.
 

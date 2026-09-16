@@ -13,6 +13,27 @@ This file owns the fixed-stage retrieval pipeline, safe FTS grammar handling,
 hybrid branch composition, and the graph-expansion configuration that survives
 the ADR-level pipeline choice.
 
+## Frozen and graph evidence in 0.8.26
+
+Both explanation-enabled frozen search paths use the common search-result
+finalizer exactly once, producing a valid nonempty correlation identity without
+changing explanation-off ranking, hit identity, projection, or evidence
+semantics.
+
+Constrained graph expansion can opt into a positional V1 evidence sidecar. The
+sidecar carries separate opaque target-node and terminal-edge selectors; it
+does not claim that a terminal edge proves a complete path. Exact resolution is
+available only under the authenticated originating frozen context and uses the
+same reader transaction for authority, eligibility, disclosure, lifecycle,
+and immutable-revision materialization.
+
+Resolution is point evidence, not search. It returns intrinsic revision/source
+evidence and never fabricates rank, score, or contribution. Expired, foreign,
+tampered, drifted, ineligible, undisclosed, erased, superseded, and nonexistent
+selectors preserve the accepted nondisclosure and error-precedence contract.
+The owning decision is `ADR-0.8.26-exact-graph-artifact-evidence.md`; the
+implementation seams are `frozen_read.rs`, `graph_expand.rs`, and `evidence.rs`.
+
 ## 0.6.0 stage surface
 
 0.6.0 supports graph `expand` on search results as carried-forward product

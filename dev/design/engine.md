@@ -12,15 +12,32 @@ status: locked
 This file owns the runtime open path, `Engine` lifetime, writer / reader split,
 and the concrete meaning of the cursor values surfaced at the public API.
 
+## 0.8.26 public-open boundary
+
+The ordered 0.6.0 sequence below is a historical baseline, not permission to
+migrate an arbitrary existing database. In 0.8.26, public open accepts only a
+missing/zero-length path, bootstraps schema 34 through the internal schema
+constructor, and then runs the normal runtime checks/startup sequence. Any
+nonempty database whose `PRAGMA user_version` is not exactly 34 is refused as
+`IncompatibleSchemaVersion` before product mutation.
+
+Runtime SQLite configuration is applied before admission classification, so a
+WAL-bearing earlier database is inspected under its actual journal semantics.
+The persistent sidecar admission lock serializes competing first openers; the
+older/noncurrent opener cannot race a fresh bootstrap into acceptance. Exact
+behavior is owned by the accepted 0.8.26 breaking-boundary ADR and verified by
+`slice40_fresh_database_cutover.rs`.
+
 ## Open path
 
-`Engine.open` owns:
+Within an admitted database, `Engine.open` owns:
 
 1. path canonicalization
 2. sidecar lock acquisition
 3. SQLite open + PRAGMA application
 4. always-on corruption detection
-5. migration execution
+5. schema bootstrap/validation (historical migration execution only in the
+   locked baseline described below)
 6. embedder identity check
 7. embedder warmup
 8. writer / scheduler startup

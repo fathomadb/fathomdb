@@ -47,6 +47,10 @@ JSON
         's#"owner":"dev/design/alpha.md","release":"historical:0.8.0","successor":"dev/design/alpha.md"#"owner":"dev/adr/current.md","release":"historical:0.8.0","successor":"dev/adr/current.md"#' \
         "$root/dev/design/document-lifecycle.json"
       ;;
+    untracked_draft)
+      write_fixture "$root" valid
+      printf '# Local draft\n' >"$root/dev/design/local-draft.md"
+      ;;
     missing)
       cat >"$root/dev/design/document-lifecycle.json" <<'JSON'
 {"schema_version":1,"documents":[
@@ -170,6 +174,11 @@ run_ok() {
   local mode=$1
   local root="$TMP_ROOT/$mode"
   write_fixture "$root" "$mode"
+  git -C "$root" init -q
+  git -C "$root" add \
+    dev/design/alpha.md \
+    dev/design/legacy.md \
+    dev/design/document-lifecycle.json
   python3 "$CHECKER" --repo-root "$root" >/dev/null
 }
 
@@ -177,6 +186,11 @@ run_fail() {
   local mode=$1
   local root="$TMP_ROOT/$mode"
   write_fixture "$root" "$mode"
+  git -C "$root" init -q
+  git -C "$root" add \
+    dev/design/alpha.md \
+    dev/design/legacy.md \
+    dev/design/document-lifecycle.json
   if python3 "$CHECKER" --repo-root "$root" >/dev/null 2>&1; then
     echo "FAIL: checker accepted $mode fixture" >&2
     exit 1
@@ -185,6 +199,7 @@ run_fail() {
 
 run_ok valid
 run_ok valid_external_successor
+run_ok untracked_draft
 for mode in \
   missing \
   extra \

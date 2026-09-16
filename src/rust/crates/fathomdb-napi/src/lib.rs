@@ -4896,7 +4896,11 @@ impl Engine {
         let engine = Arc::clone(&self.inner);
         call_engine(move || engine.write_vector_for_test(&kind, &text).map(|_| ())).await
     }
+}
 
+#[cfg(all(any(test, feature = "test-hooks"), any(debug_assertions, feature = "test-hooks")))]
+#[napi]
+impl Engine {
     #[napi]
     pub async fn set_legacy_projection_search_subobjects_for_test(
         &self,

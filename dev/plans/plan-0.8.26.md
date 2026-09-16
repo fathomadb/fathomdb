@@ -90,7 +90,7 @@ fix depends on built product artifacts or belongs at the release boundary.
 | 35 | Prove the breaking changed-in-place V1 actuation, fresh-database, receipt, and performance contract; accept or narrow the Slice 40 design. | 30 | Complete on release branch at `9a81a75c` |
 | 40 | Extend V1 actuation in place with the accepted atomic derived-edge contract and fresh-database boundary. | 35 | Complete on release branch at `bfb2132b` |
 | 45 | Reconcile maintained architecture documentation with accepted decisions, public contracts, and the as-built 0.8.26 system. | 40 | Complete on release branch at `6f68e2fd` |
-| 46 | Reconcile and organize maintained technical design documentation under the Slice 45 architecture hierarchy. | 45 | Complete on release branch at `801586b2` |
+| 46 | Reconcile and organize maintained technical design documentation under the Slice 45 architecture hierarchy. | 45 | Complete on release branch at `6d952c9c` after release-wide review and full-gate remediation |
 | 50 | Run integrated Memex-profile, cross-SDK, platform, package, documentation, and non-publishing release verification. | 46 | Next |
 
 ## Requirements and acceptance criteria

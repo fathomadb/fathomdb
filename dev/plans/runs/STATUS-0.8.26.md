@@ -11,19 +11,22 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-The complete 0.8.26 ladder is recorded on `origin/release/0.8.26`; integration
-to `origin/main` is pending.
+<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 55 (SDK-PARITY), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
 
 Slices 0–10, 15, 20, 30, 35, 40, 45, 46, and 50 are complete on the 0.8.26
-release line. Slice 50 binds the exact candidate, local package witnesses,
+release line. Slice 50 bound candidate `68514f70`, local package witnesses,
 116/116 capable-executor gate, five native platforms, distinct Windows WAL
 receipt, and both Gitleaks scans in its validated manifest. GPT-6 Astra medium
-design/code review and independent completion verification pass.
+design/code review and independent completion verification passed for that
+candidate. The ladder is reopened for Slices 55, 60, and 65; Slice 50 remains
+historical evidence but is no longer the final integration candidate.
 
 ## Immediate next action
 
-Integrate `origin/release/0.8.26` into `origin/main` through the separately
-authorized release workflow. Do not tag or publish from this completion record.
+<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 55 (SDK-PARITY)** — executable canonical-operation SDK parity oracle. **Remaining ladder:** 55 → 60 → 65.<!-- END GENERATED release-state:0.8.26:status-next-action -->
+
+Do not integrate, tag, or publish until Slice 65 records a replacement exact
+candidate and restores the completion claim.
 
 ## Open decisions
 
@@ -36,6 +39,8 @@ V1 graph-evidence sidecar under frozen authority.
 - 0.8.26 changes affected V1 contracts in place, is breaking, accepts fresh
   databases only, and adds no parallel functional V1/V2 public API pair.
 - Scope stays narrow around the selected Memex needs.
+- The reopened ladder changes conformance tooling and maintained design
+  authority; runtime product changes require separate explicit scope.
 - Tagging, publication, registry mutation, and main integration require
   separate authorization.
 

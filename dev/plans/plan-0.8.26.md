@@ -15,9 +15,13 @@ It repairs the released frozen-explanation contract, completes its public
 guidance and installed-artifact witness, adds exact graph-target evidence,
 qualifies and hardens the existing distributable read-only integrity route,
 and changes the single V1 actuation grammar in place to add atomic derived-edge
-support. The release accepts fresh databases only and carries no historical
-actuation, receipt, replay, integrity, operation-ID, or database-migration
-compatibility. It introduces no parallel functional V1/V2 public API pairs.
+support. A post-verification adversarial review then reopens the ladder for an
+executable cross-SDK parity oracle, current retrieval/recovery/engine owner
+reconciliation, lifecycle authority-topology guards, and exact candidate
+requalification. The release accepts fresh databases only and carries no
+historical actuation, receipt, replay, integrity, operation-ID, or
+database-migration compatibility. It introduces no parallel functional V1/V2
+public API pairs.
 
 Multi-source provenance, source-set liveness, recursive closure, rich graph
 paths/continuation, persisted evidence replay, snapshot leases, candidate
@@ -46,7 +50,12 @@ In scope:
 - a version-matched, read-only, operator-scoped integrity inspection route;
 - current-V1 atomic `put_derived_edge` actuation over `ProvenancedEdgeV1`; and
 - one changed-in-place V1 request, receipt, replay, and integrity contract for fresh 0.8.26
-  databases.
+  databases;
+- an executable canonical-operation equality oracle across the Python and
+  TypeScript governed surfaces;
+- current code-grounded retrieval, recovery, and engine design owners;
+- machine-checked maintained-owner authority and witness topology; and
+- a replacement exact non-publishing candidate after the reopened ladder.
 
 Out of scope:
 
@@ -60,8 +69,12 @@ Out of scope:
   behavior, and database migration from any earlier release;
 - arbitrary dependency DAGs or liveness languages;
 - unrelated platform/dependency work unless Slice 8 explicitly selects it as
-  required preparation; and
-- tag, registry, release, or merge actions without a separate owner decision.
+  required preparation;
+- tag, registry, release, or merge actions without a separate owner decision;
+  and
+- product, schema, migration, or public-surface changes arising only from the
+  design reconciliation; an implementation contradiction is a stop condition,
+  not implicit authorization to repair runtime code.
 
 ## Slice ladder
 
@@ -91,7 +104,10 @@ fix depends on built product artifacts or belongs at the release boundary.
 | 40 | Extend V1 actuation in place with the accepted atomic derived-edge contract and fresh-database boundary. | 35 | Complete on release branch at `bfb2132b` |
 | 45 | Reconcile maintained architecture documentation with accepted decisions, public contracts, and the as-built 0.8.26 system. | 40 | Complete on release branch at `6f68e2fd` |
 | 46 | Reconcile and organize maintained technical design documentation under the Slice 45 architecture hierarchy. | 45 | Complete on release branch at `6d952c9c` after release-wide review and full-gate remediation |
-| 50 | Run integrated Memex-profile, cross-SDK, platform, package, documentation, and non-publishing release verification. | 46 | Next |
+| 50 | Run integrated Memex-profile, cross-SDK, platform, package, documentation, and non-publishing release verification. | 46 | Complete on release branch at `68514f70`; superseded as the final candidate by the reopened ladder |
+| 55 | Replace subset surface checks with an executable canonical-operation Python/TypeScript parity oracle. | 50 | Next |
+| 60 | Reconcile the maintained retrieval, recovery, and engine owners against one code-grounded authority matrix, then back-check earlier owner and SDK artifacts. | 55 | Draft |
+| 65 | Enforce maintained-owner authority topology, reconcile error ownership, rerun affected earlier proofs, and bind the replacement exact candidate. | 60 | Draft |
 
 ## Requirements and acceptance criteria
 
@@ -140,15 +156,18 @@ platform, dependency, evidence-manifest, multi-source, liveness, and broad-batch
 items must be re-evaluated. Priority 3+ Memex items remain outside 0.8.26 even
 if their design is discussed.
 
-## Immediate next slice — release ladder complete
+## Immediate next slice
 
-All planned slices are complete on `origin/release/0.8.26`; integration to
-`origin/main` is pending. Publication and post-publication verification remain
-separate and unauthorized.
+<!-- BEGIN GENERATED release-state:0.8.26:plan-immediate-next -->
+**IMMEDIATE NEXT: Slice 55** (`SDK-PARITY`) — executable canonical-operation SDK parity oracle
+
+**Remaining ladder:** 55 → 60 → 65.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
 
 D26-01 was ruled at `seq-290` and implemented by Slice 20. Slice 30 completed
-the selected existing-CLI integrity route without a prebuilt fallback. Do not
-publish or begin feature work outside the completed release ladder.
+the selected existing-CLI integrity route without a prebuilt fallback. Slice
+50 remains historical evidence for candidate `68514f70`, but it is no longer
+the integration candidate after the ladder reopened. Do not integrate, tag, or
+publish before Slice 65 binds the replacement exact candidate.
 
 ## Stop gates
 

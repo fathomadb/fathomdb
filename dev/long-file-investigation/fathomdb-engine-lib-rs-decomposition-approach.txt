@@ -1,0 +1,203 @@
+You’re right. The useful repo-specific answer is: `fathomdb-engine/src/lib.rs` should be decomposed, but **inside the existing crate**, without initially redesigning `Engine` or changing public paths.
+
+## Why this file is a real problem
+
+On the current `main` checkout, [lib.rs](/home/coreyt/projects/fathomdb/src/rust/crates/fathomdb-engine/src/lib.rs) has:
+
+- 25,352 lines / 1.19 MB
+- 663 function definitions
+- 100 functions ending in `_for_test`
+- 85 public structs/enums/traits/types
+- One `impl Engine` beginning at [line 6328](/home/coreyt/projects/fathomdb/src/rust/crates/fathomdb-engine/src/lib.rs:6328) and spanning roughly 6,400 lines
+- Inline tests occupying another 1,735 lines at [line 23618](/home/coreyt/projects/fathomdb/src/rust/crates/fathomdb-engine/src/lib.rs:23618)
+
+The problem is not merely LOC. It mixes:
+
+- Engine construction and SQLite opening
+- Reader-pool concurrency
+- Writes and validation
+- Search, ranking, filtering, and graph traversal
+- Projection scheduling, commits, and registry management
+- Vector partition management
+- Erasure and redaction
+- Extractor subprocess sessions
+- Operator diagnostics
+- Telemetry
+- Extensive test controls
+
+Those capabilities usually are not needed together for one task. That is the actionable architectural signal.
+
+## The right decomposition mechanism
+
+Keep `Engine` defined at the crate root:
+
+```rust
+// lib.rs
+pub struct Engine {
+    // existing private fields unchanged
+}
+
+mod open;
+mod read;
+mod write;
+mod search;
+mod projection;
+mod erasure;
+mod test_hooks;
+```
+
+Then place inherent implementations in child modules:
+
+```rust
+// search/mod.rs
+use crate::{Engine, EngineError, SearchResult};
+
+impl Engine {
+    pub fn search(&self, query: &str) -> Result<SearchResult, EngineError> {
+        // existing implementation moved verbatim
+    }
+}
+```
+
+Rust permits inherent `impl Engine` blocks throughout the defining crate. Because these are descendants of the crate root, they can access `Engine`’s private fields.
+
+External consumers still call:
+
+```rust
+engine.search(...)
+engine.write(...)
+Engine::open(...)
+```
+
+No wrapper object, trait indirection, new crate, or `pub(crate)` field widening is required.
+
+This aligns with the accepted [crate-topology ADR](/home/coreyt/projects/fathomdb/dev/adr/ADR-0.6.0-crate-topology.md), which explicitly says to keep `fathomdb-engine` as one crate while introducing internal module boundaries.
+
+## Recommended target
+
+A practical target is:
+
+```text
+fathomdb-engine/src/
+├── lib.rs                    Engine state, public contract, re-exports
+├── error.rs                  EngineError and error formatting
+├── id.rs                     IdSpace, SourceId, identity derivation
+├── temporal.rs               ReadView, validity and time conversion
+├── reader_pool.rs            reader workers and request dispatch
+├── test_hooks.rs             Engine test controls
+├── open/
+│   ├── mod.rs                Engine::open family
+│   ├── probe.rs              database/schema/embedder probes
+│   └── errors.rs             open-specific errors
+├── write/
+│   ├── mod.rs                Engine::write and preparation
+│   ├── validation.rs
+│   └── commit.rs             transaction and cursor assignment
+├── search/
+│   ├── mod.rs                public search methods
+│   ├── exec.rs               search transaction
+│   ├── ranking.rs            RRF, CE reranking, reweighting
+│   ├── filter.rs
+│   └── graph.rs
+├── projection/
+│   ├── runtime.rs            dispatcher and workers
+│   ├── commit.rs             projection outcome transactions
+│   ├── registry.rs
+│   └── maintenance.rs
+├── erasure/
+│   ├── mod.rs                purge/excise behavior
+│   └── redaction.rs
+├── extract/
+│   ├── session.rs
+│   ├── ingest.rs
+│   └── consolidate.rs
+└── tests.rs                  root unit tests, initially moved verbatim
+```
+
+There is already a much more detailed proposed tree in [engine-decomposition.md](/home/coreyt/projects/fathomdb/dev/plans/refactor-background-check/engine-decomposition.md). Its old line numbers are stale, but its ownership analysis remains useful. The newer untracked investigation reaches the same conclusion in [agent-compatible-code-organization.md](/home/coreyt/projects/fathomdb/dev/long-file-investigation/agent-compatible-code-organization.md).
+
+## How I would execute it
+
+### 1. Freeze the public surface
+
+Before moving anything:
+
+- Record the currently exported types and feature gates.
+- Use the existing governed-surface tests and [Rust interface contract](/home/coreyt/projects/fathomdb/dev/interfaces/rust.md).
+- Add a generated public-API comparison if the existing tests do not cover the complete engine surface.
+- Capture default, `operator`, `test-hooks`, and benchmark feature builds.
+
+This is necessary because moving a public type and re-exporting it usually preserves source-level use, but can alter rustdoc or canonical type-path details.
+
+### 2. Prove the module mechanism with test material
+
+First extraction:
+
+- Move the bottom `#[cfg(test)] mod tests` body into `tests.rs`.
+- Move `_for_test` methods into `test_hooks.rs`.
+- Preserve every existing method-level `cfg` exactly.
+- Do not gate the entire module blindly: some current `_for_test` methods are exposed outside `#[cfg(test)]`.
+
+This removes several thousand navigation lines and proves that split `impl Engine` blocks work with the real feature matrix.
+
+It also earns a useful guardrail:
+
+> New `_for_test` methods may only be added to `test_hooks.rs`.
+
+### 3. Extract private implementation clusters
+
+Initially leave `Engine` and public DTO definitions in `lib.rs`. Move private helpers and associated `impl Engine` methods by capability.
+
+A sensible order is:
+
+1. `extract/` — cohesive subprocess protocol and ingest/consolidation flow.
+2. `erasure/` — cohesive, high-value review boundary.
+3. `vector/` and `projection/` — separate partition mechanics, runtime scheduling, registry, and maintenance.
+4. `search/`, `filter.rs`, and `reader_pool.rs` — most interconnected and performance-sensitive, so later.
+5. `open/` — last, because open currently wires nearly every subsystem.
+
+Each extraction should be verbatim: movement, imports, and visibility corrections only.
+
+### 4. Move public contract types only if worthwhile
+
+After implementation ownership is stable, decide whether public DTOs should remain as a catalog in `lib.rs` or move behind re-exports.
+
+A conservative final root might remain 3,000–5,000 lines because it owns public contracts. That is acceptable if implementation is no longer mixed through it.
+
+The goal is not “make `lib.rs` 200 lines.” The goal is:
+
+> A search task opens `search/`; an erasure task opens `erasure/`; a projection task opens `projection/`.
+
+### 5. Decompose oversized functions separately
+
+Moving a 1,000-line search function into `search/exec.rs` improves ownership but does not make that function easier to reason about internally.
+
+Function decomposition should be a later, behavioral pass. Candidates include:
+
+- `read_search_in_tx`
+- `commit_batch`
+- Projection job execution
+- Erasure transaction orchestration
+- Engine open sequencing
+
+Do not restructure their data flow during the file-movement changes. Transaction boundaries, frozen views, WAL ownership, and failure ordering make “cleanup while moving” dangerous.
+
+## What not to do
+
+- Do not create new engine crates; the accepted ADR rejects that direction.
+- Do not move `Engine` into `engine/mod.rs` while making capability modules its siblings. That loses descendant access to private fields.
+- Do not introduce a giant shared `EngineContext`.
+- Do not widen every field to `pub(crate)` merely to satisfy an attractive directory tree.
+- Do not split by arbitrary 1,000-line chunks.
+- Do not mix code movement with search/transaction redesign.
+- Do not attempt the complete decomposition in one branch.
+
+## Useful stopping points
+
+There are three defensible scopes:
+
+1. **Minimal:** extract inline tests and test hooks.
+2. **High-value:** additionally extract `extract/`, `erasure/`, and projection runtime/registry.
+3. **Full:** reach the complete capability tree and reduce root `lib.rs` to contracts, `Engine` state, controls, and re-exports.
+
+I would choose the high-value scope first. It addresses the worst ownership concentration without immediately disturbing the tightly coupled retrieval and transaction spine.

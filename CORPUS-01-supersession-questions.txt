@@ -1,0 +1,10 @@
+CORPUS-01’s two cases are:
+
+  - supersession-03: the user first planned Kauai, then later said they were staying on Oahu. One reviewer treated that as replacement; the
+    other judged that planning different activities/islands did not explicitly cancel the earlier plan.
+
+  - supersession-04: the user progressed from planning a first meetup with Alex to later saying they had met twice. Again, one reviewer accepted
+    this as supersession; the other saw an updated count but no explicit old-fact invalidation.
+
+  Both were conservatively adjudicated insufficient_evidence. They need human confirmation that the later statement truly replaces the earlier
+  state; they are not retrieval or database failures.

@@ -248,6 +248,12 @@ run_tier_suite fast test-staged-ledger-sidecar bash scripts/tests/test_staged_le
 # src/conformance/governed-surface-allowlist.json is never written.
 run_tier_suite fast test-check-governed-surface-pin bash scripts/tests/test_check_governed_surface_pin.sh
 
+# 0.8.26 Slice 55: the companion canonical-operation map must flatten exactly
+# to the unchanged signed allowlist and reject one-sided removal/addition,
+# misspelling, duplicate mapping, reserved-as-live, and incomplete-live
+# mutations through the production predicate.
+run_tier_suite fast test-check-sdk-surface-parity python3 scripts/tests/test_check_sdk_surface_parity.py
+
 # 0.8.21 Slice 40: an offline GitHub-advisory snapshot and recorded
 # no-override evidence make a root npm override fail the moment it becomes
 # vulnerable, obsolete, or undocumented. The fixture includes the historical

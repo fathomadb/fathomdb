@@ -126,6 +126,7 @@ if (@($manifestModules | Select-Object -Unique).Count -ne $manifestModules.Count
 if (@($manifestFixtures | Select-Object -Unique).Count -ne $manifestFixtures.Count) {
   throw 'smoke-local-native-artifacts: retained test manifest contains duplicate fixtures'
 }
+$sourceModules = @()
 foreach ($module in $manifestModules) {
   if ($module -notmatch '^[A-Za-z0-9][A-Za-z0-9-]*\.test\.js$') {
     throw "smoke-local-native-artifacts: unsafe retained test module $module"
@@ -139,6 +140,13 @@ foreach ($module in $manifestModules) {
   if ((Get-Item -LiteralPath $sourceModule -Force) -isnot [System.IO.FileInfo]) {
     throw "smoke-local-native-artifacts: retained test source is not a regular file: $sourceModule"
   }
+  $sourceModules += $sourceModule
+}
+$privateHookCheck = Join-Path $repoRoot 'scripts/release/check-ts-private-test-hooks.mjs'
+Assert-RegularPathFromRoot $privateHookCheck $repoRoot
+& node $privateHookCheck @sourceModules
+if ($LASTEXITCODE -ne 0) {
+  throw 'smoke-local-native-artifacts: retained test source depends on a private test hook'
 }
 foreach ($fixture in $manifestFixtures) {
   if ($fixture -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]*$' -or $fixture.Contains('..')) {

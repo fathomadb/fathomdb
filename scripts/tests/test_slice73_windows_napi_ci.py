@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
+import tempfile
 import unittest
 
 
@@ -13,6 +15,8 @@ MANIFEST = ROOT / "scripts/release/smoke/slice73-windows-napi-modules.json"
 CI = ROOT / ".github/workflows/ci.yml"
 SMOKE = ROOT / "scripts/release/smoke/smoke-local-native-artifacts.ps1"
 AGENT_TEST = ROOT / "scripts/agent-test.sh"
+PRIVATE_HOOK_CHECK = ROOT / "scripts/release/check-ts-private-test-hooks.mjs"
+TYPESCRIPT = ROOT / "src/ts/node_modules/typescript/lib/typescript.js"
 
 EXPECTED_MODULES = [
     "slice15-identity-provenance.test.js",
@@ -51,11 +55,62 @@ class Slice73WindowsNapiContract(unittest.TestCase):
         self.assertEqual(manifest.get("fixtures"), EXPECTED_FIXTURES)
         self.assertEqual(set(manifest), {"schema_version", "modules", "fixtures"})
 
+        selected_sources = []
         for module in EXPECTED_MODULES:
             source = ROOT / "src/ts/tests" / module.replace(".js", ".ts")
             self.assertTrue(source.is_file(), f"missing selected source module: {source}")
+            selected_sources.append(source)
+        if TYPESCRIPT.is_file():
+            hook_check = subprocess.run(
+                ["node", str(PRIVATE_HOOK_CHECK), *(str(path) for path in selected_sources)],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(hook_check.returncode, 0, hook_check.stdout + hook_check.stderr)
         for fixture in EXPECTED_FIXTURES:
             self.assertTrue((ROOT / fixture).is_file(), f"missing selected fixture: {fixture}")
+
+    def test_private_hook_guard_is_scoped_to_executable_member_accesses(self) -> None:
+        if not TYPESCRIPT.is_file():
+            self.skipTest("src/ts/node_modules/typescript not installed")
+        cases = {
+            "harmless": (
+                "// A release artifact exports no debug test-hook.\n"
+                'const explanation = "setLegacyProjectionSearchSubobjectsForTest";\n'
+                "helperForTest();\n",
+                True,
+            ),
+            "property": (
+                "engine._native.setLegacyProjectionSearchSubobjectsForTest('status');\n",
+                False,
+            ),
+            "element": (
+                "engine._native['setLegacyProjectionSearchSubobjectsForTest']('status');\n",
+                False,
+            ),
+            "template-substitution": (
+                "`${engine._native.setLegacyProjectionSearchSubobjectsForTest('status')}`;\n",
+                False,
+            ),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            for name, (source, should_pass) in cases.items():
+                fixture = Path(directory) / f"{name}.ts"
+                fixture.write_text(source, encoding="utf-8")
+                result = subprocess.run(
+                    ["node", str(PRIVATE_HOOK_CHECK), str(fixture)],
+                    cwd=ROOT,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(
+                    result.returncode == 0,
+                    should_pass,
+                    f"{name}: {result.stdout}{result.stderr}",
+                )
 
     def test_ci_routes_every_external_input_and_wires_windows_only(self) -> None:
         ci = CI.read_text(encoding="utf-8")
@@ -97,6 +152,8 @@ class Slice73WindowsNapiContract(unittest.TestCase):
             "$env:TEMP = $testTemp",
             "$env:TMP = $testTemp",
             "foreach ($module in $manifest.modules)",
+            "check-ts-private-test-hooks.mjs",
+            "& node $privateHookCheck @sourceModules",
             "& node --test --test-reporter=tap $modulePath",
             "tests -le 0",
             "pass -ne $counts.tests",

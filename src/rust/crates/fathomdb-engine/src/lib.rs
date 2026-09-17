@@ -17662,6 +17662,12 @@ pub fn rerank_passages(
             ));
         }
     }
+    // Empty input is an unconditional identity path. Return after validating
+    // the supplied passage records but before resolving device policy or
+    // loading model state.
+    if passages.is_empty() {
+        return Ok(vec![]);
+    }
     // Slice 71: a forced CUDA policy is a request to run CE inference on that
     // device, never permission to silently return CPU CE scores. Resolve before
     // loading weights so malformed/forced policy errors are observable without

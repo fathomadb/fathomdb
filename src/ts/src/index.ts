@@ -119,6 +119,13 @@ function validateRerankU32(name: string, value: number): void {
   }
 }
 
+function validateRerankString(name: string, value: unknown): asserts value is string {
+  if (typeof value !== "string") {
+    throw new TypeError(`${name} must be a string, got ${typeof value}`);
+  }
+  validateFfiString(value);
+}
+
 /**
  * Rerank an arbitrary caller-supplied passage pool.
  *
@@ -131,7 +138,7 @@ export async function rerank(
   rerankDepth: number,
   options: RerankOptions = {},
 ): Promise<RerankResult[]> {
-  validateFfiString(query);
+  validateRerankString("query", query);
   validateRerankU32("rerankDepth", rerankDepth);
   if (options.alpha !== undefined && !Number.isFinite(options.alpha)) {
     throw new RangeError(`alpha must be a finite number, got ${options.alpha}`);
@@ -141,7 +148,7 @@ export async function rerank(
     if (!Number.isSafeInteger(passage.id) || passage.id < 0) {
       throw new RangeError(`passage id must be a non-negative safe integer, got ${passage.id}`);
     }
-    validateFfiString(passage.body);
+    validateRerankString("passage body", passage.body);
     if (!Number.isFinite(passage.score)) {
       throw new RangeError(`passage score must be finite, got ${passage.score}`);
     }

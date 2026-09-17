@@ -638,6 +638,18 @@ export interface NativeRuntimeConfiguration {
   sqliteMode: "performance" | "diagnostics";
 }
 
+export interface NativeRerankPassage {
+  id: number;
+  body: string;
+  score: number;
+}
+
+export interface NativeRerankResult {
+  id: number;
+  score: number;
+  ceScore?: number | null;
+}
+
 export interface NativeEngine {
   write(batch: unknown[]): Promise<NativeWriteReceipt>;
   actuate(request: unknown): Promise<NativeActuationReceiptV1>;
@@ -774,6 +786,14 @@ export interface NativeModule {
   };
   /** Module-level CLS-pooled batch embedder (Python: `embed_batch_cls`). */
   embedBatchCls(texts: string[]): Promise<number[][]>;
+  /** Module-level standalone reranker (Python: `rerank`). */
+  rerank(
+    query: string,
+    passages: NativeRerankPassage[],
+    rerankDepth: number,
+    alpha?: number,
+    poolN?: number,
+  ): Promise<NativeRerankResult[]>;
   adminConfigure(
     engine: NativeEngine,
     options: NativeAdminConfigureOptions,

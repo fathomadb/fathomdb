@@ -30,9 +30,12 @@ The **core** runtime verbs available to Python callers are:
 - `engine.close()`
 - `admin.configure(...)`
 
-The full governed set is pinned by
-`src/conformance/governed-surface-allowlist.json`, which `test_surface.py`
-loads: the core five plus `engine.search_text_only`, `engine.embed`,
+The signed member tokens remain pinned by
+`src/conformance/governed-surface-allowlist.json`. The executable canonical
+operation map in `src/conformance/governed-operation-parity.json` maps those
+tokens to Python runtime spellings and is checked by
+`test_sdk_surface_parity_oracle.py` for exact live-set equality. The governed
+set is the core five plus `engine.search_text_only`, `engine.embed`,
 `rerank`, the `read.*` namespace (`get`, `get_many`, `collection`,
 `mutations`, `list`, `crossed_boundary_since`, `projections`,
 `projection_status`, `embedding_readiness`), the `graph.*` namespace (`neighbors`, `search_expand`),
@@ -91,6 +94,14 @@ denylist name).
 `Engine.open(...)` returns the engine handle. The structured open report owned
 by `design/engine.md` is accessible after open via `engine.open_report()` (see
 Engine-attached instrumentation / control below).
+
+### Standalone passage reranking
+
+`rerank(query, passages, rerank_depth, alpha=None, pool_n=None)` is the signed
+package-level operation paired with TypeScript's `rerank`. Its passage/result
+shape, identity path, defaults, and validation behavior are defined by the
+public stub and are unchanged by the 0.8.26 parity repair; Slice 55 adds the
+missing TypeScript peer and exact two-binding conformance enforcement.
 
 ### Module-level CLS batch embedding (0.8.20 Slice 40)
 

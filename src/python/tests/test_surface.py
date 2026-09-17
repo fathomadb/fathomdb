@@ -5,7 +5,9 @@ cross-binding parity, a permanent recovery-name denylist, and the typed /
 no-raw-SQL boundary. (AC-057a's verb-count scope cap is superseded by AC-074;
 the surface is now governed-but-open, not capped.)
 
-Pins the governed-surface allowlist (membership, not a count), the
+Provides supplemental historical allowlist-membership checks. Exact
+canonical-operation parity is enforced by `test_sdk_surface_parity_oracle.py`.
+Also pins the
 engine-attached instrumentation methods, the keyword vs EngineConfig forms of
 `Engine.open`, and the soft-fallback record shape per `dev/interfaces/python.md`
 and `dev/design/bindings.md` § 1 / § 3.
@@ -39,10 +41,9 @@ def _load_governed_surface_contract() -> dict[str, list[str]]:
     `src/conformance/governed-surface-allowlist.json`, and read by BOTH the
     Python suite and the TypeScript suite (`src/ts/tests/surface.test.ts`).
     There is no per-binding duplicate literal, so Python and TypeScript cannot
-    drift apart (cross-binding parity, P2). As of Slice 30 the four `read.*`
-    members are LIVE: they are introspected from the `read` namespace and enter
-    the live set, so the membership check (P1) is still subset (never equality)
-    but `read.*` is now actually asserted-live, not documented-only.
+    drift as duplicated signed-token lists. Exact two-binding runtime parity is
+    enforced by `test_sdk_surface_parity_oracle.py` and the canonical companion
+    map; this legacy helper remains a defense-in-depth membership check.
     """
     # tests/ -> python/ -> src/ -> src/conformance/...
     here = Path(__file__).resolve()
@@ -197,15 +198,14 @@ def test_read_is_module_level_namespace() -> None:
 
 
 def test_surface_parity_py_matches_ts() -> None:
-    """P2 — Python and TypeScript read ONE shared governed allowlist.
+    """P2 — this supplemental suite reads the shared signed-token allowlist.
 
     The allowlist is declared exactly once, in
     `src/conformance/governed-surface-allowlist.json`. This suite loads it via
     `_load_governed_surface_contract()`; `src/ts/tests/surface.test.ts` loads
     the same file. Because there is a single declaration, Python and TypeScript
-    can no longer carry divergent copies — parity is structural, not a
-    byte-compared duplicate. This test pins that the suite genuinely consumes
-    the shared contract (the introspected live surface is a subset of it).
+    cannot carry divergent copies. Exact runtime parity, including package and
+    graph locations, is owned by `test_sdk_surface_parity_oracle.py`.
     """
     contract = _load_governed_surface_contract()
     # The constant the suite enforces against IS the shared contract's allowlist.

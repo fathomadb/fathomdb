@@ -41,10 +41,11 @@ use fathomdb_embedder::{
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
     decode_graph_expand_request_v1, encode_dependency_trace_result_v1,
-    encode_graph_expand_result_v1, encode_resolved_graph_evidence_v1, ActuationBatchV1,
-    ActuationOperationV1, ActuationOutcomeV1, ActuationReceiptV1 as RustActuationReceiptV1,
-    ArtifactRevisionId, BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ClosureLookupV1,
-    ClosureRootV1, ClosureStatusV1 as RustClosureStatusV1, ComparisonOp as RustComparisonOp,
+    encode_graph_expand_result_v1, encode_resolved_graph_evidence_v1,
+    rerank_passages as rust_rerank_passages, ActuationBatchV1, ActuationOperationV1,
+    ActuationOutcomeV1, ActuationReceiptV1 as RustActuationReceiptV1, ArtifactRevisionId,
+    BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ClosureLookupV1, ClosureRootV1,
+    ClosureStatusV1 as RustClosureStatusV1, ComparisonOp as RustComparisonOp,
     ConsolidateAxis as RustConsolidateAxis, ConsolidateReceipt as RustConsolidateReceipt,
     CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness,
     DependencyDerivedLookupV1, DependencyListV1 as RustDependencyListV1, DependencySourceLookupV1,
@@ -656,6 +657,90 @@ pub async fn embed_batch_cls(texts: Vec<String>) -> Result<Vec<Vec<f64>>> {
         validate_ffi_string_napi(text)?;
     }
     embed_batch_cls_impl(texts).await
+}
+
+/// One caller-supplied passage accepted by standalone reranking.
+#[napi(object)]
+pub struct RerankPassageInput {
+    pub id: i64,
+    pub body: String,
+    pub score: f64,
+}
+
+/// One standalone reranking result in final order.
+#[napi(object)]
+pub struct RerankResult {
+    pub id: i64,
+    pub score: f64,
+    pub ce_score: Option<f64>,
+}
+
+/// Rerank an arbitrary caller-supplied passage pool with the engine CE helper.
+///
+/// `rerank_depth == 0` or an empty input is a model-free identity path. Builds
+/// without the default reranker retain that identity behavior for every depth.
+#[napi(js_name = "rerank")]
+pub async fn rerank(
+    query: String,
+    passages: Vec<RerankPassageInput>,
+    rerank_depth: u32,
+    alpha: Option<f64>,
+    pool_n: Option<u32>,
+) -> Result<Vec<RerankResult>> {
+    validate_ffi_string_napi(&query)?;
+    if !alpha.unwrap_or(0.3).is_finite() {
+        return Err(typed_error(CODE_WRITE_VALIDATION, "alpha must be finite", JsonValue::Null));
+    }
+    let mut tuples = Vec::with_capacity(passages.len());
+    for passage in passages {
+        if passage.id < 0 {
+            return Err(typed_error(
+                CODE_WRITE_VALIDATION,
+                "passage id must be a non-negative integer",
+                JsonValue::Null,
+            ));
+        }
+        validate_ffi_string_napi(&passage.body)?;
+        if !passage.score.is_finite() {
+            return Err(typed_error(
+                CODE_WRITE_VALIDATION,
+                "passage score must be finite",
+                JsonValue::Null,
+            ));
+        }
+        tuples.push((passage.id as u64, passage.body, passage.score));
+    }
+    let depth = rerank_depth as usize;
+    let alpha = alpha.unwrap_or(0.3);
+    let pool_n = pool_n.map(|value| value as usize).unwrap_or(depth);
+    let joined = tokio::task::spawn_blocking(move || {
+        catch_unwind(AssertUnwindSafe(|| {
+            rust_rerank_passages(&query, tuples, depth, alpha, pool_n)
+        }))
+    })
+    .await;
+    match joined {
+        Ok(Ok(Ok(values))) => values
+            .into_iter()
+            .map(|(id, score, ce_score)| {
+                let id = i64::try_from(id).map_err(|_| {
+                    typed_error(
+                        CODE_WRITE_VALIDATION,
+                        "rerank result id exceeds the TypeScript integer boundary",
+                        JsonValue::Null,
+                    )
+                })?;
+                Ok(RerankResult { id, score, ce_score })
+            })
+            .collect(),
+        Ok(Ok(Err(error))) => Err(typed_error(CODE_WRITE_VALIDATION, error, JsonValue::Null)),
+        Ok(Err(_panic)) => Err(panic_error()),
+        Err(join_error) => Err(typed_error(
+            CODE_PANIC,
+            format!("spawn_blocking join error: {join_error}"),
+            JsonValue::Null,
+        )),
+    }
 }
 
 #[cfg(feature = "default-embedder")]

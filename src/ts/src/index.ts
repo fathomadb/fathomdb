@@ -21,6 +21,7 @@ import {
   type NativeGpuAllocationWitness,
   type NativeOpenReport,
   type NativePerHitExplain,
+  type NativeRerankPassage,
   type NativeResolvedEvidenceV1,
   type NativeSearchResult,
 } from "./binding.js";
@@ -86,6 +87,74 @@ export async function embedBatchCls(texts: readonly string[]): Promise<number[][
   const batch = Array.from(texts);
   for (const text of batch) validateFfiString(text);
   return intercept(() => native.embedBatchCls(batch));
+}
+
+/** One caller-supplied passage accepted by {@link rerank}. */
+export interface RerankPassage {
+  id: number;
+  body: string;
+  score: number;
+}
+
+/** Options for the standalone caller-supplied reranker. */
+export interface RerankOptions {
+  alpha?: number;
+  poolN?: number;
+}
+
+/** One result from {@link rerank}, in final ranked order. */
+export interface RerankResult {
+  id: number;
+  score: number;
+  ceScore: number | null;
+}
+
+function validateRerankU32(name: string, value: number): void {
+  if (!Number.isInteger(value)) {
+    throw new RangeError(`${name} must be an integer, got ${typeof value}`);
+  }
+  if (value < 0) throw new RangeError(`${name} must be >= 0, got ${value}`);
+  if (value > 0xffffffff) {
+    throw new RangeError(`${name} must be <= 4294967295 (u32 max), got ${value}`);
+  }
+}
+
+/**
+ * Rerank an arbitrary caller-supplied passage pool.
+ *
+ * A depth of zero or an empty pool is a model-free identity path. Builds
+ * without the default reranker preserve identity ordering for every depth.
+ */
+export async function rerank(
+  query: string,
+  passages: readonly RerankPassage[],
+  rerankDepth: number,
+  options: RerankOptions = {},
+): Promise<RerankResult[]> {
+  validateFfiString(query);
+  validateRerankU32("rerankDepth", rerankDepth);
+  if (options.alpha !== undefined && !Number.isFinite(options.alpha)) {
+    throw new RangeError(`alpha must be a finite number, got ${options.alpha}`);
+  }
+  if (options.poolN !== undefined) validateRerankU32("poolN", options.poolN);
+  const nativePassages: NativeRerankPassage[] = passages.map((passage) => {
+    if (!Number.isSafeInteger(passage.id) || passage.id < 0) {
+      throw new RangeError(`passage id must be a non-negative safe integer, got ${passage.id}`);
+    }
+    validateFfiString(passage.body);
+    if (!Number.isFinite(passage.score)) {
+      throw new RangeError(`passage score must be finite, got ${passage.score}`);
+    }
+    return { id: passage.id, body: passage.body, score: passage.score };
+  });
+  const values = await intercept(() =>
+    native.rerank(query, nativePassages, rerankDepth, options.alpha, options.poolN),
+  );
+  return values.map((value) => ({
+    id: value.id,
+    score: value.score,
+    ceScore: value.ceScore ?? null,
+  }));
 }
 
 export interface EngineConfig {

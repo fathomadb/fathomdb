@@ -30,9 +30,12 @@ The **core** runtime verbs available to TypeScript callers are:
 - `engine.close()`
 - `admin.configure(...)`
 
-The full governed set is pinned by
-`src/conformance/governed-surface-allowlist.json`, which `surface.test.ts`
-loads: the core five plus `engine.searchTextOnly`, `engine.embed`, `rerank`,
+The signed member tokens remain pinned by
+`src/conformance/governed-surface-allowlist.json`. The executable canonical
+operation map in `src/conformance/governed-operation-parity.json` maps those
+tokens to TypeScript runtime spellings and is checked by
+`sdk-surface-parity.test.ts` for exact live-set equality. The governed set is
+the core five plus `engine.searchTextOnly`, `engine.embed`, `rerank`,
 the `read.*` namespace (`get`, `getMany`, `collection`, `mutations`, `list`,
 `crossedBoundarySince`, `projections`, `projectionStatus`, `embeddingReadiness`), the `graph.*`
 namespace (`neighbors`, `searchExpand`), the BYO-LLM verbs
@@ -92,6 +95,22 @@ denylist name).
 
 Application commands are Promise-returning on the TS surface. The startup-only
 `admin.configureRuntime` control is synchronous.
+
+### Standalone passage reranking (0.8.26 Slice 55 parity repair)
+
+`rerank(query: string, passages: readonly RerankPassage[], rerankDepth: number,
+options?: RerankOptions): Promise<RerankResult[]>` is the TypeScript peer of
+Python's signed package-level `rerank` operation. `RerankPassage` is
+`{ id: number; body: string; score: number }`; `RerankOptions` carries optional
+`alpha` and `poolN`; `RerankResult` is
+`{ id: number; score: number; ceScore: number | null }`.
+
+`rerankDepth === 0` or an empty passage list is a model-free identity path. A
+build without the default reranker also preserves input order and scores.
+Invalid strings, non-finite scores or alpha values, non-u32 depth/pool values,
+and negative or unsafe-integer IDs reject before native work. The Rust bridge
+uses the same rerank implementation and defaults as Python (`alpha = 0.3`,
+`poolN = rerankDepth`).
 
 ### Module-level CLS batch embedding (0.8.20 Slice 40)
 

@@ -35,7 +35,7 @@ Per `plan.md` Phase 3 step 4, `design/bindings.md` is written first to test whet
 
 | Cross-cutting concern                                                                                                                   | Why not in `interfaces/<lang>.md`                                                                                                                                                                                                                    |
 | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Surface-set parity (every SDK binding exposes the same five verbs and _only_ those five)                                                | Per-surface files would each enumerate their own list; a parity claim across bindings cannot be expressed by any single file.                                                                                                                        |
+| Canonical-operation parity (every live operation is present in both SDK bindings, with idiomatic spelling)                            | Per-surface files would each enumerate their own symbols; a parity claim across bindings cannot be expressed by any single file.                                                                                                                     |
 | Error-mapping _protocol_ (one class per variant; typed attrs not stringified args; single rooted hierarchy; no string-pattern dispatch) | The protocol commitments are properties OF the bindings collectively. The mapping _matrix itself_ lives in `design/errors.md` (architecture.md § 2) and is cited from interfaces/\*.md; this file commits the protocol that any matrix must satisfy. |
 | Async dispatch model and where Invariants A–D land per binding                                                                          | A property of the engine boundary expressed differently per language; the _protocol_ (e.g. "Promise edges live in TS only; Python is sync") is shared.                                                                                               |
 | Embedder identity + cross-language consistency (same DB opened from Python and TS resolves the same `EmbedderIdentity`)                 | Multi-binding invariant; not a per-language signature.                                                                                                                                                                                               |
@@ -47,28 +47,28 @@ Per-binding _signatures_ still belong in `interfaces/{python,ts,cli}.md`. This f
 
 ## 1. Governed SDK surface invariant (allowlist + parity)
 
-Every **SDK** binding's public application-command surface MUST be a member of a
-**governed allowlist** — a curated, parity-locked set, not a frozen count
-(amended 0.8.0, Slice 25, per `ADR-0.8.0-supersede-five-verb-surface-cap`;
-supersedes the earlier "exactly five, no sixth verb" scope cap). The allowlist
-is partitioned into a write/admin/lifecycle core and an additive `read.*` read
-surface, in each binding's idiomatic casing:
+Every **SDK** binding's public application-command surface MUST equal the live
+canonical-operation set. The raw-byte-pinned signed source remains
+`src/conformance/governed-surface-allowlist.json`; its 69 historical member
+tokens are not rewritten. `src/conformance/governed-operation-parity.json` is
+the executable companion map that groups those tokens into canonical operation
+identities and records each binding's locator and idiomatic runtime spelling.
+The companion currently defines 44 live canonical operations.
 
-```text
-core:   Engine.open    admin.configure    write    search    close
-read.*: read.get    read.get_many    read.collection    read.mutations
-```
-
-(REQ-053; gated by AC-074. The `read.*` members ship in 0.8.0 but go live at
-Slice 30; until then they are documented-allowlist members, so the conformance
-check is allowlist-membership, not set-equality.) The invariant has three
-permanent clauses:
+The executable oracle introspects all governed command locations: package
+exports, `Engine` static and instance methods, and the `admin`, `read`, and
+`graph` namespaces. For each binding, the observed locator/spelling set MUST
+equal the companion's live set: extra and missing commands both fail. A
+`reserved` operation MUST be absent from both runtime surfaces. The companion's
+flattened `signed_members` MUST exactly equal the signed allowlist, preserving
+the signed bytes while removing aliases and casing differences from parity
+comparison. The invariant has three permanent clauses:
 
 - **Cross-binding parity.** The claim is symmetric _across SDK bindings_ (Python
-  - TypeScript): a verb appears in every SDK binding or in none. Adding a verb
-  requires updating all SDK bindings together; per-SDK-binding surface sets are
-  not allowed to drift. Enforced as allowlist-equality (membership + cross-binding
-  equality), not a count.
+  and TypeScript): a canonical operation is live in both bindings or in neither.
+  Adding an operation requires updating both SDK bindings and the companion map
+  together. Runtime spelling may differ only through the explicit per-binding
+  mapping (`read.get_many` / `read.getMany`, for example).
 - **Recovery-name denylist** (see below) — preserved verbatim.
 - **Typed / no-raw-SQL boundary** — reads take typed args + a small fixed filter
   grammar (equality + range over body-JSON), never raw SQL or a query DSL.

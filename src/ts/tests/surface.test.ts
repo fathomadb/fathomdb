@@ -5,7 +5,8 @@
 // no-raw-SQL boundary. (AC-057a's verb-count scope cap is superseded by AC-074;
 // the surface is now governed-but-open, not capped.)
 //
-// Pins the governed-surface allowlist (membership, not a count), the
+// Provides supplemental historical allowlist-membership checks. Exact
+// canonical-operation parity is enforced by sdk-surface-parity.test.ts. Also pins the
 // engine-attached instrumentation methods, the options.engineConfig camelCase
 // knobs, the soft-fallback record shape, and the FathomDbError single-rooted
 // hierarchy per `dev/interfaces/typescript.md` and
@@ -23,11 +24,9 @@ import { freshDbPath } from "./helpers.js";
 // The governed SDK surface allowlist (AC-074 / REQ-053) is declared exactly
 // ONCE, in `src/conformance/governed-surface-allowlist.json`, and read by BOTH
 // this suite and the Python suite (`src/python/tests/test_surface.py`). There
-// is no per-binding duplicate literal, so TypeScript and Python cannot drift
-// apart (cross-binding parity, P2). As of Slice 30 the four `read.*` members are
-// LIVE: they are introspected off the `read` namespace object and enter the live
-// set, so the membership check below (P1) is still a subset test (never
-// equality) but `read.*` is now actually asserted-live, not documented-only.
+// is no per-binding duplicate signed-token literal. Exact runtime parity is
+// enforced by sdk-surface-parity.test.ts and the canonical companion map; this
+// older test remains a defense-in-depth membership check.
 interface GovernedSurfaceContract {
   allowlist: string[];
   core: string[];
@@ -225,14 +224,13 @@ test("searchTextOnly verb is live (0.8.18 Slice 5 #5, CONCERN #7, introspected)"
   }
 });
 
-test("surface parity: TS and Python read one shared allowlist", async () => {
-  // P2 — the governed allowlist is declared exactly ONCE, in
+test("surface contract: TS reads the shared signed-token allowlist", async () => {
+  // P2 — the signed-token allowlist is declared exactly ONCE, in
   // `src/conformance/governed-surface-allowlist.json`. This suite loads it via
   // `loadGovernedSurfaceContract()`; `src/python/tests/test_surface.py` loads
   // the same file. Because there is a single declaration, TypeScript and Python
-  // can no longer carry divergent copies — parity is structural, not a
-  // byte-compared duplicate. This test pins that the suite genuinely consumes
-  // the shared contract (the introspected live surface is a subset of it).
+  // cannot carry divergent copies. Exact runtime parity, including package and
+  // graph locations, is owned by sdk-surface-parity.test.ts.
   const contract = loadGovernedSurfaceContract();
   assert.deepEqual([...GOVERNED_SURFACE_ALLOWLIST].sort(), [...new Set(contract.allowlist)].sort());
 

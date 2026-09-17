@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import json
 from pathlib import Path
 import unittest
 
@@ -87,6 +88,19 @@ class ParityValidatorTests(unittest.TestCase):
             checker.validate_observed(COMPANION, "typescript", TYPESCRIPT_LIVE),
             {"engine.open", "read.get_many"},
         )
+
+    def test_repository_contract_is_valid(self) -> None:
+        with (ROOT / "src/conformance/governed-surface-allowlist.json").open(
+            encoding="utf-8"
+        ) as handle:
+            signed = json.load(handle)
+        with (ROOT / "src/conformance/governed-operation-parity.json").open(
+            encoding="utf-8"
+        ) as handle:
+            companion = json.load(handle)
+        checker.validate_contract(signed, companion)
+        self.assertEqual(len(signed["allowlist"]), 69)
+        self.assertEqual(len(checker.live_canonical_ids(companion)), 44)
 
     def test_one_sided_removal_fails(self) -> None:
         self.assert_observed_invalid("typescript", {"engine_static:open"}, "missing.*read:getMany")

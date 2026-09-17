@@ -16,6 +16,13 @@ test("standalone rerank depth zero is a model-free identity path", async () => {
   assert.deepEqual(await rerank("query", [], 10), []);
 });
 
+test("standalone rerank is identity in the feature-off build", async () => {
+  assert.deepEqual(await rerank("query", PASSAGES, 2), [
+    { id: 7, score: 0.75, ceScore: null },
+    { id: 9, score: 0.25, ceScore: null },
+  ]);
+});
+
 test("standalone rerank validates caller input before native work", async () => {
   await assert.rejects(() => rerank("query", [{ id: -1, body: "bad", score: 1 }], 0), RangeError);
   await assert.rejects(

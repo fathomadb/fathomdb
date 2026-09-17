@@ -103,7 +103,11 @@ class ParityValidatorTests(unittest.TestCase):
         self.assertEqual(len(checker.live_canonical_ids(companion)), 44)
 
     def test_one_sided_removal_fails(self) -> None:
-        self.assert_observed_invalid("typescript", {"engine_static:open"}, "missing.*read:getMany")
+        self.assert_observed_invalid(
+            "typescript",
+            {"engine_static:open"},
+            "missing.*read:getMany.*read.get_many",
+        )
 
     def test_one_sided_addition_fails(self) -> None:
         self.assert_observed_invalid(

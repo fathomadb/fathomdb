@@ -24,3 +24,14 @@
 - `498289f1` made the diagnostic GREEN and narrowed/qualified the governing
   prose. The focused rerank/parity suite passed 4/4, validator mutations passed
   10/10, and independent rereview returned PASS with no P0–P3 findings.
+
+## GPT-6 Astra review RED/GREEN
+
+- Post-completion GPT-6 Astra medium review found two real P2 defects: malformed
+  runtime query/body types reached N-API, and feature-enabled empty input
+  resolved reranker device policy. Its initial discovery P1 was withdrawn after
+  repository export/naming authority was applied.
+- `a057d9e4` committed both RED reproductions before production changes.
+- `a5859cd9` added local pre-native rerank string guards and moved the shared
+  empty-pool return ahead of device-policy resolution. Focused downstream tests
+  and the 117/117 canonical gate passed; Astra rereview returned PASS.

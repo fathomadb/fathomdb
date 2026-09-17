@@ -20,7 +20,9 @@ Windows WAL receipt, and both Gitleaks scans in its validated manifest. Slice
 55 preserved the 69 signed surface tokens while enforcing exact parity over 44
 canonical Python/TypeScript operations and restoring the approved TypeScript
 `rerank` peer. Its 117/117 gate and independent design, code, and verification
-reviews passed. The ladder remains open for Slices 60 and 65; Slice 50 remains
+reviews passed. A post-completion GPT-6 Astra medium review then closed two P2
+rerank boundary defects through committed RED/GREEN remediation and a fresh
+117/117 gate. The ladder remains open for Slices 60 and 65; Slice 50 remains
 historical evidence but is no longer the final integration candidate.
 
 ## Immediate next action

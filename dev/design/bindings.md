@@ -47,8 +47,8 @@ Per-binding _signatures_ still belong in `interfaces/{python,ts,cli}.md`. This f
 
 ## 1. Governed SDK surface invariant (allowlist + parity)
 
-Every **SDK** binding's public application-command surface MUST equal the live
-canonical-operation set. The raw-byte-pinned signed source remains
+Both Python and TypeScript SDK public application-command surfaces MUST equal
+the live canonical-operation set. The raw-byte-pinned signed source remains
 `src/conformance/governed-surface-allowlist.json`; its 69 historical member
 tokens are not rewritten. `src/conformance/governed-operation-parity.json` is
 the executable companion map that groups those tokens into canonical operation

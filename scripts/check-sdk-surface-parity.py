@@ -151,9 +151,15 @@ def validate_observed(
     if extra or missing:
         details = []
         if extra:
-            details.append(f"observed ungoverned command(s): {', '.join(extra)}")
+            details.append(
+                "observed ungoverned command(s): "
+                + ", ".join(f"{located} (<ungoverned>)" for located in extra)
+            )
         if missing:
-            details.append(f"missing live command(s): {', '.join(missing)}")
+            details.append(
+                "missing live command(s): "
+                + ", ".join(f"{located} ({expected[located]})" for located in missing)
+            )
         raise ParityError(f"{binding} " + "; ".join(details))
     return {expected[located] for located in observed_set}
 

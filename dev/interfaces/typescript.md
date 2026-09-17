@@ -34,7 +34,8 @@ The signed member tokens remain pinned by
 `src/conformance/governed-surface-allowlist.json`. The executable canonical
 operation map in `src/conformance/governed-operation-parity.json` maps those
 tokens to TypeScript runtime spellings and is checked by
-`sdk-surface-parity.test.ts` for exact live-set equality. The governed set is
+`sdk-surface-parity.test.ts` for exact live-set equality. The following summary
+is non-exhaustive; the companion map is the complete governed set. It includes
 the core five plus `engine.searchTextOnly`, `engine.embed`, `rerank`,
 the `read.*` namespace (`get`, `getMany`, `collection`, `mutations`, `list`,
 `crossedBoundarySince`, `projections`, `projectionStatus`, `embeddingReadiness`), the `graph.*`

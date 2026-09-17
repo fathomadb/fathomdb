@@ -34,8 +34,9 @@ The signed member tokens remain pinned by
 `src/conformance/governed-surface-allowlist.json`. The executable canonical
 operation map in `src/conformance/governed-operation-parity.json` maps those
 tokens to Python runtime spellings and is checked by
-`test_sdk_surface_parity_oracle.py` for exact live-set equality. The governed
-set is the core five plus `engine.search_text_only`, `engine.embed`,
+`test_sdk_surface_parity_oracle.py` for exact live-set equality. The following
+summary is non-exhaustive; the companion map is the complete governed set. It
+includes the core five plus `engine.search_text_only`, `engine.embed`,
 `rerank`, the `read.*` namespace (`get`, `get_many`, `collection`,
 `mutations`, `list`, `crossed_boundary_since`, `projections`,
 `projection_status`, `embedding_readiness`), the `graph.*` namespace (`neighbors`, `search_expand`),

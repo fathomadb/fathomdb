@@ -5,6 +5,7 @@ target_release: 0.6.0
 desc: CLI = two-root operator surface (`recover` + `doctor`); writes and application queries stay SDK-only
 blast_radius: cli/ binding source; interfaces/cli.md; recovery verb set (FU-TWB2); ADR-0.6.0-typed-write-boundary; ADR-0.6.0-async-surface (CLI sync)
 status: accepted
+superseded_in_part_by: ADR-0.8.26-cli-derived-maintenance-boundary.md
 ---
 
 # ADR-0.6.0 — CLI scope

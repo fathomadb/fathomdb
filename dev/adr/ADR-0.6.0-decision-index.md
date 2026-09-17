@@ -146,6 +146,7 @@ Slice-0 gate before Slices 15 and 25 open.
 | - | -------- | ------------------ | ------------ | -------- |
 | 53 | interface | Introduce no parallel functional V1/V2 public API pairs in 0.8.26; change affected V1 contracts in place, make the release breaking and fresh-database-only, carry no historical compatibility or migration machinery, and defer parallel API generations until post-1.0 | accepted (HITL `seq-283`, superseding `seq-282` as to V2 naming and redirects) | ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md |
 | 54 | interface | Add an opt-in positional graph evidence sidecar and frozen-only opaque point resolver for the exact selected target and winning terminal edge | accepted (HITL `seq-290`, D26-01 option A) | ADR-0.8.26-exact-graph-artifact-evidence.md |
+| 55 | interface | Preserve `recover` for CLI data-loss-authorized operator recovery while grandfathering only the shipped atomic `doctor recompute-mean` derived-vector maintenance exception | accepted by explicit repository-owner authorization on 2026-09-17 | ADR-0.8.26-cli-derived-maintenance-boundary.md |
 
 ## Categories
 

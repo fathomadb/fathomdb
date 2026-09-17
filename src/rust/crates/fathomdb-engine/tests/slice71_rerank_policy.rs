@@ -35,6 +35,17 @@ fn malformed_policy_is_not_accepted_as_a_cpu_fallback() {
 }
 
 #[test]
+fn empty_passage_list_is_identity_before_device_policy_resolution() {
+    let _lock = RERANK_DEVICE_ENV_LOCK.lock().expect("environment lock");
+    let previous = std::env::var_os("FATHOMDB_RERANK_DEVICE");
+    unsafe { std::env::set_var("FATHOMDB_RERANK_DEVICE", "invalid") };
+    let output = rerank_passages("query", vec![], 10, 0.3, 10)
+        .expect("empty input must not resolve reranker device policy");
+    assert!(output.is_empty());
+    restore(previous);
+}
+
+#[test]
 fn normal_engine_rerank_path_returns_forced_policy_error_instead_of_rrf_fallback() {
     let _lock = RERANK_DEVICE_ENV_LOCK.lock().expect("environment lock");
     let previous = std::env::var_os("FATHOMDB_RERANK_DEVICE");

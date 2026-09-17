@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { rerank } from "../src/index.js";
+import { native } from "../src/binding.js";
 
 const PASSAGES = [
   { id: 7, body: "alpha", score: 0.75 },
@@ -33,4 +34,39 @@ test("standalone rerank validates caller input before native work", async () => 
   await assert.rejects(() => rerank("query", PASSAGES, 1.5), RangeError);
   await assert.rejects(() => rerank("query", PASSAGES, 0, { alpha: Number.NaN }), RangeError);
   await assert.rejects(() => rerank("query", PASSAGES, 0, { poolN: -1 }), RangeError);
+});
+
+test("standalone rerank rejects non-string query and body before native work", async () => {
+  const original = native.rerank;
+  let nativeCalls = 0;
+  native.rerank = async () => {
+    nativeCalls += 1;
+    return [];
+  };
+  try {
+    await assert.rejects(
+      () => rerank(42 as unknown as string, [], 0),
+      (error: unknown) => {
+        assert.ok(error instanceof TypeError);
+        assert.match(error.message, /query must be a string/);
+        return true;
+      },
+    );
+    await assert.rejects(
+      () =>
+        rerank(
+          "query",
+          [{ id: 1, body: 42 as unknown as string, score: 1 }],
+          0,
+        ),
+      (error: unknown) => {
+        assert.ok(error instanceof TypeError);
+        assert.match(error.message, /passage body must be a string/);
+        return true;
+      },
+    );
+    assert.equal(nativeCalls, 0, "malformed runtime types must not reach native.rerank");
+  } finally {
+    native.rerank = original;
+  }
 });

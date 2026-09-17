@@ -159,9 +159,9 @@ if their design is discussed.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.26:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 55** (`SDK-PARITY`) — executable canonical-operation SDK parity oracle
+**IMMEDIATE NEXT: Slice 60** (`DESIGN-OWNERS`) — retrieval, recovery, and engine current-owner reconciliation
 
-**Remaining ladder:** 55 → 60 → 65.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
+**Remaining ladder:** 60 → 65.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
 
 D26-01 was ruled at `seq-290` and implemented by Slice 20. Slice 30 completed
 the selected existing-CLI integrity route without a prebuilt fallback. Slice

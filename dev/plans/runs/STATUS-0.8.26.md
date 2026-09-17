@@ -11,19 +11,21 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 55 (SDK-PARITY), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 60 (DESIGN-OWNERS), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
 
-Slices 0–10, 15, 20, 30, 35, 40, 45, 46, and 50 are complete on the 0.8.26
-release line. Slice 50 bound candidate `68514f70`, local package witnesses,
-116/116 capable-executor gate, five native platforms, distinct Windows WAL
-receipt, and both Gitleaks scans in its validated manifest. GPT-6 Astra medium
-design/code review and independent completion verification passed for that
-candidate. The ladder is reopened for Slices 55, 60, and 65; Slice 50 remains
+Slices 0–10, 15, 20, 30, 35, 40, 45, 46, 50, and 55 are complete on the
+0.8.26 release line. Slice 50 bound candidate `68514f70`, local package
+witnesses, 116/116 capable-executor gate, five native platforms, distinct
+Windows WAL receipt, and both Gitleaks scans in its validated manifest. Slice
+55 preserved the 69 signed surface tokens while enforcing exact parity over 44
+canonical Python/TypeScript operations and restoring the approved TypeScript
+`rerank` peer. Its 117/117 gate and independent design, code, and verification
+reviews passed. The ladder remains open for Slices 60 and 65; Slice 50 remains
 historical evidence but is no longer the final integration candidate.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 55 (SDK-PARITY)** — executable canonical-operation SDK parity oracle. **Remaining ladder:** 55 → 60 → 65.<!-- END GENERATED release-state:0.8.26:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 60 (DESIGN-OWNERS)** — retrieval, recovery, and engine current-owner reconciliation. **Remaining ladder:** 60 → 65.<!-- END GENERATED release-state:0.8.26:status-next-action -->
 
 Do not integrate, tag, or publish until Slice 65 records a replacement exact
 candidate and restores the completion claim.

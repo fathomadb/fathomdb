@@ -11,20 +11,19 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 50 (RELEASE-VERIFICATION), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
+The complete 0.8.26 ladder is recorded on `origin/release/0.8.26`; integration
+to `origin/main` is pending.
 
-Slices 0–10, 15, 20, 30, 35, 40, 45, and 46 are complete on the 0.8.26 release
-line. Slice 45 establishes the active v2.2 architecture; Slice 46 places all 186
-tracked technical-design documents under an exact lifecycle catalog, reconciles
-25 maintained owners, and enforces current ownership plus local/docs-only CI
-wiring. GPT-6 Astra medium design review and independent code review pass. The
-unchanged unconfined canonical gate passes 112/112 suites after the documented
-sandbox-only AC-036 ptrace denial. Slice 50 retains exact-version integrated
-package/platform verification.
+Slices 0–10, 15, 20, 30, 35, 40, 45, 46, and 50 are complete on the 0.8.26
+release line. Slice 50 binds the exact candidate, local package witnesses,
+116/116 capable-executor gate, five native platforms, distinct Windows WAL
+receipt, and both Gitleaks scans in its validated manifest. GPT-6 Astra medium
+design/code review and independent completion verification pass.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 50 (RELEASE-VERIFICATION)** — integrated non-publishing release verification. **Remaining ladder:** 50.<!-- END GENERATED release-state:0.8.26:status-next-action -->
+Integrate `origin/release/0.8.26` into `origin/main` through the separately
+authorized release workflow. Do not tag or publish from this completion record.
 
 ## Open decisions
 

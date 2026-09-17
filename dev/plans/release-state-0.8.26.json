@@ -4,7 +4,10 @@
   "board": "dev/plans/runs/STATUS-0.8.26.md",
   "plan": "dev/plans/plan-0.8.26.md",
   "active_ref": "refs/heads/release/0.8.26",
-  "completion": null,
+  "completion": {
+    "ref": "origin/release/0.8.26",
+    "main_integration": "PENDING"
+  },
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
   "schema_version": 34,
   "origin_main_schema_version": 33,
@@ -28,11 +31,11 @@
     {"slice": 40, "short": "DERIVED-EDGE", "title": "atomic derived-edge V1 actuation", "depends_on": [35], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.26/features/slice-40/plan.md", "dev/plans/0.8.26/features/slice-40/design.md", "dev/plans/0.8.26/features/slice-40/design-review.md", "dev/plans/0.8.26/features/slice-40/code-review.md", "dev/plans/0.8.26/features/slice-40/review-verification.md", "dev/plans/0.8.26/features/slice-40/status.md"], "sha": "bfb2132b4d7d13153cba1e7a140eba17a1f54cf5", "evidence": "Schema 34 and the fresh-only public-open boundary ship on the release branch with persistent locked admission, WAL-aware exact refusal, runtime configuration before classification, process-isolated clean/WAL/refusal-then-fresh and older-wins coverage, deterministic both-direction opener races, retained derived-edge conformance, GPT-6 Astra medium design-review PASS, independent code-review PASS, independent verification PASS, and canonical 110/110 verification."},
     {"slice": 45, "short": "ARCHITECTURE-CONVERGENCE", "title": "maintained architecture convergence", "depends_on": [40], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.26/features/slice-45/plan.md", "dev/plans/0.8.26/features/slice-45/design.md", "dev/plans/0.8.26/features/slice-45/inventory.md", "dev/plans/0.8.26/features/slice-45/design-review.md", "dev/plans/0.8.26/features/slice-45/code-review.md", "dev/plans/0.8.26/features/slice-45/review-verification.md", "dev/plans/0.8.26/features/slice-45/status.md"], "sha": "6f68e2fda247410c823b50ad612bde1a487e7b14", "evidence": "The sole active v2.2 architecture now reflects the as-built 0.8.26 candidate, the 0.6.0 snapshot is explicitly superseded, navigation and ADR relationships are current, the caller and projection write lanes are source-accurate, the authority guard has 18 registered controls across local and docs-only CI, independent design/code review pass, and unchanged unconfined agent-verify passes 111/111 suites."},
     {"slice": 46, "short": "DESIGN-CONVERGENCE", "title": "maintained technical-design convergence", "depends_on": [45], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.26/features/slice-46/plan.md", "dev/plans/0.8.26/features/slice-46/design.md", "dev/plans/0.8.26/features/slice-46/inventory.md", "dev/plans/0.8.26/features/slice-46/design-review.md", "dev/plans/0.8.26/features/slice-46/astra-design-review.md", "dev/plans/0.8.26/features/slice-46/code-review.md", "dev/plans/0.8.26/features/slice-46/review-verification.md", "dev/plans/0.8.26/features/slice-46/release-review-through-46.md", "dev/plans/0.8.26/features/slice-46/status.md"], "sha": "6d952c9c7616bbd885ff8f1355d153d97d98ee31", "evidence": "All 186 tracked design documents have exact lifecycle and ownership coverage. A release-wide GPT-6 Astra medium review through Slice 46 closed one P1, two P2, and three P3 findings through committed RED/GREEN remediation. The unchanged full workspace gate then exposed stale Rust and cross-SDK upgrade-era projection fixtures; bounded corrections preserved every substantive oracle and coherent current generation authority without weakening production. Independent rereviews found no remaining P1-P4 finding. The final capable-executor gate passed strict security with 0 violations, blockers, or downgrades and passed 112/112 test suites with none skipped or excluded."},
-    {"slice": 50, "short": "RELEASE-VERIFICATION", "title": "integrated non-publishing release verification", "depends_on": [46], "status": "DRAFT", "design_refs": ["dev/plans/0.8.26/features/slice-50/plan.md", "dev/plans/0.8.26/features/slice-50/design.md"]}
+    {"slice": 50, "short": "RELEASE-VERIFICATION", "title": "integrated non-publishing release verification", "depends_on": [46], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.26/features/slice-50/plan.md", "dev/plans/0.8.26/features/slice-50/design.md", "dev/plans/0.8.26/features/slice-50/design-review.md", "dev/plans/0.8.26/features/slice-50/completion-plan.md", "dev/plans/0.8.26/features/slice-50/candidate-manifest.json", "dev/plans/0.8.26/features/slice-50/status.md"], "sha": "68514f700e6e7eb9bfc778e5a0d8885aa5740eb2", "evidence": "The exact 0.8.26 candidate passed capable-executor verification (116/116, security 0/0/0), fresh wheel/npm/CLI witnesses, direct generated-output and tracked-tree Gitleaks scans, five-target native artifact validation, distinct Windows WAL attribution, GPT-6 Astra medium code-review remediation, and independent completion verification. The schema-validated manifest binds every artifact and receipt to candidate 68514f70; publication remains unauthorized."}
   ],
   "landed": [],
-  "next_slice": 50,
-  "remaining_ladder": [50],
+  "next_slice": null,
+  "remaining_ladder": [],
   "decisions": {
     "unruled": [],
     "ruled": [
@@ -51,9 +54,6 @@
   "release_readiness": null,
   "published": null,
   "generated_views": [
-    {"id": "plan-immediate-next", "file": "dev/plans/plan-0.8.26.md", "location": "Immediate next slice", "renders": "the current slice and remaining ladder"},
-    {"id": "status-current-state", "file": "dev/plans/runs/STATUS-0.8.26.md", "location": "Current state", "renders": "the current slice and verified landed set"},
-    {"id": "status-next-action", "file": "dev/plans/runs/STATUS-0.8.26.md", "location": "Immediate next action", "renders": "the lifecycle-aware current action"},
     {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.26.md", "location": "Open decisions", "renders": "the count of unruled decisions"}
   ]
 }

@@ -21,6 +21,19 @@ CLASSES = {
     "superseded",
 }
 FIELDS = {"path", "class", "topic", "role", "owner", "release", "successor"}
+PROFILE_FIELDS = {
+    "path",
+    "profile",
+    "semantic_authority",
+    "implementation_witness",
+    "evidence_only",
+}
+RELATIONSHIP_FIELDS = (
+    "semantic_authority",
+    "implementation_witness",
+    "evidence_only",
+)
+WITNESS_ROOTS = ("src/", "scripts/", ".github/workflows/")
 KEY_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 RELEASE_RE = re.compile(
     r"^(?:cross-release|(?:current|historical|future):[A-Za-z0-9][A-Za-z0-9._+-]*)$"
@@ -115,6 +128,199 @@ def check_successor_graph(records: dict[str, dict[str, object]]) -> bool:
             if next_record is None:
                 break
             current = next_record
+    return ok
+
+
+def frontmatter_status(root: Path, path: str) -> str | None:
+    lines = (root / path).read_text(encoding="utf-8").splitlines()
+    if not lines or lines[0].strip() != "---":
+        fail(f"{path}: authority requires opening YAML front matter")
+        return None
+    try:
+        end = lines.index("---", 1)
+    except ValueError:
+        fail(f"{path}: authority has unterminated YAML front matter")
+        return None
+    status_lines = [line for line in lines[1:end] if line.startswith("status:")]
+    if len(status_lines) != 1:
+        fail(f"{path}: authority requires exactly one top-level status")
+        return None
+    raw = status_lines[0].partition(":")[2].strip()
+    if not raw or raw[0] in "[{|>" or raw.lower() in {"null", "true", "false", "~"}:
+        fail(f"{path}: authority status must be a scalar string")
+        return None
+    if raw[0] in "\"'":
+        if len(raw) < 2 or raw[-1] != raw[0]:
+            fail(f"{path}: authority status has malformed quoting")
+            return None
+        raw = raw[1:-1].strip()
+    return raw.lower()
+
+
+def check_external_authority(root: Path, path: str, role: object) -> bool:
+    if path == "dev/requirements.md":
+        return True
+    if path == "AGENTS.md":
+        if role in {"index", "method"}:
+            return True
+        fail(f"{path}: repository invariants cannot authorize role {role!r}")
+        return False
+    if path.startswith("dev/adr/") and path.endswith(".md"):
+        status = frontmatter_status(root, path)
+        if status is not None and status.startswith(("accepted", "locked")):
+            return True
+        fail(f"{path}: ADR authority must have accepted or locked status")
+        return False
+    if path.startswith("dev/interfaces/") and path.endswith(".md"):
+        status = frontmatter_status(root, path)
+        if status == "locked":
+            return True
+        fail(f"{path}: interface authority must have exactly locked status")
+        return False
+    fail(f"{path}: unsupported external semantic authority")
+    return False
+
+
+def check_authority_graph(root: Path, records: dict[str, dict[str, object]]) -> bool:
+    catalog_path = root / "dev/design/current-owner-authority.json"
+    if not catalog_path.is_file():
+        fail("missing dev/design/current-owner-authority.json")
+        return False
+    try:
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        fail(f"cannot parse current-owner authority catalog: {exc}")
+        return False
+    if not isinstance(catalog, dict) or set(catalog) != {"schema_version", "profiles"}:
+        fail("authority catalog must contain exactly schema_version and profiles")
+        return False
+    if catalog["schema_version"] != 1 or not isinstance(catalog["profiles"], list):
+        fail("authority catalog schema_version must be 1 and profiles must be an array")
+        return False
+
+    ok = True
+    profiles: dict[str, dict[str, object]] = {}
+    paths: list[str] = []
+    for index, profile in enumerate(catalog["profiles"]):
+        label = f"profiles[{index}]"
+        if not isinstance(profile, dict) or set(profile) != PROFILE_FIELDS:
+            fail(
+                f"{label}: profile must contain exactly {', '.join(sorted(PROFILE_FIELDS))}"
+            )
+            ok = False
+            continue
+        path = profile["path"]
+        if not isinstance(path, str):
+            fail(f"{label}: path must be a string")
+            ok = False
+            continue
+        paths.append(path)
+        if path in profiles:
+            fail(f"duplicate authority profile: {path}")
+            ok = False
+        profiles[path] = profile
+        if profile["profile"] != "current":
+            fail(f"{path}: profile must be current")
+            ok = False
+
+        relationships: dict[str, list[str]] = {}
+        for field in RELATIONSHIP_FIELDS:
+            values = profile[field]
+            if not isinstance(values, list) or any(
+                not isinstance(value, str) or not value for value in values
+            ):
+                fail(f"{path}: {field} must be an array of nonempty paths")
+                ok = False
+                relationships[field] = []
+                continue
+            relationships[field] = values
+            if values != sorted(values) or len(values) != len(set(values)):
+                fail(f"{path}: {field} must be sorted and duplicate-free")
+                ok = False
+            for value in values:
+                if not existing_repo_path(root, value, field, path):
+                    ok = False
+        if not relationships.get("semantic_authority"):
+            fail(f"{path}: semantic_authority must not be empty")
+            ok = False
+        if not relationships.get("implementation_witness"):
+            fail(f"{path}: implementation_witness must not be empty")
+            ok = False
+        seen: set[str] = set()
+        for field in RELATIONSHIP_FIELDS:
+            overlap = seen.intersection(relationships.get(field, []))
+            if overlap:
+                fail(
+                    f"{path}: relationship classes overlap at {', '.join(sorted(overlap))}"
+                )
+                ok = False
+            seen.update(relationships.get(field, []))
+        for witness in relationships.get("implementation_witness", []):
+            if not witness.startswith(WITNESS_ROOTS):
+                fail(f"{path}: implementation witness has unsupported root: {witness}")
+                ok = False
+
+    if paths != sorted(paths):
+        fail("authority profiles must be sorted by path")
+        ok = False
+    maintained = {
+        path for path, record in records.items() if record.get("class") == "maintained"
+    }
+    actual = set(paths)
+    missing = sorted(maintained - actual)
+    extra = sorted(actual - maintained)
+    if missing:
+        fail(f"maintained designs without current profiles: {', '.join(missing)}")
+        ok = False
+    if extra:
+        fail(f"current profiles for non-maintained designs: {', '.join(extra)}")
+        ok = False
+
+    adjacency: dict[str, list[str]] = {}
+    for path, profile in profiles.items():
+        role = records.get(path, {}).get("role")
+        adjacency[path] = []
+        authorities = profile.get("semantic_authority")
+        if not isinstance(authorities, list):
+            continue
+        for authority in authorities:
+            if not isinstance(authority, str):
+                continue
+            if authority.startswith("dev/design/"):
+                record = records.get(authority)
+                if record is None or record.get("class") != "maintained":
+                    fail(f"{path}: design authority is not maintained: {authority}")
+                    ok = False
+                elif authority not in profiles:
+                    fail(
+                        f"{path}: maintained authority lacks current profile: {authority}"
+                    )
+                    ok = False
+                else:
+                    adjacency[path].append(authority)
+            elif existing_repo_path(root, authority, "semantic_authority", path):
+                if not check_external_authority(root, authority, role):
+                    ok = False
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(path: str) -> None:
+        nonlocal ok
+        if path in visiting:
+            fail(f"semantic-authority cycle reaches {path}")
+            ok = False
+            return
+        if path in visited:
+            return
+        visiting.add(path)
+        for target in adjacency.get(path, []):
+            visit(target)
+        visiting.remove(path)
+        visited.add(path)
+
+    for path in sorted(adjacency):
+        visit(path)
     return ok
 
 
@@ -243,7 +449,10 @@ def validate(root: Path) -> bool:
         fail(f"catalog paths without documents: {', '.join(extra)}")
         ok = False
 
-    return check_successor_graph(records) and check_wiring(root) and ok
+    successor_ok = check_successor_graph(records)
+    authority_ok = check_authority_graph(root, records)
+    wiring_ok = check_wiring(root)
+    return successor_ok and authority_ok and wiring_ok and ok
 
 
 def main() -> int:

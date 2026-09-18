@@ -92,7 +92,13 @@ def main() -> None:
         manifest = Path(temporary) / "slice65.json"
         manifest.write_text(json.dumps(payload), encoding="utf-8")
         result = subprocess.run(
-            [sys.executable, str(WRAPPER_SCRIPT), "validate", "--manifest", str(manifest)],
+            [
+                sys.executable,
+                str(WRAPPER_SCRIPT),
+                "validate",
+                "--manifest",
+                str(manifest),
+            ],
             text=True,
             capture_output=True,
             check=False,

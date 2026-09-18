@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "path": "dev/design/README.md",
+      "profile": "current",
+      "semantic_authority": ["AGENTS.md"],
+      "implementation_witness": ["scripts/check-design-lifecycle.py"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/actuation.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.8.25-bounded-atomic-actuation.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/slice25_actuation.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/bindings.md",
+      "profile": "current",
+      "semantic_authority": ["dev/interfaces/rust.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-napi/src/lib.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/embedder.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.6.0-embedder-protocol.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-embedder/src/lib.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/engine.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/src/lib.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/errors.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.6.0-error-taxonomy.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/error_taxonomy.rs"],
+      "evidence_only": [
+        "dev/design/0.8.18-slice-5-vector-equivalence-probe.md",
+        "dev/design/0.8.23-embedding-configuration-feedback.md",
+        "dev/plans/0.8.25/features/slice-15/design.md",
+        "dev/plans/0.8.25/features/slice-20/design.md",
+        "dev/plans/0.8.25/features/slice-30/design.md",
+        "dev/plans/0.8.25/features/slice-45/design.md",
+        "dev/plans/0.8.25/features/slice-55/design.md",
+        "dev/plans/0.8.25/features/slice-79/design.md"
+      ]
+    },
+    {
+      "path": "dev/design/fathomdb-data-plane-architecture-v2.md",
+      "profile": "current",
+      "semantic_authority": ["dev/requirements.md"],
+      "implementation_witness": ["scripts/check-architecture-authority.py"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/gpu-eval-activities-policy.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.8.25-driverless-cuda-runtime-linkage.md"],
+      "implementation_witness": ["scripts/lib/cuda-gpu-selection.sh"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/lifecycle.md",
+      "profile": "current",
+      "semantic_authority": ["dev/interfaces/rust.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/lifecycle_observability.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/migrations.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-schema/tests/migrations.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/nested-source-projections.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.6.0-projection-model.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/slice45_nested_source_projections.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/op-store.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.6.0-op-store-same-file.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/op_store.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/orchestration.md",
+      "profile": "current",
+      "semantic_authority": ["AGENTS.md"],
+      "implementation_witness": ["scripts/preflight.sh"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/perf-gates.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.6.0-retrieval-latency-gates.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/perf_gates.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/perf-regression-detection.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.6.0-retrieval-latency-gates.md"],
+      "implementation_witness": ["scripts/perf-experiments/aggregate.py"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/pinned-override-rot-guard.md",
+      "profile": "current",
+      "semantic_authority": ["dev/requirements.md"],
+      "implementation_witness": ["scripts/check-pinned-override-rot.py"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/projections.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.6.0-projection-model.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/projection_runtime.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/recovery-0.8.25.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.8.26-cli-derived-maintenance-boundary.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/rebuild_projections.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/recovery.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.8.26-cli-derived-maintenance-boundary.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-cli/tests/recovery_cli.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/release.md",
+      "profile": "current",
+      "semantic_authority": ["dev/requirements.md"],
+      "implementation_witness": [".github/workflows/release.yml"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/retrieval-result-limits.md",
+      "profile": "current",
+      "semantic_authority": ["dev/interfaces/rust.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/slice18_retrieval_result_limits.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/retrieval.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.8.25-eligibility-and-frozen-reads.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/src/lib.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/scheduler.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.6.0-scheduler-shape.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/projection_runtime.rs"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/temporary-serial-rust-workspace-release-gate.md",
+      "profile": "current",
+      "semantic_authority": ["dev/requirements.md"],
+      "implementation_witness": ["scripts/test-rust-workspace.sh"],
+      "evidence_only": []
+    },
+    {
+      "path": "dev/design/vector.md",
+      "profile": "current",
+      "semantic_authority": ["dev/adr/ADR-0.6.0-vector-index-location.md"],
+      "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/vector_contracts.rs"],
+      "evidence_only": []
+    }
+  ]
+}

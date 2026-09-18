@@ -11,10 +11,10 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-The complete 0.8.26 ladder is recorded on `origin/release/0.8.26`; integration
-to `origin/main` is pending.
+The complete 0.8.26 ladder is integrated on `origin/main` at `b7d8e5b0`.
+Hosted CI remains in progress; publication is not authorized.
 
-Slices 0–10, 15, 20, 30, 35, 40, 45, 46, 50, 55, and 60 are complete on the
+Slices 0–10, 15, 20, 30, 35, 40, 45, 46, 50, 55, 60, and 65 are complete on the
 0.8.26 release line. Slice 50 bound candidate `68514f70`, local package
 witnesses, 116/116 capable-executor gate, five native platforms, distinct
 Windows WAL receipt, and both Gitleaks scans in its validated manifest. Slice
@@ -37,7 +37,7 @@ independent design/code/candidate verification passed.
 
 | | |
 |---|---|
-| **Immediate next action** | Execute the owner-authorized non-publishing release closeout: reconcile the release records, integrate `origin/release/0.8.26` into `origin/main`, and pass the required hosted CI workflows. Do not create or push `v0.8.26`, publish packages, mutate registries, or run post-publication claims without a later explicit authorization. |
+| **Immediate next action** | Pass the required hosted CI workflows on the integrated 0.8.26 candidate and record their exact run evidence. Do not create or push `v0.8.26`, publish packages, mutate registries, or run post-publication claims without a later explicit authorization. |
 
 ## Open decisions
 
@@ -52,9 +52,9 @@ V1 graph-evidence sidecar under frozen authority.
 - Scope stays narrow around the selected Memex needs.
 - The reopened ladder changes conformance tooling and maintained design
   authority; runtime product changes require separate explicit scope.
-- Main integration and hosted CI are authorized by the repository owner on
-  2026-09-18. Tagging, publication, registry mutation, and post-publication
-  claims remain unauthorized.
+- Main integration completed at `b7d8e5b0`; hosted CI is authorized and
+  pending. Tagging, publication, registry mutation, and post-publication claims
+  remain unauthorized.
 
 ## Verification
 

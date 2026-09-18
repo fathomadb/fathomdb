@@ -160,6 +160,7 @@ run_tier_suite fast test-verify-release-python-wheel bash scripts/tests/test_ver
 run_tier_suite fast test-slice50-hook-inventory python3 scripts/tests/test_slice50_hook_inventory.py
 run_tier_suite fast test-wait-for-registry-visibility python3 scripts/tests/test_wait_for_registry_visibility.py
 run_tier_suite fast test-native-artifact-receipts python3 scripts/tests/test_native_artifact_receipts.py
+run_tier_suite fast test-slice65-candidate-manifest python3 scripts/tests/test_slice65_candidate_manifest.py
 run_tier_suite fast test-slice50-evidence-matrix python3 scripts/tests/test_slice50_evidence_matrix.py
 run_tier_suite fast test-dependency-policy bash scripts/tests/test_check_dependency_policy.sh
 

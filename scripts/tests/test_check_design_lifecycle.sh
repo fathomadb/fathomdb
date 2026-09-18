@@ -15,9 +15,16 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 write_fixture() {
   local root=$1
   local mode=$2
-  mkdir -p "$root/dev/design" "$root/scripts" "$root/.github/workflows"
+  mkdir -p "$root/dev/design" "$root/dev/adr" "$root/dev/interfaces" \
+    "$root/src" "$root/scripts" "$root/.github/workflows"
   printf '# Alpha\n' >"$root/dev/design/alpha.md"
   printf '# Legacy\n' >"$root/dev/design/legacy.md"
+  printf '%s\n' '---' 'status: accepted' '---' '# Current authority' \
+    >"$root/dev/adr/current.md"
+  printf '%s\n' '---' 'status: locked' '---' '# Locked interface' \
+    >"$root/dev/interfaces/current.md"
+  printf 'fn current_witness() {}\n' >"$root/src/current.rs"
+  printf '# Agent invariants\n' >"$root/AGENTS.md"
   printf '%s\n' \
     'run_capped check-design-lifecycle "$SCRIPT_DIR/check-design-lifecycle.py"' \
     >"$root/scripts/agent-lint-md.sh"
@@ -38,14 +45,32 @@ write_fixture() {
   {"path":"dev/design/legacy.md","class":"superseded","topic":"legacy","role":"design","owner":"dev/design/alpha.md","release":"historical:0.8.0","successor":"dev/design/alpha.md"}
 ]}
 JSON
+      cat >"$root/dev/design/current-owner-authority.json" <<'JSON'
+{"schema_version":1,"profiles":[
+  {"path":"dev/design/alpha.md","profile":"current","semantic_authority":["dev/adr/current.md"],"implementation_witness":["src/current.rs"],"evidence_only":[]}
+]}
+JSON
       ;;
     valid_external_successor)
       write_fixture "$root" valid
       mkdir -p "$root/dev/adr"
-      printf '# Current authority\n' >"$root/dev/adr/current.md"
+      printf '%s\n' '---' 'status: accepted' '---' '# Current authority' \
+        >"$root/dev/adr/current.md"
       sed -i \
         's#"owner":"dev/design/alpha.md","release":"historical:0.8.0","successor":"dev/design/alpha.md"#"owner":"dev/adr/current.md","release":"historical:0.8.0","successor":"dev/adr/current.md"#' \
         "$root/dev/design/document-lifecycle.json"
+      ;;
+    valid_locked_interface)
+      write_fixture "$root" valid
+      sed -i 's#dev/adr/current.md#dev/interfaces/current.md#' \
+        "$root/dev/design/current-owner-authority.json"
+      ;;
+    valid_agents_method)
+      write_fixture "$root" valid
+      sed -i 's/"role":"design"/"role":"method"/' \
+        "$root/dev/design/document-lifecycle.json"
+      sed -i 's#dev/adr/current.md#AGENTS.md#' \
+        "$root/dev/design/current-owner-authority.json"
       ;;
     untracked_draft)
       write_fixture "$root" valid
@@ -163,6 +188,91 @@ JSON
         '      - run: python3 scripts/check-design-lifecycle.py' \
         >"$root/.github/workflows/ci.yml"
       ;;
+    missing_current_profile)
+      write_fixture "$root" valid
+      printf '{"schema_version":1,"profiles":[]}\n' \
+        >"$root/dev/design/current-owner-authority.json"
+      ;;
+    extra_current_profile)
+      write_fixture "$root" valid
+      python3 - "$root/dev/design/current-owner-authority.json" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+payload = json.loads(path.read_text())
+extra = dict(payload["profiles"][0])
+extra["path"] = "dev/design/legacy.md"
+payload["profiles"].append(extra)
+path.write_text(json.dumps(payload))
+PY
+      ;;
+    proposed_adr)
+      write_fixture "$root" valid
+      sed -i 's/status: accepted/status: proposed/' "$root/dev/adr/current.md"
+      ;;
+    superseded_adr)
+      write_fixture "$root" valid
+      sed -i 's/status: accepted/status: superseded/' "$root/dev/adr/current.md"
+      ;;
+    malformed_adr_status)
+      write_fixture "$root" valid
+      printf '%s\n' '---' 'status:' '  nested: accepted' '---' '# Bad' \
+        >"$root/dev/adr/current.md"
+      ;;
+    draft_interface)
+      write_fixture "$root" valid_locked_interface
+      sed -i 's/status: locked/status: draft/' "$root/dev/interfaces/current.md"
+      ;;
+    malformed_interface_status)
+      write_fixture "$root" valid_locked_interface
+      sed -i '/status: locked/a status: locked' "$root/dev/interfaces/current.md"
+      ;;
+    agents_wrong_role)
+      write_fixture "$root" valid
+      sed -i 's#dev/adr/current.md#AGENTS.md#' \
+        "$root/dev/design/current-owner-authority.json"
+      ;;
+    authority_cycle)
+      write_fixture "$root" valid
+      cat >"$root/dev/design/document-lifecycle.json" <<'JSON'
+{"schema_version":1,"documents":[
+  {"path":"dev/design/alpha.md","class":"maintained","topic":"alpha","role":"design","owner":"dev/design/alpha.md","release":"cross-release","successor":null},
+  {"path":"dev/design/legacy.md","class":"maintained","topic":"legacy","role":"design","owner":"dev/design/legacy.md","release":"cross-release","successor":null}
+]}
+JSON
+      cat >"$root/dev/design/current-owner-authority.json" <<'JSON'
+{"schema_version":1,"profiles":[
+  {"path":"dev/design/alpha.md","profile":"current","semantic_authority":["dev/design/legacy.md"],"implementation_witness":["src/current.rs"],"evidence_only":[]},
+  {"path":"dev/design/legacy.md","profile":"current","semantic_authority":["dev/design/alpha.md"],"implementation_witness":["src/current.rs"],"evidence_only":[]}
+]}
+JSON
+      ;;
+    historical_authority)
+      write_fixture "$root" valid
+      mkdir -p "$root/dev/plans"
+      printf '# Historical plan\n' >"$root/dev/plans/historical.md"
+      sed -i 's#dev/adr/current.md#dev/plans/historical.md#' \
+        "$root/dev/design/current-owner-authority.json"
+      ;;
+    invalid_witness_root)
+      write_fixture "$root" valid
+      printf 'witness\n' >"$root/dev/witness.txt"
+      sed -i 's#src/current.rs#dev/witness.txt#' \
+        "$root/dev/design/current-owner-authority.json"
+      ;;
+    overlapping_relationships)
+      write_fixture "$root" valid
+      sed -i 's#"evidence_only":\[\]#"evidence_only":["dev/adr/current.md"]#' \
+        "$root/dev/design/current-owner-authority.json"
+      ;;
+    unsorted_relationships)
+      write_fixture "$root" valid
+      printf 'fn alternate() {}\n' >"$root/src/alternate.rs"
+      sed -i 's#"implementation_witness":\["src/current.rs"\]#"implementation_witness":["src/current.rs","src/alternate.rs"]#' \
+        "$root/dev/design/current-owner-authority.json"
+      ;;
     *)
       echo "unknown fixture mode: $mode" >&2
       exit 1
@@ -199,6 +309,8 @@ run_fail() {
 
 run_ok valid
 run_ok valid_external_successor
+run_ok valid_locked_interface
+run_ok valid_agents_method
 run_ok untracked_draft
 for mode in \
   missing \
@@ -218,7 +330,20 @@ for mode in \
   missing_ci_wiring \
   commented_local_wiring \
   commented_ci_wiring \
-  wrong_ci_job
+  wrong_ci_job \
+  missing_current_profile \
+  extra_current_profile \
+  proposed_adr \
+  superseded_adr \
+  malformed_adr_status \
+  draft_interface \
+  malformed_interface_status \
+  agents_wrong_role \
+  authority_cycle \
+  historical_authority \
+  invalid_witness_root \
+  overlapping_relationships \
+  unsorted_relationships
 do
   run_fail "$mode"
 done

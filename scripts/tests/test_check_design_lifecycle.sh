@@ -72,6 +72,13 @@ JSON
       sed -i 's#dev/adr/current.md#AGENTS.md#' \
         "$root/dev/design/current-owner-authority.json"
       ;;
+    valid_historical_evidence)
+      write_fixture "$root" valid
+      mkdir -p "$root/dev/plans"
+      printf '# Historical evidence\n' >"$root/dev/plans/historical.md"
+      sed -i 's#"evidence_only":\[\]#"evidence_only":["dev/plans/historical.md"]#' \
+        "$root/dev/design/current-owner-authority.json"
+      ;;
     untracked_draft)
       write_fixture "$root" valid
       printf '# Local draft\n' >"$root/dev/design/local-draft.md"
@@ -221,6 +228,10 @@ PY
       printf '%s\n' '---' 'status:' '  nested: accepted' '---' '# Bad' \
         >"$root/dev/adr/current.md"
       ;;
+    duplicate_spaced_adr_status)
+      write_fixture "$root" valid
+      sed -i '/status: accepted/a status : superseded' "$root/dev/adr/current.md"
+      ;;
     draft_interface)
       write_fixture "$root" valid_locked_interface
       sed -i 's/status: locked/status: draft/' "$root/dev/interfaces/current.md"
@@ -273,6 +284,34 @@ JSON
       sed -i 's#"implementation_witness":\["src/current.rs"\]#"implementation_witness":["src/current.rs","src/alternate.rs"]#' \
         "$root/dev/design/current-owner-authority.json"
       ;;
+    duplicate_current_profile)
+      write_fixture "$root" valid
+      python3 - "$root/dev/design/current-owner-authority.json" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+payload = json.loads(path.read_text())
+payload["profiles"].append(dict(payload["profiles"][0]))
+path.write_text(json.dumps(payload))
+PY
+      ;;
+    empty_witness)
+      write_fixture "$root" valid
+      sed -i 's#"implementation_witness":\["src/current.rs"\]#"implementation_witness":[]#' \
+        "$root/dev/design/current-owner-authority.json"
+      ;;
+    nonexistent_witness)
+      write_fixture "$root" valid
+      sed -i 's#src/current.rs#src/missing.rs#' \
+        "$root/dev/design/current-owner-authority.json"
+      ;;
+    non_current_profile)
+      write_fixture "$root" valid
+      sed -i 's/"profile":"current"/"profile":"historical"/' \
+        "$root/dev/design/current-owner-authority.json"
+      ;;
     *)
       echo "unknown fixture mode: $mode" >&2
       exit 1
@@ -311,6 +350,7 @@ run_ok valid
 run_ok valid_external_successor
 run_ok valid_locked_interface
 run_ok valid_agents_method
+run_ok valid_historical_evidence
 run_ok untracked_draft
 for mode in \
   missing \
@@ -336,6 +376,7 @@ for mode in \
   proposed_adr \
   superseded_adr \
   malformed_adr_status \
+  duplicate_spaced_adr_status \
   draft_interface \
   malformed_interface_status \
   agents_wrong_role \
@@ -343,7 +384,11 @@ for mode in \
   historical_authority \
   invalid_witness_root \
   overlapping_relationships \
-  unsorted_relationships
+  unsorted_relationships \
+  duplicate_current_profile \
+  empty_witness \
+  nonexistent_witness \
+  non_current_profile
 do
   run_fail "$mode"
 done

@@ -263,4 +263,5 @@ fn t_074_operator_seam_resolves_with_feature() {
     let _ = fathomdb::Engine::dump_profile;
     let _ = fathomdb::Engine::truncate_wal;
     let _ = fathomdb::Engine::recompute_mean;
+    let _operator_path = |path: std::path::PathBuf| fathomdb::recover_truncate_wal(path);
 }

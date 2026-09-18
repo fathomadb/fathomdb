@@ -241,6 +241,13 @@ pub use fathomdb_engine::{
 ///     let _ = e.excise_source("s");
 /// }
 /// ```
+///
+/// The path-scoped WAL recovery function does not resolve on the default facade:
+/// ```compile_fail
+/// fn _no_recover_truncate_wal(path: std::path::PathBuf) {
+///     let _ = fathomdb::recover_truncate_wal(path);
+/// }
+/// ```
 #[cfg(not(feature = "operator"))]
 #[doc(hidden)]
 pub mod governed_surface_method_absence_proof {}

@@ -22,6 +22,7 @@
 //! - AC-039b: tampered-artifact verifier seam not yet landed.
 //! - AC-043c: full-mode page-corruption fixture not exposed to CLI tests.
 
+use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -29,6 +30,9 @@ use fathomdb::{Engine, PreparedWrite};
 use fathomdb_cli::exit_code;
 use serde_json::Value;
 use tempfile::TempDir;
+
+#[path = "../../fathomdb-engine/tests/support/corruption.rs"]
+mod corruption;
 
 fn fathomdb() -> Command {
     Command::new(env!("CARGO_BIN_EXE_fathomdb"))
@@ -411,11 +415,112 @@ fn t_058_recover_truncate_wal_with_accept_data_loss_succeeds() {
         run_json(&["recover", "--accept-data-loss", "--truncate-wal", db.to_str().unwrap()]);
     assert_eq!(code, Some(exit_code::RECOVERY_ACCEPTED_LOSS));
     assert_eq!(parsed.get("verb").and_then(Value::as_str), Some("truncate-wal"));
-    let status = parsed.get("status").and_then(Value::as_str).expect("status");
-    assert!(status == "done" || status == "busy", "status must be done|busy; got {status}");
+    assert_eq!(parsed.get("status").and_then(Value::as_str), Some("done"));
+    assert_eq!(parsed.get("discarded_corrupt_wal").and_then(Value::as_bool), Some(false));
     assert!(parsed.get("busy").and_then(Value::as_u64).is_some());
     assert!(parsed.get("log_frames").and_then(Value::as_u64).is_some());
     assert!(parsed.get("checkpointed_frames").and_then(Value::as_u64).is_some());
+    drop(dir);
+}
+
+#[test]
+fn malformed_wal_recovery_is_reachable_after_accept_data_loss() {
+    let (dir, db) = seeded_db();
+    corruption::corrupt_wal_invalid_page_size(&db);
+    let error = Engine::open(&db).expect_err("public open remains fail-closed");
+    assert!(matches!(
+        error,
+        fathomdb::EngineOpenError::Corruption(ref detail)
+            if detail.kind == fathomdb::CorruptionKind::WalReplayFailure
+    ));
+
+    let (code, parsed) =
+        run_json(&["recover", "--accept-data-loss", "--truncate-wal", db.to_str().unwrap()]);
+    assert_eq!(code, Some(exit_code::RECOVERY_ACCEPTED_LOSS));
+    assert_eq!(parsed.get("verb").and_then(Value::as_str), Some("truncate-wal"));
+    assert_eq!(parsed.get("status").and_then(Value::as_str), Some("done"));
+    assert_eq!(parsed.get("discarded_corrupt_wal").and_then(Value::as_bool), Some(true));
+
+    let reopened = Engine::open(&db).expect("recovery makes base database openable");
+    reopened.engine.close().expect("close reopened engine");
+    drop(dir);
+}
+
+#[test]
+fn malformed_wal_without_acceptance_is_byte_unchanged() {
+    let (dir, db) = seeded_db();
+    corruption::corrupt_wal_invalid_page_size(&db);
+    let wal = corruption::wal_sidecar_path(&db);
+    let before = fs::read(&wal).expect("read malformed WAL");
+
+    let output = fathomdb()
+        .args(["recover", "--truncate-wal", db.to_str().unwrap()])
+        .output()
+        .expect("spawn");
+    assert_eq!(output.status.code(), Some(exit_code::UNRECOVERABLE));
+    assert_eq!(fs::read(&wal).expect("reread malformed WAL"), before);
+    drop(dir);
+}
+
+#[test]
+fn busy_truncate_wal_is_retryable_not_accepted_loss() {
+    let dir = TempDir::new().expect("tempdir");
+    let db = dir.path().join("busy-recovery.sqlite");
+    let opened = Engine::open(&db).expect("open writer");
+    let reader = rusqlite::Connection::open(&db).expect("open external reader");
+    reader
+        .execute_batch("BEGIN DEFERRED; SELECT COUNT(*) FROM canonical_nodes;")
+        .expect("pin reader snapshot");
+    opened
+        .engine
+        .write(&[PreparedWrite::Node {
+            kind: "doc".into(),
+            body: "busy WAL frame".into(),
+            source_id: fathomdb::SourceId::new("test:busy").expect("source id"),
+            logical_id: None,
+            state: fathomdb::InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }])
+        .expect("write after reader snapshot");
+    opened.engine.close().expect("release product lock");
+
+    let (code, parsed) =
+        run_json(&["recover", "--accept-data-loss", "--truncate-wal", db.to_str().unwrap()]);
+    assert_eq!(code, Some(exit_code::LOCK_HELD));
+    assert_eq!(parsed.get("status").and_then(Value::as_str), Some("busy"));
+    assert_eq!(parsed.get("discarded_corrupt_wal").and_then(Value::as_bool), Some(false));
+    reader.execute_batch("ROLLBACK").expect("release reader snapshot");
+}
+
+#[test]
+fn malformed_header_safe_export_is_fail_closed_without_artifacts() {
+    let (dir, db) = seeded_db();
+    corruption::corrupt_database_header(&db);
+    let before = fs::read(&db).expect("read corrupt database");
+    let out = dir.path().join("should-not-exist.sqlite");
+    let manifest = dir.path().join("should-not-exist.manifest.json");
+
+    let output = fathomdb()
+        .args([
+            "doctor",
+            "safe-export",
+            out.to_str().unwrap(),
+            "--manifest",
+            manifest.to_str().unwrap(),
+            db.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .expect("spawn");
+    assert_eq!(output.status.code(), Some(exit_code::UNRECOVERABLE));
+    let parsed: Value = serde_json::from_slice(&output.stdout).expect("JSON error envelope");
+    assert_eq!(parsed.get("verb").and_then(Value::as_str), Some("safe-export"));
+    assert_eq!(parsed.get("code").and_then(Value::as_str), Some("E_CORRUPT_HEADER"));
+    assert_eq!(fs::read(&db).expect("reread corrupt database"), before);
+    assert!(!out.exists());
+    assert!(!manifest.exists());
     drop(dir);
 }
 

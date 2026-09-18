@@ -44,6 +44,8 @@ The live hit-provenance enum has four values:
 - `TextEdge` — edge-body text or vector-projected edge-fact candidates; and
 - `GraphArm` — nodes contributed by the optional bounded search graph arm.
 
+## Soft-fallback signal
+
 The soft-fallback record is narrower than hit provenance. It reports only a
 nonessential `Vector` or `Text` branch that could not contribute; total request
 failure remains a typed error. `TextEdge` and `GraphArm` identify returned hit

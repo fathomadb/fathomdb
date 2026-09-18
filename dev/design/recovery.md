@@ -49,6 +49,13 @@ The current doctor inventory has 15 commands.
 | Artifact/cache work | `safe-export`, `warm-cache` | Write an explicit export/manifest or populate the verified model cache; neither is a product-database recovery mutation. |
 | Non-lossy derived maintenance | `recompute-mean` | Atomically recompute the stored mean from retained uncentered vectors and recreate/requantize derived vector rows. |
 
+### Doctor-only flags
+
+`doctor check-integrity` accepts `quick`, `full`, and `round-trip` request
+flags. The first and third preserve the default bounded check selection;
+`full` additionally activates SQLite's full integrity check. These flags do not
+enable open-time integrity work or recovery mutation.
+
 `data-plane-integrity` is the only command described as an immutable out-of-
 process database inspection. It refuses live-lock, WAL/rollback-recovery, schema
 mismatch, invalid bound, and integrity states with its typed envelope and emits
@@ -100,13 +107,13 @@ write/projection coordination. Erasure may durably remove governed rows and
 then return a typed WAL-checkpoint-incomplete outcome; the deletion result and
 at-rest checkpoint guarantee are distinct and remain fail-closed.
 
-## Machine-readable output
+## JSON shapes for other doctor verbs
 
 `--json` selects the normative machine-readable representation. Every current
-doctor command emits exactly one JSON object. Every current recovery action
-also emits exactly one JSON object; success exits with the accepted-loss class
-`64`. Recovery output is not an NDJSON progress stream in the current
-implementation.
+doctor command emits exactly one JSON object when `--json` is selected. Every
+current recovery action also emits exactly one JSON object in its current
+machine-readable path; success exits with the accepted-loss class `64`.
+Recovery output is not an NDJSON progress stream in the current implementation.
 
 Stable exit classes are:
 
@@ -128,6 +135,8 @@ versioned report/error envelope. Exact fields remain interface-owned.
 Doctor findings are a separate report surface and need not have a one-to-one
 `CorruptionKind` or `OpenStage` variant. In particular,
 `E_CORRUPT_INTEGRITY_CHECK` is a doctor-full finding, not an open-stage enum.
+
+## Code-to-operator-action cross-reference
 
 Open-path recovery hints continue to map stable corruption codes to operator
 actions:

@@ -41,6 +41,26 @@ bundle was committed as `3f23ca59` before implementation.
 The same claim families were rerun after the rewrite, with positive probes for
 the current profile and inverse probes for stale claims:
 
+```bash
+check_present() { rg -q "$2" "$3"; }
+check_absent() { ! rg -q "$2" "$3"; }
+
+check_present retrieval-current-profile '^target_release: 0\.8\.26$' dev/design/retrieval.md
+check_present retrieval-cross-encoder 'Cross-encoder reranking|cross-encoder reranking' dev/design/retrieval.md
+check_present recovery-current-profile '^target_release: 0\.8\.26$' dev/design/recovery.md
+check_present recovery-full-inventory 'orphan-provenance' dev/design/recovery.md
+check_present engine-current-profile '^target_release: 0\.8\.26$' dev/design/engine.md
+check_present engine-projection-gate 'commit_gate' dev/design/engine.md
+check_present engine-shared-vector 'vector_default' dev/design/engine.md
+check_absent retrieval-no-deferred-rerank '`rerank` is deferred' dev/design/retrieval.md
+check_absent recovery-no-stream-fiction 'progress stream plus terminal summary' dev/design/recovery.md
+check_absent engine-no-kind-identity 'per kind\.' dev/design/engine.md
+check_absent engine-no-restore 'restore_logical_id' dev/design/engine.md
+check_absent engine-no-single-batch-cursor \
+  'One write cursor `c_w` is allocated for the committed batch as a whole' \
+  dev/design/engine.md
+```
+
 ```text
 GREEN present retrieval-current-profile
 GREEN present retrieval-cross-encoder
@@ -79,3 +99,20 @@ FAIL lint-design-status: legacy count is now 43, ceiling is 46 — lower
 After that required one-line guard adjustment, `agent-lint-md.sh` passed.
 Design lifecycle, its regression fixture, release-state views, and product-code
 diff checks also passed before independent content review.
+
+## Independent-review RED
+
+The first independent implementation review returned CHANGES REQUESTED. Its
+focused source comparison found:
+
+- fresh bootstrap reports schema construction steps, while only a current
+  reopen reports an empty `migration_steps` list;
+- active source/tests still link six headings removed by the initial rewrite;
+- JSON-object wording needed to be scoped to `--json`; and
+- CLI recovery opens through the public fail-closed path before invoking its
+  action, making the malformed-WAL recovery hint unreachable.
+
+The first three documentation defects are corrected in the follow-up diff. The
+last is a product reachability defect and remains a plan stop gate pending
+explicit scope authorization; no runtime test or implementation has been
+altered to conceal it.

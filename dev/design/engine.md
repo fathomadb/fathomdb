@@ -43,12 +43,13 @@ the boundaries in [`recovery.md`](recovery.md).
 ## `Engine.open` success result
 
 Open returns a live engine plus an `OpenReport`. The report includes schema
-before/after facts, migration-step reporting (empty for a current/fresh
-0.8.26 public open), embedder warmup timing, and current startup events.
+before/after facts, migration-step reporting (the schema construction steps on
+a fresh bootstrap and an empty list when reopening a current database),
+embedder warmup timing, and current startup events.
 Interface documents own binding access and casing; migration and embedder
 designs own the meaning of their report fields.
 
-## Connection topology and serialization
+## Writer / reader split
 
 The live engine has three connection roles:
 
@@ -158,13 +159,22 @@ public knob requires all supported bindings in the same slice. Configuration
 does not select a legacy schema, enable automatic recovery, supply vector
 identity strings, or expose raw SQL.
 
-## `Engine.close` shutdown protocol
+## Close path
 
-Close is explicit, idempotent, and bounded. It stops accepting work, drains or
-cancels owned queues according to their lifecycle contracts, joins projection
-and reader workers, releases connections and registrations, and releases the
-sidecar lock last. Concurrent operations observe the typed closing state rather
-than using torn-down resources.
+`Engine.close` is explicit, idempotent, and bounded. Its order is:
+
+1. mark the engine closed so new operations observe the typed closing state;
+2. stop and join the projection runtime;
+3. shut down and join reader workers after they uninstall their profile
+   callbacks and release their connections;
+4. uninstall the primary profile callback and release the primary connection;
+5. release test-only connection registration and clear profile callback
+   contexts; and
+6. release the sidecar admission lock last.
+
+Step 6 is load-bearing: readers drain before the primary writer connection so
+SQLite's last-handle checkpointer runs on that connection, and the admission
+lock remains held until every owned SQLite resource is gone.
 
 Drop/finalizer paths are best-effort safety nets and must not panic. Bindings
 preserve bounded process exit even when application code omits an explicit

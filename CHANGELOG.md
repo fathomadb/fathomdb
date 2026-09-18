@@ -10,8 +10,8 @@ AC-050c) gates merges against this invariant.
 
 ## 0.8.26 — Unreleased
 
-**Publication status: in development.** This pre-1.0 release is breaking and
-supports fresh databases only.
+**Publication status: release candidate; publication is not authorized.** This
+pre-1.0 release is breaking and supports fresh databases only.
 
 ### Added
 
@@ -19,6 +19,27 @@ supports fresh databases only.
   positional sidecar for each selected target and winning terminal edge;
   `resolve_graph_evidence` / `resolveGraphEvidence` resolves those opaque,
   authenticated references to the exact artifact and canonical source bytes.
+- A version-matched, read-only operator integrity route with fail-closed WAL
+  handling and explicit malformed-WAL recovery acknowledgement.
+- Executable parity checks over all 44 canonical operations exposed through
+  the governed Python and TypeScript SDK surfaces.
+
+### Changed
+
+- V1 actuation now commits caller-decided derived edges atomically against the
+  complete prospective batch state and returns the corresponding compact
+  receipt evidence.
+- Schema version 34 is fresh-database-only. Opening an earlier FathomDB schema
+  is refused before mutation; 0.8.26 provides no database migration or
+  historical request, receipt, replay, integrity, or operation-ID compatibility.
+- Maintained architecture and technical-design ownership now follows one
+  machine-checked current-owner authority topology.
+
+### Fixed
+
+- Frozen explanations retain valid correlation identity through finalization.
+- Operator malformed-WAL recovery is reachable without weakening the public
+  open boundary or mutating database, WAL, or SHM files on preflight refusal.
 
 ### Removed
 

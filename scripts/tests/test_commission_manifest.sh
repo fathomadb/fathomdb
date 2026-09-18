@@ -680,6 +680,35 @@ else
   fail "arm 8c2 (complete ladder): rc=$RC out=$OUT"
 fi
 
+# A release may complete truthfully on its pushed release branch before the
+# separately authorized main integration. In that state the ladder rows are
+# COMPLETE_ON_RELEASE_BRANCH and `landed` remains empty because LANDED is an
+# origin/main reachability claim. The always-on sweep must accept this exact
+# completion shape instead of forcing the state file to lie before integration.
+setup_fixture
+mutate_state "L[10]['status'] = 'COMPLETE_ON_RELEASE_BRANCH'; L[10]['sha'] = 'dddd5555'
+L[30]['status'] = 'COMPLETE_ON_RELEASE_BRANCH'; L[30]['sha'] = 'eeee6666'
+L[0]['status'] = 'COMPLETE_ON_RELEASE_BRANCH'
+L[5]['status'] = 'COMPLETE_ON_RELEASE_BRANCH'
+s['landed'] = []; s['next_slice'] = None; s['remaining_ladder'] = []
+s['completion'] = {'ref': 'origin/release/9.9.9', 'main_integration': 'PENDING'}"
+run_gen --verify-all
+if [ "$RC" -eq 0 ] && grep -q 'complete on release branch' <<<"$OUT"; then
+  pass "--verify-all accepts exact pushed-release-branch completion before main integration"
+else
+  fail "arm 8c2c (release-branch complete): rc=$RC out=$OUT"
+fi
+
+# The exception is exact, not a generic bypass for non-LANDED rows. A wrong
+# release ref cannot establish which durable remote branch carries the work.
+mutate_state "s['completion']['ref'] = 'origin/release/WRONG'"
+run_gen --verify-all
+if [ "$RC" -ne 0 ] && grep -qi 'not fully landed\|completion' <<<"$OUT"; then
+  pass "--verify-all rejects release-branch completion with the wrong durable ref"
+else
+  fail "arm 8c2d (wrong completion ref): rc=$RC out=$OUT"
+fi
+
 # The converse is load-bearing: null is not a license to skip an unfinished
 # ladder. A remaining entry must turn the always-on sweep red.
 setup_fixture

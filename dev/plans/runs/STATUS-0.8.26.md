@@ -35,8 +35,9 @@ independent design/code/candidate verification passed.
 
 ## Immediate next action
 
-Integrate `origin/release/0.8.26` into `origin/main` through the separately
-authorized release workflow. Do not tag or publish from this completion record.
+| | |
+|---|---|
+| **Immediate next action** | Execute the owner-authorized non-publishing release closeout: reconcile the release records, integrate `origin/release/0.8.26` into `origin/main`, and pass the required hosted CI workflows. Do not create or push `v0.8.26`, publish packages, mutate registries, or run post-publication claims without a later explicit authorization. |
 
 ## Open decisions
 
@@ -51,8 +52,9 @@ V1 graph-evidence sidecar under frozen authority.
 - Scope stays narrow around the selected Memex needs.
 - The reopened ladder changes conformance tooling and maintained design
   authority; runtime product changes require separate explicit scope.
-- Tagging, publication, registry mutation, and main integration require
-  separate authorization.
+- Main integration and hosted CI are authorized by the repository owner on
+  2026-09-18. Tagging, publication, registry mutation, and post-publication
+  claims remain unauthorized.
 
 ## Verification
 

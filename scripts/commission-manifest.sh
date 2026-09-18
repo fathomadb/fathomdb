@@ -1207,16 +1207,35 @@ if MODE == "verify-all":
                 die(["FAIL commission-manifest: `%s` declares end-of-ladder (`next_slice: null`) "
                      "but does not carry a list ladder + landed set and `remaining_ladder: []`."
                      % sp])
+            completion = state.get("completion")
+            branch_ref = "origin/release/%s" % rel
+            pending_branch_completion = (
+                isinstance(completion, dict)
+                and completion.get("ref") == branch_ref
+                and completion.get("main_integration") == "PENDING"
+                and set(completion) == {"ref", "main_integration"}
+            )
+            accepted_statuses = (
+                {"LANDED", "COMPLETE_ON_RELEASE_BRANCH"}
+                if pending_branch_completion else {"LANDED"}
+            )
             incomplete = [e.get("slice") for e in ladder
-                          if not isinstance(e, dict) or e.get("status") != "LANDED"]
+                          if not isinstance(e, dict)
+                          or e.get("status") not in accepted_statuses]
             missing = [e.get("slice") for e in ladder
-                       if isinstance(e, dict) and e.get("slice") not in landed]
+                       if isinstance(e, dict)
+                       and e.get("status") == "LANDED"
+                       and e.get("slice") not in landed]
             if incomplete or missing:
                 die(["FAIL commission-manifest: `%s` declares end-of-ladder but its ladder is "
                      "not fully landed (non-LANDED=%s; absent-from-landed=%s)."
                      % (sp, incomplete or "none", missing or "none")])
-            print("commission-manifest: %s complete ladder — no next-slice manifest to verify."
-                  % rel)
+            if pending_branch_completion:
+                print("commission-manifest: %s complete on release branch; origin/main "
+                      "integration pending — no next-slice manifest to verify." % rel)
+            else:
+                print("commission-manifest: %s complete ladder — no next-slice manifest to verify."
+                      % rel)
             continue
         sl, entry, m, paths_ok, anchors_ok = generate(rel, "next")
         print("commission-manifest: %s next slice %s (%s) — %d path(s) and %d anchor(s) verified."

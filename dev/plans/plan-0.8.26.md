@@ -98,16 +98,16 @@ fix depends on built product artifacts or belongs at the release boundary.
 | 9 | Implement only HITL-approved repository preparation under the reviewed Slice 9 plan. | 8 | Complete on release branch at `ded6c72f` |
 | 10 | Repair frozen explanation, complete public guidance, and add the installed-artifact conformance witness. | 9 | Complete on release branch at `c2795caf` |
 | 15 | Run the bounded graph-evidence performance and erasure-linearization implementation spike; accept or narrow the Slice 20 design. | 10 | Complete on release branch; opt-in V1 sidecar selected at `seq-290` |
-| 20 | Add immutable-revision graph-target and terminal-edge evidence resolution under frozen authority. | 15 | Complete on release branch at `c0a567d5` |
+| 20 | Add immutable-revision graph-target and terminal-edge evidence resolution under frozen authority. | 15 | Complete on release branch at `d335ae9a` |
 | 30 | Qualify and harden the existing versioned read-only operator integrity inspection route. | 20 | Complete on release branch at `6d80e7a8` |
 | 35 | Prove the breaking changed-in-place V1 actuation, fresh-database, receipt, and performance contract; accept or narrow the Slice 40 design. | 30 | Complete on release branch at `9a81a75c` |
 | 40 | Extend V1 actuation in place with the accepted atomic derived-edge contract and fresh-database boundary. | 35 | Complete on release branch at `bfb2132b` |
 | 45 | Reconcile maintained architecture documentation with accepted decisions, public contracts, and the as-built 0.8.26 system. | 40 | Complete on release branch at `6f68e2fd` |
 | 46 | Reconcile and organize maintained technical design documentation under the Slice 45 architecture hierarchy. | 45 | Complete on release branch at `6d952c9c` after release-wide review and full-gate remediation |
 | 50 | Run integrated Memex-profile, cross-SDK, platform, package, documentation, and non-publishing release verification. | 46 | Complete on release branch at `68514f70`; superseded as the final candidate by the reopened ladder |
-| 55 | Replace subset surface checks with an executable canonical-operation Python/TypeScript parity oracle. | 50 | Next |
-| 60 | Reconcile the maintained retrieval, recovery, and engine owners against one code-grounded authority matrix, then back-check earlier owner and SDK artifacts. | 55 | Draft |
-| 65 | Enforce maintained-owner authority topology, reconcile error ownership, rerun affected earlier proofs, and bind the replacement exact candidate. | 60 | Draft |
+| 55 | Replace subset surface checks with an executable canonical-operation Python/TypeScript parity oracle. | 50 | Complete on release branch at `a5859cd9` |
+| 60 | Reconcile the maintained retrieval, recovery, and engine owners against one code-grounded authority matrix, then back-check earlier owner and SDK artifacts. | 55 | Complete on release branch at `173c49cb` |
+| 65 | Enforce maintained-owner authority topology, reconcile error ownership, rerun affected earlier proofs, and bind the replacement exact candidate. | 60 | Complete on release branch at `8ffb3486`; closeout at `cad95b4d` |
 
 ## Requirements and acceptance criteria
 
@@ -158,9 +158,10 @@ if their design is discussed.
 
 ## Immediate next slice — release ladder complete
 
-All planned slices are complete on `origin/release/0.8.26`; integration to
-`origin/main` is pending. Publication and post-publication verification remain
-separate and unauthorized.
+All planned slices are complete on `origin/release/0.8.26`. The repository
+owner authorized release-record reconciliation, `origin/main` integration, and
+hosted CI workflows on 2026-09-18. Tags, registry publication, and
+post-publication verification remain separate and unauthorized.
 
 D26-01 was ruled at `seq-290` and implemented by Slice 20. Slice 30 completed
 the selected existing-CLI integrity route without a prebuilt fallback. Slice

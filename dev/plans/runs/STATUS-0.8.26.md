@@ -11,7 +11,8 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 65 (LIFECYCLE-GATE), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
+The complete 0.8.26 ladder is recorded on `origin/release/0.8.26`; integration
+to `origin/main` is pending.
 
 Slices 0–10, 15, 20, 30, 35, 40, 45, 46, 50, 55, and 60 are complete on the
 0.8.26 release line. Slice 50 bound candidate `68514f70`, local package
@@ -25,16 +26,17 @@ rerank boundary defects through committed RED/GREEN remediation and a fresh
 117/117 gate. Slice 60 reconciled the retrieval, recovery, and engine owners and
 made explicitly acknowledged malformed-WAL recovery reachable through a
 fail-closed operator-only seam. Independent design/code review and verification
-passed, including the strict-security 117/117 canonical gate. The ladder remains
-open only for Slice 65; Slice 50 remains historical evidence but is no longer
-the final integration candidate.
+passed, including the strict-security 117/117 canonical gate. Slice 65 now
+enforces current-owner authority for all 25 maintained designs, preserves the
+69-token/44-operation parity contract, and binds replacement candidate
+`8ffb3486`. Its strict-security 118/118 local gate, fresh wheel/npm/CLI profiles,
+both Gitleaks scans, five native platform jobs, Windows WAL attribution, and
+independent design/code/candidate verification passed.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 65 (LIFECYCLE-GATE)** — semantic ownership recurrence guards and candidate requalification. **Remaining ladder:** 65.<!-- END GENERATED release-state:0.8.26:status-next-action -->
-
-Do not integrate, tag, or publish until Slice 65 records a replacement exact
-candidate and restores the completion claim.
+Integrate `origin/release/0.8.26` into `origin/main` through the separately
+authorized release workflow. Do not tag or publish from this completion record.
 
 ## Open decisions
 

@@ -156,18 +156,17 @@ platform, dependency, evidence-manifest, multi-source, liveness, and broad-batch
 items must be re-evaluated. Priority 3+ Memex items remain outside 0.8.26 even
 if their design is discussed.
 
-## Immediate next slice
+## Immediate next slice — release ladder complete
 
-<!-- BEGIN GENERATED release-state:0.8.26:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 65** (`LIFECYCLE-GATE`) — semantic ownership recurrence guards and candidate requalification
-
-**Remaining ladder:** 65.<!-- END GENERATED release-state:0.8.26:plan-immediate-next -->
+All planned slices are complete on `origin/release/0.8.26`; integration to
+`origin/main` is pending. Publication and post-publication verification remain
+separate and unauthorized.
 
 D26-01 was ruled at `seq-290` and implemented by Slice 20. Slice 30 completed
 the selected existing-CLI integrity route without a prebuilt fallback. Slice
-50 remains historical evidence for candidate `68514f70`, but it is no longer
-the integration candidate after the ladder reopened. Do not integrate, tag, or
-publish before Slice 65 binds the replacement exact candidate.
+50 remains historical evidence for candidate `68514f70`; Slice 65 binds the
+replacement exact candidate `8ffb3486`. Do not publish or begin feature work
+outside the completed release ladder.
 
 ## Stop gates
 

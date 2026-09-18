@@ -1,7 +1,7 @@
 ---
 title: FathomDB 0.8.26 Slice 65 — independent design review
-status: REMEDIATED_PENDING_SECOND_REREVIEW
-reviewed_tip: 0485c34a
+status: REMEDIATED_PENDING_FINAL_REREVIEW
+reviewed_tip: 35328d2b
 ---
 
 # Slice 65 independent design review
@@ -49,3 +49,16 @@ substitute only observed tool versions and candidate-owned paths; it cannot
 change command semantics.
 
 Implementation remains paused pending a second rereview.
+
+## Second rereview
+
+The reviewer confirmed the prior reproducibility P2 resolved, but found one P1:
+the npm tarball recorded in the candidate manifest was not the tarball exercised
+by the local native-artifact smoke helper. The candidate template now stages the
+main and matched platform packages, applies the publish-time optional-dependency
+injection, packs both exact artifacts into the evidence directory, installs
+those exact tarballs into an isolated consumer, and opens/closes an engine from
+that installation. The manifest binds the same `npm_tarball` path; the later
+artifact lookup cannot replace it with the platform tarball.
+
+Implementation remains paused pending final rereview of this binding.

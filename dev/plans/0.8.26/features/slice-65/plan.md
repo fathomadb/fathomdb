@@ -165,9 +165,12 @@ candidate_sha="$(git rev-parse HEAD)"
 evidence_root="/tmp/fathomdb-slice65-$candidate_sha"
 wheel_dir="$evidence_root/python-dist"
 npm_dir="$evidence_root/npm-dist"
+npm_stage="$evidence_root/npm-stage"
+npm_consumer="$evidence_root/npm-consumer"
 napi_label="linux-x64-gnu"
 python_bin="python3.12"
-mkdir -p "$wheel_dir" "$npm_dir" "$evidence_root/ci"
+mkdir -p "$wheel_dir" "$npm_dir" "$npm_stage/main" \
+  "$npm_stage/platforms/$napi_label" "$npm_consumer" "$evidence_root/ci"
 
 (
   cd src/python
@@ -179,7 +182,41 @@ mkdir -p "$wheel_dir" "$npm_dir" "$evidence_root/ci"
   npm ci
   npm run build:native
   npm exec -- tsc -p tsconfig.build.json
-  npm pack --pack-destination "$npm_dir"
+)
+cp src/ts/package.json src/ts/LICENSE "$npm_stage/main/"
+cp -R src/ts/dist "$npm_stage/main/dist"
+cp "src/ts/npm/$napi_label/package.json" \
+  "src/ts/npm/$napi_label/LICENSE" "$npm_stage/platforms/$napi_label/"
+cp "src/ts/fathomdb.$napi_label.node" "$npm_stage/platforms/$napi_label/"
+bash scripts/release/npm-inject-optional-deps.sh \
+  "$npm_stage/main" "$npm_stage/platforms"
+(cd "$npm_stage/platforms/$napi_label" && \
+  npm pack --pack-destination "$npm_dir")
+(cd "$npm_stage/main" && npm pack --pack-destination "$npm_dir")
+npm_tarball="$(find "$npm_dir" -maxdepth 1 -type f \
+  -name 'fathomdb-0.8.26.tgz' -print -quit)"
+npm_platform_tarball="$(find "$npm_dir" -maxdepth 1 -type f \
+  -name 'fathomdb-linux-x64-gnu-0.8.26.tgz' -print -quit)"
+test -n "$npm_tarball" && test -n "$npm_platform_tarball"
+node - "$npm_consumer/package.json" "$npm_tarball" \
+  "$npm_platform_tarball" <<'JS'
+const fs = require("node:fs");
+const [output, main, platform] = process.argv.slice(2);
+fs.writeFileSync(output, JSON.stringify({
+  private: true,
+  type: "module",
+  dependencies: {
+    fathomdb: `file:${main}`,
+    "fathomdb-linux-x64-gnu": `file:${platform}`,
+  },
+}));
+JS
+(
+  cd "$npm_consumer"
+  npm install --offline --ignore-scripts
+  node --input-type=module -e \
+    'import { Engine } from "fathomdb"; const engine = await Engine.open(process.argv[1], { useDefaultEmbedder: false }); await engine.close(); console.log("exact candidate npm tarball: pass");' \
+    "$evidence_root/npm-smoke.fathom"
 )
 cargo build -p fathomdb-cli --release
 cp target/release/fathomdb "$evidence_root/fathomdb"
@@ -224,7 +261,6 @@ gh run download "$run_id" -p 'slice65-windows-wal-attribution-*' \
   -D "$evidence_root/ci/wal"
 
 wheel="$(find "$wheel_dir" -maxdepth 1 -type f -name '*.whl' -print -quit)"
-npm_tarball="$(find "$npm_dir" -maxdepth 1 -type f -name '*.tgz' -print -quit)"
 native_matrix="$(find "$evidence_root/ci/native" -type f \
   -name 'native-artifact-matrix.json' -print -quit)"
 windows_wal="$(find "$evidence_root/ci/wal" -type f \

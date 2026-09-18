@@ -163,9 +163,32 @@ refusal complete the three-way schema-cookie boundary.
 The proportional GREEN matrix was:
 
 ```text
-fathomdb-engine --features operator --test truncate_wal: 13 passed
+fathomdb-engine --features operator --test truncate_wal: 15 passed
 fathomdb-engine --test durability_open_path: 13 passed, 1 ignored
 fathomdb-cli --test recovery_cli: 16 passed, 7 pre-existing ignored
 fathomdb --features operator --test governed_surface: 4 passed
 fathomdb --no-default-features --doc: 5 passed
 ```
+
+## Adversarial-review RED/GREEN
+
+Independent code review then found two additional admission hazards. First, an
+unrelated SQLite database could counterfeit currency by setting
+`user_version = 34`; with a malformed WAL, the initial implementation reported
+successful discard even though normal FathomDB open still rejected the schema.
+Second, SQLite's read-only effective-view probe changed transient SHM bytes when
+it refused a healthy WAL whose effective schema was noncurrent. Focused tests
+made both findings RED while proving database/WAL preservation.
+
+GREEN reuses current open-time dependency, frozen-read, and dependency-closure
+schema invariants before any read/write recovery connection. Healthy-WAL
+preflight now snapshots SHM and restores it on refusal, matching normal
+admission's byte-preserving behavior. The final recovery connection uses
+`mode=rw` without create permission, closing the validation-to-open file-
+disappearance window. A follow-up design review required explicit coverage for
+the healthy-WAL effective-invariant branch; a schema-33 main plus schema-34 WAL
+that removes a required frozen-read trigger now proves `SchemaInconsistent`
+refusal and exact database/WAL/SHM preservation. The focused engine suite
+passes 15/15 with a real
+schema-34 database for both pending-current success and effective-noncurrent
+refusal.

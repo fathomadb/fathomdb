@@ -32,6 +32,7 @@ use serde_json::Value;
 use tempfile::TempDir;
 
 #[path = "../../fathomdb-engine/tests/support/corruption.rs"]
+#[allow(dead_code)]
 mod corruption;
 
 fn fathomdb() -> Command {

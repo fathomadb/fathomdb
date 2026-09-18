@@ -131,7 +131,7 @@ Out of scope:
 | R26-60H: verification | AC26-60H: design lifecycle/reference/authority checks, Markdown/link/docs checks, focused source comparisons, product-code diff checks, and `agent-verify` pass; an independent verifier reruns proportional evidence. |
 | R26-60I: corruption-safe WAL recovery reachability | AC26-60I: public open still refuses the malformed-WAL fixture; acknowledged `recover --truncate-wal` invokes the exact operator-feature function signature above, reacquires the canonical lock, validates the main database independently, reclassifies the WAL under that lock, lets SQLite perform the destructive recovery/checkpoint, reports `discarded_corrupt_wal: true` only when malformed classification and `Done` coincide, releases the lock, and permits a subsequent normal open. The operator contract is documented in `interfaces/rust.md`, `interfaces/cli.md`, and `design/recovery.md`. |
 | R26-60J: truthful header-corruption direction | AC26-60J: malformed-header `doctor safe-export` remains a fail-closed corruption result, changes no source bytes, creates no successful artifact/manifest, and the recovery owner directs preservation plus external forensic/SQLite recovery instead of claiming the logical export is reachable. Clean safe-export behavior remains unchanged. |
-| R26-60K: isolation and regression boundary | AC26-60K: concurrent ownership and a busy SQLite checkpoint use retryable exit 71; nonempty rollback journal, missing/zero-length, effectively noncurrent, main-corrupt, or malformed-WAL-plus-noncurrent-standalone-main inputs use unrecoverable exit 70; none claims recovery or changes protected bytes. A healthy WAL carrying the current schema cookie over an older standalone main is admissible. No recovery path becomes default-SDK reachable, other actions keep generic admitted-Engine dispatch, and focused CLI/engine tests plus the canonical gate pass. |
+| R26-60K: isolation and regression boundary | AC26-60K: concurrent ownership and a busy SQLite checkpoint use retryable exit 71 and never claim successful corrupt-WAL discard; SQLite may partially checkpoint before reporting `Busy`. Nonempty rollback journal, missing/zero-length, effectively noncurrent, main-corrupt, counterfeit-current-schema, malformed-WAL-plus-noncurrent-standalone-main, or current-cookie-plus-invalid-Fathom-invariant preflight inputs use unrecoverable exit 70, claim no recovery, and preserve protected database/WAL/SHM bytes. A healthy WAL carrying the current schema cookie over an older standalone main is admissible only when the effective view satisfies current Fathom schema invariants. No recovery path becomes default-SDK reachable, other actions keep generic admitted-Engine dispatch, and focused CLI/engine tests plus the canonical gate pass. |
 
 ## TDD implementation sequence
 
@@ -149,12 +149,14 @@ Out of scope:
    hinted malformed-WAL and malformed-header actions from being reached.
 5. RECOVERY RED: add focused engine and CLI tests for malformed-WAL refusal,
    acknowledged SQLite discard/reopen, lock-held/rollback-journal/invalid-path
-   refusal, busy exit mapping, and malformed-header safe-export refusal; run
-   them before product code.
+   refusal, counterfeit schema, refusal-path database/WAL/SHM preservation,
+   busy exit mapping, and malformed-header safe-export refusal; run them before
+   product code.
 6. RECOVERY GREEN: add only the operator-feature WAL path entry point and
    special CLI dispatch required by those tests. Do not weaken public open,
-   mutate sidecars directly, or route export/rebuild/excision through the
-   bypass.
+   mutate the WAL directly or destructively alter sidecars, or route export/
+   rebuild/excision through the bypass; direct SHM handling is limited to
+   restoring the refusal-path preflight snapshot.
 7. Cross-read the owners and compare the exact CLI enum/actions and Slice 55
    operation map. Amend only facts made inconsistent by that pass.
 8. Obtain independent content/code review. Preserve a focused RED witness for

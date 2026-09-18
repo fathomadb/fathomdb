@@ -11,6 +11,7 @@ use rusqlite::{config::DbConfig, Connection};
 use tempfile::TempDir;
 
 #[path = "support/corruption.rs"]
+#[allow(dead_code)]
 mod corruption;
 
 fn seed(path: &std::path::Path) {
@@ -22,6 +23,14 @@ fn sidecar(path: &std::path::Path, suffix: &str) -> std::path::PathBuf {
     let mut result = path.as_os_str().to_owned();
     result.push(suffix);
     result.into()
+}
+
+fn optional_bytes(path: &std::path::Path) -> Option<Vec<u8>> {
+    match fs::read(path) {
+        Ok(bytes) => Some(bytes),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => panic!("read optional fixture {}: {error}", path.display()),
+    }
 }
 
 fn leave_schema_cookie_in_healthy_wal(path: &std::path::Path, main_version: u32, wal_version: u32) {
@@ -41,6 +50,25 @@ fn leave_schema_cookie_in_healthy_wal(path: &std::path::Path, main_version: u32,
 
     let wal = sidecar(path, "-wal");
     assert!(fs::metadata(wal).expect("healthy WAL remains").len() >= 32);
+}
+
+fn leave_invalid_current_schema_in_healthy_wal(path: &std::path::Path) {
+    let writer = Connection::open(path).expect("open invalid-schema WAL fixture writer");
+    writer.pragma_update(None, "journal_mode", "DELETE").expect("checkpoint fixture main");
+    writer.pragma_update(None, "user_version", 33).expect("set standalone version");
+    writer.execute_batch("VACUUM").expect("persist standalone version");
+    writer.pragma_update(None, "journal_mode", "WAL").expect("enable WAL fixture mode");
+    writer
+        .set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true)
+        .expect("retain invalid schema in WAL");
+    writer
+        .execute_batch(
+            "BEGIN IMMEDIATE;
+             PRAGMA user_version=34;
+             DROP TRIGGER _fathomdb_read_visibility_cn_ai;
+             COMMIT;",
+        )
+        .expect("commit current cookie and invalid invariant to WAL");
 }
 
 #[test]
@@ -182,27 +210,29 @@ fn noncurrent_database_is_refused_without_mutation() {
 fn healthy_wal_pending_current_schema_is_accepted_and_checkpointed() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("pending_current{SQLITE_SUFFIX}"));
-    leave_schema_cookie_in_healthy_wal(&path, 0, 34);
+    seed(&path);
+    leave_schema_cookie_in_healthy_wal(&path, 33, 34);
 
     let report = recover_truncate_wal(&path).expect("effective schema is current");
     assert_eq!(report.status, TruncateWalStatus::Done);
     assert!(!report.discarded_corrupt_wal);
 
-    let connection = Connection::open(&path).expect("open checkpointed database");
-    let seen: u32 = connection
-        .pragma_query_value(None, "user_version", |row| row.get(0))
-        .expect("read checkpointed version");
-    assert_eq!(seen, 34);
+    let reopened = Engine::open(&path).expect("normal open accepts checkpointed database");
+    assert_eq!(reopened.report.schema_version_after, 34);
+    reopened.engine.close().expect("close reopened engine");
 }
 
 #[test]
 fn healthy_wal_effective_noncurrent_schema_refuses_without_mutation() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("pending_noncurrent{SQLITE_SUFFIX}"));
+    seed(&path);
     leave_schema_cookie_in_healthy_wal(&path, 34, 33);
     let wal = sidecar(&path, "-wal");
+    let shm = sidecar(&path, "-shm");
     let database_before = fs::read(&path).expect("read standalone main");
     let wal_before = fs::read(&wal).expect("read healthy noncurrent WAL");
+    let shm_before = optional_bytes(&shm);
 
     let error = recover_truncate_wal(&path).expect_err("effective noncurrent schema must refuse");
     assert!(matches!(
@@ -211,6 +241,32 @@ fn healthy_wal_effective_noncurrent_schema_refuses_without_mutation() {
     ));
     assert_eq!(fs::read(&path).expect("reread standalone main"), database_before);
     assert_eq!(fs::read(&wal).expect("reread healthy noncurrent WAL"), wal_before);
+    assert!(optional_bytes(&shm) == shm_before, "SHM changed on refused recovery");
+}
+
+#[test]
+fn healthy_wal_current_cookie_with_invalid_invariant_refuses_without_mutation() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("pending_invalid_invariant{SQLITE_SUFFIX}"));
+    seed(&path);
+    leave_invalid_current_schema_in_healthy_wal(&path);
+    let wal = sidecar(&path, "-wal");
+    let shm = sidecar(&path, "-shm");
+    let database_before = fs::read(&path).expect("read standalone main");
+    let wal_before = fs::read(&wal).expect("read healthy invalid-schema WAL");
+    let shm_before = optional_bytes(&shm);
+
+    let error = recover_truncate_wal(&path).expect_err("invalid Fathom invariant must refuse");
+    assert!(
+        matches!(
+            error,
+            EngineOpenError::Corruption(ref detail) if detail.kind == CorruptionKind::SchemaInconsistent
+        ),
+        "unexpected refusal: {error:?}"
+    );
+    assert_eq!(fs::read(&path).expect("reread standalone main"), database_before);
+    assert_eq!(fs::read(&wal).expect("reread invalid-schema WAL"), wal_before);
+    assert!(optional_bytes(&shm) == shm_before, "SHM changed on refused recovery");
 }
 
 #[test]
@@ -220,8 +276,8 @@ fn malformed_wal_with_noncurrent_standalone_main_refuses_without_mutation() {
     let connection = Connection::open(&path).expect("create noncurrent main fixture");
     connection.pragma_update(None, "user_version", 33).expect("set noncurrent standalone version");
     drop(connection);
-    corruption::corrupt_wal_invalid_page_size(&path);
     let wal = corruption::wal_sidecar_path(&path);
+    fs::write(&wal, [0u8; 32]).expect("write zeroed malformed WAL header");
     let database_before = fs::read(&path).expect("read noncurrent standalone main");
     let wal_before = fs::read(&wal).expect("read malformed WAL");
 
@@ -231,6 +287,32 @@ fn malformed_wal_with_noncurrent_standalone_main_refuses_without_mutation() {
         EngineOpenError::IncompatibleSchemaVersion { seen: 33, supported: 34 }
     ));
     assert_eq!(fs::read(&path).expect("reread standalone main"), database_before);
+    assert_eq!(fs::read(&wal).expect("reread malformed WAL"), wal_before);
+}
+
+#[test]
+fn counterfeit_current_schema_with_malformed_wal_refuses_without_mutation() {
+    let dir = TempDir::new().unwrap();
+    seed(&dir.path().join(format!("runtime_bootstrap{SQLITE_SUFFIX}")));
+    let path = dir.path().join(format!("counterfeit_current{SQLITE_SUFFIX}"));
+    let connection = Connection::open(&path).expect("create counterfeit current fixture");
+    connection.execute("CREATE TABLE unrelated(value TEXT)", []).expect("create unrelated schema");
+    connection.pragma_update(None, "user_version", 34).expect("stamp counterfeit current version");
+    drop(connection);
+    let wal = corruption::wal_sidecar_path(&path);
+    fs::write(&wal, [0u8; 32]).expect("write zeroed malformed WAL header");
+    let database_before = fs::read(&path).expect("read counterfeit database");
+    let wal_before = fs::read(&wal).expect("read malformed WAL");
+
+    let error = recover_truncate_wal(&path).expect_err("incomplete Fathom schema must refuse");
+    assert!(
+        matches!(
+            error,
+            EngineOpenError::Corruption(ref detail) if detail.kind == CorruptionKind::SchemaInconsistent
+        ),
+        "unexpected refusal: {error:?}"
+    );
+    assert_eq!(fs::read(&path).expect("reread counterfeit database"), database_before);
     assert_eq!(fs::read(&wal).expect("reread malformed WAL"), wal_before);
 }
 

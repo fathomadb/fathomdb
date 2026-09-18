@@ -4172,8 +4172,8 @@ fn immutable_sqlite_uri(path: &Path) -> String {
 /// immutable, read-only connection, and a non-empty rollback journal is always
 /// refused. The canonical product lock is held across validation and the
 /// checkpoint, so a live FathomDB process cannot race the recovery. SQLite owns
-/// every WAL/SHM mutation; this function never removes or rewrites a sidecar
-/// directly.
+/// the destructive WAL checkpoint/discard. A healthy-WAL preflight snapshots
+/// the transient SHM sidecar and restores it if validation refuses recovery.
 ///
 /// `discarded_corrupt_wal` is true only when the locked pre-probe classified
 /// the WAL header as malformed and SQLite subsequently reported a completed
@@ -4234,7 +4234,6 @@ pub fn recover_truncate_wal(
     let main_file_schema_version = validation
         .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
         .map_err(|error| map_open_sqlite_error(error, OpenStage::SchemaProbe))?;
-    drop(validation);
 
     let wal_header = classify_wal_sidecar(&canonical_path)?;
     let malformed_wal = matches!(wal_header, WalSidecarHeader::Malformed { .. });
@@ -4249,6 +4248,10 @@ pub fn recover_truncate_wal(
             supported: SCHEMA_VERSION,
         });
     }
+    if main_file_schema_version == SCHEMA_VERSION {
+        validate_recovery_schema_invariants(&validation, main_file_schema_version)?;
+    }
+    drop(validation);
     if !malformed_wal {
         validate_effective_recovery_schema(&canonical_path)?;
     }
@@ -4257,8 +4260,13 @@ pub fn recover_truncate_wal(
     // has passed. In particular, dropping a read/write connection after a
     // noncurrent effective-schema check could checkpoint a healthy WAL while
     // reporting refusal.
-    let connection = Connection::open(&canonical_path)
-        .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
+    let connection = Connection::open_with_flags(
+        sqlite_uri(&canonical_path, "mode=rw"),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
+            | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+    )
+    .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
     connection
         .busy_timeout(Duration::ZERO)
         .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
@@ -4293,26 +4301,64 @@ fn validate_recovery_database_file(path: &Path) -> Result<(), EngineOpenError> {
 
 #[cfg(feature = "operator")]
 fn validate_effective_recovery_schema(path: &Path) -> Result<(), EngineOpenError> {
-    let connection = Connection::open_with_flags(
-        read_only_sqlite_uri(path),
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
-            | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
-            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
-    )
-    .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
-    connection
-        .pragma_update(None, "query_only", "ON")
-        .map_err(|error| map_open_sqlite_error(error, OpenStage::SchemaProbe))?;
-    probe_database_header(&connection)?;
-    probe_open_integrity(&connection)?;
-    reject_legacy_shape(&connection)?;
-    let seen = connection
-        .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
-        .map_err(|error| map_open_sqlite_error(error, OpenStage::SchemaProbe))?;
-    if seen != SCHEMA_VERSION {
-        return Err(EngineOpenError::IncompatibleSchemaVersion { seen, supported: SCHEMA_VERSION });
+    let shm = ShmSnapshot::capture(path)?;
+    let result = (|| {
+        let connection = Connection::open_with_flags(
+            read_only_sqlite_uri(path),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
+                | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
+                | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+        )
+        .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
+        connection
+            .pragma_update(None, "query_only", "ON")
+            .map_err(|error| map_open_sqlite_error(error, OpenStage::SchemaProbe))?;
+        probe_database_header(&connection)?;
+        probe_open_integrity(&connection)?;
+        reject_legacy_shape(&connection)?;
+        let seen = connection
+            .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
+            .map_err(|error| map_open_sqlite_error(error, OpenStage::SchemaProbe))?;
+        if seen != SCHEMA_VERSION {
+            return Err(EngineOpenError::IncompatibleSchemaVersion {
+                seen,
+                supported: SCHEMA_VERSION,
+            });
+        }
+        validate_recovery_schema_invariants(&connection, seen)
+    })();
+    match result {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            shm.restore()?;
+            Err(error)
+        }
     }
+}
+
+#[cfg(feature = "operator")]
+fn validate_recovery_schema_invariants(
+    connection: &Connection,
+    schema_version: u32,
+) -> Result<(), EngineOpenError> {
+    validate_dependency_generation_on_open(connection, schema_version)?;
+    frozen_read::validate_on_open(connection, schema_version)
+        .map_err(|_| recovery_schema_corruption("_fathomdb_read_visibility_state"))?;
+    dependency_closure::validate_closure_state_on_open(connection, schema_version)?;
     Ok(())
+}
+
+#[cfg(feature = "operator")]
+fn recovery_schema_corruption(table: &'static str) -> EngineOpenError {
+    EngineOpenError::Corruption(CorruptionDetail {
+        kind: CorruptionKind::SchemaInconsistent,
+        stage: OpenStage::SchemaProbe,
+        locator: CorruptionLocator::TableRow { table, rowid: 0 },
+        recovery_hint: RecoveryHint {
+            code: "E_CORRUPT_SCHEMA",
+            doc_anchor: "design/recovery.md#schema-inconsistent",
+        },
+    })
 }
 
 fn read_only_sqlite_uri(path: &Path) -> String {

@@ -114,12 +114,14 @@ requires an existing nonempty regular database, acquires the canonical product
 lock, rechecks those facts, and refuses a nonempty rollback journal. It probes
 the main file through immutable/read-only/query-only SQLite before classifying
 the fixed 32-byte WAL header under the lock. A malformed WAL may be discarded
-only when the standalone main file is schema 34; a valid WAL is checked through
-SQLite's effective main-plus-WAL view because it may carry a pending schema
-cookie. One recovery-only read/write SQLite connection then owns
-`PRAGMA wal_checkpoint(TRUNCATE)` and all WAL/SHM changes. The path never
-bootstraps, migrates, starts workers, or edits sidecars directly, and normal
-`Engine::open` remains fail-closed.
+only when the standalone main file is schema 34 and satisfies current Fathom
+schema invariants; a valid WAL is checked through SQLite's effective
+main-plus-WAL view because it may carry pending schema state. The effective-view
+probe snapshots transient SHM state and restores it when validation refuses.
+One recovery-only `mode=rw` SQLite connection, opened without create permission,
+then owns `PRAGMA wal_checkpoint(TRUNCATE)` and the destructive WAL recovery.
+The path never bootstraps, migrates, starts workers, or edits the WAL directly,
+and normal `Engine::open` remains fail-closed.
 
 ## JSON shapes for other doctor verbs
 
@@ -168,7 +170,9 @@ actions:
 
 `E_CORRUPT_WAL_REPLAY` refuses normal open. The explicitly acknowledged
 `--truncate-wal` path independently validates the main database, holds the
-product lock, and lets SQLite perform the checkpoint/discard. Its report adds
+product lock, rejects a counterfeit schema-34 database, preserves database,
+WAL, and transient SHM bytes on preflight refusal, and lets SQLite perform the
+checkpoint/discard. Its report adds
 `discarded_corrupt_wal`, true only when the locked header classification was
 malformed and SQLite returned `Done`; `Busy` remains retryable exit `71` and
 never claims discard.

@@ -78,3 +78,25 @@ the same distinction.
 
 Final implementation-alignment verdict: **PASS**. No P1/P2 finding remains;
 the focused engine recovery suite passed 13/13.
+
+## Adversarial hardening rereview
+
+Code review found that a non-Fathom SQLite database stamped with
+`user_version = 34` could reach malformed-WAL discard, that the final recovery
+open retained create permission, and that read-only effective-view validation
+could change transient SHM bytes on refusal. The correction reuses current
+open-time dependency, frozen-read, and dependency-closure schema invariants,
+restores the preflight SHM snapshot on refusal, and opens the final recovery
+connection with `mode=rw` and no create flag.
+
+The first rereview requested two P2 corrections: do not promise byte
+preservation for a `Busy` checkpoint that may partially checkpoint, and bind
+healthy-WAL effective-invariant refusal with its own negative fixture. The
+acceptance criterion now scopes byte preservation to preflight refusals. A
+schema-33 main plus healthy schema-34 WAL with a removed required frozen-read
+trigger returns `SchemaInconsistent` while preserving exact database, WAL, and
+SHM bytes.
+
+Final adversarial-hardening verdict: **PASS**. No P1/P2 finding remains; the
+independent reviewer reran the focused engine recovery suite at 15/15 and
+confirmed plan, design, interfaces, implementation, and tests agree.

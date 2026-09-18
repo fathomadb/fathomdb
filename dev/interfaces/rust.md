@@ -1080,12 +1080,15 @@ With the `operator` feature, the facade exports two path-scoped free functions:
   a serving runtime.
 - `recover_truncate_wal(path: impl Into<PathBuf>) ->
   Result<TruncateWalReport, EngineOpenError>` acquires the canonical product
-  lock without constructing an Engine, independently validates the main file,
-  refuses a nonempty rollback journal, and lets SQLite own the destructive
-  checkpoint/discard. Public `Engine::open` remains fail-closed on a malformed
-  WAL. `TruncateWalReport::discarded_corrupt_wal` is true only when the locked
-  header classification was malformed and SQLite returned `Done`; it is false
-  for absent/healthy WAL and `Busy`.
+  lock without constructing an Engine, independently validates the main file
+  and current Fathom schema invariants, refuses a nonempty rollback journal,
+  and lets SQLite own the destructive checkpoint/discard. Healthy-WAL preflight
+  validates the effective view and restores its SHM snapshot when refusing;
+  the final connection is `mode=rw` without create permission. Public
+  `Engine::open` remains fail-closed on a malformed WAL.
+  `TruncateWalReport::discarded_corrupt_wal` is true only when the locked header
+  classification was malformed and SQLite returned `Done`; it is false for
+  absent/healthy WAL and `Busy`.
 
 Both functions and their operator-specific reports are absent when `operator`
 is disabled.

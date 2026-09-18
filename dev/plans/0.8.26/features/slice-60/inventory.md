@@ -44,6 +44,7 @@ Slice 3–8 allocation remains for Slice 60.
 | Immutable integrity route | v2.2; `interfaces/cli.md` | `inspect_data_plane_integrity` | Slice 30 immutable process matrix | Uniquely immutable. |
 | SDK/operator boundary | `governed-operation-parity.json`; SDK interfaces | facade `operator` feature boundary | `test_sdk_surface_parity_oracle.py`; `sdk-surface-parity.test.ts` | SDK erasure still exists. |
 | One-object recovery output | `interfaces/cli.md` | `wire_recover`; recovery serializers | `operator_cli.rs` JSON assertions | Correct stale stream prose. |
+| Path-scoped WAL recovery | `interfaces/rust.md`; `interfaces/cli.md`; `recovery.md` | `recover_truncate_wal`; `validate_recovery_schema_invariants`; `ShmSnapshot` | `truncate_wal.rs`; `recovery_cli.rs` | Operator-only; schema-34 invariants, byte-preserving refusal, SQLite-owned destructive checkpoint. |
 | Projection repair | `recovery-0.8.25.md` | rebuild methods | projection-generation/rebuild suites | Delegate detail. |
 
 ## Engine clusters

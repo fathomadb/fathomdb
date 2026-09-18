@@ -145,25 +145,31 @@ The path-scoped WAL recovery function:
    rollback-journal recovery;
 4. validates the main file independently through an immutable, read-only,
    query-only connection: header probe, full schema traversal, schema-cookie
-   observation, and legacy-shape refusal, so main-file corruption is neither
-   hidden nor touched;
+   observation, legacy-shape refusal, and—when the standalone cookie is
+   current—the current Fathom schema invariants used by normal admission, so a
+   counterfeit database stamped with `user_version == 34` is not accepted;
 5. re-reads and records the WAL-header classification while holding the lock.
    A sidecar shorter than 32 bytes carries no committed frames; at least 32
    bytes with invalid masked magic or a non-power-of-two/out-of-range page size
    is the exact malformed state shared with `probe_wal_sidecar`; sidecar I/O
    errors fail rather than becoming "absent";
-6. requires `user_version == 34` from the standalone main file before
-   discarding a malformed WAL; for a healthy WAL, validates the same exact
-   version through SQLite's effective main-plus-WAL view because the current
-   schema cookie may itself be checkpoint-pending;
-7. opens one recovery-only read/write SQLite connection, deliberately omitting
-   only the public open path's WAL pre-probe, and runs
+6. requires `user_version == 34` plus those invariants from the standalone main
+   file before discarding a malformed WAL; for a healthy WAL, validates the
+   same version and invariants through SQLite's effective main-plus-WAL view
+   because current schema state may itself be checkpoint-pending, snapshotting
+   and restoring transient SHM bytes if that preflight refuses recovery;
+7. opens one recovery-only `mode=rw` SQLite connection without create
+   permission, deliberately omitting only the public open path's WAL pre-probe,
+   and runs
    `PRAGMA wal_checkpoint(TRUNCATE)`; and
 8. releases every connection and the sidecar lock before returning.
 
 The malformed branch is destructive and is reachable only after the CLI has
-validated `--accept-data-loss`. SQLite, not raw filesystem code, owns WAL/SHM
-locking and discard. The report retains SQLite's counters/status and adds
+validated `--accept-data-loss`. SQLite, not raw filesystem code, owns WAL
+locking and destructive checkpoint/discard. The only direct sidecar operation
+is restoring the pre-probe SHM snapshot when a healthy-WAL validation refuses,
+matching normal admission's byte-preserving refusal boundary. The report
+retains SQLite's counters/status and adds
 `discarded_corrupt_wal`. It is true only when the locked pre-probe classified a
 malformed WAL and SQLite returned `Done`; it is false for healthy/absent WAL and
 for `Busy`. Thus an empty healthy WAL cannot be confused with deliberate
@@ -172,8 +178,10 @@ maps to retryable exit `71`, not accepted-loss `64`.
 SQLite checkpoint errors map through the existing WAL-replay open-error class;
 no error or Busy result claims discard completion.
 The function does not bootstrap, migrate, reconcile, load embedders, start
-workers, accept a different corruption kind, or weaken public open. A
-subsequent normal open proves that the base database is otherwise admissible.
+workers, accept a different corruption kind, or weaken public open. The final
+connection cannot recreate a database that disappears between validation and
+recovery. A subsequent normal open proves that the base database is otherwise
+admissible.
 
 ### Standalone safe export
 
@@ -191,10 +199,13 @@ databases retain the existing artifact and manifest shape.
 The WAL function serializes against a live Engine through the established
 canonical lock. Lock contention and busy checkpoint retain exit class `71`;
 completed WAL recovery retains accepted-loss success `64`. A nonempty rollback
-journal and missing, zero-length, effectively noncurrent, or main-corrupt
-database use the existing unrecoverable class `70`; a malformed WAL additionally
-requires its standalone main file to be current. A healthy WAL may carry the
-current schema cookie over an older standalone main. Malformed-header
+journal and missing, zero-length, effectively noncurrent, counterfeit-current,
+or main-corrupt database use the existing unrecoverable class `70`; a malformed
+WAL additionally requires its standalone main file to be current and to satisfy
+current Fathom schema invariants. A healthy WAL may carry the current schema
+cookie over an older standalone main, but its effective view must satisfy the
+same invariants. Refused healthy-WAL validation restores transient SHM state so
+the database, WAL, and SHM bytes remain unchanged. Malformed-header
 `safe-export` also remains open corruption at `70`, not artifact-failure `66`.
 Other recovery and doctor actions still require a successfully admitted Engine
 because they depend on current canonical/schema invariants. No generic "open
@@ -212,8 +223,9 @@ The recovery addendum uses executable product RED tests in
 `fathomdb-engine/tests/truncate_wal.rs` and
 `fathomdb-cli/tests/recovery_cli.rs`. They bind public-open refusal before
 recovery, acknowledged malformed-WAL recovery and reopen, missing/zero/
-noncurrent/main-corrupt/rollback-journal/live-lock refusal without byte
-mutation, valid/absent WAL with a false discard disposition, Busy exit `71`,
+noncurrent/counterfeit-current/main-corrupt/rollback-journal/live-lock refusal
+without database/WAL/SHM byte mutation, valid/absent WAL with a false discard
+disposition, Busy exit `71`,
 default-SDK nonpresence, and malformed-header safe-export failure with no
 artifact or manifest. The pre-existing CLI test that allowed Busy with exit
 `64` is changed first so a non-completed checkpoint cannot remain accepted as

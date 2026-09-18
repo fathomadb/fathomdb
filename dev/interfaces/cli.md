@@ -254,10 +254,13 @@ Exit class: `recover-*` = 0 / 64 / 70 / 71.
 `--truncate-wal` uses the path-scoped operator recovery function instead of
 first calling fail-closed `Engine::open`. It still requires
 `--accept-data-loss`, holds the canonical product lock, refuses a nonempty
-rollback journal and invalid database, and delegates all WAL/SHM mutation to
-SQLite. A malformed WAL requires schema 34 in the standalone main file; a
-healthy or absent WAL requires schema 34 in SQLite's effective view and may
-therefore carry the current cookie over an older standalone main. Its JSON
+rollback journal and invalid database, and delegates destructive WAL recovery
+to SQLite. A malformed WAL requires schema 34 and current Fathom schema
+invariants in the standalone main file; a healthy or absent WAL requires the
+same in SQLite's effective view and may therefore carry current schema state
+over an older standalone main. If effective-view preflight refuses, it restores
+the transient SHM snapshot so database, WAL, and SHM bytes are unchanged. The
+final recovery connection is `mode=rw` without create permission. Its JSON
 object is:
 
 ```json
@@ -274,9 +277,10 @@ object is:
 `status: "done"` exits `64`. `status: "busy"` exits `71` and always reports
 `discarded_corrupt_wal: false`. That field is true only after the locked probe
 found a malformed WAL and SQLite completed the truncate checkpoint. Missing,
-empty, effectively noncurrent, main-corrupt, rollback-journal-blocked, or
-malformed-WAL-plus-noncurrent-standalone-main inputs exit `70`. Normal open
-continues to refuse the malformed WAL before returning an Engine.
+empty, effectively noncurrent, counterfeit-current, main-corrupt,
+rollback-journal-blocked, or malformed-WAL-plus-noncurrent-standalone-main
+inputs exit `70`. Normal open continues to refuse the malformed WAL before
+returning an Engine.
 
 Malformed-header `doctor safe-export` is also fail-closed: it exits `70` with
 the stable `E_CORRUPT_HEADER` code, does not write an artifact or manifest, and

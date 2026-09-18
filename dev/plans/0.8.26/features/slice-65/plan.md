@@ -154,19 +154,102 @@ The reproducible focused commands are:
 - `python3 scripts/tests/test_native_artifact_receipts.py`;
 - `bash scripts/check-release-state-views.sh` and
   `./scripts/agent-lint-md.sh`;
-- `bash scripts/security/gitleaks-current.sh`, plus direct `gitleaks dir` over
-  the owned generated-evidence root;
 - `./scripts/agent-verify.sh` on a ptrace-capable executor;
-- `bash scripts/release/smoke/smoke-local-native-artifacts.sh "$WHEEL_DIR" src/ts "src/ts/npm/$NAPI_LABEL" "$NAPI_LABEL"` against artifacts built once from the candidate;
-- source-built CLI `--version` plus `doctor data-plane-integrity --json` against
-  the quiescent candidate fixture;
-- exact-SHA `ci.yml` dispatch and receipt collection for the five native targets
-  and distinct `windows-wal-attribution` job; and
-- `python3 scripts/release/slice65-candidate-manifest.py assemble ...` followed
-  by `python3 scripts/release/slice65-candidate-manifest.py validate --manifest
-  dev/plans/0.8.26/features/slice-65/candidate-manifest.json`. Exact artifact,
-  evidence, receipt, toolchain, and command coordinates are frozen in the
-  completion execution record before candidate qualification.
+- `bash scripts/security/gitleaks-current.sh` for the tracked tree; and
+- the exact candidate/package/platform template below, copied with resolved
+  tool versions and paths into `completion-plan.md` before it runs.
+
+```bash
+set -euo pipefail
+candidate_sha="$(git rev-parse HEAD)"
+evidence_root="/tmp/fathomdb-slice65-$candidate_sha"
+wheel_dir="$evidence_root/python-dist"
+npm_dir="$evidence_root/npm-dist"
+napi_label="linux-x64-gnu"
+python_bin="python3.12"
+mkdir -p "$wheel_dir" "$npm_dir" "$evidence_root/ci"
+
+(
+  cd src/python
+  ../../.venv/bin/maturin build --release --out "$wheel_dir" \
+    --features pyo3/extension-module,default-embedder -i "$python_bin"
+)
+(
+  cd src/ts
+  npm ci
+  npm run build:native
+  npm exec -- tsc -p tsconfig.build.json
+  npm pack --pack-destination "$npm_dir"
+)
+cargo build -p fathomdb-cli --release
+cp target/release/fathomdb "$evidence_root/fathomdb"
+
+bash scripts/release/smoke/smoke-local-native-artifacts.sh \
+  "$wheel_dir" src/ts "src/ts/npm/$napi_label" "$napi_label"
+"$evidence_root/fathomdb" --version
+"$evidence_root/fathomdb" doctor check-integrity --json \
+  "$evidence_root/cli.fdb" >"$evidence_root/cli-check-integrity.json"
+"$evidence_root/fathomdb" doctor data-plane-integrity --json \
+  "$evidence_root/cli.fdb" >"$evidence_root/cli-data-plane-integrity.json"
+
+"$python_bin" -m venv "$evidence_root/wheel-venv"
+"$evidence_root/wheel-venv/bin/python" -m pip install --no-index \
+  --find-links "$wheel_dir" fathomdb
+FATHOMDB_VERIFY_REPORT="$evidence_root/wheel-profile.txt" \
+FATHOMDB_SLICE50_EVIDENCE_REPORT="$evidence_root/graph-evidence.json" \
+  "$evidence_root/wheel-venv/bin/python" \
+  scripts/release/smoke/frozen-evidence-python.py
+
+bash scripts/security/gitleaks-current.sh
+printf 'gitleaks tracked tree: pass\n' >"$evidence_root/gitleaks-tracked.txt"
+gitleaks dir --config scripts/security/gitleaks-current.toml \
+  --ignore-gitleaks-allow --redact=100 --no-banner --no-color --exit-code 1 \
+  --report-format template \
+  --report-template scripts/security/gitleaks-safe-report.tmpl \
+  --report-path - "$evidence_root"
+printf 'gitleaks generated evidence: pass\n' \
+  >"$evidence_root/gitleaks-generated.txt"
+
+git push -u origin release/0.8.26
+gh workflow run ci.yml --ref release/0.8.26 \
+  -f candidate_sha="$candidate_sha"
+run_id="$(gh run list --workflow ci.yml --branch release/0.8.26 \
+  --event workflow_dispatch --limit 20 --json databaseId,headSha \
+  --jq "map(select(.headSha == \"$candidate_sha\"))[0].databaseId")"
+test -n "$run_id"
+gh run watch "$run_id" --exit-status
+gh run download "$run_id" -n native-artifact-matrix \
+  -D "$evidence_root/ci/native"
+gh run download "$run_id" -p 'slice65-windows-wal-attribution-*' \
+  -D "$evidence_root/ci/wal"
+
+wheel="$(find "$wheel_dir" -maxdepth 1 -type f -name '*.whl' -print -quit)"
+npm_tarball="$(find "$npm_dir" -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+native_matrix="$(find "$evidence_root/ci/native" -type f \
+  -name 'native-artifact-matrix.json' -print -quit)"
+windows_wal="$(find "$evidence_root/ci/wal" -type f \
+  -name 'slice50-windows-wal-receipt.json' -print -quit)"
+
+python3 scripts/release/slice65-candidate-manifest.py assemble \
+  --repo-root . --candidate-sha "$candidate_sha" \
+  --rust "$(rustc --version)" --python "$($python_bin --version)" \
+  --node "$(node --version)" \
+  --artifact "wheel=$wheel" --artifact "npm=$npm_tarball" \
+  --artifact "cli=$evidence_root/fathomdb" \
+  --evidence "graph-evidence=$evidence_root/graph-evidence.json" \
+  --evidence "gitleaks-generated=$evidence_root/gitleaks-generated.txt" \
+  --evidence "gitleaks-tracked=$evidence_root/gitleaks-tracked.txt" \
+  --native-matrix "$native_matrix" --windows-wal-receipt "$windows_wal" \
+  --command agent-verify=pass --command installed-wheel-profile=pass \
+  --command installed-npm-profile=pass --command cli-integrity=pass \
+  --command gitleaks-generated=pass --command gitleaks-tracked=pass \
+  --qualification design_lifecycle=pass \
+  --qualification sdk_surface_parity=pass \
+  --qualification slice60_owner_probes=pass \
+  --output dev/plans/0.8.26/features/slice-65/candidate-manifest.json
+python3 scripts/release/slice65-candidate-manifest.py validate \
+  --manifest dev/plans/0.8.26/features/slice-65/candidate-manifest.json
+```
 
 ## Stop gates
 

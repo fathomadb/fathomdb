@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 65 — independent design review
-status: REMEDIATED_PENDING_REREVIEW
+status: REMEDIATED_PENDING_SECOND_REREVIEW
 reviewed_tip: 0485c34a
 ---
 
@@ -35,3 +35,17 @@ receipts.
 
 Implementation remains paused until independent rereview confirms that no
 P1/P2 design finding remains.
+
+## First rereview
+
+The reviewer marked both P1 findings and the P3 count **resolved**, but retained
+one P2 because generated-scan roots, package variables, CLI commands, CI
+dispatch/downloads, and manifest coordinates were still prose or ellipses. The
+plan now includes one executable candidate template with concrete variable
+definitions, local build/install/smoke commands, tracked and generated Gitleaks
+commands, exact-SHA branch push/workflow dispatch/watch/artifact downloads, and
+full Slice 65 wrapper assembly/validation arguments. The completion record may
+substitute only observed tool versions and candidate-owned paths; it cannot
+change command semantics.
+
+Implementation remains paused pending a second rereview.

@@ -1,8 +1,9 @@
 ---
 title: FathomDB 0.8.26 Slice 65 — independent verification
-status: CANDIDATE_PASS_CLOSEOUT_REVIEWED
+status: PASS
 verified_on: 2026-09-18
 verified_candidate: 8ffb34867b2622c3c17c16a95c8a85a37909722a
+verified_closeout: cad95b4dd95ef94d799e66e0791b48a4b9af54d0
 ---
 
 # Slice 65 independent verification

@@ -38,6 +38,7 @@ KEY_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 RELEASE_RE = re.compile(
     r"^(?:cross-release|(?:current|historical|future):[A-Za-z0-9][A-Za-z0-9._+-]*)$"
 )
+STATUS_RE = re.compile(r"^status\s*:\s*(.*)$")
 
 
 def fail(message: str) -> None:
@@ -141,11 +142,13 @@ def frontmatter_status(root: Path, path: str) -> str | None:
     except ValueError:
         fail(f"{path}: authority has unterminated YAML front matter")
         return None
-    status_lines = [line for line in lines[1:end] if line.startswith("status:")]
-    if len(status_lines) != 1:
+    status_matches = [
+        match for line in lines[1:end] if (match := STATUS_RE.fullmatch(line))
+    ]
+    if len(status_matches) != 1:
         fail(f"{path}: authority requires exactly one top-level status")
         return None
-    raw = status_lines[0].partition(":")[2].strip()
+    raw = status_matches[0].group(1).strip()
     if not raw or raw[0] in "[{|>" or raw.lower() in {"null", "true", "false", "~"}:
         fail(f"{path}: authority status must be a scalar string")
         return None

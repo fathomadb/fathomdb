@@ -35,8 +35,9 @@ see that ADR's 2026-06-06 amendment).
 - `doctor check-integrity` emits a single JSON object.
 - `doctor check-integrity --full` may emit doctor-only finding codes such as
   `E_CORRUPT_INTEGRITY_CHECK`.
-- `recover` JSON output is a progress stream plus summary, owned by
-  `design/recovery.md`.
+- Each selected `recover` action emits one JSON object, owned by
+  `design/recovery.md`; current recovery output is not an NDJSON progress
+  stream.
 - `--pretty` is a human-only formatter on verbs that explicitly document it;
   it is not a separate machine schema.
 
@@ -318,7 +319,7 @@ to its class.
 `fathomdb-cli` owns top-level discriminator wrapping. The engine returns
 typed report structs; the CLI serializes them under a `verb` discriminator.
 
-- All `--json` output is one JSON object (or an NDJSON stream for `recover`).
+- All current `--json` output is one JSON object per invoked command/action.
 - Doctor verb wrapping pattern: `{ "verb": "<verb-name>", ...flattened_engine_report_fields... }`.
 - Non-flat reports nest naturally. For example, `IntegrityReport` serializes
   as `{ "verb": "check-integrity", "physical": {...}, "logical": {...}, "semantic": {...} }`.

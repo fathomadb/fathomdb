@@ -1,329 +1,175 @@
 ---
 title: Engine Subsystem Design
-date: 2026-05-12
-target_release: 0.6.0
-desc: Runtime open/close, writer/read path, engine config, cursor semantics, and canonical-row supersession
-blast_radius: fathomdb-engine runtime/writer/reader; interfaces/*.md; acceptance.md REQ-020..REQ-055 intersections
-status: locked
+date: 2026-09-17
+target_release: 0.8.26
+desc: Current open, connection, write, projection, cursor, identity, and close design
+blast_radius: fathomdb-engine runtime/writer/reader; interfaces/*.md; requirements and acceptance engine intersections
+status: ACTIVE
 ---
 
-# Engine Design
+# Engine design
 
-This file owns the runtime open path, `Engine` lifetime, writer / reader split,
-and the concrete meaning of the cursor values surfaced at the public API.
-
-## 0.8.26 public-open boundary
-
-The ordered 0.6.0 sequence below is a historical baseline, not permission to
-migrate an arbitrary existing database. In 0.8.26, public open accepts only a
-missing/zero-length path, bootstraps schema 34 through the internal schema
-constructor, and then runs the normal runtime checks/startup sequence. Any
-nonempty database whose `PRAGMA user_version` is not exactly 34 is refused as
-`IncompatibleSchemaVersion` before product mutation.
-
-Runtime SQLite configuration is applied before admission classification, so a
-WAL-bearing earlier database is inspected under its actual journal semantics.
-The persistent sidecar admission lock serializes competing first openers; the
-older/noncurrent opener cannot race a fresh bootstrap into acceptance. Exact
-behavior is owned by the accepted 0.8.26 breaking-boundary ADR and verified by
-`slice40_fresh_database_cutover.rs`.
+This file owns the current engine runtime and storage coordination contract.
+Public language spelling remains in `dev/interfaces/`; error variants remain in
+[`errors.md`](errors.md); embedder identity and mean centering remain in
+[`embedder.md`](embedder.md); and projection generations remain in their
+feature designs.
 
 ## Open path
 
-Within an admitted database, `Engine.open` owns:
+Public 0.8.26 open is fresh-only. A missing or zero-length path is bootstrapped
+directly to schema 34. A nonempty database is accepted only when its
+`PRAGMA user_version` is exactly 34; every other version returns
+`IncompatibleSchemaVersion` before product mutation. Public open does not run
+an in-place migration ladder.
 
-1. path canonicalization
-2. sidecar lock acquisition
-3. SQLite open + PRAGMA application
-4. always-on corruption detection
-5. schema bootstrap/validation (historical migration execution only in the
-   locked baseline described below)
-6. embedder identity check
-7. embedder warmup
-8. writer / scheduler startup
+Admission canonicalizes the database namespace, acquires the persistent
+sidecar lock, configures SQLite for WAL operation without
+`locking_mode=EXCLUSIVE`, classifies/bootstrap-validates the file, runs the
+always-on corruption and stored embedder-profile checks, prepares the runtime
+embedder, and starts readers and projection workers. The sidecar lock prevents
+two first openers from racing bootstrap. Detailed corruption stages and codes
+are owned by [`errors.md`](errors.md); schema construction remains owned by the
+schema crate.
 
-The detailed step ordering is aligned to HITL `ENG1`; this file is the
-authoritative home for the final ordered sequence.
+### Untrusted-file posture
 
-`Engine.open` runs only the frozen always-on detection subset from HITL `R1`.
-0.6.0 exposes no env/config integrity knob at open and does not accept any SDK
-config that turns quick/full integrity or round-trip verification on during the
-open path.
-
-The corruption-producing stages are the four `OpenStage` values owned by
-`design/errors.md`:
-
-- `WalReplay` for WAL replay verdicts (`E_CORRUPT_WAL_REPLAY`)
-- `HeaderProbe` for page-1/header sanity (`E_CORRUPT_HEADER`)
-- `SchemaProbe` for schema / migration-table consistency (`E_CORRUPT_SCHEMA`)
-- `EmbedderIdentity` for corrupt stored embedder-profile rows
-  (`E_CORRUPT_EMBEDDER_IDENTITY`)
-
-`E_CORRUPT_INTEGRITY_CHECK` is not an open-path code. That code belongs only to
-`doctor check-integrity --full` per `design/recovery.md`.
+Open treats the path as untrusted structured input. It fails closed on a
+noncurrent schema, malformed header/schema state, WAL-replay failure, or stored
+embedder-identity inconsistency. It neither treats a legacy database as fresh
+nor rewrites it into the current format. Operator inspection and recovery use
+the boundaries in [`recovery.md`](recovery.md).
 
 ## `Engine.open` success result
 
-On success, `Engine.open` returns the live engine handle plus a structured open
-report.
+Open returns a live engine plus an `OpenReport`. The report includes schema
+before/after facts, migration-step reporting (empty for a current/fresh
+0.8.26 public open), embedder warmup timing, and current startup events.
+Interface documents own binding access and casing; migration and embedder
+designs own the meaning of their report fields.
 
-The canonical success shape is:
+## Connection topology and serialization
 
-- `engine`
-- `report`
+The live engine has three connection roles:
 
-Where `report` carries at least:
+- `Engine.connection` is the mutex-serialized primary caller writer used by
+  accepted writes, admin configuration, and synchronous operator maintenance;
+- projection workers each use their own connection, do expensive embedding
+  outside the critical section, and serialize their write commits through the
+  shared `commit_gate`; and
+- `ReaderWorkerPool` owns multiple read connections and executes read work in
+  DEFERRED transactions rather than behind the primary writer mutex.
 
-- `schema_version_before`
-- `schema_version_after`
-- `migration_steps`
-- `embedder_warmup_ms`
-
-Ownership split:
-
-- `design/migrations.md` owns `schema_version_*` and `migration_steps`
-- this file owns the outer "engine handle + report" return contract
-- `design/embedder.md` owns the semantics of warmup itself; this file owns the
-  fact that `embedder_warmup_ms` is surfaced as part of open success
-
-On migration failure, no engine handle is returned. The typed `MigrationError`
-instead carries the migration-owned failure report described in
-`design/migrations.md`.
-
-## Writer / reader split
-
-- One dedicated writer thread owns the only write connection.
-- Reader connections are pooled and never serialize behind one connection.
-- `admin.configure` is writer-thread work. It is not a side path and does not
-  bypass the same lock, migration, or error rules as normal writes.
-
-## `PreparedWrite::AdminSchema` provenance
-
-`PreparedWrite::AdminSchema(AdminSchemaWrite)` exists because
-`admin.configure` is already accepted public surface in 0.6.0 and its DDL work
-must travel through the same writer-thread machinery as every other state
-change. The variant is not speculative extension surface and must not be
-deleted as "future admin work."
-
-Why it exists:
-
-- `admin.configure` is a top-level SDK verb under REQ-053.
-- AC-003c and AC-021 already require observable admin work on the canonical
-  engine path.
-- ADR-0.6.0-prepared-write-shape commits to one typed carrier enum for writer
-  submissions; admin DDL therefore needs an engine-side representation inside
-  that carrier.
-
-Status in 0.6.0:
-
-- The existence of the `AdminSchema` variant is locked for 0.6.0.
-- The exact field set of `AdminSchemaWrite` remains owned here and by the
-  interface docs. It is still an internal engine carrier, not a promise that
-  callers directly construct arbitrary DDL payloads.
+SQLite still permits one write transaction at a time. The explicit primary
+writer mutex and projection `commit_gate` make the engine's ordering and
+maintenance invariants visible without pretending that all work uses one
+dedicated writer thread. Admin configuration uses the primary writer path; it
+is not arbitrary caller-supplied SQL and does not bypass admission or commit
+coordination.
 
 ## Canonical identity and supersession
 
-Folded 2026-05-12 from archived `design-detailed-supersession.md` +
-`design-id-generation-policy.md` per the Phase 1a learnings disposition
-(`learnings.md:94, 98`). This section is the authoritative home for the
-0.6.0 canonical identity contract.
+Canonical node and edge identity has two forms:
 
-### Identity model
+- a nullable caller-supplied `logical_id` identifies a governed entity across
+  revisions; and
+- the engine-assigned `write_cursor` identifies the physical stored revision
+  position and is also the current row-identity carrier.
 
-Canonical rows separate physical row identity from logical entity identity:
+Callers do not supply a separate canonical `row_id`. Anonymous inserts may
+leave `logical_id` null. For governed rows, the active uniqueness constraint is
+on `logical_id` alone, separately for nodes and edges; `kind` is payload
+classification, not part of identity. A new revision may therefore change
+kind while superseding the prior active revision with the same logical ID.
 
-- `row_id` — identifies one physical version of a node, edge, chunk, run,
-  step, or action. Globally unique.
-- `logical_id` — identifies the application entity across versions. Stable
-  across supersessions. Required on `NodeInsert` and `EdgeInsert`; chunk /
-  run / step / action use the single `id` field which is both physical and
-  logical (these row kinds are not superseded in 0.6.0).
-- The **active** version is the row for a given `logical_id` whose
-  `superseded_at IS NULL`.
-- A partial unique index enforces at most one active row per `logical_id`
-  per kind.
+Supersession appends the new physical revision and marks the previous active
+revision inactive in the same transaction. Edges reference logical endpoint
+IDs; a missing or superseded active endpoint is counted, not silently repaired.
+There is no public restore operation. `purge` and source erasure are deletion
+operations and cannot reactivate history.
 
-Edges reference logical identities; traversals resolve to the current
-active endpoint at read time.
-
-### ID generation policy
-
-Caller-owned IDs. The engine does not generate, assign, or sequence IDs as
-part of the write path:
-
-- Callers MUST provide `row_id` and `logical_id` on every `NodeInsert` and
-  `EdgeInsert`.
-- Callers MUST provide `id` on every `ChunkInsert`, `RunInsert`,
-  `StepInsert`, and `ActionInsert`.
-- Empty or duplicate-within-request IDs are rejected at `prepare_write`
-  validation as a `WriteValidationError`, not at SQLite execution time.
-- Cross-request uniqueness violations surface as the typed SQLite-mapped
-  error per `design/errors.md`.
-
-Rationale: caller-owned IDs preserve idempotent replay, keep the engine
-stateless for ID sequencing, and let supersession address rows by stable
-`logical_id` without a query round-trip.
-
-The engine ships a standalone `new_id() -> String` utility (26-character
-ULID) for callers that lack their own ID scheme. The utility is not part
-of the write path; callers with existing identifiers do not need it.
-
-### Write semantics under supersession
-
-Each accepted batch executes one SQLite transaction (see "Batch submission
-semantics" below). Within that transaction, supersession proceeds as:
-
-1. Validate canonical rows and references.
-2. Append new physical rows (nodes, edges, chunks, runs, steps, actions).
-3. For each replaced `logical_id`, mark the prior active row superseded
-   (`superseded_at = <commit timestamp>`); do NOT mutate the prior row's
-   value columns.
-4. Enqueue derived-projection invalidation for affected logical ids and
-   kinds (FTS rows for retired chunks, vector rows for retired nodes).
-5. Commit, or roll the entire batch back.
-
-Supersession preserves both the old and the new physical row as separate
-facts. The old row is marked inactive; its content is not rewritten.
-
-### Restoration as a canonical write
-
-"Restore a `logical_id`" means making a previously superseded physical row
-active again. The 0.6.0 restoration operator (`Engine::restore_logical_id`,
-recovery-only — see `design/recovery.md`) appends a new active row that
-preserves restore provenance rather than mutating the historical
-`superseded_at` column. The replay source is the op-store
-`append_only_log` write history for the logical id (see
-`design/recovery.md § Logical-id purge and restore`).
-
-### Projection invariants
-
-Projections follow canonical active state:
-
-- FTS rows derive from active chunks; supersession retires the
-  corresponding FTS row.
-- Per-kind vector rows (`vec_<kind>`) derive from active nodes;
-  supersession retires the corresponding vector row.
-- A canonical row whose `superseded_at IS NOT NULL` has no derived
-  projection rows for that logical id and kind.
-
-Recovery tooling (`recover --rebuild-projections`, `--rebuild-vec0`)
-rebuilds projections from the active canonical state, not from history.
+Search results expose a typed public `IdSpace`, which is distinct from the
+internal positional `write_cursor`. The two must not be conflated in binding or
+pagination code.
 
 ## Batch submission semantics
 
-`Engine.write(&[PreparedWrite])` is one ordered writer submission in 0.6.0.
+`Engine.write(&[PreparedWrite])` validates a batch before commit-sensitive
+work. An accepted batch executes in caller order inside one SQLite transaction;
+mixed canonical and operational-store writes either all commit or none do.
 
-The contract is:
+Each written row receives its own monotonically increasing cursor. The
+`WriteReceipt` returns:
 
-1. The slice is validated as one batch before commit-sensitive work begins.
-2. If any element fails save-time validation, the batch is rejected and no
-   SQLite write transaction commits any member of the batch.
-3. If validation succeeds, the writer executes the batch in caller order inside
-   one SQLite transaction.
-4. Mixed canonical rows and op-store rows in the same slice commit atomically.
-5. One write cursor `c_w` is allocated for the committed batch as a whole, not
-   per element.
-6. Projection work derived from committed writes is enqueued only after that
-   transaction commits.
+- `row_cursors`, one-to-one with input order;
+- `cursor`, the batch high-water cursor (the final row cursor); and
+- `dangling_edge_endpoints`, the informational count of edge endpoints that
+  did not resolve to an active node at commit time.
 
-0.6.0 does not regroup the slice by variant, split one slice into multiple
-transactions, or expose partial-success semantics. The caller-visible contract
-is "all committed at one cursor or none committed."
-
-`admin.configure` uses the same writer machinery and transactional rules, but
-it is a separate public verb from `write`; this file does not widen REQ-053
-into a promise that arbitrary mixed admin-and-data batches are first-class user
-surface.
+Projection jobs are published only after the canonical transaction commits.
+No public partial-success batch contract exists.
 
 ## Cursor contract
 
-Two distinct cursor concepts exist in 0.6.0:
+`write_cursor` is a monotonically increasing committed-row position. It backs
+physical revision identity, stable ordering, pagination/high-water boundaries,
+and projection source positions. A batch of N rows receives N consecutive
+positions; the batch receipt's `cursor` is the last one.
 
-- **Write cursor (`c_w`).** Returned on write commit. Identifies the accepted
-  canonical write transaction.
-- **`projection_cursor`.** Returned on read transactions. Identifies the latest
-  projection-visible point.
+Projection progress has separate generation/readiness authority. A canonical
+write cursor therefore does not claim that asynchronous vector work is already
+visible. Frozen reads authenticate both the canonical boundary and the
+relevant dependency/projection generations.
 
-Canonical and FTS visibility are immediate after the write commit. Vector
-visibility catches up asynchronously. A caller that needs vector
-read-after-write semantics polls until `read_projection_cursor >= c_w`.
+## Projection maintenance
 
-This distinction is load-bearing for REQ-055 and AC-059b and must remain
-consistent across `architecture.md`, `requirements.md`, `acceptance.md`, and
-`interfaces/*.md`.
+Lexical projections are maintained transactionally with canonical writes.
+Dense projection is asynchronous: committed source state becomes vector-ready
+only when the owning projection generation records a successful current
+outcome. Failed or stale work is explicit state, not silent eligibility.
 
-## `WriteReceipt`
+Dense rows share the schema-owned `vector_default` virtual table. Authority and
+recovery metadata live in `_fathomdb_vector_rows`, the projection registry, and
+generation tables. The current design does not create one vector table per
+kind; `source_type` and `kind` distinguish governed rows inside the shared
+projection.
 
-`WriteReceipt` has exactly one public field in 0.6.0:
+Projection workers may compute concurrently, but their commits are ordered by
+`commit_gate`. Mean pinning and manual mean recomputation use that same gate so
+no centered/uncentered vector commit can interleave with the unique
+requantization transaction.
 
-- `cursor`
+## Operational store
 
-No additional `WriteReceipt` fields are public contract in 0.6.0. Internal
-batch bookkeeping may exist in implementation, but it must not leak into the
-binding-facing receipt shape without an explicit design amendment.
+Operational collections, append-only mutations, latest state, canonical rows,
+and projections live in the same SQLite product database. Typed
+`PreparedWrite` variants, rather than raw SQL, cross the engine write boundary.
+Declared payload validation occurs before commit; operational rows may commit
+atomically with canonical rows in the same batch.
+
+The operational API is a logical surface, not a second database, and it does
+not weaken the single product namespace, durability, or close rules.
 
 ## EngineConfig ownership
 
-This file owns the canonical engine-config knob set and the rationale for any
-publicly exposed tunables. A knob is not considered stable public surface until
-it is named and justified here.
+Engine configuration controls runtime behavior; interface documents own the
+exact Rust/Python/TypeScript spellings and conversion precedence. Adding a
+public knob requires all supported bindings in the same slice. Configuration
+does not select a legacy schema, enable automatic recovery, supply vector
+identity strings, or expose raw SQL.
 
-The canonical 0.6.0 engine-owned knob set is:
+## `Engine.close` shutdown protocol
 
-| Field                       | Type    | Default           | Owner note                                                                                         |
-| --------------------------- | ------- | ----------------- | -------------------------------------------------------------------------------------------------- |
-| `embedder_pool_size`        | `usize` | `num_cpus::get()` | engine-owned runtime pool width                                                                    |
-| `scheduler_runtime_threads` | `usize` | `2`               | engine-owned scheduler runtime width                                                               |
-| `provenance_row_cap`        | `u64`   | `1_000_000`       | REQ-031 / AC-033 retention cap                                                                     |
-| `embedder_call_timeout_ms`  | `u64`   | `30_000`          | invariant D watchdog default                                                                       |
-| `slow_threshold_ms`         | `u64`   | `100`             | initial lifecycle slow-signal threshold; `set_slow_threshold_ms` mutates the live value after open |
+Close is explicit, idempotent, and bounded. It stops accepting work, drains or
+cancels owned queues according to their lifecycle contracts, joins projection
+and reader workers, releases connections and registrations, and releases the
+sidecar lock last. Concurrent operations observe the typed closing state rather
+than using torn-down resources.
 
-Not part of the canonical `EngineConfig` set in 0.6.0:
+Drop/finalizer paths are best-effort safety nets and must not panic. Bindings
+preserve bounded process exit even when application code omits an explicit
+close; explicit close remains the only path that can report shutdown failure.
 
-- heartbeat cadence: configurable on the feedback/subscriber surface, not as a
-  core engine-open knob; see `design/lifecycle.md` and `interfaces/{python,typescript,rust}.md`
-- Python executor usage: caller/runtime pattern, not engine config
-
-## Close path
-
-`Engine.close` is the authoritative shutdown boundary for resources acquired
-by `Engine.open`.
-
-The close sequence is:
-
-1. mark the engine as closing so new write/search/admin/drain work is rejected
-2. stop scheduler admission and request cancellation of pending projection work
-3. join scheduler runtime workers and embedder dispatch workers
-4. drain or abandon in-flight projection callbacks without committing new
-   projection rows after writer shutdown begins
-5. stop and join the writer thread
-6. close reader and writer SQLite connections
-7. drop the sidecar lock file handle, releasing the engine-lifetime database
-   lock
-8. return to the caller only after no fathomdb-owned OS thread or database fd
-   remains live
-
-Lifecycle owns whether terminal feedback can be delivered for an observed
-operation. This file owns the resource invariant: after `close` returns, a
-sibling process can acquire the database lock and no fathomdb-owned SQLite
-connection remains open.
-
-- TypeScript `ThreadsafeFunction` pool sizing: binding-runtime mechanism, not
-  canonical engine config
-
-The interface docs own per-language field spelling for the canonical knob set.
-
-## Debug-only runtime guard
-
-The embedder-protocol `engine_in_call` guard is a debug-build deadlock
-tripwire, not a user-facing contract surface.
-
-- Purpose: catch re-entrant engine calls made from inside `Embedder.embed()`
-  during development and CI.
-- Behavior: debug builds may panic immediately when the guard detects
-  re-entrancy.
-- Non-contract: release builds do not promise a stable panic string, stable
-  exception class, or a public configuration flag for this guard.
-
-The stable 0.6.0 contract is the embedder invariant itself ("no engine
-callbacks from `embed()`"), not the exact mechanics of the debug assertion.
+Historical dedicated-writer-thread, caller `row_id`, per-kind vector-table,
+single-cursor-per-batch, restore, and public migration-on-open descriptions are
+retained in Git history but are not current 0.8.26 authority.

@@ -303,31 +303,31 @@ the ADR is authoritative.
 
 ## Operability (REQ-036..REQ-041)
 
-- **REQ-036 — Two-root operator CLI: `recover` (lossy) + `doctor` (bit-preserving).**
-  Operator recovers from physical, logical, or semantic corruption via a
-  dedicated CLI without writing application code. Surface splits at the
-  root by mutation semantics:
-  - `fathomdb recover --accept-data-loss <sub-flag>...` — sole umbrella
-    for any non-bit-preserving path. Sub-flags include `--truncate-wal`,
-    `--rebuild-vec0`, `--rebuild-projections`, `--excise-source <id>`.
-    (`--purge-logical-id` and `--restore-logical-id` deferred to 0.8.0
-    per HITL 2026-05-24; originally deferred to 0.7.x per
-    ADR-0.6.0-cli-scope 2026-05-16 amendment — see
-    `dev/roadmap/0.8.0.md`.) The
-    `--accept-data-loss` flag is mandatory; no default.
-  - `fathomdb doctor <verb>` — read-only and bit-preserving only. Verbs:
-    `check-integrity` (aggregator over R1 always-on + cheap-only tiers),
-    `safe-export <out>`, `verify-embedder`, `trace --source-ref <id>`,
-    `dump-schema`, `dump-row-counts`, `dump-profile`.
-    Verb-level enumeration with concrete flag spelling + exit-code numbers
-    lives in `interfaces/cli.md`; canonical verb table lives in
-    `design/recovery.md`. `--json` is mandatory on every verb (REQ-024).
-    Migrations are NOT a `doctor` verb — they run only inside `Engine.open`
-    per REQ-042 / ADR-0.6.0-corruption-open-behavior § 5.
-    _Source:_ `dev/notes/0.6.0-rewrite-proposal.md` § Recovery tooling;
-    `dev/dbim-playbook.md` §3, §11; HITL R3 (2026-04-30, conf 74%).
-    _Cross-cite:_ ADR-0.6.0-cli-scope, ADR-0.6.0-corruption-open-behavior § 3,
-    design/recovery.md, design/bindings.md § 1.
+- **REQ-036 — Two-root operator CLI with explicit effect boundaries.**
+  Operator diagnostics and loss-authorized recovery are available without
+  writing application code:
+  - `fathomdb recover --accept-data-loss <sub-flag>...` is the exclusive CLI
+    root for loss-authorized operator recovery. Its current actions cover WAL
+    truncation, vector/projection rebuild, source excision, and operational
+    record excision. The acknowledgement is mandatory and has no default.
+    Governed SDK `purge` and `erase_source` are application lifecycle/erasure
+    operations, not recovery, so this exclusivity is scoped to the CLI recovery
+    surface rather than every deletion capability.
+  - `fathomdb doctor <verb>` owns diagnostics, inspection, export/cache work,
+    and one authorized non-lossy derived-maintenance exception:
+    `recompute-mean`. That command transactionally recomputes the stored mean
+    from retained embeddings and recreates/requantizes derived vector rows. It
+    does not authorize another mutable doctor command or weaken the recovery
+    acknowledgement boundary.
+
+  The exact current command inventory and flags live in `interfaces/cli.md`;
+  effect classification lives in `design/recovery.md`. Machine-readable output
+  is available for every current command. Public open is fresh/current-only;
+  migration is not a doctor verb. _Source:_
+  `ADR-0.8.26-cli-derived-maintenance-boundary`, which narrowly succeeds the
+  all-doctor-read-only rule in `ADR-0.6.0-cli-scope`;
+  `ADR-0.6.0-corruption-open-behavior`; `design/recovery.md`;
+  `design/bindings.md` § 1.
 
 - **REQ-037 — Recovery tooling unreachable from runtime SDK.** Application
   callers cannot accidentally invoke the recovery surface — the REQ-054

@@ -1,96 +1,156 @@
 ---
 title: Retrieval Subsystem Design
-date: 2026-04-30
-target_release: 0.6.0
-desc: Fixed-stage retrieval pipeline, query planning, and branch-fallback behavior
-blast_radius: search path; REQ-010, REQ-011, REQ-017, REQ-018, REQ-029, REQ-034
-status: locked
+date: 2026-09-17
+target_release: 0.8.26
+desc: Current lexical, vector, fusion, reranking, graph, frozen-view, explanation, and evidence pipeline
+blast_radius: fathomdb-query; fathomdb-engine retrieval/frozen/evidence/graph paths; SDK search and graph interfaces
+status: ACTIVE
 ---
 
-# Retrieval Design
+# Retrieval design
 
-This file owns the fixed-stage retrieval pipeline, safe FTS grammar handling,
-hybrid branch composition, and the graph-expansion configuration that survives
-the ADR-level pipeline choice.
+This file owns how current retrieval mechanisms compose. Public request,
+response, and error spellings remain in `dev/interfaces/`; exact result-limit
+rules remain in [`retrieval-result-limits.md`](retrieval-result-limits.md); the
+shared vector representation remains owned by [`vector.md`](vector.md).
 
-## Frozen and graph evidence in 0.8.26
+## Pipeline and authority order
 
-Both explanation-enabled frozen search paths use the common search-result
-finalizer exactly once, producing a valid nonempty correlation identity without
-changing explanation-off ranking, hit identity, projection, or evidence
-semantics.
+Retrieval is a typed, bounded data-plane operation:
 
-Constrained graph expansion can opt into a positional V1 evidence sidecar. The
-sidecar carries separate opaque target-node and terminal-edge selectors; it
-does not claim that a terminal edge proves a complete path. Exact resolution is
-available only under the authenticated originating frozen context and uses the
-same reader transaction for authority, eligibility, disclosure, lifecycle,
-and immutable-revision materialization.
-Intrinsic lifecycle authorization is re-evaluated before provenance details or
-source bytes: canonical sources and node artifacts must remain active, and
-terminal edges must remain effective at the frozen instant and outside the
-temporal-fallback class. Equivalent freshly authenticated semantic contexts
-remain valid; token-string identity is not an authority rule.
+1. validate query, result bound, filter, view or frozen context, explanation,
+   evidence, graph, and reranker options before candidate execution;
+2. compile text through the safe `fathomdb-query` grammar rather than passing
+   caller text directly to FTS5;
+3. apply declared projection roles, lifecycle, valid-time, source, attribute,
+   and frozen eligibility before each branch's candidate cutoff;
+4. collect lexical and vector candidates, hydrate canonical state, and fuse
+   contributing arms deterministically;
+5. apply only requested optional graph, reweight, or cross-encoder mechanisms;
+   and
+6. truncate to the public limit, then finalize opt-in explanation/evidence from
+   the same authorized result snapshot.
 
-Resolution is point evidence, not search. It returns intrinsic revision/source
-evidence and never fabricates rank, score, or contribution. Expired, foreign,
-tampered, drifted, ineligible, undisclosed, erased, superseded, and nonexistent
-selectors preserve the accepted nondisclosure and error-precedence contract.
-The owning decision is `ADR-0.8.26-exact-graph-artifact-evidence.md`; the
-implementation seams are `frozen_read.rs`, `graph_expand.rs`, and `evidence.rs`.
+Eligibility-before-truncation is load-bearing. A hidden, expired, deleted,
+superseded, ineligible, or wrong-generation row cannot consume a bounded slot
+and then disappear after ranking. Current and frozen paths share that rule.
 
-## 0.6.0 stage surface
+## Candidate arms
 
-0.6.0 supports graph `expand` on search results as carried-forward product
-surface. `rerank` is deferred and is not part of the 0.6.0 search contract.
+The live hit-provenance enum has four values:
 
-## Soft-fallback signal
+- `Vector` — eligible node candidates from the shared dense table;
+- `Text` — canonical node-body or declared projected-text FTS candidates;
+- `TextEdge` — edge-body text or vector-projected edge-fact candidates; and
+- `GraphArm` — nodes contributed by the optional bounded search graph arm.
 
-REQ-029 / AC-031 make the hybrid fallback signal part of the public search
-contract.
+The soft-fallback record is narrower than hit provenance. It reports only a
+nonessential `Vector` or `Text` branch that could not contribute; total request
+failure remains a typed error. `TextEdge` and `GraphArm` identify returned hit
+origins and are not new soft-fallback categories.
 
-The typed branch enum in 0.6.0 is exactly:
+### Lexical collection
 
-- `Vector`
-- `Text`
+Node and edge text uses maintained FTS tables. Declared nested-source projected
+text participates only through the registered projection grammar. Direct
+`search_text_only*` requests preserve the stable prefix contract: the unfiltered
+node-only fast path reads the hidden-rank stream through the complete score
+group crossing its fixed candidate boundary, restores stable
+`(bm25 score, write_cursor)` order, and then applies the public limit. Filters,
+edge-bearing workspaces, unsupported shapes, and statement/row failures use the
+full stable-sort path. The optimization does not change public ordering.
 
-Semantics:
+### Vector collection and fusion
 
-- the fallback record is present only when one non-essential branch could not
-  contribute
-- `Vector` means the vector branch could not contribute
-- `Text` means the text branch could not contribute
-- total request failure is not expressed as a soft-fallback record
+Vector retrieval uses the one schema-owned `vector_default` virtual table plus
+its authority sidecars. Phase 1 uses the binary shortlist; phase 2 exact-f32
+distance reranks that shortlist. Kind and declared filter attributes constrain
+the candidate statement before its limit.
 
-This file owns the branch enum and its meaning. The per-binding field name on
-the returned fallback record is owned by `interfaces/{python,typescript,rust}.md`.
+Contributing lexical, vector, and optional graph arms are combined by weighted
+reciprocal-rank fusion. There is no public `fusion_mode` switch. Vector-first
+tiebreaking and stable cursor ordering make equal-score output deterministic.
+Recency and importance/confidence reweights are separate, default-off
+mechanisms; they do not redefine the base fusion contract.
 
-## Direct-text FTS rank-boundary collection
+Dense-equivalence failure disables vector-dependent work without disabling the
+text-only path. Device selection for the embedder and cross-encoder is
+independent; a reranker device result never attests the embedding or SQLite
+candidate path.
 
-The direct `search_text_only*` family fixes its node candidate input at 100 for
-every accepted public result limit. For an unfiltered direct-text request on a
-database with no edge-body FTS rows, the engine collects that input using the
-FTS5 hidden-rank stream:
+## Cross-encoder reranking
 
-1. the query pins `rank MATCH 'bm25()'` so a persistent database rank setting
-   cannot change product semantics;
-2. `ORDER BY rank` is consumed through the complete BM25 score group crossing
-   candidate 100;
-3. the bounded candidates are restored to ascending
-   `(bm25 score, write_cursor)` order and truncated to 100; and
-4. normal body deduplication, RRF, and public-limit truncation continue
-   unchanged.
+Search may request bounded cross-encoder reranking of its fused pool. The model
+contributes nullable `ce_score` values and the configured blend only inside the
+reranked pool; depth zero, empty input, or the feature-off/model-unavailable
+identity path preserves input ordering and scores. Validation and forced-device
+errors occur before or at the owned reranker boundary and do not silently fall
+back from forced CUDA.
 
-The complete boundary score group is required because SQLite does not promise
-secondary ordering among equal ranks. In the all-equal case this intentionally
-scans every matching node to preserve the stable cursor prefix.
+Standalone `rerank` is a live governed package operation in Python and
+TypeScript. It accepts caller passages and reuses the same bounded reranker
+mechanism, but it does not query SQLite and does not imply that ordinary search
+always reranks. The executable operation map and binding surface oracle are
+owned by Slice 55.
 
-Filters, edge-bearing databases, hybrid/vector requests, and legacy-schema
-fallbacks retain the existing full stable-sort collector. If streamed statement
-preparation, stepping, or row conversion fails, partial streamed candidates are
-discarded and that same full-sort path runs. The optimization changes no cache,
-mmap, temp-store, reader-pool, hybrid/vector, schema, or public SDK behavior.
+## Current and frozen reads
 
-The writer connection explicitly applies `WAL + synchronous=NORMAL`, restoring
-the accepted durability invariant; reader-pool and runtime connections are not
-changed by this collector.
+`ReadView` owns current visibility and valid-time policy. A frozen read context
+authenticates the database, effective view, validity instant, canonical
+high-water boundary, dependency generation, projection generation, and request
+eligibility envelope. Reproduction succeeds only while those facts remain
+available and coherent; tamper, foreign database, or state drift returns the
+typed frozen-read outcome rather than silently reading current state.
+
+Frozen pagination and operational-state reads use their own bound cursor
+contracts. A frozen context is not a permanently held SQLite transaction or a
+persisted lease. Each operation opens a reader transaction and revalidates the
+authenticated boundary.
+
+## Graph retrieval
+
+Two bounded graph mechanisms are current:
+
+- the optional search graph arm seeds from eligible retrieval results and adds
+  `GraphArm` candidates before final fusion; and
+- the governed `graph_expand` V1 operation accepts query or explicit seeds,
+  direction, edge and target kinds, indexed predicates, current or frozen
+  context, and explicit depth/work/result bounds.
+
+Graph seed and target eligibility is applied before seed truncation and
+expansion. Results are deterministic one-page targets with compact origin and
+degradation state. General continuation, full paths, associative diffusion,
+and semantic truth inference remain deferred.
+
+## Explanation and evidence
+
+Explanation is an opt-in sidecar finalized exactly once with a nonempty
+engine-minted correlation identity. It describes returned results using the
+live fusion/reranking, fallback, projection, graph, dependency, and lifecycle
+facts; it does not run a parallel ranking implementation. Explanation-off
+ranking and result identity remain unchanged.
+
+Compact ranked evidence is also opt-in and resolves under its authenticated
+frozen eligibility envelope to exact source revision, locator, hash, bytes or
+span, lifecycle, contribution, and dependency facts. Authorization and
+nondisclosure precede detailed corruption diagnostics.
+
+Bounded graph expansion has a distinct positional V1 evidence sidecar.
+Frozen-only opaque references bind the selected target and winning terminal
+edge revisions to the originating normalized request and disclosure envelope.
+Resolution returns intrinsic artifact/source evidence; it never fabricates
+rank, contribution, or a complete path. Exact behavior is owned by
+[`ADR-0.8.26-exact-graph-artifact-evidence.md`](../adr/ADR-0.8.26-exact-graph-artifact-evidence.md).
+
+## Ownership boundaries
+
+- Bindings own language spelling and conversion precedence.
+- Projection owners define generation/readiness and declared roles.
+- The engine owner defines reader/writer topology and cursor semantics.
+- The evidence and graph ADRs define opaque reference security and failure
+  precedence.
+- Semantic planning, synthesis, answer verification, and model/provider spend
+  remain caller-owned.
+
+Historical 0.6.0 stage and two-branch descriptions remain available in Git but
+are not current authority.

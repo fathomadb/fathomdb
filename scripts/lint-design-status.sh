@@ -33,7 +33,7 @@
 # has drained the UNREVIEWED backlog.
 #
 # LEGACY STATUS VALUES (frozen inventory, monotone ratchet):
-# 46 design docs predate this gate with free-form values — `locked` (the 0.8.0
+# 43 design docs predate this gate with free-form values — `locked` (the 0.8.0
 # architecture specs), `accepted`, `decision-ready`, `SIGNED (...)`, `PROPOSAL —
 # awaiting HITL review (...)` and so on. None of them fit the governed
 # vocabulary. Rewriting them here would BE the TC-50 classification this tranche
@@ -71,7 +71,7 @@ ALLOWED_RE='^(ACTIVE|COMPLETE|PROPOSED|SUPERSEDED|UNKNOWN|UNREVIEWED)$'
 # Frozen at DOC-HYGIENE-2 T2c (2026-07-25). Leading token, case-insensitive.
 # DO NOT EXTEND — see the LEGACY block in the header. TC-50 retires these.
 LEGACY_RE='^(accepted|adopted|analysis|decision-ready|design-note|draft|implementation|implementation-notes|locked|open|proposal|proposed|ratified|signed|tracked)$'
-LEGACY_BUDGET=46
+LEGACY_BUDGET=43
 
 FAIL=0
 SCANNED=0

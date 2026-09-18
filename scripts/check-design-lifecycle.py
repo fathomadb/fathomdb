@@ -38,7 +38,7 @@ KEY_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 RELEASE_RE = re.compile(
     r"^(?:cross-release|(?:current|historical|future):[A-Za-z0-9][A-Za-z0-9._+-]*)$"
 )
-STATUS_RE = re.compile(r"^status\s*:\s*(.*)$")
+STATUS_RE = re.compile(r"""^(?:status|"status"|'status')\s*:\s*(.*)$""")
 
 
 def fail(message: str) -> None:

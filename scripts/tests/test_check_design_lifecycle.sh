@@ -232,6 +232,14 @@ PY
       write_fixture "$root" valid
       sed -i '/status: accepted/a status : superseded' "$root/dev/adr/current.md"
       ;;
+    duplicate_double_quoted_adr_status)
+      write_fixture "$root" valid
+      sed -i '/status: accepted/a "status": superseded' "$root/dev/adr/current.md"
+      ;;
+    duplicate_single_quoted_adr_status)
+      write_fixture "$root" valid
+      sed -i "/status: accepted/a 'status': superseded" "$root/dev/adr/current.md"
+      ;;
     draft_interface)
       write_fixture "$root" valid_locked_interface
       sed -i 's/status: locked/status: draft/' "$root/dev/interfaces/current.md"
@@ -377,6 +385,8 @@ for mode in \
   superseded_adr \
   malformed_adr_status \
   duplicate_spaced_adr_status \
+  duplicate_double_quoted_adr_status \
+  duplicate_single_quoted_adr_status \
   draft_interface \
   malformed_interface_status \
   agents_wrong_role \

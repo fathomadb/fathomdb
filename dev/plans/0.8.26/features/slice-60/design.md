@@ -113,6 +113,87 @@ neither is an immutable record revision. Shared `vector_default` plus authority
 sidecars replaces the historical per-kind vector-table description. Exact
 generation, readiness, and repair details stay with their narrower owners.
 
+## Authorized operator recovery entry paths
+
+The implementation review exposed a topology bug, not an accepted-policy
+change. Public `Engine::open` must continue to reject corruption before
+returning a handle, but the operator tool needs a separate path to act on the
+WAL that open refused. One operator-feature-only free function in the engine
+crate provides that path:
+
+```rust
+recover_truncate_wal(path: impl Into<PathBuf>)
+    -> Result<TruncateWalReport, EngineOpenError>
+```
+
+The facade re-exports it only behind its existing `operator` feature for the
+CLI; it is absent from the default Rust/Python/TypeScript SDK surfaces. The
+function and additive report field are public operator-feature Rust contracts
+owned by `interfaces/rust.md`; JSON and exit behavior are owned by
+`interfaces/cli.md` and `design/recovery.md`.
+
+### Corrupt-WAL truncation
+
+The path-scoped WAL recovery function:
+
+1. resolves the canonical database namespace, preflights an existing nonempty
+   regular database, and does not bootstrap a missing path;
+2. acquires and initializes the same persistent sidecar lock used by normal
+   admission, then rechecks the existing/nonempty/regular-file facts while
+   holding it;
+3. refuses a nonempty rollback journal because WAL recovery does not authorize
+   rollback-journal recovery;
+4. validates the main file independently through an immutable, read-only,
+   query-only connection: header probe, full schema traversal, exact
+   `user_version == 34`, and legacy-shape refusal, so main-file corruption is
+   neither hidden nor touched;
+5. re-reads and records the WAL-header classification while holding the lock.
+   A sidecar shorter than 32 bytes carries no committed frames; at least 32
+   bytes with invalid masked magic or a non-power-of-two/out-of-range page size
+   is the exact malformed state shared with `probe_wal_sidecar`; sidecar I/O
+   errors fail rather than becoming "absent";
+6. opens one recovery-only read/write SQLite connection, deliberately omitting
+   only the public open path's WAL pre-probe, and runs
+   `PRAGMA wal_checkpoint(TRUNCATE)`; and
+7. releases every connection and the sidecar lock before returning.
+
+The malformed branch is destructive and is reachable only after the CLI has
+validated `--accept-data-loss`. SQLite, not raw filesystem code, owns WAL/SHM
+locking and discard. The report retains SQLite's counters/status and adds
+`discarded_corrupt_wal`. It is true only when the locked pre-probe classified a
+malformed WAL and SQLite returned `Done`; it is false for healthy/absent WAL and
+for `Busy`. Thus an empty healthy WAL cannot be confused with deliberate
+discard, while an incomplete attempt cannot claim recovery. A busy checkpoint
+maps to retryable exit `71`, not accepted-loss `64`.
+SQLite checkpoint errors map through the existing WAL-replay open-error class;
+no error or Busy result claims discard completion.
+The function does not bootstrap, migrate, reconcile, load embedders, start
+workers, accept a different corruption kind, or weaken public open. A
+subsequent normal open proves that the base database is otherwise admissible.
+
+### Standalone safe export
+
+`doctor safe-export` remains the logical `VACUUM INTO` plus SHA-256 manifest
+workflow on an admitted database. A malformed SQLite header cannot be parsed
+into that self-contained logical artifact, so it remains a fail-closed
+`E_CORRUPT_HEADER` result before export. The operator guidance preserves the
+original and directs external forensic/SQLite recovery tooling; it no longer
+claims `safe-export` can bypass the header failure. A raw byte copy would be a
+different forensic artifact and is explicitly out of scope. Clean current
+databases retain the existing artifact and manifest shape.
+
+### Isolation and errors
+
+The WAL function serializes against a live Engine through the established
+canonical lock. Lock contention and busy checkpoint retain exit class `71`;
+completed WAL recovery retains accepted-loss success `64`. A nonempty rollback
+journal and missing, zero-length, noncurrent, or main-corrupt database use the
+existing unrecoverable class `70`. Malformed-header `safe-export` also remains
+open corruption at `70`, not artifact-failure `66`. Other recovery and doctor
+actions still require a successfully admitted Engine because they depend on
+current canonical/schema invariants. No generic "open corrupted database"
+handle is introduced.
+
 ## RED/GREEN proof shape
 
 The RED is semantic and source-grounded: required current facts are absent and
@@ -121,9 +202,23 @@ current facts and reject old claims. Lifecycle, Markdown, links, source diff,
 and full repository verification remain separate oracles. No generated product
 oracle or generalized Slice 65 checker is added.
 
+The recovery addendum uses executable product RED tests in
+`fathomdb-engine/tests/truncate_wal.rs` and
+`fathomdb-cli/tests/recovery_cli.rs`. They bind public-open refusal before
+recovery, acknowledged malformed-WAL recovery and reopen, missing/zero/
+noncurrent/main-corrupt/rollback-journal/live-lock refusal without byte
+mutation, valid/absent WAL with a false discard disposition, Busy exit `71`,
+default-SDK nonpresence, and malformed-header safe-export failure with no
+artifact or manifest. The pre-existing CLI test that allowed Busy with exit
+`64` is changed first so a non-completed checkpoint cannot remain accepted as
+success. A default-build compile-fail doctest proves that
+`fathomdb::recover_truncate_wal` is absent without the `operator` feature.
+
 ## Compatibility and change class
 
-Only explanatory/contract documentation changes. Runtime bytes, schemas,
-operations, errors, bindings, packages, and publication state do not change.
-Historical rationale remains in Git or behind explicit historical links rather
-than masquerading as current behavior.
+The original owner reconciliation is explanatory/contract documentation. The
+authorized addendum changes only operator-feature Rust engine/CLI dispatch and
+focused tests. It adds no SDK operation, schema or migration, binding surface,
+package dependency, or publication action. Historical rationale remains in Git
+or behind explicit historical links rather than masquerading as current
+behavior.

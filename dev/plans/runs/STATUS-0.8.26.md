@@ -11,9 +11,9 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 60 (DESIGN-OWNERS), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-current-state -->**Next is Slice 65 (LIFECYCLE-GATE), DRAFT.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.26:status-current-state -->
 
-Slices 0–10, 15, 20, 30, 35, 40, 45, 46, 50, and 55 are complete on the
+Slices 0–10, 15, 20, 30, 35, 40, 45, 46, 50, 55, and 60 are complete on the
 0.8.26 release line. Slice 50 bound candidate `68514f70`, local package
 witnesses, 116/116 capable-executor gate, five native platforms, distinct
 Windows WAL receipt, and both Gitleaks scans in its validated manifest. Slice
@@ -22,12 +22,16 @@ canonical Python/TypeScript operations and restoring the approved TypeScript
 `rerank` peer. Its 117/117 gate and independent design, code, and verification
 reviews passed. A post-completion GPT-6 Astra medium review then closed two P2
 rerank boundary defects through committed RED/GREEN remediation and a fresh
-117/117 gate. The ladder remains open for Slices 60 and 65; Slice 50 remains
-historical evidence but is no longer the final integration candidate.
+117/117 gate. Slice 60 reconciled the retrieval, recovery, and engine owners and
+made explicitly acknowledged malformed-WAL recovery reachable through a
+fail-closed operator-only seam. Independent design/code review and verification
+passed, including the strict-security 117/117 canonical gate. The ladder remains
+open only for Slice 65; Slice 50 remains historical evidence but is no longer
+the final integration candidate.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 60 (DESIGN-OWNERS)** — retrieval, recovery, and engine current-owner reconciliation. **Remaining ladder:** 60 → 65.<!-- END GENERATED release-state:0.8.26:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.26:status-next-action -->**Commission Slice 65 (LIFECYCLE-GATE)** — semantic ownership recurrence guards and candidate requalification. **Remaining ladder:** 65.<!-- END GENERATED release-state:0.8.26:status-next-action -->
 
 Do not integrate, tag, or publish until Slice 65 records a replacement exact
 candidate and restores the completion claim.

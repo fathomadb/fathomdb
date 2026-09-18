@@ -1,8 +1,8 @@
 ---
 title: FathomDB 0.8.26 Slice 60 — independent implementation review
-status: CHANGES_REQUESTED
+status: PASS
 reviewed_on: 2026-09-17
-reviewed_tip: 6b238840
+reviewed_tip: 173c49cb53ba0d68a1f5f7e31f3c4454bfc65b89
 ---
 
 # Slice 60 independent implementation review
@@ -52,3 +52,22 @@ anchors restored are `Writer / reader split`, `Close path`,
 
 Final review remains non-PASS until the P1 is explicitly scoped, fixed through
 RED/GREEN, and independently rereviewed.
+
+## Final remediation review
+
+The repository owner authorized the narrow product correction. The final
+review covered the path-scoped operator function, CLI dispatch, default-SDK
+absence, tests, and contracts at `173c49cb`.
+
+Adversarial review found and drove RED/GREEN corrections for four residual
+hazards: counterfeit schema-34 databases, read-only preflight SHM mutation on
+refusal, create permission on the final recovery open, and unrealistic
+empty-SQLite schema-cookie fixtures. The final implementation validates current
+Fathom dependency/frozen-read/closure invariants, restores the SHM snapshot on
+preflight refusal, opens `mode=rw` without create, and tests real schema-34
+databases plus an invalid effective invariant.
+
+Final verdict: **PASS** with no unresolved P1/P2. Independent focused evidence:
+engine recovery 15/15, CLI recovery 16 active cases, durability 13/13 active
+cases, operator facade 4/4, default-feature doctests 5/5, Markdown/design/state
+checks PASS, and no Python/TypeScript product diff.

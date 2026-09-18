@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 planning package
-status: DRAFT
+status: ACTIVE
 target_release: 0.8.26
 ---
 
@@ -19,7 +19,7 @@ Memex contract-completion scope. Slice 9 execution is authorized only within
 5. [`features/README.md`](features/README.md)
 6. Slice-local `plan.md`, then `design.md`
 
-Slice 8 is complete. The replacement Slice 9 scope passed independent review
-and is authorized at `seq-289`. Feature designs remain DRAFT until their
-dependencies close and formal design review passes; D26-01 remains open until
-Slice 15 reports.
+Slices 0–60 are complete on the release branch. D26-01 was ruled at `seq-290`
+and implemented by Slice 20. Slice 65 is the sole remaining release slice and
+must requalify the exact replacement candidate; publication remains
+unauthorized.

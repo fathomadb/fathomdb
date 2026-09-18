@@ -19,13 +19,18 @@ renumbering the release.
 | 40 | V1 atomic derived-edge actuation and fresh-database boundary | P2 | Complete |
 | 45 | Architecture documentation convergence | release documentation | Complete |
 | 46 | Technical design documentation convergence | release documentation | Complete |
-| 50 | Integrated package, platform, cross-SDK, and release verification | P0–P2 | Next |
+| 50 | Integrated package, platform, cross-SDK, and release verification | P0–P2 | Complete |
+| 55 | Executable canonical-operation SDK parity oracle | release conformance | Complete |
+| 60 | Retrieval, recovery, and engine current-owner reconciliation | release documentation | Complete |
+| 65 | Semantic ownership recurrence guards and candidate requalification | release gate | Next |
 
 Each implementation slice and approved spike retains its reviewed execution
 plan, design, review, and status evidence. Slice 15 and Slice 35 were inserted
 by Slice 8 evidence after the initial mod-10 ladder was drafted. D26-01 and
 D26-03 through D26-05 are ruled and implemented. Slices 45 and 46 are the
 post-implementation documentation convergence gates: architecture and technical
-design authority are now reconciled. Slice 50 is the sole next dependency for
-integrated non-publishing verification. HITL approved that placement at
-`seq-288`.
+design authority are now reconciled. Slices 50, 55, and 60 completed integrated
+verification, executable SDK parity, and current design-owner reconciliation.
+Slice 65 is the sole remaining dependency and must bind the replacement exact
+candidate before integration or publication. HITL approved the documentation
+placement at `seq-288`.

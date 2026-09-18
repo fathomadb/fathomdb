@@ -192,3 +192,10 @@ refusal and exact database/WAL/SHM preservation. The focused engine suite
 passes 15/15 with a real
 schema-34 database for both pending-current success and effective-noncurrent
 refusal.
+
+## Final verification
+
+Independent code review and design rereview returned PASS with no unresolved
+P1/P2. An independent verifier reproduced the focused matrix at exact candidate
+`173c49cb`. The unchanged canonical `agent-verify` then passed strict security
+and all 117 registered suites with none skipped or excluded.

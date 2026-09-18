@@ -9,7 +9,7 @@ entry_tip: 4077148b765b6bd6f266b3a42569a8a46d9b1277
 
 ## Post-draft changes
 
-The 18-commit `65f69ca1..4077148b` delta changes 53 paths with 3,629
+The 17-commit `65f69ca1..4077148b` delta changes 53 paths with 3,629
 insertions and 861 deletions. It falls into four relevant groups.
 
 | Group | Reviewed change | Slice 65 effect |

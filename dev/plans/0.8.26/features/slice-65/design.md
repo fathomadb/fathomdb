@@ -68,11 +68,19 @@ requirement.
 
 For V1, an accepted external authority is one of:
 
-- an existing accepted ADR under `dev/adr/`;
-- an existing locked public contract under `dev/interfaces/`;
+- an existing ADR under `dev/adr/` whose YAML front-matter `status` starts with
+  `accepted` or `locked` after case normalization;
+- an existing public contract under `dev/interfaces/` whose YAML front-matter
+  `status` is exactly `locked` after case normalization;
 - `dev/requirements.md`; or
-- the repository invariant file `AGENTS.md` for cross-release method and
-  documentation-governance owners.
+- the repository invariant file `AGENTS.md`, only when the lifecycle record's
+  role is `index` or `method`.
+
+The checker parses the bounded opening YAML front matter itself and fails
+closed on absent, duplicate, malformed, multiline, or non-string `status`.
+Proposed/draft/decision-ready/superseded ADRs and draft interfaces are not
+authorities even though the files exist. `AGENTS.md` cannot authorize an
+ordinary subsystem design, policy, or gate merely by being named.
 
 A semantic-authority path under `dev/design/` must be another maintained entry
 with its own companion profile. The checker traverses those edges and rejects
@@ -88,11 +96,13 @@ or release-local records, but cannot duplicate an authority or witness path.
 At least one authority and one implementation witness are required per current
 profile; evidence may be empty.
 
-The existing lifecycle checker remains the single executable gate. Its fixture
-suite constructs tiny repositories and proves exact-set matching, accepted
-termination, invalid-class rejection, cycle detection, witness-root checking,
-disjoint relationship classes, sorting, and existing local/docs-only wiring.
-No second checker or generated prose index is introduced.
+The existing lifecycle checker remains the single lifecycle gate. Its fixture
+suite constructs tiny repositories and proves exact-set matching, accepted and
+locked front-matter termination, rejection of proposed/superseded/malformed
+ADRs and draft/malformed interfaces, role-bounded `AGENTS.md`, invalid-class
+rejection, cycle detection, witness-root checking, disjoint relationship
+classes, sorting, and existing local/docs-only wiring. No second lifecycle
+checker or generated prose index is introduced.
 
 ## Error-owner reconciliation
 
@@ -123,9 +133,35 @@ The actual post-Slice-50 diff changes Rust engine/facade/CLI code, N-API and
 TypeScript binding code, package-facing interfaces, and tests. Therefore the
 five native targets and distinct Windows WAL installed-wheel witness are
 affected and must be rerun. The Slice 50 assembly/receipt validators and graph
-profile are reused, with a Slice 65 manifest schema that binds the new candidate
-and records the lifecycle/parity/owner checks. The existing Slice 50 manifest
-is immutable historical evidence.
+profile are reused unchanged. A thin `slice65-candidate-manifest.py` imports
+that module and wraps one newly assembled
+`fathomdb.slice50-candidate/v1` payload for the same candidate in:
+
+```json
+{
+  "schema_version": "fathomdb.slice65-candidate/v1",
+  "candidate_sha": "<40-hex>",
+  "base_candidate": {"schema_version": "fathomdb.slice50-candidate/v1"},
+  "qualification": {
+    "design_lifecycle": "pass",
+    "sdk_surface_parity": "pass",
+    "slice60_owner_probes": "pass"
+  }
+}
+```
+
+Validation first calls the unchanged Slice 50 validator over `base_candidate`,
+then requires equal candidate SHAs and the exact three-key qualification set
+with only `pass` outcomes. Unknown/missing keys, an embedded non-Slice-50
+schema, or candidate mismatch fails. The wrapper assembly delegates all
+artifact/evidence/toolchain/command/external/profile arguments to Slice 50 and
+adds only the three named outcomes. The existing Slice 50 script and committed
+manifest remain byte-unchanged historical evidence.
+
+The manifest RED proves both directions: the original Slice 50 manifest still
+passes its original validator, while malformed Slice 65 wrappers fail for
+missing, extra, cross-schema, non-pass, and candidate-drift cases. GREEN adds
+only the wrapper/validator needed by those tests.
 
 The implementation candidate is a clean commit containing all functional,
 catalog, test, error-owner, and review-remediation changes. Artifacts and
@@ -135,8 +171,9 @@ SHAs so the self-referential closeout is not mislabeled as the built candidate.
 
 ## Compatibility and change class
 
-The product/runtime surface is unchanged. The only executable change is a
-repository lifecycle checker and its fixtures. The catalog is internal
-engineering metadata, and the error edit redirects ownership without changing
-an error contract. No schema, migration, dependency, package API, operation
-map, tag, publication, or main integration is authorized.
+The product/runtime surface is unchanged. Executable repository changes are
+limited to the existing lifecycle checker and fixtures plus the thin candidate-
+manifest wrapper and its tests. The catalog is internal engineering metadata,
+and the error edit redirects ownership without changing an error contract. No
+schema, migration, dependency, package API, operation map, tag, publication, or
+main integration is authorized.

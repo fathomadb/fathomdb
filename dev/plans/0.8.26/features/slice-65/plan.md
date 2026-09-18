@@ -20,7 +20,7 @@ that distinguishes current semantic authority from historical evidence, plus
 an exact replacement candidate after the reopened ladder changed runtime and
 package inputs.
 
-The draft landed at `65f69ca1`. Eighteen later commits changed 53 files before
+The draft landed at `65f69ca1`. Seventeen later commits changed 53 files before
 this entry review. The exact categories and dispositions are:
 
 1. Slice 55 added the executable 69-token/44-operation Python/TypeScript parity
@@ -94,13 +94,13 @@ Out of scope:
 | Requirement | Acceptance criterion |
 | --- | --- |
 | R26-65A: explicit current authority | AC26-65A: the companion catalog covers exactly the lifecycle catalog's maintained set; every entry names profile `current`, at least one existing semantic authority, and at least one implementation/test or bounded enforcement witness; metadata cannot elevate a design above ADR/interface authority. |
-| R26-65B: valid semantic graph | AC26-65B: semantic-authority edges are duplicate-free, existing, acyclic across maintained owners, and terminate at a maintained owner or an accepted ADR/locked interface/repository invariant; historical/proposal/deferred targets are legal only as explicit evidence, never current authority or implementation witnesses. |
+| R26-65B: valid semantic graph | AC26-65B: semantic-authority edges are duplicate-free, existing, acyclic across maintained owners, and terminate at a front-matter-accepted/locked ADR, a front-matter-locked interface, `dev/requirements.md`, or role-bounded `AGENTS.md`; proposed/superseded ADRs, draft interfaces, and historical/proposal/deferred designs are legal only as explicit evidence, never current authority or implementation witnesses. |
 | R26-65C: error ownership | AC26-65C: current error semantics formerly delegated to historical or release-local slice documents are incorporated into maintained owners or accepted contracts, with the old documents retained as evidence. |
-| R26-65D: non-vacuous recurrence tests | AC26-65D: committed RED fixtures prove missing/extra/duplicate profiles, invalid or historical authority, maintained-owner cycles, missing/invalid witnesses, authority/evidence overlap, and non-current profile claims fail; valid external termination and evidence-only historical references pass; existing structural lifecycle controls remain intact. |
+| R26-65D: non-vacuous recurrence tests | AC26-65D: committed RED fixtures prove missing/extra/duplicate profiles, proposed/superseded/malformed ADR authority, draft/malformed interface authority, role-invalid `AGENTS.md`, historical design authority, maintained-owner cycles, missing/invalid witnesses, authority/evidence overlap, and non-current profile claims fail; valid accepted/locked termination and evidence-only historical references pass; existing structural lifecycle controls remain intact. |
 | R26-65E: honest gate claim | AC26-65E: documentation states that automation proves coverage and authority topology, while semantic correctness remains code-grounded review; no generated “all prose current” claim is introduced. |
 | R26-65F: upstream feedback | AC26-65F: Slice 55 and Slice 60 outputs are rerun and may be amended when this slice changes a shared classification, owner boundary, or operation mapping; amendments retain their original RED/GREEN or code-grounded acceptance. |
 | R26-65G: exact candidate | AC26-65G: focused lifecycle/parity/docs checks, strict security scans, `agent-verify`, and fresh installed Python/TypeScript/CLI surface smokes pass at one immutable candidate commit. Because Slices 55–60 changed Rust/TypeScript/package inputs, the five-target native matrix and distinct Windows WAL installed-wheel receipt are rerun at that same SHA rather than reused. |
-| R26-65H: completion state | AC26-65H: a strictly validated Slice 65 candidate manifest and release state bind the immutable implementation candidate plus its exact receipts, preserve Slice 50 as historical evidence, leave publication unauthorized, and distinguish the later documentation-only closeout commit from the candidate. |
+| R26-65H: completion state | AC26-65H: a strictly validated Slice 65 wrapper manifest embeds one unchanged-schema Slice 50 base manifest for the same immutable implementation candidate, adds an exact closed set of passing lifecycle/parity/owner checks, rejects missing/extra/cross-schema evidence, preserves the original Slice 50 manifest as historical evidence, leaves publication unauthorized, and distinguishes the later documentation-only closeout commit from the candidate. |
 | R26-65I: review and cleanup | AC26-65I: independent design review passes before RED implementation, independent code review and independent verification report no unresolved P1/P2 finding, Slice 65 writes its status/chronology/review records, and the retained release worktree is clean without a new branch or worktree. |
 
 ## TDD and execution sequence
@@ -111,24 +111,62 @@ Out of scope:
 2. **RED:** extend `test_check_design_lifecycle.sh` with isolated fixtures for
    each AC26-65D invalid and valid case. Run the real checker and preserve the
    failing result before changing checker/catalog implementation.
-3. **GREEN:** add the smallest companion catalog and checker extension that
+3. **RED:** add `test_slice65_candidate_manifest.py` proving the original Slice
+   50 manifest still validates with its existing validator while the proposed
+   Slice 65 wrapper rejects missing, extra, mismatched-candidate, and embedded
+   cross-schema evidence.
+4. **GREEN:** add the smallest companion catalog and checker extension that
    makes those fixtures and the real 25-owner set pass. Reconcile only the eight
    historical/release-local semantic-owner cells in `errors.md` and the
    smallest maintained-owner text needed to own them.
-4. Rerun the Slice 55 parity mutation suite and Slice 60 lifecycle,
+5. **GREEN:** add a thin Slice 65 manifest assembler/validator that delegates
+   artifact, graph-profile, scan, native-matrix, and Windows-WAL validation to
+   the unchanged Slice 50 module, then binds the exact additional check set.
+6. Rerun the Slice 55 parity mutation suite and Slice 60 lifecycle,
    source-grounded, Rust/CLI recovery, and product-diff comparisons. Amend
    earlier artifacts only if this slice changed a shared fact.
-5. Obtain independent code review over RED/GREEN chronology, checker safety,
+7. Obtain independent code review over RED/GREEN chronology, checker safety,
    catalog truth, and error-owner edits. Any factual finding receives a focused
    RED before the smallest correction.
-6. Freeze an immutable implementation candidate, run focused checks, strict
+8. Freeze an immutable implementation candidate, run focused checks, strict
    security, `agent-verify`, fresh installed wheel/npm/CLI profiles, generated
    and tracked-tree scans, and exact-SHA native plus Windows WAL jobs. Use the
    existing Slice 50 package/profile/receipt machinery rather than replacing it.
-7. Have an independent verifier reproduce the focused and manifest checks.
+9. Have an independent verifier reproduce the focused and manifest checks.
    Write `tdd-chronology.md`, design/code/verification review records, the
    strict candidate manifest, and `status.md`; then advance the single-writer
    release state with the candidate SHA and a separate closeout SHA.
+
+The reproducible focused commands are:
+
+- `python3 scripts/check-design-lifecycle.py`;
+- `bash scripts/tests/test_check_design_lifecycle.sh`;
+- `python3 scripts/check-sdk-surface-parity.py`;
+- `python3 scripts/tests/test_check_sdk_surface_parity.py`;
+- the exact Slice 60 positive/inverse owner probes recorded in
+  `features/slice-60/tdd-chronology.md`;
+- `cargo test -p fathomdb-engine --features operator --test truncate_wal`;
+- `cargo test -p fathomdb-engine --test durability_open_path`;
+- `cargo test -p fathomdb-cli --test recovery_cli`;
+- `cargo test -p fathomdb --features operator --test governed_surface`;
+- `cargo test -p fathomdb --no-default-features --doc`;
+- `python3 scripts/tests/test_slice65_candidate_manifest.py`;
+- `python3 scripts/tests/test_native_artifact_receipts.py`;
+- `bash scripts/check-release-state-views.sh` and
+  `./scripts/agent-lint-md.sh`;
+- `bash scripts/security/gitleaks-current.sh`, plus direct `gitleaks dir` over
+  the owned generated-evidence root;
+- `./scripts/agent-verify.sh` on a ptrace-capable executor;
+- `bash scripts/release/smoke/smoke-local-native-artifacts.sh "$WHEEL_DIR" src/ts "src/ts/npm/$NAPI_LABEL" "$NAPI_LABEL"` against artifacts built once from the candidate;
+- source-built CLI `--version` plus `doctor data-plane-integrity --json` against
+  the quiescent candidate fixture;
+- exact-SHA `ci.yml` dispatch and receipt collection for the five native targets
+  and distinct `windows-wal-attribution` job; and
+- `python3 scripts/release/slice65-candidate-manifest.py assemble ...` followed
+  by `python3 scripts/release/slice65-candidate-manifest.py validate --manifest
+  dev/plans/0.8.26/features/slice-65/candidate-manifest.json`. Exact artifact,
+  evidence, receipt, toolchain, and command coordinates are frozen in the
+  completion execution record before candidate qualification.
 
 ## Stop gates
 

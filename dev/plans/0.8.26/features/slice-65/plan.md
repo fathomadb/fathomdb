@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 65 — lifecycle recurrence guards and requalification
-status: REVIEW_CANDIDATE
+status: APPROVED
 target_release: 0.8.26
 ---
 

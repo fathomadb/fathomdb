@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 Slice 65 — entry inventory and disposition
-status: REVIEW_CANDIDATE
+status: APPROVED
 draft_baseline: 65f69ca1a0d9b7e0d7c70b0e09cae5bc5344e375
 entry_tip: 4077148b765b6bd6f266b3a42569a8a46d9b1277
 ---

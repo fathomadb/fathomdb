@@ -1070,14 +1070,25 @@ types without renaming them.
 
 ## Recovery / operator seam re-exports
 
-With the `operator` feature, the facade exports the free function
-`inspect_data_plane_integrity(path, DataPlaneIntegrityRequestV1) ->
-Result<DataPlaneIntegrityResultV1, EngineError>`. It is deliberately not an
-`Engine` method: it validates first, acquires the existing product lock without
-rewriting it, refuses non-quiescent sidecars, and opens exact-schema SQLite via
-an immutable read-only/query-only connection. The function does not migrate,
-repair, reconcile projections, or construct a serving runtime. It and its
-inspection-specific error reasons are absent when `operator` is disabled.
+With the `operator` feature, the facade exports two path-scoped free functions:
+
+- `inspect_data_plane_integrity(path, DataPlaneIntegrityRequestV1) ->
+  Result<DataPlaneIntegrityResultV1, EngineError>` validates first, acquires the
+  existing product lock without rewriting it, refuses non-quiescent sidecars,
+  and opens exact-schema SQLite via an immutable read-only/query-only
+  connection. It does not migrate, repair, reconcile projections, or construct
+  a serving runtime.
+- `recover_truncate_wal(path: impl Into<PathBuf>) ->
+  Result<TruncateWalReport, EngineOpenError>` acquires the canonical product
+  lock without constructing an Engine, independently validates the main file,
+  refuses a nonempty rollback journal, and lets SQLite own the destructive
+  checkpoint/discard. Public `Engine::open` remains fail-closed on a malformed
+  WAL. `TruncateWalReport::discarded_corrupt_wal` is true only when the locked
+  header classification was malformed and SQLite returned `Done`; it is false
+  for absent/healthy WAL and `Busy`.
+
+Both functions and their operator-specific reports are absent when `operator`
+is disabled.
 
 The `fathomdb` facade re-exports the following recovery and reporting types
 from `fathomdb-engine` so that `fathomdb-cli` (the only public consumer of

@@ -6,9 +6,10 @@ target_release: 0.8.26
 
 # Slice 60 TDD chronology
 
-Slice 60 changes maintained documentation owners, not product behavior. Its
-test-first oracle is therefore a reproducible set of source-comparison
-presence/absence probes rather than a manufactured runtime test.
+Slice 60 began as maintained-owner reconciliation, whose test-first oracle was
+a reproducible set of source-comparison presence/absence probes. Independent
+review then exposed a product reachability defect; after explicit repository-
+owner authorization, the recovery addendum used executable Rust RED/GREEN.
 
 ## RED — stale owners at `b770de01`
 
@@ -112,7 +113,59 @@ focused source comparison found:
 - CLI recovery opens through the public fail-closed path before invoking its
   action, making the malformed-WAL recovery hint unreachable.
 
-The first three documentation defects are corrected in the follow-up diff. The
-last is a product reachability defect and remains a plan stop gate pending
-explicit scope authorization; no runtime test or implementation has been
-altered to conceal it.
+The first three documentation defects were corrected in the follow-up diff.
+The last activated the plan stop gate. The repository owner then explicitly
+authorized the narrow recovery addendum; the blocked review remains preserved
+in `code-review.md` as the reason for the scope change.
+
+## Recovery RED — `a1166237`
+
+The recovery tests and default-facade absence proof were committed before the
+product implementation. The focused engine command failed at compile time as
+intended because `fathomdb_engine::recover_truncate_wal` did not exist and
+`TruncateWalReport` did not carry `discarded_corrupt_wal`:
+
+```console
+cargo test -p fathomdb-engine --features operator --test truncate_wal
+error[E0432]: unresolved import `fathomdb_engine::recover_truncate_wal`
+error[E0609]: no field `discarded_corrupt_wal` on type `TruncateWalReport`
+```
+
+The RED suite bound malformed-WAL public-open refusal, acknowledged recovery
+and reopen, missing/empty/rollback-journal/live-lock refusal, absent-WAL
+disposition, healthy-WAL Busy reporting, CLI exit mapping, acceptance gating,
+malformed-header safe-export refusal, and operator-feature facade presence plus
+default-feature absence.
+
+## Recovery GREEN
+
+The first focused engine run compiled and passed seven cases, but its healthy
+WAL Busy case failed with `IncompatibleSchemaVersion { seen: 0, supported: 34
+}`. That exposed a legitimate WAL rule: the current schema cookie can be in a
+healthy WAL while the immutable standalone main file remains older. The design
+and implementation were corrected so malformed-WAL discard still requires a
+standalone schema-34 main file, while healthy WAL is version-checked through
+SQLite's effective main-plus-WAL view.
+
+The next engine run passed all eight original recovery cases. The first CLI run
+then failed only the new malformed-header contract because the serializer used
+generic `CorruptionError`; mapping corruption envelopes to their stable
+`RecoveryHint.code` made the second run pass. Two additional acceptance tests
+for noncurrent and corrupt main-file byte preservation passed on their first
+run. Design rereview then caught that effective-version validation on the
+read/write recovery connection could checkpoint a healthy noncurrent WAL while
+returning refusal. A deterministic `SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE` fixture
+made that concern RED by showing the standalone main change from version 34 to
+33. Moving effective validation to a read-only/query-only SQLite connection
+made it GREEN; pending-current success and malformed-WAL/noncurrent-main
+refusal complete the three-way schema-cookie boundary.
+
+The proportional GREEN matrix was:
+
+```text
+fathomdb-engine --features operator --test truncate_wal: 13 passed
+fathomdb-engine --test durability_open_path: 13 passed, 1 ignored
+fathomdb-cli --test recovery_cli: 16 passed, 7 pre-existing ignored
+fathomdb --features operator --test governed_surface: 4 passed
+fathomdb --no-default-features --doc: 5 passed
+```

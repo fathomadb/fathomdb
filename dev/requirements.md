@@ -310,6 +310,9 @@ the ADR is authoritative.
     root for loss-authorized operator recovery. Its current actions cover WAL
     truncation, vector/projection rebuild, source excision, and operational
     record excision. The acknowledgement is mandatory and has no default.
+    WAL truncation is reachable through a path-scoped operator seam that holds
+    the product lock and independently validates the main database; normal
+    `Engine.open` remains fail-closed on the malformed WAL being recovered.
     Governed SDK `purge` and `erase_source` are application lifecycle/erasure
     operations, not recovery, so this exclusivity is scoped to the CLI recovery
     surface rather than every deletion capability.

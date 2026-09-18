@@ -251,6 +251,38 @@ fathomdb recover --accept-data-loss
 
 Exit class: `recover-*` = 0 / 64 / 70 / 71.
 
+`--truncate-wal` uses the path-scoped operator recovery function instead of
+first calling fail-closed `Engine::open`. It still requires
+`--accept-data-loss`, holds the canonical product lock, refuses a nonempty
+rollback journal and invalid database, and delegates all WAL/SHM mutation to
+SQLite. A malformed WAL requires schema 34 in the standalone main file; a
+healthy or absent WAL requires schema 34 in SQLite's effective view and may
+therefore carry the current cookie over an older standalone main. Its JSON
+object is:
+
+```json
+{
+  "verb": "truncate-wal",
+  "status": "done|busy",
+  "busy": 0,
+  "log_frames": 0,
+  "checkpointed_frames": 0,
+  "discarded_corrupt_wal": false
+}
+```
+
+`status: "done"` exits `64`. `status: "busy"` exits `71` and always reports
+`discarded_corrupt_wal: false`. That field is true only after the locked probe
+found a malformed WAL and SQLite completed the truncate checkpoint. Missing,
+empty, effectively noncurrent, main-corrupt, rollback-journal-blocked, or
+malformed-WAL-plus-noncurrent-standalone-main inputs exit `70`. Normal open
+continues to refuse the malformed WAL before returning an Engine.
+
+Malformed-header `doctor safe-export` is also fail-closed: it exits `70` with
+the stable `E_CORRUPT_HEADER` code, does not write an artifact or manifest, and
+does not alter the source. Operators preserve the original for external
+forensic/SQLite recovery; a raw byte copy is not a logical safe export.
+
 `--excise-collection` and `--excise-record-key` (0.8.20 Slice 5b / R-20-E7) are
 declared with `requires` on each other, so clap rejects either alone. Together
 they erase every append-only-log version of one op-store record key plus its

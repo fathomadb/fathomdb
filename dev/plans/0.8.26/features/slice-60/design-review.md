@@ -59,3 +59,22 @@ Final addendum verdict: **PASS**, with no unresolved P1/P2 finding. The design
 preserves fail-closed public open, uses no raw WAL/SHM mutation, keeps
 malformed-header safe export fail-closed, and limits the product exception to
 one operator-feature WAL recovery function plus CLI dispatch and tests.
+
+## Implementation-alignment rereview
+
+The first implementation-alignment pass found one P1: effective schema
+validation used the recovery read/write connection, whose close could
+checkpoint a healthy but noncurrent WAL while returning refusal. It also found
+P2 gaps in schema-cookie fixtures and wording that did not distinguish the
+standalone main file from SQLite's effective main-plus-WAL view.
+
+The correction validates healthy/absent WAL state through `mode=ro` plus
+`query_only` before opening any read/write connection. Malformed WAL still
+requires schema 34 in the standalone main. Deterministic
+`SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE` fixtures now cover pending-current success,
+effective-noncurrent byte-preserving refusal, and malformed-WAL plus
+noncurrent-main byte-preserving refusal. The plan, design, and CLI contract use
+the same distinction.
+
+Final implementation-alignment verdict: **PASS**. No P1/P2 finding remains;
+the focused engine recovery suite passed 13/13.

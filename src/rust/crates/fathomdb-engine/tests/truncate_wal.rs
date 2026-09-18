@@ -7,7 +7,7 @@ use fathomdb_engine::{
     recover_truncate_wal, CorruptionKind, Engine, EngineOpenError, PreparedWrite, TruncateWalStatus,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
-use rusqlite::Connection;
+use rusqlite::{config::DbConfig, Connection};
 use tempfile::TempDir;
 
 #[path = "support/corruption.rs"]
@@ -22,6 +22,25 @@ fn sidecar(path: &std::path::Path, suffix: &str) -> std::path::PathBuf {
     let mut result = path.as_os_str().to_owned();
     result.push(suffix);
     result.into()
+}
+
+fn leave_schema_cookie_in_healthy_wal(path: &std::path::Path, main_version: u32, wal_version: u32) {
+    let writer = Connection::open(path).expect("open WAL fixture writer");
+    writer.pragma_update(None, "journal_mode", "WAL").expect("enable WAL fixture mode");
+    writer.pragma_update(None, "wal_autocheckpoint", 0).expect("disable automatic checkpoint");
+    writer
+        .set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true)
+        .expect("retain WAL when fixture writer closes");
+    writer.pragma_update(None, "user_version", main_version).expect("set standalone main version");
+    writer
+        .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()))
+        .expect("checkpoint standalone main version");
+
+    writer.pragma_update(None, "user_version", wal_version).expect("write pending schema cookie");
+    drop(writer);
+
+    let wal = sidecar(path, "-wal");
+    assert!(fs::metadata(wal).expect("healthy WAL remains").len() >= 32);
 }
 
 #[test]
@@ -140,6 +159,95 @@ fn missing_and_zero_length_databases_are_not_bootstrapped() {
     fs::write(&zero, []).expect("create zero-length fixture");
     recover_truncate_wal(&zero).expect_err("zero-length path must refuse");
     assert_eq!(fs::metadata(&zero).expect("zero metadata").len(), 0);
+}
+
+#[test]
+fn noncurrent_database_is_refused_without_mutation() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("noncurrent{SQLITE_SUFFIX}"));
+    let connection = Connection::open(&path).expect("create SQLite fixture");
+    connection.pragma_update(None, "user_version", 33).expect("set noncurrent schema version");
+    drop(connection);
+    let before = fs::read(&path).expect("read noncurrent database");
+
+    let error = recover_truncate_wal(&path).expect_err("noncurrent database must refuse");
+    assert!(matches!(
+        error,
+        EngineOpenError::IncompatibleSchemaVersion { seen: 33, supported: 34 }
+    ));
+    assert_eq!(fs::read(&path).expect("reread noncurrent database"), before);
+}
+
+#[test]
+fn healthy_wal_pending_current_schema_is_accepted_and_checkpointed() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("pending_current{SQLITE_SUFFIX}"));
+    leave_schema_cookie_in_healthy_wal(&path, 0, 34);
+
+    let report = recover_truncate_wal(&path).expect("effective schema is current");
+    assert_eq!(report.status, TruncateWalStatus::Done);
+    assert!(!report.discarded_corrupt_wal);
+
+    let connection = Connection::open(&path).expect("open checkpointed database");
+    let seen: u32 = connection
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .expect("read checkpointed version");
+    assert_eq!(seen, 34);
+}
+
+#[test]
+fn healthy_wal_effective_noncurrent_schema_refuses_without_mutation() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("pending_noncurrent{SQLITE_SUFFIX}"));
+    leave_schema_cookie_in_healthy_wal(&path, 34, 33);
+    let wal = sidecar(&path, "-wal");
+    let database_before = fs::read(&path).expect("read standalone main");
+    let wal_before = fs::read(&wal).expect("read healthy noncurrent WAL");
+
+    let error = recover_truncate_wal(&path).expect_err("effective noncurrent schema must refuse");
+    assert!(matches!(
+        error,
+        EngineOpenError::IncompatibleSchemaVersion { seen: 33, supported: 34 }
+    ));
+    assert_eq!(fs::read(&path).expect("reread standalone main"), database_before);
+    assert_eq!(fs::read(&wal).expect("reread healthy noncurrent WAL"), wal_before);
+}
+
+#[test]
+fn malformed_wal_with_noncurrent_standalone_main_refuses_without_mutation() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("malformed_noncurrent{SQLITE_SUFFIX}"));
+    let connection = Connection::open(&path).expect("create noncurrent main fixture");
+    connection.pragma_update(None, "user_version", 33).expect("set noncurrent standalone version");
+    drop(connection);
+    corruption::corrupt_wal_invalid_page_size(&path);
+    let wal = corruption::wal_sidecar_path(&path);
+    let database_before = fs::read(&path).expect("read noncurrent standalone main");
+    let wal_before = fs::read(&wal).expect("read malformed WAL");
+
+    let error = recover_truncate_wal(&path).expect_err("malformed WAL needs current main");
+    assert!(matches!(
+        error,
+        EngineOpenError::IncompatibleSchemaVersion { seen: 33, supported: 34 }
+    ));
+    assert_eq!(fs::read(&path).expect("reread standalone main"), database_before);
+    assert_eq!(fs::read(&wal).expect("reread malformed WAL"), wal_before);
+}
+
+#[test]
+fn corrupt_main_database_is_refused_without_mutation() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("corrupt_main{SQLITE_SUFFIX}"));
+    seed(&path);
+    corruption::corrupt_database_header(&path);
+    let before = fs::read(&path).expect("read corrupt database");
+
+    let error = recover_truncate_wal(&path).expect_err("main corruption must refuse");
+    assert!(matches!(
+        error,
+        EngineOpenError::Corruption(ref detail) if detail.kind == CorruptionKind::HeaderMalformed
+    ));
+    assert_eq!(fs::read(&path).expect("reread corrupt database"), before);
 }
 
 #[test]

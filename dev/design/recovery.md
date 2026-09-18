@@ -107,12 +107,27 @@ write/projection coordination. Erasure may durably remove governed rows and
 then return a typed WAL-checkpoint-incomplete outcome; the deletion result and
 at-rest checkpoint guarantee are distinct and remain fail-closed.
 
+`recover --truncate-wal` is the second deliberate path-scoped exception to
+generic Engine admission. After the CLI validates `--accept-data-loss`, the
+operator-only `recover_truncate_wal` function resolves the canonical namespace,
+requires an existing nonempty regular database, acquires the canonical product
+lock, rechecks those facts, and refuses a nonempty rollback journal. It probes
+the main file through immutable/read-only/query-only SQLite before classifying
+the fixed 32-byte WAL header under the lock. A malformed WAL may be discarded
+only when the standalone main file is schema 34; a valid WAL is checked through
+SQLite's effective main-plus-WAL view because it may carry a pending schema
+cookie. One recovery-only read/write SQLite connection then owns
+`PRAGMA wal_checkpoint(TRUNCATE)` and all WAL/SHM changes. The path never
+bootstraps, migrates, starts workers, or edits sidecars directly, and normal
+`Engine::open` remains fail-closed.
+
 ## JSON shapes for other doctor verbs
 
 `--json` selects the normative machine-readable representation. Every current
 doctor command emits exactly one JSON object when `--json` is selected. Every
 current recovery action also emits exactly one JSON object in its current
-machine-readable path; success exits with the accepted-loss class `64`.
+machine-readable path; completed recovery exits with the accepted-loss class
+`64`. A busy WAL checkpoint is not completion and exits `71`.
 Recovery output is not an NDJSON progress stream in the current implementation.
 
 Stable exit classes are:
@@ -144,20 +159,26 @@ actions:
 | Code | Operator direction |
 | --- | --- |
 | `E_CORRUPT_WAL_REPLAY` | Inspect and, when explicitly authorized, use `recover --truncate-wal`. |
-| `E_CORRUPT_HEADER` | Attempt `doctor safe-export`, then rebuild/re-import externally. |
+| `E_CORRUPT_HEADER` | Preserve the original and use external forensic/SQLite recovery tooling; logical `safe-export` is fail-closed. |
 | `E_CORRUPT_SCHEMA` | Diagnose; use projection rebuild only when the finding and current schema permit it. |
 | `E_CORRUPT_EMBEDDER_IDENTITY` | Treat stored profile drift as corruption; do not auto-accept identity change on open. |
 | `E_CORRUPT_INTEGRITY_CHECK` | Doctor-only full-integrity finding. |
 
 ### Wal replay failures
 
-`E_CORRUPT_WAL_REPLAY` refuses normal open. Inspection precedes the explicitly
-acknowledged `--truncate-wal` recovery action.
+`E_CORRUPT_WAL_REPLAY` refuses normal open. The explicitly acknowledged
+`--truncate-wal` path independently validates the main database, holds the
+product lock, and lets SQLite perform the checkpoint/discard. Its report adds
+`discarded_corrupt_wal`, true only when the locked header classification was
+malformed and SQLite returned `Done`; `Busy` remains retryable exit `71` and
+never claims discard.
 
 ### Header malformed
 
-`E_CORRUPT_HEADER` refuses normal open. `safe-export` is the non-destructive
-first operator attempt; reconstruction and import remain external.
+`E_CORRUPT_HEADER` refuses normal open and `doctor safe-export` remains
+fail-closed because SQLite cannot produce a logical `VACUUM INTO` artifact from
+an unreadable header. Preserve the source bytes and use external forensic or
+SQLite recovery tooling; a raw byte copy is not a successful safe export.
 
 ### Schema inconsistent
 

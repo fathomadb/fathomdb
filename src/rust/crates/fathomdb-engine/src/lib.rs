@@ -4165,6 +4165,156 @@ fn immutable_sqlite_uri(path: &Path) -> String {
     sqlite_uri(path, "immutable=1")
 }
 
+/// Recover a current, quiescent database by asking SQLite to truncate its WAL.
+///
+/// Unlike [`Engine::open`], this operator-only path may proceed when the WAL's
+/// fixed header is malformed. The main database is first validated through an
+/// immutable, read-only connection, and a non-empty rollback journal is always
+/// refused. The canonical product lock is held across validation and the
+/// checkpoint, so a live FathomDB process cannot race the recovery. SQLite owns
+/// every WAL/SHM mutation; this function never removes or rewrites a sidecar
+/// directly.
+///
+/// `discarded_corrupt_wal` is true only when the locked pre-probe classified
+/// the WAL header as malformed and SQLite subsequently reported a completed
+/// truncate checkpoint. A busy checkpoint remains a successful typed report
+/// with [`TruncateWalStatus::Busy`] and never claims that corrupt data was
+/// discarded.
+///
+/// # Errors
+///
+/// Returns [`EngineOpenError`] when the database is missing, empty, locked,
+/// corrupt, not at the current schema version, accompanied by a non-empty
+/// rollback journal, or inaccessible to SQLite.
+#[cfg(feature = "operator")]
+pub fn recover_truncate_wal(
+    path: impl Into<PathBuf>,
+) -> Result<TruncateWalReport, EngineOpenError> {
+    let requested_path = path.into();
+    let canonical_path = canonical_database_path(&requested_path)?;
+    validate_recovery_database_file(&canonical_path)?;
+
+    let pending_lock = acquire_lock_without_metadata_mutation(&canonical_path)?;
+    let _lock = pending_lock.initialize()?;
+
+    // Recheck every admission fact after the lock is held. The first check
+    // prevents bootstrap; this one closes the rename/truncate race.
+    validate_recovery_database_file(&canonical_path)?;
+    match std::fs::metadata(data_plane_sidecar_path(&canonical_path, "-journal")) {
+        Ok(metadata) if metadata.len() > 0 => {
+            return Err(EngineOpenError::Io {
+                message: "non-empty rollback journal blocks WAL recovery".to_string(),
+            })
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => {
+            return Err(EngineOpenError::Io {
+                message: "database rollback journal is not accessible".to_string(),
+            })
+        }
+    }
+
+    configure_runtime_for_open().map_err(EngineOpenError::RuntimeConfiguration)?;
+    register_sqlite_vec_extension();
+
+    let validation = Connection::open_with_flags(
+        immutable_sqlite_uri(&canonical_path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
+            | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+    )
+    .map_err(|error| map_open_sqlite_error(error, OpenStage::HeaderProbe))?;
+    validation
+        .pragma_update(None, "query_only", "ON")
+        .map_err(|error| map_open_sqlite_error(error, OpenStage::SchemaProbe))?;
+    probe_database_header(&validation)?;
+    probe_open_integrity(&validation)?;
+    reject_legacy_shape(&validation)?;
+    let main_file_schema_version = validation
+        .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
+        .map_err(|error| map_open_sqlite_error(error, OpenStage::SchemaProbe))?;
+    drop(validation);
+
+    let wal_header = classify_wal_sidecar(&canonical_path)?;
+    let malformed_wal = matches!(wal_header, WalSidecarHeader::Malformed { .. });
+    // A malformed WAL cannot contribute trustworthy schema state. Require the
+    // standalone main file itself to be current before asking SQLite to discard
+    // that WAL. A healthy WAL may legitimately carry the current schema cookie
+    // while the main file still reports an older value, so its effective version
+    // is checked through SQLite below.
+    if malformed_wal && main_file_schema_version != SCHEMA_VERSION {
+        return Err(EngineOpenError::IncompatibleSchemaVersion {
+            seen: main_file_schema_version,
+            supported: SCHEMA_VERSION,
+        });
+    }
+    if !malformed_wal {
+        validate_effective_recovery_schema(&canonical_path)?;
+    }
+
+    // No read/write SQLite connection is opened until every refusal condition
+    // has passed. In particular, dropping a read/write connection after a
+    // noncurrent effective-schema check could checkpoint a healthy WAL while
+    // reporting refusal.
+    let connection = Connection::open(&canonical_path)
+        .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
+    connection
+        .busy_timeout(Duration::ZERO)
+        .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
+    let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = connection
+        .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
+        .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
+    let status = if busy == 0 { TruncateWalStatus::Done } else { TruncateWalStatus::Busy };
+
+    Ok(TruncateWalReport {
+        status,
+        busy: busy.max(0) as u32,
+        log_frames: log_frames.max(0) as u32,
+        checkpointed_frames: checkpointed_frames.max(0) as u32,
+        discarded_corrupt_wal: malformed_wal && status == TruncateWalStatus::Done,
+    })
+}
+
+#[cfg(feature = "operator")]
+fn validate_recovery_database_file(path: &Path) -> Result<(), EngineOpenError> {
+    let metadata = std::fs::metadata(path).map_err(|_| EngineOpenError::Io {
+        message: "recovery requires an existing database file".to_string(),
+    })?;
+    if !metadata.is_file() || metadata.len() == 0 {
+        return Err(EngineOpenError::Io {
+            message: "recovery requires a non-empty regular database file".to_string(),
+        });
+    }
+    Ok(())
+}
+
+#[cfg(feature = "operator")]
+fn validate_effective_recovery_schema(path: &Path) -> Result<(), EngineOpenError> {
+    let connection = Connection::open_with_flags(
+        read_only_sqlite_uri(path),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
+            | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+    )
+    .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
+    connection
+        .pragma_update(None, "query_only", "ON")
+        .map_err(|error| map_open_sqlite_error(error, OpenStage::SchemaProbe))?;
+    probe_database_header(&connection)?;
+    probe_open_integrity(&connection)?;
+    reject_legacy_shape(&connection)?;
+    let seen = connection
+        .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
+        .map_err(|error| map_open_sqlite_error(error, OpenStage::SchemaProbe))?;
+    if seen != SCHEMA_VERSION {
+        return Err(EngineOpenError::IncompatibleSchemaVersion { seen, supported: SCHEMA_VERSION });
+    }
+    Ok(())
+}
+
 fn read_only_sqlite_uri(path: &Path) -> String {
     sqlite_uri(path, "mode=ro")
 }
@@ -8471,15 +8621,18 @@ pub enum TruncateWalStatus {
     Busy,
 }
 
-/// Result of [`Engine::truncate_wal`]. Carries the three counters
-/// returned by `PRAGMA wal_checkpoint(TRUNCATE)`: `busy`, `log_frames`,
-/// `checkpointed_frames`.
+/// Result of [`Engine::truncate_wal`] or `recover_truncate_wal`. Carries the
+/// three counters returned by `PRAGMA wal_checkpoint(TRUNCATE)`: `busy`,
+/// `log_frames`, `checkpointed_frames`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TruncateWalReport {
     pub status: TruncateWalStatus,
     pub busy: u32,
     pub log_frames: u32,
     pub checkpointed_frames: u32,
+    /// True only when the locked pre-probe found a malformed WAL and SQLite
+    /// subsequently completed the truncate checkpoint.
+    pub discarded_corrupt_wal: bool,
 }
 
 impl Drop for Engine {
@@ -16035,6 +16188,7 @@ impl Engine {
             busy: busy.max(0) as u32,
             log_frames: log_frames.max(0) as u32,
             checkpointed_frames: checkpointed_frames.max(0) as u32,
+            discarded_corrupt_wal: false,
         })
     }
 
@@ -24274,7 +24428,14 @@ fn probe_database_header(connection: &Connection) -> Result<(), EngineOpenError>
 /// committed frames at open time. AC-035a requires that we instead
 /// refuse to open with `Corruption(WalReplayFailure)` rather than
 /// silently rebuild from a truncated WAL.
-fn probe_wal_sidecar(db_path: &Path) -> Result<(), EngineOpenError> {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum WalSidecarHeader {
+    AbsentOrShort,
+    Valid,
+    Malformed { offset: u64 },
+}
+
+fn classify_wal_sidecar(db_path: &Path) -> Result<WalSidecarHeader, EngineOpenError> {
     let mut wal_path = db_path.as_os_str().to_owned();
     wal_path.push("-wal");
     let wal_path = PathBuf::from(wal_path);
@@ -24288,14 +24449,25 @@ fn probe_wal_sidecar(db_path: &Path) -> Result<(), EngineOpenError> {
     use std::io::Read;
     let mut file = match std::fs::File::open(&wal_path) {
         Ok(file) => file,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(_) => return Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(WalSidecarHeader::AbsentOrShort)
+        }
+        Err(_) => {
+            return Err(EngineOpenError::Io {
+                message: "database WAL sidecar is not accessible".to_string(),
+            })
+        }
     };
     let mut bytes = [0u8; 32];
-    if file.read_exact(&mut bytes).is_err() {
-        // A short (< 32-byte) sidecar carries no committed frames;
-        // SQLite treats it as empty and re-initializes WAL state.
-        return Ok(());
+    if let Err(error) = file.read_exact(&mut bytes) {
+        if error.kind() == std::io::ErrorKind::UnexpectedEof {
+            // A short (< 32-byte) sidecar carries no committed frames;
+            // SQLite treats it as empty and re-initializes WAL state.
+            return Ok(WalSidecarHeader::AbsentOrShort);
+        }
+        return Err(EngineOpenError::Io {
+            message: "database WAL sidecar could not be read".to_string(),
+        });
     }
     let magic = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
     let page_size = u32::from_be_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]);
@@ -24309,12 +24481,19 @@ fn probe_wal_sidecar(db_path: &Path) -> Result<(), EngineOpenError> {
     let page_size_ok =
         page_size.is_power_of_two() && (512..=SQLITE_MAX_PAGE_SIZE).contains(&page_size);
     if magic_ok && page_size_ok {
-        return Ok(());
+        return Ok(WalSidecarHeader::Valid);
     }
+    Ok(WalSidecarHeader::Malformed { offset: if !magic_ok { 0 } else { 8 } })
+}
+
+fn probe_wal_sidecar(db_path: &Path) -> Result<(), EngineOpenError> {
+    let WalSidecarHeader::Malformed { offset } = classify_wal_sidecar(db_path)? else {
+        return Ok(());
+    };
     Err(EngineOpenError::Corruption(CorruptionDetail {
         kind: CorruptionKind::WalReplayFailure,
         stage: OpenStage::WalReplay,
-        locator: CorruptionLocator::FileOffset { offset: if !magic_ok { 0 } else { 8 } },
+        locator: CorruptionLocator::FileOffset { offset },
         recovery_hint: RecoveryHint {
             code: "E_CORRUPT_WAL_REPLAY",
             doc_anchor: "design/recovery.md#wal-replay-failures",
@@ -32170,6 +32349,7 @@ mod tests {
             busy: busy.max(0) as u32,
             log_frames: log_frames.max(0) as u32,
             checkpointed_frames: checkpointed_frames.max(0) as u32,
+            discarded_corrupt_wal: false,
         };
         let inventory = opened
             .map(post_commit_connection_inventory)
@@ -32668,6 +32848,7 @@ mod tests {
             busy: busy.max(0) as u32,
             log_frames: log_frames.max(0) as u32,
             checkpointed_frames: checkpointed_frames.max(0) as u32,
+            discarded_corrupt_wal: false,
         };
         eprintln!(
             "slice65_wal close_boundary case={case} old_engine_closed=1 fresh_engine_open={fresh_engine_open} fresh_writer_connection_open={fresh_writer_connection_open} raw_busy={} raw_log_frames={} raw_checkpointed_frames={}",
@@ -32983,6 +33164,7 @@ mod tests {
             busy: busy.max(0) as u32,
             log_frames: log_frames.max(0) as u32,
             checkpointed_frames: checkpointed_frames.max(0) as u32,
+            discarded_corrupt_wal: false,
         };
         eprintln!(
             "slice65_wal incident_ladder stage={stage} old_engine_closed={} fresh_engine_open={} elapsed_ms={} raw_busy={} raw_log_frames={} raw_checkpointed_frames={} runtime_probe_live={} runtime_probe_actual_drop={} runtime_probe_incomplete_drops={}",

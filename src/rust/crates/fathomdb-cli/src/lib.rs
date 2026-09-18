@@ -47,12 +47,13 @@ use std::{
 
 use clap::{Args, Parser, Subcommand};
 use fathomdb::{
-    inspect_data_plane_integrity, CheckIntegrityOpts, CorruptionLocator, DataPlaneIntegrityCheckV1,
-    DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityRequestV1, DataPlaneIntegrityResultV1,
-    DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Engine, EngineError, EngineOpenError,
-    ExciseRecordReport, ExciseReport, Finding, IntegrityReport, MeanRecomputeReport,
-    OrphanProvenanceReport, RebuildKind, RebuildReport, SafeExportArtifact, SchemaObject, Section,
-    TraceReport, TruncateWalReport, TruncateWalStatus, VerifyEmbedderReport, VerifyEmbedderStatus,
+    inspect_data_plane_integrity, recover_truncate_wal, CheckIntegrityOpts, CorruptionLocator,
+    DataPlaneIntegrityCheckV1, DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityRequestV1,
+    DataPlaneIntegrityResultV1, DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Engine,
+    EngineError, EngineOpenError, ExciseRecordReport, ExciseReport, Finding, IntegrityReport,
+    MeanRecomputeReport, OrphanProvenanceReport, RebuildKind, RebuildReport, SafeExportArtifact,
+    SchemaObject, Section, TraceReport, TruncateWalReport, TruncateWalStatus, VerifyEmbedderReport,
+    VerifyEmbedderStatus,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -522,9 +523,16 @@ fn run_recover(args: RecoverArgs) -> i32 {
         });
     }
     if args.truncate_wal {
-        return wire_recover(&args.db_path, "truncate-wal", |e| {
-            e.truncate_wal().map(|r| truncate_wal_report_json(&r))
-        });
+        return match recover_truncate_wal(&args.db_path) {
+            Ok(report) => {
+                println!("{}", truncate_wal_report_json(&report));
+                match report.status {
+                    TruncateWalStatus::Done => exit_code::RECOVERY_ACCEPTED_LOSS,
+                    TruncateWalStatus::Busy => exit_code::LOCK_HELD,
+                }
+            }
+            Err(error) => emit_engine_open_error("truncate-wal", &error),
+        };
     }
 
     // No bound sub-action selected → stub.
@@ -1507,7 +1515,7 @@ fn engine_open_error_code(err: &EngineOpenError) -> &'static str {
     match err {
         EngineOpenError::RuntimeConfiguration(_) => "RuntimeConfigurationError",
         EngineOpenError::DatabaseLocked { .. } => "DatabaseLockedError",
-        EngineOpenError::Corruption(_) => "CorruptionError",
+        EngineOpenError::Corruption(detail) => detail.recovery_hint.code,
         EngineOpenError::IncompatibleSchemaVersion { .. } => "IncompatibleSchemaVersionError",
         EngineOpenError::MigrationError { .. } => "MigrationError",
         EngineOpenError::EmbedderIdentityMismatch { .. } => "EmbedderIdentityMismatchError",
@@ -1778,6 +1786,7 @@ fn truncate_wal_report_json(r: &TruncateWalReport) -> Value {
         "busy": r.busy,
         "log_frames": r.log_frames,
         "checkpointed_frames": r.checkpointed_frames,
+        "discarded_corrupt_wal": r.discarded_corrupt_wal,
     })
 }
 

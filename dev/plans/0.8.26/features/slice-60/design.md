@@ -144,18 +144,22 @@ The path-scoped WAL recovery function:
 3. refuses a nonempty rollback journal because WAL recovery does not authorize
    rollback-journal recovery;
 4. validates the main file independently through an immutable, read-only,
-   query-only connection: header probe, full schema traversal, exact
-   `user_version == 34`, and legacy-shape refusal, so main-file corruption is
-   neither hidden nor touched;
+   query-only connection: header probe, full schema traversal, schema-cookie
+   observation, and legacy-shape refusal, so main-file corruption is neither
+   hidden nor touched;
 5. re-reads and records the WAL-header classification while holding the lock.
    A sidecar shorter than 32 bytes carries no committed frames; at least 32
    bytes with invalid masked magic or a non-power-of-two/out-of-range page size
    is the exact malformed state shared with `probe_wal_sidecar`; sidecar I/O
    errors fail rather than becoming "absent";
-6. opens one recovery-only read/write SQLite connection, deliberately omitting
+6. requires `user_version == 34` from the standalone main file before
+   discarding a malformed WAL; for a healthy WAL, validates the same exact
+   version through SQLite's effective main-plus-WAL view because the current
+   schema cookie may itself be checkpoint-pending;
+7. opens one recovery-only read/write SQLite connection, deliberately omitting
    only the public open path's WAL pre-probe, and runs
    `PRAGMA wal_checkpoint(TRUNCATE)`; and
-7. releases every connection and the sidecar lock before returning.
+8. releases every connection and the sidecar lock before returning.
 
 The malformed branch is destructive and is reachable only after the CLI has
 validated `--accept-data-loss`. SQLite, not raw filesystem code, owns WAL/SHM
@@ -187,12 +191,14 @@ databases retain the existing artifact and manifest shape.
 The WAL function serializes against a live Engine through the established
 canonical lock. Lock contention and busy checkpoint retain exit class `71`;
 completed WAL recovery retains accepted-loss success `64`. A nonempty rollback
-journal and missing, zero-length, noncurrent, or main-corrupt database use the
-existing unrecoverable class `70`. Malformed-header `safe-export` also remains
-open corruption at `70`, not artifact-failure `66`. Other recovery and doctor
-actions still require a successfully admitted Engine because they depend on
-current canonical/schema invariants. No generic "open corrupted database"
-handle is introduced.
+journal and missing, zero-length, effectively noncurrent, or main-corrupt
+database use the existing unrecoverable class `70`; a malformed WAL additionally
+requires its standalone main file to be current. A healthy WAL may carry the
+current schema cookie over an older standalone main. Malformed-header
+`safe-export` also remains open corruption at `70`, not artifact-failure `66`.
+Other recovery and doctor actions still require a successfully admitted Engine
+because they depend on current canonical/schema invariants. No generic "open
+corrupted database" handle is introduced.
 
 ## RED/GREEN proof shape
 

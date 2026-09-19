@@ -412,6 +412,11 @@ def main() -> int:
         in changes,
         "changes checkout does not select the real PR head",
     )
+    checks.require(
+        "docs_only: ${{ github.event_name != 'workflow_dispatch' && steps.filter.outputs.nonmd == 'false' }}"
+        in changes,
+        "manual candidate dispatch can be suppressed by the docs-only fast path",
+    )
 
     primary = paths_filter_step(changes, "filter", checks)
     python_filter = paths_filter_step(changes, "python_non_windows", checks)

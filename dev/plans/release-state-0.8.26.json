@@ -1,6 +1,6 @@
 {
   "release": "0.8.26",
-  "release_kind": "integrated release candidate; hosted CI pending; publication not authorized",
+  "release_kind": "release train authorized; exact-candidate hosted qualification and publication pending",
   "board": "dev/plans/runs/STATUS-0.8.26.md",
   "plan": "dev/plans/plan-0.8.26.md",
   "active_ref": "refs/heads/release/0.8.26",
@@ -42,6 +42,7 @@
   "decisions": {
     "unruled": [],
     "ruled": [
+      {"id": "release-0.8.26-publication", "title": "Authorize exact-candidate hosted qualification, the v0.8.26 tag, multi-registry publication, and required post-publication verification after all release gates pass", "source": "repository owner 2026-09-19"},
       {"id": "release-0.8.26-nonpublishing-integration", "title": "Authorize release-record reconciliation, origin/main integration, and hosted CI workflows; prohibit tags and registry publication until a later explicit authorization", "source": "repository owner 2026-09-18"},
       {"id": "D26-02", "title": "Qualify the existing CLI first and stop for HITL before any prebuilt fallback", "source": "seq-280"},
       {"id": "D26-08", "title": "Keep 0.8.26 as narrow as possible around Memex needs", "source": "seq-281"},

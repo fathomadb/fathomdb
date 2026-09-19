@@ -36,7 +36,8 @@ profiles, and general repair orchestration remain outside this release.
   `/home/coreyt/projects/fathomdb-worktrees/release-0.8.26`.
 - **Primary checkout:** intentionally untouched; it is stale and contains
   unrelated untracked user files.
-- **Publication:** not authorized by this draft.
+- **Publication:** authorized by the repository owner on 2026-09-19, conditional
+  on passing the exact-candidate hosted CI and release rehearsals.
 
 ## Scope
 
@@ -158,15 +159,18 @@ if their design is discussed.
 
 ## Immediate next slice — release ladder complete
 
-All planned slices are integrated on `origin/main` at `b7d8e5b0`. Hosted CI is
-authorized and pending. Tags, registry publication, and post-publication
-verification remain separate and unauthorized.
+All planned slices are integrated on `origin/main` at `b7d8e5b0`. Release
+workflow corrections advance the exact qualification candidate to `fe88a9eb`.
+The repository owner authorized hosted qualification, tagging, registry
+publication, and required post-publication verification on 2026-09-19,
+conditional on the exact-candidate gates passing.
 
 D26-01 was ruled at `seq-290` and implemented by Slice 20. Slice 30 completed
 the selected existing-CLI integrity route without a prebuilt fallback. Slice
 50 remains historical evidence for candidate `68514f70`; Slice 65 binds the
-replacement exact candidate `8ffb3486`. Do not publish or begin feature work
-outside the completed release ladder.
+replacement product candidate `8ffb3486`; `fe88a9eb` is the release workflow
+qualification head. Do not begin feature work outside the completed release
+ladder.
 
 ## Stop gates
 

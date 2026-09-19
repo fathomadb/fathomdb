@@ -65,7 +65,7 @@ EOF
 {"consumer":"$consumer","environment":"env -i","gpu_nodes_visible":false,"network":"none","outcome":"passed","policies":["auto","cpu"],"schema_version":"fathomdb.cuda-package-cpu-smoke/v1","source_imported":false}
 EOF
     cat > "$root/smoke/gpu-$consumer.json" <<EOF
-{"consumer":"$consumer","device_name":"NVIDIA test","driver_version":"999.99","gpu_uuid":"GPU-test","host_index":0,"network":"none","nvidia_smi_pid":4242,"nvidia_smi_uuid":"GPU-test","outcome":"passed","requested_ordinal":0,"schema_version":"fathomdb.cuda-package-gpu-smoke/v1","smoke_pid":4242,"source_imported":false}
+{"consumer":"$consumer","device_name":"NVIDIA test","driver_version":"999.99","embed_model_forwards":1,"gpu_uuid":"GPU-test","host_index":0,"network":"none","nvidia_smi_pid":4242,"nvidia_smi_uuid":"GPU-test","outcome":"passed","requested_ordinal":0,"rerank_model_forwards":0,"schema_version":"fathomdb.cuda-package-gpu-smoke/v1","smoke_pid":4242,"source_imported":false}
 EOF
   done
   for mode in cpu forced-cuda-unavailable; do
@@ -253,6 +253,10 @@ manifest["preflight_witness_sha256"] = hashlib.sha256(preflight_witness_path.rea
 archive = manifest["packages"]["cli_archive"]
 raw = json.dumps({"schema_version":"fathomdb.doctor.reranker-gpu.v1","subsystem":"reranker","policy":"auto","cuda_compiled":True,"effective_device":"cpu","devices":[],"reason":"no_visible_cuda_device","selected_uuid":None}, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("ascii") + b"\n"
 smoke = root / "smoke"
+for path in smoke.glob("gpu-*.json"):
+    value = json.loads(path.read_text())
+    value["rerank_model_forwards"] = 1
+    path.write_text(json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 (smoke / "reranker-cli-doctor-stdout.json").write_bytes(raw)
 version = manifest["version"]
 record = {"schema_version":"fathomdb.cuda-reranker-cli-doctor/v1","consumer":"cli","archive_filename":archive["filename"],"archive_sha256":archive["sha256"],"target":"x86_64-unknown-linux-gnu","argv":[f"/tmp/fathomdb-cli/fathomdb-{version}-x86_64-unknown-linux-gnu/fathomdb","doctor","reranker-gpu","--json"],"requested_policy":"auto","environment":{},"isolation":{"database_opened":False,"model_loaded":False,"network":"none","source_checkout_mounted":False},"evidence_provenance":"installed_candidate","exit_code":0,"doctor_output_filename":"reranker-cli-doctor-stdout.json","doctor_output_sha256":hashlib.sha256(raw).hexdigest(),"effective_device":"cpu","reason":"no_visible_cuda_device"}
@@ -261,6 +265,25 @@ manifest["smoke_evidence_sha256"] = {path.name: hashlib.sha256(path.read_bytes()
 manifest_path.write_text(json.dumps(manifest, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 PY
 expect_accept "$TMPROOT/rerank-v3" 'v3 reranker feature tuple is accepted with GPU receipts PENDING_EXTERNAL'
+
+cp -a "$TMPROOT/rerank-v3" "$TMPROOT/rerank-v3-missing-forward"
+python3 - "$TMPROOT/rerank-v3-missing-forward" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+smoke = root / "smoke" / "gpu-napi.json"
+value = json.loads(smoke.read_text())
+value["rerank_model_forwards"] = 0
+smoke.write_text(json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+manifest = root / "cuda-package-rehearsal.json"
+document = json.loads(manifest.read_text())
+document["smoke_evidence_sha256"][smoke.name] = hashlib.sha256(smoke.read_bytes()).hexdigest()
+manifest.write_text(json.dumps(document, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+PY
+expect_reject "$TMPROOT/rerank-v3-missing-forward" 'v3 reranker route rejects a missing N-API rerank model forward'
 
 python3 - "$TMPROOT/future-reranker-gpu-receipt.json" "$CANDIDATE" <<'PY'
 import json

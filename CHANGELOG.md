@@ -8,10 +8,11 @@ released section MUST list every removed public symbol under a `### Removed` hea
 the removal-detect linter (`scripts/security/check-removal-changelog.sh`,
 AC-050c) gates merges against this invariant.
 
-## 0.8.26 — Unreleased
+## 0.8.26 — 2026-09-19
 
-**Publication status: release candidate; publication is not authorized.** This
-pre-1.0 release is breaking and supports fresh databases only.
+**Publication status: authorized and pending.** Tagging and registry publication
+follow only after the exact-candidate hosted CI and release rehearsals pass.
+This pre-1.0 release is breaking and supports fresh databases only.
 
 ### Added
 

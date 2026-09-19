@@ -149,12 +149,13 @@ def validate_cpu_smoke(value: dict[str, Any], consumer: str) -> None:
         fail(f"CPU {consumer} smoke does not prove the driverless installed-artifact contract")
 
 
-def validate_gpu_smoke(value: dict[str, Any], consumer: str) -> None:
+def validate_gpu_smoke(value: dict[str, Any], consumer: str, rerank: bool) -> None:
     require_exact_keys(
         value,
         {
             "schema_version", "consumer", "network", "source_imported", "outcome", "gpu_uuid", "host_index",
             "device_name", "driver_version", "requested_ordinal", "smoke_pid", "nvidia_smi_pid", "nvidia_smi_uuid",
+            "embed_model_forwards", "rerank_model_forwards",
         },
         f"GPU {consumer} smoke",
     )
@@ -173,6 +174,8 @@ def validate_gpu_smoke(value: dict[str, Any], consumer: str) -> None:
             fail(f"GPU {consumer} smoke has invalid {name}")
     if value["gpu_uuid"] != value["nvidia_smi_uuid"] or value["smoke_pid"] != value["nvidia_smi_pid"]:
         fail(f"GPU {consumer} smoke lacks GPU UUID/PID correlation")
+    if value["embed_model_forwards"] != 1 or value["rerank_model_forwards"] != (1 if rerank else 0):
+        fail(f"GPU {consumer} smoke lacks the required model forwards")
 
 
 def validate_cli_archive(path: Path, version: str) -> None:
@@ -355,7 +358,7 @@ def validate_smokes(root: Path, expected: object, version: str, archive_name: st
         if kind == "cpu":
             validate_cpu_smoke(value, consumer)
         elif kind == "gpu":
-            validate_gpu_smoke(value, consumer)
+            validate_gpu_smoke(value, consumer, rerank)
 
 
 def validate_future_reranker_gpu_receipt(path: Path, candidate_sha: str) -> None:

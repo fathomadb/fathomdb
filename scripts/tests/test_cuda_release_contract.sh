@@ -219,6 +219,23 @@ else
   exit 1
 fi
 
+napi_cpu_smoke="$(sed -n '/write_cpu python/,/write_cpu napi/p' "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh")"
+if grep -Fq 'test ! -e /dev/nvidiactl' <<<"$napi_cpu_smoke" \
+  && grep -Fq 'dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly' <<<"$napi_cpu_smoke"; then
+  printf 'PASS  Slice 20 N-API CPU smoke loads the CUDA-linked candidate without exposing a GPU\n'
+else
+  printf 'FAIL  Slice 20 N-API CPU smoke must mount libcudart while proving the GPU is hidden\n' >&2
+  exit 1
+fi
+
+if grep -Fq -- '--reranker-cache-root "${FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}}"' \
+  "$REPO_ROOT/.github/workflows/release.yml"; then
+  printf 'PASS  reranker package rehearsal binds the retained cache root\n'
+else
+  printf 'FAIL  reranker package rehearsal must bind the retained cache root\n' >&2
+  exit 1
+fi
+
 for package_rehearsal_mutation in missing-gate source-smoke host-network; do
   make_fixture "$FIXTURE"
   python3 - "$FIXTURE/.github/workflows/release.yml" "$FIXTURE/scripts/release/cuda-package-rehearsal-smoke.sh" "$package_rehearsal_mutation" <<'PY'

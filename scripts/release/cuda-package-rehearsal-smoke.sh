@@ -271,6 +271,7 @@ docker run --rm --network none \
   --mount "type=bind,src=$npm_main_abs,dst=/input/fathomdb.tgz,readonly" \
   --mount "type=bind,src=$napi_platform_abs,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
+  --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
   "${RERANKER_RUNTIME_MOUNT[@]}" \
   -e "RERANKER_ENABLED=$RERANKER_ENABLED" \
   "$CUDA_DRIVERLESS_NODE_IMAGE" \

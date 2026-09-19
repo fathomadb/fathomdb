@@ -123,11 +123,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      # docs_only = true when NO changed file is outside markdown (i.e. every
-      # changed path is *.md). `nonmd` is true when at least one non-md file
-      # changed; docs_only is its negation. The bias is safe: a misread can only
-      # make heavy jobs RUN on a docs change (slower), never SKIP on a code change.
-      docs_only: ${{ steps.filter.outputs.nonmd == 'false' }}
+      # docs_only = true for an automatic event when NO changed file is outside
+      # markdown (i.e. every changed path is *.md). A manual candidate dispatch
+      # always requests the full matrix, including when its release branch has
+      # already been fast-forwarded into main and therefore has no branch diff.
+      # The bias is safe: a misread can only make heavy jobs RUN on a docs change
+      # (slower), never SKIP on a code change or manual release qualification.
+      docs_only: ${{ github.event_name != 'workflow_dispatch' && steps.filter.outputs.nonmd == 'false' }}
       rust: ${{ steps.filter.outputs.rust }}
       python: ${{ steps.python_non_windows.outputs.python }}
       typescript: ${{ steps.filter.outputs.typescript }}

@@ -157,20 +157,19 @@ platform, dependency, evidence-manifest, multi-source, liveness, and broad-batch
 items must be re-evaluated. Priority 3+ Memex items remain outside 0.8.26 even
 if their design is discussed.
 
-## Immediate next slice — release ladder complete
+## Immediate next slice — release complete
 
-All planned slices are integrated on `origin/main` at `b7d8e5b0`. Release
-workflow corrections advance the exact qualification candidate to `fe88a9eb`.
-The repository owner authorized hosted qualification, tagging, registry
-publication, and required post-publication verification on 2026-09-19,
-conditional on the exact-candidate gates passing.
+All planned slices are integrated on `origin/main`. CI run 35484303885 and
+release dry-run 35484359979 passed at exact candidate `f99e002f`. Annotated tag
+`v0.8.26` resolves to that commit, and canonical release run 35485245618
+published every registry artifact, passed installed-package validation, moved
+npm `latest`, and created the GitHub Release.
 
 D26-01 was ruled at `seq-290` and implemented by Slice 20. Slice 30 completed
 the selected existing-CLI integrity route without a prebuilt fallback. Slice
 50 remains historical evidence for candidate `68514f70`; Slice 65 binds the
-replacement product candidate `8ffb3486`; `fe88a9eb` is the release workflow
-qualification head. Do not begin feature work outside the completed release
-ladder.
+replacement product candidate `8ffb3486`; `f99e002f` is the qualified release
+commit. No release-ladder work remains.
 
 ## Stop gates
 

@@ -1,9 +1,9 @@
 {
   "release": "0.8.26",
-  "release_kind": "release train authorized; exact-candidate hosted qualification and publication pending",
+  "release_kind": "released; publication complete",
   "board": "dev/plans/runs/STATUS-0.8.26.md",
   "plan": "dev/plans/plan-0.8.26.md",
-  "active_ref": "refs/heads/release/0.8.26",
+  "active_ref": null,
   "completion": {
     "ref": "origin/release/0.8.26",
     "main_integration": "COMPLETE"
@@ -57,7 +57,13 @@
     ]
   },
   "release_readiness": null,
-  "published": null,
+  "published": {
+    "tag": "v0.8.26",
+    "tag_commit": "f99e002f0d2e4002f3694c9f8d4986b56089edaa",
+    "published_on": "2026-09-19",
+    "npm_dist_tag": "latest",
+    "evidence": "CI run 35484303885 and release dry-run 35484359979 completed successfully at the exact tag commit. Canonical release run 35485245618 completed successfully on attempt 2 after adding exact tag policy v0.8.26 to the existing CUDA environment; all Rust, PyPI, and npm publish tiers, registry-visibility polling, five-platform post-publish smokes, co-tagging assertion, npm latest promotion, and GitHub Release creation passed. The annotated tag object d4381fdd297d67538a004e0391e722a47a977974 peels to f99e002f0d2e4002f3694c9f8d4986b56089edaa. GitHub published the release at 2026-09-20T03:26:48Z."
+  },
   "generated_views": [
     {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.26.md", "location": "Open decisions", "renders": "the count of unruled decisions"}
   ]

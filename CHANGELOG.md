@@ -10,9 +10,9 @@ AC-050c) gates merges against this invariant.
 
 ## 0.8.26 — 2026-09-19
 
-**Publication status: authorized and pending.** Tagging and registry publication
-follow only after the exact-candidate hosted CI and release rehearsals pass.
-This pre-1.0 release is breaking and supports fresh databases only.
+**Publication status: published.** Annotated tag `v0.8.26` resolves to
+`f99e002f`; crates.io, PyPI, npm, and the GitHub Release were published on
+2026-09-19. This pre-1.0 release is breaking and supports fresh databases only.
 
 ### Added
 

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.26 release status
-status: ACTIVE
+status: COMPLETE
 ---
 
 # FathomDB 0.8.26 release status
@@ -11,9 +11,10 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-The complete 0.8.26 ladder is integrated on `origin/main` at `b7d8e5b0`.
-Release-workflow corrections advance the exact qualification candidate to
-`fe88a9eb`. Hosted qualification and authorized publication remain pending.
+**FathomDB 0.8.26 is released.** The annotated `v0.8.26` tag peels to exact
+qualified commit `f99e002f`; the GitHub Release and crates.io, PyPI, and npm
+packages were published by
+[release run 35485245618](https://github.com/fathomadb/fathomdb/actions/runs/35485245618).
 
 Slices 0–10, 15, 20, 30, 35, 40, 45, 46, 50, 55, 60, and 65 are complete on the
 0.8.26 release line. Slice 50 bound candidate `68514f70`, local package
@@ -38,7 +39,7 @@ independent design/code/candidate verification passed.
 
 | | |
 |---|---|
-| **Immediate next action** | Pass the required hosted CI and release dry-run workflows at exact candidate `fe88a9eb`, record their run evidence, then execute the owner-authorized `v0.8.26` tag, registry publication, post-publication smokes, and closure record. |
+| **Immediate next action** | None for 0.8.26; the release, registry publication, post-publish smokes, npm promotion, GitHub Release, and closure record are complete. |
 
 ## Open decisions
 
@@ -53,10 +54,11 @@ V1 graph-evidence sidecar under frozen authority.
 - Scope stays narrow around the selected Memex needs.
 - The reopened ladder changes conformance tooling and maintained design
   authority; runtime product changes require separate explicit scope.
-- Main integration completed at `b7d8e5b0`; release-workflow corrections are
-  present at exact candidate `fe88a9eb`. The repository owner authorized hosted
-  qualification, tagging, publication, registry mutation, and required
-  post-publication verification on 2026-09-19, conditional on all gates passing.
+- Main integration completed at `b7d8e5b0`; release-workflow corrections and
+  CUDA rehearsal receipt alignment are present at exact released commit
+  `f99e002f`. The repository owner authorized hosted qualification, tagging,
+  publication, registry mutation, and required post-publication verification
+  on 2026-09-19; every binding gate passed.
 
 ## Verification
 
@@ -64,3 +66,30 @@ Every slice records focused evidence, independent review, the proportionate
 repository gate, and its exact closeout commit. Generated facts must pass
 `scripts/check-release-state-views.sh`; worktree/dependency authority must pass
 `scripts/preflight.sh`.
+
+- [CI run 35484303885](https://github.com/fathomadb/fathomdb/actions/runs/35484303885)
+  completed successfully at exact SHA
+  `f99e002f0d2e4002f3694c9f8d4986b56089edaa` on 2026-09-20.
+- [Release dry-run 35484359979](https://github.com/fathomadb/fathomdb/actions/runs/35484359979)
+  completed successfully at the same exact SHA. Trusted-route validation,
+  release gates, all platform builds, CUDA contract preflight, both installed-
+  package CUDA rehearsals, and `all-builds-passed` succeeded.
+- The release dry-run's explicitly nonbinding reachable-history Gitleaks
+  advisory retained the known baseline-count drift. The binding current-tree
+  Gitleaks job in CI passed.
+- Annotated tag object `d4381fdd297d67538a004e0391e722a47a977974`
+  peels to `f99e002f0d2e4002f3694c9f8d4986b56089edaa`.
+- [Canonical release run 35485245618](https://github.com/fathomadb/fathomdb/actions/runs/35485245618)
+  completed successfully on recovery attempt 2 at that exact SHA. Attempt 1
+  exposed a missing exact-tag deployment policy before runner assignment; the
+  existing CUDA environment gained only the `v0.8.26` tag policy, after which
+  the canonical CUDA artifact build passed.
+- All six lockstep crates.io packages are available at 0.8.26 and unyanked;
+  independently versioned `fathomdb-embedder-api` correctly remains 0.6.1.
+  All five PyPI wheels and all six npm packages are available at 0.8.26; npm
+  `latest` and `next` both resolve to 0.8.26.
+- Registry-installed post-publish smokes passed for crates.io CLI, PyPI wheel,
+  npm package, Linux aarch64, macOS x64/arm64, and Windows x64. Co-tagging,
+  npm latest promotion, and GitHub Release creation also passed. GitHub
+  published the non-draft, non-prerelease release with five wheel assets at
+  `2026-09-20T03:26:48Z`.

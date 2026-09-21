@@ -85,6 +85,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/runs/0.8.23-slice-72-draft-plan.md` | Approved plan for concurrent embedding and CE GPU coexistence characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/plans/runs/0.8.23-slice-72-status.md` | Local completion and external-GPU-evidence boundary for concurrent BGE and CE characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/requirements.md` | Numbered requirements (REQ-*); REQ-053 = governed SDK surface (allowlist + parity + recovery-denylist + typed boundary) | 25 amended REQ-053 (Q3) | 2026-06-04 |
+| `dev/ROADMAP.md` | Consolidated post-0.8.26 roadmap and backlog with links to owning records | Program Steward / HITL | 2026-09-21 |
 | `dev/acceptance.md` | Acceptance criteria (AC-*); AC-076 distinguishes its hybrid fixture from bounded direct-text rank collection | 40/GA-2 mints AC-075/076; 0.8.24 Slice 20 corrects AC-076 mechanism | 2026-08-24 |
 | `dev/interfaces/rust.md` | Rust public interface (owner of Rust-visible spelling + governed facade contract); Slice 21 records dense readiness and Slice 22 records the pure projection-status facade. | 27 (governed-surface contract); Slices 21/22 integrated in `main` | 2026-08-08 |
 | `dev/interfaces/python.md` | Python public interface (owner of Python-visible spelling + attribute casing); Slice 21 records engine-set dense readiness and Slice 22 records `read.projection_status`. | Slices 21/22 integrated in `main`; parity owned by `design/bindings.md` | 2026-08-08 |

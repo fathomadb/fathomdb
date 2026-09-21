@@ -11,6 +11,8 @@ content here. Those belong in `docs/`.
 
 Read these first — this is where the current release actually lives.
 
+- [`ROADMAP.md`](ROADMAP.md) — consolidated post-0.8.26 release candidates,
+  review checkpoints, unscheduled backlog, and parked work
 - `plans/` release planning and execution. Contains:
   - `plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md` — current program
     schedule-of-record; `0.8.6-0.8.16-PROGRAM-SEQUENCING.md` is retained
@@ -73,6 +75,8 @@ root.
 ## Top-level canonical docs
 
 - `DOC-INDEX.md` — full path → purpose map of the doc tree; every slice updates it
+- [`ROADMAP.md`](ROADMAP.md) — consolidated future-work map; the program
+  schedule remains authoritative for release placement
 - `needs.md`
 - `requirements.md`
 - `acceptance.md`

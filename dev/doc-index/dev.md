@@ -13,6 +13,7 @@
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
 | `dev/README.md` | Entry map for the engineering docs tree | — | 2026-05-02 |
+| `dev/ROADMAP.md` | Consolidated post-0.8.26 release candidates, review checkpoints, unscheduled backlog, and parked work; links to owning records without authorizing implementation | Program Steward / HITL | 2026-09-21 |
 | `dev/needs.md` | Product/consumer needs driving requirements | — | 2026-05-28 |
 | `dev/notes/earp-agent-orientation.md` · `earp-hitl-decisions.md` | **EARP developer harness guidance.** Explains how the off-wheel evaluation platform differs from FathomDB and records its current HITL boundaries. | EARP developer harness | 2026-08-08 |
 | `dev/notes/0.8.23-architecture-tradeoffs.md` | **0.8.23 follow-up note.** Update architecture documentation to explain the retrieval/projection design trade-offs surfaced in 0.8.22; non-blocking and not 0.8.22 scope. | 0.8.23 planning | 2026-08-07 |

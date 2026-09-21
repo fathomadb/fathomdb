@@ -1,0 +1,46 @@
+{
+  "schema_version": "graph-retrieval-01.config.v1",
+  "program_track": "GRAPH-RETRIEVAL-01",
+  "cell_id": "graph-retrieval01",
+  "claim_boundary": "historical_300_directional_native_expand_retrieval",
+  "inputs": {
+    "cohort": "historical-300",
+    "corpus_sha256": "3cff37fd7221506a343a125cf7ca20aab7cd09877e376122da9627e1b935b26f",
+    "extractions_sha256": "7ca969520e7c79dab83a3cce0800f8e87369b3aed7b7264577f6959f397373d4",
+    "cohort_sha256": "3f4061119a278045c6c905f5fc5db9705ef733a2b051541042a49012f14f2019",
+    "graph01_config_sha256": "5fc5ca210fc2cbaa230d9102030b0206fd4ae66e436135289e1d01663b1989bf",
+    "historical_observations_sha256": "2c6be8b5f871afc0866944a0c937e5fe4837fdd898f5810e90a0b16bb13dc02c",
+    "seed_manifest_sha256": "862b304d07986498d82a512effcfa7f5baea07d65836f6d60e494abde6f3b6c5"
+  },
+  "model": {
+    "repository": "BAAI/bge-small-en-v1.5",
+    "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+    "pooling": "cls",
+    "normalization": "l2",
+    "device_policy": "cuda-rtx3090-only",
+    "files": {
+      "config.json": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+      "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+      "model.safetensors": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad"
+    }
+  },
+  "arms": ["fused_rrf_k60", "native_expand_depth1", "native_expand_depth2"],
+  "policy": {
+    "evaluation_depth": 20,
+    "context_depth": 10,
+    "protected_prefix": 8,
+    "promotion_limit": 2,
+    "deduplicate_by": "paragraph_id",
+    "tie_break": ["hop", "seed_rank", "passage_id"]
+  },
+  "bootstrap": {"draws": 2000, "seed": 20260921},
+  "measurement": {
+    "repetitions": 3,
+    "percentile_estimator": "linear-p-n-minus-1"
+  },
+  "outputs": {
+    "retrieval_section": "retrieval_quality",
+    "performance_section": "performance"
+  },
+  "stark": {"state": "blocked_prerequisite", "numeric_tolerance": 1e-12}
+}

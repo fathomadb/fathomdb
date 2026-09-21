@@ -13,6 +13,12 @@ raw_log="$3"
 source_sha="$4"
 expected_binary_sha="$5"
 expected_input_sha="$6"
+runner_root=$(cd "$(dirname "$0")/../.." && pwd)
+scanner="${SLICE80_AC081_SCANNER:-$runner_root/dev/tools/slice80_read_acceptance.py}"
+if [ ! -f "$scanner" ]; then
+  echo "Slice 80 scanner is unavailable: $scanner" >&2
+  exit 2
+fi
 
 cd "$cell_worktree"
 actual_source_sha=$(git rev-parse HEAD)
@@ -66,7 +72,7 @@ snapshot() {
   great_grandparent=$(ps -o ppid= -p "$grandparent" | tr -d ' ')
   competing=$(snapshot_subshell_pid=$BASHPID
     ps -eo pid=,comm=,args= | PYTHONDONTWRITEBYTECODE=1 \
-    python3 dev/tools/slice80_read_acceptance.py scan-processes \
+    python3 "$scanner" scan-processes \
       --exclude-pids "$$,$PPID,$grandparent,$great_grandparent,$snapshot_subshell_pid")
   python3 - "$phase" "$load" "$memory" "$swap_in" "$swap_out" "$temperature" \
     "$competing" "$affinity" "$quota" <<'PY'

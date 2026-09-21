@@ -1,0 +1,56 @@
+{
+  "schema_version": "graph-expand-01.config.v1",
+  "program_track": "GRAPH-EXPAND-01",
+  "cell_id": "graph-expand01",
+  "claim_boundary": "linkbench_ldbc_inspired_not_official_compliance",
+  "generator": {"algorithm": "graph-expand-powerlaw-v1", "seed": 20260921},
+  "scales": [
+    {"id": "smoke", "nodes": 1000, "edges": 5000},
+    {"id": "small", "nodes": 10000, "edges": 50000},
+    {"id": "medium", "nodes": 50000, "edges": 1000000},
+    {"id": "large", "nodes": 100000, "edges": 5000000}
+  ],
+  "query_seeds": [
+    {"id": "Q1", "text": "graphseed-one", "expected_ids": ["node-000001"]},
+    {"id": "Q5", "text": "graphseed-five", "expected_ids": ["node-000010", "node-000011", "node-000012", "node-000013", "node-000014"]},
+    {"id": "Q10", "text": "graphseed-ten", "expected_ids": ["node-000020", "node-000021", "node-000022", "node-000023", "node-000024", "node-000025", "node-000026", "node-000027", "node-000028", "node-000029"]}
+  ],
+  "cells": [
+    {"id":"base","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"seed-e4","scale":"smoke","seed":"E4","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"seed-e16","scale":"smoke","seed":"E16","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"seed-q1","scale":"smoke","seed":"Q1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"seed-q5","scale":"smoke","seed":"Q5","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"seed-q10","scale":"smoke","seed":"Q10","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"direction-in","scale":"smoke","seed":"E1","direction":"incoming","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"direction-both","scale":"smoke","seed":"E1","direction":"both","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"depth-0","scale":"smoke","seed":"E1","direction":"outgoing","depth":0,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"minimum-valid"},
+    {"id":"depth-2","scale":"smoke","seed":"E1","direction":"outgoing","depth":2,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"degree-low","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"low","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"degree-high","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"high","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"filter-edge","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"EK","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"filter-target","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"TK","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"filter-eligibility","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"EL","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"context-frozen","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"F","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"explanation","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":true,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"evidence","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"F","explain":false,"evidence":true,"concurrency":1,"bound":"exact"},
+    {"id":"concurrency-2","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":2,"bound":"exact"},
+    {"id":"concurrency-4","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":4,"bound":"exact"},
+    {"id":"concurrency-8","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":8,"bound":"exact"},
+    {"id":"bound-below","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"W-1"},
+    {"id":"bound-exact","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"W"},
+    {"id":"bound-above","scale":"smoke","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"W+1"},
+    {"id":"scale-small","scale":"small","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"scale-medium","scale":"medium","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"},
+    {"id":"scale-large","scale":"large","seed":"E1","direction":"outgoing","depth":1,"degree":"median","filter":"N","context":"C","explain":false,"evidence":false,"concurrency":1,"bound":"exact"}
+  ],
+  "measurement": {
+    "warmup_operations": 5,
+    "smoke_operations": 100,
+    "scale_operations": 1000,
+    "repetitions": 3,
+    "loop_model": "closed",
+    "percentile_estimator": "linear-p-n-minus-1"
+  },
+  "outputs": {"correctness_section": "correctness", "performance_section": "performance"}
+}

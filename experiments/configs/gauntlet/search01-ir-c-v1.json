@@ -1,0 +1,12 @@
+{
+  "schema_version": "fathomdb.performance-gauntlet.search01-contract/v1",
+  "profile": "IR-C",
+  "documents": 10506,
+  "queries": 4597,
+  "retrieval": "search_text_only",
+  "limit": 10,
+  "cutoffs": [5, 10],
+  "corpus_sha256": "fe973fcd49fbbda083158f69fe720f17858ab8528e171fa2188eec84131c7d4e",
+  "qrels_version": "ir-c-reused-v2",
+  "gold_sha256": "4caabddf7ce55f417e639e3c169fe2035b09c231f36d2f39d293a596373de2bb"
+}

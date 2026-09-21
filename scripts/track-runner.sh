@@ -45,6 +45,9 @@ case "$1" in
       SCALE-02) plan="scale-02-local-first-envelope.md" ;;
       LATENT-01) plan="latent-01-late-chunking-feasibility.md" ;;
       GRAPH-01) plan="graph-01-projection-characterization.md" ;;
+      GRAPH-EVIDENCE-01) plan="graph-evidence-01-fidelity.md" ;;
+      GRAPH-EXPAND-01) plan="graph-expand-01-bounded-traversal.md" ;;
+      GRAPH-RETRIEVAL-01) plan="graph-retrieval-01-native-expand.md" ;;
       GLOBAL-01) plan="global-01-native-graphrag.md" ;;
       REASON-01) plan="reason-01-native-hipporag2.md" ;;
       SEARCH-01) plan="search-01-ir-c-baseline.md" ;;

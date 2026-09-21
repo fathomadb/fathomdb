@@ -1,0 +1,48 @@
+{
+  "schema_version": "graph-evidence-01.config.v1",
+  "program_track": "GRAPH-EVIDENCE-01",
+  "cell_id": "graph-evidence01",
+  "claim_boundary": "fathomdb_exact_graph_evidence_fidelity_and_cost",
+  "measurement": {
+    "warmup_operations": 5,
+    "measured_operations_per_cell": 20,
+    "repetitions": 3,
+    "percentile_estimator": "linear-p-n-minus-1"
+  },
+  "fixture": {
+    "id": "graph-evidence-synthetic-v1",
+    "edge_sources": ["ordinary", "actuated", "parallel-winner"],
+    "refusal_classes": [
+      "cross-request",
+      "erased",
+      "foreign-context",
+      "foreign-database",
+      "replayed",
+      "superseded-edge",
+      "superseded-target",
+      "tampered"
+    ],
+    "validator_sha256": {
+      "scripts/release/slice50-evidence-matrix.py": "9ed23cea7246d01bf1ed32f58e2081d8cdcd11ce487ce2954b9c65190aba8c72",
+      "scripts/release/smoke/frozen-evidence-python.py": "2d544b4a1331b9f294bcdd2e6c715645482d99abf29880fd25010b26c5985258"
+    }
+  },
+  "matrix": [
+    {"seed": "explicit", "direction": "outgoing", "depth": 1},
+    {"seed": "explicit", "direction": "outgoing", "depth": 2},
+    {"seed": "explicit", "direction": "incoming", "depth": 1},
+    {"seed": "explicit", "direction": "incoming", "depth": 2},
+    {"seed": "explicit", "direction": "both", "depth": 1},
+    {"seed": "explicit", "direction": "both", "depth": 2},
+    {"seed": "query", "direction": "outgoing", "depth": 1},
+    {"seed": "query", "direction": "outgoing", "depth": 2},
+    {"seed": "query", "direction": "incoming", "depth": 1},
+    {"seed": "query", "direction": "incoming", "depth": 2},
+    {"seed": "query", "direction": "both", "depth": 1},
+    {"seed": "query", "direction": "both", "depth": 2}
+  ],
+  "outputs": {
+    "fidelity_section": "fidelity",
+    "performance_section": "performance"
+  }
+}

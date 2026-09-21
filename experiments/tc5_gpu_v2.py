@@ -101,7 +101,13 @@ _INPUT_KEYS = {
     "model_asset_directory",
     "model_asset_digest",
 }
-_RUNTIME_KEYS = {"python", "fathomdb_bin", "embed_device", "cuda_uuid", "binary_feature"}
+_RUNTIME_KEYS = {
+    "python",
+    "fathomdb_bin",
+    "embed_device",
+    "cuda_uuid",
+    "binary_feature",
+}
 _CANDIDATE_KEYS = {
     "sha",
     "version",
@@ -156,11 +162,15 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
         _TOP_KEYS | {"candidate"},
     ):
         raise Tc5GpuV2Error("TC-5 v2 configuration keys drifted")
-    measurement, inputs, runtime = document["measurement"], document["inputs"], document["runtime"]
+    measurement, inputs, runtime = (
+        document["measurement"],
+        document["inputs"],
+        document["runtime"],
+    )
     if (
         document["schema_version"] != "tc5-gpu-execution.v2"
         or document["program_track"] != "SCALE-01"
-        or document["release"] not in {"0.8.23", "0.8.25"}
+        or document["release"] not in {"0.8.23", "0.8.25", "0.8.26"}
         or document["arms"] != {"bridge": 7667, "primary": 17272}
         or document["claim_boundary"] != "fidelity_and_uncertainty_only"
         or not isinstance(measurement, dict)
@@ -182,41 +192,58 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
         "sut": "pre-fusion-1bit-k192-f32-rerank-vector-stage",
     }:
         raise Tc5GpuV2Error("TC-5 v2 fidelity pins drifted")
-    if runtime["embed_device"] != "cuda:0" or runtime["binary_feature"] != "tc5-benchmark-cuda":
+    if (
+        runtime["embed_device"] != "cuda:0"
+        or runtime["binary_feature"] != "tc5-benchmark-cuda"
+    ):
         raise Tc5GpuV2Error("TC-5 v2 requires the explicit CUDA benchmark runtime")
     if inputs["bridge_selection"] != "all-query-sources-then-qualified-manifest-order":
         raise Tc5GpuV2Error("TC-5 v2 bridge selection rule drifted")
-    if not isinstance(runtime["cuda_uuid"], str) or not runtime["cuda_uuid"].startswith("GPU-"):
+    if not isinstance(runtime["cuda_uuid"], str) or not runtime["cuda_uuid"].startswith(
+        "GPU-"
+    ):
         raise Tc5GpuV2Error("TC-5 v2 requires a pinned CUDA UUID")
-    for key in ("corpus_index_sha256", "qualified_manifest_sha256", "model_asset_digest"):
+    for key in (
+        "corpus_index_sha256",
+        "qualified_manifest_sha256",
+        "model_asset_digest",
+    ):
         if not _is_digest(inputs[key]):
             raise Tc5GpuV2Error(f"{key} is not a lowercase sha256")
     candidate = document.get("candidate")
     if document["release"] == "0.8.23":
         if candidate is not None:
-            raise Tc5GpuV2Error("historical TC-5 configuration cannot carry a candidate binding")
-    elif (
-        not isinstance(candidate, dict)
-        or set(candidate) != _CANDIDATE_KEYS
-        or not isinstance(candidate.get("sha"), str)
-        or len(candidate["sha"]) != 40
-        or any(character not in "0123456789abcdef" for character in candidate["sha"])
-        or candidate.get("version") != document["release"]
-        or candidate.get("package_version") != "0.8.24"
-        or not all(
-            isinstance(candidate.get(key), str) and candidate[key]
-            for key in ("python_wheel", "benchmark_binary")
-        )
-        or not all(
-            _is_digest(candidate.get(key))
-            for key in (
-                "python_wheel_sha256",
-                "fathomdb_bin_sha256",
-                "benchmark_binary_sha256",
+            raise Tc5GpuV2Error(
+                "historical TC-5 configuration cannot carry a candidate binding"
             )
-        )
-    ):
-        raise Tc5GpuV2Error("0.8.25 TC-5 requires an exact candidate binding")
+    else:
+        expected_package = "0.8.24" if document["release"] == "0.8.25" else "0.8.26"
+        if (
+            not isinstance(candidate, dict)
+            or set(candidate) != _CANDIDATE_KEYS
+            or not isinstance(candidate.get("sha"), str)
+            or len(candidate["sha"]) != 40
+            or any(
+                character not in "0123456789abcdef" for character in candidate["sha"]
+            )
+            or candidate.get("version") != document["release"]
+            or candidate.get("package_version") != expected_package
+            or not all(
+                isinstance(candidate.get(key), str) and candidate[key]
+                for key in ("python_wheel", "benchmark_binary")
+            )
+            or not all(
+                _is_digest(candidate.get(key))
+                for key in (
+                    "python_wheel_sha256",
+                    "fathomdb_bin_sha256",
+                    "benchmark_binary_sha256",
+                )
+            )
+        ):
+            raise Tc5GpuV2Error(
+                f"{document['release']} TC-5 requires an exact candidate binding"
+            )
     return Tc5GpuConfig(
         arms=dict(document["arms"]),
         candidate_k=measurement["candidate_k"],
@@ -243,11 +270,15 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
         python_wheel_sha256=candidate["python_wheel_sha256"] if candidate else None,
         fathomdb_bin_sha256=candidate["fathomdb_bin_sha256"] if candidate else None,
         benchmark_binary=Path(candidate["benchmark_binary"]) if candidate else None,
-        benchmark_binary_sha256=(candidate["benchmark_binary_sha256"] if candidate else None),
+        benchmark_binary_sha256=(
+            candidate["benchmark_binary_sha256"] if candidate else None
+        ),
     )
 
 
-def binary_environment(environment: Mapping[str, str], cuda_uuid: str) -> dict[str, str]:
+def binary_environment(
+    environment: Mapping[str, str], cuda_uuid: str
+) -> dict[str, str]:
     """Return a cache-only executor environment with exactly one visible GPU."""
     result = {
         key: value
@@ -278,7 +309,10 @@ def settings_digest(spec: Mapping[str, object], manifest: Mapping[str, object]) 
         [
             ("model_asset_digest", str(manifest["model_asset_digest"])),
             ("expected_vector_rows", str(manifest["expected_vector_rows"])),
-            ("allowed_candidate_k", ",".join(map(str, manifest["allowed_candidate_k"]))),
+            (
+                "allowed_candidate_k",
+                ",".join(map(str, manifest["allowed_candidate_k"])),
+            ),
             ("allowed_top_k", ",".join(map(str, manifest["allowed_top_k"]))),
             ("fixture_digest", str(manifest["fixture_digest"])),
             ("index_digest", str(manifest["index_digest"])),
@@ -404,14 +438,22 @@ def _load_arm_inputs(config: Tc5GpuConfig, arm: str) -> ArmInputs:
         or len(raw_queries) != config.query_count
     ):
         raise Tc5GpuV2Error("qualified corpus or query envelope drifted")
-    raw_by_id = {row.get("document_id"): row for row in raw_documents if isinstance(row, dict)}
+    raw_by_id = {
+        row.get("document_id"): row for row in raw_documents if isinstance(row, dict)
+    }
     qualified_by_id = {
-        row.get("document_id"): row for row in qualified_documents if isinstance(row, dict)
+        row.get("document_id"): row
+        for row in qualified_documents
+        if isinstance(row, dict)
     }
     qualified_ids = [row.get("document_id") for row in qualified_documents]
     if arm == "bridge":
-        required = list(dict.fromkeys(row.get("exclude_document_id") for row in raw_queries))
-        selected_ids = required + [identifier for identifier in qualified_ids if identifier not in required]
+        required = list(
+            dict.fromkeys(row.get("exclude_document_id") for row in raw_queries)
+        )
+        selected_ids = required + [
+            identifier for identifier in qualified_ids if identifier not in required
+        ]
         selected_ids = selected_ids[:count]
     else:
         selected_ids = qualified_ids
@@ -419,7 +461,10 @@ def _load_arm_inputs(config: Tc5GpuConfig, arm: str) -> ArmInputs:
         not isinstance(selected_ids, list)
         or len(selected_ids) != count
         or len(set(selected_ids)) != count
-        or any(identifier not in raw_by_id or identifier not in qualified_by_id for identifier in selected_ids)
+        or any(
+            identifier not in raw_by_id or identifier not in qualified_by_id
+            for identifier in selected_ids
+        )
     ):
         raise Tc5GpuV2Error("arm document selection drifted")
     selected = [raw_by_id[identifier] for identifier in selected_ids]
@@ -431,7 +476,9 @@ def _load_arm_inputs(config: Tc5GpuConfig, arm: str) -> ArmInputs:
             or raw.get("document_id") != expected.get("document_id")
             or raw.get("content_sha256") != expected.get("content_sha256")
         ):
-            raise Tc5GpuV2Error("document selection drifted from the qualified manifest")
+            raise Tc5GpuV2Error(
+                "document selection drifted from the qualified manifest"
+            )
         text = _read_verified_text(config.corpus_root, raw)
         documents.append({"document_id": raw["document_id"], "text": text})
     known = {row["document_id"] for row in documents}
@@ -450,7 +497,10 @@ def _load_arm_inputs(config: Tc5GpuConfig, arm: str) -> ArmInputs:
     fixture_digest = _sha_bytes(
         _json_bytes(
             [
-                {"document_id": raw["document_id"], "content_sha256": raw["content_sha256"]}
+                {
+                    "document_id": raw["document_id"],
+                    "content_sha256": raw["content_sha256"],
+                }
                 for raw in selected
             ]
         )
@@ -458,7 +508,9 @@ def _load_arm_inputs(config: Tc5GpuConfig, arm: str) -> ArmInputs:
     return ArmInputs(tuple(documents), tuple(queries), fixture_digest)
 
 
-def dry_run(config_path: str | Path, arm: str, *, output_root: Path) -> dict[str, object]:
+def dry_run(
+    config_path: str | Path, arm: str, *, output_root: Path
+) -> dict[str, object]:
     """Validate all external inputs and controls without creating run state."""
     config = load_config(config_path)
     inputs = _load_arm_inputs(config, arm)
@@ -531,21 +583,30 @@ def _validate_candidate_runtime(config: Tc5GpuConfig) -> None:
             "candidate Python interpreter is not the configured runtime environment"
         )
     if Path(sys.executable).resolve() != config.python.resolve():
-        raise Tc5GpuV2Error("candidate Python interpreter is not the configured runtime")
+        raise Tc5GpuV2Error(
+            "candidate Python interpreter is not the configured runtime"
+        )
     try:
         distribution = importlib.metadata.distribution("fathomdb")
         import fathomdb
         import fathomdb._fathomdb as native
     except (ImportError, importlib.metadata.PackageNotFoundError) as exc:
-        raise Tc5GpuV2Error("candidate wheel is not installed in the configured runtime") from exc
+        raise Tc5GpuV2Error(
+            "candidate wheel is not installed in the configured runtime"
+        ) from exc
     module_paths = (Path(fathomdb.__file__).resolve(), Path(native.__file__).resolve())
     if distribution.version != config.package_version or any(
-        path != runtime_root and runtime_root not in path.parents for path in module_paths
+        path != runtime_root and runtime_root not in path.parents
+        for path in module_paths
     ):
-        raise Tc5GpuV2Error("candidate wheel is not installed in the configured runtime")
+        raise Tc5GpuV2Error(
+            "candidate wheel is not installed in the configured runtime"
+        )
 
 
-def _bootstrap(config: Tc5GpuConfig, values: tuple[float, ...]) -> tuple[float, float, float]:
+def _bootstrap(
+    config: Tc5GpuConfig, values: tuple[float, ...]
+) -> tuple[float, float, float]:
     state = int(config.bootstrap_seed, 16)
     means: list[float] = []
     for _ in range(config.bootstrap_resamples):
@@ -561,7 +622,9 @@ def _bootstrap(config: Tc5GpuConfig, values: tuple[float, ...]) -> tuple[float, 
     means.sort()
     return (
         means[int(config.bootstrap_resamples * 0.025)],
-        means[min(int(config.bootstrap_resamples * 0.975), config.bootstrap_resamples - 1)],
+        means[
+            min(int(config.bootstrap_resamples * 0.975), config.bootstrap_resamples - 1)
+        ],
         statistics.pstdev(means),
     )
 
@@ -613,7 +676,9 @@ def aggregate_results(
             or not _is_digest(result.get("rerank_ids_digest"))
             or not _is_digest(result.get("ground_truth_ids_digest"))
         ):
-            raise Tc5GpuV2Error("TC-5 query result is partial or violates the GPU direct-route contract")
+            raise Tc5GpuV2Error(
+                "TC-5 query result is partial or violates the GPU direct-route contract"
+            )
         recalls.append(float(recall))
         rerank_digests.append(str(result["rerank_ids_digest"]))
         truth_digests.append(str(result["ground_truth_ids_digest"]))
@@ -688,10 +753,16 @@ def configure_tc5_dense_projection(engine: object) -> None:
     )
 
 
-def _ingest_database(config: Tc5GpuConfig, inputs: ArmInputs, output_root: Path) -> Path:
+def _ingest_database(
+    config: Tc5GpuConfig, inputs: ArmInputs, output_root: Path
+) -> Path:
     prior = {
         key: os.environ.get(key)
-        for key in ("FATHOMDB_EMBED_DEVICE", "FATHOMDB_RERANK_DEVICE", "CUDA_VISIBLE_DEVICES")
+        for key in (
+            "FATHOMDB_EMBED_DEVICE",
+            "FATHOMDB_RERANK_DEVICE",
+            "CUDA_VISIBLE_DEVICES",
+        )
     }
     os.environ.update(
         {
@@ -834,7 +905,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = dry_run(args.config, args.arm, output_root=args.output_root)
         print(json.dumps(result, sort_keys=True))
     else:
-        receipt = run_arm(args.config, args.arm, output_root=args.output_root, binary=args.binary)
+        receipt = run_arm(
+            args.config, args.arm, output_root=args.output_root, binary=args.binary
+        )
         print(json.dumps({"receipt": str(receipt)}, sort_keys=True))
     return 0
 

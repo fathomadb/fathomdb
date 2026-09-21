@@ -1,0 +1,57 @@
+{
+  "schema_version": "fathomdb.performance-gauntlet.config/v1",
+  "release": "0.8.26",
+  "source": {
+    "root": "/path/to/fathomdb-0.8.26",
+    "commit": "0000000000000000000000000000000000000000"
+  },
+  "output_root": "/external/fathomdb-gauntlet/0.8.26",
+  "runtime": {
+    "fathomdb_cli": null,
+    "python": null,
+    "wheel": null,
+    "native_extension": null,
+    "virtualenv": null
+  },
+  "configs": {
+    "ac072": null,
+    "ac073": null,
+    "ac075": null,
+    "scale02": null,
+    "protected_writes": null,
+    "ce_profile": null,
+    "search01": null,
+    "locomo": null
+  },
+  "assets": {
+    "ir_c": null,
+    "ac073": null,
+    "tc5": null,
+    "locomo": null,
+    "ce_profile": null
+  },
+  "gpu": {
+    "enabled": false,
+    "cuda_uuid": null
+  },
+  "cells": [
+    "ac076",
+    "ac072",
+    "ac081",
+    "ac073",
+    "ac075",
+    "scale02",
+    "protected-writes",
+    "ce-profile",
+    "search01",
+    "locomo"
+  ],
+  "timeouts_s": {
+    "default": 3600,
+    "cells": {
+      "scale02": 14400,
+      "search01": 7200,
+      "locomo": 7200
+    }
+  }
+}

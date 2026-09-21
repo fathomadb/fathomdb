@@ -49,6 +49,27 @@ def test_config_rejects_unknown_fields():
         scale_02.resolve_config(document)
 
 
+@pytest.mark.parametrize("release", ["0.8.23", "0.8.25", "0.8.26"])
+def test_config_carries_only_supported_declared_release(release):
+    document = json.loads(CONFIG.read_text(encoding="utf-8"))
+    document["release"] = release
+    document["runtime"]["python_package_version"] = release
+
+    config = scale_02.resolve_config(document)
+
+    assert config.release == release
+
+
+@pytest.mark.parametrize("release", ["0.8.24", "0.8.27", "v0.8.26", ""])
+def test_config_rejects_unsupported_or_malformed_release(release):
+    document = json.loads(CONFIG.read_text(encoding="utf-8"))
+    document["release"] = release
+    document["runtime"]["python_package_version"] = release
+
+    with pytest.raises(scale_02.Scale02Error, match="identity"):
+        scale_02.resolve_config(document)
+
+
 def test_hitl_can_approve_the_frozen_policy_without_changing_measurements():
     document = json.loads(CONFIG.read_text(encoding="utf-8"))
     document["approval"] = {
@@ -369,6 +390,64 @@ def test_run_point_refuses_to_skip_an_unpassed_ladder_point(tmp_path, monkeypatc
         )
 
 
+def test_prior_point_requires_same_resolved_overlay(tmp_path):
+    config = scale_02.load_config(CONFIG)
+    registry = tmp_path / "registry"
+    record_dir = registry / "runs" / "foreign"
+    record_dir.mkdir(parents=True)
+    foreign_resolved = json.loads(json.dumps(config.resolved))
+    foreign_resolved["release"] = "0.8.25"
+    foreign_resolved["runtime"]["python_package_version"] = "0.8.25"
+    foreign_resolved["execution_point"] = 10000
+    foreign_resolved["execution_mode"] = "formal_ladder"
+    (record_dir / "record.json").write_text(
+        json.dumps(
+            {
+                "experiment": "scale-02-a0-10000",
+                "verdict": "complete",
+                "config": {"resolved": foreign_resolved},
+                "metrics": {
+                    "point": 10000,
+                    "advisory": {"eligibility": "pass"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(scale_02.Scale02Error, match="prior ladder point 10000"):
+        scale_02._require_prior_points(config, 17272, registry)
+
+
+def test_run_point_cli_requires_and_forwards_record_base_dir(tmp_path, monkeypatch):
+    with pytest.raises(SystemExit) as missing:
+        scale_02.main(["run-point", str(CONFIG), "10000", str(tmp_path / "out")])
+    assert missing.value.code == 2
+
+    captured = {}
+
+    def fake_run(config, point, **kwargs):
+        captured.update(config=config, point=point, **kwargs)
+        return {"run_id": "fixture"}
+
+    monkeypatch.setattr(scale_02, "run_point", fake_run)
+    registry = tmp_path / "registry"
+    assert (
+        scale_02.main(
+            [
+                "run-point",
+                str(CONFIG),
+                "10000",
+                str(tmp_path / "out"),
+                "--record-base-dir",
+                str(registry),
+            ]
+        )
+        == 0
+    )
+    assert captured["record_base_dir"] == registry
+
+
 def test_post_boundary_baseline_accepts_observed_limit_but_not_blocked_point(
     tmp_path,
 ):
@@ -381,6 +460,7 @@ def test_post_boundary_baseline_accepts_observed_limit_but_not_blocked_point(
             {
                 "experiment": "scale-02-a0-3",
                 "verdict": "advisory_limit_observed",
+                "config": {"resolved": config.resolved},
                 "metrics": {
                     "point": 3,
                     "advisory": {"eligibility": "fail"},
@@ -402,6 +482,7 @@ def test_post_boundary_baseline_accepts_observed_limit_but_not_blocked_point(
             {
                 "experiment": "scale-02-a0-3",
                 "verdict": "blocked_execution",
+                "config": {"resolved": config.resolved},
                 "metrics": {"point": 3},
             }
         ),
@@ -525,6 +606,7 @@ def test_run_point_writes_standard_receipt_and_generated_index(tmp_path, monkeyp
     )
     monkeypatch.setattr(scale_02, "load_config", lambda _path: approved)
     monkeypatch.setattr(scale_02, "load_fixture", lambda _config: fixture)
+    monkeypatch.setattr(scale_02, "_validate_runtime", lambda _config: {})
 
     def prepare(root, **kwargs):
         directory = root / kwargs["test_id"]

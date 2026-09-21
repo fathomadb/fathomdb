@@ -1,0 +1,340 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "graph-retrieval01-20260921T1959Z-5ae7886f",
+  "experiment": "graph-retrieval01",
+  "title": "graph-retrieval01",
+  "verdict": "complete",
+  "read": "directional benchmark observation",
+  "code": {
+    "git_sha": "b35212f678626e09ea7293e00ee337288ce74ff1",
+    "dirty": true,
+    "branch": "main",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "5ae7886fee2e29536d781812ea69718565e5a510c7b5a67480f9ad9abb80defd",
+    "path": "/home/coreyt/projects/fathomdb/experiments/configs/graph-retrieval-01/musique-native-expand.v1.json",
+    "resolved": {
+      "schema_version": "graph-retrieval-01.config.v1",
+      "program_track": "GRAPH-RETRIEVAL-01",
+      "cell_id": "graph-retrieval01",
+      "claim_boundary": "historical_300_directional_native_expand_retrieval",
+      "inputs": {
+        "cohort": "historical-300",
+        "corpus_sha256": "3cff37fd7221506a343a125cf7ca20aab7cd09877e376122da9627e1b935b26f",
+        "extractions_sha256": "7ca969520e7c79dab83a3cce0800f8e87369b3aed7b7264577f6959f397373d4",
+        "cohort_sha256": "3f4061119a278045c6c905f5fc5db9705ef733a2b051541042a49012f14f2019",
+        "graph01_config_sha256": "5fc5ca210fc2cbaa230d9102030b0206fd4ae66e436135289e1d01663b1989bf",
+        "historical_observations_sha256": "2c6be8b5f871afc0866944a0c937e5fe4837fdd898f5810e90a0b16bb13dc02c",
+        "seed_manifest_sha256": "862b304d07986498d82a512effcfa7f5baea07d65836f6d60e494abde6f3b6c5"
+      },
+      "model": {
+        "repository": "BAAI/bge-small-en-v1.5",
+        "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        "pooling": "cls",
+        "normalization": "l2",
+        "device_policy": "cuda-rtx3090-only",
+        "files": {
+          "config.json": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+          "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+          "model.safetensors": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad"
+        }
+      },
+      "arms": [
+        "fused_rrf_k60",
+        "native_expand_depth1",
+        "native_expand_depth2"
+      ],
+      "policy": {
+        "evaluation_depth": 20,
+        "context_depth": 10,
+        "protected_prefix": 8,
+        "promotion_limit": 2,
+        "deduplicate_by": "paragraph_id",
+        "tie_break": [
+          "hop",
+          "seed_rank",
+          "passage_id"
+        ]
+      },
+      "bootstrap": {
+        "draws": 2000,
+        "seed": 20260921
+      },
+      "measurement": {
+        "repetitions": 3,
+        "percentile_estimator": "linear-p-n-minus-1"
+      },
+      "outputs": {
+        "retrieval_section": "retrieval_quality",
+        "performance_section": "performance"
+      },
+      "stark": {
+        "state": "blocked_prerequisite",
+        "numeric_tolerance": 1e-12
+      },
+      "workload_identity": {
+        "cell": "graph-retrieval01",
+        "config_sha256": "39836e26017fee91eb5cf5b242fc98b2281290137e019c7b9135216a47302e62",
+        "corpus_manifest_sha256": "3cff37fd7221506a343a125cf7ca20aab7cd09877e376122da9627e1b935b26f"
+      }
+    }
+  },
+  "corpus": {
+    "source": "pinned",
+    "manifest_sha256": "3cff37fd7221506a343a125cf7ca20aab7cd09877e376122da9627e1b935b26f",
+    "datasets": [
+      "MuSiQue-Ans historical-300 directional reuse"
+    ]
+  },
+  "seeds": {},
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": "ffebda90ad6bae977a63cdb7d4c8edbce88632c2d353d5251247410040a16022",
+    "gpu": null,
+    "key_deps": {}
+  },
+  "metrics": {
+    "native_expand_depth1": {
+      "retrieval_quality": {
+        "overall": {
+          "complete_support_at_5": 0.44333333333333336,
+          "support_recall_at_5": 0.6583333333333333,
+          "support_precision_at_5": 0.25533333333333336,
+          "ndcg_at_5": 0.6302274738006156,
+          "complete_support_at_10": 0.61,
+          "support_recall_at_10": 0.77,
+          "support_precision_at_10": 0.153,
+          "ndcg_at_10": 0.6753786491747806,
+          "complete_support_at_20": 0.9166666666666666,
+          "support_recall_at_20": 0.9166666666666666,
+          "support_precision_at_20": 0.095,
+          "ndcg_at_20": 0.7231443829944084,
+          "first_support_mrr": 0.7562395625816678,
+          "candidate_change_rate": 0.0,
+          "useful_expansion_rate": 0.0,
+          "harmful_displacement_rate": 0.0,
+          "no_op_expansion_rate": 1.0
+        },
+        "by_hop": {
+          "2": {
+            "complete_support_at_5": 0.5128205128205128,
+            "support_recall_at_5": 0.6474358974358975,
+            "support_precision_at_5": 0.20384615384615384,
+            "ndcg_at_5": 0.6041212800463763,
+            "complete_support_at_10": 0.6602564102564102,
+            "support_recall_at_10": 0.7435897435897436,
+            "support_precision_at_10": 0.11730769230769231,
+            "ndcg_at_10": 0.6395336318386747,
+            "complete_support_at_20": 0.8461538461538461,
+            "support_recall_at_20": 0.8461538461538461,
+            "support_precision_at_20": 0.06826923076923078,
+            "ndcg_at_20": 0.6696787845447846,
+            "first_support_mrr": 0.6863692453520388
+          },
+          "3": {
+            "complete_support_at_5": 0.5,
+            "support_recall_at_5": 0.7517730496453902,
+            "support_precision_at_5": 0.3127659574468085,
+            "ndcg_at_5": 0.717930692452763,
+            "complete_support_at_10": 0.6382978723404256,
+            "support_recall_at_10": 0.8315602836879433,
+            "support_precision_at_10": 0.17659574468085107,
+            "ndcg_at_10": 0.7518226369766129,
+            "complete_support_at_20": 0.9893617021276596,
+            "support_recall_at_20": 0.9893617021276596,
+            "support_precision_at_20": 0.1074468085106383,
+            "ndcg_at_20": 0.8030684736013711,
+            "first_support_mrr": 0.8376588634707336
+          },
+          "4": {
+            "complete_support_at_5": 0.12,
+            "support_recall_at_5": 0.5166666666666666,
+            "support_precision_at_5": 0.308,
+            "ndcg_at_5": 0.5467967472478054,
+            "complete_support_at_10": 0.4,
+            "support_recall_at_10": 0.7366666666666667,
+            "support_precision_at_10": 0.22,
+            "ndcg_at_10": 0.6435004061959865,
+            "complete_support_at_20": 1.0,
+            "support_recall_at_20": 1.0,
+            "support_precision_at_20": 0.155,
+            "ndcg_at_20": 0.7396997598161447,
+            "first_support_mrr": 0.8211666666666666
+          }
+        }
+      },
+      "paired_deltas": {
+        "complete_support_at_5": {
+          "point": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n": 300,
+          "excluded_undefined": 0,
+          "draws": 2000,
+          "seed": 20260921
+        },
+        "complete_support_at_10": {
+          "point": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n": 300,
+          "excluded_undefined": 0,
+          "draws": 2000,
+          "seed": 20260921
+        },
+        "complete_support_at_20": {
+          "point": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n": 300,
+          "excluded_undefined": 0,
+          "draws": 2000,
+          "seed": 20260921
+        }
+      },
+      "denominators": {
+        "attempted": 300,
+        "completed": 300,
+        "errors": 0,
+        "typed_refusals": 0
+      }
+    },
+    "native_expand_depth2": {
+      "retrieval_quality": {
+        "overall": {
+          "complete_support_at_5": 0.44333333333333336,
+          "support_recall_at_5": 0.6583333333333333,
+          "support_precision_at_5": 0.25533333333333336,
+          "ndcg_at_5": 0.6302274738006156,
+          "complete_support_at_10": 0.61,
+          "support_recall_at_10": 0.77,
+          "support_precision_at_10": 0.153,
+          "ndcg_at_10": 0.6753786491747806,
+          "complete_support_at_20": 0.9166666666666666,
+          "support_recall_at_20": 0.9166666666666666,
+          "support_precision_at_20": 0.095,
+          "ndcg_at_20": 0.7231443829944084,
+          "first_support_mrr": 0.7562395625816678,
+          "candidate_change_rate": 0.0,
+          "useful_expansion_rate": 0.0,
+          "harmful_displacement_rate": 0.0,
+          "no_op_expansion_rate": 1.0
+        },
+        "by_hop": {
+          "2": {
+            "complete_support_at_5": 0.5128205128205128,
+            "support_recall_at_5": 0.6474358974358975,
+            "support_precision_at_5": 0.20384615384615384,
+            "ndcg_at_5": 0.6041212800463763,
+            "complete_support_at_10": 0.6602564102564102,
+            "support_recall_at_10": 0.7435897435897436,
+            "support_precision_at_10": 0.11730769230769231,
+            "ndcg_at_10": 0.6395336318386747,
+            "complete_support_at_20": 0.8461538461538461,
+            "support_recall_at_20": 0.8461538461538461,
+            "support_precision_at_20": 0.06826923076923078,
+            "ndcg_at_20": 0.6696787845447846,
+            "first_support_mrr": 0.6863692453520388
+          },
+          "3": {
+            "complete_support_at_5": 0.5,
+            "support_recall_at_5": 0.7517730496453902,
+            "support_precision_at_5": 0.3127659574468085,
+            "ndcg_at_5": 0.717930692452763,
+            "complete_support_at_10": 0.6382978723404256,
+            "support_recall_at_10": 0.8315602836879433,
+            "support_precision_at_10": 0.17659574468085107,
+            "ndcg_at_10": 0.7518226369766129,
+            "complete_support_at_20": 0.9893617021276596,
+            "support_recall_at_20": 0.9893617021276596,
+            "support_precision_at_20": 0.1074468085106383,
+            "ndcg_at_20": 0.8030684736013711,
+            "first_support_mrr": 0.8376588634707336
+          },
+          "4": {
+            "complete_support_at_5": 0.12,
+            "support_recall_at_5": 0.5166666666666666,
+            "support_precision_at_5": 0.308,
+            "ndcg_at_5": 0.5467967472478054,
+            "complete_support_at_10": 0.4,
+            "support_recall_at_10": 0.7366666666666667,
+            "support_precision_at_10": 0.22,
+            "ndcg_at_10": 0.6435004061959865,
+            "complete_support_at_20": 1.0,
+            "support_recall_at_20": 1.0,
+            "support_precision_at_20": 0.155,
+            "ndcg_at_20": 0.7396997598161447,
+            "first_support_mrr": 0.8211666666666666
+          }
+        }
+      },
+      "paired_deltas": {
+        "complete_support_at_5": {
+          "point": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n": 300,
+          "excluded_undefined": 0,
+          "draws": 2000,
+          "seed": 20260921
+        },
+        "complete_support_at_10": {
+          "point": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n": 300,
+          "excluded_undefined": 0,
+          "draws": 2000,
+          "seed": 20260921
+        },
+        "complete_support_at_20": {
+          "point": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n": 300,
+          "excluded_undefined": 0,
+          "draws": 2000,
+          "seed": 20260921
+        }
+      },
+      "denominators": {
+        "attempted": 300,
+        "completed": 300,
+        "errors": 0,
+        "typed_refusals": 0
+      }
+    },
+    "performance": {
+      "depth1_latency_ms": {
+        "p50": 2.748812,
+        "p95": 10.151868599999993,
+        "p99": 21.58682844
+      },
+      "depth2_latency_ms": {
+        "p50": 3.682164,
+        "p95": 21.488456199999984,
+        "p99": 41.417378840000005
+      }
+    }
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [],
+  "review": null,
+  "open_questions": []
+}

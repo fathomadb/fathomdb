@@ -22,6 +22,22 @@ EXPECTED_ALLOWLISTS = [
         "regexes": [r'^tokenizer\.json": "[0-9a-f]{64}"$'],
     },
     {
+        "description": (
+            "Performance gauntlet tokenizer digests are artifact-integrity metadata"
+        ),
+        "condition": "AND",
+        "regexTarget": "match",
+        "paths": [
+            r"^(?:experiments/configs/graph-retrieval-01/"
+            r"musique-native-expand\.v1\.json|"
+            r"scripts/perf-experiments/gauntlet_cells\.py|"
+            r"tests/experiments/test_perf_gauntlet_cells\.py|"
+            r"dev/performance-benchmarking/gauntlet-v1\.2/results/"
+            r"graph-retrieval-01-historical-300-0\.8\.26\.record\.json)$"
+        ],
+        "regexes": [r'^tokenizer\.json": "[0-9a-f]{64}"$'],
+    },
+    {
         "description": "REASON-01 tokenizer digests are artifact-integrity metadata",
         "condition": "AND",
         "regexTarget": "secret",

@@ -21,7 +21,10 @@ def _sha(path: Path) -> str:
     return tc5_gpu_v2._sha_file(path)
 
 
-def _candidate_config(tmp_path: Path) -> Path:
+def _candidate_config(
+    tmp_path: Path, *, release: str = "0.8.25", package_version: str = "0.8.24"
+) -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     value = json.loads(CONFIG.read_text(encoding="utf-8"))
     python = tmp_path / "python"
     wheel = tmp_path / "candidate.whl"
@@ -31,14 +34,14 @@ def _candidate_config(tmp_path: Path) -> Path:
     for path in (python, wheel, cli, benchmark):
         path.write_text(path.name, encoding="utf-8")
     model.mkdir()
-    value["release"] = "0.8.25"
+    value["release"] = release
     value["runtime"]["python"] = str(python)
     value["runtime"]["fathomdb_bin"] = str(cli)
     value["inputs"]["model_asset_directory"] = str(model)
     value["candidate"] = {
         "sha": "1" * 40,
-        "version": "0.8.25",
-        "package_version": "0.8.24",
+        "version": release,
+        "package_version": package_version,
         "python_wheel": str(wheel),
         "python_wheel_sha256": _sha(wheel),
         "fathomdb_bin_sha256": _sha(cli),
@@ -84,6 +87,28 @@ def test_candidate_configuration_requires_and_loads_exact_artifact_bindings(tmp_
         tc5_gpu_v2.load_config(path)
 
 
+def test_0826_candidate_requires_matching_product_and_package_versions(tmp_path):
+    config = tc5_gpu_v2.load_config(
+        _candidate_config(tmp_path, release="0.8.26", package_version="0.8.26")
+    )
+
+    assert config.release == "0.8.26"
+    assert config.candidate_version == "0.8.26"
+    assert config.package_version == "0.8.26"
+
+    wrong_package = _candidate_config(
+        tmp_path / "wrong-package", release="0.8.26", package_version="0.8.24"
+    )
+    with pytest.raises(tc5_gpu_v2.Tc5GpuV2Error, match="0.8.26 TC-5"):
+        tc5_gpu_v2.load_config(wrong_package)
+
+    unsupported = _candidate_config(
+        tmp_path / "unsupported", release="0.8.27", package_version="0.8.27"
+    )
+    with pytest.raises(tc5_gpu_v2.Tc5GpuV2Error, match="fixed envelope"):
+        tc5_gpu_v2.load_config(unsupported)
+
+
 def test_candidate_dry_run_rejects_artifact_digest_drift(tmp_path, monkeypatch):
     path = _candidate_config(tmp_path)
     config = tc5_gpu_v2.load_config(path)
@@ -120,7 +145,9 @@ def test_candidate_runtime_rejects_base_interpreter_behind_venv_symlink(
     monkeypatch.setattr(sys, "executable", str(runtime / "bin/python"))
     monkeypatch.setattr(sys, "prefix", sys.base_prefix)
 
-    with pytest.raises(tc5_gpu_v2.Tc5GpuV2Error, match="configured runtime environment"):
+    with pytest.raises(
+        tc5_gpu_v2.Tc5GpuV2Error, match="configured runtime environment"
+    ):
         tc5_gpu_v2._validate_candidate_runtime(config)
 
 

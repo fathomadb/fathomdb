@@ -27,7 +27,7 @@ from experiments.fathomdb_test_setup import PreparedDatabase, prepare_test_datab
 
 SCHEMA_VERSION = "scale-02-execution.v1"
 PROGRAM_TRACK = "SCALE-02"
-RELEASE = "0.8.23"
+SUPPORTED_RELEASES = {"0.8.23", "0.8.25", "0.8.26"}
 REPO_ROOT = Path(__file__).resolve().parent.parent
 _DIGEST_LENGTH = 64
 _TOP_KEYS = {
@@ -84,6 +84,7 @@ class Scale02Config:
     """Strict resolved configuration for the A0 envelope."""
 
     program_track: str
+    release: str
     approval_state: str
     approval_by: str | None
     approval_at: str | None
@@ -191,7 +192,7 @@ def resolve_config(document: object) -> Scale02Config:
     if (
         root["schema_version"] != SCHEMA_VERSION
         or root["program_track"] != PROGRAM_TRACK
-        or root["release"] != RELEASE
+        or root["release"] not in SUPPORTED_RELEASES
         or root["claim_boundary"] != "advisory_a0_efficiency_only"
     ):
         raise Scale02Error("SCALE-02 identity or claim boundary drifted")
@@ -383,12 +384,13 @@ def resolve_config(document: object) -> Scale02Config:
             "fathomdb_bin_sha256",
         },
     )
-    if runtime["python_package_version"] != RELEASE:
+    if runtime["python_package_version"] != root["release"]:
         raise Scale02Error("Python package release drifted")
     _digest(runtime["python_extension_sha256"], "runtime.python_extension_sha256")
     _digest(runtime["fathomdb_bin_sha256"], "runtime.fathomdb_bin_sha256")
     return Scale02Config(
         program_track=PROGRAM_TRACK,
+        release=root["release"],
         approval_state=approval["state"],
         approval_by=approval["approved_by"],
         approval_at=approval["approved_at"],
@@ -469,11 +471,13 @@ def _validate_runtime(config: Scale02Config) -> dict[str, str]:
             cwd=REPO_ROOT,
         ).stdout.strip()
     except (OSError, subprocess.SubprocessError) as exc:
-        raise Scale02Error("FathomDB 0.8.23 runtime attestation failed") from exc
-    if cli_version != f"fathomdb {RELEASE}" or package_version != RELEASE:
+        raise Scale02Error(
+            f"FathomDB {config.release} runtime attestation failed"
+        ) from exc
+    if cli_version != f"fathomdb {config.release}" or package_version != config.release:
         raise Scale02Error("FathomDB runtime version drifted")
     return {
-        "release": RELEASE,
+        "release": config.release,
         "cli_sha256": config.fathomdb_bin_sha256,
         "python_extension_sha256": config.python_extension_sha256,
     }
@@ -1258,6 +1262,9 @@ def _require_prior_points(
     if not prior_points:
         return
     passed: set[int] = set()
+    expected_resolved = json.loads(json.dumps(config.resolved))
+    expected_resolved.pop("execution_point", None)
+    expected_resolved.pop("execution_mode", None)
     for path in (_registry_root(record_base_dir) / "runs").glob("*/record.json"):
         try:
             record = json.loads(path.read_text(encoding="utf-8"))
@@ -1266,20 +1273,26 @@ def _require_prior_points(
         metrics = record.get("metrics", {})
         if not isinstance(metrics, dict):
             continue
+        prior_resolved = record.get("config", {}).get("resolved")
+        if not isinstance(prior_resolved, dict):
+            continue
+        prior_resolved = json.loads(json.dumps(prior_resolved))
+        prior_resolved.pop("execution_point", None)
+        prior_resolved.pop("execution_mode", None)
+        if prior_resolved != expected_resolved:
+            continue
         verdict = record.get("verdict")
         eligibility = metrics.get("advisory", {}).get("eligibility")
-        if (
-            record.get("experiment") == f"scale-02-a0-{metrics.get('point')}"
-            and (
-                (verdict == "complete" and eligibility == "pass")
-                or (
-                    allow_advisory_limit_observed
-                    and verdict in {
-                        "advisory_limit_observed",
-                        "post_boundary_baseline_complete",
-                    }
-                    and eligibility in {"pass", "fail"}
-                )
+        if record.get("experiment") == f"scale-02-a0-{metrics.get('point')}" and (
+            (verdict == "complete" and eligibility == "pass")
+            or (
+                allow_advisory_limit_observed
+                and verdict
+                in {
+                    "advisory_limit_observed",
+                    "post_boundary_baseline_complete",
+                }
+                and eligibility in {"pass", "fail"}
             )
         ):
             passed.add(metrics["point"])
@@ -1288,16 +1301,13 @@ def _require_prior_points(
             raise Scale02Error(f"prior ladder point {prior} has no passing receipt")
 
 
-def _scale_adjusted_advisory(
-    summary: Mapping[str, Any], point: int
-) -> dict[str, Any]:
+def _scale_adjusted_advisory(summary: Mapping[str, Any], point: int) -> dict[str, Any]:
     """Evaluate the authorized linear p50 budget without changing the original."""
     p50_limit_ms = max(20.0, point / 1000.0)
     original = summary["advisory"]
     criteria = dict(original["criteria"])
     criteria["steady_fts_p50"] = (
-        float(summary["cache_states"]["steady"]["latency_ms"]["p50"])
-        <= p50_limit_ms
+        float(summary["cache_states"]["steady"]["latency_ms"]["p50"]) <= p50_limit_ms
     )
     return {
         "schema_version": "scale-02-scale-adjusted-advisory.v1",
@@ -1331,7 +1341,7 @@ def _write_point_record(
     code["baseline_commit"] = None
     env = _lib.env_info(
         key_deps={
-            "fathomdb": RELEASE,
+            "fathomdb": config.release,
             "fathomdb_cli_sha256": config.fathomdb_bin_sha256,
             "fathomdb_python_extension_sha256": config.python_extension_sha256,
         }
@@ -1356,7 +1366,10 @@ def _write_point_record(
         },
         env=env,
         cost_usd=0.0,
-        headline={"point": point, "eligibility": metrics.get("advisory", {}).get("eligibility", "blocked")},
+        headline={
+            "point": point,
+            "eligibility": metrics.get("advisory", {}).get("eligibility", "blocked"),
+        },
         n=point,
         config_path=str(config_path),
         tests=["tests/experiments/test_scale_02.py"],
@@ -1492,8 +1505,7 @@ def run_point(
         ],
         open_questions=(
             []
-            if post_boundary_baseline
-            or summary["advisory"]["eligibility"] == "pass"
+            if post_boundary_baseline or summary["advisory"]["eligibility"] == "pass"
             else ["advisory boundary reached at this point"]
         ),
         execution_mode="post_boundary_baseline"
@@ -1520,6 +1532,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("config", type=Path)
     run.add_argument("point", type=int)
     run.add_argument("output_root", type=Path)
+    run.add_argument("--record-base-dir", type=Path, required=True)
     run.add_argument("--post-boundary-baseline", action="store_true")
     args = parser.parse_args(argv)
     try:
@@ -1533,6 +1546,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.config,
                 args.point,
                 output_root=args.output_root,
+                record_base_dir=args.record_base_dir,
                 post_boundary_baseline=args.post_boundary_baseline,
             )
     except (OSError, Scale02Error, json.JSONDecodeError) as exc:

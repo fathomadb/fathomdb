@@ -600,9 +600,13 @@ if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1; the
     tests/experiments/test_answer_01.py
     tests/experiments/test_fathomdb_test_setup.py
     tests/experiments/test_tc5_gpu_v2.py
+    tests/experiments/test_scale_02.py
     tests/experiments/test_fathomdb_locomo.py
     tests/experiments/test_mem0_oss.py
-    tests/experiments/test_mem0_comparison.py)
+    tests/experiments/test_mem0_comparison.py
+    tests/experiments/test_perf_gauntlet.py
+    tests/experiments/test_perf_gauntlet_adapters.py
+    tests/experiments/test_perf_gauntlet_cells.py)
 else
   experiment_track_runner_skip_reason="pytest not installed"
 fi

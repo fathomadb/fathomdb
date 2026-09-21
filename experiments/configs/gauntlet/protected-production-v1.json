@@ -1,0 +1,22 @@
+{
+  "schema_version": "fathomdb.performance-gauntlet.protected-production-manifest/v1",
+  "base_manifest": {
+    "path": "experiments/configs/release-0825-slice71b-attribution-manifest.v1.json",
+    "sha256": "86b76fc7d5e84b34020047066a10e0ca6d0e8b85ae77e601ea71b5107fa88328"
+  },
+  "fixtures": ["scale02", "ac013"],
+  "treatment": "production",
+  "repetitions_per_fixture": 3,
+  "environment_policy": {
+    "max_load_per_online_cpu": 0.5,
+    "min_available_memory_percent": 25,
+    "max_swap_io_delta": 1024,
+    "max_cpu_temp_c": 90,
+    "thermal_signal": "k10temp:Tctl",
+    "forbid_competing_processes": true
+  },
+  "timeouts_s": {
+    "build": 900,
+    "cell": 1800
+  }
+}

@@ -1,0 +1,170 @@
+{
+  "schema_version": "fathomdb.graph-benchmarks.smoke-result.v1",
+  "release_label": "0.8.26",
+  "executed_at": "2026-09-21T20:03:18Z",
+  "claim_boundary": "directional_graph_smoke_and_historical_retrieval_not_a_release_comparison",
+  "source": {
+    "commit": "b35212f678626e09ea7293e00ee337288ce74ff1",
+    "dirty": true
+  },
+  "gauntlet": {
+    "state": "passed",
+    "summary_sha256": "a74cddc5d36e00933fc2fa7125cfd68cc5fa4a4ed5ba320308edabc64be1f1d4",
+    "cells": [
+      "graph-evidence01",
+      "graph-expand01",
+      "graph-retrieval01"
+    ]
+  },
+  "cells": {
+    "graph-evidence01": {
+      "record_sha256": "0574f6bdbb4baaeb5ea3f1b0569d754290ee393de3a76fa261a8e18704ee2410",
+      "config_sha256": "72b00d1f90c9cc5d2edce40315ee70a68352996fa2fde88300e9309de022a37b",
+      "matrix_rows": 24,
+      "target_revision_exact_rate": 1.0,
+      "terminal_edge_exact_rate": 1.0,
+      "canonical_source_exact_rate": 1.0,
+      "typed_refusal_rate": 1.0,
+      "matrix_latency_ms": 118.483572,
+      "expand_latency_ms": {
+        "p50": 3.372958,
+        "p95": 3.372958,
+        "p99": 3.372958
+      },
+      "resolve_latency_ms": {
+        "p50": 2.904161,
+        "p95": 2.904161,
+        "p99": 2.904161
+      }
+    },
+    "graph-expand01": {
+      "record_sha256": "38838c807efa6983d7a9032e4bbe83c662a59dfe506102b2a574ce5161086929",
+      "config_sha256": "98858f10bc5e8f52c12dde1b691ba454bdd8d74c9f9ddd1e44fbc2339a11015c",
+      "correctness": {
+        "target_order_exact": true,
+        "origin_exact": true,
+        "work_units_exact": true,
+        "work_bound_all_or_nothing": true,
+        "query_seed_exact": true,
+        "targets": 50,
+        "work_units": 112
+      },
+      "operations": 100,
+      "latency_ms": {
+        "p50": 9.2039775,
+        "p95": 9.8850057,
+        "p99": 10.17822196
+      },
+      "throughput_ops_s": 107.9523691347837,
+      "concurrency_throughput_ops_s": {
+        "2": 192.31531095270313,
+        "4": 346.56263260758857,
+        "8": 452.286060813564
+      },
+      "database_bytes": 3309568,
+      "max_rss_kib": 72104
+    },
+    "graph-retrieval01": {
+      "record_sha256": "54425a3738b60f94938aa14f7c7f2c894d3745d3073dac3471e6794c7da6e5c9",
+      "config_sha256": "0b304840ec10179e54f3153221acb5fdd09e8714838a2f425e44f6d8fce799ed",
+      "claim_boundary": "one_question_synthetic_native_plumbing_smoke",
+      "question_count": 1,
+      "comparative_score_eligible": false,
+      "native_expand_latency_ms": {
+        "p50": 2.974133,
+        "p95": 3.483074,
+        "p99": 3.5283132
+      },
+      "operations": 3,
+      "historical_300": {
+        "state": "complete",
+        "attempted": 300,
+        "completed": 300,
+        "errors": 0,
+        "typed_refusals": 0,
+        "seed_manifest_sha256": "862b304d07986498d82a512effcfa7f5baea07d65836f6d60e494abde6f3b6c5",
+        "rankings_sha256": "05229d9643d97fbc80412fc9d34af8bcfc20d12888478c1698a25fab044c7b01",
+        "record_sha256": "0cf8710ca9414d956beba84d4f54b66b2530a898360307ac4182fc8da6bf5308",
+        "config_file_sha256": "4aa11ac2ade91ee1dbd2696bdd9b6e60fd6bf01d462c3ce05790c907af825932",
+        "retrieval_quality": {
+          "complete_support_at_5": 0.44333333333333336,
+          "complete_support_at_10": 0.61,
+          "complete_support_at_20": 0.9166666666666666,
+          "support_recall_at_5": 0.6583333333333333,
+          "support_recall_at_10": 0.77,
+          "support_recall_at_20": 0.9166666666666666,
+          "ndcg_at_5": 0.6302274738006156,
+          "ndcg_at_10": 0.6753786491747806,
+          "ndcg_at_20": 0.7231443829944084,
+          "first_support_mrr": 0.7562395625816678,
+          "candidate_change_rate": 0.0,
+          "useful_expansion_rate": 0.0,
+          "harmful_displacement_rate": 0.0,
+          "no_op_expansion_rate": 1.0
+        },
+        "paired_complete_support_delta": {
+          "at_5": 0.0,
+          "at_10": 0.0,
+          "at_20": 0.0,
+          "ci95_all": [0.0, 0.0]
+        },
+        "performance": {
+          "depth1_latency_ms": {
+            "p50": 2.748812,
+            "p95": 10.151868599999993,
+            "p99": 21.58682844
+          },
+          "depth2_latency_ms": {
+            "p50": 3.682164,
+            "p95": 21.488456199999984,
+            "p99": 41.417378840000005
+          }
+        }
+      }
+    }
+  },
+  "gpu_qualification": {
+    "state": "passed",
+    "seed_manifest_generated": true,
+    "smoke_gpu_applicability": "none_the_smoke_disables_the_default_embedder",
+    "host_gpus": [
+      {
+        "uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+        "name": "NVIDIA GeForce RTX 3090",
+        "memory_mib": 24576
+      },
+      {
+        "uuid": "GPU-abda0cf9-d660-ca2b-ef17-ee6b89e3eca4",
+        "name": "NVIDIA GeForce RTX 3090",
+        "memory_mib": 24576
+      },
+      {
+        "uuid": "GPU-0932312a-b238-0d63-ebd3-b82bde2a42d8",
+        "name": "Quadro K620",
+        "memory_mib": 2048
+      }
+    ],
+    "driver_version": "580.173.02",
+    "selected_device": {
+      "policy": "cuda:0",
+      "status": "selected_cuda",
+      "uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+      "name": "NVIDIA GeForce RTX 3090",
+      "compute_capability": "8.6"
+    },
+    "cuda_cli_sha256": "14b38a783b897464ea834ac94f54ab7b0d14ecd2beeee26608060d55b91b6ca0",
+    "cuda_wheel_sha256": "579b0d74271ebf2932d92e4b84bb7452980def08d6f4d79e3af92c0bc78ea3b9",
+    "materializer_sha256": "6dfd3026d79ce1416e7d5af0441d702327f2213faddfdf1a02c9876fad212345",
+    "seed_manifest_sha256": "862b304d07986498d82a512effcfa7f5baea07d65836f6d60e494abde6f3b6c5",
+    "rankings_sha256": "05229d9643d97fbc80412fc9d34af8bcfc20d12888478c1698a25fab044c7b01",
+    "historical_top10_parity": {
+      "matched": 300,
+      "required": 300
+    },
+    "observed_process": {
+      "gpu_memory_mib": 650,
+      "sampled_gpu_utilization_percent": 44
+    },
+    "cpu_fallback_possible": false
+  }
+}

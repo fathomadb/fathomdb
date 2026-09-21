@@ -5,18 +5,16 @@ Current coordination state for the
 [`experiments/`](../../experiments/README.md) holds execution receipts and the
 append-only evidence index.
 
-- **Last reconciled:** 2026-08-31
-- **Branch:** `release/0.8.25`
+- **Last reconciled:** 2026-09-21
+- **Branch:** `main`
 
 ## Immediate sequence
 
-No data-generating run is active. The completed program and receipts are now on
-`release/0.8.25`. The comprehensive Memex needs crosswalk, architecture v2
-proposal, dependency-linear delivery plan v2, and Slices 0–7 prework contract
-are authored. Complete Slice 0's environment/project-infrastructure inventory,
-then proceed sequentially through read-only Slices 1–5, Slice 6 HITL decisions,
-and approved Slice 7 repository preparation. Feature work begins at Slice 10;
-do not start it early or reopen rejected treatments.
+No data-generating run is active. The three graph benchmark cells and their
+optional gauntlet suite are implemented, and the zero-paid-model smoke passes.
+GRAPH-RETRIEVAL-01's GPU-only seed qualification and historical-300 scored run
+are complete. Both native expansion depths produced a 100% no-op rate and zero
+retrieval delta on the qualified frozen seeds.
 
 ## Track status
 
@@ -35,6 +33,9 @@ do not start it early or reopen rejected treatments.
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Complete, rejected | Preserve the [result](2026-08-30-graph-01-result.md) and [receipt](../../experiments/runs/graph-01-protected-bridge-20260830T0035Z-d6e7c4b2/record.json); retain the fused control. |
+| [GRAPH-EVIDENCE-01](tracks/graph-evidence-01-fidelity.md) | Implemented; smoke verified | Run the full lifecycle/refusal campaign when a release artifact is selected. |
+| [GRAPH-EXPAND-01](tracks/graph-expand-01-bounded-traversal.md) | Implemented; smoke verified | Run qualified small/medium/large scale cells deliberately; never resize them. |
+| [GRAPH-RETRIEVAL-01](tracks/graph-retrieval-01-native-expand.md) | Directional run complete | 300/300 CUDA qualification passed; historical-300 scored run completed with zero candidate changes. |
 | [GLOBAL-01](tracks/global-01-native-graphrag.md) | Complete, rejected | Preserve the [held-out result](2026-08-29-global-01-lazy-coverage-result.md) and [receipt](../../experiments/runs/global-01-lazy-coverage-20260829T2159Z-60b3642c/record.json); retain the source-linked map-reduce control. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Complete, rejected | Preserve the [held-out result](2026-08-30-reason-01-result.md), [v2 result](2026-08-30-reason-01-compact-ledger-v2-result.md), and [v2 receipt](../../experiments/runs/reason-01-compact-ledger-v2-20260830T2156Z-572f51ea/record.json). Retain A0; no confirmation, native HippoRAG-2 run, or MEMORY-01 refresh is eligible. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |

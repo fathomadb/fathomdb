@@ -1,8 +1,9 @@
 ---
 title: FathomDB 0.8.27 Slice 20 - implementation status
-status: VERIFYING
+status: COMPLETE
 completed_on: 2026-09-21
 implementation_candidate: 3943cb64dc2d1b99ef9fc4ec2131dca59a71b337
+closeout_commit: 5fab7da58cd70335a9efd49d540f88e275bf574a
 ---
 
 # Slice 20 implementation status

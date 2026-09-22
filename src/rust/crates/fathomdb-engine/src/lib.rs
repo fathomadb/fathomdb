@@ -4146,8 +4146,6 @@ pub enum SoftFallbackBranch {
 ///
 /// The field never participates in ranking, so result order and scores are
 /// unaffected.
-///
-
 /// Derives `Clone, Debug, PartialEq` but **not `Eq`** — `score: f64` forbids
 /// total equality.
 #[derive(Clone, Debug, PartialEq)]

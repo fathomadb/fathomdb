@@ -54,6 +54,10 @@ def fixture(tool: ModuleType) -> dict[str, Any]:
     rust["rust-engine-default"] += (
         "pub type fathomdb_engine::Thing::Error = core::convert::Infallible\n"
         "pub type fathomdb_engine::Thing::Error = <U as TryFrom<T>>::Error\n"
+        "impl core::fmt::Debug for fathomdb_engine::Thing\n"
+        "pub fn fathomdb_engine::Thing::fmt(&self, &mut Formatter) -> Result\n"
+        "impl core::fmt::Display for fathomdb_engine::Thing\n"
+        "pub fn fathomdb_engine::Thing::fmt(&self, &mut Formatter) -> Result\n"
     )
     return {
         "rust": rust,

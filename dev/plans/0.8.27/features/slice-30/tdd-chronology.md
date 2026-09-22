@@ -52,3 +52,9 @@ display path require deterministic disambiguation.
 The comparator now keys row entries by kind, complete path, and a digest of the
 normalized signature. The focused suite returned GREEN while its exact-copy
 duplicate arm continued to reject ambiguity.
+
+A second real-output pass showed why cargo's surrounding lines are semantic:
+two distinct trait impls may expose byte-identical associated method lines. A
+fixture with `Debug::fmt` and `Display::fmt` reproduced the remaining exact-line
+collision. The adapter must bind associated items to their preceding complete
+impl signature, not collapse them or accept context-free duplicates.

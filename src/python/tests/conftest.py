@@ -52,6 +52,8 @@ from _test_hooks_gate import (
     REBUILD_RECEIPT_PATH,
     REQUIRES_HOOKS_MARKER,
     Decision,
+    candidate_wheel_command,
+    clean_candidate_sha,
     decide,
     missing_symbols_from_probe,
     partial_binding_note,
@@ -69,6 +71,7 @@ def db_path(tmp_path: Path) -> str:
 
 
 _PYTHON_SRC_DIR = Path(__file__).resolve().parent.parent  # src/python
+_REPO_ROOT = _PYTHON_SRC_DIR.parents[1]
 
 
 def _native_module_receipt() -> tuple[Path, str]:
@@ -202,6 +205,7 @@ def _ensure_test_hooks_binding() -> Decision:
             f"{REBUILD_OPT_IN}=1 requires {REBUILD_RECEIPT_PATH} and "
             f"{REBUILD_RECEIPT_NONCE} so candidate provenance cannot be lost"
         )
+    candidate_sha = clean_candidate_sha(_REPO_ROOT)
     print(
         "\n[conftest] building a non-editable test-hooks wheel from this candidate "
         "in disposable scratch (~5-60s) ...",
@@ -210,17 +214,7 @@ def _ensure_test_hooks_binding() -> Decision:
     with tempfile.TemporaryDirectory(prefix="fathomdb-python-test-hooks-") as directory:
         wheel_directory = Path(directory)
         subprocess.check_call(
-            [
-                sys.executable,
-                "-m",
-                "maturin",
-                "build",
-                "--release",
-                "--out",
-                str(wheel_directory),
-                "--features",
-                "pyo3/extension-module,test-hooks,default-embedder,default-reranker",
-            ],
+            candidate_wheel_command(sys.executable, wheel_directory),
             cwd=str(_PYTHON_SRC_DIR),
         )
         wheels = sorted(wheel_directory.glob("*.whl"))
@@ -251,11 +245,11 @@ def _ensure_test_hooks_binding() -> Decision:
             still_missing,
         )
     module_path, module_sha256 = _native_module_receipt()
-    candidate_sha = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"],
-        cwd=str(_PYTHON_SRC_DIR),
-        text=True,
-    ).strip()
+    verified_sha = clean_candidate_sha(_REPO_ROOT)
+    if verified_sha != candidate_sha:
+        raise RuntimeError(
+            f"candidate HEAD changed during native build: {candidate_sha} -> {verified_sha}"
+        )
     write_candidate_receipt_atomic(
         Path(receipt_value),
         candidate_sha=candidate_sha,

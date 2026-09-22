@@ -35,6 +35,7 @@ import importlib.machinery
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 import zipfile
 from collections.abc import Sequence
@@ -222,9 +223,44 @@ CONTRADICTORY = "contradictory"
 REQUIRES_HOOKS_MARKER = "requires_test_hooks"
 
 _MANUAL_BUILD_HINT = (
-    "python -m maturin develop --features "
-    "pyo3/extension-module,test-hooks,default-embedder,default-reranker"
+    "run ./scripts/agent-test.sh --tier=heavy from the repository root with "
+    "a checkout-owned .venv"
 )
+
+
+def clean_candidate_sha(repo_root: Path) -> str:
+    """Return exact HEAD only when tracked and visible untracked state is clean."""
+
+    candidate_sha = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=repo_root, text=True
+    ).strip()
+    if re.fullmatch(r"[0-9a-f]{40}", candidate_sha) is None:
+        raise RuntimeError(f"candidate HEAD is not a full Git SHA: {candidate_sha!r}")
+    status = subprocess.check_output(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        cwd=repo_root,
+        text=True,
+    )
+    if status:
+        raise RuntimeError(f"candidate artifact build requires a clean worktree:\n{status}")
+    return candidate_sha
+
+
+def candidate_wheel_command(python: str, output: Path) -> tuple[str, ...]:
+    """Return the locked, non-editable candidate-wheel build command."""
+
+    return (
+        python,
+        "-m",
+        "maturin",
+        "build",
+        "--locked",
+        "--release",
+        "--out",
+        str(output),
+        "--features",
+        "pyo3/extension-module,test-hooks,default-embedder,default-reranker",
+    )
 
 
 def _is_native_module_name(name: str) -> bool:

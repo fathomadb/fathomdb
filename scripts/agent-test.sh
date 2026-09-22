@@ -136,7 +136,6 @@ run_tier_suite fast test-public-doc-truth bash scripts/tests/test_public_doc_tru
 run_tier_suite fast test-slice10-preparation python3 scripts/tests/test_slice10_preparation.py
 run_tier_suite fast test-slice30-surface-comparator python3 scripts/tests/test_slice30_surface_comparator.py
 run_tier_suite fast test-napi-build-hermetic python3 scripts/tests/test_napi_build_hermetic.py
-run_tier_suite heavy test-napi-build-hermetic-executable python3 scripts/tests/test_napi_build_hermetic.py --execute
 run_tier_suite fast test-python-artifact-gate-contract python3 scripts/tests/test_python_artifact_gate_contract.py
 run_tier_suite fast test-check-architecture-authority bash scripts/tests/test_check_architecture_authority.sh
 run_tier_suite fast test-check-design-lifecycle bash scripts/tests/test_check_design_lifecycle.sh
@@ -570,6 +569,7 @@ fi
 
 python_suite_skip_reason=""
 python_suite_command=()
+python_receipt_skip_reason="candidate receipt requires a checkout-owned .venv"
 python_receipt_path="$PWD/.cache/0.8.27-python-test-hooks-receipt.json"
 python_receipt_nonce="agent-test-$BASHPID"
 if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1 && [ -d src/python/tests ]; then
@@ -587,6 +587,7 @@ if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1 && [
   # default-embedder CI job runs those after warming the model cache.
   if [ "$python_bin" = ".venv/bin/python" ]; then
     python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 FATHOMDB_TESTS_ALLOW_REBUILD=1 FATHOMDB_TESTS_RECEIPT="$python_receipt_path" FATHOMDB_TESTS_RECEIPT_NONCE="$python_receipt_nonce" "$python_bin" -m pytest -q src/python/tests)
+    python_receipt_skip_reason=""
   else
     python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 "$python_bin" -m pytest -q src/python/tests)
   fi
@@ -594,7 +595,7 @@ else
   python_suite_skip_reason="pytest not installed or no tests dir"
 fi
 run_tier_maybe_suite heavy test-python "$python_suite_skip_reason" "${python_suite_command[@]}"
-run_tier_maybe_suite heavy test-python-native-receipt "$python_suite_skip_reason" python3 scripts/tests/verify_python_test_hook_receipt.py "$python_receipt_path" "$python_receipt_nonce"
+run_tier_maybe_suite heavy test-python-native-receipt "$python_receipt_skip_reason" python3 scripts/tests/verify_python_test_hook_receipt.py "$python_receipt_path" "$python_receipt_nonce"
 
 # PROGRAM Track Runner exercises the current LOCOMO/Mem0 harnesses directly:
 # their typed configs must retain the right track identifier through each arm
@@ -637,16 +638,21 @@ run_tier_maybe_suite fast test-ledgerwatch "$ledgerwatch_skip_reason" "${ledgerw
 # TypeScript
 ts_suite_skip_reason=""
 ts_suite_command=()
+napi_execute_skip_reason="src/ts/node_modules not installed"
+napi_execute_command=()
 if [ -d src/ts/node_modules ]; then
   # The seven default-embedder TypeScript arms remain part of this ordinary
   # prework gate, but skip their live-model bodies here.  CI's
   # default-embedder-tests job owns the same suite after warming the BGE cache
   # and enables its release-surface arm there.
   ts_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 bash -c 'cd src/ts && npm test --silent')
+  napi_execute_skip_reason=""
+  napi_execute_command=(python3 scripts/tests/test_napi_build_hermetic.py --execute)
 else
   ts_suite_skip_reason="src/ts/node_modules not installed"
 fi
 run_tier_maybe_suite heavy test-ts "$ts_suite_skip_reason" "${ts_suite_command[@]}"
+run_tier_maybe_suite heavy test-napi-build-hermetic-executable "$napi_execute_skip_reason" "${napi_execute_command[@]}"
 
 # The release-surface test executes from tsc's `dist/tests` layout. Keep its
 # repository-root calculation pinned independently so its opt-in CI arm cannot

@@ -758,11 +758,16 @@ def main() -> None:
         ("node", "--input-type=module"): '["Engine"]\n',
         ("git", "status"): " M src/ts/index.d.ts\n",
     }
-    with mock.patch.object(tool, "_clean_source"), mock.patch.object(tool, "_prepare_scratch"), \
+    with tempfile.TemporaryDirectory() as directory, \
+            mock.patch.object(tool, "OWNED_SCRATCH", Path(directory)), \
+            mock.patch.object(tool, "_clean_source"), mock.patch.object(tool, "_prepare_scratch"), \
             mock.patch.object(tool, "_tool_metadata", return_value=metadata(tool)), \
             mock.patch.object(tool, "_validate_napi_build_script"), \
             mock.patch.object(tool, "_run", side_effect=fake_run(generation)):
         expect_error(tool.SurfaceError, "generation changed", lambda: tool.capture_repository(head))
+    assert not Path("/tmp/fathomdb-0.8.27-slice30").exists() or (
+        Path("/tmp/fathomdb-0.8.27-slice30") / tool.SCRATCH_MARKER
+    ).is_file(), "tests must never create the real scratch root without its marker"
 
     # --- Adapter paths the real baseline relies on.
     modules = {

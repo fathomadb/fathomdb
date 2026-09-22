@@ -1167,7 +1167,8 @@ def capture_repository(source_sha: str) -> dict[str, Any]:
             env,
         )
         napi_tmp = OWNED_SCRATCH / "napi-tmp"
-        napi_tmp.mkdir(parents=True, exist_ok=True)
+        # Never create parents: the owned scratch root must already exist.
+        napi_tmp.mkdir(exist_ok=True)
         _run(["npm", "run", "build:native"], ts_root, {**env, "TMPDIR": str(napi_tmp)})
         _run(["npm", "exec", "--", "tsc", "-p", "tsconfig.build.json"], ts_root, env)
         # Declarations are emitted into the owned scratch root so only files

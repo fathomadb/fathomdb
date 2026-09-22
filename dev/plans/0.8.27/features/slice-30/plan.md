@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 30 - surface comparator plan
-status: APPROVED_FOR_IMPLEMENTATION
+status: COMPLETE
 target_release: 0.8.27
 baseline_entry_sha: a7e1f1bb5cd5c8c6c17435e122cd611440b9982d
 ---

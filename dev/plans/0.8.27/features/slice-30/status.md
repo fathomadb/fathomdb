@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 30 - implementation status
-status: ACTIVE
+status: COMPLETE
 implemented_on: 2026-09-22
 baseline_source_commit: add4f3f4f066f0c4b1b47d7a91c1a4f979eba6bf
 baseline_tracking_commit: d80a66236ca9dc0dd6456e2a0d5322c3722d364c
@@ -80,14 +80,20 @@ the machine baseline is not intended for prompt ingestion.
   collected because editable worktree installation is forbidden; source
   registration, native stub, and package export rows are all present.
 
-## Cleanup and remaining gates
+## Independent review, cleanup, and closeout
 
 The temporary `.venv` link, generated TypeScript malformed-context fixtures,
 checkout-owned `.cache/0.8.27-slice30`, owned `/tmp` scratch, and both temporary
 capture files were removed. The user-provided durable release worktree and
 branch remain; this slice created neither.
 
-The review fixes and corrected evidence are ready for independent code
-rereview and independent verification. This record deliberately remains
-`ACTIVE` and does not advance release state or claim Slice 30 complete before
-those gates.
+Independent code review first rejected three P1 and three P2 findings. RED
+commit `f621c9cd`, GREEN commit `add4f3f4`, corrected baseline commit
+`d80a6623`, and evidence commit `b102bceb` closed all six. The same reviewer
+returned PASS. Independent reverification also returned PASS: a fresh Node
+25.9.0 capture at `b102bceb` compared equal to the immutable baseline despite
+its distinct valid provenance SHA; focused parity and surface suites passed;
+and the baseline hash, counts, size, and provenance matched this record.
+
+Slice 30 is complete on `release/0.8.27`. Slice 40 and all later slices, main
+integration, tags, registries, qualification, and publication remain separate.

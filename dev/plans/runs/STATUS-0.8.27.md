@@ -11,18 +11,18 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 30 (COMPARATOR), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`3943cb64dc2d1b99ef9fc4ec2131dca59a71b337`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 40 (ENGINE-FOUNDATION), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`3943cb64dc2d1b99ef9fc4ec2131dca59a71b337`) · 30 (`b102bceb9d3b0aeaf196e4494dd631caad001cd0`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
 
-Prework Slices 0-9, bounded preparation Slice 10, and correction-safe erasure
-Slice 20 are complete on `release/0.8.27`. Slice 20 changes product behavior
-only by restoring the existing erasure contract after correction; it adds no
-schema, public API, report field, tag, registry, or publication state.
+Prework Slices 0-9, bounded preparation Slice 10, correction-safe erasure
+Slice 20, and real-surface comparator Slice 30 are complete on
+`release/0.8.27`. Slice 30 adds repository tooling and evidence only: no
+runtime behavior, schema, public API, tag, registry, or publication state.
 
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 30 (COMPARATOR)** — current inventory and real-surface comparison guardrails. **Remaining ladder:** 30 → 40 → 50 → 60 → 70 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 40 (ENGINE-FOUNDATION)** — engine foundation and test seams. **Remaining ladder:** 40 → 50 → 60 → 70 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -47,23 +47,26 @@ There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE
 | 9 | Proposal review and closeout | Planned at `a3e6cff6`, closed at `73c53ffd`; every proposal ruled, Slice 10 inputs design-reviewed, and verification passed. |
 | 10 | Bounded repository preparation | Complete at `3097d191`; current truth, dependency security, Action comments, digest authority, and Slice 30 prerequisites pass review. |
 | 20 | Correction-safe source erasure | Complete at `3943cb64`; exact atomicity, at-rest, binding, and unchanged-fixture Memex evidence pass independent review and verification. |
+| 30 | Current inventory and comparison guardrails | Complete at `b102bceb`; deterministic 12-row real-surface baseline, mutation-tested comparator, independent code rereview, and independent reverification pass. |
 
 ## Verification boundary
 
-Slice 20 records committed RED/GREEN chronology, independent design-review
-PASS, final independent code-review PASS after one evidence-repair cycle, 52
-focused Rust tests, 8 Python tests, 8 TypeScript tests, and the frozen Memex
-consumer oracle. At exact candidate `3943cb64`, the canonical gate passed all
-119 registered suites with no skips or exclusions, strict security 0/0/0,
-full-workspace Clippy with warnings denied, and full-workspace Cargo check.
-Slice 30 retains comparator requalification and baseline capture; Slice 150
-retains package/platform qualification.
+Slice 30 records committed RED/GREEN chronology, independent design-review
+PASS, final independent code-review PASS after closing three P1 and three P2
+findings, and independent reverification PASS at `b102bceb`. Two Node 25.9.0
+captures were byte-identical; a later source SHA compared equal with no surface
+diff. Comparator hardening, SDK parity 10/10, Rust surfaces 4/4 default and 5/5
+operator, Python surfaces 20/20, and TypeScript surfaces 20/20 passed. The
+canonical gate's lint/typechecks, strict security 0/0/0, Rust, TypeScript, and
+118 registered harness suites passed; its Python outcome and exact environment
+qualification limits remain recorded in the slice status. Slice 150 retains
+fresh installed-package and platform qualification.
 
 ## Boundaries
 
 - This release starts at schema 34 and currently proposes no schema migration.
 - Publication is unauthorized.
-- Slice 20 was authorized at `seq-292` and is complete; Slice 30 and later
-  slices require separate commission.
+- Slice 30 was directly authorized by the repository owner and is complete;
+  Slice 40 and later slices require separate commission.
 - No temporary branch or worktree was created for prework; the existing
   `release/0.8.27` worktree remains the active release workspace.

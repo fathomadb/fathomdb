@@ -34,3 +34,17 @@ ok    slice30-surface-comparator
 
 The real heavy capture and reviewed baseline remained a separate next step so
 the capture-source commit could be clean and contain the tool but no baseline.
+
+## Real-output parser RED
+
+The first real Rust matrix exposed a legitimate `cargo public-api` shape that
+the minimal fixture lacked: distinct blanket impls can emit the same associated
+type path with different signatures. A focused fixture reproduced the failure:
+
+```text
+SurfaceError: duplicate normalized key in rust-engine-default:
+type fathomdb_engine::Thing::Error
+```
+
+Exact duplicate lines must still fail closed; distinct signatures sharing a
+display path require deterministic disambiguation.

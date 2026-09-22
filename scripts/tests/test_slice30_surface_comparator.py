@@ -49,6 +49,12 @@ def fixture(tool: ModuleType) -> dict[str, Any]:
     rust["rust-engine-operator-test-hooks"] += (
         "pub fn fathomdb_engine::combined_operator_test_hook()\n"
     )
+    # cargo-public-api legitimately emits one associated path more than once
+    # when blanket impls give it distinct signatures.
+    rust["rust-engine-default"] += (
+        "pub type fathomdb_engine::Thing::Error = core::convert::Infallible\n"
+        "pub type fathomdb_engine::Thing::Error = <U as TryFrom<T>>::Error\n"
+    )
     return {
         "rust": rust,
         "python_exports": '''\

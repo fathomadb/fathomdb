@@ -62,6 +62,10 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/0.8.26-prework-slices-0-9.md` | Draft environment, failure-evidence, HITL, and approved-prework contract | 0.8.26 Slices 0–9 | 2026-09-12 |
 | `dev/plans/0.8.26/` | Release-local plans, designs, reviews, and status records through architecture convergence | 0.8.26 Slice 45 | 2026-09-15 |
 | `dev/plans/0.8.26/slice-execution-contract.md` | Lean requirements-to-status workflow adopted by every 0.8.26 slice | 0.8.26 | 2026-09-12 |
+| `dev/plans/plan-0.8.27.md` | Correction-safe erasure and semantic-refactor release plan | 0.8.27 | 2026-09-21 |
+| `dev/plans/0.8.27/prework/` | Prework Slices 0-9, proposal register, reviews, and next-slice design | 0.8.27 prework | 2026-09-21 |
+| `dev/plans/0.8.27/slice-execution-contract.md` | Proportional requirements-to-status workflow for 0.8.27 | 0.8.27 | 2026-09-21 |
+| `dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md` | Test approach for the correction and behavior-preserving refactor ladder | 0.8.27 prework | 2026-09-21 |
 | `dev/plans/0.8.25-prework-slices-0-7.md` | Environment-to-HITL prework and approved preparation contract | 0.8.25 Slices 0–7 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-{1-dependency-sweep,2-cruft-review}.md` | Dependency/pinning evidence and repository cruft action proposals | 0.8.25 Slices 1–2 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-{3-contract-and-architecture-drafts,4-architecture-and-code-alignment,5-verification-adequacy}.md` | Draft contracts, as-built alignment, and verification-gap allocation | 0.8.25 Slices 3–5 | 2026-08-31 |

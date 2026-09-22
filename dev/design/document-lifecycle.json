@@ -696,12 +696,12 @@
     },
     {
       "path": "dev/design/0.9.0-readability-refactor-proposal.md",
-      "class": "proposal",
+      "class": "superseded",
       "topic": "design",
       "role": "proposal",
-      "owner": "dev/design/0.9.0-readability-refactor-proposal.md",
-      "release": "future:0.9.0",
-      "successor": null
+      "owner": "dev/plans/plan-0.8.27.md",
+      "release": "historical:0.9.0-proposal",
+      "successor": "dev/plans/plan-0.8.27.md"
     },
     {
       "path": "dev/design/1-2M-chunk-scaling-DECISION-BRIEF.md",

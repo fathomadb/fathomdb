@@ -17,11 +17,11 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 ## Current position
 
-- **0.8.26 is published.** All tracked releases are published and no release is
-  currently active.
-- **0.8.27 is the next named candidate release.** Its scope is proposed intake,
-  not approved implementation. There is no `plan-0.8.27.md`,
-  `release-state-0.8.27.json`, or `STATUS-0.8.27.md` yet.
+- **0.8.26 is published.** Before this planning activation, all tracked
+  releases were published and no implementation release was active.
+- **0.8.27 is the active planning release.** Prework approved correction-safe
+  erasure and a behavior-preserving semantic refactor. Its plan, state, and
+  board are the execution authority; publication remains separately gated.
 - An open todo does not automatically become roadmap scope. This file includes
   work only when a current schedule, draft scope, or explicit backlog/proposal
   record preserves it.
@@ -40,8 +40,8 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 | Release | Status | Theme |
 | --- | --- | --- |
-| **0.8.27** | **Reported release blocker + proposed scope** | Correction-safe source erasure after supersession, followed by full opt-in snapshot and cursor continuity, generalized graph/state pagination, and persisted evidence replay. |
-| **0.8.28** | **Proposed release scope** | Manually selected advanced retrieval, rich graph continuation, and expanded exclusion tracing. |
+| **0.8.27** | **Prework complete; implementation not yet commissioned** | Correction-safe source erasure after supersession, followed by behavior-preserving semantic decomposition of five selected monolithic engine, binding, and SDK facades. |
+| **0.8.28** | **Proposed release scope** | Manually selected advanced retrieval plus deferred snapshot/cursor continuity, graph/state continuation, and persisted evidence replay. |
 | **0.8.29** | **Review checkpoint** | Candidate-selection experiments. |
 | **0.8.31** | **Review checkpoint** | Associative retrieval and automatic profile-routing experiments. |
 | **0.8.33** | **Review checkpoint** | Expanded integrity, repair-planning, and release-matrix experiments. |
@@ -51,9 +51,8 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 ## 0.8.27 proposed scope
 
 The source of record is
-[`plans/0.8.27-draft-scope.md`](plans/0.8.27-draft-scope.md). Every item must be
-revalidated against the shipped 0.8.25 and 0.8.26 contracts before it enters an
-executable plan.
+[`plans/plan-0.8.27.md`](plans/plan-0.8.27.md). The original draft intake is
+retained as a superseded record with every item dispositioned.
 
 ### Release-blocking finding
 
@@ -69,9 +68,10 @@ replacement bucket first can unlock the original. Memex truthfully reports
 `storage_failed`; it does not claim erasure or bypass the public API.
 
 This is a privacy-deletion and authority-boundary risk. Treat it as blocking
-0.8.27 publication and Memex 0.6.0 production cutover until FathomDB reproduces
-and resolves it, or disproves it with durable evidence. Continued isolated
-Memex Slice 80 development is not blocked. The required outcome is a supported,
+0.8.27 publication until FathomDB resolves it or disproves it with durable
+evidence. Memex later received a narrow exemption for this exact characterized
+refusal, so the finding no longer blocks its 0.6.0 cutover by itself. The
+required outcome is a supported,
 truthfully reported erase of buckets containing superseded revisions and closed
 dependents, tested for same-bucket and cross-bucket replacements without private
 database APIs. The exact external characterization is recorded in Memex
@@ -79,14 +79,14 @@ database APIs. The exact external characterization is recorded in Memex
 `dev/fathomdb/0.8.26-erase-after-supersede-gap.md` (local checkout:
 `/home/coreyt/projects/memex-worktrees/release-0.6.0/dev/fathomdb/0.8.26-erase-after-supersede-gap.md`).
 
-### Candidate work
+### Deferred candidate work
 
 | ID | Candidate work | Proof required before promotion |
 | --- | --- | --- |
-| **D27-01** | Full opt-in cross-operation frozen-snapshot leases with typed mismatch, expiry, unavailable, and drift outcomes. | Show that the compact optional frozen read cannot satisfy a concrete multi-operation consistency need. |
-| **D27-02** | Opaque cursors bound to request, snapshot, projection generation, ordering, exclusive key, and expiry. | Demonstrate duplicate, omission, or authorization risk under the minimal continuation contract. |
-| **D27-03** | Generalized graph pagination and richer `operational_state` continuation. | Identify a bounded consumer workload with deterministic complete ordering; ranked top-K remains separate. |
-| **D27-04** | Persisted source-complete evidence receipts with eligibility-bound replay and retention/expiry behavior. | Demonstrate a need to resolve evidence beyond the compact reference lifetime without weakening current authorization. |
+| **D27-01** | Full opt-in cross-operation frozen-snapshot leases with typed mismatch, expiry, unavailable, and drift outcomes. | Moved to 0.8.28 D28-05; proof remains unmet. |
+| **D27-02** | Opaque cursors bound to request, snapshot, projection generation, ordering, exclusive key, and expiry. | Moved to 0.8.28 D28-06; proof remains unmet. |
+| **D27-03** | Generalized graph pagination and richer `operational_state` continuation. | Merged into 0.8.28 D28-03; proof remains unmet. |
+| **D27-04** | Persisted source-complete evidence receipts with eligibility-bound replay and retention/expiry behavior. | Moved to 0.8.28 D28-07; proof remains unmet. |
 
 Constraints:
 
@@ -106,8 +106,11 @@ part of this scope.
 | --- | --- | --- |
 | **D28-01** | Manual named-profile configuration and qualification. | At least one non-A0 treatment has a reviewed, reproducible use case. |
 | **D28-02** | Specialized time-scoped and changed-fact retrieval. | External-validity evidence shows improvement beyond filtering without truth inference or answer regression. |
-| **D28-03** | Rich constrained-graph continuation and replayable path evidence. | A consumer needs more than the deterministic one-page result and can state bounded continuation semantics. |
+| **D28-03** | Rich constrained-graph continuation, replayable path evidence, and richer `operational_state` continuation. | A consumer needs more than the deterministic one-page graph/state result and can state bounded continuation, authorization, and replay semantics for both components. |
 | **D28-04** | Expanded deterministic exclusion and not-selected tracing. | A concrete debugging or compliance decision cannot be answered by compact inclusion/degradation output. |
+| **D28-05** | Full opt-in cross-operation frozen-snapshot leases. | Compact frozen reads cannot meet a concrete multi-operation consistency need. |
+| **D28-06** | Fully request/snapshot/projection/ordering-bound cursors. | A duplicate, omission, or authorization failure is demonstrated under minimal continuation. |
+| **D28-07** | Persisted source-complete evidence replay. | A caller needs resolution beyond compact-reference lifetime without weaker authorization. |
 
 ## Experimental review checkpoints
 
@@ -225,10 +228,10 @@ engine defect or a new release commitment.
 
 These records preserve future work but do not override the release map.
 
-- **0.9.0 readability and navigability:** capability-module decomposition of
-  the engine, focused binding/CLI/test splits, reusable structure maps, and
-  duplication cleanup. The proposal is placed for 0.9.0, but implementation is
-  not scheduled. See
+- **Readability and navigability:** the bounded engine/binding/SDK semantic
+  decomposition moved to the 0.8.27 plan. The original 0.9.0 proposal remains
+  historical rationale; unrelated CLI/test splits and duplication cleanup stay
+  unscheduled. See
   [`design/0.9.0-readability-refactor-proposal.md`](design/0.9.0-readability-refactor-proposal.md).
 - **Multi-field and recursive-payload FTS:** multi-field FTS, per-kind
   tokenizers, and related precision controls remain deferred to at least 0.9.x;

@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import posixpath
 import re
 import shutil
 import subprocess
@@ -97,9 +98,14 @@ REQUIRED_ROW_IDENTITIES = RUST_ROWS + [
         "source": "src/python/fathomdb/__init__.py:__all__",
     },
     {
+        "id": "python-wrapper-declarations",
+        "kind": "python",
+        "source": "src/python/fathomdb/**/*.py:resolved public namespace signatures",
+    },
+    {
         "id": "python-native-registrations",
         "kind": "python",
-        "source": "src/rust/crates/fathomdb-py/src/lib.rs:pymodule registrations",
+        "source": "src/rust/crates/fathomdb-py/src/lib.rs:pymodule registrations with cfg",
     },
     {
         "id": "python-native-stub",
@@ -120,7 +126,7 @@ REQUIRED_ROW_IDENTITIES = RUST_ROWS + [
         "id": "typescript-declarations",
         "kind": "typescript",
         "command": "npm exec -- tsc -p tsconfig.build.json",
-        "source": "src/ts/dist/index.d.ts",
+        "source": "src/ts/dist/index.d.ts with relative re-exports resolved",
     },
     {
         "id": "package-entrypoints",
@@ -201,7 +207,13 @@ def parse_rust_public_api(text: str, row: str) -> list[dict[str, str]]:
 def parse_python_exports(text: str) -> list[dict[str, str]]:
     """Read the literal package ``__all__`` declaration."""
 
-    tree = ast.parse(text)
+    values = _literal_all(ast.parse(text))
+    if values is None:
+        raise SurfaceError("python package has no literal __all__ declaration")
+    return _unique((_entry(name, "python-export", name) for name in values), "python-package-exports")
+
+
+def _literal_all(tree: ast.Module) -> list[str] | None:
     values: list[str] | None = None
     for node in tree.body:
         if not isinstance(node, (ast.Assign, ast.AnnAssign)):
@@ -217,19 +229,223 @@ def parse_python_exports(text: str) -> list[dict[str, str]]:
         if not isinstance(literal, (list, tuple)) or not all(isinstance(item, str) for item in literal):
             raise SurfaceError("python __all__ must contain only strings")
         values = list(literal)
-    if values is None:
-        raise SurfaceError("python package has no literal __all__ declaration")
-    return _unique((_entry(name, "python-export", name) for name in values), "python-package-exports")
+    return values
+
+
+def _statements(body: list[ast.stmt]) -> Iterable[ast.stmt]:
+    # Conditional and guarded definitions (TYPE_CHECKING, try/except import
+    # fallbacks) bind module names just like unconditional ones.
+    for node in body:
+        if isinstance(node, ast.If):
+            yield from _statements(node.body)
+            yield from _statements(node.orelse)
+        elif isinstance(node, ast.Try):
+            yield from _statements(node.body)
+            for handler in node.handlers:
+                yield from _statements(handler.body)
+            yield from _statements(node.orelse)
+            yield from _statements(node.finalbody)
+        else:
+            yield node
+
+
+def _is_public(name: str) -> bool:
+    return not name.startswith("_") or (name.startswith("__") and name.endswith("__"))
+
+
+def _python_callable_signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
+    decorators = "".join(f"@{_python_signature(item)} " for item in node.decorator_list)
+    prefix = "async def" if isinstance(node, ast.AsyncFunctionDef) else "def"
+    returns = f" -> {_python_signature(node.returns)}" if node.returns is not None else ""
+    return f"{decorators}{prefix} {node.name}({_python_signature(node.args)}){returns}"
+
+
+def _python_class_header(node: ast.ClassDef) -> str:
+    decorators = "".join(f"@{_python_signature(item)} " for item in node.decorator_list)
+    arguments = [_python_signature(base) for base in node.bases]
+    arguments.extend(
+        f"{keyword.arg}={_python_signature(keyword.value)}"
+        if keyword.arg is not None
+        else f"**{_python_signature(keyword.value)}"
+        for keyword in node.keywords
+    )
+    suffix = f"({', '.join(arguments)})" if arguments else ""
+    return f"{decorators}class {node.name}{suffix}"
+
+
+class _PythonPackage:
+    """Resolve public names through intra-package imports to their definitions."""
+
+    def __init__(self, sources: dict[str, str]) -> None:
+        self.modules: dict[str, ast.Module] = {}
+        self.packages: set[str] = set()
+        for relative, text in sources.items():
+            if not relative.endswith(".py"):
+                continue
+            parts = relative[: -len(".py")].split("/")
+            is_package = parts[-1] == "__init__"
+            if is_package:
+                parts = parts[:-1]
+            module = ".".join(["fathomdb", *parts])
+            try:
+                self.modules[module] = ast.parse(text, filename=relative)
+            except SyntaxError as exc:
+                raise ComparatorError(f"cannot parse Python source {relative}: {exc}") from exc
+            if is_package:
+                self.packages.add(module)
+        if "fathomdb" not in self.modules:
+            raise ComparatorError("python sources have no fathomdb/__init__.py")
+        self.bindings = {module: self._bindings(module) for module in self.modules}
+
+    def _absolute(self, module: str, node: ast.ImportFrom) -> str:
+        if node.level == 0:
+            return node.module or ""
+        base = module.split(".") if module in self.packages else module.split(".")[:-1]
+        base = base[: len(base) - (node.level - 1)]
+        return ".".join([*base, node.module] if node.module else base)
+
+    def _bindings(self, module: str) -> dict[str, tuple[Any, ...]]:
+        bindings: dict[str, tuple[Any, ...]] = {}
+        for node in _statements(self.modules[module].body):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                bindings[node.name] = ("def", node)
+            elif isinstance(node, ast.ImportFrom):
+                source = self._absolute(module, node)
+                for alias in node.names:
+                    if alias.name != "*":
+                        bindings[alias.asname or alias.name] = ("import", source, alias.name)
+            elif isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        bindings[target.id] = ("def", node)
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                bindings[node.target.id] = ("def", node)
+        return bindings
+
+    def resolve(self, module: str, name: str, seen: frozenset[tuple[str, str]] = frozenset()) -> tuple[Any, ...]:
+        if (module, name) in seen:
+            raise ComparatorError(f"circular Python import for {module}.{name}")
+        binding = self.bindings.get(module, {}).get(name)
+        if binding is None:
+            if f"{module}.{name}" in self.modules:
+                return ("module", f"{module}.{name}")
+            if module not in self.modules:
+                return ("external", module, name)
+            raise ComparatorError(f"python name {module}.{name} is exported but never bound")
+        if binding[0] == "def":
+            return binding
+        _, source, original = binding
+        submodule = f"{source}.{original}"
+        if submodule in self.modules and (
+            source == module or self.bindings[source].get(original, ("",))[0] != "def"
+        ):
+            return ("module", submodule)
+        if source not in self.modules:
+            return ("external", source, original)
+        return self.resolve(source, original, seen | {(module, name)})
+
+    def namespaces(self) -> list[str]:
+        return sorted(
+            module
+            for module in self.modules
+            if all(_is_public(part) and not part.startswith("__") for part in module.split("."))
+        )
+
+    def exported(self, module: str) -> list[str]:
+        declared = _literal_all(self.modules[module])
+        if declared is not None:
+            return declared
+        # Without __all__, a public module exposes its own public definitions
+        # and package definitions it re-imports, not third-party imports.
+        names = []
+        for name in self.bindings[module]:
+            if _is_public(name) and self.resolve(module, name)[0] == "def":
+                names.append(name)
+        return names
+
+
+def parse_python_wrappers(sources: dict[str, str]) -> list[dict[str, str]]:
+    """Capture public Python namespaces by resolved declaration signature.
+
+    Entries are keyed by public dotted path, never by defining file, and carry
+    signatures without bodies, so moving an implementation behind a re-export
+    or editing a body compares equal while a public name or signature change
+    does not.
+    """
+
+    package = _PythonPackage(sources)
+    entries: list[dict[str, str]] = []
+    for namespace in package.namespaces():
+        for name in package.exported(namespace):
+            path = f"{namespace}.{name}"
+            resolved = package.resolve(namespace, name)
+            if resolved[0] == "module":
+                entries.append(_entry(path, "python-module", f"module {resolved[1]}"))
+                continue
+            if resolved[0] == "external":
+                entries.append(
+                    _entry(path, "python-reexport", f"from {resolved[1]} import {resolved[2]}")
+                )
+                continue
+            node = resolved[1]
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                entries.append(_entry(path, "python-function", _python_callable_signature(node)))
+            elif isinstance(node, ast.ClassDef):
+                entries.append(_entry(path, "python-class", _python_class_header(node)))
+                for member in node.body:
+                    if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        if _is_public(member.name):
+                            entries.append(
+                                _entry(
+                                    f"{path}.{member.name}",
+                                    "python-method",
+                                    _python_callable_signature(member),
+                                )
+                            )
+                    elif isinstance(member, ast.AnnAssign) and isinstance(member.target, ast.Name):
+                        if _is_public(member.target.id):
+                            entries.append(
+                                _entry(
+                                    f"{path}.{member.target.id}",
+                                    "python-attribute",
+                                    _python_signature(member),
+                                )
+                            )
+                    elif isinstance(member, ast.Assign):
+                        for target in member.targets:
+                            if isinstance(target, ast.Name) and _is_public(target.id):
+                                entries.append(
+                                    _entry(
+                                        f"{path}.{target.id}",
+                                        "python-attribute",
+                                        _python_signature(member),
+                                    )
+                                )
+            else:
+                entries.append(_entry(path, "python-value", _python_signature(node)))
+    if not entries:
+        raise SurfaceError("python wrapper sources expose no public declarations")
+    return _unique(entries, "python-wrapper-declarations")
 
 
 def parse_python_registrations(text: str) -> list[dict[str, str]]:
     """Read PyO3 registrations independently of package exports and stubs."""
 
+    line_cfgs = _cfg_by_line(text)
+
+    def gated(match: re.Match[str], signature: str) -> str:
+        cfgs = line_cfgs[text.count("\n", 0, match.start())]
+        return "".join(f"#[{cfg}] " for cfg in cfgs) + signature
+
     entries: list[dict[str, str]] = []
-    for name in re.findall(r"\.add_class::<([A-Za-z_][A-Za-z0-9_:]*)>\(\)\?", text):
-        entries.append(_entry(name, "pyclass-registration", f"add_class::<{name}>"))
-    for name in re.findall(r"wrap_pyfunction!\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,", text):
-        entries.append(_entry(name, "pyfunction-registration", f"wrap_pyfunction!({name})"))
+    for match in re.finditer(r"\.add_class::<([A-Za-z_][A-Za-z0-9_:]*)>\(\)\?", text):
+        name = match.group(1)
+        entries.append(_entry(name, "pyclass-registration", gated(match, f"add_class::<{name}>")))
+    for match in re.finditer(r"wrap_pyfunction!\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,", text):
+        name = match.group(1)
+        entries.append(
+            _entry(name, "pyfunction-registration", gated(match, f"wrap_pyfunction!({name})"))
+        )
     for match in re.finditer(
         r'\bm\.add\(\s*"(?P<name>[A-Za-z_][A-Za-z0-9_]*)"\s*,\s*'
         r'(?P<value>.*?)\)\?;',
@@ -238,10 +454,48 @@ def parse_python_registrations(text: str) -> list[dict[str, str]]:
     ):
         name = match.group("name")
         value = _normalize_space(match.group("value"))
-        entries.append(_entry(name, "py-alias-registration", f'm.add("{name}", {value})'))
+        entries.append(
+            _entry(name, "py-alias-registration", gated(match, f'm.add("{name}", {value})'))
+        )
     if not entries:
         raise SurfaceError("PyO3 source contains no class or function registrations")
     return _unique(entries, "python-native-registrations")
+
+
+def _cfg_by_line(text: str) -> list[tuple[str, ...]]:
+    """Return the ``#[cfg(...)]`` gates active for each source line.
+
+    Covers attribute-on-statement and attribute-on-block forms, which are the
+    two ways a PyO3 registration can be compiled out of a shipped wheel.
+    """
+
+    result: list[tuple[str, ...]] = []
+    pending: list[str] = []
+    blocks: list[tuple[int, tuple[str, ...]]] = []
+    depth = 0
+    for line in text.splitlines():
+        stripped = line.strip()
+        attribute = re.fullmatch(r"#\[(cfg\(.*\))\]\s*(\{)?", stripped)
+        if attribute is not None:
+            result.append(())
+            if attribute.group(2):
+                blocks.append((depth, (*pending, attribute.group(1))))
+                pending = []
+                depth += 1
+            else:
+                pending.append(attribute.group(1))
+            continue
+        if not stripped or stripped.startswith("//") or stripped.startswith("#["):
+            result.append(())
+            continue
+        result.append(tuple(cfg for _, cfgs in blocks for cfg in cfgs) + tuple(pending))
+        if stripped == "{" and pending:
+            blocks.append((depth, tuple(pending)))
+        pending = []
+        depth += stripped.count("{") - stripped.count("}")
+        while blocks and depth <= blocks[-1][0]:
+            blocks.pop()
+    return result
 
 
 def _python_signature(node: ast.AST) -> str:
@@ -314,6 +568,92 @@ def _declaration_name(statement: str) -> tuple[str, str]:
 def parse_typescript_declarations(text: str, row: str) -> list[dict[str, str]]:
     """Split an emitted declaration file into complete exported statements."""
 
+    entries = []
+    for statement in _typescript_statements(text, row):
+        path, kind = _declaration_name(statement)
+        entries.append(_entry(path, kind, statement))
+    if not entries:
+        raise SurfaceError(f"{row} contains no exported declarations")
+    return _unique(entries, row)
+
+
+_TS_STAR_REEXPORT = re.compile(r"""export\s+(?:type\s+)?\*\s+from\s+["']([^"']+)["']\s*;?""")
+_TS_NAMED_REEXPORT = re.compile(
+    r"""export\s+(?:type\s+)?\{([^}]*)\}\s+from\s+["']([^"']+)["']\s*;?"""
+)
+
+
+def _resolve_typescript_module(
+    importer: str, specifier: str, modules: dict[str, str], row: str
+) -> str:
+    base = posixpath.normpath(posixpath.join(posixpath.dirname(importer), specifier))
+    stem = re.sub(r"\.(?:js|mjs|cjs)$", "", base)
+    for candidate in (f"{stem}.d.ts", f"{stem}.d.mts", f"{stem}/index.d.ts"):
+        if candidate in modules:
+            return candidate
+    raise ComparatorError(f"{row} cannot resolve re-export {specifier!r} from {importer}")
+
+
+def _flatten_typescript(
+    modules: dict[str, str], module: str, row: str, stack: tuple[str, ...] = ()
+) -> list[tuple[str, str, str]]:
+    if module in stack:
+        return []
+    stack = (*stack, module)
+    flattened: list[tuple[str, str, str]] = []
+    for statement in _typescript_statements(modules[module], row):
+        star = _TS_STAR_REEXPORT.fullmatch(statement)
+        named = _TS_NAMED_REEXPORT.fullmatch(statement)
+        target_specifier = (star or named).group(1 if star else 2) if (star or named) else None
+        if target_specifier is None or not target_specifier.startswith("."):
+            path, kind = _declaration_name(statement)
+            flattened.append((path, kind, statement))
+            continue
+        target = _resolve_typescript_module(module, target_specifier, modules, row)
+        exported = _flatten_typescript(modules, target, row, stack)
+        if star is not None:
+            flattened.extend(item for item in exported if not item[2].startswith("export default"))
+            continue
+        for part in named.group(1).split(","):
+            part = re.sub(r"^type\s+", "", part.strip())
+            if not part:
+                continue
+            original, _, alias = (piece.strip() for piece in part.partition(" as "))
+            alias = alias or original
+            matches = [item for item in exported if item[0] == original]
+            if not matches:
+                raise ComparatorError(
+                    f"{row} re-export {original!r} from {target} has no exported declaration"
+                )
+            for _, kind, target_statement in matches:
+                signature = (
+                    target_statement
+                    if alias == original
+                    else f"export {{ {original} as {alias} }} => {target_statement}"
+                )
+                flattened.append((alias, kind, signature))
+    return flattened
+
+
+def parse_typescript_surface(modules: dict[str, str], row: str) -> list[dict[str, str]]:
+    """Capture ``index.d.ts`` with relative re-exports resolved to declarations.
+
+    Entries are keyed by exported name, so moving a declaration into a module
+    that the root re-exports compares equal.
+    """
+
+    if "index.d.ts" not in modules:
+        raise ComparatorError(f"{row} requires index.d.ts")
+    entries = [
+        _entry(path, kind, statement)
+        for path, kind, statement in _flatten_typescript(modules, "index.d.ts", row)
+    ]
+    if not entries:
+        raise SurfaceError(f"{row} contains no exported declarations")
+    return _unique(entries, row)
+
+
+def _typescript_statements(text: str, row: str) -> list[str]:
     statements: list[str] = []
     current: list[str] = []
     depth = 0
@@ -342,13 +682,7 @@ def parse_typescript_declarations(text: str, row: str) -> list[dict[str, str]]:
             current = []
     if current:
         raise SurfaceError(f"unterminated exported declaration in {row}")
-    entries = []
-    for statement in statements:
-        path, kind = _declaration_name(statement)
-        entries.append(_entry(path, kind, statement))
-    if not entries:
-        raise SurfaceError(f"{row} contains no exported declarations")
-    return _unique(entries, row)
+    return statements
 
 
 def parse_package_entrypoints(package_text: str, runtime_exports: Sequence[str]) -> list[dict[str, str]]:
@@ -413,6 +747,10 @@ def capture_from_fixture(inputs: dict[str, Any], metadata: dict[str, Any]) -> di
                 "entries": parse_python_exports(inputs["python_exports"]),
             },
             {
+                "id": "python-wrapper-declarations",
+                "entries": parse_python_wrappers(inputs["python_sources"]),
+            },
+            {
                 "id": "python-native-registrations",
                 "entries": parse_python_registrations(inputs["python_registrations"]),
             },
@@ -426,8 +764,8 @@ def capture_from_fixture(inputs: dict[str, Any], metadata: dict[str, Any]) -> di
             },
             {
                 "id": "typescript-declarations",
-                "entries": parse_typescript_declarations(
-                    inputs["typescript_declaration"], "typescript-declarations"
+                "entries": parse_typescript_surface(
+                    inputs["typescript_declarations"], "typescript-declarations"
                 ),
             },
             {
@@ -628,6 +966,19 @@ def _tool_metadata(source_sha: str) -> dict[str, Any]:
     }
 
 
+def _validate_napi_build_script(package_text: str) -> None:
+    identity = next(row for row in REQUIRED_ROW_IDENTITIES if row["id"] == "napi-production")
+    try:
+        script = json.loads(package_text).get("scripts", {}).get("build:native")
+    except (json.JSONDecodeError, AttributeError) as exc:
+        raise ComparatorError(f"cannot read build:native from package.json: {exc}") from exc
+    if script != identity["expanded_command"]:
+        raise ComparatorError(
+            f"package.json build:native {script!r} does not match recorded napi-production "
+            f"identity {identity['expanded_command']!r}"
+        )
+
+
 def capture_repository(source_sha: str) -> dict[str, Any]:
     """Generate every required surface row from a clean repository checkout."""
 
@@ -653,6 +1004,7 @@ def capture_repository(source_sha: str) -> dict[str, Any]:
             )
 
         ts_root = REPO_ROOT / "src/ts"
+        _validate_napi_build_script((ts_root / "package.json").read_text())
         _run(["npm", "run", "build:native"], ts_root, env)
         _run(["npm", "exec", "--", "tsc", "-p", "tsconfig.build.json"], ts_root, env)
         runtime_json = _run(
@@ -671,15 +1023,24 @@ def capture_repository(source_sha: str) -> dict[str, Any]:
         tracked_status = _run(["git", "status", "--porcelain", "--untracked-files=all"], REPO_ROOT)
         if tracked_status:
             raise SurfaceError("generation changed tracked or visible files:\n" + tracked_status)
+        python_root = REPO_ROOT / "src/python/fathomdb"
         inputs = {
             "rust": rust_outputs,
             "python_exports": (REPO_ROOT / "src/python/fathomdb/__init__.py").read_text(),
+            "python_sources": {
+                path.relative_to(python_root).as_posix(): path.read_text()
+                for path in sorted(python_root.rglob("*.py"))
+                if "__pycache__" not in path.parts
+            },
             "python_registrations": (
                 REPO_ROOT / "src/rust/crates/fathomdb-py/src/lib.rs"
             ).read_text(),
             "python_stub": (REPO_ROOT / "src/python/fathomdb/_fathomdb.pyi").read_text(),
             "napi_declaration": (ts_root / "index.d.ts").read_text(),
-            "typescript_declaration": (ts_root / "dist/index.d.ts").read_text(),
+            "typescript_declarations": {
+                path.relative_to(ts_root / "dist").as_posix(): path.read_text()
+                for path in sorted((ts_root / "dist").rglob("*.d.ts"))
+            },
             "package_json": (ts_root / "package.json").read_text(),
             "runtime_exports": runtime_exports,
         }

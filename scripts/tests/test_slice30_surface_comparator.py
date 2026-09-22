@@ -969,6 +969,31 @@ def main() -> None:
     declaration = [c for c in commands if "--emitDeclarationOnly" in c]
     assert declaration and str(tool.OWNED_SCRATCH / "ts-declarations") in declaration[0], commands
 
+    # --- Phase 3 FIX-2: multi-line cfg text is recorded verbatim.
+    multi = {
+        e["path"]: e["signature"]
+        for e in tool.parse_python_registrations(
+            "#[cfg(any(\n"
+            '    feature = "alpha",\n'
+            '    feature = "other"\n'
+            "))]\n"
+            "m.add_class::<PyMulti>()?;\n"
+            "#[cfg(\n"
+            '    feature = "y"\n'
+            ")]\n"
+            "m.add_class::<PySingle>()?;\n"
+        )
+    }
+    assert multi["PyMulti"] == '#[cfg(any( feature = "alpha", feature = "other" ))] add_class::<PyMulti>', multi
+    assert multi["PySingle"] == '#[cfg( feature = "y" )] add_class::<PySingle>', multi
+
+    # --- Phase 3 FIX-2: same-path pairs win regardless of processing order.
+    ordered = tool.compare_manifests(
+        manifest_of([("a", "1"), ("b", "old")]), manifest_of([("b", "new"), ("c", "3")])
+    )["row_diffs"][0]["changed"]
+    pairs = sorted((item["before"]["path"], item["after"]["path"]) for item in ordered)
+    assert pairs == [("a", "c"), ("b", "b")], pairs
+
     agent_test = (ROOT / "scripts/agent-test.sh").read_text()
     assert "test-slice30-surface-comparator" in agent_test
     assert "scripts/tests/test_slice30_surface_comparator.py" in agent_test

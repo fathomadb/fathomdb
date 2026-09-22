@@ -5,7 +5,7 @@ implemented_on: 2026-09-22
 baseline_source_commit: df8017463ecce6281a4c989a2d1bd01118e2025e
 baseline_tracking_commit: 346ed5eb95ec1cb168e4a9ad9a0cd951b839cda7
 implementation_candidate: 6adb2230a7d5717331383416cb2709678b319f1a
-closeout_commit: 4129a5b013265f4672ab1e4ae8ed3dd5cb8cd89f
+closeout_commit: edbfe5274efe043c269a683ba1593ae73e8b36cb
 ---
 
 # Slice 30 implementation status

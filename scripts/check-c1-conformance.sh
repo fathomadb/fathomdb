@@ -675,9 +675,9 @@ def crate_manifest_for(test_path):
 # things that remain.
 #
 # NO PYTHON OR TYPESCRIPT TEST IS CITED BY ANY CLAUSE. `--list-sources` is the
-# authority: the gate reads nine files (six Rust modules/tests, one markdown
-# plan, and the two crate lib.rs) and three trees, and not one `.py` or `.ts`
-# among them. The
+# authority: the gate reads ten files (six Rust modules/tests, one markdown
+# plan, the two crate lib.rs, and one Cargo manifest) and three trees, and not
+# one `.py` or `.ts` among them. The
 # same evaporation exists in those languages (`@pytest.mark.skip`, `xfail`,
 # `describe.skip` / `it.skip` / `.only`, a renamed-away `test_` prefix), so if a
 # future clause ever cites one, it needs its own `test_defined` equivalent — not

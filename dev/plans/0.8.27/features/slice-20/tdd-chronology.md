@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 20 - TDD chronology
-status: RED
+status: GREEN
 target_release: 0.8.27
 ---
 
@@ -47,3 +47,54 @@ replacement buckets while closed dependents stay in the original bucket.
 
 The failing tests and reviewed plan/design are committed before GREEN. The
 production implementation remains unchanged at this point.
+
+## GREEN
+
+The production change preserves completed source-revision closure rows until
+actuation-receipt validation and redaction finish, then deletes those closure
+rows in the same immediate transaction. No cursor expansion, recursion,
+schema change, or public-surface change was added.
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test correction_safe_erasure
+
+3 passed; exit 0.
+```
+
+The new binary plus the four owning regression binaries passed together:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test correction_safe_erasure \
+  --test slice20_dependency_lifecycle \
+  --test slice30_dependency_closure \
+  --test erasure_completeness \
+  --test erasure_drain_ordering
+
+52 passed; exit 0.
+```
+
+Binding evidence used an isolated Python wheel built from this checkout and a
+fresh TypeScript native debug build:
+
+```text
+python -m pytest src/python/tests/test_erase_source.py -q
+8 passed; exit 0.
+
+npm run build:native:debug && npx tsc -p tsconfig.json && \
+  node --test dist/tests/erase-source.test.js
+8 passed; exit 0.
+```
+
+The isolated Python wheel SHA-256 was
+`77066f543faa9b87afddc636ceb92ae4ec149d97c158cf2b370adf5038972efd`.
+
+The unchanged Memex `_closed_world` correction fixture was then run against
+that wheel with only the formerly-failing oracle changed from `storage_failed`
+to successful erasure, empty visibility, and idempotent retry:
+
+```text
+python -m pytest /tmp/test_slice20_memex_success.py -q
+1 passed; exit 0.
+```

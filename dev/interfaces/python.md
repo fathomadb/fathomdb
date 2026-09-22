@@ -1,8 +1,8 @@
 ---
 title: Python Public Interface
-date: 2026-09-15
-target_release: 0.8.26
-desc: Public Python surface for 0.8.26
+date: 2026-09-21
+target_release: 0.8.27
+desc: Public Python surface for 0.8.27
 blast_radius: src/python/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---
@@ -90,7 +90,10 @@ denylist name).
   reserved (`_`-prefixed) id, and `ErasureIncompleteError` (with `stage` /
   `detail`) rather than reporting success when the at-rest step did not
   complete. `EraseReport` carries `source_ref`, `nodes_excised`,
-  `edges_excised`, `projections_invalidated`.
+  `edges_excised`, `projections_invalidated`. A source remains erasable after
+  correction supersedes it; the original and replacement source buckets may
+  be erased in either order. Counts remain exact for only the requested
+  bucket, with no cross-bucket expansion or report-shape change.
 
 `Engine.open(...)` returns the engine handle. The structured open report owned
 by `design/engine.md` is accessible after open via `engine.open_report()` (see

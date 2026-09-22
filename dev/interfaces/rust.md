@@ -1,8 +1,8 @@
 ---
 title: Rust Public Interface
-date: 2026-09-15
-target_release: 0.8.26
-desc: Public Rust surface (traits, functions, types, errors) for 0.8.26
+date: 2026-09-21
+target_release: 0.8.27
+desc: Public Rust surface (traits, functions, types, errors) for 0.8.27
 blast_radius: src/rust/crates/fathomdb; design/engine.md; design/bindings.md; design/errors.md; design/lifecycle.md
 status: locked
 ---
@@ -252,7 +252,12 @@ DEFAULT facade, not behind the `operator` feature.
   reserved (`_`-prefixed) id with `EngineError::WriteValidation`; the reserved
   namespace stays reachable only through the CLI `--excise-source` seam.
   Reports `EngineError::ErasureIncomplete` rather than success when the
-  at-rest step could not complete.
+  at-rest step could not complete. A source remains erasable after a
+  correction supersedes it: completed direct-dependent closure rows do not
+  block receipt redaction, and the original and replacement source buckets
+  may be erased in either order. Report counts remain exact for only the
+  requested source bucket; no cross-bucket expansion or new report field is
+  implied.
 
 ### Projection-registry verbs
 

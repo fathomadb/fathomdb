@@ -16593,14 +16593,6 @@ impl Engine {
         let physical_plans =
             dependency_closure::physical_dependents_for_sources(&tx, &source_revisions)?;
         let affected_dependencies = physical_plans.iter().map(|(_, rows)| rows.len()).sum();
-        for source_revision in &source_revisions {
-            tx.execute(
-                "DELETE FROM _fathomdb_dependency_closures \
-                 WHERE root_kind='source_revision' AND root_value=?1 AND phase='complete'",
-                [source_revision],
-            )
-            .map_err(|_| EngineError::Storage)?;
-        }
         let proof_boundary = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
 
         // 0.8.20 Slice 5b (R-20-E6) — stable ids the telemetry sink may hold for
@@ -16637,6 +16629,19 @@ impl Engine {
         .into_iter()
         .collect::<Vec<_>>();
         actuation::redact_actuation_receipts_for_refs(&tx, &receipt_refs)?;
+        // A correction receipt can reference completed soft closures for the
+        // source revision being erased. Receipt validation therefore has to
+        // run while those closures still exist; deleting them first makes the
+        // valid receipt appear corrupt and rolls the erasure back. Both steps
+        // remain in this transaction, so any validation failure is atomic.
+        for source_revision in &source_revisions {
+            tx.execute(
+                "DELETE FROM _fathomdb_dependency_closures \
+                 WHERE root_kind='source_revision' AND root_value=?1 AND phase='complete'",
+                [source_revision],
+            )
+            .map_err(|_| EngineError::Storage)?;
+        }
         erase_artifact_identity_for_cursors(&tx, &affected_cursors, false, Some(source_id))?;
 
         // 0.8.20 Slice 5a (R-20-E1) — registry-driven erasure. The previous

@@ -1,8 +1,8 @@
 ---
 title: TypeScript Public Interface
-date: 2026-09-15
-target_release: 0.8.26
-desc: Public TypeScript surface for 0.8.26
+date: 2026-09-21
+target_release: 0.8.27
+desc: Public TypeScript surface for 0.8.27
 blast_radius: src/ts/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---
@@ -92,7 +92,11 @@ denylist name).
   whitespace-only / reserved (`_`-prefixed) id, and with
   `ErasureIncompleteError` (with `stage` / `detail`) rather than resolving when
   the at-rest step did not complete. `EraseReport` is
-  `{ sourceRef, nodesExcised, edgesExcised, projectionsInvalidated }`.
+  `{ sourceRef, nodesExcised, edgesExcised, projectionsInvalidated }`. A source
+  remains erasable after correction supersedes it; the original and
+  replacement source buckets may be erased in either order. Counts remain
+  exact for only the requested bucket, with no cross-bucket expansion or
+  report-shape change.
 
 Application commands are Promise-returning on the TS surface. The startup-only
 `admin.configureRuntime` control is synchronous.

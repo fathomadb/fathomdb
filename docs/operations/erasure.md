@@ -32,6 +32,13 @@ For every canonical row whose `source_id` matches, `erase_source` deletes:
    table row is gone: the `DELETE` appends new frames rather than rewriting old
    ones.
 
+Correction does not make a source bucket uneraseable. After one source has
+been superseded by another, either bucket may be erased first. Completed
+direct-dependent closure rows are removed with their source, while receipt
+redaction is validated before those closure records disappear. The returned
+counts describe only rows and projections owned by the requested source; the
+operation does not recursively erase the replacement bucket.
+
 The call **does not report success on a partial erasure.** If the WAL checkpoint
 cannot complete — typically a concurrent reader pinning a snapshot — the verb
 raises **`ErasureIncompleteError`** (Python `fathomdb.errors.ErasureIncompleteError`,

@@ -13,15 +13,21 @@ make_fixture() {
   local root="$1"
   rm -rf "$root"
   mkdir -p "$root/dev/plans" "$root/docs/getting-started" \
-    "$root/docs/install" "$root/docs/compatibility"
+    "$root/docs/install" "$root/docs/compatibility" "$root/docs/concepts" \
+    "$root/docs/operations" "$root/docs/reference" "$root/src/ts"
   cp "$REPO_ROOT/README.md" "$root/README.md"
   cp "$REPO_ROOT/Cargo.toml" "$root/Cargo.toml"
-  cp "$REPO_ROOT/dev/plans/release-state-0.8.25.json" "$root/dev/plans/"
+  cp "$REPO_ROOT/dev/plans/release-state-0.8.26.json" "$root/dev/plans/"
   cp "$REPO_ROOT/dev/platform-capabilities.json" "$root/dev/"
   cp "$REPO_ROOT/docs/index.md" "$root/docs/"
   cp "$REPO_ROOT/docs/getting-started/index.md" "$root/docs/getting-started/"
   cp "$REPO_ROOT/docs/install/"{python,typescript,rust}.md "$root/docs/install/"
   cp "$REPO_ROOT/docs/compatibility/index.md" "$root/docs/compatibility/"
+  cp "$REPO_ROOT/docs/concepts/index.md" "$root/docs/concepts/"
+  cp "$REPO_ROOT/docs/operations/index.md" "$root/docs/operations/"
+  cp "$REPO_ROOT/docs/reference/"{index,python-api,typescript-api,rust-api,cli}.md "$root/docs/reference/"
+  cp "$REPO_ROOT/docs/embedder.md" "$root/docs/"
+  cp "$REPO_ROOT/src/ts/README.md" "$root/src/ts/"
   git -C "$root" init -q
   git -C "$root" add .
 }
@@ -109,7 +115,7 @@ PY
 expect_pass "$FIXTURE" 'untracked future state cannot alter public release truth'
 
 make_fixture "$FIXTURE"
-python3 - "$FIXTURE/dev/plans/release-state-0.8.25.json" <<'PY'
+python3 - "$FIXTURE/dev/plans/release-state-0.8.26.json" <<'PY'
 import json
 from pathlib import Path
 import sys
@@ -127,7 +133,7 @@ PY
 expect_fail "$FIXTURE" 'rejects a malformed published tag record'
 
 make_fixture "$FIXTURE"
-python3 - "$FIXTURE/dev/plans/release-state-0.8.25.json" <<'PY'
+python3 - "$FIXTURE/dev/plans/release-state-0.8.26.json" <<'PY'
 import json
 from pathlib import Path
 import sys
@@ -140,7 +146,7 @@ PY
 expect_fail "$FIXTURE" 'rejects a syntactically ISO but invalid calendar date'
 
 make_fixture "$FIXTURE"
-sed -i 's/v0\.8\.25 is published/v0.8.25 is not yet published/' "$FIXTURE/README.md"
+sed -i 's/v0\.8\.26 is published/v0.8.26 is not yet published/' "$FIXTURE/README.md"
 expect_fail "$FIXTURE" 'rejects an unpublished claim for the published release'
 
 make_fixture "$FIXTURE"
@@ -158,5 +164,13 @@ expect_fail "$FIXTURE" 'rejects a false Rust workspace member count'
 make_fixture "$FIXTURE"
 printf '\nHistorical note: 0.8.19 is not yet published in this example.\n' >>"$FIXTURE/docs/index.md"
 expect_pass "$FIXTURE" 'does not treat historical-version prose as a current-release claim'
+
+make_fixture "$FIXTURE"
+sed -i 's/current published release/current pending release/' "$FIXTURE/docs/reference/python-api.md"
+expect_fail "$FIXTURE" 'requires current published truth on the Python API landing page'
+
+make_fixture "$FIXTURE"
+sed -i 's/published 0\.8\.26 surface/published 0.8.25 surface/' "$FIXTURE/docs/reference/index.md"
+expect_fail "$FIXTURE" 'requires current published truth on the reference landing page'
 
 printf '\nAll public-doc-truth tests passed\n'

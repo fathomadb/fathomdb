@@ -133,6 +133,7 @@ run_tier_suite fast test-release-version-surfaces bash scripts/tests/test_releas
 run_tier_suite fast test-platform-capabilities bash scripts/tests/test_platform_capabilities.sh
 run_tier_suite fast test-sqlite-dependency-contract bash scripts/tests/test_sqlite_dependency_contract.sh
 run_tier_suite fast test-public-doc-truth bash scripts/tests/test_public_doc_truth.sh
+run_tier_suite fast test-slice10-preparation python3 scripts/tests/test_slice10_preparation.py
 run_tier_suite fast test-check-architecture-authority bash scripts/tests/test_check_architecture_authority.sh
 run_tier_suite fast test-check-design-lifecycle bash scripts/tests/test_check_design_lifecycle.sh
 run_tier_suite fast test-slice70-embedding-docs-contract bash scripts/tests/test_slice70_embedding_docs_contract.sh

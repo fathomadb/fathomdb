@@ -11,6 +11,7 @@ HISTORY_GUARD="$REPO_ROOT/scripts/security/gitleaks-history.sh"
 CURRENT_GUARD="$REPO_ROOT/scripts/security/gitleaks-current.sh"
 CURRENT_CONFIG="$REPO_ROOT/scripts/security/gitleaks-current.toml"
 CURRENT_CONFIG_CHECK="$REPO_ROOT/scripts/security/check-gitleaks-current-config.py"
+PERFORMANCE_DIGEST_AUTHORITY="$REPO_ROOT/scripts/security/performance-digest-allowlist.json"
 PRE_COMMIT="$REPO_ROOT/scripts/hooks/pre-commit"
 CI="$REPO_ROOT/.github/workflows/ci.yml"
 INSTALLER="$REPO_ROOT/scripts/install-gitleaks.sh"
@@ -51,6 +52,7 @@ expect_zero() {
 [ -x "$HISTORY_GUARD" ] || fail "history Gitleaks guard exists and is executable"
 [ -x "$CURRENT_GUARD" ] || fail "current-tree Gitleaks guard exists and is executable"
 [ -x "$INSTALLER" ] || fail "pinned Gitleaks installer exists and is executable"
+[ -f "$PERFORMANCE_DIGEST_AUTHORITY" ] || fail "performance digest exception has one data authority"
 
 if ! command -v gitleaks >/dev/null 2>&1; then
   fail "Gitleaks is installed for guard regression coverage"

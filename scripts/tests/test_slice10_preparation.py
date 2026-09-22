@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""Focused contract for 0.8.27 Slice 10 repository preparation."""
+
+from __future__ import annotations
+
+import json
+import subprocess
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[2]
+UPLOAD_SHA = "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
+
+
+def check_dependency() -> None:
+    lock = json.loads((ROOT / "package-lock.json").read_text())
+    version = lock["packages"]["node_modules/smol-toml"]["version"]
+    require(tuple(map(int, version.split("."))) >= (1, 7, 1), "smol-toml must resolve to >=1.7.1")
+    dependency = lock["packages"]["node_modules/markdownlint-cli2"]["dependencies"]["smol-toml"]
+    require(dependency == "1.7.1", "markdownlint-cli2 must resolve the narrow 1.7.1 remediation")
+
+
+def check_action_comments() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+    pinned = f"actions/upload-artifact@{UPLOAD_SHA} # v7.0.1"
+    require(workflow.count(pinned) == 2, "both upload-artifact comments must identify v7.0.1")
+    require(workflow.count(f"actions/upload-artifact@{UPLOAD_SHA}") == 2, "upload SHAs must stay byte-identical")
+
+
+def check_platform_truth() -> None:
+    manifest = json.loads((ROOT / "dev/platform-capabilities.json").read_text())
+    require(manifest["release"] == "0.8.26", "platform manifest must identify the published release")
+    published = [item["triple"] for item in manifest["platforms"] if item["status"] == "published"]
+    require(
+        published
+        == ["linux-x64-gnu", "linux-arm64-gnu", "darwin-x64", "darwin-arm64", "win32-x64-msvc"],
+        "platform manifest must match the five published native targets",
+    )
+
+
+def check_slice30_prerequisites() -> None:
+    path = ROOT / "dev/plans/0.8.27/features/slice-10/slice30-prerequisites.json"
+    value = json.loads(path.read_text())
+    require(value["schema"] == "fathomdb.slice30-prerequisites.v1", "unexpected prerequisite schema")
+    require(value["cargo_public_api"] == "0.52.0", "cargo-public-api version must be exact")
+    require(value["nightly"] == "nightly-2026-04-24", "nightly must be exact")
+    require(value["owned_root"] == ".cache/0.8.27-slice30", "generated roots must be checkout-owned")
+    require(value["heavy_route_min_free_bytes"] == 20_000_000_000, "heavy-route disk floor must be 20 GB")
+    require(value["heavy_runner_scratch_bytes"] == 17_179_869_184, "pilot scratch limit must be retained")
+
+    tool = subprocess.run(["cargo", "public-api", "--version"], cwd=ROOT, text=True, capture_output=True)
+    require(tool.returncode == 0 and tool.stdout.strip() == "cargo-public-api 0.52.0", "comparator probe failed")
+    nightly = subprocess.run(
+        ["rustc", "+nightly-2026-04-24", "--version"], cwd=ROOT, text=True, capture_output=True
+    )
+    require(nightly.returncode == 0 and "nightly" in nightly.stdout, "nightly probe failed")
+
+
+def main() -> None:
+    check_dependency()
+    check_action_comments()
+    check_platform_truth()
+    check_slice30_prerequisites()
+    print("ok    slice10-preparation")
+
+
+if __name__ == "__main__":
+    main()

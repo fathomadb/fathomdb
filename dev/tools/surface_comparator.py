@@ -502,7 +502,9 @@ def _run(command: Sequence[str], cwd: Path, env: dict[str, str] | None = None) -
         stderr=subprocess.PIPE,
     )
     if completed.returncode != 0:
-        diagnostic = completed.stderr or completed.stdout
+        diagnostic = "\n".join(
+            part.rstrip() for part in (completed.stdout, completed.stderr) if part.strip()
+        )
         raise SurfaceError(
             f"command failed ({completed.returncode}): {' '.join(command)}\n{diagnostic}"
         )

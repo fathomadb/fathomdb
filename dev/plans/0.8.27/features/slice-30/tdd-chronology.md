@@ -71,3 +71,21 @@ normalized keys remains invalid and comparison rejects it.
 
 The adapter now performs that idempotent collapse. The repeated-pair fixture,
 all mutation arms, and the duplicate-manifest rejection returned GREEN.
+
+## Real baseline capture
+
+Clean implementation commit `3b726cba1700e55486d3b2fbb6a922f439f25d54`
+was captured twice with `cargo-public-api 0.52.0`,
+`nightly-2026-04-24`, Rust nightly `1.97.0-nightly (36ba2c771
+2026-04-23)`, Node `v26.8.2`, and TypeScript `6.0.3` on
+`x86_64-unknown-linux-gnu`. Both 12-row files had SHA-256:
+
+```text
+a8cee76657af6557c2117fad77e66119314b85ef3b77a4c61d31943f33a694fe
+```
+
+Byte comparison and semantic comparison both passed; the semantic result was
+`equal: true` with empty metadata and row diffs. Production NAPI generation
+used the exact `npm run build:native` command and `default-embedder`. The only
+environmental exception was the sandbox denying napi-rs `/bin/sh` spawn; the
+unchanged command succeeded through the approved unconfined route.

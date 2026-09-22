@@ -10,8 +10,8 @@ Covers:
   Linux x86_64 artifact path; macOS/Windows native work is deferred to 0.8.22.
 - AC-FIX1-6: ``pyproject.toml [tool.maturin] features`` does NOT list
   ``test-hooks``.
-- AC-FIX1-7: ``package.json`` ``scripts.build:native`` carries
-  ``--features default-embedder``.
+- AC-FIX1-7: ``package.json`` ``scripts.build:native`` names the canonical
+  wrapper, whose plan carries ``--features default-embedder``.
 - AC-FIX1-8: ``release.yml`` build-python's maturin-action ``args:``
   carries an explicit ``--features pyo3/extension-module,default-embedder``
   list (not pyproject discovery), and does NOT carry ``test-hooks``.
@@ -25,6 +25,7 @@ the ``verify-release`` job) covers workflow schema validity.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -73,15 +74,16 @@ def test_pyproject_excludes_test_hooks() -> None:
 
 def test_package_json_build_native_has_default_embedder_feature() -> None:
     """AC-FIX1-7 (and transitively AC-FIX1-9): ``scripts.build:native``
-    must include ``--features default-embedder`` so the shipped .node
+    must resolve to ``--features default-embedder`` so the shipped .node
     honours ``useDefaultEmbedder: true``."""
 
     data = json.loads(PACKAGE_JSON.read_text(encoding="utf-8"))
     build_native = data.get("scripts", {}).get("build:native", "")
-    assert "--features default-embedder" in build_native, (
-        f"package.json scripts.build:native ({build_native!r}) is missing "
-        f"'--features default-embedder'; published .node will raise "
-        f"EmbedderNotConfigured on useDefaultEmbedder: true."
+    assert build_native == "node scripts/build-native.mjs"
+    wrapper = (PACKAGE_JSON.parent / "scripts/build-native.mjs").read_text(encoding="utf-8")
+    assert re.search(r'"--features"\s*,\s*"default-embedder"', wrapper), (
+        "canonical build:native wrapper is missing the default-embedder feature; "
+        "the published .node would raise EmbedderNotConfigured on useDefaultEmbedder: true"
     )
 
 

@@ -48,3 +48,7 @@ type fathomdb_engine::Thing::Error
 
 Exact duplicate lines must still fail closed; distinct signatures sharing a
 display path require deterministic disambiguation.
+
+The comparator now keys row entries by kind, complete path, and a digest of the
+normalized signature. The focused suite returned GREEN while its exact-copy
+duplicate arm continued to reject ambiguity.

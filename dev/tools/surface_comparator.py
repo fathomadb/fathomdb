@@ -148,11 +148,14 @@ def _entry(path: str, kind: str, signature: str) -> dict[str, str]:
 
 def _unique(entries: Iterable[dict[str, str]], row: str) -> list[dict[str, str]]:
     ordered = sorted(entries, key=lambda item: (item["path"], item["kind"], item["signature"]))
-    seen: set[tuple[str, str]] = set()
+    seen: set[tuple[str, str, str]] = set()
     for item in ordered:
-        key = (item["path"], item["kind"])
+        key = (item["path"], item["kind"], item["signature"])
         if key in seen:
-            raise SurfaceError(f"duplicate normalized key in {row}: {item['kind']} {item['path']}")
+            raise SurfaceError(
+                f"duplicate normalized entry in {row}: {item['kind']} "
+                f"{item['path']} {item['signature']}"
+            )
         seen.add(key)
     return ordered
 
@@ -428,7 +431,8 @@ def _row_map(manifest: dict[str, Any]) -> dict[str, dict[str, dict[str, str]]]:
                 isinstance(item.get(field), str) for field in ("path", "kind", "signature")
             ):
                 raise SurfaceError(f"malformed entry in row {row_id}")
-            key = f"{item['kind']}:{item['path']}"
+            signature_digest = hashlib.sha256(item["signature"].encode()).hexdigest()
+            key = f"{item['kind']}:{item['path']}:{signature_digest}"
             if key in mapped:
                 raise SurfaceError(f"duplicate manifest key in {row_id}: {key}")
             mapped[key] = item

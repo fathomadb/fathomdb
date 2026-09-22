@@ -58,3 +58,7 @@ two distinct trait impls may expose byte-identical associated method lines. A
 fixture with `Debug::fmt` and `Display::fmt` reproduced the remaining exact-line
 collision. The adapter must bind associated items to their preceding complete
 impl signature, not collapse them or accept context-free duplicates.
+
+The Rust adapter now carries the complete preceding impl signature into each
+associated function/type signature. The trait-qualified fixture and the full
+mutation suite returned GREEN; a context-free exact duplicate still fails.

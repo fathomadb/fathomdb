@@ -164,10 +164,15 @@ def parse_rust_public_api(text: str, row: str) -> list[dict[str, str]]:
     """Normalize complete cargo-public-api paths and signatures."""
 
     entries: list[dict[str, str]] = []
+    current_impl: str | None = None
     for raw in text.splitlines():
         line = raw.strip()
         if not line:
             continue
+        if line.startswith("impl "):
+            current_impl = _normalize_space(line)
+        elif re.match(r"pub\s+(?:struct|enum|trait|union|mod)\s+", line):
+            current_impl = None
         match = re.search(
             r"\b(struct|enum|trait|union|type|constant|static|macro|mod|fn)\s+"
             r"([A-Za-z_][A-Za-z0-9_:]*(?:![A-Za-z0-9_]*)?)",
@@ -179,7 +184,10 @@ def parse_rust_public_api(text: str, row: str) -> list[dict[str, str]]:
         else:
             kind = match.group(1)
             path = match.group(2)
-        entries.append(_entry(path, kind, line))
+        signature = line
+        if current_impl is not None and path.count("::") >= 2 and kind in {"fn", "type", "constant"}:
+            signature = f"{current_impl} => {line}"
+        entries.append(_entry(path, kind, signature))
     if not entries:
         raise SurfaceError(f"{row} produced no public API entries")
     return _unique(entries, row)

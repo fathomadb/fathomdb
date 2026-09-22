@@ -1,7 +1,8 @@
 ---
 title: FathomDB 0.8.27 Slice 30 - design review
-status: FINDINGS_RESOLVED_AWAITING_REREVIEW
+status: APPROVED
 reviewed_commit: cf429bc4
+rereviewed_commit: d6e5acd2
 ---
 
 # Slice 30 design review
@@ -19,3 +20,5 @@ The independent review rejected the first design with one P1 and one P2.
   records the later baseline-tracking commit separately in status.
 
 No scope was added beyond real surfaces already assigned to Slice 30.
+
+Independent rereview approved `d6e5acd2` with no remaining material finding.

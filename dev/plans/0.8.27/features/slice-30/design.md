@@ -48,7 +48,8 @@ entries; the result reports both source SHAs and whether they are identical.
   methods, and class attributes). Moving a definition behind a re-export or
   editing a body compares equal; a public name or signature change does not.
   Each registration entry carries every enclosing `#[cfg(...)]` gate
-  (statement or block form), so gating or un-gating a registration is a diff. Stub class entries include complete base and metaclass headers. When
+  (statement, bare block, or gated item such as `fn`/`mod`/`impl` whose body
+  contains it), so gating or un-gating a registration is a diff. Stub class entries include complete base and metaclass headers. When
   runtime native introspection is available from a clean
   artifact it may add evidence, but an editable worktree install is forbidden
   and unavailability is not a pass.
@@ -63,7 +64,9 @@ entries; the result reports both source SHAs and whether they are identical.
   relative `export *` and `export { … } from` re-exports into the referenced
   emitted `.d.ts` declarations, keyed by exported name, so a declaration moved
   into a re-exported module compares equal and an unresolved re-export fails
-  closed. Capture supported
+  closed. Both declaration rows strip `//` and `/* */` comments outside string
+  literals before splitting: documentation is not surface, and braces in
+  comments must not affect statement boundaries. Capture supported
   package-root/subpath entrypoints from package metadata and corresponding
   generated runtime export keys without treating private source module names
   as contract. Existing test-hook leak suites remain the owner for the debug

@@ -35,3 +35,10 @@ rejection, and same-directory atomic replacement all passed focused review.
 
 No runtime product, schema, API, package-root, feature-gate, transaction, or
 locking behavior changed.
+
+## Adversarial review addendum
+
+This record verifies the 12-row tool at `b102bceb`. The comparator and baseline
+were subsequently changed by adversarial-review FIX-1/FIX-2 (see `status.md`);
+that review is the reviewer of record for those changes and the 13-row
+baseline `b54a01cc486c…` captured at `58bc8eb4`.

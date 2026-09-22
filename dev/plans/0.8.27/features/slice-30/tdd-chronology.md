@@ -152,3 +152,12 @@ returned early under the recorded `FATHOMDB_SKIP_NETWORK_TESTS=1` condition.
   drift rejection. Failed before implementation.
 - GREEN `4ce45c51`: comparator changes; focused contract passes.
 - Baseline recaptured at `4ce45c518789108a9fcc1da35fda4c9b74f19aff`: `24cc30a01539eddc7515072a11c09b45fb9077b2aa34a77b1ed8e7032f4cf3dd`.
+
+## Adversarial review FIX-2
+
+- RED `95441a30`: item-scoped cfg gate, comment-only declaration edits, brace-in-comment,
+  and URL string-literal arms failed before implementation (duplicate
+  ungated `add_class` compared equal).
+- GREEN `58bc8eb4`: cfg blocks open on gated items; declaration comments
+  stripped outside string literals.
+- Two byte-identical captures at `58bc8eb4`: `b54a01cc486c4d1755297196831f5490d0311237e12ca6f40d37c03af1b3a1b4`.

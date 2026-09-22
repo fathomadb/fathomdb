@@ -1,14 +1,14 @@
 ---
 title: FathomDB 0.8.27 Slice 30 - refactor navigation inventory
 status: REVIEWED_BASELINE
-source_sha: 4ce45c518789108a9fcc1da35fda4c9b74f19aff
+source_sha: 58bc8eb4836f6f0f52b40b21befaea87a490b9fa
 ---
 
 # Slice 30 refactor navigation inventory
 
 This human navigation record describes the clean source commit named above.
 The complete machine surface is `baseline.json` (SHA-256
-`24cc30a01539eddc7515072a11c09b45fb9077b2aa34a77b1ed8e7032f4cf3dd`).
+`b54a01cc486c4d1755297196831f5490d0311237e12ca6f40d37c03af1b3a1b4`).
 Line counts are advisory attention signals only. They are not movement targets,
 correctness gates, or permission to split a settled boundary.
 

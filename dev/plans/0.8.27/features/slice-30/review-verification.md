@@ -31,3 +31,10 @@ recaptured baseline recorded in `status.md`).
 It is 10,206,103 bytes and 212,596 lines; all row counts matched the status
 record. Verifier-created capture, cache, and log output was removed and Git
 remained clean.
+
+## Adversarial review addendum
+
+This record verifies the 12-row tool at `b102bceb`. The comparator and baseline
+were subsequently changed by adversarial-review FIX-1/FIX-2 (see `status.md`);
+that review is the reviewer of record for those changes and the 13-row
+baseline `b54a01cc486c…` captured at `58bc8eb4`.

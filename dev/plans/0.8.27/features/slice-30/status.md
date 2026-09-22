@@ -2,7 +2,7 @@
 title: FathomDB 0.8.27 Slice 30 - implementation status
 status: COMPLETE
 implemented_on: 2026-09-22
-baseline_source_commit: 4ce45c518789108a9fcc1da35fda4c9b74f19aff
+baseline_source_commit: 58bc8eb4836f6f0f52b40b21befaea87a490b9fa
 baseline_tracking_commit: d80a66236ca9dc0dd6456e2a0d5322c3722d364c
 closeout_commit: 4129a5b013265f4672ab1e4ae8ed3dd5cb8cd89f
 ---
@@ -115,3 +115,17 @@ it differed only in `row_identities` metadata, the three cfg-gated
 registrations, the new 1,131-entry wrapper row, and the TypeScript row
 (208 entries: +62 resolved declarations, −3 opaque re-export statements).
 All Rust, NAPI, stub, export, and package rows compared equal.
+
+## Adversarial review FIX-2 (Phase 1)
+
+The re-review closed P1-1..P1-5 and found cfg gates on enclosing items not
+propagated, JSDoc/`///` comments embedded in declaration signatures (with
+brace-bearing comments able to shift statement boundaries), stale closeout
+receipts, and a stale plan requirement table. RED `95441a30` and GREEN `58bc8eb4` fixed the adapters. Two clean Node `v25.9.0` captures of
+`58bc8eb4836f6f0f52b40b21befaea87a490b9fa` were byte-identical, SHA-256 `b54a01cc486c4d1755297196831f5490d0311237e12ca6f40d37c03af1b3a1b4`, 10,397,378 bytes and
+218,556 lines (AC27-30A). Against the FIX-1 baseline `24cc30a01539…` the only
+differences were 22 TypeScript and 22 NAPI entries whose signatures lost their
+comments. `plan.md` R27-30B/AC27-30C now name every capture arm. The
+adversarial reviewer is the reviewer of record for the FIX-1/FIX-2 diff; the
+earlier `code-review.md`/`review-verification.md` PASS records cover the
+12-row tool at `b102bceb` only.

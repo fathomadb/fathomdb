@@ -48,3 +48,12 @@ release-branch completion must not be mislabeled as an `origin/main` landing.
 active release state with an explicit non-main claim. The closeout then added
 the three required generated pointers and advanced the single writer to Slice
 20; the release-state, orientation, and pipefail suites passed.
+
+## Final candidate verification
+
+Closeout `ee1b0fbe99f7592b6ed3af061a4d11934ad3b0df` passed the unchanged
+capable-executor `agent-verify`: strict security reported zero violations,
+blockers, or downgrades, and 118/119 registered suites passed. The sole skip was
+the documented TypeScript suite because `src/ts/node_modules` was absent; no
+suite was excluded. Independent focused verification passed at the same clean
+commit.

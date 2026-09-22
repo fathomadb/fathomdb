@@ -1,8 +1,9 @@
 ---
 title: FathomDB 0.8.27 Slice 10 - implementation status
-status: VERIFYING
+status: COMPLETE
 completed_on: 2026-09-21
 implementation_candidate: 3097d191511d81a221b038ccd2e14f074dcafa6d
+closeout_commit: ee1b0fbe99f7592b6ed3af061a4d11934ad3b0df
 ---
 
 # Slice 10 implementation status
@@ -29,10 +30,16 @@ or publication changed.
 
 Focused preparation, public/platform, dependency, workflow, security,
 Markdown, strict MkDocs, preflight, release-state, orientation, and pipefail
-checks pass. Canonical and independent final-candidate verification are in
-progress.
+checks pass. Independent verification passed at clean closeout `ee1b0fbe`.
+The canonical capable-executor gate passed strict security 0/0/0 and 118/119
+registered suites; TypeScript was the sole documented environment skip because
+`src/ts/node_modules` was absent, and no suite was excluded.
 
 No branch or worktree was created. The user-provided `release/0.8.27` worktree
 is retained for a separately authorized next slice. The temporary `.venv`
-symlink used only to expose the primary checkout's non-editable verification
-environment will be removed after the final gate.
+link was replaced by a worktree-owned non-editable install for exact-candidate
+Python verification, then removed after the final gate.
+
+R27-10A through R27-10E are satisfied. Slice 10 is complete on
+`release/0.8.27`; Slice 20, later slices, tags, registries, and publication
+remain separately gated.

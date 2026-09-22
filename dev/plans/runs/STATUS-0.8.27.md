@@ -51,9 +51,12 @@ There are <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->TW
 
 Slice 10 records committed RED/GREEN chronology, an independent design-review
 PASS, an independent code/security review PASS after one bounded correction
-cycle, focused public/platform/dependency/workflow/security checks, and the
-canonical capable-executor gate. Slice 30 retains comparator requalification
-and baseline capture; Slice 150 retains package/platform qualification.
+cycle, independent focused verification at `ee1b0fbe`, and the canonical
+capable-executor gate with strict security 0/0/0 and 118/119 registered suites
+passing. The sole documented skip was TypeScript because its dependencies were
+not installed; no suite was excluded. Slice 30 retains comparator
+requalification and baseline capture; Slice 150 retains package/platform
+qualification.
 
 ## Boundaries
 

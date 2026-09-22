@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 30 - surface comparator design
-status: PROPOSED
+status: IMPLEMENTED
 target_release: 0.8.27
 ---
 
@@ -18,8 +18,11 @@ versions, target, and ordered feature-row identities. Capture runs from the
 clean pre-baseline implementation commit and fails if the tree is dirty or
 `HEAD` differs from the recorded source. The later commit that first tracks the
 baseline is recorded separately in slice status so the manifest never falsely
-claims to describe its own later commit. Comparison fails closed on metadata
-or row mismatch and reports added, removed, and changed entries.
+claims to describe its own later commit. Comparison validates each manifest's
+full provenance SHA but excludes that one field from semantic equality: a
+later candidate must be comparable to the immutable baseline. Every other
+metadata or row mismatch fails closed and reports added, removed, and changed
+entries; the result reports both source SHAs and whether they are identical.
 
 ## Capture rows
 
@@ -33,9 +36,11 @@ or row mismatch and reports added, removed, and changed entries.
   `rust-engine-operator-test-hooks` (same plus `--features
   operator,test-hooks`). Normalize complete public paths and signatures so
   re-export changes and items gated by both engine features remain visible.
-- **Python:** parse the real package export declarations, PyO3 module
-  registration calls, and `_fathomdb.pyi` declarations as three independently
-  named rows. When runtime native introspection is available from a clean
+- **Python:** parse the real package export declarations, every PyO3 module
+  class/function registration plus literal `m.add` alias/exception
+  registration, and `_fathomdb.pyi` declarations as three independently named
+  rows. Stub class entries include complete base and metaclass headers. When
+  runtime native introspection is available from a clean
   artifact it may add evidence, but an editable worktree install is forbidden
   and unavailability is not a pass.
 - **NAPI/TypeScript:** regenerate the production NAPI declaration with
@@ -48,6 +53,8 @@ or row mismatch and reports added, removed, and changed entries.
   generated runtime export keys without treating private source module names
   as contract. Existing test-hook leak suites remain the owner for the debug
   artifact; Slice 30 does not make a debug NAPI artifact a published surface.
+  Capture requires the supported pinned Node `v25.9.0`, not an arbitrary
+  runtime that happens to satisfy declaration generation.
 
 Adapters emit a common ordered structure of row name, symbol path, kind, and
 normalized signature/value. They do not embed an expected symbol allowlist;
@@ -58,15 +65,20 @@ the reviewed baseline is the sole full-surface expectation.
 Fixture tests copy minimal real-shaped inputs and apply one controlled mutation
 per required arm: Rust add, Rust remove, re-export change, an
 operator-plus-test-hooks-only Rust change, Python registration removal, Python
-stub removal, NAPI declaration change, TypeScript export or declaration change,
-and package export/path change. Each must produce the specific row-level
-difference while an unchanged control compares equal. Metadata fixtures also
-prove that a wrong row identity cannot reuse another row's surface.
+`m.add` exception removal, Python stub removal, Python exception-base change,
+NAPI declaration change, TypeScript export or declaration change, and package
+export/path change. Each must produce the specific row-level difference while
+an unchanged control compares equal. Metadata fixtures also prove that a wrong
+row identity cannot reuse another row's surface. A second valid capture SHA is
+an unchanged semantic control, while a malformed provenance SHA is rejected.
 
 The comparator never rewrites the approved baseline during comparison. Capture
-is an explicit operation to a caller-selected output, and replacing the tracked
-baseline requires human review. Slices 40-130 consume comparison only; Slice
-150 owns any authorized rebaseline or full installed-package qualification.
+is an explicit operation to a caller-selected output; path and inode identity
+checks reject direct and hardlink aliases of the tracked baseline. Output is
+written to a same-directory temporary file, flushed, and atomically replaced.
+Replacing the tracked baseline requires human review. Slices 40-130 consume
+comparison only; Slice 150 owns any authorized rebaseline or full
+installed-package qualification.
 
 ## Advisory inventory
 
@@ -77,7 +89,8 @@ No threshold on file size, module count, or movement batch size becomes a test.
 
 ## Failure and resource behavior
 
-Missing tools, failed compiler/declaration generation, ambiguous parsing,
+Missing executables, non-exact pinned tool versions, failed
+compiler/declaration generation, ambiguous parsing,
 duplicate normalized keys, unsupported feature combinations, dirty generated
 output, and metadata mismatch are errors. The tool preserves subprocess exit
 status and diagnostics. Heavy capture begins only after the 100 GB check and
@@ -86,3 +99,4 @@ uses checkout-owned `.cache/0.8.27-slice30` plus
 
 This is repository tooling and evidence only. It changes no runtime behavior,
 public API, schema, feature gate, package root, transaction boundary, or ADR.
+Its focused non-vacuity test is registered in `scripts/agent-test.sh`.

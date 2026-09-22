@@ -72,7 +72,7 @@ normalized keys remains invalid and comparison rejects it.
 The adapter now performs that idempotent collapse. The repeated-pair fixture,
 all mutation arms, and the duplicate-manifest rejection returned GREEN.
 
-## Real baseline capture
+## Initial baseline capture (superseded by review)
 
 Clean implementation commit `3b726cba1700e55486d3b2fbb6a922f439f25d54`
 was captured twice with `cargo-public-api 0.52.0`,
@@ -89,3 +89,57 @@ Byte comparison and semantic comparison both passed; the semantic result was
 used the exact `npm run build:native` command and `default-embedder`. The only
 environmental exception was the sandbox denying napi-rs `/bin/sh` spawn; the
 unchanged command succeeded through the approved unconfined route.
+
+## Code-review RED and GREEN
+
+The initial code review identified five correctness gaps. RED commit
+`f621c9cd` added focused failures for:
+
+- equal surfaces captured from distinct valid Git SHAs;
+- invalid provenance rejection independent of semantic equality;
+- removal of the PyO3 `m.add("StorageError", ...)` exception alias;
+- a native-stub `StorageError` base-class mutation;
+- a missing executable becoming a typed `ComparatorError`;
+- a near-match `cargo-public-api 10.52.0` version being rejected;
+- a hardlink alias being unable to rewrite the reviewed baseline;
+- atomic-write failure preserving the prior output and removing its temporary
+  file; and
+- registration of the focused comparator test in `scripts/agent-test.sh`.
+
+The valid RED command remained:
+
+```text
+python3 scripts/tests/test_slice30_surface_comparator.py
+```
+
+It exited 1 because the comparator treated the two valid capture SHAs as a
+semantic metadata difference. GREEN commit `add4f3f4` separated provenance
+validation/reporting from semantic equality; completed the Python adapters;
+pinned Node `v25.9.0`; made tool-version checks exact; typed missing-command
+errors; added inode-safe output protection and atomic replacement; and wired
+the focused test into the canonical repository test harness. The focused
+suite and Python compilation then passed.
+
+## Corrected baseline and current-candidate proof
+
+Clean GREEN source commit `add4f3f4f066f0c4b1b47d7a91c1a4f979eba6bf`
+was captured twice with `cargo-public-api 0.52.0`,
+`nightly-2026-04-24`, Rust nightly `1.97.0-nightly (36ba2c771
+2026-04-23)`, Node `v25.9.0`, and TypeScript `6.0.3` on
+`x86_64-unknown-linux-gnu`. Both files were byte-identical at SHA-256:
+
+```text
+7c76bd0d409cecc5dc073e29baf7806b329379bd9475c7ab138dda12cde5cdf2
+```
+
+Tracking commit `d80a66236ca9dc0dd6456e2a0d5322c3722d364c` then produced a
+fresh candidate with SHA-256
+`c78b89da8c40be4821c9e25fa53dd6a834de79ef4b7d917079a35d0c512c5413`.
+The comparator returned `equal: true`, empty metadata and row diffs, and the
+two distinct validated provenance SHAs.
+
+The Rust re-export/governed-surface controls passed 4 tests without features
+and 5 with `operator`. The TypeScript release-surface route was rerun under the
+pinned Node with `RELEASE_SURFACE_TESTS=1`; its production no-test-hook check
+executed and passed. TAP reported 2/2, while the default-embedder open branch
+returned early under the recorded `FATHOMDB_SKIP_NETWORK_TESTS=1` condition.

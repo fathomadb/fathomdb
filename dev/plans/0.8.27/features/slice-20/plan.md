@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 20 - correction-safe source erasure plan
-status: APPROVED_FOR_IMPLEMENTATION
+status: COMPLETE
 target_release: 0.8.27
 observed_on: 2026-09-21
 ---

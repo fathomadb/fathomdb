@@ -108,10 +108,11 @@ Focused behavior owners are:
 - hooks: default targets `slice50_evidence`, `slice35_frozen_read_races`,
   `slice35_after_validation_races`, `slice45_pagination`,
   `slice15e_prekn_filterable`, and `slice55_explanation_hook_surface`;
-  `test-hooks` targets `slice20_graph_evidence`, `slice55_explanation`, and
-  `slice60_fix2_hooks`; the focused Slice-72 library rendezvous contract test
-  under `slice72-test-hooks`; plus compile checks for `slice72-test-hooks` and
-  `operator,test-hooks`.
+  `test-hooks` targets `slice20_graph_evidence`, `slice55_explanation`,
+  `slice60_fix2_hooks`, `slice40_projection_generation_races`, and
+  `slice40_projection_completion`; the focused Slice-72 library rendezvous
+  contract test under `slice72-test-hooks`; plus compile checks for
+  `slice72-test-hooks` and `operator,test-hooks`.
 
 The default, operator, test-hooks, and operator+test-hooks Rust rows are
 compared independently. Conflicting accelerator feature combinations are not

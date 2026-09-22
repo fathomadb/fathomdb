@@ -14,8 +14,7 @@ pub struct CorruptionDetail {
 
 /// Open-path corruption category.
 ///
-/// 0.6.0 emits exactly the four members below; per
-/// `dev/design/errors.md` § Engine.open corruption table, doctor-only
+/// Per `dev/design/errors.md` § Engine.open corruption table, doctor-only
 /// finding codes are not represented here.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CorruptionKind {

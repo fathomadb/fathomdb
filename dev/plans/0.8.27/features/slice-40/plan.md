@@ -2,7 +2,7 @@
 title: FathomDB 0.8.27 Slice 40 - engine foundation and test seams
 status: APPROVED_FOR_IMPLEMENTATION
 target_release: 0.8.27
-baseline_entry_sha: 5f5c17984f22eab56573885f07c66c1e892e3820
+baseline_entry_sha: 5f5c1798a3cffc1416467fd707587954ea75d9c6
 ---
 
 # Slice 40 plan
@@ -111,7 +111,8 @@ Affected hook verification is deliberately bounded:
   `slice15e_prekn_filterable`, and
   `slice55_explanation_hook_surface`;
 - `--features test-hooks`: `slice20_graph_evidence`, `slice55_explanation`,
-  and `slice60_fix2_hooks`;
+  `slice60_fix2_hooks`, `slice40_projection_generation_races`, and
+  `slice40_projection_completion`;
 - `cargo check -p fathomdb-engine --features slice72-test-hooks` plus
   `cargo test -p fathomdb-engine --lib --features slice72-test-hooks
   contract_fixture_records_actual_forward_overlap`; and

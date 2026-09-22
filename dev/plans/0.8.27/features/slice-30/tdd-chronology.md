@@ -143,3 +143,12 @@ and 5 with `operator`. The TypeScript release-surface route was rerun under the
 pinned Node with `RELEASE_SURFACE_TESTS=1`; its production no-test-hook check
 executed and passed. TAP reported 2/2, while the default-embedder open branch
 returned early under the recorded `FATHOMDB_SKIP_NETWORK_TESTS=1` condition.
+
+## Adversarial review FIX-1
+
+- RED `eb54ca29`: re-exported TypeScript mutations, moved-declaration equality,
+  unresolved re-export failure, Python wrapper signature/removal diffs with
+  body-edit and moved-definition equality, cfg gating diff, and `build:native`
+  drift rejection. Failed before implementation.
+- GREEN `4ce45c51`: comparator changes; focused contract passes.
+- Baseline recaptured at `4ce45c518789108a9fcc1da35fda4c9b74f19aff`: `24cc30a01539eddc7515072a11c09b45fb9077b2aa34a77b1ed8e7032f4cf3dd`.

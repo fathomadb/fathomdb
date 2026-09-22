@@ -36,10 +36,19 @@ entries; the result reports both source SHAs and whether they are identical.
   `rust-engine-operator-test-hooks` (same plus `--features
   operator,test-hooks`). Normalize complete public paths and signatures so
   re-export changes and items gated by both engine features remain visible.
-- **Python:** parse the real package export declarations, every PyO3 module
-  class/function registration plus literal `m.add` alias/exception
-  registration, and `_fathomdb.pyi` declarations as three independently named
-  rows. Stub class entries include complete base and metaclass headers. When
+- **Python:** parse the real package export declarations, the resolved public
+  wrapper surface, every PyO3 module class/function registration plus literal
+  `m.add` alias/exception registration, and `_fathomdb.pyi` declarations as
+  four independently named rows. The `python-wrapper-declarations` row walks
+  the root package and every public (non-underscore) module, takes `__all__`
+  when declared and otherwise public definitions plus intra-package
+  re-imports, resolves each name through intra-package imports to its
+  definition, and records the public dotted path with a body-free signature
+  (decorators, parameters, return annotation; class headers, public/dunder
+  methods, and class attributes). Moving a definition behind a re-export or
+  editing a body compares equal; a public name or signature change does not.
+  Each registration entry carries every enclosing `#[cfg(...)]` gate
+  (statement or block form), so gating or un-gating a registration is a diff. Stub class entries include complete base and metaclass headers. When
   runtime native introspection is available from a clean
   artifact it may add evidence, but an editable worktree install is forbidden
   and unavailability is not a pass.
@@ -47,8 +56,14 @@ entries; the result reports both source SHAs and whether they are identical.
   `npm run build:native`, whose manifest expands to `napi build --platform
   --release --cargo-cwd ../rust/crates/fathomdb-napi --features
   default-embedder --js false`, and record that command/features as the
-  `napi-production` row identity. Parse that declaration and the TypeScript
-  compiler-emitted declaration surface separately. Capture supported
+  `napi-production` row identity; capture fails closed unless the
+  `package.json` `build:native` script equals that recorded expansion. Parse
+  that declaration and the TypeScript compiler-emitted declaration surface
+  separately. The TypeScript row starts at `dist/index.d.ts` and resolves
+  relative `export *` and `export { … } from` re-exports into the referenced
+  emitted `.d.ts` declarations, keyed by exported name, so a declaration moved
+  into a re-exported module compares equal and an unresolved re-export fails
+  closed. Capture supported
   package-root/subpath entrypoints from package metadata and corresponding
   generated runtime export keys without treating private source module names
   as contract. Existing test-hook leak suites remain the owner for the debug

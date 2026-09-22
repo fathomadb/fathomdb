@@ -2,7 +2,7 @@
 title: FathomDB 0.8.27 Slice 30 - implementation status
 status: COMPLETE
 implemented_on: 2026-09-22
-baseline_source_commit: add4f3f4f066f0c4b1b47d7a91c1a4f979eba6bf
+baseline_source_commit: 4ce45c518789108a9fcc1da35fda4c9b74f19aff
 baseline_tracking_commit: d80a66236ca9dc0dd6456e2a0d5322c3722d364c
 closeout_commit: 4129a5b013265f4672ab1e4ae8ed3dd5cb8cd89f
 ---
@@ -35,7 +35,8 @@ closeout_commit: 4129a5b013265f4672ab1e4ae8ed3dd5cb8cd89f
   `dev/acceptance.md`, feature gate, package root, or transaction/locking
   behavior changed.
 
-The baseline is 10,206,103 bytes and 212,596 pretty-printed JSON lines. Normal
+The original 12-row baseline was 10,206,103 bytes and 212,596 lines; the
+adversarial-review recapture below supersedes it. Normal
 hooks impose no repository large-file prohibition. Its size is intentional:
 the six complete Rust rows retain 41,411 explainable cargo-public-api entries,
 including blanket impl signatures, rather than opaque signature hashes. The
@@ -98,3 +99,19 @@ and the baseline hash, counts, size, and provenance matched this record.
 
 Slice 30 is complete on `release/0.8.27`. Slice 40 and all later slices, main
 integration, tags, registries, qualification, and publication remain separate.
+
+## Adversarial review FIX-1 (Phase 1)
+
+A requirements/design adversarial review found the TypeScript row blind to
+re-exported declarations (errors, `read`), no Python wrapper signature row,
+cfg-blind PyO3 registrations, an unchecked NAPI build identity, and a
+mistranscribed hash in `review-verification.md`. RED commit `eb54ca29` and
+GREEN commit `4ce45c51` added re-export resolution, the
+`python-wrapper-declarations` row, cfg-aware registration entries, and a
+fail-closed `build:native` identity check. A clean Node `v25.9.0` capture at
+`4ce45c518789108a9fcc1da35fda4c9b74f19aff` produced the 13-row baseline, SHA-256
+`24cc30a01539eddc7515072a11c09b45fb9077b2aa34a77b1ed8e7032f4cf3dd`, 10,431,950 bytes and 218,556 lines. Against the prior baseline
+it differed only in `row_identities` metadata, the three cfg-gated
+registrations, the new 1,131-entry wrapper row, and the TypeScript row
+(208 entries: +62 resolved declarations, −3 opaque re-export statements).
+All Rust, NAPI, stub, export, and package rows compared equal.

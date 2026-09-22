@@ -1,14 +1,14 @@
 ---
 title: FathomDB 0.8.27 Slice 30 - refactor navigation inventory
 status: REVIEWED_BASELINE
-source_sha: add4f3f4f066f0c4b1b47d7a91c1a4f979eba6bf
+source_sha: 4ce45c518789108a9fcc1da35fda4c9b74f19aff
 ---
 
 # Slice 30 refactor navigation inventory
 
 This human navigation record describes the clean source commit named above.
 The complete machine surface is `baseline.json` (SHA-256
-`7c76bd0d409cecc5dc073e29baf7806b329379bd9475c7ab138dda12cde5cdf2`).
+`24cc30a01539eddc7515072a11c09b45fb9077b2aa34a77b1ed8e7032f4cf3dd`).
 Line counts are advisory attention signals only. They are not movement targets,
 correctness gates, or permission to split a settled boundary.
 
@@ -19,8 +19,8 @@ correctness gates, or permission to split a settled boundary.
 | `src/rust/crates/fathomdb-engine/src/lib.rs` | 34,189 | Root `Engine`; runtime/open/write/search/close and projection worker implementation; public types/constants/functions; root re-exports from `actuation`, `data_plane_integrity`, `dependency_closure`, `dependency_trace`, `evidence`, `frozen_read`, `graph_expand`, `lifecycle`, `pagination`, and `projection_generation`; operator and test-hook sections. |
 | `src/rust/crates/fathomdb-py/src/lib.rs` | 5,943 | PyO3 mirror classes and conversion helpers, native `Engine`, free functions, error mapping, and the `_fathomdb` registration block. The baseline records 121 actual class, function, alias, and exception registrations independently from the stub. |
 | `src/rust/crates/fathomdb-napi/src/lib.rs` | 5,406 | NAPI data mirrors/conversions, native `Engine`, async task wrappers, free functions, and typed error conversion. The production declaration baseline contains 81 exports with `default-embedder` and no test-hook declaration. |
-| `src/ts/src/index.ts` | 4,439 | Public `Engine`, request/result and wire types, validation/mapping helpers, lifecycle/search/evidence/dependency APIs, error re-exports, and the `read` namespace re-export. Compiler output contains 149 declarations. |
-| `src/python/fathomdb/engine.py` | 2,846 | Public `Engine`; native/result conversion; graph, evidence, dependency-trace, frozen-read, validation, device, and explanation helpers. Package authority remains the 119-name literal `fathomdb.__all__`; the native stub has 538 class/member/function entries. |
+| `src/ts/src/index.ts` | 4,439 | Public `Engine`, request/result and wire types, validation/mapping helpers, lifecycle/search/evidence/dependency APIs, error re-exports, and the `read` namespace re-export. The re-export-resolved declaration row contains 208 entries. |
+| `src/python/fathomdb/engine.py` | 2,846 | Public `Engine`; native/result conversion; graph, evidence, dependency-trace, frozen-read, validation, device, and explanation helpers. Package authority remains the 119-name literal `fathomdb.__all__`; the resolved wrapper row has 1,131 public-path signature entries; the native stub has 538 class/member/function entries. |
 
 The Rust machine rows contain 164 facade-default, 198 facade-operator, 9,922
 engine-default, 10,462 engine-operator, 10,062 engine-test-hooks, and 10,603

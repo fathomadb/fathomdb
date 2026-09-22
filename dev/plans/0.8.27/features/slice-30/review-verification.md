@@ -25,7 +25,9 @@ default-embedder network branch explicitly returned early under
 `FATHOMDB_SKIP_NETWORK_TESTS=1`; the status record does not claim otherwise.
 
 The corrected baseline SHA-256 is
-`7c76bd0d35e039ff9562c1f52897c21b9854ceeb12a56e7525ccf13938e92a8d`.
+`7c76bd0d409cecc5dc073e29baf7806b329379bd9475c7ab138dda12cde5cdf2`
+(transcription corrected by the adversarial review; superseded by the
+recaptured baseline recorded in `status.md`).
 It is 10,206,103 bytes and 212,596 lines; all row counts matched the status
 record. Verifier-created capture, cache, and log output was removed and Git
 remained clean.

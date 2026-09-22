@@ -2,7 +2,7 @@
 title: FathomDB 0.8.27 Slice 30 - independent verification
 status: PASS
 target_release: 0.8.27
-candidate: b102bceb
+candidate: 2967593cc77af82acc6a3e1e50d03970c1a07705
 ---
 
 # Slice 30 independent verification
@@ -38,3 +38,29 @@ This record verifies the 12-row tool at `b102bceb`. The comparator and baseline
 were subsequently changed by adversarial-review FIX-1/FIX-2 (see `status.md`);
 that review is the reviewer of record for those changes and the 13-row
 baseline `b54a01cc486c…` captured at `58bc8eb4`.
+
+## Final whole-work verification
+
+Independent verification passed on clean `2967593c` for the remediated
+execution paths:
+
+| Gate | Result |
+| --- | --- |
+| Python artifact-gate contract | PASS; 26/26 focused checks |
+| Candidate receipt | PASS; clean HEAD, exact source-module path, nonce, and SHA-256 validated |
+| Surface comparator | PASS; clean capture compared equal with empty metadata and row diffs |
+| NAPI artifact hygiene | PASS; debug build followed by production build removed both test-hook declarations |
+| TypeScript Slice 55 | PASS; 16/16 and actual temporary directory removed |
+| Focused Ruff and TypeScript typecheck | PASS |
+
+The final receipt names candidate
+`6ba3be95cd043570da1deafbe4e2f78c878d8a87` and module SHA-256
+`2f6d0e2509d1d3b5928723d47a239ae9132ec210b1836fb76518f957a6c450b6`.
+The canonical gate at `2967593c` passed lint, typecheck, strict security
+0/0/0, Rust, TypeScript, executable NAPI, and 123 of 124 registered suites.
+The sole failure was the superseded packaging assertion; after the test-only
+`6ba3be95` correction, the full Python suite passed 1,533 tests with 27
+documented skips and the receipt validator passed. No unrelated full
+regression was repeated for that test-only change.
+
+Final independent verification verdict: **PASS**.

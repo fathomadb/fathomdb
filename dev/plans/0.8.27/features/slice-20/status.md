@@ -121,3 +121,19 @@ candidate, native module SHA-256
 `[dev]`/`[test]` extras, and a `.pth` entry for `src/python`); it was removed
 afterwards. Test-generated `src/ts/slice55-malformed-frozen-context*` files
 were removed; the worktree was clean.
+
+## Whole-work review artifact-gate correction
+
+The later whole-work Slice 20/30 review found that the earlier untracked source
+module could still shadow a freshly built wheel. The product fix remains
+`b455bb73`; the shared test gate is corrected at final candidate `6ba3be95`.
+It now builds a locked, non-editable wheel from clean HEAD in disposable
+scratch, atomically replaces the one source-tree extension, and requires a
+path-, digest-, candidate-, and nonce-bound receipt before Python tests.
+
+The final receipt validates candidate
+`6ba3be95cd043570da1deafbe4e2f78c878d8a87` and native-module SHA-256
+`2f6d0e2509d1d3b5928723d47a239ae9132ec210b1836fb76518f957a6c450b6`.
+The full Python suite passed 1,533 tests with 27 documented skips. This
+supersedes the earlier manual replacement as the durable prevention measure;
+it does not change Slice 20 runtime behavior.

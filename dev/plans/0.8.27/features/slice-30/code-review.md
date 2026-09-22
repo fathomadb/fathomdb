@@ -2,7 +2,7 @@
 title: FathomDB 0.8.27 Slice 30 - code review
 status: PASS
 target_release: 0.8.27
-reviewed_candidate: b102bceb
+reviewed_candidate: 2967593cc77af82acc6a3e1e50d03970c1a07705
 ---
 
 # Slice 30 code review
@@ -42,3 +42,29 @@ This record verifies the 12-row tool at `b102bceb`. The comparator and baseline
 were subsequently changed by adversarial-review FIX-1/FIX-2 (see `status.md`);
 that review is the reviewer of record for those changes and the 13-row
 baseline `b54a01cc486c…` captured at `58bc8eb4`.
+
+## Whole-work review and final verdict
+
+The external follow-up was expanded from the reported leftovers to the whole
+Slice 20/30 change set: plans, acceptance criteria, design, assigned
+functions, implementation, tests, baseline, records, and generated artifacts.
+It initially rejected the candidate for seven substantive gaps: stale Python
+native shadowing, debug NAPI declaration leakage, incorrect multiline cfg
+ownership, single-filesystem capacity checks, weak scratch ownership, a
+repository-relative Slice 55 fixture, and stale closeout evidence. Subsequent
+review rounds also rejected worktree-forbidden `maturin develop`, dirty-tree
+attestation, assertion-based receipt validation, and missing environment
+guards.
+
+RED/GREEN commits `87a4585d`/`def7d894`, `0e1185ba`/`d63b585a`, and
+`523b9427`/`2967593c` closed those findings. Independent code review returned
+PASS at clean `2967593c`: the Python gate builds a locked wheel in disposable
+scratch and validates a clean-HEAD, path-, digest-, and nonce-bound receipt;
+the NAPI production build sanitizes debug output and is exercised after a
+debug build; the comparator checks distinct cache and scratch devices; and
+the Slice 55 fixture cleans its actual temporary directory.
+
+Commit `6ba3be95` only corrected an older packaging assertion to follow the
+canonical native-build wrapper. The full Python suite then passed 1,533 tests
+with 27 documented skips. It does not alter the execution paths reviewed at
+`2967593c`. Final verdict: **PASS**, with no open Slice 20/30 code findings.

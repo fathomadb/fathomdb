@@ -205,3 +205,32 @@ guaranteed.
   preparation (the pre-existing generation test had created it unmarked).
 - Two byte-identical captures of `5142a504` with stale shared type-definition
   files present: `equal: true` against `7db3d883…`.
+
+## Whole-work external-review remediation
+
+- RED `87a4585d`: added failing contracts for stale Python native-module
+  provenance, NAPI debug-to-production leakage, multiline enclosing cfg,
+  cache/scratch capacity checks, scratch ownership, and Slice 55 cleanup.
+- GREEN `def7d894`: implemented the candidate build gate, hermetic NAPI
+  wrapper, comparator hardening, and real fixture cleanup.
+- `00a2c3e6`: tracked the resulting 13-row baseline captured from clean
+  `def7d894`.
+- RED `0e1185ba`: made artifact provenance executable rather than structural.
+- GREEN `d63b585a`: replaced editable Python builds with locked wheel
+  extraction, added a nonce-bound receipt, exercised debug-to-production NAPI
+  generation, and registered focused resource/cleanup checks.
+- RED `523b9427`: demonstrated dirty-candidate attestation, system-Python
+  fallback, and optimized-Python receipt-validation failures.
+- GREEN `2967593c`: required a clean candidate before and after the build,
+  replaced assertions with explicit validator failures, added environment
+  guards, and removed the unsafe manual recovery command.
+- `6ba3be95`: corrected the pre-existing packaging test to inspect the
+  canonical wrapper. This was test-only; the full Python suite passed 1,533
+  tests with 27 documented skips.
+
+The final tracked baseline has source `def7d894`, tracking commit `00a2c3e6`,
+13 rows, SHA-256
+`06212f662b2a3897447fe294d65d87ae93255b9b511d9fdd57eab3cf8490a723`,
+10,678,883 bytes, and 218,557 lines. Two `d63b585a` captures were
+byte-identical (`d563d517…`); a clean `2967593c` capture (`4dcd21bb…`)
+compared equal with empty metadata and row diffs.

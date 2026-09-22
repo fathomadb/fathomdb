@@ -2,9 +2,9 @@
 title: FathomDB 0.8.27 Slice 30 - implementation status
 status: COMPLETE
 implemented_on: 2026-09-22
-baseline_source_commit: df8017463ecce6281a4c989a2d1bd01118e2025e
-baseline_tracking_commit: 346ed5eb95ec1cb168e4a9ad9a0cd951b839cda7
-implementation_candidate: 6adb2230a7d5717331383416cb2709678b319f1a
+baseline_source_commit: def7d894d6439c4dd223d972963613c097d27eea
+baseline_tracking_commit: 00a2c3e674a74e310f755f87566b667f62cbfcbd
+implementation_candidate: 6ba3be95cd043570da1deafbe4e2f78c878d8a87
 closeout_commit: edbfe5274efe043c269a683ba1593ae73e8b36cb
 ---
 
@@ -189,3 +189,53 @@ were removed; the worktree was clean.
 Slice 30's final test-only commit `6adb2230` (P3-10 owned-cache assertion)
 follows the gate commit; the focused comparator suite and Ruff passed on it,
 and a neutered unscoped `cargo clean` fails that suite.
+
+## Whole-work external review remediation
+
+The 2026-09-22 whole-work review supersedes the earlier closeout claims where
+they conflict. It reviewed the complete Slice 20/30 diff, plans, assigned
+functions, allocated draft items, baseline, tests, records, and ignored build
+artifacts—not only the three reported leftovers.
+
+The review found and closed seven implementation/evidence gaps: stale Python
+native shadowing; debug NAPI declaration leakage; multiline enclosing-item cfg
+attribution; capacity checks on only one filesystem; weak scratch ownership;
+the repository-relative Slice 55 fixture; and stale closeout records/cleanup.
+Follow-up independent review also closed worktree-forbidden `maturin develop`,
+dirty-candidate receipt labeling, optimized-Python assertion elision, and
+missing environment guards.
+
+TDD chronology for this remediation is RED `87a4585d`, GREEN `def7d894`,
+baseline tracking `00a2c3e6`; RED `0e1185ba`, GREEN `d63b585a`; RED
+`523b9427`, GREEN `2967593c`; and the wrapper-aware packaging assertion
+`6ba3be95`. The canonical Python gate now builds a locked non-editable wheel in
+disposable scratch, atomically installs its one extension, and validates a
+nonce-bound receipt against clean HEAD before and after the build. Final
+receipt: candidate `6ba3be95cd043570da1deafbe4e2f78c878d8a87`, module SHA-256
+`2f6d0e2509d1d3b5928723d47a239ae9132ec210b1836fb76518f957a6c450b6`.
+
+The reviewed baseline has 13 rows, source `def7d894d6439c4dd223d972963613c097d27eea`,
+tracking commit `00a2c3e674a74e310f755f87566b667f62cbfcbd`, SHA-256
+`06212f662b2a3897447fe294d65d87ae93255b9b511d9fdd57eab3cf8490a723`,
+10,678,883 bytes, and 218,557 lines. Two captures of `d63b585a` were
+byte-identical (`d563d517…`); a later clean capture of `2967593c` had SHA-256
+`4dcd21bb…` and compared equal with empty metadata and row diffs.
+
+The executable NAPI regression ran a debug build followed by ordinary
+`npm run build:native` and proved both panic test hooks disappeared from
+`index.d.ts`. Independent design review, code review, and focused verification
+all returned PASS at `2967593c`; the final test-only packaging correction does
+not change those reviewed execution paths.
+
+The canonical gate at `2967593c` passed lint, typecheck, strict security
+(0 violations, 0 blockers, 0 downgrades), Rust, TypeScript, executable NAPI,
+and 123 of 124 registered suites. Its sole failure was the older Python
+assertion that expected feature flags directly in `package.json`; after
+`6ba3be95` made that assertion wrapper-aware, the full Python suite passed
+1,533 with 27 documented skips and the final candidate receipt validated.
+No unrelated regression was rerun for that test-only correction.
+
+Closeout removed the temporary `.venv`, Slice 30 capture cache and files,
+candidate receipt, source-tree Python extension, generated NAPI module and
+declarations, and review scratch directories. The user-provided durable
+`release/0.8.27` worktree and branch remain in place for the release.

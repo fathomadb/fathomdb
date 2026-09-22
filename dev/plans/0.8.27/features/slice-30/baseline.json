@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "capture_source_sha": "df8017463ecce6281a4c989a2d1bd01118e2025e",
+    "capture_source_sha": "def7d894d6439c4dd223d972963613c097d27eea",
     "row_identities": [
       {
         "args": [
@@ -97,7 +97,8 @@
           "default-embedder"
         ],
         "id": "napi-production",
-        "kind": "napi"
+        "kind": "napi",
+        "script": "node scripts/build-native.mjs"
       },
       {
         "command": "npm exec -- tsc -p tsconfig.build.json --declaration --emitDeclarationOnly --outDir /tmp/fathomdb-0.8.27-slice30/ts-declarations",

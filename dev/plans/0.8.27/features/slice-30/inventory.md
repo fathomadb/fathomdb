@@ -1,14 +1,14 @@
 ---
 title: FathomDB 0.8.27 Slice 30 - refactor navigation inventory
 status: REVIEWED_BASELINE
-source_sha: df8017463ecce6281a4c989a2d1bd01118e2025e
+source_sha: def7d894d6439c4dd223d972963613c097d27eea
 ---
 
 # Slice 30 refactor navigation inventory
 
 This human navigation record describes the clean source commit named above.
 The complete machine surface is `baseline.json` (SHA-256
-`7db3d883f99940aea69c58079e64d6794be459ef9ab76561106a314e61900384`).
+`06212f662b2a3897447fe294d65d87ae93255b9b511d9fdd57eab3cf8490a723`).
 Line counts are advisory attention signals only. They are not movement targets,
 correctness gates, or permission to split a settled boundary.
 
@@ -71,9 +71,10 @@ while their complete impl context remains part of associated signatures.
   field visibility, or transaction authority is implied.
 - Generated Rust blanket impls make the baseline large by design. They protect
   real signature/re-export drift and are not copied expected-symbol lists.
-- The production NAPI row is generated only with `default-embedder`. Debug
-  NAPI/test-hook artifacts remain owned by existing leak tests and are not a
-  published surface.
+- The production NAPI row is generated only with `default-embedder` through
+  the canonical hermetic wrapper. It targets a clean release build with a
+  private temporary directory, so a preceding debug build cannot leak
+  test-hook declarations into the published surface.
 - Runtime native Python introspection was not used: editable installation from
   the worktree is forbidden. Registration source, the hand-maintained native
   stub, and package exports are separate required evidence, not substitutes.

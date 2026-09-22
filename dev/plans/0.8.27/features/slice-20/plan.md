@@ -86,6 +86,9 @@ RED:
    survivors, and independent reopen/raw-state inspection. Add one
    correction-then-`purge` case for the corrected logical id.
 2. Add a real pre-commit refusal case and a post-commit incomplete/retry case.
+   Dependency-shape property/state-machine tests for the corrected erasure and
+   purge transactions are deferred to Slice 50 (`ENGINE-ERASURE`), which owns
+   the moved erasure code; Slice 20 carries example-based regressions only.
 3. Add one Python and one TypeScript corrected-success smoke plus one typed
    incomplete-result smoke per binding.
 4. Run the focused tests against the unmodified implementation and retain the

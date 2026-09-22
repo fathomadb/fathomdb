@@ -21,6 +21,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { createHash } from "node:crypto";
 import { unlinkSync } from "node:fs";
 
 import { Engine } from "../src/index.js";
@@ -91,7 +92,36 @@ test("eraseSource succeeds after correction and keeps requested-bucket counts", 
         },
       ],
     });
-    await engine.actuate({
+    // A registered derived dependent makes the correction admit completed
+    // closures that the correction receipt references; without it the
+    // erasure ordering defect is unreachable.
+    await engine.write([
+      {
+        kind: "fact",
+        body: "correction derived body",
+        sourceId: "correction-bucket",
+        logicalId: "correction-derived",
+        provenance: {
+          schemaVersion: 1,
+          role: "derived",
+          artifactRevisionId: "correction-derived-r1",
+          sourceVersionId: "correction-source-v1",
+          sourceRevisionId: "correction-source-r1",
+          sourceLocator: { kind: "whole_body" },
+          canonicalSourceHash: {
+            algorithm: "sha256",
+            digestHex: createHash("sha256").update("correction original body").digest("hex"),
+          },
+        },
+      },
+    ]);
+    await engine.registerSourceDependency({
+      schemaVersion: 1,
+      dependencyId: "correction-dependency",
+      sourceRevisionId: "correction-source-r1",
+      derivedRevisionId: "correction-derived-r1",
+    });
+    const receipt = await engine.actuate({
       schemaVersion: 1,
       operationId: "erase-correction-replace",
       operations: [
@@ -119,9 +149,10 @@ test("eraseSource succeeds after correction and keeps requested-bucket counts", 
         },
       ],
     });
+    assert.ok(receipt.closureOperationIds.length > 0);
     const report = await engine.eraseSource("correction-bucket");
     assert.equal(report.sourceRef, "correction-bucket");
-    assert.equal(report.nodesExcised, 2);
+    assert.equal(report.nodesExcised, 3);
   } finally {
     await engine.close();
   }

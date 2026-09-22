@@ -68,3 +68,26 @@ registries, main integration, and publication remain separately gated.
   closures and the survivor are per-fixture invariants.
 - Focused suite 4/4; closure/purge/actuation/lifecycle suites (10 test
   targets, `operator,test-hooks`) all pass.
+
+## Adversarial review Phase 2 FIX-1 (test review)
+
+- S20-P2-1: Python and TypeScript corrected-success smokes now seed a
+  registered derived dependent, assert the correction receipt carries closure
+  ids, and expect 3 excised nodes. Previously the fixtures admitted no
+  closures and could not reach the ordering defect. Isolated wheel from this
+  checkout: 8/8; TypeScript debug native build: 8/8. The worktree's untracked
+  `src/python/fathomdb/_fathomdb.abi3.so` predates the fix and shadows any
+  wheel under the package's `pythonpath = ["."]`; binding runs therefore
+  used `-o pythonpath= --import-mode=importlib` with only the tests directory
+  on `PYTHONPATH`.
+- S20-P2-2: the purge regression asserts exactly one complete `purged` proof
+  row for `slice20-original-r1`, reads it after an independent reopen, and
+  re-checks revisions, cursors, and at-rest bytes.
+- S20-P2-3: property/state-machine coverage explicitly deferred to Slice 50
+  in `plan.md`.
+- S20-P2-4: two bare-supersession matrix rows (same bucket; cross bucket,
+  original first). Against the pre-fix engine they fail with `Storage`.
+- S20-P2-5: not changed. The test's contract is atomic rollback of every
+  protected plane on a pre-commit refusal, proven by full snapshot equality
+  whichever pre-commit stage refuses; pinning the stage would need a new
+  product test-hooks seam for no correctness gain.

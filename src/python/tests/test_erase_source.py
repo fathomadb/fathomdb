@@ -21,6 +21,8 @@ SQL access.
 
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 
 from fathomdb import Engine
@@ -93,7 +95,40 @@ def test_erase_source_after_correction_keeps_requested_bucket_counts(db_path: st
                 ],
             }
         )
-        engine.actuate(
+        # A registered derived dependent makes the correction admit completed
+        # closures that the correction receipt references; without it the
+        # erasure ordering defect is unreachable.
+        engine.write(
+            [
+                {
+                    "kind": "fact",
+                    "body": "correction derived body",
+                    "source_id": "correction-bucket",
+                    "logical_id": "correction-derived",
+                    "provenance": {
+                        "schema_version": 1,
+                        "role": "derived",
+                        "artifact_revision_id": "correction-derived-r1",
+                        "source_version_id": "correction-source-v1",
+                        "source_revision_id": "correction-source-r1",
+                        "source_locator": {"kind": "whole_body"},
+                        "canonical_source_hash": {
+                            "algorithm": "sha256",
+                            "digest_hex": hashlib.sha256(b"correction original body").hexdigest(),
+                        },
+                    },
+                }
+            ]
+        )
+        engine.register_source_dependency(
+            {
+                "schema_version": 1,
+                "dependency_id": "correction-dependency",
+                "source_revision_id": "correction-source-r1",
+                "derived_revision_id": "correction-derived-r1",
+            }
+        )
+        receipt = engine.actuate(
             {
                 "schema_version": 1,
                 "operation_id": "erase-correction-replace",
@@ -123,9 +158,10 @@ def test_erase_source_after_correction_keeps_requested_bucket_counts(db_path: st
                 ],
             }
         )
+        assert receipt.closure_operation_ids
         report = engine.erase_source("correction-bucket")
         assert report.source_ref == "correction-bucket"
-        assert report.nodes_excised == 2
+        assert report.nodes_excised == 3
     finally:
         engine.close()
 

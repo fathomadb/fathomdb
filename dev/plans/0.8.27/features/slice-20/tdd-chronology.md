@@ -92,9 +92,23 @@ The isolated Python wheel SHA-256 was
 
 The unchanged Memex `_closed_world` correction fixture was then run against
 that wheel with only the formerly-failing oracle changed from `storage_failed`
-to successful erasure, empty visibility, and idempotent retry:
+to successful erasure. The durable producer-owned oracle also checks empty
+visibility, exact requested counts in the audit, raw projection absence,
+accepted proof identity, independent reopen, and idempotent retry:
 
 ```text
-python -m pytest /tmp/test_slice20_memex_success.py -q
+python -m pytest \
+  dev/plans/0.8.27/features/slice-20/memex-consumer-oracle.py -q
 1 passed; exit 0.
 ```
+
+## Code-review repair
+
+The first independent code review found no implementation defect but rejected
+the regression evidence as insufficiently exact. The Rust matrix was extended
+to prove sentinel absence in the database and WAL, every erased cursor absent
+from every registered projection owner, exact survivor bytes, exact accepted
+audit/source-bucket proof rows, receipt redaction, and an exact before/after
+snapshot of all protected database planes plus telemetry on pre-commit
+rollback. The temporary downstream smoke was replaced by the durable Memex
+oracle named above. The strengthened Rust suite and consumer oracle both pass.

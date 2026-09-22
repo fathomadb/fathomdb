@@ -1,5 +1,7 @@
 //! Correction/supersession followed by source erasure.
 
+use std::path::{Path, PathBuf};
+
 use fathomdb_engine::{
     ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, CanonicalHash, ClosureLookupV1,
     ClosurePhaseV1, Engine, EngineError, InitialState, LifecycleActuationV1, LifecycleState,
@@ -7,7 +9,7 @@ use fathomdb_engine::{
     SourceRevisionId, SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
-use rusqlite::Connection;
+use rusqlite::{types::ValueRef, Connection};
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
@@ -28,6 +30,26 @@ const PROJECTION_TABLES: &[(&str, &str)] = &[
 
 fn path(dir: &TempDir, name: &str) -> std::path::PathBuf {
     dir.path().join(format!("{name}{SQLITE_SUFFIX}"))
+}
+
+fn wal_path(path: &Path) -> PathBuf {
+    let mut raw = path.as_os_str().to_os_string();
+    raw.push("-wal");
+    PathBuf::from(raw)
+}
+
+fn file_contains_bytes(path: &Path, needle: &str) -> bool {
+    let Ok(bytes) = std::fs::read(path) else {
+        return false;
+    };
+    let needle = needle.as_bytes();
+    !needle.is_empty()
+        && bytes.len() >= needle.len()
+        && bytes.windows(needle.len()).any(|window| window == needle)
+}
+
+fn byte_hex(value: &[u8]) -> String {
+    value.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 fn digest(body: &str) -> String {
@@ -189,6 +211,88 @@ fn requested_inventory(connection: &Connection, source_id: &str) -> (u64, u64, u
     (nodes.len() as u64, edges.len() as u64, projections)
 }
 
+fn requested_cursors(connection: &Connection, source_id: &str) -> Vec<i64> {
+    let mut cursors = Vec::new();
+    for table in ["canonical_nodes", "canonical_edges"] {
+        let mut statement = connection
+            .prepare(&format!("SELECT write_cursor FROM {table} WHERE source_id=?1"))
+            .unwrap();
+        cursors.extend(
+            statement
+                .query_map([source_id], |row| row.get::<_, i64>(0))
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap(),
+        );
+    }
+    cursors
+}
+
+fn assert_cursors_physically_absent(connection: &Connection, cursors: &[i64]) {
+    for cursor in cursors {
+        for (table, column) in PROJECTION_TABLES {
+            let count: i64 = connection
+                .query_row(
+                    &format!("SELECT COUNT(*) FROM {table} WHERE {column}=?1"),
+                    [cursor],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(count, 0, "cursor {cursor} survived in {table}");
+        }
+    }
+}
+
+const ROLLBACK_TABLES: &[&str] = &[
+    "canonical_nodes",
+    "canonical_edges",
+    "search_index",
+    "search_index_v2",
+    "search_index_edges",
+    "vector_default",
+    "_fathomdb_vector_rows",
+    "_fathomdb_projection_terminal",
+    "canonical_attributes",
+    "property_search_index",
+    "_fathomdb_artifact_revisions",
+    "_fathomdb_source_dependencies",
+    "_fathomdb_source_links",
+    "_fathomdb_source_versions",
+    "_fathomdb_dependency_closures",
+    "_fathomdb_actuation_receipts",
+    "_fathomdb_actuation_receipt_source_refs",
+    "operational_mutations",
+];
+
+fn database_plane_snapshot(connection: &Connection) -> Vec<(String, Vec<Vec<String>>)> {
+    ROLLBACK_TABLES
+        .iter()
+        .map(|table| {
+            let mut statement = connection.prepare(&format!("SELECT * FROM {table}")).unwrap();
+            let width = statement.column_count();
+            let mut rows = statement
+                .query_map([], |row| {
+                    (0..width)
+                        .map(|column| {
+                            Ok(match row.get_ref(column)? {
+                                ValueRef::Null => "null".to_string(),
+                                ValueRef::Integer(value) => format!("integer:{value}"),
+                                ValueRef::Real(value) => format!("real:{:016x}", value.to_bits()),
+                                ValueRef::Text(value) => format!("text:{}", byte_hex(value)),
+                                ValueRef::Blob(value) => format!("blob:{}", byte_hex(value)),
+                            })
+                        })
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                })
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap();
+            rows.sort();
+            ((*table).to_string(), rows)
+        })
+        .collect()
+}
+
 fn assert_audit(connection: &Connection, source_id: &str, expected: (u64, u64, u64)) {
     let rows = connection
         .prepare(
@@ -261,7 +365,18 @@ fn correction_safe_erasure_matrix_preserves_requested_counts_and_exact_survivors
             "slice20-survivor-r1",
         ];
         for source_id in case.erase_order {
-            let expected = requested_inventory(&Connection::open(&fixture.db).unwrap(), source_id);
+            let before = Connection::open(&fixture.db).unwrap();
+            let expected = requested_inventory(&before, source_id);
+            let erased_cursors = requested_cursors(&before, source_id);
+            let erased_bodies = before
+                .prepare("SELECT body FROM canonical_nodes WHERE source_id=?1 ORDER BY body")
+                .unwrap()
+                .query_map([source_id], |row| row.get::<_, String>(0))
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap();
+            assert!(!erased_bodies.is_empty(), "{} fixture must be non-vacuous", case.name);
+            drop(before);
             let report = fixture.opened.engine.erase_source(source_id).unwrap();
             assert_eq!(report.source_ref, *source_id, "{}", case.name);
             assert_eq!(
@@ -284,6 +399,21 @@ fn correction_safe_erasure_matrix_preserves_requested_counts_and_exact_survivors
             let connection = Connection::open(&fixture.db).unwrap();
             assert_revisions(&connection, &expected_revisions);
             assert_audit(&connection, source_id, expected);
+            assert_cursors_physically_absent(&connection, &erased_cursors);
+            for body in &erased_bodies {
+                assert!(
+                    !file_contains_bytes(&fixture.db, body)
+                        && !file_contains_bytes(&wal_path(&fixture.db), body),
+                    "{} left erased body bytes at rest: {body}",
+                    case.name
+                );
+            }
+            assert!(
+                file_contains_bytes(&fixture.db, SURVIVOR_BODY)
+                    || file_contains_bytes(&wal_path(&fixture.db), SURVIVOR_BODY),
+                "{} must preserve the unrelated survivor bytes",
+                case.name
+            );
         }
 
         fixture.opened.engine.close().unwrap();
@@ -322,6 +452,49 @@ fn correction_safe_erasure_matrix_preserves_requested_counts_and_exact_survivors
                 .unwrap();
             assert_eq!(soft_closure, 0, "obsolete correction closure must be removed");
         }
+        let proof_rows = connection
+            .prepare(
+                "SELECT root_kind,root_value,cause,phase FROM _fathomdb_dependency_closures \
+                 WHERE cause='source_erased' ORDER BY root_value",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(proof_rows.len(), 1, "one dependent-bearing bucket proof survives");
+        assert_eq!(proof_rows[0].0, "source_bucket");
+        assert_eq!(proof_rows[0].2, "source_erased");
+        assert_eq!(proof_rows[0].3, "complete");
+        assert_eq!(
+            proof_rows[0].1, case.original_bucket,
+            "only the original dependent-bearing bucket retains proof identity"
+        );
+        let redacted_receipt_refs: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM _fathomdb_actuation_receipt_source_refs \
+                 WHERE operation_id='slice20-correction'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(redacted_receipt_refs, 0);
+        let redacted_receipt: (String, Option<String>, String) = connection
+            .query_row(
+                "SELECT outcome,request_sha256,closure_operation_ids_json \
+                 FROM _fathomdb_actuation_receipts WHERE operation_id='slice20-correction'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(redacted_receipt, ("erased".into(), None, "[]".into()));
         drop(connection);
         reopened.engine.close().unwrap();
         drop(fixture.dir);
@@ -343,11 +516,28 @@ fn correction_erasure_precommit_proof_failure_rolls_back_every_primary_plane() {
         .unwrap();
     drop(connection);
 
+    let sink = fixture.dir.path().join("rollback-telemetry.jsonl");
+    fixture.opened.engine.enable_telemetry(sink.to_str().unwrap()).unwrap();
+    fixture.opened.engine.search("original sentinel").unwrap();
+    fixture.opened.engine.search("survivor sentinel").unwrap();
+    let telemetry_before = std::fs::read(&sink).unwrap();
+    let database_before = database_plane_snapshot(&Connection::open(&fixture.db).unwrap());
+
     assert!(matches!(
         fixture.opened.engine.erase_source("slice20-original-bucket"),
         Err(EngineError::Storage)
     ));
     let connection = Connection::open(&fixture.db).unwrap();
+    assert_eq!(
+        database_plane_snapshot(&connection),
+        database_before,
+        "pre-commit refusal must restore every protected database plane exactly"
+    );
+    assert_eq!(
+        std::fs::read(&sink).unwrap(),
+        telemetry_before,
+        "pre-commit refusal must not redact or rewrite telemetry"
+    );
     assert_revisions(
         &connection,
         &[

@@ -489,10 +489,13 @@ def _cfg_by_line(text: str) -> list[tuple[str, ...]]:
             result.append(())
             continue
         result.append(tuple(cfg for _, cfgs in blocks for cfg in cfgs) + tuple(pending))
-        if stripped == "{" and pending:
+        opened = stripped.count("{") - stripped.count("}")
+        # A gated item (`fn`, `mod`, `impl`, bare block) whose body opens on
+        # this line gates everything until that body closes.
+        if pending and opened > 0:
             blocks.append((depth, tuple(pending)))
         pending = []
-        depth += stripped.count("{") - stripped.count("}")
+        depth += opened
         while blocks and depth <= blocks[-1][0]:
             blocks.pop()
     return result
@@ -653,7 +656,49 @@ def parse_typescript_surface(modules: dict[str, str], row: str) -> list[dict[str
     return _unique(entries, row)
 
 
+def _strip_comments(text: str) -> str:
+    """Remove ``//`` and ``/* */`` comments outside string literals.
+
+    Documentation is not surface, and braces inside comments must not affect
+    statement splitting. Newlines inside block comments are kept so line
+    structure is preserved.
+    """
+
+    out: list[str] = []
+    index = 0
+    quote: str | None = None
+    while index < len(text):
+        char = text[index]
+        if quote is not None:
+            out.append(char)
+            if char == "\\" and index + 1 < len(text):
+                out.append(text[index + 1])
+                index += 2
+                continue
+            if char == quote:
+                quote = None
+            index += 1
+        elif char in "\"'`":
+            quote = char
+            out.append(char)
+            index += 1
+        elif text.startswith("//", index):
+            end = text.find("\n", index)
+            index = len(text) if end == -1 else end
+        elif text.startswith("/*", index):
+            end = text.find("*/", index + 2)
+            if end == -1:
+                raise ComparatorError("unterminated block comment in declaration input")
+            out.append("\n" * text.count("\n", index, end))
+            index = end + 2
+        else:
+            out.append(char)
+            index += 1
+    return "".join(out)
+
+
 def _typescript_statements(text: str, row: str) -> list[str]:
+    text = _strip_comments(text)
     statements: list[str] = []
     current: list[str] = []
     depth = 0

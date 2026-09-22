@@ -660,7 +660,7 @@ expect_out 'Embeddable' "the fourth-role failure NAMES the unpinned role it foun
 # so a fourth variant is precisely the violation, and four `present` probes
 # could never see it.
 IDSPACE_ROOT="$(make_root fourth-id-space)"
-python3 - "$IDSPACE_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$IDSPACE_ROOT/src/rust/crates/fathomdb-engine/src/identity.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -1087,7 +1087,7 @@ expect_routes_to_steward "the decoy-field clause failures"
 # the construction sites spell too. This fixture DELETES both variants from the
 # enum and leaves those uses in place.
 DECOY_VARIANT_ROOT="$(make_root variant-deleted-uses-kept)"
-python3 - "$DECOY_VARIANT_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$DECOY_VARIANT_ROOT/src/rust/crates/fathomdb-engine/src/errors.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -2056,6 +2056,10 @@ run_checker --list-sources
 expect_rc 0 "--list-sources exits 0"
 expect_out 'file\s+src/rust/crates/fathomdb-engine/src/lib.rs' \
   "--list-sources names the engine source the assertions read"
+expect_out 'file\s+src/rust/crates/fathomdb-engine/src/errors.rs' \
+  "--list-sources names the engine error source the assertions read"
+expect_out 'file\s+src/rust/crates/fathomdb-engine/src/identity.rs' \
+  "--list-sources names the engine identity source the assertions read"
 expect_out 'tree\s+src' "--list-sources names the tree the negative-space clause scans"
 # fix-3: the crate SOURCE TREES are now first-class subjects, so they must appear
 # in the manifest — that manifest is what builds every fixture root here AND the

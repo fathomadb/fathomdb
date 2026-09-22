@@ -953,21 +953,38 @@ def main() -> None:
 
     # --- Phase 3: TypeScript declarations are emitted into the owned scratch root.
     commands: list[list[str]] = []
+    environments: list[dict[str, str] | None] = []
     recording = fake_run({**generation, ("git", "status"): ""})
 
     def record(command: Any, cwd: Any = None, env: Any = None) -> str:
         commands.append(list(command))
+        environments.append(env)
         if command[:3] == ["git", "status", "--porcelain"] and len(commands) > 1:
             raise tool.SurfaceError("stop after generation")
         return recording(command, cwd, env)
 
-    with mock.patch.object(tool, "_clean_source"), mock.patch.object(tool, "_prepare_scratch"), \
-            mock.patch.object(tool, "_tool_metadata", return_value=metadata(tool)), \
-            mock.patch.object(tool, "_validate_napi_build_script"), \
-            mock.patch.object(tool, "_run", side_effect=record):
-        expect_error(tool.SurfaceError, "stop after generation", lambda: tool.capture_repository(head))
-    declaration = [c for c in commands if "--emitDeclarationOnly" in c]
-    assert declaration and str(tool.OWNED_SCRATCH / "ts-declarations") in declaration[0], commands
+    with tempfile.TemporaryDirectory() as directory:
+        owned = Path(directory) / "scratch"
+        owned.mkdir()
+        with mock.patch.object(tool, "OWNED_SCRATCH", owned), \
+                mock.patch.object(tool, "_clean_source"), mock.patch.object(tool, "_prepare_scratch"), \
+                mock.patch.object(tool, "_tool_metadata", return_value=metadata(tool)), \
+                mock.patch.object(tool, "_validate_napi_build_script"), \
+                mock.patch.object(tool, "_run", side_effect=record):
+            expect_error(tool.SurfaceError, "stop after generation", lambda: tool.capture_repository(head))
+        declaration = [c for c in commands if "--emitDeclarationOnly" in c]
+        assert declaration and str(owned / "ts-declarations") in declaration[0], commands
+        # napi-rs passes type definitions through a file under TMPDIR that a
+        # cached (non-recompiling) build never rewrites; capture must force a
+        # recompile of the NAPI crate and give it a private TMPDIR.
+        napi = commands.index(["npm", "run", "build:native"])
+        clean = next(
+            (i for i, c in enumerate(commands) if c[:2] == ["cargo", "clean"] and "fathomdb-napi" in c),
+            None,
+        )
+        assert clean is not None and clean < napi and "--release" in commands[clean], commands
+        napi_env = environments[napi] or {}
+        assert napi_env.get("TMPDIR", "").startswith(str(owned)), napi_env.get("TMPDIR")
 
     # --- Phase 3 FIX-2: multi-line cfg text is recorded verbatim.
     multi = {

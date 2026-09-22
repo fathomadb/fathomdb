@@ -433,8 +433,10 @@ After each extraction batch:
 - run root-path and feature-surface comparisons;
 - test error conversion, identity normalization, and temporal boundaries
   through public seams;
-- prove default builds exclude test hooks; and
-- prove test-hooks builds expose only narrow ordering/fault seams.
+- preserve every existing hook gate and root path exactly;
+- prove feature-only hooks remain absent from default surface rows; and
+- prove `test-hooks` and `slice72-test-hooks` builds expose only their existing
+  narrow ordering/fault seams.
 
 Do not test filenames or widen engine fields.
 

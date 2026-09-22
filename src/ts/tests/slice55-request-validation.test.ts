@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readdirSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -116,6 +117,11 @@ test("slice55 malformed nested frozen context preserves FrozenReadError", async 
   } finally {
     await engine.close();
   }
+  assert.deepEqual(
+    readdirSync(".").filter((name) => name.startsWith("slice55-malformed-frozen-context")),
+    [],
+    "the test must not leave its database or lock files in src/ts",
+  );
 });
 
 const malformedFrozenCases: Array<[

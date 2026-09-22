@@ -66,12 +66,16 @@ entries; the result reports both source SHAs and whether they are identical.
   --release --cargo-cwd ../rust/crates/fathomdb-napi --features
   default-embedder --js false`, and record that command/features as the
   `napi-production` row identity; capture fails closed unless the
-  `package.json` `build:native` script equals that recorded expansion. The
-  pinned napi-rs CLI builds `index.d.ts` from a type-definition file under
-  `TMPDIR` that only a recompiling build rewrites, so capture first runs
-  `cargo clean -p fathomdb-napi --release` in its owned cache and gives the
-  build a private `TMPDIR` under the owned scratch root; a prior test-hooks
-  debug build can therefore never leak into the production row. Parse
+  `package.json` `build:native` script names the recorded wrapper and the row
+  retains the exact expanded command. The pinned napi-rs CLI builds
+  `index.d.ts` from a type-definition file under the platform temporary
+  directory that only a recompiling build rewrites. The canonical
+  `build:native` script therefore delegates to a cross-platform Node wrapper
+  that cleans the release NAPI crate, assigns private `TMPDIR`/`TMP`/`TEMP`,
+  runs the recorded napi expansion, and removes only its owned temporary
+  directory. Capture supplies a directory under the owned scratch root to that
+  same wrapper; a prior test-hooks debug build can therefore never leak into
+  either ordinary production generation or the comparator row. Parse
   that declaration and the TypeScript compiler-emitted declaration surface
   separately. The TypeScript row starts at `dist/index.d.ts` and resolves
   relative `export *` and `export { … } from` re-exports, and bare local
@@ -127,9 +131,12 @@ Missing executables, non-exact pinned tool versions, failed
 compiler/declaration generation, ambiguous parsing,
 duplicate normalized keys, unsupported feature combinations, dirty generated
 output, and metadata mismatch are errors. The tool preserves subprocess exit
-status and diagnostics. Heavy capture begins only after the 100 GB check and
-uses checkout-owned `.cache/0.8.27-slice30` plus
-`/tmp/fathomdb-0.8.27-slice30`; cleanup removes only proven owned output.
+status and diagnostics. Heavy capture begins only after every distinct
+filesystem carrying checkout-owned `.cache/0.8.27-slice30` or
+`/tmp/fathomdb-0.8.27-slice30` passes the 100 GB check. Scratch reuse and
+recursive cleanup require a real directory with the exact versioned marker;
+symlinks, non-directories, forged markers, and a marker changed during capture
+fail closed.
 
 This is repository tooling and evidence only. It changes no runtime behavior,
 public API, schema, feature gate, package root, transaction boundary, or ADR.

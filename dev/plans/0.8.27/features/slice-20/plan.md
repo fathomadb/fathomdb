@@ -69,6 +69,14 @@ make lawful source deletion impossible.
 | R27-02 | Erasure remains atomic before commit, truthful after commit, idempotent, and complete at rest. | AC27-04 proves a real pre-commit blocker leaves the exact protected state unchanged and a post-commit telemetry/WAL failure maps to `ErasureIncomplete`, persists retry work, adds no retry audit, and completes on retry. AC27-05 independently reopens and proves exact erased absence, exact accepted proof rows, and exact unrelated survivors. |
 | R27-03 | No new public verb, report field, schema migration, or consumer workaround is introduced. | AC27-06 flips the unchanged Memex scenario to exact success; Rust/Python/TypeScript keep requested-bucket report counts and exact typed incomplete mapping. |
 
+Adversarial closeout adds one verification requirement without changing the
+product contract: when the canonical Python gate explicitly authorizes a
+worktree-owned native rebuild, an already-present test-hook module must not
+short-circuit that rebuild. The gate must remove the ignored source-tree native
+module, rebuild from the current checkout, and print the resolved module path
+and SHA-256. This makes the binding evidence candidate-bound rather than merely
+hook-surface-compatible.
+
 The release-local AC27 identifiers remain outside locked `dev/acceptance.md`.
 The requirements are complete as written; no additional feature requirement is
 needed for the localized defect.

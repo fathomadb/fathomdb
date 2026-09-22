@@ -751,6 +751,42 @@ def main() -> None:
             with mock.patch.object(tool.shutil, "disk_usage", return_value=shutil._ntuple_diskusage(1, 1, 1)):
                 expect_error(tool.SurfaceError, "free bytes", tool._prepare_scratch)
 
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        scratch = root / "scratch"
+        scratch.mkdir()
+        (scratch / tool.SCRATCH_MARKER).write_text("forged\n")
+        with mock.patch.object(tool, "OWNED_SCRATCH", scratch), mock.patch.object(
+            tool, "OWNED_CACHE", root / "cache"
+        ):
+            expect_error(tool.SurfaceError, "ownership marker", tool._prepare_scratch)
+        target = root / "target"
+        target.mkdir()
+        scratch.unlink(missing_ok=True) if scratch.is_symlink() else None
+        if scratch.exists():
+            shutil.rmtree(scratch)
+        scratch.symlink_to(target, target_is_directory=True)
+        with mock.patch.object(tool, "OWNED_SCRATCH", scratch), mock.patch.object(
+            tool, "OWNED_CACHE", root / "cache"
+        ):
+            expect_error(tool.SurfaceError, "real directory", tool._prepare_scratch)
+
+    # The cache and scratch may live on different filesystems. Both must pass
+    # the heavy-route floor rather than inheriting the repository result.
+    with mock.patch.object(
+        tool,
+        "_capture_filesystems",
+        return_value=[("cache", Path("/cache")), ("scratch", Path("/scratch"))],
+    ), mock.patch.object(
+        tool.shutil,
+        "disk_usage",
+        side_effect=[
+            shutil._ntuple_diskusage(200_000_000_000, 0, 150_000_000_000),
+            shutil._ntuple_diskusage(200_000_000_000, 0, 1),
+        ],
+    ):
+        expect_error(tool.SurfaceError, "scratch filesystem", tool._check_capture_capacity)
+
     generation = {
         ("cargo",): "pub struct fathomdb::Engine\n",
         ("npm", "run"): "",
@@ -1013,6 +1049,21 @@ def main() -> None:
     }
     assert multi["PyMulti"] == '#[cfg(any( feature = "alpha", feature = "other" ))] add_class::<PyMulti>', multi
     assert multi["PySingle"] == '#[cfg( feature = "y" )] add_class::<PySingle>', multi
+
+    multiline_item = {
+        e["path"]: e["signature"]
+        for e in tool.parse_python_registrations(
+            '#[cfg(feature = "test-hooks")]\n'
+            "fn register_hooks(\n"
+            "    module: &Bound<'_, PyModule>,\n"
+            ") -> PyResult<()> {\n"
+            "    module.add_class::<PyMultiline>()?;\n"
+            "}\n"
+        )
+    }
+    assert multiline_item["PyMultiline"].startswith(
+        '#[cfg(feature = "test-hooks")]'
+    ), multiline_item
 
     # --- Phase 3 FIX-2: same-path pairs win regardless of processing order.
     ordered = tool.compare_manifests(

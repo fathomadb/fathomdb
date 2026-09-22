@@ -61,14 +61,20 @@ def test_authorized_rebuild_in_owned_venv_proceeds_to_rebuild() -> None:
     assert _decide().action == REBUILD
 
 
-def test_hooks_already_present_short_circuits() -> None:
-    """The common warm path: never consults the opt-in at all."""
+def test_hooks_already_present_only_short_circuit_without_gate_authorization() -> None:
+    """A manual warm run may proceed, but the candidate gate must rebuild."""
 
-    for allow in (True, False):
-        for owned in (True, False):
-            decision = _decide(hooks_present=True, allow_rebuild=allow,
-                               venv_owned_by_source_tree=owned)
-            assert decision.action == PROCEED
+    assert _decide(hooks_present=True, allow_rebuild=False).action == PROCEED
+    assert _decide(hooks_present=True, allow_rebuild=True).action == REBUILD
+
+
+def test_authorized_freshness_rebuild_is_still_refused_for_a_foreign_venv() -> None:
+    decision = _decide(
+        hooks_present=True,
+        allow_rebuild=True,
+        venv_owned_by_source_tree=False,
+    )
+    assert decision.action == DEGRADED
 
 
 def test_wheel_context_proceeds_without_a_source_tree() -> None:
@@ -130,7 +136,6 @@ def test_no_input_combination_yields_an_unsafe_rebuild() -> None:
         if decision.action != REBUILD:
             continue
         assert obs["is_source_tree"]
-        assert not obs["hooks_present"]
         assert obs["allow_rebuild"]
         assert not obs["forbid_rebuild"]
         assert obs["venv_owned_by_source_tree"]

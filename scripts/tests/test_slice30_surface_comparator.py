@@ -990,6 +990,11 @@ def main() -> None:
         assert clean is not None and clean < napi and "--release" in commands[clean], commands
         napi_env = environments[napi] or {}
         assert napi_env.get("TMPDIR", "").startswith(str(owned)), napi_env.get("TMPDIR")
+        # Both calls must use the owned cache: an unscoped clean would wipe the
+        # developer's primary target and leave the owned cache warm.
+        for index in (clean, napi):
+            target = (environments[index] or {}).get("CARGO_TARGET_DIR", "")
+            assert target.startswith(str(tool.OWNED_CACHE)), (commands[index], target)
 
     # --- Phase 3 FIX-2: multi-line cfg text is recorded verbatim.
     multi = {

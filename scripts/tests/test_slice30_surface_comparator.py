@@ -861,6 +861,114 @@ def main() -> None:
             piece.count("\n") for piece in pieces if piece.startswith("// CMT")
         ) + sum(1 for piece in pieces if piece.startswith("// CMT")), (text, stripped)
 
+    # --- Phase 3: locally declared shapes exported by a bare export list.
+    local = {
+        "index.d.ts": "declare class Engine {\n    close(): void;\n}\n"
+        "declare const read: {\n    get(id: string): void;\n};\n"
+        "interface Hidden {\n    id: string;\n}\n"
+        "export { Engine, read as reader };\nexport type { Hidden };\n",
+    }
+    local_surface = {e["path"]: e for e in tool.parse_typescript_surface(local, "local")}
+    assert set(local_surface) == {"Engine", "reader", "Hidden"}, local_surface
+    assert "close(): void" in local_surface["Engine"]["signature"], local_surface["Engine"]
+    assert "get(id: string)" in local_surface["reader"]["signature"], local_surface["reader"]
+    changed_local = {"index.d.ts": local["index.d.ts"].replace("close(): void;\n", "")}
+    assert tool.parse_typescript_surface(changed_local, "local") != list(local_surface.values())
+    expect_error(
+        tool.ComparatorError,
+        "Nope",
+        lambda: tool.parse_typescript_surface({"index.d.ts": "export { Nope };\n"}, "local"),
+    )
+
+    # --- Phase 3: generic/unsafe impl headers own the items that follow them.
+    owned = {
+        e["path"]: e["signature"]
+        for e in tool.parse_rust_public_api(
+            "pub struct fathomdb::X\n"
+            "impl core::panic::unwind_safe::UnwindSafe for fathomdb::X\n"
+            "impl<T> core::convert::From<T> for T\n"
+            "pub fn fathomdb::X::from(T) -> T\n"
+            "unsafe impl core::marker::Send for fathomdb::X\n"
+            "impl<T, U> core::convert::Into<U> for T where U: core::convert::From<T>\n"
+            "pub fn fathomdb::X::into(self) -> U\n",
+            "owned",
+        )
+    }
+    assert owned["fathomdb::X::from"].startswith("impl<T> core::convert::From<T> for T =>"), owned
+    assert owned["fathomdb::X::into"].startswith("impl<T, U> core::convert::Into<U>"), owned
+
+    # --- Phase 3: cfg scanning ignores literal braces and gates single-line forms.
+    literal_cfg = {
+        e["path"]: e["signature"]
+        for e in tool.parse_python_registrations(
+            '#[cfg(feature = "x")] m.add_class::<PyInline>()?;\n'
+            '#[cfg(feature = "test-hooks")]\n'
+            "fn hooks(m: &Bound<'_, PyModule>) -> PyResult<()> {\n"
+            '    let opener = "{"; let brace = \'{\'; // stray { in a comment\n'
+            "    m.add_class::<PyHook>()?;\n"
+            "    Ok(())\n"
+            "}\n"
+            "fn shipped(m: &Bound<'_, PyModule>) -> PyResult<()> {\n"
+            "    m.add_class::<PyShipped>()?;\n"
+            "    Ok(())\n"
+            "}\n"
+        )
+    }
+    assert literal_cfg["PyInline"].startswith('#[cfg(feature = "x")]'), literal_cfg
+    assert literal_cfg["PyHook"].startswith('#[cfg(feature = "test-hooks")]'), literal_cfg
+    assert literal_cfg["PyShipped"] == "add_class::<PyShipped>", literal_cfg
+    expect_error(
+        tool.ComparatorError,
+        "unbalanced",
+        lambda: tool.parse_python_registrations("fn a() {\n    m.add_class::<PyA>()?;\n"),
+    )
+
+    # --- Phase 3: changed pairing consumes each added entry once.
+    def manifest_of(entries: list[tuple[str, str]]) -> dict[str, Any]:
+        return {
+            "metadata": metadata(tool),
+            "rows": [{"id": "r", "entries": [{"path": p, "kind": "k", "signature": g} for p, g in entries]}],
+        }
+    paired = tool.compare_manifests(
+        manifest_of([("a", "1"), ("b", "2")]), manifest_of([("c", "3"), ("d", "4")])
+    )["row_diffs"][0]["changed"]
+    assert sorted(item["after"]["path"] for item in paired) == ["c", "d"], paired
+    same_path = tool.compare_manifests(
+        manifest_of([("a", "1"), ("b", "2")]), manifest_of([("b", "3"), ("a", "4")])
+    )["row_diffs"][0]["changed"]
+    assert all(item["before"]["path"] == item["after"]["path"] for item in same_path), same_path
+
+    # --- Phase 3: parsing edge cases.
+    enum_entries = tool.parse_typescript_declarations(
+        'export declare const enum Mode {\n  A = "a"\n}\nexport type Brace = "{";\n', "enum"
+    )
+    assert {e["path"]: e["kind"] for e in enum_entries} == {"Mode": "enum", "Brace": "type"}, enum_entries
+    missing_input = copy.deepcopy(inputs)
+    del missing_input["python_sources"]
+    expect_error(
+        tool.ComparatorError,
+        "python_sources",
+        lambda: tool.capture_from_fixture(missing_input, metadata(tool)),
+    )
+
+    # --- Phase 3: TypeScript declarations are emitted into the owned scratch root.
+    commands: list[list[str]] = []
+    recording = fake_run({**generation, ("git", "status"): ""})
+
+    def record(command: Any, cwd: Any = None, env: Any = None) -> str:
+        commands.append(list(command))
+        if command[:3] == ["git", "status", "--porcelain"] and len(commands) > 1:
+            raise tool.SurfaceError("stop after generation")
+        return recording(command, cwd, env)
+
+    with mock.patch.object(tool, "_clean_source"), mock.patch.object(tool, "_prepare_scratch"), \
+            mock.patch.object(tool, "_tool_metadata", return_value=metadata(tool)), \
+            mock.patch.object(tool, "_validate_napi_build_script"), \
+            mock.patch.object(tool, "_run", side_effect=record):
+        expect_error(tool.SurfaceError, "stop after generation", lambda: tool.capture_repository(head))
+    declaration = [c for c in commands if "--emitDeclarationOnly" in c]
+    assert declaration and str(tool.OWNED_SCRATCH / "ts-declarations") in declaration[0], commands
+
     agent_test = (ROOT / "scripts/agent-test.sh").read_text()
     assert "test-slice30-surface-comparator" in agent_test
     assert "scripts/tests/test_slice30_surface_comparator.py" in agent_test

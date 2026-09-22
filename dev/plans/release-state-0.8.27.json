@@ -1,6 +1,6 @@
 {
   "release": "0.8.27",
-  "release_kind": "active implementation release; Slice 20 awaits commission",
+  "release_kind": "active implementation release; Slice 20 authorized",
   "board": "dev/plans/runs/STATUS-0.8.27.md",
   "plan": "dev/plans/plan-0.8.27.md",
   "active_ref": "refs/heads/release/0.8.27",
@@ -27,7 +27,7 @@
     {"slice": 8, "short": "RESERVED", "title": "reserved prework slot", "depends_on": [7], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-8.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "evidence": "The reserved slot remains empty; no unassigned work or inferred authority was introduced."},
     {"slice": 9, "short": "PREWORK-CLOSEOUT", "title": "proposal rulings, plan reconciliation, and next-slice preparation", "depends_on": [8], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-9.md", "dev/plans/0.8.27/prework/proposal-register.md", "dev/plans/0.8.27/prework/prework-design-review.md", "dev/plans/0.8.27/prework/prework-verification.md", "dev/plans/0.8.27-prework-slices-0-9.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "closeout_sha": "73c53ffd98c56fb5d46941a195f951daac2d32b2", "evidence": "Every proposal has a disposition, scope/navigation/lifecycle records agree, the Slice 10 inputs passed independent design review, independent closeout verification passed, and the active release state points to uncommissioned Slice 10."},
     {"slice": 10, "short": "PREPARATION", "title": "bounded repository preparation", "depends_on": [9], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/features/slice-10/plan.md", "dev/plans/0.8.27/features/slice-10/design.md", "dev/plans/0.8.27/features/slice-10/design-review.md", "dev/plans/0.8.27/features/slice-10/tdd-chronology.md", "dev/plans/0.8.27/features/slice-10/code-review.md", "dev/plans/0.8.27/features/slice-10/review-verification.md", "dev/plans/0.8.27/features/slice-10/status.md"], "sha": "3097d191511d81a221b038ccd2e14f074dcafa6d", "closeout_sha": "ee1b0fbe99f7592b6ed3af061a4d11934ad3b0df", "evidence": "The bounded preparation package corrects public and planning truth, resolves the smol-toml advisory through the upstream markdownlint cohort, preserves all Action SHAs while fixing two comments, derives the performance digest exception from one exact authority with credential-shaped adversarial coverage, and records owned Slice 30 comparator/storage prerequisites. Independent design, code/security, and focused verification pass. The capable-executor canonical gate passed strict security 0/0/0 and 118/119 registered suites at closeout ee1b0fbe; the only skip was the documented TypeScript environment absence, with no suite excluded."},
-    {"slice": 20, "short": "ERASURE", "title": "correction-safe source erasure", "depends_on": [10], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md"], "sha": null},
+    {"slice": 20, "short": "ERASURE", "title": "correction-safe source erasure", "depends_on": [10], "status": "IN_PROGRESS", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md"], "sha": null, "evidence": "Implementation of reviewed correction-safe erasure Slice 20 was authorized by the repository owner at seq-292; later slices, tags, registries, and publication remain unauthorized."},
     {"slice": 30, "short": "COMPARATOR", "title": "current inventory and real-surface comparison guardrails", "depends_on": [20], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md"], "sha": null},
     {"slice": 40, "short": "ENGINE-FOUNDATION", "title": "engine foundation and test seams", "depends_on": [30], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
     {"slice": 50, "short": "ENGINE-ERASURE", "title": "engine erasure, lifecycle, dependency, and provenance domains", "depends_on": [40], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
@@ -47,7 +47,6 @@
   "remaining_ladder": [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150],
   "decisions": {
     "unruled": [
-      {"id": "slice-20-execution", "title": "Authorize the reviewed correction-safe source-erasure implementation only; do not authorize later slices, tags, registries, or publication."},
       {"id": "release-0.8.27-publication", "title": "Authorize tagging and publication only after the full release ladder and qualification gates pass."}
     ],
     "ruled": [
@@ -55,8 +54,9 @@
       {"id": "prework-slices-0-9", "title": "Complete prework Slices 0 through 9, including requirements, acceptance, design review, verification planning, and durable status records.", "source": "repository owner 2026-09-21"},
       {"id": "F27-01", "title": "Keep correction-safe erasure as the 0.8.27 publication blocker and do not preselect its implementation cause.", "source": "0.8.27 prework proposal register"},
       {"id": "D27-deferred", "title": "Move D27-01, D27-02, and D27-04 to D28-05, D28-06, and D28-07; merge both D27-03 components into D28-03 with their proof gates intact.", "source": "0.8.27 prework proposal register"},
-      {"id": "semantic-refactor", "title": "Place the bounded five-facade behavior-preserving semantic decomposition after F27-01 in 0.8.27; reject wholesale experiment-branch merges and line-count correctness gates.", "source": "0.8.27 prework proposal register"}
-      ,{"id": "slice-10-execution", "title": "Complete the reviewed bounded Slice 10 preparation plan and present the remaining HITL review items interactively; do not authorize Slice 20, tags, registries, or publication.", "source": "seq-291"}
+      {"id": "semantic-refactor", "title": "Place the bounded five-facade behavior-preserving semantic decomposition after F27-01 in 0.8.27; reject wholesale experiment-branch merges and line-count correctness gates.", "source": "0.8.27 prework proposal register"},
+      {"id": "slice-10-execution", "title": "Complete the reviewed bounded Slice 10 preparation plan and present the remaining HITL review items interactively; do not authorize Slice 20, tags, registries, or publication.", "source": "seq-291"},
+      {"id": "slice-20-execution", "title": "Authorize the reviewed correction-safe source-erasure implementation only; do not authorize later slices, tags, registries, or publication.", "source": "seq-292"}
     ]
   },
   "release_readiness": null,

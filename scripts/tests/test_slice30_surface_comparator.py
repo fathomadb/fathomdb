@@ -98,12 +98,58 @@ export interface NativeHit {
 }
 export declare function nativeSearch(query: string): Array<NativeHit>
 ''',
-        "typescript_declaration": '''\
+        "typescript_declarations": {
+            "index.d.ts": '''\
+export * from "./errors.js";
+export { read } from "./read.js";
 export interface SearchHit {
   body: string;
 }
 export declare function search(query: string): Promise<SearchHit[]>;
 ''',
+            "errors.d.ts": '''\
+export declare class FathomDbError extends Error {
+}
+export declare class DatabaseLockedError extends FathomDbError {
+}
+export interface CorruptionErrorPayload {
+  path: string;
+}
+''',
+            "read.d.ts": '''\
+export interface ReadView {
+  id: string;
+}
+export declare const read: {
+    get(id: string): Promise<ReadView>;
+    getMany(ids: string[]): Promise<ReadView[]>;
+};
+export declare const internalOnly = 1;
+''',
+        },
+        "python_sources": {
+            "__init__.py": '''\
+from fathomdb import read
+from fathomdb.engine import Engine
+__all__ = ["Engine", "read"]
+''',
+            "engine.py": '''\
+from typing import Any
+
+class Engine:
+    version: str
+    def search(self, query: str, limit: int = 10) -> list[str]:
+        return [query]
+    def _private(self) -> None:
+        pass
+''',
+            "read.py": '''\
+__all__ = ["get_many"]
+
+def get_many(ids: list[int]) -> list[str]:
+    return []
+''',
+        },
         "package_json": json.dumps(
             {
                 "name": "fathomdb",
@@ -261,8 +307,13 @@ def main() -> None:
         tool,
         inputs,
         lambda value: value.__setitem__(
-            "typescript_declaration",
-            value["typescript_declaration"].replace("search(query: string)", "lookup(query: string)"),
+            "typescript_declarations",
+            {
+                **value["typescript_declarations"],
+                "index.d.ts": value["typescript_declarations"]["index.d.ts"].replace(
+                    "search(query: string)", "lookup(query: string)"
+                ),
+            },
         ),
         "typescript-declarations",
         "changed",
@@ -358,6 +409,160 @@ def main() -> None:
                 raise AssertionError("atomic replacement failure must be typed")
         assert output.read_text() == "original\n"
         assert list(temporary.glob(f".{output.name}.*.tmp")) == []
+
+    def with_module(value: dict[str, Any], key: str, module: str, text: str) -> None:
+        value[key] = {**value[key], module: text}
+
+    # Re-exported TypeScript declarations are part of the root surface.
+    ts = inputs["typescript_declarations"]
+    assert_row_diff(
+        tool,
+        inputs,
+        lambda value: with_module(
+            value,
+            "typescript_declarations",
+            "errors.d.ts",
+            ts["errors.d.ts"].replace(
+                "DatabaseLockedError extends FathomDbError", "DatabaseLockedError extends Error"
+            ),
+        ),
+        "typescript-declarations",
+        "changed",
+    )
+    assert_row_diff(
+        tool,
+        inputs,
+        lambda value: with_module(
+            value,
+            "typescript_declarations",
+            "errors.d.ts",
+            ts["errors.d.ts"].replace("export interface CorruptionErrorPayload {\n  path: string;\n}\n", ""),
+        ),
+        "typescript-declarations",
+        "removed",
+    )
+    assert_row_diff(
+        tool,
+        inputs,
+        lambda value: with_module(
+            value,
+            "typescript_declarations",
+            "read.d.ts",
+            ts["read.d.ts"].replace("    getMany(ids: string[]): Promise<ReadView[]>;\n", ""),
+        ),
+        "typescript-declarations",
+        "changed",
+    )
+    ts_entries = next(
+        row["entries"] for row in baseline["rows"] if row["id"] == "typescript-declarations"
+    )
+    ts_paths = {entry["path"] for entry in ts_entries}
+    assert {"DatabaseLockedError", "CorruptionErrorPayload", "read"} <= ts_paths, ts_paths
+    assert "internalOnly" not in ts_paths and "ReadView" not in ts_paths, ts_paths
+    assert not any(path.startswith("export:") for path in ts_paths), ts_paths
+    moved_ts = copy.deepcopy(inputs)
+    moved_ts["typescript_declarations"] = {
+        "index.d.ts": 'export * from "./errors.js";\nexport * from "./search.js";\n'
+        'export { read } from "./read.js";\n',
+        "errors.d.ts": ts["errors.d.ts"],
+        "read.d.ts": ts["read.d.ts"],
+        "search.d.ts": "export interface SearchHit {\n  body: string;\n}\n"
+        "export declare function search(query: string): Promise<SearchHit[]>;\n",
+    }
+    moved_ts_result = tool.compare_manifests(
+        baseline, tool.capture_from_fixture(moved_ts, metadata(tool))
+    )
+    assert moved_ts_result["equal"], moved_ts_result
+    missing_module = copy.deepcopy(inputs)
+    del missing_module["typescript_declarations"]["read.d.ts"]
+    try:
+        tool.capture_from_fixture(missing_module, metadata(tool))
+    except tool.ComparatorError as exc:
+        assert "read" in str(exc)
+    else:
+        raise AssertionError("unresolved TypeScript re-export must fail closed")
+
+    # Python wrapper modules: public names and callable signatures, not bodies
+    # or file placement.
+    py = inputs["python_sources"]
+    assert_row_diff(
+        tool,
+        inputs,
+        lambda value: with_module(
+            value,
+            "python_sources",
+            "engine.py",
+            py["engine.py"].replace("limit: int = 10", "max_hits: int = 10"),
+        ),
+        "python-wrapper-declarations",
+        "changed",
+    )
+    assert_row_diff(
+        tool,
+        inputs,
+        lambda value: with_module(
+            value,
+            "python_sources",
+            "read.py",
+            '__all__ = []\n',
+        ),
+        "python-wrapper-declarations",
+        "removed",
+    )
+    body_only = copy.deepcopy(inputs)
+    body_only["python_sources"]["engine.py"] = py["engine.py"].replace(
+        "return [query]", "return [query, query]"
+    )
+    body_result = tool.compare_manifests(
+        baseline, tool.capture_from_fixture(body_only, metadata(tool))
+    )
+    assert body_result["equal"], body_result
+    moved_py = copy.deepcopy(inputs)
+    moved_py["python_sources"]["_engine_impl.py"] = py["engine.py"]
+    moved_py["python_sources"]["engine.py"] = "from fathomdb._engine_impl import Engine\n"
+    moved_py_result = tool.compare_manifests(
+        baseline, tool.capture_from_fixture(moved_py, metadata(tool))
+    )
+    assert moved_py_result["equal"], moved_py_result
+    py_paths = {
+        entry["path"]
+        for row in baseline["rows"]
+        if row["id"] == "python-wrapper-declarations"
+        for entry in row["entries"]
+    }
+    assert {"fathomdb.Engine.search", "fathomdb.read.get_many", "fathomdb.engine.Engine"} <= py_paths, py_paths
+    assert not any("_private" in path or path.endswith(".Any") for path in py_paths), py_paths
+
+    # cfg-gated PyO3 registrations are distinguishable from shipped ones.
+    assert_row_diff(
+        tool,
+        inputs,
+        lambda value: value.__setitem__(
+            "python_registrations",
+            value["python_registrations"].replace(
+                "    m.add_class::<PyEngine>()?;\n",
+                '    #[cfg(feature = "test-hooks")]\n    m.add_class::<PyEngine>()?;\n',
+            ),
+        ),
+        "python-native-registrations",
+        "changed",
+    )
+
+    # The recorded NAPI build identity must match the script capture runs.
+    napi_identity = next(
+        row for row in tool.REQUIRED_ROW_IDENTITIES if row["id"] == "napi-production"
+    )
+    good_package = json.dumps({"scripts": {"build:native": napi_identity["expanded_command"]}})
+    tool._validate_napi_build_script(good_package)
+    drifted = json.dumps(
+        {"scripts": {"build:native": napi_identity["expanded_command"] + ",default-reranker"}}
+    )
+    try:
+        tool._validate_napi_build_script(drifted)
+    except tool.ComparatorError as exc:
+        assert "build:native" in str(exc)
+    else:
+        raise AssertionError("drifted build:native script must fail closed")
 
     agent_test = (ROOT / "scripts/agent-test.sh").read_text()
     assert "test-slice30-surface-comparator" in agent_test

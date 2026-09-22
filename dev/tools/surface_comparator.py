@@ -125,8 +125,11 @@ REQUIRED_ROW_IDENTITIES = RUST_ROWS + [
     {
         "id": "typescript-declarations",
         "kind": "typescript",
-        "command": "npm exec -- tsc -p tsconfig.build.json",
-        "source": "src/ts/dist/index.d.ts with relative re-exports resolved",
+        "command": (
+            "npm exec -- tsc -p tsconfig.build.json --declaration --emitDeclarationOnly "
+            "--outDir /tmp/fathomdb-0.8.27-slice30/ts-declarations"
+        ),
+        "source": "emitted index.d.ts with relative and local export lists resolved",
     },
     {
         "id": "package-entrypoints",
@@ -180,7 +183,7 @@ def parse_rust_public_api(text: str, row: str) -> list[dict[str, str]]:
         line = raw.strip()
         if not line:
             continue
-        if line.startswith("impl "):
+        if re.match(r"(?:unsafe\s+)?impl\b", line):
             current_impl = _normalize_space(line)
         elif re.match(r"pub\s+(?:struct|enum|trait|union|mod)\s+", line):
             current_impl = None
@@ -473,19 +476,28 @@ def _cfg_by_line(text: str) -> list[tuple[str, ...]]:
     pending: list[str] = []
     blocks: list[tuple[int, tuple[str, ...]]] = []
     depth = 0
-    for line in text.splitlines():
-        stripped = line.strip()
-        attribute = re.fullmatch(r"#\[(cfg\(.*\))\]\s*(\{)?", stripped)
-        if attribute is not None:
-            result.append(())
-            if attribute.group(2):
-                blocks.append((depth, (*pending, attribute.group(1))))
-                pending = []
-                depth += 1
-            else:
-                pending.append(attribute.group(1))
-            continue
-        if not stripped or stripped.startswith("//") or stripped.startswith("#["):
+    # Literals and comments are blanked to same-length spaces so their braces
+    # never count while line indexes and attribute offsets still match `text`.
+    blanked = _RUST_LITERAL.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), text)
+    carried = ("", "")
+    for original, line in zip(text.split("\n"), blanked.split("\n")):
+        offset = len(line) - len(line.lstrip())
+        stripped = carried[0] + line[offset:].rstrip()
+        source = carried[1] + original[offset:]
+        carried = ("", "")
+        while stripped.startswith("#["):
+            end = _attribute_end(stripped)
+            if end < 0:
+                # A multi-line attribute continues on the next line.
+                carried = (stripped + " ", source + " ")
+                stripped = ""
+                break
+            content = source[2:end]
+            if content.startswith("cfg("):
+                pending.append(content)
+            rest = len(stripped) - len(stripped[end + 1 :].lstrip())
+            stripped, source = stripped[rest:], source[rest:]
+        if not stripped:
             result.append(())
             continue
         result.append(tuple(cfg for _, cfgs in blocks for cfg in cfgs) + tuple(pending))
@@ -498,7 +510,28 @@ def _cfg_by_line(text: str) -> list[tuple[str, ...]]:
         depth += opened
         while blocks and depth <= blocks[-1][0]:
             blocks.pop()
+    if depth != 0 or carried != ("", ""):
+        raise ComparatorError("unbalanced braces in PyO3 registration source")
     return result
+
+
+_RUST_LITERAL = re.compile(
+    r"//[^\n]*|/\*.*?\*/|\br(#*)\".*?\"\1|\bb?\"(?:\\.|[^\"\\])*\"|\bb?'(?:\\.|[^\\'\n])'"
+    r"|(?<![A-Za-z0-9_])\"(?:\\.|[^\"\\])*\"|(?<![A-Za-z0-9_])'(?:\\.|[^\\'\n])'",
+    re.DOTALL,
+)
+
+
+def _attribute_end(line: str) -> int:
+    depth = 0
+    for index, char in enumerate(line):
+        if char == "[":
+            depth += 1
+        elif char == "]":
+            depth -= 1
+            if depth == 0:
+                return index
+    return -1
 
 
 def _python_signature(node: ast.AST) -> str:
@@ -549,6 +582,9 @@ def parse_python_stub(text: str) -> list[dict[str, str]]:
 
 
 def _declaration_name(statement: str) -> tuple[str, str]:
+    const_enum = re.search(r"\bconst\s+enum\s+([A-Za-z_$][A-Za-z0-9_$]*)", statement)
+    if const_enum is not None:
+        return const_enum.group(1), "enum"
     match = re.search(
         r"\b(class|function|interface|type|const|let|var|enum|namespace)\s+"
         r"([A-Za-z_$][A-Za-z0-9_$]*)",
@@ -572,7 +608,9 @@ def parse_typescript_declarations(text: str, row: str) -> list[dict[str, str]]:
     """Split an emitted declaration file into complete exported statements."""
 
     entries = []
-    for statement in _typescript_statements(text, row):
+    for exported, statement in _typescript_statements(text, row):
+        if not exported:
+            continue
         path, kind = _declaration_name(statement)
         entries.append(_entry(path, kind, statement))
     if not entries:
@@ -604,7 +642,19 @@ def _flatten_typescript(
         return []
     stack = (*stack, module)
     flattened: list[tuple[str, str, str]] = []
-    for statement in _typescript_statements(modules[module], row):
+    statements = _typescript_statements(modules[module], row)
+    local = [
+        (*_declaration_name(statement), statement)
+        for exported, statement in statements
+        if not _TS_LOCAL_EXPORT_LIST.fullmatch(statement)
+    ]
+    for exported, statement in statements:
+        if not exported:
+            continue
+        local_list = _TS_LOCAL_EXPORT_LIST.fullmatch(statement)
+        if local_list is not None:
+            flattened.extend(_resolve_export_list(local_list.group(1), local, module, row))
+            continue
         star = _TS_STAR_REEXPORT.fullmatch(statement)
         named = _TS_NAMED_REEXPORT.fullmatch(statement)
         target_specifier = (star or named).group(1 if star else 2) if (star or named) else None
@@ -617,25 +667,34 @@ def _flatten_typescript(
         if star is not None:
             flattened.extend(item for item in exported if not item[2].startswith("export default"))
             continue
-        for part in named.group(1).split(","):
-            part = re.sub(r"^type\s+", "", part.strip())
-            if not part:
-                continue
-            original, _, alias = (piece.strip() for piece in part.partition(" as "))
-            alias = alias or original
-            matches = [item for item in exported if item[0] == original]
-            if not matches:
-                raise ComparatorError(
-                    f"{row} re-export {original!r} from {target} has no exported declaration"
-                )
-            for _, kind, target_statement in matches:
-                signature = (
-                    target_statement
-                    if alias == original
-                    else f"export {{ {original} as {alias} }} => {target_statement}"
-                )
-                flattened.append((alias, kind, signature))
+        flattened.extend(_resolve_export_list(named.group(1), exported, target, row))
     return flattened
+
+
+_TS_LOCAL_EXPORT_LIST = re.compile(r"export\s+(?:type\s+)?\{([^}]*)\}\s*;?")
+
+
+def _resolve_export_list(
+    names: str, candidates: list[tuple[str, str, str]], module: str, row: str
+) -> list[tuple[str, str, str]]:
+    resolved: list[tuple[str, str, str]] = []
+    for part in names.split(","):
+        part = re.sub(r"^type\s+", "", part.strip())
+        if not part:
+            continue
+        original, _, alias = (piece.strip() for piece in part.partition(" as "))
+        alias = alias or original
+        matches = [item for item in candidates if item[0] == original]
+        if not matches:
+            raise ComparatorError(f"{row} export {original!r} from {module} has no declaration")
+        for _, kind, target_statement in matches:
+            signature = (
+                target_statement
+                if alias == original
+                else f"export {{ {original} as {alias} }} => {target_statement}"
+            )
+            resolved.append((alias, kind, signature))
+    return resolved
 
 
 def parse_typescript_surface(modules: dict[str, str], row: str) -> list[dict[str, str]]:
@@ -697,24 +756,38 @@ def _strip_comments(text: str) -> str:
     return "".join(out)
 
 
-def _typescript_statements(text: str, row: str) -> list[str]:
+_TS_DECLARATION_START = re.compile(
+    r"(?:export\s|declare\s|interface\s|type\s|class\s|abstract\s|function\s|const\s|enum\s|namespace\s)"
+)
+
+
+def _brace_delta(line: str) -> int:
+    unquoted = re.sub(r"\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`", "", line)
+    return unquoted.count("{") - unquoted.count("}")
+
+
+def _typescript_statements(text: str, row: str) -> list[tuple[bool, str]]:
+    """Return top-level ``(exported, statement)`` pairs, comments removed."""
+
     text = _strip_comments(text)
-    statements: list[str] = []
+    statements: list[tuple[bool, str]] = []
     current: list[str] = []
+    exported = False
     depth = 0
     for raw in text.splitlines():
         stripped = raw.strip()
         if not current:
-            if not stripped.startswith("export "):
+            if not _TS_DECLARATION_START.match(stripped):
                 continue
             current = [stripped]
-            depth = stripped.count("{") - stripped.count("}")
+            exported = stripped.startswith("export ")
+            depth = _brace_delta(stripped)
         else:
             current.append(stripped)
-            depth += stripped.count("{") - stripped.count("}")
+            depth += _brace_delta(stripped)
         single_line_function = (
             len(current) == 1
-            and stripped.startswith("export declare function ")
+            and re.match(r"(?:export\s+)?declare\s+function\s", stripped) is not None
             and ")" in stripped
         )
         if depth == 0 and (
@@ -723,7 +796,7 @@ def _typescript_statements(text: str, row: str) -> list[str]:
             or " from " in stripped
             or single_line_function
         ):
-            statements.append(" ".join(current))
+            statements.append((exported, " ".join(current)))
             current = []
     if current:
         raise SurfaceError(f"unterminated exported declaration in {row}")
@@ -775,6 +848,19 @@ def capture_from_fixture(inputs: dict[str, Any], metadata: dict[str, Any]) -> di
         identities = metadata.get("row_identities")
         if not isinstance(identities, list):
             raise SurfaceError("row_identities must be a list")
+    for key in (
+        "rust",
+        "python_exports",
+        "python_sources",
+        "python_registrations",
+        "python_stub",
+        "napi_declaration",
+        "typescript_declarations",
+        "package_json",
+        "runtime_exports",
+    ):
+        if key not in inputs:
+            raise ComparatorError(f"missing adapter input: {key}")
     rust = inputs.get("rust")
     if not isinstance(rust, dict):
         raise SurfaceError("rust adapter inputs must be a row map")
@@ -886,17 +972,17 @@ def compare_manifests(baseline: dict[str, Any], candidate: dict[str, Any]) -> di
         # A declaration rename or re-export path change naturally appears as
         # one removal plus one addition. Pair compatible kinds as a changed
         # declaration as well, while retaining the exact added/removed facts.
+        # Each added entry pairs at most once, preferring the same path.
+        unpaired = list(added_keys)
         for removed_key in removed_keys:
-            for added_key in added_keys:
-                if before[removed_key]["kind"] == after[added_key]["kind"]:
-                    changed.append(
-                        {
-                            "path": before[removed_key]["path"],
-                            "before": before[removed_key],
-                            "after": after[added_key],
-                        }
-                    )
-                    break
+            old = before[removed_key]
+            candidates = [key for key in unpaired if after[key]["kind"] == old["kind"]]
+            same_path = [key for key in candidates if after[key]["path"] == old["path"]]
+            chosen = (same_path or candidates or [None])[0]
+            if chosen is None:
+                continue
+            unpaired.remove(chosen)
+            changed.append({"path": old["path"], "before": old, "after": after[chosen]})
         if removed_keys or added_keys or changed:
             row_diffs.append(
                 {
@@ -1052,6 +1138,25 @@ def capture_repository(source_sha: str) -> dict[str, Any]:
         _validate_napi_build_script((ts_root / "package.json").read_text())
         _run(["npm", "run", "build:native"], ts_root, env)
         _run(["npm", "exec", "--", "tsc", "-p", "tsconfig.build.json"], ts_root, env)
+        # Declarations are emitted into the owned scratch root so only files
+        # produced by this capture are read, never stale `dist/` output.
+        declaration_root = OWNED_SCRATCH / "ts-declarations"
+        _run(
+            [
+                "npm",
+                "exec",
+                "--",
+                "tsc",
+                "-p",
+                "tsconfig.build.json",
+                "--declaration",
+                "--emitDeclarationOnly",
+                "--outDir",
+                str(declaration_root),
+            ],
+            ts_root,
+            env,
+        )
         runtime_json = _run(
             [
                 "node",
@@ -1083,8 +1188,8 @@ def capture_repository(source_sha: str) -> dict[str, Any]:
             "python_stub": (REPO_ROOT / "src/python/fathomdb/_fathomdb.pyi").read_text(),
             "napi_declaration": (ts_root / "index.d.ts").read_text(),
             "typescript_declarations": {
-                path.relative_to(ts_root / "dist").as_posix(): path.read_text()
-                for path in sorted((ts_root / "dist").rglob("*.d.ts"))
+                path.relative_to(declaration_root).as_posix(): path.read_text()
+                for path in sorted(declaration_root.rglob("*.d.ts"))
             },
             "package_json": (ts_root / "package.json").read_text(),
             "runtime_exports": runtime_exports,

@@ -19,3 +19,18 @@ FileNotFoundError: [Errno 2] No such file or directory:
 ```
 
 The production tool and tracked baseline did not exist at this checkpoint.
+
+## GREEN tool contract
+
+The repository tool then implemented the common normalized row model, all six
+Rust feature identities, independent Python export/registration/stub adapters,
+NAPI and TypeScript declaration adapters, package metadata/runtime exports,
+metadata fail-closed comparison, duplicate rejection, and immutable compare.
+The focused contract passed:
+
+```text
+ok    slice30-surface-comparator
+```
+
+The real heavy capture and reviewed baseline remained a separate next step so
+the capture-source commit could be clean and contain the tool but no baseline.

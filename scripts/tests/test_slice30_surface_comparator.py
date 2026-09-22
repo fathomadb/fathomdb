@@ -65,6 +65,7 @@ fn _fathomdb(m: &Bound<'_, PyModule>) -> PyResult<()> {
 ''',
         "python_stub": '''\
 class Engine:
+    version: str
     def search(self, query: str, limit: int = ...) -> list[str]: ...
 
 def rerank(query: str, passages: list[str]) -> list[float]: ...

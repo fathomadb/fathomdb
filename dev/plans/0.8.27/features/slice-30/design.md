@@ -66,7 +66,12 @@ entries; the result reports both source SHAs and whether they are identical.
   --release --cargo-cwd ../rust/crates/fathomdb-napi --features
   default-embedder --js false`, and record that command/features as the
   `napi-production` row identity; capture fails closed unless the
-  `package.json` `build:native` script equals that recorded expansion. Parse
+  `package.json` `build:native` script equals that recorded expansion. The
+  pinned napi-rs CLI builds `index.d.ts` from a type-definition file under
+  `TMPDIR` that only a recompiling build rewrites, so capture first runs
+  `cargo clean -p fathomdb-napi --release` in its owned cache and gives the
+  build a private `TMPDIR` under the owned scratch root; a prior test-hooks
+  debug build can therefore never leak into the production row. Parse
   that declaration and the TypeScript compiler-emitted declaration surface
   separately. The TypeScript row starts at `dist/index.d.ts` and resolves
   relative `export *` and `export { … } from` re-exports, and bare local

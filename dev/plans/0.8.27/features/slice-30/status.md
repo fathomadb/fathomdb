@@ -155,3 +155,18 @@ cfg attributes, and same-path diff pairing could lose to processing order.
 RED `06ccc6e1` and GREEN `fb2ba9b3` slice both scanner views identically and pair
 same-path entries in a first pass. Neither change alters any row of the
 tracked baseline (no multi-line cfg in the PyO3 crate; pairing is report-only).
+
+Phase 3 FIX-3 (found at closeout): a fresh capture after the repository gate
+reported `forcePanicForTest` and `forcePanicInAccessorForTest` in the
+production NAPI row. The pinned `@napi-rs/cli` 2.18.4 reads type definitions
+from `os.tmpdir()/<artifact>-<cwd hash>.napi_type_def.tmp`, which the proc
+macros rewrite only on recompilation; with a warm owned cargo cache, capture
+read the file the gate's test-hooks debug build had written. RED `bb9d79fa`
+and GREEN `7c340a61` force the NAPI crate to recompile and give it a private
+`TMPDIR`; `5142a504` stops the capture path and a test from ever creating the
+owned scratch root without its marker. With the polluted shared temp files
+still present, two captures of `5142a504` were byte-identical
+(`5e7f03d2…`) and compared `equal: true` to the tracked baseline
+`7db3d883…` with empty metadata and row diffs (AC27-30A later-candidate
+receipt). The tracked baseline, captured before any debug build, contains no
+test-hook declaration.

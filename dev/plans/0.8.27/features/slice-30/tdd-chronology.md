@@ -196,3 +196,12 @@ guaranteed.
   (`#[cfg( feature = "]`); removed `a` consumed added `b` before removed `b`.
 - GREEN `fb2ba9b3`: identical slicing of blanked and original lines; two-pass
   pairing. Real registration row unchanged.
+
+## Adversarial review Phase 3 FIX-3
+
+- RED `bb9d79fa`: capture must `cargo clean -p fathomdb-napi --release` before
+  `npm run build:native` and pass a `TMPDIR` under the owned scratch root.
+- GREEN `7c340a61`; `5142a504` never creates the scratch root outside
+  preparation (the pre-existing generation test had created it unmarked).
+- Two byte-identical captures of `5142a504` with stale shared type-definition
+  files present: `equal: true` against `7db3d883…`.

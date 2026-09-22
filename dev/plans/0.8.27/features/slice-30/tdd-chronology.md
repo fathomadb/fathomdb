@@ -181,3 +181,11 @@ properties for Rust line normalization, canonical JSON round trip, and
 comment stripping. Properties use a fixed seed rather than `hypothesis` because
 the registered suite runs under bare `python3`, where `hypothesis` is not
 guaranteed.
+
+## Adversarial review Phase 3 FIX-1
+
+- RED `a8786164`: local export list, generic/unsafe impl ownership, literal and
+  single-line cfg, unbalanced braces, pairing, `const enum`, literal brace,
+  missing input, and scratch declaration-emit arms failed before
+  implementation.
+- GREEN `df801746`; two byte-identical captures: `7db3d883f99940aea69c58079e64d6794be459ef9ab76561106a314e61900384`.

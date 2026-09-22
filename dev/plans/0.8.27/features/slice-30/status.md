@@ -2,7 +2,7 @@
 title: FathomDB 0.8.27 Slice 30 - implementation status
 status: COMPLETE
 implemented_on: 2026-09-22
-baseline_source_commit: 58bc8eb4836f6f0f52b40b21befaea87a490b9fa
+baseline_source_commit: df8017463ecce6281a4c989a2d1bd01118e2025e
 baseline_tracking_commit: bd6a1565592af8d23c14ed4861f54125c879746f
 closeout_commit: 4129a5b013265f4672ab1e4ae8ed3dd5cb8cd89f
 ---
@@ -129,3 +129,23 @@ comments. `plan.md` R27-30B/AC27-30C now name every capture arm. The
 adversarial reviewer is the reviewer of record for the FIX-1/FIX-2 diff; the
 earlier `code-review.md`/`review-verification.md` PASS records cover the
 12-row tool at `b102bceb` only.
+
+## Adversarial review Phase 2 and Phase 3
+
+Phase 2 (test review) closed in one cycle with test-only hardening
+(`e908b678`). Phase 3 (code review) found bare local TypeScript export lists
+opaque to the flattener, Rust items bound to adjacent marker impls because
+generic `impl<…>` headers were not recognised, cfg brace counting that
+ignored literals and single-line gates, a diff-pairing heuristic that reused
+one added entry, a scratch root nothing wrote into, and minor parsing edges.
+RED `a8786164` and GREEN `df801746` fixed them: local export lists resolve to
+local declarations; any `impl`/`impl<…>`/`unsafe impl` header owns the items
+after it; Rust literals and comments are blanked before brace counting, with
+multi-line attributes joined and unbalanced input rejected; pairing consumes
+each added entry once; TypeScript declarations are emitted into the owned
+scratch root; `const enum` is keyed by name; missing adapter inputs raise
+`ComparatorError`. Two clean Node `v25.9.0` captures of `df8017463ecce6281a4c989a2d1bd01118e2025e` were
+byte-identical, SHA-256 `7db3d883f99940aea69c58079e64d6794be459ef9ab76561106a314e61900384`, 10,678,832 bytes and 218,556 lines.
+Against the prior baseline only the four engine Rust rows changed, with equal
+added and removed counts (items rebound to their owning impl), plus the
+`typescript-declarations` row identity.

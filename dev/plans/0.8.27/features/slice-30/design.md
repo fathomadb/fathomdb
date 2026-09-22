@@ -36,6 +36,10 @@ entries; the result reports both source SHAs and whether they are identical.
   `rust-engine-operator-test-hooks` (same plus `--features
   operator,test-hooks`). Normalize complete public paths and signatures so
   re-export changes and items gated by both engine features remain visible.
+  Associated items carry the complete preceding impl header (including generic
+  `impl<…>` and `unsafe impl` headers), so each is bound to its owning impl
+  rather than an adjacent marker impl. Diff reports pair each removed entry
+  with at most one added entry of the same kind, preferring the same path.
 - **Python:** parse the real package export declarations, the resolved public
   wrapper surface, every PyO3 module class/function registration plus literal
   `m.add` alias/exception registration, and `_fathomdb.pyi` declarations as
@@ -48,8 +52,12 @@ entries; the result reports both source SHAs and whether they are identical.
   methods, and class attributes). Moving a definition behind a re-export or
   editing a body compares equal; a public name or signature change does not.
   Each registration entry carries every enclosing `#[cfg(...)]` gate
-  (statement, bare block, or gated item such as `fn`/`mod`/`impl` whose body
-  contains it), so gating or un-gating a registration is a diff. Stub class entries include complete base and metaclass headers. When
+  (same-line statement, next statement, bare block, or gated item such as
+  `fn`/`mod`/`impl` whose body contains it), so gating or un-gating a
+  registration is a diff. Rust comments and string/char literals are blanked
+  before brace counting, multi-line attributes are joined, and unbalanced
+  braces fail closed. The wrapper row records direct class-body members only;
+  moving public methods onto a base or mixin class is a surface diff. Stub class entries include complete base and metaclass headers. When
   runtime native introspection is available from a clean
   artifact it may add evidence, but an editable worktree install is forbidden
   and unavailability is not a pass.
@@ -61,8 +69,11 @@ entries; the result reports both source SHAs and whether they are identical.
   `package.json` `build:native` script equals that recorded expansion. Parse
   that declaration and the TypeScript compiler-emitted declaration surface
   separately. The TypeScript row starts at `dist/index.d.ts` and resolves
-  relative `export *` and `export { … } from` re-exports into the referenced
-  emitted `.d.ts` declarations, keyed by exported name, so a declaration moved
+  relative `export *` and `export { … } from` re-exports, and bare local
+  `export { … }` lists, into the referenced emitted `.d.ts` declarations
+  (non-exported `declare` statements included), keyed by exported name. The
+  declarations are emitted by a separate `--emitDeclarationOnly` compile into
+  the owned scratch root, so stale `dist/` files are never read, so a declaration moved
   into a re-exported module compares equal and an unresolved re-export fails
   closed. Both declaration rows strip `//` and `/* */` comments outside string
   literals before splitting: documentation is not surface, and braces in

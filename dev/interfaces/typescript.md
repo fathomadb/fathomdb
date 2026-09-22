@@ -83,7 +83,8 @@ denylist name).
   `from`, which is a reserved word in the Python peer — parity-safe naming, S7).
 - `engine.purge(logicalId: string): Promise<void>` — irreversible hard-erase of
   a governed node across every row-owned target. DELETED-FIRST and IDEMPOTENT.
-  **No restore counterpart exists on any surface.**
+  **No restore counterpart exists on any surface.** A logical id remains
+  purgeable after a correction supersedes one of its revisions.
 - `engine.eraseSource(sourceId: string): Promise<EraseReport>` — erase every
   canonical row carrying `sourceId` plus its row-owned projections, then finish
   at rest (telemetry redaction + WAL truncation). The COMPANION to `purge`:

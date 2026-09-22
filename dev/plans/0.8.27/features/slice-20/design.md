@@ -37,10 +37,11 @@ The following invariants are load-bearing:
 
 ### 1. Freeze the requested inventory
 
-Collect and retain the requested bucket's node and edge cursors. Freeze the
-requested node and edge counts from those deduplicated inventories before any
-delete. Those cursors determine `nodes_excised`, `edges_excised`, and
-`projections_invalidated`.
+Collect and retain the requested bucket's node and edge cursors; they determine
+`projections_invalidated`. `nodes_excised` and `edges_excised` are the
+rowcounts of the requested bucket's `DELETE … WHERE source_id` statements. No
+earlier step in the transaction deletes canonical rows, so those rowcounts equal
+the pre-delete inventory without a separate freeze step.
 
 Resolve canonical source revisions from those cursors and use the existing
 persisted-chain validator to discover their direct physical dependents. RED

@@ -37,7 +37,9 @@ been superseded by another, either bucket may be erased first. Completed
 direct-dependent closure rows are removed with their source, while receipt
 redaction is validated before those closure records disappear. The returned
 counts describe only rows and projections owned by the requested source; the
-operation does not recursively erase the replacement bucket.
+operation does not recursively erase the replacement bucket. The same holds for
+`purge`: a corrected logical id can be purged once deleted, and its completed
+correction closures are removed only after receipt redaction.
 
 The call **does not report success on a partial erasure.** If the WAL checkpoint
 cannot complete — typically a concurrent reader pinning a snapshot — the verb

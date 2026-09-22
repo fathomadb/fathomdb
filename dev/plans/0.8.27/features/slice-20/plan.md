@@ -39,7 +39,9 @@ Changes since the 2026-09-02 draft and the prework plan were written:
 
 Assigned functions and surfaces are limited to:
 
-- Rust `Engine::erase_source` / shared `excise_source_inner` transaction;
+- Rust `Engine::erase_source` / shared `excise_source_inner` transaction, and
+  the same closure-delete ordering in `Engine::purge` / `purge_inner`
+  (adversarial review S20-P1-1: N27-01 is verb-agnostic);
 - existing dependency-closure discovery and physical proof helpers;
 - unchanged Python `Engine.erase_source` and TypeScript `Engine.eraseSource`
   adapters/error mapping;
@@ -76,10 +78,13 @@ needed for the localized defect.
 RED:
 
 1. Add one table-driven Rust integration suite for same-bucket,
-   cross-bucket-original-first, cross-bucket-replacement-first, and
-   already-complete closure cases, with unique content sentinels, exact
-   requested-bucket counts, exact survivors, and independent reopen/raw-state
-   inspection.
+   cross-bucket-original-first, and cross-bucket-replacement-first cases.
+   Already-complete correction closures and the unrelated survivor are
+   per-fixture invariants of every case rather than separate rows; seeded
+   fixtures contain no canonical edges, so `edges_excised` is asserted as 0.
+   Use unique content sentinels, exact requested-bucket counts, exact
+   survivors, and independent reopen/raw-state inspection. Add one
+   correction-then-`purge` case for the corrected logical id.
 2. Add a real pre-commit refusal case and a post-commit incomplete/retry case.
 3. Add one Python and one TypeScript corrected-success smoke plus one typed
    incomplete-result smoke per binding.
@@ -88,8 +93,9 @@ RED:
 
 GREEN:
 
-1. Freeze requested-bucket node/edge/projection counts before any delete so
-   report counts cannot drift.
+1. Report node/edge counts from the requested bucket's DELETE rowcounts, which
+   no earlier transaction step can reduce, and projection counts from the
+   retained cursor inventory.
 2. Validate the existing direct physical-dependent plan; the one-source model
    guarantees those dependents are already in the requested cursor inventory.
 3. Validate/redact affected actuation receipts while both completed correction

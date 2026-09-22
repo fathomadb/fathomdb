@@ -241,7 +241,9 @@ DEFAULT facade, not behind the `operator` feature.
   irreversible hard-erase of a governed node across every row-owned target (all
   versions, FTS/vector shadows, touching edges cascade-removed). DELETED-FIRST
   (legal only from `deleted`) and IDEMPOTENT. A SEPARATE verb from `transition`.
-  **There is no restore counterpart on any surface.**
+  **There is no restore counterpart on any surface.** A logical id remains
+  purgeable after a correction supersedes one of its revisions: completed
+  direct-dependent closure rows do not block receipt redaction.
 - `Engine::erase_source(&self, source_id: &str) -> Result<ExciseReport, EngineError>`
   — 0.8.20 Slice 5d (R-20-E4): erase every canonical row carrying `source_id`
   plus its row-owned projections, then finish the erasure AT REST (telemetry

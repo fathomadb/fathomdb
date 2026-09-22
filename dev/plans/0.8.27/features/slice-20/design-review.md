@@ -16,7 +16,9 @@ semantics, and introduces no schema, API, wire, or error-taxonomy drift.
 Two P2 clarifications were accepted before implementation:
 
 1. freeze requested-bucket node/edge counts from the original deduplicated
-   inventory before exact-row deletion; and
+   inventory before exact-row deletion (as implemented, satisfied by the
+   requested-bucket DELETE rowcounts, which no earlier step reduces; see
+   `design.md` § 1); and
 2. after receipt validation/redaction, delete completed soft closures for every
    erased requested source revision, including a revision whose current
    dependent plan is empty.

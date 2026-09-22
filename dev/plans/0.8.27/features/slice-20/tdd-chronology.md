@@ -112,3 +112,10 @@ audit/source-bucket proof rows, receipt redaction, and an exact before/after
 snapshot of all protected database planes plus telemetry on pre-commit
 rollback. The temporary downstream smoke was replaced by the durable Memex
 oracle named above. The strengthened Rust suite and consumer oracle both pass.
+
+## Adversarial review FIX-1
+
+- RED `409bdb92`: `correction_then_purge_of_corrected_logical_id_succeeds_and_erases_exact_rows`
+  failed with `purge after a dependent-bearing correction: Storage`.
+- GREEN `aef78ddd`: closure delete in `purge_inner` moved after receipt
+  redaction; focused suite 4/4 passed.

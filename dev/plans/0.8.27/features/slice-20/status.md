@@ -49,3 +49,22 @@ was clean.
 
 Slice 20 is complete on `release/0.8.27`. Slice 30 and all later slices, tags,
 registries, main integration, and publication remain separately gated.
+
+## Adversarial review FIX-1 (Phase 1)
+
+- S20-P1-1 (P1): `purge_inner` deleted completed `source_revision` closures
+  before `redact_actuation_receipts_for_refs`, the same ordering defect fixed
+  in `excise_source_inner`, so purging a corrected logical id returned
+  `Storage` and rolled back. RED `409bdb92` reproduced it (`purge` → `Storage`); GREEN
+  `aef78ddd` moved the delete after redaction (new purge closures are
+  `at_rest_pending`, so the delete cannot touch them). Interface docs (Rust,
+  Python, TypeScript) and `docs/operations/erasure.md` state purge
+  correction-safety. Bindings delegate unchanged to the engine verb; the
+  engine regression is the owner.
+- S20-P1-2 (P3): design/plan/design-review now describe the implemented
+  count source (requested-bucket DELETE rowcounts) instead of an
+  unimplemented freeze step.
+- S20-P1-3 (P3): plan states the actual matrix case set and that complete
+  closures and the survivor are per-fixture invariants.
+- Focused suite 4/4; closure/purge/actuation/lifecycle suites (10 test
+  targets, `operator,test-hooks`) all pass.

@@ -400,6 +400,8 @@ CONTRACT, PIN, ROOT, LIST_SOURCES = sys.argv[1], sys.argv[2], sys.argv[3], sys.a
 # path-#4 evaporation and stop testing what it claims).
 # ---------------------------------------------------------------------------
 ENG = "src/rust/crates/fathomdb-engine/src/lib.rs"
+ERR = "src/rust/crates/fathomdb-engine/src/errors.rs"
+IDENTITY = "src/rust/crates/fathomdb-engine/src/identity.rs"
 SCH = "src/rust/crates/fathomdb-schema/src/lib.rs"
 EMB = "src/rust/crates/fathomdb-embedder/src/candle_bge.rs"
 T15 = "src/rust/crates/fathomdb-engine/tests/slice15d_projection_registry.rs"
@@ -673,8 +675,9 @@ def crate_manifest_for(test_path):
 # things that remain.
 #
 # NO PYTHON OR TYPESCRIPT TEST IS CITED BY ANY CLAUSE. `--list-sources` is the
-# authority: the gate reads seven files (four Rust, one markdown plan, and the
-# two crate lib.rs) and three trees, and not one `.py` or `.ts` among them. The
+# authority: the gate reads nine files (six Rust modules/tests, one markdown
+# plan, and the two crate lib.rs) and three trees, and not one `.py` or `.ts`
+# among them. The
 # same evaporation exists in those languages (`@pytest.mark.skip`, `xfail`,
 # `describe.skip` / `it.skip` / `.only`, a renamed-away `test_` prefix), so if a
 # future clause ever cites one, it needs its own `test_defined` equivalent — not
@@ -763,7 +766,7 @@ ASSERTIONS = {
          r"pub\s+dropped\s*:\s*Vec\s*<\s*String\s*>"),
     ],
     "C1-Q3-DESTRUCTIVE-DELTA": [
-        ("in_item", ENG, "enum", "EngineError", r"\bProjectionDestructive\s*\{"),
+        ("in_item", ERR, "enum", "EngineError", r"\bProjectionDestructive\s*\{"),
         ("test_defined", T15, "destructive_change_requires_explicit_drop"),
     ],
     "C1-Q3-OMISSION-NOT-DROP": [
@@ -915,14 +918,14 @@ ASSERTIONS = {
     # not be seen even in principle. Closed structurally over BOTH conversion
     # fns, so a fourth prefix or a fourth discriminant spelling fails too.
     "C1-Q6B-IDSPACE-TOTAL-THREE": [
-        ("present", ENG, r"pub enum IdSpaceKind \{"),
-        ("in_item", ENG, "impl", "IdSpaceKind", r'Self::Logical => "l:",'),
-        ("in_item", ENG, "impl", "IdSpaceKind", r'Self::Content => "h:",'),
-        ("in_item", ENG, "impl", "IdSpaceKind", r'Self::Passage => "p:",'),
-        ("enum_exact", ENG, "IdSpaceKind", ("Logical", "Content", "Passage")),
-        ("arms_exact", ENG, "IdSpaceKind", "prefix",
+        ("present", IDENTITY, r"pub enum IdSpaceKind \{"),
+        ("in_item", IDENTITY, "impl", "IdSpaceKind", r'Self::Logical => "l:",'),
+        ("in_item", IDENTITY, "impl", "IdSpaceKind", r'Self::Content => "h:",'),
+        ("in_item", IDENTITY, "impl", "IdSpaceKind", r'Self::Passage => "p:",'),
+        ("enum_exact", IDENTITY, "IdSpaceKind", ("Logical", "Content", "Passage")),
+        ("arms_exact", IDENTITY, "IdSpaceKind", "prefix",
          (("Logical", "l:"), ("Content", "h:"), ("Passage", "p:"))),
-        ("arms_exact", ENG, "IdSpaceKind", "as_str",
+        ("arms_exact", IDENTITY, "IdSpaceKind", "as_str",
          (("Logical", "logical"), ("Content", "content"), ("Passage", "passage"))),
     ],
     # fix-2 SWEEP (not a codex finding): the same NARROW-REGEX class as findings
@@ -951,7 +954,7 @@ ASSERTIONS = {
     # `NotLifecycleAddressable {` is spelled by the Display impl and by every
     # construction site, so deleting the VARIANT left the probe satisfied.
     "C1-Q6B-H-TERMINAL-NOT-LIFECYCLE-ADDRESSABLE": [
-        ("in_item", ENG, "enum", "EngineError", r"\bNotLifecycleAddressable\s*\{"),
+        ("in_item", ERR, "enum", "EngineError", r"\bNotLifecycleAddressable\s*\{"),
         ("test_defined", T25,
          "an_anonymous_write_stays_anonymous_through_the_whole_durable_path"),
     ],

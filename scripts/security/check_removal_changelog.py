@@ -166,10 +166,15 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
                 current_path = spec
                 current_kind = _classify(current_path) if current_path else None
             continue
+        if raw.startswith("@@"):
+            rust_public_use = []
+            continue
+        if rust_public_use and not (raw.startswith("+") and not raw.startswith("+++")):
+            rust_public_use = []
         if current_kind is None or current_path is None:
             continue
         # Skip hunk headers and diff metadata.
-        if raw.startswith("+++") or raw.startswith("---") or raw.startswith("@@"):
+        if raw.startswith("+++") or raw.startswith("---"):
             continue
         if raw.startswith("-") and not raw.startswith("--"):
             match = _scan_line(current_kind, raw[1:])

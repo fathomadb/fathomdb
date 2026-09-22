@@ -18,6 +18,7 @@ from pathlib import Path
 import posixpath
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -29,6 +30,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 OWNED_CACHE = REPO_ROOT / ".cache" / "0.8.27-slice30"
 OWNED_SCRATCH = Path("/tmp/fathomdb-0.8.27-slice30")
 SCRATCH_MARKER = ".fathomdb-slice30-owned"
+SCRATCH_MARKER_CONTENT = "fathomdb.slice30-owned.v1\n"
 MIN_FREE_BYTES = 100_000_000_000
 PINNED_CARGO_PUBLIC_API = "0.52.0"
 PINNED_NIGHTLY = "nightly-2026-04-24"
@@ -116,6 +118,7 @@ REQUIRED_ROW_IDENTITIES = RUST_ROWS + [
         "id": "napi-production",
         "kind": "napi",
         "command": "npm run build:native",
+        "script": "node scripts/build-native.mjs",
         "features": ["default-embedder"],
         "expanded_command": (
             "napi build --platform --release --cargo-cwd "
@@ -162,7 +165,9 @@ def _entry(path: str, kind: str, signature: str) -> dict[str, str]:
 
 
 def _unique(entries: Iterable[dict[str, str]], row: str) -> list[dict[str, str]]:
-    ordered = sorted(entries, key=lambda item: (item["path"], item["kind"], item["signature"]))
+    ordered = sorted(
+        entries, key=lambda item: (item["path"], item["kind"], item["signature"])
+    )
     seen: set[tuple[str, str, str]] = set()
     unique: list[dict[str, str]] = []
     for item in ordered:
@@ -199,7 +204,11 @@ def parse_rust_public_api(text: str, row: str) -> list[dict[str, str]]:
             kind = match.group(1)
             path = match.group(2)
         signature = line
-        if current_impl is not None and path.count("::") >= 2 and kind in {"fn", "type", "constant"}:
+        if (
+            current_impl is not None
+            and path.count("::") >= 2
+            and kind in {"fn", "type", "constant"}
+        ):
             signature = f"{current_impl} => {line}"
         entries.append(_entry(path, kind, signature))
     if not entries:
@@ -213,7 +222,10 @@ def parse_python_exports(text: str) -> list[dict[str, str]]:
     values = _literal_all(ast.parse(text))
     if values is None:
         raise SurfaceError("python package has no literal __all__ declaration")
-    return _unique((_entry(name, "python-export", name) for name in values), "python-package-exports")
+    return _unique(
+        (_entry(name, "python-export", name) for name in values),
+        "python-package-exports",
+    )
 
 
 def _literal_all(tree: ast.Module) -> list[str] | None:
@@ -222,14 +234,19 @@ def _literal_all(tree: ast.Module) -> list[str] | None:
         if not isinstance(node, (ast.Assign, ast.AnnAssign)):
             continue
         targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-        if not any(isinstance(target, ast.Name) and target.id == "__all__" for target in targets):
+        if not any(
+            isinstance(target, ast.Name) and target.id == "__all__"
+            for target in targets
+        ):
             continue
         value_node = node.value
         try:
             literal = ast.literal_eval(value_node)
         except (ValueError, SyntaxError) as exc:
             raise SurfaceError("python __all__ must be a literal sequence") from exc
-        if not isinstance(literal, (list, tuple)) or not all(isinstance(item, str) for item in literal):
+        if not isinstance(literal, (list, tuple)) or not all(
+            isinstance(item, str) for item in literal
+        ):
             raise SurfaceError("python __all__ must contain only strings")
         values = list(literal)
     return values
@@ -259,7 +276,9 @@ def _is_public(name: str) -> bool:
 def _python_callable_signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
     decorators = "".join(f"@{_python_signature(item)} " for item in node.decorator_list)
     prefix = "async def" if isinstance(node, ast.AsyncFunctionDef) else "def"
-    returns = f" -> {_python_signature(node.returns)}" if node.returns is not None else ""
+    returns = (
+        f" -> {_python_signature(node.returns)}" if node.returns is not None else ""
+    )
     return f"{decorators}{prefix} {node.name}({_python_signature(node.args)}){returns}"
 
 
@@ -293,7 +312,9 @@ class _PythonPackage:
             try:
                 self.modules[module] = ast.parse(text, filename=relative)
             except SyntaxError as exc:
-                raise ComparatorError(f"cannot parse Python source {relative}: {exc}") from exc
+                raise ComparatorError(
+                    f"cannot parse Python source {relative}: {exc}"
+                ) from exc
             if is_package:
                 self.packages.add(module)
         if "fathomdb" not in self.modules:
@@ -316,7 +337,11 @@ class _PythonPackage:
                 source = self._absolute(module, node)
                 for alias in node.names:
                     if alias.name != "*":
-                        bindings[alias.asname or alias.name] = ("import", source, alias.name)
+                        bindings[alias.asname or alias.name] = (
+                            "import",
+                            source,
+                            alias.name,
+                        )
             elif isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
@@ -325,7 +350,9 @@ class _PythonPackage:
                 bindings[node.target.id] = ("def", node)
         return bindings
 
-    def resolve(self, module: str, name: str, seen: frozenset[tuple[str, str]] = frozenset()) -> tuple[Any, ...]:
+    def resolve(
+        self, module: str, name: str, seen: frozenset[tuple[str, str]] = frozenset()
+    ) -> tuple[Any, ...]:
         if (module, name) in seen:
             raise ComparatorError(f"circular Python import for {module}.{name}")
         binding = self.bindings.get(module, {}).get(name)
@@ -334,7 +361,9 @@ class _PythonPackage:
                 return ("module", f"{module}.{name}")
             if module not in self.modules:
                 return ("external", module, name)
-            raise ComparatorError(f"python name {module}.{name} is exported but never bound")
+            raise ComparatorError(
+                f"python name {module}.{name} is exported but never bound"
+            )
         if binding[0] == "def":
             return binding
         _, source, original = binding
@@ -351,7 +380,10 @@ class _PythonPackage:
         return sorted(
             module
             for module in self.modules
-            if all(_is_public(part) and not part.startswith("__") for part in module.split("."))
+            if all(
+                _is_public(part) and not part.startswith("__")
+                for part in module.split(".")
+            )
         )
 
     def exported(self, module: str) -> list[str]:
@@ -387,12 +419,18 @@ def parse_python_wrappers(sources: dict[str, str]) -> list[dict[str, str]]:
                 continue
             if resolved[0] == "external":
                 entries.append(
-                    _entry(path, "python-reexport", f"from {resolved[1]} import {resolved[2]}")
+                    _entry(
+                        path,
+                        "python-reexport",
+                        f"from {resolved[1]} import {resolved[2]}",
+                    )
                 )
                 continue
             node = resolved[1]
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                entries.append(_entry(path, "python-function", _python_callable_signature(node)))
+                entries.append(
+                    _entry(path, "python-function", _python_callable_signature(node))
+                )
             elif isinstance(node, ast.ClassDef):
                 entries.append(_entry(path, "python-class", _python_class_header(node)))
                 for member in node.body:
@@ -405,7 +443,9 @@ def parse_python_wrappers(sources: dict[str, str]) -> list[dict[str, str]]:
                                     _python_callable_signature(member),
                                 )
                             )
-                    elif isinstance(member, ast.AnnAssign) and isinstance(member.target, ast.Name):
+                    elif isinstance(member, ast.AnnAssign) and isinstance(
+                        member.target, ast.Name
+                    ):
                         if _is_public(member.target.id):
                             entries.append(
                                 _entry(
@@ -443,22 +483,32 @@ def parse_python_registrations(text: str) -> list[dict[str, str]]:
     entries: list[dict[str, str]] = []
     for match in re.finditer(r"\.add_class::<([A-Za-z_][A-Za-z0-9_:]*)>\(\)\?", text):
         name = match.group(1)
-        entries.append(_entry(name, "pyclass-registration", gated(match, f"add_class::<{name}>")))
-    for match in re.finditer(r"wrap_pyfunction!\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,", text):
+        entries.append(
+            _entry(name, "pyclass-registration", gated(match, f"add_class::<{name}>"))
+        )
+    for match in re.finditer(
+        r"wrap_pyfunction!\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,", text
+    ):
         name = match.group(1)
         entries.append(
-            _entry(name, "pyfunction-registration", gated(match, f"wrap_pyfunction!({name})"))
+            _entry(
+                name,
+                "pyfunction-registration",
+                gated(match, f"wrap_pyfunction!({name})"),
+            )
         )
     for match in re.finditer(
         r'\bm\.add\(\s*"(?P<name>[A-Za-z_][A-Za-z0-9_]*)"\s*,\s*'
-        r'(?P<value>.*?)\)\?;',
+        r"(?P<value>.*?)\)\?;",
         text,
         re.DOTALL,
     ):
         name = match.group("name")
         value = _normalize_space(match.group("value"))
         entries.append(
-            _entry(name, "py-alias-registration", gated(match, f'm.add("{name}", {value})'))
+            _entry(
+                name, "py-alias-registration", gated(match, f'm.add("{name}", {value})')
+            )
         )
     if not entries:
         raise SurfaceError("PyO3 source contains no class or function registrations")
@@ -508,11 +558,16 @@ def _cfg_by_line(text: str) -> list[tuple[str, ...]]:
         # this line gates everything until that body closes.
         if pending and opened > 0:
             blocks.append((depth, tuple(pending)))
-        pending = []
+            pending = []
+        elif pending and ";" in stripped:
+            # Attribute-on-statement form: it gates this statement only.
+            pending = []
+        # Otherwise retain pending attributes across a rustfmt-wrapped item
+        # header until its body opens on a later line.
         depth += opened
         while blocks and depth <= blocks[-1][0]:
             blocks.pop()
-    if depth != 0 or carried != ("", ""):
+    if depth != 0 or carried != ("", "") or pending:
         raise ComparatorError("unbalanced braces in PyO3 registration source")
     return result
 
@@ -539,7 +594,9 @@ def _attribute_end(line: str) -> int:
 def _python_signature(node: ast.AST) -> str:
     try:
         return ast.unparse(node)
-    except AttributeError as exc:  # pragma: no cover - Python 3.9 and older are unsupported
+    except (
+        AttributeError
+    ) as exc:  # pragma: no cover - Python 3.9 and older are unsupported
         raise SurfaceError("Python ast.unparse is required") from exc
 
 
@@ -560,7 +617,9 @@ def parse_python_stub(text: str) -> list[dict[str, str]]:
                 for keyword in node.keywords
             )
             suffix = f"({', '.join(class_arguments)})" if class_arguments else ""
-            entries.append(_entry(node.name, "stub-class", f"class {node.name}{suffix}"))
+            entries.append(
+                _entry(node.name, "stub-class", f"class {node.name}{suffix}")
+            )
             for member in node.body:
                 if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     entries.append(
@@ -570,7 +629,9 @@ def parse_python_stub(text: str) -> list[dict[str, str]]:
                             _python_signature(member),
                         )
                     )
-                elif isinstance(member, ast.AnnAssign) and isinstance(member.target, ast.Name):
+                elif isinstance(member, ast.AnnAssign) and isinstance(
+                    member.target, ast.Name
+                ):
                     entries.append(
                         _entry(
                             f"{node.name}.{member.target.id}",
@@ -620,7 +681,9 @@ def parse_typescript_declarations(text: str, row: str) -> list[dict[str, str]]:
     return _unique(entries, row)
 
 
-_TS_STAR_REEXPORT = re.compile(r"""export\s+(?:type\s+)?\*\s+from\s+["']([^"']+)["']\s*;?""")
+_TS_STAR_REEXPORT = re.compile(
+    r"""export\s+(?:type\s+)?\*\s+from\s+["']([^"']+)["']\s*;?"""
+)
 _TS_NAMED_REEXPORT = re.compile(
     r"""export\s+(?:type\s+)?\{([^}]*)\}\s+from\s+["']([^"']+)["']\s*;?"""
 )
@@ -634,7 +697,9 @@ def _resolve_typescript_module(
     for candidate in (f"{stem}.d.ts", f"{stem}.d.mts", f"{stem}/index.d.ts"):
         if candidate in modules:
             return candidate
-    raise ComparatorError(f"{row} cannot resolve re-export {specifier!r} from {importer}")
+    raise ComparatorError(
+        f"{row} cannot resolve re-export {specifier!r} from {importer}"
+    )
 
 
 def _flatten_typescript(
@@ -655,11 +720,15 @@ def _flatten_typescript(
             continue
         local_list = _TS_LOCAL_EXPORT_LIST.fullmatch(statement)
         if local_list is not None:
-            flattened.extend(_resolve_export_list(local_list.group(1), local, module, row))
+            flattened.extend(
+                _resolve_export_list(local_list.group(1), local, module, row)
+            )
             continue
         star = _TS_STAR_REEXPORT.fullmatch(statement)
         named = _TS_NAMED_REEXPORT.fullmatch(statement)
-        target_specifier = (star or named).group(1 if star else 2) if (star or named) else None
+        target_specifier = (
+            (star or named).group(1 if star else 2) if (star or named) else None
+        )
         if target_specifier is None or not target_specifier.startswith("."):
             path, kind = _declaration_name(statement)
             flattened.append((path, kind, statement))
@@ -667,7 +736,9 @@ def _flatten_typescript(
         target = _resolve_typescript_module(module, target_specifier, modules, row)
         exported = _flatten_typescript(modules, target, row, stack)
         if star is not None:
-            flattened.extend(item for item in exported if not item[2].startswith("export default"))
+            flattened.extend(
+                item for item in exported if not item[2].startswith("export default")
+            )
             continue
         flattened.extend(_resolve_export_list(named.group(1), exported, target, row))
     return flattened
@@ -688,7 +759,9 @@ def _resolve_export_list(
         alias = alias or original
         matches = [item for item in candidates if item[0] == original]
         if not matches:
-            raise ComparatorError(f"{row} export {original!r} from {module} has no declaration")
+            raise ComparatorError(
+                f"{row} export {original!r} from {module} has no declaration"
+            )
         for _, kind, target_statement in matches:
             signature = (
                 target_statement
@@ -764,7 +837,9 @@ _TS_DECLARATION_START = re.compile(
 
 
 def _brace_delta(line: str) -> int:
-    unquoted = re.sub(r"\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`", "", line)
+    unquoted = re.sub(
+        r"\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`", "", line
+    )
     return unquoted.count("{") - unquoted.count("}")
 
 
@@ -805,7 +880,9 @@ def _typescript_statements(text: str, row: str) -> list[tuple[bool, str]]:
     return statements
 
 
-def parse_package_entrypoints(package_text: str, runtime_exports: Sequence[str]) -> list[dict[str, str]]:
+def parse_package_entrypoints(
+    package_text: str, runtime_exports: Sequence[str]
+) -> list[dict[str, str]]:
     """Capture supported package roots/subpaths and generated runtime keys."""
 
     try:
@@ -835,7 +912,9 @@ def parse_package_entrypoints(package_text: str, runtime_exports: Sequence[str])
     return _unique(entries, "package-entrypoints")
 
 
-def capture_from_fixture(inputs: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
+def capture_from_fixture(
+    inputs: dict[str, Any], metadata: dict[str, Any]
+) -> dict[str, Any]:
     """Normalize already-produced, real-shaped adapter inputs.
 
     Tests use this seam to mutate one compiler/registration/declaration input at
@@ -893,7 +972,9 @@ def capture_from_fixture(inputs: dict[str, Any], metadata: dict[str, Any]) -> di
             },
             {
                 "id": "napi-production",
-                "entries": parse_typescript_declarations(inputs["napi_declaration"], "napi-production"),
+                "entries": parse_typescript_declarations(
+                    inputs["napi_declaration"], "napi-production"
+                ),
             },
             {
                 "id": "typescript-declarations",
@@ -929,7 +1010,8 @@ def _row_map(manifest: dict[str, Any]) -> dict[str, dict[str, dict[str, str]]]:
         mapped: dict[str, dict[str, str]] = {}
         for item in entries:
             if not isinstance(item, dict) or not all(
-                isinstance(item.get(field), str) for field in ("path", "kind", "signature")
+                isinstance(item.get(field), str)
+                for field in ("path", "kind", "signature")
             ):
                 raise SurfaceError(f"malformed entry in row {row_id}")
             signature_digest = hashlib.sha256(item["signature"].encode()).hexdigest()
@@ -941,20 +1023,27 @@ def _row_map(manifest: dict[str, Any]) -> dict[str, dict[str, dict[str, str]]]:
     return result
 
 
-def compare_manifests(baseline: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
+def compare_manifests(
+    baseline: dict[str, Any], candidate: dict[str, Any]
+) -> dict[str, Any]:
     """Return deterministic metadata and row-level added/removed/changed diffs."""
 
     baseline_metadata = baseline.get("metadata")
     candidate_metadata = candidate.get("metadata")
-    if not isinstance(baseline_metadata, dict) or not isinstance(candidate_metadata, dict):
+    if not isinstance(baseline_metadata, dict) or not isinstance(
+        candidate_metadata, dict
+    ):
         raise SurfaceError("both manifests require metadata objects")
     baseline_source_sha = _validated_source_sha(baseline_metadata, "baseline")
     candidate_source_sha = _validated_source_sha(candidate_metadata, "candidate")
-    comparable_metadata_keys = (
-        set(baseline_metadata) | set(candidate_metadata)
-    ) - {"capture_source_sha"}
+    comparable_metadata_keys = (set(baseline_metadata) | set(candidate_metadata)) - {
+        "capture_source_sha"
+    }
     metadata_diffs = {
-        key: {"baseline": baseline_metadata.get(key), "candidate": candidate_metadata.get(key)}
+        key: {
+            "baseline": baseline_metadata.get(key),
+            "candidate": candidate_metadata.get(key),
+        }
         for key in sorted(comparable_metadata_keys)
         if baseline_metadata.get(key) != candidate_metadata.get(key)
     }
@@ -994,7 +1083,9 @@ def compare_manifests(baseline: dict[str, Any], candidate: dict[str, Any]) -> di
                     continue
                 unpaired_added.remove(chosen)
                 unpaired_removed.remove(removed_key)
-                changed.append({"path": old["path"], "before": old, "after": after[chosen]})
+                changed.append(
+                    {"path": old["path"], "before": old, "after": after[chosen]}
+                )
         if removed_keys or added_keys or changed:
             row_diffs.append(
                 {
@@ -1019,7 +1110,9 @@ def compare_manifests(baseline: dict[str, Any], candidate: dict[str, Any]) -> di
 def _validated_source_sha(metadata: dict[str, Any], label: str) -> str:
     value = metadata.get("capture_source_sha")
     if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{40}", value) is None:
-        raise ComparatorError(f"{label} capture_source_sha must be a full lowercase Git SHA")
+        raise ComparatorError(
+            f"{label} capture_source_sha must be a full lowercase Git SHA"
+        )
     return value
 
 
@@ -1038,7 +1131,9 @@ def _run(command: Sequence[str], cwd: Path, env: dict[str, str] | None = None) -
         raise ComparatorError(f"cannot execute {' '.join(command)}: {exc}") from exc
     if completed.returncode != 0:
         diagnostic = "\n".join(
-            part.rstrip() for part in (completed.stdout, completed.stderr) if part.strip()
+            part.rstrip()
+            for part in (completed.stdout, completed.stderr)
+            if part.strip()
         )
         raise SurfaceError(
             f"command failed ({completed.returncode}): {' '.join(command)}\n{diagnostic}"
@@ -1060,22 +1155,70 @@ def _clean_source(source_sha: str) -> None:
     if not re.fullmatch(r"[0-9a-f]{40}", source_sha):
         raise SurfaceError("capture source SHA must be a full 40-character Git SHA")
     if source_sha != head:
-        raise SurfaceError(f"capture source SHA {source_sha} does not match HEAD {head}")
+        raise SurfaceError(
+            f"capture source SHA {source_sha} does not match HEAD {head}"
+        )
     status = _run(["git", "status", "--porcelain", "--untracked-files=all"], REPO_ROOT)
     if status:
         raise SurfaceError("capture requires a clean worktree:\n" + status)
 
 
+def _existing_parent(path: Path) -> Path:
+    candidate = path
+    while not candidate.exists():
+        if candidate.parent == candidate:
+            raise SurfaceError(f"cannot locate an existing parent for {path}")
+        candidate = candidate.parent
+    return candidate
+
+
+def _capture_filesystems() -> list[tuple[str, Path]]:
+    """Return each distinct filesystem used by heavy cache and scratch output."""
+
+    by_device: dict[int, tuple[list[str], Path]] = {}
+    for label, path in (("cache", OWNED_CACHE), ("scratch", OWNED_SCRATCH)):
+        existing = _existing_parent(path)
+        device = existing.stat().st_dev
+        if device in by_device:
+            by_device[device][0].append(label)
+        else:
+            by_device[device] = ([label], existing)
+    return [("/".join(labels), path) for labels, path in by_device.values()]
+
+
+def _check_capture_capacity() -> None:
+    for label, path in _capture_filesystems():
+        if shutil.disk_usage(path).free < MIN_FREE_BYTES:
+            raise SurfaceError(
+                f"{label} filesystem requires at least {MIN_FREE_BYTES} free bytes"
+            )
+
+
+def _assert_owned_scratch() -> None:
+    """Fail closed unless scratch is a real directory with the exact marker."""
+
+    try:
+        root_mode = OWNED_SCRATCH.lstat().st_mode
+    except FileNotFoundError as exc:
+        raise SurfaceError(f"scratch root disappeared: {OWNED_SCRATCH}") from exc
+    if not stat.S_ISDIR(root_mode):
+        raise SurfaceError(f"scratch root must be a real directory: {OWNED_SCRATCH}")
+    marker = OWNED_SCRATCH / SCRATCH_MARKER
+    try:
+        marker_mode = marker.lstat().st_mode
+    except FileNotFoundError as exc:
+        raise SurfaceError(f"scratch ownership marker is missing: {marker}") from exc
+    if not stat.S_ISREG(marker_mode) or marker.read_text() != SCRATCH_MARKER_CONTENT:
+        raise SurfaceError(f"scratch ownership marker is invalid: {marker}")
+
+
 def _prepare_scratch() -> None:
-    if shutil.disk_usage(REPO_ROOT).free < MIN_FREE_BYTES:
-        raise SurfaceError(f"heavy capture requires at least {MIN_FREE_BYTES} free bytes")
-    if OWNED_SCRATCH.exists():
-        marker = OWNED_SCRATCH / SCRATCH_MARKER
-        if not marker.is_file():
-            raise SurfaceError(f"refusing to reuse unowned scratch root: {OWNED_SCRATCH}")
+    _check_capture_capacity()
+    if os.path.lexists(OWNED_SCRATCH):
+        _assert_owned_scratch()
         shutil.rmtree(OWNED_SCRATCH)
     OWNED_SCRATCH.mkdir(parents=True)
-    (OWNED_SCRATCH / SCRATCH_MARKER).write_text("owned by 0.8.27 Slice 30\n")
+    (OWNED_SCRATCH / SCRATCH_MARKER).write_text(SCRATCH_MARKER_CONTENT)
     OWNED_CACHE.mkdir(parents=True, exist_ok=True)
 
 
@@ -1090,7 +1233,9 @@ def _tool_metadata(source_sha: str) -> dict[str, Any]:
     if target_match is None:
         raise SurfaceError("nightly rustc did not report a host target")
     node = _exact_version(["node", "--version"], PINNED_NODE)
-    typescript = _run(["npm", "exec", "--", "tsc", "--version"], REPO_ROOT / "src/ts").strip()
+    typescript = _run(
+        ["npm", "exec", "--", "tsc", "--version"], REPO_ROOT / "src/ts"
+    ).strip()
     match = re.fullmatch(r"Version\s+(\S+)", typescript)
     if match is None:
         raise SurfaceError(f"unexpected TypeScript version output: {typescript!r}")
@@ -1110,15 +1255,19 @@ def _tool_metadata(source_sha: str) -> dict[str, Any]:
 
 
 def _validate_napi_build_script(package_text: str) -> None:
-    identity = next(row for row in REQUIRED_ROW_IDENTITIES if row["id"] == "napi-production")
+    identity = next(
+        row for row in REQUIRED_ROW_IDENTITIES if row["id"] == "napi-production"
+    )
     try:
         script = json.loads(package_text).get("scripts", {}).get("build:native")
     except (json.JSONDecodeError, AttributeError) as exc:
-        raise ComparatorError(f"cannot read build:native from package.json: {exc}") from exc
-    if script != identity["expanded_command"]:
+        raise ComparatorError(
+            f"cannot read build:native from package.json: {exc}"
+        ) from exc
+    if script != identity["script"]:
         raise ComparatorError(
             f"package.json build:native {script!r} does not match recorded napi-production "
-            f"identity {identity['expanded_command']!r}"
+            f"identity {identity['script']!r}"
         )
 
 
@@ -1148,28 +1297,17 @@ def capture_repository(source_sha: str) -> dict[str, Any]:
 
         ts_root = REPO_ROOT / "src/ts"
         _validate_napi_build_script((ts_root / "package.json").read_text())
-        # napi-rs writes `index.d.ts` from a type-definition file under TMPDIR
-        # that its proc macros only rewrite when the crate recompiles. A cached
-        # build would otherwise reuse whatever the last build for this checkout
-        # left there (for example a test-hooks debug build). Force the NAPI
-        # crate to recompile and give it a private TMPDIR.
-        _run(
-            [
-                "cargo",
-                "clean",
-                "--manifest-path",
-                str(REPO_ROOT / "Cargo.toml"),
-                "-p",
-                "fathomdb-napi",
-                "--release",
-            ],
-            REPO_ROOT,
-            env,
-        )
+        # The package's canonical production wrapper owns the targeted clean
+        # and all three temporary-directory variables. Give that wrapper a
+        # capture-owned directory rather than duplicating its build policy.
         napi_tmp = OWNED_SCRATCH / "napi-tmp"
         # Never create parents: the owned scratch root must already exist.
         napi_tmp.mkdir(exist_ok=True)
-        _run(["npm", "run", "build:native"], ts_root, {**env, "TMPDIR": str(napi_tmp)})
+        _run(
+            ["npm", "run", "build:native"],
+            ts_root,
+            {**env, "FATHOMDB_NAPI_BUILD_TMPDIR": str(napi_tmp)},
+        )
         _run(["npm", "exec", "--", "tsc", "-p", "tsconfig.build.json"], ts_root, env)
         # Declarations are emitted into the owned scratch root so only files
         # produced by this capture are read, never stale `dist/` output.
@@ -1202,14 +1340,22 @@ def capture_repository(source_sha: str) -> dict[str, Any]:
         ).strip()
         runtime_exports = json.loads(runtime_json)
         if not isinstance(runtime_exports, list):
-            raise SurfaceError("generated TypeScript runtime export probe returned no list")
-        tracked_status = _run(["git", "status", "--porcelain", "--untracked-files=all"], REPO_ROOT)
+            raise SurfaceError(
+                "generated TypeScript runtime export probe returned no list"
+            )
+        tracked_status = _run(
+            ["git", "status", "--porcelain", "--untracked-files=all"], REPO_ROOT
+        )
         if tracked_status:
-            raise SurfaceError("generation changed tracked or visible files:\n" + tracked_status)
+            raise SurfaceError(
+                "generation changed tracked or visible files:\n" + tracked_status
+            )
         python_root = REPO_ROOT / "src/python/fathomdb"
         inputs = {
             "rust": rust_outputs,
-            "python_exports": (REPO_ROOT / "src/python/fathomdb/__init__.py").read_text(),
+            "python_exports": (
+                REPO_ROOT / "src/python/fathomdb/__init__.py"
+            ).read_text(),
             "python_sources": {
                 path.relative_to(python_root).as_posix(): path.read_text()
                 for path in sorted(python_root.rglob("*.py"))
@@ -1218,7 +1364,9 @@ def capture_repository(source_sha: str) -> dict[str, Any]:
             "python_registrations": (
                 REPO_ROOT / "src/rust/crates/fathomdb-py/src/lib.rs"
             ).read_text(),
-            "python_stub": (REPO_ROOT / "src/python/fathomdb/_fathomdb.pyi").read_text(),
+            "python_stub": (
+                REPO_ROOT / "src/python/fathomdb/_fathomdb.pyi"
+            ).read_text(),
             "napi_declaration": (ts_root / "index.d.ts").read_text(),
             "typescript_declarations": {
                 path.relative_to(declaration_root).as_posix(): path.read_text()
@@ -1229,8 +1377,8 @@ def capture_repository(source_sha: str) -> dict[str, Any]:
         }
         return capture_from_fixture(inputs, metadata)
     finally:
-        marker = OWNED_SCRATCH / SCRATCH_MARKER
-        if marker.is_file():
+        if os.path.lexists(OWNED_SCRATCH):
+            _assert_owned_scratch()
             shutil.rmtree(OWNED_SCRATCH)
 
 
@@ -1247,14 +1395,20 @@ def _load_manifest(path: Path) -> dict[str, Any]:
 def _guard_capture_output(output: Path) -> None:
     baseline = REPO_ROOT / "dev/plans/0.8.27/features/slice-30/baseline.json"
     if output.resolve() == baseline.resolve():
-        raise ComparatorError("capture cannot directly rewrite the tracked reviewed baseline")
+        raise ComparatorError(
+            "capture cannot directly rewrite the tracked reviewed baseline"
+        )
     if output.exists() and baseline.exists():
         try:
             aliases_baseline = output.samefile(baseline)
         except OSError as exc:
-            raise ComparatorError(f"cannot validate capture output identity: {exc}") from exc
+            raise ComparatorError(
+                f"cannot validate capture output identity: {exc}"
+            ) from exc
         if aliases_baseline:
-            raise ComparatorError("capture cannot rewrite a hardlink alias of the reviewed baseline")
+            raise ComparatorError(
+                "capture cannot rewrite a hardlink alias of the reviewed baseline"
+            )
 
 
 def _atomic_write(output: Path, contents: str) -> None:
@@ -1275,7 +1429,9 @@ def _atomic_write(output: Path, contents: str) -> None:
         os.replace(temporary_path, output)
         temporary_path = None
     except OSError as exc:
-        raise ComparatorError(f"atomic manifest write failed for {output}: {exc}") from exc
+        raise ComparatorError(
+            f"atomic manifest write failed for {output}: {exc}"
+        ) from exc
     finally:
         if temporary_path is not None:
             try:
@@ -1295,7 +1451,9 @@ def _capture_command(args: argparse.Namespace) -> int:
 
 
 def _compare_command(args: argparse.Namespace) -> int:
-    result = compare_manifests(_load_manifest(args.baseline), _load_manifest(args.candidate))
+    result = compare_manifests(
+        _load_manifest(args.baseline), _load_manifest(args.candidate)
+    )
     print(canonical_json(result), end="")
     return 0 if result["equal"] else 1
 
@@ -1303,7 +1461,9 @@ def _compare_command(args: argparse.Namespace) -> int:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    capture = subparsers.add_parser("capture", help="capture from a clean exact-source checkout")
+    capture = subparsers.add_parser(
+        "capture", help="capture from a clean exact-source checkout"
+    )
     capture.add_argument("--source-sha", required=True)
     capture.add_argument("--output", required=True, type=Path)
     capture.set_defaults(run=_capture_command)

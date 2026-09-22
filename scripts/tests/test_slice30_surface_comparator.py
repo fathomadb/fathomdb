@@ -48,7 +48,9 @@ def metadata(tool: ModuleType) -> dict[str, Any]:
 
 def fixture(tool: ModuleType) -> dict[str, Any]:
     rust = {
-        row["id"]: "pub struct fathomdb::Engine\npub fn fathomdb::open() -> fathomdb::Engine\n"
+        row[
+            "id"
+        ]: "pub struct fathomdb::Engine\npub fn fathomdb::open() -> fathomdb::Engine\n"
         for row in tool.REQUIRED_ROW_IDENTITIES
         if row["kind"] == "rust"
     }
@@ -71,20 +73,20 @@ def fixture(tool: ModuleType) -> dict[str, Any]:
     )
     return {
         "rust": rust,
-        "python_exports": '''\
+        "python_exports": """\
 from fathomdb.engine import Engine
 from fathomdb.types import SearchHit
 __all__ = ["Engine", "SearchHit"]
-''',
-        "python_registrations": '''\
+""",
+        "python_registrations": """\
 fn _fathomdb(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyEngine>()?;
     m.add_function(wrap_pyfunction!(search, m)?)?;
     m.add("StorageError", py.get_type::<StorageError>())?;
     Ok(())
 }
-''',
-        "python_stub": '''\
+""",
+        "python_stub": """\
 class EngineError(Exception): ...
 
 class StorageError(EngineError): ...
@@ -94,23 +96,23 @@ class Engine:
     def search(self, query: str, limit: int = ...) -> list[str]: ...
 
 def rerank(query: str, passages: list[str]) -> list[float]: ...
-''',
-        "napi_declaration": '''\
+""",
+        "napi_declaration": """\
 export interface NativeHit {
   body: string
 }
 export declare function nativeSearch(query: string): Array<NativeHit>
-''',
+""",
         "typescript_declarations": {
-            "index.d.ts": '''\
+            "index.d.ts": """\
 export * from "./errors.js";
 export { read } from "./read.js";
 export interface SearchHit {
   body: string;
 }
 export declare function search(query: string): Promise<SearchHit[]>;
-''',
-            "errors.d.ts": '''\
+""",
+            "errors.d.ts": """\
 export declare class FathomDbError extends Error {
 }
 export declare class DatabaseLockedError extends FathomDbError {
@@ -118,8 +120,8 @@ export declare class DatabaseLockedError extends FathomDbError {
 export interface CorruptionErrorPayload {
   path: string;
 }
-''',
-            "read.d.ts": '''\
+""",
+            "read.d.ts": """\
 export interface ReadView {
   id: string;
 }
@@ -128,15 +130,15 @@ export declare const read: {
     getMany(ids: string[]): Promise<ReadView[]>;
 };
 export declare const internalOnly = 1;
-''',
+""",
         },
         "python_sources": {
-            "__init__.py": '''\
+            "__init__.py": """\
 from fathomdb import read
 from fathomdb.engine import Engine
 __all__ = ["Engine", "read"]
-''',
-            "engine.py": '''\
+""",
+            "engine.py": """\
 from typing import Any
 
 class Engine:
@@ -145,13 +147,13 @@ class Engine:
         return [query]
     def _private(self) -> None:
         pass
-''',
-            "read.py": '''\
+""",
+            "read.py": """\
 __all__ = ["get_many"]
 
 def get_many(ids: list[int]) -> list[str]:
     return []
-''',
+""",
         },
         "package_json": json.dumps(
             {
@@ -181,12 +183,18 @@ def assert_row_diff(
     result = tool.compare_manifests(baseline, candidate)
     assert not result["equal"], f"mutation for {expected_row} compared equal"
     # One mutation must disturb exactly its own row.
-    assert [item["row"] for item in result["row_diffs"]] == [expected_row], result["row_diffs"]
+    assert [item["row"] for item in result["row_diffs"]] == [expected_row], result[
+        "row_diffs"
+    ]
     row = result["row_diffs"][0]
-    assert row[expected_bucket], f"{expected_row} did not report {expected_bucket}: {row}"
+    assert row[expected_bucket], (
+        f"{expected_row} did not report {expected_bucket}: {row}"
+    )
     if expected_paths is not None:
         actual = {item["path"] for item in row[expected_bucket]}
-        assert actual == expected_paths, f"{expected_row} {expected_bucket} paths {actual}"
+        assert actual == expected_paths, (
+            f"{expected_row} {expected_bucket} paths {actual}"
+        )
 
 
 def main() -> None:
@@ -225,7 +233,9 @@ def main() -> None:
         inputs,
         lambda value: value["rust"].__setitem__(
             "rust-facade-default",
-            value["rust"]["rust-facade-default"].replace("pub struct fathomdb::Engine\n", ""),
+            value["rust"]["rust-facade-default"].replace(
+                "pub struct fathomdb::Engine\n", ""
+            ),
         ),
         "rust-facade-default",
         "removed",
@@ -298,7 +308,8 @@ def main() -> None:
         lambda value: value.__setitem__(
             "python_stub",
             value["python_stub"].replace(
-                "    def search(self, query: str, limit: int = ...) -> list[str]: ...\n", ""
+                "    def search(self, query: str, limit: int = ...) -> list[str]: ...\n",
+                "",
             ),
         ),
         "python-native-stub",
@@ -309,7 +320,8 @@ def main() -> None:
         tool,
         inputs,
         lambda value: value.__setitem__(
-            "napi_declaration", value["napi_declaration"].replace("body: string", "body: Uint8Array")
+            "napi_declaration",
+            value["napi_declaration"].replace("body: string", "body: Uint8Array"),
         ),
         "napi-production",
         "changed",
@@ -333,9 +345,7 @@ def main() -> None:
     assert_row_diff(
         tool,
         inputs,
-        lambda value: value.__setitem__(
-            "runtime_exports", ["Engine", "lookup"]
-        ),
+        lambda value: value.__setitem__("runtime_exports", ["Engine", "lookup"]),
         "package-entrypoints",
         "changed",
     )
@@ -343,7 +353,8 @@ def main() -> None:
         tool,
         inputs,
         lambda value: value.__setitem__(
-            "package_json", value["package_json"].replace("dist/index.js", "dist/main.js")
+            "package_json",
+            value["package_json"].replace("dist/index.js", "dist/main.js"),
         ),
         "package-entrypoints",
         "changed",
@@ -379,7 +390,9 @@ def main() -> None:
     else:
         raise AssertionError("invalid provenance must fail closed")
 
-    with mock.patch.object(tool.subprocess, "run", side_effect=FileNotFoundError("missing")):
+    with mock.patch.object(
+        tool.subprocess, "run", side_effect=FileNotFoundError("missing")
+    ):
         try:
             tool._run(["missing-slice30-tool"], ROOT)
         except tool.ComparatorError as exc:
@@ -412,7 +425,9 @@ def main() -> None:
 
         output = temporary / "candidate.json"
         output.write_text("original\n")
-        with mock.patch.object(tool.os, "replace", side_effect=OSError("replace refused")):
+        with mock.patch.object(
+            tool.os, "replace", side_effect=OSError("replace refused")
+        ):
             try:
                 tool._atomic_write(output, "replacement\n")
             except tool.ComparatorError as exc:
@@ -435,7 +450,8 @@ def main() -> None:
             "typescript_declarations",
             "errors.d.ts",
             ts["errors.d.ts"].replace(
-                "DatabaseLockedError extends FathomDbError", "DatabaseLockedError extends Error"
+                "DatabaseLockedError extends FathomDbError",
+                "DatabaseLockedError extends Error",
             ),
         ),
         "typescript-declarations",
@@ -448,7 +464,9 @@ def main() -> None:
             value,
             "typescript_declarations",
             "errors.d.ts",
-            ts["errors.d.ts"].replace("export interface CorruptionErrorPayload {\n  path: string;\n}\n", ""),
+            ts["errors.d.ts"].replace(
+                "export interface CorruptionErrorPayload {\n  path: string;\n}\n", ""
+            ),
         ),
         "typescript-declarations",
         "removed",
@@ -460,16 +478,22 @@ def main() -> None:
             value,
             "typescript_declarations",
             "read.d.ts",
-            ts["read.d.ts"].replace("    getMany(ids: string[]): Promise<ReadView[]>;\n", ""),
+            ts["read.d.ts"].replace(
+                "    getMany(ids: string[]): Promise<ReadView[]>;\n", ""
+            ),
         ),
         "typescript-declarations",
         "changed",
     )
     ts_entries = next(
-        row["entries"] for row in baseline["rows"] if row["id"] == "typescript-declarations"
+        row["entries"]
+        for row in baseline["rows"]
+        if row["id"] == "typescript-declarations"
     )
     ts_paths = {entry["path"] for entry in ts_entries}
-    assert {"DatabaseLockedError", "CorruptionErrorPayload", "read"} <= ts_paths, ts_paths
+    assert {"DatabaseLockedError", "CorruptionErrorPayload", "read"} <= ts_paths, (
+        ts_paths
+    )
     assert "internalOnly" not in ts_paths and "ReadView" not in ts_paths, ts_paths
     assert not any(path.startswith("export:") for path in ts_paths), ts_paths
     moved_ts = copy.deepcopy(inputs)
@@ -516,7 +540,7 @@ def main() -> None:
             value,
             "python_sources",
             "read.py",
-            '__all__ = []\n',
+            "__all__ = []\n",
         ),
         "python-wrapper-declarations",
         "removed",
@@ -531,7 +555,9 @@ def main() -> None:
     assert body_result["equal"], body_result
     moved_py = copy.deepcopy(inputs)
     moved_py["python_sources"]["_engine_impl.py"] = py["engine.py"]
-    moved_py["python_sources"]["engine.py"] = "from fathomdb._engine_impl import Engine\n"
+    moved_py["python_sources"]["engine.py"] = (
+        "from fathomdb._engine_impl import Engine\n"
+    )
     moved_py_result = tool.compare_manifests(
         baseline, tool.capture_from_fixture(moved_py, metadata(tool))
     )
@@ -542,8 +568,14 @@ def main() -> None:
         if row["id"] == "python-wrapper-declarations"
         for entry in row["entries"]
     }
-    assert {"fathomdb.Engine.search", "fathomdb.read.get_many", "fathomdb.engine.Engine"} <= py_paths, py_paths
-    assert not any("_private" in path or path.endswith(".Any") for path in py_paths), py_paths
+    assert {
+        "fathomdb.Engine.search",
+        "fathomdb.read.get_many",
+        "fathomdb.engine.Engine",
+    } <= py_paths, py_paths
+    assert not any("_private" in path or path.endswith(".Any") for path in py_paths), (
+        py_paths
+    )
 
     # cfg-gated PyO3 registrations are distinguishable from shipped ones.
     assert_row_diff(
@@ -564,10 +596,10 @@ def main() -> None:
     napi_identity = next(
         row for row in tool.REQUIRED_ROW_IDENTITIES if row["id"] == "napi-production"
     )
-    good_package = json.dumps({"scripts": {"build:native": napi_identity["expanded_command"]}})
+    good_package = json.dumps({"scripts": {"build:native": napi_identity["script"]}})
     tool._validate_napi_build_script(good_package)
     drifted = json.dumps(
-        {"scripts": {"build:native": napi_identity["expanded_command"] + ",default-reranker"}}
+        {"scripts": {"build:native": napi_identity["script"] + " --unexpected"}}
     )
     try:
         tool._validate_napi_build_script(drifted)
@@ -624,7 +656,7 @@ def main() -> None:
     )
     documented["napi_declaration"] = inputs["napi_declaration"].replace(
         "export declare function nativeSearch",
-        "/**\n * if x.is_some() { obj.set(\"x\", x)?;\n * // not code\n */\n"
+        '/**\n * if x.is_some() { obj.set("x", x)?;\n * // not code\n */\n'
         "export declare function nativeSearch",
     )
     documented_result = tool.compare_manifests(
@@ -632,18 +664,27 @@ def main() -> None:
     )
     assert documented_result["equal"], documented_result
     literal = tool.parse_typescript_declarations(
-        'export type Url = "https://example.test/*path";\nexport type Next = "b";\n', "literal"
+        'export type Url = "https://example.test/*path";\nexport type Next = "b";\n',
+        "literal",
     )
     assert [entry["path"] for entry in literal] == ["Next", "Url"], literal
     assert "https://example.test/*path" in literal[1]["signature"], literal
 
     # --- Rust impl context keeps same-named associated items distinct.
     thing = next(row for row in baseline["rows"] if row["id"] == "rust-engine-default")
-    fmt = sorted(e["signature"] for e in thing["entries"] if e["path"] == "fathomdb_engine::Thing::fmt")
+    fmt = sorted(
+        e["signature"]
+        for e in thing["entries"]
+        if e["path"] == "fathomdb_engine::Thing::fmt"
+    )
     assert len(fmt) == 2, fmt
     assert fmt[0].startswith("impl core::fmt::Debug for fathomdb_engine::Thing =>"), fmt
-    assert fmt[1].startswith("impl core::fmt::Display for fathomdb_engine::Thing =>"), fmt
-    errors = [e for e in thing["entries"] if e["path"] == "fathomdb_engine::Thing::Error"]
+    assert fmt[1].startswith("impl core::fmt::Display for fathomdb_engine::Thing =>"), (
+        fmt
+    )
+    errors = [
+        e for e in thing["entries"] if e["path"] == "fathomdb_engine::Thing::Error"
+    ]
     assert len(errors) == 2, errors
     assert_row_diff(
         tool,
@@ -659,11 +700,18 @@ def main() -> None:
     )
 
     # --- Tool and target identity are part of the comparison.
-    for key, value in (("tools", {**metadata(tool)["tools"], "node": "v26.8.2"}), ("target", "aarch64-unknown-linux-gnu")):
+    for key, value in (
+        ("tools", {**metadata(tool)["tools"], "node": "v26.8.2"}),
+        ("target", "aarch64-unknown-linux-gnu"),
+    ):
         other = metadata(tool)
         other[key] = value
-        result = tool.compare_manifests(baseline, tool.capture_from_fixture(inputs, other))
-        assert not result["equal"] and key in result["metadata_diffs"], result["metadata_diffs"]
+        result = tool.compare_manifests(
+            baseline, tool.capture_from_fixture(inputs, other)
+        )
+        assert not result["equal"] and key in result["metadata_diffs"], result[
+            "metadata_diffs"
+        ]
     wrong_schema = metadata(tool)
     wrong_schema["schema"] = "other"
     try:
@@ -678,13 +726,18 @@ def main() -> None:
         tool,
         inputs,
         lambda value: value.__setitem__(
-            "python_exports", value["python_exports"].replace('"Engine", "SearchHit"', '"Engine"')
+            "python_exports",
+            value["python_exports"].replace('"Engine", "SearchHit"', '"Engine"'),
         ),
         "python-package-exports",
         "removed",
         {"SearchHit"},
     )
-    for bad in ('__all__ = [name for name in ("a",)]\n', "x = 1\n", '__all__ = ["a", 1]\n'):
+    for bad in (
+        '__all__ = [name for name in ("a",)]\n',
+        "x = 1\n",
+        '__all__ = ["a", 1]\n',
+    ):
         try:
             tool.parse_python_exports(bad)
         except tool.SurfaceError:
@@ -702,6 +755,7 @@ def main() -> None:
                 if key[: len(prefix)] == prefix:
                     return output
             raise AssertionError(f"unexpected command {command}")
+
         return run
 
     def expect_error(error: type, needle: str, call: Callable[[], Any]) -> None:
@@ -715,11 +769,19 @@ def main() -> None:
     clean = {("git", "rev-parse"): head + "\n", ("git", "status"): ""}
     with mock.patch.object(tool, "_run", side_effect=fake_run(clean)):
         tool._clean_source(head)
-        expect_error(tool.SurfaceError, "does not match HEAD", lambda: tool._clean_source("b" * 40))
-        expect_error(tool.SurfaceError, "full 40-character", lambda: tool._clean_source(head[:7]))
+        expect_error(
+            tool.SurfaceError,
+            "does not match HEAD",
+            lambda: tool._clean_source("b" * 40),
+        )
+        expect_error(
+            tool.SurfaceError, "full 40-character", lambda: tool._clean_source(head[:7])
+        )
     dirty = {("git", "rev-parse"): head + "\n", ("git", "status"): " M src/lib.rs\n"}
     with mock.patch.object(tool, "_run", side_effect=fake_run(dirty)):
-        expect_error(tool.SurfaceError, "clean worktree", lambda: tool._clean_source(head))
+        expect_error(
+            tool.SurfaceError, "clean worktree", lambda: tool._clean_source(head)
+        )
 
     tools_ok = {
         ("cargo", "public-api", "--version"): "cargo-public-api 0.52.0\n",
@@ -730,25 +792,46 @@ def main() -> None:
     }
     with mock.patch.object(tool, "_run", side_effect=fake_run(tools_ok)):
         produced = tool._tool_metadata(head)
-        assert produced["tools"]["typescript"] == "6.0.3" and produced["tools"]["node"] == "v25.9.0"
+        assert (
+            produced["tools"]["typescript"] == "6.0.3"
+            and produced["tools"]["node"] == "v25.9.0"
+        )
         assert produced["target"] == "x86_64-unknown-linux-gnu"
-    with mock.patch.object(tool, "_run", side_effect=fake_run({**tools_ok, ("node", "--version"): "v26.8.2\n"})):
+    with mock.patch.object(
+        tool,
+        "_run",
+        side_effect=fake_run({**tools_ok, ("node", "--version"): "v26.8.2\n"}),
+    ):
         expect_error(tool.ComparatorError, "v25.9.0", lambda: tool._tool_metadata(head))
-    with mock.patch.object(tool, "_run", side_effect=fake_run({**tools_ok, ("npm", "exec", "--"): "6.0.3\n"})):
-        expect_error(tool.SurfaceError, "TypeScript version", lambda: tool._tool_metadata(head))
+    with mock.patch.object(
+        tool,
+        "_run",
+        side_effect=fake_run({**tools_ok, ("npm", "exec", "--"): "6.0.3\n"}),
+    ):
+        expect_error(
+            tool.SurfaceError, "TypeScript version", lambda: tool._tool_metadata(head)
+        )
 
     with tempfile.TemporaryDirectory() as directory:
         scratch = Path(directory) / "scratch"
         scratch.mkdir()
-        with mock.patch.object(tool, "OWNED_SCRATCH", scratch), mock.patch.object(
-            tool, "OWNED_CACHE", Path(directory) / "cache"
+        with (
+            mock.patch.object(tool, "OWNED_SCRATCH", scratch),
+            mock.patch.object(tool, "OWNED_CACHE", Path(directory) / "cache"),
         ):
-            expect_error(tool.SurfaceError, "unowned scratch", tool._prepare_scratch)
-            (scratch / tool.SCRATCH_MARKER).write_text("owned\n")
+            expect_error(tool.SurfaceError, "ownership marker", tool._prepare_scratch)
+            (scratch / tool.SCRATCH_MARKER).write_text(tool.SCRATCH_MARKER_CONTENT)
             (scratch / "leftover").write_text("x")
             tool._prepare_scratch()
-            assert not (scratch / "leftover").exists() and (scratch / tool.SCRATCH_MARKER).is_file()
-            with mock.patch.object(tool.shutil, "disk_usage", return_value=shutil._ntuple_diskusage(1, 1, 1)):
+            assert (
+                not (scratch / "leftover").exists()
+                and (scratch / tool.SCRATCH_MARKER).is_file()
+            )
+            with mock.patch.object(
+                tool.shutil,
+                "disk_usage",
+                return_value=shutil._ntuple_diskusage(1, 1, 1),
+            ):
                 expect_error(tool.SurfaceError, "free bytes", tool._prepare_scratch)
 
     with tempfile.TemporaryDirectory() as directory:
@@ -756,36 +839,41 @@ def main() -> None:
         scratch = root / "scratch"
         scratch.mkdir()
         (scratch / tool.SCRATCH_MARKER).write_text("forged\n")
-        with mock.patch.object(tool, "OWNED_SCRATCH", scratch), mock.patch.object(
-            tool, "OWNED_CACHE", root / "cache"
+        with (
+            mock.patch.object(tool, "OWNED_SCRATCH", scratch),
+            mock.patch.object(tool, "OWNED_CACHE", root / "cache"),
         ):
             expect_error(tool.SurfaceError, "ownership marker", tool._prepare_scratch)
         target = root / "target"
         target.mkdir()
-        scratch.unlink(missing_ok=True) if scratch.is_symlink() else None
-        if scratch.exists():
-            shutil.rmtree(scratch)
+        shutil.rmtree(scratch)
         scratch.symlink_to(target, target_is_directory=True)
-        with mock.patch.object(tool, "OWNED_SCRATCH", scratch), mock.patch.object(
-            tool, "OWNED_CACHE", root / "cache"
+        with (
+            mock.patch.object(tool, "OWNED_SCRATCH", scratch),
+            mock.patch.object(tool, "OWNED_CACHE", root / "cache"),
         ):
             expect_error(tool.SurfaceError, "real directory", tool._prepare_scratch)
 
     # The cache and scratch may live on different filesystems. Both must pass
     # the heavy-route floor rather than inheriting the repository result.
-    with mock.patch.object(
-        tool,
-        "_capture_filesystems",
-        return_value=[("cache", Path("/cache")), ("scratch", Path("/scratch"))],
-    ), mock.patch.object(
-        tool.shutil,
-        "disk_usage",
-        side_effect=[
-            shutil._ntuple_diskusage(200_000_000_000, 0, 150_000_000_000),
-            shutil._ntuple_diskusage(200_000_000_000, 0, 1),
-        ],
+    with (
+        mock.patch.object(
+            tool,
+            "_capture_filesystems",
+            return_value=[("cache", Path("/cache")), ("scratch", Path("/scratch"))],
+        ),
+        mock.patch.object(
+            tool.shutil,
+            "disk_usage",
+            side_effect=[
+                shutil._ntuple_diskusage(200_000_000_000, 0, 150_000_000_000),
+                shutil._ntuple_diskusage(200_000_000_000, 0, 1),
+            ],
+        ),
     ):
-        expect_error(tool.SurfaceError, "scratch filesystem", tool._check_capture_capacity)
+        expect_error(
+            tool.SurfaceError, "scratch filesystem", tool._check_capture_capacity
+        )
 
     generation = {
         ("cargo",): "pub struct fathomdb::Engine\n",
@@ -794,16 +882,25 @@ def main() -> None:
         ("node", "--input-type=module"): '["Engine"]\n',
         ("git", "status"): " M src/ts/index.d.ts\n",
     }
-    with tempfile.TemporaryDirectory() as directory, \
-            mock.patch.object(tool, "OWNED_SCRATCH", Path(directory)), \
-            mock.patch.object(tool, "_clean_source"), mock.patch.object(tool, "_prepare_scratch"), \
-            mock.patch.object(tool, "_tool_metadata", return_value=metadata(tool)), \
-            mock.patch.object(tool, "_validate_napi_build_script"), \
-            mock.patch.object(tool, "_run", side_effect=fake_run(generation)):
-        expect_error(tool.SurfaceError, "generation changed", lambda: tool.capture_repository(head))
-    assert not Path("/tmp/fathomdb-0.8.27-slice30").exists() or (
-        Path("/tmp/fathomdb-0.8.27-slice30") / tool.SCRATCH_MARKER
-    ).is_file(), "tests must never create the real scratch root without its marker"
+    with (
+        tempfile.TemporaryDirectory() as directory,
+        mock.patch.object(tool, "OWNED_SCRATCH", Path(directory)),
+        mock.patch.object(tool, "_clean_source"),
+        mock.patch.object(tool, "_prepare_scratch"),
+        mock.patch.object(tool, "_assert_owned_scratch"),
+        mock.patch.object(tool, "_tool_metadata", return_value=metadata(tool)),
+        mock.patch.object(tool, "_validate_napi_build_script"),
+        mock.patch.object(tool, "_run", side_effect=fake_run(generation)),
+    ):
+        expect_error(
+            tool.SurfaceError,
+            "generation changed",
+            lambda: tool.capture_repository(head),
+        )
+    assert (
+        not Path("/tmp/fathomdb-0.8.27-slice30").exists()
+        or (Path("/tmp/fathomdb-0.8.27-slice30") / tool.SCRATCH_MARKER).is_file()
+    ), "tests must never create the real scratch root without its marker"
 
     # --- Adapter paths the real baseline relies on.
     modules = {
@@ -820,11 +917,15 @@ def main() -> None:
     surface = {e["path"]: e for e in tool.parse_typescript_surface(modules, "fixture")}
     assert set(surface) == {"ReadView", "find", "kept", "fromA", "fromB"}, surface
     assert surface["ReadView"]["kind"] == "interface"
-    assert surface["find"]["signature"].startswith("export { search as find } =>"), surface["find"]
+    assert surface["find"]["signature"].startswith("export { search as find } =>"), (
+        surface["find"]
+    )
     expect_error(
         tool.ComparatorError,
         "unterminated block comment",
-        lambda: tool.parse_typescript_declarations("/* open\nexport declare const x = 1;\n", "c"),
+        lambda: tool.parse_typescript_declarations(
+            "/* open\nexport declare const x = 1;\n", "c"
+        ),
     )
     relative = tool.parse_python_wrappers(
         {
@@ -832,26 +933,43 @@ def main() -> None:
             "engine.py": "class Engine:\n    def close(self) -> None:\n        pass\n",
         }
     )
-    assert {e["path"] for e in relative} >= {"fathomdb.Engine", "fathomdb.Engine.close"}, relative
+    assert {e["path"] for e in relative} >= {
+        "fathomdb.Engine",
+        "fathomdb.Engine.close",
+    }, relative
     baseline_path = ROOT / "dev/plans/0.8.27/features/slice-30/baseline.json"
     with tempfile.TemporaryDirectory() as directory:
         alias = Path(directory) / "alias.json"
         alias.symlink_to(baseline_path)
-        expect_error(tool.ComparatorError, "reviewed baseline", lambda: tool._guard_capture_output(alias))
+        expect_error(
+            tool.ComparatorError,
+            "reviewed baseline",
+            lambda: tool._guard_capture_output(alias),
+        )
 
     # --- Seeded generative properties for the normalization layer.
     generator = random.Random(2708)
     rust_blocks = [
         ["pub struct fathomdb_engine::Thing"],
-        ["impl core::fmt::Debug for fathomdb_engine::Thing", "pub fn fathomdb_engine::Thing::fmt(&self, &mut Formatter) -> Result"],
-        ["impl core::fmt::Display for fathomdb_engine::Thing", "pub fn fathomdb_engine::Thing::fmt(&self, &mut Formatter) -> Result"],
+        [
+            "impl core::fmt::Debug for fathomdb_engine::Thing",
+            "pub fn fathomdb_engine::Thing::fmt(&self, &mut Formatter) -> Result",
+        ],
+        [
+            "impl core::fmt::Display for fathomdb_engine::Thing",
+            "pub fn fathomdb_engine::Thing::fmt(&self, &mut Formatter) -> Result",
+        ],
         ["pub struct fathomdb_engine::Other"],
         ["pub fn fathomdb_engine::open(path: &Path) -> Result<Engine, EngineError>"],
     ]
-    reference = tool.parse_rust_public_api("\n".join(line for block in rust_blocks for line in block), "p")
+    reference = tool.parse_rust_public_api(
+        "\n".join(line for block in rust_blocks for line in block), "p"
+    )
     for _ in range(200):
         blocks = [list(block) for block in rust_blocks]
-        blocks += [list(generator.choice(rust_blocks)) for _ in range(generator.randrange(3))]
+        blocks += [
+            list(generator.choice(rust_blocks)) for _ in range(generator.randrange(3))
+        ]
         generator.shuffle(blocks)
         lines = []
         for block in blocks:
@@ -868,9 +986,18 @@ def main() -> None:
         for index in range(generator.randrange(1, 4)):
             entries = {}
             for _ in range(generator.randrange(1, 6)):
-                path = "".join(generator.choice(alphabet) for _ in range(generator.randrange(1, 8)))
-                signature = "".join(generator.choice(alphabet) for _ in range(generator.randrange(0, 12)))
-                entries[(path, signature)] = {"path": path, "kind": "k", "signature": signature}
+                path = "".join(
+                    generator.choice(alphabet) for _ in range(generator.randrange(1, 8))
+                )
+                signature = "".join(
+                    generator.choice(alphabet)
+                    for _ in range(generator.randrange(0, 12))
+                )
+                entries[(path, signature)] = {
+                    "path": path,
+                    "kind": "k",
+                    "signature": signature,
+                }
             rows.append({"id": f"row-{index}", "entries": list(entries.values())})
         manifest = {"metadata": metadata(tool), "rows": rows}
         round_tripped = json.loads(tool.canonical_json(manifest))
@@ -883,7 +1010,10 @@ def main() -> None:
             choice = generator.randrange(4)
             if choice == 0:
                 quote = generator.choice("\"'`")
-                body = "".join(generator.choice(["//", "/*", "*/", "{", "x", " "]) for _ in range(4))
+                body = "".join(
+                    generator.choice(["//", "/*", "*/", "{", "x", " "])
+                    for _ in range(4)
+                )
                 literal = f"{quote}LIT{body}{quote}"
                 literals.append(literal)
                 pieces.append(literal)
@@ -892,7 +1022,9 @@ def main() -> None:
             elif choice == 2:
                 pieces.append("/* CMT } { \n */")
             else:
-                pieces.append(generator.choice(["export ", "type ", "{", "}", ";", "\n", "x"]))
+                pieces.append(
+                    generator.choice(["export ", "type ", "{", "}", ";", "\n", "x"])
+                )
         text = "".join(pieces)
         stripped = tool._strip_comments(text)
         assert tool._strip_comments(stripped) == stripped, text
@@ -909,16 +1041,26 @@ def main() -> None:
         "interface Hidden {\n    id: string;\n}\n"
         "export { Engine, read as reader };\nexport type { Hidden };\n",
     }
-    local_surface = {e["path"]: e for e in tool.parse_typescript_surface(local, "local")}
+    local_surface = {
+        e["path"]: e for e in tool.parse_typescript_surface(local, "local")
+    }
     assert set(local_surface) == {"Engine", "reader", "Hidden"}, local_surface
-    assert "close(): void" in local_surface["Engine"]["signature"], local_surface["Engine"]
-    assert "get(id: string)" in local_surface["reader"]["signature"], local_surface["reader"]
+    assert "close(): void" in local_surface["Engine"]["signature"], local_surface[
+        "Engine"
+    ]
+    assert "get(id: string)" in local_surface["reader"]["signature"], local_surface[
+        "reader"
+    ]
     changed_local = {"index.d.ts": local["index.d.ts"].replace("close(): void;\n", "")}
-    assert tool.parse_typescript_surface(changed_local, "local") != list(local_surface.values())
+    assert tool.parse_typescript_surface(changed_local, "local") != list(
+        local_surface.values()
+    )
     expect_error(
         tool.ComparatorError,
         "Nope",
-        lambda: tool.parse_typescript_surface({"index.d.ts": "export { Nope };\n"}, "local"),
+        lambda: tool.parse_typescript_surface(
+            {"index.d.ts": "export { Nope };\n"}, "local"
+        ),
     )
 
     # --- Phase 3: generic/unsafe impl headers own the items that follow them.
@@ -935,8 +1077,12 @@ def main() -> None:
             "owned",
         )
     }
-    assert owned["fathomdb::X::from"].startswith("impl<T> core::convert::From<T> for T =>"), owned
-    assert owned["fathomdb::X::into"].startswith("impl<T, U> core::convert::Into<U>"), owned
+    assert owned["fathomdb::X::from"].startswith(
+        "impl<T> core::convert::From<T> for T =>"
+    ), owned
+    assert owned["fathomdb::X::into"].startswith("impl<T, U> core::convert::Into<U>"), (
+        owned
+    )
 
     # --- Phase 3: cfg scanning ignores literal braces and gates single-line forms.
     literal_cfg = {
@@ -945,7 +1091,7 @@ def main() -> None:
             '#[cfg(feature = "x")] m.add_class::<PyInline>()?;\n'
             '#[cfg(feature = "test-hooks")]\n'
             "fn hooks(m: &Bound<'_, PyModule>) -> PyResult<()> {\n"
-            '    let opener = "{"; let brace = \'{\'; // stray { in a comment\n'
+            "    let opener = \"{\"; let brace = '{'; // stray { in a comment\n"
             "    m.add_class::<PyHook>()?;\n"
             "    Ok(())\n"
             "}\n"
@@ -956,20 +1102,32 @@ def main() -> None:
         )
     }
     assert literal_cfg["PyInline"].startswith('#[cfg(feature = "x")]'), literal_cfg
-    assert literal_cfg["PyHook"].startswith('#[cfg(feature = "test-hooks")]'), literal_cfg
+    assert literal_cfg["PyHook"].startswith('#[cfg(feature = "test-hooks")]'), (
+        literal_cfg
+    )
     assert literal_cfg["PyShipped"] == "add_class::<PyShipped>", literal_cfg
     expect_error(
         tool.ComparatorError,
         "unbalanced",
-        lambda: tool.parse_python_registrations("fn a() {\n    m.add_class::<PyA>()?;\n"),
+        lambda: tool.parse_python_registrations(
+            "fn a() {\n    m.add_class::<PyA>()?;\n"
+        ),
     )
 
     # --- Phase 3: changed pairing consumes each added entry once.
     def manifest_of(entries: list[tuple[str, str]]) -> dict[str, Any]:
         return {
             "metadata": metadata(tool),
-            "rows": [{"id": "r", "entries": [{"path": p, "kind": "k", "signature": g} for p, g in entries]}],
+            "rows": [
+                {
+                    "id": "r",
+                    "entries": [
+                        {"path": p, "kind": "k", "signature": g} for p, g in entries
+                    ],
+                }
+            ],
         }
+
     paired = tool.compare_manifests(
         manifest_of([("a", "1"), ("b", "2")]), manifest_of([("c", "3"), ("d", "4")])
     )["row_diffs"][0]["changed"]
@@ -977,13 +1135,19 @@ def main() -> None:
     same_path = tool.compare_manifests(
         manifest_of([("a", "1"), ("b", "2")]), manifest_of([("b", "3"), ("a", "4")])
     )["row_diffs"][0]["changed"]
-    assert all(item["before"]["path"] == item["after"]["path"] for item in same_path), same_path
+    assert all(item["before"]["path"] == item["after"]["path"] for item in same_path), (
+        same_path
+    )
 
     # --- Phase 3: parsing edge cases.
     enum_entries = tool.parse_typescript_declarations(
-        'export declare const enum Mode {\n  A = "a"\n}\nexport type Brace = "{";\n', "enum"
+        'export declare const enum Mode {\n  A = "a"\n}\nexport type Brace = "{";\n',
+        "enum",
     )
-    assert {e["path"]: e["kind"] for e in enum_entries} == {"Mode": "enum", "Brace": "type"}, enum_entries
+    assert {e["path"]: e["kind"] for e in enum_entries} == {
+        "Mode": "enum",
+        "Brace": "type",
+    }, enum_entries
     missing_input = copy.deepcopy(inputs)
     del missing_input["python_sources"]
     expect_error(
@@ -1007,30 +1171,32 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as directory:
         owned = Path(directory) / "scratch"
         owned.mkdir()
-        with mock.patch.object(tool, "OWNED_SCRATCH", owned), \
-                mock.patch.object(tool, "_clean_source"), mock.patch.object(tool, "_prepare_scratch"), \
-                mock.patch.object(tool, "_tool_metadata", return_value=metadata(tool)), \
-                mock.patch.object(tool, "_validate_napi_build_script"), \
-                mock.patch.object(tool, "_run", side_effect=record):
-            expect_error(tool.SurfaceError, "stop after generation", lambda: tool.capture_repository(head))
+        (owned / tool.SCRATCH_MARKER).write_text(tool.SCRATCH_MARKER_CONTENT)
+        with (
+            mock.patch.object(tool, "OWNED_SCRATCH", owned),
+            mock.patch.object(tool, "_clean_source"),
+            mock.patch.object(tool, "_prepare_scratch"),
+            mock.patch.object(tool, "_tool_metadata", return_value=metadata(tool)),
+            mock.patch.object(tool, "_validate_napi_build_script"),
+            mock.patch.object(tool, "_run", side_effect=record),
+        ):
+            expect_error(
+                tool.SurfaceError,
+                "stop after generation",
+                lambda: tool.capture_repository(head),
+            )
         declaration = [c for c in commands if "--emitDeclarationOnly" in c]
-        assert declaration and str(owned / "ts-declarations") in declaration[0], commands
-        # napi-rs passes type definitions through a file under TMPDIR that a
-        # cached (non-recompiling) build never rewrites; capture must force a
-        # recompile of the NAPI crate and give it a private TMPDIR.
-        napi = commands.index(["npm", "run", "build:native"])
-        clean = next(
-            (i for i, c in enumerate(commands) if c[:2] == ["cargo", "clean"] and "fathomdb-napi" in c),
-            None,
+        assert declaration and str(owned / "ts-declarations") in declaration[0], (
+            commands
         )
-        assert clean is not None and clean < napi and "--release" in commands[clean], commands
+        # The canonical wrapper owns the targeted clean and private temporary
+        # variables. Capture supplies a scratch-owned directory to it.
+        napi = commands.index(["npm", "run", "build:native"])
         napi_env = environments[napi] or {}
-        assert napi_env.get("TMPDIR", "").startswith(str(owned)), napi_env.get("TMPDIR")
-        # Both calls must use the owned cache: an unscoped clean would wipe the
-        # developer's primary target and leave the owned cache warm.
-        for index in (clean, napi):
-            target = (environments[index] or {}).get("CARGO_TARGET_DIR", "")
-            assert target.startswith(str(tool.OWNED_CACHE)), (commands[index], target)
+        requested = napi_env.get("FATHOMDB_NAPI_BUILD_TMPDIR", "")
+        assert requested.startswith(str(owned)), requested
+        target = napi_env.get("CARGO_TARGET_DIR", "")
+        assert target.startswith(str(tool.OWNED_CACHE)), (commands[napi], target)
 
     # --- Phase 3 FIX-2: multi-line cfg text is recorded verbatim.
     multi = {
@@ -1047,7 +1213,10 @@ def main() -> None:
             "m.add_class::<PySingle>()?;\n"
         )
     }
-    assert multi["PyMulti"] == '#[cfg(any( feature = "alpha", feature = "other" ))] add_class::<PyMulti>', multi
+    assert (
+        multi["PyMulti"]
+        == '#[cfg(any( feature = "alpha", feature = "other" ))] add_class::<PyMulti>'
+    ), multi
     assert multi["PySingle"] == '#[cfg( feature = "y" )] add_class::<PySingle>', multi
 
     multiline_item = {
@@ -1061,9 +1230,9 @@ def main() -> None:
             "}\n"
         )
     }
-    assert multiline_item["PyMultiline"].startswith(
-        '#[cfg(feature = "test-hooks")]'
-    ), multiline_item
+    assert multiline_item["PyMultiline"].startswith('#[cfg(feature = "test-hooks")]'), (
+        multiline_item
+    )
 
     # --- Phase 3 FIX-2: same-path pairs win regardless of processing order.
     ordered = tool.compare_manifests(

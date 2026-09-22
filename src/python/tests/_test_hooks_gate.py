@@ -108,7 +108,9 @@ def _cfg_registration_exists(source: str, registration: str) -> bool:
     return bool(pattern.search(source))
 
 
-def _function_symbols(block: str, owner: str | None, *, require_cfg: bool) -> set[tuple[str | None, str]]:
+def _function_symbols(
+    block: str, owner: str | None, *, require_cfg: bool
+) -> set[tuple[str | None, str]]:
     """Derive exposed PyO3 function names from one Rust implementation block."""
 
     symbols: set[tuple[str | None, str]] = set()
@@ -149,8 +151,8 @@ def rust_test_hook_symbols(source: str) -> set[tuple[str | None, str]]:
         symbols.update(_function_symbols(engine, "Engine", require_cfg=True))
 
     pyclass = re.compile(
-        r'(?ms)^(?P<attributes>(?:[ \t]*#\[[^\n]*\]\n)*)'
-        r'[ \t]*struct\s+(?P<rust_name>[A-Za-z_][A-Za-z0-9_]*)'
+        r"(?ms)^(?P<attributes>(?:[ \t]*#\[[^\n]*\]\n)*)"
+        r"[ \t]*struct\s+(?P<rust_name>[A-Za-z_][A-Za-z0-9_]*)"
     )
     for matched in pyclass.finditer(source):
         attributes = matched.group("attributes")
@@ -164,7 +166,7 @@ def rust_test_hook_symbols(source: str) -> set[tuple[str | None, str]]:
         symbols.add((None, python_name))
         methods = _slice_between(
             source,
-            f"#[cfg(feature = \"test-hooks\")]\n#[pymethods]\nimpl {rust_name}",
+            f'#[cfg(feature = "test-hooks")]\n#[pymethods]\nimpl {rust_name}',
             "#[pymethods]\nimpl PyEngine",
         )
         symbols.update(_function_symbols(methods, python_name, require_cfg=False))
@@ -180,9 +182,9 @@ def rust_test_hook_symbols(source: str) -> set[tuple[str | None, str]]:
     return symbols
 
 
-def hook_surface_drift(source: str) -> tuple[
-    tuple[tuple[str | None, str], ...], tuple[tuple[str | None, str], ...]
-]:
+def hook_surface_drift(
+    source: str,
+) -> tuple[tuple[tuple[str | None, str], ...], tuple[tuple[str | None, str], ...]]:
     """Return `(missing_from_inventory, unexpected_in_inventory)` for Rust source."""
 
     actual = rust_test_hook_symbols(source)
@@ -191,6 +193,7 @@ def hook_surface_drift(source: str) -> tuple[
         tuple(sorted(actual - inventory, key=lambda symbol: hook_symbol_name(*symbol))),
         tuple(sorted(inventory - actual, key=lambda symbol: hook_symbol_name(*symbol))),
     )
+
 
 #: Opt in to letting conftest run `maturin develop` for you.
 REBUILD_OPT_IN = "FATHOMDB_TESTS_ALLOW_REBUILD"
@@ -352,14 +355,31 @@ def decide(
             "not an editable-install checkout (release-surface tests run against a "
             "pip-installed wheel); nothing to build",
         )
-    if hooks_present:
-        return Decision(PROCEED, "the installed binding already exposes the test-hooks surface")
     if allow_rebuild and forbid_rebuild:
         return Decision(
             CONTRADICTORY,
             f"contradictory configuration: {REBUILD_OPT_IN}=1 asks for a rebuild while "
             f"{REBUILD_OPT_OUT}=1 forbids one. Unset one of them.",
         )
+    # An explicitly authorized gate run is a provenance check, not merely a
+    # symbol-presence check. A warm source-tree extension may have been built
+    # from an older commit, so it must not short-circuit the current candidate.
+    if allow_rebuild:
+        if not venv_owned_by_source_tree:
+            return Decision(
+                DEGRADED,
+                f"{REBUILD_OPT_IN}=1 authorized a rebuild, but the active Python environment "
+                "does NOT live inside this source tree, so `maturin develop` would rebind a "
+                "SHARED or system environment to this checkout (TC-27). Refusing.\n"
+                "  * run the tests from a venv created inside this checkout, or\n"
+                f"  * build it yourself from the tree that owns that venv:  {_MANUAL_BUILD_HINT}",
+            )
+        return Decision(
+            REBUILD,
+            "authorized candidate-fresh rebuild in an environment owned by this source tree",
+        )
+    if hooks_present:
+        return Decision(PROCEED, "the installed binding already exposes the test-hooks surface")
     if forbid_rebuild:
         return Decision(
             DEGRADED,
@@ -380,19 +400,7 @@ def decide(
             "  * `scripts/agent-test.sh` authorizes this automatically when it runs the "
             "in-tree `.venv`.",
         )
-    if not venv_owned_by_source_tree:
-        return Decision(
-            DEGRADED,
-            f"{REBUILD_OPT_IN}=1 authorized a rebuild, but the active Python environment "
-            "does NOT live inside this source tree, so `maturin develop` would rebind a "
-            "SHARED or system environment to this checkout (TC-27). Refusing.\n"
-            "  * run the tests from a venv created inside this checkout, or\n"
-            f"  * build it yourself from the tree that owns that venv:  {_MANUAL_BUILD_HINT}",
-        )
-    return Decision(
-        REBUILD,
-        "authorized, and the active virtualenv belongs to this source tree",
-    )
+    raise AssertionError("unreachable test-hooks gate state")
 
 
 def skip_reason(reason: str) -> str:

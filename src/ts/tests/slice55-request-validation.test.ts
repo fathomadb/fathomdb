@@ -94,7 +94,7 @@ test("slice55 null trace context is typed at the declared request path", async (
 });
 
 test("slice55 malformed nested frozen context preserves FrozenReadError", async () => {
-  const engine = await Engine.open("slice55-malformed-frozen-context", { useDefaultEmbedder: false });
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
   try {
     const context = await engine.freezeReadContext({
       schemaVersion: 1,

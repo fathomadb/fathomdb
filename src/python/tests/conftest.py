@@ -24,15 +24,17 @@ below), NOT as a session-scoped fixture. A fixture runs during test *setup*,
 which is too late: a test module that imports the extension during *collection*
 dlopen()s the stale `.so`, and a later `maturin develop` cannot be re-imported
 in the same process. conftest.py top-level code is the earliest hook that still
-runs before sibling test modules are collected. The rebuild short-circuits if
-the test-hooks symbol is already present (developer pre-warmed with
-`maturin develop --features ...,test-hooks,...`, or a previous session in the
-same venv built it), so the `maturin develop` cost (~5-60s) is paid at most
-once per venv.
+runs before sibling test modules are collected. An ordinary developer run may
+short-circuit when the hooks are already present. An explicitly authorized
+gate run never does: it rebuilds from the current checkout and prints a
+module-path/digest receipt so candidate provenance is auditable.
 """
 
 from __future__ import annotations
 
+import hashlib
+import importlib.machinery
+import json
 import os
 import subprocess
 import sys
@@ -63,6 +65,45 @@ def db_path(tmp_path: Path) -> str:
 
 
 _PYTHON_SRC_DIR = Path(__file__).resolve().parent.parent  # src/python
+
+
+def _remove_source_tree_native_modules() -> None:
+    """Remove ignored native artifacts that could shadow an editable rebuild."""
+
+    package_dir = _PYTHON_SRC_DIR / "fathomdb"
+    for candidate in package_dir.glob("_fathomdb*"):
+        if any(
+            candidate.name.endswith(suffix) for suffix in importlib.machinery.EXTENSION_SUFFIXES
+        ):
+            candidate.unlink()
+
+
+def _native_module_receipt() -> tuple[Path, str]:
+    """Validate and return the extension path and SHA-256 loaded by a child."""
+
+    probe = (
+        "import hashlib,json,pathlib; import fathomdb._fathomdb as native; "
+        "path=pathlib.Path(native.__file__).resolve(); "
+        "print(json.dumps({'path':str(path),'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}))"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=str(_PYTHON_SRC_DIR),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(completed.stdout.strip().splitlines()[-1])
+    path = Path(payload["path"]).resolve()
+    expected_parent = (_PYTHON_SRC_DIR / "fathomdb").resolve()
+    if path.parent != expected_parent:
+        raise RuntimeError(
+            f"rebuilt extension resolved outside this checkout: {path} (expected {expected_parent})"
+        )
+    digest = str(payload["sha256"])
+    if digest != hashlib.sha256(path.read_bytes()).hexdigest():
+        raise RuntimeError(f"rebuilt extension changed while its receipt was captured: {path}")
+    return path, digest
 
 
 def _probe_missing_test_hook_symbols() -> tuple[str, ...]:
@@ -147,9 +188,8 @@ def _ensure_test_hooks_binding() -> Decision:
 
     decision = decide(
         is_source_tree=is_source_tree,
-        # Developer already built with test-hooks (or a previous pytest session
-        # in the same venv did) — the normal path, which never consults the
-        # opt-in. "Present" means ALL the hook symbols, never merely some.
+        # A warm developer run may use the complete hook surface. The pure
+        # policy overrides this observation when the gate explicitly opts in.
         hooks_present=is_source_tree and not missing,
         allow_rebuild=os.environ.get(REBUILD_OPT_IN) == "1",
         forbid_rebuild=os.environ.get(REBUILD_OPT_OUT) == "1",
@@ -163,10 +203,11 @@ def _ensure_test_hooks_binding() -> Decision:
         return _annotate_partial(decision, missing)
 
     print(
-        "\n[conftest] EU-6 FIX-1: rebuilding fathomdb editable binding "
-        "with test-hooks feature (one-time per venv; ~5-60s) ...",
+        "\n[conftest] rebuilding fathomdb editable binding from this candidate "
+        "with the test-hooks feature (~5-60s) ...",
         flush=True,
     )
+    _remove_source_tree_native_modules()
     # `maturin develop` requires an activated virtualenv: it looks for
     # $VIRTUAL_ENV / $CONDA_PREFIX / a `.venv` in cwd-or-parents. A bare
     # subprocess inherits neither when pytest was launched via an absolute
@@ -211,6 +252,11 @@ def _ensure_test_hooks_binding() -> Decision:
             ),
             still_missing,
         )
+    module_path, module_sha256 = _native_module_receipt()
+    print(
+        f"[conftest] candidate native module: {module_path} sha256={module_sha256}",
+        flush=True,
+    )
     return decision
 
 

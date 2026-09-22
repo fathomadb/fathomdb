@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 prework Slice 2 - repository and documentation cruft
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.27
 observed_on: 2026-09-21
 ---
@@ -67,8 +67,8 @@ extension-based deletion, wholesale experiment-branch merges, re-splitting the
 
 Implementation is this disposition record only. TDD and code review are not
 applicable. An independent read-only inventory checked tracked paths, sizes,
-status, and experiment ancestry. Final package design review and verification
-remain pending.
+status, and experiment ancestry. Independent package design review and
+closeout verification passed.
 
-Status remains `REVIEW_PENDING`. No repository artifact was cleaned up. Next:
-Slice 3 contract drafting.
+Status is `COMPLETE`. No repository artifact was cleaned up. Next: Slice 3
+contract drafting.

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 prework Slice 7 - build and delivery evidence
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.27
 observed_on: 2026-09-21
 ---
@@ -71,8 +71,8 @@ exceptions, or full release regressions for these focused findings.
 Implementation is the durable failure taxonomy and allocation only. No
 behavioral code exists to drive RED/GREEN; code review is not applicable.
 Evidence was independently audited against the 0.8.26 prework, candidate,
-release, and large-file pilot records. Final package design review and
-verification remain pending.
+release, and large-file pilot records. Independent package design review and
+closeout verification passed.
 
-Status remains `REVIEW_PENDING`. No branch, worktree, cache, credential, or
-artifact was created or removed. Next: reserved Slice 8, then Slice 9.
+Status is `COMPLETE`. No branch, worktree, cache, credential, or artifact was
+created or removed. Next: reserved Slice 8, then Slice 9.

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 prework Slice 4 - architecture and code alignment
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.27
 observed_on: 2026-09-21
 ---
@@ -64,8 +64,8 @@ the production root cause. No specific fix is pre-authorized.
 
 Implementation is this exists-vs-net-new record only. TDD and code review are
 not applicable. An independent code-grounded audit checked the current files,
-ADRs, module inventory, and feature surfaces; final design review remains
-pending.
+ADRs, module inventory, and feature surfaces. Independent package design
+review and closeout verification passed.
 
-Status remains `REVIEW_PENDING`. No architecture authority or code changed.
-Next: Slice 5 verification adequacy.
+Status is `COMPLETE`. No architecture authority or code changed. Next: Slice 5
+verification adequacy.

@@ -7,7 +7,7 @@ execution_model: direct; no Steward or Orchestrator
 
 # FathomDB 0.8.27 — correction-safe erasure and semantic refactoring
 
-## Summary
+## Goal and scope
 
 FathomDB 0.8.27 fixes Memex's correction/supersession erasure blocker, then
 refactors five selected monolithic engine, binding, and SDK facades into
@@ -112,7 +112,7 @@ gate.
 `dev/acceptance.md` remains locked. AC27 identifiers are release-local until a
 separate governed acceptance decision authorizes a global addition.
 
-## Lean slice execution contract
+## Cross-cutting DoD and lean slice execution contract
 
 Every slice applies this workflow proportionately.
 
@@ -136,6 +136,15 @@ Every slice applies this workflow proportionately.
 
 The release worktree has one writer. Read-only design, code, and verification
 reviewers may share it.
+
+## Reserved-gap policy
+
+The numbered ladder intentionally reserves Slice 8 and the unused decimal
+positions between planned feature slices. A reserved slot remains empty unless
+new in-scope evidence requires a separately reviewed insertion; it is never an
+implicit patch lane or authority to absorb unrelated work. If a planned slice
+cannot remain bounded without consuming its reserved band, stop and revise the
+plan rather than overflowing into the next feature number.
 
 ## Testing contract
 
@@ -344,14 +353,14 @@ review findings are closed. Prework approval does not authorize tags,
 publication, registry mutation, or feature implementation beyond the slices the
 user actually commissioned.
 
-## Next feature: Slice 10 - approved repository preparation
+## Immediate next slice: Slice 10 - approved repository preparation
 
 Implement only repository preparation explicitly approved in Slice 9. Use
 test-first changes for behavioral tooling and non-vacuous self-tests for
 comparison instruments. Secondary refactors remain postponed unless approved
 as direct prerequisites.
 
-## Feature and refactoring ladder
+## Slice ladder: features and refactoring
 
 ### Slice 20 — correction-safe source erasure
 

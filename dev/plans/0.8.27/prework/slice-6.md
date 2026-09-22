@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 prework Slice 6 - stale documentation evidence
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.27
 observed_on: 2026-09-21
 ---
@@ -69,8 +69,8 @@ or turning line count into a correctness gate.
 
 Implementation is this evidence/disposition record only. Behavioral TDD and
 code review are not applicable. An independent read-only audit supplied the
-file inventory and disposition; final package design review and verification
-remain pending. No document named above was edited by this slice.
+file inventory and disposition. Independent package design review and closeout
+verification passed. No document named above was edited by this slice.
 
-Status remains `REVIEW_PENDING`. No cleanup or temporary workspace was created.
-Next: Slice 7 delivery evidence.
+Status is `COMPLETE`. No cleanup or temporary workspace was created. Next:
+Slice 7 delivery evidence.

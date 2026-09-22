@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 prework Slice 9 - proposal review and decisions
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.27
 observed_on: 2026-09-21
 ---
@@ -59,12 +59,12 @@ prohibited until their assigned slices.
 ## Implementation, review, verification, and status
 
 Implementation is the durable decision package, scope reconciliation, and
-eventual state/board activation. No behavioral code exists in prework, so TDD
-and code review are not applicable. Material design changes require an
-independent read-only design review; a separate independent verifier must run
-the focused planning/document/state checks. Their records are
+state/board activation. No behavioral code exists in prework, so TDD and code
+review are not applicable. Independent design review passed after its P2-P4
+findings were corrected. A separate independent verifier then passed the
+focused planning, document, traceability, state/view, current-release, link,
+and preflight checks after one plan-heading P2 was corrected. Their records are
 `prework-design-review.md` and `prework-verification.md`.
 
-Status remains `REVIEW_PENDING` until those findings are resolved and the
-release state/board validates. No temporary worktree exists. Next: Slice 10,
-not authorized by this prework commission.
+Status is `COMPLETE`. No temporary worktree exists. Next: Slice 10, not
+authorized by this prework commission.

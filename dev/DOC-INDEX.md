@@ -63,6 +63,9 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/0.8.26/` | Release-local plans, designs, reviews, and status records through architecture convergence | 0.8.26 Slice 45 | 2026-09-15 |
 | `dev/plans/0.8.26/slice-execution-contract.md` | Lean requirements-to-status workflow adopted by every 0.8.26 slice | 0.8.26 | 2026-09-12 |
 | `dev/plans/plan-0.8.27.md` | Correction-safe erasure and semantic-refactor release plan | 0.8.27 | 2026-09-21 |
+| `dev/plans/release-state-0.8.27.json` | Single-writer 0.8.27 ladder, decisions, and immediate-next state | 0.8.27 | 2026-09-21 |
+| `dev/plans/runs/STATUS-0.8.27.md` | Active 0.8.27 board; prework complete and Slice 10 uncommissioned | 0.8.27 | 2026-09-21 |
+| `dev/plans/0.8.27-prework-slices-0-9.md` | Completed prework scope, dispositions, and verification summary | 0.8.27 prework | 2026-09-21 |
 | `dev/plans/0.8.27/prework/` | Prework Slices 0-9, proposal register, reviews, and next-slice design | 0.8.27 prework | 2026-09-21 |
 | `dev/plans/0.8.27/slice-execution-contract.md` | Proportional requirements-to-status workflow for 0.8.27 | 0.8.27 | 2026-09-21 |
 | `dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md` | Test approach for the correction and behavior-preserving refactor ladder | 0.8.27 prework | 2026-09-21 |

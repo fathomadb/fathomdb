@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 prework Slice 5 - verification adequacy
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.27
 observed_on: 2026-09-21
 ---
@@ -50,8 +50,8 @@ about test behavior were checked against the complete relevant suites.
 
 This slice writes only the coverage trace and allocations. TDD and code review
 are not applicable. A read-only verifier reviewed the full owning tests and
-current parity tooling. Final package design review/verification remain
-pending.
+current parity tooling. Independent package design review and closeout
+verification passed.
 
-Status remains `REVIEW_PENDING`. No test, fixture, gate, or product file was
-changed. Next: Slice 6 documentation evidence.
+Status is `COMPLETE`. No test, fixture, gate, or product file was changed.
+Next: Slice 6 documentation evidence.

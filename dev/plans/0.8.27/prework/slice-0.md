@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 prework Slice 0 - environment and infrastructure
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.27
 observed_on: 2026-09-21
 ---
@@ -73,8 +73,7 @@ host sqlite3 CLI is not a prerequisite because the product uses bundled SQLite.
 Implementation is this durable inventory only. Behavioral TDD and code review
 are not applicable. General preflight and linked-worktree landing preflight
 both passed; branch/worktree/base/tool/platform facts were read directly.
-Independent prework design review and verification remain required before the
-status changes from `REVIEW_PENDING` to `COMPLETE`.
+Independent prework design review and closeout verification passed.
 
 No temporary branch, worktree, environment, package, or artifact was created.
 Next: Slice 1 dependency evidence.

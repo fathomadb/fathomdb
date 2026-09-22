@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 prework Slice 3 - draft contracts and allocation
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.27
 observed_on: 2026-09-21
 ---
@@ -75,7 +75,8 @@ ADR is changed by this prework draft.
 
 Implementation is this release-local contract draft. Behavioral TDD and code
 review are not applicable. A read-only code-grounded audit checked the current
-engine and binding surfaces; package-level design review remains pending.
+engine and binding surfaces; independent package design review and closeout
+verification passed.
 
-Status remains `REVIEW_PENDING`. No product, interface, ADR, acceptance file,
-or workspace was changed. Next: Slice 4 code alignment.
+Status is `COMPLETE`. No product, interface, ADR, acceptance file, or workspace
+was changed. Next: Slice 4 code alignment.

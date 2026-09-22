@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 prework proposal register
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.27
 ---
 

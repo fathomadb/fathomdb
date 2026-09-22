@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 prework index
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.27
 ---
 
@@ -31,8 +31,9 @@ Shared records:
   defines stable behavioral oracles for the later correction/refactor ladder.
 - [`proposal-register.md`](proposal-register.md) records every prework
   disposition and delivery placement.
-- `prework-design-review.md` and `prework-verification.md` are completed by
-  independent read-only subagents before Slice 9 closes.
+- [`prework-design-review.md`](prework-design-review.md) and
+  [`prework-verification.md`](prework-verification.md) record independent
+  read-only PASS verdicts.
 
 The proportional workflow is
 [`../slice-execution-contract.md`](../slice-execution-contract.md).

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 prework Slice 1 - dependency and pinning sweep
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.27
 observed_on: 2026-09-21
 ---
@@ -73,8 +73,8 @@ Evidence limitations:
 
 Implementation is this read-only register. TDD and code review are not
 applicable. `cargo metadata --locked --offline --no-deps` passed. Live routes
-that could not produce evidence are recorded as unavailable. Final package
-design review and verification remain pending.
+that could not produce evidence are recorded as unavailable. Independent
+package design review and closeout verification passed.
 
-Status remains `REVIEW_PENDING`. No manifest, lock, workflow, cache, or
-environment changed. Next: Slice 2 cruft review.
+Status is `COMPLETE`. No manifest, lock, workflow, cache, or environment
+changed. Next: Slice 2 cruft review.

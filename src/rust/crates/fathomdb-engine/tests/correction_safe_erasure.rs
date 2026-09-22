@@ -107,6 +107,17 @@ struct Fixture {
 }
 
 fn corrected_fixture(name: &str, original_bucket: &str, replacement_bucket: &str) -> Fixture {
+    corrected_fixture_with(name, original_bucket, replacement_bucket, false)
+}
+
+/// `bare_supersede` corrects with a lone `PutCanonicalNode` on the same
+/// logical id instead of a revision-pinned lifecycle transition plus put.
+fn corrected_fixture_with(
+    name: &str,
+    original_bucket: &str,
+    replacement_bucket: &str,
+    bare_supersede: bool,
+) -> Fixture {
     let dir = TempDir::new().unwrap();
     let db = path(&dir, name);
     let opened = Engine::open(&db).unwrap();
@@ -141,34 +152,38 @@ fn corrected_fixture(name: &str, original_bucket: &str, replacement_bucket: &str
             .unwrap(),
         )
         .unwrap();
+    let replacement = ActuationOperationV1::PutCanonicalNode(canonical(
+        "slice20-replacement-r2",
+        "slice20-replacement-v2",
+        "slice20-source",
+        replacement_bucket,
+        REPLACEMENT_BODY,
+    ));
+    let operations = if bare_supersede {
+        vec![replacement]
+    } else {
+        vec![
+            ActuationOperationV1::TransitionLifecycle(
+                LifecycleActuationV1::new(
+                    "slice20-source",
+                    ArtifactRevisionId::new("slice20-original-r1").unwrap(),
+                    LifecycleState::Deleted,
+                    Some("corrected".into()),
+                )
+                .unwrap(),
+            ),
+            replacement,
+        ]
+    };
     let receipt = opened
         .engine
-        .actuate(
-            ActuationBatchV1::new(
-                "slice20-correction",
-                vec![
-                    ActuationOperationV1::TransitionLifecycle(
-                        LifecycleActuationV1::new(
-                            "slice20-source",
-                            ArtifactRevisionId::new("slice20-original-r1").unwrap(),
-                            LifecycleState::Deleted,
-                            Some("corrected".into()),
-                        )
-                        .unwrap(),
-                    ),
-                    ActuationOperationV1::PutCanonicalNode(canonical(
-                        "slice20-replacement-r2",
-                        "slice20-replacement-v2",
-                        "slice20-source",
-                        replacement_bucket,
-                        REPLACEMENT_BODY,
-                    )),
-                ],
-            )
-            .unwrap(),
-        )
+        .actuate(ActuationBatchV1::new("slice20-correction", operations).unwrap())
         .unwrap();
-    assert_eq!(receipt.closure_operation_ids.len(), 2);
+    if bare_supersede {
+        assert!(!receipt.closure_operation_ids.is_empty(), "bare supersession must close");
+    } else {
+        assert_eq!(receipt.closure_operation_ids.len(), 2);
+    }
     let correction_closure_ids =
         receipt.closure_operation_ids.iter().map(|id| id.as_str().to_string()).collect::<Vec<_>>();
     for closure_id in &correction_closure_ids {
@@ -334,6 +349,7 @@ fn correction_safe_erasure_matrix_preserves_requested_counts_and_exact_survivors
         original_bucket: &'static str,
         replacement_bucket: &'static str,
         erase_order: &'static [&'static str],
+        bare_supersede: bool,
     }
     let cases = [
         Case {
@@ -341,23 +357,45 @@ fn correction_safe_erasure_matrix_preserves_requested_counts_and_exact_survivors
             original_bucket: "slice20-target",
             replacement_bucket: "slice20-target",
             erase_order: &["slice20-target"],
+            bare_supersede: false,
+        },
+        Case {
+            name: "bare-supersede-same-bucket",
+            original_bucket: "slice20-target",
+            replacement_bucket: "slice20-target",
+            erase_order: &["slice20-target"],
+            bare_supersede: true,
+        },
+        Case {
+            name: "bare-supersede-cross-original-first",
+            original_bucket: "slice20-original-bucket",
+            replacement_bucket: "slice20-replacement-bucket",
+            erase_order: &["slice20-original-bucket", "slice20-replacement-bucket"],
+            bare_supersede: true,
         },
         Case {
             name: "cross-original-first",
             original_bucket: "slice20-original-bucket",
             replacement_bucket: "slice20-replacement-bucket",
             erase_order: &["slice20-original-bucket", "slice20-replacement-bucket"],
+            bare_supersede: false,
         },
         Case {
             name: "cross-replacement-first",
             original_bucket: "slice20-original-bucket",
             replacement_bucket: "slice20-replacement-bucket",
             erase_order: &["slice20-replacement-bucket", "slice20-original-bucket"],
+            bare_supersede: false,
         },
     ];
 
     for case in cases {
-        let fixture = corrected_fixture(case.name, case.original_bucket, case.replacement_bucket);
+        let fixture = corrected_fixture_with(
+            case.name,
+            case.original_bucket,
+            case.replacement_bucket,
+            case.bare_supersede,
+        );
         let mut expected_revisions = vec![
             "slice20-original-r1",
             "slice20-dependent-r1",
@@ -682,7 +720,48 @@ fn correction_then_purge_of_corrected_logical_id_succeeds_and_erases_exact_rows(
         )
         .unwrap();
     assert_eq!(redacted_receipt, ("erased".into(), None, "[]".into()));
+    let proofs = connection
+        .prepare(
+            "SELECT closure_operation_id,root_kind,root_value,phase \
+             FROM _fathomdb_dependency_closures WHERE cause='purged'",
+        )
+        .unwrap()
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    assert_eq!(proofs.len(), 1, "purge must keep exactly its own proof row: {proofs:?}");
+    assert_eq!(
+        (proofs[0].1.as_str(), proofs[0].2.as_str(), proofs[0].3.as_str()),
+        ("source_revision", "slice20-original-r1", "complete")
+    );
     drop(connection);
     fixture.opened.engine.close().unwrap();
+    let reopened = Engine::open(&fixture.db).unwrap();
+    let proof = reopened
+        .engine
+        .read_dependency_closure(ClosureLookupV1::new(&proofs[0].0).unwrap())
+        .unwrap()
+        .unwrap();
+    assert_eq!(proof.phase, ClosurePhaseV1::Complete);
+    let connection = Connection::open(&fixture.db).unwrap();
+    assert_revisions(&connection, &["slice20-survivor-r1"]);
+    assert_cursors_physically_absent(&connection, &purged_cursors);
+    drop(connection);
+    for body in [ORIGINAL_BODY, DEPENDENT_BODY, REPLACEMENT_BODY] {
+        assert!(
+            !file_contains_bytes(&fixture.db, body)
+                && !file_contains_bytes(&wal_path(&fixture.db), body),
+            "reopen resurfaced purged body bytes: {body}"
+        );
+    }
+    reopened.engine.close().unwrap();
     drop(fixture.dir);
 }

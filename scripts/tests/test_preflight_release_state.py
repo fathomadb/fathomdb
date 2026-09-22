@@ -248,7 +248,24 @@ class PreflightReleaseStateTests(unittest.TestCase):
 
 
 class RealPreflightRegressionTest(unittest.TestCase):
-    def test_current_release_worktree_and_slice8_are_accepted(self) -> None:
+    def test_current_release_worktree_and_latest_closed_slice_are_accepted(self) -> None:
+        current = subprocess.run(
+            ["python3", str(ROOT / "scripts" / "release-current.py")],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=True,
+        ).stdout.strip()
+        release, _board, state_path = current.split("\t")
+        state = json.loads((ROOT / state_path).read_text(encoding="utf-8"))
+        closed = [
+            item["slice"]
+            for item in state["ladder"]
+            if item["status"] in {"COMPLETE_ON_RELEASE_BRANCH", "LANDED"}
+        ]
+        latest_closed = max(closed)
+
         result = subprocess.run(
             [
                 "bash",
@@ -256,9 +273,9 @@ class RealPreflightRegressionTest(unittest.TestCase):
                 "--worktree",
                 str(ROOT),
                 "--expect-closed",
-                "8",
+                str(latest_closed),
                 "--plan",
-                "dev/plans/plan-0.8.26.md",
+                state["plan"],
                 "--min-disk-gb",
                 "1",
             ],
@@ -269,7 +286,7 @@ class RealPreflightRegressionTest(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('"release":"0.8.26"', result.stdout)
+        self.assertIn(f'"release":"{release}"', result.stdout)
 
 
 if __name__ == "__main__":

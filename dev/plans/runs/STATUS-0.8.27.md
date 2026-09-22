@@ -11,11 +11,11 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-Prework Slices 0-9 are complete on `release/0.8.27` at reviewed planning
-revision `a3e6cff6`. They changed planning, design allocation, lifecycle,
-navigation, and release-state records only—no product code, tests,
-dependencies, installed environment, CI/CD, accepted public contract, schema,
-tag, registry, or publication state.
+Prework Slices 0-9 are complete on `release/0.8.27`: reviewed planning revision
+`a3e6cff6` and verified status/state closeout `73c53ffd`. They changed planning,
+design allocation, lifecycle, navigation, and release-state records only—no
+product code, tests, dependencies, installed environment, CI/CD, accepted
+public contract, schema, tag, registry, or publication state.
 
 The release plan now preserves the exact shipped two-phase erasure contract,
 requested-bucket report counts, narrowly enumerated retained non-PII proof
@@ -52,7 +52,7 @@ There are <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->TW
 | 6 | Stale-documentation evidence | Complete at `a3e6cff6`; exact current/historical correction set allocated. |
 | 7 | Build and delivery evidence | Complete at `a3e6cff6`; open recurring causes separated from closed regressions. |
 | 8 | Reserved | Complete at `a3e6cff6`; intentionally empty. |
-| 9 | Proposal review and closeout | Complete at `a3e6cff6`; every proposal ruled and Slice 10 inputs design-reviewed. |
+| 9 | Proposal review and closeout | Planned at `a3e6cff6`, closed at `73c53ffd`; every proposal ruled, Slice 10 inputs design-reviewed, and verification passed. |
 
 ## Verification boundary
 

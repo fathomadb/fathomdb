@@ -48,6 +48,17 @@ if ! python3 "$LINT" \
 fi
 echo "OK moved-in-file"
 
+# Move-to-private-module: public re-exports preserve the original crate-root
+# names, so the implementation move is not a consumer-visible removal.
+if ! python3 "$LINT" \
+    --diff-file "$FIX/public-reexport/diff.patch" \
+    --changelog "$FIX/public-reexport/CHANGELOG.md" \
+    --repo-root "$REPO_ROOT" \
+    >/dev/null; then
+    fail "public-reexport fixture: linter must exit 0 (crate-root paths are preserved)"
+fi
+echo "OK public-reexport"
+
 # tests/-excluded: removals under any `tests/` directory are NOT public API and
 # must NOT require a CHANGELOG entry → exit 0 even with an empty Removed section.
 # (Slice 27 fix-1: the scanner scopes `tests/` out so test-function churn — e.g.

@@ -4,6 +4,7 @@ status: COMPLETE
 implemented_on: 2026-09-22
 baseline_source_commit: df8017463ecce6281a4c989a2d1bd01118e2025e
 baseline_tracking_commit: 346ed5eb95ec1cb168e4a9ad9a0cd951b839cda7
+implementation_candidate: 6adb2230a7d5717331383416cb2709678b319f1a
 closeout_commit: 4129a5b013265f4672ab1e4ae8ed3dd5cb8cd89f
 ---
 
@@ -170,3 +171,21 @@ still present, two captures of `5142a504` were byte-identical
 `7db3d883…` with empty metadata and row diffs (AC27-30A later-candidate
 receipt). The tracked baseline, captured before any debug build, contains no
 test-hook declaration.
+
+## Adversarial review closeout
+
+All three adversarial phases are clean. The canonical gate ran on `455da9812624c2616e51ce3dedbd33238c0a7ee3`
+(both slices' final code): `scripts/agent-verify.sh` passed 120/120 suites
+with no skips or exclusions and security 0 violations; full-workspace
+`cargo clippy --workspace --all-targets -- -D warnings` and
+`cargo check --workspace --all-targets` passed. The gate ran with a
+worktree-private `.venv` (non-editable wheel built from the final Rust
+candidate, native module SHA-256
+`e6e840df1a3938d0361bf23126a2fe177ad00b3434dfa959e6d8f74b0b220b80`, the
+`[dev]`/`[test]` extras, and a `.pth` entry for `src/python`); it was removed
+afterwards. Test-generated `src/ts/slice55-malformed-frozen-context*` files
+were removed; the worktree was clean.
+
+Slice 30's final test-only commit `6adb2230` (P3-10 owned-cache assertion)
+follows the gate commit; the focused comparator suite and Ruff passed on it,
+and a neutered unscoped `cargo clean` fails that suite.

@@ -2,7 +2,7 @@
 title: FathomDB 0.8.27 Slice 20 - implementation status
 status: COMPLETE
 completed_on: 2026-09-21
-implementation_candidate: 3943cb64dc2d1b99ef9fc4ec2131dca59a71b337
+implementation_candidate: b455bb73fb2b04c91f50e6e5dbdc16752325453b
 closeout_commit: 5fab7da58cd70335a9efd49d540f88e275bf574a
 ---
 
@@ -107,3 +107,17 @@ registries, main integration, and publication remain separately gated.
   `source_revision` root, is spared by SQL rather than by phase and ordering.
 - S20-P3-3: pre-existing nonterminal soft-closure residue recorded for Slice 50
   in the todos ledger (`TC-6acb0013-bba8-4fee-ac18-27c64442908a`).
+
+## Adversarial review closeout
+
+All three adversarial phases are clean. The canonical gate ran on `455da9812624c2616e51ce3dedbd33238c0a7ee3`
+(both slices' final code): `scripts/agent-verify.sh` passed 120/120 suites
+with no skips or exclusions and security 0 violations; full-workspace
+`cargo clippy --workspace --all-targets -- -D warnings` and
+`cargo check --workspace --all-targets` passed. The gate ran with a
+worktree-private `.venv` (non-editable wheel built from the final Rust
+candidate, native module SHA-256
+`e6e840df1a3938d0361bf23126a2fe177ad00b3434dfa959e6d8f74b0b220b80`, the
+`[dev]`/`[test]` extras, and a `.pth` entry for `src/python`); it was removed
+afterwards. Test-generated `src/ts/slice55-malformed-frozen-context*` files
+were removed; the worktree was clean.

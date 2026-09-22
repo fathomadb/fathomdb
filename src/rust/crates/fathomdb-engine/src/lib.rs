@@ -15754,14 +15754,6 @@ impl Engine {
         let mut closure_ids = Vec::new();
         let proof_boundary =
             if enqueued { pending_cursor } else { self.next_cursor.load(Ordering::SeqCst) };
-        for (source_revision, _) in &physical_plans {
-            tx.execute(
-                "DELETE FROM _fathomdb_dependency_closures \
-                 WHERE root_kind='source_revision' AND root_value=?1 AND phase='complete'",
-                [source_revision],
-            )
-            .map_err(|_| EngineError::Storage)?;
-        }
 
         let affected_cursors: Vec<i64> =
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
@@ -15799,6 +15791,17 @@ impl Engine {
             }
         }
         actuation::redact_actuation_receipts_for_refs(&tx, &receipt_refs)?;
+        // Same hazard as `excise_source_inner`: receipt validation reads the
+        // completed correction closures, so they are deleted only afterwards,
+        // inside this transaction.
+        for (source_revision, _) in &physical_plans {
+            tx.execute(
+                "DELETE FROM _fathomdb_dependency_closures \
+                 WHERE root_kind='source_revision' AND root_value=?1 AND phase='complete'",
+                [source_revision],
+            )
+            .map_err(|_| EngineError::Storage)?;
+        }
         erase_artifact_identity_for_cursors(&tx, &affected_cursors, true, None)?;
 
         // Erase the row-owned projection shadows for every collected cursor.

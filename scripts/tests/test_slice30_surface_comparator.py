@@ -6,9 +6,12 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import os
 from pathlib import Path
+import tempfile
 from types import ModuleType
 from typing import Any, Callable
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -31,7 +34,7 @@ def metadata(tool: ModuleType) -> dict[str, Any]:
         "capture_source_sha": SOURCE_SHA,
         "tools": {
             "cargo-public-api": "0.52.0",
-            "node": "v25.8.0",
+            "node": "v25.9.0",
             "rust-toolchain": "nightly-2026-04-24",
             "typescript": "6.0.3",
         },
@@ -74,10 +77,15 @@ __all__ = ["Engine", "SearchHit"]
 fn _fathomdb(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyEngine>()?;
     m.add_function(wrap_pyfunction!(search, m)?)?;
+    m.add("StorageError", py.get_type::<StorageError>())?;
     Ok(())
 }
 ''',
         "python_stub": '''\
+class EngineError(Exception): ...
+
+class StorageError(EngineError): ...
+
 class Engine:
     version: str
     def search(self, query: str, limit: int = ...) -> list[str]: ...
@@ -135,6 +143,18 @@ def main() -> None:
     assert tool.canonical_json(baseline) == tool.canonical_json(repeat)
     assert tool.compare_manifests(baseline, repeat)["equal"]
 
+    current_metadata = metadata(tool)
+    current_metadata["capture_source_sha"] = "2" * 40
+    current = tool.capture_from_fixture(copy.deepcopy(inputs), current_metadata)
+    current_comparison = tool.compare_manifests(baseline, current)
+    assert current_comparison["equal"], current_comparison
+    assert current_comparison["metadata_diffs"] == {}
+    assert current_comparison["provenance"] == {
+        "baseline_capture_source_sha": SOURCE_SHA,
+        "candidate_capture_source_sha": "2" * 40,
+        "same_source": False,
+    }
+
     assert_row_diff(
         tool,
         inputs,
@@ -153,6 +173,18 @@ def main() -> None:
             value["rust"]["rust-facade-default"].replace("pub struct fathomdb::Engine\n", ""),
         ),
         "rust-facade-default",
+        "removed",
+    )
+    assert_row_diff(
+        tool,
+        inputs,
+        lambda value: value.__setitem__(
+            "python_registrations",
+            value["python_registrations"].replace(
+                '    m.add("StorageError", py.get_type::<StorageError>())?;\n', ""
+            ),
+        ),
+        "python-native-registrations",
         "removed",
     )
     assert_row_diff(
@@ -178,6 +210,19 @@ def main() -> None:
         ),
         "rust-engine-operator-test-hooks",
         "removed",
+    )
+    assert_row_diff(
+        tool,
+        inputs,
+        lambda value: value.__setitem__(
+            "python_stub",
+            value["python_stub"].replace(
+                "class StorageError(EngineError): ...",
+                "class StorageError(Exception): ...",
+            ),
+        ),
+        "python-native-stub",
+        "changed",
     )
     assert_row_diff(
         tool,
@@ -261,6 +306,62 @@ def main() -> None:
         assert "duplicate" in str(exc)
     else:
         raise AssertionError("duplicate manifest keys must fail closed")
+
+    invalid_provenance = copy.deepcopy(current)
+    invalid_provenance["metadata"]["capture_source_sha"] = "not-a-sha"
+    try:
+        tool.compare_manifests(baseline, invalid_provenance)
+    except tool.ComparatorError as exc:
+        assert "capture_source_sha" in str(exc)
+    else:
+        raise AssertionError("invalid provenance must fail closed")
+
+    with mock.patch.object(tool.subprocess, "run", side_effect=FileNotFoundError("missing")):
+        try:
+            tool._run(["missing-slice30-tool"], ROOT)
+        except tool.ComparatorError as exc:
+            assert "missing-slice30-tool" in str(exc)
+        else:
+            raise AssertionError("missing executable must raise ComparatorError")
+
+    with mock.patch.object(tool, "_run", return_value="cargo-public-api 10.52.0\n"):
+        try:
+            tool._exact_version(
+                ["cargo", "public-api", "--version"],
+                "cargo-public-api 0.52.0",
+            )
+        except tool.ComparatorError:
+            pass
+        else:
+            raise AssertionError("tool version substring must not satisfy an exact pin")
+
+    with tempfile.TemporaryDirectory() as directory:
+        temporary = Path(directory)
+        baseline_path = ROOT / "dev/plans/0.8.27/features/slice-30/baseline.json"
+        hardlink = temporary / "baseline-hardlink.json"
+        os.link(baseline_path, hardlink)
+        try:
+            tool._guard_capture_output(hardlink)
+        except tool.ComparatorError as exc:
+            assert "reviewed baseline" in str(exc)
+        else:
+            raise AssertionError("hardlink alias must not permit baseline rewrite")
+
+        output = temporary / "candidate.json"
+        output.write_text("original\n")
+        with mock.patch.object(tool.os, "replace", side_effect=OSError("replace refused")):
+            try:
+                tool._atomic_write(output, "replacement\n")
+            except tool.ComparatorError as exc:
+                assert "atomic" in str(exc)
+            else:
+                raise AssertionError("atomic replacement failure must be typed")
+        assert output.read_text() == "original\n"
+        assert list(temporary.glob(f".{output.name}.*.tmp")) == []
+
+    agent_test = (ROOT / "scripts/agent-test.sh").read_text()
+    assert "test-slice30-surface-comparator" in agent_test
+    assert "scripts/tests/test_slice30_surface_comparator.py" in agent_test
 
     print("ok    slice30-surface-comparator")
 

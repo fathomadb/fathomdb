@@ -11,34 +11,27 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-Prework Slices 0-9 are complete on `release/0.8.27`: reviewed planning revision
-`a3e6cff6` and verified status/state closeout `73c53ffd`. They changed planning,
-design allocation, lifecycle, navigation, and release-state records only—no
-product code, tests, dependencies, installed environment, CI/CD, accepted
-public contract, schema, tag, registry, or publication state.
+<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 20 (ERASURE), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
 
-The release plan now preserves the exact shipped two-phase erasure contract,
-requested-bucket report counts, narrowly enumerated retained non-PII proof
-identity, and a non-vacuous Memex consumer oracle. It reuses current semantic
-modules and design authority, requires a real-surface comparator before moves,
-and assigns every deferred D27 item and every prework proposal explicitly.
+Prework Slices 0-9 and bounded preparation Slice 10 are complete on
+`release/0.8.27`. Slice 10 changed repository truth and instrumentation only:
+no product behavior, schema, public API, tag, registry, or publication state.
 
 ## Immediate next action
 
-Slice 10 (`PREPARATION`) is **IN PROGRESS**, authorized by the repository owner
-at `seq-291`. Its bounded scope is current documentation/release truth, one
-narrow advisory remediation, two Action comment corrections, exact
-benign-digest authority, and owned comparator/build prerequisites. It cannot
-implement F27-01 or move product code.
+| | |
+| --- | --- |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 20 (ERASURE)** — correction-safe source erasure. **Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 70 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
-There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decision:
+There are <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->TWO<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
 
+- authorize Slice 20's correction-safe erasure implementation; and
 - authorize tagging/publication only after the complete ladder and release
   qualification pass.
 
-## Completed prework ladder
+## Completed release-branch ladder
 
 | Slice | Scope | Status and evidence |
 | ---: | --- | --- |
@@ -52,22 +45,20 @@ There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE
 | 7 | Build and delivery evidence | Complete at `a3e6cff6`; open recurring causes separated from closed regressions. |
 | 8 | Reserved | Complete at `a3e6cff6`; intentionally empty. |
 | 9 | Proposal review and closeout | Planned at `a3e6cff6`, closed at `73c53ffd`; every proposal ruled, Slice 10 inputs design-reviewed, and verification passed. |
+| 10 | Bounded repository preparation | Complete at `3097d191`; current truth, dependency security, Action comments, digest authority, and Slice 30 prerequisites pass review. |
 
 ## Verification boundary
 
-The independent design review passed after all P2-P4 findings were corrected.
-Independent closeout verification passed this state/view pair, current-release
-selection, focused document/design/traceability/link checks, normal and landing
-preflights, and worktree inventory after one plan-heading P2 was corrected. The
-known stale public 0.8.25 claim remains an explicit Slice 10 RED; it is not
-hidden or weakened. Canonical worktree-owned Markdown tooling is also a Slice
-10 setup prerequisite; a read-only primary-checkout linter run is supporting,
-not release evidence.
+Slice 10 records committed RED/GREEN chronology, an independent design-review
+PASS, an independent code/security review PASS after one bounded correction
+cycle, focused public/platform/dependency/workflow/security checks, and the
+canonical capable-executor gate. Slice 30 retains comparator requalification
+and baseline capture; Slice 150 retains package/platform qualification.
 
 ## Boundaries
 
 - This release starts at schema 34 and currently proposes no schema migration.
 - Publication is unauthorized.
-- Slice 10 and later implementation require separate commission.
+- Slice 20 and later implementation require separate commission.
 - No temporary branch or worktree was created for prework; the existing
   `release/0.8.27` worktree remains the active release workspace.

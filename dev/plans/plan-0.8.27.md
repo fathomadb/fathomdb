@@ -353,12 +353,12 @@ review findings are closed. Prework approval does not authorize tags,
 publication, registry mutation, or feature implementation beyond the slices the
 user actually commissioned.
 
-## Immediate next slice: Slice 10 - approved repository preparation
+## Immediate next slice
 
-Implement only repository preparation explicitly approved in Slice 9. Use
-test-first changes for behavioral tooling and non-vacuous self-tests for
-comparison instruments. Secondary refactors remain postponed unless approved
-as direct prerequisites.
+<!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
+**IMMEDIATE NEXT: Slice 20** (`ERASURE`) — correction-safe source erasure
+
+**Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 70 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "capture_source_sha": "3b726cba1700e55486d3b2fbb6a922f439f25d54",
+    "capture_source_sha": "add4f3f4f066f0c4b1b47d7a91c1a4f979eba6bf",
     "row_identities": [
       {
         "args": [
@@ -110,7 +110,7 @@
     "target": "x86_64-unknown-linux-gnu",
     "tools": {
       "cargo-public-api": "0.52.0",
-      "node": "v26.8.2",
+      "node": "v25.9.0",
       "rust-toolchain": "nightly-2026-04-24",
       "rustc": "rustc 1.97.0-nightly (36ba2c771 2026-04-23)",
       "typescript": "6.0.3"
@@ -207805,6 +207805,176 @@
     {
       "entries": [
         {
+          "kind": "py-alias-registration",
+          "path": "ActuationError",
+          "signature": "m.add(\"ActuationError\", py.get_type::<ActuationError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "ClosingError",
+          "signature": "m.add(\"ClosingError\", py.get_type::<ClosingError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "ConsolidatorError",
+          "signature": "m.add(\"ConsolidatorError\", py.get_type::<ConsolidatorError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "CorruptionError",
+          "signature": "m.add(\"CorruptionError\", py.get_type::<CorruptionError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "DatabaseLockedError",
+          "signature": "m.add(\"DatabaseLockedError\", py.get_type::<DatabaseLockedError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "DependencyClosureError",
+          "signature": "m.add(\"DependencyClosureError\", py.get_type::<DependencyClosureError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "DependencyError",
+          "signature": "m.add(\"DependencyError\", py.get_type::<DependencyError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "DependencyTraceError",
+          "signature": "m.add(\"DependencyTraceError\", py.get_type::<DependencyTraceError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "EmbedDevicePolicyError",
+          "signature": "m.add(\"EmbedDevicePolicyError\", py.get_type::<EmbedDevicePolicyError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "EmbedderDimensionMismatchError",
+          "signature": "m.add(\"EmbedderDimensionMismatchError\", py.get_type::<EmbedderDimensionMismatchError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "EmbedderError",
+          "signature": "m.add(\"EmbedderError\", py.get_type::<EmbedderError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "EmbedderIdentityMismatchError",
+          "signature": "m.add(\"EmbedderIdentityMismatchError\", py.get_type::<EmbedderIdentityMismatchError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "EmbedderNotConfiguredError",
+          "signature": "m.add(\"EmbedderNotConfiguredError\", py.get_type::<EmbedderNotConfiguredError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "EmbedderRequiredError",
+          "signature": "m.add(\"EmbedderRequiredError\", py.get_type::<EmbedderRequiredError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "EngineError",
+          "signature": "m.add(\"EngineError\", py.get_type::<EngineError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "ErasureIncompleteError",
+          "signature": "m.add(\"ErasureIncompleteError\", py.get_type::<ErasureIncompleteError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "EvidenceError",
+          "signature": "m.add(\"EvidenceError\", py.get_type::<EvidenceError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "ExtractorError",
+          "signature": "m.add(\"ExtractorError\", py.get_type::<ExtractorError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "FrozenReadError",
+          "signature": "m.add(\"FrozenReadError\", py.get_type::<FrozenReadError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "GraphExpansionError",
+          "signature": "m.add(\"GraphExpansionError\", py.get_type::<GraphExpansionError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "IllegalTransitionError",
+          "signature": "m.add(\"IllegalTransitionError\", py.get_type::<IllegalTransitionError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "IncompatibleSchemaVersionError",
+          "signature": "m.add(\"IncompatibleSchemaVersionError\", py.get_type::<IncompatibleSchemaVersionError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "InvalidArgumentError",
+          "signature": "m.add(\"InvalidArgumentError\", py.get_type::<InvalidArgumentError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "InvalidFilterError",
+          "signature": "m.add(\"InvalidFilterError\", py.get_type::<InvalidFilterError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "KindNotVectorIndexedError",
+          "signature": "m.add(\"KindNotVectorIndexedError\", py.get_type::<KindNotVectorIndexedError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "MigrationError",
+          "signature": "m.add(\"MigrationError\", py.get_type::<MigrationError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "NotLifecycleAddressableError",
+          "signature": "m.add(\"NotLifecycleAddressableError\", py.get_type::<NotLifecycleAddressableError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "OpStoreError",
+          "signature": "m.add(\"OpStoreError\", py.get_type::<OpStoreError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "OverloadedError",
+          "signature": "m.add(\"OverloadedError\", py.get_type::<OverloadedError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "PageError",
+          "signature": "m.add(\"PageError\", py.get_type::<PageError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "ProjectionDestructiveError",
+          "signature": "m.add(\"ProjectionDestructiveError\", py.get_type::<ProjectionDestructiveError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "ProjectionError",
+          "signature": "m.add(\"ProjectionError\", py.get_type::<ProjectionError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "ProjectionGenerationError",
+          "signature": "m.add(\"ProjectionGenerationError\", py.get_type::<ProjectionGenerationError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "ProvenanceError",
+          "signature": "m.add(\"ProvenanceError\", py.get_type::<ProvenanceError>())"
+        },
+        {
           "kind": "pyclass-registration",
           "path": "PyActuationReceiptV1",
           "signature": "add_class::<PyActuationReceiptV1>"
@@ -208065,6 +208235,46 @@
           "signature": "add_class::<PyWriteReceipt>"
         },
         {
+          "kind": "py-alias-registration",
+          "path": "RerankerDevicePolicyError",
+          "signature": "m.add(\"RerankerDevicePolicyError\", py.get_type::<RerankerDevicePolicyError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "RuntimeConfigurationError",
+          "signature": "m.add(\"RuntimeConfigurationError\", py.get_type::<RuntimeConfigurationError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "SchedulerError",
+          "signature": "m.add(\"SchedulerError\", py.get_type::<SchedulerError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "SchemaValidationError",
+          "signature": "m.add(\"SchemaValidationError\", py.get_type::<SchemaValidationError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "StorageError",
+          "signature": "m.add(\"StorageError\", py.get_type::<StorageError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "VectorEquivalenceMismatchError",
+          "signature": "m.add(\"VectorEquivalenceMismatchError\", py.get_type::<VectorEquivalenceMismatchError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "VectorError",
+          "signature": "m.add(\"VectorError\", py.get_type::<VectorError>())"
+        },
+        {
+          "kind": "py-alias-registration",
+          "path": "WriteValidationError",
+          "signature": "m.add(\"WriteValidationError\", py.get_type::<WriteValidationError>())"
+        },
+        {
           "kind": "pyfunction-registration",
           "path": "admin_configure",
           "signature": "wrap_pyfunction!(admin_configure)"
@@ -208207,7 +208417,7 @@
         {
           "kind": "stub-class",
           "path": "ActuationError",
-          "signature": "class ActuationError"
+          "signature": "class ActuationError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -208317,7 +208527,7 @@
         {
           "kind": "stub-class",
           "path": "ClosingError",
-          "signature": "class ClosingError"
+          "signature": "class ClosingError(EngineError)"
         },
         {
           "kind": "stub-class",
@@ -208482,12 +208692,12 @@
         {
           "kind": "stub-class",
           "path": "ConsolidatorError",
-          "signature": "class ConsolidatorError"
+          "signature": "class ConsolidatorError(EngineError)"
         },
         {
           "kind": "stub-class",
           "path": "CorruptionError",
-          "signature": "class CorruptionError"
+          "signature": "class CorruptionError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -208612,7 +208822,7 @@
         {
           "kind": "stub-class",
           "path": "DatabaseLockedError",
-          "signature": "class DatabaseLockedError"
+          "signature": "class DatabaseLockedError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -208627,7 +208837,7 @@
         {
           "kind": "stub-class",
           "path": "DependencyClosureError",
-          "signature": "class DependencyClosureError"
+          "signature": "class DependencyClosureError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -208647,7 +208857,7 @@
         {
           "kind": "stub-class",
           "path": "DependencyError",
-          "signature": "class DependencyError"
+          "signature": "class DependencyError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -208682,7 +208892,7 @@
         {
           "kind": "stub-class",
           "path": "DependencyTraceError",
-          "signature": "class DependencyTraceError"
+          "signature": "class DependencyTraceError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -208757,7 +208967,7 @@
         {
           "kind": "stub-class",
           "path": "EmbedDevicePolicyError",
-          "signature": "class EmbedDevicePolicyError"
+          "signature": "class EmbedDevicePolicyError(EmbedderError)"
         },
         {
           "kind": "stub-method",
@@ -208777,7 +208987,7 @@
         {
           "kind": "stub-class",
           "path": "EmbedderDimensionMismatchError",
-          "signature": "class EmbedderDimensionMismatchError"
+          "signature": "class EmbedderDimensionMismatchError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -208797,7 +209007,7 @@
         {
           "kind": "stub-class",
           "path": "EmbedderError",
-          "signature": "class EmbedderError"
+          "signature": "class EmbedderError(EngineError)"
         },
         {
           "kind": "stub-class",
@@ -208822,7 +209032,7 @@
         {
           "kind": "stub-class",
           "path": "EmbedderIdentityMismatchError",
-          "signature": "class EmbedderIdentityMismatchError"
+          "signature": "class EmbedderIdentityMismatchError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -208852,12 +209062,12 @@
         {
           "kind": "stub-class",
           "path": "EmbedderNotConfiguredError",
-          "signature": "class EmbedderNotConfiguredError"
+          "signature": "class EmbedderNotConfiguredError(EmbedderError)"
         },
         {
           "kind": "stub-class",
           "path": "EmbedderRequiredError",
-          "signature": "class EmbedderRequiredError"
+          "signature": "class EmbedderRequiredError(EmbedderError)"
         },
         {
           "kind": "stub-method",
@@ -209117,7 +209327,7 @@
         {
           "kind": "stub-class",
           "path": "EngineError",
-          "signature": "class EngineError"
+          "signature": "class EngineError(Exception)"
         },
         {
           "kind": "stub-class",
@@ -209147,7 +209357,7 @@
         {
           "kind": "stub-class",
           "path": "ErasureIncompleteError",
-          "signature": "class ErasureIncompleteError"
+          "signature": "class ErasureIncompleteError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -209217,7 +209427,7 @@
         {
           "kind": "stub-class",
           "path": "EvidenceError",
-          "signature": "class EvidenceError"
+          "signature": "class EvidenceError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -209357,7 +209567,7 @@
         {
           "kind": "stub-class",
           "path": "ExtractorError",
-          "signature": "class ExtractorError"
+          "signature": "class ExtractorError(EngineError)"
         },
         {
           "kind": "stub-class",
@@ -209392,7 +209602,7 @@
         {
           "kind": "stub-class",
           "path": "FrozenReadError",
-          "signature": "class FrozenReadError"
+          "signature": "class FrozenReadError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -209507,7 +209717,7 @@
         {
           "kind": "stub-class",
           "path": "GraphExpansionError",
-          "signature": "class GraphExpansionError"
+          "signature": "class GraphExpansionError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -209547,7 +209757,7 @@
         {
           "kind": "stub-class",
           "path": "IllegalTransitionError",
-          "signature": "class IllegalTransitionError"
+          "signature": "class IllegalTransitionError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -209572,7 +209782,7 @@
         {
           "kind": "stub-class",
           "path": "IncompatibleSchemaVersionError",
-          "signature": "class IncompatibleSchemaVersionError"
+          "signature": "class IncompatibleSchemaVersionError(EngineError)"
         },
         {
           "kind": "stub-class",
@@ -209597,22 +209807,22 @@
         {
           "kind": "stub-class",
           "path": "InvalidArgumentError",
-          "signature": "class InvalidArgumentError"
+          "signature": "class InvalidArgumentError(EngineError)"
         },
         {
           "kind": "stub-class",
           "path": "InvalidFilterError",
-          "signature": "class InvalidFilterError"
+          "signature": "class InvalidFilterError(EngineError)"
         },
         {
           "kind": "stub-class",
           "path": "KindNotVectorIndexedError",
-          "signature": "class KindNotVectorIndexedError"
+          "signature": "class KindNotVectorIndexedError(VectorError)"
         },
         {
           "kind": "stub-class",
           "path": "MigrationError",
-          "signature": "class MigrationError"
+          "signature": "class MigrationError(EngineError)"
         },
         {
           "kind": "stub-class",
@@ -209742,7 +209952,7 @@
         {
           "kind": "stub-class",
           "path": "NotLifecycleAddressableError",
-          "signature": "class NotLifecycleAddressableError"
+          "signature": "class NotLifecycleAddressableError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -209757,7 +209967,7 @@
         {
           "kind": "stub-class",
           "path": "OpStoreError",
-          "signature": "class OpStoreError"
+          "signature": "class OpStoreError(EngineError)"
         },
         {
           "kind": "stub-class",
@@ -209937,12 +210147,12 @@
         {
           "kind": "stub-class",
           "path": "OverloadedError",
-          "signature": "class OverloadedError"
+          "signature": "class OverloadedError(EngineError)"
         },
         {
           "kind": "stub-class",
           "path": "PageError",
-          "signature": "class PageError"
+          "signature": "class PageError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -210052,7 +210262,7 @@
         {
           "kind": "stub-class",
           "path": "ProjectionDestructiveError",
-          "signature": "class ProjectionDestructiveError"
+          "signature": "class ProjectionDestructiveError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -210072,12 +210282,12 @@
         {
           "kind": "stub-class",
           "path": "ProjectionError",
-          "signature": "class ProjectionError"
+          "signature": "class ProjectionError(EngineError)"
         },
         {
           "kind": "stub-class",
           "path": "ProjectionGenerationError",
-          "signature": "class ProjectionGenerationError"
+          "signature": "class ProjectionGenerationError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -210252,7 +210462,7 @@
         {
           "kind": "stub-class",
           "path": "ProvenanceError",
-          "signature": "class ProvenanceError"
+          "signature": "class ProvenanceError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -210387,7 +210597,7 @@
         {
           "kind": "stub-class",
           "path": "RerankerDevicePolicyError",
-          "signature": "class RerankerDevicePolicyError"
+          "signature": "class RerankerDevicePolicyError(EmbedderError)"
         },
         {
           "kind": "stub-method",
@@ -210527,7 +210737,7 @@
         {
           "kind": "stub-class",
           "path": "RuntimeConfigurationError",
-          "signature": "class RuntimeConfigurationError"
+          "signature": "class RuntimeConfigurationError(EngineError)"
         },
         {
           "kind": "stub-attribute",
@@ -210552,12 +210762,12 @@
         {
           "kind": "stub-class",
           "path": "SchedulerError",
-          "signature": "class SchedulerError"
+          "signature": "class SchedulerError(EngineError)"
         },
         {
           "kind": "stub-class",
           "path": "SchemaValidationError",
-          "signature": "class SchemaValidationError"
+          "signature": "class SchemaValidationError(EngineError)"
         },
         {
           "kind": "stub-class",
@@ -210687,7 +210897,7 @@
         {
           "kind": "stub-class",
           "path": "StorageError",
-          "signature": "class StorageError"
+          "signature": "class StorageError(EngineError)"
         },
         {
           "kind": "stub-class",
@@ -210727,7 +210937,7 @@
         {
           "kind": "stub-class",
           "path": "VectorEquivalenceMismatchError",
-          "signature": "class VectorEquivalenceMismatchError"
+          "signature": "class VectorEquivalenceMismatchError(EngineError)"
         },
         {
           "kind": "stub-method",
@@ -210742,7 +210952,7 @@
         {
           "kind": "stub-class",
           "path": "VectorError",
-          "signature": "class VectorError"
+          "signature": "class VectorError(EngineError)"
         },
         {
           "kind": "stub-class",
@@ -210767,7 +210977,7 @@
         {
           "kind": "stub-class",
           "path": "WriteValidationError",
-          "signature": "class WriteValidationError"
+          "signature": "class WriteValidationError(EngineError)"
         },
         {
           "kind": "stub-function",

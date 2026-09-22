@@ -1,14 +1,14 @@
 ---
 title: FathomDB 0.8.27 Slice 30 - refactor navigation inventory
 status: REVIEWED_BASELINE
-source_sha: 3b726cba1700e55486d3b2fbb6a922f439f25d54
+source_sha: add4f3f4f066f0c4b1b47d7a91c1a4f979eba6bf
 ---
 
 # Slice 30 refactor navigation inventory
 
 This human navigation record describes the clean source commit named above.
 The complete machine surface is `baseline.json` (SHA-256
-`a8cee76657af6557c2117fad77e66119314b85ef3b77a4c61d31943f33a694fe`).
+`7c76bd0d409cecc5dc073e29baf7806b329379bd9475c7ab138dda12cde5cdf2`).
 Line counts are advisory attention signals only. They are not movement targets,
 correctness gates, or permission to split a settled boundary.
 
@@ -17,7 +17,7 @@ correctness gates, or permission to split a settled boundary.
 | Root | Lines | Top-level navigation |
 | --- | ---: | --- |
 | `src/rust/crates/fathomdb-engine/src/lib.rs` | 34,189 | Root `Engine`; runtime/open/write/search/close and projection worker implementation; public types/constants/functions; root re-exports from `actuation`, `data_plane_integrity`, `dependency_closure`, `dependency_trace`, `evidence`, `frozen_read`, `graph_expand`, `lifecycle`, `pagination`, and `projection_generation`; operator and test-hook sections. |
-| `src/rust/crates/fathomdb-py/src/lib.rs` | 5,943 | PyO3 mirror classes and conversion helpers, native `Engine`, free functions, error mapping, and the `_fathomdb` registration block. The baseline records 79 actual registrations independently from the stub. |
+| `src/rust/crates/fathomdb-py/src/lib.rs` | 5,943 | PyO3 mirror classes and conversion helpers, native `Engine`, free functions, error mapping, and the `_fathomdb` registration block. The baseline records 121 actual class, function, alias, and exception registrations independently from the stub. |
 | `src/rust/crates/fathomdb-napi/src/lib.rs` | 5,406 | NAPI data mirrors/conversions, native `Engine`, async task wrappers, free functions, and typed error conversion. The production declaration baseline contains 81 exports with `default-embedder` and no test-hook declaration. |
 | `src/ts/src/index.ts` | 4,439 | Public `Engine`, request/result and wire types, validation/mapping helpers, lifecycle/search/evidence/dependency APIs, error re-exports, and the `read` namespace re-export. Compiler output contains 149 declarations. |
 | `src/python/fathomdb/engine.py` | 2,846 | Public `Engine`; native/result conversion; graph, evidence, dependency-trace, frozen-read, validation, device, and explanation helpers. Package authority remains the 119-name literal `fathomdb.__all__`; the native stub has 538 class/member/function entries. |
@@ -77,6 +77,9 @@ while their complete impl context remains part of associated signatures.
 - Runtime native Python introspection was not used: editable installation from
   the worktree is forbidden. Registration source, the hand-maintained native
   stub, and package exports are separate required evidence, not substitutes.
+  Registration aliases created with `m.add` and complete stub class bases are
+  included, so exception removal or inheritance drift cannot hide behind the
+  class/function-only rows.
 - Package metadata currently exposes the package root through `main` and
   `types`; it has no declared public subpath map. Private TypeScript source
   modules are navigation aids, not package entrypoints.

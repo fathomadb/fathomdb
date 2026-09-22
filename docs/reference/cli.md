@@ -80,17 +80,16 @@ Inspection failures use `inspection_unavailable`, `inspection_lock_missing`,
 `database_schema_mismatch`, or `integrity_corrupt` without exposing raw SQLite
 diagnostics.
 
-For the 0.8.26 boundary, install the exact CLI version and confirm its identity:
+Install the published 0.8.26 CLI at the exact version and confirm its identity:
 
 ```bash
 cargo install fathomdb-cli --version '=0.8.26' --locked
 fathomdb --version
 ```
 
-That registry command is valid only after 0.8.26 is published. During source
-qualification, use the [Rust install procedure](../install/rust.md). The
-published 0.8.25 binary has the same schema version but does not implement this
-immutable process boundary.
+During source qualification, use the [Rust install procedure](../install/rust.md).
+Public 0.8.26 opens require a fresh or already-current schema-34 database; an
+older non-empty database is rejected before product mutation.
 
 ### GPU and platform diagnostics
 

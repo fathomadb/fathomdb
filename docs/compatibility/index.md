@@ -1,7 +1,7 @@
 # Compatibility
 
 Supported platforms, toolchains, and version-alignment policy for the
-published **0.8.25** release.
+published **0.8.26** release.
 
 > **Pre-1.0 = beta.** FathomDB is on a pre-1.0 line. The surface may
 > change between micro releases; consult the
@@ -19,19 +19,18 @@ targets those three interpreters explicitly.
 
 Node **25.x**. CI, development, and the release build use exact Node **25.9.0**.
 The package declares `engines.node = ">=25 <26"`. Compatibility with other
-Node release lines is not part of the 0.8.25 contract.
+Node release lines is not part of the 0.8.26 contract.
 
 ## Supported Rust toolchain
 
 Rust **1.95.0**. This is the declared MSRV and the exact compiler used by CI
 and release jobs.
 
-## Prebuilt artifacts — Linux x86_64 and AArch64 published
+## Prebuilt artifacts — five native targets published
 
-⚠ **The published 0.8.25 wheel and npm platform binaries support Linux
-`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` glibc.** Linux
-aarch64 is published for Python and npm. Do not expect the published npm
-package to install on macOS, Windows, or Linux musl.
+⚠ **The published 0.8.26 wheel and npm platform binaries support Linux
+`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` glibc, macOS x64 and
+arm64, and Windows x64.** Linux musl and other targets remain source-build-only.
 
 **Measured glibc floor (manylinux): 2.28**, for the Python wheel on both
 architectures and the `linux-arm64-gnu` npm platform binary. As of Slice 80.1
@@ -78,12 +77,12 @@ before diagnosing an incompatible CUDA provider.
 | ------- | --------------------------- | ------------------- |
 | Linux   | `x86_64-unknown-linux-gnu`  | **yes** (CUDA host glibc 2.39) |
 | Linux   | `aarch64-unknown-linux-gnu` | **yes** (manylinux 2_28) |
-| macOS   | `x86_64-apple-darwin`       | no — unsupported published artifact |
-| macOS   | `aarch64-apple-darwin`      | no — unsupported published artifact |
-| Windows | `x86_64-pc-windows-msvc`    | no — unsupported published artifact |
+| macOS   | `x86_64-apple-darwin`       | **yes** |
+| macOS   | `aarch64-apple-darwin`      | **yes** |
+| Windows | `x86_64-pc-windows-msvc`    | **yes** |
 
-Platforms outside the two published Linux glibc artifacts are unsupported for the
-published Python and npm packages in this release.
+Platforms outside these five native targets are unsupported for the published
+Python and npm packages in this release.
 
 ## SQLite + sqlite-vec
 
@@ -96,20 +95,15 @@ published Python and npm packages in this release.
 
 ## On-disk schema
 
-The published 0.8.25 line sets `SCHEMA_VERSION` to **33** (0.8.23 shipped
-**26**, 0.8.21 shipped **25**, and 0.8.20 shipped **24**). Migration runs at
-`Engine.open` and only there.
-
-⚠ **Migration step 23 does not preserve edge data.** The step recreates
-`canonical_edges` so `t_valid` / `t_invalid` are INTEGER epoch seconds
-with type CHECKs. There is **no data migration**: existing edge rows do
-not survive, and no stored ISO-8601 value is converted. Nodes are
-unaffected. If your workspace carries edges you need, **re-ingest them
-after upgrading** rather than relying on an in-place upgrade.
+The published 0.8.26 line sets `SCHEMA_VERSION` to **34**. A missing or
+zero-length path bootstraps directly at schema 34. A non-empty database opens
+only when its effective committed `PRAGMA user_version` is exactly 34; older,
+future, and non-empty zero-version databases are rejected before product
+mutation. There is no public automatic migration or compatibility reader.
 
 ## Versioning — two axes
 
-0.8.25 follows two-axis versioning:
+0.8.26 follows two-axis versioning:
 
 - **Axis W (workspace lockstep)** — the runtime / binding / CLI crates
   plus the Python and TypeScript packages all carry the same workspace
@@ -131,26 +125,26 @@ This decouples embedder-protocol stability from binding cadence.
 | Search results are ordered by **RRF fusion**, not union-dedup | re-baseline any pinned result ordering |
 | `valid_from >= valid_until` is refused with a **message-less** `WriteValidationError` (was `InvalidArgumentError` carrying both bounds) | validate the pair before calling |
 | A projection spec with `fts` / `vector` but no `searchable` role is refused | add the role, or name the projection in `drop` |
-| Migration step 23 drops existing edge rows | re-ingest edges after upgrading |
+| Public open does not upgrade older non-empty databases | create a fresh 0.8.26 database and re-ingest through the public write surface |
 
 The [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)
 is the authoritative list.
 
 ## 0.5.x / 0.6.x compatibility
 
-**No 0.5.x compatibility shims or migrations.** Do not point 0.8.x
-binaries at a 0.5.x database. Databases created by 0.6.x–0.8.x migrate
-forward at open, subject to the step-23 edge caveat above.
+**No 0.5.x compatibility shims or public migrations.** Do not point 0.8.26
+binaries at an older non-empty database. Create a fresh schema-34 database and
+re-ingest through the public write surface.
 
 ## Performance posture
 
-The 0.8.25 release acceptance is complete. Its measurements are validation
+The 0.8.26 release acceptance is complete. Its measurements are validation
 evidence for the tested workloads and machines, not a general latency SLA.
 The historical AC-020 scaling-ratio gate was explicitly retired and replaced
 by independent absolute sequential, concurrent, and reader-independence
 budgets; those successor checks passed. The final bounded AC-012 rerun also
 passed. The exact dispositions and retained measurements are recorded in the
-[0.8.25 release status](https://github.com/fathomadb/fathomdb/blob/main/dev/plans/runs/STATUS-0.8.25.md).
+[0.8.26 release status](https://github.com/fathomadb/fathomdb/blob/main/dev/plans/runs/STATUS-0.8.26.md).
 
 Clients evaluating FathomDB for performance-sensitive workloads should still
 measure on their own corpus and hardware rather than treating a release-gate

@@ -58,13 +58,13 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/plan-0.8.24.md` | Historical 0.8.24 plan; completed work is integrated into main | 0.8.24 history | 2026-09-02 |
 | `dev/plans/plan-0.8.25.md` | Proposed dependency-linear performance and Memex data-plane foldback plan | 0.8.25 | 2026-08-31 |
 | `dev/plans/0.8.26-draft-scope.md` | Non-authoritative intake preserving work postponed from 0.8.24 and 0.8.25 | 0.8.26 draft | 2026-09-01 |
-| `dev/plans/plan-0.8.26.md` | Active dependency-linear Memex P0–P2 contract-completion release plan | 0.8.26 | 2026-09-15 |
+| `dev/plans/plan-0.8.26.md` | Completed dependency-linear Memex P0–P2 contract-completion release plan | 0.8.26 history | 2026-09-19 |
 | `dev/plans/0.8.26-prework-slices-0-9.md` | Draft environment, failure-evidence, HITL, and approved-prework contract | 0.8.26 Slices 0–9 | 2026-09-12 |
 | `dev/plans/0.8.26/` | Release-local plans, designs, reviews, and status records through architecture convergence | 0.8.26 Slice 45 | 2026-09-15 |
 | `dev/plans/0.8.26/slice-execution-contract.md` | Lean requirements-to-status workflow adopted by every 0.8.26 slice | 0.8.26 | 2026-09-12 |
 | `dev/plans/plan-0.8.27.md` | Correction-safe erasure and semantic-refactor release plan | 0.8.27 | 2026-09-21 |
 | `dev/plans/release-state-0.8.27.json` | Single-writer 0.8.27 ladder, decisions, and immediate-next state | 0.8.27 | 2026-09-21 |
-| `dev/plans/runs/STATUS-0.8.27.md` | Active 0.8.27 board; prework complete and Slice 10 uncommissioned | 0.8.27 | 2026-09-21 |
+| `dev/plans/runs/STATUS-0.8.27.md` | Active 0.8.27 board; prework complete and Slice 10 authorized | 0.8.27 | 2026-09-21 |
 | `dev/plans/0.8.27-prework-slices-0-9.md` | Completed prework scope, dispositions, and verification summary | 0.8.27 prework | 2026-09-21 |
 | `dev/plans/0.8.27/prework/` | Prework Slices 0-9, proposal register, reviews, and next-slice design | 0.8.27 prework | 2026-09-21 |
 | `dev/plans/0.8.27/slice-execution-contract.md` | Proportional requirements-to-status workflow for 0.8.27 | 0.8.27 | 2026-09-21 |
@@ -327,22 +327,23 @@ refresh in the closing commit when you touch a doc).
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
-| `docs/index.md` | Docs home for the published 0.8.23 surface | X2 (nav) | 2026-08-23 |
-| `docs/getting-started/index.md` | Getting-started overview for 0.8.23 | — | 2026-08-23 |
+| `docs/index.md` | Docs home for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/getting-started/index.md` | Getting-started overview for 0.8.26 | 0.8.27 Slice 10 | 2026-09-21 |
 | `docs/getting-started/quickstart.md` | Quickstart (five-operation contract) | 5/30 (new surface examples) | 2026-05-17 |
-| `docs/install/python.md` | Python install for published 0.8.23 | — | 2026-08-23 |
-| `docs/install/typescript.md` | TypeScript install for published 0.8.23 | — | 2026-08-23 |
-| `docs/install/rust.md` | Rust install for published 0.8.23 | — | 2026-08-23 |
-| `docs/reference/index.md` | API-reference overview for the published 0.8.23 surface | 0.8.24 Slice 7 | 2026-08-23 |
-| `docs/reference/python-api.md` | Python API reference incl. governed `read.*`, projection configuration/derived readiness, and `read.projection_status` | Slices 21/22 published by 0.8.23 | 2026-08-23 |
-| `docs/reference/typescript-api.md` | TypeScript API reference incl. governed `read.*`, projection configuration/derived readiness, and `read.projectionStatus` | Slices 21/22 published by 0.8.23 | 2026-08-23 |
-| `docs/reference/cli.md` | CLI reference (recovery verbs CLI-only) | 34 (dump-mutations); 0.8.24 Slice 7 link correction | 2026-08-23 |
+| `docs/install/python.md` | Python install for five published 0.8.26 native targets | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/install/typescript.md` | TypeScript install for five published 0.8.26 native targets | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/install/rust.md` | Rust and exact-version CLI install for 0.8.26 | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/reference/index.md` | API-reference overview for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/reference/python-api.md` | Python API reference for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/reference/typescript-api.md` | TypeScript API reference for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/reference/rust-api.md` | Rust facade reference for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/reference/cli.md` | CLI reference including the immutable 0.8.26 inspection boundary | 0.8.27 Slice 10 | 2026-09-21 |
 | `docs/reference/errors.md` | Error reference (taxonomy) | 0.8.24 Slice 7 link correction | 2026-08-23 |
 | `docs/reference/config.md` | Config reference | 0.8.24 Slice 7 link correction | 2026-08-23 |
-| `docs/concepts/index.md` | Concepts overview for the published 0.8.23 surface | 0.8.24 Slice 7 | 2026-08-23 |
-| `docs/embedder.md` | Default embedder, published 0.8.23 framing | 0.8.24 Slice 7 | 2026-08-23 |
-| `docs/compatibility/index.md` | Compatibility matrix for published 0.8.23 | 0.8.24 Slice 7 | 2026-08-23 |
-| `docs/operations/index.md` | Operations guide for the published 0.8.23 surface | 0.8.24 Slice 7 | 2026-08-23 |
+| `docs/concepts/index.md` | Concepts overview for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/embedder.md` | Default embedder with current 0.8.26 framing | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/compatibility/index.md` | Five-platform and schema-34 compatibility boundary for 0.8.26 | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/operations/index.md` | Operations guide for the published 0.8.26 surface | 0.8.27 Slice 10 | 2026-09-21 |
 | `docs/operations/worktree-consolidation.md` | Worktree consolidation protocol overview | 0.8.24 Slice 7 link correction | 2026-08-23 |
 | `docs/operations/erasure.md` | Erasure boundary | 0.8.20 Slice 5d (R-20-E4/E8, design §4 item 12) | 2026-07-19 |
 | `docs/guides/index.md` | Guides hub for the published 0.8.23 surface | 0.8.24 Slice 7 | 2026-08-23 |
@@ -353,6 +354,7 @@ refresh in the closing commit when you touch a doc).
 | `docs/positions/sdk-parity.md` | Position: SDK parity (guarantee carried forward by 25) | 25 | 2026-05-01 |
 | `docs/positions/recovery-surface.md` | Position: recovery surface (denylist, CLI-only) | preserved by 25/30 | 2026-05-01 |
 | `docs/positions/tokenizer-policy.md` | Position: tokenizer policy | 5 (FTS5 default upgrade) | 2026-05-01 |
+| `docs/release-notes/0.8.26.md` | Published 0.8.26 highlights, schema boundary, artifacts, and install routes | 0.8.27 Slice 10 | 2026-09-21 |
 | `docs/positions/embedder-identity.md` | Position: embedder identity | — | 2026-05-01 |
 | `docs/release-notes/0.6.0.md` | 0.6.0 historical release notes; current-link banner names 0.8.23 | 0.8.24 Slice 7 | 2026-08-23 |
 | `docs/release-notes/0.6.1.md` | 0.6.1 historical release notes; current-link banner names 0.8.23 | 0.8.24 Slice 7 | 2026-08-23 |

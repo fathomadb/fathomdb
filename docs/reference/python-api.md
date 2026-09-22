@@ -3,7 +3,7 @@
 Module: `fathomdb`. Authoritative spec:
 [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/python.md).
 
-> **Release state.** 0.8.25 is the current published release.
+> **Release state.** 0.8.26 is the current published release.
 
 ## Representative top-level imports
 

@@ -8,7 +8,7 @@ Two consumption paths for Rust users:
   `fathomdb recover` verbs. Operator-only; does **not**
   ship `search` / `get` / `list` query verbs.
 
-> **0.8.25 is published to crates.io.** FathomDB is pre-1.0 and the surface
+> **0.8.26 is published to crates.io.** FathomDB is pre-1.0 and the surface
 > is **beta**.
 
 ## Requirements
@@ -17,8 +17,9 @@ Two consumption paths for Rust users:
 - SQLite headers + a system `sqlite-vec` build, or vendored equivalent
   (the workspace builds `sqlite-vec` from source by default).
 - A Rust-supported target and a working SQLite + `sqlite-vec` build. The
-  published Python and npm native-artifact boundary is Linux
-  `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`; Rust crates
+  published Python and npm native-artifact boundary covers Linux x86_64
+  (`x86_64-unknown-linux-gnu`), Linux AArch64
+  (`aarch64-unknown-linux-gnu`), macOS x64/arm64, and Windows x64; Rust crates
   compile from source.
 
 ## Install the published crates
@@ -32,20 +33,20 @@ cargo add fathomdb
 CLI:
 
 ```bash
-cargo install fathomdb-cli --version 0.8.25
+cargo install fathomdb-cli --version 0.8.26
 ```
 
-For the immutable 0.8.26 data-plane inspection route, wait until 0.8.26 is
-published, pin the exact version, and verify the discovered binary:
+For the immutable 0.8.26 data-plane inspection route, pin the exact version and
+verify the discovered binary:
 
 ```bash
 cargo install fathomdb-cli --version '=0.8.26' --locked
 fathomdb --version
 ```
 
-Do not treat 0.8.25 as an immutable-inspection substitute even though it uses
-the same database schema version: its data-plane command still enters through
-the ordinary writable engine-open path.
+Public 0.8.26 opens bootstrap a missing or zero-length path directly at schema
+34 and accept a non-empty database only when its committed schema is exactly
+34. There is no public automatic-upgrade route.
 
 ## Qualify a source candidate
 

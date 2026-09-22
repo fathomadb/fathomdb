@@ -3,7 +3,7 @@
 Package: `fathomdb`. Authoritative spec:
 [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/typescript.md).
 
-> **Release state.** 0.8.25 is the current published release.
+> **Release state.** 0.8.26 is the current published release.
 
 **TS SDK parity caveat.** The TS surface covers the same governed command set
 and the same error taxonomy as Python, but Python remains the more heavily

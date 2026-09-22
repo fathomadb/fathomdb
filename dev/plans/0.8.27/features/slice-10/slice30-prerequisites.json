@@ -1,0 +1,10 @@
+{
+  "schema": "fathomdb.slice30-prerequisites.v1",
+  "cargo_public_api": "0.52.0",
+  "nightly": "nightly-2026-04-24",
+  "owned_root": ".cache/0.8.27-slice30",
+  "scratch_root": "/tmp/fathomdb-0.8.27-slice30",
+  "heavy_route_min_free_bytes": 100000000000,
+  "heavy_runner_scratch_bytes": 17179869184,
+  "qualification": "Slice 30 must requalify every required feature row before baseline capture"
+}

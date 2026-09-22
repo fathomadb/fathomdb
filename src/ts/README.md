@@ -23,11 +23,11 @@ The package is a thin TypeScript wrapper (ESM, with type declarations) over a na
 this package: each host triple ships as its own package (for example
 `fathomdb-linux-x64-gnu` or `fathomdb-linux-arm64-gnu`), declared as an optional dependency and
 resolved automatically on a matching host. You install `fathomdb` and nothing else. The published
-0.8.25 release provides Linux x64 and Linux AArch64 glibc packages; macOS, Windows, and Linux musl
-remain without an installable native package.
+0.8.26 release provides Linux x86_64 and Linux AArch64 glibc, macOS x64 and arm64, and Windows
+x64 packages. Linux musl remains without an installable native package.
 
 Built and tested on Node.js 25.9.0. Other Node release lines are not part of
-the 0.8.25 compatibility contract.
+the 0.8.26 compatibility contract.
 
 ## Quick start
 

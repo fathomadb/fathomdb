@@ -22,8 +22,8 @@
 | `dev/plans/0.8.26-draft-scope.md` | **Non-authoritative 0.8.26 intake.** Preserves deferred Windows/tooling work plus multi-source dependencies, liveness, and broader actuation receipts. | 0.8.26 draft | 2026-09-02 |
 | `dev/plans/0.8.27-draft-scope.md` | **Superseded 0.8.27 intake.** F27-01 moved into the executable plan; unproven continuity candidates moved to 0.8.28. | 0.8.27 history | 2026-09-21 |
 | `dev/plans/plan-0.8.27.md` | **0.8.27 release plan.** Correction-safe erasure followed by behavior-preserving semantic decomposition; publication separately gated. | 0.8.27 | 2026-09-21 |
-| `dev/plans/release-state-0.8.27.json` | **Active 0.8.27 single writer.** Owns the 25-slice ladder, ruled/open decisions, schema baseline, and immediate pointer to uncommissioned Slice 10. | 0.8.27 | 2026-09-21 |
-| `dev/plans/runs/STATUS-0.8.27.md` | **Active 0.8.27 board.** Records Slices 0-9 complete on the release branch, two open decisions, and the separate Slice 10 commission gate. | 0.8.27 | 2026-09-21 |
+| `dev/plans/release-state-0.8.27.json` | **Active 0.8.27 single writer.** Owns the 25-slice ladder, ruled/open decisions, schema baseline, and authorized Slice 10 state. | 0.8.27 | 2026-09-21 |
+| `dev/plans/runs/STATUS-0.8.27.md` | **Active 0.8.27 board.** Records Slices 0-9 complete and the authorized Slice 10 preparation work. | 0.8.27 | 2026-09-21 |
 | `dev/plans/0.8.27-prework-slices-0-9.md` | **Completed 0.8.27 prework summary.** Reconciles scope, proposal dispositions, design review, independent verification, and expected-red boundaries. | 0.8.27 prework | 2026-09-21 |
 | `dev/plans/0.8.27/prework/` | **0.8.27 prework Slices 0-9.** Environment, dependency, cruft, contract, alignment, verification, documentation, delivery, proposal, review, and status evidence. | 0.8.27 prework | 2026-09-21 |
 | `dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md` | **0.8.27 refactor verification approach.** Defines invariant ownership, TDD modes, per-slice proof, surface comparison, artifact qualification, and anti-vacuity rules for Slices 20-150 without authorizing implementation or publication. | 0.8.27 prework | 2026-09-21 |

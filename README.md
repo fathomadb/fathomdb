@@ -25,10 +25,11 @@ operator CLI.
   SDKs and Rust facade.
 - Optional in-process default embedder (`bge-small-en-v1.5`, pure Rust).
 
-**Status: 0.8.25, pre-1.0 beta.** The surface may change between micro
-releases. **v0.8.25 is published** to crates.io, PyPI, and npm; native Python
-and npm artifacts cover Linux x86_64/glibc and Linux AArch64/glibc. The main npm
-package is on the `next` dist-tag.
+**Status: 0.8.26, pre-1.0 beta.** The surface may change between micro
+releases. **v0.8.26 is published** to crates.io, PyPI, and npm; native Python
+and npm artifacts cover Linux x86_64/glibc, Linux AArch64/glibc, macOS x64,
+macOS arm64, and Windows x64. The main npm package is on both the `latest` and
+`next` dist-tags.
 Licensed **MIT** (see `LICENSE`).
 
 Public documentation: `docs/` (built with `mkdocs build --strict`).

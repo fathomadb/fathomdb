@@ -18,8 +18,27 @@ PUBLIC_DOCS = (
     Path("docs/install/typescript.md"),
     Path("docs/install/rust.md"),
     Path("docs/compatibility/index.md"),
+    Path("docs/concepts/index.md"),
+    Path("docs/operations/index.md"),
+    Path("docs/reference/index.md"),
+    Path("docs/reference/python-api.md"),
+    Path("docs/reference/typescript-api.md"),
+    Path("docs/reference/rust-api.md"),
+    Path("docs/reference/cli.md"),
+    Path("docs/embedder.md"),
+    Path("src/ts/README.md"),
 )
-PLATFORM_BOUNDARY_DOCS = PUBLIC_DOCS[:-1] + (Path("docs/compatibility/index.md"),)
+CURRENT_RELEASE_DOCS = PUBLIC_DOCS
+PLATFORM_BOUNDARY_DOCS = (
+    Path("README.md"),
+    Path("docs/index.md"),
+    Path("docs/getting-started/index.md"),
+    Path("docs/install/python.md"),
+    Path("docs/install/typescript.md"),
+    Path("docs/install/rust.md"),
+    Path("docs/compatibility/index.md"),
+    Path("src/ts/README.md"),
+)
 NUMBER_WORDS = {
     "zero": 0,
     "one": 1,
@@ -127,7 +146,11 @@ def workspace_member_count(cargo_toml: str) -> int:
 
 
 def mentions_published_version(text: str, version: str) -> bool:
-    return bool(re.search(rf"(?is)\bv?{re.escape(version)}\b.{{0,100}}\bpublished\b", text))
+    normalized = text.replace("**", "").replace("`", "")
+    return bool(
+        re.search(rf"(?is)\bv?{re.escape(version)}\b.{{0,100}}\bpublished\b", normalized)
+        or re.search(rf"(?is)\bpublished\b.{{0,100}}\bv?{re.escape(version)}\b", normalized)
+    )
 
 
 def has_platform_boundary(text: str) -> bool:
@@ -147,11 +170,20 @@ def main() -> None:
         for platform in manifest.get("platforms", [])
         if platform.get("status") == "published"
     ]
-    if published_triples != ["linux-x64-gnu", "linux-arm64-gnu"]:
+    expected_published = [
+        "linux-x64-gnu",
+        "linux-arm64-gnu",
+        "darwin-x64",
+        "darwin-arm64",
+        "win32-x64-msvc",
+    ]
+    if published_triples != expected_published:
         fail(
-            "manifest must declare the published Linux x64 and ARM64 artifacts, "
+            "manifest must declare the five published 0.8.26 native artifacts, "
             f"got {published_triples}"
         )
+    if state.get("schema_version") != 34:
+        fail("current published release state must declare schema 34")
 
     docs: dict[Path, str] = {}
     for relative in PUBLIC_DOCS:
@@ -167,7 +199,7 @@ def main() -> None:
         if unpublished.search(text.replace("**", "").replace("`", "")):
             fail(f"{relative} says published {version} is unpublished")
 
-    for relative in (Path("README.md"), Path("docs/index.md"), Path("docs/getting-started/index.md")):
+    for relative in CURRENT_RELEASE_DOCS:
         if not mentions_published_version(docs[relative], version):
             fail(f"{relative} lacks a current published {version} statement")
 
@@ -175,13 +207,19 @@ def main() -> None:
         if not has_platform_boundary(docs[relative]):
             fail(f"{relative} lacks the linux-x64 published-platform boundary")
 
-    arm64_positive = re.compile(
-        r"(?is)\b(?:linux\s+)?(?:aarch64|arm64)(?:-unknown-linux-gnu)?\b"
-        r".{0,80}\b(?:is|are|currently|now)\s+(?:published|available|supported)\b"
-    )
     compatibility = docs[Path("docs/compatibility/index.md")]
-    if not arm64_positive.search(compatibility):
-        fail("docs/compatibility/index.md lacks the published ARM64 native-artifact fact")
+    for target in (
+        "x86_64-unknown-linux-gnu",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-apple-darwin",
+        "aarch64-apple-darwin",
+        "x86_64-pc-windows-msvc",
+    ):
+        row = re.compile(rf"(?m)^\|[^\n]*`{re.escape(target)}`[^\n]*\|\s*\*\*yes\*\*")
+        if row.search(compatibility) is None:
+            fail(f"docs/compatibility/index.md lacks the published {target} table row")
+    if "SCHEMA_VERSION` to **34**" not in compatibility or "no public automatic migration" not in compatibility.lower():
+        fail("docs/compatibility/index.md lacks the schema-34 fresh-database boundary")
 
     ts_install = docs[Path("docs/install/typescript.md")]
     if "npm install fathomdb@next" not in ts_install:

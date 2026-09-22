@@ -1,6 +1,6 @@
 # Concepts
 
-Mental model for the published 0.8.25 release. Detailed treatment lives in internal design
+Mental model for the published 0.8.26 release. Detailed treatment lives in internal design
 docs under
 [`dev/design/`](https://github.com/fathomadb/fathomdb/tree/main/dev/design);
 this page is the consumer-facing overview.

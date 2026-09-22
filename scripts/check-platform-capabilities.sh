@@ -45,13 +45,13 @@ expected_ready = [
     'win32-x64-msvc',
 ]
 if [entry['triple'] for entry in release_ready] != expected_ready:
-    raise SystemExit('FAIL platform-capabilities: 0.8.23 release-ready matrix is incomplete or reordered')
+    raise SystemExit('FAIL platform-capabilities: release-ready matrix is incomplete or reordered')
 
 published = [entry for entry in platforms if entry['status'] == 'published']
-if [entry['triple'] for entry in published] != expected_ready[:2]:
+if [entry['triple'] for entry in published] != expected_ready:
     raise SystemExit(
-        'FAIL platform-capabilities: public docs currently support exactly '
-        'linux-x64-gnu and linux-arm64-gnu'
+        'FAIL platform-capabilities: published matrix must contain all five '
+        '0.8.26 native targets'
     )
 for path in ('README.md', 'docs/compatibility/index.md', 'docs/install/python.md', 'docs/install/typescript.md'):
     text = (root / path).read_text()

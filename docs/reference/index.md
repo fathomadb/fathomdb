@@ -1,6 +1,6 @@
 # Reference
 
-Reference for the published 0.8.25 surface. Field spellings and type-level details are authoritative
+Reference for the published 0.8.26 surface. Field spellings and type-level details are authoritative
 in the locked internal interface specs (`dev/interfaces/{python,typescript,cli}.md`);
 this section is the client-facing view.
 

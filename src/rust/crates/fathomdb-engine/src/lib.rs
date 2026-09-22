@@ -15793,11 +15793,15 @@ impl Engine {
         actuation::redact_actuation_receipts_for_refs(&tx, &receipt_refs)?;
         // Same hazard as `excise_source_inner`: receipt validation reads the
         // completed correction closures, so they are deleted only afterwards,
-        // inside this transaction.
-        for (source_revision, _) in &physical_plans {
+        // inside this transaction. Every erased revision is covered, not only
+        // those with a current dependent plan, because a completed soft
+        // closure outlives its dependents. This purge's own proof shares the
+        // `source_revision` root, so physical causes are excluded explicitly.
+        for source_revision in &source_revisions {
             tx.execute(
                 "DELETE FROM _fathomdb_dependency_closures \
-                 WHERE root_kind='source_revision' AND root_value=?1 AND phase='complete'",
+                 WHERE root_kind='source_revision' AND root_value=?1 AND phase='complete' \
+                   AND cause NOT IN ('purged','source_erased')",
                 [source_revision],
             )
             .map_err(|_| EngineError::Storage)?;

@@ -76,6 +76,12 @@ else
   fail "current-tree policy admits only the reviewed exceptions"
 fi
 
+if "$CURRENT_CONFIG_CHECK" "$CURRENT_CONFIG" "$PERFORMANCE_DIGEST_AUTHORITY" >/dev/null 2>&1; then
+  pass "performance digest authority reproduces its exact policy entry"
+else
+  fail "performance digest authority reproduces its exact policy entry"
+fi
+
 if python3 - "$CURRENT_GUARD" <<'PY'
 from pathlib import Path
 import sys
@@ -116,6 +122,34 @@ fi
 
 TMPROOT="$(mktemp -d)"
 trap 'rm -rf "$TMPROOT"' EXIT
+
+for mutation in duplicate-path wrong-key wrong-value arbitrary-path; do
+  python3 - "$PERFORMANCE_DIGEST_AUTHORITY" "$TMPROOT/performance-$mutation.json" "$mutation" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+source = Path(sys.argv[1])
+target = Path(sys.argv[2])
+mutation = sys.argv[3]
+value = json.loads(source.read_text())
+if mutation == "duplicate-path":
+    value["paths"].append(value["paths"][0])
+elif mutation == "wrong-key":
+    value["key"] = "api_key"
+elif mutation == "wrong-value":
+    value["sha256"] = "0" * 64
+elif mutation == "arbitrary-path":
+    value["paths"][0] = "dev/**/*.json"
+target.write_text(json.dumps(value, indent=2) + "\n")
+PY
+  set +e
+  "$CURRENT_CONFIG_CHECK" "$CURRENT_CONFIG" "$TMPROOT/performance-$mutation.json" >/dev/null 2>&1
+  authority_mutation_rc=$?
+  set -e
+  expect_nonzero "$authority_mutation_rc" "performance digest authority rejects $mutation mutation"
+done
+
 FIXTURE="$TMPROOT/repo"
 mkdir -p "$FIXTURE"
 git -C "$FIXTURE" init -q

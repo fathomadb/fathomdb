@@ -26,7 +26,7 @@
     {"slice": 7, "short": "BUILD-DELIVERY", "title": "build and delivery failure evidence", "depends_on": [6], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-7.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "evidence": "Recurring disk, environment, ptrace, action-comment, benign-digest, package, platform, and tag-policy evidence is separated into focused open work versus closed regression coverage."},
     {"slice": 8, "short": "RESERVED", "title": "reserved prework slot", "depends_on": [7], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-8.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "evidence": "The reserved slot remains empty; no unassigned work or inferred authority was introduced."},
     {"slice": 9, "short": "PREWORK-CLOSEOUT", "title": "proposal rulings, plan reconciliation, and next-slice preparation", "depends_on": [8], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-9.md", "dev/plans/0.8.27/prework/proposal-register.md", "dev/plans/0.8.27/prework/prework-design-review.md", "dev/plans/0.8.27/prework/prework-verification.md", "dev/plans/0.8.27-prework-slices-0-9.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "closeout_sha": "73c53ffd98c56fb5d46941a195f951daac2d32b2", "evidence": "Every proposal has a disposition, scope/navigation/lifecycle records agree, the Slice 10 inputs passed independent design review, independent closeout verification passed, and the active release state points to uncommissioned Slice 10."},
-    {"slice": 10, "short": "PREPARATION", "title": "bounded repository preparation", "depends_on": [9], "status": "READY_UNCOMMISSIONED", "design_refs": ["dev/plans/0.8.27/features/slice-10/plan.md", "dev/plans/0.8.27/features/slice-10/design.md"], "sha": null, "evidence": "Plan and design are ready, but this direct prework commission does not authorize implementation."},
+    {"slice": 10, "short": "PREPARATION", "title": "bounded repository preparation", "depends_on": [9], "status": "IN_PROGRESS", "design_refs": ["dev/plans/0.8.27/features/slice-10/plan.md", "dev/plans/0.8.27/features/slice-10/design.md"], "sha": null, "evidence": "Implementation of the independently reviewed bounded preparation plan was authorized by the repository owner at seq-291."},
     {"slice": 20, "short": "ERASURE", "title": "correction-safe source erasure", "depends_on": [10], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md"], "sha": null},
     {"slice": 30, "short": "COMPARATOR", "title": "current inventory and real-surface comparison guardrails", "depends_on": [20], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md"], "sha": null},
     {"slice": 40, "short": "ENGINE-FOUNDATION", "title": "engine foundation and test seams", "depends_on": [30], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
@@ -47,7 +47,6 @@
   "remaining_ladder": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150],
   "decisions": {
     "unruled": [
-      {"id": "slice-10-execution", "title": "Authorize implementation of the reviewed bounded Slice 10 preparation plan."},
       {"id": "release-0.8.27-publication", "title": "Authorize tagging and publication only after the full release ladder and qualification gates pass."}
     ],
     "ruled": [
@@ -56,6 +55,7 @@
       {"id": "F27-01", "title": "Keep correction-safe erasure as the 0.8.27 publication blocker and do not preselect its implementation cause.", "source": "0.8.27 prework proposal register"},
       {"id": "D27-deferred", "title": "Move D27-01, D27-02, and D27-04 to D28-05, D28-06, and D28-07; merge both D27-03 components into D28-03 with their proof gates intact.", "source": "0.8.27 prework proposal register"},
       {"id": "semantic-refactor", "title": "Place the bounded five-facade behavior-preserving semantic decomposition after F27-01 in 0.8.27; reject wholesale experiment-branch merges and line-count correctness gates.", "source": "0.8.27 prework proposal register"}
+      ,{"id": "slice-10-execution", "title": "Complete the reviewed bounded Slice 10 preparation plan and present the remaining HITL review items interactively; do not authorize Slice 20, tags, registries, or publication.", "source": "seq-291"}
     ]
   },
   "release_readiness": null,

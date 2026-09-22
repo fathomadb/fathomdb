@@ -25,17 +25,16 @@ and assigns every deferred D27 item and every prework proposal explicitly.
 
 ## Immediate next action
 
-Slice 10 (`PREPARATION`) is planned and independently design-reviewed but is
-**not commissioned** by the Slices 0-9 request. Its bounded scope is current
-documentation/release truth, one narrow advisory remediation, two Action
-comment corrections, exact benign-digest authority, and owned comparator/build
-prerequisites. It cannot implement F27-01 or move product code.
+Slice 10 (`PREPARATION`) is **IN PROGRESS**, authorized by the repository owner
+at `seq-291`. Its bounded scope is current documentation/release truth, one
+narrow advisory remediation, two Action comment corrections, exact
+benign-digest authority, and owned comparator/build prerequisites. It cannot
+implement F27-01 or move product code.
 
 ## Open decisions
 
-There are <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->TWO<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
+There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decision:
 
-- authorize Slice 10 implementation; and
 - authorize tagging/publication only after the complete ladder and release
   qualification pass.
 

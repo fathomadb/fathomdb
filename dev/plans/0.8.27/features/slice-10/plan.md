@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 10 - approved repository preparation plan
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.27
 depends_on: prework Slice 9
 ---

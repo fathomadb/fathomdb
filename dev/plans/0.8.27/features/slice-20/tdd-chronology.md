@@ -119,3 +119,12 @@ oracle named above. The strengthened Rust suite and consumer oracle both pass.
   failed with `purge after a dependent-bearing correction: Storage`.
 - GREEN `aef78ddd`: closure delete in `purge_inner` moved after receipt
   redaction; focused suite 4/4 passed.
+
+## Adversarial review Phase 3 FIX-1
+
+- RED `b4aef127`: `purge_after_dependents_are_gone_leaves_no_closure_for_an_erased_revision`
+  failed with two complete `slice20-original-r1` closures
+  (`soft_deleted`, `superseded`) after both revisions were erased.
+- GREEN `b455bb73`: purge closure cleanup iterates every erased revision and
+  excludes physical causes; correction suite 5/5 and nine neighbouring
+  closure/lifecycle/actuation targets pass.

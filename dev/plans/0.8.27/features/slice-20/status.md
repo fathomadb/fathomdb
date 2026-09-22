@@ -91,3 +91,19 @@ registries, main integration, and publication remain separately gated.
   protected plane on a pre-commit refusal, proven by full snapshot equality
   whichever pre-commit stage refuses; pinning the stage would need a new
   product test-hooks seam for no correctness gain.
+
+## Adversarial review Phase 3 FIX-1 (code review)
+
+- S20-P2-6 (Phase 2 carry-over): the stale untracked worktree native module is
+  replaced at closeout by the `_fathomdb` module from a non-editable wheel
+  built from the final candidate (no editable install from a worktree); its
+  SHA-256 is recorded with the closeout gate.
+- S20-P3-1: `purge_inner` deleted completed soft closures only for revisions
+  with a current dependent plan, so purging dependents first left
+  `soft_deleted`/`superseded` closures naming an erased revision. RED `b4aef127` reproduced it; GREEN `b455bb73` iterates every erased revision, matching
+  design § 3 and `excise_source_inner`.
+- S20-P3-2: the same DELETE now excludes physical causes (`purged`,
+  `source_erased`), so the purge's own proof row, which shares the
+  `source_revision` root, is spared by SQL rather than by phase and ordering.
+- S20-P3-3: pre-existing nonterminal soft-closure residue recorded for Slice 50
+  in the todos ledger (`TC-6acb0013-bba8-4fee-ac18-27c64442908a`).

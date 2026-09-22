@@ -7,6 +7,8 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
+import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -19,19 +21,36 @@ def main() -> None:
     assert package["scripts"]["build:native"] == "node scripts/build-native.mjs"
     assert WRAPPER.is_file()
 
-    requested_tmp = Path("/tmp/fathomdb-napi-contract-owned")
-    environment = dict(os.environ)
-    environment["FATHOMDB_NAPI_BUILD_TMPDIR"] = str(requested_tmp)
-    completed = subprocess.run(
+    temporary_root = Path(tempfile.gettempdir())
+    before = set(temporary_root.glob("fathomdb-napi-production-*"))
+    secret = "must-not-appear-in-build-plan"
+    no_requested_tmp = dict(os.environ)
+    no_requested_tmp["FATHOMDB_PRINT_PLAN_SENTINEL"] = secret
+    sanitized = subprocess.run(
         ["node", str(WRAPPER), "--print-plan"],
         cwd=TS_ROOT,
-        env=environment,
+        env=no_requested_tmp,
         check=True,
         capture_output=True,
         text=True,
     )
+    assert secret not in sanitized.stdout
+    assert set(temporary_root.glob("fathomdb-napi-production-*")) == before
+
+    with tempfile.TemporaryDirectory(prefix="fathomdb-napi-contract-") as directory:
+        requested_tmp = Path(directory)
+        environment = dict(os.environ)
+        environment["FATHOMDB_NAPI_BUILD_TMPDIR"] = str(requested_tmp)
+        completed = subprocess.run(
+            ["node", str(WRAPPER), "--print-plan"],
+            cwd=TS_ROOT,
+            env=environment,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
     plan = json.loads(completed.stdout)
-    assert plan["temporary_directory"] == str(requested_tmp)
+    assert plan["temporary_directory"] == str(requested_tmp.resolve())
     assert plan["clean"][:2] == ["cargo", "clean"]
     assert "fathomdb-napi" in plan["clean"] and "--release" in plan["clean"]
     assert plan["build"] == [
@@ -50,7 +69,18 @@ def main() -> None:
         "false",
     ]
     for name in ("TMPDIR", "TMP", "TEMP"):
-        assert plan["environment"][name] == str(requested_tmp)
+        assert plan["environment"][name] == str(requested_tmp.resolve())
+    assert set(plan["environment"]) == {"TMPDIR", "TMP", "TEMP"}
+
+    if "--execute" in sys.argv[1:]:
+        subprocess.run(["npm", "run", "build:native:debug"], cwd=TS_ROOT, check=True)
+        debug_declarations = (TS_ROOT / "index.d.ts").read_text()
+        for hook in ("forcePanicForTest", "forcePanicInAccessorForTest"):
+            assert hook in debug_declarations
+        subprocess.run(["npm", "run", "build:native"], cwd=TS_ROOT, check=True)
+        production_declarations = (TS_ROOT / "index.d.ts").read_text()
+        for hook in ("forcePanicForTest", "forcePanicInAccessorForTest"):
+            assert hook not in production_declarations
     print("ok    napi-build-hermetic")
 
 

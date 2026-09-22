@@ -19,10 +19,13 @@ Two regressions are locked here:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
 import sys
+import tempfile
+import zipfile
 from pathlib import Path
 
 from _test_hooks_gate import (
@@ -38,8 +41,10 @@ from _test_hooks_gate import (
     missing_symbols_from_probe,
     partial_binding_note,
     probe_source,
+    replace_native_module_from_wheel,
     hook_surface_drift,
     venv_belongs_to_source_tree,
+    write_candidate_receipt_atomic,
 )
 
 # The "everything is fine, rebuild is safe" baseline; each test overrides the
@@ -75,6 +80,47 @@ def test_authorized_freshness_rebuild_is_still_refused_for_a_foreign_venv() -> N
         venv_owned_by_source_tree=False,
     )
     assert decision.action == DEGRADED
+
+
+def test_noneditable_wheel_replaces_every_stale_source_module() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        package = root / "fathomdb"
+        package.mkdir()
+        (package / "_fathomdb.abi3.so").write_bytes(b"stale")
+        (package / "_fathomdb.cpython-312-x86_64-linux-gnu.so").write_bytes(b"older")
+        wheel = root / "candidate.whl"
+        with zipfile.ZipFile(wheel, "w") as archive:
+            archive.writestr("fathomdb/_fathomdb.abi3.so", b"candidate")
+
+        installed = replace_native_module_from_wheel(wheel, package)
+
+        assert installed == package / "_fathomdb.abi3.so"
+        assert installed.read_bytes() == b"candidate"
+        assert sorted(path.name for path in package.glob("_fathomdb*.so")) == [installed.name]
+
+
+def test_candidate_receipt_is_atomic_and_binds_commit_path_digest_and_nonce() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        module = root / "_fathomdb.abi3.so"
+        module.write_bytes(b"candidate")
+        receipt = root / "receipt.json"
+        write_candidate_receipt_atomic(
+            receipt,
+            candidate_sha="a" * 40,
+            module_path=module,
+            module_sha256=hashlib.sha256(b"candidate").hexdigest(),
+            nonce="gate-123",
+        )
+        assert json.loads(receipt.read_text()) == {
+            "schema": "fathomdb.python-test-hooks-receipt/v1",
+            "candidate_sha": "a" * 40,
+            "module_path": str(module.resolve()),
+            "module_sha256": hashlib.sha256(b"candidate").hexdigest(),
+            "nonce": "gate-123",
+        }
+        assert not list(root.glob(".receipt.json.*"))
 
 
 def test_wheel_context_proceeds_without_a_source_tree() -> None:

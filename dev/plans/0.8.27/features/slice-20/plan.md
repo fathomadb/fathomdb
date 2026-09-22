@@ -73,9 +73,12 @@ Adversarial closeout adds one verification requirement without changing the
 product contract: when the canonical Python gate explicitly authorizes a
 worktree-owned native rebuild, an already-present test-hook module must not
 short-circuit that rebuild. The gate must remove the ignored source-tree native
-module, rebuild from the current checkout, and print the resolved module path
-and SHA-256. This makes the binding evidence candidate-bound rather than merely
-hook-surface-compatible.
+module, build a non-editable test-hook wheel from the current checkout in
+disposable scratch (never `maturin develop` from a worktree), install the
+wheel's extension into the source package, and atomically record the candidate
+Git SHA, resolved module path, and SHA-256. The canonical harness validates and
+emits that receipt after pytest. This makes the binding evidence
+candidate-bound rather than merely hook-surface-compatible.
 
 The release-local AC27 identifiers remain outside locked `dev/acceptance.md`.
 The requirements are complete as written; no additional feature requirement is

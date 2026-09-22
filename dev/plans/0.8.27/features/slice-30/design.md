@@ -75,7 +75,10 @@ entries; the result reports both source SHAs and whether they are identical.
   runs the recorded napi expansion, and removes only its owned temporary
   directory. Capture supplies a directory under the owned scratch root to that
   same wrapper; a prior test-hooks debug build can therefore never leak into
-  either ordinary production generation or the comparator row. Parse
+  either ordinary production generation or the comparator row. A canonical
+  executable regression performs the debug build followed by the ordinary
+  production command and proves the generated declaration loses both panic
+  test hooks; print-only command inspection is not acceptance evidence. Parse
   that declaration and the TypeScript compiler-emitted declaration surface
   separately. The TypeScript row starts at `dist/index.d.ts` and resolves
   relative `export *` and `export { … } from` re-exports, and bare local
@@ -136,7 +139,9 @@ filesystem carrying checkout-owned `.cache/0.8.27-slice30` or
 `/tmp/fathomdb-0.8.27-slice30` passes the 100 GB check. Scratch reuse and
 recursive cleanup require a real directory with the exact versioned marker;
 symlinks, non-directories, forged markers, and a marker changed during capture
-fail closed.
+fail closed. Tests exercise distinct-device enumeration and same-device
+deduplication directly, plus marker symlink/non-file and pre-cleanup mutation
+arms; they do not mock away the enumeration or cleanup seams under test.
 
 This is repository tooling and evidence only. It changes no runtime behavior,
 public API, schema, feature gate, package root, transaction boundary, or ADR.

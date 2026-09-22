@@ -11,6 +11,7 @@ from pathlib import Path
 import random
 import shutil
 import tempfile
+from types import SimpleNamespace
 from types import ModuleType
 from typing import Any, Callable
 from unittest import mock
@@ -853,6 +854,61 @@ def main() -> None:
             mock.patch.object(tool, "OWNED_CACHE", root / "cache"),
         ):
             expect_error(tool.SurfaceError, "real directory", tool._prepare_scratch)
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        scratch = root / "scratch"
+        scratch.mkdir()
+        external = root / "external-marker"
+        external.write_text(tool.SCRATCH_MARKER_CONTENT)
+        (scratch / tool.SCRATCH_MARKER).symlink_to(external)
+        with mock.patch.object(tool, "OWNED_SCRATCH", scratch):
+            expect_error(tool.SurfaceError, "ownership marker", tool._assert_owned_scratch)
+        (scratch / tool.SCRATCH_MARKER).unlink()
+        (scratch / tool.SCRATCH_MARKER).mkdir()
+        with mock.patch.object(tool, "OWNED_SCRATCH", scratch):
+            expect_error(tool.SurfaceError, "ownership marker", tool._assert_owned_scratch)
+        shutil.rmtree(scratch / tool.SCRATCH_MARKER)
+        (scratch / tool.SCRATCH_MARKER).write_text("changed during capture\n")
+        with (
+            mock.patch.object(tool, "OWNED_SCRATCH", scratch),
+            mock.patch.object(tool.shutil, "rmtree") as remove,
+        ):
+            expect_error(tool.SurfaceError, "ownership marker", tool._cleanup_scratch)
+            remove.assert_not_called()
+            assert scratch.exists()
+
+    # Exercise filesystem enumeration itself: the two roots are deduplicated
+    # only when their nearest existing parents report the same device.
+    with (
+        mock.patch.object(
+            tool,
+            "_existing_parent",
+            side_effect=[Path("/cache-parent"), Path("/scratch-parent")],
+        ),
+        mock.patch.object(
+            Path,
+            "stat",
+            side_effect=[SimpleNamespace(st_dev=7), SimpleNamespace(st_dev=7)],
+        ),
+    ):
+        assert tool._capture_filesystems() == [("cache/scratch", Path("/cache-parent"))]
+    with (
+        mock.patch.object(
+            tool,
+            "_existing_parent",
+            side_effect=[Path("/cache-parent"), Path("/scratch-parent")],
+        ),
+        mock.patch.object(
+            Path,
+            "stat",
+            side_effect=[SimpleNamespace(st_dev=7), SimpleNamespace(st_dev=8)],
+        ),
+    ):
+        assert tool._capture_filesystems() == [
+            ("cache", Path("/cache-parent")),
+            ("scratch", Path("/scratch-parent")),
+        ]
 
     # The cache and scratch may live on different filesystems. Both must pass
     # the heavy-route floor rather than inheriting the repository result.

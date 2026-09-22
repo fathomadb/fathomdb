@@ -569,22 +569,23 @@ fi
 
 python_suite_skip_reason=""
 python_suite_command=()
+python_receipt_path="$PWD/.cache/0.8.27-python-test-hooks-receipt.json"
+python_receipt_nonce="agent-test-$BASHPID"
 if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1 && [ -d src/python/tests ]; then
   # TC-27 (0.8.20 Slice 5 fix-6): the editable binding built by the documented
   # `pip install -e 'src/python[dev]'` has no `test-hooks` surface, so
-  # `tests/conftest.py` may rebuild it with `maturin develop` — which REBINDS the
-  # active virtualenv to this source tree. This is the repo's own sanctioned dev
-  # loop, so it authorizes that rebuild, but ONLY when the interpreter we picked
-  # is the `.venv` INSIDE this checkout (`cd_repo_root` above, so in a linked
-  # worktree that is the worktree's own venv). If we fell back to a system
-  # `python3` — or to any environment that is not ours to rebind — we stay
+  # `tests/conftest.py` may build a non-editable candidate wheel in disposable
+  # scratch and install its extension into this checkout's ignored source path.
+  # The repo's sanctioned gate authorizes that operation only when the selected
+  # interpreter is the `.venv` INSIDE this checkout. If we fell back to a system
+  # `python3` — or to any environment that is not ours — we stay
   # silent and conftest degrades to visibly SKIPPING the hook-dependent tests
-  # rather than repointing a shared venv. conftest re-checks venv ownership
-  # itself; this is the outer half of a belt-and-suspenders pair. The generic
+  # rather than mutating a shared checkout. conftest re-checks venv ownership
+  # and atomically writes a nonce-bound candidate/module/SHA receipt. The generic
   # loop also skips network-hitting Python model fixtures; the cache-owning
   # default-embedder CI job runs those after warming the model cache.
   if [ "$python_bin" = ".venv/bin/python" ]; then
-    python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 FATHOMDB_TESTS_ALLOW_REBUILD=1 "$python_bin" -m pytest -q src/python/tests)
+    python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 FATHOMDB_TESTS_ALLOW_REBUILD=1 FATHOMDB_TESTS_RECEIPT="$python_receipt_path" FATHOMDB_TESTS_RECEIPT_NONCE="$python_receipt_nonce" "$python_bin" -m pytest -q src/python/tests)
   else
     python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 "$python_bin" -m pytest -q src/python/tests)
   fi
@@ -592,6 +593,7 @@ else
   python_suite_skip_reason="pytest not installed or no tests dir"
 fi
 run_tier_maybe_suite heavy test-python "$python_suite_skip_reason" "${python_suite_command[@]}"
+run_tier_maybe_suite heavy test-python-native-receipt "$python_suite_skip_reason" python3 scripts/tests/verify_python_test_hook_receipt.py "$python_receipt_path" "$python_receipt_nonce"
 
 # PROGRAM Track Runner exercises the current LOCOMO/Mem0 harnesses directly:
 # their typed configs must retain the right track identifier through each arm

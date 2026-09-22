@@ -1222,6 +1222,14 @@ def _prepare_scratch() -> None:
     OWNED_CACHE.mkdir(parents=True, exist_ok=True)
 
 
+def _cleanup_scratch() -> None:
+    """Remove scratch only while its exact ownership proof remains intact."""
+
+    if os.path.lexists(OWNED_SCRATCH):
+        _assert_owned_scratch()
+        shutil.rmtree(OWNED_SCRATCH)
+
+
 def _tool_metadata(source_sha: str) -> dict[str, Any]:
     _exact_version(
         ["cargo", "public-api", "--version"],
@@ -1377,9 +1385,7 @@ def capture_repository(source_sha: str) -> dict[str, Any]:
         }
         return capture_from_fixture(inputs, metadata)
     finally:
-        if os.path.lexists(OWNED_SCRATCH):
-            _assert_owned_scratch()
-            shutil.rmtree(OWNED_SCRATCH)
+        _cleanup_scratch()
 
 
 def _load_manifest(path: Path) -> dict[str, Any]:

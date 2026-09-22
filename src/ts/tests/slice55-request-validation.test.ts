@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readdirSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
+import { dirname } from "node:path";
 import test from "node:test";
 
 import {
@@ -94,7 +95,9 @@ test("slice55 null trace context is typed at the declared request path", async (
 });
 
 test("slice55 malformed nested frozen context preserves FrozenReadError", async () => {
-  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  const databasePath = freshDbPath();
+  const databaseDirectory = dirname(databasePath);
+  const engine = await Engine.open(databasePath, { useDefaultEmbedder: false });
   try {
     const context = await engine.freezeReadContext({
       schemaVersion: 1,
@@ -116,12 +119,9 @@ test("slice55 malformed nested frozen context preserves FrozenReadError", async 
     );
   } finally {
     await engine.close();
+    rmSync(databaseDirectory, { recursive: true, force: true });
   }
-  assert.deepEqual(
-    readdirSync(".").filter((name) => name.startsWith("slice55-malformed-frozen-context")),
-    [],
-    "the test must not leave its database or lock files in src/ts",
-  );
+  assert.equal(existsSync(databaseDirectory), false, "the test must remove its temporary database");
 });
 
 const malformedFrozenCases: Array<[

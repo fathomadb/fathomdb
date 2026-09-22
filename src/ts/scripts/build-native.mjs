@@ -6,10 +6,13 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
 const requestedTemporaryDirectory = process.env.FATHOMDB_NAPI_BUILD_TMPDIR;
+const printPlan = process.argv.includes("--print-plan");
 const ownsTemporaryDirectory = requestedTemporaryDirectory === undefined;
 const temporaryDirectory = requestedTemporaryDirectory
   ? resolve(requestedTemporaryDirectory)
-  : mkdtempSync(resolve(tmpdir(), "fathomdb-napi-production-"));
+  : printPlan
+    ? resolve(tmpdir(), "fathomdb-napi-production-<allocated-at-execution>")
+    : mkdtempSync(resolve(tmpdir(), "fathomdb-napi-production-"));
 
 const clean = [
   "cargo",
@@ -42,9 +45,18 @@ const environment = {
   TEMP: temporaryDirectory,
 };
 
-if (process.argv.includes("--print-plan")) {
+if (printPlan) {
   process.stdout.write(
-    `${JSON.stringify({ temporary_directory: temporaryDirectory, clean, build, environment })}\n`,
+    `${JSON.stringify({
+      temporary_directory: temporaryDirectory,
+      clean,
+      build,
+      environment: {
+        TMPDIR: environment.TMPDIR,
+        TMP: environment.TMP,
+        TEMP: environment.TEMP,
+      },
+    })}\n`,
   );
   process.exit(0);
 }

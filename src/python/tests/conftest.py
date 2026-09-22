@@ -6,8 +6,8 @@ exclusive file lock, so reusing one path across tests in the same
 process would surface as `DatabaseLockedError`). `db_path` yields a
 fresh per-test `Path` under pytest's `tmp_path` fixture.
 
-EU-6 FIX-1 / 0.8.9.2: rebuild the editable binding with the dev-only
-`test-hooks` Cargo feature before any test module is imported —
+EU-6 FIX-1 / 0.8.9.2: build a non-editable wheel with the dev-only `test-hooks`
+Cargo feature and install its native module before any test module is imported —
 `pyproject.toml [tool.maturin] features` ships only `default-embedder`
 (parity with the released wheel), so without this `Engine._write_vector_for_test`
 and friends are missing and tests like `test_use_default_embedder.py`,
@@ -26,18 +26,18 @@ dlopen()s the stale `.so`, and a later `maturin develop` cannot be re-imported
 in the same process. conftest.py top-level code is the earliest hook that still
 runs before sibling test modules are collected. An ordinary developer run may
 short-circuit when the hooks are already present. An explicitly authorized
-gate run never does: it rebuilds from the current checkout and prints a
-module-path/digest receipt so candidate provenance is auditable.
+gate run never does: it builds a wheel from the current checkout in disposable
+scratch and atomically records a candidate/module/digest receipt.
 """
 
 from __future__ import annotations
 
 import hashlib
-import importlib.machinery
 import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -48,14 +48,18 @@ from _test_hooks_gate import (
     REBUILD,
     REBUILD_OPT_IN,
     REBUILD_OPT_OUT,
+    REBUILD_RECEIPT_NONCE,
+    REBUILD_RECEIPT_PATH,
     REQUIRES_HOOKS_MARKER,
     Decision,
     decide,
     missing_symbols_from_probe,
     partial_binding_note,
     probe_source,
+    replace_native_module_from_wheel,
     skip_reason,
     venv_belongs_to_source_tree,
+    write_candidate_receipt_atomic,
 )
 
 
@@ -65,17 +69,6 @@ def db_path(tmp_path: Path) -> str:
 
 
 _PYTHON_SRC_DIR = Path(__file__).resolve().parent.parent  # src/python
-
-
-def _remove_source_tree_native_modules() -> None:
-    """Remove ignored native artifacts that could shadow an editable rebuild."""
-
-    package_dir = _PYTHON_SRC_DIR / "fathomdb"
-    for candidate in package_dir.glob("_fathomdb*"):
-        if any(
-            candidate.name.endswith(suffix) for suffix in importlib.machinery.EXTENSION_SUFFIXES
-        ):
-            candidate.unlink()
 
 
 def _native_module_receipt() -> tuple[Path, str]:
@@ -202,33 +195,38 @@ def _ensure_test_hooks_binding() -> Decision:
     if decision.action != REBUILD:
         return _annotate_partial(decision, missing)
 
+    receipt_value = os.environ.get(REBUILD_RECEIPT_PATH)
+    receipt_nonce = os.environ.get(REBUILD_RECEIPT_NONCE)
+    if not receipt_value or not receipt_nonce:
+        raise TestHooksBindingMisconfigured(
+            f"{REBUILD_OPT_IN}=1 requires {REBUILD_RECEIPT_PATH} and "
+            f"{REBUILD_RECEIPT_NONCE} so candidate provenance cannot be lost"
+        )
     print(
-        "\n[conftest] rebuilding fathomdb editable binding from this candidate "
-        "with the test-hooks feature (~5-60s) ...",
+        "\n[conftest] building a non-editable test-hooks wheel from this candidate "
+        "in disposable scratch (~5-60s) ...",
         flush=True,
     )
-    _remove_source_tree_native_modules()
-    # `maturin develop` requires an activated virtualenv: it looks for
-    # $VIRTUAL_ENV / $CONDA_PREFIX / a `.venv` in cwd-or-parents. A bare
-    # subprocess inherits neither when pytest was launched via an absolute
-    # interpreter path (e.g. `.venv/bin/python -m pytest`, or any venv not
-    # named `.venv`), so it fails with "Couldn't find a virtualenv". Point it
-    # at THIS interpreter's environment root (`sys.prefix` is the venv dir for
-    # a venv interpreter) so the rebuilt `.so` lands in the venv we are running.
-    env = dict(os.environ)
-    env["VIRTUAL_ENV"] = sys.prefix
-    subprocess.check_call(
-        [
-            sys.executable,
-            "-m",
-            "maturin",
-            "develop",
-            "--features",
-            "pyo3/extension-module,test-hooks,default-embedder,default-reranker",
-        ],
-        cwd=str(_PYTHON_SRC_DIR),
-        env=env,
-    )
+    with tempfile.TemporaryDirectory(prefix="fathomdb-python-test-hooks-") as directory:
+        wheel_directory = Path(directory)
+        subprocess.check_call(
+            [
+                sys.executable,
+                "-m",
+                "maturin",
+                "build",
+                "--release",
+                "--out",
+                str(wheel_directory),
+                "--features",
+                "pyo3/extension-module,test-hooks,default-embedder,default-reranker",
+            ],
+            cwd=str(_PYTHON_SRC_DIR),
+        )
+        wheels = sorted(wheel_directory.glob("*.whl"))
+        if len(wheels) != 1:
+            raise RuntimeError(f"expected one candidate wheel, got {wheels}")
+        replace_native_module_from_wheel(wheels[0], _PYTHON_SRC_DIR / "fathomdb")
     # Belt-and-suspenders: drop any cached `fathomdb*` modules so the first
     # post-rebuild import re-reads from disk. (The out-of-process probe above
     # means this interpreter has NOT yet dlopen()ed the extension, so the fresh
@@ -237,7 +235,7 @@ def _ensure_test_hooks_binding() -> Decision:
         if mod_name == "fathomdb" or mod_name.startswith("fathomdb."):
             del sys.modules[mod_name]
 
-    # Re-probe rather than trusting a zero exit code. If `maturin develop`
+    # Re-probe rather than trusting a zero exit code. If the wheel artifact
     # somehow lands a binding that still lacks the hooks, DEGRADED (visible
     # skips) is the honest outcome — never let the marked tests run and
     # "pass" against a surface that is not there.
@@ -246,15 +244,27 @@ def _ensure_test_hooks_binding() -> Decision:
         return _annotate_partial(
             Decision(
                 DEGRADED,
-                "`maturin develop` completed but the rebuilt binding still does not expose "
+                "candidate wheel installation completed but the rebuilt binding still does not expose "
                 f"the full test-hooks surface (missing {', '.join(still_missing)}). Check "
                 "that the `test-hooks` Cargo feature still gates the expected symbols.",
             ),
             still_missing,
         )
     module_path, module_sha256 = _native_module_receipt()
+    candidate_sha = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"],
+        cwd=str(_PYTHON_SRC_DIR),
+        text=True,
+    ).strip()
+    write_candidate_receipt_atomic(
+        Path(receipt_value),
+        candidate_sha=candidate_sha,
+        module_path=module_path,
+        module_sha256=module_sha256,
+        nonce=receipt_nonce,
+    )
     print(
-        f"[conftest] candidate native module: {module_path} sha256={module_sha256}",
+        f"[conftest] candidate={candidate_sha} native={module_path} sha256={module_sha256}",
         flush=True,
     )
     return decision

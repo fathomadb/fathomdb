@@ -6,11 +6,10 @@ release feature set, so an editable install built by the documented
 (`Engine._write_vector_for_test`, `force_panic_for_test`, ...). A handful
 of tests need it.
 
-`conftest.py` may rebuild the binding with `maturin develop`, but that
-command **rebinds the active virtualenv to the source tree it is run
-from**. Firing it unattended from an agent worktree would silently
-repoint every other consumer of a SHARED `.venv` at unreviewed code —
-that is TC-27.
+`conftest.py` may build a non-editable candidate wheel and install its native
+module into the source package. That gate-only mutation is permitted only
+when the active environment belongs to the same checkout; a foreign/shared
+environment is not an authorized candidate gate — that is TC-27.
 
 The policy is therefore a three-way decision, kept here as a **pure
 function** so it is unit-testable without a binding, a venv, or a
@@ -32,10 +31,16 @@ report as real skips carrying `reason`.
 from __future__ import annotations
 
 import json
+import importlib.machinery
+import os
 import re
+import shutil
+import tempfile
+import zipfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from pathlib import PurePosixPath
 
 _DEFAULT_HOOK_CONTRACT = (
     Path(__file__).resolve().parents[3]
@@ -195,11 +200,17 @@ def hook_surface_drift(
     )
 
 
-#: Opt in to letting conftest run `maturin develop` for you.
+#: Opt in to letting conftest build and install a candidate test-hooks wheel.
 REBUILD_OPT_IN = "FATHOMDB_TESTS_ALLOW_REBUILD"
 
 #: Legacy opt-out. Predates `REBUILD_OPT_IN`; now merely reasserts the default.
 REBUILD_OPT_OUT = "FATHOMDB_TESTS_NO_REBUILD"
+
+#: Gate-owned output path for the current-candidate native artifact receipt.
+REBUILD_RECEIPT_PATH = "FATHOMDB_TESTS_RECEIPT"
+
+#: Per-gate value that prevents an earlier receipt from satisfying a later run.
+REBUILD_RECEIPT_NONCE = "FATHOMDB_TESTS_RECEIPT_NONCE"
 
 PROCEED = "proceed"
 REBUILD = "rebuild"
@@ -214,6 +225,102 @@ _MANUAL_BUILD_HINT = (
     "python -m maturin develop --features "
     "pyo3/extension-module,test-hooks,default-embedder,default-reranker"
 )
+
+
+def _is_native_module_name(name: str) -> bool:
+    return name.startswith("_fathomdb") and any(
+        name.endswith(suffix) for suffix in importlib.machinery.EXTENSION_SUFFIXES
+    )
+
+
+def replace_native_module_from_wheel(wheel: Path, package_dir: Path) -> Path:
+    """Install exactly one native module from a non-editable candidate wheel.
+
+    Existing ignored source-tree modules are removed so none can shadow the
+    wheel artifact. The replacement itself is written beside the destination
+    and atomically renamed into place.
+    """
+
+    with zipfile.ZipFile(wheel) as archive:
+        members = [
+            name
+            for name in archive.namelist()
+            if PurePosixPath(name).parent == PurePosixPath("fathomdb")
+            and _is_native_module_name(PurePosixPath(name).name)
+        ]
+        if len(members) != 1:
+            raise ValueError(
+                f"candidate wheel must contain exactly one fathomdb native module; got {members}"
+            )
+        member = members[0]
+        for stale in package_dir.glob("_fathomdb*"):
+            if _is_native_module_name(stale.name):
+                if stale.is_dir() and not stale.is_symlink():
+                    raise ValueError(f"native module path is unexpectedly a directory: {stale}")
+                stale.unlink()
+        destination = package_dir / PurePosixPath(member).name
+        temporary_name: str | None = None
+        try:
+            with archive.open(member) as source, tempfile.NamedTemporaryFile(
+                dir=package_dir,
+                prefix=f".{destination.name}.",
+                delete=False,
+            ) as temporary:
+                temporary_name = temporary.name
+                shutil.copyfileobj(source, temporary)
+                temporary.flush()
+                os.fsync(temporary.fileno())
+            os.replace(temporary_name, destination)
+            temporary_name = None
+        finally:
+            if temporary_name is not None:
+                Path(temporary_name).unlink(missing_ok=True)
+    return destination
+
+
+def write_candidate_receipt_atomic(
+    receipt: Path,
+    *,
+    candidate_sha: str,
+    module_path: Path,
+    module_sha256: str,
+    nonce: str,
+) -> None:
+    """Atomically persist the candidate-bound native-module receipt."""
+
+    if re.fullmatch(r"[0-9a-f]{40}", candidate_sha) is None:
+        raise ValueError("candidate SHA must be a full lowercase Git SHA")
+    if re.fullmatch(r"[0-9a-f]{64}", module_sha256) is None:
+        raise ValueError("module SHA-256 must be 64 lowercase hexadecimal characters")
+    if not nonce:
+        raise ValueError("receipt nonce must be non-empty")
+    payload = {
+        "schema": "fathomdb.python-test-hooks-receipt/v1",
+        "candidate_sha": candidate_sha,
+        "module_path": str(module_path.resolve()),
+        "module_sha256": module_sha256,
+        "nonce": nonce,
+    }
+    receipt.parent.mkdir(parents=True, exist_ok=True)
+    temporary_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=receipt.parent,
+            prefix=f".{receipt.name}.",
+            delete=False,
+        ) as temporary:
+            temporary_name = temporary.name
+            json.dump(payload, temporary, sort_keys=True)
+            temporary.write("\n")
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        os.replace(temporary_name, receipt)
+        temporary_name = None
+    finally:
+        if temporary_name is not None:
+            Path(temporary_name).unlink(missing_ok=True)
 
 
 @dataclass(frozen=True)
@@ -317,9 +424,9 @@ def venv_belongs_to_source_tree(venv_prefix: str | Path, python_src_dir: str | P
     """True if the running interpreter's environment lives INSIDE the repo that
     owns `python_src_dir` (i.e. `src/python`).
 
-    This is the TC-27 test, stated positively: `maturin develop` rebinds
-    `venv_prefix` to `python_src_dir`. That is only ever intended when the two
-    already belong together. A venv rooted anywhere else — the canonical
+    This is the TC-27 test, stated positively: a gate that mutates the source
+    package's ignored native artifact is only intended when the environment
+    and checkout already belong together. A venv rooted anywhere else — the canonical
     example being the primary checkout's `/…/fathomdb/.venv` while
     `python_src_dir` is `/…/fathomdb-worktrees/<slice>/src/python` — is a
     SHARED environment we must not silently repoint.
@@ -369,8 +476,8 @@ def decide(
             return Decision(
                 DEGRADED,
                 f"{REBUILD_OPT_IN}=1 authorized a rebuild, but the active Python environment "
-                "does NOT live inside this source tree, so `maturin develop` would rebind a "
-                "SHARED or system environment to this checkout (TC-27). Refusing.\n"
+                "does NOT live inside this source tree, so it is a SHARED or system "
+                "environment rather than this checkout's candidate gate (TC-27). Refusing.\n"
                 "  * run the tests from a venv created inside this checkout, or\n"
                 f"  * build it yourself from the tree that owns that venv:  {_MANUAL_BUILD_HINT}",
             )
@@ -391,10 +498,9 @@ def decide(
         return Decision(
             DEGRADED,
             "the installed `fathomdb` binding was built WITHOUT `test-hooks`, and this "
-            "conftest will not rebuild it unattended: `maturin develop` rebinds the active "
-            "virtualenv to this source tree, which silently repoints every other consumer "
-            "of a SHARED venv (TC-27).\n"
-            f"  * authorize it here, from an environment you intend to rebind:  "
+            "conftest will not rebuild it unattended because candidate native generation "
+            "mutates an ignored artifact in this source package (TC-27).\n"
+            f"  * authorize it here, from a private environment owned by this checkout:  "
             f"{REBUILD_OPT_IN}=1 pytest ...\n"
             f"  * or build it yourself:  {_MANUAL_BUILD_HINT}\n"
             "  * `scripts/agent-test.sh` authorizes this automatically when it runs the "

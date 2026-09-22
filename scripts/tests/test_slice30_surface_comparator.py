@@ -943,7 +943,7 @@ def main() -> None:
         mock.patch.object(tool, "OWNED_SCRATCH", Path(directory)),
         mock.patch.object(tool, "_clean_source"),
         mock.patch.object(tool, "_prepare_scratch"),
-        mock.patch.object(tool, "_assert_owned_scratch"),
+        mock.patch.object(tool, "_cleanup_scratch"),
         mock.patch.object(tool, "_tool_metadata", return_value=metadata(tool)),
         mock.patch.object(tool, "_validate_napi_build_script"),
         mock.patch.object(tool, "_run", side_effect=fake_run(generation)),

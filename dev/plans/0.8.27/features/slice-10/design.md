@@ -18,26 +18,33 @@ product behavior.
 - Benign-digest exceptions are data with one owner. Each entry binds an exact
   path plus expected key/value shape. The validator rejects broadened paths,
   duplicate authorities, arbitrary digests, and credential-shaped mutations.
-- Comparator prerequisites are checkout-owned and versioned. The slice may
-  select a tool and nightly but may not yet capture/approve the immutable
-  surface baseline; Slice 30 owns that product-facing decision.
+- Comparator prerequisites are exactly versioned and their generated paths are
+  owned. The slice may select a tool and nightly but may not yet
+  capture/approve the immutable surface baseline; Slice 30 owns that
+  product-facing decision.
 - The selected comparator inputs are `cargo-public-api 0.52.0` and
-  `nightly-2026-04-24`, matching the qualified refactor-pilot evidence. Slice
-  10 records and probes them; it neither installs a global toolchain nor
-  captures a public-surface baseline.
-- Slice 30's generated tool, build, and scratch material is confined to the
-  checkout-owned, ignored `.cache/0.8.27-slice30/` tree. The heavy pilot route
-  requires at least 20 decimal GB free on that filesystem: the retained 16 GiB
-  runner scratch limit plus the 2 GB admission floor and operational margin.
-  The ordinary repository preflight remains at its existing 10 GB default.
-- The performance-tokenizer exception metadata has one reviewed data owner.
-  Derived Gitleaks policy remains machine-checked against that owner; the
-  checker must reject duplicate registrations, broadened paths, wrong
-  key/value shapes, arbitrary digests, and credential-shaped additions.
+  `nightly-2026-04-24`, matching the experiment's selected candidates and the
+  local version probes. Slice 10 records and probes them; Slice 30 must
+  requalify every required feature row before capturing a baseline. No global
+  installation or baseline capture belongs to Slice 10.
+- Slice 30's generated tool, build, and evidence material is confined to the
+  checkout-owned, ignored `.cache/0.8.27-slice30/` tree. Experiment scratch is
+  separately confined outside the repository to the owned
+  `/tmp/fathomdb-0.8.27-slice30/` root, preserving the experiment's isolation
+  invariant. The heavy route requires at least 100 decimal GB free on the
+  filesystems carrying both roots, based on the recorded 85.7 GB durable-target
+  peak plus margin. Its 16 GiB container scratch ceiling remains a separate
+  resource limit. The ordinary repository preflight keeps its 10 GB default.
+- The performance-gauntlet tokenizer exception metadata has one reviewed data
+  owner. Its derived Gitleaks policy remains machine-checked against that
+  owner; the checker must reject duplicate registrations, broadened paths,
+  wrong key/value shapes, arbitrary digests, and credential-shaped additions.
+  Other reviewed exception families remain unchanged.
 - Public truth uses the 0.8.26 publication receipt and schema-34 state. Current
-  banners, install commands, API landing pages, compatibility/platform facts,
-  and navigation move to 0.8.26. Historical 0.8.25 feature headings and release
-  note bodies remain unchanged.
+  banners, exact-version install examples, API landing pages,
+  compatibility/platform facts, and navigation move to 0.8.26. Channel-based
+  commands such as `npm install fathomdb@next` retain their registry contract.
+  Historical 0.8.25 feature headings and release-note bodies remain unchanged.
 - Public-doc, markdown, design-owner, state/view, workflow, security, and
   preflight checks form the focused verification boundary. Package/platform
   qualification remains Slice 150.

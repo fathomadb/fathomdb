@@ -19,17 +19,19 @@ def require(condition: bool, message: str) -> None:
 
 def check_dependency() -> None:
     lock = json.loads((ROOT / "package-lock.json").read_text())
+    markdownlint = lock["packages"]["node_modules/markdownlint-cli2"]
+    require(markdownlint["version"] == "0.23.3", "markdownlint-cli2 must use the patched upstream release")
     version = lock["packages"]["node_modules/smol-toml"]["version"]
-    require(tuple(map(int, version.split("."))) >= (1, 7, 1), "smol-toml must resolve to >=1.7.1")
-    dependency = lock["packages"]["node_modules/markdownlint-cli2"]["dependencies"]["smol-toml"]
-    require(dependency == "1.7.1", "markdownlint-cli2 must resolve the narrow 1.7.1 remediation")
+    require(version == "1.8.0", "smol-toml must resolve to the patched 1.8.0 dependency")
+    require(markdownlint["dependencies"]["smol-toml"] == "1.8.0", "the upstream dependency must be patched")
 
 
 def check_action_comments() -> None:
     workflow = (ROOT / ".github/workflows/ci.yml").read_text()
     pinned = f"actions/upload-artifact@{UPLOAD_SHA} # v7.0.1"
     require(workflow.count(pinned) == 2, "both upload-artifact comments must identify v7.0.1")
-    require(workflow.count(f"actions/upload-artifact@{UPLOAD_SHA}") == 2, "upload SHAs must stay byte-identical")
+    require(workflow.count(f"actions/upload-artifact@{UPLOAD_SHA}") == 7, "all upload SHAs must stay byte-identical")
+    require(f"actions/upload-artifact@{UPLOAD_SHA} # v4.6.2" not in workflow, "stale action comments must be gone")
 
 
 def check_platform_truth() -> None:
@@ -49,8 +51,9 @@ def check_slice30_prerequisites() -> None:
     require(value["schema"] == "fathomdb.slice30-prerequisites.v1", "unexpected prerequisite schema")
     require(value["cargo_public_api"] == "0.52.0", "cargo-public-api version must be exact")
     require(value["nightly"] == "nightly-2026-04-24", "nightly must be exact")
-    require(value["owned_root"] == ".cache/0.8.27-slice30", "generated roots must be checkout-owned")
-    require(value["heavy_route_min_free_bytes"] == 20_000_000_000, "heavy-route disk floor must be 20 GB")
+    require(value["owned_root"] == ".cache/0.8.27-slice30", "generated build roots must be checkout-owned")
+    require(value["scratch_root"] == "/tmp/fathomdb-0.8.27-slice30", "scratch must be owned outside the repo")
+    require(value["heavy_route_min_free_bytes"] == 100_000_000_000, "heavy-route disk floor must be 100 GB")
     require(value["heavy_runner_scratch_bytes"] == 17_179_869_184, "pilot scratch limit must be retained")
 
     tool = subprocess.run(["cargo", "public-api", "--version"], cwd=ROOT, text=True, capture_output=True)

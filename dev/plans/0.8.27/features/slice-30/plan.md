@@ -41,7 +41,7 @@ This slice specializes existing N27-02 and R27-04 without changing the locked
 
 | ID | Requirement | Acceptance criterion |
 | --- | --- | --- |
-| R27-30A | Capture is deterministic and derived from real compiler, registration, declaration, and package metadata, bound to the source SHA, exact tools, and exact feature rows. | AC27-30A: two clean captures normalize byte-identically; comparison rejects a wrong source SHA, tool version, or feature-row identity. |
+| R27-30A | Capture is deterministic and derived from real compiler, registration, declaration, and package metadata, bound to the source SHA, exact tools, and exact feature rows. | AC27-30A: two clean captures normalize byte-identically; comparison rejects a dirty tree, wrong source SHA, tool version, or feature-row identity. |
 | R27-30B | The baseline covers Rust facade and engine default/operator/test-hook rows and root re-exports; Python package exports, native registrations, and stubs; generated NAPI declarations; TypeScript compiler declarations; and supported package roots/subpaths. | AC27-30B: the release candidate compares equal to the reviewed baseline across every required row without copied expected-symbol lists. |
 | R27-30C | The comparator is non-vacuous. | AC27-30C: independent fixture mutations reject added and removed Rust symbols, a changed Rust re-export, a missing Python registration, a missing Python stub member, a changed NAPI declaration, a changed TypeScript export/declaration, and a changed package export/path. |
 | R27-30D | Maintainers have a source-bound navigation record for later refactors. | AC27-30D: the reviewed inventory records paths/line counts, top-level symbols, direct dependencies and co-change neighbors, focused owning suites, boundary maps, and exceptions; file-size findings are explicitly advisory. |
@@ -66,6 +66,10 @@ This slice specializes existing N27-02 and R27-04 without changing the locked
    record RED/GREEN chronology and exact receipts, update release state through
    its JSON authority, generate its views, and close Slice 30 with Slice 40 next.
 
-The capture-source SHA and the later commit that adds the reviewed baseline are
-separate facts and must both be recorded. Generated caches and scratch output
-are removed at close; the durable release worktree remains.
+Capture uses the clean pre-baseline implementation commit: tests and the tool
+exist there, but the tracked baseline does not. Capture must verify clean-tree
+status and `HEAD`, and the manifest records that inspected source SHA. The
+later commit that first tracks the reviewed baseline is recorded separately in
+the status record. The entry SHA in frontmatter is historical reconciliation,
+not the baseline source. Generated caches and scratch output are removed at
+close; the durable release worktree remains.

@@ -58,6 +58,10 @@ def fixture(tool: ModuleType) -> dict[str, Any]:
         "pub fn fathomdb_engine::Thing::fmt(&self, &mut Formatter) -> Result\n"
         "impl core::fmt::Display for fathomdb_engine::Thing\n"
         "pub fn fathomdb_engine::Thing::fmt(&self, &mut Formatter) -> Result\n"
+        # rustdoc may repeat the same blanket impl/item pair while walking
+        # different public types; it is one semantic entry.
+        "impl core::fmt::Display for fathomdb_engine::Thing\n"
+        "pub fn fathomdb_engine::Thing::fmt(&self, &mut Formatter) -> Result\n"
     )
     return {
         "rust": rust,
@@ -247,14 +251,16 @@ def main() -> None:
     assert not mismatch["equal"]
     assert "row_identities" in mismatch["metadata_diffs"]
 
-    duplicate_inputs = copy.deepcopy(inputs)
-    duplicate_inputs["rust"]["rust-facade-default"] += "pub struct fathomdb::Engine\n"
+    duplicate_manifest = copy.deepcopy(baseline)
+    duplicate_manifest["rows"][0]["entries"].append(
+        copy.deepcopy(duplicate_manifest["rows"][0]["entries"][0])
+    )
     try:
-        tool.capture_from_fixture(duplicate_inputs, metadata(tool))
+        tool.compare_manifests(baseline, duplicate_manifest)
     except tool.SurfaceError as exc:
         assert "duplicate" in str(exc)
     else:
-        raise AssertionError("duplicate normalized keys must fail closed")
+        raise AssertionError("duplicate manifest keys must fail closed")
 
     print("ok    slice30-surface-comparator")
 

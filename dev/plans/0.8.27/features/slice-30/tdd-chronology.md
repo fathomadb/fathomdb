@@ -62,3 +62,9 @@ impl signature, not collapse them or accept context-free duplicates.
 The Rust adapter now carries the complete preceding impl signature into each
 associated function/type signature. The trait-qualified fixture and the full
 mutation suite returned GREEN; a context-free exact duplicate still fails.
+
+The next real run showed rustdoc can repeat the *same* complete impl/item pair
+while traversing different public types. A focused repeated-pair fixture failed
+before normalization. The intended distinction is now explicit: identical
+compiler entries collapse idempotently, while a manifest containing duplicate
+normalized keys remains invalid and comparison rejects it.

@@ -59,6 +59,38 @@ if ! python3 "$LINT" \
 fi
 echo "OK public-reexport"
 
+# Explicit re-export names cancel removals only when the same public name is
+# retained. Globs, crate-private imports, renamed exports, and interrupted
+# statement state all stay fail-closed.
+for case_name in glob private renamed state-poison; do
+    set +e
+    python3 "$LINT" \
+        --diff-file "$FIX/reexport-edges/$case_name.patch" \
+        --changelog "$FIX/reexport-edges/CHANGELOG.md" \
+        --repo-root "$REPO_ROOT" \
+        >/dev/null 2>"/tmp/removal_detect_reexport_${case_name}.err"
+    rc=$?
+    set -e
+    if [ "$rc" -ne 1 ]; then
+        fail "$case_name re-export fixture: expected undocumented removal exit 1, got $rc"
+    fi
+    if ! grep -q "Foo" "/tmp/removal_detect_reexport_${case_name}.err"; then
+        fail "$case_name re-export fixture: diagnostic must retain removed Foo"
+    fi
+done
+echo "OK fail-closed reexports"
+
+# An explicit alias that retains the old crate-root name is equivalent to a
+# direct public re-export and therefore cancels the removal.
+if ! python3 "$LINT" \
+    --diff-file "$FIX/reexport-edges/alias-preserved.patch" \
+    --changelog "$FIX/reexport-edges/CHANGELOG.md" \
+    --repo-root "$REPO_ROOT" \
+    >/dev/null; then
+    fail "alias-preserved fixture: explicit exported name Foo must cancel removal"
+fi
+echo "OK alias-preserved"
+
 # tests/-excluded: removals under any `tests/` directory are NOT public API and
 # must NOT require a CHANGELOG entry → exit 0 even with an empty Removed section.
 # (Slice 27 fix-1: the scanner scopes `tests/` out so test-function churn — e.g.

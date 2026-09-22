@@ -3,7 +3,7 @@ title: FathomDB 0.8.27 Slice 30 - implementation status
 status: COMPLETE
 implemented_on: 2026-09-22
 baseline_source_commit: df8017463ecce6281a4c989a2d1bd01118e2025e
-baseline_tracking_commit: bd6a1565592af8d23c14ed4861f54125c879746f
+baseline_tracking_commit: 346ed5eb95ec1cb168e4a9ad9a0cd951b839cda7
 closeout_commit: 4129a5b013265f4672ab1e4ae8ed3dd5cb8cd89f
 ---
 
@@ -149,3 +149,9 @@ byte-identical, SHA-256 `7db3d883f99940aea69c58079e64d6794be459ef9ab76561106a314
 Against the prior baseline only the four engine Rust rows changed, with equal
 added and removed counts (items rebound to their owning impl), plus the
 `typescript-declarations` row identity.
+
+Phase 3 FIX-2: the rewritten cfg scanner truncated literals in multi-line
+cfg attributes, and same-path diff pairing could lose to processing order.
+RED `06ccc6e1` and GREEN `fb2ba9b3` slice both scanner views identically and pair
+same-path entries in a first pass. Neither change alters any row of the
+tracked baseline (no multi-line cfg in the PyO3 crate; pairing is report-only).

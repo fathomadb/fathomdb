@@ -189,3 +189,10 @@ guaranteed.
   missing input, and scratch declaration-emit arms failed before
   implementation.
 - GREEN `df801746`; two byte-identical captures: `7db3d883f99940aea69c58079e64d6794be459ef9ab76561106a314e61900384`.
+
+## Adversarial review Phase 3 FIX-2
+
+- RED `06ccc6e1`: multi-line cfg attributes recorded truncated
+  (`#[cfg( feature = "]`); removed `a` consumed added `b` before removed `b`.
+- GREEN `fb2ba9b3`: identical slicing of blanked and original lines; two-pass
+  pairing. Real registration row unchanged.

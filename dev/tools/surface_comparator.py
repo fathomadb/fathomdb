@@ -481,8 +481,10 @@ def _cfg_by_line(text: str) -> list[tuple[str, ...]]:
     blanked = _RUST_LITERAL.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), text)
     carried = ("", "")
     for original, line in zip(text.split("\n"), blanked.split("\n")):
+        # Both views are sliced identically (never rstrip the blanked view:
+        # trailing blanks may stand for a literal still present in `source`).
         offset = len(line) - len(line.lstrip())
-        stripped = carried[0] + line[offset:].rstrip()
+        stripped = carried[0] + line[offset:]
         source = carried[1] + original[offset:]
         carried = ("", "")
         while stripped.startswith("#["):
@@ -497,7 +499,7 @@ def _cfg_by_line(text: str) -> list[tuple[str, ...]]:
                 pending.append(content)
             rest = len(stripped) - len(stripped[end + 1 :].lstrip())
             stripped, source = stripped[rest:], source[rest:]
-        if not stripped:
+        if not stripped.strip():
             result.append(())
             continue
         result.append(tuple(cfg for _, cfgs in blocks for cfg in cfgs) + tuple(pending))
@@ -972,17 +974,27 @@ def compare_manifests(baseline: dict[str, Any], candidate: dict[str, Any]) -> di
         # A declaration rename or re-export path change naturally appears as
         # one removal plus one addition. Pair compatible kinds as a changed
         # declaration as well, while retaining the exact added/removed facts.
-        # Each added entry pairs at most once, preferring the same path.
-        unpaired = list(added_keys)
-        for removed_key in removed_keys:
-            old = before[removed_key]
-            candidates = [key for key in unpaired if after[key]["kind"] == old["kind"]]
-            same_path = [key for key in candidates if after[key]["path"] == old["path"]]
-            chosen = (same_path or candidates or [None])[0]
-            if chosen is None:
-                continue
-            unpaired.remove(chosen)
-            changed.append({"path": old["path"], "before": old, "after": after[chosen]})
+        # Each added entry pairs at most once: same-path pairs first, then
+        # remaining same-kind entries in key order.
+        unpaired_added = list(added_keys)
+        unpaired_removed = list(removed_keys)
+        for same_path in (True, False):
+            for removed_key in list(unpaired_removed):
+                old = before[removed_key]
+                chosen = next(
+                    (
+                        key
+                        for key in unpaired_added
+                        if after[key]["kind"] == old["kind"]
+                        and (not same_path or after[key]["path"] == old["path"])
+                    ),
+                    None,
+                )
+                if chosen is None:
+                    continue
+                unpaired_added.remove(chosen)
+                unpaired_removed.remove(removed_key)
+                changed.append({"path": old["path"], "before": old, "after": after[chosen]})
         if removed_keys or added_keys or changed:
             row_diffs.append(
                 {

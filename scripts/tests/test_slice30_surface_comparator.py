@@ -8,6 +8,8 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import random
+import shutil
 import tempfile
 from types import ModuleType
 from typing import Any, Callable
@@ -36,6 +38,7 @@ def metadata(tool: ModuleType) -> dict[str, Any]:
             "cargo-public-api": "0.52.0",
             "node": "v25.9.0",
             "rust-toolchain": "nightly-2026-04-24",
+            "rustc": "rustc 1.97.0-nightly (36ba2c771 2026-04-23)",
             "typescript": "6.0.3",
         },
         "target": "x86_64-unknown-linux-gnu",
@@ -169,6 +172,7 @@ def assert_row_diff(
     mutate: Callable[[dict[str, Any]], None],
     expected_row: str,
     expected_bucket: str,
+    expected_paths: set[str] | None = None,
 ) -> None:
     baseline = tool.capture_from_fixture(base_inputs, metadata(tool))
     changed_inputs = copy.deepcopy(base_inputs)
@@ -176,9 +180,13 @@ def assert_row_diff(
     candidate = tool.capture_from_fixture(changed_inputs, metadata(tool))
     result = tool.compare_manifests(baseline, candidate)
     assert not result["equal"], f"mutation for {expected_row} compared equal"
-    row = next((item for item in result["row_diffs"] if item["row"] == expected_row), None)
-    assert row is not None, f"missing row diff for {expected_row}: {result}"
+    # One mutation must disturb exactly its own row.
+    assert [item["row"] for item in result["row_diffs"]] == [expected_row], result["row_diffs"]
+    row = result["row_diffs"][0]
     assert row[expected_bucket], f"{expected_row} did not report {expected_bucket}: {row}"
+    if expected_paths is not None:
+        actual = {item["path"] for item in row[expected_bucket]}
+        assert actual == expected_paths, f"{expected_row} {expected_bucket} paths {actual}"
 
 
 def main() -> None:
@@ -210,6 +218,7 @@ def main() -> None:
         ),
         "rust-facade-default",
         "added",
+        {"fathomdb::Added"},
     )
     assert_row_diff(
         tool,
@@ -232,6 +241,7 @@ def main() -> None:
         ),
         "python-native-registrations",
         "removed",
+        {"StorageError"},
     )
     assert_row_diff(
         tool,
@@ -293,6 +303,7 @@ def main() -> None:
         ),
         "python-native-stub",
         "removed",
+        {"Engine.search"},
     )
     assert_row_diff(
         tool,
@@ -302,6 +313,7 @@ def main() -> None:
         ),
         "napi-production",
         "changed",
+        {"NativeHit"},
     )
     assert_row_diff(
         tool,
@@ -624,6 +636,230 @@ def main() -> None:
     )
     assert [entry["path"] for entry in literal] == ["Next", "Url"], literal
     assert "https://example.test/*path" in literal[1]["signature"], literal
+
+    # --- Rust impl context keeps same-named associated items distinct.
+    thing = next(row for row in baseline["rows"] if row["id"] == "rust-engine-default")
+    fmt = sorted(e["signature"] for e in thing["entries"] if e["path"] == "fathomdb_engine::Thing::fmt")
+    assert len(fmt) == 2, fmt
+    assert fmt[0].startswith("impl core::fmt::Debug for fathomdb_engine::Thing =>"), fmt
+    assert fmt[1].startswith("impl core::fmt::Display for fathomdb_engine::Thing =>"), fmt
+    errors = [e for e in thing["entries"] if e["path"] == "fathomdb_engine::Thing::Error"]
+    assert len(errors) == 2, errors
+    assert_row_diff(
+        tool,
+        inputs,
+        lambda value: value["rust"].__setitem__(
+            "rust-engine-default",
+            value["rust"]["rust-engine-default"].replace(
+                "impl core::fmt::Display for fathomdb_engine::Thing\n", ""
+            ),
+        ),
+        "rust-engine-default",
+        "removed",
+    )
+
+    # --- Tool and target identity are part of the comparison.
+    for key, value in (("tools", {**metadata(tool)["tools"], "node": "v26.8.2"}), ("target", "aarch64-unknown-linux-gnu")):
+        other = metadata(tool)
+        other[key] = value
+        result = tool.compare_manifests(baseline, tool.capture_from_fixture(inputs, other))
+        assert not result["equal"] and key in result["metadata_diffs"], result["metadata_diffs"]
+    wrong_schema = metadata(tool)
+    wrong_schema["schema"] = "other"
+    try:
+        tool.capture_from_fixture(inputs, wrong_schema)
+    except tool.SurfaceError as exc:
+        assert "schema" in str(exc)
+    else:
+        raise AssertionError("wrong schema must fail closed")
+
+    # --- Root package export row.
+    assert_row_diff(
+        tool,
+        inputs,
+        lambda value: value.__setitem__(
+            "python_exports", value["python_exports"].replace('"Engine", "SearchHit"', '"Engine"')
+        ),
+        "python-package-exports",
+        "removed",
+        {"SearchHit"},
+    )
+    for bad in ('__all__ = [name for name in ("a",)]\n', "x = 1\n", '__all__ = ["a", 1]\n'):
+        try:
+            tool.parse_python_exports(bad)
+        except tool.SurfaceError:
+            pass
+        else:
+            raise AssertionError(f"invalid __all__ must fail closed: {bad!r}")
+
+    # --- Capture-side provenance guards (AC27-30A).
+    head = "a" * 40
+
+    def fake_run(outputs: dict[tuple[str, ...], str]) -> Callable[..., str]:
+        def run(command: Any, cwd: Any = None, env: Any = None) -> str:
+            key = tuple(command[:3])
+            for prefix, output in outputs.items():
+                if key[: len(prefix)] == prefix:
+                    return output
+            raise AssertionError(f"unexpected command {command}")
+        return run
+
+    def expect_error(error: type, needle: str, call: Callable[[], Any]) -> None:
+        try:
+            call()
+        except error as exc:
+            assert needle in str(exc), str(exc)
+        else:
+            raise AssertionError(f"expected {error.__name__} containing {needle!r}")
+
+    clean = {("git", "rev-parse"): head + "\n", ("git", "status"): ""}
+    with mock.patch.object(tool, "_run", side_effect=fake_run(clean)):
+        tool._clean_source(head)
+        expect_error(tool.SurfaceError, "does not match HEAD", lambda: tool._clean_source("b" * 40))
+        expect_error(tool.SurfaceError, "full 40-character", lambda: tool._clean_source(head[:7]))
+    dirty = {("git", "rev-parse"): head + "\n", ("git", "status"): " M src/lib.rs\n"}
+    with mock.patch.object(tool, "_run", side_effect=fake_run(dirty)):
+        expect_error(tool.SurfaceError, "clean worktree", lambda: tool._clean_source(head))
+
+    tools_ok = {
+        ("cargo", "public-api", "--version"): "cargo-public-api 0.52.0\n",
+        ("rustc", "+nightly-2026-04-24", "--version"): "rustc 1.97.0-nightly\n",
+        ("rustc", "+nightly-2026-04-24", "-vV"): "host: x86_64-unknown-linux-gnu\n",
+        ("node", "--version"): "v25.9.0\n",
+        ("npm", "exec", "--"): "Version 6.0.3\n",
+    }
+    with mock.patch.object(tool, "_run", side_effect=fake_run(tools_ok)):
+        produced = tool._tool_metadata(head)
+        assert produced["tools"]["typescript"] == "6.0.3" and produced["tools"]["node"] == "v25.9.0"
+        assert produced["target"] == "x86_64-unknown-linux-gnu"
+    with mock.patch.object(tool, "_run", side_effect=fake_run({**tools_ok, ("node", "--version"): "v26.8.2\n"})):
+        expect_error(tool.ComparatorError, "v25.9.0", lambda: tool._tool_metadata(head))
+    with mock.patch.object(tool, "_run", side_effect=fake_run({**tools_ok, ("npm", "exec", "--"): "6.0.3\n"})):
+        expect_error(tool.SurfaceError, "TypeScript version", lambda: tool._tool_metadata(head))
+
+    with tempfile.TemporaryDirectory() as directory:
+        scratch = Path(directory) / "scratch"
+        scratch.mkdir()
+        with mock.patch.object(tool, "OWNED_SCRATCH", scratch), mock.patch.object(
+            tool, "OWNED_CACHE", Path(directory) / "cache"
+        ):
+            expect_error(tool.SurfaceError, "unowned scratch", tool._prepare_scratch)
+            (scratch / tool.SCRATCH_MARKER).write_text("owned\n")
+            (scratch / "leftover").write_text("x")
+            tool._prepare_scratch()
+            assert not (scratch / "leftover").exists() and (scratch / tool.SCRATCH_MARKER).is_file()
+            with mock.patch.object(tool.shutil, "disk_usage", return_value=shutil._ntuple_diskusage(1, 1, 1)):
+                expect_error(tool.SurfaceError, "free bytes", tool._prepare_scratch)
+
+    generation = {
+        ("cargo",): "pub struct fathomdb::Engine\n",
+        ("npm", "run"): "",
+        ("npm", "exec", "--"): "",
+        ("node", "--input-type=module"): '["Engine"]\n',
+        ("git", "status"): " M src/ts/index.d.ts\n",
+    }
+    with mock.patch.object(tool, "_clean_source"), mock.patch.object(tool, "_prepare_scratch"), \
+            mock.patch.object(tool, "_tool_metadata", return_value=metadata(tool)), \
+            mock.patch.object(tool, "_validate_napi_build_script"), \
+            mock.patch.object(tool, "_run", side_effect=fake_run(generation)):
+        expect_error(tool.SurfaceError, "generation changed", lambda: tool.capture_repository(head))
+
+    # --- Adapter paths the real baseline relies on.
+    modules = {
+        "index.d.ts": 'export type { ReadView } from "./read.js";\n'
+        'export { search as find } from "./search.js";\n'
+        'export * from "./defaults.js";\n'
+        'export * from "./a.js";\n',
+        "read.d.ts": "export interface ReadView {\n  id: string;\n}\n",
+        "search.d.ts": "export declare function search(q: string): void;\n",
+        "defaults.d.ts": "export default function hidden(): void;\nexport declare const kept = 1;\n",
+        "a.d.ts": 'export * from "./b.js";\nexport declare const fromA = 1;\n',
+        "b.d.ts": 'export * from "./a.js";\nexport declare const fromB = 1;\n',
+    }
+    surface = {e["path"]: e for e in tool.parse_typescript_surface(modules, "fixture")}
+    assert set(surface) == {"ReadView", "find", "kept", "fromA", "fromB"}, surface
+    assert surface["ReadView"]["kind"] == "interface"
+    assert surface["find"]["signature"].startswith("export { search as find } =>"), surface["find"]
+    expect_error(
+        tool.ComparatorError,
+        "unterminated block comment",
+        lambda: tool.parse_typescript_declarations("/* open\nexport declare const x = 1;\n", "c"),
+    )
+    relative = tool.parse_python_wrappers(
+        {
+            "__init__.py": 'from .engine import Engine\n__all__ = ["Engine"]\n',
+            "engine.py": "class Engine:\n    def close(self) -> None:\n        pass\n",
+        }
+    )
+    assert {e["path"] for e in relative} >= {"fathomdb.Engine", "fathomdb.Engine.close"}, relative
+    baseline_path = ROOT / "dev/plans/0.8.27/features/slice-30/baseline.json"
+    with tempfile.TemporaryDirectory() as directory:
+        alias = Path(directory) / "alias.json"
+        alias.symlink_to(baseline_path)
+        expect_error(tool.ComparatorError, "reviewed baseline", lambda: tool._guard_capture_output(alias))
+
+    # --- Seeded generative properties for the normalization layer.
+    generator = random.Random(2708)
+    rust_blocks = [
+        ["pub struct fathomdb_engine::Thing"],
+        ["impl core::fmt::Debug for fathomdb_engine::Thing", "pub fn fathomdb_engine::Thing::fmt(&self, &mut Formatter) -> Result"],
+        ["impl core::fmt::Display for fathomdb_engine::Thing", "pub fn fathomdb_engine::Thing::fmt(&self, &mut Formatter) -> Result"],
+        ["pub struct fathomdb_engine::Other"],
+        ["pub fn fathomdb_engine::open(path: &Path) -> Result<Engine, EngineError>"],
+    ]
+    reference = tool.parse_rust_public_api("\n".join(line for block in rust_blocks for line in block), "p")
+    for _ in range(200):
+        blocks = [list(block) for block in rust_blocks]
+        blocks += [list(generator.choice(rust_blocks)) for _ in range(generator.randrange(3))]
+        generator.shuffle(blocks)
+        lines = []
+        for block in blocks:
+            for line in block:
+                spaced = line.replace(" ", " " * generator.randrange(1, 3))
+                lines.append(" " * generator.randrange(4) + spaced)
+                if generator.random() < 0.2:
+                    lines.append("")
+        assert tool.parse_rust_public_api("\n".join(lines), "p") == reference, lines
+
+    alphabet = "abcXYZ_:()<>&{}é漢 "
+    for _ in range(100):
+        rows = []
+        for index in range(generator.randrange(1, 4)):
+            entries = {}
+            for _ in range(generator.randrange(1, 6)):
+                path = "".join(generator.choice(alphabet) for _ in range(generator.randrange(1, 8)))
+                signature = "".join(generator.choice(alphabet) for _ in range(generator.randrange(0, 12)))
+                entries[(path, signature)] = {"path": path, "kind": "k", "signature": signature}
+            rows.append({"id": f"row-{index}", "entries": list(entries.values())})
+        manifest = {"metadata": metadata(tool), "rows": rows}
+        round_tripped = json.loads(tool.canonical_json(manifest))
+        assert tool.canonical_json(round_tripped) == tool.canonical_json(manifest)
+        assert tool.compare_manifests(manifest, round_tripped)["equal"]
+
+    for _ in range(300):
+        pieces, literals = [], []
+        for _ in range(generator.randrange(1, 10)):
+            choice = generator.randrange(4)
+            if choice == 0:
+                quote = generator.choice("\"'`")
+                body = "".join(generator.choice(["//", "/*", "*/", "{", "x", " "]) for _ in range(4))
+                literal = f"{quote}LIT{body}{quote}"
+                literals.append(literal)
+                pieces.append(literal)
+            elif choice == 1:
+                pieces.append("// CMT { " + generator.choice(["", "'", '"']) + "\n")
+            elif choice == 2:
+                pieces.append("/* CMT } { \n */")
+            else:
+                pieces.append(generator.choice(["export ", "type ", "{", "}", ";", "\n", "x"]))
+        text = "".join(pieces)
+        stripped = tool._strip_comments(text)
+        assert tool._strip_comments(stripped) == stripped, text
+        assert "CMT" not in stripped, (text, stripped)
+        assert all(literal in stripped for literal in literals), (text, stripped)
+        assert stripped.count("\n") == text.count("\n") - sum(
+            piece.count("\n") for piece in pieces if piece.startswith("// CMT")
+        ) + sum(1 for piece in pieces if piece.startswith("// CMT")), (text, stripped)
 
     agent_test = (ROOT / "scripts/agent-test.sh").read_text()
     assert "test-slice30-surface-comparator" in agent_test

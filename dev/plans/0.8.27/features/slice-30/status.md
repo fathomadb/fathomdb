@@ -3,7 +3,7 @@ title: FathomDB 0.8.27 Slice 30 - implementation status
 status: COMPLETE
 implemented_on: 2026-09-22
 baseline_source_commit: 58bc8eb4836f6f0f52b40b21befaea87a490b9fa
-baseline_tracking_commit: d80a66236ca9dc0dd6456e2a0d5322c3722d364c
+baseline_tracking_commit: bd6a1565592af8d23c14ed4861f54125c879746f
 closeout_commit: 4129a5b013265f4672ab1e4ae8ed3dd5cb8cd89f
 ---
 

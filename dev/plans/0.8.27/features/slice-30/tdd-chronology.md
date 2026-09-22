@@ -46,8 +46,10 @@ SurfaceError: duplicate normalized key in rust-engine-default:
 type fathomdb_engine::Thing::Error
 ```
 
-Exact duplicate lines must still fail closed; distinct signatures sharing a
-display path require deterministic disambiguation.
+Exact duplicate lines must still fail closed (superseded below: identical
+compiler entries now collapse idempotently, and only a manifest with duplicate
+normalized keys is rejected); distinct signatures sharing a display path
+require deterministic disambiguation.
 
 The comparator now keys row entries by kind, complete path, and a digest of the
 normalized signature. The focused suite returned GREEN while its exact-copy
@@ -61,7 +63,8 @@ impl signature, not collapse them or accept context-free duplicates.
 
 The Rust adapter now carries the complete preceding impl signature into each
 associated function/type signature. The trait-qualified fixture and the full
-mutation suite returned GREEN; a context-free exact duplicate still fails.
+mutation suite returned GREEN; a context-free exact duplicate still failed at
+this point (later collapsed idempotently, as described next).
 
 The next real run showed rustdoc can repeat the *same* complete impl/item pair
 while traversing different public types. A focused repeated-pair fixture failed
@@ -161,3 +164,20 @@ returned early under the recorded `FATHOMDB_SKIP_NETWORK_TESTS=1` condition.
 - GREEN `58bc8eb4`: cfg blocks open on gated items; declaration comments
   stripped outside string literals.
 - Two byte-identical captures at `58bc8eb4`: `b54a01cc486c4d1755297196831f5490d0311237e12ca6f40d37c03af1b3a1b4`.
+
+## Adversarial review Phase 2 FIX-1 (test review)
+
+Test-only hardening; each new arm was shown to fail against a neutered
+comparator (impl context dropped, tools/target ignored, dirty-tree check
+removed, post-generation re-check removed): Rust impl-context entry counts
+and a removed-impl arm; tool/target/schema identity arms; root `__all__`
+removal and invalid-`__all__` arms; mocked capture guards (HEAD mismatch,
+short SHA, dirty tree, Node pin, TypeScript version parse, unowned scratch,
+disk floor, post-generation tracked change); `export type {…} from`, alias,
+default-export exclusion, re-export cycle, relative Python import,
+unterminated comment, and baseline symlink arms; single-row isolation plus
+exact-path checks in `assert_row_diff`; and seeded stdlib-`random` generative
+properties for Rust line normalization, canonical JSON round trip, and
+comment stripping. Properties use a fixed seed rather than `hypothesis` because
+the registered suite runs under bare `python3`, where `hypothesis` is not
+guaranteed.

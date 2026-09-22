@@ -36,6 +36,7 @@ TS_PUBLIC = re.compile(
     r"^\s*export\s+(?:default\s+)?(?:async\s+)?"
     r"(function|class|const|let|var|type|interface|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)"
 )
+RUST_PUBLIC_USE = re.compile(r"^\s*pub\s+use\s+(.+);\s*$", re.DOTALL)
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,67 @@ def _scan_line(kind: str, line: str) -> tuple[str, str] | None:
     return (m.group(1), m.group(2)) if m else None
 
 
+def _split_use_tree(value: str) -> list[str]:
+    parts: list[str] = []
+    depth = 0
+    start = 0
+    for index, char in enumerate(value):
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+        elif char == "," and depth == 0:
+            parts.append(value[start:index])
+            start = index + 1
+    parts.append(value[start:])
+    return parts
+
+
+def _rust_reexport_names(statement: str) -> set[str]:
+    """Return explicit crate-root names exported by one ``pub use``.
+
+    Glob exports stay fail-closed because their names cannot be established
+    from the diff alone. Aliases contribute only the exported alias.
+    """
+
+    match = RUST_PUBLIC_USE.match(statement)
+    if match is None:
+        return set()
+
+    def collect(tree: str, prefix: str = "") -> set[str]:
+        tree = tree.strip()
+        if not tree or tree == "*":
+            return set()
+        if "{" in tree:
+            open_index = tree.find("{")
+            if not tree.endswith("}"):
+                return set()
+            nested_prefix = tree[:open_index].strip().removesuffix("::")
+            joined_prefix = "::".join(part for part in (prefix, nested_prefix) if part)
+            names: set[str] = set()
+            for item in _split_use_tree(tree[open_index + 1 : -1]):
+                item = item.strip()
+                if item == "self":
+                    name = joined_prefix.rsplit("::", 1)[-1]
+                    if name and name not in {"crate", "self", "super"}:
+                        names.add(name)
+                else:
+                    names.update(collect(item, joined_prefix))
+            return names
+
+        alias_parts = re.split(r"\s+as\s+", tree, maxsplit=1)
+        if len(alias_parts) == 2:
+            alias = alias_parts[1].strip()
+            return {alias} if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", alias) else set()
+        full_path = "::".join(part for part in (prefix, tree) if part)
+        name = full_path.rsplit("::", 1)[-1]
+        if name in {"*", "crate", "self", "super"}:
+            return set()
+        return {name} if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) else set()
+
+    return collect(match.group(1))
+
+
 def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]:
     """Returns (removals, additions) keyed for cancellation matching."""
     removals: set[Removal] = set()
@@ -84,8 +146,10 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
 
     current_path: str | None = None
     current_kind: str | None = None
+    rust_public_use: list[str] = []
     for raw in diff_text.splitlines():
         if raw.startswith("+++ "):
+            rust_public_use = []
             # New-path marker is more reliable than the diff header for
             # in-file renames; both old and new paths are the same in
             # normal removals.
@@ -95,6 +159,7 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
             current_kind = _classify(current_path) if current_path else None
             continue
         if raw.startswith("--- "):
+            rust_public_use = []
             spec = raw[4:].strip()
             spec = spec.removeprefix("a/")
             if spec != "/dev/null":
@@ -119,17 +184,29 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
                     )
                 )
         elif raw.startswith("+") and not raw.startswith("++"):
-            match = _scan_line(current_kind, raw[1:])
+            line = raw[1:]
+            match = _scan_line(current_kind, line)
             if match:
                 additions.add((current_path, current_kind, match[1]))
+            if current_kind == "rust":
+                if rust_public_use:
+                    rust_public_use.append(line)
+                elif re.match(r"^\s*pub\s+use\b", line):
+                    rust_public_use = [line]
+                if rust_public_use and ";" in line:
+                    statement = "\n".join(rust_public_use)
+                    for name in _rust_reexport_names(statement):
+                        additions.add((current_path, current_kind, name))
+                    rust_public_use = []
 
     return removals, additions
 
 
 def real_removals(removals: set[Removal], additions: set[tuple[str, str, str]]) -> list[Removal]:
     """A removal cancels if the same symbol name re-appears in the same
-    file (move/rename-in-place); cross-file moves still count as removal
-    from the public path because consumers may import by full path.
+    file, including through an explicit Rust ``pub use``. Cross-file moves
+    without that same-path re-export still count as removals because consumers
+    may import by full path.
     """
     out = []
     for r in removals:

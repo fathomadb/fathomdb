@@ -149,15 +149,14 @@ def _entry(path: str, kind: str, signature: str) -> dict[str, str]:
 def _unique(entries: Iterable[dict[str, str]], row: str) -> list[dict[str, str]]:
     ordered = sorted(entries, key=lambda item: (item["path"], item["kind"], item["signature"]))
     seen: set[tuple[str, str, str]] = set()
+    unique: list[dict[str, str]] = []
     for item in ordered:
         key = (item["path"], item["kind"], item["signature"])
         if key in seen:
-            raise SurfaceError(
-                f"duplicate normalized entry in {row}: {item['kind']} "
-                f"{item['path']} {item['signature']}"
-            )
+            continue
         seen.add(key)
-    return ordered
+        unique.append(item)
+    return unique
 
 
 def parse_rust_public_api(text: str, row: str) -> list[dict[str, str]]:

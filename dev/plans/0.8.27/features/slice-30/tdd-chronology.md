@@ -68,3 +68,6 @@ while traversing different public types. A focused repeated-pair fixture failed
 before normalization. The intended distinction is now explicit: identical
 compiler entries collapse idempotently, while a manifest containing duplicate
 normalized keys remains invalid and comparison rejects it.
+
+The adapter now performs that idempotent collapse. The repeated-pair fixture,
+all mutation arms, and the duplicate-manifest rejection returned GREEN.

@@ -619,3 +619,70 @@ fn correction_erasure_postcommit_incomplete_retry_is_truthful_and_audit_idempote
     assert_audit(&connection, "slice20-target", expected);
     assert!(!std::fs::read_to_string(&sink).unwrap().contains("l:slice20-source"));
 }
+
+#[test]
+fn correction_then_purge_of_corrected_logical_id_succeeds_and_erases_exact_rows() {
+    let fixture = corrected_fixture("purge-after-correction", "slice20-target", "slice20-target");
+    let engine = &fixture.opened.engine;
+    engine
+        .actuate(
+            ActuationBatchV1::new(
+                "slice20-retire-replacement",
+                vec![ActuationOperationV1::TransitionLifecycle(
+                    LifecycleActuationV1::new(
+                        "slice20-source",
+                        ArtifactRevisionId::new("slice20-replacement-r2").unwrap(),
+                        LifecycleState::Deleted,
+                        Some("retired".into()),
+                    )
+                    .unwrap(),
+                )],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let before = Connection::open(&fixture.db).unwrap();
+    let purged_cursors = requested_cursors(&before, "slice20-target");
+    assert!(!purged_cursors.is_empty(), "purge fixture must be non-vacuous");
+    drop(before);
+
+    engine.purge("slice20-source").expect("purge after a dependent-bearing correction");
+
+    let connection = Connection::open(&fixture.db).unwrap();
+    assert_revisions(&connection, &["slice20-survivor-r1"]);
+    assert_cursors_physically_absent(&connection, &purged_cursors);
+    for closure_id in &fixture.correction_closure_ids {
+        let remaining: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM _fathomdb_dependency_closures WHERE closure_operation_id=?1",
+                [closure_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(remaining, 0, "completed correction closure {closure_id} survived purge");
+    }
+    for body in [ORIGINAL_BODY, DEPENDENT_BODY, REPLACEMENT_BODY] {
+        assert!(
+            !file_contains_bytes(&fixture.db, body)
+                && !file_contains_bytes(&wal_path(&fixture.db), body),
+            "purge left body bytes at rest: {body}"
+        );
+    }
+    assert!(
+        file_contains_bytes(&fixture.db, SURVIVOR_BODY)
+            || file_contains_bytes(&wal_path(&fixture.db), SURVIVOR_BODY),
+        "purge must preserve the unrelated survivor"
+    );
+    let redacted_receipt: (String, Option<String>, String) = connection
+        .query_row(
+            "SELECT outcome,request_sha256,closure_operation_ids_json \
+             FROM _fathomdb_actuation_receipts WHERE operation_id='slice20-correction'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(redacted_receipt, ("erased".into(), None, "[]".into()));
+    drop(connection);
+    fixture.opened.engine.close().unwrap();
+    drop(fixture.dir);
+}

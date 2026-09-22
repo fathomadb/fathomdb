@@ -153,8 +153,16 @@ def mentions_published_version(text: str, version: str) -> bool:
     )
 
 
-def has_platform_boundary(text: str) -> bool:
-    return "Linux x86_64" in text or "x86_64-unknown-linux-gnu" in text
+def missing_platform_boundaries(text: str) -> list[str]:
+    normalized = re.sub(r"\s+", " ", text.replace("`", ""))
+    required = {
+        "Linux x64": r"(?:Linux x86_64|x86_64-unknown-linux-gnu)",
+        "Linux arm64": r"(?:Linux.{0,100}(?:AArch64|aarch64-unknown-linux-gnu))",
+        "macOS x64": r"(?:macOS.{0,100}(?:x64|x86_64-apple-darwin))",
+        "macOS arm64": r"(?:macOS.{0,100}(?:arm64|aarch64-apple-darwin))",
+        "Windows x64": r"(?:Windows.{0,100}(?:x64|x86_64-pc-windows-msvc))",
+    }
+    return [label for label, pattern in required.items() if re.search(pattern, normalized) is None]
 
 
 def main() -> None:
@@ -204,8 +212,9 @@ def main() -> None:
             fail(f"{relative} lacks a current published {version} statement")
 
     for relative in PLATFORM_BOUNDARY_DOCS:
-        if not has_platform_boundary(docs[relative]):
-            fail(f"{relative} lacks the linux-x64 published-platform boundary")
+        missing = missing_platform_boundaries(docs[relative])
+        if missing:
+            fail(f"{relative} lacks published-platform boundaries: {', '.join(missing)}")
 
     compatibility = docs[Path("docs/compatibility/index.md")]
     for target in (

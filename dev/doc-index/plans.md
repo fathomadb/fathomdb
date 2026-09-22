@@ -16,10 +16,13 @@
 | `dev/plans/release-state-0.8.23.json` | **Completed 0.8.23 single writer.** Retained state evidence; live work must be resolved rather than inferred from it. | 0.8.23 history | 2026-08-23 |
 | `dev/plans/runs/STATUS-0.8.23.md` | **Completed 0.8.23 state board.** Retained in place; not a current-work declaration. | 0.8.23 history | 2026-08-23 |
 | `dev/plans/plan-0.8.24.md` | **0.8.24 historical plan.** Its completed work is integrated into `main`; deferred work is allocated to later releases. | 0.8.24 history | 2026-09-02 |
-| `dev/plans/plan-0.8.25.md` | **Active 0.8.25 plan.** Sequences the narrowed provenance-safe data-plane core through Slice 60 and trimmed Slice 75; Slices 65/70 are reallocated. | 0.8.25 | 2026-09-02 |
+| `dev/plans/plan-0.8.25.md` | **Completed 0.8.25 plan.** Retained release evidence for the narrowed provenance-safe data-plane core and later recovery slices. | 0.8.25 history | 2026-09-21 |
 | `dev/plans/0.8.25/scope-adjustment-2026-09-02.md` | **Approved 0.8.25 implementation boundary.** Narrows reviewed maximum-envelope designs and allocates every deferred/experimental item durably. | 0.8.25 | 2026-09-02 |
 | `dev/plans/0.8.25/plan-coherence-review-2026-09-02.md` | **Completed 0.8.25 plan coherence review.** Reconciles the release, architecture, slice, verification, and future-allocation surfaces and records a PASS with normal READY gates open. | 0.8.25 | 2026-09-02 |
 | `dev/plans/0.8.26-draft-scope.md` | **Non-authoritative 0.8.26 intake.** Preserves deferred Windows/tooling work plus multi-source dependencies, liveness, and broader actuation receipts. | 0.8.26 draft | 2026-09-02 |
+| `dev/plans/plan-0.8.26.md` | **Completed 0.8.26 plan.** Retained contract-completion release evidence through Slice 65. | 0.8.26 history | 2026-09-21 |
+| `dev/plans/release-state-0.8.26.json` | **Published 0.8.26 single writer.** Owns the completed ladder and canonical publication receipt. | 0.8.26 history | 2026-09-21 |
+| `dev/plans/runs/STATUS-0.8.26.md` | **Completed 0.8.26 board.** Retained release and publication evidence through Slice 65. | 0.8.26 history | 2026-09-21 |
 | `dev/plans/0.8.27-draft-scope.md` | **Superseded 0.8.27 intake.** F27-01 moved into the executable plan; unproven continuity candidates moved to 0.8.28. | 0.8.27 history | 2026-09-21 |
 | `dev/plans/plan-0.8.27.md` | **0.8.27 release plan.** Correction-safe erasure followed by behavior-preserving semantic decomposition; publication separately gated. | 0.8.27 | 2026-09-21 |
 | `dev/plans/release-state-0.8.27.json` | **Active 0.8.27 single writer.** Owns the 25-slice ladder, ruled/open decisions, schema baseline, and authorized Slice 10 state. | 0.8.27 | 2026-09-21 |
@@ -29,8 +32,8 @@
 | `dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md` | **0.8.27 refactor verification approach.** Defines invariant ownership, TDD modes, per-slice proof, surface comparison, artifact qualification, and anti-vacuity rules for Slices 20-150 without authorizing implementation or publication. | 0.8.27 prework | 2026-09-21 |
 | `dev/plans/0.8.28-draft-scope.md` | **Non-authoritative 0.8.28 intake.** Preserves advanced reads plus deferred snapshot/cursor/evidence continuity. | 0.8.28 draft | 2026-09-21 |
 | `dev/plans/0.8.29-0.8.33-experimental-review-schedule.md` | **Experimental review inventory.** Assigns candidate selection, associative/routing, integrity/repair, and exhaustive evaluation to odd-micro planning reviews or Parked. | future experimental reviews | 2026-09-02 |
-| `dev/plans/release-state-0.8.25.json` | **0.8.25 single writer.** Owns the narrowed dependency-linear Slice 0–60/75 state and generated status-board action. | 0.8.25 | 2026-09-02 |
-| `dev/plans/runs/STATUS-0.8.25.md` | **0.8.25 live board.** Resolves current prework and the immediate action from release state. | 0.8.25 | 2026-08-31 |
+| `dev/plans/release-state-0.8.25.json` | **Completed 0.8.25 single writer.** Retained dependency-linear ladder and publication evidence. | 0.8.25 history | 2026-09-21 |
+| `dev/plans/runs/STATUS-0.8.25.md` | **Completed 0.8.25 board.** Retained release and publication evidence. | 0.8.25 history | 2026-09-21 |
 | `dev/plans/0.8.25/prework/slice-0-{environment-and-infrastructure,decision-brief}.md` | **Slice 0 evidence.** Records the durable worktree, environment/platform facts, worktree-safe Python verification gap, and Slice 6 decision inputs. | 0.8.25 Slice 0 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-1-dependency-sweep.md` | **Slice 1 evidence.** Records current npm/Python/RustSec data, pin rationale, and proposed lock-compatible security maintenance without changing dependencies. | 0.8.25 Slice 1 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-2-cruft-review.md` | **Slice 2 proposal.** Classifies current, historical, stale, and evidence-bearing repository cohorts without performing cleanup. | 0.8.25 Slice 2 | 2026-08-31 |
@@ -41,7 +44,7 @@
 | `dev/plans/0.8.25/prework/slice-6-hitl-decisions.md` | **Slice 6 owner rulings.** Cites `seq-272`/`seq-273`, retains all run data, bounds index work, and includes the test-only `httpmock` correction with stop conditions. | 0.8.25 Slice 6 | 2026-09-01 |
 | `dev/plans/0.8.25/prework/slice-7-implementation-plan.md` | **Slice 7 approved-only plan.** Sequences clean provenance, state tooling, wheel proof, dependency security, property, traceability, and architecture/documentation packages with TDD and review gates. | 0.8.25 Slices 6–7 | 2026-09-01 |
 | `dev/plans/0.8.25/prework/slice-6-slice-7-independent-review.md` | **Slice 6 independent review.** Records the read-only Slice 7 plan verdict and bounded FIX-n evidence before final owner disposition. | 0.8.25 Slice 6 | 2026-09-01 |
-| `dev/plans/fathomdb-data-plane-foldback-v2.md` | **Active data-plane foldback plan v2.** Dependency-linear delivery of the narrowed 0.8.25 data-plane core. | 0.8.25 | 2026-09-02 |
+| `dev/plans/fathomdb-data-plane-foldback-v2.md` | **Completed data-plane foldback plan v2.** Retained dependency-linear design evidence for 0.8.25. | 0.8.25 history | 2026-09-21 |
 | `dev/plans/fathomdb-data-plane-foldback-v1.md` | **Superseded data-plane foldback plan v1.** Reviewed four-workstream baseline retained as history. | 0.8.25 history | 2026-09-02 |
 | `dev/plans/fathomdb-data-plane-architecture-review-v1.md` | **Architecture review record.** Two bounded FIX cycles resolve measurement, graph, filter, evidence-reference, `ReadView`, and provenance findings; final verdict has no P1/P2. | 0.8.25 | 2026-08-31 |
 | `dev/plans/0.8.24/prework/slice-0-environment-and-infrastructure.md` | **Slice 0 baseline.** Records release-worktree setup, CI/runner/registry/benchmark evidence, and owner decisions still required before platform work. | 0.8.24 Slice 0 | 2026-08-23 |

@@ -11,5 +11,5 @@
   "devDependencies": {
     "markdownlint-cli2": "^0.23.3"
   },
-  "comment-security": "0.8.27 Slice 10: markdownlint-cli2@0.23.3 resolves patched smol-toml@1.8.0 plus the audited js-yaml@5.2.2 path, while its markdown-it@14.3.0 resolution carries linkify-it@5.0.2. The offline pin-rot gate prevents a future override from becoming an untracked security exception; advisory provenance is scripts/pinned-override-rot.json."
+  "comment-security": "0.8.27 Slice 10: markdownlint-cli2@0.23.3 resolves patched smol-toml@1.8.0 plus js-yaml@5.4.1, while its markdown-it@15.0.1 resolution carries linkify-it@6.1.0. The offline pin-rot gate prevents a future override from becoming an untracked security exception; advisory provenance is scripts/pinned-override-rot.json."
 }

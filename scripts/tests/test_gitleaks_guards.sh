@@ -248,7 +248,7 @@ mkdir -p "$PERFORMANCE_FIXTURE/$(dirname "$performance_path")"
 git -C "$PERFORMANCE_FIXTURE" init -q
 git -C "$PERFORMANCE_FIXTURE" config user.email gitleaks-performance-test@example.invalid
 git -C "$PERFORMANCE_FIXTURE" config user.name 'Gitleaks Performance Test'
-printf '{"tokenizer.json":"%s","credential":"%s"}\n' \
+printf '{"tokenizer.json": "%s", "credential": "%s"}\n' \
   'd241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66' \
   "$token" >"$PERFORMANCE_FIXTURE/$performance_path"
 git -C "$PERFORMANCE_FIXTURE" add "$performance_path"

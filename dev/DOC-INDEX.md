@@ -56,11 +56,12 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/release-state-0.8.23.json` | Completed 0.8.23 release-state record | 0.8.23 history | 2026-08-23 |
 | `dev/plans/runs/STATUS-0.8.23.md` | Completed 0.8.23 state board, retained in place | 0.8.23 history | 2026-08-23 |
 | `dev/plans/plan-0.8.24.md` | Historical 0.8.24 plan; completed work is integrated into main | 0.8.24 history | 2026-09-02 |
-| `dev/plans/plan-0.8.25.md` | Proposed dependency-linear performance and Memex data-plane foldback plan | 0.8.25 | 2026-08-31 |
+| `dev/plans/plan-0.8.25.md` | Completed performance and Memex data-plane foldback plan | 0.8.25 history | 2026-09-21 |
 | `dev/plans/0.8.26-draft-scope.md` | Non-authoritative intake preserving work postponed from 0.8.24 and 0.8.25 | 0.8.26 draft | 2026-09-01 |
 | `dev/plans/plan-0.8.26.md` | Completed dependency-linear Memex P0–P2 contract-completion release plan | 0.8.26 history | 2026-09-19 |
+| `dev/plans/release-state-0.8.26.json` · `dev/plans/runs/STATUS-0.8.26.md` | Published release state and completed board through Slice 65 | 0.8.26 history | 2026-09-21 |
 | `dev/plans/0.8.26-prework-slices-0-9.md` | Draft environment, failure-evidence, HITL, and approved-prework contract | 0.8.26 Slices 0–9 | 2026-09-12 |
-| `dev/plans/0.8.26/` | Release-local plans, designs, reviews, and status records through architecture convergence | 0.8.26 Slice 45 | 2026-09-15 |
+| `dev/plans/0.8.26/` | Release-local plans, designs, reviews, and status records through Slice 65 | 0.8.26 Slice 65 | 2026-09-21 |
 | `dev/plans/0.8.26/slice-execution-contract.md` | Lean requirements-to-status workflow adopted by every 0.8.26 slice | 0.8.26 | 2026-09-12 |
 | `dev/plans/plan-0.8.27.md` | Correction-safe erasure and semantic-refactor release plan | 0.8.27 | 2026-09-21 |
 | `dev/plans/release-state-0.8.27.json` | Single-writer 0.8.27 ladder, decisions, and immediate-next state | 0.8.27 | 2026-09-21 |
@@ -74,7 +75,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/0.8.25/prework/slice-{3-contract-and-architecture-drafts,4-architecture-and-code-alignment,5-verification-adequacy}.md` | Draft contracts, as-built alignment, and verification-gap allocation | 0.8.25 Slices 3–5 | 2026-08-31 |
 | `dev/plans/memex-0.6.0-needs-in-fathomdb-0.8.25.md` | Code-grounded Memex needs crosswalk and slice allocation | 0.8.25 Slice 3 | 2026-08-31 |
 | `dev/plans/memex-0.6.0-collaboration/` | Three-slice plan plus value/risk-ranked FathomDB work scaffold for Memex 0.6.0 | Memex 0.6.0 collaboration | 2026-09-12 |
-| `dev/plans/fathomdb-data-plane-foldback-v2.md` | Active dependency-linear requirements/design/TDD delivery plan | 0.8.25 Slice 7 | 2026-09-02 |
+| `dev/plans/fathomdb-data-plane-foldback-v2.md` | Completed dependency-linear requirements/design/TDD record | 0.8.25 history | 2026-09-21 |
 | `dev/plans/fathomdb-data-plane-foldback-v1.md` | Superseded four-workstream foldback plan retained as history | 0.8.25 history | 2026-09-02 |
 | `dev/plans/fathomdb-data-plane-architecture-review-v1.md` | Independent two-cycle approval record for data-plane architecture v1 | 0.8.25 | 2026-08-31 |
 | `dev/plans/0.8.24/prework/slice-{0,1,2}-*.md` | 0.8.24 prework findings and design reviews | 0.8.24 Slices 0–2 | 2026-08-23 |
@@ -356,9 +357,9 @@ refresh in the closing commit when you touch a doc).
 | `docs/positions/tokenizer-policy.md` | Position: tokenizer policy | 5 (FTS5 default upgrade) | 2026-05-01 |
 | `docs/release-notes/0.8.26.md` | Published 0.8.26 highlights, schema boundary, artifacts, and install routes | 0.8.27 Slice 10 | 2026-09-21 |
 | `docs/positions/embedder-identity.md` | Position: embedder identity | — | 2026-05-01 |
-| `docs/release-notes/0.6.0.md` | 0.6.0 historical release notes; current-link banner names 0.8.23 | 0.8.24 Slice 7 | 2026-08-23 |
-| `docs/release-notes/0.6.1.md` | 0.6.1 historical release notes; current-link banner names 0.8.23 | 0.8.24 Slice 7 | 2026-08-23 |
-| `docs/release-notes/0.8.0.md` | 0.8.0 historical release notes; current-link banner names 0.8.23 | 0.8.24 Slice 7 | 2026-08-23 |
+| `docs/release-notes/0.6.0.md` | 0.6.0 historical release notes; current-link banner names 0.8.26 | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/release-notes/0.6.1.md` | 0.6.1 historical release notes; current-link banner names 0.8.26 | 0.8.27 Slice 10 | 2026-09-21 |
+| `docs/release-notes/0.8.0.md` | 0.8.0 historical release notes; current-link banner names 0.8.26 | 0.8.27 Slice 10 | 2026-09-21 |
 | `dev/releases/0.8.0.md` | 0.8.0 internal release record | 40/GA-2 | 2026-06-08 |
 
 ## Corpus / eval expansion (out-of-band, owner-managed — integrated at Slice-5 push 2026-06-02)

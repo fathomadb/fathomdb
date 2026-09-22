@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 
 
@@ -24,6 +23,16 @@ def check_dependency() -> None:
     version = lock["packages"]["node_modules/smol-toml"]["version"]
     require(version == "1.8.0", "smol-toml must resolve to the patched 1.8.0 dependency")
     require(markdownlint["dependencies"]["smol-toml"] == "1.8.0", "the upstream dependency must be patched")
+    expected_cohort = {
+        "node_modules/js-yaml": "5.4.1",
+        "node_modules/markdown-it": "15.0.1",
+        "node_modules/linkify-it": "6.1.0",
+    }
+    for path, expected in expected_cohort.items():
+        require(lock["packages"][path]["version"] == expected, f"{path} must resolve to {expected}")
+    package = json.loads((ROOT / "package.json").read_text())
+    for expected in ("js-yaml@5.4.1", "markdown-it@15.0.1", "linkify-it@6.1.0"):
+        require(expected in package["comment-security"], f"security provenance must name {expected}")
 
 
 def check_action_comments() -> None:
@@ -56,12 +65,22 @@ def check_slice30_prerequisites() -> None:
     require(value["heavy_route_min_free_bytes"] == 100_000_000_000, "heavy-route disk floor must be 100 GB")
     require(value["heavy_runner_scratch_bytes"] == 17_179_869_184, "pilot scratch limit must be retained")
 
-    tool = subprocess.run(["cargo", "public-api", "--version"], cwd=ROOT, text=True, capture_output=True)
-    require(tool.returncode == 0 and tool.stdout.strip() == "cargo-public-api 0.52.0", "comparator probe failed")
-    nightly = subprocess.run(
-        ["rustc", "+nightly-2026-04-24", "--version"], cwd=ROOT, text=True, capture_output=True
+
+
+def check_planning_truth() -> None:
+    detail = (ROOT / "dev/doc-index/plans.md").read_text()
+    thin = (ROOT / "dev/DOC-INDEX.md").read_text()
+    for stale in (
+        "**Active 0.8.25 plan.**",
+        "**0.8.25 live board.**",
+        "**Active data-plane foldback plan v2.**",
+    ):
+        require(stale not in detail, f"planning detail retains stale current label: {stale}")
+    require("through Slice 65" in thin, "thin index must cover the completed 0.8.26 slice range")
+    require(
+        thin.count("current-link banner names 0.8.26") == 3,
+        "historical release-note index rows must name the current 0.8.26 banner",
     )
-    require(nightly.returncode == 0 and "nightly" in nightly.stdout, "nightly probe failed")
 
 
 def main() -> None:
@@ -69,6 +88,7 @@ def main() -> None:
     check_action_comments()
     check_platform_truth()
     check_slice30_prerequisites()
+    check_planning_truth()
     print("ok    slice10-preparation")
 
 

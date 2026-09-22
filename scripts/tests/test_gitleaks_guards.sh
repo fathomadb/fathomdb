@@ -242,6 +242,27 @@ else
   pass "current-tree policy redacts synthetic key in an allowed path"
 fi
 
+PERFORMANCE_FIXTURE="$TMPROOT/performance-fixture"
+performance_path='experiments/configs/graph-retrieval-01/musique-native-expand.v1.json'
+mkdir -p "$PERFORMANCE_FIXTURE/$(dirname "$performance_path")"
+git -C "$PERFORMANCE_FIXTURE" init -q
+git -C "$PERFORMANCE_FIXTURE" config user.email gitleaks-performance-test@example.invalid
+git -C "$PERFORMANCE_FIXTURE" config user.name 'Gitleaks Performance Test'
+printf '{"tokenizer.json":"%s","credential":"%s"}\n' \
+  'd241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66' \
+  "$token" >"$PERFORMANCE_FIXTURE/$performance_path"
+git -C "$PERFORMANCE_FIXTURE" add "$performance_path"
+set +e
+performance_secret_out="$(GITLEAKS_BIN="$GITLEAKS_BIN" "$CURRENT_GUARD" "$PERFORMANCE_FIXTURE" 2>&1)"
+performance_secret_rc=$?
+set -e
+expect_nonzero "$performance_secret_rc" "performance digest exception rejects a synthetic credential in an allowed path"
+if [[ "$performance_secret_out" == *"$token"* ]]; then
+  fail "performance digest exception redacts a synthetic credential"
+else
+  pass "performance digest exception redacts a synthetic credential"
+fi
+
 ENUM_FIXTURE="$TMPROOT/current-enumeration-fixture"
 mkdir -p "$ENUM_FIXTURE"
 git -C "$ENUM_FIXTURE" init -q

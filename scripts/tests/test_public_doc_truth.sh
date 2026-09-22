@@ -154,6 +154,14 @@ sed -i 's/| \*\*yes\*\* (manylinux 2_28) |/| no |/' "$FIXTURE/docs/compatibility
 expect_fail "$FIXTURE" 'requires the published aarch64 native-artifact assertion'
 
 make_fixture "$FIXTURE"
+sed -i 's/, macOS x64\/arm64//' "$FIXTURE/docs/index.md"
+expect_fail "$FIXTURE" 'requires the macOS native-artifact boundary on each platform entry point'
+
+make_fixture "$FIXTURE"
+sed -i 's/, and Windows x64//' "$FIXTURE/docs/getting-started/index.md"
+expect_fail "$FIXTURE" 'requires the Windows native-artifact boundary on each platform entry point'
+
+make_fixture "$FIXTURE"
 sed -i 's/npm install fathomdb@next/npm install fathomdb@0.8.23/' "$FIXTURE/docs/install/typescript.md"
 expect_fail "$FIXTURE" 'requires npm next install guidance'
 

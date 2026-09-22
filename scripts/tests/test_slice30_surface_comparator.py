@@ -564,6 +564,67 @@ def main() -> None:
     else:
         raise AssertionError("drifted build:native script must fail closed")
 
+    # cfg on an enclosing item (fn/mod) gates every registration inside it.
+    assert_row_diff(
+        tool,
+        inputs,
+        lambda value: value.__setitem__(
+            "python_registrations",
+            value["python_registrations"].replace("    Ok(())\n}\n", "    Ok(())\n}\n")
+            + '#[cfg(feature = "test-hooks")]\n'
+            "fn register_hooks(m: &Bound<'_, PyModule>) -> PyResult<()> {\n"
+            "    m.add_class::<PyEngine>()?;\n"
+            "    Ok(())\n"
+            "}\n",
+        ),
+        "python-native-registrations",
+        "added",
+    )
+    gated_fn = tool.parse_python_registrations(
+        '#[cfg(feature = "test-hooks")]\n'
+        "fn register_hooks(m: &Bound<'_, PyModule>) -> PyResult<()> {\n"
+        "    m.add_class::<PyHook>()?;\n"
+        "    Ok(())\n"
+        "}\n"
+        '#[cfg(feature = "test-hooks")]\n'
+        "mod hooks {\n"
+        "    fn more(m: &Bound<'_, PyModule>) {\n"
+        '        m.add("HookError", py.get_type::<HookError>())?;\n'
+        "    }\n"
+        "}\n"
+        "fn shipped(m: &Bound<'_, PyModule>) -> PyResult<()> {\n"
+        "    m.add_class::<PyShipped>()?;\n"
+        "    Ok(())\n"
+        "}\n"
+    )
+    by_path = {entry["path"]: entry["signature"] for entry in gated_fn}
+    assert by_path["PyHook"].startswith('#[cfg(feature = "test-hooks")]'), by_path
+    assert by_path["HookError"].startswith('#[cfg(feature = "test-hooks")]'), by_path
+    assert by_path["PyShipped"] == "add_class::<PyShipped>", by_path
+
+    # Documentation is not surface: comment-only edits compare equal, and
+    # braces inside comments cannot merge or split declarations.
+    documented = copy.deepcopy(inputs)
+    documented["typescript_declarations"]["index.d.ts"] = ts["index.d.ts"].replace(
+        "export declare function search",
+        "/** Search; see {@link SearchHit}. Unbalanced opener: `{`. */\n"
+        "export declare function search",
+    )
+    documented["napi_declaration"] = inputs["napi_declaration"].replace(
+        "export declare function nativeSearch",
+        "/**\n * if x.is_some() { obj.set(\"x\", x)?;\n * // not code\n */\n"
+        "export declare function nativeSearch",
+    )
+    documented_result = tool.compare_manifests(
+        baseline, tool.capture_from_fixture(documented, metadata(tool))
+    )
+    assert documented_result["equal"], documented_result
+    literal = tool.parse_typescript_declarations(
+        'export type Url = "https://example.test/*path";\nexport type Next = "b";\n', "literal"
+    )
+    assert [entry["path"] for entry in literal] == ["Next", "Url"], literal
+    assert "https://example.test/*path" in literal[1]["signature"], literal
+
     agent_test = (ROOT / "scripts/agent-test.sh").read_text()
     assert "test-slice30-surface-comparator" in agent_test
     assert "scripts/tests/test_slice30_surface_comparator.py" in agent_test

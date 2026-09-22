@@ -765,3 +765,54 @@ fn correction_then_purge_of_corrected_logical_id_succeeds_and_erases_exact_rows(
     reopened.engine.close().unwrap();
     drop(fixture.dir);
 }
+
+fn retire(engine: &Engine, operation_id: &str, logical_id: &str, revision: &str) {
+    engine
+        .actuate(
+            ActuationBatchV1::new(
+                operation_id,
+                vec![ActuationOperationV1::TransitionLifecycle(
+                    LifecycleActuationV1::new(
+                        logical_id,
+                        ArtifactRevisionId::new(revision).unwrap(),
+                        LifecycleState::Deleted,
+                        Some("retired".into()),
+                    )
+                    .unwrap(),
+                )],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+}
+
+#[test]
+fn purge_after_dependents_are_gone_leaves_no_closure_for_an_erased_revision() {
+    let fixture = corrected_fixture("purge-dependent-first", "slice20-target", "slice20-target");
+    let engine = &fixture.opened.engine;
+    retire(engine, "slice20-retire-dependent", "slice20-dependent", "slice20-dependent-r1");
+    engine.purge("slice20-dependent").unwrap();
+    retire(engine, "slice20-retire-replacement", "slice20-source", "slice20-replacement-r2");
+    engine.purge("slice20-source").unwrap();
+
+    let connection = Connection::open(&fixture.db).unwrap();
+    assert_revisions(&connection, &["slice20-survivor-r1"]);
+    let orphaned = connection
+        .prepare(
+            "SELECT root_value,cause,phase FROM _fathomdb_dependency_closures \
+             WHERE root_kind='source_revision' AND root_value NOT IN \
+               (SELECT revision_id FROM _fathomdb_artifact_revisions)",
+        )
+        .unwrap()
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
+        })
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    let non_proof = orphaned.iter().filter(|(_, cause, _)| cause != "purged").collect::<Vec<_>>();
+    assert!(non_proof.is_empty(), "erased revision identifiers survive in closures: {non_proof:?}");
+    drop(connection);
+    fixture.opened.engine.close().unwrap();
+    drop(fixture.dir);
+}

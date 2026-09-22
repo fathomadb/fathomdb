@@ -19,6 +19,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from typing import Any, Iterable, Sequence
 
 
@@ -30,6 +31,7 @@ SCRATCH_MARKER = ".fathomdb-slice30-owned"
 MIN_FREE_BYTES = 100_000_000_000
 PINNED_CARGO_PUBLIC_API = "0.52.0"
 PINNED_NIGHTLY = "nightly-2026-04-24"
+PINNED_NODE = "v25.9.0"
 
 RUST_ROWS = [
     {
@@ -128,8 +130,12 @@ REQUIRED_ROW_IDENTITIES = RUST_ROWS + [
 ]
 
 
-class SurfaceError(RuntimeError):
+class ComparatorError(RuntimeError):
     """Capture or comparison input is ambiguous or invalid."""
+
+
+# Backward-compatible name retained for the initial Slice 30 fixture contract.
+SurfaceError = ComparatorError
 
 
 def canonical_json(value: Any) -> str:
@@ -224,6 +230,15 @@ def parse_python_registrations(text: str) -> list[dict[str, str]]:
         entries.append(_entry(name, "pyclass-registration", f"add_class::<{name}>"))
     for name in re.findall(r"wrap_pyfunction!\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,", text):
         entries.append(_entry(name, "pyfunction-registration", f"wrap_pyfunction!({name})"))
+    for match in re.finditer(
+        r'\bm\.add\(\s*"(?P<name>[A-Za-z_][A-Za-z0-9_]*)"\s*,\s*'
+        r'(?P<value>.*?)\)\?;',
+        text,
+        re.DOTALL,
+    ):
+        name = match.group("name")
+        value = _normalize_space(match.group("value"))
+        entries.append(_entry(name, "py-alias-registration", f'm.add("{name}", {value})'))
     if not entries:
         raise SurfaceError("PyO3 source contains no class or function registrations")
     return _unique(entries, "python-native-registrations")
@@ -245,7 +260,15 @@ def parse_python_stub(text: str) -> list[dict[str, str]]:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             entries.append(_entry(node.name, "stub-function", _python_signature(node)))
         elif isinstance(node, ast.ClassDef):
-            entries.append(_entry(node.name, "stub-class", f"class {node.name}"))
+            class_arguments = [_python_signature(base) for base in node.bases]
+            class_arguments.extend(
+                f"{keyword.arg}={_python_signature(keyword.value)}"
+                if keyword.arg is not None
+                else f"**{_python_signature(keyword.value)}"
+                for keyword in node.keywords
+            )
+            suffix = f"({', '.join(class_arguments)})" if class_arguments else ""
+            entries.append(_entry(node.name, "stub-class", f"class {node.name}{suffix}"))
             for member in node.body:
                 if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     entries.append(
@@ -454,9 +477,14 @@ def compare_manifests(baseline: dict[str, Any], candidate: dict[str, Any]) -> di
     candidate_metadata = candidate.get("metadata")
     if not isinstance(baseline_metadata, dict) or not isinstance(candidate_metadata, dict):
         raise SurfaceError("both manifests require metadata objects")
+    baseline_source_sha = _validated_source_sha(baseline_metadata, "baseline")
+    candidate_source_sha = _validated_source_sha(candidate_metadata, "candidate")
+    comparable_metadata_keys = (
+        set(baseline_metadata) | set(candidate_metadata)
+    ) - {"capture_source_sha"}
     metadata_diffs = {
         key: {"baseline": baseline_metadata.get(key), "candidate": candidate_metadata.get(key)}
-        for key in sorted(set(baseline_metadata) | set(candidate_metadata))
+        for key in sorted(comparable_metadata_keys)
         if baseline_metadata.get(key) != candidate_metadata.get(key)
     }
     baseline_rows = _row_map(baseline)
@@ -498,20 +526,35 @@ def compare_manifests(baseline: dict[str, Any], candidate: dict[str, Any]) -> di
     return {
         "equal": not metadata_diffs and not row_diffs,
         "metadata_diffs": metadata_diffs,
+        "provenance": {
+            "baseline_capture_source_sha": baseline_source_sha,
+            "candidate_capture_source_sha": candidate_source_sha,
+            "same_source": baseline_source_sha == candidate_source_sha,
+        },
         "row_diffs": row_diffs,
     }
 
 
+def _validated_source_sha(metadata: dict[str, Any], label: str) -> str:
+    value = metadata.get("capture_source_sha")
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{40}", value) is None:
+        raise ComparatorError(f"{label} capture_source_sha must be a full lowercase Git SHA")
+    return value
+
+
 def _run(command: Sequence[str], cwd: Path, env: dict[str, str] | None = None) -> str:
-    completed = subprocess.run(
-        list(command),
-        cwd=cwd,
-        env=env,
-        check=False,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    try:
+        completed = subprocess.run(
+            list(command),
+            cwd=cwd,
+            env=env,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except OSError as exc:
+        raise ComparatorError(f"cannot execute {' '.join(command)}: {exc}") from exc
     if completed.returncode != 0:
         diagnostic = "\n".join(
             part.rstrip() for part in (completed.stdout, completed.stderr) if part.strip()
@@ -522,11 +565,13 @@ def _run(command: Sequence[str], cwd: Path, env: dict[str, str] | None = None) -
     return completed.stdout
 
 
-def _exact_version(command: Sequence[str], expected: str) -> str:
+def _exact_version(command: Sequence[str], expected_output: str) -> str:
     output = _run(command, REPO_ROOT).strip()
-    if expected not in output:
-        raise SurfaceError(f"expected {expected!r} from {' '.join(command)}, got {output!r}")
-    return expected
+    if output != expected_output:
+        raise ComparatorError(
+            f"expected exact output {expected_output!r} from {' '.join(command)}, got {output!r}"
+        )
+    return output
 
 
 def _clean_source(source_sha: str) -> None:
@@ -554,13 +599,16 @@ def _prepare_scratch() -> None:
 
 
 def _tool_metadata(source_sha: str) -> dict[str, Any]:
-    _exact_version(["cargo", "public-api", "--version"], PINNED_CARGO_PUBLIC_API)
+    _exact_version(
+        ["cargo", "public-api", "--version"],
+        f"cargo-public-api {PINNED_CARGO_PUBLIC_API}",
+    )
     rustc = _run(["rustc", f"+{PINNED_NIGHTLY}", "--version"], REPO_ROOT).strip()
     target_report = _run(["rustc", f"+{PINNED_NIGHTLY}", "-vV"], REPO_ROOT)
     target_match = re.search(r"^host:\s*(\S+)$", target_report, re.MULTILINE)
     if target_match is None:
         raise SurfaceError("nightly rustc did not report a host target")
-    node = _run(["node", "--version"], REPO_ROOT).strip()
+    node = _exact_version(["node", "--version"], PINNED_NODE)
     typescript = _run(["npm", "exec", "--", "tsc", "--version"], REPO_ROOT / "src/ts").strip()
     match = re.fullmatch(r"Version\s+(\S+)", typescript)
     if match is None:
@@ -652,13 +700,52 @@ def _load_manifest(path: Path) -> dict[str, Any]:
     return value
 
 
+def _guard_capture_output(output: Path) -> None:
+    baseline = REPO_ROOT / "dev/plans/0.8.27/features/slice-30/baseline.json"
+    if output.resolve() == baseline.resolve():
+        raise ComparatorError("capture cannot directly rewrite the tracked reviewed baseline")
+    if output.exists() and baseline.exists():
+        try:
+            aliases_baseline = output.samefile(baseline)
+        except OSError as exc:
+            raise ComparatorError(f"cannot validate capture output identity: {exc}") from exc
+        if aliases_baseline:
+            raise ComparatorError("capture cannot rewrite a hardlink alias of the reviewed baseline")
+
+
+def _atomic_write(output: Path, contents: str) -> None:
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=output.parent,
+            prefix=f".{output.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary_path = Path(handle.name)
+            handle.write(contents)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, output)
+        temporary_path = None
+    except OSError as exc:
+        raise ComparatorError(f"atomic manifest write failed for {output}: {exc}") from exc
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
 def _capture_command(args: argparse.Namespace) -> int:
     output = args.output.resolve()
-    if output == (REPO_ROOT / "dev/plans/0.8.27/features/slice-30/baseline.json").resolve():
-        raise SurfaceError("capture cannot directly rewrite the tracked reviewed baseline")
+    _guard_capture_output(output)
     manifest = capture_repository(args.source_sha)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(canonical_json(manifest))
+    _atomic_write(output, canonical_json(manifest))
     print(f"captured {len(manifest['rows'])} rows to {output}")
     return 0
 
@@ -687,7 +774,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = _parser().parse_args(argv)
         return args.run(args)
-    except SurfaceError as exc:
+    except ComparatorError as exc:
         print(f"surface-comparator: {exc}", file=sys.stderr)
         return 2
 

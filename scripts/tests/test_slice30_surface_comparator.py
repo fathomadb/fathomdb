@@ -335,9 +335,9 @@ def main() -> None:
         else:
             raise AssertionError("tool version substring must not satisfy an exact pin")
 
-    with tempfile.TemporaryDirectory() as directory:
+    baseline_path = ROOT / "dev/plans/0.8.27/features/slice-30/baseline.json"
+    with tempfile.TemporaryDirectory(dir=baseline_path.parent) as directory:
         temporary = Path(directory)
-        baseline_path = ROOT / "dev/plans/0.8.27/features/slice-30/baseline.json"
         hardlink = temporary / "baseline-hardlink.json"
         os.link(baseline_path, hardlink)
         try:

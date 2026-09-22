@@ -137,6 +137,7 @@ run_tier_suite fast test-slice10-preparation python3 scripts/tests/test_slice10_
 run_tier_suite fast test-slice30-surface-comparator python3 scripts/tests/test_slice30_surface_comparator.py
 run_tier_suite fast test-napi-build-hermetic python3 scripts/tests/test_napi_build_hermetic.py
 run_tier_suite heavy test-napi-build-hermetic-executable python3 scripts/tests/test_napi_build_hermetic.py --execute
+run_tier_suite fast test-python-artifact-gate-contract python3 scripts/tests/test_python_artifact_gate_contract.py
 run_tier_suite fast test-check-architecture-authority bash scripts/tests/test_check_architecture_authority.sh
 run_tier_suite fast test-check-design-lifecycle bash scripts/tests/test_check_design_lifecycle.sh
 run_tier_suite fast test-slice70-embedding-docs-contract bash scripts/tests/test_slice70_embedding_docs_contract.sh

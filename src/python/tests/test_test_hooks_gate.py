@@ -36,6 +36,8 @@ from _test_hooks_gate import (
     REBUILD,
     REBUILD_OPT_IN,
     TEST_HOOK_SYMBOLS,
+    candidate_wheel_command,
+    clean_candidate_sha,
     decide,
     hook_symbol_name,
     missing_symbols_from_probe,
@@ -123,6 +125,55 @@ def test_candidate_receipt_is_atomic_and_binds_commit_path_digest_and_nonce() ->
         assert not list(root.glob(".receipt.json.*"))
 
 
+def test_candidate_sha_refuses_tracked_and_untracked_dirt() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        repo = Path(directory)
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        source = repo / "source.txt"
+        source.write_text("clean\n")
+        subprocess.run(["git", "-C", str(repo), "add", "source.txt"], check=True)
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "-c",
+                "user.name=Gate Test",
+                "-c",
+                "user.email=gate@example.invalid",
+                "-c",
+                "commit.gpgsign=false",
+                "commit",
+                "-qm",
+                "fixture",
+            ],
+            check=True,
+        )
+        assert len(clean_candidate_sha(repo)) == 40
+        source.write_text("dirty\n")
+        try:
+            clean_candidate_sha(repo)
+        except RuntimeError as exc:
+            assert "clean worktree" in str(exc)
+        else:
+            raise AssertionError("tracked dirt was accepted")
+        subprocess.run(["git", "-C", str(repo), "restore", "source.txt"], check=True)
+        (repo / "untracked.txt").write_text("dirty\n")
+        try:
+            clean_candidate_sha(repo)
+        except RuntimeError as exc:
+            assert "clean worktree" in str(exc)
+        else:
+            raise AssertionError("untracked dirt was accepted")
+
+
+def test_candidate_wheel_build_is_locked_and_noneditable() -> None:
+    command = candidate_wheel_command("python", Path("/tmp/wheels"))
+    assert command[:4] == ("python", "-m", "maturin", "build")
+    assert "--locked" in command
+    assert "develop" not in command
+
+
 def test_wheel_context_proceeds_without_a_source_tree() -> None:
     """Release-surface tests run the test files against a pip-installed wheel."""
 
@@ -141,7 +192,8 @@ def test_default_editable_checkout_degrades_never_raises() -> None:
     assert decision.is_degraded
     # The message has to tell the reader how to fix it.
     assert REBUILD_OPT_IN in decision.reason
-    assert "maturin develop" in decision.reason
+    assert "agent-test.sh --tier=heavy" in decision.reason
+    assert "maturin develop" not in decision.reason
 
 
 def test_authorized_rebuild_still_refused_when_venv_is_foreign() -> None:

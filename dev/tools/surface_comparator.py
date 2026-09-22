@@ -1148,7 +1148,27 @@ def capture_repository(source_sha: str) -> dict[str, Any]:
 
         ts_root = REPO_ROOT / "src/ts"
         _validate_napi_build_script((ts_root / "package.json").read_text())
-        _run(["npm", "run", "build:native"], ts_root, env)
+        # napi-rs writes `index.d.ts` from a type-definition file under TMPDIR
+        # that its proc macros only rewrite when the crate recompiles. A cached
+        # build would otherwise reuse whatever the last build for this checkout
+        # left there (for example a test-hooks debug build). Force the NAPI
+        # crate to recompile and give it a private TMPDIR.
+        _run(
+            [
+                "cargo",
+                "clean",
+                "--manifest-path",
+                str(REPO_ROOT / "Cargo.toml"),
+                "-p",
+                "fathomdb-napi",
+                "--release",
+            ],
+            REPO_ROOT,
+            env,
+        )
+        napi_tmp = OWNED_SCRATCH / "napi-tmp"
+        napi_tmp.mkdir(parents=True, exist_ok=True)
+        _run(["npm", "run", "build:native"], ts_root, {**env, "TMPDIR": str(napi_tmp)})
         _run(["npm", "exec", "--", "tsc", "-p", "tsconfig.build.json"], ts_root, env)
         # Declarations are emitted into the owned scratch root so only files
         # produced by this capture are read, never stale `dist/` output.

@@ -652,6 +652,36 @@ def test_release_probe(tool: ModuleType) -> None:
     expect_error(tool, lambda: tool.generate_probe([unsupported]), "probe")
 
 
+def test_release_probe_owner_gated_impls(tool: ModuleType) -> None:
+    """A trait impl gated only through its owner type is probed by naming the
+    owner; canonical trait paths can be private or unstable (for example
+    `core::ops::drop::Drop`, `core::marker::StructuralPartialEq`)."""
+
+    gated = doc("base-default")
+    thing = next(
+        item
+        for item in gated["index"].values()
+        if item["name"] == "Thing" and "struct" in item["inner"]
+    )
+    thing["attrs"].append(
+        {
+            "other": '#[attr = CfgTrace([NameValue { name: "debug_assertions", '
+            "value: None, span: src/inner.rs:1:7: 1:23 (#0) }])]"
+        }
+    )
+    items = {item.path: item for item in tool.select_probe_items(tool.walk(gated), [])}
+    clone = items["hs_fixture::Thing::impl core::clone::Clone"]
+    assert (clone.form, clone.owner_path) == ("owner", "hs_fixture::Thing")
+    # Owner-gated wins over an impl-site gate: the owner's absence suffices.
+    assert items["hs_fixture::Thing::impl hs_fixture::DebugOnlyTrait"].form == "owner"
+    assert items["hs_fixture::Thing::get"].form == "value"
+    assert items["hs_fixture::Thing"].form == "use"
+    source, ranges = tool.generate_probe([clone])
+    assert "    use hs_fixture::Thing as _;\n" in source
+    assert "// hs_probe 0: impl hs_fixture::Thing::impl core::clone::Clone\n" in source
+    assert len(ranges) == 1
+
+
 def test_release_only_scan(tool: ModuleType) -> None:
     sources = {
         "lib.rs": (
@@ -736,6 +766,7 @@ def main() -> None:
         test_git_is_read_only,
         test_toolchain_and_format_checks,
         test_release_probe,
+        test_release_probe_owner_gated_impls,
         test_release_only_scan,
         test_rows_and_wiring,
     ]

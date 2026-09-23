@@ -238,7 +238,8 @@ echo "OK pub-use-block-partial reopened-with-context"
 #   W-2: dropped from deep inside a long block (full-context patch; the
 #        live-git path is covered by the temp-repo case below).
 #   W-3: only a cfg attribute added above an unchanged `pub use`, item, or
-#        inline module whose contents then leave the default build.
+#        inline module whose contents then leave the default build; likewise
+#        an item removed and re-added behind a cfg attribute.
 w_case() {
     local case_name="$1" expected_name="$2"
     set +e
@@ -266,11 +267,13 @@ w_case w3-cfg-added-single Foo
 w_case w3-cfg-added-group "Bar Baz"
 w_case w3-cfg-added-item Foo
 w_case w3-cfg-added-mod-block Foo
+w_case item-made-conditional Foo
 
 # Same-file cancellation still holds for the per-side parse: a name moved
 # from a cfg-gated block into an unconditional one, or from a `pub use` to a
-# direct public item, is still exported by the default build.
-for case_name in moved-into-unconditional-block use-to-item; do
+# direct public item, is still exported by the default build; a cfg-gated
+# item moved within the file stays exactly as conditional as it was.
+for case_name in moved-into-unconditional-block use-to-item item-gated-move; do
     if ! python3 "$LINT" \
         --diff-file "$FIX/pub-use-full-context/$case_name.patch" \
         --changelog "$FIX/pub-use-full-context/CHANGELOG.md" \

@@ -1,0 +1,8 @@
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,3 +1,4 @@
+-pub fn Foo() {}
+ pub fn keep() {}
++#[cfg(feature = "operator")]
++pub fn Foo() {}

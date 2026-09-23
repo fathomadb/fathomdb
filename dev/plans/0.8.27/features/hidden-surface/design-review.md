@@ -23,3 +23,16 @@ Independent read-only review, validated against the real engine rustdoc JSON
 | D-8 | P2 | No successor baseline after Slice 140, no Slice 150 run, no real-data injection. | Successor baselines with diff records; cadence step 4, Slices 140 and 150; injection AC. |
 | D-9 | P3 | Fixtures carry host paths; fixture crate needs its own workspace; hazard cases missing. | Canonicalizing regeneration script; extended fixture crate. |
 | D-10 | P3 | Schema check, exclusive create, heavy-tier labelling, `for-each-ref`, deviation note. | All adopted. |
+
+## Round 2 (822e73a2): FAIL
+
+Round-1 fixes confirmed empirically: the fixture move compares equal and a
+full id renumbering of the real engine JSON changes 0 of 2,698 entries.
+
+| ID | Sev | Finding | Chosen remediation |
+| --- | --- | --- | --- |
+| E-1 | P1 | Rustdoc always enables `debug_assertions`, so a release-profile rustdoc row cannot exist; ACH-1's facade claims were wrong. | Owner ruling `hidden-surface-release-probe`: per-site cfg predicates in signatures plus a release compile probe; ACH-1 corrected. |
+| E-2 | P1 | Facade re-exports are external, so `paths` gives engine definition locations (D-1 again at the crate boundary). | External re-export signatures use the facade's own `use.source` spelling. |
+| E-3 | P2 | The injection as written does not compile; a `--source-dir` manifest would look like a real capture. | Self-contained `decode_dependency_trace_root_for_test` injected at both sites; `export` subcommand; `source_modified` label; baseline-directory refusal. |
+| E-4 | P3 | `private:<defining path>` still depends on location. | `private:<kind>:<name>` with a collision suffix. |
+| E-5 | P3 | Capacity paths, absolute paths in row identities, "newest baseline", shared JSON output, cache growth, fixture size. | Own capacity check; relative arguments; most-recent-ancestor baseline rule; `flock` and read-after-run; stable export path and `prune`; pruned `paths`. |

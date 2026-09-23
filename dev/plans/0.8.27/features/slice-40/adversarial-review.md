@@ -46,3 +46,10 @@ re-run the same command pair to reproduce.
   gate caught these). Also Y-2 (P3: `examples/`, `benches/`, `build.rs` share
   the crate key) and Y-3 (P3: associated items keyed by last type segment).
   Awaiting HITL direction.
+- **Y-1 resolved (HITL-authorized FIX-5 to FIX-7):** move cancellation now
+  requires the public path to survive — the crate root re-exports the name and
+  every module segment on the way is private and not re-exported; `pub mod`
+  paths fail closed; only library `src/` counts; items keyed by owner and
+  namespace. Final verification: no P0–P2. Residual P3 fail-closed false
+  positives (root item sharing a private module's name; `pub mod` below a
+  restricted ancestor) are documented in the script header.

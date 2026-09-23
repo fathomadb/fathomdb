@@ -70,7 +70,9 @@ RUST_PUBLIC_USE = re.compile(r"^\s*pub\s+use\s+(.+);\s*$", re.DOTALL)
 #   - A free item moved between files, or into a `pub mod`, is reported
 #     unless the crate root re-exports its name (the module path changed).
 #   - A free item (or `pub use`) under any unrestricted `pub mod` segment —
-#     cfg-gated or not, file or inline, at any depth — or under a module the
+#     cfg-gated or not, file or inline, at any depth, even below a restricted
+#     ancestor where the path is not actually reachable (fails closed) — or
+#     under a module the
 #     crate root re-exports (`pub use a::b;`, `pub use a::b as api;`) has
 #     its own path (`crate::a::X`, `crate::api::X`); losing it is reported
 #     even when the crate root (by name or glob) still exports `X`, e.g. an
@@ -104,6 +106,10 @@ RUST_PUBLIC_USE = re.compile(r"^\s*pub\s+use\s+(.+);\s*$", re.DOTALL)
 #     `#[path = "x.rs"] pub mod api;` beside a private `mod x;` is unseen.
 #   - A dropped `pub use x::open` (target kind unknown) cancels against a
 #     same-named `pub mod open` in the same file or crate root.
+#   - The root re-export check matches the last segment of every root
+#     `pub use` leaf, items included, so a root re-export of an item that
+#     shares a private module's name (`mod open; pub use open::{open, ..};`)
+#     blocks cancellation for moves out of that module (fails closed).
 #   - An associated item cancels on any same-crate `impl` of a type with the
 #     same last path segment, so two distinct same-named types in different
 #     modules can cancel each other's method removals.
@@ -608,8 +614,9 @@ def _root_path_only(
     be declared, in its parent file (either side seen), private or
     `pub(...)`-restricted and never unrestricted `pub`, and the crate root
     must not re-export any of them by name or alias (`pub use a::b as api`
-    makes `crate::api::X` public). An unrestricted `pub mod` gives the item
-    its own path (`crate::a::X`) that a root name does not keep; an
+    makes `crate::api::X` public). An unrestricted `pub mod` is treated as
+    giving the item its own path (`crate::a::X`) that a root name does not
+    keep, even below a restricted ancestor; an
     undeclared or unseen module, or an unknown inline owner, fails closed.
     """
 

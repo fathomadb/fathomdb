@@ -157,14 +157,17 @@ _CHANGED_MARK = "\x00"
 
 def _mark_line(content: str, changed: bool) -> str:
     """Prefix `content` (one diff line's text, +/-/space marker stripped)
-    with `_CHANGED_MARK` at the start and immediately after every top-level
-    comma, so a flat multi-name line (`A, B, C,` — the common rustfmt shape
+    with `_CHANGED_MARK` at the start and after every `,`/`{` that has more
+    text on the same line, so a flat multi-name line (`A, B, C,` — the common rustfmt shape
     once several re-exported names share a line) attributes the mark to
     EACH name it carries, not just the first. A no-op for context lines.
     """
     if not changed:
         return content
-    return _CHANGED_MARK + content.replace(",", "," + _CHANGED_MARK)
+    # Only a separator followed by more text on this line starts a name on
+    # this line; marking after a trailing `,`/`{` would leak the mark onto
+    # the first name of the next (possibly unchanged context) line.
+    return _CHANGED_MARK + re.sub(r"([,{])(?=\s*\S)", r"\1" + _CHANGED_MARK, content)
 
 
 def _rust_reexport_marked_names(marked_statement: str) -> set[str]:
@@ -175,7 +178,9 @@ def _rust_reexport_marked_names(marked_statement: str) -> set[str]:
     unchanged context — are returned.
     """
 
-    match = RUST_PUBLIC_USE.match(marked_statement)
+    # A changed opening line carries a leading mark; names on it are marked
+    # after their `{`/`,` separators, so the leading one is not needed.
+    match = RUST_PUBLIC_USE.match(marked_statement.lstrip(_CHANGED_MARK))
     if match is None:
         return set()
 
@@ -225,23 +230,24 @@ def _side_pub_use_step(
     changed: bool,
     active: bool,
     lines: list[str],
+    start_on_changed: bool = False,
 ) -> tuple[bool, list[str], str | None]:
     """Advance a ONE-SIDED (old: context+removed, or new: context+added)
     ``pub use { ... }`` reconstruction (fix-2 / V-2) by one line of that
     side's view, and return the completed marked statement text once a
     terminating ``;`` is seen (else None).
 
-    Only starts on a CONTEXT line (``changed`` False) — a statement whose
-    opening line is itself on this side is already handled by the existing,
-    cfg-aware `rust_public_use` (added) / `rust_public_use_removed`
-    (removed) accumulators, and must not be double-processed here (that
-    would bypass V-1's cfg-gate fail-closed semantics for the added side).
-    This targets exactly the gap those accumulators can't see: a multi-line
-    block whose opening (and/or closing) brace line is unchanged context,
-    so only inner lines carry a `+`/`-`.
+    Starts on a CONTEXT opening line, or also on a changed one when
+    ``start_on_changed`` (old side only). The added side must not start on
+    an added opening line: the cfg-aware `rust_public_use` accumulator owns
+    that case, and double-processing it would bypass V-1's cfg-gate
+    fail-closed semantics. The old side has no cfg concern, and starting on
+    a removed opening line covers a removed block whose inner lines mix
+    removed and context lines, which the contiguous removed-side
+    accumulator resets on.
     """
     if not active:
-        if changed or not _PUB_USE_LINE_START.match(content):
+        if (changed and not start_on_changed) or not _PUB_USE_LINE_START.match(content):
             return active, lines, None
         active = True
         lines = []
@@ -392,7 +398,7 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
                         )
                     rust_public_use_removed = []
                 old_pub_use_active, old_pub_use_lines, old_statement = _side_pub_use_step(
-                    line, True, old_pub_use_active, old_pub_use_lines
+                    line, True, old_pub_use_active, old_pub_use_lines, start_on_changed=True
                 )
                 if old_statement is not None:
                     for name in _rust_reexport_marked_names(old_statement):

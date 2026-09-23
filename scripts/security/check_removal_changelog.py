@@ -37,6 +37,12 @@ TS_PUBLIC = re.compile(
     r"(function|class|const|let|var|type|interface|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)"
 )
 RUST_PUBLIC_USE = re.compile(r"^\s*pub\s+use\s+(.+);\s*$", re.DOTALL)
+# A cfg-gated `pub use` does not unconditionally restore a removed public
+# name — the re-export only exists when the cfg predicate holds, so it must
+# not cancel the removal (fail closed). Matched against attribute lines that
+# immediately precede a `pub use` in the added-lines run.
+RUST_CFG_ATTR = re.compile(r"^#\s*\[\s*cfg(?:_attr)?\s*\(")
+RUST_ATTR_LINE = re.compile(r"^#!?\s*\[.*\]\s*$")
 
 
 @dataclass(frozen=True)
@@ -146,10 +152,22 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
 
     current_path: str | None = None
     current_kind: str | None = None
+    # Added-side `pub use` accumulator (C-1 adds cfg-gate tracking: a name
+    # exported only under `#[cfg(...)]`/`#[cfg_attr(...)]` must not cancel a
+    # removal of the same name).
     rust_public_use: list[str] = []
+    rust_public_use_cfg_gated = False
+    rust_cfg_pending = False
+    # Removed-side `pub use` accumulator (C-2): a removed re-export is itself
+    # a removal of its exported names, subject to the same cancellation via
+    # `real_removals` if the name re-appears (unconditionally) in `additions`.
+    rust_public_use_removed: list[str] = []
     for raw in diff_text.splitlines():
         if raw.startswith("+++ "):
             rust_public_use = []
+            rust_public_use_cfg_gated = False
+            rust_cfg_pending = False
+            rust_public_use_removed = []
             # New-path marker is more reliable than the diff header for
             # in-file renames; both old and new paths are the same in
             # normal removals.
@@ -160,6 +178,9 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
             continue
         if raw.startswith("--- "):
             rust_public_use = []
+            rust_public_use_cfg_gated = False
+            rust_cfg_pending = False
+            rust_public_use_removed = []
             spec = raw[4:].strip()
             spec = spec.removeprefix("a/")
             if spec != "/dev/null":
@@ -168,16 +189,30 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
             continue
         if raw.startswith("@@"):
             rust_public_use = []
+            rust_public_use_cfg_gated = False
+            rust_cfg_pending = False
+            rust_public_use_removed = []
             continue
-        if rust_public_use and not (raw.startswith("+") and not raw.startswith("+++")):
+
+        is_added_line = raw.startswith("+") and not raw.startswith("+++")
+        is_removed_line = raw.startswith("-") and not raw.startswith("--")
+        # Contiguity resets: both accumulators only span an unbroken run of
+        # their own +/- lines respectively.
+        if not is_added_line:
             rust_public_use = []
+            rust_public_use_cfg_gated = False
+            rust_cfg_pending = False
+        if not is_removed_line:
+            rust_public_use_removed = []
+
         if current_kind is None or current_path is None:
             continue
         # Skip hunk headers and diff metadata.
         if raw.startswith("+++") or raw.startswith("---"):
             continue
-        if raw.startswith("-") and not raw.startswith("--"):
-            match = _scan_line(current_kind, raw[1:])
+        if is_removed_line:
+            line = raw[1:]
+            match = _scan_line(current_kind, line)
             if match:
                 symbol_kind, name = match
                 removals.add(
@@ -188,21 +223,50 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
                         name=name,
                     )
                 )
-        elif raw.startswith("+") and not raw.startswith("++"):
+            if current_kind == "rust":
+                if rust_public_use_removed:
+                    rust_public_use_removed.append(line)
+                elif re.match(r"^\s*pub\s+use\b", line):
+                    rust_public_use_removed = [line]
+                if rust_public_use_removed and ";" in line:
+                    statement = "\n".join(rust_public_use_removed)
+                    for name in _rust_reexport_names(statement):
+                        removals.add(
+                            Removal(
+                                path=current_path,
+                                kind=current_kind,
+                                symbol_kind="use",
+                                name=name,
+                            )
+                        )
+                    rust_public_use_removed = []
+        elif is_added_line:
             line = raw[1:]
             match = _scan_line(current_kind, line)
             if match:
                 additions.add((current_path, current_kind, match[1]))
             if current_kind == "rust":
-                if rust_public_use:
-                    rust_public_use.append(line)
-                elif re.match(r"^\s*pub\s+use\b", line):
-                    rust_public_use = [line]
-                if rust_public_use and ";" in line:
-                    statement = "\n".join(rust_public_use)
-                    for name in _rust_reexport_names(statement):
-                        additions.add((current_path, current_kind, name))
-                    rust_public_use = []
+                stripped = line.strip()
+                if RUST_CFG_ATTR.match(stripped):
+                    rust_cfg_pending = True
+                elif RUST_ATTR_LINE.match(stripped):
+                    # Non-cfg attribute: keep any pending cfg gate alive
+                    # through stacked attributes above the `pub use`.
+                    pass
+                else:
+                    if rust_public_use:
+                        rust_public_use.append(line)
+                    elif re.match(r"^\s*pub\s+use\b", line):
+                        rust_public_use = [line]
+                        rust_public_use_cfg_gated = rust_cfg_pending
+                    if rust_public_use and ";" in line:
+                        statement = "\n".join(rust_public_use)
+                        if not rust_public_use_cfg_gated:
+                            for name in _rust_reexport_names(statement):
+                                additions.add((current_path, current_kind, name))
+                        rust_public_use = []
+                        rust_public_use_cfg_gated = False
+                    rust_cfg_pending = False
 
     return removals, additions
 

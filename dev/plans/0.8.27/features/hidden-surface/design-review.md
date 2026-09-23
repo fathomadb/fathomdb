@@ -36,3 +36,24 @@ full id renumbering of the real engine JSON changes 0 of 2,698 entries.
 | E-3 | P2 | The injection as written does not compile; a `--source-dir` manifest would look like a real capture. | Self-contained `decode_dependency_trace_root_for_test` injected at both sites; `export` subcommand; `source_modified` label; baseline-directory refusal. |
 | E-4 | P3 | `private:<defining path>` still depends on location. | `private:<kind>:<name>` with a collision suffix. |
 | E-5 | P3 | Capacity paths, absolute paths in row identities, "newest baseline", shared JSON output, cache growth, fixture size. | Own capacity check; relative arguments; most-recent-ancestor baseline rule; `flock` and read-after-run; stable export path and `prune`; pruned `paths`. |
+
+## Round 3 (b34df007): FAIL on E'-1 only; text fixes applied (FIX-3)
+
+E-1 to E-5 confirmed resolved. Empirical checks passed:
+
+- all 94 real `CfgTrace` attributes parse;
+- a release build reports unresolved debug-only items per function;
+- the facade's `use.source` spellings are stable;
+- the corrected injection adds exactly one entry.
+
+The reviewer stated that with E'-1 to E'-4 fixed as below the design is
+PASS-WITH-FINDINGS without a further round.
+
+| ID | Sev | Finding | Chosen remediation (verified by the reviewer) |
+| --- | --- | --- | --- |
+| E'-1 | P1 | A generated consumer crate cannot build under `--locked` (new lock entry) or inside the workspace as a non-member. | Probe as `examples/hs_probe.rs` inside the exported engine and facade crates; `--locked --offline`; no manifest or lock change. |
+| E'-2 | P2 | Release-only discovery infeasible; some kinds cannot be named; selection row unstated. | Curated release-only list plus a fail-closed source scan; probe form per kind (trait impls by trait bound, fields and variants by predicate only); selection from the default rows with all site predicates evaluated. |
+| E'-3 | P2 | The injection target shares a gated `pub use` group with a still-gated item. | Split the group; exact edit written into the design. |
+| E'-4 | P3 | Canonical predicate order in ACH-1; `export` directory collides with `<root>/src`; ancestor-module cfgs for the probe. | Canonical order quoted; `<root>/exports/<sha>-<n>` with `discard`; ancestor module predicates included in probe evaluation. |
+
+Design status: APPROVED after FIX-3.

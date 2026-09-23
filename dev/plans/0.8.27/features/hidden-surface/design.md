@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 hidden-surface oracle - design
-status: PROPOSED
+status: APPROVED
 target_release: 0.8.27
 ---
 
@@ -20,7 +20,8 @@ scratch, cache, capacity check, and output handling. It never edits the Slice
 
 ```text
 hidden_surface.py capture --source-sha <40-hex> --output <new file>
-hidden_surface.py export  --source-sha <40-hex>          # prints a persistent owned dir
+hidden_surface.py export  --source-sha <40-hex>          # prints <root>/exports/<sha>-<n>
+hidden_surface.py discard --source-dir <owned export dir>
 hidden_surface.py capture --source-dir <owned export dir> --output <new file>
 hidden_surface.py compare --baseline <file> --candidate <file>
 ```
@@ -63,6 +64,10 @@ capture error.
 9. Normalize, build the manifest, and write it with an exclusive create: write
    a temporary file in the output directory, `os.link` it to the output path
    (fails if the path exists), and remove the temporary file either way.
+
+`export` writes to `<root>/exports/<sha>-<n>`, never to `<root>/src`, which
+`capture --source-sha` clears. Only an explicit `discard` or `prune` removes an
+export. `--source-dir` accepts only directories under `<root>/exports/`.
 
 Metadata: `schema`, `capture_source_sha`, `source_modified` (true only for
 `--source-dir`, with `source_tree_sha256` of the exported files),
@@ -140,20 +145,37 @@ that still compile the item.
 ## Release probe (RH-10)
 
 Rustdoc always enables `debug_assertions`, so no rustdoc row can show a
-release build. After the rustdoc rows, the capture:
+release build. After the rustdoc rows (and after `source_tree_sha256` is
+computed), the capture:
 
-1. Selects every engine or facade entry whose predicate at any site requires
-   `debug_assertions` to be true (expected `unresolved` in release), and every
-   facade item whose predicate requires `not(debug_assertions)` (expected
-   `resolved`; found by a release-profile `cargo check` of the facade in the
-   same export, since rustdoc cannot see it).
-2. Generates a consumer crate in the export directory that depends on the
-   crate by path, with one function per selected item naming its public path.
-3. Runs `cargo check --release --locked --message-format json` and maps each
-   `unresolved` diagnostic to its function.
-4. Emits the `release-probe` row: one entry per item, `kind:
+1. **Selects items.** From the `engine-default` and `facade-default` rows, it
+   selects every entry whose conjunction of site predicates (own, use, impl,
+   and any gated ancestor module) is false once `debug_assertions` and `test`
+   are false and no features are enabled. Those are expected `unresolved`.
+   Release-only items (true only under `not(debug_assertions)`) are invisible
+   to rustdoc. They come from a curated list in the tool, today only the
+   facade's `release_surface_raw_sql_absence_proof`, and are expected
+   `resolved`. A source scan fails the capture if any public item gated on
+   `not(debug_assertions)` in the exported engine or facade `src/` is missing
+   from that list.
+2. **Generates the probe.** It writes `examples/hs_probe.rs` into the exported
+   engine and facade crates. Cargo discovers examples automatically, so
+   neither `Cargo.toml` nor `Cargo.lock` changes. There is one function per
+   item, and each form depends on the item's kind:
+   - a fn, type, constant, static, or module is named by its public path;
+   - an associated item is named `Type::name`;
+   - a trait impl is checked by a trait-bound helper, where E0277 means
+     absent.
+
+   Struct fields and enum variants are covered by their recorded predicates
+   only.
+3. **Runs the check.** It runs `cargo check --release --locked --offline -p
+   <crate> --example hs_probe --message-format json` and maps each error
+   (E0425, E0432, E0433, E0412, E0599, E0277) to its function through the
+   primary span's line.
+4. **Emits the row.** The `release-probe` row has one entry per item, `kind:
    release-probe`, `signature: resolved | unresolved`. A status that
-   contradicts the item's predicate fails the capture (exit 2).
+   contradicts the expectation fails the capture (exit 2).
 
 ## Baselines and evidence (RH-5, RH-6)
 
@@ -168,11 +190,14 @@ release build. After the rustdoc rows, the capture:
 - Slice 40 evidence: capture `5f5c1798` and compare with the baseline;
   expected equal; recorded in `status.md` and cited from
   `slice-40/adversarial-review.md`.
-- Defect injection (E-3): `export --source-sha <e3358800 full>`, remove the
-  `test-hooks` gate at both the definition (`dependency_trace.rs`) and the
-  root re-export of `decode_dependency_trace_root_for_test` (its body needs
-  only `EngineError`), `capture --source-dir` to scratch, and require exit 0
-  for the capture and exit 1 for the compare with exactly one added
+- Defect injection: `export --source-sha <e3358800 full>`. In the export,
+  remove the `#[cfg(feature = "test-hooks")]` on the definition of
+  `decode_dependency_trace_root_for_test` in `dependency_trace.rs` (its body
+  needs only `EngineError`). Then split the root group
+  `#[cfg(feature = "test-hooks")] pub use dependency_trace::{decode_…,
+  encode_…};` into a still-gated `pub use` of `encode_…` and an ungated
+  `pub use` of `decode_…`. Run `capture --source-dir` to scratch; the capture
+  must exit 0 and the compare must exit 1 with exactly one added
   `engine-default` entry.
 - Closeout: capture the implementation `HEAD`; expected equal to the baseline.
 

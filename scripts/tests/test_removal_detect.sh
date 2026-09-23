@@ -343,7 +343,8 @@ x_case() {
     rc=$?
     set -e
     if [ "$rc" -ne "$expected_rc" ]; then
-        fail "$case_name fixture: expected exit $expected_rc, got $rc ($(cat "$WORK/cross_file_${case_name}.err"))"
+        cat "$WORK/cross_file_${case_name}.err" >&2
+        fail "$case_name fixture: expected exit $expected_rc, got $rc"
     fi
     if [ -n "$expected_name" ] && ! grep -qF "$expected_name" "$WORK/cross_file_${case_name}.err"; then
         fail "$case_name fixture: diagnostic must name $expected_name"
@@ -382,7 +383,8 @@ python3 "$LINT" --repo-root "$tmp_repo" --base rename-base --head HEAD \
 rc=$?
 set -e
 if [ "$rc" -ne 0 ]; then
-    fail "live-git X-3 in-crate rename: expected exit 0, got $rc ($(cat "$WORK/live_git_rename_in_crate.err"))"
+    cat "$WORK/live_git_rename_in_crate.err" >&2
+    fail "live-git X-3 in-crate rename: expected exit 0, got $rc"
 fi
 echo "OK live-git X-3 in-crate rename"
 git -C "$tmp_repo" checkout -q -b cross-crate rename-base

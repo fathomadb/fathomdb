@@ -37,39 +37,53 @@ TS_PUBLIC = re.compile(
     r"(function|class|const|let|var|type|interface|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)"
 )
 RUST_PUBLIC_USE = re.compile(r"^\s*pub\s+use\s+(.+);\s*$", re.DOTALL)
-# Rust `pub use` handling reconstructs each side of a changed file (old =
-# context + removed lines, new = context + added lines) and parses the set of
-# names each side exports UNCONDITIONALLY; a name in the old set but not the
-# new one is a removal. `load_diff` asks git for whole-file context, so the
-# reconstruction is the complete old and new file and the result does not
-# depend on which lines happen to fall inside a hunk.
+# Rust removals come only from reconstructing each side of a changed file
+# (old = context + removed lines, new = context + added lines) and parsing
+# what each side exports UNCONDITIONALLY: `pub use` names, and unrestricted
+# `pub` items keyed by owner — ("impl", SelfType, name) for associated items
+# (self type = last path segment, generics stripped; trait impls key by the
+# `for` type) and ("mod", inline-module path, name) for free items. An old
+# key missing from the new side is a removal unless it moved (see
+# `_rust_removals`). `load_diff` asks git for whole-file context without
+# rename detection, so the reconstruction is the complete old and new file.
 #
 # A `pub use` (or public item) is conditional when an attribute stacked
 # immediately above it (multi-line attributes and interleaved doc/line
 # comments and blank lines allowed) is `#[cfg(...)]` or `#[cfg_attr(...)]`,
 # when it sits inside a block (inline `mod`, `impl`, ...) whose item carries
 # such an attribute, or when an enclosing scope has an inner `#![cfg(...)]`.
-# `pub(crate)`/`pub(super)`/`pub(in ...)` uses are not public; glob exports
-# name nothing and stay fail-closed. A public item that loses its last
-# unconditional definition in a file (e.g. a cfg attribute added above an
-# unchanged `pub fn`) is also a removal.
+# Conditional, `pub(crate)`/`pub(super)`/`pub(in ...)` items and uses, and
+# `pub` text inside fn/struct/trait/macro bodies are not public API, so
+# their removal is never reported; an unconditional item that becomes
+# conditional (e.g. a cfg attribute added above an unchanged `pub fn`) is.
+# Glob exports name nothing and stay fail-closed.
 #
 # Known fail-closed false positives — each costs a manual CHANGELOG entry,
 # never a silent miss, so they are accepted rather than special-cased:
 #   - `#[cfg_attr(pred, doc(...))]` / `#[cfg_attr(pred, allow(...))]` is
 #     treated as gating even though it never affects whether the item is
 #     compiled in.
-#   - Exports are compared per file by bare name: an inline `pub mod x {
-#     pub use ... }` contributes to the same set as the crate root.
+#   - A free item moved between inline modules of the same file is reported
+#     (its key changes and same-file moves only cancel by exact key).
 # Known limits:
+#   - Move cancellation is name-level within a crate, not path-level: a free
+#     item moved to another file of the crate cancels even if its old module
+#     path is no longer reachable, and an associated item cancels on any
+#     same-crate `impl` of a type with the same last path segment. Only files
+#     in the diff are seen. The path-level oracle is the surface comparator
+#     (`dev/tools/surface_comparator.py`).
+#   - `pub use` names are compared per file by bare name: an inline `pub mod
+#     x { pub use ... }` contributes to the same set as the crate root.
+#   - Changelog matching is by bare name, so documenting `new` covers every
+#     removed `Type::new`.
 #   - `--diff-file` inputs are parsed as given. A hunk without full context
-#     (e.g. a `-U3` patch that starts inside a long `pub use { ... }` block,
-#     or whose cfg attribute lies outside the hunk) is reconstructed only as
-#     far as the hunk reaches; each hunk is parsed independently.
+#     (e.g. a `-U3` patch that starts inside an `impl` or a long
+#     `pub use { ... }` block, or whose cfg attribute lies outside the hunk)
+#     is reconstructed only as far as the hunk reaches; each hunk is parsed
+#     independently.
 #   - Comment/string stripping is lexical: nested block comments and a
 #     lifetime immediately followed by a quote can confuse brace tracking.
-#   - Macro-generated exports (`macro_rules!` expanding to `pub use`) are
-#     invisible.
+#   - Macro-generated items and exports are invisible.
 _RUST_CFG_ATTR = re.compile(r"#!?\s*\[\s*cfg(?:_attr)?\s*\(")
 _RUST_ATTR_START = re.compile(r"#!?\s*\[")
 _RUST_USE_START = re.compile(r"pub\s+use\b")
@@ -100,6 +114,11 @@ class Removal:
     kind: str  # rust|python|ts
     symbol_kind: str  # fn|class|...
     name: str
+    # Rust associated items: the owning `impl` self type ("" otherwise).
+    owner: str = ""
+
+    def display(self) -> str:
+        return f"{self.owner}::{self.name}" if self.owner else self.name
 
 
 def _classify(path: str) -> str | None:
@@ -119,9 +138,7 @@ def _classify(path: str) -> str | None:
 
 
 def _scan_line(kind: str, line: str) -> tuple[str, str] | None:
-    if kind == "rust":
-        m = RUST_PUBLIC.match(line)
-    elif kind == "python":
+    if kind == "python":
         m = PY_PUBLIC.match(line)
     elif kind == "ts":
         m = TS_PUBLIC.match(line)
@@ -191,18 +208,72 @@ def _rust_reexport_names(statement: str) -> set[str]:
     return collect(match.group(1))
 
 
+# An item key: ("impl", SelfType, name) for associated items,
+# ("mod", "a::b", name) for free items ("" = file level).
+_ItemKey = tuple[str, str, str]
+
+
 @dataclass
 class _RustExports:
-    """Names one side of one hunk exports, split by cfg-gating."""
+    """Names one side of one Rust file exports unconditionally."""
 
     uncond_uses: set[str] = field(default_factory=set)
-    # Unrestricted `pub` items only (name -> kind); `pub(crate)` etc. are
-    # not public API, so they never make an item "become conditional".
-    uncond_items: dict[str, str] = field(default_factory=dict)
-    cond_items: set[str] = field(default_factory=set)
-    # Items on `+` lines, any visibility, matching the line-scan removals.
-    added_uncond_items: set[str] = field(default_factory=set)
-    added_cond_items: set[str] = field(default_factory=set)
+    # Unrestricted `pub` items only (key -> kind); `pub(crate)` etc. and
+    # items inside fn/struct/trait bodies are not public API.
+    uncond_items: dict[_ItemKey, str] = field(default_factory=dict)
+
+
+_RUST_VIS_PREFIX = re.compile(r"^(?:pub\s*(?:\([^)]*\))?\s*|unsafe\s+|default\s+)*")
+_RUST_MOD_HEADER = re.compile(r"^mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*$")
+
+
+def _impl_self_type(header: str) -> str | None:
+    """Last path segment of an ``impl`` header's self type, generics stripped."""
+
+    rest = header[len("impl") :].lstrip()
+    if rest.startswith("<"):
+        depth = 0
+        for index, char in enumerate(rest):
+            depth += char == "<"
+            depth -= char == ">"
+            if depth == 0:
+                rest = rest[index + 1 :]
+                break
+    rest = re.split(r"\bwhere\b", rest, maxsplit=1)[0]
+    # The trait path may itself carry generics; split on the top-level `for`.
+    depth = 0
+    for match in re.finditer(r"[<>]|\bfor\b", rest):
+        token = match.group(0)
+        if token == "<":
+            depth += 1
+        elif token == ">":
+            depth -= 1
+        elif depth == 0:
+            rest = rest[match.end() :]
+            break
+    rest = re.sub(r"^(?:\s*(?:&\s*(?:'[A-Za-z_]+\s*)?|mut\b|dyn\b|!))*", "", rest.strip())
+    rest = rest.split("<", 1)[0].strip()
+    name = rest.rsplit("::", 1)[-1].strip()
+    return name if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) else None
+
+
+def _block_frame(header: str, parent: tuple[str, str]) -> tuple[str, str]:
+    """Classify the block a ``{`` opens: an impl (owner type), an inline
+    module (path), a transparent ``extern`` block, or opaque (fn/struct/
+    trait/... bodies, whose `pub` text is not a public item)."""
+
+    if parent[0] == "opaque":
+        return parent
+    header = _RUST_VIS_PREFIX.sub("", header.strip())
+    if re.match(r"impl\b", header):
+        owner = _impl_self_type(header)
+        return ("impl", owner) if owner else ("opaque", "")
+    mod = _RUST_MOD_HEADER.match(header)
+    if mod and parent[0] == "mod":
+        return ("mod", "::".join(part for part in (parent[1], mod.group(1)) if part))
+    if re.match(r"extern\b", header) and not re.search(r"\bfn\b", header):
+        return parent
+    return ("opaque", "")
 
 
 def _strip_rust_non_code(lines: list[str]) -> list[str]:
@@ -211,15 +282,15 @@ def _strip_rust_non_code(lines: list[str]) -> list[str]:
     return blanked.split("\n")
 
 
-def _parse_rust_side(lines: list[str], added: list[bool]) -> _RustExports:
-    """Parse one reconstructed side of a Rust file into its exports.
-
-    ``added[i]`` marks lines that are ``+`` lines of the diff (new side
-    only); an unconditional public item on such a line is an addition.
-    """
+def _parse_rust_side(lines: list[str]) -> _RustExports:
+    """Parse one reconstructed side of a Rust file into its exports."""
 
     out = _RustExports()
     depth = 0
+    # One frame per open `{`, as classified by `_block_frame`; the file
+    # itself is the top-level module.
+    frames: list[tuple[str, str]] = []
+    header = ""
     paren = 0
     # Each entry d gates everything while `depth > d` (a cfg-gated block
     # opened at depth d, or -1 for a file-level `#![cfg(...)]`).
@@ -233,7 +304,7 @@ def _parse_rust_side(lines: list[str], added: list[bool]) -> _RustExports:
     use_text: str | None = None
     use_gated = False
 
-    for index, line in enumerate(_strip_rust_non_code(lines)):
+    for line in _strip_rust_non_code(lines):
         rest = line.strip()
         while rest:
             if use_text is not None:
@@ -242,9 +313,10 @@ def _parse_rust_side(lines: list[str], added: list[bool]) -> _RustExports:
                     use_text += "\n" + rest
                     break
                 use_text += "\n" + rest[: end + 1]
-                if not use_gated:
+                if not use_gated and (not frames or frames[-1][0] == "mod"):
                     out.uncond_uses.update(_rust_reexport_names(use_text))
                 use_text = None
+                header = ""
                 rest = rest[end + 1 :].strip()
                 continue
             if attr_text is not None or _RUST_ATTR_START.match(rest):
@@ -288,41 +360,115 @@ def _parse_rust_side(lines: list[str], added: list[bool]) -> _RustExports:
                     carry = None
                 continue
             match = RUST_PUBLIC.match(rest)
-            if match:
+            frame = frames[-1] if frames else ("mod", "")
+            if match and not gated and not rest.startswith("pub(") and frame[0] != "opaque":
                 kind, name = match.group(1), match.group(2)
-                if gated:
-                    out.cond_items.add(name)
-                    if added[index]:
-                        out.added_cond_items.add(name)
-                else:
-                    if not rest.startswith("pub("):
-                        out.uncond_items.setdefault(name, kind)
-                    if added[index]:
-                        out.added_uncond_items.add(name)
-            for token in _RUST_STRUCTURE.findall(rest):
+                out.uncond_items.setdefault((frame[0], frame[1], name), kind)
+            last = 0
+            for token_match in _RUST_STRUCTURE.finditer(rest):
+                token = token_match.group(0)
+                header += rest[last : token_match.start()]
+                last = token_match.end()
                 if token in "([":
                     paren += 1
+                    header += token
                 elif token in ")]":
                     paren = max(0, paren - 1)
+                    header += token
                 elif token == "{":
                     if carry is not None and depth == carry:
                         gates.append(depth)
                         carry = None
+                    frames.append(_block_frame(header, frames[-1] if frames else ("mod", "")))
+                    header = ""
                     depth += 1
                 elif token == "}":
                     depth = max(0, depth - 1)
+                    if frames:
+                        frames.pop()
+                    header = ""
                     while gates and depth <= gates[-1]:
                         gates.pop()
                     if carry is not None and depth < carry:
                         carry = None
-                elif paren == 0 and carry is not None and depth == carry:
-                    carry = None
+                else:
+                    if paren == 0:
+                        header = ""
+                    else:
+                        header += token
+                    if paren == 0 and carry is not None and depth == carry:
+                        carry = None
+            header += rest[last:] + " "
             break
     return out
 
 
+_RUST_CRATE = re.compile(r"^(src/rust/crates/[^/]+/)")
+
+
+def _rust_crate(path: str) -> str:
+    match = _RUST_CRATE.match(path)
+    return match.group(1) if match else path
+
+
+def _rust_removals(
+    old_exports: dict[str, _RustExports], new_exports: dict[str, _RustExports]
+) -> set[Removal]:
+    """Compare per-file unconditional exports, cancelling moves.
+
+    An item is removed from a file when its old-side key is unconditional
+    and the new side lacks it. The removal cancels as a move when, on the new
+    side of the same crate:
+      - associated item: an unconditional `pub` item of that name sits in an
+        `impl` of the same self type, in any file;
+      - free item: the name is an unconditional `pub` free item or `pub use`
+        in another file, or a newly added `pub use` in the same file.
+    A `pub use` name dropped from a file cancels only against an
+    unconditional file-level item of that name in the same file.
+    """
+
+    new_impl: dict[str, set[tuple[str, str]]] = {}
+    new_free: dict[str, dict[str, set[str]]] = {}
+    for path, exports in new_exports.items():
+        crate = _rust_crate(path)
+        for scope, owner, name in exports.uncond_items:
+            if scope == "impl":
+                new_impl.setdefault(crate, set()).add((owner, name))
+            else:
+                new_free.setdefault(crate, {}).setdefault(name, set()).add(path)
+        for name in exports.uncond_uses:
+            new_free.setdefault(crate, {}).setdefault(name, set()).add(path)
+
+    removals: set[Removal] = set()
+    for path in old_exports.keys() | new_exports.keys():
+        crate = _rust_crate(path)
+        old = old_exports.get(path, _RustExports())
+        new = new_exports.get(path, _RustExports())
+        for key, kind in old.uncond_items.items():
+            if key in new.uncond_items:
+                continue
+            scope, owner, name = key
+            if scope == "impl":
+                if (owner, name) in new_impl.get(crate, set()):
+                    continue
+                removals.add(Removal(path, "rust", kind, name, owner))
+                continue
+            elsewhere = new_free.get(crate, {}).get(name, set()) - {path}
+            if elsewhere or name in new.uncond_uses - old.uncond_uses:
+                continue
+            removals.add(Removal(path, "rust", kind, name))
+        for name in old.uncond_uses - new.uncond_uses:
+            if ("mod", "", name) not in new.uncond_items:
+                removals.add(Removal(path, "rust", "use", name))
+    return removals
+
+
 def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]:
-    """Returns (removals, additions) keyed for cancellation matching."""
+    """Returns (removals, additions) keyed for cancellation matching.
+
+    Rust removals are computed from the per-side export sets and are
+    final; ``additions`` only cancels Python/TypeScript line-scan removals.
+    """
     removals: set[Removal] = set()
     # Additions keyed (path, kind, name) so a rename WITHIN the same file
     # at the same path cancels out a removal (true delete only when no
@@ -337,30 +483,21 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
     new_exports: dict[str, _RustExports] = {}
     hunk_old: list[str] = []
     hunk_new: list[str] = []
-    hunk_new_added: list[bool] = []
 
     def flush_hunk() -> None:
         if current_kind == "rust" and current_path is not None and (hunk_old or hunk_new):
-            old = _parse_rust_side(hunk_old, [False] * len(hunk_old))
-            new = _parse_rust_side(hunk_new, hunk_new_added)
-            for side, exports in ((old_exports, old), (new_exports, new)):
+            for side, lines in ((old_exports, hunk_old), (new_exports, hunk_new)):
+                exports = _parse_rust_side(lines)
                 acc = side.setdefault(current_path, _RustExports())
                 acc.uncond_uses |= exports.uncond_uses
-                for name, kind in exports.uncond_items.items():
-                    acc.uncond_items.setdefault(name, kind)
-                acc.cond_items |= exports.cond_items
-                acc.added_uncond_items |= exports.added_uncond_items
-                acc.added_cond_items |= exports.added_cond_items
+                for key, kind in exports.uncond_items.items():
+                    acc.uncond_items.setdefault(key, kind)
         hunk_old.clear()
         hunk_new.clear()
-        hunk_new_added.clear()
 
     for raw in diff_text.splitlines():
         if raw.startswith("+++ "):
             flush_hunk()
-            # New-path marker is more reliable than the diff header for
-            # in-file renames; both old and new paths are the same in
-            # normal removals.
             spec = raw[4:].strip()
             spec = spec.removeprefix("b/")
             current_path = spec if spec != "/dev/null" else current_path
@@ -383,71 +520,36 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
         if current_kind == "rust":
             if raw.startswith("+"):
                 hunk_new.append(raw[1:])
-                hunk_new_added.append(True)
             elif raw.startswith("-"):
                 hunk_old.append(raw[1:])
             elif raw.startswith(" ") or raw == "":
                 hunk_old.append(raw[1:])
                 hunk_new.append(raw[1:])
-                hunk_new_added.append(False)
+            continue
 
-        is_added_line = raw.startswith("+") and not raw.startswith("+++")
-        is_removed_line = raw.startswith("-") and not raw.startswith("--")
-        if is_removed_line:
-            match = _scan_line(current_kind, raw[1:])
-            if match:
-                symbol_kind, name = match
-                removals.add(
-                    Removal(
-                        path=current_path,
-                        kind=current_kind,
-                        symbol_kind=symbol_kind,
-                        name=name,
-                    )
-                )
-        elif is_added_line and current_kind != "rust":
-            # Rust additions come from the per-side parse, which excludes
-            # cfg-gated items.
-            match = _scan_line(current_kind, raw[1:])
-            if match:
-                additions.add((current_path, current_kind, match[1]))
+        match = _scan_line(current_kind, raw[1:])
+        if match is None:
+            continue
+        symbol_kind, name = match
+        if raw.startswith("-"):
+            removals.add(Removal(current_path, current_kind, symbol_kind, name))
+        elif raw.startswith("+"):
+            additions.add((current_path, current_kind, name))
     flush_hunk()
 
-    for path in old_exports.keys() | new_exports.keys():
-        old = old_exports.get(path, _RustExports())
-        new = new_exports.get(path, _RustExports())
-        for name in new.added_uncond_items:
-            additions.add((path, "rust", name))
-        # A cfg-gated re-add cancels a removed line only when the name was
-        # never an unconditional public item: gated -> gated is a move, but
-        # unconditional -> gated removes it from the default build.
-        for name in new.added_cond_items - old.uncond_items.keys():
-            additions.add((path, "rust", name))
-        # Only NEWLY unconditional re-exports cancel item removals: a
-        # re-export that already existed does not replace a removed item.
-        for name in new.uncond_uses - old.uncond_uses:
-            additions.add((path, "rust", name))
-        for name in old.uncond_uses - new.uncond_uses:
-            removals.add(Removal(path=path, kind="rust", symbol_kind="use", name=name))
-        for name, kind in old.uncond_items.items():
-            if name in new.cond_items and name not in new.uncond_items and name not in new.uncond_uses:
-                removals.add(Removal(path=path, kind="rust", symbol_kind=kind, name=name))
-
+    removals |= _rust_removals(old_exports, new_exports)
     return removals, additions
 
 
 def real_removals(removals: set[Removal], additions: set[tuple[str, str, str]]) -> list[Removal]:
-    """A removal cancels if the same symbol name re-appears in the same
-    file, including through an explicit Rust ``pub use``. Cross-file moves
-    without that same-path re-export still count as removals because consumers
-    may import by full path.
-    """
+    """A Python/TypeScript removal cancels if the same symbol name re-appears
+    in the same file; Rust removals arrive already move-cancelled."""
     out = []
     for r in removals:
-        if (r.path, r.kind, r.name) in additions:
+        if r.kind != "rust" and (r.path, r.kind, r.name) in additions:
             continue
         out.append(r)
-    return sorted(out, key=lambda r: (r.path, r.name))
+    return sorted(out, key=lambda r: (r.path, r.owner, r.name))
 
 
 def changelog_documents(changelog: Path, removed: Iterable[Removal]) -> list[Removal]:
@@ -515,6 +617,9 @@ def load_diff(args: argparse.Namespace) -> str:
         "--src-prefix=a/",
         "--dst-prefix=b/",
         "--unified=1000000000",
+        # A rename is diffed as delete + add so the renamed file's items
+        # are compared (a pure rename would otherwise produce no hunk).
+        "--no-renames",
         f"{args.base}..{args.head}",
         "--",
     ]
@@ -562,7 +667,7 @@ def main(argv: list[str]) -> int:
     if undocumented:
         sys.stderr.write("AC-050c: removed public symbols missing from CHANGELOG Removed section:\n")
         for r in undocumented:
-            sys.stderr.write(f"  {r.path}: {r.symbol_kind} {r.name}\n")
+            sys.stderr.write(f"  {r.path}: {r.symbol_kind} {r.display()}\n")
         return 1
 
     if truly_removed:

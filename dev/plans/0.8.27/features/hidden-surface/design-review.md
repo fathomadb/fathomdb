@@ -57,3 +57,22 @@ PASS-WITH-FINDINGS without a further round.
 | E'-4 | P3 | Canonical predicate order in ACH-1; `export` directory collides with `<root>/src`; ancestor-module cfgs for the probe. | Canonical order quoted; `<root>/exports/<sha>-<n>` with `discard`; ancestor module predicates included in probe evaluation. |
 
 Design status: APPROVED after FIX-3.
+
+## Implementation finding and revision 4 (d77719c5)
+
+During implementation, the `5f5c1798` capture differed from the `e3358800`
+baseline in 25 entries. Every one was a site move: Slice 40 moved `#[cfg]`
+and `#[doc(hidden)]` onto re-exports with identical effect. The owner ruled
+`hidden-surface-effective-and-inventory`: sign effective values, add test
+inventories, and retire the oracle at Slice 150.
+
+## Round 4 (d77719c5): PASS-WITH-FINDINGS; revision 5
+
+| ID | Sev | Finding | Chosen remediation |
+| --- | --- | --- | --- |
+| F-1 | P2 | `cargo test -- --list` output cannot attribute tests to targets, and same-named tests collapse. | Per-binary listing from `--no-run --message-format json`. |
+| F-2 | P2 | Nine test targets need feature sets no row enables, and are silently skipped. | Owner ruling `feature-complete-test-coverage`: static `test-targets` row, derived `tests-req-<n>` rows, plus a permanent feature-complete gate (weights and GPU) and a coverage check. |
+| F-3 | P2 | Syntactic cfg canonicalization leaves logically equal gates different. | Truth-table minimal sum-of-products canonicalization; fail above twelve atoms. |
+| F-4 | P2 | Master plan lacks the inventory policy and the retirement step; retirement ordering. | Cadence edits listed; retirement is the last Slice 150 step and rewrites the plan text. |
+| F-5 | P3 | The dead-code claim holds only in part. | Claim corrected with the verified residual gaps and the gate that enforces it. |
+| F-6 | P3 | Private-module sites invisible; field and external-glob effective values; unknown cfg names. | Defined in the design; the probe evaluator fails closed on unknown cfg names. |

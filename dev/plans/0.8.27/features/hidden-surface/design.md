@@ -6,11 +6,11 @@ target_release: 0.8.27
 
 # Hidden-surface oracle design
 
-Requirements and acceptance: `plan.md` (RH-1 to RH-12; eight rustdoc rows, the
-release probe, and eight test-inventory rows). Revision 4 closes design review
-rounds 1 to 3 (`design-review.md`) and applies the owner ruling
-`hidden-surface-effective-and-inventory`, made after implementation showed
-per-site signing reports Slice 40's gate moves as differences.
+Requirements and acceptance: `plan.md` (RH-1 to RH-15). Revision 5 closes
+design review rounds 1 to 4 (`design-review.md`) and applies the owner rulings
+`hidden-surface-effective-and-inventory` and `feature-complete-test-coverage`.
+The first ruling came after implementation showed that per-site signing
+reports Slice 40's gate moves as differences.
 
 ## Shape
 
@@ -118,10 +118,27 @@ Signing effective values, not per-site ones, is an owner ruling
 (`hidden-surface-effective-and-inventory`, 2026-09-23). Slice 40 moved gates
 from definitions onto re-exports without changing any item's effect, and the
 decomposition slices will do the same, so per-site signing reports noise.
-What effective values cannot show — a definition left ungated behind a gated
-re-export, compiled into default builds as dead code — is caught by the
-dead-code lint in clippy `-D warnings` and the warning-free release test-build
-gates in `scripts/agent-typecheck.sh`.
+What effective values cannot show is a definition left ungated behind a gated
+re-export, compiled into default builds as dead code. The rustc `dead_code`
+lint catches it when that definition has no other live caller. The gate that
+enforces this is the default-feature `-Dwarnings cargo check -p
+fathomdb-engine --all-targets` in `scripts/agent-typecheck.sh`, plus its
+release test-build siblings. Workspace clippy does not enforce it for
+`operator`-gated items, because workspace feature unification enables
+`operator`. Residual gaps, verified on the pinned nightly:
+
+- a definition that also has an ungated internal caller;
+- a definition under `#[allow(dead_code)]` or `#[allow(unused)]`, of which
+  there are 26 sites in the engine and facade `src/`;
+- a definition referenced from an ungated static table.
+
+These stay with review.
+
+Effective values are defined over visible sites only. Private modules are
+absent from the rustdoc index, so a private module's `cfg` or `doc(hidden)` is
+not seen; row presence still reflects it. A field's effective values combine
+its own sites with its parent type's effective values. An `external-glob`
+entry carries the effective values of its glob `use` site.
 
 Normalization of `inner`:
 
@@ -149,10 +166,16 @@ those crates are not decomposed in 0.8.27, so this is accepted.
 
 **Cfg predicates (E-1).** Rustdoc JSON keeps each item's cfg as an attribute
 (`#[attr = CfgTrace([...])]`, the pinned nightly's debug format). The capture
-strips span text and parses it into a canonical predicate string: `name`,
-`name = "value"`, `not(p)`, `any(...)`, `all(...)`, with `any`/`all` operands
-sorted. An attribute that does not parse fails the capture (exit 2), so a
-toolchain format change cannot silently drop gates. Dropping or widening any
+strips span text and parses it into a predicate over atoms (`name`,
+`name = "value"`) with `not`, `any`, and `all`. An attribute that does not
+parse fails the capture (exit 2), so a toolchain format change cannot silently
+drop gates. The effective predicate is canonicalized semantically, not by
+syntax: evaluate its truth table over its sorted atoms, then sign the minimal
+sum-of-products form, with terms and literals sorted. So
+`all(any(feature = "test-hooks", test), feature = "test-hooks")` and
+`feature = "test-hooks"` sign identically, and dropping a redundant gate is not
+a difference. Gates in this workspace have at most about five atoms. More than
+twelve atoms fails the capture rather than being approximated. Dropping or widening any
 gate, including `debug_assertions`, becomes a signature change in the rows
 that still compile the item.
 
@@ -164,7 +187,10 @@ computed), the capture:
 
 1. **Selects items.** From the `engine-default` and `facade-default` rows, it
    selects every entry whose effective `cfg` is false once
-   `debug_assertions` and `test` are false and no features are enabled. Those are expected `unresolved`.
+   `debug_assertions` and `test` are false and no features are enabled.
+   The evaluator knows only `debug_assertions`, `test`, and `feature = "..."`.
+   Any other atom (for example `unix` or `target_os`) fails the capture
+   instead of being guessed. Those are expected `unresolved`.
    Release-only items (true only under `not(debug_assertions)`) are invisible
    to rustdoc. They come from a curated list in the tool, today only the
    facade's `release_surface_raw_sql_absence_proof`, and are expected
@@ -194,32 +220,91 @@ computed), the capture:
 
 A surface oracle cannot see tests. During a move, a wrong `#![cfg(...)]` on a
 test file, or a hook gate that no longer matches its tests, can silently stop
-tests from compiling or running. For each rustdoc row, the capture runs, from
-the same export and cache:
+tests from compiling or running.
 
-```text
-cargo +nightly-2026-04-24 test --locked -p <crate> --no-default-features
-  [--features F] --lib --tests -- --list --format terse
-cargo +nightly-2026-04-24 test --locked -p <crate> --no-default-features
-  [--features F] --lib --tests -- --list --format terse --ignored
-```
+**Static target list (RH-13).** The `test-targets` row has one entry per test
+target in every workspace crate, with `path` `<crate>::<target>`, `kind`
+`test-target`, and a signature holding its source file, its
+`required-features`, and any file-level `#![cfg(...)]` predicate. It is read
+from `Cargo.toml` `[[test]]` entries plus auto-discovered `tests/*.rs` files,
+with no build. A dropped, renamed, or re-gated target is a difference even
+when nothing compiles it.
 
-It emits row `tests-<row>` with one entry per test: `path` is
-`<test target>::<test name>` (`lib` for unit tests), `kind` is `test`, and
-`signature` is `run` or `ignored`. Doctests are out of scope. The shared
+**Inventory rows.** Inventory rows are listed for each rustdoc row's crate and
+features (`tests-<row>`). There is also one `tests-req-<n>` row for every
+distinct requirement set in `test-targets` (the `required-features` union and
+any file-level feature cfg) that no rustdoc row already compiles. Those sets
+are derived, not hand-kept, and `<n>` is the canonical feature list. CUDA sets
+are included: NVIDIA tools are authorized on this host. Per row:
+
+1. `cargo +nightly-2026-04-24 test --locked -p <crate> --no-default-features
+   [--features F] --lib --tests --no-run --message-format json` gives every
+   test executable with its target name and kind.
+2. Each executable is run with `--list --format terse`, and again with
+   `--ignored`. Output is read per binary, so tests with the same name in two
+   targets stay distinct.
+
+Each entry's `path` is `<target>::<test name>` (`lib` for unit tests), `kind`
+is `test`, and `signature` is `run` or `ignored`. Doctests are out of scope.
+The heavy check requires every `test-targets` entry to appear in at least one
+inventory row. The shared
 compare reports a removed test as a removal, a newly ignored test as a change,
 and a new test as an addition. Cadence policy: a removal or a newly ignored
 test blocks the batch unless the slice status names it with its reason; an
 addition is expected when characterization tests are added.
+
+## Feature-complete test gate (RH-14, permanent)
+
+`scripts/test-feature-complete.sh` is the gate that runs what the workspace
+gate cannot. It shares one requirement derivation with the coverage check
+(RH-15), a small module `scripts/lib/test_targets.py` that reads
+`Cargo.toml` and `tests/`, so the two cannot drift.
+
+- **Scope:** every workspace crate and every distinct requirement set its
+  test targets need. It runs `cargo test --locked -p <crate> --features <set>
+  --test <target>...` for the targets needing that set.
+- **Model weights:** before running, it downloads missing weights through the
+  repo's existing warm-cache path (the one CI's `default-embedder-tests` job
+  uses), so network-dependent targets run instead of skipping.
+- **CUDA:** targets needing CUDA features run with `CUDA_VISIBLE_DEVICES`
+  set to the two RTX 3090s. The K620 display card is never used. If the GPUs
+  are missing, the gate fails; it does not skip.
+- **Skips:** a target that reports skipping itself, whether through an
+  ignored test or an environment check, fails the gate unless the skip is on
+  a short named allowlist with a reason.
+- **Where it runs:** not in `agent-verify`, for runtime reasons.
+  `scripts/check.sh` runs it when `FATHOMDB_FEATURE_COMPLETE=1`, and Slice 150
+  and release qualification run it.
+
+## Test-target coverage check (RH-15, permanent)
+
+`scripts/check-test-target-coverage.py` runs in the fast tier, with no build.
+It reads every test target's requirements through `scripts/lib/test_targets.py`
+and the feature sets each gate provides:
+
+- the workspace gate, `scripts/test-rust-workspace.sh`, whose effective
+  per-crate features come from `cargo metadata` feature resolution for the
+  workspace, which is what unification enables;
+- the RH-14 gate, which covers the whole derived set by construction.
+
+It fails, naming the target, when no gate satisfies a target's requirements,
+or when the RH-14 gate's derived set no longer matches the targets. Self-tests
+cover an uncovered `required-features` target and an uncovered file-level
+`#![cfg(feature = ...)]` target.
 
 ## Retirement (RH-12)
 
 The oracle exists to make the 0.8.27 decomposition safe, and it is removed
 when that is done, so it does not become a permanent maintenance cost.
 
-- **Trigger:** Slice 150 qualification. Slice 150 runs the final hidden and
-  test-inventory comparisons against the current baseline, and records their
-  results and manifest digests in this unit's `status.md`.
+- **Trigger:** Slice 150 qualification, as its last step, after the whole
+  qualification has passed. Retiring earlier would strand Slice 150's loop of
+  sending defects back to their owning slice. Slice 150 first runs the final
+  hidden and test-inventory comparisons against the current baseline, and
+  records their results and manifest digests in this unit's `status.md`.
+- **Plan text:** the retirement commit rewrites the cadence step 4 and Slice
+  150 wording in `plan-0.8.27.md` to say that the oracle ran and was retired,
+  citing the `status.md` digests, so that no text points at a deleted tool.
 - **Removed in the same slice:**
   - `dev/tools/hidden_surface.py`;
   - `scripts/tests/test_hidden_surface.py`;
@@ -230,6 +315,9 @@ when that is done, so it does not become a permanent maintenance cost.
 
   Git history keeps all of them.
 - **Kept:**
+  - the feature-complete test gate (RH-14), the coverage check (RH-15), and
+    their shared `scripts/lib/test_targets.py`: these are what let the code
+    carry itself once the oracle is gone;
   - the warning-free test-build gates in `scripts/agent-typecheck.sh`;
   - the dead-code lint;
   - the removal-changelog gate;
@@ -250,8 +338,9 @@ when that is done, so it does not become a permanent maintenance cost.
   capture commit is the most recent ancestor of `HEAD`, so parallel branches
   never pick up each other's baselines.
 - Slice 40 evidence: capture `5f5c1798` and compare with the baseline;
-  expected equal; recorded in `status.md` and cited from
-  `slice-40/adversarial-review.md`.
+  expected equal on every rustdoc and release-probe row. Test-inventory
+  differences are the tests Slice 40 added, each listed. The result is
+  recorded in `status.md` and cited from `slice-40/adversarial-review.md`.
 - Defect injection: `export --source-sha <e3358800 full>`. In the export,
   remove the `#[cfg(feature = "test-hooks")]` on the definition of
   `decode_dependency_trace_root_for_test` in `dependency_trace.rs` (its body
@@ -261,7 +350,10 @@ when that is done, so it does not become a permanent maintenance cost.
   `pub use` of `decode_…`. Run `capture --source-dir` to scratch; the capture
   must exit 0 and the compare must exit 1 with exactly one added
   `engine-default` entry.
-- Closeout: capture the implementation `HEAD`; expected equal to the baseline.
+- Closeout: capture the implementation `HEAD` and compare it with the
+  baseline. Known differences, such as the Slice 40 review's `test` term on
+  `execute_for_test` and the test targets it re-gated, are recorded as the
+  successor baseline `baseline-<HEAD>.json` with `baseline-<HEAD>-diff.md`.
 
 ## Cadence (RH-7)
 
@@ -269,10 +361,20 @@ when that is done, so it does not become a permanent maintenance cost.
 
 - "Structural slice cadence" step 4 (Slices 40 to 130) reads "Run focused
   tests, the surface comparator, and the hidden-surface and test-inventory
-  comparison against the current hidden baseline."
+  comparison against the current hidden baseline." A following paragraph
+  states the inventory policy: a removed or newly ignored test blocks the
+  batch unless the slice status names it with its reason, and an added test is
+  expected with new characterization coverage.
+- Slice 70, whose reranking and embedding code the feature-gated targets
+  exercise, also runs the feature-complete test gate (RH-14).
 - Slice 140 records its intended hidden differences as a successor baseline.
 - Slice 150 re-runs the hidden-surface and test-inventory comparison with the
-  immutable public-surface comparator, then performs the retirement (RH-12).
+  immutable public-surface comparator, runs the feature-complete test gate,
+  and, as its last step after qualification passes, performs the retirement
+  (RH-12).
+
+The implementation's existing edits to `plan-0.8.27.md` (commit `f96c97a3`)
+predate revisions 4 and 5 and are updated to this text.
 
 ## Self-tests (RH-8)
 

@@ -3,7 +3,7 @@ title: FathomDB 0.8.27 hidden-surface oracle - requirements and acceptance
 status: PROPOSED
 target_release: 0.8.27
 baseline_entry_sha: f45c5d60
-ruling: slice-50-hidden-surface-oracle (TC-3e54ed95)
+ruling: slice-50-hidden-surface-oracle (TC-3e54ed95), extended 2026-09-23 to nine rows
 ---
 
 # Hidden-surface oracle plan
@@ -16,43 +16,69 @@ show a dropped or widened feature gate on a hook. Slices 50 through 90 move
 more hidden items (`fuse_rrf`, `rerank_fused`, `vector_phase1_sql_for_test`,
 `take_slice71_search_statement_trace_for_test`, and others). The owner ruled
 (2026-09-23, `slice-50-hidden-surface-oracle`) that hidden-inclusive rows with
-a supplementary baseline at `e3358800` must exist before Slice 50 starts.
+a supplementary baseline at `e3358800` must exist before Slice 50 starts, and
+after design review extended the rows to cover every hidden-item gate found
+(`migration-test-hooks`, `tc5-benchmark`, the `debug_assertions` gate on
+`Engine::execute_for_test`, and the facade's hidden proof modules).
 
 ## Scope
 
-In scope: a separate hidden-inclusive Rust surface capture and comparison for
-`fathomdb-engine`, its committed baseline, retroactive Slice 40 evidence, and
-the slice-procedure text that makes later engine slices use it.
+In scope: a separate hidden-inclusive Rust surface capture and comparison tool,
+its committed baselines, retroactive Slice 40 evidence, and the cadence text
+that makes later slices use it.
 
 Out of scope: the Slice 30 comparator, its schema, row identities, and
-immutable `slice-30/baseline.json` (unchanged); the facade, Python, NAPI, and
-TypeScript rows (already covered by Slice 30); gating the test seams
-themselves (Slice 140, `slice-140-gate-test-seams`).
+immutable `slice-30/baseline.json` (unchanged); Python, NAPI, and TypeScript
+rows (already covered by Slice 30); gating the test seams themselves (Slice
+140, `slice-140-gate-test-seams`).
+
+**Deviation from the ruling's wording:** the ruling says to add rows "to the
+surface comparator". They are added as a sibling tool with its own schema,
+because changing the Slice 30 tool's row identities would make its immutable
+baseline incomparable.
+
+## Rows
+
+| Row id | Crate | Features (`--no-default-features` plus) | Profile |
+| --- | --- | --- | --- |
+| `engine-default` | `fathomdb-engine` | none | dev |
+| `engine-test-hooks` | `fathomdb-engine` | `test-hooks` | dev |
+| `engine-slice72-test-hooks` | `fathomdb-engine` | `slice72-test-hooks` | dev |
+| `engine-operator-test-hooks` | `fathomdb-engine` | `operator,test-hooks` | dev |
+| `engine-migration-test-hooks` | `fathomdb-engine` | `migration-test-hooks` | dev |
+| `engine-tc5-benchmark` | `fathomdb-engine` | `tc5-benchmark` | dev |
+| `engine-default-release` | `fathomdb-engine` | none | release (`debug_assertions` off) |
+| `facade-default` | `fathomdb` | none | dev |
+| `facade-operator` | `fathomdb` | `operator` | dev |
 
 ## Requirements and acceptance criteria
 
 | ID | Requirement | Acceptance criterion |
 | --- | --- | --- |
-| RH-1 | Capture every item reachable by path from the `fathomdb-engine` crate root, doc-hidden items included, for the feature sets default (`--no-default-features`), `test-hooks`, `slice72-test-hooks`, and `operator,test-hooks`. | ACH-1: a capture produces exactly four rows with those identities; each row contains the hidden test seams its features compile (for example `arm_reader_search_hook_for_test` in every row, `slice72_test_hooks` only in the `slice72-test-hooks` row). |
-| RH-2 | Capture any full 40-character commit SHA from an exported copy of that commit, without touching the working tree, index, refs, stash, or worktree list. | ACH-2: capturing a SHA other than `HEAD` succeeds from a dirty checkout, and `git status --porcelain`, `git worktree list`, and `git stash list` are identical before and after; a short, unknown, or non-commit SHA is rejected before any build. |
-| RH-3 | Entries are deterministic and independent of source location: moving an item between files or modules while keeping its public path gives no difference; changing its public path, kind, signature, visibility, or doc-hidden flag does. | ACH-3: self-tests over real rustdoc JSON show an equal comparison for a span/id-only change and a reported difference for each of path, kind, signature, visibility, and doc-hidden changes; two captures of the same SHA are byte-identical. |
-| RH-4 | Compare reports per-row added, removed, and changed entries, and reports toolchain, rustdoc format version, target, and row-identity mismatches as metadata differences; it never writes either input. | ACH-4: self-tests show each diff class, and a metadata mismatch makes the comparison unequal; input files are unchanged after compare. |
-| RH-5 | A committed, immutable hidden baseline is captured at `e3358800` (Slice 40 closeout, move verified). | ACH-5: `dev/plans/0.8.27/features/hidden-surface/baseline-e3358800.json` exists with capture SHA `e3358800…`, and a fresh capture of `HEAD` at implementation closeout compares equal to it (the review fixes after `e3358800` change no hidden surface) or every difference is listed and justified in `status.md`. |
-| RH-6 | Record the Slice 40 hook-gate evidence the Slice 30 rows could not provide. | ACH-6: a capture at `5f5c1798` (pre-move) compares equal to the baseline; the result is recorded in `status.md` and cited from the Slice 40 `adversarial-review.md`. |
-| RH-7 | Later engine slices use the oracle. | ACH-7: `plan-0.8.27.md` requires, for Slices 50 through 90 and 140, a hidden-surface comparison against the baseline for each batch alongside the Slice 30 comparison, and requires every intended hidden difference (for example Slice 140 gating) to be listed with its reason. |
-| RH-8 | Self-tests run in the fast tier without a nightly toolchain or network. | ACH-8: `scripts/agent-test.sh` runs the hidden-surface self-tests in the fast tier using committed rustdoc JSON fixtures generated by the pinned toolchain from a small fixture crate; a regeneration script reproduces them. |
+| RH-1 | Capture every item reachable by public path from the crate root, doc-hidden items included, for each row above. | ACH-1 (heavy): a capture has exactly the nine rows; `arm_reader_search_hook_for_test` is in every engine row; `slice72_test_hooks` only in `engine-slice72-test-hooks`; `Engine::open_with_migrations_for_test` only in `engine-migration-test-hooks`; `tc5_benchmark` only in `engine-tc5-benchmark`; `Engine::execute_for_test` in every dev engine row and absent from `engine-default-release`; the facade proof modules in both facade rows. |
+| RH-2 | Capture any full 40-character commit SHA from an exported copy of that commit, without touching the working tree, index, refs, stash, or worktree list, and without reusing another commit's workspace crate builds. | ACH-2: self-tests reject a short, unknown, or non-commit SHA before any build. Heavy: capturing a non-`HEAD` SHA from a dirty checkout leaves `git status --porcelain`, `git worktree list`, `git stash list`, and `git for-each-ref` unchanged; capturing X, then Y, then X with the same cache gives byte-identical manifests for X. |
+| RH-3 | Entries are deterministic and independent of source location and id numbering: moving an item between files or private modules while keeping its public path, or renumbering rustdoc ids, gives no difference; changing its public path, kind, signature, visibility, or any doc-hidden flag does. | ACH-3 (fast tier): over committed real rustdoc fixtures, a cross-module move whose public paths are unchanged (including a signature that names the moved type) compares equal; a consistent renumbering of every id compares equal; a path, kind, signature, visibility, own-hidden, use-hidden, and impl-hidden change each give a difference. Heavy: two captures of one SHA are byte-identical. |
+| RH-4 | Compare reports per-row added, removed, and changed entries, reports toolchain, rustdoc format version, target, and row-identity mismatches as metadata differences, rejects a manifest of another schema, and never writes either input. | ACH-4: self-tests show each diff class, a metadata mismatch is unequal, a Slice 30 manifest is rejected, and input bytes are unchanged after compare. |
+| RH-5 | Committed, immutable baselines. The first is captured at `e3358800`. A later intentional hidden-surface change is recorded as a new `baseline-<sha>.json` beside a reviewed diff record, never by rewriting a file. | ACH-5: `baseline-e3358800.json` exists with capture SHA `e3358800…`; a fresh capture of the implementation closeout `HEAD` compares equal to it, or every difference is listed and justified in `status.md`; a guard refuses to write over an existing file. |
+| RH-6 | Provide the Slice 40 hook-gate evidence the Slice 30 rows could not, and prove the oracle is not vacuous on real code. | ACH-6 (heavy): a capture at `5f5c1798` compares equal to the baseline and is recorded in `status.md` and cited from `slice-40/adversarial-review.md`; an injected defect (one `#[cfg(feature = "test-hooks")]` removed in an exported tree of the baseline commit) makes `engine-default` report the added hook. |
+| RH-7 | Later slices use the oracle. | ACH-7: `plan-0.8.27.md` cadence step 4 (Slices 40 to 130) runs the hidden comparison with the Slice 30 comparison; Slices 140 and 150 run it too; an unexpected hidden difference blocks the batch; an intended one (for example Slice 140 gating) is recorded as a successor baseline with a reviewed diff record. |
+| RH-8 | Self-tests run in the fast tier without a nightly toolchain or network. | ACH-8: `scripts/agent-test.sh` runs the self-tests in the fast tier using committed, canonicalized, host-independent rustdoc JSON fixtures generated by the pinned toolchain from a fixture crate; `regenerate.sh` reproduces them byte-for-byte. |
 | RH-9 | The capture refuses to run with the wrong toolchain or rustdoc JSON format. | ACH-9: a format version other than the pinned one, or a missing pinned nightly, fails with a diagnostic before any row is written. |
 
 The requirement IDs are local to this unit; they do not extend the locked
-release acceptance list.
+release acceptance list. Fast-tier ACs run in `agent-test.sh`; heavy ACs are
+run once at closeout and recorded in `status.md`.
 
 ## Test plan
 
-- RED first: the self-test file exists and fails for missing module/entry
-  points before implementation.
-- Real-shaped fixtures: rustdoc JSON from the pinned nightly for a fixture crate
-  with doc-hidden functions, hidden modules, `pub use` re-exports (named,
-  aliased, glob), feature-gated items, inherent impl methods, and a cross-file
-  move variant.
-- Heavy verification (not in the fast tier): captures of `e3358800`, `5f5c1798`,
-  and the closeout `HEAD`, recorded in `status.md`.
+- RED first: the self-test file fails for the missing tool and entry points
+  before implementation.
+- Fixture crate cases: doc-hidden fn, hidden module, hidden `pub use` of a
+  visible item, `#[doc(hidden)] impl` block, named, aliased, and glob
+  re-exports (including shadowing and an external-crate glob), a cyclic module
+  re-export, enum variants, trait items, an inherent impl, a trait impl with
+  generic arguments, a local blanket impl, a feature-gated hook, a
+  `debug_assertions`-gated item, a constant whose `expr` names another
+  constant, and a moved variant with identical public paths.
+- Heavy verification at closeout: ACH-1, ACH-2 (heavy part), ACH-3 (heavy
+  part), ACH-5, ACH-6.

@@ -60,9 +60,11 @@ fi
 echo "OK public-reexport"
 
 # Explicit re-export names cancel removals only when the same public name is
-# retained. Globs, crate-private imports, renamed exports, and interrupted
-# statement state all stay fail-closed.
-for case_name in glob private renamed state-poison; do
+# retained. Globs, crate-private imports, renamed exports, interrupted
+# statement state, and cfg-gated re-exports (C-1: a `#[cfg(...)]`-gated
+# `pub use` does not unconditionally restore the removed public name) all
+# stay fail-closed.
+for case_name in glob private renamed state-poison cfg-gated; do
     set +e
     python3 "$LINT" \
         --diff-file "$FIX/reexport-edges/$case_name.patch" \
@@ -90,6 +92,36 @@ if ! python3 "$LINT" \
     fail "alias-preserved fixture: explicit exported name Foo must cancel removal"
 fi
 echo "OK alias-preserved"
+
+# C-2: a bare removed `pub use` (no replacement) must itself be recorded as a
+# removal — probe regression for `-pub use errors::EngineError;` -> `[]`.
+set +e
+python3 "$LINT" \
+    --diff-file "$FIX/pub-use-removed/diff.patch" \
+    --changelog "$FIX/pub-use-removed/CHANGELOG.md" \
+    --repo-root "$REPO_ROOT" \
+    >/dev/null 2>/tmp/removal_detect_pub_use_removed.err
+rc=$?
+set -e
+if [ "$rc" -ne 1 ]; then
+    fail "pub-use-removed fixture: linter must exit 1 (removed pub use is a removal), got $rc"
+fi
+if ! grep -q "EngineError" /tmp/removal_detect_pub_use_removed.err; then
+    fail "pub-use-removed fixture: diagnostic must name the removed re-export EngineError"
+fi
+echo "OK pub-use-removed"
+
+# C-2: a re-export moved from one `pub use` list to another unconditional one
+# in the same file still cancels (same-name-move semantics extend to pub use
+# removals, not just additions).
+if ! python3 "$LINT" \
+    --diff-file "$FIX/pub-use-moved/diff.patch" \
+    --changelog "$FIX/pub-use-moved/CHANGELOG.md" \
+    --repo-root "$REPO_ROOT" \
+    >/dev/null; then
+    fail "pub-use-moved fixture: linter must exit 0 (EngineError re-export moved, name preserved)"
+fi
+echo "OK pub-use-moved"
 
 # tests/-excluded: removals under any `tests/` directory are NOT public API and
 # must NOT require a CHANGELOG entry → exit 0 even with an empty Removed section.

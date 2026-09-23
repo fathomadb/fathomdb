@@ -382,9 +382,10 @@ x_case y2-non-library-removals-ignored 0
 
 # X-3 live-git: renames are diffed as delete + add, so a file renamed into
 # another crate is compared (its items leave the old crate) while a rename
-# within the crate is a move.
-git -C "$tmp_repo" checkout -q -b renames base
-cat >"$tmp_repo/src/rust/crates/example/src/moved.rs" <<'RS'
+# within the crate that keeps the crate-root re-exports is a move.
+example_root="$tmp_repo/src/rust/crates/example/src/lib.rs"
+write_widget() {
+    cat >"$tmp_repo/src/rust/crates/example/src/moved.rs" <<'RS'
 pub struct Widget;
 impl Widget {
     pub fn render(&self) -> u32 { 1 }
@@ -392,11 +393,18 @@ impl Widget {
 }
 pub fn widget_helper() -> Widget { Widget }
 RS
+}
+git -C "$tmp_repo" checkout -q -b renames base
+cp "$example_root" "$WORK/example_root.base"
+write_widget
+printf 'mod moved;\npub use moved::{Widget, widget_helper};\n' >>"$example_root"
 git -C "$tmp_repo" add -A
 git -C "$tmp_repo" commit -q -m add-moved
 git -C "$tmp_repo" tag rename-base
 git -C "$tmp_repo" mv src/rust/crates/example/src/moved.rs src/rust/crates/example/src/renamed.rs
-git -C "$tmp_repo" commit -q -m rename-in-crate
+cp "$WORK/example_root.base" "$example_root"
+printf 'mod renamed;\npub use renamed::{Widget, widget_helper};\n' >>"$example_root"
+git -C "$tmp_repo" commit -q -am rename-in-crate
 set +e
 python3 "$LINT" --repo-root "$tmp_repo" --base rename-base --head HEAD \
     >/dev/null 2>"$WORK/live_git_rename_in_crate.err"
@@ -407,10 +415,38 @@ if [ "$rc" -ne 0 ]; then
     fail "live-git X-3 in-crate rename: expected exit 0, got $rc"
 fi
 echo "OK live-git X-3 in-crate rename"
+# Y-1: the same in-crate rename without a crate-root re-export changes the
+# items' module path (`crate::moved::X` -> `crate::renamed::X`), so the free
+# items are removals; the methods still move with their type.
+git -C "$tmp_repo" checkout -q -b renames-private base
+write_widget
+git -C "$tmp_repo" add -A
+git -C "$tmp_repo" commit -q -m add-moved-private
+git -C "$tmp_repo" tag rename-base-private
+git -C "$tmp_repo" mv src/rust/crates/example/src/moved.rs src/rust/crates/example/src/renamed.rs
+git -C "$tmp_repo" commit -q -m rename-in-crate-private
+set +e
+python3 "$LINT" --repo-root "$tmp_repo" --base rename-base-private --head HEAD \
+    >/dev/null 2>"$WORK/live_git_rename_in_crate_private.err"
+rc=$?
+set -e
+if [ "$rc" -ne 1 ]; then
+    fail "live-git Y-1 in-crate rename without root re-export: expected exit 1, got $rc"
+fi
+for name in "struct Widget" "fn widget_helper"; do
+    if ! grep -qF "$name" "$WORK/live_git_rename_in_crate_private.err"; then
+        fail "live-git Y-1 in-crate rename without root re-export: diagnostic must name $name"
+    fi
+done
+if grep -qF "Widget::render" "$WORK/live_git_rename_in_crate_private.err"; then
+    fail "live-git Y-1 in-crate rename without root re-export: Widget::render moved with its type"
+fi
+echo "OK live-git Y-1 in-crate rename without root re-export"
 git -C "$tmp_repo" checkout -q -b cross-crate rename-base
 mkdir -p "$tmp_repo/src/rust/crates/other/src"
 git -C "$tmp_repo" mv src/rust/crates/example/src/moved.rs src/rust/crates/other/src/moved.rs
-git -C "$tmp_repo" commit -q -m rename-cross-crate
+cp "$WORK/example_root.base" "$example_root"
+git -C "$tmp_repo" commit -q -am rename-cross-crate
 set +e
 python3 "$LINT" --repo-root "$tmp_repo" --base rename-base --head HEAD \
     >/dev/null 2>"$WORK/live_git_rename_cross_crate.err"

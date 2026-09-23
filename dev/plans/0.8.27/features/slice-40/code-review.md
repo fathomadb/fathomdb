@@ -1,3 +1,10 @@
+---
+title: FathomDB 0.8.27 Slice 40 - independent code review
+status: PASS
+target_release: 0.8.27
+reviewed_candidate: fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae
+---
+
 # Slice 40 independent code review
 
 ## Scope
@@ -31,3 +38,23 @@ paths and cfg gates are preserved; crate-only visibility is no wider than the
 former root ownership required; Slice 20 erasure and later domain logic were
 not absorbed; Slice 72 behavior moved intact; and all four comparator receipts
 show semantic equality with empty metadata and row diffs.
+
+## Verification-found follow-up
+
+The broad gate exposed three relocation-sensitive repository checks after the
+initial implementation review:
+
+1. commit `3828a31c` removed an orphan doc-comment separator rejected by
+   Clippy; narrow re-review returned PASS;
+2. RED `7e7810ed` and GREEN `0709f9d0` taught AC-050c that an explicit same-file
+   Rust `pub use` preserves the public path after a private-module move; review
+   then found cross-hunk state bleed, closed by RED `8300358a` and GREEN
+   `1c23f2cc`; and
+3. RED `19e4028f` and GREEN `11962b37` retargeted the unchanged C1 assertions
+   for `EngineError` and `IdSpaceKind` to their new physical owners. Commit
+   `fdd7fb64` corrected the source-inventory comment.
+
+The reviewer verified fail-closed handling for glob, private, renamed, aliased,
+and interrupted re-exports; unchanged Python and TypeScript removal behavior;
+the full adversarial C1 fixture suite; unchanged C1 contract/pin/hash/evidence;
+and exact source inventory. Final verdict: **PASS, no findings remain.**

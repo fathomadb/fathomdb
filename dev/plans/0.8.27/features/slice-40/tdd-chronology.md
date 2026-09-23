@@ -75,3 +75,35 @@ SHA-256 was
 
 All four comparisons used the tracked Slice 30 baseline captured from
 `def7d894d6439c4dd223d972963613c097d27eea`; none regenerated or modified it.
+
+## Broad-gate RED/GREEN follow-up
+
+The first clean broad gate found an empty doc-comment separator left where the
+error block had moved. Clippy supplied the RED diagnostic
+`empty_line_after_doc_comments`; commit `3828a31c` removed only that separator,
+and engine-library Clippy returned GREEN.
+
+AC-050c then treated the error definitions as removed because its diff scanner
+understood same-file declarations but not explicit crate-root re-exports. RED
+`7e7810ed` added the exact private-module/public-re-export fixture. GREEN
+`0709f9d0` recognized explicit exported names while keeping glob exports
+fail-closed. Independent review found that a partial `pub use` could bleed
+across context and hunk boundaries into a private block. RED `8300358a` added
+glob, private, rename, alias-preservation, and exact state-poisoning fixtures;
+GREEN `1c23f2cc` resets pending statement state at every hunk and non-added
+line. The focused suite and live AC-050c route passed, and re-review returned
+PASS.
+
+The registered harness next showed that six consumers of the C1 gate shared
+one stale physical-file assumption: `EngineError` and `IdSpaceKind` were still
+probed in `lib.rs`. RED `19e4028f` moved mutation fixtures and source-inventory
+expectations to `errors.rs` and `identity.rs`; it failed because those files
+were absent from the gate manifest. GREEN `11962b37` changed only the probe
+owners and source inventory. The complete adversarial C1 suite passed; the
+ratified contract, pin, clause semantics, evidence, hashes, and tree-scoped
+negative checks were unchanged. Commit `fdd7fb64` corrected the inventory
+comment after review.
+
+Final independent verification at `fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`
+passed the canonical 124-suite gate, strict security, workspace Clippy/check,
+locked erasure matrix, and a fresh 13-row surface comparison.

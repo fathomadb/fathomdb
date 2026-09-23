@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 40 - engine foundation and test seams
-status: APPROVED_FOR_IMPLEMENTATION
+status: COMPLETE
 target_release: 0.8.27
 baseline_entry_sha: 5f5c1798a3cffc1416467fd707587954ea75d9c6
 ---

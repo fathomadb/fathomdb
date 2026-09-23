@@ -476,6 +476,10 @@ claimed. Exercise applicable features separately. CPU/CUDA comparison uses a
 justified numerical tolerance, not byte identity. CUDA evidence must prove
 CUDA selection and computation.
 
+Because the feature-gated embedding and reranking targets exercise this code,
+Slice 70 also runs the feature-complete test gate,
+`scripts/test-feature-complete.sh`, and records its summary.
+
 ### Slice 80 — read, search, graph, and evidence
 
 Organize reader pool, frozen/page reads, filtering, search, ranking, graph, and
@@ -565,7 +569,8 @@ a reviewed diff record against the previous baseline.
 Write little or no new product test code. Re-run:
 
 - the immutable public-surface comparator, together with the hidden-surface
-  comparison against the current hidden baseline;
+  and test-inventory comparison against the current hidden baseline;
+- the feature-complete test gate, `scripts/test-feature-complete.sh`;
 - full `agent-verify`;
 - full-workspace clippy and check;
 - applicable feature combinations;
@@ -579,6 +584,20 @@ Bind the candidate manifest to the reviewed commit, platforms, feature sets,
 commands, test counts, and artifact hashes. A qualification defect returns to
 the owning slice with a new RED test; never weaken a qualification test.
 
+As its last step, after qualification fully passes, Slice 150 retires the
+0.8.27 hidden-surface oracle (RH-12 in
+`dev/plans/0.8.27/features/hidden-surface/plan.md`): record the final hidden and
+test-inventory comparisons with manifest digests in that unit's `status.md`,
+run `hidden_surface.py prune`, then delete `dev/tools/hidden_surface.py`, its
+self-tests, fixtures, fast-tier line, and committed `baseline-*.json` files.
+The feature-complete gate, the test-target coverage check, their shared
+`scripts/lib/test_targets.py`, the committed feature matrix and skip
+allowlist, the warning-free test-build gates, the dead-code lint, and the
+removal-changelog gate stay. The retirement commit rewrites cadence step 4
+and this slice's text to say the oracle ran and was retired, citing the
+`status.md` digests. If the decomposition is abandoned or deferred, the same
+unwind runs at that decision.
+
 ## Structural slice cadence
 
 Slices 40–130 use this cadence:
@@ -587,19 +606,23 @@ Slices 40–130 use this cadence:
 2. Add missing characterization coverage and prove it non-vacuous through
    temporary defect injection.
 3. Make one mechanical move.
-4. Run focused tests, the surface comparator, and the hidden-surface
-   comparison against the current hidden baseline.
+4. Run focused tests, the surface comparator, and the hidden-surface and
+   test-inventory comparison against the current hidden baseline.
 5. Refactor inside the new boundary, adding RED tests for new logic.
 6. Run `agent-verify` and full workspace checks before closing the slice.
 7. Preserve exact evidence and exclude unrelated cleanup.
 
-The hidden-surface comparison is
+The hidden-surface and test-inventory comparison is
 `python3 dev/tools/hidden_surface.py compare`, run on a fresh capture of the
 slice head against the `baseline-<sha>.json` under
 `dev/plans/0.8.27/features/hidden-surface/` whose capture commit is the most
 recent ancestor of `HEAD`. An unexpected hidden-surface difference blocks the
 batch. An intended one is recorded as a successor `baseline-<sha>.json`
 beside a reviewed `baseline-<sha>-diff.md`; no baseline file is rewritten.
+
+Test-inventory policy: a removed or newly ignored test, or a test target that
+no longer builds, blocks the batch unless the slice status names it with its
+reason. An added test is expected when characterization coverage is added.
 
 ## Public interfaces and acceptance
 

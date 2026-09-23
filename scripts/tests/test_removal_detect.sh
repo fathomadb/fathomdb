@@ -230,4 +230,95 @@ if ! grep -q "Foo" /tmp/removal_detect_pub_use_reopened.err; then
 fi
 echo "OK pub-use-block-partial reopened-with-context"
 
+# Per-side reconstruction: the exported `pub use` set is parsed from the
+# whole old and new file text, so a name that stops being UNCONDITIONALLY
+# exported is a removal regardless of which lines of the diff changed.
+#   W-1: moved into an existing (context) cfg-gated block / below a context
+#        cfg attribute.
+#   W-2: dropped from deep inside a long block (full-context patch; the
+#        live-git path is covered by the temp-repo case below).
+#   W-3: only a cfg attribute added above an unchanged `pub use`, item, or
+#        inline module whose contents then leave the default build.
+w_case() {
+    local case_name="$1" expected_name="$2"
+    set +e
+    python3 "$LINT" \
+        --diff-file "$FIX/pub-use-full-context/$case_name.patch" \
+        --changelog "$FIX/pub-use-full-context/CHANGELOG.md" \
+        --repo-root "$REPO_ROOT" \
+        >/dev/null 2>"/tmp/removal_detect_full_context_${case_name}.err"
+    rc=$?
+    set -e
+    if [ "$rc" -ne 1 ]; then
+        fail "$case_name fixture: expected undocumented removal exit 1, got $rc"
+    fi
+    for name in $expected_name; do
+        if ! grep -qw "$name" "/tmp/removal_detect_full_context_${case_name}.err"; then
+            fail "$case_name fixture: diagnostic must name removed $name"
+        fi
+    done
+    echo "OK $case_name"
+}
+w_case w1-into-existing-cfg-block Foo
+w_case w1-context-cfg-above-added Foo
+w_case w2-long-block-full-context Foo
+w_case w3-cfg-added-single Foo
+w_case w3-cfg-added-group "Bar Baz"
+w_case w3-cfg-added-item Foo
+w_case w3-cfg-added-mod-block Foo
+
+# Same-file cancellation still holds for the per-side parse: a name moved
+# from a cfg-gated block into an unconditional one, or from a `pub use` to a
+# direct public item, is still exported by the default build.
+for case_name in moved-into-unconditional-block use-to-item; do
+    if ! python3 "$LINT" \
+        --diff-file "$FIX/pub-use-full-context/$case_name.patch" \
+        --changelog "$FIX/pub-use-full-context/CHANGELOG.md" \
+        --repo-root "$REPO_ROOT" \
+        >/dev/null; then
+        fail "$case_name fixture: linter must exit 0 (name still unconditionally exported)"
+    fi
+    echo "OK $case_name"
+done
+
+# W-2 live-git path: the real gate diffs git refs itself, so the fixture must
+# prove that `load_diff` produces whole-file context — dropping one name from
+# deep inside a long block must still be seen as leaving that block.
+tmp_repo="$(mktemp -d)"
+trap 'rm -rf "$tmp_repo"' EXIT
+git -C "$tmp_repo" init -q
+git -C "$tmp_repo" config user.email removal-detect@example.invalid
+git -C "$tmp_repo" config user.name removal-detect
+mkdir -p "$tmp_repo/src/rust/crates/example/src"
+lib="$tmp_repo/src/rust/crates/example/src/lib.rs"
+{
+    echo "mod m;"
+    echo "pub use m::{"
+    for i in $(seq 1 10); do printf '    Name%02d,\n' "$i"; done
+    echo "    Foo,"
+    for i in $(seq 11 20); do printf '    Name%02d,\n' "$i"; done
+    echo "};"
+    echo "pub fn keep() {}"
+} >"$lib"
+cp "$FIX/pub-use-full-context/CHANGELOG.md" "$tmp_repo/CHANGELOG.md"
+git -C "$tmp_repo" add -A
+git -C "$tmp_repo" commit -q -m base
+git -C "$tmp_repo" tag base
+grep -v '^    Foo,$' "$lib" >"$lib.new"
+cat "$lib.new" >"$lib"
+rm "$lib.new"
+git -C "$tmp_repo" commit -q -am drop-foo
+set +e
+python3 "$LINT" --repo-root "$tmp_repo" --base base --head HEAD \
+    >/dev/null 2>/tmp/removal_detect_live_git_w2.err
+rc=$?
+set -e
+if [ "$rc" -ne 1 ]; then
+    fail "live-git W-2: expected undocumented removal exit 1, got $rc"
+fi
+if ! grep -qw "Foo" /tmp/removal_detect_live_git_w2.err; then
+    fail "live-git W-2: diagnostic must name removed Foo"
+fi
+echo "OK live-git W-2 (whole-file context)"
+
 echo "test_removal_detect.sh: all cases pass"

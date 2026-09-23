@@ -1,0 +1,29 @@
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,25 +1,24 @@
+ mod m;
+ pub use m::{
+     Name01,
+     Name02,
+     Name03,
+     Name04,
+     Name05,
+     Name06,
+     Name07,
+     Name08,
+     Name09,
+     Name10,
+-    Foo,
+     Name11,
+     Name12,
+     Name13,
+     Name14,
+     Name15,
+     Name16,
+     Name17,
+     Name18,
+     Name19,
+     Name20,
+ };
+ pub fn keep() {}

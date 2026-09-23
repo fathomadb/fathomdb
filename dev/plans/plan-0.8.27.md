@@ -556,11 +556,16 @@ the exception register covers every trigger. Do not make file size itself a
 blocking automated test. The five named outliers must no longer remain
 unexplained monoliths.
 
+Slice 140's intended hidden-surface differences, including the test-seam
+gating, are captured at its landing commit as a successor hidden baseline with
+a reviewed diff record against the previous baseline.
+
 ### Slice 150 — integrated release qualification
 
 Write little or no new product test code. Re-run:
 
-- the immutable public-surface comparator;
+- the immutable public-surface comparator, together with the hidden-surface
+  comparison against the current hidden baseline;
 - full `agent-verify`;
 - full-workspace clippy and check;
 - applicable feature combinations;
@@ -582,10 +587,19 @@ Slices 40–130 use this cadence:
 2. Add missing characterization coverage and prove it non-vacuous through
    temporary defect injection.
 3. Make one mechanical move.
-4. Run focused tests and the surface comparator.
+4. Run focused tests, the surface comparator, and the hidden-surface
+   comparison against the current hidden baseline.
 5. Refactor inside the new boundary, adding RED tests for new logic.
 6. Run `agent-verify` and full workspace checks before closing the slice.
 7. Preserve exact evidence and exclude unrelated cleanup.
+
+The hidden-surface comparison is
+`python3 dev/tools/hidden_surface.py compare`, run on a fresh capture of the
+slice head against the `baseline-<sha>.json` under
+`dev/plans/0.8.27/features/hidden-surface/` whose capture commit is the most
+recent ancestor of `HEAD`. An unexpected hidden-surface difference blocks the
+batch. An intended one is recorded as a successor `baseline-<sha>.json`
+beside a reviewed `baseline-<sha>-diff.md`; no baseline file is rewritten.
 
 ## Public interfaces and acceptance
 

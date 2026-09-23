@@ -1,0 +1,13 @@
+[package]
+name = "hs_facade"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+hs_fixture = { path = "../crate" }
+
+[features]
+hooks = ["hs_fixture/hooks"]
+
+[workspace]

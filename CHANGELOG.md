@@ -1202,6 +1202,11 @@ Agent-memory enablement (G0–G12). See `docs/release-notes/0.8.0.md` (user) and
   `TruncateWalStatus`, `VerifyEmbedderReport`, and `VerifyEmbedderStatus` are
   no longer exported without `--features operator` (see the operator-seam entry
   under Changed; enabling the feature restores them unchanged).
+- **Rust engine, default build only:** the `Engine` methods `check_integrity`,
+  `dump_profile`, `dump_row_counts`, `dump_schema`, `excise_source`,
+  `rebuild_projections`, `rebuild_vec0`, `safe_export`, `trace_source_ref`,
+  `truncate_wal`, and `verify_embedder` are compiled only with
+  `--features operator` (same operator-seam gating as above).
 
 ## 0.7.2 - 2026-06-01
 

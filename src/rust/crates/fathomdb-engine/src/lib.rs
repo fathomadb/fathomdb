@@ -2109,10 +2109,12 @@ impl ReaderWorkerPool {
         }
     }
 
+    #[cfg(debug_assertions)]
     fn worker_count(&self) -> usize {
         self.senders.len()
     }
 
+    #[cfg(debug_assertions)]
     fn live_count(&self) -> usize {
         self.live_workers.load(Ordering::SeqCst)
     }

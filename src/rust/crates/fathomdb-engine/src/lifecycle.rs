@@ -170,6 +170,7 @@ impl SubscriberRegistry {
         }
     }
 
+    #[cfg(debug_assertions)]
     pub(crate) fn dispatch_stress_failure(&self, context: &StressFailureContext) {
         for sub in self.snapshot() {
             sub.on_stress_failure(context);

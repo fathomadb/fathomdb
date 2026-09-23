@@ -1,14 +1,16 @@
 ---
 title: FathomDB 0.8.27 hidden-surface oracle - design
-status: APPROVED
+status: PROPOSED
 target_release: 0.8.27
 ---
 
 # Hidden-surface oracle design
 
-Requirements and acceptance: `plan.md` (RH-1 to RH-10; eight rustdoc rows plus
-the release probe). Revision 3 closes design review rounds 1 and 2 (D-1 to
-D-10, E-1 to E-5; `design-review.md`).
+Requirements and acceptance: `plan.md` (RH-1 to RH-12; eight rustdoc rows, the
+release probe, and eight test-inventory rows). Revision 4 closes design review
+rounds 1 to 3 (`design-review.md`) and applies the owner ruling
+`hidden-surface-effective-and-inventory`, made after implementation showed
+per-site signing reports Slice 40's gate moves as differences.
 
 ## Shape
 
@@ -87,12 +89,12 @@ lexicographic order).
 | Item | Rule |
 | --- | --- |
 | module | Entry if `public`; recurse into its `items`. |
-| `use`, not glob, `public` | Local target: record the target under `<path>::<name>` (alias honoured) with the target's signature plus `use_hidden` and `use_cfg`; a module target recurses under the new path. External target (not in `index`): entry kind `external`, signature built from the re-export's own `source` spelling plus `use_hidden` and `use_cfg` (see below). |
+| `use`, not glob, `public` | Local target: record the target under `<path>::<name>` (alias honoured) with the target's signature, folding the `use` site into its effective `hidden` and `cfg`; a module target recurses under the new path. External target (not in `index`): entry kind `external`, signature built from the re-export's own `source` spelling plus effective `hidden` and `cfg` (see below). |
 | `use`, glob, `public` | Local module target: expand its public items, skipping names declared explicitly in the importing module. External target: one entry `external-glob:<source>`. |
 | struct, union | Entry if `public`; each `public` field is an entry `<Type>::<field>`; impls as below. |
 | enum | Entry if `public`; each variant (visibility `default`) is an entry `<Enum>::<Variant>`; impls as below. |
 | trait | Entry if `public`; each trait item (visibility `default`) is an entry `<Trait>::<item>`. |
-| inherent impl | Each `public` item is an entry `<Type>::<name>`, carrying `impl_hidden` and `impl_cfg`. |
+| inherent impl | Each `public` item is an entry `<Type>::<name>`, folding the `impl` site into its effective `hidden` and `cfg`. |
 | trait impl | Skip synthetic (auto-trait) impls and blanket instantiations; every other one is an entry `<Type>::impl <Trait<args>>`, with generic arguments rendered. |
 | local blanket impl | An impl defined in this crate whose `for` is a generic parameter is an entry `<crate>::impl <Trait<args>> for <T>`. |
 | fn, constant, static, type alias, macro | Entry if `public`. |
@@ -104,10 +106,22 @@ Each entry is `{path, kind, signature}`, so the shared compare works.
 `signature` is compact canonical JSON of:
 
 - `visibility`;
-- `own_hidden`, `use_hidden`, `impl_hidden`: booleans, one per site;
-- `own_cfg`, `use_cfg`, `impl_cfg`: the cfg predicate at each site, or
-  `null`;
+- `hidden`: the effective doc-hidden flag, true when any site on the item's
+  public path carries `#[doc(hidden)]` (its definition, the re-exporting
+  `use`, its `impl` block, or an enclosing module);
+- `cfg`: the effective cfg predicate, the canonical conjunction of every
+  site's predicate on the same sites (nested `all` flattened, operands sorted
+  and de-duplicated; `null` when ungated);
 - the item's `inner`, normalized as follows.
+
+Signing effective values, not per-site ones, is an owner ruling
+(`hidden-surface-effective-and-inventory`, 2026-09-23). Slice 40 moved gates
+from definitions onto re-exports without changing any item's effect, and the
+decomposition slices will do the same, so per-site signing reports noise.
+What effective values cannot show — a definition left ungated behind a gated
+re-export, compiled into default builds as dead code — is caught by the
+dead-code lint in clippy `-D warnings` and the warning-free release test-build
+gates in `scripts/agent-typecheck.sh`.
 
 Normalization of `inner`:
 
@@ -118,7 +132,7 @@ Normalization of `inner`:
   when two unreachable items share kind and name (E-4); an external item
   becomes its canonical `paths` path.
 - Replace id lists by names or types: struct plain fields become field names
-  with each field's `own_hidden` and `own_cfg`; tuple fields become their
+  with each field's effective `hidden` and `cfg`; tuple fields become their
   normalized types (`null` for stripped fields); enum `variants`, trait
   `items`, and impl `items` become sorted name lists; `impls` lists and module
   `items` lists are dropped because their members are entries of their own.
@@ -127,8 +141,8 @@ Normalization of `inner`:
 **External re-exports (E-2).** In the facade rows every re-exported engine item
 is external to the facade's rustdoc JSON, and `paths` holds the engine's
 definition location. The facade's promise is its own `pub use` spelling, so an
-`external` entry's signature is `{"source": <use.source>, "use_hidden",
-"use_cfg"}`. It changes only when the facade source changes, and the compiler
+`external` entry's signature is `{"source": <use.source>, "hidden",
+"cfg"}`, with the effective values from the facade-side sites. It changes only when the facade source changes, and the compiler
 checks that it resolves. Engine rows still resolve references to
 `fathomdb-query` and `fathomdb-schema` items through their definition paths;
 those crates are not decomposed in 0.8.27, so this is accepted.
@@ -149,9 +163,8 @@ release build. After the rustdoc rows (and after `source_tree_sha256` is
 computed), the capture:
 
 1. **Selects items.** From the `engine-default` and `facade-default` rows, it
-   selects every entry whose conjunction of site predicates (own, use, impl,
-   and any gated ancestor module) is false once `debug_assertions` and `test`
-   are false and no features are enabled. Those are expected `unresolved`.
+   selects every entry whose effective `cfg` is false once
+   `debug_assertions` and `test` are false and no features are enabled. Those are expected `unresolved`.
    Release-only items (true only under `not(debug_assertions)`) are invisible
    to rustdoc. They come from a curated list in the tool, today only the
    facade's `release_surface_raw_sql_absence_proof`, and are expected
@@ -176,6 +189,55 @@ computed), the capture:
 4. **Emits the row.** The `release-probe` row has one entry per item, `kind:
    release-probe`, `signature: resolved | unresolved`. A status that
    contradicts the expectation fails the capture (exit 2).
+
+## Test inventory (RH-11)
+
+A surface oracle cannot see tests. During a move, a wrong `#![cfg(...)]` on a
+test file, or a hook gate that no longer matches its tests, can silently stop
+tests from compiling or running. For each rustdoc row, the capture runs, from
+the same export and cache:
+
+```text
+cargo +nightly-2026-04-24 test --locked -p <crate> --no-default-features
+  [--features F] --lib --tests -- --list --format terse
+cargo +nightly-2026-04-24 test --locked -p <crate> --no-default-features
+  [--features F] --lib --tests -- --list --format terse --ignored
+```
+
+It emits row `tests-<row>` with one entry per test: `path` is
+`<test target>::<test name>` (`lib` for unit tests), `kind` is `test`, and
+`signature` is `run` or `ignored`. Doctests are out of scope. The shared
+compare reports a removed test as a removal, a newly ignored test as a change,
+and a new test as an addition. Cadence policy: a removal or a newly ignored
+test blocks the batch unless the slice status names it with its reason; an
+addition is expected when characterization tests are added.
+
+## Retirement (RH-12)
+
+The oracle exists to make the 0.8.27 decomposition safe, and it is removed
+when that is done, so it does not become a permanent maintenance cost.
+
+- **Trigger:** Slice 150 qualification. Slice 150 runs the final hidden and
+  test-inventory comparisons against the current baseline, and records their
+  results and manifest digests in this unit's `status.md`.
+- **Removed in the same slice:**
+  - `dev/tools/hidden_surface.py`;
+  - `scripts/tests/test_hidden_surface.py`;
+  - `scripts/tests/fixtures/hidden-surface/`;
+  - the fast-tier line in `scripts/agent-test.sh`;
+  - the committed `baseline-*.json` files;
+  - the tool's cache and scratch roots (`hidden_surface.py prune` first).
+
+  Git history keeps all of them.
+- **Kept:**
+  - the warning-free test-build gates in `scripts/agent-typecheck.sh`;
+  - the dead-code lint;
+  - the removal-changelog gate;
+  - the Slice 30 comparator, whose own lifetime is decided by its own plan.
+- **Early unwind:** if the decomposition is abandoned or deferred, the same
+  removal runs as part of that decision.
+- **Revival:** a later release that decomposes again restores the tool from
+  history, re-pins the toolchain, and captures a fresh baseline.
 
 ## Baselines and evidence (RH-5, RH-6)
 
@@ -206,11 +268,11 @@ computed), the capture:
 `plan-0.8.27.md` changes:
 
 - "Structural slice cadence" step 4 (Slices 40 to 130) reads "Run focused
-  tests, the surface comparator, and the hidden-surface comparison against the
-  current hidden baseline."
+  tests, the surface comparator, and the hidden-surface and test-inventory
+  comparison against the current hidden baseline."
 - Slice 140 records its intended hidden differences as a successor baseline.
-- Slice 150 re-runs the hidden-surface comparison with the immutable
-  public-surface comparator.
+- Slice 150 re-runs the hidden-surface and test-inventory comparison with the
+  immutable public-surface comparator, then performs the retirement (RH-12).
 
 ## Self-tests (RH-8)
 

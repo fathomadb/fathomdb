@@ -1,0 +1,15 @@
+# Every test the feature-complete gate (scripts/test-feature-complete.sh) may
+# legitimately not run. `id` is `<crate>::<target>` (the whole target) or
+# `<crate>::<target>::<test path>`. Classes:
+#   ignored-by-design  a test that must never run directly (`#[ignore]`d on purpose)
+#   opt-in-experiment  needs an explicit opt-in or gitignored inputs to be live
+#   benign-message     prints a skip marker for something harmless
+#   platform-excluded  a whole target whose file-level cfg excludes this host
+# The gate fails on a skip or ignored test not listed here, and on an entry
+# that no longer matches anything (scripts/check-test-target-coverage.py
+# checks the static half on every fast-tier run).
+
+[[entry]]
+id = "fathomdb-embedder::aarch64_candle_cpu"
+class = "platform-excluded"
+reason = "#![cfg(all(target_arch = \"aarch64\", target_os = \"linux\", ...))]: the Jetson Candle CPU check compiles to nothing on x86_64 and runs on the aarch64 host."

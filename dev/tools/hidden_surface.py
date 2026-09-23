@@ -29,10 +29,14 @@ import stat
 import subprocess
 import sys
 import tempfile
-from typing import Any, Iterable, Iterator, Sequence
+from typing import Any, Callable, Iterable, Iterator, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import surface_comparator as _comparator  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "lib"))
+import feature_complete  # noqa: E402
+import test_targets  # noqa: E402
 
 canonical_json = _comparator.canonical_json
 compare_manifests = _comparator.compare_manifests
@@ -79,6 +83,14 @@ ROWS: list[dict[str, Any]] = [
     {"id": "facade-operator", "crate": "fathomdb", "features": ["operator"]},
 ]
 RELEASE_PROBE_ROW = "release-probe"
+TEST_TARGETS_ROW = "test-targets"
+# Inventory builds only need test names: no debug info keeps each row's test
+# executables to a few GB (they are deleted after listing).
+INVENTORY_ENV = {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+}
 # (package, crate directory, rustdoc default row) for each probed crate.
 PROBE_CRATES = [
     ("fathomdb-engine", "src/rust/crates/fathomdb-engine", "engine-default"),
@@ -188,11 +200,11 @@ class _CfgTraceParser:
         self.pos = match.end()
         return match.group(1)
 
-    def predicate(self) -> str:
+    def predicate(self) -> tuple:
         for combinator in ("Any", "All"):
             if self.peek(combinator + "(["):
                 self.eat(combinator + "([")
-                operands: list[str] = []
+                operands: list[tuple] = []
                 if not self.peek("]"):
                     operands.append(self.predicate())
                     while self.peek(","):
@@ -201,14 +213,14 @@ class _CfgTraceParser:
                 self.eat("],")
                 self.span()
                 self.eat(")")
-                return f"{combinator.lower()}({', '.join(sorted(operands))})"
+                return (combinator.lower(), operands)
         if self.peek("Not("):
             self.eat("Not(")
             inner = self.predicate()
             self.eat(",")
             self.span()
             self.eat(")")
-            return f"not({inner})"
+            return ("not", [inner])
         if self.peek("NameValue {"):
             self.eat("NameValue {")
             self.eat("name:")
@@ -227,19 +239,11 @@ class _CfgTraceParser:
             self.eat("span:")
             self.span()
             self.eat("}")
-            return name if value is None else f'{name} = "{value}"'
+            return ("atom", name, value)
         raise self.fail("unknown predicate form")
 
 
-def parse_cfg_attr(attr: str) -> str:
-    """Parse one rustdoc `CfgTrace` attribute into a canonical predicate.
-
-    Span text is discarded; `any`/`all` operands are sorted; several stacked
-    predicates become one `all(...)`. Raises `HiddenSurfaceError` for any text
-    that is not exactly this format, so a toolchain format change cannot drop
-    a gate silently.
-    """
-
+def _cfg_trace(attr: str) -> tuple:
     if not (attr.startswith(_CFG_PREFIX) and attr.endswith(_CFG_SUFFIX)):
         raise HiddenSurfaceError(f"unparseable cfg attribute: {attr[:80]!r}")
     body = attr[len(_CFG_PREFIX) : -len(_CFG_SUFFIX)]
@@ -251,13 +255,52 @@ def parse_cfg_attr(attr: str) -> str:
     parser.skip_space()
     if parser.pos != len(body):
         raise parser.fail("trailing text")
-    return _conjunction(predicates)
+    return predicates[0] if len(predicates) == 1 else ("all", predicates)
 
 
-def _conjunction(predicates: list[str]) -> str:
-    if len(predicates) == 1:
-        return predicates[0]
-    return f"all({', '.join(sorted(predicates))})"
+def _canonical(node: tuple | None) -> str | None:
+    try:
+        return test_targets.canonical_cfg(node)
+    except test_targets.TestTargetsError as exc:
+        raise HiddenSurfaceError(f"cfg: {exc}") from exc
+
+
+def parse_cfg_attr(attr: str) -> str | None:
+    """Parse one rustdoc `CfgTrace` attribute into its canonical predicate.
+
+    Span text is discarded and the predicate is signed semantically (see
+    `canonical_cfg_text`). Raises `HiddenSurfaceError` for any text that is
+    not exactly this format, so a toolchain format change cannot drop a gate
+    silently.
+    """
+
+    return _canonical(_cfg_trace(attr))
+
+
+def canonical_cfg_text(text: str) -> str | None:
+    """Canonical form of a cfg predicate written in Rust syntax: the minimal
+    sum-of-products over its sorted atoms, lexicographically smallest on
+    ties; `None` when always true. More than twelve atoms fails."""
+
+    try:
+        return test_targets.canonical_cfg(test_targets.parse_cfg(text))
+    except test_targets.TestTargetsError as exc:
+        raise HiddenSurfaceError(
+            f"cfg: {exc}; limit {test_targets.MAX_CANONICAL_ATOMS}"
+        ) from exc
+
+
+_EFFECTIVE_CACHE: dict[frozenset[str], str | None] = {}
+
+
+def _effective(sites: Iterable[str]) -> str | None:
+    """Canonical conjunction of canonical site predicates."""
+
+    key = frozenset(sites)
+    if key not in _EFFECTIVE_CACHE:
+        parts = [test_targets.parse_cfg(site) for site in sorted(key)]
+        _EFFECTIVE_CACHE[key] = _canonical(test_targets.conjunction(parts))
+    return _EFFECTIVE_CACHE[key]
 
 
 def _attr_texts(item: dict[str, Any]) -> list[str]:
@@ -272,80 +315,37 @@ def _is_hidden(item: dict[str, Any] | None) -> bool:
     return item is not None and "#[doc(hidden)]" in _attr_texts(item)
 
 
-def _item_cfg(item: dict[str, Any] | None) -> str | None:
+def _item_cfgs(item: dict[str, Any] | None) -> tuple[str, ...]:
+    """Canonical predicate of each cfg on one site (always-true ones dropped)."""
+
     if item is None:
-        return None
-    predicates = []
+        return ()
+    found = []
     for text in _attr_texts(item):
         if "CfgTrace" in text or text.startswith("#[cfg"):
-            predicates.append(parse_cfg_attr(text))
-    return _conjunction(predicates) if predicates else None
+            canonical = parse_cfg_attr(text)
+            if canonical is not None:
+                found.append(canonical)
+    return tuple(found)
 
 
-def _parse_canonical(text: str) -> Any:
-    """Parse a canonical predicate string into a nested tuple form."""
+def release_enabled(cfg: str | None) -> bool:
+    """Evaluate an effective predicate with debug_assertions, test, and every
+    feature false. Any other atom fails instead of being guessed."""
 
-    pos = 0
+    if cfg is None:
+        return True
 
-    def skip() -> None:
-        nonlocal pos
-        while pos < len(text) and text[pos] == " ":
-            pos += 1
-
-    def parse() -> Any:
-        nonlocal pos
-        skip()
-        for combinator in ("any(", "all(", "not("):
-            if text.startswith(combinator, pos):
-                pos += len(combinator)
-                operands = []
-                skip()
-                if not text.startswith(")", pos):
-                    operands.append(parse())
-                    skip()
-                    while text.startswith(",", pos):
-                        pos += 1
-                        operands.append(parse())
-                        skip()
-                if not text.startswith(")", pos):
-                    raise HiddenSurfaceError(f"bad cfg predicate: {text!r}")
-                pos += 1
-                return (combinator[:-1], operands)
-        match = re.compile(
-            r'([A-Za-z_][A-Za-z0-9_]*)(?: = "((?:[^"\\]|\\.)*)")?'
-        ).match(text, pos)
-        if match is None:
-            raise HiddenSurfaceError(f"bad cfg predicate: {text!r}")
-        pos = match.end()
-        return ("atom", match.group(1), match.group(2))
-
-    result = parse()
-    skip()
-    if pos != len(text):
-        raise HiddenSurfaceError(f"bad cfg predicate: {text!r}")
-    return result
-
-
-def _eval_release(node: Any) -> bool:
-    kind = node[0]
-    if kind == "atom":
-        name = node[1]
-        if name in ("debug_assertions", "test", "feature"):
+    def assign(atom: tuple) -> bool:
+        if atom[1] in ("debug_assertions", "test") and atom[2] is None:
             return False
-        raise HiddenSurfaceError(f"release probe cannot evaluate cfg name {name!r}")
-    if kind == "not":
-        (operand,) = node[1]
-        return not _eval_release(operand)
-    if kind == "any":
-        return any(_eval_release(operand) for operand in node[1])
-    return all(_eval_release(operand) for operand in node[1])
+        if atom[1] == "feature" and atom[2] is not None:
+            return False
+        raise HiddenSurfaceError(
+            f"release probe cannot evaluate cfg atom {test_targets.render_atom(atom)!r}"
+        )
 
-
-def release_enabled(preds: Iterable[str]) -> bool:
-    """Evaluate a conjunction of predicates with debug_assertions, test, and
-    every feature false."""
-
-    return all(_eval_release(_parse_canonical(pred)) for pred in preds)
+    return test_targets.evaluate(test_targets.parse_cfg(cfg), assign)
 
 
 # --------------------------------------------------------------------------
@@ -353,20 +353,21 @@ def release_enabled(preds: Iterable[str]) -> bool:
 
 
 class Record:
-    """One reachable public path. `preds` is every site predicate on the path
-    (ancestors, own, re-export, impl); `form` is how the release probe names
-    the item, or None when it cannot."""
+    """One reachable public path with its effective `hidden` and `cfg` (over
+    every site on the path); `form` is how the release probe names the item,
+    or None when it cannot."""
 
     __slots__ = (
         "crate",
         "path",
         "kind",
         "signature",
-        "preds",
+        "hidden",
+        "cfg",
         "form",
         "trait_path",
         "owner_path",
-        "owner_preds",
+        "owner_cfg",
     )
 
     def __init__(
@@ -375,55 +376,45 @@ class Record:
         path: str,
         kind: str,
         signature: str,
-        preds: tuple[str, ...],
+        hidden: bool,
+        cfg: str | None,
         form: str | None,
         trait_path: str | None = None,
         owner_path: str | None = None,
-        owner_preds: tuple[str, ...] = (),
+        owner_cfg: str | None = None,
     ) -> None:
         self.crate = crate
         self.path = path
         self.kind = kind
         self.signature = signature
-        self.preds = preds
+        self.hidden = hidden
+        self.cfg = cfg
         self.form = form
         self.trait_path = trait_path
         self.owner_path = owner_path
-        self.owner_preds = owner_preds
+        self.owner_cfg = owner_cfg
 
 
 class _Node:
-    __slots__ = (
-        "item_id",
-        "path",
-        "use_hidden",
-        "use_cfg",
-        "impl_hidden",
-        "impl_cfg",
-        "ancestors",
-        "chain",
-        "assoc",
-    )
+    """A pending walk step. `hidden`/`cfgs` hold every site already on the
+    path (ancestors, re-export, impl block); the item's own site is added
+    when it is visited."""
+
+    __slots__ = ("item_id", "path", "hidden", "cfgs", "chain", "assoc")
 
     def __init__(
         self,
         item_id: str,
         path: str,
-        use_hidden: bool,
-        use_cfg: str | None,
-        impl_hidden: bool,
-        impl_cfg: str | None,
-        ancestors: tuple[str, ...],
+        hidden: bool,
+        cfgs: tuple[str, ...],
         chain: tuple[str, ...],
         assoc: bool,
     ) -> None:
         self.item_id = item_id
         self.path = path
-        self.use_hidden = use_hidden
-        self.use_cfg = use_cfg
-        self.impl_hidden = impl_hidden
-        self.impl_cfg = impl_cfg
-        self.ancestors = ancestors
+        self.hidden = hidden
+        self.cfgs = cfgs
         self.chain = chain
         self.assoc = assoc
 
@@ -433,14 +424,12 @@ class _Raw:
         "path",
         "kind",
         "item_id",
-        "use_hidden",
-        "use_cfg",
-        "impl_hidden",
-        "impl_cfg",
-        "preds",
+        "hidden",
+        "cfgs",
         "assoc",
         "external_source",
         "impl_owner",
+        "owner_cfgs",
     )
 
     def __init__(
@@ -448,26 +437,22 @@ class _Raw:
         path: str,
         kind: str,
         item_id: str | None,
-        use_hidden: bool,
-        use_cfg: str | None,
-        impl_hidden: bool,
-        impl_cfg: str | None,
-        preds: tuple[str, ...],
+        hidden: bool,
+        cfgs: tuple[str, ...],
         assoc: bool,
         external_source: str | None = None,
         impl_owner: str | None = None,
+        owner_cfgs: tuple[str, ...] = (),
     ) -> None:
         self.path = path
         self.kind = kind
         self.item_id = item_id
-        self.use_hidden = use_hidden
-        self.use_cfg = use_cfg
-        self.impl_hidden = impl_hidden
-        self.impl_cfg = impl_cfg
-        self.preds = preds
+        self.hidden = hidden
+        self.cfgs = cfgs
         self.assoc = assoc
         self.external_source = external_source
         self.impl_owner = impl_owner
+        self.owner_cfgs = owner_cfgs
 
 
 def _kind_of(item: dict[str, Any]) -> str:
@@ -510,9 +495,9 @@ def walk(doc: dict[str, Any]) -> list[Record]:
 
     def module_members(
         module_id: str, visited: frozenset[str]
-    ) -> list[tuple[str, dict[str, Any], bool, str | None]]:
-        """(name, member item, via-glob hidden, via-glob cfg) for public members,
-        explicit names shadowing glob-imported ones."""
+    ) -> list[tuple[str, dict[str, Any], bool, tuple[str, ...]]]:
+        """(name, member item, glob-site hidden, glob-site cfgs) for public
+        members, explicit names shadowing glob-imported ones."""
 
         module = index[module_id]["inner"]["module"]
         explicit: set[str] = set()
@@ -526,7 +511,7 @@ def walk(doc: dict[str, Any]) -> list[Record]:
                     explicit.add(child["inner"]["use"]["name"])
             elif child.get("name"):
                 explicit.add(child["name"])
-        members: list[tuple[str, dict[str, Any], bool, str | None]] = []
+        members: list[tuple[str, dict[str, Any], bool, tuple[str, ...]]] = []
         glob_names: set[str] = set()
         for child_id in module["items"]:
             child = item(child_id)
@@ -536,32 +521,31 @@ def walk(doc: dict[str, Any]) -> list[Record]:
             if kind == "use" and child["inner"]["use"]["is_glob"]:
                 target = item(child["inner"]["use"]["id"])
                 if target is None or _kind_of(target) != "module":
-                    members.append(("", child, False, None))
+                    members.append(("", child, False, ()))
                     continue
                 target_id = str(child["inner"]["use"]["id"])
                 if target_id in visited:
                     continue
-                for name, member, hidden, cfg in module_members(
+                for name, member, hidden, cfgs in module_members(
                     target_id, visited | {target_id}
                 ):
                     if not name or name in explicit or name in glob_names:
                         continue
                     glob_names.add(name)
-                    glob_cfgs = [c for c in (_item_cfg(child), cfg) if c]
                     members.append(
                         (
                             name,
                             member,
                             hidden or _is_hidden(child),
-                            _conjunction(glob_cfgs) if glob_cfgs else None,
+                            _item_cfgs(child) + cfgs,
                         )
                     )
                 continue
             name = child["inner"]["use"]["name"] if kind == "use" else child.get("name")
-            members.append((name or "", child, False, None))
+            members.append((name or "", child, False, ()))
         return members
 
-    push(_Node(root_id, crate, False, None, False, None, (), (), False))
+    push(_Node(root_id, crate, False, (), (), False))
     while heap:
         _, _, _, node = heapq.heappop(heap)
         if (node.item_id, node.path) in seen:
@@ -570,71 +554,50 @@ def walk(doc: dict[str, Any]) -> list[Record]:
         current = index[node.item_id]
         kind = _kind_of(current)
         first_path.setdefault(node.item_id, node.path)
-        own_cfg = _item_cfg(current)
-        preds = node.ancestors + tuple(
-            c for c in (own_cfg, node.use_cfg, node.impl_cfg) if c is not None
-        )
-        raws.append(
-            _Raw(
-                node.path,
-                kind,
-                node.item_id,
-                node.use_hidden,
-                node.use_cfg,
-                node.impl_hidden,
-                node.impl_cfg,
-                preds,
-                node.assoc,
-            )
-        )
+        hidden = node.hidden or _is_hidden(current)
+        cfgs = node.cfgs + _item_cfgs(current)
+        raws.append(_Raw(node.path, kind, node.item_id, hidden, cfgs, node.assoc))
         if node.item_id in node.chain:
             continue
         chain = node.chain + (node.item_id,)
         inner = current["inner"][kind]
 
-        def child(child_id: Any, path: str, **flags: Any) -> None:
+        def child(
+            child_id: Any,
+            path: str,
+            site_hidden: bool = False,
+            site_cfgs: tuple[str, ...] = (),
+            assoc: bool = False,
+        ) -> None:
             push(
                 _Node(
                     str(child_id),
                     path,
-                    flags.get("use_hidden", False),
-                    flags.get("use_cfg"),
-                    flags.get("impl_hidden", False),
-                    flags.get("impl_cfg"),
-                    preds,
+                    hidden or site_hidden,
+                    cfgs + site_cfgs,
                     chain,
-                    flags.get("assoc", False),
+                    assoc,
                 )
             )
 
         if kind == "module":
-            for name, member, glob_hidden, glob_cfg in module_members(
+            for name, member, glob_hidden, glob_cfgs in module_members(
                 node.item_id, frozenset({node.item_id})
             ):
-                member_kind = _kind_of(member)
-                if member_kind != "use":
-                    child(
-                        member["id"],
-                        f"{node.path}::{name}",
-                        use_hidden=glob_hidden,
-                        use_cfg=glob_cfg,
-                    )
+                if _kind_of(member) != "use":
+                    child(member["id"], f"{node.path}::{name}", glob_hidden, glob_cfgs)
                     continue
                 use = member["inner"]["use"]
                 use_hidden = glob_hidden or _is_hidden(member)
-                use_cfgs = [c for c in (glob_cfg, _item_cfg(member)) if c]
-                use_cfg = _conjunction(use_cfgs) if use_cfgs else None
+                use_cfgs = glob_cfgs + _item_cfgs(member)
                 if use["is_glob"]:
                     raws.append(
                         _Raw(
                             f"{node.path}::external-glob:{use['source']}",
                             "external-glob",
                             None,
-                            use_hidden,
-                            use_cfg,
-                            False,
-                            None,
-                            preds + ((use_cfg,) if use_cfg else ()),
+                            hidden or use_hidden,
+                            cfgs + use_cfgs,
                             False,
                             external_source=use["source"],
                         )
@@ -642,10 +605,7 @@ def walk(doc: dict[str, Any]) -> list[Record]:
                     continue
                 if use["id"] is not None and item(use["id"]) is not None:
                     child(
-                        use["id"],
-                        f"{node.path}::{use['name']}",
-                        use_hidden=use_hidden,
-                        use_cfg=use_cfg,
+                        use["id"], f"{node.path}::{use['name']}", use_hidden, use_cfgs
                     )
                     continue
                 raws.append(
@@ -653,11 +613,8 @@ def walk(doc: dict[str, Any]) -> list[Record]:
                         f"{node.path}::{use['name']}",
                         "external",
                         None,
-                        use_hidden,
-                        use_cfg,
-                        False,
-                        None,
-                        preds + ((use_cfg,) if use_cfg else ()),
+                        hidden or use_hidden,
+                        cfgs + use_cfgs,
                         False,
                         external_source=use["source"],
                     )
@@ -686,7 +643,7 @@ def walk(doc: dict[str, Any]) -> list[Record]:
                 if impl["is_synthetic"] or impl["blanket_impl"] is not None:
                     continue
                 impl_hidden = _is_hidden(impl_item)
-                impl_cfg = _item_cfg(impl_item)
+                impl_cfgs = _item_cfgs(impl_item)
                 if impl["trait"] is None:
                     for assoc_id in impl["items"]:
                         assoc = index[str(assoc_id)]
@@ -695,8 +652,8 @@ def walk(doc: dict[str, Any]) -> list[Record]:
                         child(
                             assoc_id,
                             f"{node.path}::{assoc['name']}",
-                            impl_hidden=impl_hidden,
-                            impl_cfg=impl_cfg,
+                            impl_hidden,
+                            impl_cfgs,
                             assoc=True,
                         )
                     continue
@@ -705,13 +662,11 @@ def walk(doc: dict[str, Any]) -> list[Record]:
                         node.path,
                         "impl",
                         str(impl_id),
-                        False,
-                        None,
-                        impl_hidden,
-                        impl_cfg,
-                        preds + ((impl_cfg,) if impl_cfg else ()),
+                        hidden or impl_hidden,
+                        cfgs + impl_cfgs,
                         False,
                         impl_owner=node.path,
+                        owner_cfgs=cfgs,
                     )
                 )
         elif kind == "trait":
@@ -727,17 +682,13 @@ def walk(doc: dict[str, Any]) -> list[Record]:
             continue
         if not (isinstance(impl["for"], dict) and "generic" in impl["for"]):
             continue
-        impl_cfg = _item_cfg(impl_item)
         raws.append(
             _Raw(
                 crate,
                 "impl",
                 impl_id,
-                False,
-                None,
                 _is_hidden(impl_item),
-                impl_cfg,
-                (impl_cfg,) if impl_cfg else (),
+                _item_cfgs(impl_item),
                 False,
             )
         )
@@ -769,6 +720,7 @@ def _finish(
         if summary is not None:
             private_names[key] = f"private:{summary['kind']}:{summary['path'][-1]}"
         else:
+            assert local is not None
             private_names[key] = f"private:{_kind_of(local)}:{local['name']}"
         return _private_token(key)
 
@@ -782,14 +734,18 @@ def _finish(
             return [normalize(v) for v in value]
         return value
 
-    def field_list(field_ids: list[Any], with_type: bool) -> list[Any]:
+    def field_list(
+        field_ids: list[Any], with_type: bool, hidden: bool, cfgs: tuple[str, ...]
+    ) -> list[Any]:
         result = []
         for field_id in field_ids:
             field = index[str(field_id)]
             entry: list[Any] = [field["name"]]
             if with_type:
                 entry.append(normalize(field["inner"]["struct_field"]))
-            entry.extend([_is_hidden(field), _item_cfg(field)])
+            entry.extend(
+                [hidden or _is_hidden(field), _effective(cfgs + _item_cfgs(field))]
+            )
             result.append(entry)
         return result
 
@@ -802,18 +758,22 @@ def _finish(
     def names(ids: list[Any]) -> list[str]:
         return sorted(index[str(i)].get("name") or "" for i in ids)
 
-    def normalized_inner(kind: str, inner: dict[str, Any]) -> Any:
+    def normalized_inner(
+        kind: str, inner: dict[str, Any], hidden: bool, cfgs: tuple[str, ...]
+    ) -> Any:
         body = json.loads(json.dumps(inner[kind]))
         if kind in ("struct", "union", "enum", "primitive"):
             body.pop("impls", None)
         if kind == "struct":
             shape = body["kind"]
             if isinstance(shape, dict) and "plain" in shape:
-                shape["plain"]["fields"] = field_list(shape["plain"]["fields"], False)
+                shape["plain"]["fields"] = field_list(
+                    shape["plain"]["fields"], False, hidden, cfgs
+                )
             elif isinstance(shape, dict) and "tuple" in shape:
                 shape["tuple"] = tuple_types(shape["tuple"])
         elif kind == "union":
-            body["fields"] = field_list(body["fields"], False)
+            body["fields"] = field_list(body["fields"], False, hidden, cfgs)
         elif kind == "enum":
             body["variants"] = names(body["variants"])
         elif kind == "variant":
@@ -821,7 +781,9 @@ def _finish(
             if isinstance(shape, dict) and "tuple" in shape:
                 shape["tuple"] = tuple_types(shape["tuple"])
             elif isinstance(shape, dict) and "struct" in shape:
-                shape["struct"]["fields"] = field_list(shape["struct"]["fields"], True)
+                shape["struct"]["fields"] = field_list(
+                    shape["struct"]["fields"], True, hidden, cfgs
+                )
         elif kind == "trait":
             body["items"] = names(body["items"])
             body.pop("implementations", None)
@@ -837,19 +799,16 @@ def _finish(
     for raw in raws:
         path = raw.path
         trait_path: str | None = None
+        effective = _effective(raw.cfgs)
         if raw.kind in ("external", "external-glob"):
             signature = _compact(
-                {
-                    "source": raw.external_source,
-                    "use_cfg": raw.use_cfg,
-                    "use_hidden": raw.use_hidden,
-                }
+                {"source": raw.external_source, "hidden": raw.hidden, "cfg": effective}
             )
             staged.append((raw, path, signature, None))
             continue
         assert raw.item_id is not None
         current = index[raw.item_id]
-        inner = normalized_inner(raw.kind, current["inner"])
+        inner = normalized_inner(raw.kind, current["inner"], raw.hidden, raw.cfgs)
         if raw.kind == "impl":
             impl = inner["impl"]
             trait_path = _render_path(impl["trait"]) if impl["trait"] else "?"
@@ -859,18 +818,11 @@ def _finish(
                 path = f"{raw.impl_owner}::impl {trait_path}"
             else:
                 path = f"{crate}::impl {trait_path} for {_render_type(impl['for'])}"
-            own_hidden, own_cfg = False, None
-        else:
-            own_hidden, own_cfg = _is_hidden(current), _item_cfg(current)
         signature = _compact(
             {
                 "visibility": current.get("visibility"),
-                "own_hidden": own_hidden,
-                "use_hidden": raw.use_hidden,
-                "impl_hidden": raw.impl_hidden,
-                "own_cfg": own_cfg,
-                "use_cfg": raw.use_cfg,
-                "impl_cfg": raw.impl_cfg,
+                "hidden": raw.hidden,
+                "cfg": effective,
                 "inner": inner,
             }
         )
@@ -931,13 +883,14 @@ def _finish(
                 path=_TOKEN_IN_PATH.sub(final, path),
                 kind=raw.kind,
                 signature=_TOKEN_IN_JSON.sub(final, signature),
-                preds=raw.preds,
+                hidden=raw.hidden,
+                cfg=_effective(raw.cfgs),
                 form=form,
                 trait_path=None
                 if trait_path is None
                 else _TOKEN_IN_PATH.sub(final, trait_path),
                 owner_path=raw.impl_owner,
-                owner_preds=raw.preds[:-1] if raw.impl_cfg else raw.preds,
+                owner_cfg=_effective(raw.owner_cfgs),
             )
         )
     return records
@@ -1064,10 +1017,10 @@ def select_probe_items(
 
     items = []
     for r in records:
-        if r.kind in ("struct_field", "variant") or release_enabled(r.preds):
+        if r.kind in ("struct_field", "variant") or release_enabled(r.cfg):
             continue
         form = r.form
-        if r.kind == "impl" and r.owner_path and not release_enabled(r.owner_preds):
+        if r.kind == "impl" and r.owner_path and not release_enabled(r.owner_cfg):
             # The owner is itself absent in release, which proves the impl
             # absent; canonical trait paths can be private or unstable
             # (`core::ops::drop::Drop`, `core::marker::StructuralPartialEq`).
@@ -1576,31 +1529,6 @@ def probe_arguments(package: str) -> list[str]:
     ]
 
 
-def row_identities() -> list[dict[str, Any]]:
-    identities: list[dict[str, Any]] = [
-        {
-            "id": row["id"],
-            "crate": row["crate"],
-            "features": list(row["features"]),
-            "profile": "dev",
-            "cargo_arguments": rustdoc_arguments(row),
-        }
-        for row in ROWS
-    ]
-    identities.append(
-        {
-            "id": RELEASE_PROBE_ROW,
-            "crate": [package for package, _, _ in PROBE_CRATES],
-            "features": [],
-            "profile": "release",
-            "cargo_arguments": [
-                probe_arguments(package) for package, _, _ in PROBE_CRATES
-            ],
-        }
-    )
-    return identities
-
-
 def _rust_sources(directory: Path) -> dict[str, str]:
     return {
         path.as_posix(): path.read_text(encoding="utf-8")
@@ -1644,6 +1572,284 @@ def _run_probe(
     return probe_row_entries(items, statuses)
 
 
+def inventory_arguments(row: dict[str, Any]) -> list[str]:
+    """The exact cargo command that builds one test-inventory row's test
+    executables. `build --tests --keep-going` is `test --no-run` that keeps
+    building the other targets when one fails to compile."""
+
+    command = [
+        "cargo",
+        f"+{PINNED_NIGHTLY}",
+        "build",
+        "--locked",
+        "-p",
+        row["crate"],
+        "--no-default-features",
+    ]
+    if row["features"]:
+        command.extend(["--features", ",".join(row["features"])])
+    return command + ["--tests", "--keep-going", "--message-format", "json"]
+
+
+def row_identities(req_rows: Sequence[dict[str, Any]] = ()) -> list[dict[str, Any]]:
+    """Identities of every row: rustdoc, release probe, test targets, and one
+    test inventory per rustdoc row plus each derived `tests-req-*` row."""
+
+    identities: list[dict[str, Any]] = [
+        {
+            "id": row["id"],
+            "crate": row["crate"],
+            "features": list(row["features"]),
+            "profile": "dev",
+            "cargo_arguments": rustdoc_arguments(row),
+        }
+        for row in ROWS
+    ]
+    identities.append(
+        {
+            "id": RELEASE_PROBE_ROW,
+            "crate": [package for package, _, _ in PROBE_CRATES],
+            "features": [],
+            "profile": "release",
+            "cargo_arguments": [
+                probe_arguments(package) for package, _, _ in PROBE_CRATES
+            ],
+        }
+    )
+    identities.append(
+        {
+            "id": TEST_TARGETS_ROW,
+            "crate": "workspace",
+            "features": [],
+            "profile": "static",
+            "cargo_arguments": [],
+        }
+    )
+    inventory = [
+        {
+            "id": f"tests-{row['id']}",
+            "crate": row["crate"],
+            "features": list(row["features"]),
+        }
+        for row in ROWS
+    ] + [dict(row) for row in req_rows]
+    for row in inventory:
+        identities.append(
+            {
+                "id": row["id"],
+                "crate": row["crate"],
+                "features": list(row["features"]),
+                "profile": "test",
+                "cargo_arguments": inventory_arguments(row),
+                "environment": dict(INVENTORY_ENV),
+            }
+        )
+    return identities
+
+
+def test_target_entries(root: Path) -> list[dict[str, str]]:
+    """The static `test-targets` row: one entry per workspace test target."""
+
+    try:
+        crates = test_targets.read_workspace(root)
+    except test_targets.TestTargetsError as exc:
+        raise HiddenSurfaceError(f"test targets: {exc}") from exc
+    return _unique(
+        (
+            {
+                "path": target.id,
+                "kind": "test-target",
+                "signature": _compact(
+                    {
+                        "source": target.source,
+                        "required_features": list(target.required_features),
+                        "cfg": target.cfg,
+                    }
+                ),
+            }
+            for crate in crates
+            for target in crate.targets
+        ),
+        TEST_TARGETS_ROW,
+    )
+
+
+def inventory_rows(
+    root: Path, rustdoc_rows: Sequence[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """`tests-<row>` for each rustdoc row, then one `tests-req-<crate>--<set>`
+    row per derived requirement set no rustdoc row already builds."""
+
+    try:
+        derived = test_targets.derive_matrix(test_targets.read_workspace(root))
+    except test_targets.TestTargetsError as exc:
+        raise HiddenSurfaceError(f"test targets: {exc}") from exc
+    built = {(row["crate"], tuple(sorted(row["features"]))) for row in rustdoc_rows}
+    rows = [
+        {
+            "id": f"tests-{row['id']}",
+            "crate": row["crate"],
+            "features": list(row["features"]),
+        }
+        for row in rustdoc_rows
+    ]
+    for crate, features in derived:
+        if (crate, features) in built:
+            continue
+        rows.append(
+            {
+                "id": f"tests-req-{crate}--{'+'.join(features) or 'none'}",
+                "crate": crate,
+                "features": list(features),
+            }
+        )
+    return rows
+
+
+def _target_label(target: dict[str, Any]) -> str:
+    kinds = target.get("kind") or []
+    name = str(target.get("name"))
+    if kinds == ["test"]:
+        return name
+    if "lib" in kinds or "rlib" in kinds or "proc-macro" in kinds:
+        return "lib"
+    return f"{'-'.join(kinds)}:{name}"
+
+
+def _terse_names(listing: str) -> list[str]:
+    names = []
+    for line in listing.splitlines():
+        if line.endswith(": test"):
+            names.append(line[: -len(": test")])
+    return names
+
+
+def inventory_entries(
+    messages: str, lister: Callable[[str], tuple[str, str]]
+) -> list[dict[str, str]]:
+    """Test-inventory entries from `inventory_arguments` JSON output.
+
+    Every test executable is listed on its own (`--list --format terse`, then
+    with `--ignored`), so equal test names in two targets stay distinct. A test
+    target that fails to compile is one `test-build: failed` entry; a failed
+    library build (nothing testable) fails the capture.
+    """
+
+    entries: list[dict[str, str]] = []
+    built_libraries: set[str] = set()
+    errors: list[dict[str, Any]] = []
+    for line in messages.splitlines():
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        target = record.get("target") or {}
+        if record.get("reason") == "compiler-artifact":
+            if not (record.get("profile") or {}).get("test"):
+                if _target_label(target) == "lib":
+                    built_libraries.add(str(target.get("name")))
+                continue
+            executable = record.get("executable")
+            if not executable:
+                continue
+            label = _target_label(target)
+            listed, ignored = lister(executable)
+            ignored_names = set(_terse_names(ignored))
+            for name in _terse_names(listed):
+                entries.append(
+                    {
+                        "path": f"{label}::{name}",
+                        "kind": "test",
+                        "signature": "ignored" if name in ignored_names else "run",
+                    }
+                )
+        elif record.get("reason") == "compiler-message":
+            if (record.get("message") or {}).get("level") == "error":
+                errors.append(target)
+    for target in errors:
+        label = _target_label(target)
+        if label == "lib" and str(target.get("name")) not in built_libraries:
+            raise HiddenSurfaceError(
+                f"test inventory: lib target {target.get('name')} failed to build"
+            )
+        entries.append({"path": label, "kind": "test-build", "signature": "failed"})
+    return _unique(entries, "tests")
+
+
+def _list_executable(
+    executable: str, cwd: Path, env: dict[str, str]
+) -> tuple[str, str]:
+    outputs = []
+    for extra in ([], ["--ignored"]):
+        completed = subprocess.run(
+            [executable, "--list", "--format", "terse", *extra],
+            cwd=cwd,
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if completed.returncode != 0:
+            raise HiddenSurfaceError(
+                f"test inventory: {executable} --list exited {completed.returncode}:\n"
+                f"{completed.stderr[-2000:]}"
+            )
+        outputs.append(completed.stdout)
+    return outputs[0], outputs[1]
+
+
+def _capture_inventory(
+    tree: Path, row: dict[str, Any], env: dict[str, str]
+) -> list[dict[str, str]]:
+    completed = subprocess.run(
+        inventory_arguments(row),
+        cwd=tree,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    executables: list[str] = []
+
+    def lister(executable: str) -> tuple[str, str]:
+        executables.append(executable)
+        return _list_executable(executable, tree, env)
+
+    try:
+        entries = inventory_entries(completed.stdout, lister)
+    finally:
+        # Test executables are large and rebuilt on every capture anyway.
+        for executable in executables:
+            Path(executable).unlink(missing_ok=True)
+    failed = [e for e in entries if e["kind"] == "test-build"]
+    if completed.returncode != 0 and not failed:
+        raise HiddenSurfaceError(
+            f"test inventory {row['id']} build failed ({completed.returncode}):\n"
+            f"{completed.stderr[-4000:]}"
+        )
+    return entries
+
+
+def _inventory_env() -> dict[str, str]:
+    env = _cargo_env()
+    env.update(INVENTORY_ENV)
+    try:
+        return feature_complete.cuda_environment(
+            env, feature_complete.CUDA_ROOT, feature_complete._nvidia_smi
+        )
+    except (
+        feature_complete.FeatureCompleteError,
+        OSError,
+        subprocess.SubprocessError,
+    ) as exc:
+        raise HiddenSurfaceError(
+            f"CUDA preflight for the test inventory: {exc}"
+        ) from exc
+
+
 def capture_tree(
     tree: Path,
     source_sha: str,
@@ -1652,6 +1858,9 @@ def capture_tree(
 ) -> dict[str, Any]:
     """Build every row from an exported tree and return the manifest."""
 
+    inventory_env = _inventory_env()
+    all_inventory = inventory_rows(tree, ROWS)
+    req_rows = [row for row in all_inventory if row["id"].startswith("tests-req-")]
     metadata: dict[str, Any] = {
         "schema": SCHEMA,
         "capture_source_sha": source_sha,
@@ -1659,7 +1868,7 @@ def capture_tree(
         "tools": {"rust-toolchain": PINNED_NIGHTLY, "rustc": toolchain["rustc"]},
         "rustdoc_format_version": FORMAT_VERSION,
         "target": toolchain["target"],
-        "row_identities": row_identities(),
+        "row_identities": row_identities(req_rows),
     }
     if source_modified:
         metadata["source_tree_sha256"] = _tree_sha256(tree)
@@ -1692,6 +1901,14 @@ def capture_tree(
         probe_entries.extend(_run_probe(tree, package, crate_dir, items))
         print(f"probed {package}: {len(items)} items", file=sys.stderr)
     rows[RELEASE_PROBE_ROW] = probe_entries
+    rows[TEST_TARGETS_ROW] = test_target_entries(tree)
+    print(
+        f"captured {TEST_TARGETS_ROW}: {len(rows[TEST_TARGETS_ROW])} entries",
+        file=sys.stderr,
+    )
+    for row in all_inventory:
+        rows[row["id"]] = _capture_inventory(tree, row, inventory_env)
+        print(f"captured {row['id']}: {len(rows[row['id']])} entries", file=sys.stderr)
     return build_manifest(metadata, rows)
 
 

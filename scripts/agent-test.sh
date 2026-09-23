@@ -136,6 +136,8 @@ run_tier_suite fast test-public-doc-truth bash scripts/tests/test_public_doc_tru
 run_tier_suite fast test-slice10-preparation python3 scripts/tests/test_slice10_preparation.py
 run_tier_suite fast test-slice30-surface-comparator python3 scripts/tests/test_slice30_surface_comparator.py
 run_tier_suite fast test-hidden-surface python3 scripts/tests/test_hidden_surface.py
+run_tier_suite fast test-test-targets python3 scripts/tests/test_test_targets.py
+run_tier_suite fast check-test-target-coverage python3 scripts/check-test-target-coverage.py
 run_tier_suite fast test-napi-build-hermetic python3 scripts/tests/test_napi_build_hermetic.py
 run_tier_suite fast test-python-artifact-gate-contract python3 scripts/tests/test_python_artifact_gate_contract.py
 run_tier_suite fast test-check-architecture-authority bash scripts/tests/test_check_architecture_authority.sh

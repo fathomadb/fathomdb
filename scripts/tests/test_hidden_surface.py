@@ -478,8 +478,10 @@ def test_test_inventory(tool: ModuleType) -> None:
         manifest(tool, {"tests-base": entries}), manifest(tool, {"tests-base": after})
     )
     (row,) = result["row_diffs"]
-    assert [e["path"] for e in row["added"]] == ["plain::added_later"]
-    assert "plain::second" in [e["path"] for e in row["removed"]]
+    # The shared compare keys entries by signature too, so a status change is
+    # also one raw removal plus one raw addition, paired under `changed`.
+    assert sorted(e["path"] for e in row["added"]) == ["plain::added_later", "plain::runs"]
+    assert sorted(e["path"] for e in row["removed"]) == ["plain::runs", "plain::second"]
     assert [
         (c["before"]["signature"], c["after"]["signature"])
         for c in row["changed"]
@@ -573,7 +575,11 @@ def test_test_targets_row(tool: ModuleType) -> None:
             manifest(tool, {"test-targets": after}),
         )
         (row,) = result["row_diffs"]
-        assert [e["path"] for e in row["added"]] == ["hs_fixture::hooked_renamed"]
+        # A changed requirement is a raw removal plus addition, paired as changed.
+        assert sorted(e["path"] for e in row["added"]) == [
+            "hs_fixture::hooked_renamed",
+            "hs_fixture::required",
+        ]
         assert sorted(e["path"] for e in row["removed"]) == [
             "hs_fixture::hooked",
             "hs_fixture::plain",

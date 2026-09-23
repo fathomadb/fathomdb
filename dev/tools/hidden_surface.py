@@ -1331,6 +1331,9 @@ def exclusive_write(output: Path, contents: str) -> None:
             handle.write(contents)
             handle.flush()
             os.fsync(handle.fileno())
+        umask = os.umask(0)
+        os.umask(umask)
+        os.chmod(temporary, 0o666 & ~umask)
         try:
             os.link(temporary, output)
         except FileExistsError as exc:

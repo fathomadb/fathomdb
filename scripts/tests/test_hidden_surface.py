@@ -470,6 +470,13 @@ def test_output_guards(tool: ModuleType) -> None:
         target = Path(directory) / "out.json"
         tool.exclusive_write(target, "first\n")
         assert target.read_text() == "first\n"
+        # Committed baselines get ordinary umask-derived permissions, not the
+        # 0600 of the private temporary file they are linked from.
+        umask = os.umask(0)
+        os.umask(umask)
+        assert target.stat().st_mode & 0o777 == 0o666 & ~umask, oct(
+            target.stat().st_mode
+        )
         expect_error(tool, lambda: tool.exclusive_write(target, "second\n"), "exists")
         assert target.read_text() == "first\n"
         assert sorted(p.name for p in Path(directory).iterdir()) == ["out.json"]

@@ -1,0 +1,30 @@
+diff --git a/src/rust/crates/example/examples/demo.rs b/src/rust/crates/example/examples/demo.rs
+--- a/src/rust/crates/example/examples/demo.rs
++++ b/src/rust/crates/example/examples/demo.rs
+@@ -1,2 +1,1 @@
+-pub fn demo_helper() {}
+ fn main() {}
+diff --git a/src/rust/crates/example/benches/bench.rs b/src/rust/crates/example/benches/bench.rs
+--- a/src/rust/crates/example/benches/bench.rs
++++ b/src/rust/crates/example/benches/bench.rs
+@@ -1,2 +1,1 @@
+-pub fn bench_helper() {}
+ fn main() {}
+diff --git a/src/rust/crates/example/build.rs b/src/rust/crates/example/build.rs
+--- a/src/rust/crates/example/build.rs
++++ b/src/rust/crates/example/build.rs
+@@ -1,2 +1,1 @@
+-pub fn build_helper() {}
+ fn main() {}
+diff --git a/src/rust/crates/example/src/main.rs b/src/rust/crates/example/src/main.rs
+--- a/src/rust/crates/example/src/main.rs
++++ b/src/rust/crates/example/src/main.rs
+@@ -1,2 +1,1 @@
+-pub fn main_helper() {}
+ fn main() {}
+diff --git a/src/rust/crates/example/src/bin/tool.rs b/src/rust/crates/example/src/bin/tool.rs
+--- a/src/rust/crates/example/src/bin/tool.rs
++++ b/src/rust/crates/example/src/bin/tool.rs
+@@ -1,2 +1,1 @@
+-pub fn tool_helper() {}
+ fn main() {}

@@ -1,0 +1,25 @@
+diff --git a/src/rust/crates/example/src/cfg.rs b/src/rust/crates/example/src/cfg.rs
+new file mode 100644
+index 0000000..61125a8
+--- /dev/null
++++ b/src/rust/crates/example/src/cfg.rs
+@@ -0,0 +1,6 @@
++pub struct Config {
++    x: u32,
++}
++pub enum Mode {
++    A,
++}
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+index a2af345..afd0cc4 100644
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,7 +1,2 @@
+-pub struct Config {
+-    x: u32,
+-}
+-pub enum Mode {
+-    A,
+-}
++mod cfg;
+ pub fn keep() {}

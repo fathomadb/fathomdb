@@ -360,6 +360,26 @@ x_case x2-impl-block-gated-collision 1 "B::new"
 x_case guard-method-deleted 1 "Engine::close"
 x_case guard-method-moved-to-other-type 1 "Engine::close"
 
+# Y-1: a removed free item cancels only when its public path survives — the
+# same file keeps it, or the new-side crate root (`src/lib.rs`) exports that
+# name unconditionally (a top-level `pub` item, an explicit `pub use`, or a
+# `pub use m::*` glob whose module file shows the name at top level). A
+# same-named item elsewhere in the crate (private module, `pub mod` at a
+# different path, an unrelated file) is not the same public path.
+x_case y1-root-fn-to-private-mod 1 "fn open"
+x_case y1-root-fn-to-pub-mod 1 "fn open"
+x_case y1-root-types-to-private-mod 1 "struct Config"
+x_case y1-root-types-to-private-mod 1 "enum Mode"
+x_case y1-root-fn-deleted-unrelated-same-name 1 "fn open"
+x_case guard-root-items-moved-reexported 0
+x_case guard-root-fn-moved-glob-reexported 0
+
+# Y-2: only a crate's library sources (`src/`, minus `src/main.rs` and
+# `src/bin/`) are public API; `examples/`, `benches/`, `build.rs`, and
+# binaries neither report removals nor cancel them.
+x_case y2-root-fn-deleted-examples-same-name 1 "fn open"
+x_case y2-non-library-removals-ignored 0
+
 # X-3 live-git: renames are diffed as delete + add, so a file renamed into
 # another crate is compared (its items leave the old crate) while a rename
 # within the crate is a move.
@@ -403,5 +423,50 @@ if ! grep -qF "Widget::render" "$WORK/live_git_rename_cross_crate.err"; then
     fail "live-git X-3 cross-crate rename: diagnostic must name Widget::render"
 fi
 echo "OK live-git X-3 cross-crate rename"
+
+# Y-1 live-git: the crate root is read from the head ref when it is not part
+# of the diff, so a non-root item moved between private files still cancels
+# while the unchanged root keeps re-exporting its name.
+git -C "$tmp_repo" checkout -q -b root-unchanged base
+mkdir -p "$tmp_repo/src/rust/crates/rooted/src/inner"
+printf 'mod inner;\npub use inner::helper;\n' >"$tmp_repo/src/rust/crates/rooted/src/lib.rs"
+printf 'mod x;\npub use x::helper;\n' >"$tmp_repo/src/rust/crates/rooted/src/inner/mod.rs"
+printf 'pub fn helper() {}\n' >"$tmp_repo/src/rust/crates/rooted/src/inner/x.rs"
+git -C "$tmp_repo" add -A
+git -C "$tmp_repo" commit -q -m add-rooted
+git -C "$tmp_repo" tag root-base
+git -C "$tmp_repo" mv src/rust/crates/rooted/src/inner/x.rs src/rust/crates/rooted/src/inner/y.rs
+printf 'mod y;\npub use y::helper;\n' >"$tmp_repo/src/rust/crates/rooted/src/inner/mod.rs"
+git -C "$tmp_repo" commit -q -am move-helper
+set +e
+python3 "$LINT" --repo-root "$tmp_repo" --base root-base --head HEAD \
+    >/dev/null 2>"$WORK/live_git_root_unchanged.err"
+rc=$?
+set -e
+if [ "$rc" -ne 0 ]; then
+    cat "$WORK/live_git_root_unchanged.err" >&2
+    fail "live-git Y-1 unchanged root re-export: expected exit 0, got $rc"
+fi
+echo "OK live-git Y-1 unchanged root re-export"
+# The same move without the root re-export is not path-preserving.
+printf 'mod inner;\n' >"$tmp_repo/src/rust/crates/rooted/src/lib.rs"
+git -C "$tmp_repo" commit -q -am drop-root-reexport
+git -C "$tmp_repo" tag root-dropped
+git -C "$tmp_repo" checkout -q -b root-private root-dropped
+git -C "$tmp_repo" mv src/rust/crates/rooted/src/inner/y.rs src/rust/crates/rooted/src/inner/z.rs
+printf 'mod z;\npub use z::helper;\n' >"$tmp_repo/src/rust/crates/rooted/src/inner/mod.rs"
+git -C "$tmp_repo" commit -q -am move-helper-again
+set +e
+python3 "$LINT" --repo-root "$tmp_repo" --base root-dropped --head HEAD \
+    >/dev/null 2>"$WORK/live_git_root_private.err"
+rc=$?
+set -e
+if [ "$rc" -ne 1 ]; then
+    fail "live-git Y-1 private move: expected exit 1, got $rc"
+fi
+if ! grep -qF "fn helper" "$WORK/live_git_root_private.err"; then
+    fail "live-git Y-1 private move: diagnostic must name helper"
+fi
+echo "OK live-git Y-1 private move without root re-export"
 
 echo "test_removal_detect.sh: all cases pass"

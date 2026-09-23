@@ -1194,7 +1194,14 @@ Agent-memory enablement (G0–G12). See `docs/release-notes/0.8.0.md` (user) and
 
 ### Removed
 
-(none yet)
+- **Rust facade, default build only:** the operator-seam re-exports
+  `CheckIntegrityOpts`, `DumpProfileReport`, `DumpRowCountsReport`,
+  `DumpSchemaReport`, `Finding`, `IntegrityReport`, `RebuildKind`,
+  `RebuildReport`, `SafeExportArtifact`, `SchemaObject`, `Section`,
+  `TableRowCount`, `TraceEvent`, `TraceReport`, `TruncateWalReport`,
+  `TruncateWalStatus`, `VerifyEmbedderReport`, and `VerifyEmbedderStatus` are
+  no longer exported without `--features operator` (see the operator-seam entry
+  under Changed; enabling the feature restores them unchanged).
 
 ## 0.7.2 - 2026-06-01
 

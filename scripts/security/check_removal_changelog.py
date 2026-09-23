@@ -69,11 +69,19 @@ RUST_PUBLIC_USE = re.compile(r"^\s*pub\s+use\s+(.+);\s*$", re.DOTALL)
 #     (its key changes and same-file moves only cancel by exact key).
 #   - A free item moved between files, or into a `pub mod`, is reported
 #     unless the crate root re-exports its name (the module path changed).
-#   - A free item (or `pub use`) in an unrestricted `pub mod` — cfg-gated or
-#     not, or inside an inline module of a non-root file — has its own path
-#     `crate::a::X`; losing it is reported even when the crate root (by name
-#     or glob) still exports `X`, e.g. an item moved out of a `pub mod` into
-#     a private module with the root re-export updated.
+#   - A free item (or `pub use`) under any unrestricted `pub mod` segment —
+#     cfg-gated or not, file or inline, at any depth — or under a module the
+#     crate root re-exports (`pub use a::b;`, `pub use a::b as api;`) has
+#     its own path (`crate::a::X`, `crate::api::X`); losing it is reported
+#     even when the crate root (by name or glob) still exports `X`, e.g. an
+#     item moved out of a `pub mod` into a private module with the root
+#     re-export updated. An undeclared or unseen module segment also fails
+#     closed.
+#   - Root globs are followed one level only: a name exported through
+#     `pub use m::*;` whose module `m` itself only globs a submodule
+#     (`pub use rd::*;` in `m/mod.rs`) is not seen, so moving it there is
+#     reported. Explicit `pub use` names in the intermediate `mod.rs` avoid
+#     it.
 # Only library sources (`src/rust/crates/<c>/src/`, minus `src/main.rs` and
 # `src/bin/`) are scanned; examples, benches, build scripts, and binaries
 # neither report removals nor cancel them.
@@ -81,9 +89,10 @@ RUST_PUBLIC_USE = re.compile(r"^\s*pub\s+use\s+(.+);\s*$", re.DOTALL)
 #   - Free-item cancellation approximates the public path: the same file
 #     still exports the name at the same level (a module never stands in for
 #     a non-module item), or the item was public only through the crate root
-#     — at the root's own top level, or in a module whose first segment the
-#     root declares private or `pub(...)`-restricted on either side seen —
-#     and the head-side crate root (`src/lib.rs`) exports the name
+#     — at the root's own top level, or in a module every segment of which
+#     is declared private or `pub(...)`-restricted in its parent (either
+#     side seen) and not re-exported by the root — and the head-side crate
+#     root (`src/lib.rs`) exports the name
 #     unconditionally as a non-module item or `pub use`. The root is read
 #     from the diff, else from the head ref in live-git mode; with
 #     `--diff-file` a root outside the diff is unseen and nothing cancels
@@ -91,7 +100,10 @@ RUST_PUBLIC_USE = re.compile(r"^\s*pub\s+use\s+(.+);\s*$", re.DOTALL)
 #     the removed name (e.g. an unrelated `sqlite::open` behind `pub use`)
 #     cancels. A glob module's `mod` declaration is not checked for cfg gates
 #     or `#[path]`, so a cfg-gated `mod m;` behind an ungated `pub use m::*;`
-#     still cancels.
+#     still cancels; module segments are mapped to files by name, so a
+#     `#[path = "x.rs"] pub mod api;` beside a private `mod x;` is unseen.
+#   - A dropped `pub use x::open` (target kind unknown) cancels against a
+#     same-named `pub mod open` in the same file or crate root.
 #   - An associated item cancels on any same-crate `impl` of a type with the
 #     same last path segment, so two distinct same-named types in different
 #     modules can cancel each other's method removals.
@@ -204,11 +216,19 @@ def _rust_reexport_names(statement: str) -> set[str]:
     globs separately). Aliases contribute only the exported alias.
     """
 
+    return {name for name, _ in _rust_use_leaves(statement)}
+
+
+def _rust_use_leaves(statement: str) -> set[tuple[str, str]]:
+    """``(exported name, last segment of the source path)`` per explicit leaf
+    of one ``pub use`` (they differ only for aliases)."""
+
     match = RUST_PUBLIC_USE.match(statement)
     if match is None:
         return set()
+    ident = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
-    def collect(tree: str, prefix: str = "") -> set[str]:
+    def collect(tree: str, prefix: str = "") -> set[tuple[str, str]]:
         tree = tree.strip()
         if not tree or tree == "*":
             return set()
@@ -218,26 +238,30 @@ def _rust_reexport_names(statement: str) -> set[str]:
                 return set()
             nested_prefix = tree[:open_index].strip().removesuffix("::")
             joined_prefix = "::".join(part for part in (prefix, nested_prefix) if part)
-            names: set[str] = set()
+            leaves: set[tuple[str, str]] = set()
             for item in _split_use_tree(tree[open_index + 1 : -1]):
                 item = item.strip()
                 if item == "self":
                     name = joined_prefix.rsplit("::", 1)[-1]
                     if name and name not in {"crate", "self", "super"}:
-                        names.add(name)
+                        leaves.add((name, name))
                 else:
-                    names.update(collect(item, joined_prefix))
-            return names
+                    leaves.update(collect(item, joined_prefix))
+            return leaves
 
         alias_parts = re.split(r"\s+as\s+", tree, maxsplit=1)
         if len(alias_parts) == 2:
             alias = alias_parts[1].strip()
-            return {alias} if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", alias) else set()
+            source_path = "::".join(part for part in (prefix, alias_parts[0].strip()) if part)
+            if source_path.endswith("::self"):
+                source_path = source_path.removesuffix("::self")
+            source = source_path.rsplit("::", 1)[-1].strip()
+            return {(alias, source)} if ident.fullmatch(alias) else set()
         full_path = "::".join(part for part in (prefix, tree) if part)
         name = full_path.rsplit("::", 1)[-1]
         if name in {"*", "crate", "self", "super"}:
             return set()
-        return {name} if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) else set()
+        return {(name, name)} if ident.fullmatch(name) else set()
 
     return collect(match.group(1))
 
@@ -256,13 +280,18 @@ class _RustExports:
     # module named by each single-segment glob (`pub use m::*;`).
     top_uses: set[str] = field(default_factory=set)
     top_globs: set[str] = field(default_factory=set)
-    # Top-level module declarations (`mod m;` / `mod m { .. }`), cfg-gated
-    # or not: unrestricted `pub mod` vs private or `pub(...)`-restricted.
-    pub_mods: set[str] = field(default_factory=set)
-    private_mods: set[str] = field(default_factory=set)
-    # Unrestricted `pub` items only (key -> kind); `pub(crate)` etc. and
-    # items inside fn/struct/trait bodies are not public API.
-    uncond_items: dict[_ItemKey, str] = field(default_factory=dict)
+    # Source-path last segments of the top-level `pub use` leaves (the
+    # module or item behind each export, alias or not).
+    top_use_sources: set[str] = field(default_factory=set)
+    # Module declarations (`mod m;` / `mod m { .. }`) keyed by (enclosing
+    # inline-module path, name), cfg-gated or not: unrestricted `pub mod`
+    # vs private or `pub(...)`-restricted.
+    pub_mods: set[tuple[str, str]] = field(default_factory=set)
+    private_mods: set[tuple[str, str]] = field(default_factory=set)
+    # Unrestricted `pub` items only (key -> kinds; a module and a value item
+    # can share a name); `pub(crate)` etc. and items inside fn/struct/trait
+    # bodies are not public API.
+    uncond_items: dict[_ItemKey, set[str]] = field(default_factory=dict)
 
 
 _RUST_SIMPLE_GLOB = re.compile(
@@ -360,10 +389,11 @@ def _parse_rust_side(lines: list[str]) -> _RustExports:
                     break
                 use_text += "\n" + rest[: end + 1]
                 if not use_gated and (not frames or frames[-1][0] == "mod"):
-                    names = _rust_reexport_names(use_text)
-                    out.uncond_uses.update(names)
+                    leaves = _rust_use_leaves(use_text)
+                    out.uncond_uses.update(name for name, _ in leaves)
                     if not frames:
-                        out.top_uses.update(names)
+                        out.top_uses.update(name for name, _ in leaves)
+                        out.top_use_sources.update(source for _, source in leaves)
                         glob = _RUST_SIMPLE_GLOB.match(use_text)
                         if glob:
                             out.top_globs.add(glob.group(1))
@@ -411,17 +441,17 @@ def _parse_rust_side(lines: list[str]) -> _RustExports:
                 if carry == depth:
                     carry = None
                 continue
-            if not frames:
+            if not frames or frames[-1][0] == "mod":
                 mod_decl = _RUST_MOD_DECL.match(rest)
                 if mod_decl:
                     restricted = mod_decl.group(1) is None or mod_decl.group(2)
                     target = out.private_mods if restricted else out.pub_mods
-                    target.add(mod_decl.group(3))
+                    target.add((frames[-1][1] if frames else "", mod_decl.group(3)))
             match = RUST_PUBLIC.match(rest)
             frame = frames[-1] if frames else ("mod", "")
             if match and not gated and not rest.startswith("pub(") and frame[0] != "opaque":
                 kind, name = match.group(1), match.group(2)
-                out.uncond_items.setdefault((frame[0], frame[1], name), kind)
+                out.uncond_items.setdefault((frame[0], frame[1], name), set()).add(kind)
             last = 0
             for token_match in _RUST_STRUCTURE.finditer(rest):
                 token = token_match.group(0)
@@ -511,12 +541,14 @@ def _rust_removals(
             root_cache[crate] = _rust_root_names(crate, head_exports)
         return root_cache[crate]
 
+    def both_sides(path: str) -> list[_RustExports]:
+        head = head_exports(path)
+        base = old_exports.get(path, _RustExports()) if path in in_diff else head
+        return [side for side in (head, base) if side is not None]
+
     def root_cancels(path: str, owner: str | None, kind: str, name: str) -> bool:
         crate = _rust_crate(path)
-        root = crate + "src/lib.rs"
-        sides = [head_exports(root)]
-        sides.append(old_exports.get(root, _RustExports()) if root in in_diff else sides[0])
-        if not _root_path_only(path[len(crate + "src/") :], owner, sides):
+        if not _root_path_only(crate, path[len(crate + "src/") :], owner, both_sides):
             return False
         kinds = root_names(crate).get(name, set())
         if kind not in ("mod", "use"):
@@ -535,22 +567,24 @@ def _rust_removals(
         crate = _rust_crate(path)
         old = old_exports.get(path, _RustExports())
         new = new_exports.get(path, _RustExports())
-        for key, kind in old.uncond_items.items():
-            # A module of the same name does not stand in for a non-module
-            # item (or vice versa).
-            if key in new.uncond_items and (new.uncond_items[key] == "mod") == (kind == "mod"):
-                continue
+        for key, kinds in old.uncond_items.items():
+            survivors = new.uncond_items.get(key, set())
             scope, owner, name = key
-            if scope == "impl":
-                if (owner, name) in new_impl.get(crate, set()):
+            for kind in sorted(kinds):
+                # A module of the same name does not stand in for a
+                # non-module item (or vice versa).
+                if any((other == "mod") == (kind == "mod") for other in survivors):
                     continue
-                removals.add(Removal(path, "rust", kind, name, owner))
-                continue
-            if owner == "" and name in new.top_uses - old.top_uses:
-                continue
-            if root_cancels(path, owner, kind, name):
-                continue
-            removals.add(Removal(path, "rust", kind, name))
+                if scope == "impl":
+                    if (owner, name) in new_impl.get(crate, set()):
+                        continue
+                    removals.add(Removal(path, "rust", kind, name, owner))
+                    continue
+                if owner == "" and name in new.top_uses - old.top_uses:
+                    continue
+                if root_cancels(path, owner, kind, name):
+                    continue
+                removals.add(Removal(path, "rust", kind, name))
         for name in old.uncond_uses - new.uncond_uses:
             # A use below the file's top level has an unknown module path.
             owner = "" if name in old.top_uses else None
@@ -561,35 +595,52 @@ def _rust_removals(
 
 
 def _root_path_only(
-    rel: str, owner: str | None, roots: list[_RustExports | None]
+    crate: str,
+    rel: str,
+    owner: str | None,
+    sides: Callable[[str], list[_RustExports]],
 ) -> bool:
     """Whether an item at ``rel`` (path under the crate's `src/`), inline
     module ``owner`` (None: unknown), was public only through the crate root.
 
-    True for the root's own top level, and for an item whose first module
-    segment the root (either side seen) declares private or `pub(...)`-
-    restricted and never unrestricted `pub`. An unrestricted `pub mod` gives
-    the item its own path (`crate::a::X`) that a root name does not keep;
-    an undeclared module, an unseen root, or an unknown inline owner fails
-    closed.
+    True for the root's own top level. Otherwise every module segment on the
+    way — the file's (`a/b.rs` -> `a`, `b`) then the inline owner's — must
+    be declared, in its parent file (either side seen), private or
+    `pub(...)`-restricted and never unrestricted `pub`, and the crate root
+    must not re-export any of them by name or alias (`pub use a::b as api`
+    makes `crate::api::X` public). An unrestricted `pub mod` gives the item
+    its own path (`crate::a::X`) that a root name does not keep; an
+    undeclared or unseen module, or an unknown inline owner, fails closed.
     """
 
     if owner is None:
         return False
-    if rel == "lib.rs":
-        if not owner:
-            return True
-        segment = owner.split("::", 1)[0]
-    else:
-        if owner:
+    parts = [] if rel == "lib.rs" else rel.removesuffix(".rs").split("/")
+    if parts and parts[-1] == "mod":
+        parts.pop()
+    inline = owner.split("::") if owner else []
+    if not parts and not inline:
+        return True
+
+    def module_files(segments: list[str]) -> list[str]:
+        if not segments:
+            return [crate + "src/lib.rs"]
+        stem = crate + "src/" + "/".join(segments)
+        return [stem + ".rs", stem + "/mod.rs"]
+
+    # (files that may declare the segment, enclosing inline path, name)
+    decls = [(module_files(parts[:index]), "", segment) for index, segment in enumerate(parts)]
+    own_file = [crate + "src/" + rel]
+    decls += [(own_file, "::".join(inline[:index]), segment) for index, segment in enumerate(inline)]
+    for files, parent, segment in decls:
+        seen = [side for file in files for side in sides(file)]
+        if any((parent, segment) in side.pub_mods for side in seen):
             return False
-        segment = rel.split("/", 1)[0].removesuffix(".rs")
-    seen = [root for root in roots if root is not None]
-    if not seen:
-        return False
-    public = any(segment in root.pub_mods for root in seen)
-    private = any(segment in root.private_mods for root in seen)
-    return private and not public
+        if not any((parent, segment) in side.private_mods for side in seen):
+            return False
+    exposed = {segment for _, _, segment in decls}
+    root_sides = sides(crate + "src/lib.rs")
+    return not any(exposed & (side.top_uses | side.top_use_sources) for side in root_sides)
 
 
 def _rust_root_names(
@@ -610,9 +661,9 @@ def _rust_root_names(
 
     def add(exports: _RustExports, module: str, uses: bool) -> bool:
         found = False
-        for (scope, owner, name), kind in exports.uncond_items.items():
+        for (scope, owner, name), kinds in exports.uncond_items.items():
             if (scope, owner) == ("mod", module):
-                names.setdefault(name, set()).add(kind)
+                names.setdefault(name, set()).update(kinds)
                 found = True
         if uses:
             for name in exports.top_uses:
@@ -666,10 +717,11 @@ def parse_diff(
                 acc.uncond_uses |= exports.uncond_uses
                 acc.top_uses |= exports.top_uses
                 acc.top_globs |= exports.top_globs
+                acc.top_use_sources |= exports.top_use_sources
                 acc.pub_mods |= exports.pub_mods
                 acc.private_mods |= exports.private_mods
-                for key, kind in exports.uncond_items.items():
-                    acc.uncond_items.setdefault(key, kind)
+                for key, kinds in exports.uncond_items.items():
+                    acc.uncond_items.setdefault(key, set()).update(kinds)
         hunk_old.clear()
         hunk_new.clear()
 

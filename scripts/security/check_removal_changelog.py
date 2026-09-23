@@ -20,7 +20,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
 
 SCAN_PREFIXES = ("src/rust/crates/", "src/python/", "src/ts/")
@@ -56,7 +56,9 @@ RUST_PUBLIC_USE = re.compile(r"^\s*pub\s+use\s+(.+);\s*$", re.DOTALL)
 # `pub` text inside fn/struct/trait/macro bodies are not public API, so
 # their removal is never reported; an unconditional item that becomes
 # conditional (e.g. a cfg attribute added above an unchanged `pub fn`) is.
-# Glob exports name nothing and stay fail-closed.
+# A glob export names nothing by itself; only a single-segment glob in the
+# crate root (`pub use m::*;`) is resolved, one level deep, when checking
+# whether the root still exports a name (see `_rust_root_names`).
 #
 # Known fail-closed false positives — each costs a manual CHANGELOG entry,
 # never a silent miss, so they are accepted rather than special-cased:
@@ -65,12 +67,22 @@ RUST_PUBLIC_USE = re.compile(r"^\s*pub\s+use\s+(.+);\s*$", re.DOTALL)
 #     compiled in.
 #   - A free item moved between inline modules of the same file is reported
 #     (its key changes and same-file moves only cancel by exact key).
+#   - A free item moved between files, or into a `pub mod`, is reported
+#     unless the crate root re-exports its name (the module path changed).
+# Only library sources (`src/rust/crates/<c>/src/`, minus `src/main.rs` and
+# `src/bin/`) are scanned; examples, benches, build scripts, and binaries
+# neither report removals nor cancel them.
 # Known limits:
-#   - Move cancellation is name-level within a crate, not path-level: a free
-#     item moved to another file of the crate cancels even if its old module
-#     path is no longer reachable, and an associated item cancels on any
-#     same-crate `impl` of a type with the same last path segment. Only files
-#     in the diff are seen. The path-level oracle is the surface comparator
+#   - Free-item cancellation approximates the public path: the same file
+#     still exports the name at the same level, or the head-side crate root
+#     (`src/lib.rs`) exports it unconditionally. The root is read from the
+#     diff, else from the head ref in live-git mode; with `--diff-file` a
+#     root outside the diff is unseen and nothing cancels against it. A glob
+#     module's `mod` declaration is not checked for cfg gates or `#[path]`.
+#   - An associated item cancels on any same-crate `impl` of a type with the
+#     same last path segment, so two distinct same-named types in different
+#     modules can cancel each other's method removals.
+#   - The path-level oracle is the surface comparator
 #     (`dev/tools/surface_comparator.py`).
 #   - `pub use` names are compared per file by bare name: an inline `pub mod
 #     x { pub use ... }` contributes to the same set as the crate root.
@@ -121,6 +133,9 @@ class Removal:
         return f"{self.owner}::{self.name}" if self.owner else self.name
 
 
+_RUST_LIBRARY_SOURCE = re.compile(r"^src/rust/crates/[^/]+/src/(.+)$")
+
+
 def _classify(path: str) -> str | None:
     # Test files are NOT public API — a renamed/removed test function is not a
     # consumer-visible removal. Excluding any `tests/` directory keeps the
@@ -129,6 +144,12 @@ def _classify(path: str) -> str | None:
     if "/tests/" in path:
         return None
     if path.startswith("src/rust/crates/") and path.endswith(".rs"):
+        # Only a crate's library sources are public API: `examples/`,
+        # `benches/`, `build.rs`, `src/main.rs`, and `src/bin/` neither
+        # report removals nor cancel them.
+        match = _RUST_LIBRARY_SOURCE.match(path)
+        if match is None or match.group(1) == "main.rs" or match.group(1).startswith("bin/"):
+            return None
         return "rust"
     if path.startswith("src/python/") and path.endswith(".py"):
         return "python"
@@ -164,10 +185,10 @@ def _split_use_tree(value: str) -> list[str]:
 
 
 def _rust_reexport_names(statement: str) -> set[str]:
-    """Return explicit crate-root names exported by one ``pub use``.
+    """Return the names one ``pub use`` exports explicitly.
 
-    Glob exports stay fail-closed because their names cannot be established
-    from the diff alone. Aliases contribute only the exported alias.
+    Globs contribute nothing here (`_rust_root_names` resolves simple root
+    globs separately). Aliases contribute only the exported alias.
     """
 
     match = RUST_PUBLIC_USE.match(statement)
@@ -218,11 +239,18 @@ class _RustExports:
     """Names one side of one Rust file exports unconditionally."""
 
     uncond_uses: set[str] = field(default_factory=set)
+    # The file's own top level only: explicit `pub use` names and the
+    # module named by each single-segment glob (`pub use m::*;`).
+    top_uses: set[str] = field(default_factory=set)
+    top_globs: set[str] = field(default_factory=set)
     # Unrestricted `pub` items only (key -> kind); `pub(crate)` etc. and
     # items inside fn/struct/trait bodies are not public API.
     uncond_items: dict[_ItemKey, str] = field(default_factory=dict)
 
 
+_RUST_SIMPLE_GLOB = re.compile(
+    r"^\s*pub\s+use\s+(?:(?:self|crate)\s*::\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*::\s*\*\s*;\s*$"
+)
 _RUST_VIS_PREFIX = re.compile(r"^(?:pub\s*(?:\([^)]*\))?\s*|unsafe\s+|default\s+)*")
 _RUST_MOD_HEADER = re.compile(r"^mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*$")
 
@@ -314,7 +342,13 @@ def _parse_rust_side(lines: list[str]) -> _RustExports:
                     break
                 use_text += "\n" + rest[: end + 1]
                 if not use_gated and (not frames or frames[-1][0] == "mod"):
-                    out.uncond_uses.update(_rust_reexport_names(use_text))
+                    names = _rust_reexport_names(use_text)
+                    out.uncond_uses.update(names)
+                    if not frames:
+                        out.top_uses.update(names)
+                        glob = _RUST_SIMPLE_GLOB.match(use_text)
+                        if glob:
+                            out.top_globs.add(glob.group(1))
                 use_text = None
                 header = ""
                 rest = rest[end + 1 :].strip()
@@ -405,6 +439,10 @@ def _parse_rust_side(lines: list[str]) -> _RustExports:
 
 _RUST_CRATE = re.compile(r"^(src/rust/crates/[^/]+/)")
 
+# Reads a file's text at the head ref when it is not part of the diff
+# (None: absent or unavailable).
+HeadReader = Callable[[str], "list[str] | None"]
+
 
 def _rust_crate(path: str) -> str:
     match = _RUST_CRATE.match(path)
@@ -412,35 +450,49 @@ def _rust_crate(path: str) -> str:
 
 
 def _rust_removals(
-    old_exports: dict[str, _RustExports], new_exports: dict[str, _RustExports]
+    old_exports: dict[str, _RustExports],
+    new_exports: dict[str, _RustExports],
+    read_head: HeadReader | None = None,
 ) -> set[Removal]:
-    """Compare per-file unconditional exports, cancelling moves.
+    """Compare per-file unconditional exports, cancelling path-preserving moves.
 
     An item is removed from a file when its old-side key is unconditional
-    and the new side lacks it. The removal cancels as a move when, on the new
-    side of the same crate:
+    and the new side lacks it. The removal cancels as a move only when:
       - associated item: an unconditional `pub` item of that name sits in an
-        `impl` of the same self type, in any file;
-      - free item: the name is an unconditional `pub` free item or `pub use`
-        in another file, or a newly added `pub use` in the same file.
-    A `pub use` name dropped from a file cancels only against an
-    unconditional file-level item of that name in the same file.
+        `impl` of the same self type in any library file of the same crate
+        (methods are addressed through their type, so the path survives);
+      - free item or `pub use` name: the same file still exports it at the
+        same level (a file-level item or a newly added top-level `pub use`),
+        or the crate root re-exports the name (`_rust_root_names`).
     """
 
+    in_diff = old_exports.keys() | new_exports.keys()
+    head_cache: dict[str, _RustExports | None] = {}
+
+    def head_exports(path: str) -> _RustExports | None:
+        if path in in_diff:
+            return new_exports.get(path, _RustExports())
+        if path not in head_cache:
+            lines = read_head(path) if read_head is not None else None
+            head_cache[path] = None if lines is None else _parse_rust_side(lines)
+        return head_cache[path]
+
+    root_cache: dict[str, set[str]] = {}
+
+    def root_names(crate: str) -> set[str]:
+        if crate not in root_cache:
+            root_cache[crate] = _rust_root_names(crate, head_exports)
+        return root_cache[crate]
+
     new_impl: dict[str, set[tuple[str, str]]] = {}
-    new_free: dict[str, dict[str, set[str]]] = {}
     for path, exports in new_exports.items():
         crate = _rust_crate(path)
         for scope, owner, name in exports.uncond_items:
             if scope == "impl":
                 new_impl.setdefault(crate, set()).add((owner, name))
-            else:
-                new_free.setdefault(crate, {}).setdefault(name, set()).add(path)
-        for name in exports.uncond_uses:
-            new_free.setdefault(crate, {}).setdefault(name, set()).add(path)
 
     removals: set[Removal] = set()
-    for path in old_exports.keys() | new_exports.keys():
+    for path in in_diff:
         crate = _rust_crate(path)
         old = old_exports.get(path, _RustExports())
         new = new_exports.get(path, _RustExports())
@@ -453,21 +505,59 @@ def _rust_removals(
                     continue
                 removals.add(Removal(path, "rust", kind, name, owner))
                 continue
-            elsewhere = new_free.get(crate, {}).get(name, set()) - {path}
-            if elsewhere or name in new.uncond_uses - old.uncond_uses:
+            if owner == "" and name in new.top_uses - old.top_uses:
+                continue
+            if name in root_names(crate):
                 continue
             removals.add(Removal(path, "rust", kind, name))
         for name in old.uncond_uses - new.uncond_uses:
-            if ("mod", "", name) not in new.uncond_items:
-                removals.add(Removal(path, "rust", "use", name))
+            if ("mod", "", name) in new.uncond_items or name in root_names(crate):
+                continue
+            removals.add(Removal(path, "rust", "use", name))
     return removals
 
 
-def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]:
+def _rust_root_names(
+    crate: str, head_exports: Callable[[str], _RustExports | None]
+) -> set[str]:
+    """Names the head-side crate root (`src/lib.rs`) exports at its top level.
+
+    Counts unconditional top-level `pub` items and explicit `pub use` names.
+    A single-segment glob `pub use m::*;` contributes the unconditional
+    `pub` items of inline module `m` in the root, else the top-level
+    unconditional items and explicit `pub use` names of `src/m.rs` or
+    `src/m/mod.rs`, one level deep. A root (or glob module file) that is
+    neither in the diff nor readable at the head ref contributes nothing.
+    """
+
+    root = head_exports(crate + "src/lib.rs")
+    if root is None:
+        return set()
+    names = {name for scope, owner, name in root.uncond_items if (scope, owner) == ("mod", "")}
+    names |= root.top_uses
+    for module in root.top_globs:
+        inline = {name for scope, owner, name in root.uncond_items if (scope, owner) == ("mod", module)}
+        if inline:
+            names |= inline
+            continue
+        for candidate in (f"{crate}src/{module}.rs", f"{crate}src/{module}/mod.rs"):
+            target = head_exports(candidate)
+            if target is None:
+                continue
+            names |= {n for scope, owner, n in target.uncond_items if (scope, owner) == ("mod", "")}
+            names |= target.top_uses
+    return names
+
+
+def parse_diff(
+    diff_text: str, read_head: HeadReader | None = None
+) -> tuple[set[Removal], set[tuple[str, str, str]]]:
     """Returns (removals, additions) keyed for cancellation matching.
 
     Rust removals are computed from the per-side export sets and are
     final; ``additions`` only cancels Python/TypeScript line-scan removals.
+    ``read_head`` supplies head-side files outside the diff (a crate root
+    or glob module file); without it only files in the diff are seen.
     """
     removals: set[Removal] = set()
     # Additions keyed (path, kind, name) so a rename WITHIN the same file
@@ -490,6 +580,8 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
                 exports = _parse_rust_side(lines)
                 acc = side.setdefault(current_path, _RustExports())
                 acc.uncond_uses |= exports.uncond_uses
+                acc.top_uses |= exports.top_uses
+                acc.top_globs |= exports.top_globs
                 for key, kind in exports.uncond_items.items():
                     acc.uncond_items.setdefault(key, kind)
         hunk_old.clear()
@@ -537,7 +629,7 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
             additions.add((current_path, current_kind, name))
     flush_hunk()
 
-    removals |= _rust_removals(old_exports, new_exports)
+    removals |= _rust_removals(old_exports, new_exports, read_head)
     return removals, additions
 
 
@@ -595,6 +687,19 @@ def _assert_whole_file_hunks(diff_text: str) -> str | None:
         if hunks > 1 or int(match.group(1)) > 1 or int(match.group(2)) > 1:
             return f"git diff did not produce whole-file context for {path}"
     return None
+
+
+def _git_head_reader(args: argparse.Namespace) -> HeadReader:
+    def read(path: str) -> list[str] | None:
+        completed = subprocess.run(
+            ["git", "-C", str(args.repo_root), "show", f"{args.head}:{path}"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        return completed.stdout.splitlines() if completed.returncode == 0 else None
+
+    return read
 
 
 def load_diff(args: argparse.Namespace) -> str:
@@ -660,7 +765,8 @@ def main(argv: list[str]) -> int:
         return 2
 
     diff_text = load_diff(args)
-    removals, additions = parse_diff(diff_text)
+    read_head = None if args.diff_file else _git_head_reader(args)
+    removals, additions = parse_diff(diff_text, read_head)
     truly_removed = real_removals(removals, additions)
     undocumented = changelog_documents(changelog_path, truly_removed)
 

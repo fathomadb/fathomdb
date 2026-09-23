@@ -1,0 +1,13 @@
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,8 +1,9 @@
+ pub struct A;
+ pub struct B;
+ impl A {
+     pub fn as_str(&self) -> &str { "a" }
+ }
+ impl B {
++    #[cfg(feature = "operator")]
+     pub fn as_str(&self) -> &str { "b" }
+ }

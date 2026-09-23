@@ -1,0 +1,9 @@
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,5 +1,4 @@
+ pub struct Engine;
+ impl Engine {
+     pub fn open() -> Self { Engine }
+-    pub fn close(&self) {}
+ }

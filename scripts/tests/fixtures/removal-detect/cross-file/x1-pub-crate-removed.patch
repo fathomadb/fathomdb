@@ -1,0 +1,6 @@
+diff --git a/src/rust/crates/example/src/lib.rs b/src/rust/crates/example/src/lib.rs
+--- a/src/rust/crates/example/src/lib.rs
++++ b/src/rust/crates/example/src/lib.rs
+@@ -1,2 +1,1 @@
+ pub fn keep() {}
+-pub(crate) fn helper() {}

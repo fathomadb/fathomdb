@@ -11,6 +11,9 @@ FIX="$SCRIPT_DIR/fixtures/removal-detect"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
 # Positive: every removal documented → exit 0.
 if ! python3 "$LINT" \
     --diff-file "$FIX/clean/diff.patch" \
@@ -27,13 +30,13 @@ python3 "$LINT" \
     --diff-file "$FIX/undocumented/diff.patch" \
     --changelog "$FIX/undocumented/CHANGELOG.md" \
     --repo-root "$REPO_ROOT" \
-    >/dev/null 2>/tmp/removal_detect_negative.err
+    >/dev/null 2>"$WORK/negative.err"
 rc=$?
 set -e
 if [ "$rc" -ne 1 ]; then
     fail "undocumented fixture: linter must exit 1, got $rc"
 fi
-if ! grep -q "secret_unannounced" /tmp/removal_detect_negative.err; then
+if ! grep -q "secret_unannounced" "$WORK/negative.err"; then
     fail "undocumented fixture: diagnostic must name the undocumented symbol"
 fi
 echo "OK undocumented"
@@ -70,13 +73,13 @@ for case_name in glob private renamed state-poison cfg-gated; do
         --diff-file "$FIX/reexport-edges/$case_name.patch" \
         --changelog "$FIX/reexport-edges/CHANGELOG.md" \
         --repo-root "$REPO_ROOT" \
-        >/dev/null 2>"/tmp/removal_detect_reexport_${case_name}.err"
+        >/dev/null 2>"$WORK/reexport_${case_name}.err"
     rc=$?
     set -e
     if [ "$rc" -ne 1 ]; then
         fail "$case_name re-export fixture: expected undocumented removal exit 1, got $rc"
     fi
-    if ! grep -q "Foo" "/tmp/removal_detect_reexport_${case_name}.err"; then
+    if ! grep -q "Foo" "$WORK/reexport_${case_name}.err"; then
         fail "$case_name re-export fixture: diagnostic must retain removed Foo"
     fi
 done
@@ -100,13 +103,13 @@ python3 "$LINT" \
     --diff-file "$FIX/pub-use-removed/diff.patch" \
     --changelog "$FIX/pub-use-removed/CHANGELOG.md" \
     --repo-root "$REPO_ROOT" \
-    >/dev/null 2>/tmp/removal_detect_pub_use_removed.err
+    >/dev/null 2>"$WORK/pub_use_removed.err"
 rc=$?
 set -e
 if [ "$rc" -ne 1 ]; then
     fail "pub-use-removed fixture: linter must exit 1 (removed pub use is a removal), got $rc"
 fi
-if ! grep -q "EngineError" /tmp/removal_detect_pub_use_removed.err; then
+if ! grep -q "EngineError" "$WORK/pub_use_removed.err"; then
     fail "pub-use-removed fixture: diagnostic must name the removed re-export EngineError"
 fi
 echo "OK pub-use-removed"
@@ -166,13 +169,13 @@ for case_name in multiline-attr doc-comment line-comment blank-line; do
         --diff-file "$FIX/cfg-pending/$case_name.patch" \
         --changelog "$FIX/cfg-pending/CHANGELOG.md" \
         --repo-root "$REPO_ROOT" \
-        >/dev/null 2>"/tmp/removal_detect_cfg_pending_${case_name}.err"
+        >/dev/null 2>"$WORK/cfg_pending_${case_name}.err"
     rc=$?
     set -e
     if [ "$rc" -ne 1 ]; then
         fail "$case_name cfg-pending fixture: expected undocumented removal exit 1, got $rc"
     fi
-    if ! grep -q "Foo" "/tmp/removal_detect_cfg_pending_${case_name}.err"; then
+    if ! grep -q "Foo" "$WORK/cfg_pending_${case_name}.err"; then
         fail "$case_name cfg-pending fixture: diagnostic must retain removed Foo"
     fi
 done
@@ -203,13 +206,13 @@ python3 "$LINT" \
     --diff-file "$FIX/pub-use-block-partial/dropped-entry.patch" \
     --changelog "$FIX/pub-use-block-partial/CHANGELOG.md" \
     --repo-root "$REPO_ROOT" \
-    >/dev/null 2>/tmp/removal_detect_pub_use_dropped_entry.err
+    >/dev/null 2>"$WORK/pub_use_dropped_entry.err"
 rc=$?
 set -e
 if [ "$rc" -ne 1 ]; then
     fail "dropped-entry fixture: linter must exit 1 (Foo dropped from context-only pub use block), got $rc"
 fi
-if ! grep -q "Foo" /tmp/removal_detect_pub_use_dropped_entry.err; then
+if ! grep -q "Foo" "$WORK/pub_use_dropped_entry.err"; then
     fail "dropped-entry fixture: diagnostic must name the dropped re-export Foo"
 fi
 echo "OK pub-use-block-partial dropped-entry"
@@ -219,13 +222,13 @@ python3 "$LINT" \
     --diff-file "$FIX/pub-use-block-partial/reopened-with-context.patch" \
     --changelog "$FIX/pub-use-block-partial/CHANGELOG.md" \
     --repo-root "$REPO_ROOT" \
-    >/dev/null 2>/tmp/removal_detect_pub_use_reopened.err
+    >/dev/null 2>"$WORK/pub_use_reopened.err"
 rc=$?
 set -e
 if [ "$rc" -ne 1 ]; then
     fail "reopened-with-context fixture: linter must exit 1 (Foo removed, block reopened+closed around a context line), got $rc"
 fi
-if ! grep -q "Foo" /tmp/removal_detect_pub_use_reopened.err; then
+if ! grep -q "Foo" "$WORK/pub_use_reopened.err"; then
     fail "reopened-with-context fixture: diagnostic must name the removed re-export Foo"
 fi
 echo "OK pub-use-block-partial reopened-with-context"
@@ -247,14 +250,14 @@ w_case() {
         --diff-file "$FIX/pub-use-full-context/$case_name.patch" \
         --changelog "$FIX/pub-use-full-context/CHANGELOG.md" \
         --repo-root "$REPO_ROOT" \
-        >/dev/null 2>"/tmp/removal_detect_full_context_${case_name}.err"
+        >/dev/null 2>"$WORK/full_context_${case_name}.err"
     rc=$?
     set -e
     if [ "$rc" -ne 1 ]; then
         fail "$case_name fixture: expected undocumented removal exit 1, got $rc"
     fi
     for name in $expected_name; do
-        if ! grep -qw "$name" "/tmp/removal_detect_full_context_${case_name}.err"; then
+        if ! grep -qw "$name" "$WORK/full_context_${case_name}.err"; then
             fail "$case_name fixture: diagnostic must name removed $name"
         fi
     done
@@ -287,8 +290,8 @@ done
 # W-2 live-git path: the real gate diffs git refs itself, so the fixture must
 # prove that `load_diff` produces whole-file context — dropping one name from
 # deep inside a long block must still be seen as leaving that block.
-tmp_repo="$(mktemp -d)"
-trap 'rm -rf "$tmp_repo"' EXIT
+tmp_repo="$WORK/repo"
+mkdir -p "$tmp_repo"
 git -C "$tmp_repo" init -q
 git -C "$tmp_repo" config user.email removal-detect@example.invalid
 git -C "$tmp_repo" config user.name removal-detect
@@ -313,15 +316,90 @@ rm "$lib.new"
 git -C "$tmp_repo" commit -q -am drop-foo
 set +e
 python3 "$LINT" --repo-root "$tmp_repo" --base base --head HEAD \
-    >/dev/null 2>/tmp/removal_detect_live_git_w2.err
+    >/dev/null 2>"$WORK/live_git_w2.err"
 rc=$?
 set -e
 if [ "$rc" -ne 1 ]; then
     fail "live-git W-2: expected undocumented removal exit 1, got $rc"
 fi
-if ! grep -qw "Foo" /tmp/removal_detect_live_git_w2.err; then
+if ! grep -qw "Foo" "$WORK/live_git_w2.err"; then
     fail "live-git W-2: diagnostic must name removed Foo"
 fi
 echo "OK live-git W-2 (whole-file context)"
+
+# X-1/X-2: Rust items are keyed by owner — the enclosing `impl` self type
+# for associated items, the inline-module path for free items. Only an
+# unrestricted, unconditional `pub` item on the old side can be removed, and
+# an item that reappears unconditionally in the same crate (associated items
+# in an `impl` of the same type) is a move, not a removal.
+x_case() {
+    local case_name="$1" expected_rc="$2" expected_name="${3:-}"
+    set +e
+    python3 "$LINT" \
+        --diff-file "$FIX/cross-file/$case_name.patch" \
+        --changelog "$FIX/cross-file/CHANGELOG.md" \
+        --repo-root "$REPO_ROOT" \
+        >/dev/null 2>"$WORK/cross_file_${case_name}.err"
+    rc=$?
+    set -e
+    if [ "$rc" -ne "$expected_rc" ]; then
+        fail "$case_name fixture: expected exit $expected_rc, got $rc ($(cat "$WORK/cross_file_${case_name}.err"))"
+    fi
+    if [ -n "$expected_name" ] && ! grep -qF "$expected_name" "$WORK/cross_file_${case_name}.err"; then
+        fail "$case_name fixture: diagnostic must name $expected_name"
+    fi
+    echo "OK $case_name"
+}
+x_case x1-free-fn-moved-reexported 0
+x_case x1-method-moved 0
+x_case x1-pub-crate-removed 0
+x_case x1-cfg-test-mod-removed 0
+x_case x2-method-gated-collision 1 "B::as_str"
+x_case x2-impl-block-gated-collision 1 "B::new"
+x_case guard-method-deleted 1 "Engine::close"
+x_case guard-method-moved-to-other-type 1 "Engine::close"
+
+# X-3 live-git: renames are diffed as delete + add, so a file renamed into
+# another crate is compared (its items leave the old crate) while a rename
+# within the crate is a move.
+git -C "$tmp_repo" checkout -q -b renames base
+cat >"$tmp_repo/src/rust/crates/example/src/moved.rs" <<'RS'
+pub struct Widget;
+impl Widget {
+    pub fn render(&self) -> u32 { 1 }
+    pub fn resize(&self, width: u32) -> u32 { width }
+}
+pub fn widget_helper() -> Widget { Widget }
+RS
+git -C "$tmp_repo" add -A
+git -C "$tmp_repo" commit -q -m add-moved
+git -C "$tmp_repo" tag rename-base
+git -C "$tmp_repo" mv src/rust/crates/example/src/moved.rs src/rust/crates/example/src/renamed.rs
+git -C "$tmp_repo" commit -q -m rename-in-crate
+set +e
+python3 "$LINT" --repo-root "$tmp_repo" --base rename-base --head HEAD \
+    >/dev/null 2>"$WORK/live_git_rename_in_crate.err"
+rc=$?
+set -e
+if [ "$rc" -ne 0 ]; then
+    fail "live-git X-3 in-crate rename: expected exit 0, got $rc ($(cat "$WORK/live_git_rename_in_crate.err"))"
+fi
+echo "OK live-git X-3 in-crate rename"
+git -C "$tmp_repo" checkout -q -b cross-crate rename-base
+mkdir -p "$tmp_repo/src/rust/crates/other/src"
+git -C "$tmp_repo" mv src/rust/crates/example/src/moved.rs src/rust/crates/other/src/moved.rs
+git -C "$tmp_repo" commit -q -m rename-cross-crate
+set +e
+python3 "$LINT" --repo-root "$tmp_repo" --base rename-base --head HEAD \
+    >/dev/null 2>"$WORK/live_git_rename_cross_crate.err"
+rc=$?
+set -e
+if [ "$rc" -ne 1 ]; then
+    fail "live-git X-3 cross-crate rename: expected exit 1, got $rc"
+fi
+if ! grep -qF "Widget::render" "$WORK/live_git_rename_cross_crate.err"; then
+    fail "live-git X-3 cross-crate rename: diagnostic must name Widget::render"
+fi
+echo "OK live-git X-3 cross-crate rename"
 
 echo "test_removal_detect.sh: all cases pass"

@@ -1,4 +1,9 @@
-#![cfg(feature = "test-hooks")]
+// `publication_holding_write_lock_linearizes_before_transition` calls
+// `Engine::pause_projection_worker_after_wal_transaction_for_test`, which is
+// `#[cfg(debug_assertions)]`-only (never available in a release build), so
+// this whole file does not compile under `--release --features test-hooks`
+// without also requiring debug_assertions.
+#![cfg(all(feature = "test-hooks", debug_assertions))]
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier};

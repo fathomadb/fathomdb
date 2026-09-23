@@ -1,13 +1,13 @@
 ---
 title: FathomDB 0.8.27 hidden-surface oracle - design
-status: PROPOSED
+status: APPROVED
 target_release: 0.8.27
 ---
 
 # Hidden-surface oracle design
 
-Requirements and acceptance: `plan.md` (RH-1 to RH-15). Revision 6 closes
-design review rounds 1 to 5 (`design-review.md`) and applies the owner rulings
+Requirements and acceptance: `plan.md` (RH-1 to RH-15). Revision 7 closes
+design review rounds 1 to 6 (`design-review.md`) and applies the owner rulings
 `hidden-surface-effective-and-inventory` and `feature-complete-test-coverage`.
 The first ruling came after implementation showed that per-site signing
 reports Slice 40's gate moves as differences.
@@ -171,7 +171,8 @@ strips span text and parses it into a predicate over atoms (`name`,
 parse fails the capture (exit 2), so a toolchain format change cannot silently
 drop gates. The effective predicate is canonicalized semantically, not by
 syntax: evaluate its truth table over its sorted atoms, then sign the minimal
-sum-of-products form, with terms and literals sorted. So
+sum-of-products form, with terms and literals sorted; when several minimal
+forms exist, sign the lexicographically smallest. So
 `all(any(feature = "test-hooks", test), feature = "test-hooks")` and
 `feature = "test-hooks"` sign identically, and dropping a redundant gate is not
 a difference. Gates in this workspace have at most about five atoms. More than
@@ -234,7 +235,9 @@ when nothing compiles it.
 features (`tests-<row>`). There is also one `tests-req-<n>` row for every
 distinct requirement set in `test-targets` (the `required-features` union and
 any file-level feature cfg) that no rustdoc row already compiles. Those sets
-are derived, not hand-kept, and `<n>` is the canonical feature list. CUDA sets
+are derived, not hand-kept, and `<n>` is the canonical feature list; they are
+the same sets as the RH-14 gate's committed matrix, which is regenerated from
+this derivation and drift-checked by RH-15. CUDA sets
 are included: NVIDIA tools are authorized on this host. This makes every
 capture depend on this host's CUDA environment (the same preflight as the
 RH-14 gate) and adds about a minute of CUDA build per capture. Per row:
@@ -297,14 +300,20 @@ example `FATHOMDB_SLICE72_RUNNER=approved-nvidia` and
 
 ```text
 cargo test --locked -p <crate> --no-default-features --features <set> \
-  --test <target>... -- --nocapture
+  --test <target>... -- --nocapture --test-threads=1
 ```
+
+One thread per binary keeps each test's output contiguous, so every skip
+marker is attributed to exactly one test id (the harness's `test <name> ...`
+line precedes it).
 
 Then:
 
 - **Skip markers:** the output is matched against a fixed set of markers
   (`[SKIP]`, `[skip]`, `PENDING_EXTERNAL`, `skipping`). Any match fails the
-  gate unless its test id is on the allowlist.
+  gate unless its test id is on the allowlist. `skipping` also matches benign
+  warnings (for example eu8's "skipping IR measurements JSON write"); those
+  get allowlist entries with class `benign-message`.
 - **Ignored tests:** the per-target ignored count is compared with the
   `ignored-by-design` entries. Any ignored test not on the allowlist fails
   the gate.
@@ -369,9 +378,10 @@ when that is done, so it does not become a permanent maintenance cost.
 
   Git history keeps all of them.
 - **Kept:**
-  - the feature-complete test gate (RH-14), the coverage check (RH-15), and
-    their shared `scripts/lib/test_targets.py`: these are what let the code
-    carry itself once the oracle is gone;
+  - the feature-complete test gate (RH-14), the coverage check (RH-15), their
+    shared `scripts/lib/test_targets.py`, and their committed inputs
+    `scripts/test-feature-matrix.toml` and `scripts/test-skip-allowlist.toml`:
+    these are what let the code carry itself once the oracle is gone;
   - the warning-free test-build gates in `scripts/agent-typecheck.sh`;
   - the dead-code lint;
   - the removal-changelog gate;

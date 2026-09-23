@@ -86,3 +86,11 @@ inventories, and retire the oracle at Slice 150.
 | G-3 | P2 | CUDA environment unspecified: `nvcc` off PATH, `cudart_static` not found, device order. | Gate preflight sets CUDA variables, `CUDA_DEVICE_ORDER=PCI_BUS_ID`, `CUDA_VISIBLE_DEVICES=0,1`, and verifies the 3090s. |
 | G-4 | P2 | The warm-cache verb covers the embedder only. | Warm the embedder through the CLI; reranker downloads in-test, with a failed download caught by the skip contract. |
 | G-5 | P3 | `--filter-platform`; file-level cfgs need their own parser with platform and profile atoms; CUDA inventory cost. | Adopted and stated. |
+
+## Round 6 (61bb11fa): PASS-WITH-FINDINGS; revision 7 approved
+
+No P0 or P1. Applied: `--test-threads=1` so skip markers attribute to one test
+id; the feature matrix and skip allowlist listed as permanent; a
+lexicographic tie-break for the minimal cfg form; a `benign-message` allowlist
+class for harmless `skipping` text; one sentence tying the derived inventory
+sets to the committed matrix. Design status: APPROVED.

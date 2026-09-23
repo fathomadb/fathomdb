@@ -4,6 +4,7 @@ status: COMPLETE
 implemented_on: 2026-09-22
 baseline_entry_sha: 5f5c1798a3cffc1416467fd707587954ea75d9c6
 implementation_candidate: fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae
+closeout_commit: 8dcee1ba7eccdf03fcf89a8e623282274d0d70aa
 ---
 
 # Slice 40 implementation status

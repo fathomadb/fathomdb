@@ -153,4 +153,81 @@ if echo "$stderr_out" | grep -q "fatal: bad revision"; then
 fi
 echo "OK default-base-ref live-git path"
 
+# V-1 (fix-1): the added-side cfg-pending tracker must survive stacked
+# attribute lines, not just a single-line `#[cfg(...)]` immediately above
+# the `pub use` it guards — a multi-line (rustfmt-wrapped) attribute, and
+# doc-comment / line-comment / blank lines interposed between the cfg
+# attribute and the `pub use`, must all keep the gate pending so the
+# `pub use` stays fail-closed (does not cancel the removal it's re-exporting
+# under a cfg predicate).
+for case_name in multiline-attr doc-comment line-comment blank-line; do
+    set +e
+    python3 "$LINT" \
+        --diff-file "$FIX/cfg-pending/$case_name.patch" \
+        --changelog "$FIX/cfg-pending/CHANGELOG.md" \
+        --repo-root "$REPO_ROOT" \
+        >/dev/null 2>"/tmp/removal_detect_cfg_pending_${case_name}.err"
+    rc=$?
+    set -e
+    if [ "$rc" -ne 1 ]; then
+        fail "$case_name cfg-pending fixture: expected undocumented removal exit 1, got $rc"
+    fi
+    if ! grep -q "Foo" "/tmp/removal_detect_cfg_pending_${case_name}.err"; then
+        fail "$case_name cfg-pending fixture: diagnostic must retain removed Foo"
+    fi
+done
+echo "OK cfg-pending (fail-closed through stacked/multi-line attributes)"
+
+# V-1 companion: a cfg attribute on an UNRELATED item must still reset the
+# pending gate (existing behavior) so it doesn't leak onto a later
+# unconditional `pub use` of the actually-removed symbol.
+if ! python3 "$LINT" \
+    --diff-file "$FIX/cfg-pending/unrelated-item-resets.patch" \
+    --changelog "$FIX/cfg-pending/CHANGELOG.md" \
+    --repo-root "$REPO_ROOT" \
+    >/dev/null; then
+    fail "unrelated-item-resets fixture: linter must exit 0 (cfg on Bar must not gate the later unconditional pub use of Foo)"
+fi
+echo "OK cfg-pending unrelated-item resets"
+
+# V-2 (fix-2): the removed-side `pub use { ... }` accumulator only started
+# on a REMOVED opening line and was wiped by any context line, so it missed
+# the common rustfmt diff shape for dropping ONE name from an otherwise
+# untouched multi-line re-export list. The old-side tracker reconstructs the
+# pre-image from BOTH context and removed lines within a hunk.
+if [ ! -f "$FIX/pub-use-block-partial/dropped-entry.patch" ]; then
+    fail "pub-use-block-partial fixtures missing"
+fi
+set +e
+python3 "$LINT" \
+    --diff-file "$FIX/pub-use-block-partial/dropped-entry.patch" \
+    --changelog "$FIX/pub-use-block-partial/CHANGELOG.md" \
+    --repo-root "$REPO_ROOT" \
+    >/dev/null 2>/tmp/removal_detect_pub_use_dropped_entry.err
+rc=$?
+set -e
+if [ "$rc" -ne 1 ]; then
+    fail "dropped-entry fixture: linter must exit 1 (Foo dropped from context-only pub use block), got $rc"
+fi
+if ! grep -q "Foo" /tmp/removal_detect_pub_use_dropped_entry.err; then
+    fail "dropped-entry fixture: diagnostic must name the dropped re-export Foo"
+fi
+echo "OK pub-use-block-partial dropped-entry"
+
+set +e
+python3 "$LINT" \
+    --diff-file "$FIX/pub-use-block-partial/reopened-with-context.patch" \
+    --changelog "$FIX/pub-use-block-partial/CHANGELOG.md" \
+    --repo-root "$REPO_ROOT" \
+    >/dev/null 2>/tmp/removal_detect_pub_use_reopened.err
+rc=$?
+set -e
+if [ "$rc" -ne 1 ]; then
+    fail "reopened-with-context fixture: linter must exit 1 (Foo removed, block reopened+closed around a context line), got $rc"
+fi
+if ! grep -q "Foo" /tmp/removal_detect_pub_use_reopened.err; then
+    fail "reopened-with-context fixture: diagnostic must name the removed re-export Foo"
+fi
+echo "OK pub-use-block-partial reopened-with-context"
+
 echo "test_removal_detect.sh: all cases pass"

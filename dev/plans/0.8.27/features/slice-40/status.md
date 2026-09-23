@@ -42,7 +42,7 @@ interfaces, and governed API behavior were not absorbed or changed.
   adversarial review's hidden-items rustdoc JSON comparison (pre/post root name
   sets identical under default, `test-hooks`, `slice72-test-hooks`,
   `operator`, and `operator,test-hooks`). The comparator blind spot is tracked
-  in the todos ledger.
+  in the todos ledger; method and findings: `adversarial-review.md`.
 - **AC27-40D:** the locked correction-safe erasure matrix is unchanged and
   passes 5/5; no later domain or delivery surface was moved.
 

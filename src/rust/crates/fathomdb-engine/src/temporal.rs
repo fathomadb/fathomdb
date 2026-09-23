@@ -378,7 +378,7 @@ pub(crate) fn edge_validity_sql_for_view(alias: &str, now_idx: usize, view: &Rea
 /// tz-INVARIANT (the offset never alters the input's own `YYYY-MM-DD` text) while
 /// still catching every DAY rollover, because the rollover happens in the
 /// calendar math BEFORE any offset is applied. **Pure SQL — no date crate.**
-pub(crate) fn iso8601_to_epoch_seconds(connection: &Connection, raw: &str) -> Option<i64> {
+fn iso8601_to_epoch_seconds(connection: &Connection, raw: &str) -> Option<i64> {
     if !is_iso8601_shape(raw) {
         return None;
     }
@@ -409,7 +409,7 @@ pub(crate) fn iso8601_to_epoch_seconds(connection: &Connection, raw: &str) -> Op
 /// ASCII `0..=9` (`u8::is_ascii_digit`), so non-ASCII digit look-alikes cannot
 /// slip through. This is a SHAPE check only — calendar validity (e.g. month 13,
 /// day 45) is still enforced by SQLite's `strftime` after this gate passes.
-pub(crate) fn is_iso8601_shape(s: &str) -> bool {
+fn is_iso8601_shape(s: &str) -> bool {
     let b = s.as_bytes();
     let d = |c: u8| c.is_ascii_digit();
 
@@ -529,8 +529,8 @@ pub(crate) fn epoch_seconds_to_iso8601(connection: &Connection, epoch: i64) -> O
 /// `strftime('%Y-%m-%dT%H:%M:%SZ', MIN, 'unixepoch') = 0000-01-01T00:00:00Z` and
 /// `= 9999-12-31T23:59:59Z` for `MAX` (`MAX+1` and `MIN-1` are the first
 /// out-of-range instants).
-pub(crate) const MIN_RENDERABLE_EPOCH: i64 = -62_167_219_200; // 0000-01-01T00:00:00Z
-pub(crate) const MAX_RENDERABLE_EPOCH: i64 = 253_402_300_799; // 9999-12-31T23:59:59Z
+const MIN_RENDERABLE_EPOCH: i64 = -62_167_219_200; // 0000-01-01T00:00:00Z
+const MAX_RENDERABLE_EPOCH: i64 = 253_402_300_799; // 9999-12-31T23:59:59Z
 
 /// TC-33 fix-1 — reject an edge epoch that SQLite cannot render back to
 /// ISO-8601, at the governed write boundary, so it is UNSTORABLE.

@@ -50,7 +50,7 @@ adds no global acceptance IDs and leaves `dev/acceptance.md` unchanged.
 | --- | --- | --- |
 | R27-40A | Foundation code is owned by private semantic modules without changing the crate topology or root API. | AC27-40A: `Engine` remains defined at crate root; the four modules are private; the reviewed surface comparator reports equal for default, operator, test-hooks, and operator+test-hooks rows. |
 | R27-40B | Error, identity, and temporal behavior remains byte/variant/order equivalent. | AC27-40B: focused error conversion/source tests, IdSpace/SourceId normalization and invalid-input tests, and half-open temporal/clock tests pass unchanged before and after each owning move. |
-| R27-40C | Hook extraction preserves existing feature gates and one-shot/order semantics. | AC27-40C: default and feature checks compile; existing hook suites pass on their declared features; comparator rows show no added/removed/gate-changed symbol. |
+| R27-40C | Hook extraction preserves existing feature gates and one-shot/order semantics. | AC27-40C: default and feature checks compile; existing hook suites pass on their declared features; comparator rows show no added/removed/gate-changed symbol (the rows omit `#[doc(hidden)]` items, so hidden hook gates are proven by feature-matrix compile checks and a hidden-items rustdoc comparison instead). |
 | R27-40D | The slice does not absorb later domains. | AC27-40D: the Slice 20 erasure implementation and locked correction matrix are unchanged; no schema, dependency, binding, package, interface, or governed-surface file changes. |
 
 The 300-1,200-line guidance applies to source moved per batch, not final file

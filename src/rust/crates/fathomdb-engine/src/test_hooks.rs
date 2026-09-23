@@ -1,3 +1,4 @@
+#[cfg(any(debug_assertions, feature = "test-hooks"))]
 use super::*;
 
 /// Slice 72's private trusted-runner rendezvous. This is compiled only by the

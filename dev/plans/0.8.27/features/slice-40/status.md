@@ -35,7 +35,14 @@ interfaces, and governed API behavior were not absorbed or changed.
   temporal boundary/shape/clock, facade, and focused owner suites pass.
 - **AC27-40C:** default, `test-hooks`, `slice72-test-hooks`, and combined feature
   checks preserve the existing hook surfaces and ordering behavior; the direct
-  projection-pause suites pass under `test-hooks`.
+  projection-pause suites pass under `test-hooks`. The comparator's
+  `cargo public-api` rows omit `#[doc(hidden)]` items, so every moved hook is
+  invisible to them and the comparator is not evidence of hook-gate
+  preservation. That evidence is the feature-matrix compile checks plus the
+  adversarial review's hidden-items rustdoc JSON comparison (pre/post root name
+  sets identical under default, `test-hooks`, `slice72-test-hooks`,
+  `operator`, and `operator,test-hooks`). The comparator blind spot is tracked
+  in the todos ledger.
 - **AC27-40D:** the locked correction-safe erasure matrix is unchanged and
   passes 5/5; no later domain or delivery surface was moved.
 

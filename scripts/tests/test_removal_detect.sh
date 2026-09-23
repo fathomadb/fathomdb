@@ -553,4 +553,20 @@ tree_case z2-root-adds-pub-mod-same-name 1 "lib.rs: fn open"
 tree_case guard-private-mod-move-reexported 0
 tree_case guard-private-mod-move-unchanged-root-globs 0
 
+# AA-1: every module segment between the crate root and the removed item
+# must be declared private, and the root must not re-export an intermediate
+# module (by name or alias) — `mod a; pub use a::b;` makes `crate::b::X`
+# public even though `a` is private.
+tree_case aa1-root-reexports-intermediate-pub-mod 1 "a/b.rs: struct X"
+tree_case aa1-glob-exposes-intermediate-pub-mod 1 "a/b.rs: struct X"
+tree_case aa1-root-aliases-intermediate-pub-mod 1 "a/b.rs: struct X"
+tree_case guard-nested-private-mod-split 0
+tree_case guard-private-mod-rs-split 0
+tree_case guard-cfg-private-mod-nested-split 0
+tree_case guard-root-fn-into-pub-mod-reexported 0
+# AA-2: a same-named `pub mod` and `pub fn` share a key; removing the fn is
+# reported whichever of the two is declared first.
+tree_case aa2-mod-and-fn-same-name-fn-removed 1 "lib.rs: fn open"
+tree_case aa2-fn-and-mod-same-name-fn-removed 1 "lib.rs: fn open"
+
 echo "test_removal_detect.sh: all cases pass"

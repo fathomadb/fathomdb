@@ -97,3 +97,6 @@ pub struct ImplProbe;
 impl ImplProbe {
     pub fn method(&self) {}
 }
+
+#[cfg(debug_assertions)]
+pub fn gate_both_probe() {}

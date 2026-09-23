@@ -189,16 +189,25 @@ def test_walk_hazards(tool: ModuleType) -> None:
 
     assert records[root].kind == "module"
     # Doc-hidden items at each site.
-    assert sig(p("hidden_fn_for_test"))["own_hidden"] is True
-    assert sig(p("hidden_mod"))["own_hidden"] is True
-    assert p("hidden_mod::inside").kind == "function"
-    plain = sig(p("plain_target"))
-    assert plain["use_hidden"] is True and plain["own_hidden"] is False
-    hidden_impl = sig(p("Thing::hidden_impl_method"))
-    assert hidden_impl["impl_hidden"] is True and hidden_impl["own_hidden"] is False
-    assert sig(p("Thing::peek_for_test"))["own_hidden"] is True
-    assert sig(p("Thing::hidden_field"))["own_hidden"] is True
-    assert sig(p("hook_for_test"))["own_hidden"] is True
+    # Signatures carry effective values only (owner ruling
+    # hidden-surface-effective-and-inventory).
+    for record in records.values():
+        if record.kind not in ("external", "external-glob"):
+            assert set(sig(record)) == {"visibility", "hidden", "cfg", "inner"}, (
+                record.path
+            )
+    assert sig(p("hidden_fn_for_test"))["hidden"] is True
+    assert sig(p("hidden_mod"))["hidden"] is True
+    # An enclosing module's doc(hidden) folds into its members.
+    assert sig(p("hidden_mod::inside"))["hidden"] is True
+    assert sig(p("visible_mod::vis"))["hidden"] is False
+    assert sig(p("plain_target"))["hidden"] is True
+    assert sig(p("Thing::hidden_impl_method"))["hidden"] is True
+    assert sig(p("Thing::get"))["hidden"] is False
+    assert sig(p("Thing::peek_for_test"))["hidden"] is True
+    assert sig(p("Thing::hidden_field"))["hidden"] is True
+    assert sig(p("hook_for_test"))["hidden"] is True
+    assert sig(p("make"))["hidden"] is False
     # Named and aliased re-exports carry the target's signature.
     assert p("make").kind == "function"
     assert sig(p("make"))["inner"] == sig(p("make_alias"))["inner"]
@@ -211,8 +220,8 @@ def test_walk_hazards(tool: ModuleType) -> None:
     assert external_glob.kind == "external-glob"
     assert json.loads(external_glob.signature) == {
         "source": "core::hint",
-        "use_cfg": None,
-        "use_hidden": False,
+        "cfg": None,
+        "hidden": False,
     }
     # A cyclic module re-export is recorded once and not expanded.
     assert p("cyc::again").kind == "module"
@@ -260,41 +269,62 @@ def test_walk_hazards(tool: ModuleType) -> None:
         assert "src/" not in record.signature, record.path
 
 
-def test_cfg_sites(tool: ModuleType) -> None:
+def test_cfg_canonical_form(tool: ModuleType) -> None:
+    """Effective cfg is signed in a semantic canonical form: the minimal
+    sum-of-products over sorted atoms, lexicographically smallest on ties."""
+
+    canonical = tool.canonical_cfg_text
+    assert canonical(
+        'all(any(feature = "test-hooks", test), feature = "test-hooks")'
+    ) == ('feature = "test-hooks"')
+    assert canonical('any(test, debug_assertions, feature = "test-hooks")') == (
+        'any(debug_assertions, feature = "test-hooks", test)'
+    )
+    assert canonical("all(debug_assertions, debug_assertions)") == "debug_assertions"
+    assert canonical("any(debug_assertions, not(debug_assertions))") is None
+    assert canonical('all(not(feature = "hooks"), debug_assertions)') == (
+        'all(debug_assertions, not(feature = "hooks"))'
+    )
+    assert canonical("not(not(test))") == "test"
+    # Distributes to a minimal sum of products.
+    assert canonical("all(any(a, b), any(a, c))") == "any(a, all(b, c))"
+    assert canonical("all(a, not(a))") == "any()"
+    too_many = "any(" + ", ".join(f"a{n}" for n in range(13)) + ")"
+    expect_error(tool, lambda: canonical(too_many), "12")
+    twelve = "any(" + ", ".join(f"a{n:02}" for n in range(12)) + ")"
+    assert canonical(twelve) == twelve
+
+
+def test_effective_values(tool: ModuleType) -> None:
     default = by_path(tool.walk(doc("base-default")))
     hooks = by_path(tool.walk(doc("base-hooks")))
     root = "hs_fixture::"
-    assert sig(default[root + "debug_only_for_test"])["own_cfg"] == "debug_assertions"
-    assert sig(default[root + "without_hooks"])["own_cfg"] == 'not(feature = "hooks")'
-    assert (
-        sig(default[root + "any_gate"])["own_cfg"]
-        == 'any(debug_assertions, feature = "hooks", test)'
-    )
-    assert (
-        sig(default[root + "all_gate"])["own_cfg"]
-        == 'all(debug_assertions, not(feature = "hooks"))'
-    )
-    reexported = sig(default[root + "debug_reexported"])
-    assert reexported["use_cfg"] == "debug_assertions" and reexported["own_cfg"] is None
-    assert (
-        sig(default[root + "Thing::debug_impl_method"])["impl_cfg"]
-        == "debug_assertions"
-    )
-    assert sig(default[root + "Thing::impl hs_fixture::DebugOnlyTrait"])[
-        "impl_cfg"
-    ] == ("debug_assertions")
-    assert sig(default[root + "Thing::debug_field"])["own_cfg"] == "debug_assertions"
+
+    def cfg(records: dict[str, Any], name: str) -> Any:
+        return sig(records[root + name])["cfg"]
+
+    assert cfg(default, "debug_only_for_test") == "debug_assertions"
+    assert cfg(default, "without_hooks") == 'not(feature = "hooks")'
+    assert cfg(default, "any_gate") == 'any(debug_assertions, feature = "hooks", test)'
+    assert cfg(default, "all_gate") == 'all(debug_assertions, not(feature = "hooks"))'
+    # Gated at the re-export only; at the impl block only; on the field only.
+    assert cfg(default, "debug_reexported") == "debug_assertions"
+    assert sig(default[root + "debug_reexported"])["hidden"] is True
+    assert cfg(default, "Thing::debug_impl_method") == "debug_assertions"
+    assert cfg(default, "Thing::impl hs_fixture::DebugOnlyTrait") == "debug_assertions"
+    assert cfg(default, "Thing::debug_field") == "debug_assertions"
+    assert cfg(default, "gate_both_probe") == "debug_assertions"
+    assert cfg(default, "Thing::get") is None
     # Feature-gated hooks exist only in the feature row.
     assert root + "gated_hook" not in default
-    assert sig(hooks[root + "gated_hook"])["own_cfg"] == 'feature = "hooks"'
+    assert cfg(hooks, "gated_hook") == 'feature = "hooks"'
     assert root + "reexport_gated_target" not in default
-    assert sig(hooks[root + "reexport_gated_target"])["use_cfg"] == 'feature = "hooks"'
+    assert cfg(hooks, "reexport_gated_target") == 'feature = "hooks"'
     assert root + "without_hooks" not in hooks and root + "all_gate" not in hooks
     # Release-only items are invisible to rustdoc.
     assert root + "release_only_proof" not in default
-    # Predicates are the conjunction of every site plus ancestors.
-    assert default[root + "Thing::debug_impl_method"].preds == ("debug_assertions",)
-    assert default[root + "Thing::get"].preds == ()
+    assert default[root + "Thing::debug_impl_method"].cfg == "debug_assertions"
+    assert default[root + "Thing::get"].cfg is None
 
     broken = doc("base-default")
     for item in broken["index"].values():
@@ -306,6 +336,8 @@ def test_cfg_sites(tool: ModuleType) -> None:
 def test_move_and_renumbering_equal(tool: ModuleType) -> None:
     base = tool.rustdoc_entries(doc("base-default"))
     assert len(base) > 50
+    # The moved variant also moves `cfg`/`doc(hidden)` sites between a
+    # definition and its re-export (`plain_target`, `debug_reexported`).
     moved = tool.rustdoc_entries(doc("moved-default"))
     assert entry_keys(base) == entry_keys(moved), (
         sorted(entry_keys(base) - entry_keys(moved))[:5],
@@ -322,23 +354,21 @@ def test_move_and_renumbering_equal(tool: ModuleType) -> None:
     assert thing["kind"] == "external"
     assert json.loads(thing["signature"]) == {
         "source": "hs_fixture::Thing",
-        "use_cfg": None,
-        "use_hidden": False,
+        "cfg": None,
+        "hidden": False,
     }
-    assert (
-        json.loads(facade_paths["hs_facade::debug_only_for_test"]["signature"])[
-            "use_cfg"
-        ]
-        == "debug_assertions"
-    )
+    debug = json.loads(facade_paths["hs_facade::debug_only_for_test"]["signature"])
+    assert debug == {
+        "source": "hs_fixture::debug_only_for_test",
+        "cfg": "debug_assertions",
+        "hidden": True,
+    }
     assert (
         facade_paths["hs_facade::external-glob:hs_fixture::cyc"]["kind"]
         == "external-glob"
     )
     assert (
-        json.loads(facade_paths["hs_facade::facade_absence_proof"]["signature"])[
-            "own_cfg"
-        ]
+        json.loads(facade_paths["hs_facade::facade_absence_proof"]["signature"])["cfg"]
         == 'not(feature = "hooks")'
     )
 
@@ -366,6 +396,9 @@ def test_difference_classes(tool: ModuleType) -> None:
             "use_hidden_probe",
             "ImplProbe::method",
             "cfg_probe",
+            "cfg_drop_probe",
+            "cfg_narrow_probe",
+            "gate_both_probe",
         )
     }
     assert {path for path, _ in added | removed} == expected_paths, (added, removed)
@@ -378,22 +411,175 @@ def test_difference_classes(tool: ModuleType) -> None:
     before = {e["path"]: json.loads(e["signature"]) for e in base}
     after = {e["path"]: json.loads(e["signature"]) for e in changed}
 
-    def only_field_changed(name: str, field: str) -> None:
-        old, new = before[root + name], after[root + name]
-        assert old[field] != new[field], (name, field)
-        assert {k: v for k, v in old.items() if k != field} == {
-            k: v for k, v in new.items() if k != field
+    def only_field_changed(name: str, field: str, old: Any, new: Any) -> None:
+        was, now = before[root + name], after[root + name]
+        assert (was[field], now[field]) == (old, new), (name, was[field], now[field])
+        assert {k: v for k, v in was.items() if k != field} == {
+            k: v for k, v in now.items() if k != field
         }, name
 
-    only_field_changed("sig_probe", "inner")
-    only_field_changed("own_hidden_probe", "own_hidden")
-    only_field_changed("use_hidden_probe", "use_hidden")
-    only_field_changed("ImplProbe::method", "impl_hidden")
-    only_field_changed("cfg_probe", "own_cfg")
+    assert before[root + "sig_probe"]["inner"] != after[root + "sig_probe"]["inner"]
+    # Effective hidden: set at the definition, the re-export, and the impl.
+    only_field_changed("own_hidden_probe", "hidden", False, True)
+    only_field_changed("use_hidden_probe", "hidden", False, True)
+    only_field_changed("ImplProbe::method", "hidden", False, True)
+    # Effective cfg: widened, dropped, narrowed, and dropped from both sites.
+    only_field_changed(
+        "cfg_probe", "cfg", "debug_assertions", "any(debug_assertions, test)"
+    )
+    only_field_changed("cfg_drop_probe", "cfg", "debug_assertions", None)
+    only_field_changed(
+        "cfg_narrow_probe",
+        "cfg",
+        'any(debug_assertions, feature = "hooks")',
+        "debug_assertions",
+    )
+    only_field_changed("gate_both_probe", "cfg", "debug_assertions", None)
     changed_paths = {item["path"] for item in row["changed"]}
     assert {
-        root + n for n in ("sig_probe", "own_hidden_probe", "cfg_probe")
+        root + n
+        for n in ("sig_probe", "own_hidden_probe", "cfg_probe", "gate_both_probe")
     } <= changed_paths
+
+
+def test_test_inventory(tool: ModuleType) -> None:
+    recorded = json.loads((JSON / "inventory-base-hooks.json").read_text())
+    messages = "".join(json.dumps(m) + "\n" for m in recorded["messages"])
+
+    def lister(executable: str) -> tuple[str, str]:
+        listing = recorded["listings"][executable]
+        return listing["list"], listing["ignored"]
+
+    entries = tool.inventory_entries(messages, lister)
+    keyed = {(e["path"], e["kind"]): e["signature"] for e in entries}
+    assert keyed == {
+        ("lib::tests::unit_in_lib", "test"): "run",
+        ("hooked::hooked", "test"): "run",
+        ("plain::ignored_by_design", "test"): "ignored",
+        ("plain::runs", "test"): "run",
+        ("plain::second", "test"): "run",
+        ("platform::on_unix", "test"): "run",
+        ("required::required", "test"): "run",
+        ("broken", "test-build"): "failed",
+    }, keyed
+
+    # One test removed, one newly ignored, one added: remove, change, add.
+    edited = copy.deepcopy(recorded)
+    plain = edited["listings"]["/FIXTURE/exe/test-plain"]
+    plain["list"] = "added_later: test\nignored_by_design: test\nruns: test\n"
+    plain["ignored"] = "ignored_by_design: test\nruns: test\n"
+
+    def edited_lister(executable: str) -> tuple[str, str]:
+        listing = edited["listings"][executable]
+        return listing["list"], listing["ignored"]
+
+    after = tool.inventory_entries(messages, edited_lister)
+    result = tool.compare(
+        manifest(tool, {"tests-base": entries}), manifest(tool, {"tests-base": after})
+    )
+    (row,) = result["row_diffs"]
+    assert [e["path"] for e in row["added"]] == ["plain::added_later"]
+    assert "plain::second" in [e["path"] for e in row["removed"]]
+    assert [
+        (c["before"]["signature"], c["after"]["signature"])
+        for c in row["changed"]
+        if c["path"] == "plain::runs"
+    ] == [("run", "ignored")]
+    # An error without an executable for another target fails closed.
+    expect_error(
+        tool,
+        lambda: tool.inventory_entries(
+            json.dumps(
+                {
+                    "reason": "compiler-message",
+                    "target": {"kind": ["lib"], "name": "x"},
+                    "message": {"level": "error", "message": "boom"},
+                }
+            )
+            + "\n",
+            lister,
+        ),
+        "lib",
+    )
+
+
+def fixture_workspace(directory: Path) -> Path:
+    import shutil
+
+    root = directory / "crate"
+    shutil.copytree(FIXTURES / "crate", root)
+    return root
+
+
+def test_test_targets_row(tool: ModuleType) -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = fixture_workspace(Path(directory))
+        entries = tool.test_target_entries(root)
+        keyed = {e["path"]: json.loads(e["signature"]) for e in entries}
+        assert {e["kind"] for e in entries} == {"test-target"}
+        assert keyed == {
+            "hs_fixture::broken": {
+                "cfg": None,
+                "required_features": [],
+                "source": "tests/broken.rs",
+            },
+            "hs_fixture::extra": {
+                "cfg": 'all(feature = "extra", feature = "hooks")',
+                "required_features": [],
+                "source": "tests/extra.rs",
+            },
+            "hs_fixture::hooked": {
+                "cfg": 'feature = "hooks"',
+                "required_features": [],
+                "source": "tests/hooked.rs",
+            },
+            "hs_fixture::platform": {
+                "cfg": "unix",
+                "required_features": [],
+                "source": "tests/platform.rs",
+            },
+            "hs_fixture::plain": {
+                "cfg": None,
+                "required_features": [],
+                "source": "tests/plain.rs",
+            },
+            "hs_fixture::required": {
+                "cfg": None,
+                "required_features": ["hooks"],
+                "source": "tests/required.rs",
+            },
+        }, keyed
+        rows = tool.inventory_rows(
+            root, [{"id": "fx-default", "crate": "hs_fixture", "features": []}]
+        )
+        assert [(r["id"], r["crate"], r["features"]) for r in rows] == [
+            ("tests-fx-default", "hs_fixture", []),
+            ("tests-req-hs_fixture--extra", "hs_fixture", ["extra"]),
+            ("tests-req-hs_fixture--hooks", "hs_fixture", ["hooks"]),
+        ]
+
+        # A dropped target, a renamed target, and a changed requirement differ.
+        (root / "tests" / "plain.rs").unlink()
+        (root / "tests" / "hooked.rs").rename(root / "tests" / "hooked_renamed.rs")
+        manifest_text = (root / "Cargo.toml").read_text()
+        (root / "Cargo.toml").write_text(
+            manifest_text.replace(
+                'required-features = ["hooks"]', 'required-features = ["extra"]'
+            )
+        )
+        after = tool.test_target_entries(root)
+        result = tool.compare(
+            manifest(tool, {"test-targets": entries}),
+            manifest(tool, {"test-targets": after}),
+        )
+        (row,) = result["row_diffs"]
+        assert [e["path"] for e in row["added"]] == ["hs_fixture::hooked_renamed"]
+        assert sorted(e["path"] for e in row["removed"]) == [
+            "hs_fixture::hooked",
+            "hs_fixture::plain",
+            "hs_fixture::required",
+        ]
+        assert "hs_fixture::required" in [c["path"] for c in row["changed"]]
 
 
 def test_compare_contract(tool: ModuleType) -> None:
@@ -611,9 +797,12 @@ def test_release_probe(tool: ModuleType) -> None:
         ),
         ("hs_fixture::all_gate", "function", "use", "unresolved"),
         ("hs_fixture::any_gate", "function", "use", "unresolved"),
+        ("hs_fixture::cfg_drop_probe", "function", "use", "unresolved"),
+        ("hs_fixture::cfg_narrow_probe", "function", "use", "unresolved"),
         ("hs_fixture::cfg_probe", "function", "use", "unresolved"),
         ("hs_fixture::debug_only_for_test", "function", "use", "unresolved"),
         ("hs_fixture::debug_reexported", "function", "use", "unresolved"),
+        ("hs_fixture::gate_both_probe", "function", "use", "unresolved"),
         ("hs_fixture::release_only_proof", "module", "use", "resolved"),
     ]
     facade_items = tool.select_probe_items(
@@ -752,6 +941,31 @@ def test_rows_and_wiring(tool: ModuleType) -> None:
             "json",
             "--document-hidden-items",
         ]
+        inventory = tool.inventory_arguments(row)
+        assert not any(os.path.isabs(arg) for arg in inventory), inventory
+        assert inventory[:7] == [
+            "cargo",
+            "+nightly-2026-04-24",
+            "build",
+            "--locked",
+            "-p",
+            row["crate"],
+            "--no-default-features",
+        ]
+        assert inventory[-4:] == ["--tests", "--keep-going", "--message-format", "json"]
+    identities = {
+        r["id"]: r
+        for r in tool.row_identities(
+            [{"id": "tests-req-x--a+b", "crate": "x", "features": ["a", "b"]}]
+        )
+    }
+    assert set(identities) == (
+        {row["id"] for row in tool.ROWS}
+        | {"tests-" + row["id"] for row in tool.ROWS}
+        | {"release-probe", "test-targets", "tests-req-x--a+b"}
+    )
+    assert identities["tests-req-x--a+b"]["features"] == ["a", "b"]
+    assert identities["tests-req-x--a+b"]["profile"] == "test"
     agent_test = (ROOT / "scripts" / "agent-test.sh").read_text()
     assert (
         "run_tier_suite fast test-hidden-surface python3 scripts/tests/test_hidden_surface.py"
@@ -764,9 +978,12 @@ def main() -> None:
     tests = [
         test_cfg_parser,
         test_walk_hazards,
-        test_cfg_sites,
+        test_cfg_canonical_form,
+        test_effective_values,
         test_move_and_renumbering_equal,
         test_difference_classes,
+        test_test_inventory,
+        test_test_targets_row,
         test_compare_contract,
         test_output_guards,
         test_source_sha_validation,

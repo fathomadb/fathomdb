@@ -1,0 +1,385 @@
+#!/usr/bin/env python3
+"""Fast-tier self-tests for the permanent test-target coverage pieces.
+
+Covers `scripts/lib/test_targets.py` (the shared requirement reader),
+`scripts/check-test-target-coverage.py` (RH-15), and the skip contract and
+CUDA preflight of `scripts/test-feature-complete.sh` (RH-14). No build, no
+network, no GPU.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+import shutil
+import tempfile
+from types import ModuleType
+from typing import Any, Callable
+
+
+ROOT = Path(__file__).resolve().parents[2]
+FIXTURE_CRATE = ROOT / "scripts" / "tests" / "fixtures" / "hidden-surface" / "crate"
+HOST = "x86_64-unknown-linux-gnu"
+
+
+def load(name: str, path: Path) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise AssertionError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def expect_error(error: type, call: Callable[[], Any], fragment: str) -> None:
+    try:
+        call()
+    except error as exc:
+        assert fragment in str(exc), (fragment, str(exc))
+        return
+    raise AssertionError(f"expected {error.__name__} containing {fragment!r}")
+
+
+def copy_fixture(directory: Path) -> Path:
+    root = directory / "crate"
+    shutil.copytree(FIXTURE_CRATE, root)
+    return root
+
+
+def test_cfg_parsing(tt: ModuleType) -> None:
+    ast = tt.parse_cfg(
+        'all(feature = "hooks", not(any(windows, target_os = "macos")), test)'
+    )
+    assert tt.canonical_cfg(ast) == (
+        'all(feature = "hooks", not(target_os = "macos"), not(windows), test)'
+    )
+    assert tt.canonical_cfg(tt.parse_cfg("any(unix, not(unix))")) is None
+    for bad in ("feature = hooks", "all(unix", "all(unix) trailing", "any(,)"):
+        expect_error(tt.TestTargetsError, lambda bad=bad: tt.parse_cfg(bad), "cfg")
+    linux = tt.host_assignment(HOST)
+    assert linux(("atom", "unix", None)) is True
+    assert linux(("atom", "target_os", "linux")) is True
+    assert linux(("atom", "target_arch", "aarch64")) is False
+    assert linux(("atom", "windows", None)) is False
+    expect_error(
+        tt.TestTargetsError, lambda: linux(("atom", "sanitize", "address")), "sanitize"
+    )
+
+
+def test_read_fixture_workspace(tt: ModuleType) -> None:
+    (crate,) = tt.read_workspace(FIXTURE_CRATE)
+    assert crate.name == "hs_fixture"
+    summary = {t.name: (t.source, t.required_features, t.cfg) for t in crate.targets}
+    assert summary == {
+        "broken": ("tests/broken.rs", (), None),
+        "extra": ("tests/extra.rs", (), 'all(feature = "extra", feature = "hooks")'),
+        "hooked": ("tests/hooked.rs", (), 'feature = "hooks"'),
+        "platform": ("tests/platform.rs", (), "unix"),
+        "plain": ("tests/plain.rs", (), None),
+        "required": ("tests/required.rs", ("hooks",), None),
+    }, summary
+    assert tt.feature_closure(crate, ("extra",)) == frozenset({"extra", "hooks"})
+    requirements = {t.name: tt.requirement(crate, t) for t in crate.targets}
+    assert requirements == {
+        "broken": (),
+        "extra": ("extra",),
+        "hooked": ("hooks",),
+        "platform": (),
+        "plain": (),
+        "required": ("hooks",),
+    }
+    assert tt.derive_matrix([crate]) == [
+        ("hs_fixture", ()),
+        ("hs_fixture", ("extra",)),
+        ("hs_fixture", ("hooks",)),
+    ]
+
+
+def test_matrix_round_trip(tt: ModuleType) -> None:
+    entries = [("b", ("x", "y")), ("a", ())]
+    text = tt.render_matrix(entries)
+    assert "do not edit" in text and "--write-matrix" in text
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "matrix.toml"
+        path.write_text(text)
+        assert tt.load_matrix(path) == [("a", ()), ("b", ("x", "y"))]
+    assert tt.render_matrix(entries) == tt.render_matrix(list(reversed(entries)))
+
+
+def test_coverage_check(tt: ModuleType) -> None:
+    crates = tt.read_workspace(FIXTURE_CRATE)
+    complete = tt.derive_matrix(crates)
+    workspace = {"hs_fixture": frozenset()}
+    failures, gate_only = tt.check_coverage(crates, workspace, complete, [], HOST)
+    assert failures == [], failures
+    assert gate_only == [
+        "hs_fixture::extra",
+        "hs_fixture::hooked",
+        "hs_fixture::required",
+    ]
+
+    # An uncovered required-features target and an uncovered file-level cfg
+    # target are named; the missing matrix entry is also drift.
+    without_hooks = [entry for entry in complete if entry[1] != ("hooks",)]
+    failures, _ = tt.check_coverage(crates, workspace, without_hooks, [], HOST)
+    text = "\n".join(failures)
+    assert "hs_fixture::required" in text and "hs_fixture::hooked" in text, text
+    assert "drift" in text, text
+    without_extra = [entry for entry in complete if entry[1] != ("extra",)]
+    failures, _ = tt.check_coverage(crates, workspace, without_extra, [], HOST)
+    assert any("hs_fixture::extra" in f and "not covered" in f for f in failures), (
+        failures
+    )
+
+    # Matrix drift alone.
+    failures, _ = tt.check_coverage(
+        crates, workspace, complete + [("hs_fixture", ("bogus",))], [], HOST
+    )
+    assert len(failures) == 1 and "drift" in failures[0], failures
+
+    # Stale allowlist entries: a target that does not exist, and one the
+    # feature-complete gate does not run.
+    for entry in (
+        {"id": "hs_fixture::gone", "class": "ignored-by-design", "reason": "r"},
+        {"id": "hs_fixture::plain::runs", "class": "ignored-by-design", "reason": "r"},
+    ):
+        failures, _ = tt.check_coverage(crates, workspace, complete, [entry], HOST)
+        assert len(failures) == 1 and "stale" in failures[0], (entry, failures)
+    ok_entry = {
+        "id": "hs_fixture::hooked::hooked",
+        "class": "opt-in-experiment",
+        "reason": "r",
+    }
+    assert tt.check_coverage(crates, workspace, complete, [ok_entry], HOST)[0] == []
+    for malformed in (
+        {"id": "hs_fixture::hooked", "class": "because", "reason": "r"},
+        {"id": "hs_fixture::hooked", "class": "opt-in-experiment", "reason": ""},
+    ):
+        failures, _ = tt.check_coverage(crates, workspace, complete, [malformed], HOST)
+        assert failures, malformed
+
+    # A target no gate can run on this host needs a platform-excluded entry.
+    windows = "x86_64-pc-windows-msvc"
+    failures, _ = tt.check_coverage(crates, workspace, complete, [], windows)
+    assert any("hs_fixture::platform" in f for f in failures), failures
+    excluded = {
+        "id": "hs_fixture::platform",
+        "class": "platform-excluded",
+        "reason": "unix only",
+    }
+    assert tt.check_coverage(crates, workspace, complete, [excluded], windows)[0] == []
+    failures, _ = tt.check_coverage(crates, workspace, complete, [excluded], HOST)
+    assert len(failures) == 1 and "stale" in failures[0], failures
+
+    # The gate plan runs only what the workspace gate cannot, grouped by set.
+    plan = tt.gate_plan(crates, workspace, complete, [], HOST)
+    assert plan == [
+        ("hs_fixture", ("extra",), ["extra"]),
+        ("hs_fixture", ("hooks",), ["hooked", "required"]),
+    ], plan
+    with tempfile.TemporaryDirectory() as directory:
+        root = copy_fixture(Path(directory))
+        (root / "tests" / "new_gated.rs").write_text(
+            '#![cfg(feature = "extra")]\n\n#[test]\nfn new_gated() {}\n'
+        )
+        grown = tt.read_workspace(root)
+        failures, _ = tt.check_coverage(grown, workspace, complete, [], HOST)
+        assert failures == [], failures
+        (root / "tests" / "needs_other.rs").write_text(
+            '#![cfg(all(feature = "hooks", not(feature = "extra")))]\n\n#[test]\nfn x() {}\n'
+        )
+        failures, _ = tt.check_coverage(
+            tt.read_workspace(root), workspace, complete, [], HOST
+        )
+        assert failures == [], failures
+
+
+def feature_complete_output() -> str:
+    return (
+        "     Running tests/plain.rs (target/debug/deps/plain-0123)\n"
+        "\n"
+        "running 3 tests\n"
+        "test ignored_by_design ... ignored, ignored by design\n"
+        "test runs ... [SKIP] no GPU visible\n"
+        "ok\n"
+        "test second ... ok\n"
+        "\n"
+        "test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out\n"
+        "\n"
+        "     Running tests/hooked.rs (target/debug/deps/hooked-4567)\n"
+        "\n"
+        "running 1 test\n"
+        "test hooked ... \n"
+        "note: skipping IR measurements JSON write\n"
+        "ok\n"
+        "\n"
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n"
+    )
+
+
+def test_skip_contract(fc: ModuleType, tt: ModuleType) -> None:
+    (crate,) = tt.read_workspace(FIXTURE_CRATE)
+    result = fc.scan_output(feature_complete_output(), crate)
+    assert result.markers == [
+        ("hs_fixture::plain::runs", "[SKIP]"),
+        ("hs_fixture::hooked::hooked", "skipping"),
+    ], result.markers
+    assert result.ignored == ["hs_fixture::plain::ignored_by_design"]
+    assert result.ran_targets == ["hs_fixture::plain", "hs_fixture::hooked"]
+    allowlist = [
+        {
+            "id": "hs_fixture::plain::ignored_by_design",
+            "class": "ignored-by-design",
+            "reason": "r",
+        },
+        {"id": "hs_fixture::plain::runs", "class": "opt-in-experiment", "reason": "r"},
+        {"id": "hs_fixture::hooked::hooked", "class": "benign-message", "reason": "r"},
+    ]
+    assert fc.contract_failures([result], allowlist) == []
+    # Each missing entry fails the gate.
+    for dropped in range(3):
+        partial = [entry for n, entry in enumerate(allowlist) if n != dropped]
+        failures = fc.contract_failures([result], partial)
+        assert len(failures) == 1, (dropped, failures)
+    # A stale entry fails the gate.
+    stale = allowlist + [
+        {"id": "hs_fixture::plain::second", "class": "ignored-by-design", "reason": "r"}
+    ]
+    failures = fc.contract_failures([result], stale)
+    assert len(failures) == 1 and "stale" in failures[0], failures
+    # A target-level entry covers every test of that target.
+    target_level = [
+        {"id": "hs_fixture::plain", "class": "opt-in-experiment", "reason": "r"},
+        {"id": "hs_fixture::hooked::hooked", "class": "benign-message", "reason": "r"},
+    ]
+    assert fc.contract_failures([result], target_level) == []
+    # An ignored test is only excused by ignored-by-design (or a target entry).
+    wrong_class = [dict(allowlist[0], **{"class": "benign-message"})] + allowlist[1:]
+    assert len(fc.contract_failures([result], wrong_class)) == 1
+    # A failing test run is reported.
+    failed = fc.scan_output(
+        feature_complete_output().replace(
+            "test second ... ok", "test second ... FAILED"
+        ),
+        crate,
+    )
+    assert any(
+        "FAILED" in f or "failed" in f
+        for f in fc.contract_failures([failed], allowlist)
+    )
+
+
+def test_cuda_preflight(fc: ModuleType) -> None:
+    good = (
+        "0, 00000000:41:00.0, NVIDIA GeForce RTX 3090\n"
+        "1, 00000000:42:00.0, NVIDIA GeForce RTX 3090\n"
+        "2, 00000000:61:00.0, Quadro K620\n"
+    )
+
+    def runner(output: str) -> Callable[[list[str], dict[str, str]], str]:
+        def run(command: list[str], env: dict[str, str]) -> str:
+            assert env["CUDA_DEVICE_ORDER"] == "PCI_BUS_ID"
+            return output
+
+        return run
+
+    with tempfile.TemporaryDirectory() as directory:
+        cuda = Path(directory) / "cuda"
+        (cuda / "bin").mkdir(parents=True)
+        (cuda / "lib64").mkdir()
+        nvcc = cuda / "bin" / "nvcc"
+        nvcc.write_text("#!/bin/sh\n")
+        nvcc.chmod(0o755)
+        env = fc.cuda_environment({"PATH": "/usr/bin"}, cuda, runner(good))
+        assert env["CUDA_VISIBLE_DEVICES"] == "0,1"
+        assert env["CUDA_DEVICE_ORDER"] == "PCI_BUS_ID"
+        assert env["CUDA_ROOT"] == env["CUDA_PATH"] == str(cuda)
+        assert env["PATH"].split(":")[0] == str(cuda / "bin")
+        assert str(cuda / "lib64") in env["LIBRARY_PATH"]
+        swapped = good.replace(
+            "1, 00000000:42:00.0, NVIDIA GeForce RTX 3090",
+            "1, 00000000:61:00.0, Quadro K620",
+        )
+        expect_error(
+            fc.FeatureCompleteError,
+            lambda: fc.cuda_environment({}, cuda, runner(swapped)),
+            "3090",
+        )
+        nvcc.unlink()
+        expect_error(
+            fc.FeatureCompleteError,
+            lambda: fc.cuda_environment({}, cuda, runner(good)),
+            "nvcc",
+        )
+
+
+def test_runner_environment(fc: ModuleType) -> None:
+    env = fc.runner_environment(
+        {"FATHOMDB_SKIP_NETWORK_TESTS": "1", "HOME": "/h"}, Path("/scratch")
+    )
+    assert "FATHOMDB_SKIP_NETWORK_TESTS" not in env
+    assert env["FATHOMDB_SLICE72_RUNNER"] == "approved-nvidia"
+    assert env["FATHOMDB_SLICE72_RECEIPT_DIR"].startswith("/scratch/")
+    command = fc.test_command("fathomdb-engine", ("a", "b"), ["t1", "t2"])
+    assert command == [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "fathomdb-engine",
+        "--no-default-features",
+        "--features",
+        "a,b",
+        "--test",
+        "t1",
+        "--test",
+        "t2",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+    ]
+
+
+def test_repository_wiring(tt: ModuleType) -> None:
+    script = (ROOT / "scripts" / "test-feature-complete.sh").read_text()
+    assert "feature_complete.py" in script
+    check = (ROOT / "scripts" / "check.sh").read_text()
+    assert 'FATHOMDB_FEATURE_COMPLETE:-0}" = "1"' in check
+    assert "scripts/test-feature-complete.sh" in check
+    agent_test = (ROOT / "scripts" / "agent-test.sh").read_text()
+    for line in (
+        "run_tier_suite fast check-test-target-coverage python3 scripts/check-test-target-coverage.py",
+        "run_tier_suite fast test-test-targets python3 scripts/tests/test_test_targets.py",
+    ):
+        assert line in agent_test, line
+    # The committed matrix is exactly what --write-matrix renders.
+    crates = tt.read_workspace(ROOT)
+    assert (
+        ROOT / "scripts" / "test-feature-matrix.toml"
+    ).read_text() == tt.render_matrix(tt.derive_matrix(crates))
+    allowlist = tt.load_allowlist(ROOT / "scripts" / "test-skip-allowlist.toml")
+    assert all(entry["reason"].strip() for entry in allowlist)
+
+
+def main() -> None:
+    tt = load("test_targets", ROOT / "scripts" / "lib" / "test_targets.py")
+    fc = load("feature_complete", ROOT / "scripts" / "lib" / "feature_complete.py")
+    for test in (
+        test_cfg_parsing,
+        test_read_fixture_workspace,
+        test_matrix_round_trip,
+        test_coverage_check,
+        test_repository_wiring,
+    ):
+        test(tt)
+        print(f"ok    {test.__name__}")
+    test_skip_contract(fc, tt)
+    print("ok    test_skip_contract")
+    for test in (test_cuda_preflight, test_runner_environment):
+        test(fc)
+        print(f"ok    {test.__name__}")
+    print("ok    test-targets")
+
+
+if __name__ == "__main__":
+    main()

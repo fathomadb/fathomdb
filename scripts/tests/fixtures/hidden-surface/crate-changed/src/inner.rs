@@ -99,3 +99,5 @@ pub struct ImplProbe;
 impl ImplProbe {
     pub fn method(&self) {}
 }
+
+pub fn gate_both_probe() {}

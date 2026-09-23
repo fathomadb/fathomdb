@@ -24,22 +24,37 @@ fn hs_probe_3() {
     use hs_fixture::any_gate as _;
 }
 
-// hs_probe 4: function hs_fixture::cfg_probe
+// hs_probe 4: function hs_fixture::cfg_drop_probe
 fn hs_probe_4() {
+    use hs_fixture::cfg_drop_probe as _;
+}
+
+// hs_probe 5: function hs_fixture::cfg_narrow_probe
+fn hs_probe_5() {
+    use hs_fixture::cfg_narrow_probe as _;
+}
+
+// hs_probe 6: function hs_fixture::cfg_probe
+fn hs_probe_6() {
     use hs_fixture::cfg_probe as _;
 }
 
-// hs_probe 5: function hs_fixture::debug_only_for_test
-fn hs_probe_5() {
+// hs_probe 7: function hs_fixture::debug_only_for_test
+fn hs_probe_7() {
     use hs_fixture::debug_only_for_test as _;
 }
 
-// hs_probe 6: function hs_fixture::debug_reexported
-fn hs_probe_6() {
+// hs_probe 8: function hs_fixture::debug_reexported
+fn hs_probe_8() {
     use hs_fixture::debug_reexported as _;
 }
 
-// hs_probe 7: module hs_fixture::release_only_proof
-fn hs_probe_7() {
+// hs_probe 9: function hs_fixture::gate_both_probe
+fn hs_probe_9() {
+    use hs_fixture::gate_both_probe as _;
+}
+
+// hs_probe 10: module hs_fixture::release_only_proof
+fn hs_probe_10() {
     use hs_fixture::release_only_proof as _;
 }

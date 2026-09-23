@@ -1,0 +1,121 @@
+{
+ "listings": {
+  "/FIXTURE/exe/lib-hs_fixture": {
+   "ignored": "",
+   "list": "tests::unit_in_lib: test\n"
+  },
+  "/FIXTURE/exe/test-extra": {
+   "ignored": "",
+   "list": ""
+  },
+  "/FIXTURE/exe/test-hooked": {
+   "ignored": "",
+   "list": "hooked: test\n"
+  },
+  "/FIXTURE/exe/test-plain": {
+   "ignored": "ignored_by_design: test\n",
+   "list": "ignored_by_design: test\nruns: test\nsecond: test\n"
+  },
+  "/FIXTURE/exe/test-platform": {
+   "ignored": "",
+   "list": "on_unix: test\n"
+  },
+  "/FIXTURE/exe/test-required": {
+   "ignored": "",
+   "list": "required: test\n"
+  }
+ },
+ "messages": [
+  {
+   "executable": "/FIXTURE/exe/lib-hs_fixture",
+   "profile": {
+    "test": true
+   },
+   "reason": "compiler-artifact",
+   "target": {
+    "kind": [
+     "lib"
+    ],
+    "name": "hs_fixture"
+   }
+  },
+  {
+   "executable": "/FIXTURE/exe/test-extra",
+   "profile": {
+    "test": true
+   },
+   "reason": "compiler-artifact",
+   "target": {
+    "kind": [
+     "test"
+    ],
+    "name": "extra"
+   }
+  },
+  {
+   "executable": "/FIXTURE/exe/test-hooked",
+   "profile": {
+    "test": true
+   },
+   "reason": "compiler-artifact",
+   "target": {
+    "kind": [
+     "test"
+    ],
+    "name": "hooked"
+   }
+  },
+  {
+   "executable": "/FIXTURE/exe/test-plain",
+   "profile": {
+    "test": true
+   },
+   "reason": "compiler-artifact",
+   "target": {
+    "kind": [
+     "test"
+    ],
+    "name": "plain"
+   }
+  },
+  {
+   "executable": "/FIXTURE/exe/test-platform",
+   "profile": {
+    "test": true
+   },
+   "reason": "compiler-artifact",
+   "target": {
+    "kind": [
+     "test"
+    ],
+    "name": "platform"
+   }
+  },
+  {
+   "executable": "/FIXTURE/exe/test-required",
+   "profile": {
+    "test": true
+   },
+   "reason": "compiler-artifact",
+   "target": {
+    "kind": [
+     "test"
+    ],
+    "name": "required"
+   }
+  },
+  {
+   "message": {
+    "level": "error",
+    "message": "broken only with hooks"
+   },
+   "reason": "compiler-message",
+   "target": {
+    "kind": [
+     "test"
+    ],
+    "name": "broken"
+   }
+  }
+ ]
+}

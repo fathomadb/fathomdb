@@ -116,3 +116,16 @@ mod sealed_again {
 
 /// Names two unreachable types that share kind and name.
 pub fn takes_tokens(_: sealed::Token, _: sealed_again::Token) {}
+
+pub use inner::gate_both_probe;
+
+pub fn cfg_drop_probe() {}
+
+#[cfg(debug_assertions)]
+pub fn cfg_narrow_probe() {}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn unit_in_lib() {}
+}

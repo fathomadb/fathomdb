@@ -6,5 +6,6 @@ publish = false
 
 [features]
 hooks = []
+extra = ["hooks"]
 
 [workspace]

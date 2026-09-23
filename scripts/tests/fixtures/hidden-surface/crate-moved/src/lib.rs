@@ -1,5 +1,7 @@
 //! Hidden-surface oracle fixture crate, moved variant: the same public paths
-//! as `../crate`, with items moved between files and private modules.
+//! and effective gates as `../crate`, with items moved between files and
+//! private modules and some `cfg`/`doc(hidden)` sites moved between a
+//! definition and its re-export.
 #![allow(dead_code)]
 
 mod globbed;
@@ -18,12 +20,10 @@ mod nested {
 
 pub use globbed::*;
 #[cfg(debug_assertions)]
-#[doc(hidden)]
 pub use inner::debug_reexported;
 pub use inner::hook_for_test;
 pub use inner::make;
 pub use inner::make as make_alias;
-#[doc(hidden)]
 pub use inner::plain_target;
 #[cfg(feature = "hooks")]
 pub use inner::reexport_gated_target;
@@ -110,3 +110,18 @@ pub struct Tuple(pub u32, #[doc(hidden)] pub u8, u16);
 
 /// Names two unreachable types that share kind and name.
 pub fn takes_tokens(_: nested::sealed::Token, _: nested::sealed_again::Token) {}
+
+#[cfg(debug_assertions)]
+pub use inner::gate_both_probe;
+
+#[cfg(debug_assertions)]
+pub fn cfg_drop_probe() {}
+
+#[cfg(any(debug_assertions, feature = "hooks"))]
+pub fn cfg_narrow_probe() {}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn unit_in_lib() {}
+}

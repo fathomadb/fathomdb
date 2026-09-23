@@ -19,10 +19,13 @@ pub fn hook_for_test(thing: &Thing) -> Option<Thing> {
     None
 }
 
+#[doc(hidden)]
 pub fn plain_target() {}
 
 pub fn reexport_gated_target() {}
 
+#[cfg(debug_assertions)]
+#[doc(hidden)]
 pub fn debug_reexported() {}
 
 pub fn own_hidden_probe() {}
@@ -34,3 +37,6 @@ pub struct ImplProbe;
 impl ImplProbe {
     pub fn method(&self) {}
 }
+
+#[cfg(debug_assertions)]
+pub fn gate_both_probe() {}

@@ -122,4 +122,68 @@ PY
 probe_row crate hs_fixture
 probe_row facade hs_facade
 
+# Test inventory: the per-binary build and listing the capture performs, for
+# the base crate with `hooks` (which also breaks one target on purpose).
+inventory_raw="${scratch}/inventory.raw"
+inventory_status=0
+(
+  cd "${scratch}/crate"
+  CARGO_TARGET_DIR="${scratch}/target-inventory" cargo "+${TOOLCHAIN}" build \
+    --offline --tests --keep-going --no-default-features --features hooks \
+    --message-format json
+) >"${inventory_raw}" 2>/dev/null || inventory_status=$?
+if [[ "${inventory_status}" -ne 101 ]]; then
+  printf 'regenerate.sh: inventory build exited %s, expected 101\n' "${inventory_status}" >&2
+  exit 2
+fi
+python3 - "${inventory_raw}" "${out}/inventory-base-hooks.json" "${scratch}" <<'PY'
+import json
+import subprocess
+import sys
+
+raw, destination, scratch = sys.argv[1], sys.argv[2], sys.argv[3]
+messages = []
+listings = {}
+with open(raw, encoding="utf-8") as handle:
+    for line in handle:
+        record = json.loads(line)
+        target = record.get("target") or {}
+        reduced_target = {"kind": target.get("kind"), "name": target.get("name")}
+        if record.get("reason") == "compiler-artifact" and record.get("executable"):
+            stable = f"/FIXTURE/exe/{'-'.join(target['kind'])}-{target['name']}"
+            runs = {}
+            for key, extra in (("list", []), ("ignored", ["--ignored"])):
+                runs[key] = subprocess.run(
+                    [record["executable"], "--list", "--format", "terse", *extra],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout
+            listings[stable] = runs
+            messages.append(
+                {
+                    "executable": stable,
+                    "profile": {"test": record["profile"]["test"]},
+                    "reason": "compiler-artifact",
+                    "target": reduced_target,
+                }
+            )
+        elif record.get("reason") == "compiler-message":
+            message = record["message"]
+            if message.get("level") != "error":
+                continue
+            messages.append(
+                {
+                    "message": {"level": message["level"], "message": message["message"]},
+                    "reason": "compiler-message",
+                    "target": reduced_target,
+                }
+            )
+messages.sort(key=lambda item: json.dumps(item, sort_keys=True))
+text = json.dumps({"listings": listings, "messages": messages}, indent=1, sort_keys=True)
+assert scratch not in text
+with open(destination, "w", encoding="utf-8") as handle:
+    handle.write(text + "\n")
+PY
+
 printf 'regenerated fixtures in %s\n' "${out}"

@@ -39,13 +39,13 @@ re-run the same command pair to reproduce.
   per-side cfg-aware parsing, owner-keyed items, `--no-renames`. The symmetric
   gate surfaced 29 genuine 0.8.0 operator-seam default-build removals, now in
   the CHANGELOG 0.8.0 Removed section.
-- **Open at cycle cap (Y-1, P2):** FIX-4's same-crate move cancellation matches
+- **Found at the cycle-4 cap (Y-1, P2):** FIX-4's same-crate move cancellation matches
   bare names without public reachability, so a public item moved into a
   private module without a root `pub use`, or deleted while an unrelated
   same-named item exists in another diffed file, passes silently (the pre-FIX-4
   gate caught these). Also Y-2 (P3: `examples/`, `benches/`, `build.rs` share
   the crate key) and Y-3 (P3: associated items keyed by last type segment).
-  Awaiting HITL direction.
+  Resolved below.
 - **Y-1 resolved (HITL-authorized FIX-5 to FIX-7):** move cancellation now
   requires the public path to survive — the crate root re-exports the name and
   every module segment on the way is private and not re-exported; `pub mod`

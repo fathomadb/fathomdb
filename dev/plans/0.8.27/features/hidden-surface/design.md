@@ -6,8 +6,8 @@ target_release: 0.8.27
 
 # Hidden-surface oracle design
 
-Requirements and acceptance: `plan.md` (RH-1 to RH-15). Revision 5 closes
-design review rounds 1 to 4 (`design-review.md`) and applies the owner rulings
+Requirements and acceptance: `plan.md` (RH-1 to RH-15). Revision 6 closes
+design review rounds 1 to 5 (`design-review.md`) and applies the owner rulings
 `hidden-surface-effective-and-inventory` and `feature-complete-test-coverage`.
 The first ruling came after implementation showed that per-site signing
 reports Slice 40's gate moves as differences.
@@ -109,9 +109,9 @@ Each entry is `{path, kind, signature}`, so the shared compare works.
 - `hidden`: the effective doc-hidden flag, true when any site on the item's
   public path carries `#[doc(hidden)]` (its definition, the re-exporting
   `use`, its `impl` block, or an enclosing module);
-- `cfg`: the effective cfg predicate, the canonical conjunction of every
-  site's predicate on the same sites (nested `all` flattened, operands sorted
-  and de-duplicated; `null` when ungated);
+- `cfg`: the effective cfg predicate, the conjunction of every site's
+  predicate on the same sites, signed in the semantic canonical form defined
+  under "Cfg predicates" below (`null` when ungated);
 - the item's `inner`, normalized as follows.
 
 Signing effective values, not per-site ones, is an owner ruling
@@ -235,7 +235,9 @@ features (`tests-<row>`). There is also one `tests-req-<n>` row for every
 distinct requirement set in `test-targets` (the `required-features` union and
 any file-level feature cfg) that no rustdoc row already compiles. Those sets
 are derived, not hand-kept, and `<n>` is the canonical feature list. CUDA sets
-are included: NVIDIA tools are authorized on this host. Per row:
+are included: NVIDIA tools are authorized on this host. This makes every
+capture depend on this host's CUDA environment (the same preflight as the
+RH-14 gate) and adds about a minute of CUDA build per capture. Per row:
 
 1. `cargo +nightly-2026-04-24 test --locked -p <crate> --no-default-features
    [--features F] --lib --tests --no-run --message-format json` gives every
@@ -256,41 +258,93 @@ addition is expected when characterization tests are added.
 ## Feature-complete test gate (RH-14, permanent)
 
 `scripts/test-feature-complete.sh` is the gate that runs what the workspace
-gate cannot. It shares one requirement derivation with the coverage check
-(RH-15), a small module `scripts/lib/test_targets.py` that reads
-`Cargo.toml` and `tests/`, so the two cannot drift.
+gate cannot. It shares one requirement reader with the coverage check (RH-15):
+a small module, `scripts/lib/test_targets.py`, reads `Cargo.toml` and
+`tests/`.
 
-- **Scope:** every workspace crate and every distinct requirement set its
-  test targets need. It runs `cargo test --locked -p <crate> --features <set>
-  --test <target>...` for the targets needing that set.
-- **Model weights:** before running, it downloads missing weights through the
-  repo's existing warm-cache path (the one CI's `default-embedder-tests` job
-  uses), so network-dependent targets run instead of skipping.
-- **CUDA:** targets needing CUDA features run with `CUDA_VISIBLE_DEVICES`
-  set to the two RTX 3090s. The K620 display card is never used. If the GPUs
-  are missing, the gate fails; it does not skip.
-- **Skips:** a target that reports skipping itself, whether through an
-  ignored test or an environment check, fails the gate unless the skip is on
-  a short named allowlist with a reason.
-- **Where it runs:** not in `agent-verify`, for runtime reasons.
-  `scripts/check.sh` runs it when `FATHOMDB_FEATURE_COMPLETE=1`, and Slice 150
-  and release qualification run it.
+**Committed inputs (G-2).**
+
+- `scripts/test-feature-matrix.toml`: the crate and feature sets the gate runs.
+  `test_targets.py --write-matrix` regenerates it; a new requirement set then
+  shows up as a reviewed diff, never as a silent addition.
+- `scripts/test-skip-allowlist.toml`: every test the gate may legitimately
+  not run. Each entry is a test id or target plus a class and a reason. The
+  classes are:
+  - `ignored-by-design`: for example Slice 72's watchdog child entry point,
+    which must not run directly, and the TC-20 hard-gate body documented as
+    never running;
+  - `opt-in-experiment`: for example the `ir_c_*` targets, which need
+    `IRC_RUN` and gitignored gold files.
+
+**Environment preflight (G-3).** The gate fails before building unless:
+
+- `nvcc` is found at the repo's CUDA root, and the gate sets
+  `PATH`, `CUDA_ROOT`, `CUDA_PATH`, and `LIBRARY_PATH` itself;
+- with `CUDA_DEVICE_ORDER=PCI_BUS_ID` and `CUDA_VISIBLE_DEVICES=0,1`, the
+  devices at those indices are the two RTX 3090s. The K620 is never
+  selected. The checks reuse `scripts/check-cuda-release-contract.py` where it
+  applies.
+
+**Model weights (G-4).** It builds `fathomdb-cli` with `default-embedder` and
+runs `doctor warm-cache` to download the embedder. The reranker has no warm
+verb, so its weights download on first use inside the tests; a failed download
+shows as a skip, which the skip contract turns into a failure. The gate unsets
+`FATHOMDB_SKIP_NETWORK_TESTS` and sets the runner variables tests need, for
+example `FATHOMDB_SLICE72_RUNNER=approved-nvidia` and
+`FATHOMDB_SLICE72_RECEIPT_DIR` under its own scratch directory.
+
+**Run and skip contract (G-1).** For each matrix entry the gate runs:
+
+```text
+cargo test --locked -p <crate> --no-default-features --features <set> \
+  --test <target>... -- --nocapture
+```
+
+Then:
+
+- **Skip markers:** the output is matched against a fixed set of markers
+  (`[SKIP]`, `[skip]`, `PENDING_EXTERNAL`, `skipping`). Any match fails the
+  gate unless its test id is on the allowlist.
+- **Ignored tests:** the per-target ignored count is compared with the
+  `ignored-by-design` entries. Any ignored test not on the allowlist fails
+  the gate.
+- **Stale entries:** an allowlist entry that no longer matches any test fails
+  the gate.
+- **Result:** "passes" means every non-allowlisted test ran and passed.
+
+A later hardening step can replace marker matching with a shared
+`FATHOMDB_REQUIRE_LIVE=1` helper that turns a skip into a panic; that is not
+part of this unit.
+
+**Where it runs:** not in `agent-verify`, for runtime reasons.
+`scripts/check.sh` runs it when `FATHOMDB_FEATURE_COMPLETE=1`. Slice 70, Slice
+150, and release qualification also run it.
 
 ## Test-target coverage check (RH-15, permanent)
 
 `scripts/check-test-target-coverage.py` runs in the fast tier, with no build.
-It reads every test target's requirements through `scripts/lib/test_targets.py`
-and the feature sets each gate provides:
+It reads every test target's requirements through `scripts/lib/test_targets.py`.
+Those requirements are `required-features` plus any file-level `#![cfg(...)]`,
+parsed by its own small parser for Rust source cfgs, which evaluates
+`feature`, `debug_assertions`, `test`, and platform atoms per gate profile and
+host. The check fails, naming the target or entry, when:
 
-- the workspace gate, `scripts/test-rust-workspace.sh`, whose effective
-  per-crate features come from `cargo metadata` feature resolution for the
-  workspace, which is what unification enables;
-- the RH-14 gate, which covers the whole derived set by construction.
+- a target's requirements are met neither by the workspace gate nor by an
+  entry in the committed matrix outside the allowlist. The workspace gate's
+  per-crate features come from `cargo metadata --filter-platform <host>`
+  feature resolution for the workspace, which is what `cargo test
+  --workspace` unifies;
+- the requirement sets derived from the source differ from the committed
+  matrix;
+- an allowlist entry is stale.
 
-It fails, naming the target, when no gate satisfies a target's requirements,
-or when the RH-14 gate's derived set no longer matches the targets. Self-tests
-cover an uncovered `required-features` target and an uncovered file-level
-`#![cfg(feature = ...)]` target.
+It also prints the targets that only the feature-complete gate covers.
+Self-tests cover:
+
+- an uncovered `required-features` target;
+- an uncovered file-level `#![cfg(feature = ...)]` target;
+- a matrix drift;
+- a stale allowlist entry.
 
 ## Retirement (RH-12)
 

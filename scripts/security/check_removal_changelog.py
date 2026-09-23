@@ -42,7 +42,16 @@ RUST_PUBLIC_USE = re.compile(r"^\s*pub\s+use\s+(.+);\s*$", re.DOTALL)
 # not cancel the removal (fail closed). Matched against attribute lines that
 # immediately precede a `pub use` in the added-lines run.
 RUST_CFG_ATTR = re.compile(r"^#\s*\[\s*cfg(?:_attr)?\s*\(")
-RUST_ATTR_LINE = re.compile(r"^#!?\s*\[.*\]\s*$")
+# Known fail-closed false positives — both cost a manual CHANGELOG entry,
+# never a silent miss, so they're accepted rather than special-cased:
+#   - `#[cfg_attr(pred, doc(...))]` is treated as gating even when the
+#     cfg_attr's inner attribute (e.g. `doc(...)`) never affects whether the
+#     item is actually compiled in.
+#   - `#[cfg(...)] pub use m::Foo;` written as ONE physical added line (attr
+#     and `pub use` sharing a line) is never credited as a re-export at all:
+#     the whole line is classified as an attribute line, so the trailing
+#     `pub use` text on it is never fed into the re-export accumulator.
+RUST_ATTR_OPEN = re.compile(r"^#!?\[")
 
 
 @dataclass(frozen=True)
@@ -142,6 +151,107 @@ def _rust_reexport_names(statement: str) -> set[str]:
     return collect(match.group(1))
 
 
+_PUB_USE_LINE_START = re.compile(r"^\s*pub\s+use\b")
+_CHANGED_MARK = "\x00"
+
+
+def _mark_line(content: str, changed: bool) -> str:
+    """Prefix `content` (one diff line's text, +/-/space marker stripped)
+    with `_CHANGED_MARK` at the start and immediately after every top-level
+    comma, so a flat multi-name line (`A, B, C,` — the common rustfmt shape
+    once several re-exported names share a line) attributes the mark to
+    EACH name it carries, not just the first. A no-op for context lines.
+    """
+    if not changed:
+        return content
+    return _CHANGED_MARK + content.replace(",", "," + _CHANGED_MARK)
+
+
+def _rust_reexport_marked_names(marked_statement: str) -> set[str]:
+    """Like `_rust_reexport_names`, but `marked_statement` is a full
+    ``pub use ...;`` statement reconstructed line-by-line via `_mark_line`;
+    only names whose contributing text carries `_CHANGED_MARK` — i.e. came
+    from at least one changed (`+`/`-`) diff line rather than purely
+    unchanged context — are returned.
+    """
+
+    match = RUST_PUBLIC_USE.match(marked_statement)
+    if match is None:
+        return set()
+
+    def collect(tree: str, prefix: str = "") -> set[str]:
+        tree = tree.strip()
+        bare = tree.replace(_CHANGED_MARK, "")
+        if not bare or bare == "*":
+            return set()
+        if "{" in bare:
+            open_index = tree.find("{")
+            trimmed = tree.rstrip(_CHANGED_MARK)
+            if not trimmed.endswith("}"):
+                return set()
+            close_index = len(trimmed) - 1
+            nested_prefix = tree[:open_index].replace(_CHANGED_MARK, "").strip().removesuffix("::")
+            joined_prefix = "::".join(part for part in (prefix, nested_prefix) if part)
+            names: set[str] = set()
+            for item in _split_use_tree(tree[open_index + 1 : close_index]):
+                item = item.strip()
+                marked_item = _CHANGED_MARK in item
+                clean_item = item.replace(_CHANGED_MARK, "").strip()
+                if clean_item == "self":
+                    name = joined_prefix.rsplit("::", 1)[-1]
+                    if marked_item and name and name not in {"crate", "self", "super"}:
+                        names.add(name)
+                else:
+                    names.update(collect(item, joined_prefix))
+            return names
+
+        marked = _CHANGED_MARK in tree
+        clean = tree.replace(_CHANGED_MARK, "").strip()
+        alias_parts = re.split(r"\s+as\s+", clean, maxsplit=1)
+        if len(alias_parts) == 2:
+            alias = alias_parts[1].strip()
+            return {alias} if marked and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", alias) else set()
+        full_path = "::".join(part for part in (prefix, clean) if part)
+        name = full_path.rsplit("::", 1)[-1]
+        if name in {"*", "crate", "self", "super"}:
+            return set()
+        return {name} if marked and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) else set()
+
+    return collect(match.group(1))
+
+
+def _side_pub_use_step(
+    content: str,
+    changed: bool,
+    active: bool,
+    lines: list[str],
+) -> tuple[bool, list[str], str | None]:
+    """Advance a ONE-SIDED (old: context+removed, or new: context+added)
+    ``pub use { ... }`` reconstruction (fix-2 / V-2) by one line of that
+    side's view, and return the completed marked statement text once a
+    terminating ``;`` is seen (else None).
+
+    Only starts on a CONTEXT line (``changed`` False) — a statement whose
+    opening line is itself on this side is already handled by the existing,
+    cfg-aware `rust_public_use` (added) / `rust_public_use_removed`
+    (removed) accumulators, and must not be double-processed here (that
+    would bypass V-1's cfg-gate fail-closed semantics for the added side).
+    This targets exactly the gap those accumulators can't see: a multi-line
+    block whose opening (and/or closing) brace line is unchanged context,
+    so only inner lines carry a `+`/`-`.
+    """
+    if not active:
+        if changed or not _PUB_USE_LINE_START.match(content):
+            return active, lines, None
+        active = True
+        lines = []
+    marked = _mark_line(content, changed)
+    lines = lines + [marked]
+    if ";" in content:
+        return False, [], "\n".join(lines)
+    return active, lines, None
+
+
 def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]:
     """Returns (removals, additions) keyed for cancellation matching."""
     removals: set[Removal] = set()
@@ -154,20 +264,44 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
     current_kind: str | None = None
     # Added-side `pub use` accumulator (C-1 adds cfg-gate tracking: a name
     # exported only under `#[cfg(...)]`/`#[cfg_attr(...)]` must not cancel a
-    # removal of the same name).
+    # removal of the same name). `rust_attr_*` track a possibly multi-line
+    # attribute (fix-1 / V-1): bracket depth stays open across rustfmt's
+    # wrapped `#[cfg(any(\n ...\n))]` form, and `///`/`//!`/`//`/blank added
+    # lines between a cfg attribute and the `pub use` it guards keep
+    # `rust_cfg_pending` alive instead of resetting it.
     rust_public_use: list[str] = []
     rust_public_use_cfg_gated = False
     rust_cfg_pending = False
+    rust_attr_open = False
+    rust_attr_text = ""
+    rust_attr_depth = 0
     # Removed-side `pub use` accumulator (C-2): a removed re-export is itself
     # a removal of its exported names, subject to the same cancellation via
     # `real_removals` if the name re-appears (unconditionally) in `additions`.
     rust_public_use_removed: list[str] = []
+    # One-sided (context + removed, or context + added) `pub use { ... }`
+    # reconstructions (fix-2 / V-2), for the gap the accumulators above
+    # can't see: a block whose OPENING line is unchanged context. See
+    # `_side_pub_use_step`. Kept independent per side; each only starts on
+    # a context opening line, so neither overlaps the cfg-aware `rust_*`
+    # accumulators above (whose opening line is on their own +/- side).
+    old_pub_use_active = False
+    old_pub_use_lines: list[str] = []
+    new_pub_use_active = False
+    new_pub_use_lines: list[str] = []
     for raw in diff_text.splitlines():
         if raw.startswith("+++ "):
             rust_public_use = []
             rust_public_use_cfg_gated = False
             rust_cfg_pending = False
+            rust_attr_open = False
+            rust_attr_text = ""
+            rust_attr_depth = 0
             rust_public_use_removed = []
+            old_pub_use_active = False
+            old_pub_use_lines = []
+            new_pub_use_active = False
+            new_pub_use_lines = []
             # New-path marker is more reliable than the diff header for
             # in-file renames; both old and new paths are the same in
             # normal removals.
@@ -180,7 +314,14 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
             rust_public_use = []
             rust_public_use_cfg_gated = False
             rust_cfg_pending = False
+            rust_attr_open = False
+            rust_attr_text = ""
+            rust_attr_depth = 0
             rust_public_use_removed = []
+            old_pub_use_active = False
+            old_pub_use_lines = []
+            new_pub_use_active = False
+            new_pub_use_lines = []
             spec = raw[4:].strip()
             spec = spec.removeprefix("a/")
             if spec != "/dev/null":
@@ -191,7 +332,14 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
             rust_public_use = []
             rust_public_use_cfg_gated = False
             rust_cfg_pending = False
+            rust_attr_open = False
+            rust_attr_text = ""
+            rust_attr_depth = 0
             rust_public_use_removed = []
+            old_pub_use_active = False
+            old_pub_use_lines = []
+            new_pub_use_active = False
+            new_pub_use_lines = []
             continue
 
         is_added_line = raw.startswith("+") and not raw.startswith("+++")
@@ -202,6 +350,9 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
             rust_public_use = []
             rust_public_use_cfg_gated = False
             rust_cfg_pending = False
+            rust_attr_open = False
+            rust_attr_text = ""
+            rust_attr_depth = 0
         if not is_removed_line:
             rust_public_use_removed = []
 
@@ -240,6 +391,19 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
                             )
                         )
                     rust_public_use_removed = []
+                old_pub_use_active, old_pub_use_lines, old_statement = _side_pub_use_step(
+                    line, True, old_pub_use_active, old_pub_use_lines
+                )
+                if old_statement is not None:
+                    for name in _rust_reexport_marked_names(old_statement):
+                        removals.add(
+                            Removal(
+                                path=current_path,
+                                kind=current_kind,
+                                symbol_kind="use",
+                                name=name,
+                            )
+                        )
         elif is_added_line:
             line = raw[1:]
             match = _scan_line(current_kind, line)
@@ -247,11 +411,36 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
                 additions.add((current_path, current_kind, match[1]))
             if current_kind == "rust":
                 stripped = line.strip()
-                if RUST_CFG_ATTR.match(stripped):
-                    rust_cfg_pending = True
-                elif RUST_ATTR_LINE.match(stripped):
-                    # Non-cfg attribute: keep any pending cfg gate alive
-                    # through stacked attributes above the `pub use`.
+                if rust_attr_open:
+                    # Continuing a multi-line attribute (rustfmt wraps long
+                    # ones, e.g. `#[cfg(any(\n    a,\n    b\n))]`): stay in
+                    # attribute mode until bracket depth returns to 0, then
+                    # classify the WHOLE joined attribute text at once.
+                    rust_attr_text += " " + stripped
+                    rust_attr_depth += stripped.count("[") - stripped.count("]")
+                    if rust_attr_depth <= 0:
+                        rust_attr_open = False
+                        if RUST_CFG_ATTR.match(rust_attr_text.strip()):
+                            rust_cfg_pending = True
+                        rust_attr_text = ""
+                        rust_attr_depth = 0
+                elif RUST_ATTR_OPEN.match(stripped):
+                    depth = stripped.count("[") - stripped.count("]")
+                    if depth <= 0:
+                        if RUST_CFG_ATTR.match(stripped):
+                            rust_cfg_pending = True
+                        # Non-cfg single-line attribute: leave any pending
+                        # cfg gate untouched — stacked attributes above a
+                        # `pub use` must not clear it.
+                    else:
+                        rust_attr_open = True
+                        rust_attr_text = stripped
+                        rust_attr_depth = depth
+                elif stripped == "" or stripped.startswith(("///", "//!", "//")):
+                    # Blank added lines and doc/line comments between a cfg
+                    # attribute and the `pub use` it guards keep the pending
+                    # gate alive — only a real item/statement line below
+                    # resolves or clears it.
                     pass
                 else:
                     if rust_public_use:
@@ -267,6 +456,39 @@ def parse_diff(diff_text: str) -> tuple[set[Removal], set[tuple[str, str, str]]]
                         rust_public_use = []
                         rust_public_use_cfg_gated = False
                     rust_cfg_pending = False
+                new_pub_use_active, new_pub_use_lines, new_statement = _side_pub_use_step(
+                    line, True, new_pub_use_active, new_pub_use_lines
+                )
+                if new_statement is not None:
+                    for name in _rust_reexport_marked_names(new_statement):
+                        additions.add((current_path, current_kind, name))
+        else:
+            # Context line (unchanged): not part of the diff's +/- surface,
+            # but still part of BOTH the old and new file's view, so it
+            # feeds both one-sided `pub use` reconstructions (fix-2 / V-2).
+            # It never itself yields a removal or addition — only a
+            # REMOVED/ADDED line inside an active block does.
+            if current_kind == "rust" and (raw.startswith(" ") or raw == ""):
+                ctx_line = raw[1:] if raw else ""
+                old_pub_use_active, old_pub_use_lines, old_statement = _side_pub_use_step(
+                    ctx_line, False, old_pub_use_active, old_pub_use_lines
+                )
+                if old_statement is not None:
+                    for name in _rust_reexport_marked_names(old_statement):
+                        removals.add(
+                            Removal(
+                                path=current_path,
+                                kind=current_kind,
+                                symbol_kind="use",
+                                name=name,
+                            )
+                        )
+                new_pub_use_active, new_pub_use_lines, new_statement = _side_pub_use_step(
+                    ctx_line, False, new_pub_use_active, new_pub_use_lines
+                )
+                if new_statement is not None:
+                    for name in _rust_reexport_marked_names(new_statement):
+                        additions.add((current_path, current_kind, name))
 
     return removals, additions
 

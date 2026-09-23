@@ -505,4 +505,52 @@ if ! grep -qF "fn helper" "$WORK/live_git_root_private.err"; then
 fi
 echo "OK live-git Y-1 private move without root re-export"
 
+# Z-1/Z-2 live-git trees (`trees/<case>/{base,head}`): a crate-root
+# re-export cancels a free-item removal only when the item's module is
+# private (declared `mod a;`, `mod a {}`, or restricted `pub(...) mod a`) —
+# a `pub mod` item has its own public path `crate::a::X`, which a root name
+# does not preserve. A root `pub mod` of the same name never stands in for a
+# removed non-module item.
+TREES="$FIX/trees"
+tree_case() {
+    local case_name="$1" expected_rc="$2"
+    shift 2
+    local repo="$WORK/tree-$case_name"
+    mkdir -p "$repo"
+    git -C "$repo" init -q
+    git -C "$repo" config user.email removal-detect@example.invalid
+    git -C "$repo" config user.name removal-detect
+    cp "$TREES/CHANGELOG.md" "$repo/CHANGELOG.md"
+    cp -r "$TREES/$case_name/base/." "$repo/"
+    git -C "$repo" add -A
+    git -C "$repo" commit -q -m base
+    git -C "$repo" rm -rq src
+    cp -r "$TREES/$case_name/head/." "$repo/"
+    git -C "$repo" add -A
+    git -C "$repo" commit -q -m head
+    set +e
+    python3 "$LINT" --repo-root "$repo" --base HEAD~1 --head HEAD \
+        >/dev/null 2>"$WORK/tree_${case_name}.err"
+    rc=$?
+    set -e
+    if [ "$rc" -ne "$expected_rc" ]; then
+        cat "$WORK/tree_${case_name}.err" >&2
+        fail "$case_name tree: expected exit $expected_rc, got $rc"
+    fi
+    for name in "$@"; do
+        if ! grep -qF "$name" "$WORK/tree_${case_name}.err"; then
+            fail "$case_name tree: diagnostic must name $name"
+        fi
+    done
+    echo "OK tree $case_name"
+}
+tree_case z1-pub-mod-item-deleted 1 "a.rs: fn foo"
+tree_case z1-pub-mod-use-dropped 1 "a.rs: use Foo"
+tree_case z1-gated-pub-mod-use-dropped 1 "loader.rs: use EmbedderEvent"
+tree_case z1-pub-mod-item-moved-root-reexported 1 "a.rs: struct X"
+tree_case z1-root-glob-of-pub-mod 1 "a.rs: struct X"
+tree_case z2-root-adds-pub-mod-same-name 1 "lib.rs: fn open"
+tree_case guard-private-mod-move-reexported 0
+tree_case guard-private-mod-move-unchanged-root-globs 0
+
 echo "test_removal_detect.sh: all cases pass"

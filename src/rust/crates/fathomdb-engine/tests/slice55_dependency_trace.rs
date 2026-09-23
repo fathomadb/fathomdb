@@ -74,6 +74,8 @@ fn seeded() -> (TempDir, fathomdb_engine::OpenedEngine) {
     (dir, opened)
 }
 
+// Seeds via `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 fn add_hidden_dependent(engine: &Engine, revision: &str, logical: &str, dependency: &str) {
     let cursor = if logical.starts_with("aaa") { -101 } else { -102 };
     engine
@@ -96,6 +98,8 @@ fn add_hidden_dependent(engine: &Engine, revision: &str, logical: &str, dependen
         .unwrap();
 }
 
+// Seeds via `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 fn insert_active_closure(engine: &Engine, source_revision: &str, cause: &str, sequence: u64) {
     let closure_id = format!("_fdb:c:{sequence:064x}");
     let fingerprint = format!("{sequence:064x}");
@@ -279,6 +283,9 @@ fn slice55_trace_execution_boundary_revalidates_public_struct_literals() {
     }
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_hidden_relations_match_absence() {
     let (dir, opened) = seeded();
@@ -305,6 +312,9 @@ fn slice55_trace_hidden_relations_match_absence() {
     assert_eq!(hidden.checked_work_units, 2);
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_hidden_relations_do_not_trip_caps() {
     let (_dir, opened) = seeded();
@@ -325,6 +335,9 @@ fn slice55_trace_hidden_relations_do_not_trip_caps() {
     assert_eq!(result.checked_work_units, 2);
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_hidden_corruption_is_filtered_before_decode_and_limit() {
     let (_dir, opened) = seeded();
@@ -352,6 +365,9 @@ fn slice55_trace_hidden_corruption_is_filtered_before_decode_and_limit() {
     assert_eq!(result.checked_work_units, 2);
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_invalid_chain_precedes_relation_blob_decode_and_cap() {
     let (_dir, opened) = seeded();
@@ -380,6 +396,9 @@ fn slice55_trace_invalid_chain_precedes_relation_blob_decode_and_cap() {
     ));
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_corrupt_requires_two_eligible_endpoints() {
     let (_dir, opened) = seeded();
@@ -404,6 +423,9 @@ fn slice55_trace_corrupt_requires_two_eligible_endpoints() {
     }
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_closure_fences_are_endpoint_specific() {
     let (_dir, opened) = seeded();
@@ -415,6 +437,9 @@ fn slice55_trace_closure_fences_are_endpoint_specific() {
     assert_eq!(result.checked_work_units, 2);
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_closure_fences_each_relation_endpoint() {
     let (_dir, opened) = seeded();
@@ -433,6 +458,9 @@ fn slice55_trace_closure_fences_each_relation_endpoint() {
     }
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_malformed_lifecycle_collapses_to_absence() {
     let (_dir, opened) = seeded();
@@ -453,6 +481,9 @@ fn slice55_trace_malformed_lifecycle_collapses_to_absence() {
     ));
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_digest_chain_authenticates_canonical_bytes() {
     let (_dir, opened) = seeded();
@@ -474,6 +505,9 @@ fn slice55_trace_digest_chain_authenticates_canonical_bytes() {
     ));
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_hidden_chain_corruption_is_byte_equal_to_absence() {
     let (dir, seeded) = seeded();
@@ -507,6 +541,9 @@ fn slice55_trace_hidden_chain_corruption_is_byte_equal_to_absence() {
     assert_eq!(hidden.checked_work_units, 1);
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_requires_complete_source_provenance_chain() {
     let (_dir, opened) = seeded();
@@ -526,6 +563,9 @@ fn slice55_trace_requires_complete_source_provenance_chain() {
     ));
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_rejects_wrong_counterpart_role_without_disclosure() {
     let (_dir, opened) = seeded();
@@ -542,6 +582,9 @@ fn slice55_trace_rejects_wrong_counterpart_role_without_disclosure() {
     assert_eq!(result.nodes.len(), 1);
 }
 
+// Uses `Engine::execute_for_test` (directly or via a fixture helper), a
+// debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn slice55_trace_reports_corrupt_only_after_both_endpoints_are_authorized() {
     let (_dir, opened) = seeded();

@@ -146,6 +146,8 @@ fn filterable_vector_spec(name: &str) -> ProjectionSpec {
 /// Declares the VALID `filterable` half through the verb, then uses the atomic
 /// test hook to set `vector_declared = 1` and transition generation authority —
 /// while asserting the front door is shut on the way past.
+// Uses `Engine::set_legacy_projection_vector_declared_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 fn declare_inert_filterable_vector_for_test(engine: &Engine, name: &str) {
     assert_eq!(
         engine.configure_projections(&[filterable_vector_spec(name)], &[]).expect_err(
@@ -314,6 +316,8 @@ fn drop_projection_registry(path: &Path) {
 ///   4. …and leaves nothing at rest for that row;
 ///   5. `drain` does not wait on it (embedder slowed to 8 s, a 2 s barrier still
 ///      returns `Ok`).
+// Uses `declare_inert_filterable_vector_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn an_already_enrolled_inert_vector_kind_is_un_enrolled_on_reopen() {
     let dir = TempDir::new().unwrap();
@@ -612,6 +616,8 @@ fn a_healthy_searchable_vector_registry_is_untouched_on_reopen() {
 ///
 /// The same test carries IDEMPOTENCE (post-condition 6): after the reconciling
 /// reopen, two further reopens must change nothing at all.
+// Uses `declare_inert_filterable_vector_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn edge_fact_survives_the_reconciliation_which_is_idempotent_across_reopens() {
     let dir = TempDir::new().unwrap();
@@ -693,6 +699,8 @@ fn edge_fact_survives_the_reconciliation_which_is_idempotent_across_reopens() {
 /// The call here is an IDEMPOTENT re-apply of the very same inert spec, which is
 /// the weakest possible trigger: `delta.unchanged` is `true`, nothing about the
 /// registry moves, and the transition arm is provably inert.
+// Uses `declare_inert_filterable_vector_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn a_configure_projections_call_reconciles_an_already_enrolled_inert_kind() {
     let dir = TempDir::new().unwrap();

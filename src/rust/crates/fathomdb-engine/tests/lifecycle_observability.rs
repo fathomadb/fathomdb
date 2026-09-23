@@ -711,6 +711,8 @@ fn ac_006_interior_page_corruption_emits_sqlite_corrupt() {
 // Measurement: default threshold = 100 ms (REQ-006a). The
 // deterministic-slow-cte fixture (≥ 200 ms guaranteed by recursive-CTE
 // counter) emits exactly one slow-statement signal identifying the SQL.
+// Uses `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn ac_007a_slow_statement_event_at_default_threshold() {
     let (_dir, engine) = fixture();
@@ -745,6 +747,8 @@ fn ac_007a_slow_statement_event_at_default_threshold() {
 // fixed N, so the test holds across hardware speeds (a fixed N=1_000_000 ran
 // ~800 ms on the aarch64 probe but only ~144 ms on a fast x86_64 box, which
 // silently dropped the "slow" fixture under the 500 ms threshold).
+// Uses `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn ac_007b_slow_threshold_reconfigurable() {
     const THRESHOLD_MS: u64 = 500;
@@ -791,6 +795,8 @@ fn cte_sql(n: u64) -> String {
 /// instead of pinning fixed iteration counts to one CI runner's speed. Runs a
 /// probe twice and uses the faster sample to damp transient load. The returned
 /// `n` is clamped to a sane range.
+// Uses `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 fn calibrate_cte_n(engine: &Engine, target_ms: u64) -> u64 {
     const PROBE_N: u64 = 1_000_000;
     let probe = cte_sql(PROBE_N);
@@ -822,6 +828,8 @@ const SLOW_CTE: &str = "WITH RECURSIVE c(x) AS (VALUES(1) UNION ALL \
 // (i) a statement-level slow-statement signal, (ii) ≥ 1 lifecycle
 // `phase == Slow` event during the operation's wall-clock window. The
 // slow CTE fixture from AC-007a satisfies both.
+// Uses debug-build-only `Engine::*_for_test` hooks.
+#[cfg(debug_assertions)]
 #[test]
 fn ac_008_slow_signal_feeds_lifecycle() {
     let (_dir, engine) = fixture();
@@ -856,6 +864,8 @@ fn ac_008_slow_signal_feeds_lifecycle() {
 //   the engine error)
 // - `projection_state` is one of the `ProjectionStatus` variants
 //   stringified
+// Uses debug-build-only `Engine::*_for_test` hooks.
+#[cfg(debug_assertions)]
 #[test]
 fn ac_009_poison_thread_emits_full_stress_failure_context() {
     let (_dir, engine) = fixture();
@@ -890,6 +900,8 @@ fn ac_009_poison_thread_emits_full_stress_failure_context() {
 }
 
 // AC-009 supporting: Pure-type construction of StressFailureContext.
+// Uses debug-build-only `Engine::*_for_test` hooks.
+#[cfg(debug_assertions)]
 #[test]
 fn ac_009_stress_failure_context_constructs() {
     let (_dir, engine) = fixture();

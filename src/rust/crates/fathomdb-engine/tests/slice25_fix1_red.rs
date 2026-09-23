@@ -539,6 +539,8 @@ fn actuation_event_order_is_causal_for_commit_refusal_and_failure() {
     assert!(sink.take_writer_phases().is_empty());
 }
 
+// Uses `Engine::set_actuation_after_initial_lookup_delay_ms_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn forced_slow_inner_race_replays_emit_no_extra_events() {
     let dir = TempDir::new().unwrap();
@@ -580,6 +582,8 @@ fn forced_slow_inner_race_replays_emit_no_extra_events() {
     assert!(phases.iter().filter(|phase| **phase == Phase::Slow).count() <= 1);
 }
 
+// Uses `Engine::force_next_commit_failure_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn cursor_refusal_precommit_failure_rolls_back_receipt_and_is_retryable() {
     let dir = TempDir::new().unwrap();
@@ -617,6 +621,8 @@ fn cursor_refusal_precommit_failure_rolls_back_receipt_and_is_retryable() {
     assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::WriteCursorExhausted]);
 }
 
+// Uses `Engine::force_actuation_failure_after_operation_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
     for fault_index in 0..4 {

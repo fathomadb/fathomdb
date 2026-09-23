@@ -95,7 +95,8 @@ fn ac_059b_write_cursor_is_satisfied_by_projection_cursor_and_queryable() {
         thread::sleep(Duration::from_millis(10));
     }
 }
-
+// Uses `Engine::force_next_commit_failure_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn failed_commit_does_not_publish_projection_cursor() {
     let (_dir, opened) = open_fixture("failed_cursor");
@@ -150,6 +151,8 @@ fn failed_commit_does_not_publish_projection_cursor() {
     assert_eq!(after_failure, committed + 1);
 }
 
+// Uses `Engine::force_next_commit_failure_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn concurrent_search_does_not_observe_speculative_failed_cursor() {
     let (_dir, opened) = open_fixture("failed_cursor_race");

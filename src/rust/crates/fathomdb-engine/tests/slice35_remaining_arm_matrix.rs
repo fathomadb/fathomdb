@@ -84,6 +84,8 @@ fn edge_fts_applies_eligibility_before_its_candidate_limit() {
     assert_eq!(result.results[0].branch, SoftFallbackBranch::TextEdge);
 }
 
+// Uses `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn vector_knn_applies_native_eligibility_before_its_candidate_limit() {
     let dir = TempDir::new().unwrap();

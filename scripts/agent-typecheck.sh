@@ -10,6 +10,16 @@ cd_repo_root
 # Rust: cargo check is the type-only gate (clippy already does this in lint, but check is cheaper).
 run_capped typecheck-rust cargo check --workspace --quiet
 
+# `cargo check --workspace` above only checks lib+bins, not test targets, so
+# it cannot catch a debug-only `Engine::*_for_test` hook drifting out of sync
+# with its caller's cfg. Pin both engine test-build surfaces that broke
+# independently of each other in 0.8.27 slice 40: the release-profile test
+# build (debug_assertions off) and the default-feature debug test build.
+run_capped typecheck-rust-engine-release-tests \
+  cargo check --release -p fathomdb-engine --lib --tests
+run_capped typecheck-rust-engine-default-tests \
+  cargo check -p fathomdb-engine --all-targets
+
 # Python preflight: use the project's exact pinned version, so local prework
 # cannot report a false green from version drift or an absent type checker.
 readonly PYRIGHT_VERSION="1.1.410"

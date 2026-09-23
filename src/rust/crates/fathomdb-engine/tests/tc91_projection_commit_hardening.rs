@@ -1,5 +1,9 @@
 //! TC-91 regression coverage for projection-worker terminal commits.
 
+// Every test in this file forces commit/storage faults through debug-build-only
+// `Engine::*_for_test` hooks, so this file does not compile in release builds.
+#![cfg(debug_assertions)]
+
 use fathomdb_embedder::EmbedderEvent;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::{Event, EventCategory, EventSource, Phase, Subscriber};

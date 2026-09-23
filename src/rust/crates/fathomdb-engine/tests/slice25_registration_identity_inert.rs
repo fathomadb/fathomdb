@@ -289,6 +289,8 @@ fn registering_projections_never_alters_a_pre_existing_row_id_space() {
 /// the writer connection. Both the at-rest snapshot AND the derived id-space
 /// must flip. This is what makes the green above falsifiable rather than
 /// decorative.
+// Uses `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn a_real_backfill_does_move_the_id_space_which_is_why_it_is_banned() {
     let dir = TempDir::new().unwrap();

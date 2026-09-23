@@ -1,11 +1,8 @@
-use std::collections::BTreeSet;
 use std::process::{Child, Command, Stdio};
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use fathomdb_engine::lifecycle::{Event, EventCategory, EventSource};
-use fathomdb_engine::{Engine, ProjectionRole, ProjectionSpec};
+use fathomdb_engine::Engine;
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
@@ -154,117 +151,137 @@ fn fd_count() -> usize {
     count as usize
 }
 
-#[derive(Default)]
-struct CapturingSubscriber {
-    events: Mutex<Vec<Event>>,
-}
+// AC-021 measures `Engine::rebuild_projections`, which only exists behind the
+// `operator` feature (dev/design/bindings.md's recovery-clean default
+// surface). Everything below is exclusive to AC-021, so it moves into its own
+// `operator`-gated module rather than widening the release-default engine
+// surface; the workspace verify gate unifies `operator` on for `fathomdb-cli`,
+// so this still runs under `cargo test --workspace`.
+#[cfg(feature = "operator")]
+mod ac_021 {
+    use std::collections::BTreeSet;
+    use std::sync::{Arc, Mutex};
 
-impl fathomdb_engine::lifecycle::Subscriber for CapturingSubscriber {
-    fn on_event(&self, event: &Event) {
-        self.events.lock().unwrap().push(event.clone());
-    }
-}
+    use fathomdb_engine::lifecycle::{Event, EventCategory, EventSource};
+    use fathomdb_engine::{ProjectionRole, ProjectionSpec};
 
-// AC-021: Zero SQLITE_SCHEMA warnings under concurrent reads + admin DDL.
-//
-// Runtime-budget category: 5 s smoke (default) vs 60 s spec-conforming.
-// `agent-verify.sh` runs the 5 s smoke; the 60 s spec-conforming window
-// is exercised only by `scripts/check.sh` with `AGENT_LONG=1`. The smoke
-// run does not satisfy the AC's measurement protocol on its own.
-// Catalog: `dev/test-plan.md` § Implementation Order step 3.
-#[test]
-fn ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl() {
-    use fathomdb_engine::PreparedWrite;
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use super::{Engine, TempDir};
 
-    let dir = TempDir::new().unwrap();
-    let opened = Engine::open(dir.path().join("schema_flood.sqlite")).expect("open");
-    let engine = Arc::new(opened.engine);
-
-    let sink = Arc::new(CapturingSubscriber::default());
-    let _sub = engine.subscribe(sink.clone());
-
-    let stop = Arc::new(AtomicBool::new(false));
-    let mut handles = Vec::new();
-
-    for _ in 0..8 {
-        let engine = Arc::clone(&engine);
-        let stop = Arc::clone(&stop);
-        handles.push(thread::spawn(move || {
-            while !stop.load(Ordering::Relaxed) {
-                let _ = engine.search("hello");
-            }
-        }));
+    #[derive(Default)]
+    struct CapturingSubscriber {
+        events: Mutex<Vec<Event>>,
     }
 
-    let ddl_handle = {
-        let engine = Arc::clone(&engine);
-        let stop = Arc::clone(&stop);
-        thread::spawn(move || {
-            let mut tick: u64 = 0;
-            let mut projection_add_drop_cycles = 0_u64;
-            let mut projection_rebuilds = 0_u64;
-            while !stop.load(Ordering::Relaxed) {
-                let name = format!("things_{}", tick % 4);
-                let _ = engine.write(&[PreparedWrite::AdminSchema {
-                    name,
-                    kind: "latest_state".to_string(),
-                    schema_json: "{}".to_string(),
-                    retention_json: "{}".to_string(),
-                }]);
-                let projection_name = "ac021_owner".to_string();
-                let spec = ProjectionSpec {
-                    name: projection_name.clone(),
-                    roles: BTreeSet::from([ProjectionRole::Filterable]),
-                    fts: None,
-                    vector: None,
-                    source: None,
-                };
-                if engine.configure_projections(&[spec], &[]).is_ok() {
-                    if engine.rebuild_projections().is_ok() {
-                        projection_rebuilds += 1;
-                    }
-                    if engine.configure_projections(&[], &[projection_name]).is_ok() {
-                        projection_add_drop_cycles += 1;
-                    }
+    impl fathomdb_engine::lifecycle::Subscriber for CapturingSubscriber {
+        fn on_event(&self, event: &Event) {
+            self.events.lock().unwrap().push(event.clone());
+        }
+    }
+
+    // AC-021: Zero SQLITE_SCHEMA warnings under concurrent reads + admin DDL.
+    //
+    // Runtime-budget category: 5 s smoke (default) vs 60 s spec-conforming.
+    // `agent-verify.sh` runs the 5 s smoke; the 60 s spec-conforming window
+    // is exercised only by `scripts/check.sh` with `AGENT_LONG=1`. The smoke
+    // run does not satisfy the AC's measurement protocol on its own.
+    // Catalog: `dev/test-plan.md` § Implementation Order step 3.
+    #[test]
+    fn ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl() {
+        use fathomdb_engine::PreparedWrite;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::thread;
+        use std::time::Duration;
+
+        let dir = TempDir::new().unwrap();
+        let opened = Engine::open(dir.path().join("schema_flood.sqlite")).expect("open");
+        let engine = Arc::new(opened.engine);
+
+        let sink = Arc::new(CapturingSubscriber::default());
+        let _sub = engine.subscribe(sink.clone());
+
+        let stop = Arc::new(AtomicBool::new(false));
+        let mut handles = Vec::new();
+
+        for _ in 0..8 {
+            let engine = Arc::clone(&engine);
+            let stop = Arc::clone(&stop);
+            handles.push(thread::spawn(move || {
+                while !stop.load(Ordering::Relaxed) {
+                    let _ = engine.search("hello");
                 }
-                tick = tick.wrapping_add(1);
-                thread::sleep(Duration::from_millis(1000));
-            }
-            (projection_add_drop_cycles, projection_rebuilds)
-        })
-    };
+            }));
+        }
 
-    let window_secs = if std::env::var_os("AGENT_LONG").is_some() { 60 } else { 5 };
-    thread::sleep(Duration::from_secs(window_secs));
-    stop.store(true, Ordering::Relaxed);
+        let ddl_handle = {
+            let engine = Arc::clone(&engine);
+            let stop = Arc::clone(&stop);
+            thread::spawn(move || {
+                let mut tick: u64 = 0;
+                let mut projection_add_drop_cycles = 0_u64;
+                let mut projection_rebuilds = 0_u64;
+                while !stop.load(Ordering::Relaxed) {
+                    let name = format!("things_{}", tick % 4);
+                    let _ = engine.write(&[PreparedWrite::AdminSchema {
+                        name,
+                        kind: "latest_state".to_string(),
+                        schema_json: "{}".to_string(),
+                        retention_json: "{}".to_string(),
+                    }]);
+                    let projection_name = "ac021_owner".to_string();
+                    let spec = ProjectionSpec {
+                        name: projection_name.clone(),
+                        roles: BTreeSet::from([ProjectionRole::Filterable]),
+                        fts: None,
+                        vector: None,
+                        source: None,
+                    };
+                    if engine.configure_projections(&[spec], &[]).is_ok() {
+                        if engine.rebuild_projections().is_ok() {
+                            projection_rebuilds += 1;
+                        }
+                        if engine.configure_projections(&[], &[projection_name]).is_ok() {
+                            projection_add_drop_cycles += 1;
+                        }
+                    }
+                    tick = tick.wrapping_add(1);
+                    thread::sleep(Duration::from_millis(1000));
+                }
+                (projection_add_drop_cycles, projection_rebuilds)
+            })
+        };
 
-    for handle in handles {
-        handle.join().expect("reader thread");
-    }
-    let (projection_add_drop_cycles, projection_rebuilds) = ddl_handle.join().expect("ddl thread");
-    assert!(projection_add_drop_cycles >= 1, "projection add/drop workload did not execute");
-    assert!(projection_rebuilds >= 1, "projection rebuild workload did not execute");
+        let window_secs = if std::env::var_os("AGENT_LONG").is_some() { 60 } else { 5 };
+        thread::sleep(Duration::from_secs(window_secs));
+        stop.store(true, Ordering::Relaxed);
 
-    let captured = sink.events.lock().unwrap();
-    // AC-021 dispatches on the stable error code, not on every error
-    // event. SQLITE_SCHEMA carries `source=SqliteInternal`; engine-side
-    // errors (`StorageError`, etc.) flow through the same subscriber
-    // path but do not satisfy the AC's `code == SQLITE_SCHEMA` clause.
-    let schema_errors = captured
-        .iter()
-        .filter(|e| {
-            e.source == EventSource::SqliteInternal
-                && e.category == EventCategory::Error
-                && e.code == Some("SQLITE_SCHEMA")
-        })
-        .count();
-    assert_eq!(
-        schema_errors, 0,
-        "expected zero SQLITE_SCHEMA error events under concurrent reads + DDL"
-    );
-    eprintln!(
+        for handle in handles {
+            handle.join().expect("reader thread");
+        }
+        let (projection_add_drop_cycles, projection_rebuilds) =
+            ddl_handle.join().expect("ddl thread");
+        assert!(projection_add_drop_cycles >= 1, "projection add/drop workload did not execute");
+        assert!(projection_rebuilds >= 1, "projection rebuild workload did not execute");
+
+        let captured = sink.events.lock().unwrap();
+        // AC-021 dispatches on the stable error code, not on every error
+        // event. SQLITE_SCHEMA carries `source=SqliteInternal`; engine-side
+        // errors (`StorageError`, etc.) flow through the same subscriber
+        // path but do not satisfy the AC's `code == SQLITE_SCHEMA` clause.
+        let schema_errors = captured
+            .iter()
+            .filter(|e| {
+                e.source == EventSource::SqliteInternal
+                    && e.category == EventCategory::Error
+                    && e.code == Some("SQLITE_SCHEMA")
+            })
+            .count();
+        assert_eq!(
+            schema_errors, 0,
+            "expected zero SQLITE_SCHEMA error events under concurrent reads + DDL"
+        );
+        eprintln!(
         "AC021_RESULT duration_seconds={window_secs} projection_add_drop_cycles={projection_add_drop_cycles} \
          projection_rebuilds={projection_rebuilds} sqlite_schema={schema_errors}"
     );
+    }
 }

@@ -1,3 +1,7 @@
+// The sole test in this file mutates through `Engine::execute_for_test`, a
+// debug-build-only hook, so this file does not compile in release builds.
+#![cfg(debug_assertions)]
+
 use std::collections::BTreeSet;
 use std::sync::{Arc, Barrier};
 use std::thread;

@@ -750,6 +750,8 @@ fn vector_top_k_ineligible_dependencies_degrade_before_candidate_truncation() {
     );
 }
 
+// Uses `Engine::pause_projection_worker_after_wal_transaction_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn projection_worker_before_admission_cannot_publish_dependency_residue() {
     let dir = TempDir::new().unwrap();

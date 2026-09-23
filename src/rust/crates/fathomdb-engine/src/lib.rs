@@ -167,7 +167,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender};
-#[cfg(any(debug_assertions, feature = "test-hooks"))]
+#[cfg(any(test, debug_assertions, feature = "test-hooks"))]
 use std::sync::Barrier;
 use std::sync::Once;
 use std::sync::{Arc, Condvar, Mutex};
@@ -1908,7 +1908,10 @@ enum ReaderRequest {
     /// transaction, executes a query to acquire its WAL snapshot, reports the
     /// rendezvous, and holds the snapshot until released. It is never compiled
     /// into a release SDK artifact.
-    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    // `test` added alongside `debug_assertions`/`test-hooks` so the crate's own
+    // `--release --tests` lib-test build (cfg(test) true, debug_assertions
+    // false) can still see this variant; it stays absent from any shipped build.
+    #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
     #[allow(dead_code)]
     HoldWalSnapshot {
         snapshot_ready: Arc<Barrier>,
@@ -2581,7 +2584,7 @@ fn reader_worker_loop(
                     connection.query_row("PRAGMA secure_delete", [], |r| r.get(0)).unwrap_or(-1);
                 let _ = respond.send(value);
             }
-            #[cfg(any(debug_assertions, feature = "test-hooks"))]
+            #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
             ReaderRequest::HoldWalSnapshot { snapshot_ready, release } => {
                 connection.execute_batch("BEGIN DEFERRED").expect("begin reader transaction");
                 let _: i64 = connection
@@ -7735,7 +7738,10 @@ impl Engine {
         self.wal_attribution.checkpoints()
     }
 
-    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    // `test` added alongside `debug_assertions`/`test-hooks` so the crate's own
+    // `--release --tests` lib-test build (cfg(test) true, debug_assertions
+    // false) can still see this seam; it stays absent from any shipped build.
+    #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
     #[allow(dead_code)]
     #[doc(hidden)]
     pub fn pause_reader_after_wal_snapshot_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
@@ -11454,7 +11460,10 @@ impl Engine {
     /// Test-only helper for the deterministic-slow-cte fixture used by
     /// AC-007a / AC-007b. Not part of the public 0.6.0 surface; gated on
     /// `debug_assertions` so release builds do not expose it.
-    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    // `test` added alongside `debug_assertions`/`test-hooks` so the crate's own
+    // `--release --tests` lib-test build (cfg(test) true, debug_assertions
+    // false) can still see this seam; it stays absent from any shipped build.
+    #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn execute_for_test(&self, sql: &str) -> Result<(), EngineError> {
         self.ensure_open()?;
@@ -31060,6 +31069,10 @@ mod tests {
     /// Slice 65 projection-worker witness: preserve the original typed
     /// refusal, then observe post-finish connection state without retrying
     /// that erasure.
+    // Exercises `pause_projection_worker_after_wal_transaction_for_test`, a
+    // debug-build-only hook; gated so the release-profile lib-test build
+    // (cfg(test) true, debug_assertions false) does not need it widened.
+    #[cfg(debug_assertions)]
     #[test]
     fn wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded() {
         let dir = TempDir::new().expect("temp dir");
@@ -31178,6 +31191,10 @@ mod tests {
         );
     }
 
+    // Exercises `pause_projection_worker_after_wal_transaction_for_test`, a
+    // debug-build-only hook; gated so the release-profile lib-test build
+    // (cfg(test) true, debug_assertions false) does not need it widened.
+    #[cfg(debug_assertions)]
     #[test]
     fn projection_transaction_pause_ready_timeout_cancels_before_worker_arrival() {
         let dir = TempDir::new().expect("temp dir");
@@ -31218,6 +31235,10 @@ mod tests {
         opened.engine.close().expect("cancelled pause cannot strand Engine close");
     }
 
+    // Exercises `pause_projection_worker_after_wal_transaction_for_test`, a
+    // debug-build-only hook; gated so the release-profile lib-test build
+    // (cfg(test) true, debug_assertions false) does not need it widened.
+    #[cfg(debug_assertions)]
     #[test]
     fn projection_transaction_pause_drop_releases_worker_after_ready() {
         let dir = TempDir::new().expect("temp dir");

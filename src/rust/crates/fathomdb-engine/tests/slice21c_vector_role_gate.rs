@@ -72,6 +72,11 @@
 //! way past. **Every oracle is unchanged**; nothing here was deleted or
 //! weakened.
 
+// Every test in this file seeds its legacy fixture through the debug-build-only
+// `Engine::set_legacy_projection_vector_declared_for_test` hook, so this file
+// does not compile in release builds.
+#![cfg(debug_assertions)]
+
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
     DenseReadiness, Engine, InitialState, PreparedWrite, ProjectionRole, ProjectionSpec,

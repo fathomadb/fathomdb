@@ -10,6 +10,10 @@
 //! These tests are deliberately cheap and deterministic. They are not
 //! performance gates; AC-081a/b own the separate absolute timing oracle.
 
+// Every test in this file drives the reader pool through debug-build-only
+// `Engine::*_for_test` hooks, so this file does not compile in release builds.
+#![cfg(debug_assertions)]
+
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;

@@ -99,6 +99,8 @@ fn assert_database_and_wal_do_not_contain(path: &std::path::Path, secrets: &[&st
     }
 }
 
+// Uses `Engine::force_next_commit_failure_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 #[test]
 fn precommit_failure_rolls_back_domain_and_receipt_then_retry_commits() {
     let dir = TempDir::new().unwrap();

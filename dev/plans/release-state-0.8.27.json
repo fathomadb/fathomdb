@@ -58,7 +58,9 @@
       {"id": "slice-10-execution", "title": "Complete the reviewed bounded Slice 10 preparation plan and present the remaining HITL review items interactively; do not authorize Slice 20, tags, registries, or publication.", "source": "seq-291"},
       {"id": "slice-20-execution", "title": "Authorize the reviewed correction-safe source-erasure implementation only; do not authorize later slices, tags, registries, or publication.", "source": "seq-292"},
       {"id": "slice-30-execution", "title": "Complete reviewed Slice 30 requirements, design, TDD implementation, code review, independent verification, status, and cleanup without Steward or Orchestrator roles.", "source": "repository owner 2026-09-22"},
-      {"id": "slice-40-execution", "title": "Complete reviewed Slice 40 requirements, design, TDD implementation, code review, independent verification, status, and cleanup in the existing release worktree without Steward or Orchestrator roles.", "source": "repository owner 2026-09-22"}
+      {"id": "slice-40-execution", "title": "Complete reviewed Slice 40 requirements, design, TDD implementation, code review, independent verification, status, and cleanup in the existing release worktree without Steward or Orchestrator roles.", "source": "repository owner 2026-09-22"},
+      {"id": "slice-50-hidden-surface-oracle", "title": "Add hidden-items rustdoc surface rows (default, test-hooks, slice72-test-hooks, operator+test-hooks) with a supplementary baseline at e3358800 before Slice 50 starts (TC-3e54ed95).", "source": "repository owner 2026-09-23"},
+      {"id": "slice-140-gate-test-seams", "title": "Gate the always-compiled doc-hidden engine test seams out of default builds in Slice 140 with a CHANGELOG Removed entry enforced by AC-050c (TC-a0f90fa0).", "source": "repository owner 2026-09-23"}
     ]
   },
   "release_readiness": null,

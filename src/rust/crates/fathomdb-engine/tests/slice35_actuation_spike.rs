@@ -1,3 +1,7 @@
+// Only used by `edge_projection_failure_redispatches_and_receipt_binds_generation`,
+// gated `#[cfg(debug_assertions)]` below for its
+// `Engine::force_next_projection_commit_failure_for_test` hook.
+#[cfg(debug_assertions)]
 use fathomdb_embedder::NoopEmbedder;
 use fathomdb_engine::{
     ActuationBatchV1, ActuationErrorReason, ActuationOperationV1, ActuationOutcomeV1,

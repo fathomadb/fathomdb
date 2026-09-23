@@ -16,6 +16,9 @@ use fathomdb_engine::{
     TOP_K_BIT_CANDIDATES,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
+// Only used by `sentinel_backfills_status_on_simulated_pack1_db`, gated
+// `#[cfg(debug_assertions)]` below for its `Engine::execute_for_test` hook.
+#[cfg(debug_assertions)]
 use rusqlite::Connection;
 use tempfile::TempDir;
 

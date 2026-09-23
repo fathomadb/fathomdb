@@ -8,6 +8,9 @@
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
+// Only used by `calibrate_cte_n`, gated `#[cfg(debug_assertions)]` below for
+// its `Engine::execute_for_test` hook.
+#[cfg(debug_assertions)]
 use std::time::{Duration, Instant};
 
 use fathomdb_engine::lifecycle::{
@@ -783,6 +786,8 @@ fn ac_007b_slow_threshold_reconfigurable() {
 }
 
 /// Recursive-CTE counter SQL whose runtime scales linearly with `n`.
+// Uses `Engine::execute_for_test`, a debug-build-only hook, through its callers.
+#[cfg(debug_assertions)]
 fn cte_sql(n: u64) -> String {
     format!(
         "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c WHERE x < {n}) \
@@ -817,6 +822,8 @@ fn calibrate_cte_n(engine: &Engine, target_ms: u64) -> u64 {
 // (`cte_sql` + `calibrate_cte_n`) because its 500 ms threshold is sensitive to
 // host speed — the fixed N=1_000_000 ran ~800 ms on the original aarch64 probe
 // but only ~144 ms on a fast x86_64 box, silently falling under 500 ms.
+// Passed only to `Engine::execute_for_test`, a debug-build-only hook.
+#[cfg(debug_assertions)]
 const SLOW_CTE: &str = "WITH RECURSIVE c(x) AS (VALUES(1) UNION ALL \
                         SELECT x + 1 FROM c WHERE x < 1000000) \
                         SELECT count(*) FROM c";

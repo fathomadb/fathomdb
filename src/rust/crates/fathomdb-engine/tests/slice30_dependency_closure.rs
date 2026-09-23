@@ -1,7 +1,14 @@
 //! Slice 30 — dependency-aware lifecycle and erasure closure.
 
-use std::sync::{mpsc, Arc};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::Arc;
+// Only used by `projection_worker_before_admission_cannot_publish_dependency_residue`,
+// gated `#[cfg(debug_assertions)]` below for its
+// `Engine::pause_projection_worker_after_wal_transaction_for_test` hook.
+#[cfg(debug_assertions)]
+use std::sync::mpsc;
+#[cfg(debug_assertions)]
+use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{

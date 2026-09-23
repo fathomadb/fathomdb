@@ -1,16 +1,22 @@
+// Only used by `RollbackEmbedder`, gated `#[cfg(debug_assertions)]` below.
+#[cfg(debug_assertions)]
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::{Event, EventCategory, Phase, Subscriber};
 use fathomdb_engine::{
     ActuationBatchV1, ActuationErrorReason, ActuationOperationV1, ActuationOutcomeV1,
     ActuationRefusalReasonV1, ArtifactRevisionId, CanonicalHash, ClosureLookupV1, ClosurePhaseV1,
-    Engine, EngineError, InitialState, LifecycleActuationV1, LifecycleState, ProjectionFts,
-    ProjectionRole, ProjectionSpec, ProjectionVector, ProvenancedNodeV1,
+    Engine, EngineError, InitialState, LifecycleActuationV1, LifecycleState, ProvenancedNodeV1,
     SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
     WriteProvenanceV1,
 };
+// Only used by `configure_rollback_projections`, gated `#[cfg(debug_assertions)]` below.
+#[cfg(debug_assertions)]
+use fathomdb_engine::{ProjectionFts, ProjectionRole, ProjectionSpec, ProjectionVector};
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
+// Only used by `configure_rollback_projections`, gated `#[cfg(debug_assertions)]` below.
+#[cfg(debug_assertions)]
 use std::collections::BTreeSet;
 use std::sync::{Arc, Barrier, Mutex};
 use tempfile::TempDir;
@@ -73,9 +79,16 @@ fn derived_with_source_hash(
     }
 }
 
+// `RollbackEmbedder`, `configure_rollback_projections`, and
+// `projection_rollback_state` below are only used by
+// `infrastructure_failure_after_each_operation_rolls_back_the_whole_batch`,
+// gated `#[cfg(debug_assertions)]` for its
+// `Engine::force_actuation_failure_after_operation_for_test` hook.
+#[cfg(debug_assertions)]
 #[derive(Debug)]
 struct RollbackEmbedder;
 
+#[cfg(debug_assertions)]
 impl Embedder for RollbackEmbedder {
     fn identity(&self) -> EmbedderIdentity {
         EmbedderIdentity::new("slice25-rollback", "v1", 384)
@@ -88,6 +101,7 @@ impl Embedder for RollbackEmbedder {
     }
 }
 
+#[cfg(debug_assertions)]
 fn configure_rollback_projections(engine: &Engine) {
     engine
         .configure_projections(
@@ -103,6 +117,7 @@ fn configure_rollback_projections(engine: &Engine) {
         .unwrap();
 }
 
+#[cfg(debug_assertions)]
 fn projection_rollback_state(connection: &Connection) -> Vec<(String, Vec<String>)> {
     [
         (

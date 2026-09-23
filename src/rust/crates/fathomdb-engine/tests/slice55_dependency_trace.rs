@@ -1,12 +1,14 @@
 //! Slice 55 RED contract for reciprocal, frozen dependency tracing.
 
 use fathomdb_engine::{
-    encode_dependency_trace_result_v1, ArtifactRevisionId, CanonicalHash,
-    DependencyTraceDirectionV1, DependencyTraceErrorReasonV1, DependencyTraceRequestV1, Engine,
-    EngineError, InitialState, PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView,
-    SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
-    SourceVersionId, WriteProvenanceV1,
+    ArtifactRevisionId, CanonicalHash, DependencyTraceDirectionV1, DependencyTraceErrorReasonV1,
+    DependencyTraceRequestV1, Engine, EngineError, InitialState, PreparedWrite, ProvenancedNodeV1,
+    ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator,
+    SourceRevisionId, SourceVersionId, WriteProvenanceV1,
 };
+// Only used by the debug-build-only tests below.
+#[cfg(debug_assertions)]
+use fathomdb_engine::encode_dependency_trace_result_v1;
 use fathomdb_schema::SQLITE_SUFFIX;
 #[cfg(feature = "test-hooks")]
 use proptest::prelude::*;
@@ -137,6 +139,9 @@ fn read_context() -> ReadContextV1 {
     ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap()
 }
 
+// Only used by `fixed_trace`, itself only used by the debug-build-only tests
+// below.
+#[cfg(debug_assertions)]
 fn fixed_read_context() -> ReadContextV1 {
     ReadContextV1::new(
         ReadView { valid_as_of: Some(1), ..ReadView::default() },
@@ -145,6 +150,8 @@ fn fixed_read_context() -> ReadContextV1 {
     .unwrap()
 }
 
+// Only called from the debug-build-only tests below (via `Engine::execute_for_test`).
+#[cfg(debug_assertions)]
 fn fixed_trace(
     engine: &Engine,
     root: &str,

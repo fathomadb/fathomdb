@@ -3,7 +3,12 @@ use std::time::{Duration, Instant};
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{Engine, PreparedWrite};
 use fathomdb_schema::SQLITE_SUFFIX;
-use std::sync::{Arc, Barrier};
+use std::sync::Arc;
+// Only used by `concurrent_search_does_not_observe_speculative_failed_cursor`,
+// gated `#[cfg(debug_assertions)]` below for its
+// `Engine::force_next_commit_failure_for_test` hook.
+#[cfg(debug_assertions)]
+use std::sync::Barrier;
 use std::thread;
 use tempfile::TempDir;
 

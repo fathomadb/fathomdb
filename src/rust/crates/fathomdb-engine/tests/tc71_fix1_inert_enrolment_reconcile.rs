@@ -122,6 +122,9 @@ fn roles(rs: &[ProjectionRole]) -> BTreeSet<ProjectionRole> {
 /// **0.8.20 Slice 23 (`R-20-SV`) — no longer ACCEPTED by the verb.** Kept so the
 /// reject can be asserted in place; see
 /// [`declare_inert_filterable_vector_for_test`].
+// Only used by `declare_inert_filterable_vector_for_test`, itself
+// `#[cfg(debug_assertions)]`-gated.
+#[cfg(debug_assertions)]
 fn filterable_vector_spec(name: &str) -> ProjectionSpec {
     ProjectionSpec {
         name: name.to_string(),
@@ -237,6 +240,9 @@ fn vector_row_exists(conn: &rusqlite::Connection, cursor: i64) -> bool {
         > 0
 }
 
+// Only used by `an_already_enrolled_inert_vector_kind_is_un_enrolled_on_reopen`,
+// gated `#[cfg(debug_assertions)]` below.
+#[cfg(debug_assertions)]
 fn vec0_row_exists(conn: &rusqlite::Connection, cursor: i64) -> bool {
     conn.query_row("SELECT COUNT(*) FROM vector_default WHERE rowid = ?1", [cursor], |r| {
         r.get::<_, i64>(0)
@@ -256,6 +262,9 @@ fn vector_kind_registered(conn: &rusqlite::Connection, kind: &str) -> bool {
 /// The number of embeddings at rest — the "nothing further changed" oracle for
 /// idempotence, and immune to the equivalence probe (which writes to
 /// `_fathomdb_embed_probe`, never to `_fathomdb_vector_rows`).
+// Only used by `edge_fact_survives_the_reconciliation_which_is_idempotent_across_reopens`,
+// gated `#[cfg(debug_assertions)]` below.
+#[cfg(debug_assertions)]
 fn vector_row_count(conn: &rusqlite::Connection) -> i64 {
     conn.query_row("SELECT COUNT(*) FROM _fathomdb_vector_rows", [], |r| r.get::<_, i64>(0))
         .expect("vector row count")

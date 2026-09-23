@@ -1,5 +1,10 @@
+// Only used by `vector_knn_applies_native_eligibility_before_its_candidate_limit`,
+// gated `#[cfg(debug_assertions)]` below for its `Engine::execute_for_test` hook.
+#[cfg(debug_assertions)]
 use std::sync::Arc;
 
+// Only used by `ConstantEmbedder`, gated `#[cfg(debug_assertions)]` below.
+#[cfg(debug_assertions)]
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
     Engine, InitialState, PreparedWrite, ReadContextV1, ReadView, SearchFilter, SoftFallbackBranch,
@@ -8,9 +13,11 @@ use fathomdb_engine::{
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
+#[cfg(debug_assertions)]
 #[derive(Clone, Debug)]
 struct ConstantEmbedder;
 
+#[cfg(debug_assertions)]
 impl Embedder for ConstantEmbedder {
     fn identity(&self) -> EmbedderIdentity {
         EmbedderIdentity::new("slice35-arm-matrix", "v1", 8)

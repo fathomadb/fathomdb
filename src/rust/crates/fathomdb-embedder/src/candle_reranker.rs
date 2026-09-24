@@ -563,6 +563,203 @@ impl CandleTinyBertReranker {
     }
 }
 
+// ----- Weight loader (mirrors loader.rs; reranker-pinned) --------------------
+
+struct LoadedWeights {
+    config_json_path: PathBuf,
+    tokenizer_json_path: PathBuf,
+    model_safetensors_path: PathBuf,
+}
+
+/// Cache dir: `<cache-root>/fathomdb/reranker/<sha256(repo@rev)[..12]>/`.
+fn cache_dir() -> Result<PathBuf, RerankerLoadError> {
+    let root = match std::env::var_os(ENV_RERANKER_CACHE) {
+        Some(p) => PathBuf::from(p),
+        None => dirs::cache_dir().ok_or(RerankerLoadError::CacheRootUnavailable)?,
+    };
+    let mut h = Sha256::new();
+    h.update(format!("{RERANKER_REPO}@{RERANKER_REVISION}").as_bytes());
+    // digest 0.11's `Array` output drops the `LowerHex` impl `GenericArray`
+    // had; format explicitly to the same lowercase, zero-padded hex.
+    let prefix: String = h.finalize().iter().map(|b| format!("{b:02x}")).collect();
+    Ok(root.join("fathomdb").join("reranker").join(&prefix[..12]))
+}
+
+fn load_pinned_reranker_weights() -> Result<LoadedWeights, RerankerLoadError> {
+    let dir = cache_dir()?;
+    fs::create_dir_all(&dir)
+        .map_err(|source| RerankerLoadError::CacheIo { path: dir.clone(), source })?;
+
+    let files = [
+        ("config.json", CONFIG_JSON_SHA256),
+        ("tokenizer.json", TOKENIZER_JSON_SHA256),
+        ("model.safetensors", MODEL_SAFETENSORS_SHA256),
+    ];
+    let mut paths = Vec::with_capacity(3);
+    for (name, sha) in files {
+        let final_path = dir.join(name);
+        // Cache fast-path: verified locally → no lock, no network.
+        if file_matches_sha(&final_path, sha)? {
+            paths.push(final_path);
+            continue;
+        }
+        fetch_under_lock(&dir, name, sha)?;
+        paths.push(final_path);
+    }
+    Ok(LoadedWeights {
+        config_json_path: paths[0].clone(),
+        tokenizer_json_path: paths[1].clone(),
+        model_safetensors_path: paths[2].clone(),
+    })
+}
+
+fn fetch_under_lock(dir: &Path, name: &str, sha: &str) -> Result<(), RerankerLoadError> {
+    let lock_path = dir.join(".lock");
+    let lock_file = OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .truncate(false)
+        .open(&lock_path)
+        .map_err(|source| RerankerLoadError::CacheIo { path: lock_path.clone(), source })?;
+    acquire_lock(&lock_file, &lock_path)?;
+    let _guard = LockGuard(&lock_file);
+
+    let final_path = dir.join(name);
+    // Double-checked: another process may have completed the fetch.
+    if file_matches_sha(&final_path, sha)? {
+        return Ok(());
+    }
+
+    let partial = dir.join(format!("{name}.partial"));
+    let url = format!("{HF_BASE_URL}/{RERANKER_REPO}/resolve/{RERANKER_REVISION}/{name}");
+    download_with_retries(&url, &partial)?;
+
+    let observed = sha256_file(&partial)
+        .map_err(|source| RerankerLoadError::CacheIo { path: partial.clone(), source })?;
+    if observed != sha {
+        let _ = fs::remove_file(&partial);
+        return Err(RerankerLoadError::ChecksumMismatch {
+            file: name.to_string(),
+            expected: sha.to_string(),
+            actual: observed,
+        });
+    }
+    fs::rename(&partial, &final_path)
+        .map_err(|source| RerankerLoadError::CacheIo { path: final_path.clone(), source })?;
+    Ok(())
+}
+
+fn download_with_retries(url: &str, partial: &Path) -> Result<(), RerankerLoadError> {
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(CONNECT_TIMEOUT)
+        .timeout_read(READ_TIMEOUT)
+        .redirects(5)
+        .build();
+    let token = std::env::var("HF_TOKEN").ok();
+
+    let mut last_err: Option<Box<dyn std::error::Error + Send + Sync>> = None;
+    for attempt in 0..MAX_ATTEMPTS {
+        match download_once(&agent, token.as_deref(), url, partial) {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                last_err = Some(e);
+                if attempt + 1 < MAX_ATTEMPTS {
+                    std::thread::sleep(Duration::from_secs(1u64 << attempt));
+                }
+            }
+        }
+    }
+    Err(RerankerLoadError::NetworkUnavailable {
+        source: last_err.expect("at least one attempt error"),
+        attempts: MAX_ATTEMPTS,
+    })
+}
+
+fn download_once(
+    agent: &ureq::Agent,
+    token: Option<&str>,
+    url: &str,
+    partial: &Path,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut req = agent.get(url);
+    if let Some(t) = token {
+        req = req.set("Authorization", &format!("Bearer {t}"));
+    }
+    let resp = req.call()?;
+    if resp.status() != 200 {
+        return Err(format!("unexpected status {}", resp.status()).into());
+    }
+    // Fresh download each attempt: a stale partial must not be appended to.
+    let mut f = OpenOptions::new().write(true).create(true).truncate(true).open(partial)?;
+    let mut reader = resp.into_reader();
+    let mut buf = [0u8; 64 * 1024];
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        f.write_all(&buf[..n])?;
+    }
+    f.sync_all()?;
+    Ok(())
+}
+
+fn acquire_lock(f: &File, lock_path: &Path) -> Result<(), RerankerLoadError> {
+    let deadline = std::time::Instant::now() + LOCK_TIMEOUT;
+    loop {
+        match f.try_lock_exclusive() {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                if e.kind() != std::io::ErrorKind::WouldBlock {
+                    return Err(RerankerLoadError::CacheIo {
+                        path: lock_path.to_path_buf(),
+                        source: e,
+                    });
+                }
+                if std::time::Instant::now() >= deadline {
+                    return Err(RerankerLoadError::LockTimeout {
+                        path: lock_path.to_path_buf(),
+                        waited_s: LOCK_TIMEOUT.as_secs(),
+                    });
+                }
+                std::thread::sleep(Duration::from_millis(25));
+            }
+        }
+    }
+}
+
+struct LockGuard<'a>(&'a File);
+impl Drop for LockGuard<'_> {
+    fn drop(&mut self) {
+        let _ = fs2::FileExt::unlock(self.0);
+    }
+}
+
+fn file_matches_sha(path: &Path, expected: &str) -> Result<bool, RerankerLoadError> {
+    if !path.is_file() {
+        return Ok(false);
+    }
+    let observed = sha256_file(path)
+        .map_err(|source| RerankerLoadError::CacheIo { path: path.to_path_buf(), source })?;
+    Ok(observed == expected)
+}
+
+fn sha256_file(path: &Path) -> std::io::Result<String> {
+    let mut f = File::open(path)?;
+    let mut hasher = Sha256::new();
+    let mut buf = [0u8; 64 * 1024];
+    loop {
+        let n = f.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    // digest 0.11 `Array` output: format to identical lowercase, zero-padded hex.
+    Ok(hasher.finalize().iter().map(|b| format!("{b:02x}")).collect())
+}
+
 // ----- Tests (default-reranker only; uses the locally cached pinned model) ----
 
 #[cfg(test)]
@@ -781,201 +978,4 @@ mod gpu_tests {
         }
         eprintln!("cpu_gpu_logits_close: max abs diff = {max_abs:e}");
     }
-}
-
-// ----- Weight loader (mirrors loader.rs; reranker-pinned) --------------------
-
-struct LoadedWeights {
-    config_json_path: PathBuf,
-    tokenizer_json_path: PathBuf,
-    model_safetensors_path: PathBuf,
-}
-
-/// Cache dir: `<cache-root>/fathomdb/reranker/<sha256(repo@rev)[..12]>/`.
-fn cache_dir() -> Result<PathBuf, RerankerLoadError> {
-    let root = match std::env::var_os(ENV_RERANKER_CACHE) {
-        Some(p) => PathBuf::from(p),
-        None => dirs::cache_dir().ok_or(RerankerLoadError::CacheRootUnavailable)?,
-    };
-    let mut h = Sha256::new();
-    h.update(format!("{RERANKER_REPO}@{RERANKER_REVISION}").as_bytes());
-    // digest 0.11's `Array` output drops the `LowerHex` impl `GenericArray`
-    // had; format explicitly to the same lowercase, zero-padded hex.
-    let prefix: String = h.finalize().iter().map(|b| format!("{b:02x}")).collect();
-    Ok(root.join("fathomdb").join("reranker").join(&prefix[..12]))
-}
-
-fn load_pinned_reranker_weights() -> Result<LoadedWeights, RerankerLoadError> {
-    let dir = cache_dir()?;
-    fs::create_dir_all(&dir)
-        .map_err(|source| RerankerLoadError::CacheIo { path: dir.clone(), source })?;
-
-    let files = [
-        ("config.json", CONFIG_JSON_SHA256),
-        ("tokenizer.json", TOKENIZER_JSON_SHA256),
-        ("model.safetensors", MODEL_SAFETENSORS_SHA256),
-    ];
-    let mut paths = Vec::with_capacity(3);
-    for (name, sha) in files {
-        let final_path = dir.join(name);
-        // Cache fast-path: verified locally → no lock, no network.
-        if file_matches_sha(&final_path, sha)? {
-            paths.push(final_path);
-            continue;
-        }
-        fetch_under_lock(&dir, name, sha)?;
-        paths.push(final_path);
-    }
-    Ok(LoadedWeights {
-        config_json_path: paths[0].clone(),
-        tokenizer_json_path: paths[1].clone(),
-        model_safetensors_path: paths[2].clone(),
-    })
-}
-
-fn fetch_under_lock(dir: &Path, name: &str, sha: &str) -> Result<(), RerankerLoadError> {
-    let lock_path = dir.join(".lock");
-    let lock_file = OpenOptions::new()
-        .create(true)
-        .read(true)
-        .write(true)
-        .truncate(false)
-        .open(&lock_path)
-        .map_err(|source| RerankerLoadError::CacheIo { path: lock_path.clone(), source })?;
-    acquire_lock(&lock_file, &lock_path)?;
-    let _guard = LockGuard(&lock_file);
-
-    let final_path = dir.join(name);
-    // Double-checked: another process may have completed the fetch.
-    if file_matches_sha(&final_path, sha)? {
-        return Ok(());
-    }
-
-    let partial = dir.join(format!("{name}.partial"));
-    let url = format!("{HF_BASE_URL}/{RERANKER_REPO}/resolve/{RERANKER_REVISION}/{name}");
-    download_with_retries(&url, &partial)?;
-
-    let observed = sha256_file(&partial)
-        .map_err(|source| RerankerLoadError::CacheIo { path: partial.clone(), source })?;
-    if observed != sha {
-        let _ = fs::remove_file(&partial);
-        return Err(RerankerLoadError::ChecksumMismatch {
-            file: name.to_string(),
-            expected: sha.to_string(),
-            actual: observed,
-        });
-    }
-    fs::rename(&partial, &final_path)
-        .map_err(|source| RerankerLoadError::CacheIo { path: final_path.clone(), source })?;
-    Ok(())
-}
-
-fn download_with_retries(url: &str, partial: &Path) -> Result<(), RerankerLoadError> {
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(CONNECT_TIMEOUT)
-        .timeout_read(READ_TIMEOUT)
-        .redirects(5)
-        .build();
-    let token = std::env::var("HF_TOKEN").ok();
-
-    let mut last_err: Option<Box<dyn std::error::Error + Send + Sync>> = None;
-    for attempt in 0..MAX_ATTEMPTS {
-        match download_once(&agent, token.as_deref(), url, partial) {
-            Ok(()) => return Ok(()),
-            Err(e) => {
-                last_err = Some(e);
-                if attempt + 1 < MAX_ATTEMPTS {
-                    std::thread::sleep(Duration::from_secs(1u64 << attempt));
-                }
-            }
-        }
-    }
-    Err(RerankerLoadError::NetworkUnavailable {
-        source: last_err.expect("at least one attempt error"),
-        attempts: MAX_ATTEMPTS,
-    })
-}
-
-fn download_once(
-    agent: &ureq::Agent,
-    token: Option<&str>,
-    url: &str,
-    partial: &Path,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut req = agent.get(url);
-    if let Some(t) = token {
-        req = req.set("Authorization", &format!("Bearer {t}"));
-    }
-    let resp = req.call()?;
-    if resp.status() != 200 {
-        return Err(format!("unexpected status {}", resp.status()).into());
-    }
-    // Fresh download each attempt: a stale partial must not be appended to.
-    let mut f = OpenOptions::new().write(true).create(true).truncate(true).open(partial)?;
-    let mut reader = resp.into_reader();
-    let mut buf = [0u8; 64 * 1024];
-    loop {
-        let n = reader.read(&mut buf)?;
-        if n == 0 {
-            break;
-        }
-        f.write_all(&buf[..n])?;
-    }
-    f.sync_all()?;
-    Ok(())
-}
-
-fn acquire_lock(f: &File, lock_path: &Path) -> Result<(), RerankerLoadError> {
-    let deadline = std::time::Instant::now() + LOCK_TIMEOUT;
-    loop {
-        match f.try_lock_exclusive() {
-            Ok(()) => return Ok(()),
-            Err(e) => {
-                if e.kind() != std::io::ErrorKind::WouldBlock {
-                    return Err(RerankerLoadError::CacheIo {
-                        path: lock_path.to_path_buf(),
-                        source: e,
-                    });
-                }
-                if std::time::Instant::now() >= deadline {
-                    return Err(RerankerLoadError::LockTimeout {
-                        path: lock_path.to_path_buf(),
-                        waited_s: LOCK_TIMEOUT.as_secs(),
-                    });
-                }
-                std::thread::sleep(Duration::from_millis(25));
-            }
-        }
-    }
-}
-
-struct LockGuard<'a>(&'a File);
-impl Drop for LockGuard<'_> {
-    fn drop(&mut self) {
-        let _ = fs2::FileExt::unlock(self.0);
-    }
-}
-
-fn file_matches_sha(path: &Path, expected: &str) -> Result<bool, RerankerLoadError> {
-    if !path.is_file() {
-        return Ok(false);
-    }
-    let observed = sha256_file(path)
-        .map_err(|source| RerankerLoadError::CacheIo { path: path.to_path_buf(), source })?;
-    Ok(observed == expected)
-}
-
-fn sha256_file(path: &Path) -> std::io::Result<String> {
-    let mut f = File::open(path)?;
-    let mut hasher = Sha256::new();
-    let mut buf = [0u8; 64 * 1024];
-    loop {
-        let n = f.read(&mut buf)?;
-        if n == 0 {
-            break;
-        }
-        hasher.update(&buf[..n]);
-    }
-    // digest 0.11 `Array` output: format to identical lowercase, zero-padded hex.
-    Ok(hasher.finalize().iter().map(|b| format!("{b:02x}")).collect())
 }

@@ -46,6 +46,9 @@ the implementation closeout `HEAD`.
 | `f7b847fb` | test | FIX-4 X-3: `harness_skips_unavailable_backends_cleanly` fails its ONNX skips under `FATHOMDB_REQUIRE_LIVE=1`. |
 | `c202c27c` | test | FIX-4 X-4: child-scope cases (crash then next binary, nested child, scopeless child, prose `running` line). |
 | `36941495` | fix | FIX-4 X-5, X-6: `scan_output` documents its fail-closed limits; the microbench exclusion states its true basis. |
+| `c867d7ed` | RED | FIX-5 Y-1: the calibration record is written only on opt-in and never loses measured CUDA rows. |
+| `cc8542d7` | fix | FIX-5 Y-1: `FATHOMDB_WRITE_CALIBRATION_RECORD=1` gates the committed record; a no-downgrade guard. |
+| `50c8a6ff` | test | FIX-5 Y-2: `scan_output` status-rule cases. |
 
 RED evidence: `dc2aab69` failed with a `signature` key assertion in
 `test_walk_hazards` and with `FileNotFoundError` for `scripts/lib/test_targets.py`.
@@ -191,7 +194,55 @@ tests on x86_64. It is recorded in the allowlist under class
 `platform-excluded`, a fourth class this implementation added (see
 Deviations).
 
-### ACH-14: PASS (at `36941495`, run `fc10`)
+### ACH-14: PASS (at `50c8a6ff`, run `fc11`)
+
+**Code review FIX-5.**
+
+- **Y-1.** With the ONNX asset environment set,
+  `calibration_reports_p1_flips_and_p2_l2` rewrote the committed
+  `dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md`. On a host
+  without `embed-cuda` that replaced its measured candle-CUDA rows with
+  pending ones. It now writes the committed record only when
+  `FATHOMDB_WRITE_CALIBRATION_RECORD=1`. Otherwise it renders the record to
+  `CARGO_TARGET_TMPDIR`. Even with the opt-in, it panics rather than replace a
+  record whose candle-CUDA rows are measured with a render whose rows are
+  pending. Every calibration assertion is unchanged. Three new tests cover the
+  exact opt-in value, the default destination (the tracked file is
+  byte-identical afterwards and the scratch copy holds the render), and the
+  guard, which is exercised on a scratch copy of the committed record. RED
+  (`c867d7ed`, with stubs that keep the old behaviour): all 3 failed, each
+  before any write. GREEN (`cc8542d7`): all 3 pass. A live default run of the
+  writer with the gate's ONNX environment wrote `target/tmp/…` and left the
+  committed record's sha256 (`cef43f46…`) unchanged.
+- **Y-2.** `test_status_rules` covers a `test result: FAILED` summary with no
+  failed test line, an unplanned test line followed by a bare status, a second
+  bare status after the pending test settled, and a planned test's bare
+  status after an unscoped line for the same test. On a scratch copy, verifier
+  mutations M6 (first-status-wins), M11, M13, and M14 each now fail
+  `test_test_targets.py`, as do the other 11 that were already killed. M6
+  turned out not to be equivalent: the fourth case tells it apart, because the
+  per-test counts differ. M8 (a child's `test result:` line falls through to
+  the marker scan) is equivalent, because a libtest summary line never carries
+  a skip marker; a comment in `scan_output` says so, and the M8 variant of the
+  current code passes the self-tests.
+- **Y-3.** The earlier `cross_backend_calibration` Final-checks row
+  ("5 passed") ran the unfiltered target, which included the record writer.
+  It is re-recorded below with `--skip calibration_reports_p1_flips_and_p2_l2`.
+  The `fc10` scratch directory no longer exists, so its `summary.json` sha256
+  cannot be recorded. Its totals, from its gate output, were 20 runs, 345
+  planned, 337 passed, 0 failed, and 8 ignored.
+
+`fc11`, `bash scripts/test-feature-complete.sh --scratch <scratch>/fc11`,
+exited 0. It covered 20 runs and 348 planned tests: 340 passed, 0 failed,
+8 ignored, and 0 failures. `summary.json` sha256 is
+`3b8ad622d77bd0b27bdc8f5aefa3b0fd7ed85f9d6fb2c088f3bd55bfe3f90602`, with
+totals `{"planned": 348, "passed": 340, "failed": 0, "ignored": 8}`. The 3
+extra tests are Y-1's, in
+`fathomdb-embedder[default-embedder,onnx-embedder]` (18/18). Every other
+per-run count matches `fc10`. After the gate, `git status` was clean,
+including `dev/plans/runs/`.
+
+### ACH-14: earlier run (at `36941495`, run `fc10`)
 
 **Code review FIX-4.**
 
@@ -458,7 +509,7 @@ no `test-build: failed` entries. The exclusive-create guard is covered by
   owner when the owner itself is absent in release, because the canonical
   trait paths are private or unstable.
 
-## Final checks (2026-09-23, at `36941495` plus this record)
+## Final checks (2026-09-24, at `50c8a6ff` plus this record)
 
 | Command | Result |
 | --- | --- |
@@ -473,8 +524,8 @@ no `test-build: failed` entries. The exclusive-create guard is covered by
 | `cargo clippy -p fathomdb-embedder --features default-reranker --all-targets -- -D warnings` | exit 0 |
 | `cargo clippy -p fathomdb-embedder --features default-embedder,default-reranker,onnx-embedder,loader-test-hooks,tc5-benchmark --all-targets -- -D warnings` | exit 0 |
 | `cargo test -p fathomdb-embedder` with the same features, `--test loader` | 12 passed |
-| `cargo test -p fathomdb-embedder --features default-embedder,onnx-embedder --test cross_backend_calibration`, gate ONNX env, `FATHOMDB_REQUIRE_LIVE=1` | 5 passed |
-| `bash scripts/test-feature-complete.sh --scratch <scratch>/fc10` | exit 0; 345 planned, 337 passed, 0 failed, 8 ignored |
+| `cargo test -p fathomdb-embedder --features default-embedder,onnx-embedder --test cross_backend_calibration -- --skip calibration_reports_p1_flips_and_p2_l2`, gate ONNX env, `FATHOMDB_REQUIRE_LIVE=1` | 7 passed, 1 filtered out |
+| `bash scripts/test-feature-complete.sh --scratch <scratch>/fc11` | exit 0; 348 planned, 340 passed, 0 failed, 8 ignored; `summary.json` sha256 `3b8ad622…0602` |
 
 The Slice 30 test previously failed only on its 100 GB free-space guard. Code
 review H-4 (`df9cbf9f`) pins `disk_usage` in that test's scratch-ownership

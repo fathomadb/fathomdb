@@ -285,9 +285,12 @@ a small module, `scripts/lib/test_targets.py`, reads `Cargo.toml` and
     gitignored inputs, for example the `ir_c_*` tests, which need `IRC_RUN`
     and gitignored gold files. The entry must set `exclude = true`, and the
     gate never runs the test. `calibration_reports_p1_flips_and_p2_l2` is one:
-    it rewrites a committed calibration record, and the gate runs its
-    assertions through `calibration_cpu_baseline_components_hold`, which
-    writes nothing. The entry is stale unless the test is listed;
+    it writes the committed calibration record only when
+    `FATHOMDB_WRITE_CALIBRATION_RECORD=1` (otherwise it renders the record
+    under `CARGO_TARGET_TMPDIR`), and even then it refuses to replace
+    measured candle-CUDA rows with pending ones. The gate runs its assertions
+    through `calibration_cpu_baseline_components_hold`, which writes nothing.
+    The entry is stale unless the test is listed;
   - `benign-message`: a harmless message that contains a skip word;
   - `platform-excluded`: a whole target whose file-level cfg excludes some
     hosts. Its `excluded_on` host predicate says where the entry applies, so the

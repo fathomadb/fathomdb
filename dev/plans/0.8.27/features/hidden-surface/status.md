@@ -27,6 +27,13 @@ the implementation closeout `HEAD`.
 | `f8f7bd62` | fix | `nomic_smoke` resolves its weights under the embedder cache root (`dirs::cache_dir()`). |
 | `44fba58c` | RED | Self-test for pinned-weight provisioning in the gate. |
 | `8e2afb29` | GREEN | Gate provisions pinned nomic-embed-text-v1.5 weights. |
+| `df9cbf9f` | test | Code review H-4: the Slice 30 scratch-ownership test pins disk usage. |
+| `553f47eb` | RED | Code review FIX-1 contracts for the gate and the oracle. |
+| `04ef2772` | fix | H-6, H-7: release-only cfgs evaluated, `prune` locked, effective docstring. |
+| `88b180bd` | fix | H-1, H-2: bare `SKIP` caught, item-level feature tests gated, ONNX provisioned. |
+| `4c00d0f6` | fix | Every gate binary runs with `--no-fail-fast`; newly surfaced skips reasoned. |
+| `6e9c2f6e` | docs | Design text for provisioning and the listing contract; ledger entry for live-test hardening. |
+| `b3e32500` | fix | The legacy-upgrade test configures the SQLite runtime before its raw connection. |
 
 RED evidence: `dc2aab69` failed with a `signature` key assertion in
 `test_walk_hazards` and with `FileNotFoundError` for `scripts/lib/test_targets.py`.
@@ -172,23 +179,42 @@ tests on x86_64. It is recorded in the allowlist under class
 `platform-excluded`, a fourth class this implementation added (see
 Deviations).
 
-### ACH-14: PASS
+### ACH-14: PASS (at `b3e32500`, run `fc7`)
 
-The final run was `fc4`, `bash scripts/test-feature-complete.sh --scratch <scratch>/fc4`
-(387 s, after `cargo clean`):
+**Correction.** An earlier version of this section recorded `fc4` as a pass
+with "nothing skipped outside the allowlist". That claim was false. The code
+review found two gaps:
 
-- Coverage passed and the preflight found both 3090s (indices 0 and 1 in PCI
-  bus order; the K620 is index 2 and was not selected).
-- `doctor warm-cache` found the embedder already cached.
-- The gate fetched the pinned nomic-embed-text-v1.5 weights (`model.safetensors`
-  and `tokenizer.json`) and verified each against its pinned digest.
-- It ran 14 feature sets and 53 targets. Every cargo run exited 0: 289 tests
-  passed, 0 failed, 7 ignored (all on the allowlist), with 0 contract failures.
-- `nomic_loads_and_embeds` ran and passed (`NOMIC_SMOKE dim=768
-  norm=1.0000`, `cos_rel=0.755 cos_unrel=0.480`).
-- Slice 72 ran live on RTX 3090 index 0. The `basic` and `moderate` receipts
-  report outcome `success`.
-- Nothing was skipped outside the allowlist.
+- The skip matcher missed bare `SKIP`, so three ONNX-equivalence tests skipped
+  in `fc4` and were counted as passed.
+- About 20 tests gated by an item-level `#[cfg(feature = ...)]` inside targets
+  the workspace gate runs were executed by no gate.
+
+Code review FIX-1 closed both gaps (`88b180bd`, `4c00d0f6`). The gate then
+surfaced a genuine test failure in `fc5`:
+`slice40_projection_generation::upgraded_nonempty_database_bootstraps_as_legacy_degraded`
+failed with `RuntimeConfiguration(TooLate)`, because it opened a raw SQLite
+connection before configuring the runtime. It was fixed test-first
+(`b3e32500`), with the assertions unchanged.
+
+The final run is `fc7`, `bash scripts/test-feature-complete.sh --scratch
+<scratch>/fc7` (a cold build after `cargo clean`), which exited 0:
+
+- 14 runs covering 329 planned tests: 326 passed, 0 failed, and 8 ignored,
+  all on the allowlist, with 0 contract failures.
+- The preflight found both 3090s (indices 0 and 1 in PCI bus order). The K620
+  was not selected.
+- Pinned assets were verified from the cache: nomic-embed-text-v1.5, ONNX
+  Runtime 1.26.0, and the exported bge-small ONNX graph.
+- The ONNX-equivalence tests executed rather than skipping.
+  `candle_onnx_equivalence_measurement` took 39.5 s and
+  `cpu_legs_reproduce_0816_baseline` took 37.0 s.
+  `calibration_reports_p1_flips_and_p2_l2` is excluded by design because it
+  rewrites a committed calibration record (allowlist `exclude`, reasoned).
+- Tests gated by item-level features ran, for example
+  `slice40_projection_generation::upgraded_nonempty_database_bootstraps_as_legacy_degraded`
+  and `vector_quant_pack1::migration_preflight_rejects_unknown_kind`, both ok.
+- Slice 72 ran live on RTX 3090 index 0.
 
 History:
 
@@ -257,22 +283,18 @@ no `test-build: failed` entries. The exclusive-create guard is covered by
   owner when the owner itself is absent in release, because the canonical
   trait paths are private or unstable.
 
-## Final checks (2026-09-23, at `8e2afb29`)
+## Final checks (2026-09-23, at `b3e32500`)
 
 | Command | Result |
 | --- | --- |
-| `python3 scripts/tests/test_hidden_surface.py` | `ok hidden-surface` (17 tests) |
-| `python3 scripts/tests/test_test_targets.py` | `ok test-targets` (10 tests) |
+| `python3 scripts/tests/test_hidden_surface.py` | `ok hidden-surface` |
+| `python3 scripts/tests/test_test_targets.py` | `ok test-targets` |
 | `python3 scripts/check-test-target-coverage.py` | `ok`: 260 targets; 53 run only by the feature-complete gate |
+| `python3 scripts/tests/test_slice30_surface_comparator.py` | `ok slice30-surface-comparator` |
 | `bash scripts/agent-lint.sh` | exit 0 |
 | `bash scripts/agent-typecheck.sh` | exit 0 |
 | `bash scripts/agent-lint-shell.sh` | exit 0 |
-| `python3 scripts/tests/test_slice30_surface_comparator.py` | fails on host disk only |
 
-The Slice 30 test failure is environmental. Its `_prepare_scratch` requires
-100 GB free on the cache and scratch filesystem. After `cargo clean` freed
-56.2 GiB, the host had 92 GB free, and about 70 GB after the closeout builds.
-The rest of the disk belongs to other users. The failing assertion expected
-the ownership-marker error and got the capacity error. This unit does not
-modify that tool, and the same test passed earlier this session with 96 GB
-free.
+The Slice 30 test previously failed only on its 100 GB free-space guard. Code
+review H-4 (`df9cbf9f`) pins `disk_usage` in that test's scratch-ownership
+checks, so it no longer depends on host disk. The Slice 30 tool is unchanged.

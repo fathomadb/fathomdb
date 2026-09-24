@@ -113,7 +113,14 @@ def scan_output(
     inside its own output. A `running N test(s)` line while a test is pending
     opens such a child scope, and the child's `test result:` line closes it.
     Inside it, test and status lines are the child's: they record no status,
-    failure, or sighting, and any marker is the pending test's."""
+    failure, or sighting, and any marker is the pending test's.
+
+    The scoping fails closed, never open. A planned test that itself prints a
+    bare `running N test(s)` line opens a scope that its own status line
+    cannot close, and a child that crashes before its `test result:` line
+    leaves its scope open until the next binary's `Running` line; either way
+    the pending test is reported as `no result` and any later test of that
+    binary as `did not run` (a false red or a misattribution, not a pass)."""
 
     result = ScanResult()
     target_id: str | None = None

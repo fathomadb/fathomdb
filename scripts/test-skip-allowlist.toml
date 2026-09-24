@@ -75,7 +75,7 @@ reason = "PR-9 sustained real-corpus seed measurement (hours in debug): opt-in v
 id = "fathomdb-engine::pr9_embed_microbench::pr9_microbench_watchdog_overhead"
 class = "opt-in-experiment"
 exclude = true
-reason = "PR-9 diagnostic micro-benchmark, documented as not a gate: opt-in via AGENT_LONG=1."
+reason = "PR-9 assertion-free timing diagnostic: it only prints embed timings and asserts nothing, so running it would measure nothing; excluded although the gate could provision its inputs (AGENT_LONG=1 and the pinned embedder)."
 
 [[entry]]
 id = "fathomdb-engine::gen_cross_backend_mean_fixture::generate_cross_backend_pinned_mean_fixture"

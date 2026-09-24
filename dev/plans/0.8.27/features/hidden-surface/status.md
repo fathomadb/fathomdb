@@ -52,6 +52,7 @@ the implementation closeout `HEAD`.
 | `ee27a3bd` | docs | FIX-5 Y-1 to Y-3 and `fc11` recorded. |
 | `d02f13d3` | RED | FIX-6 Z-1 to Z-4: scratch renders overwrite measured rows, exact-opt-in destinations for the record and EU-8, `scan_output` child-name and post-summary cases. |
 | `50b1e7c9` | fix | FIX-6 Z-1, Z-2, Z-4: only the tracked record is guarded; `destination_from_env`; `FATHOMDB_WRITE_EU8_MEASUREMENTS=1` gates the EU-8 JSON. |
+| `754cd04e` | test | Code review FIX-7 R-1: `calibration_default_run_write_path_never_touches_tracked_record` drives `write_durable_doc` directly, MEASURED/PENDING- and guard-independent. |
 
 RED evidence: `dc2aab69` failed with a `signature` key assertion in
 `test_walk_hazards` and with `FileNotFoundError` for `scripts/lib/test_targets.py`.
@@ -197,6 +198,57 @@ tests on x86_64. It is recorded in the allowlist under class
 `platform-excluded`, a fourth class this implementation added (see
 Deviations).
 
+### ACH-14: PASS (at `754cd04e`, independent review + FIX-7)
+
+**Independent read-only review of FIX-6.** Verdict PASS-WITH-FINDINGS. It
+confirmed RED by compile failure at `d02f13d3` (the embedder and engine test
+targets failed to build, per the missing symbols recorded below) and GREEN at
+`50b1e7c9` (`cross_backend_calibration` 10/10, `eu8_ir_validation` 2/2,
+committed-record sha256 unchanged). It audited the rest of the workspace's
+tests for a tracked-file writer without an opt-in gate and found none: the
+IR-C tests are gated by `IRC_RUN`, `gen_cross_backend_mean_fixture` is
+`#[ignore]`, and `slice19_measurement` requires its own output-path env var.
+It also noted that Z-3 was coverage-only, since `scan_output` itself was
+unchanged by FIX-6 (only its test suite grew).
+
+It raised one finding, **R-1 (P2):** Z-2's only behavioural coverage of
+`write_durable_doc`'s default-run destination pinned `destination_from_env`
+directly (`calibration_record_destination_follows_exact_opt_in`), not
+`write_durable_doc` itself. A mutation retargeting `write_durable_doc`'s
+`persist_durable_doc` call to always `tracked_record_path()` was caught only
+because the committed record's candle-CUDA rows are MEASURED, so
+`guards_cuda_rows`'s no-downgrade check panicked first — a PENDING record, or
+a bypassed guard, would have let the mutation through unnoticed.
+
+**FIX-7 closure (`754cd04e`).** Adds
+`calibration_default_run_write_path_never_touches_tracked_record`, which
+drives `write_durable_doc` directly with synthetic (ONNX-free) inputs, the
+opt-in env var unset, and its render's CUDA-row measuredness matched to
+whatever the tracked record currently holds — so the no-downgrade guard never
+fires either way, and a plain byte comparison of the tracked file (snapshotted
+before, checked after, restored-then-panicked if it ever changed) is what
+decides, not a guard panic. That makes the check hold whether the tracked
+record is MEASURED or PENDING, and whether or not the guard is intact. It also
+serializes the pre-existing and new tests that write to the literal default
+scratch path (`CARGO_TARGET_TMPDIR`/`RECORD_NAME`, a production-chosen path,
+not a test-unique one) behind a `Mutex`, after the new test's addition made
+that path a two-writer race under the default parallel test threads.
+
+Mutation testing, each reverted before the next: (A) `write_durable_doc`
+retargeted to always `tracked_record_path()` — the new test FAILED with
+"modified the TRACKED calibration record", and the tracked file's sha256
+(`cef43f46…`) was confirmed unchanged afterward (the test restores it before
+panicking). (A) combined with (B) `guards_cuda_rows` changed to always return
+`false` (guard bypassed) — same FAILED result, same sha256 confirmed
+unchanged. Both mutations reverted: `cross_backend_calibration` passed 11/11
+three times in a row, the tracked record's sha256 unchanged across all three.
+`cargo clippy -p fathomdb-embedder --all-features --all-targets -- -D
+warnings` fails in this worktree on the pre-existing, change-unrelated
+absence of `nvcc` (`embed-cuda`) and the non-Apple host (`embed-metal`'s
+`objc2`); scoped to the buildable feature set
+(`--features default-embedder,onnx-embedder`) it is clean, as is `cargo fmt
+--check`.
+
 ### ACH-14: PASS (at `50b1e7c9`, run `fc12`)
 
 **Code review FIX-6.**
@@ -225,9 +277,12 @@ Deviations).
   `calibration_record_destination_follows_exact_opt_in` tests it with `None`,
   `""`, `"0"`, `"1 "`, `" 1"`, `"true"`, and `"1"`. On the copy, four
   mutations each fail a test: E in `destination_from_env`; E in
-  `write_durable_doc` itself, which is caught only because the committed
-  record's rows are measured, so the guard refuses the CPU render; guarding
-  every path (the FIX-5 behaviour); and guarding no path.
+  `write_durable_doc` itself; guarding every path (the FIX-5 behaviour); and
+  guarding no path. E in `write_durable_doc` itself was, at this point, caught
+  only because the committed record's rows are measured, so the guard refuses
+  the CPU render — a PENDING record, or a bypassed guard, would have let it
+  through unnoticed. Code review FIX-7 (above) closed that gap with a
+  MEASURED/PENDING-independent, guard-independent behavioural test.
 - **Z-3.** `test_child_scopes` adds a child-scope `test mod::skip ... ok`
   line, which must add no marker. `test_status_rules` adds a marker line and a
   bare `FAILED` after a binary's `test result:` line and before the next

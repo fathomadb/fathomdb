@@ -411,7 +411,7 @@ fn hf_hub_compat_probe_reads_from_hub_layout() {
 
     // Mock: only tokenizer + model served from network. config.json must
     // NOT be requested — if the loader hits it, the test fails the
-    // explicit `assert_hits(0)` assertion below.
+    // explicit `assert_calls(0)` assertion below.
     let m_cfg_must_not_hit = server.mock(|when, then| {
         when.method(GET).path(resolve_path("config.json"));
         then.status(200).body(&fix.config_bytes);
@@ -429,7 +429,7 @@ fn hf_hub_compat_probe_reads_from_hub_layout() {
     let loaded = load_with_config(cfg).expect("loader ok with hub-probe hit");
 
     // Mock-side: config.json was served from the hub, not the network.
-    m_cfg_must_not_hit.assert_hits(0);
+    m_cfg_must_not_hit.assert_calls(0);
     m_tok.assert();
     m_mdl.assert();
 
@@ -549,7 +549,7 @@ fn hf_hub_relative_symlink_materializes_readable_regular_file() {
     let cfg = test_config(&server.base_url(), &cache, &fix).with_hf_hub_root(Some(hf_home.clone()));
     let loaded = load_with_config(cfg).expect("loader ok with hub-probe hit");
 
-    m_cfg_must_not_hit.assert_hits(0);
+    m_cfg_must_not_hit.assert_calls(0);
     m_tok.assert();
     m_mdl.assert();
 
@@ -626,7 +626,7 @@ fn hf_hub_poisoned_cache_entry_self_heals() {
     });
 
     let loaded = load_with_config(cfg).expect("loader must repair a poisoned cache entry");
-    m_cfg_must_not_hit.assert_hits(0);
+    m_cfg_must_not_hit.assert_calls(0);
     m_tok.assert();
     m_mdl.assert();
 
@@ -684,7 +684,7 @@ fn hf_hub_materialization_failure_leaves_no_cache_hit() {
     // Fail-closed: no silent network fallback, and nothing left in the cache
     // dir but the (pre-existing) directory we planted — no `.partial`, no
     // dangling link.
-    m_cfg.assert_hits(0);
+    m_cfg.assert_calls(0);
     for entry in walkdir(&cache_dir) {
         let name = entry.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
         assert!(!name.ends_with(".partial"), "left a half-written {entry:?}");

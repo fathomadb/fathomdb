@@ -1193,6 +1193,82 @@ def test_child_scopes(fc: ModuleType, tt: ModuleType) -> None:
     assert fc.run_failures("s", {"hs_fixture::plain::runs"}, result, 0, Path("/l")) == [
         "hs_fixture::plain::runs: no result"
     ]
+    # A child that crashes without a result line leaves its scope open; the
+    # next binary's `Running` line closes it, so that binary's tests count.
+    crash = cut + (
+        "     Running tests/extra.rs (target/debug/deps/extra-0123)\n"
+        "\n"
+        "running 1 test\n"
+        "test extra ... ok\n"
+        "\n"
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n"
+    )
+    both = {"hs_fixture::plain::runs", "hs_fixture::extra::extra"}
+    result = fc.scan_output(crash, crate, both)
+    assert result.status == {"hs_fixture::extra::extra": "ok"}, result.status
+    assert fc.run_failures("s", both, result, 0, Path("/l")) == [
+        "hs_fixture::plain::runs: no result"
+    ]
+    # A child that itself re-executes nests a second scope; only the outer
+    # child's `test result:` line returns to the parent, whose own FAILED
+    # follows it.
+    nested = (
+        "     Running tests/plain.rs (target/debug/deps/plain-0123)\n"
+        "\n"
+        "running 2 tests\n"
+        "test runs ... \n"
+        "running 1 test\n"
+        "test runs ... \n"
+        "running 1 test\n"
+        "test worker ... ok\n"
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out\n"
+        "ok\n"
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out\n"
+        "FAILED\n"
+        "test worker ... ok\n"
+        "\n"
+        "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\n"
+    )
+    result = fc.scan_output(nested, crate, planned)
+    assert result.status == {
+        "hs_fixture::plain::runs": "FAILED",
+        "hs_fixture::plain::worker": "ok",
+    }, result.status
+    assert "hs_fixture::plain::runs" in result.failed, result.failed
+    # A child that prints no `running` line opens no scope: its line for the
+    # worker is read as the worker's (a fail-closed misattribution), and the
+    # worker's own later `ok` line is its final status.
+    scopeless = (
+        "     Running tests/plain.rs (target/debug/deps/plain-0123)\n"
+        "\n"
+        "running 2 tests\n"
+        "test runs ... \n"
+        "test worker ... FAILED\n"
+        "ok\n"
+        "test worker ... ok\n"
+        "\n"
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n"
+    )
+    result = fc.scan_output(scopeless, crate, planned)
+    assert result.status == {
+        "hs_fixture::plain::runs": "ok",
+        "hs_fixture::plain::worker": "ok",
+    }, result.status
+    assert "hs_fixture::plain::worker" in result.failed, result.failed
+    # Only an exact `running N test(s)` line opens a child scope; a test's own
+    # output that merely starts with those words does not.
+    prose = (
+        "     Running tests/plain.rs (target/debug/deps/plain-0123)\n"
+        "running 1 test\n"
+        "test runs ... \n"
+        "running 1 test against the fixture\n"
+        "ok\n"
+        "\n"
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n"
+    )
+    result = fc.scan_output(prose, crate, {"hs_fixture::plain::runs"})
+    assert result.status == {"hs_fixture::plain::runs": "ok"}, result.status
+    assert fc.run_failures("s", {"hs_fixture::plain::runs"}, result, 0, Path("/l")) == []
 
 
 def test_run_failures(fc: ModuleType, tt: ModuleType) -> None:

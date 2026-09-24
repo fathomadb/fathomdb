@@ -279,6 +279,9 @@ name = "slice19_measurement"
 required-features = ["migration-test-hooks"]
 
 [dev-dependencies]
+# `dirs::cache_dir()` is the root the embedder loader uses for pinned weights
+# (`<cache>/fathomdb/embedders/`); `nomic_smoke` locates its weights there.
+dirs = "5"
 libc = "0.2"
 proptest = "1"
 rusqlite = { version = "0.40", features = ["bundled", "fallible_uint", "hooks"] }

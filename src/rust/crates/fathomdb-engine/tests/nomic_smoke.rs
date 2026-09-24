@@ -5,7 +5,8 @@ use fathomdb_embedder_api::Embedder;
 
 #[test]
 fn nomic_loads_and_embeds() {
-    let dir = std::path::PathBuf::from("/root/.cache/fathomdb/embedders/nomic-v1.5");
+    // Same root as the embedder loader's pinned weights: `<cache>/fathomdb/embedders/`.
+    let dir = dirs::cache_dir().expect("platform cache dir").join("fathomdb/embedders/nomic-v1.5");
     if !dir.join("model.safetensors").exists() {
         eprintln!("[skip] nomic weights absent");
         return;

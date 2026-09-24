@@ -33,7 +33,7 @@ reason = "#![cfg(unix)]: the durability soak uses Unix process and signal APIs; 
 id = "fathomdb-embedder::cross_backend_calibration::calibration_reports_p1_flips_and_p2_l2"
 class = "opt-in-experiment"
 exclude = true
-reason = "Writer of the committed record dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md (rewritten on every run; its candle-CUDA rows need embed-cuda on the main tree). Its assertions run in calibration_cpu_baseline_components_hold, which the gate runs and which writes nothing."
+reason = "Writes the committed record dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md only on explicit opt-in (FATHOMDB_WRITE_CALIBRATION_RECORD=1; otherwise it renders to CARGO_TARGET_TMPDIR, and it refuses to replace MEASURED candle-CUDA rows with PENDING ones). Its assertions are covered by calibration_cpu_baseline_components_hold, which the gate runs and which writes nothing."
 
 [[entry]]
 id = "fathomdb-embedder::slice80_gpu_allocation_witness::tegra_gpu_allocation_witness_on_real_hardware"

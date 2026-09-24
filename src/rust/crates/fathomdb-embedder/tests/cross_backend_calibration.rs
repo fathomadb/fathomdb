@@ -22,8 +22,12 @@
 //!     max-abs Δ / raw-sign flips / **mean-centered** flips (using a REAL
 //!     engine-pinned `mean_vec` fixture — mean=0 is raw-sign ONLY, not a proxy)
 //!     / P2 un-centered L2.
-//!   * **R-CAL-4 — durable results regardless of outcome:** writes
-//!     `dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md`.
+//!   * **R-CAL-4 — durable results regardless of outcome:** renders the
+//!     record `dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md`.
+//!     A run writes the committed file only with
+//!     `FATHOMDB_WRITE_CALIBRATION_RECORD=1`; otherwise the render goes to
+//!     `CARGO_TARGET_TMPDIR`. Even when opted in, a render without measured
+//!     candle-CUDA rows refuses to replace a record that has them.
 //!
 //! **Build/run discipline (worktree):** ONLY the CPU legs run here (pure
 //! `cargo test` on CPU). The candle-CUDA leg + the ONNX-GPU-EP leg are gated to
@@ -720,19 +724,35 @@ fn tracked_record_path() -> PathBuf {
     repo_root().join("dev/plans/runs").join(RECORD_NAME)
 }
 
+/// `FATHOMDB_WRITE_CALIBRATION_RECORD=1` is the only value that lets a run
+/// replace the committed record; anything else renders to scratch.
 fn record_write_opted_in(value: Option<&str>) -> bool {
-    let _ = value;
-    true
+    value == Some("1")
 }
 
 fn record_destination(opted_in: bool) -> PathBuf {
-    let _ = opted_in;
-    tracked_record_path()
+    if opted_in {
+        tracked_record_path()
+    } else {
+        Path::new(env!("CARGO_TARGET_TMPDIR")).join(RECORD_NAME)
+    }
 }
 
+fn cuda_rows_measured(doc: &str) -> bool {
+    doc.contains("**candle-CUDA legs: MEASURED")
+}
+
+/// The CUDA rows can only be measured on a host that builds `embed-cuda`, so a
+/// render from any other host must never replace measured rows with pending ones.
 fn check_no_cuda_downgrade(existing: Option<&str>, rendered: &str) -> Result<(), String> {
-    let _ = (existing, rendered);
-    Ok(())
+    match existing {
+        Some(existing) if cuda_rows_measured(existing) && !cuda_rows_measured(rendered) => {
+            Err("the existing record has MEASURED candle-CUDA rows and this render has none \
+                 (run on a host with `embed-cuda` and CUDA to refresh them)"
+                .to_string())
+        }
+        _ => Ok(()),
+    }
 }
 
 fn persist_durable_doc(path: &Path, doc: &str) {

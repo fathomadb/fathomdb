@@ -1271,6 +1271,46 @@ def test_child_scopes(fc: ModuleType, tt: ModuleType) -> None:
     assert fc.run_failures("s", {"hs_fixture::plain::runs"}, result, 0, Path("/l")) == []
 
 
+def test_status_rules(fc: ModuleType, tt: ModuleType) -> None:
+    """A non-ok `test result:` fails its binary even with no failed test line;
+    only a planned test becomes the owner of a bare status; a bare status with
+    no pending test does not rewrite an earlier one; and a planned test's own
+    bare status overrides an unscoped line for the same test."""
+
+    (crate,) = tt.read_workspace(FIXTURE_CRATE)
+    runs = {"hs_fixture::plain::runs"}
+    head = "     Running tests/plain.rs (target/debug/deps/plain-0123)\nrunning 1 test\n"
+    summary = "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n"
+    # A FAILED summary with every test line `ok` still fails the binary.
+    result = fc.scan_output(
+        head
+        + "test runs ... ok\n"
+        + "test result: FAILED. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n",
+        crate,
+        runs,
+    )
+    assert result.status == {"hs_fixture::plain::runs": "ok"}, result.status
+    assert result.failed == ["hs_fixture::plain: test result FAILED"], result.failed
+    # An unplanned test line does not take the pending test's bare status.
+    result = fc.scan_output(
+        head + "test runs ... \ntest other ... \nok\n" + summary, crate, runs
+    )
+    assert result.status == {"hs_fixture::plain::runs": "ok"}, result.status
+    assert fc.run_failures("s", runs, result, 0, Path("/l")) == []
+    # The first bare status settles the pending test; a second one has no
+    # pending owner, so it fails the last test seen without rewriting its status.
+    result = fc.scan_output(head + "test runs ... \nok\nFAILED\n" + summary, crate, runs)
+    assert result.status == {"hs_fixture::plain::runs": "ok"}, result.status
+    assert result.failed == ["hs_fixture::plain::runs"], result.failed
+    # A pending test's own bare status is final even after an unscoped line
+    # for the same test already recorded one.
+    result = fc.scan_output(
+        head + "test runs ... \ntest runs ... ok\nFAILED\n" + summary, crate, runs
+    )
+    assert result.status == {"hs_fixture::plain::runs": "FAILED"}, result.status
+    assert fc.parent_counts(runs, result)["passed"] == 0
+
+
 def test_run_failures(fc: ModuleType, tt: ModuleType) -> None:
     """A planned test missing from the output, a non-zero cargo exit, and a
     binary that does not build each fail the gate."""
@@ -1374,6 +1414,7 @@ def main() -> None:
         test_plan_runs,
         test_parent_counts,
         test_child_scopes,
+        test_status_rules,
         test_run_failures,
     ):
         paired(fc, tt)

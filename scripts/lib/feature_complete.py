@@ -144,6 +144,8 @@ def scan_output(
         if depth:
             if _RESULT.match(line):
                 depth -= 1
+                # Scanning this line for markers instead would be equivalent:
+                # a libtest summary line never carries a skip marker.
                 continue
             child_line = _TEST_LINE.match(line)
             rest = line if child_line is None else child_line.group(2)

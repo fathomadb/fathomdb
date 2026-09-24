@@ -816,9 +816,16 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as directory:
         scratch = Path(directory) / "scratch"
         scratch.mkdir()
+        # The capacity guard reads real disk usage; pin it so this ownership
+        # check does not depend on the host's free space.
         with (
             mock.patch.object(tool, "OWNED_SCRATCH", scratch),
             mock.patch.object(tool, "OWNED_CACHE", Path(directory) / "cache"),
+            mock.patch.object(
+                tool.shutil,
+                "disk_usage",
+                return_value=SimpleNamespace(free=tool.MIN_FREE_BYTES * 10),
+            ),
         ):
             expect_error(tool.SurfaceError, "ownership marker", tool._prepare_scratch)
             (scratch / tool.SCRATCH_MARKER).write_text(tool.SCRATCH_MARKER_CONTENT)
@@ -843,6 +850,11 @@ def main() -> None:
         with (
             mock.patch.object(tool, "OWNED_SCRATCH", scratch),
             mock.patch.object(tool, "OWNED_CACHE", root / "cache"),
+            mock.patch.object(
+                tool.shutil,
+                "disk_usage",
+                return_value=SimpleNamespace(free=tool.MIN_FREE_BYTES * 10),
+            ),
         ):
             expect_error(tool.SurfaceError, "ownership marker", tool._prepare_scratch)
         target = root / "target"
@@ -852,6 +864,11 @@ def main() -> None:
         with (
             mock.patch.object(tool, "OWNED_SCRATCH", scratch),
             mock.patch.object(tool, "OWNED_CACHE", root / "cache"),
+            mock.patch.object(
+                tool.shutil,
+                "disk_usage",
+                return_value=SimpleNamespace(free=tool.MIN_FREE_BYTES * 10),
+            ),
         ):
             expect_error(tool.SurfaceError, "real directory", tool._prepare_scratch)
 

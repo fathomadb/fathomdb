@@ -3,7 +3,8 @@
 # that `cargo test --workspace` cannot, once per required feature set in
 # scripts/test-feature-matrix.toml, with CUDA on the two RTX 3090s
 # (CUDA_DEVICE_ORDER=PCI_BUS_ID, CUDA_VISIBLE_DEVICES=0,1; never the K620) and
-# real model weights (`fathomdb doctor warm-cache` first). Each run is
+# real model weights (`fathomdb doctor warm-cache`, then pinned
+# nomic-embed-text-v1.5 weights for `nomic_smoke`). Each run is
 # `cargo test ... -- --nocapture --test-threads=1`; a skip marker or ignored
 # test outside scripts/test-skip-allowlist.toml, a stale allowlist entry, or
 # any failing test fails the gate.

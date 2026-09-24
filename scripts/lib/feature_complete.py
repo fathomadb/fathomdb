@@ -22,6 +22,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.request
 from typing import Callable, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -231,6 +232,82 @@ def stage_slice72_assets(support: Path, cache_root: Path, destination: Path) -> 
     return destination
 
 
+# nomic-embed-text-v1.5 for `nomic_smoke`. The embedder crate loads it with
+# `NomicEmbedder::from_dir` but has no fetcher, so the gate provisions it at a
+# pinned revision into the embedder cache root the test resolves.
+NOMIC_REVISION = "e9b6763023c676ca8431644204f50c2b100d9aab"
+_NOMIC_URL = (
+    f"https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/{NOMIC_REVISION}"
+)
+NOMIC_FILES = {
+    "tokenizer.json": (
+        "git-blob-sha1",
+        "688882a79f44442ddc1f60d70334a7ff5df0fb47",
+        f"{_NOMIC_URL}/tokenizer.json",
+    ),
+    "model.safetensors": (
+        "sha256",
+        "9e7d262b1fe5ea350782829496efa831901b77486bbde1cea54a4c822d010d5c",
+        f"{_NOMIC_URL}/model.safetensors",
+    ),
+}
+
+
+def _digest(path: Path, algorithm: str) -> str:
+    if algorithm == "sha256":
+        digest = hashlib.sha256()
+    elif algorithm == "git-blob-sha1":
+        digest = hashlib.sha1()
+        digest.update(b"blob %d\0" % path.stat().st_size)
+    else:
+        raise FeatureCompleteError(f"unknown digest algorithm {algorithm}")
+    with open(path, "rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def provision_weights(
+    directory: Path,
+    files: dict[str, tuple[str, str, str]],
+    fetch: Callable[[str, Path], None],
+) -> list[str]:
+    """Fetch each pinned file that is missing or wrong, verifying it before it
+    is renamed into place. Returns the names fetched."""
+
+    directory.mkdir(parents=True, exist_ok=True)
+    fetched: list[str] = []
+    for name, (algorithm, expected, url) in sorted(files.items()):
+        final = directory / name
+        if final.is_file() and _digest(final, algorithm) == expected:
+            continue
+        partial = directory / f"{name}.partial"
+        partial.unlink(missing_ok=True)
+        try:
+            fetch(url, partial)
+            actual = _digest(partial, algorithm)
+            if actual != expected:
+                raise FeatureCompleteError(
+                    f"{name}: {algorithm} {actual} does not match pinned {expected}"
+                )
+            os.replace(partial, final)
+        finally:
+            partial.unlink(missing_ok=True)
+        fetched.append(name)
+    return fetched
+
+
+def _http_fetch(url: str, destination: Path) -> None:
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "fathomdb-feature-complete"}
+    )
+    with (
+        urllib.request.urlopen(request, timeout=60) as response,
+        open(destination, "wb") as out,
+    ):
+        shutil.copyfileobj(response, out, 1 << 20)
+
+
 def entry_environment(
     env: dict[str, str], targets: Sequence[str], assets: Path
 ) -> dict[str, str]:
@@ -318,6 +395,14 @@ def run_gate(scratch: Path) -> int:
     env = runner_environment(env, scratch)
     Path(env["FATHOMDB_SLICE72_RECEIPT_DIR"]).mkdir(parents=True, exist_ok=True)
     _warm_embedder(env, scratch / "warm-cache.log")
+    cache_root = Path(env.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    fetched = provision_weights(
+        cache_root / "fathomdb" / "embedders" / "nomic-v1.5", NOMIC_FILES, _http_fetch
+    )
+    print(
+        f"==> nomic-embed-text-v1.5 weights: fetched {fetched or 'none (cached)'}",
+        flush=True,
+    )
     assets = stage_slice72_assets(
         SLICE72_SUPPORT,
         Path(env.get("XDG_CACHE_HOME") or Path.home() / ".cache"),

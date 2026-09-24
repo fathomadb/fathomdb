@@ -157,9 +157,18 @@ def test_coverage_check(tt: ModuleType) -> None:
     ok_entry = {
         "id": "hs_fixture::hooked::hooked",
         "class": "opt-in-experiment",
+        "exclude": True,
         "reason": "r",
     }
     assert tt.check_coverage(crates, workspace, complete, [ok_entry], HOST)[0] == []
+    # An opt-in experiment is never run by the gate: its entry must exclude it,
+    # and only a single test can be excluded.
+    not_excluded = {k: v for k, v in ok_entry.items() if k != "exclude"}
+    failures, _ = tt.check_coverage(crates, workspace, complete, [not_excluded], HOST)
+    assert len(failures) == 1 and "exclude" in failures[0], failures
+    whole_target = dict(ok_entry, id="hs_fixture::hooked")
+    failures, _ = tt.check_coverage(crates, workspace, complete, [whole_target], HOST)
+    assert len(failures) == 1 and "exclude" in failures[0], failures
     for malformed in (
         {"id": "hs_fixture::hooked", "class": "because", "reason": "r"},
         {"id": "hs_fixture::hooked", "class": "opt-in-experiment", "reason": ""},
@@ -314,7 +323,7 @@ def test_skip_contract(fc: ModuleType, tt: ModuleType) -> None:
             "class": "ignored-by-design",
             "reason": "r",
         },
-        {"id": "hs_fixture::plain::runs", "class": "opt-in-experiment", "reason": "r"},
+        {"id": "hs_fixture::plain::runs", "class": "benign-message", "reason": "r"},
         {"id": "hs_fixture::hooked::hooked", "class": "benign-message", "reason": "r"},
     ]
     assert fc.contract_failures([result], allowlist) == []
@@ -329,23 +338,39 @@ def test_skip_contract(fc: ModuleType, tt: ModuleType) -> None:
     ]
     failures = fc.contract_failures([result], stale)
     assert len(failures) == 1 and "stale" in failures[0], failures
-    # A target-level entry covers every test of that target.
+    # A target-level entry covers every test of that target, within its class.
     target_level = [
-        {"id": "hs_fixture::plain", "class": "opt-in-experiment", "reason": "r"},
+        {"id": "hs_fixture::plain", "class": "benign-message", "reason": "r"},
+        {"id": "hs_fixture::plain", "class": "ignored-by-design", "reason": "r"},
         {"id": "hs_fixture::hooked::hooked", "class": "benign-message", "reason": "r"},
     ]
     assert fc.contract_failures([result], target_level) == []
-    # An ignored test is only excused by ignored-by-design (or a target entry).
+    # An ignored test is only excused by ignored-by-design.
     wrong_class = [dict(allowlist[0], **{"class": "benign-message"})] + allowlist[1:]
     assert len(fc.contract_failures([result], wrong_class)) == 1
-    # A skip marker is only excused by opt-in-experiment or benign-message.
-    marker_as_ignored = (
-        allowlist[:1]
-        + [dict(allowlist[1], **{"class": "ignored-by-design"})]
-        + allowlist[2:]
+    # A skip marker is only excused by benign-message: an opt-in experiment is
+    # excluded from the gate, so a marker from a test that ran is never its own.
+    for other in ("ignored-by-design", "opt-in-experiment"):
+        reclassed = (
+            allowlist[:1] + [dict(allowlist[1], **{"class": other})] + allowlist[2:]
+        )
+        failures = fc.contract_failures([result], reclassed)
+        assert len(failures) == 1 and "hs_fixture::plain::runs" in failures[0], (
+            other,
+            failures,
+        )
+    failures = fc.contract_failures(
+        [result],
+        allowlist[:1] + [dict(allowlist[1], **{"class": "opt-in-experiment", "exclude": True})] + allowlist[2:],
+        listed={"hs_fixture::plain::runs"},
     )
-    failures = fc.contract_failures([result], marker_as_ignored)
     assert len(failures) == 1 and "hs_fixture::plain::runs" in failures[0], failures
+    # A target-level opt-in entry excuses neither a marker nor an ignored test.
+    opt_in_target = [
+        {"id": "hs_fixture::plain", "class": "opt-in-experiment", "reason": "r"},
+        {"id": "hs_fixture::hooked::hooked", "class": "benign-message", "reason": "r"},
+    ]
+    assert len(fc.contract_failures([result], opt_in_target)) == 2
     # An excluded test is used when it is listed, and stale when it is not.
     excluded = {
         "id": "hs_fixture::plain::gone_measurement",
@@ -691,6 +716,9 @@ def test_runner_environment(fc: ModuleType) -> None:
     assert "FATHOMDB_SKIP_NETWORK_TESTS" not in env
     assert env["FATHOMDB_SLICE72_RUNNER"] == "approved-nvidia"
     assert env["FATHOMDB_SLICE72_RECEIPT_DIR"].startswith("/scratch/")
+    # Tests whose live prerequisites the gate provisions fail instead of
+    # skipping when one is missing.
+    assert env["FATHOMDB_REQUIRE_LIVE"] == "1"
     command = fc.test_command(
         "fathomdb-engine", ("a", "b"), ["--test", "t1", "--lib"], ["x::one", "two"]
     )
@@ -948,6 +976,84 @@ def test_derive_extra_sets(fc: ModuleType, tt: ModuleType) -> None:
     assert len(drift) == 1 and "new" in drift[0], drift
 
 
+def test_plan_runs(fc: ModuleType, tt: ModuleType) -> None:
+    """plan_runs over the fixture crate with fake listings: a test behind an
+    item-level cfg on a feature no target requires is planned under its derived
+    extra set, a derived set that differs from the committed ones fails, and
+    the union is listed only when the workspace features do not already
+    cover every host-buildable feature."""
+
+    crates = tt.read_workspace(FIXTURE_CRATE)
+    matrix = tt.derive_matrix(crates)
+    # Every single host-buildable feature is a target-derived set here, so a
+    # test listed only under the union gets the union as its extra set.
+    base = {"lib": {"tests::unit_in_lib"}, "plain": {"runs"}}
+    hooks = {**base, "hooked": {"hooked"}, "required": {"required"}}
+    extra = {**hooks, "extra": {"extra"}}
+    union = {**extra, "plain": {"runs", "only_with_both"}}
+    listings = {(): base, ("hooks",): hooks, ("extra",): extra, ("extra", "hooks"): union}
+
+    def plan(
+        workspace: frozenset[str], extras: list[tuple[str, tuple[str, ...]]]
+    ) -> tuple[object, ...]:
+        calls: list[tuple[tuple[str, ...], str]] = []
+
+        def list_tests(
+            crate: str, features: Any, env: dict[str, str], log: Path
+        ) -> tuple[dict[str, set[str]], list[str]]:
+            assert crate == "hs_fixture"
+            calls.append((tuple(features), log.name))
+            return {k: set(v) for k, v in listings[tuple(features)].items()}, []
+
+        with tempfile.TemporaryDirectory() as directory:
+            result = fc.plan_runs(
+                crates,
+                {"hs_fixture": workspace},
+                matrix,
+                extras,
+                set(),
+                HOST,
+                {},
+                Path(directory),
+                list_tests=list_tests,
+            )
+        return (*result, calls)
+
+    committed = [("hs_fixture", ("extra", "hooks"))]
+    runs, _, derived, failures, calls = plan(frozenset(), committed)
+    assert failures == [], failures
+    assert derived == committed, derived
+    assert (("extra", "hooks"), {"plain": ["only_with_both"]}) in [
+        (features, chosen) for _, features, chosen in runs
+    ], runs
+    assert (("extra", "hooks"), "list-hs_fixture--extra+hooks.log") in calls, calls
+    # Drift between the derived and the committed extra sets fails.
+    _, _, _, failures, _ = plan(frozenset(), [])
+    assert len(failures) == 1 and "extra-set drift" in failures[0], failures
+    # Workspace features that cover every host-buildable feature need no union
+    # listing and derive no extra set.
+    _, _, derived, failures, calls = plan(frozenset({"extra", "hooks"}), [])
+    assert derived == [] and failures == [], (derived, failures)
+    assert not any(log.startswith("list-hs_fixture--extra+hooks") for _, log in calls), (
+        calls
+    )
+
+
+def test_write_matrix_preserves_extras(tt: ModuleType) -> None:
+    """`test_targets.py --write-matrix` rewrites the derived `[[entry]]` sets
+    and keeps the committed `[[extra]]` sets, which only listings derive."""
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = copy_fixture(Path(directory))
+        matrix = root / "scripts" / "test-feature-matrix.toml"
+        matrix.parent.mkdir()
+        extras = [("hs_fixture", ("extra",))]
+        matrix.write_text(tt.render_matrix([("hs_fixture", ("bogus",))], extras))
+        assert tt.main(["--root", str(root), "--write-matrix"]) == 0
+        assert tt.load_extra_sets(matrix) == extras
+        assert tt.load_matrix(matrix) == tt.derive_matrix(tt.read_workspace(root))
+
+
 def child_process_output() -> str:
     """A parent test that re-executes its own binary for a worker test prints
     the child's libtest lines inside its own run; the worker is also planned
@@ -1007,6 +1113,86 @@ def test_parent_counts(fc: ModuleType, tt: ModuleType) -> None:
         "failed": 0,
         "ignored": 1,
     }
+
+
+def worker_first_output(child: str, worker: str, summary: str) -> str:
+    """The real libtest order when a planned test re-executes its binary for a
+    planned worker that sorts after it: the child's lines for the worker come
+    before the worker's own top-level line."""
+
+    return (
+        "     Running tests/plain.rs (target/debug/deps/plain-0123)\n"
+        "\n"
+        "running 2 tests\n"
+        "test runs ... \n"
+        "\n"
+        "running 1 test\n"
+        f"test worker ... {child}\n"
+        "note: child skipping nothing\n"
+        "\n"
+        f"test result: {child}. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out\n"
+        "\n"
+        "ok\n"
+        f"test worker ... {worker}\n"
+        "\n"
+        f"test result: {summary}. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\n"
+    )
+
+
+def test_child_scopes(fc: ModuleType, tt: ModuleType) -> None:
+    """Lines between a `running N test(s)` line printed while a planned test is
+    pending and the matching `test result:` line belong to a child process of
+    that test: they record no status, failure, or sighting of their own, and
+    their markers are the pending test's."""
+
+    (crate,) = tt.read_workspace(FIXTURE_CRATE)
+    planned = {"hs_fixture::plain::runs", "hs_fixture::plain::worker"}
+    # A worker that fails on its own run fails, even though its child run
+    # passed first.
+    result = fc.scan_output(worker_first_output("ok", "FAILED", "FAILED"), crate, planned)
+    assert result.status == {
+        "hs_fixture::plain::runs": "ok",
+        "hs_fixture::plain::worker": "FAILED",
+    }, result.status
+    assert "hs_fixture::plain::worker" in result.failed, result.failed
+    assert fc.parent_counts(planned, result) == {
+        "planned": 2,
+        "passed": 1,
+        "failed": 1,
+        "ignored": 0,
+    }
+    assert result.markers == [("hs_fixture::plain::runs", "skipping")], result.markers
+    # A child failure the parent tolerates fails nothing.
+    result = fc.scan_output(worker_first_output("FAILED", "ok", "ok"), crate, planned)
+    assert result.status == {
+        "hs_fixture::plain::runs": "ok",
+        "hs_fixture::plain::worker": "ok",
+    }, result.status
+    assert result.failed == [], result.failed
+    assert fc.parent_counts(planned, result)["passed"] == 2
+    assert fc.run_failures("s", planned, result, 0, Path("/l")) == []
+    # A planned worker seen only inside a child did not run.
+    only_child = worker_first_output("ok", "ok", "ok").replace(
+        "test worker ... ok\n\ntest result: ok. 1 passed; 1 failed",
+        "\ntest result: ok. 1 passed; 1 failed",
+    )
+    result = fc.scan_output(only_child, crate, planned)
+    assert "hs_fixture::plain::worker" not in result.seen, result.seen
+    assert fc.run_failures("s", planned, result, 0, Path("/l")) == [
+        "hs_fixture::plain::worker: did not run"
+    ]
+    # A pending test whose status never arrives (its child was cut off) fails.
+    cut = (
+        "     Running tests/plain.rs (target/debug/deps/plain-0123)\n"
+        "running 1 test\n"
+        "test runs ... \n"
+        "running 1 test\n"
+        "test worker ... ok\n"
+    )
+    result = fc.scan_output(cut, crate, {"hs_fixture::plain::runs"})
+    assert fc.run_failures("s", {"hs_fixture::plain::runs"}, result, 0, Path("/l")) == [
+        "hs_fixture::plain::runs: no result"
+    ]
 
 
 def test_run_failures(fc: ModuleType, tt: ModuleType) -> None:
@@ -1098,6 +1284,7 @@ def main() -> None:
         test_matrix_round_trip,
         test_coverage_check,
         test_extra_sets,
+        test_write_matrix_preserves_extras,
         test_repository_wiring,
     ):
         test(tt)
@@ -1106,7 +1293,13 @@ def main() -> None:
     print("ok    test_skip_contract")
     test_skip_markers(fc, tt)
     print("ok    test_skip_markers")
-    for paired in (test_derive_extra_sets, test_parent_counts, test_run_failures):
+    for paired in (
+        test_derive_extra_sets,
+        test_plan_runs,
+        test_parent_counts,
+        test_child_scopes,
+        test_run_failures,
+    ):
         paired(fc, tt)
         print(f"ok    {paired.__name__}")
     test_canonical_properties(tt)

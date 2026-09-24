@@ -102,6 +102,10 @@ features = ["default-reranker"]
 
 [[extra]]
 crate = "fathomdb-embedder"
+features = ["default-embedder", "default-reranker", "embed-cuda", "loader-test-hooks", "onnx-embedder", "rerank-cuda", "tc5-benchmark"]
+
+[[extra]]
+crate = "fathomdb-embedder"
 features = ["default-reranker"]
 
 [[extra]]

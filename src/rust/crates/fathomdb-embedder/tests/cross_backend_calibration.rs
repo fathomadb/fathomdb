@@ -724,6 +724,11 @@ fn calibration_reports_p1_flips_and_p2_l2() {
         None
     };
 
+    // `write_durable_doc`, with the opt-in unset, targets the same literal
+    // scratch path `calibration_default_run_write_path_never_touches_tracked_record`
+    // and `calibration_record_default_run_writes_scratch_and_leaves_tracked_record`
+    // use — guard against a concurrent test-thread race on that shared file.
+    let _guard = lock_default_scratch_record();
     write_durable_doc(&candle_cpu, &onnx_cpu, &m, mean_l2, gpu.as_ref());
 }
 
@@ -965,6 +970,18 @@ fn synthetic_render(gpu_measured: bool) -> String {
     render_durable_doc(&leg, &leg, &m, 1.0, gpu.as_ref())
 }
 
+/// Guards tests that write to the literal DEFAULT scratch destination
+/// (`record_destination(false)` / `destination_from_env(None)` ==
+/// `CARGO_TARGET_TMPDIR`/`RECORD_NAME`) — that path is a production choice,
+/// not a test-chosen unique name (unlike `scratch_file`), so two such tests
+/// running concurrently (the default `cargo test` thread pool) would race on
+/// the same file.
+static DEFAULT_SCRATCH_RECORD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn lock_default_scratch_record() -> std::sync::MutexGuard<'static, ()> {
+    DEFAULT_SCRATCH_RECORD_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 fn scratch_file(name: &str) -> PathBuf {
     static SEQ: AtomicU64 = AtomicU64::new(0);
     Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!(
@@ -986,6 +1003,7 @@ fn calibration_record_write_needs_exact_opt_in() {
 
 #[test]
 fn calibration_record_default_run_writes_scratch_and_leaves_tracked_record() {
+    let _guard = lock_default_scratch_record();
     let tracked = tracked_record_path();
     let before = std::fs::read(&tracked).expect("read tracked calibration record");
     let dest = record_destination(false);
@@ -1054,4 +1072,78 @@ fn calibration_record_destination_follows_exact_opt_in() {
         assert_eq!(destination_from_env(value), scratch, "value {value:?} must render to scratch");
     }
     assert_eq!(destination_from_env(Some("1")), tracked_record_path());
+}
+
+/// Code review FIX-7 R-1: `calibration_record_default_run_writes_scratch_and_leaves_tracked_record`
+/// and `calibration_record_destination_follows_exact_opt_in` each pin one half
+/// of the default write path (`record_destination`/`destination_from_env`), not
+/// `write_durable_doc` itself — the ONE entry point the only caller
+/// (`calibration_reports_p1_flips_and_p2_l2`, ONNX-gated) actually invokes. A
+/// mutation making `write_durable_doc` always target `tracked_record_path()`
+/// is today caught only because the tracked record holds MEASURED CUDA rows,
+/// so `guards_cuda_rows`'s no-downgrade check panics first; a PENDING record,
+/// or a bypassed guard, would let the mutation through unnoticed.
+///
+/// This drives `write_durable_doc` directly (no ONNX needed — its inputs are
+/// plain structs), with synthetic CUDA-row measuredness matched to whatever
+/// the TRACKED record currently holds. Matching that state means the
+/// no-downgrade guard never fires either way, so it is the byte comparison
+/// below — not a guard panic — that decides pass/fail, catching the mutation
+/// whether the tracked record is MEASURED or PENDING, and whether or not the
+/// guard itself is intact.
+#[test]
+fn calibration_default_run_write_path_never_touches_tracked_record() {
+    let _guard = lock_default_scratch_record();
+    if let Ok(v) = std::env::var("FATHOMDB_WRITE_CALIBRATION_RECORD") {
+        assert_ne!(
+            v, "1",
+            "refusing to run with FATHOMDB_WRITE_CALIBRATION_RECORD=1 already set in the \
+             process env — this test must observe the default (opt-in-unset) write path"
+        );
+    }
+
+    let tracked = tracked_record_path();
+    let before = std::fs::read(&tracked).expect("read tracked calibration record");
+    let before_text =
+        String::from_utf8(before.clone()).expect("tracked calibration record must be UTF-8");
+    // Match the render's CUDA-row measuredness to the tracked record's current
+    // state so `guards_cuda_rows`'s no-downgrade check cannot short-circuit
+    // this test with a panic before the write path is exercised.
+    let existing_measured = cuda_rows_measured(&before_text);
+
+    let mean = pinned_mean();
+    let leg = synthetic_leg("cpu");
+    let m = compare_pair(&leg.vectors, &leg.vectors, &mean);
+    let gpu = existing_measured.then(|| GpuPairs {
+        effective: "cuda:0".to_string(),
+        cpu_vs_cuda: compare_pair(&leg.vectors, &leg.vectors, &mean),
+        cuda_vs_onnx: compare_pair(&leg.vectors, &leg.vectors, &mean),
+    });
+
+    let scratch_dest = destination_from_env(None);
+    assert_ne!(
+        scratch_dest, tracked,
+        "sanity: the default (opt-in-unset) destination must not be the tracked path"
+    );
+    let _ = std::fs::remove_file(&scratch_dest);
+
+    // The SAME entry point `calibration_reports_p1_flips_and_p2_l2` calls in
+    // production, with the opt-in env var not set to "1" (verified above).
+    write_durable_doc(&leg, &leg, &m, 1.0, gpu.as_ref());
+
+    let after = std::fs::read(&tracked).expect("re-read tracked calibration record");
+    if after != before {
+        // A mutation reached the tracked file — restore it before failing so
+        // this test can never itself corrupt the committed record.
+        std::fs::write(&tracked, &before).expect("restore tracked calibration record");
+        panic!(
+            "write_durable_doc modified the TRACKED calibration record on a default \
+             (opt-in-unset) run — original bytes restored before failing"
+        );
+    }
+
+    let scratch_doc =
+        std::fs::read_to_string(&scratch_dest).expect("the default write path must write scratch");
+    assert!(!scratch_doc.is_empty(), "the scratch render must be non-empty");
+    let _ = std::fs::remove_file(&scratch_dest);
 }

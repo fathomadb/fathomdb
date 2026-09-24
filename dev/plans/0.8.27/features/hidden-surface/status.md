@@ -49,6 +49,9 @@ the implementation closeout `HEAD`.
 | `c867d7ed` | RED | FIX-5 Y-1: the calibration record is written only on opt-in and never loses measured CUDA rows. |
 | `cc8542d7` | fix | FIX-5 Y-1: `FATHOMDB_WRITE_CALIBRATION_RECORD=1` gates the committed record; a no-downgrade guard. |
 | `50c8a6ff` | test | FIX-5 Y-2: `scan_output` status-rule cases. |
+| `ee27a3bd` | docs | FIX-5 Y-1 to Y-3 and `fc11` recorded. |
+| `d02f13d3` | RED | FIX-6 Z-1 to Z-4: scratch renders overwrite measured rows, exact-opt-in destinations for the record and EU-8, `scan_output` child-name and post-summary cases. |
+| `50b1e7c9` | fix | FIX-6 Z-1, Z-2, Z-4: only the tracked record is guarded; `destination_from_env`; `FATHOMDB_WRITE_EU8_MEASUREMENTS=1` gates the EU-8 JSON. |
 
 RED evidence: `dc2aab69` failed with a `signature` key assertion in
 `test_walk_hazards` and with `FileNotFoundError` for `scripts/lib/test_targets.py`.
@@ -194,7 +197,74 @@ tests on x86_64. It is recorded in the allowlist under class
 `platform-excluded`, a fourth class this implementation added (see
 Deviations).
 
-### ACH-14: PASS (at `50c8a6ff`, run `fc11`)
+### ACH-14: PASS (at `50b1e7c9`, run `fc12`)
+
+**Code review FIX-6.**
+
+- **Z-1.** Y-1's no-downgrade guard also ran on the scratch render. After
+  one documented CUDA refresh without the opt-in, which rendered measured rows
+  to `target/tmp/…`, every later CPU run panicked. That included the gate's
+  `calibration_record_default_run_writes_scratch_and_leaves_tracked_record`.
+  Now only the tracked record is guarded (`guards_cuda_rows`), and scratch
+  renders overwrite freely. `calibration_scratch_render_overwrites_measured_cuda_rows`
+  covers the scratch path. The tracked-path refusal is still exercised on a
+  scratch copy, through `write_record` with the guard the tracked path gets.
+  The documented refresh commands, in the module doc and in the "Remaining
+  legs" text the harness renders, now set `FATHOMDB_WRITE_CALIBRATION_RECORD=1`.
+  The committed record was not regenerated. The verifier's sequence was
+  repeated in a `git archive` copy with its own target directory: a CUDA run
+  (`embed-cuda`, `FATHOMDB_EMBED_DEVICE=auto`, no opt-in) passed 10/10 and
+  rendered `MEASURED on cuda:0` to scratch. A CPU run after it passed 10/10
+  and rendered PENDING over it. The copy's tracked record kept sha256
+  `cef43f46…`.
+- **Z-2.** The FIX-5 record overstated Y-1's coverage. Its tests pinned
+  `record_write_opted_in`, not the environment wiring in
+  `write_durable_doc`, so verifier mutation E (always
+  `record_destination(true)`) survived them. The wiring is now
+  `destination_from_env`, and
+  `calibration_record_destination_follows_exact_opt_in` tests it with `None`,
+  `""`, `"0"`, `"1 "`, `" 1"`, `"true"`, and `"1"`. On the copy, four
+  mutations each fail a test: E in `destination_from_env`; E in
+  `write_durable_doc` itself, which is caught only because the committed
+  record's rows are measured, so the guard refuses the CPU render; guarding
+  every path (the FIX-5 behaviour); and guarding no path.
+- **Z-3.** `test_child_scopes` adds a child-scope `test mod::skip ... ok`
+  line, which must add no marker. `test_status_rules` adds a marker line and a
+  bare `FAILED` after a binary's `test result:` line and before the next
+  `Running`, with and without a plan. The marker must belong to the binary,
+  and no test may fail. The two surviving mutations are now killed: `rest =
+  line` in the child scope, and dropping `current = None` after the summary.
+- **Z-4.** Under `AGENT_LONG`, `eu8_ir_validation` wrote the tracked
+  `dev/plans/runs/0.7.1-EU-8-measurements.json`. It now writes it only when
+  `FATHOMDB_WRITE_EU8_MEASUREMENTS=1`, and otherwise writes to
+  `CARGO_TARGET_TMPDIR`. Its assertions are unchanged.
+  `eu8_measurements_destination_follows_exact_opt_in` tests the destination
+  logic. The long measurement was not run.
+- The tests that copy the committed record now delete the copy.
+
+RED (`d02f13d3`): the embedder and engine test targets failed to compile
+because `guards_cuda_rows`, `write_record`, `destination_from_env`,
+`measurements_destination`, and `MEASUREMENTS_NAME` did not exist. The
+behavioural red for Z-1 is the verifier's reproduction at `ee27a3bd`: both
+`calibration_record_default_run_writes_scratch_and_leaves_tracked_record` and
+`calibration_reports_p1_flips_and_p2_l2` panicked with `refusing to write
+…/target/tmp/0.8.18-slice-0-cross-backend-calibration.md`. The Z-3 cases pass
+on the unchanged scanner, and each kills its mutation. GREEN (`50b1e7c9`):
+`cross_backend_calibration` passed 10/10 in the worktree with the gate's ONNX
+environment and `FATHOMDB_REQUIRE_LIVE=1`, and the committed record's sha256
+was unchanged. `eu8_ir_validation` passed 2/2, with the measurement skipping
+without `AGENT_LONG`.
+
+`fc12`, `bash scripts/test-feature-complete.sh --scratch <scratch>/fc12`,
+exited 0. It covered 20 runs and 351 planned tests: 343 passed, 0 failed,
+8 ignored, and 0 failures. `summary.json` sha256 is
+`4a4cb3b7aee229adc8407a1ad93ad20ec7e25ce34f6772bc6926b65a1ad7839e`. The 3
+extra tests are Z-1's and Z-2's in
+`fathomdb-embedder[default-embedder,onnx-embedder]` (20/20) and Z-4's in
+`fathomdb-engine[default-embedder]` (9 passed, 1 ignored). After the gate,
+`git status` was clean, including `dev/plans/runs/`.
+
+### ACH-14: earlier run (at `50c8a6ff`, run `fc11`)
 
 **Code review FIX-5.**
 
@@ -509,7 +579,7 @@ no `test-build: failed` entries. The exclusive-create guard is covered by
   owner when the owner itself is absent in release, because the canonical
   trait paths are private or unstable.
 
-## Final checks (2026-09-24, at `50c8a6ff` plus this record)
+## Final checks (2026-09-24, at `50b1e7c9` plus this record)
 
 | Command | Result |
 | --- | --- |
@@ -521,11 +591,11 @@ no `test-build: failed` entries. The exclusive-create guard is covered by
 | `bash scripts/agent-typecheck.sh` | exit 0 |
 | `bash scripts/agent-lint-shell.sh` | exit 0 |
 | `cargo clippy --workspace --all-targets -- -D warnings` | exit 0 |
-| `cargo clippy -p fathomdb-embedder --features default-reranker --all-targets -- -D warnings` | exit 0 |
 | `cargo clippy -p fathomdb-embedder --features default-embedder,default-reranker,onnx-embedder,loader-test-hooks,tc5-benchmark --all-targets -- -D warnings` | exit 0 |
-| `cargo test -p fathomdb-embedder` with the same features, `--test loader` | 12 passed |
-| `cargo test -p fathomdb-embedder --features default-embedder,onnx-embedder --test cross_backend_calibration -- --skip calibration_reports_p1_flips_and_p2_l2`, gate ONNX env, `FATHOMDB_REQUIRE_LIVE=1` | 7 passed, 1 filtered out |
-| `bash scripts/test-feature-complete.sh --scratch <scratch>/fc11` | exit 0; 348 planned, 340 passed, 0 failed, 8 ignored; `summary.json` sha256 `3b8ad622…0602` |
+| `cargo clippy -p fathomdb-engine --features default-embedder --all-targets -- -D warnings` | exit 0 |
+| `cargo test -p fathomdb-embedder --features default-embedder,onnx-embedder --test cross_backend_calibration`, gate ONNX env, `FATHOMDB_REQUIRE_LIVE=1` | 10 passed; the render went to `target/tmp/…`, and the committed record's sha256 was unchanged |
+| `cargo test -p fathomdb-engine --features default-embedder --test eu8_ir_validation` | 2 passed; the measurement skipped without `AGENT_LONG` |
+| `bash scripts/test-feature-complete.sh --scratch <scratch>/fc12` | exit 0; 351 planned, 343 passed, 0 failed, 8 ignored; `summary.json` sha256 `4a4cb3b7…839e` |
 
 The Slice 30 test previously failed only on its 100 GB free-space guard. Code
 review H-4 (`df9cbf9f`) pins `disk_usage` in that test's scratch-ownership

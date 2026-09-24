@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 hidden-surface oracle - requirements and acceptance
-status: APPROVED
+status: COMPLETE
 target_release: 0.8.27
 baseline_entry_sha: f45c5d60
 ruling: slice-50-hidden-surface-oracle (TC-3e54ed95); hidden-surface-extra-rows; hidden-surface-release-probe; hidden-surface-effective-and-inventory; feature-complete-test-coverage

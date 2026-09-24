@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 hidden-surface oracle - implementation status
-status: ACTIVE
+status: COMPLETE
 implemented_on: 2026-09-23
 baseline_entry_sha: 0ea86e55
 design_revision: 7
@@ -8,9 +8,8 @@ design_revision: 7
 
 # Hidden-surface oracle implementation status
 
-Status is ACTIVE, not COMPLETE: ACH-14 fails on one test
-(`nomic_smoke`, below), and ACH-5 has not been run because the implementation
-closeout `HEAD` depends on how that test is resolved.
+Every ACH passed. The successor baseline `baseline-8e2afb29.json` records
+the implementation closeout `HEAD`.
 
 ## Commits
 
@@ -24,6 +23,10 @@ closeout `HEAD` depends on how that test is resolved.
 | `b6e155e2` | docs | Cadence text in `plan-0.8.27.md`. |
 | `18ccf146` | chore | `baseline-e3358800.json`. |
 | `4f65e6b6` | fix | Gate runs Slice 72 live and records the reasoned allowlist entries. |
+| `e29efcad`, `70b904a2` | docs | This file (first pass); the Slice 40 review cites ACH-6. |
+| `f8f7bd62` | fix | `nomic_smoke` resolves its weights under the embedder cache root (`dirs::cache_dir()`). |
+| `44fba58c` | RED | Self-test for pinned-weight provisioning in the gate. |
+| `8e2afb29` | GREEN | Gate provisions pinned nomic-embed-text-v1.5 weights. |
 
 RED evidence: `dc2aab69` failed with a `signature` key assertion in
 `test_walk_hazards` and with `FileNotFoundError` for `scripts/lib/test_targets.py`.
@@ -48,10 +51,11 @@ pinned `nightly-2026-04-24` (`rustc 1.97.0-nightly (36ba2c771 2026-04-23)`),
 | X2 → `baseline-e3358800.json` | `e3358800…` | `4923cb16…c47707` | 229 |
 | X3, dirty scratch clone | `e3358800…` | `4923cb16…c47707` | 221 |
 | Injected (`--source-dir`) | edited export of `e3358800…` | `310b714ab052a0324560d6c97871b6e3bc3ac3a316b22fcdf053713eba96bedb` | 236 |
+| Closeout → `baseline-8e2afb29.json` | `8e2afb293b79bb3922e7d5099096794ecae6f42e` | `a7ab93dc5f5ae92c3f708fc0b8954d3680b210e8203c6b6640ed50d6d9986812` | 380 |
 
 ## Acceptance
 
-### ACH-1: PASS at `e3358800`
+### ACH-1: PASS at `e3358800` and at closeout `HEAD`
 
 The check was run against `baseline-e3358800.json`:
 
@@ -67,9 +71,9 @@ The check was run against `baseline-e3358800.json`:
   expected value at `e3358800`.
 - `governed_surface_method_absence_proof` is only in `facade-default`.
 
-The closeout-`HEAD` half of the claim, the predicate
-`any(debug_assertions, feature = "test-hooks", test)`, belongs to ACH-5 and has
-not been run.
+The same checks against `baseline-8e2afb29.json` (closeout `HEAD`) all pass.
+There, `Engine::execute_for_test` carries
+`any(debug_assertions, feature = "test-hooks", test)` in all 6 engine rows.
 
 ### ACH-10: PASS
 
@@ -168,49 +172,56 @@ tests on x86_64. It is recorded in the allowlist under class
 `platform-excluded`, a fourth class this implementation added (see
 Deviations).
 
-### ACH-14: FAIL on one test (every other target passes)
+### ACH-14: PASS
 
-The command was `bash scripts/test-feature-complete.sh --scratch <scratch>/fc3`
-(193 s, after warm builds):
+The final run was `fc4`, `bash scripts/test-feature-complete.sh --scratch <scratch>/fc4`
+(387 s, after `cargo clean`):
 
 - Coverage passed and the preflight found both 3090s (indices 0 and 1 in PCI
   bus order; the K620 is index 2 and was not selected).
-- `doctor warm-cache` found the embedder cached (0 bytes downloaded).
+- `doctor warm-cache` found the embedder already cached.
+- The gate fetched the pinned nomic-embed-text-v1.5 weights (`model.safetensors`
+  and `tokenizer.json`) and verified each against its pinned digest.
 - It ran 14 feature sets and 53 targets. Every cargo run exited 0: 289 tests
-  passed, 0 failed, 7 ignored (all on the allowlist).
-- Slice 72 ran live on `GPU-5f9cfc90…` (RTX 3090 index 0). The `basic` and
-  `moderate` receipts report outcome `success`.
+  passed, 0 failed, 7 ignored (all on the allowlist), with 0 contract failures.
+- `nomic_loads_and_embeds` ran and passed (`NOMIC_SMOKE dim=768
+  norm=1.0000`, `cos_rel=0.755 cos_unrel=0.480`).
+- Slice 72 ran live on RTX 3090 index 0. The `basic` and `moderate` receipts
+  report outcome `success`.
+- Nothing was skipped outside the allowlist.
 
-The one failure is `skip marker '[skip]' from
-fathomdb-engine::nomic_smoke::nomic_loads_and_embeds is not allowlisted`.
-
-The test reads its weights from the hard-coded path
-`/root/.cache/fathomdb/embedders/nomic-v1.5` and prints `[skip] nomic weights
-absent` unless that directory exists. It cannot run as a non-root user, so it
-has skipped silently on every gate until now. It was deliberately not
-allowlisted, because the skip comes from a test defect, not from design.
-Resolving it needs an owner decision: fix the test's weight location, or
-allowlist it with that reason.
-
-Earlier runs:
+History:
 
 - `fc1` exposed a gate defect: `fathomdb-cli` has two binaries.
 - `fc2` exposed 16 unexcused skips or ignores, which were triaged. Slice 72's
   `PENDING_EXTERNAL` was fixed by staging its asset root and giving it one
   visible device. The others were allowlisted with their source reasons.
+- `fc3` failed only on `nomic_smoke` (RED). It printed `[skip] nomic weights
+  absent` because it read the hard-coded path
+  `/root/.cache/fathomdb/embedders/nomic-v1.5`. Following the owner's decision,
+  the test was fixed rather than allowlisted (`f8f7bd62`): it now resolves the
+  embedder loader's cache root, with every assertion unchanged. The gate now
+  provisions the weights (`44fba58c` RED, `8e2afb29` GREEN). The embedder crate
+  has no nomic fetcher, so the gate downloads revision `e9b67630` and verifies
+  the LFS sha256 of `model.safetensors` and the git blob sha1 of
+  `tokenizer.json`.
 
-### ACH-5: NOT RUN
+### ACH-5: PASS (successor baseline)
 
-This waits on the ACH-14 decision. Between `e3358800` and the current `HEAD`,
-the engine sources differ by known changes that a closeout capture will show:
+The closeout `HEAD` `8e2afb29` was captured and compared with
+`baseline-e3358800.json`: compare exit 1. There are no metadata differences,
+and `release-probe` is equal. The differences are the reviewed Slice 40
+review-fix changes, each justified in
+`baseline-8e2afb29-diff.md`:
 
-- the `test` term on `execute_for_test` and
-  `pause_reader_after_wal_snapshot_for_test`;
-- `#[cfg(debug_assertions)]` on 3 private helpers and 3 tests;
-- `pub(crate)` → private in `temporal.rs`;
-- the operator gate in `lifecycle_reliability`.
+- the `test` term on 2 engine seams;
+- `debug_assertions` file gates on 6 test targets;
+- `lifecycle_reliability` building again in 9 inventory rows.
 
-They are to be recorded as `baseline-<HEAD>.json` with `baseline-<HEAD>-diff.md`.
+The capture is committed as the successor `baseline-8e2afb29.json`. At `HEAD`,
+259 of 260 targets appear in an inventory row (aarch64 excluded) and there are
+no `test-build: failed` entries. The exclusive-create guard is covered by
+`test_output_guards`.
 
 ### ACH-4, ACH-8, ACH-9, ACH-12, ACH-15, ACH-7: PASS (fast tier and text)
 
@@ -246,19 +257,22 @@ They are to be recorded as `baseline-<HEAD>.json` with `baseline-<HEAD>-diff.md`
   owner when the owner itself is absent in release, because the canonical
   trait paths are private or unstable.
 
-## Final checks (2026-09-23)
+## Final checks (2026-09-23, at `8e2afb29`)
 
 | Command | Result |
 | --- | --- |
 | `python3 scripts/tests/test_hidden_surface.py` | `ok hidden-surface` (17 tests) |
-| `python3 scripts/tests/test_test_targets.py` | `ok test-targets` (9 tests) |
+| `python3 scripts/tests/test_test_targets.py` | `ok test-targets` (10 tests) |
 | `python3 scripts/check-test-target-coverage.py` | `ok`: 260 targets; 53 run only by the feature-complete gate |
 | `bash scripts/agent-lint.sh` | exit 0 |
 | `bash scripts/agent-typecheck.sh` | exit 0 |
 | `bash scripts/agent-lint-shell.sh` | exit 0 |
 | `python3 scripts/tests/test_slice30_surface_comparator.py` | fails on host disk only |
 
-The Slice 30 test failure is environmental. `_prepare_scratch` requires
-100 GB free and the host had about 38 GB free. The failing assertion expected
+The Slice 30 test failure is environmental. Its `_prepare_scratch` requires
+100 GB free on the cache and scratch filesystem. After `cargo clean` freed
+56.2 GiB, the host had 92 GB free, and about 70 GB after the closeout builds.
+The rest of the disk belongs to other users. The failing assertion expected
 the ownership-marker error and got the capacity error. This unit does not
-modify that tool, and the same test passed earlier this session with 96 GB free.
+modify that tool, and the same test passed earlier this session with 96 GB
+free.

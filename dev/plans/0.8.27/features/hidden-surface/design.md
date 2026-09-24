@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 hidden-surface oracle - design
-status: APPROVED
+status: COMPLETE
 target_release: 0.8.27
 ---
 

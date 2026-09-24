@@ -53,6 +53,8 @@ the implementation closeout `HEAD`.
 | `d02f13d3` | RED | FIX-6 Z-1 to Z-4: scratch renders overwrite measured rows, exact-opt-in destinations for the record and EU-8, `scan_output` child-name and post-summary cases. |
 | `50b1e7c9` | fix | FIX-6 Z-1, Z-2, Z-4: only the tracked record is guarded; `destination_from_env`; `FATHOMDB_WRITE_EU8_MEASUREMENTS=1` gates the EU-8 JSON. |
 | `754cd04e` | test | Code review FIX-7 R-1: `calibration_default_run_write_path_never_touches_tracked_record` drives `write_durable_doc` directly, MEASURED/PENDING- and guard-independent. |
+| `0ec90b25` | RED | FIX-8: `calibration_candle_cuda_leg_measures_on_gpu` (item-level `#[cfg(feature = "embed-cuda")]`) requires the auto policy to measure `cuda`; `calibration_reports_p1_flips_and_p2_l2`'s own CUDA-leg fallback takes the same `require_live_or_skip` check when `embed-cuda` is compiled in. |
+| `8404b679` | fix | FIX-8: `scripts/test-feature-complete.sh --write-matrix` derives the new `fathomdb-embedder` `[[extra]]` set (the union of its host-buildable features) so the new test is gate-covered. |
 
 RED evidence: `dc2aab69` failed with a `signature` key assertion in
 `test_walk_hazards` and with `FileNotFoundError` for `scripts/lib/test_targets.py`.
@@ -198,6 +200,132 @@ tests on x86_64. It is recorded in the allowlist under class
 `platform-excluded`, a fourth class this implementation added (see
 Deviations).
 
+### ACH-14: PASS (at `8404b679`, run `fc13`, FIX-8)
+
+**Gap.** `calibration_reports_p1_flips_and_p2_l2`'s candle-CUDA leg only
+`eprintln!`s `"gated-to-skip … PENDING"` when the `auto` policy does not
+select `cuda`, with no skip marker the gate's contract catches and no
+`require_live_or_skip` call, and the test itself is an `opt-in-experiment`
+excluded from the gate (it writes the tracked record). Combined with the
+matrix's `[[entry]]` set for `cross_backend_calibration` carrying no
+`embed-cuda`, the candle-CUDA leg was never actually exercised by automation
+on a host that builds `embed-cuda` — a silent-fallback gap, not merely an
+excluded one. The FIX-7 record's clippy line also misstated the cause: `nvcc`
+is installed at `/usr/local/cuda/bin/nvcc`, just not on the default `PATH`
+`cargo`/`clippy` resolve without the CUDA env; it was never absent. Corrected
+above under ACH-14 (FIX-7).
+
+**Fix.** Adds `calibration_candle_cuda_leg_measures_on_gpu`, an item-level
+`#[cfg(feature = "embed-cuda")]` test (no target requires `embed-cuda` +
+`onnx-embedder` together, so it sits behind the file's existing
+`default-embedder`+`onnx-embedder` `#![cfg]` plus this item cfg): it requires
+the `auto` policy to select `cuda`, going through `live::require_live_or_skip`
+(panics under `FATHOMDB_REQUIRE_LIVE=1`) otherwise, and asserts finite,
+sane CPU↔CUDA and CUDA↔ONNX-CPU calibration bounds (cosine_mean ≥ 0.95,
+rationale in the test's comment: same pinned weights, differing only in
+numeric backend). It writes no record.
+`calibration_reports_p1_flips_and_p2_l2`'s own CUDA-leg fallback now takes the
+same `require_live_or_skip` check when `embed-cuda` is compiled in (CPU-only
+builds, including this worktree's, are unchanged — they never build
+`embed-cuda` and never reach that `#[cfg]`).
+
+**Matrix.** `scripts/test-feature-complete.sh --write-matrix` (CUDA env)
+derives one new `fathomdb-embedder` `[[extra]]` set: the union of its
+host-buildable features (`default-embedder`, `default-reranker`, `embed-cuda`,
+`loader-test-hooks`, `onnx-embedder`, `rerank-cuda`, `tc5-benchmark`). No
+single host-buildable feature enables `default-embedder` + `onnx-embedder` +
+`embed-cuda` together (`embed-cuda` implies `default-embedder` but not
+`onnx-embedder`; `onnx-embedder` implies neither), so
+`derive_extra_sets`'s single-feature candidates all miss the new test and it
+falls to the union, per `scripts/lib/feature_complete.py`'s own documented
+rule.
+
+RED (`0ec90b25`): before the matrix was regenerated,
+`scripts/lib/feature_complete.plan_runs` (the same build-and-list coverage
+check the gate runs), invoked directly under the CUDA toolchain ahead of the
+full gate's weight/ONNX provisioning, reported:
+`FAIL extra-set drift in fathomdb-embedder (run
+`scripts/test-feature-complete.sh --write-matrix`): derived-only
+[['default-embedder', 'default-reranker', 'embed-cuda', 'loader-test-hooks',
+'onnx-embedder', 'rerank-cuda', 'tc5-benchmark']], matrix-only []`.
+GREEN (`8404b679`): the same check reports no drift;
+`python3 scripts/check-test-target-coverage.py` (260 targets, 53 gate-only)
+and `python3 scripts/tests/test_test_targets.py` both pass.
+
+**Mutation proof (fallback caught, not silent).** With `CUDA_VISIBLE_DEVICES=`
+(GPUs hidden) and `FATHOMDB_REQUIRE_LIVE=1`, `embed-cuda` built,
+`calibration_candle_cuda_leg_measures_on_gpu` panicked: `FATHOMDB_REQUIRE_LIVE=1
+and a live prerequisite is missing: SKIP … embed-cuda is built but the auto
+policy selected "cpu" instead of cuda … GPU must be measured on this host, not
+silently skipped` (exit 101) — the `auto` policy legitimately selected `cpu`
+with no GPU visible, and the new guard caught it instead of passing vacuously.
+
+**Targeted CUDA+ONNX run** (`FATHOMDB_EMBED_DEVICE` unset,
+`FATHOMDB_REQUIRE_LIVE=1`, `--features default-embedder,onnx-embedder,embed-cuda`,
+`--nocapture`): `calibration_candle_cuda_leg_measures_on_gpu` and
+`calibration_reports_p1_flips_and_p2_l2` both passed (2 passed; 0 failed), both
+printing `R-CAL-4 candle-CUDA leg MEASURED on cuda:0` with `raw_flips=0
+mc_flips=0` and `cosine_mean=1.000000000`/`cosine_min=1.000000000` on both leg
+pairs. `calibration_reports_p1_flips_and_p2_l2` rendered to
+`target/tmp/0.8.18-slice-0-cross-backend-calibration.md` (no opt-in set); the
+tracked record's sha256 (`cef43f46…`) was unchanged, and `git status` was
+clean afterward.
+
+**Scan for the same pattern.** Grepped the workspace for
+`FATHOMDB_EMBED_DEVICE`/`FATHOMDB_RERANK_DEVICE`/`embed-cuda`/`rerank-cuda`
+references and for `device_label()`/`effective_provider()`/`is_cuda()`
+call sites in every test target, then read each hit:
+
+- `fathomdb-embedder/src/candle_reranker.rs` `gpu_tests` (forced `cuda:0`,
+  `#[cfg(feature = "rerank-cuda")]`): a construction failure already goes
+  through `crate::live::require_live_or_skip`; a forced device never silently
+  falls back. No gap.
+- `fathomdb-embedder/tests/slice80_gpu_allocation_witness.rs`
+  `tegra_gpu_allocation_witness_on_real_hardware`: an intentional, reasoned
+  `opt-in-experiment` allowlist entry (Jetson-only, `FATHOMDB_SLICE80_GPU_WITNESS=1`,
+  prints a literal `SKIP …` line). Not silent; already excluded by design.
+- `fathomdb-engine/tests/support/slice72_gpu_telemetry.rs` `Slice72Run::preflight`:
+  every non-activation branch goes through `require_live_or_skip` except the
+  stress-only early return (`eprintln!("PENDING_EXTERNAL … FATHOMDB_SLICE72_STRESS=1")`),
+  whose sole caller is `#[ignore]`d and allowlisted `ignored-by-design`, so the
+  gate never executes that branch. No gap.
+- `fathomdb-engine/tests/slice70_runtime_policy.rs`,
+  `slice71_rerank_policy.rs`, `slice71_open_report.rs`,
+  `slice806_gpu_allocation_witness_report.rs`: forced-device tests asserting a
+  named policy error or an explicit `cpu` outcome, never an `auto` fallback.
+  No gap.
+- `fathomdb-engine/tests/gen_cross_backend_mean_fixture.rs`: `#[ignore]`d
+  one-off generator, forces `FATHOMDB_EMBED_DEVICE=cpu`. No gap.
+- `fathomdb-embedder/src/ort_bge.rs` `auto_cuda_session_build_may_retry_cpu` /
+  `…_fallback_is_recorded_in_device_resolution`: pure fixture-driven unit
+  tests over an injected provider-building closure (no live CUDA), asserting
+  the fallback is recorded with the correct typed reason — the contract this
+  whole feature calibrates, not an instance of the gap. No gap.
+- `fathomdb-cli/tests/operator_cli.rs`, `parser.rs`: fixed expectations for
+  the CLI's non-`embed-cuda` default build (`doctor gpu`/`doctor reranker-gpu`
+  report `cuda_compiled: false`); not a GPU request with a silent fallback.
+  No gap.
+- `fathomdb-tc5-benchmark/src/main.rs` (`selected_device_identity_matches`,
+  `device_label() != selected.logical_label()`): production benchmark-tool
+  code, not a test — a mismatch writes a typed `device_unavailable` /
+  `effective_device_mismatch` non-measurement record rather than silently
+  measuring the wrong device. Out of this scan's scope (workspace tests); no
+  silent pass either way.
+
+No second instance of the pattern was found; only the one item fixed above.
+
+`fc13`, `bash scripts/test-feature-complete.sh --scratch /tmp/fathomdb-fc13-scratch`,
+exited 0. It covered 21 runs (one more than `fc12`: the new
+`fathomdb-embedder[default-embedder,default-reranker,embed-cuda,loader-test-hooks,onnx-embedder,rerank-cuda,tc5-benchmark]`
+set, 1/1) and 353 planned tests (two more than `fc12`: that 1, plus FIX-7's
+`calibration_default_run_write_path_never_touches_tracked_record`, already
+landed in `fathomdb-embedder[default-embedder,onnx-embedder]` — now 21/21):
+345 passed, 0 failed, 8 ignored, 0 failures. `summary.json` sha256 is
+`2af02d4d241ef8a09962fdf4fa805597dafea705a443266f157efcdb1ae007f4`. The new
+set's log shows `R-CAL-4 candle-CUDA leg MEASURED on cuda:0`. After the gate,
+`git status` was clean except this record's own edits, and the tracked
+record's sha256 was unchanged.
+
 ### ACH-14: PASS (at `754cd04e`, independent review + FIX-7)
 
 **Independent read-only review of FIX-6.** Verdict PASS-WITH-FINDINGS. It
@@ -243,11 +371,13 @@ panicking). (A) combined with (B) `guards_cuda_rows` changed to always return
 unchanged. Both mutations reverted: `cross_backend_calibration` passed 11/11
 three times in a row, the tracked record's sha256 unchanged across all three.
 `cargo clippy -p fathomdb-embedder --all-features --all-targets -- -D
-warnings` fails in this worktree on the pre-existing, change-unrelated
-absence of `nvcc` (`embed-cuda`) and the non-Apple host (`embed-metal`'s
-`objc2`); scoped to the buildable feature set
-(`--features default-embedder,onnx-embedder`) it is clean, as is `cargo fmt
---check`.
+warnings` fails in this worktree on the non-Apple host (`embed-metal`'s
+`objc2`) and on `embed-cuda` needing `nvcc` on `PATH` (`--all-features`
+resolves the default cargo `PATH`, which excludes it; `nvcc` itself is
+installed at `/usr/local/cuda/bin/nvcc` — this worktree's earlier FIX-7 record
+of this line wrongly called it absent, corrected by FIX-8 below); scoped to
+the buildable feature set (`--features default-embedder,onnx-embedder`) it is
+clean, as is `cargo fmt --check`.
 
 ### ACH-14: PASS (at `50b1e7c9`, run `fc12`)
 

@@ -44,6 +44,9 @@
 //! `cargo clippy/check --workspace --all-targets` sees an empty test crate.
 #![cfg(all(feature = "default-embedder", feature = "onnx-embedder"))]
 
+#[path = "support/live.rs"]
+mod live;
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -465,7 +468,7 @@ fn measured_row(label: &str, m: &PairMetrics) -> String {
 #[test]
 fn cpu_legs_reproduce_0816_baseline() {
     if onnx_env().is_none() {
-        eprintln!(
+        live::require_live_or_skip(
             "SKIP cpu_legs_reproduce_0816_baseline: ONNX asset env unset — set ORT_DYLIB_PATH + \
              FATHOMDB_ONNX_MODEL_PATH + FATHOMDB_ONNX_TOKENIZER_PATH (and warm the candle HF cache)"
         );
@@ -611,9 +614,9 @@ fn assert_cpu_baseline_components(mean: &[f32], m: &PairMetrics) -> f64 {
 #[test]
 fn calibration_cpu_baseline_components_hold() {
     if onnx_env().is_none() {
-        eprintln!(
+        live::require_live_or_skip(
             "SKIP calibration_cpu_baseline_components_hold: ONNX asset env unset — set \
-             ORT_DYLIB_PATH + FATHOMDB_ONNX_MODEL_PATH + FATHOMDB_ONNX_TOKENIZER_PATH"
+             ORT_DYLIB_PATH + FATHOMDB_ONNX_MODEL_PATH + FATHOMDB_ONNX_TOKENIZER_PATH",
         );
         return;
     }
@@ -629,9 +632,9 @@ fn calibration_cpu_baseline_components_hold() {
 #[test]
 fn calibration_reports_p1_flips_and_p2_l2() {
     if onnx_env().is_none() {
-        eprintln!(
+        live::require_live_or_skip(
             "SKIP calibration_reports_p1_flips_and_p2_l2: ONNX asset env unset — the durable doc \
-             is written by a run WITH the ONNX assets provisioned (see module docs)"
+             is written by a run WITH the ONNX assets provisioned (see module docs)",
         );
         return;
     }

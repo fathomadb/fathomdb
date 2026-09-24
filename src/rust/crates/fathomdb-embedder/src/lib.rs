@@ -194,3 +194,7 @@ impl Embedder for NoopEmbedder {
         Ok(vector)
     }
 }
+
+#[cfg(all(test, any(feature = "onnx-embedder", feature = "default-reranker")))]
+#[path = "../tests/support/live.rs"]
+mod live;

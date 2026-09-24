@@ -38,6 +38,8 @@
 mod corpus_subset;
 #[path = "support/ir_eval.rs"]
 mod ir_eval;
+#[path = "support/live.rs"]
+mod live;
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
@@ -104,7 +106,9 @@ fn ir_c_recall_run() {
         return;
     }
     if std::env::var_os("FATHOMDB_SKIP_NETWORK_TESTS").is_some() {
-        eprintln!("[skip] FATHOMDB_SKIP_NETWORK_TESTS set; embedder weights unavailable");
+        crate::live::require_live_or_skip(
+            "[skip] FATHOMDB_SKIP_NETWORK_TESTS set; embedder weights unavailable",
+        );
         return;
     }
     let smoke = std::env::var_os("IRC_SMOKE").is_some();

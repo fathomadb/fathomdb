@@ -855,10 +855,10 @@ mod tests {
             std::env::var("FATHOMDB_ONNX_MODEL_PATH"),
             std::env::var("FATHOMDB_ONNX_TOKENIZER_PATH"),
         ) else {
-            eprintln!(
+            crate::live::require_live_or_skip(
                 "SKIP ort_bge_embeds_384_dim_finite_deterministic_vector: set ORT_DYLIB_PATH + \
                  FATHOMDB_ONNX_MODEL_PATH + FATHOMDB_ONNX_TOKENIZER_PATH to run the real-vector \
-                 R-ONNX-1 test (see dev/tools/onnx/README.md)"
+                 R-ONNX-1 test (see dev/tools/onnx/README.md)",
             );
             return;
         };

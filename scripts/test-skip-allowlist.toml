@@ -2,15 +2,20 @@
 # legitimately not run. `id` is `<crate>::<target>` (the whole target) or
 # `<crate>::<target>::<test path>`. Classes:
 #   ignored-by-design  a test that must never run directly (`#[ignore]`d on purpose)
-#   opt-in-experiment  needs an explicit opt-in or gitignored inputs to be live
+#   opt-in-experiment  a single test that needs an explicit opt-in or gitignored
+#                      inputs to be live; it must set `exclude = true`, and the
+#                      gate never runs it (it must still be listed, or the entry
+#                      is stale)
 #   benign-message     prints a skip marker for something harmless
 #   platform-excluded  a whole target whose file-level cfg excludes some hosts;
 #                      `excluded_on` is the host cfg predicate where it applies
-# An opt-in-experiment entry for a single test may set `exclude = true`: the gate
-# then never runs that test (it must still be listed, or the entry is stale).
-# The gate fails on a skip or ignored test not listed here, and on an entry
-# that no longer matches anything (scripts/check-test-target-coverage.py
-# checks the static half on every fast-tier run).
+# The gate runs with FATHOMDB_REQUIRE_LIVE=1, so a test whose provisioned
+# prerequisite (weights, GPU, ONNX Runtime, runner environment) is missing
+# panics instead of skipping. Any skip marker from a test that runs fails the
+# gate unless the test is a benign-message entry; an ignored test fails it
+# unless it is an ignored-by-design entry; and an entry that no longer matches
+# anything fails it (scripts/check-test-target-coverage.py checks the static
+# half on every fast-tier run).
 
 [[entry]]
 id = "fathomdb-embedder::aarch64_candle_cpu"
@@ -33,36 +38,43 @@ reason = "Writer of the committed record dev/plans/runs/0.8.18-slice-0-cross-bac
 [[entry]]
 id = "fathomdb-embedder::slice80_gpu_allocation_witness::tegra_gpu_allocation_witness_on_real_hardware"
 class = "opt-in-experiment"
-reason = "Slice 80.5 real-hardware arm of the Tegra GPU allocation witness: runs only on a Jetson Orin opted in with FATHOMDB_SLICE80_GPU_WITNESS=1 and otherwise prints 'SKIP tegra-gpu-allocation-witness: not_opted_in'. The host-independent contract (gpu_allocation_witness.rs) runs everywhere."
+exclude = true
+reason = "Slice 80.5 real-hardware arm of the Tegra GPU allocation witness: runs only on a Jetson Orin opted in with FATHOMDB_SLICE80_GPU_WITNESS=1 and is a no-op printing 'SKIP tegra-gpu-allocation-witness: not_opted_in' elsewhere. The host-independent contract (gpu_allocation_witness.rs) runs everywhere."
 
 [[entry]]
 id = "fathomdb-embedder::candle_dump::dump_candle_vectors_for_agreement_check"
 class = "opt-in-experiment"
+exclude = true
 reason = "Diagnostic that dumps Candle vectors for an offline agreement check; runs only with EU_DUMP set and prints 'EU_DUMP not set; skipping' otherwise."
 
 [[entry]]
 id = "fathomdb-engine::eu8_ir_validation::eu8_ir_validation"
 class = "opt-in-experiment"
+exclude = true
 reason = "EU-8 real-corpus IR-recall measurement: opt-in via AGENT_LONG=1 and needs the gitignored real corpus and gold chains."
 
 [[entry]]
-id = "fathomdb-engine::ir_c_fusion_experiment"
+id = "fathomdb-engine::ir_c_fusion_experiment::ir_c_fusion_experiment"
 class = "opt-in-experiment"
+exclude = true
 reason = "IR-C fusion experiment: opt-in via IRC_RUN and needs gitignored real-corpus gold files."
 
 [[entry]]
-id = "fathomdb-engine::ir_c_recall_run"
+id = "fathomdb-engine::ir_c_recall_run::ir_c_recall_run"
 class = "opt-in-experiment"
+exclude = true
 reason = "IR-C real-corpus recall run: opt-in via IRC_RUN and needs gitignored real-corpus gold files."
 
 [[entry]]
 id = "fathomdb-engine::pr9_concurrent_embed::sustained_seed_serialized_path_completes_and_is_correct"
 class = "opt-in-experiment"
+exclude = true
 reason = "PR-9 sustained real-corpus seed measurement (hours in debug): opt-in via AGENT_LONG=1 and needs the gitignored corpus."
 
 [[entry]]
 id = "fathomdb-engine::pr9_embed_microbench::pr9_microbench_watchdog_overhead"
 class = "opt-in-experiment"
+exclude = true
 reason = "PR-9 diagnostic micro-benchmark, documented as not a gate: opt-in via AGENT_LONG=1."
 
 [[entry]]
@@ -103,16 +115,19 @@ reason = "Slice 72 60-second CUDA stress parent: #[ignore] and requires FATHOMDB
 [[entry]]
 id = "fathomdb-engine::corpus_harness::corpus_harness_real_embedder_smoke"
 class = "opt-in-experiment"
+exclude = true
 reason = "Real-embedder corpus smoke over the gitignored corpus: opt-in via AGENT_LONG=1 ('SKIP: corpus_harness_real_embedder_smoke requires AGENT_LONG=1')."
 
 [[entry]]
 id = "fathomdb-engine::ir_c_cdf_run::cdf_runner_impl::ir_c_recall_cdf"
 class = "opt-in-experiment"
+exclude = true
 reason = "IR-C CDF run: opt-in via IRC_RUN and needs gitignored real-corpus gold files."
 
 [[entry]]
 id = "fathomdb-engine::ir_c_pooling_floor_gate::ir_c_pooling_floor_gate"
 class = "opt-in-experiment"
+exclude = true
 reason = "IR-C pooling floor gate: opt-in via IRC_RUN and needs gitignored real-corpus gold files."
 
 [[entry]]

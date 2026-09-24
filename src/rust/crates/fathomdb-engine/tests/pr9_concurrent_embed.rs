@@ -46,6 +46,8 @@ use tempfile::TempDir;
 
 #[path = "support/corpus_subset.rs"]
 mod corpus_subset;
+#[path = "support/live.rs"]
+mod live;
 use corpus_subset::load_subset_or_skip;
 
 const DEFAULT_SEED_N: usize = 10_000;
@@ -74,7 +76,9 @@ fn sustained_seed_serialized_path_completes_and_is_correct() {
         return;
     }
     if std::env::var("FATHOMDB_SKIP_NETWORK_TESTS").is_ok() {
-        eprintln!("[skip] FATHOMDB_SKIP_NETWORK_TESTS set; embedder cache unavailable");
+        crate::live::require_live_or_skip(
+            "[skip] FATHOMDB_SKIP_NETWORK_TESTS set; embedder cache unavailable",
+        );
         return;
     }
     let Some(docs) = load_subset_or_skip(usize::MAX) else {

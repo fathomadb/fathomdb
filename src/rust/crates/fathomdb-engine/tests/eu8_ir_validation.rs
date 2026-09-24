@@ -52,6 +52,8 @@
 
 #[path = "support/corpus_subset.rs"]
 mod corpus_subset;
+#[path = "support/live.rs"]
+mod live;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, Mutex};
@@ -444,7 +446,9 @@ fn eu8_ir_validation() {
         return;
     }
     if std::env::var("FATHOMDB_SKIP_NETWORK_TESTS").is_ok() {
-        eprintln!("[skip] FATHOMDB_SKIP_NETWORK_TESTS set; embedder cache unavailable");
+        crate::live::require_live_or_skip(
+            "[skip] FATHOMDB_SKIP_NETWORK_TESTS set; embedder cache unavailable",
+        );
         return;
     }
 

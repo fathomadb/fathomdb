@@ -576,7 +576,9 @@ mod tests {
         match CandleTinyBertReranker::try_load() {
             Ok(m) => Some(m),
             Err(e) => {
-                eprintln!("SKIP: reranker model unavailable ({e})");
+                crate::live::require_live_or_skip(&format!(
+                    "SKIP: reranker model unavailable ({e})"
+                ));
                 None
             }
         }
@@ -727,7 +729,9 @@ mod gpu_tests {
         let m = match CandleTinyBertReranker::try_load() {
             Ok(m) => Some(m),
             Err(e) => {
-                eprintln!("SKIP gpu_tests: reranker model unavailable ({e})");
+                crate::live::require_live_or_skip(&format!(
+                    "SKIP gpu_tests: reranker model unavailable ({e})"
+                ));
                 None
             }
         };

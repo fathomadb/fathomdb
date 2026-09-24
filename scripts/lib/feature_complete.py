@@ -12,9 +12,12 @@ sets (`--write-matrix` rewrites them). Every test that appears only under a
 matrix or extra set runs once, under the smallest set that has it, and is
 counted per test, never by summing libtest summaries (a test that re-executes
 its own binary prints its child's). It runs with CUDA on the two RTX 3090s, real model
-weights (embedder, reranker, nomic), and the ONNX Runtime assets. A test that
-skips itself or is `#[ignore]`d fails the gate unless
-`scripts/test-skip-allowlist.toml` names it with a class and reason; an
+weights (embedder, reranker, nomic), and the ONNX Runtime assets, with
+`FATHOMDB_REQUIRE_LIVE=1`, under which a test whose live prerequisite is
+missing panics instead of skipping. Opt-in experiments are excluded, never
+run. A skip marker in the output fails the gate unless
+`scripts/test-skip-allowlist.toml` names its test as a `benign-message`, and
+an `#[ignore]`d test fails it unless named as `ignored-by-design`; an
 allowlist entry that matches nothing is stale and also fails the gate.
 """
 
@@ -50,7 +53,7 @@ SKIP_MARKERS = (
     re.compile(r"\bskip(?:s|ped|ping)?\b", re.IGNORECASE),
     re.compile(r"\bPENDING(?:_EXTERNAL)?\b"),
 )
-MARKER_CLASSES = frozenset({"opt-in-experiment", "benign-message"})
+MARKER_CLASSES = frozenset({"benign-message"})
 # Inventory-style builds need no debug info; it keeps listing and run
 # artifacts to a few GB per feature set.
 GATE_BUILD_ENV = {
@@ -61,6 +64,7 @@ GATE_BUILD_ENV = {
 _RUNNING = re.compile(r"^\s*Running (?:unittests )?(\S+) \(")
 _TEST_LINE = re.compile(r"^test (\S+) \.\.\. ?(.*)$")
 _RESULT = re.compile(r"^test result: (\S+)\.")
+_CHILD_RUN = re.compile(r"^running \d+ tests?$")
 
 
 class FeatureCompleteError(Exception):
@@ -103,22 +107,44 @@ def scan_output(
     """Attribute every marker to the test whose `test <name> ...` line precedes
     it (the gate runs one test thread per binary). With `planned`, a bare
     status line (`--nocapture` prints it after the test's output) belongs to
-    the last planned test still running, not to a child process's test lines
-    printed in between (a test that re-executes its own binary)."""
+    the last planned test still running.
+
+    A test that re-executes its own binary prints its child's libtest run
+    inside its own output. A `running N test(s)` line while a test is pending
+    opens such a child scope, and the child's `test result:` line closes it.
+    Inside it, test and status lines are the child's: they record no status,
+    failure, or sighting, and any marker is the pending test's."""
 
     result = ScanResult()
     target_id: str | None = None
     current: str | None = None
     pending: str | None = None
+    depth = 0
     for line in text.splitlines():
         running = _RUNNING.match(line)
         if running is not None:
             target_id = f"{crate.name}::{_source_label(running.group(1), crate)}"
             result.ran_targets.append(target_id)
             current = pending = None
+            depth = 0
             continue
         if target_id is None:
             # Build output before the first test binary is not a test's.
+            continue
+        if pending is not None and _CHILD_RUN.match(line.strip()):
+            depth += 1
+            continue
+        if depth:
+            if _RESULT.match(line):
+                depth -= 1
+                continue
+            child_line = _TEST_LINE.match(line)
+            rest = line if child_line is None else child_line.group(2)
+            for pattern in SKIP_MARKERS:
+                found = pattern.search(rest)
+                if found is not None:
+                    result.markers.append((pending or target_id, found.group(0)))
+                    break
             continue
         rest = line
         test_line = _TEST_LINE.match(line)
@@ -127,19 +153,16 @@ def scan_output(
             result.seen.append(current)
             rest = test_line.group(2)
             status = rest.strip()
-            # A line that already carries its status never displaces the
-            # pending parent: a child may re-run a planned test by name. The
-            # first status recorded for a name is its own run's.
             if status == "ignored" or status.startswith("ignored,"):
                 result.ignored.append(current)
-                result.status.setdefault(current, "ignored")
+                result.status[current] = "ignored"
                 continue
             if status == "FAILED":
                 result.failed.append(current)
-                result.status.setdefault(current, "FAILED")
+                result.status[current] = "FAILED"
                 continue
             if status == "ok":
-                result.status.setdefault(current, "ok")
+                result.status[current] = "ok"
                 continue
             if planned is None or current in planned:
                 pending = current
@@ -177,10 +200,11 @@ def contract_failures(
     allowlist: Sequence[dict[str, object]],
     listed: set[str] | frozenset[str] = frozenset(),
 ) -> list[str]:
-    """Apply the skip contract: unexcused markers and ignored tests, failed
-    tests, and stale allowlist entries each fail the gate. An `exclude` entry
-    (a test the gate deliberately does not run) is used when `listed` contains
-    it."""
+    """Apply the skip contract: failed tests, skip markers not allowlisted as
+    `benign-message`, ignored tests not allowlisted as `ignored-by-design`,
+    and stale allowlist entries each fail the gate. An `exclude` entry (an
+    opt-in experiment the gate does not run) is used when `listed` contains
+    it, and excuses nothing."""
 
     entries = [e for e in allowlist if e.get("class") != "platform-excluded"]
     used: set[int] = {
@@ -199,14 +223,7 @@ def contract_failures(
         for test_id in result.ignored:
             hits = [n for n, e in enumerate(entries) if _matches(str(e["id"]), test_id)]
             used.update(hits)
-            excused = any(
-                entries[n]["class"] == "ignored-by-design"
-                or (
-                    entries[n]["id"] != test_id
-                    and entries[n]["class"] == "opt-in-experiment"
-                )
-                for n in hits
-            )
+            excused = any(entries[n]["class"] == "ignored-by-design" for n in hits)
             if not excused:
                 failures.append(
                     f"ignored test {test_id} is not allowlisted as ignored-by-design"
@@ -242,14 +259,20 @@ def run_failures(
     returncode: int,
     log: Path,
 ) -> list[str]:
-    """Failures of one cargo run beyond its test results: a non-zero exit and
-    every planned test that never ran."""
+    """Failures of one cargo run beyond its test results: a non-zero exit,
+    every planned test that never ran, and every one that started but has no
+    final status."""
 
     failures = []
     if returncode != 0:
         failures.append(f"{label}: cargo test exited {returncode} (see {log})")
     seen = set(result.seen)
     failures.extend(f"{test}: did not run" for test in sorted(planned - seen))
+    failures.extend(
+        f"{test}: no result"
+        for test in sorted(planned & seen)
+        if test not in result.status
+    )
     return failures
 
 
@@ -303,6 +326,7 @@ def cuda_environment(
 
 def runner_environment(base: dict[str, str], scratch: Path) -> dict[str, str]:
     env = {k: v for k, v in base.items() if k != "FATHOMDB_SKIP_NETWORK_TESTS"}
+    env["FATHOMDB_REQUIRE_LIVE"] = "1"
     env["FATHOMDB_SLICE72_RUNNER"] = "approved-nvidia"
     env["FATHOMDB_SLICE72_RECEIPT_DIR"] = str(scratch / "slice72-receipts")
     return env
@@ -856,12 +880,16 @@ def plan_runs(
     host: str,
     env: dict[str, str],
     scratch: Path,
+    list_tests: Callable[
+        [str, Sequence[str], dict[str, str], Path], tuple[Listing, list[str]]
+    ] = _list_tests,
 ) -> tuple[Plan, set[str], list[tuple[str, tuple[str, ...]]], list[str]]:
-    """List each crate's test binaries under its workspace features, its
-    target-derived sets, and the union of its host-buildable features, derive
-    its extra sets, and assign every test the workspace gate cannot run to the
-    smallest set that lists it. Returns the plan, every listed test id, the
-    derived extra sets, and failures (build failures and extra-set drift)."""
+    """List each crate's test binaries (with `list_tests`) under its workspace
+    features, its target-derived sets, and the union of its host-buildable
+    features, derive its extra sets, and assign every test the workspace gate
+    cannot run to the smallest set that lists it. Returns the plan, every
+    listed test id, the derived extra sets, and failures (build failures and
+    extra-set drift)."""
 
     plan: Plan = []
     listed: set[str] = set()
@@ -890,7 +918,7 @@ def plan_runs(
 
         def lister(features: tuple[str, ...], name: str = name) -> Listing:
             if features not in cache:
-                listing, failed = _list_tests(
+                listing, failed = list_tests(
                     name,
                     features,
                     env,
@@ -900,7 +928,7 @@ def plan_runs(
                 cache[features] = listing
             return cache[features]
 
-        ws_listing, ws_failed = _list_tests(
+        ws_listing, ws_failed = list_tests(
             name, workspace_set, env, scratch / f"list-{name}--workspace.log"
         )
         failures.extend(listing_failures(name, ws_failed, None))

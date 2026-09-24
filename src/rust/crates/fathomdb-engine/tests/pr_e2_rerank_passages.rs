@@ -14,6 +14,9 @@
 //! a cold cache, then cached). The default build skips this target; its
 //! soft-fallback identity contract is covered there by `pr_g10_reranker.rs`.
 
+#[path = "support/live.rs"]
+mod live;
+
 use fathomdb_engine::rerank_passages;
 
 fn passage(id: u64, body: &str, score: f64) -> (u64, String, f64) {
@@ -100,7 +103,9 @@ fn rerank_passages_threads_alpha_and_pool_n() {
     ];
     let out = rerank_passages(query, input.clone(), 3, 1.0, 3).unwrap();
     if out.iter().all(|t| t.2.is_none()) {
-        eprintln!("[SKIP] CE model unavailable — α/pool_n plumb test needs the cached reranker");
+        live::require_live_or_skip(
+            "[SKIP] CE model unavailable — α/pool_n plumb test needs the cached reranker",
+        );
         return;
     }
     assert_eq!(out[0].0, 2, "α=1.0 must lift the relevant passage to the top");

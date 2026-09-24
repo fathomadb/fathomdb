@@ -790,11 +790,14 @@ def check_coverage(
         if target_id is None:
             failures.append(f"stale allowlist entry {entry_id!r}: no such test target")
             continue
-        if entry.get("exclude") and (
-            entry_class != "opt-in-experiment" or entry_id == target_id
+        # The gate never runs an opt-in experiment, so its entry excludes one
+        # test; nothing else may be excluded.
+        if (entry_class == "opt-in-experiment") != bool(entry.get("exclude")) or (
+            entry.get("exclude") and entry_id == target_id
         ):
             failures.append(
-                f"allowlist entry {entry_id!r}: exclude is only for single opt-in-experiment tests"
+                f"allowlist entry {entry_id!r}: an opt-in-experiment entry must set "
+                "exclude = true for a single test, and only such an entry may exclude"
             )
             continue
         if entry_class == "platform-excluded":

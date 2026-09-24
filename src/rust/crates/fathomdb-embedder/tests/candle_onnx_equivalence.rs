@@ -43,6 +43,9 @@ use std::path::Path;
 use fathomdb_embedder::{CandleBgeEmbedder, OrtBgeEmbedder, OrtPooling, Pooling};
 use fathomdb_embedder_api::Embedder;
 
+#[path = "support/live.rs"]
+mod live;
+
 const PROBES: &str = include_str!("fixtures/candle_onnx_equivalence_probes.txt");
 const DIM: usize = 384;
 
@@ -136,10 +139,10 @@ fn candle_onnx_equivalence_measurement() {
         std::env::var("FATHOMDB_ONNX_MODEL_PATH"),
         std::env::var("FATHOMDB_ONNX_TOKENIZER_PATH"),
     ) else {
-        eprintln!(
+        live::require_live_or_skip(
             "SKIP candle_onnx_equivalence_measurement: set ORT_DYLIB_PATH + \
              FATHOMDB_ONNX_MODEL_PATH + FATHOMDB_ONNX_TOKENIZER_PATH (and warm the candle HF \
-             cache) to run the R-ONNX-3 equivalence measurement (see dev/tools/onnx/README.md)"
+             cache) to run the R-ONNX-3 equivalence measurement (see dev/tools/onnx/README.md)",
         );
         return;
     };

@@ -1,5 +1,7 @@
 //! Smoke test: NomicEmbedder loads nomic-embed-text-v1.5 and embeds.
 #![cfg(feature = "default-embedder")]
+#[path = "support/live.rs"]
+mod live;
 use fathomdb_embedder::NomicEmbedder;
 use fathomdb_embedder_api::Embedder;
 
@@ -8,7 +10,7 @@ fn nomic_loads_and_embeds() {
     // Same root as the embedder loader's pinned weights: `<cache>/fathomdb/embedders/`.
     let dir = dirs::cache_dir().expect("platform cache dir").join("fathomdb/embedders/nomic-v1.5");
     if !dir.join("model.safetensors").exists() {
-        eprintln!("[skip] nomic weights absent");
+        live::require_live_or_skip("[skip] nomic weights absent");
         return;
     }
     let emb = NomicEmbedder::from_dir(&dir).expect("load nomic");

@@ -15,6 +15,9 @@
 
 #![cfg(feature = "default-embedder")]
 
+#[path = "support/live.rs"]
+mod live;
+
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
@@ -47,7 +50,7 @@ fn pr9_microbench_watchdog_overhead() {
         return;
     }
     if std::env::var("FATHOMDB_SKIP_NETWORK_TESTS").is_ok() {
-        eprintln!("[skip] FATHOMDB_SKIP_NETWORK_TESTS set");
+        crate::live::require_live_or_skip("[skip] FATHOMDB_SKIP_NETWORK_TESTS set");
         return;
     }
     let build = if cfg!(debug_assertions) { "debug" } else { "release" };

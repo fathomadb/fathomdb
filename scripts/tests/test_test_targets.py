@@ -443,6 +443,15 @@ def test_onnx_provisioning(fc: ModuleType) -> None:
             lambda: fc.provision_wheel_member(base / "cache", bad, fetch),
             "sha256",
         )
+        # A wheel that is not the pinned wheel is rejected before extraction,
+        # and neither the download nor a partial member is left behind.
+        wrong_wheel = dict(spec, sha256="0" * 64)
+        expect_error(
+            fc.FeatureCompleteError,
+            lambda: fc.provision_wheel_member(base / "cache", wrong_wheel, fetch),
+            "wheel sha256",
+        )
+        assert sorted(p.name for p in (base / "cache").iterdir()) == []
 
         model = base / "onnx" / "model.onnx"
         exported: list[Path] = []
@@ -462,12 +471,74 @@ def test_onnx_provisioning(fc: ModuleType) -> None:
             "sha256",
         )
         assert not model.exists()
+        assert sorted(p.name for p in model.parent.iterdir()) == []
+
+        def failing(destination: Path) -> None:
+            destination.write_bytes(b"half")
+            raise RuntimeError("export died")
+
+        try:
+            fc.provision_generated(model, digest, failing)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("a failing generator must propagate")
+        assert sorted(p.name for p in model.parent.iterdir()) == []
+
+        # The export venv installs only the hash-pinned lock, and the
+        # exporter's own `.onnx` output never outlives the generator.
+        commands: list[list[str]] = []
+        fail_export = [False]
+
+        def run(command: list[str], **_: object) -> None:
+            commands.append([str(part) for part in command])
+            if "--out" in command:
+                out = Path(command[command.index("--out") + 1])
+                out.write_bytes(b"graph")
+                if fail_export[0]:
+                    raise fc.subprocess.CalledProcessError(1, command)
+
+        venv = base / "venv"
+        (venv / "bin").mkdir(parents=True)
+        (venv / "bin" / "python").write_text("")
+        destination = base / "gen" / "model.onnx.partial"
+        destination.parent.mkdir()
+        fc._export_onnx_model(venv, run)(destination)
+        assert destination.read_bytes() == b"graph"
+        assert sorted(p.name for p in destination.parent.iterdir()) == [
+            destination.name
+        ]
+        (install,) = [c for c in commands if "install" in c]
+        assert "--require-hashes" in install and "--no-deps" in install, install
+        assert install[install.index("-r") + 1] == str(fc.ONNX_EXPORT_LOCK)
+        destination.unlink()
+        fail_export[0] = True
+        try:
+            fc._export_onnx_model(venv, run)(destination)
+        except fc.subprocess.CalledProcessError:
+            pass
+        else:
+            raise AssertionError("a failing export must propagate")
+        assert sorted(p.name for p in destination.parent.iterdir()) == []
 
         env = fc.onnx_environment({"A": "1"}, library, model, base / "tok.json")
         assert env["ORT_DYLIB_PATH"] == str(library)
         assert env["FATHOMDB_ONNX_MODEL_PATH"] == str(model)
         assert env["FATHOMDB_ONNX_TOKENIZER_PATH"] == str(base / "tok.json")
     assert fc.ONNXRUNTIME_WHEEL["sha256"] and fc.ONNX_MODEL_SHA256
+
+    # Every export requirement is an exact, hash-pinned version.
+    import re
+
+    lock = fc.ONNX_EXPORT_LOCK.read_text().splitlines()
+    pins = [line for line in lock if line and not line.startswith(("#", "--"))]
+    assert pins, lock
+    for line in pins:
+        assert re.fullmatch(
+            r"[A-Za-z0-9_.-]+==[A-Za-z0-9_.+-]+ --hash=sha256:[0-9a-f]{64}", line
+        ), line
+    names = {line.split("==")[0].lower() for line in pins}
+    assert {"torch", "transformers", "numpy", "onnx"} <= names, names
 
 
 def test_canonical_properties(tt: ModuleType) -> None:
@@ -741,6 +812,219 @@ def test_weight_provisioning(fc: ModuleType) -> None:
     assert fc.NOMIC_REVISION in fc.NOMIC_FILES["model.safetensors"][2]
 
 
+def test_extra_sets(tt: ModuleType) -> None:
+    """Extra sets (gate-derived, for tests behind item-level feature cfgs that
+    no target requires) round-trip through the matrix, are preserved by
+    `--write-matrix`, and are checked statically for staleness."""
+
+    entries = [("a", ()), ("b", ("x",))]
+    extras = [("b", ("lonely",)), ("a", ("gpu",))]
+    text = tt.render_matrix(entries, extras)
+    assert "[[extra]]" in text
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "matrix.toml"
+        path.write_text(text)
+        assert tt.load_matrix(path) == sorted(entries)
+        assert tt.load_extra_sets(path) == sorted(extras)
+        path.write_text(tt.render_matrix(entries))
+        assert tt.load_extra_sets(path) == []
+
+    # Host-buildable features: everything but features whose closure, across
+    # workspace crates, reaches a dependency feature whose platform cfg is
+    # false on the host. `default` is never a candidate.
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        (root / "Cargo.toml").write_text('[workspace]\nmembers = ["a", "b"]\n')
+        (root / "a").mkdir()
+        (root / "a" / "Cargo.toml").write_text(
+            '[package]\nname = "a"\nversion = "0.1.0"\n\n[features]\n'
+            'default = []\nhooks = []\nextra = ["hooks"]\nlonely = []\n'
+            'gpu = ["b/shiny"]\n'
+        )
+        (root / "b").mkdir()
+        (root / "b" / "Cargo.toml").write_text(
+            '[package]\nname = "b"\nversion = "0.1.0"\n\n[features]\n'
+            'shiny = ["somedep/metal"]\nplain = []\n'
+        )
+        crates = tt.read_workspace(root)
+        table = {"somedep/metal": 'target_os = "macos"'}
+        assert tt.host_buildable_features(crates, "a", HOST, table) == (
+            "extra",
+            "hooks",
+            "lonely",
+        )
+        assert tt.host_buildable_features(
+            crates, "a", "aarch64-apple-darwin", table
+        ) == ("extra", "gpu", "hooks", "lonely")
+        assert tt.host_buildable_features(crates, "b", HOST, table) == ("plain",)
+    assert tt.PLATFORM_DEPENDENCY_FEATURES["candle-core/metal"]
+
+    crates = tt.read_workspace(FIXTURE_CRATE)
+    complete = tt.derive_matrix(crates)
+    workspace = {"hs_fixture": frozenset()}
+    # `extra` is a declared feature and not a target-derived set: valid.
+    failures, _ = tt.check_coverage(
+        crates, workspace, complete, [], HOST, extras=[("hs_fixture", ("extra",))]
+    )
+    assert failures == [], failures
+    # A duplicate of a target-derived set, an undeclared feature, and an
+    # unknown crate are each stale.
+    for bad in (
+        [("hs_fixture", ("hooks",))],
+        [("hs_fixture", ("nope",))],
+        [("gone", ("extra",))],
+    ):
+        failures, _ = tt.check_coverage(
+            crates, workspace, complete, [], HOST, extras=bad
+        )
+        assert len(failures) == 1 and "extra set" in failures[0], (bad, failures)
+
+
+def test_derive_extra_sets(fc: ModuleType, tt: ModuleType) -> None:
+    """A test present under the union of host-buildable features but under
+    neither the workspace features nor any target-derived set (an item-level
+    `#[cfg(feature = "lonely")]` test in a crate where no target requires
+    `lonely`) is assigned the smallest single feature that lists it, else the
+    union; the derived sets are compared with the committed ones."""
+
+    (crate,) = tt.read_workspace(FIXTURE_CRATE)
+    assert fc.extra_candidates(crate, ("extra", "hooks")) == [("hooks",), ("extra",)]
+
+    workspace = {"lib": {"a"}, "plain": {"runs"}}
+    static = {("hooks",): {"lib": {"a", "h"}, "plain": {"runs", "second"}}}
+    union_features = ("extra", "gpu", "hooks", "lonely")
+    union = {
+        "lib": {"a", "h", "lonely_test", "both_test"},
+        "plain": {"runs", "second", "gpu_only"},
+    }
+    singles = {
+        ("extra",): {"lib": {"a", "h"}},
+        ("lonely",): {"lib": {"a", "lonely_test"}},
+        ("gpu",): {"plain": {"runs", "gpu_only"}},
+        ("zzz",): {"lib": {"a"}},
+    }
+    listed: list[tuple[str, ...]] = []
+
+    def lister(features: tuple[str, ...]) -> dict[str, set[str]]:
+        listed.append(features)
+        return singles[features]
+
+    candidates = [("extra",), ("hooks",), ("lonely",), ("gpu",), ("zzz",)]
+    derived, listings = fc.derive_extra_sets(
+        workspace, static, union, union_features, candidates, lister
+    )
+    assert derived == [("lonely",), ("gpu",), union_features], derived
+    # A target-derived set is never re-listed.
+    assert ("hooks",) not in listed
+    pairs = fc.run_pairs(workspace, {**static, **listings})
+    assert pairs == [
+        (("gpu",), {"plain": ["gpu_only"]}),
+        (("hooks",), {"lib": ["h"], "plain": ["second"]}),
+        (("lonely",), {"lib": ["lonely_test"]}),
+        (union_features, {"lib": ["both_test"]}),
+    ], pairs
+
+    # Nothing uncovered: nothing derived and nothing listed.
+    listed.clear()
+    covered = {"lib": {"a", "h"}, "plain": {"runs", "second"}}
+    assert fc.derive_extra_sets(
+        workspace, static, covered, union_features, candidates, lister
+    ) == ([], {})
+    assert listed == []
+
+    assert fc.extra_set_drift("c", [("lonely",)], [("lonely",)]) == []
+    drift = fc.extra_set_drift("c", [("lonely",)], [("lonely",), ("old",)])
+    assert len(drift) == 1 and "old" in drift[0] and "--write-matrix" in drift[0]
+    drift = fc.extra_set_drift("c", [("lonely",), ("new",)], [("lonely",)])
+    assert len(drift) == 1 and "new" in drift[0], drift
+
+
+def child_process_output() -> str:
+    """A parent test that re-executes its own binary for a worker test prints
+    the child's libtest lines inside its own run."""
+
+    return (
+        "     Running tests/plain.rs (target/debug/deps/plain-0123)\n"
+        "\n"
+        "running 4 tests\n"
+        "test runs ... \n"
+        "running 1 test\n"
+        "test worker ... ok\n"
+        "\n"
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out\n"
+        "ok\n"
+        "test second ... \n"
+        "running 1 test\n"
+        "test worker ... ok\n"
+        "\n"
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out\n"
+        "FAILED\n"
+        "test ignored_by_design ... ignored\n"
+        "\n"
+        "test result: FAILED. 1 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out\n"
+    )
+
+
+def test_parent_counts(fc: ModuleType, tt: ModuleType) -> None:
+    """Counts are per planned (parent) test from the gate's own bookkeeping:
+    a child worker's `test result` lines are not counted, and a parent's bare
+    status line is attributed to the parent even after child output."""
+
+    (crate,) = tt.read_workspace(FIXTURE_CRATE)
+    planned = {
+        "hs_fixture::plain::runs",
+        "hs_fixture::plain::second",
+        "hs_fixture::plain::ignored_by_design",
+        "hs_fixture::plain::never",
+    }
+    result = fc.scan_output(child_process_output(), crate, planned)
+    assert "hs_fixture::plain::second" in result.failed, result.failed
+    assert "hs_fixture::plain::worker" not in result.failed, result.failed
+    assert fc.parent_counts(planned, result) == {
+        "planned": 4,
+        "passed": 1,
+        "failed": 2,
+        "ignored": 1,
+    }
+    ok = fc.scan_output(
+        child_process_output().replace("FAILED\n", "ok\n", 1), crate, planned
+    )
+    assert fc.parent_counts(planned - {"hs_fixture::plain::never"}, ok) == {
+        "planned": 3,
+        "passed": 2,
+        "failed": 0,
+        "ignored": 1,
+    }
+
+
+def test_run_failures(fc: ModuleType, tt: ModuleType) -> None:
+    """A planned test missing from the output, a non-zero cargo exit, and a
+    binary that does not build each fail the gate."""
+
+    (crate,) = tt.read_workspace(FIXTURE_CRATE)
+    planned = {"hs_fixture::plain::runs", "hs_fixture::plain::never"}
+    result = fc.scan_output(child_process_output(), crate, planned)
+    failures = fc.run_failures("hs_fixture[hooks]", planned, result, 101, Path("/l"))
+    assert failures == [
+        "hs_fixture[hooks]: cargo test exited 101 (see /l)",
+        "hs_fixture::plain::never: did not run",
+    ], failures
+    assert (
+        fc.run_failures(
+            "hs_fixture[hooks]", {"hs_fixture::plain::runs"}, result, 0, Path("/l")
+        )
+        == []
+    )
+    assert fc.listing_failures("c", ["lib", "plain"], None) == [
+        "c::lib: does not build",
+        "c::plain: does not build",
+    ]
+    assert fc.listing_failures("c", ["lib"], ("a", "b")) == [
+        "c::lib: does not build with ['a', 'b']"
+    ]
+    assert fc.listing_failures("c", [], ("a",)) == []
+
+
 def test_repository_wiring(tt: ModuleType) -> None:
     script = (ROOT / "scripts" / "test-feature-complete.sh").read_text()
     assert "feature_complete.py" in script
@@ -753,13 +1037,44 @@ def test_repository_wiring(tt: ModuleType) -> None:
         "run_tier_suite fast test-test-targets python3 scripts/tests/test_test_targets.py",
     ):
         assert line in agent_test, line
-    # The committed matrix is exactly what --write-matrix renders.
+    # The committed matrix is exactly what --write-matrix renders, including
+    # the gate-derived extra sets for item-level feature tests no target
+    # requires.
     crates = tt.read_workspace(ROOT)
-    assert (
-        ROOT / "scripts" / "test-feature-matrix.toml"
-    ).read_text() == tt.render_matrix(tt.derive_matrix(crates))
+    matrix = ROOT / "scripts" / "test-feature-matrix.toml"
+    extras = tt.load_extra_sets(matrix)
+    assert matrix.read_text() == tt.render_matrix(tt.derive_matrix(crates), extras)
+    for known in (
+        ("fathomdb-cli", ("default-embedder",)),
+        ("fathomdb-cli", ("default-reranker",)),
+        ("fathomdb-embedder", ("embed-cuda",)),
+        ("fathomdb-embedder", ("rerank-cuda",)),
+    ):
+        assert known in extras, (known, extras)
+    # The calibration's assertions run in a gate-run test; only the writer of
+    # the committed record is excluded.
+    calibration = (
+        ROOT / "src/rust/crates/fathomdb-embedder/tests/cross_backend_calibration.rs"
+    ).read_text()
+    assert "#[test]\nfn calibration_cpu_baseline_components_hold() {" in calibration
+    for assertion in (
+        'assert!(mean_l2 > 1e-3, "pinned mean fixture must be non-degenerate (‖mean‖₂={mean_l2:.6})");',
+        'assert_eq!(m.mean_centered_flips_total, 0, "CPU baseline mean-centered flips must be 0");',
+        'assert!(m.p2_l2_max < 1e-4, "CPU baseline P2 L2 max {:.3e} unexpectedly large", m.p2_l2_max);',
+    ):
+        assert calibration.count(assertion) == 1, assertion
+    body = calibration.split("fn calibration_cpu_baseline_components_hold() {")[1]
+    body = body.split("\n}\n")[0]
+    assert "assert_cpu_baseline_components(" in body, body
+    assert "write_durable_doc" not in body, body
     allowlist = tt.load_allowlist(ROOT / "scripts" / "test-skip-allowlist.toml")
     assert all(entry["reason"].strip() for entry in allowlist)
+    excluded = [entry["id"] for entry in allowlist if entry.get("exclude")]
+    assert (
+        "fathomdb-embedder::cross_backend_calibration::calibration_reports_p1_flips_and_p2_l2"
+        in excluded
+    )
+    assert not any("calibration_cpu_baseline_components_hold" in e for e in excluded)
 
 
 def main() -> None:
@@ -770,6 +1085,7 @@ def main() -> None:
         test_read_fixture_workspace,
         test_matrix_round_trip,
         test_coverage_check,
+        test_extra_sets,
         test_repository_wiring,
     ):
         test(tt)
@@ -778,6 +1094,9 @@ def main() -> None:
     print("ok    test_skip_contract")
     test_skip_markers(fc, tt)
     print("ok    test_skip_markers")
+    for paired in (test_derive_extra_sets, test_parent_counts, test_run_failures):
+        paired(fc, tt)
+        print(f"ok    {paired.__name__}")
     test_canonical_properties(tt)
     print("ok    test_canonical_properties")
     for test in (

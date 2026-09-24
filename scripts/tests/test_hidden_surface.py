@@ -970,6 +970,21 @@ def test_release_only_scan(tool: ModuleType) -> None:
     expect_error(
         tool, lambda: tool.check_release_only(extra, curated), "surprise_release_only"
     )
+    # `test` is false in a release build, never a free atom: an item gated on
+    # `all(test, not(debug_assertions))` exists in no release build.
+    test_only = {"t.rs": "#[cfg(all(test, not(debug_assertions)))]\npub fn t() {}\n"}
+    assert tool.release_only_names(test_only) == set()
+    # A cfg quoted in documentation gates nothing and is not parsed; an
+    # unparseable cfg that does gate a public item still fails closed.
+    documented = {
+        "d.rs": (
+            "/// Callers gate this with `#[cfg(feature = ...)]` themselves.\n"
+            "pub fn documented() {}\n"
+        )
+    }
+    assert tool.release_only_names(documented) == set()
+    broken = {"b.rs": "#[cfg(feature = ...)]\npub fn broken() {}\n"}
+    expect_error(tool, lambda: tool.release_only_names(broken), "release-only scan")
 
 
 def test_capacity_and_prune_lock(tool: ModuleType) -> None:

@@ -268,8 +268,13 @@ a small module, `scripts/lib/test_targets.py`, reads `Cargo.toml` and
 **Committed inputs (G-2).**
 
 - `scripts/test-feature-matrix.toml`: the crate and feature sets the gate runs.
-  `test_targets.py --write-matrix` regenerates it; a new requirement set then
-  shows up as a reviewed diff, never as a silent addition.
+  It has two tables, and a new set in either shows up as a reviewed diff, never
+  as a silent addition:
+  - `[[entry]]`: the requirement sets of test targets, derived from source.
+    `test_targets.py --write-matrix` regenerates them.
+  - `[[extra]]`: sets for tests behind an item-level `#[cfg(feature = ...)]`
+    on a feature that no target requires. They are derived from test listings
+    (see G-1), and `test-feature-complete.sh --write-matrix` regenerates them.
 - `scripts/test-skip-allowlist.toml`: every test the gate may legitimately
   not run. Each entry is a test id or target plus a class and a reason. The
   classes are:
@@ -280,7 +285,9 @@ a small module, `scripts/lib/test_targets.py`, reads `Cargo.toml` and
     `IRC_RUN` and gitignored gold files. A single-test entry may set
     `exclude = true` so the gate never runs that test. It is used for
     `calibration_reports_p1_flips_and_p2_l2`, which rewrites a committed
-    calibration record. The entry is stale unless the test is listed;
+    calibration record. The gate runs that test's assertions through
+    `calibration_cpu_baseline_components_hold`, which writes nothing. The entry
+    is stale unless the test is listed;
   - `benign-message`: a harmless message that contains a skip word;
   - `platform-excluded`: a whole target whose file-level cfg excludes some
     hosts. Its `excluded_on` host predicate says where the entry applies, so the
@@ -317,8 +324,11 @@ Every other asset is pinned and verified before use:
   - `libonnxruntime.so.1.26.0` is extracted from the onnxruntime 1.26.0 wheel
     (wheel sha256 and library sha256 both pinned);
   - the bge-small ONNX graph is checked against its pinned sha256 and
-    re-exported with `dev/tools/onnx/export_bge_small_onnx.py` in a throwaway
-    virtual environment when missing (the export is byte-deterministic);
+    re-exported with `dev/tools/onnx/export_bge_small_onnx.py` when missing.
+    The export runs in a throwaway virtual environment that installs
+    `dev/tools/onnx/export-requirements.txt` with `--require-hashes
+    --no-deps`, so every package is an exact, hash-pinned version. The export
+    is byte-deterministic with that set;
   - the tokenizer is the one the embedder loader pins.
 
   The gate sets `ORT_DYLIB_PATH`, `FATHOMDB_ONNX_MODEL_PATH`, and
@@ -326,12 +336,28 @@ Every other asset is pinned and verified before use:
 
 **Run and skip contract (G-1).** The gate first lists every test binary of
 each crate, lib unit tests included. It builds once under the workspace gate's
-features and once under each matrix set (`cargo build --tests --keep-going`),
-then runs each executable with `--list`. A test that appears under a matrix set
-but not under the workspace features is run once, under the smallest set that
-has it. This covers whole feature-gated targets and item-level
-`#[cfg(feature = ...)]` tests inside targets the workspace gate runs. A binary
-that fails to build fails the gate. Per crate and set the gate runs:
+features, once under each `[[entry]]` set, and once under the union of the
+crate's host-buildable features (`cargo build --tests --keep-going`), then
+runs each executable with `--list`.
+
+A feature is host-buildable unless it reaches, through any workspace crate's
+feature graph, a dependency feature that only builds elsewhere. Cargo cannot
+express that, so `test_targets.PLATFORM_DEPENDENCY_FEATURES` records each such
+dependency feature with the cfg of the hosts where it builds. Today these are
+the Candle Metal backends (`target_os = "macos"`).
+
+A test listed under the union but under neither the workspace features nor an
+`[[entry]]` set is gated on a feature no target requires. The gate lists the
+crate's single host-buildable features, smallest feature closure first then by
+name, and gives the test the first one that lists it. If none does, the test
+gets the union. These derived extra sets must equal the matrix's `[[extra]]`
+sets for the crate; a difference fails the gate.
+
+A test that appears under an `[[entry]]` or extra set but not under the
+workspace features is run once, under the smallest set that has it. This
+covers whole feature-gated targets and item-level `#[cfg(feature = ...)]`
+tests inside targets the workspace gate runs. A binary that fails to build
+fails the gate. Per crate and set the gate runs:
 
 ```text
 cargo test --locked -p <crate> --no-default-features --features <set> \
@@ -359,6 +385,12 @@ Then:
 - **Stale entries:** an allowlist entry that no longer matches any test fails
   the gate.
 - **Result:** "passes" means every non-allowlisted test ran and passed.
+- **Counts:** planned, passed, failed, and ignored are counted per planned
+  test, from the status the gate attributes to it, and written to
+  `summary.json`. They are never summed from `test result` lines, because a
+  test that re-executes its own binary prints its child's results. A planned
+  test with no status counts as failed, and one that never appears fails the
+  gate.
 
 A later hardening step can replace marker matching with a shared
 `FATHOMDB_REQUIRE_LIVE=1` helper that turns a skip into a panic; that is not
@@ -384,6 +416,9 @@ host. The check fails, naming the target or entry, when:
   --workspace` unifies;
 - the requirement sets derived from the source differ from the committed
   matrix;
+- an `[[extra]]` set names an unknown crate or undeclared features, or
+  duplicates an `[[entry]]` set. Whether the extra sets are complete is checked
+  only by the gate, because that needs test listings;
 - an allowlist entry is stale.
 
 It also prints the targets that only the feature-complete gate covers.

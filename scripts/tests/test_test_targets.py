@@ -148,7 +148,11 @@ def test_coverage_check(tt: ModuleType) -> None:
     ):
         failures, _ = tt.check_coverage(crates, workspace, complete, [entry], HOST)
         assert len(failures) == 1 and "stale" in failures[0], (entry, failures)
-    single = {"id": "hs_fixture::plain::runs", "class": "ignored-by-design", "reason": "r"}
+    single = {
+        "id": "hs_fixture::plain::runs",
+        "class": "ignored-by-design",
+        "reason": "r",
+    }
     assert tt.check_coverage(crates, workspace, complete, [single], HOST)[0] == []
     ok_entry = {
         "id": "hs_fixture::hooked::hooked",
@@ -862,9 +866,14 @@ def test_extra_sets(tt: ModuleType) -> None:
     crates = tt.read_workspace(FIXTURE_CRATE)
     complete = tt.derive_matrix(crates)
     workspace = {"hs_fixture": frozenset()}
-    # `extra` is a declared feature and not a target-derived set: valid.
+    # Declared features that are not a target-derived set: valid.
     failures, _ = tt.check_coverage(
-        crates, workspace, complete, [], HOST, extras=[("hs_fixture", ("extra",))]
+        crates,
+        workspace,
+        complete,
+        [],
+        HOST,
+        extras=[("hs_fixture", ("extra", "hooks"))],
     )
     assert failures == [], failures
     # A duplicate of a target-derived set, an undeclared feature, and an
@@ -941,12 +950,14 @@ def test_derive_extra_sets(fc: ModuleType, tt: ModuleType) -> None:
 
 def child_process_output() -> str:
     """A parent test that re-executes its own binary for a worker test prints
-    the child's libtest lines inside its own run."""
+    the child's libtest lines inside its own run; the worker is also planned
+    and runs once on its own."""
 
     return (
         "     Running tests/plain.rs (target/debug/deps/plain-0123)\n"
         "\n"
-        "running 4 tests\n"
+        "running 5 tests\n"
+        "test worker ... ok\n"
         "test runs ... \n"
         "running 1 test\n"
         "test worker ... ok\n"
@@ -972,6 +983,7 @@ def test_parent_counts(fc: ModuleType, tt: ModuleType) -> None:
 
     (crate,) = tt.read_workspace(FIXTURE_CRATE)
     planned = {
+        "hs_fixture::plain::worker",
         "hs_fixture::plain::runs",
         "hs_fixture::plain::second",
         "hs_fixture::plain::ignored_by_design",
@@ -981,8 +993,8 @@ def test_parent_counts(fc: ModuleType, tt: ModuleType) -> None:
     assert "hs_fixture::plain::second" in result.failed, result.failed
     assert "hs_fixture::plain::worker" not in result.failed, result.failed
     assert fc.parent_counts(planned, result) == {
-        "planned": 4,
-        "passed": 1,
+        "planned": 5,
+        "passed": 2,
         "failed": 2,
         "ignored": 1,
     }
@@ -990,8 +1002,8 @@ def test_parent_counts(fc: ModuleType, tt: ModuleType) -> None:
         child_process_output().replace("FAILED\n", "ok\n", 1), crate, planned
     )
     assert fc.parent_counts(planned - {"hs_fixture::plain::never"}, ok) == {
-        "planned": 3,
-        "passed": 2,
+        "planned": 4,
+        "passed": 3,
         "failed": 0,
         "ignored": 1,
     }

@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """The feature-complete test gate behind `scripts/test-feature-complete.sh`.
 
-Lists every test binary of each crate under the workspace gate's features
-and under each feature set of the committed `scripts/test-feature-matrix.toml`,
-then runs every test that appears only under a matrix set (whole feature-gated
-targets and item-level `#[cfg(feature = ...)]` tests alike), once, under the
-smallest set that has it. It runs with CUDA on the two RTX 3090s, real model
+Lists every test binary of each crate under the workspace gate's features,
+under each target-derived feature set of the committed
+`scripts/test-feature-matrix.toml`, and under the union of the crate's
+host-buildable features. A test listed under the union but under no other set
+(an item-level `#[cfg(feature = ...)]` on a feature no target requires) gets an
+extra set: the first single feature, smallest closure first, that lists it,
+else the union. The derived extra sets must equal the matrix's `[[extra]]`
+sets (`--write-matrix` rewrites them). Every test that appears only under a
+matrix or extra set runs once, under the smallest set that has it, and is
+counted per test, never by summing libtest summaries (a test that re-executes
+its own binary prints its child's). It runs with CUDA on the two RTX 3090s, real model
 weights (embedder, reranker, nomic), and the ONNX Runtime assets. A test that
 skips itself or is `#[ignore]`d fails the gate unless
 `scripts/test-skip-allowlist.toml` names it with a class and reason; an
@@ -64,7 +70,7 @@ class FeatureCompleteError(Exception):
 class ScanResult:
     """Skip markers, ignored tests, and failures seen in one cargo run."""
 
-    __slots__ = ("markers", "ignored", "failed", "ran_targets", "seen")
+    __slots__ = ("markers", "ignored", "failed", "ran_targets", "seen", "status")
 
     def __init__(self) -> None:
         self.markers: list[tuple[str, str]] = []
@@ -72,6 +78,8 @@ class ScanResult:
         self.failed: list[str] = []
         self.ran_targets: list[str] = []
         self.seen: list[str] = []
+        # Final libtest status ("ok", "FAILED", "ignored") per test.
+        self.status: dict[str, str] = {}
 
 
 def _source_label(source: str, crate: test_targets.Crate) -> str:
@@ -87,19 +95,27 @@ def _source_label(source: str, crate: test_targets.Crate) -> str:
     return source
 
 
-def scan_output(text: str, crate: test_targets.Crate) -> ScanResult:
+def scan_output(
+    text: str,
+    crate: test_targets.Crate,
+    planned: set[str] | frozenset[str] | None = None,
+) -> ScanResult:
     """Attribute every marker to the test whose `test <name> ...` line precedes
-    it (the gate runs one test thread per binary)."""
+    it (the gate runs one test thread per binary). With `planned`, a bare
+    status line (`--nocapture` prints it after the test's output) belongs to
+    the last planned test still running, not to a child process's test lines
+    printed in between (a test that re-executes its own binary)."""
 
     result = ScanResult()
     target_id: str | None = None
     current: str | None = None
+    pending: str | None = None
     for line in text.splitlines():
         running = _RUNNING.match(line)
         if running is not None:
             target_id = f"{crate.name}::{_source_label(running.group(1), crate)}"
             result.ran_targets.append(target_id)
-            current = None
+            current = pending = None
             continue
         if target_id is None:
             # Build output before the first test binary is not a test's.
@@ -111,15 +127,33 @@ def scan_output(text: str, crate: test_targets.Crate) -> ScanResult:
             result.seen.append(current)
             rest = test_line.group(2)
             status = rest.strip()
+            # A line that already carries its status never displaces the
+            # pending parent: a child may re-run a planned test by name. The
+            # first status recorded for a name is its own run's.
             if status == "ignored" or status.startswith("ignored,"):
                 result.ignored.append(current)
+                result.status.setdefault(current, "ignored")
                 continue
             if status == "FAILED":
                 result.failed.append(current)
+                result.status.setdefault(current, "FAILED")
                 continue
-        elif line.strip() == "FAILED" and current is not None:
-            result.failed.append(current)
-            continue
+            if status == "ok":
+                result.status.setdefault(current, "ok")
+                continue
+            if planned is None or current in planned:
+                pending = current
+        elif line.strip() in ("ok", "FAILED"):
+            owner = current if planned is None else pending
+            if owner is not None:
+                result.status[owner] = line.strip()
+                if line.strip() == "FAILED":
+                    result.failed.append(owner)
+                pending = None if pending == owner else pending
+                continue
+            if line.strip() == "FAILED" and current is not None:
+                result.failed.append(current)
+                continue
         summary = _RESULT.match(line)
         if summary is not None:
             if summary.group(1) != "ok":
@@ -183,6 +217,50 @@ def contract_failures(
                 f"stale allowlist entry {entry['id']!r} ({entry['class']}): matched no skip or ignored test"
             )
     return failures
+
+
+def parent_counts(
+    planned: set[str] | frozenset[str], result: ScanResult
+) -> dict[str, int]:
+    """Planned, passed, failed, and ignored counts over the planned tests only;
+    a planned test with no final status (never ran, or cut off) is failed."""
+
+    passed = sum(1 for test in planned if result.status.get(test) == "ok")
+    ignored = sum(1 for test in planned if result.status.get(test) == "ignored")
+    return {
+        "planned": len(planned),
+        "passed": passed,
+        "failed": len(planned) - passed - ignored,
+        "ignored": ignored,
+    }
+
+
+def run_failures(
+    label: str,
+    planned: set[str] | frozenset[str],
+    result: ScanResult,
+    returncode: int,
+    log: Path,
+) -> list[str]:
+    """Failures of one cargo run beyond its test results: a non-zero exit and
+    every planned test that never ran."""
+
+    failures = []
+    if returncode != 0:
+        failures.append(f"{label}: cargo test exited {returncode} (see {log})")
+    seen = set(result.seen)
+    failures.extend(f"{test}: did not run" for test in sorted(planned - seen))
+    return failures
+
+
+def listing_failures(
+    crate: str, failed: Sequence[str], features: Sequence[str] | None
+) -> list[str]:
+    """One failure per test binary that did not build; `features` is None for
+    the workspace features."""
+
+    suffix = "" if features is None else f" with {list(features)}"
+    return [f"{crate}::{label}: does not build{suffix}" for label in sorted(failed)]
 
 
 def cuda_environment(
@@ -374,12 +452,9 @@ ONNXRUNTIME_WHEEL = {
 ONNXRUNTIME_HOSTS = frozenset({"x86_64-unknown-linux-gnu"})
 ONNX_MODEL_SHA256 = "c92689ecdefc35c3b533f68449cf1a50e7a1301736d8031372b0fa70e862c5a5"
 ONNX_EXPORT_SCRIPT = REPO_ROOT / "dev/tools/onnx/export_bge_small_onnx.py"
-ONNX_EXPORT_REQUIREMENTS = (
-    ("torch==2.4.1", "https://download.pytorch.org/whl/cpu"),
-    ("transformers==4.44.2", None),
-    ("numpy<2", None),
-    ("onnx", None),
-)
+# Exact, hash-pinned export toolchain (and every transitive dependency); a
+# fresh export with it reproduces ONNX_MODEL_SHA256 byte for byte.
+ONNX_EXPORT_LOCK = REPO_ROOT / "dev/tools/onnx/export-requirements.txt"
 # The bge-small tokenizer the embedder loader pins (TOKENIZER_JSON_SHA256).
 BGE_TOKENIZER_SHA256 = (
     "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
@@ -440,23 +515,39 @@ def provision_generated(
     return True
 
 
-def _export_onnx_model(venv: Path) -> Callable[[Path], None]:
+def _export_onnx_model(
+    venv: Path, run: Callable[..., object] = subprocess.run
+) -> Callable[[Path], None]:
     def generate(destination: Path) -> None:
         python = venv / "bin" / "python"
         if not python.exists():
-            subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
-        for requirement, index in ONNX_EXPORT_REQUIREMENTS:
-            command = [str(python), "-m", "pip", "install", "-q", requirement]
-            if index:
-                command += ["--index-url", index]
-            subprocess.run(command, check=True)
-        out = destination.with_suffix(".onnx")
-        subprocess.run(
-            [str(python), str(ONNX_EXPORT_SCRIPT), "--out", str(out)],
-            cwd=REPO_ROOT,
+            run([sys.executable, "-m", "venv", str(venv)], check=True)
+        run(
+            [
+                str(python),
+                "-m",
+                "pip",
+                "install",
+                "-q",
+                "--require-hashes",
+                "--no-deps",
+                "-r",
+                str(ONNX_EXPORT_LOCK),
+            ],
             check=True,
         )
-        os.replace(out, destination)
+        # The export is written under a `.onnx` name beside `destination`
+        # and is moved there or removed, never left behind.
+        out = destination.with_suffix(".onnx")
+        try:
+            run(
+                [str(python), str(ONNX_EXPORT_SCRIPT), "--out", str(out)],
+                cwd=REPO_ROOT,
+                check=True,
+            )
+            os.replace(out, destination)
+        finally:
+            out.unlink(missing_ok=True)
 
     return generate
 
@@ -583,6 +674,92 @@ def run_pairs(
     return pairs
 
 
+Listing = dict[str, set[str]]
+
+
+def extra_candidates(
+    crate: test_targets.Crate, buildable: Sequence[str]
+) -> list[tuple[str, ...]]:
+    """Single host-buildable features, smallest feature closure first."""
+
+    return [
+        (feature,)
+        for feature in sorted(
+            buildable,
+            key=lambda f: (len(test_targets.feature_closure(crate, [f])), f),
+        )
+    ]
+
+
+def derive_extra_sets(
+    workspace: Listing,
+    static: dict[tuple[str, ...], Listing],
+    union: Listing,
+    union_features: tuple[str, ...],
+    candidates: Sequence[tuple[str, ...]],
+    lister: Callable[[tuple[str, ...]], Listing],
+) -> tuple[list[tuple[str, ...]], dict[tuple[str, ...], Listing]]:
+    """The extra sets a crate needs: every test listed under the union of its
+    host-buildable features but under neither the workspace features nor a
+    target-derived set goes to the first candidate that lists it, else to the
+    union itself. Returns the sets, in derivation order, and their listings.
+    Target-derived sets are never listed again."""
+
+    known: set[tuple[str, str]] = {
+        (label, test) for label, tests in workspace.items() for test in tests
+    }
+    for listing in static.values():
+        known.update(
+            (label, test) for label, tests in listing.items() for test in tests
+        )
+    uncovered = {
+        (label, test)
+        for label, tests in union.items()
+        for test in tests
+        if (label, test) not in known
+    }
+    derived: list[tuple[str, ...]] = []
+    listings: dict[tuple[str, ...], Listing] = {}
+    for features in candidates:
+        if not uncovered:
+            break
+        if features in static:
+            continue
+        listing = lister(features)
+        hit = {
+            (label, test)
+            for label, tests in listing.items()
+            for test in tests
+            if (label, test) in uncovered
+        }
+        if hit:
+            derived.append(features)
+            listings[features] = listing
+            uncovered -= hit
+    if uncovered:
+        derived.append(union_features)
+        listings[union_features] = union
+    return derived, listings
+
+
+def extra_set_drift(
+    crate: str,
+    derived: Sequence[tuple[str, ...]],
+    committed: Sequence[tuple[str, ...]],
+) -> list[str]:
+    """Differences between the extra sets derived now and the committed ones."""
+
+    added = sorted(set(derived) - set(committed))
+    removed = sorted(set(committed) - set(derived))
+    if not added and not removed:
+        return []
+    return [
+        f"extra-set drift in {crate} (run `scripts/test-feature-complete.sh "
+        f"--write-matrix`): derived-only {[list(f) for f in added]}, "
+        f"matrix-only {[list(f) for f in removed]}"
+    ]
+
+
 def _list_tests(
     crate: str, features: Sequence[str], env: dict[str, str], log: Path
 ) -> tuple[dict[str, set[str]], list[str]]:
@@ -667,16 +844,105 @@ def _warm_embedder(env: dict[str, str], log: Path) -> None:
         )
 
 
-def run_gate(scratch: Path) -> int:
+Plan = list[tuple[str, tuple[str, ...], dict[str, list[str]]]]
+
+
+def plan_runs(
+    crates: Sequence[test_targets.Crate],
+    workspace: dict[str, frozenset[str]],
+    matrix: Sequence[tuple[str, tuple[str, ...]]],
+    extras: Sequence[tuple[str, tuple[str, ...]]],
+    excluded: set[str],
+    host: str,
+    env: dict[str, str],
+    scratch: Path,
+) -> tuple[Plan, set[str], list[tuple[str, tuple[str, ...]]], list[str]]:
+    """List each crate's test binaries under its workspace features, its
+    target-derived sets, and the union of its host-buildable features, derive
+    its extra sets, and assign every test the workspace gate cannot run to the
+    smallest set that lists it. Returns the plan, every listed test id, the
+    derived extra sets, and failures (build failures and extra-set drift)."""
+
+    plan: Plan = []
+    listed: set[str] = set()
+    derived_extras: list[tuple[str, tuple[str, ...]]] = []
+    failures: list[str] = []
+    for crate in crates:
+        name = crate.name
+        sets = sorted(
+            {features for crate_name, features in matrix if crate_name == name}
+        )
+        committed = sorted(f for crate_name, f in extras if crate_name == name)
+        workspace_set = tuple(sorted(workspace.get(name, frozenset())))
+        workspace_closure = test_targets.feature_closure(crate, workspace_set)
+        buildable = test_targets.host_buildable_features(crates, name, host)
+        union_needed = not test_targets.feature_closure(crate, buildable) <= (
+            workspace_closure
+        )
+        if not sets and not union_needed and not committed:
+            continue
+        print(
+            f"==> listing {name}: workspace {list(workspace_set)} + {len(sets)} set(s)"
+            f"{f' + union {list(buildable)}' if union_needed else ''}",
+            flush=True,
+        )
+        cache: dict[tuple[str, ...], Listing] = {}
+
+        def lister(features: tuple[str, ...], name: str = name) -> Listing:
+            if features not in cache:
+                listing, failed = _list_tests(
+                    name,
+                    features,
+                    env,
+                    scratch / f"list-{name}--{'+'.join(features) or 'none'}.log",
+                )
+                failures.extend(listing_failures(name, failed, features))
+                cache[features] = listing
+            return cache[features]
+
+        ws_listing, ws_failed = _list_tests(
+            name, workspace_set, env, scratch / f"list-{name}--workspace.log"
+        )
+        failures.extend(listing_failures(name, ws_failed, None))
+        by_set = {features: lister(features) for features in sets}
+        derived: list[tuple[str, ...]] = []
+        if union_needed:
+            union = lister(tuple(buildable))
+            derived, found = derive_extra_sets(
+                ws_listing,
+                by_set,
+                union,
+                tuple(buildable),
+                extra_candidates(crate, buildable),
+                lister,
+            )
+            by_set.update(found)
+        failures.extend(extra_set_drift(name, derived, committed))
+        derived_extras.extend((name, features) for features in derived)
+        for label_tests in [ws_listing, *cache.values()]:
+            for label, tests in label_tests.items():
+                listed.update(f"{name}::{label}::{test}" for test in tests)
+        crate_excluded = {
+            entry[len(name) + 2 :]
+            for entry in excluded
+            if entry.startswith(f"{name}::")
+        }
+        for features, chosen in run_pairs(ws_listing, by_set, crate_excluded):
+            plan.append((name, features, chosen))
+    return plan, listed, derived_extras, failures
+
+
+def run_gate(scratch: Path, write_matrix: bool = False) -> int:
     host = test_targets.host_triple()
     crates = test_targets.read_workspace(REPO_ROOT)
     matrix = test_targets.load_matrix(test_targets.MATRIX_PATH)
+    extras = test_targets.load_extra_sets(test_targets.MATRIX_PATH)
     allowlist = test_targets.load_allowlist(test_targets.ALLOWLIST_PATH)
     workspace = test_targets.workspace_features(REPO_ROOT, host)
     failures, _ = test_targets.check_coverage(
-        crates, workspace, matrix, allowlist, host
+        crates, workspace, matrix, allowlist, host, extras
     )
-    if failures:
+    if failures and not write_matrix:
         for failure in failures:
             print(f"FAIL coverage: {failure}", file=sys.stderr)
         return 1
@@ -685,6 +951,26 @@ def run_gate(scratch: Path) -> int:
     env = cuda_environment(dict(os.environ), CUDA_ROOT, _nvidia_smi)
     env = runner_environment(env, scratch)
     env.update(GATE_BUILD_ENV)
+    excluded = {
+        str(entry["id"])
+        for entry in allowlist
+        if entry.get("exclude") and entry.get("class") == "opt-in-experiment"
+    }
+    if write_matrix:
+        _, _, derived, failures = plan_runs(
+            crates, workspace, matrix, extras, excluded, host, env, scratch
+        )
+        building = [f for f in failures if "does not build" in f]
+        for failure in building:
+            print(f"FAIL {failure}", file=sys.stderr)
+        if building:
+            return 1
+        test_targets.MATRIX_PATH.write_text(
+            test_targets.render_matrix(test_targets.derive_matrix(crates), derived),
+            encoding="utf-8",
+        )
+        print(f"wrote {test_targets.MATRIX_PATH} ({len(derived)} extra set(s))")
+        return 0
     Path(env["FATHOMDB_SLICE72_RECEIPT_DIR"]).mkdir(parents=True, exist_ok=True)
     _warm_embedder(env, scratch / "warm-cache.log")
     cache_root = Path(env.get("XDG_CACHE_HOME") or Path.home() / ".cache")
@@ -725,57 +1011,14 @@ def run_gate(scratch: Path) -> int:
     )
     env = onnx_environment(env, library, model, tokenizer)
 
-    excluded = {
-        str(entry["id"])
-        for entry in allowlist
-        if entry.get("exclude") and entry.get("class") == "opt-in-experiment"
-    }
     by_name = {crate.name: crate for crate in crates}
-    listed: set[str] = set()
-    plan: list[tuple[str, tuple[str, ...], dict[str, list[str]]]] = []
-    failures = []
-    for crate_name in sorted({name for name, _ in matrix}):
-        crate = by_name[crate_name]
-        sets = sorted({features for name, features in matrix if name == crate_name})
-        workspace_set = tuple(sorted(workspace.get(crate_name, frozenset())))
-        print(
-            f"==> listing {crate_name}: workspace {list(workspace_set)} + {len(sets)} set(s)",
-            flush=True,
-        )
-        ws_listing, ws_failed = _list_tests(
-            crate_name,
-            workspace_set,
-            env,
-            scratch / f"list-{crate_name}--workspace.log",
-        )
-        failures.extend(f"{crate_name}::{label}: does not build" for label in ws_failed)
-        by_set: dict[tuple[str, ...], dict[str, set[str]]] = {}
-        for features in sets:
-            listing, failed = _list_tests(
-                crate_name,
-                features,
-                env,
-                scratch / f"list-{crate_name}--{'+'.join(features) or 'none'}.log",
-            )
-            failures.extend(
-                f"{crate_name}::{label}: does not build with {list(features)}"
-                for label in failed
-            )
-            by_set[features] = listing
-        for label_tests in [ws_listing, *by_set.values()]:
-            for label, tests in label_tests.items():
-                listed.update(f"{crate_name}::{label}::{test}" for test in tests)
-        crate_excluded = {
-            entry[len(crate_name) + 2 :]
-            for entry in excluded
-            if entry.startswith(f"{crate_name}::")
-        }
-        for features, chosen in run_pairs(ws_listing, by_set, crate_excluded):
-            plan.append((crate_name, features, chosen))
-    del crate
+    plan, listed, _, failures = plan_runs(
+        crates, workspace, matrix, extras, excluded, host, env, scratch
+    )
 
     results: list[ScanResult] = []
     summary: list[dict[str, object]] = []
+    totals = {"planned": 0, "passed": 0, "failed": 0, "ignored": 0}
     for package, features, chosen in plan:
         selectors = [arg for label in sorted(chosen) for arg in selector(label)]
         tests = sorted({test for names in chosen.values() for test in names})
@@ -794,26 +1037,29 @@ def run_gate(scratch: Path) -> int:
                 check=False,
             )
         seconds = round(time.monotonic() - started)
-        result = scan_output(
-            log.read_text(encoding="utf-8", errors="replace"), by_name[package]
-        )
-        if completed.returncode != 0:
-            result.failed.append(
-                f"{label}: cargo test exited {completed.returncode} (see {log})"
-            )
         expected = {
             f"{package}::{lab}::{test}"
             for lab, names in chosen.items()
             for test in names
         }
-        missing = sorted(expected - set(result.seen))
-        result.failed.extend(f"{test}: did not run" for test in missing)
+        result = scan_output(
+            log.read_text(encoding="utf-8", errors="replace"),
+            by_name[package],
+            expected,
+        )
+        failures.extend(
+            run_failures(label, expected, result, completed.returncode, log)
+        )
         results.append(result)
+        counts = parent_counts(expected, result)
+        for key in totals:
+            totals[key] += counts[key]
         summary.append(
             {
                 "set": label,
                 "binaries": sorted(chosen),
                 "tests": sorted(expected),
+                "counts": counts,
                 "exit": completed.returncode,
                 "seconds": seconds,
                 "markers": result.markers,
@@ -821,16 +1067,21 @@ def run_gate(scratch: Path) -> int:
                 "log": str(log),
             }
         )
-        print(f"    exit {completed.returncode} in {seconds}s; log {log}", flush=True)
+        print(
+            f"    exit {completed.returncode} in {seconds}s: {counts['passed']} passed, "
+            f"{counts['failed']} failed, {counts['ignored']} ignored; log {log}",
+            flush=True,
+        )
     failures.extend(contract_failures(results, allowlist, listed))
     (scratch / "summary.json").write_text(
-        json.dumps({"plan": summary, "failures": failures}, indent=2)
+        json.dumps({"plan": summary, "totals": totals, "failures": failures}, indent=2)
     )
     for failure in failures:
         print(f"FAIL {failure}", file=sys.stderr)
     print(
-        f"feature-complete: {len(plan)} run(s), "
-        f"{sum(len(e['tests']) for e in summary)} test(s), {len(failures)} failure(s); "  # type: ignore[arg-type]
+        f"feature-complete: {len(plan)} run(s), {totals['planned']} planned test(s): "
+        f"{totals['passed']} passed, {totals['failed']} failed, "
+        f"{totals['ignored']} ignored; {len(failures)} failure(s); "
         f"summary {scratch / 'summary.json'}"
     )
     return 1 if failures else 0
@@ -841,13 +1092,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--scratch", type=Path, help="log directory (default: a new temporary one)"
     )
+    parser.add_argument(
+        "--write-matrix",
+        action="store_true",
+        help="list tests, rewrite the matrix's derived extra sets, and run nothing",
+    )
     args = parser.parse_args(argv)
     scratch = args.scratch or Path(
         tempfile.mkdtemp(prefix="fathomdb-feature-complete-")
     )
     scratch.mkdir(parents=True, exist_ok=True)
     try:
-        return run_gate(scratch)
+        return run_gate(scratch, args.write_matrix)
     except (
         FeatureCompleteError,
         test_targets.TestTargetsError,

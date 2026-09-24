@@ -1202,15 +1202,17 @@ def release_only_names(sources: dict[str, str]) -> set[str]:
     for text in sources.values():
         for match in re.finditer(r"#\[cfg\(", text):
             end = _balanced_end(text, match.start() + 1, "[", "]")
+            # A cfg that gates no public item (one quoted in a doc comment, or
+            # on a private item) cannot add to the release-only surface.
+            item = _ITEM_AFTER_ATTRS.match(text, _skip_trivia(text, end))
+            if item is None:
+                continue
             inner = text[match.end() : text.rindex(")", match.start(), end)]
             try:
                 node = test_targets.parse_cfg(inner)
             except test_targets.TestTargetsError as exc:
                 raise HiddenSurfaceError(f"release-only scan: {exc}") from exc
-            if not _release_only(node):
-                continue
-            item = _ITEM_AFTER_ATTRS.match(text, _skip_trivia(text, end))
-            if item is not None:
+            if _release_only(node):
                 found.add(item.group(2).rsplit("::", 1)[-1])
     return found
 

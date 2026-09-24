@@ -590,6 +590,42 @@ fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../..").canonicalize().expect("repo root")
 }
 
+/// R-CAL-3 assertions on the candle-CPU ↔ ONNX-CPU pair; returns ‖mean‖₂.
+fn assert_cpu_baseline_components(mean: &[f32], m: &PairMetrics) -> f64 {
+    // The mean-centering must be exercised with the REAL pinned mean (non-zero):
+    // assert the fixture is actually a non-degenerate mean, so this is not a
+    // vacuous m=0 raw-sign measurement mislabeled as centered.
+    let mean_l2: f64 = mean.iter().map(|x| f64::from(*x) * f64::from(*x)).sum::<f64>().sqrt();
+    assert!(mean_l2 > 1e-3, "pinned mean fixture must be non-degenerate (‖mean‖₂={mean_l2:.6})");
+
+    // Both D4 floor components are emitted (P1 flip counts + P2 L2). For the
+    // CPU baseline both flip counts are 0 and P2 L2 is sub-1e-5.
+    assert_eq!(m.raw_flips_total, 0, "CPU baseline raw flips must be 0");
+    assert_eq!(m.mean_centered_flips_total, 0, "CPU baseline mean-centered flips must be 0");
+    assert!(m.p2_l2_max < 1e-4, "CPU baseline P2 L2 max {:.3e} unexpectedly large", m.p2_l2_max);
+    mean_l2
+}
+
+/// R-CAL-3 as a check: the calibration's CPU-baseline assertions, without
+/// writing the durable record (`calibration_reports_p1_flips_and_p2_l2` does).
+#[test]
+fn calibration_cpu_baseline_components_hold() {
+    if onnx_env().is_none() {
+        eprintln!(
+            "SKIP calibration_cpu_baseline_components_hold: ONNX asset env unset — set \
+             ORT_DYLIB_PATH + FATHOMDB_ONNX_MODEL_PATH + FATHOMDB_ONNX_TOKENIZER_PATH"
+        );
+        return;
+    }
+
+    let mean = pinned_mean();
+    let candle_cpu = run_leg("candle", "cpu");
+    let onnx_cpu = run_leg("onnx", "cpu");
+    assert!(!candle_cpu.skipped && !onnx_cpu.skipped, "CPU legs must run for the calibration");
+    let m = compare_pair(&candle_cpu.vectors, &onnx_cpu.vectors, &mean);
+    assert_cpu_baseline_components(&mean, &m);
+}
+
 #[test]
 fn calibration_reports_p1_flips_and_p2_l2() {
     if onnx_env().is_none() {
@@ -622,17 +658,7 @@ fn calibration_reports_p1_flips_and_p2_l2() {
         m.mean_centered_flips_total,
         m.p2_l2_mean,
     );
-    // The mean-centering must be exercised with the REAL pinned mean (non-zero):
-    // assert the fixture is actually a non-degenerate mean, so this is not a
-    // vacuous m=0 raw-sign measurement mislabeled as centered.
-    let mean_l2: f64 = mean.iter().map(|x| f64::from(*x) * f64::from(*x)).sum::<f64>().sqrt();
-    assert!(mean_l2 > 1e-3, "pinned mean fixture must be non-degenerate (‖mean‖₂={mean_l2:.6})");
-
-    // Both D4 floor components are emitted (P1 flip counts + P2 L2). For the
-    // CPU baseline both flip counts are 0 and P2 L2 is sub-1e-5.
-    assert_eq!(m.raw_flips_total, 0, "CPU baseline raw flips must be 0");
-    assert_eq!(m.mean_centered_flips_total, 0, "CPU baseline mean-centered flips must be 0");
-    assert!(m.p2_l2_max < 1e-4, "CPU baseline P2 L2 max {:.3e} unexpectedly large", m.p2_l2_max);
+    let mean_l2 = assert_cpu_baseline_components(&mean, &m);
 
     // R-CAL-4 candle-CUDA refresh: attempt the auto policy through the SAME
     // harness. In the worktree it resolves to CPU; on MAIN with `embed-cuda` it

@@ -28,7 +28,12 @@ reason = "#![cfg(unix)]: the durability soak uses Unix process and signal APIs; 
 id = "fathomdb-embedder::cross_backend_calibration::calibration_reports_p1_flips_and_p2_l2"
 class = "opt-in-experiment"
 exclude = true
-reason = "Calibration instrument that rewrites the committed record dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md; its candle-CUDA rows need embed-cuda on the main tree. The gate runs the same CPU legs through cpu_legs_reproduce_0816_baseline and never overwrites the record."
+reason = "Writer of the committed record dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md (rewritten on every run; its candle-CUDA rows need embed-cuda on the main tree). Its assertions run in calibration_cpu_baseline_components_hold, which the gate runs and which writes nothing."
+
+[[entry]]
+id = "fathomdb-embedder::slice80_gpu_allocation_witness::tegra_gpu_allocation_witness_on_real_hardware"
+class = "opt-in-experiment"
+reason = "Slice 80.5 real-hardware arm of the Tegra GPU allocation witness: runs only on a Jetson Orin opted in with FATHOMDB_SLICE80_GPU_WITNESS=1 and otherwise prints 'SKIP tegra-gpu-allocation-witness: not_opted_in'. The host-independent contract (gpu_allocation_witness.rs) runs everywhere."
 
 [[entry]]
 id = "fathomdb-embedder::candle_dump::dump_candle_vectors_for_agreement_check"

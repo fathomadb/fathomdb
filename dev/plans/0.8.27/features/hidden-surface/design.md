@@ -277,7 +277,14 @@ a small module, `scripts/lib/test_targets.py`, reads `Cargo.toml` and
     which must not run directly, and the TC-20 hard-gate body documented as
     never running;
   - `opt-in-experiment`: for example the `ir_c_*` targets, which need
-    `IRC_RUN` and gitignored gold files.
+    `IRC_RUN` and gitignored gold files. A single-test entry may set
+    `exclude = true` so the gate never runs that test. It is used for
+    `calibration_reports_p1_flips_and_p2_l2`, which rewrites a committed
+    calibration record. The entry is stale unless the test is listed;
+  - `benign-message`: a harmless message that contains a skip word;
+  - `platform-excluded`: a whole target whose file-level cfg excludes some
+    hosts. Its `excluded_on` host predicate says where the entry applies, so the
+    coverage check stays clean on every host.
 
 **Environment preflight (G-3).** The gate fails before building unless:
 
@@ -296,12 +303,44 @@ shows as a skip, which the skip contract turns into a failure. The gate unsets
 example `FATHOMDB_SLICE72_RUNNER=approved-nvidia` and
 `FATHOMDB_SLICE72_RECEIPT_DIR` under its own scratch directory.
 
-**Run and skip contract (G-1).** For each matrix entry the gate runs:
+Every other asset is pinned and verified before use:
+
+- **nomic-embed-text-v1.5** for `nomic_smoke`: fetched at revision `e9b67630`
+  into `<cache>/fathomdb/embedders/nomic-v1.5`, the root the test resolves
+  with `dirs::cache_dir()`. `model.safetensors` is checked against its LFS
+  sha256 and `tokenizer.json` against its git blob sha1. The embedder crate
+  has no nomic fetcher.
+- **Slice 72:** its asset root is staged from the warmed embedder and
+  reranker caches, and its target gets exactly one visible device (the first
+  RTX 3090).
+- **ONNX, for the `onnx-embedder` targets:**
+  - `libonnxruntime.so.1.26.0` is extracted from the onnxruntime 1.26.0 wheel
+    (wheel sha256 and library sha256 both pinned);
+  - the bge-small ONNX graph is checked against its pinned sha256 and
+    re-exported with `dev/tools/onnx/export_bge_small_onnx.py` in a throwaway
+    virtual environment when missing (the export is byte-deterministic);
+  - the tokenizer is the one the embedder loader pins.
+
+  The gate sets `ORT_DYLIB_PATH`, `FATHOMDB_ONNX_MODEL_PATH`, and
+  `FATHOMDB_ONNX_TOKENIZER_PATH`.
+
+**Run and skip contract (G-1).** The gate first lists every test binary of
+each crate, lib unit tests included. It builds once under the workspace gate's
+features and once under each matrix set (`cargo build --tests --keep-going`),
+then runs each executable with `--list`. A test that appears under a matrix set
+but not under the workspace features is run once, under the smallest set that
+has it. This covers whole feature-gated targets and item-level
+`#[cfg(feature = ...)]` tests inside targets the workspace gate runs. A binary
+that fails to build fails the gate. Per crate and set the gate runs:
 
 ```text
 cargo test --locked -p <crate> --no-default-features --features <set> \
-  --test <target>... -- --nocapture --test-threads=1
+  <--lib | --test <target> | --bin <name>>... \
+  -- --exact <tests>... --nocapture --test-threads=1
 ```
+
+Listing and runs set `CARGO_PROFILE_{DEV,TEST}_DEBUG=0` and
+`CARGO_INCREMENTAL=0` to bound disk use.
 
 One thread per binary keeps each test's output contiguous, so every skip
 marker is attributed to exactly one test id (the harness's `test <name> ...`
@@ -309,11 +348,11 @@ line precedes it).
 
 Then:
 
-- **Skip markers:** the output is matched against a fixed set of markers
-  (`[SKIP]`, `[skip]`, `PENDING_EXTERNAL`, `skipping`). Any match fails the
-  gate unless its test id is on the allowlist. `skipping` also matches benign
-  warnings (for example eu8's "skipping IR measurements JSON write"); those
-  get allowlist entries with class `benign-message`.
+- **Skip markers:** the output after the first test binary starts is matched
+  against `\bskip(s|ped|ping)?\b` (any case) and `\bPENDING(_EXTERNAL)?\b`.
+  That covers `[SKIP] ...`, `SKIP name: ...`, `skipping ...`, and
+  `gated-to-skip`. Any match fails the gate unless its test id is on the
+  allowlist with class `opt-in-experiment` or `benign-message`.
 - **Ignored tests:** the per-target ignored count is compared with the
   `ignored-by-design` entries. Any ignored test not on the allowlist fails
   the gate.

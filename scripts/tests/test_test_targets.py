@@ -631,6 +631,7 @@ def test_runner_environment(fc: ModuleType) -> None:
         "--test",
         "t1",
         "--lib",
+        "--no-fail-fast",
         "--",
         "--exact",
         "x::one",

@@ -482,7 +482,8 @@ def test_command(
     command = ["cargo", "test", "--locked", "-p", package, "--no-default-features"]
     if features:
         command += ["--features", ",".join(features)]
-    command += list(selectors)
+    # Every selected binary must run even when an earlier one fails.
+    command += [*selectors, "--no-fail-fast"]
     return command + ["--", "--exact", *tests, "--nocapture", "--test-threads=1"]
 
 

@@ -94,3 +94,23 @@ reason = "Slice 72 watchdog child entry point: must never run directly; only the
 id = "fathomdb-engine::slice72_concurrent_gpu::stress_shared_cuda_device_is_bounded_and_records_outcome"
 class = "ignored-by-design"
 reason = "Slice 72 60-second CUDA stress parent: #[ignore] and requires FATHOMDB_SLICE72_STRESS=1; run explicitly for stress evidence."
+
+[[entry]]
+id = "fathomdb-engine::corpus_harness::corpus_harness_real_embedder_smoke"
+class = "opt-in-experiment"
+reason = "Real-embedder corpus smoke over the gitignored corpus: opt-in via AGENT_LONG=1 ('SKIP: corpus_harness_real_embedder_smoke requires AGENT_LONG=1')."
+
+[[entry]]
+id = "fathomdb-engine::ir_c_cdf_run::cdf_runner_impl::ir_c_recall_cdf"
+class = "opt-in-experiment"
+reason = "IR-C CDF run: opt-in via IRC_RUN and needs gitignored real-corpus gold files."
+
+[[entry]]
+id = "fathomdb-engine::ir_c_pooling_floor_gate::ir_c_pooling_floor_gate"
+class = "opt-in-experiment"
+reason = "IR-C pooling floor gate: opt-in via IRC_RUN and needs gitignored real-corpus gold files."
+
+[[entry]]
+id = "fathomdb-engine::slice55_dependency_trace::slice55_trace_hidden_dependents_performance_ceiling"
+class = "ignored-by-design"
+reason = "#[ignore] release-mode hidden-row performance ceiling; item-gated on test-hooks and run explicitly in release for its evidence."

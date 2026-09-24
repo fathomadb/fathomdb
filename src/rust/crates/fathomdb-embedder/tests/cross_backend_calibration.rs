@@ -37,6 +37,17 @@
 //! plus `FATHOMDB_WRITE_CALIBRATION_RECORD=1` to refresh the committed record).
 //! This harness NEVER builds or runs `embed-cuda`.
 //!
+//!   * **R-CAL-5 — `calibration_candle_cuda_leg_measures_on_gpu` (item-level
+//!     `#[cfg(feature = "embed-cuda")]`, gate-only).** A host that DOES build
+//!     `embed-cuda` (the feature-complete gate, never this worktree) must
+//!     actually MEASURE the candle-CUDA leg, not silently record it PENDING:
+//!     this test hard-fails (`live::require_live_or_skip` under
+//!     `FATHOMDB_REQUIRE_LIVE=1`) when the `auto` policy does not select
+//!     `cuda`, and otherwise asserts sane CPU↔CUDA and CUDA↔ONNX-CPU
+//!     calibration bounds. `calibration_reports_p1_flips_and_p2_l2`'s own
+//!     CUDA-leg fallback goes through the same live check when `embed-cuda`
+//!     is compiled in (CPU-only builds keep the plain PENDING eprintln).
+//!
 //! ENV-GATED like the baseline: set `ORT_DYLIB_PATH`, `FATHOMDB_ONNX_MODEL_PATH`,
 //! `FATHOMDB_ONNX_TOKENIZER_PATH` (and warm the candle HF cache) to run the ONNX
 //! legs; unset ⇒ ONNX legs skip cleanly, candle-only paths still run.
@@ -717,6 +728,19 @@ fn calibration_reports_p1_flips_and_p2_l2() {
             cuda_vs_onnx,
         })
     } else {
+        // R-CAL-5: on a host that built `embed-cuda` the `auto` policy is
+        // expected to select `cuda` (the gate runs on two CUDA-visible RTX
+        // 3090s); a fallback there must be loud, not a silent PENDING record.
+        // A worktree that never builds `embed-cuda` cannot reach this arm
+        // under that feature at all (see `#[cfg]` below), so its PENDING
+        // eprintln is unchanged.
+        #[cfg(feature = "embed-cuda")]
+        live::require_live_or_skip(&format!(
+            "SKIP calibration_reports_p1_flips_and_p2_l2 candle-CUDA leg: embed-cuda is built but \
+             the auto policy selected {:?} instead of cuda (skipped={}) — GPU must be measured on \
+             this host, not silently recorded PENDING",
+            candle_cuda.effective_device, candle_cuda.skipped
+        ));
         eprintln!(
             "R-CAL-4 candle-CUDA leg gated-to-skip (effective={}) — recorded PENDING (run on MAIN)",
             candle_cuda.effective_device
@@ -730,6 +754,105 @@ fn calibration_reports_p1_flips_and_p2_l2() {
     // use — guard against a concurrent test-thread race on that shared file.
     let _guard = lock_default_scratch_record();
     write_durable_doc(&candle_cpu, &onnx_cpu, &m, mean_l2, gpu.as_ref());
+}
+
+// ── R-CAL-5: the candle-CUDA leg must be MEASURED, not silently PENDING ────
+
+/// Gate-only (`embed-cuda` compiled in): the `auto` policy must select `cuda`
+/// on a host that built the CUDA backend (the feature-complete gate runs on
+/// two CUDA-visible RTX 3090s), and the two resulting leg-pairs must be sane.
+/// Writes no record — `calibration_reports_p1_flips_and_p2_l2` (its ONNX-gated
+/// sibling) is the harness's one durable-doc writer.
+#[cfg(feature = "embed-cuda")]
+#[test]
+fn calibration_candle_cuda_leg_measures_on_gpu() {
+    if onnx_env().is_none() {
+        live::require_live_or_skip(
+            "SKIP calibration_candle_cuda_leg_measures_on_gpu: ONNX asset env unset — set \
+             ORT_DYLIB_PATH + FATHOMDB_ONNX_MODEL_PATH + FATHOMDB_ONNX_TOKENIZER_PATH",
+        );
+        return;
+    }
+
+    let mean = pinned_mean();
+    let candle_cpu = run_leg("candle", "cpu");
+    let onnx_cpu = run_leg("onnx", "cpu");
+    assert!(!candle_cpu.skipped && !onnx_cpu.skipped, "CPU legs must run for the calibration");
+
+    let candle_cuda = run_leg("candle", "auto");
+    if candle_cuda.skipped || backend_of(&candle_cuda.effective_device) != "cuda" {
+        // A host that built `embed-cuda` (this test only compiles there) but
+        // whose `auto` policy did not select `cuda` is not covering the GPU
+        // leg — the user requires it measured, not silently skipped.
+        live::require_live_or_skip(&format!(
+            "SKIP calibration_candle_cuda_leg_measures_on_gpu: embed-cuda is built but the auto \
+             policy selected {:?} instead of cuda (skipped={}) — GPU must be measured on this \
+             host, not silently skipped",
+            candle_cuda.effective_device, candle_cuda.skipped
+        ));
+        return;
+    }
+    assert!(
+        !candle_cuda.skipped && !candle_cuda.fallback,
+        "a measured candle CUDA leg must not be classified skip/fallback (effective={})",
+        candle_cuda.effective_device
+    );
+    assert_eq!(candle_cuda.vectors.len(), 45, "a measured candle CUDA leg must produce 45 vectors");
+
+    let cpu_vs_cuda = compare_pair(&candle_cpu.vectors, &candle_cuda.vectors, &mean);
+    let cuda_vs_onnx = compare_pair(&candle_cuda.vectors, &onnx_cpu.vectors, &mean);
+
+    eprintln!(
+        "R-CAL-4 candle-CUDA leg MEASURED on {}: CPU↔CUDA cosine_mean={:.9} cosine_min={:.9} \
+         l2_mean={:.3e} l2_max={:.3e} raw_flips={} mc_flips={}; CUDA↔ONNX-CPU cosine_mean={:.9} \
+         cosine_min={:.9} l2_mean={:.3e} l2_max={:.3e} raw_flips={} mc_flips={}",
+        candle_cuda.effective_device,
+        cpu_vs_cuda.cosine_mean,
+        cpu_vs_cuda.cosine_min,
+        cpu_vs_cuda.p2_l2_mean,
+        cpu_vs_cuda.p2_l2_max,
+        cpu_vs_cuda.raw_flips_total,
+        cpu_vs_cuda.mean_centered_flips_total,
+        cuda_vs_onnx.cosine_mean,
+        cuda_vs_onnx.cosine_min,
+        cuda_vs_onnx.p2_l2_mean,
+        cuda_vs_onnx.p2_l2_max,
+        cuda_vs_onnx.raw_flips_total,
+        cuda_vs_onnx.mean_centered_flips_total,
+    );
+
+    // Bounds rationale: both pairs share the SAME pinned BAAI/bge-small-en-v1.5
+    // weights and CLS pooling; CPU↔CUDA differs only in numeric backend (the
+    // CPU gemm kernel vs cuBLAS on the same candle model), and CUDA↔ONNX-CPU is
+    // the same cross-vendor comparison R-CAL-2 hard-asserts >= 0.99 cosine for
+    // on CPU. This is a CALIBRATION read (not the durable doc's assertion-free
+    // measurement), so it checks the metrics are real numbers and close to the
+    // R-CAL-2 baseline, without inventing a tighter oracle than anything
+    // measured so far: 0.95 is generously below the ~1.0 either pair is
+    // expected at, while still catching a genuinely broken CUDA path.
+    for (label, m) in [("CPU\u{2194}CUDA", &cpu_vs_cuda), ("CUDA\u{2194}ONNX-CPU", &cuda_vs_onnx)] {
+        assert!(
+            m.cosine_mean.is_finite(),
+            "{label} cosine_mean must be finite, got {}",
+            m.cosine_mean
+        );
+        assert!(
+            m.cosine_min.is_finite(),
+            "{label} cosine_min must be finite, got {}",
+            m.cosine_min
+        );
+        assert!(
+            m.p2_l2_mean.is_finite() && m.p2_l2_max.is_finite(),
+            "{label} P2 L2 must be finite, got mean={} max={}",
+            m.p2_l2_mean,
+            m.p2_l2_max
+        );
+        assert!(
+            m.cosine_mean >= 0.95,
+            "{label} cosine_mean {:.9} is far from 1 for a same-weights cross-backend/vendor pair",
+            m.cosine_mean
+        );
+    }
 }
 
 const RECORD_NAME: &str = "0.8.18-slice-0-cross-backend-calibration.md";

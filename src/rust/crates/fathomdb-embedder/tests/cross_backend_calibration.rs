@@ -992,9 +992,37 @@ fn calibration_record_refuses_pending_cuda_rows_over_measured() {
     let committed =
         std::fs::read_to_string(tracked_record_path()).expect("read tracked calibration record");
     assert!(check_no_cuda_downgrade(Some(&committed), &pending).is_err());
+    assert!(guards_cuda_rows(&tracked_record_path()), "the tracked record must be guarded");
     let copy = scratch_file("committed-record-copy.md");
     std::fs::write(&copy, &committed).expect("write record copy");
-    let refused = std::panic::catch_unwind(|| persist_durable_doc(&copy, &pending));
+    let refused = std::panic::catch_unwind(|| write_record(&copy, &pending, true));
+    let after = std::fs::read_to_string(&copy).expect("re-read record copy");
+    std::fs::remove_file(&copy).expect("remove record copy");
     assert!(refused.is_err(), "persisting a PENDING render over MEASURED rows must panic");
-    assert_eq!(std::fs::read_to_string(&copy).expect("re-read record copy"), committed);
+    assert_eq!(after, committed);
+}
+
+#[test]
+fn calibration_scratch_render_overwrites_measured_cuda_rows() {
+    // A documented CUDA refresh without the opt-in leaves MEASURED rows in the
+    // scratch render; later CPU-only runs must still be able to replace it.
+    let measured = synthetic_render(true);
+    let pending = synthetic_render(false);
+    let scratch = scratch_file("measured-scratch-render.md");
+    assert!(!guards_cuda_rows(&scratch), "a scratch render must not be guarded");
+    std::fs::write(&scratch, &measured).expect("write measured scratch render");
+    let written = std::panic::catch_unwind(|| persist_durable_doc(&scratch, &pending));
+    let after = std::fs::read_to_string(&scratch).expect("re-read scratch render");
+    std::fs::remove_file(&scratch).expect("remove scratch render");
+    assert!(written.is_ok(), "a PENDING render must overwrite a MEASURED scratch render");
+    assert_eq!(after, pending);
+}
+
+#[test]
+fn calibration_record_destination_follows_exact_opt_in() {
+    let scratch = Path::new(env!("CARGO_TARGET_TMPDIR")).join(RECORD_NAME);
+    for value in [None, Some(""), Some("0"), Some("1 "), Some(" 1"), Some("true")] {
+        assert_eq!(destination_from_env(value), scratch, "value {value:?} must render to scratch");
+    }
+    assert_eq!(destination_from_env(Some("1")), tracked_record_path());
 }

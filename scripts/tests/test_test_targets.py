@@ -1269,13 +1269,30 @@ def test_child_scopes(fc: ModuleType, tt: ModuleType) -> None:
     result = fc.scan_output(prose, crate, {"hs_fixture::plain::runs"})
     assert result.status == {"hs_fixture::plain::runs": "ok"}, result.status
     assert fc.run_failures("s", {"hs_fixture::plain::runs"}, result, 0, Path("/l")) == []
+    # Inside a child scope only a test line's status text is scanned for
+    # markers, so a child test whose name contains a marker word adds none.
+    named = (
+        "     Running tests/plain.rs (target/debug/deps/plain-0123)\n"
+        "running 1 test\n"
+        "test runs ... \n"
+        "running 1 test\n"
+        "test mod::skip ... ok\n"
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n"
+        "ok\n"
+        "\n"
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n"
+    )
+    result = fc.scan_output(named, crate, {"hs_fixture::plain::runs"})
+    assert result.status == {"hs_fixture::plain::runs": "ok"}, result.status
+    assert result.markers == [], result.markers
 
 
 def test_status_rules(fc: ModuleType, tt: ModuleType) -> None:
     """A non-ok `test result:` fails its binary even with no failed test line;
     only a planned test becomes the owner of a bare status; a bare status with
-    no pending test does not rewrite an earlier one; and a planned test's own
-    bare status overrides an unscoped line for the same test."""
+    no pending test does not rewrite an earlier one; a planned test's own
+    bare status overrides an unscoped line for the same test; and lines after
+    a binary's summary belong to the binary, not its last test."""
 
     (crate,) = tt.read_workspace(FIXTURE_CRATE)
     runs = {"hs_fixture::plain::runs"}
@@ -1309,6 +1326,21 @@ def test_status_rules(fc: ModuleType, tt: ModuleType) -> None:
     )
     assert result.status == {"hs_fixture::plain::runs": "FAILED"}, result.status
     assert fc.parent_counts(runs, result)["passed"] == 0
+    # After a binary's `test result:` line no test owns its lines: a marker
+    # belongs to the binary and a bare FAILED fails no test, planned or not.
+    trailing = (
+        head
+        + "test runs ... ok\n"
+        + summary
+        + "note: skipping cleanup\n"
+        + "FAILED\n"
+        + "     Running tests/extra.rs (target/debug/deps/extra-0123)\n"
+    )
+    for plan in (runs, None):
+        result = fc.scan_output(trailing, crate, plan)
+        assert result.status == {"hs_fixture::plain::runs": "ok"}, result.status
+        assert result.failed == [], result.failed
+        assert result.markers == [("hs_fixture::plain", "skipping")], result.markers
 
 
 def test_run_failures(fc: ModuleType, tt: ModuleType) -> None:

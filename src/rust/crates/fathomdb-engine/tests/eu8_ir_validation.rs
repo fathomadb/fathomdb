@@ -56,6 +56,7 @@ mod corpus_subset;
 mod live;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -435,6 +436,25 @@ fn write_ir_measurements_json(
     std::fs::write(&out_path, serde_json::to_string_pretty(&doc).unwrap())
         .expect("write ir measurements json");
     eprintln!("EU8_WROTE {}", out_path.display());
+}
+
+#[test]
+fn eu8_measurements_destination_follows_exact_opt_in() {
+    let root = Path::new("/repo");
+    let scratch = Path::new(env!("CARGO_TARGET_TMPDIR")).join(MEASUREMENTS_NAME);
+    for value in [None, Some(""), Some("0"), Some("1 "), Some(" 1"), Some("true")] {
+        assert_eq!(
+            measurements_destination(Some(root), value),
+            Some(scratch.clone()),
+            "value {value:?} must write to scratch"
+        );
+        assert_eq!(measurements_destination(None, value), Some(scratch.clone()));
+    }
+    assert_eq!(
+        measurements_destination(Some(root), Some("1")),
+        Some(root.join("dev/plans/runs").join(MEASUREMENTS_NAME))
+    );
+    assert_eq!(measurements_destination(None, Some("1")), None);
 }
 
 // ── Driver ──────────────────────────────────────────────────────────────

@@ -250,7 +250,7 @@ They are to be recorded as `baseline-<HEAD>.json` with `baseline-<HEAD>-diff.md`
 
 | Command | Result |
 | --- | --- |
-| `python3 scripts/tests/test_hidden_surface.py` | `ok hidden-surface` (15 tests) |
+| `python3 scripts/tests/test_hidden_surface.py` | `ok hidden-surface` (17 tests) |
 | `python3 scripts/tests/test_test_targets.py` | `ok test-targets` (9 tests) |
 | `python3 scripts/check-test-target-coverage.py` | `ok`: 260 targets; 53 run only by the feature-complete gate |
 | `bash scripts/agent-lint.sh` | exit 0 |

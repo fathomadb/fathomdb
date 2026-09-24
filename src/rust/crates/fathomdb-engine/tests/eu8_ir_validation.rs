@@ -41,6 +41,10 @@
 //!   AGENT_LONG=1 cargo test --release -p fathomdb-engine \
 //!     --features default-embedder --test eu8_ir_validation -- --nocapture
 //!
+//! The measurements JSON goes to `CARGO_TARGET_TMPDIR` unless
+//! `FATHOMDB_WRITE_EU8_MEASUREMENTS=1`, which replaces the committed
+//! `dev/plans/runs/0.7.1-EU-8-measurements.json`.
+//!
 //! Tunables (env):
 //!   EU8_MAX_CHAINS   number of chain JSONs to load (default 200 = all).
 //!                    For a SMALL-CORPUS SMOKE, set this low (e.g. 10).
@@ -56,7 +60,7 @@ mod corpus_subset;
 mod live;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -370,6 +374,19 @@ fn round4(x: f64) -> f64 {
     (x * 10_000.0).round() / 10_000.0
 }
 
+const MEASUREMENTS_NAME: &str = "0.7.1-EU-8-measurements.json";
+
+/// `FATHOMDB_WRITE_EU8_MEASUREMENTS=1` (`opt_in`) is the only value that
+/// targets the committed file under `root`; anything else writes to scratch.
+/// `None` when opted in without a repo root.
+fn measurements_destination(root: Option<&Path>, opt_in: Option<&str>) -> Option<PathBuf> {
+    if opt_in == Some("1") {
+        root.map(|root| root.join("dev/plans/runs").join(MEASUREMENTS_NAME))
+    } else {
+        Some(Path::new(env!("CARGO_TARGET_TMPDIR")).join(MEASUREMENTS_NAME))
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn write_ir_measurements_json(
     result: &IRRecallResult,
@@ -380,11 +397,11 @@ fn write_ir_measurements_json(
     bootstrap: usize,
     smoke: bool,
 ) {
-    let Some(root) = repo_root() else {
+    let opt_in = std::env::var("FATHOMDB_WRITE_EU8_MEASUREMENTS").ok();
+    let Some(out_path) = measurements_destination(repo_root().as_deref(), opt_in.as_deref()) else {
         eprintln!("[warn] repo_root() not found; skipping IR measurements JSON write");
         return;
     };
-    let out_path = root.join("dev/plans/runs/0.7.1-EU-8-measurements.json");
     let per_relation: serde_json::Map<String, serde_json::Value> =
         result.per_relation_type.iter().map(|(k, v)| (k.clone(), v.json())).collect();
     let per_shape: serde_json::Map<String, serde_json::Value> =
@@ -395,7 +412,8 @@ fn write_ir_measurements_json(
                      the ANN recall in 0.7.1-EU-7-measurements.json: scores \
                      engine.search() against externally-labelled relevant doc_ids \
                      from chain ground_truth_queries (NOT the embedder's self KNN). \
-                     Regenerable: AGENT_LONG=1 cargo test --release -p fathomdb-engine \
+                     Regenerable: FATHOMDB_WRITE_EU8_MEASUREMENTS=1 AGENT_LONG=1 \
+                     cargo test --release -p fathomdb-engine \
                      --features default-embedder --test eu8_ir_validation. \
                      EU8_SMOKE=1 seeds only chain docs (small smoke); unset = full corpus.",
         "config": {

@@ -26,13 +26,15 @@
 //!     record `dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md`.
 //!     A run writes the committed file only with
 //!     `FATHOMDB_WRITE_CALIBRATION_RECORD=1`; otherwise the render goes to
-//!     `CARGO_TARGET_TMPDIR`. Even when opted in, a render without measured
-//!     candle-CUDA rows refuses to replace a record that has them.
+//!     `CARGO_TARGET_TMPDIR`, which later runs overwrite freely. A render
+//!     without measured candle-CUDA rows refuses to replace a tracked record
+//!     that has them.
 //!
 //! **Build/run discipline (worktree):** ONLY the CPU legs run here (pure
 //! `cargo test` on CPU). The candle-CUDA leg + the ONNX-GPU-EP leg are gated to
 //! SKIP cleanly and are selectable by env so the orchestrator can run just that
-//! leg on the MAIN tree (`--features …,embed-cuda`, `FATHOMDB_EMBED_DEVICE=auto`).
+//! leg on the MAIN tree (`--features …,embed-cuda`, `FATHOMDB_EMBED_DEVICE=auto`,
+//! plus `FATHOMDB_WRITE_CALIBRATION_RECORD=1` to refresh the committed record).
 //! This harness NEVER builds or runs `embed-cuda`.
 //!
 //! ENV-GATED like the baseline: set `ORT_DYLIB_PATH`, `FATHOMDB_ONNX_MODEL_PATH`,
@@ -40,7 +42,14 @@
 //! legs; unset ⇒ ONNX legs skip cleanly, candle-only paths still run.
 //!
 //! ```sh
+//! # CPU legs; renders to CARGO_TARGET_TMPDIR:
 //! cargo test -p fathomdb-embedder --features default-embedder,onnx-embedder \
+//!     --test cross_backend_calibration -- --nocapture
+//!
+//! # Refresh the committed record, CUDA rows included (MAIN tree, CUDA host):
+//! FATHOMDB_WRITE_CALIBRATION_RECORD=1 FATHOMDB_EMBED_DEVICE=auto \
+//!     cargo test -p fathomdb-embedder \
+//!     --features default-embedder,onnx-embedder,embed-cuda \
 //!     --test cross_backend_calibration -- --nocapture
 //! ```
 //!
@@ -730,6 +739,11 @@ fn record_write_opted_in(value: Option<&str>) -> bool {
     value == Some("1")
 }
 
+/// Where a run with `FATHOMDB_WRITE_CALIBRATION_RECORD` set to `value` renders.
+fn destination_from_env(value: Option<&str>) -> PathBuf {
+    record_destination(record_write_opted_in(value))
+}
+
 fn record_destination(opted_in: bool) -> PathBuf {
     if opted_in {
         tracked_record_path()
@@ -743,7 +757,8 @@ fn cuda_rows_measured(doc: &str) -> bool {
 }
 
 /// The CUDA rows can only be measured on a host that builds `embed-cuda`, so a
-/// render from any other host must never replace measured rows with pending ones.
+/// render from any other host must never replace the tracked record's measured
+/// rows with pending ones.
 fn check_no_cuda_downgrade(existing: Option<&str>, rendered: &str) -> Result<(), String> {
     match existing {
         Some(existing) if cuda_rows_measured(existing) && !cuda_rows_measured(rendered) => {
@@ -755,10 +770,23 @@ fn check_no_cuda_downgrade(existing: Option<&str>, rendered: &str) -> Result<(),
     }
 }
 
+/// Only the tracked record is guarded: a scratch render is disposable, and a
+/// documented CUDA refresh without the opt-in leaves MEASURED rows there that
+/// later CPU-only runs must still replace.
+fn guards_cuda_rows(path: &Path) -> bool {
+    path == tracked_record_path()
+}
+
 fn persist_durable_doc(path: &Path, doc: &str) {
-    let existing = std::fs::read_to_string(path).ok();
-    if let Err(refusal) = check_no_cuda_downgrade(existing.as_deref(), doc) {
-        panic!("refusing to write {}: {refusal}", path.display());
+    write_record(path, doc, guards_cuda_rows(path));
+}
+
+fn write_record(path: &Path, doc: &str, refuse_cuda_downgrade: bool) {
+    if refuse_cuda_downgrade {
+        let existing = std::fs::read_to_string(path).ok();
+        if let Err(refusal) = check_no_cuda_downgrade(existing.as_deref(), doc) {
+            panic!("refusing to write {}: {refusal}", path.display());
+        }
     }
     std::fs::write(path, doc)
         .unwrap_or_else(|e| panic!("write durable doc {}: {e}", path.display()));
@@ -774,9 +802,8 @@ fn write_durable_doc(
     gpu: Option<&GpuPairs>,
 ) {
     let doc = render_durable_doc(candle, onnx, m, mean_l2, gpu);
-    let opted_in =
-        record_write_opted_in(std::env::var("FATHOMDB_WRITE_CALIBRATION_RECORD").ok().as_deref());
-    persist_durable_doc(&record_destination(opted_in), &doc);
+    let value = std::env::var("FATHOMDB_WRITE_CALIBRATION_RECORD").ok();
+    persist_durable_doc(&destination_from_env(value.as_deref()), &doc);
 }
 
 fn render_durable_doc(
@@ -881,8 +908,10 @@ builds `embed-cuda`) and are run by the orchestrator on the MAIN tree via the
 SAME harness:
 
 ```sh
-# candle-CUDA leg (MAIN tree; nvcc on PATH, CUDA_HOME set):
-FATHOMDB_EMBED_DEVICE=auto cargo test -p fathomdb-embedder \
+# candle-CUDA leg (MAIN tree; nvcc on PATH, CUDA_HOME set). Without
+# FATHOMDB_WRITE_CALIBRATION_RECORD=1 the render goes to CARGO_TARGET_TMPDIR:
+FATHOMDB_WRITE_CALIBRATION_RECORD=1 FATHOMDB_EMBED_DEVICE=auto \
+    cargo test -p fathomdb-embedder \
     --features default-embedder,onnx-embedder,embed-cuda \
     --test cross_backend_calibration -- --nocapture
 

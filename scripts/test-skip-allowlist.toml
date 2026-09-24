@@ -13,3 +13,68 @@
 id = "fathomdb-embedder::aarch64_candle_cpu"
 class = "platform-excluded"
 reason = "#![cfg(all(target_arch = \"aarch64\", target_os = \"linux\", ...))]: the Jetson Candle CPU check compiles to nothing on x86_64 and runs on the aarch64 host."
+
+[[entry]]
+id = "fathomdb-embedder::candle_dump::dump_candle_vectors_for_agreement_check"
+class = "opt-in-experiment"
+reason = "Diagnostic that dumps Candle vectors for an offline agreement check; runs only with EU_DUMP set and prints 'EU_DUMP not set; skipping' otherwise."
+
+[[entry]]
+id = "fathomdb-engine::eu8_ir_validation::eu8_ir_validation"
+class = "opt-in-experiment"
+reason = "EU-8 real-corpus IR-recall measurement: opt-in via AGENT_LONG=1 and needs the gitignored real corpus and gold chains."
+
+[[entry]]
+id = "fathomdb-engine::ir_c_fusion_experiment"
+class = "opt-in-experiment"
+reason = "IR-C fusion experiment: opt-in via IRC_RUN and needs gitignored real-corpus gold files."
+
+[[entry]]
+id = "fathomdb-engine::ir_c_recall_run"
+class = "opt-in-experiment"
+reason = "IR-C real-corpus recall run: opt-in via IRC_RUN and needs gitignored real-corpus gold files."
+
+[[entry]]
+id = "fathomdb-engine::pr9_concurrent_embed::sustained_seed_serialized_path_completes_and_is_correct"
+class = "opt-in-experiment"
+reason = "PR-9 sustained real-corpus seed measurement (hours in debug): opt-in via AGENT_LONG=1 and needs the gitignored corpus."
+
+[[entry]]
+id = "fathomdb-engine::pr9_embed_microbench::pr9_microbench_watchdog_overhead"
+class = "opt-in-experiment"
+reason = "PR-9 diagnostic micro-benchmark, documented as not a gate: opt-in via AGENT_LONG=1."
+
+[[entry]]
+id = "fathomdb-engine::gen_cross_backend_mean_fixture::generate_cross_backend_pinned_mean_fixture"
+class = "ignored-by-design"
+reason = "#[ignore] one-off generator that rewrites the committed cross-backend pinned-mean fixture; run explicitly only to regenerate it."
+
+[[entry]]
+id = "fathomdb-engine::eu7_real_corpus_ac::eu7_real_corpus_ac_validation"
+class = "ignored-by-design"
+reason = "TC-20 hard gate body documented as never running unless a human asks with -- --ignored (real corpus, AGENT_LONG)."
+
+[[entry]]
+id = "fathomdb-engine::slice19_measurement::write_cursor_join_index_measurement"
+class = "ignored-by-design"
+reason = "#[ignore] measurement-only harness; writes raw JSON when FATHOMDB_SLICE19_MEASUREMENT_OUTPUT is set."
+
+[[entry]]
+id = "fathomdb-engine::slice40_status_performance::measure_generation_and_mutation_status_at_50k"
+class = "ignored-by-design"
+reason = "#[ignore] preregistered Slice 40 50k status measurement, run explicitly for its evidence."
+
+[[entry]]
+id = "fathomdb-engine::slice45_pagination_performance::measure_slice45_pagination_overhead"
+class = "ignored-by-design"
+reason = "#[ignore] preregistered Slice 45 10k/50k latency and RSS measurement, run explicitly for its evidence."
+
+[[entry]]
+id = "fathomdb-engine::slice72_concurrent_gpu::slice72_private_stress_watchdog_child_entrypoint"
+class = "ignored-by-design"
+reason = "Slice 72 watchdog child entry point: must never run directly; only the stress parent spawns it over a one-time socket capability."
+
+[[entry]]
+id = "fathomdb-engine::slice72_concurrent_gpu::stress_shared_cuda_device_is_bounded_and_records_outcome"
+class = "ignored-by-design"
+reason = "Slice 72 60-second CUDA stress parent: #[ignore] and requires FATHOMDB_SLICE72_STRESS=1; run explicitly for stress evidence."

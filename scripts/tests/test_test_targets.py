@@ -340,6 +340,52 @@ def test_runner_environment(fc: ModuleType) -> None:
     ]
 
 
+def test_slice72_assets(fc: ModuleType) -> None:
+    """Slice 72's CUDA target needs exactly one visible device and an immutable
+    asset root staged from the warmed caches it names by identity."""
+
+    import hashlib
+
+    with tempfile.TemporaryDirectory() as directory:
+        base = Path(directory)
+        support = base / "slice72_gpu_telemetry.rs"
+        support.write_text(
+            'cache_prefix("BAAI/bge-small-en-v1.5@abc")\n'
+            'cache_prefix(\n    "cross-encoder/ms-marco-TinyBERT-L2-v2@def",\n)\n'
+        )
+
+        def prefix(identity: str) -> str:
+            return hashlib.sha256(identity.encode()).hexdigest()[:12]
+
+        cache = base / "cache"
+        for kind, identity in (
+            ("embedders", "BAAI/bge-small-en-v1.5@abc"),
+            ("reranker", "cross-encoder/ms-marco-TinyBERT-L2-v2@def"),
+        ):
+            model = cache / "fathomdb" / kind / prefix(identity)
+            model.mkdir(parents=True)
+            for name in ("config.json", "tokenizer.json", "model.safetensors"):
+                (model / name).write_text(f"{kind}:{name}")
+        root = fc.stage_slice72_assets(support, cache, base / "assets")
+        assert (
+            root / "bge" / "model.safetensors"
+        ).read_text() == "embedders:model.safetensors"
+        assert (root / "reranker" / "config.json").read_text() == "reranker:config.json"
+        env = fc.entry_environment(
+            {"CUDA_VISIBLE_DEVICES": "0,1"}, ["slice72_concurrent_gpu"], root
+        )
+        assert env["CUDA_VISIBLE_DEVICES"] == "0"
+        assert env["FATHOMDB_SLICE72_ASSET_ROOT"] == str(root)
+        other = fc.entry_environment({"CUDA_VISIBLE_DEVICES": "0,1"}, ["loader"], root)
+        assert other == {"CUDA_VISIBLE_DEVICES": "0,1"}
+        (cache / "fathomdb" / "reranker").rename(base / "moved")
+        expect_error(
+            fc.FeatureCompleteError,
+            lambda: fc.stage_slice72_assets(support, cache, base / "assets2"),
+            "reranker",
+        )
+
+
 def test_repository_wiring(tt: ModuleType) -> None:
     script = (ROOT / "scripts" / "test-feature-complete.sh").read_text()
     assert "feature_complete.py" in script
@@ -375,7 +421,7 @@ def main() -> None:
         print(f"ok    {test.__name__}")
     test_skip_contract(fc, tt)
     print("ok    test_skip_contract")
-    for test in (test_cuda_preflight, test_runner_environment):
+    for test in (test_cuda_preflight, test_runner_environment, test_slice72_assets):
         test(fc)
         print(f"ok    {test.__name__}")
     print("ok    test-targets")

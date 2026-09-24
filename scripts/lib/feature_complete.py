@@ -12,10 +12,12 @@ allowlist entry that matches nothing is stale and also fails the gate.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -29,6 +31,7 @@ import test_targets  # noqa: E402
 REPO_ROOT = test_targets.REPO_ROOT
 CUDA_ROOT = Path("/usr/local/cuda")
 REQUIRED_GPU = "RTX 3090"
+CLI_BINARY = "fathomdb"
 SKIP_MARKERS = ("[SKIP]", "[skip]", "PENDING_EXTERNAL", "skipping")
 MARKER_CLASSES = frozenset({"ignored-by-design", "opt-in-experiment", "benign-message"})
 _RUNNING = re.compile(r"^\s*Running (\S+) \(")
@@ -117,17 +120,24 @@ def contract_failures(
             hits = [n for n, e in enumerate(entries) if _matches(e["id"], test_id)]
             used.update(hits)
             if not any(entries[n]["class"] in MARKER_CLASSES for n in hits):
-                failures.append(f"skip marker {marker!r} from {test_id} is not allowlisted")
+                failures.append(
+                    f"skip marker {marker!r} from {test_id} is not allowlisted"
+                )
         for test_id in result.ignored:
             hits = [n for n, e in enumerate(entries) if _matches(e["id"], test_id)]
             used.update(hits)
             excused = any(
                 entries[n]["class"] == "ignored-by-design"
-                or (entries[n]["id"] != test_id and entries[n]["class"] == "opt-in-experiment")
+                or (
+                    entries[n]["id"] != test_id
+                    and entries[n]["class"] == "opt-in-experiment"
+                )
                 for n in hits
             )
             if not excused:
-                failures.append(f"ignored test {test_id} is not allowlisted as ignored-by-design")
+                failures.append(
+                    f"ignored test {test_id} is not allowlisted as ignored-by-design"
+                )
     for n, entry in enumerate(entries):
         if n not in used:
             failures.append(
@@ -158,7 +168,8 @@ def cuda_environment(
     env["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     env["CUDA_VISIBLE_DEVICES"] = "0,1"
     listing = run(
-        ["nvidia-smi", "--query-gpu=index,pci.bus_id,name", "--format=csv,noheader"], env
+        ["nvidia-smi", "--query-gpu=index,pci.bus_id,name", "--format=csv,noheader"],
+        env,
     )
     names = {}
     for line in listing.splitlines():
@@ -180,7 +191,63 @@ def runner_environment(base: dict[str, str], scratch: Path) -> dict[str, str]:
     return env
 
 
-def test_command(package: str, features: Sequence[str], targets: Sequence[str]) -> list[str]:
+SLICE72_TARGET = "slice72_concurrent_gpu"
+SLICE72_SUPPORT = (
+    REPO_ROOT / "src/rust/crates/fathomdb-engine/tests/support/slice72_gpu_telemetry.rs"
+)
+_CACHE_PREFIX = re.compile(r'cache_prefix\(\s*"([^"]+)"')
+SLICE72_MODEL_FILES = ("config.json", "tokenizer.json", "model.safetensors")
+
+
+def stage_slice72_assets(support: Path, cache_root: Path, destination: Path) -> Path:
+    """Build Slice 72's immutable asset root (`bge/`, `reranker/`) from the
+    warmed model caches, located by the cache identities its test harness
+    names; the harness itself verifies every file's SHA-256."""
+
+    identities = _CACHE_PREFIX.findall(support.read_text(encoding="utf-8"))
+    sources = {
+        "bge": [i for i in identities if i.startswith("BAAI/")],
+        "reranker": [i for i in identities if i.startswith("cross-encoder/")],
+    }
+    for kind, found in sources.items():
+        if len(found) != 1:
+            raise FeatureCompleteError(
+                f"expected one Slice 72 {kind} cache identity in {support}, found {found}"
+            )
+    for kind, cache_kind in (("bge", "embedders"), ("reranker", "reranker")):
+        prefix = hashlib.sha256(sources[kind][0].encode()).hexdigest()[:12]
+        source = cache_root / "fathomdb" / cache_kind / prefix
+        target = destination / kind
+        target.mkdir(parents=True, exist_ok=True)
+        for name in SLICE72_MODEL_FILES:
+            if not (source / name).is_file():
+                raise FeatureCompleteError(
+                    f"Slice 72 {kind} cache file missing: {source / name} (warm the cache first)"
+                )
+            copy = target / name
+            if not copy.exists():
+                shutil.copyfile(source / name, copy)
+                copy.chmod(0o444)
+    return destination
+
+
+def entry_environment(
+    env: dict[str, str], targets: Sequence[str], assets: Path
+) -> dict[str, str]:
+    """Per-run overrides: Slice 72 requires exactly one process-visible CUDA
+    device (the first RTX 3090) and its staged asset root."""
+
+    if SLICE72_TARGET not in targets:
+        return dict(env)
+    result = dict(env)
+    result["CUDA_VISIBLE_DEVICES"] = "0"
+    result["FATHOMDB_SLICE72_ASSET_ROOT"] = str(assets)
+    return result
+
+
+def test_command(
+    package: str, features: Sequence[str], targets: Sequence[str]
+) -> list[str]:
     command = ["cargo", "test", "--locked", "-p", package, "--no-default-features"]
     if features:
         command += ["--features", ",".join(features)]
@@ -190,11 +257,23 @@ def test_command(package: str, features: Sequence[str], targets: Sequence[str]) 
 
 
 def _nvidia_smi(command: list[str], env: dict[str, str]) -> str:
-    return subprocess.run(command, env=env, check=True, capture_output=True, text=True).stdout
+    return subprocess.run(
+        command, env=env, check=True, capture_output=True, text=True
+    ).stdout
 
 
 def _warm_embedder(env: dict[str, str], log: Path) -> None:
-    build = ["cargo", "build", "--locked", "-p", "fathomdb-cli", "--features", "default-embedder"]
+    build = [
+        "cargo",
+        "build",
+        "--locked",
+        "-p",
+        "fathomdb-cli",
+        "--bin",
+        CLI_BINARY,
+        "--features",
+        "default-embedder",
+    ]
     subprocess.run(build, cwd=REPO_ROOT, env=env, check=True)
     metadata = json.loads(
         subprocess.run(
@@ -207,17 +286,8 @@ def _warm_embedder(env: dict[str, str], log: Path) -> None:
         ).stdout
     )
     target_dir = Path(metadata["target_directory"])
-    binaries = [
-        target["name"]
-        for package in metadata["packages"]
-        if package["name"] == "fathomdb-cli"
-        for target in package["targets"]
-        if "bin" in target["kind"]
-    ]
-    if len(binaries) != 1:
-        raise FeatureCompleteError(f"expected one fathomdb-cli binary, found {binaries}")
     completed = subprocess.run(
-        [str(target_dir / "debug" / binaries[0]), "doctor", "warm-cache"],
+        [str(target_dir / "debug" / CLI_BINARY), "doctor", "warm-cache"],
         cwd=REPO_ROOT,
         env=env,
         check=False,
@@ -226,7 +296,9 @@ def _warm_embedder(env: dict[str, str], log: Path) -> None:
     )
     log.write_text(completed.stdout + completed.stderr)
     if completed.returncode != 0:
-        raise FeatureCompleteError(f"doctor warm-cache failed ({completed.returncode}); see {log}")
+        raise FeatureCompleteError(
+            f"doctor warm-cache failed ({completed.returncode}); see {log}"
+        )
 
 
 def run_gate(scratch: Path) -> int:
@@ -235,7 +307,9 @@ def run_gate(scratch: Path) -> int:
     matrix = test_targets.load_matrix(test_targets.MATRIX_PATH)
     allowlist = test_targets.load_allowlist(test_targets.ALLOWLIST_PATH)
     workspace = test_targets.workspace_features(REPO_ROOT, host)
-    failures, _ = test_targets.check_coverage(crates, workspace, matrix, allowlist, host)
+    failures, _ = test_targets.check_coverage(
+        crates, workspace, matrix, allowlist, host
+    )
     if failures:
         for failure in failures:
             print(f"FAIL coverage: {failure}", file=sys.stderr)
@@ -244,6 +318,11 @@ def run_gate(scratch: Path) -> int:
     env = runner_environment(env, scratch)
     Path(env["FATHOMDB_SLICE72_RECEIPT_DIR"]).mkdir(parents=True, exist_ok=True)
     _warm_embedder(env, scratch / "warm-cache.log")
+    assets = stage_slice72_assets(
+        SLICE72_SUPPORT,
+        Path(env.get("XDG_CACHE_HOME") or Path.home() / ".cache"),
+        scratch / "slice72-assets",
+    )
     by_crate = {crate.name: crate for crate in crates}
     results: list[ScanResult] = []
     summary: list[dict[str, object]] = []
@@ -256,12 +335,21 @@ def run_gate(scratch: Path) -> int:
         started = time.monotonic()
         with open(log, "w", encoding="utf-8") as handle:
             completed = subprocess.run(
-                command, cwd=REPO_ROOT, env=env, stdout=handle, stderr=subprocess.STDOUT, check=False
+                command,
+                cwd=REPO_ROOT,
+                env=entry_environment(env, targets, assets),
+                stdout=handle,
+                stderr=subprocess.STDOUT,
+                check=False,
             )
         seconds = round(time.monotonic() - started)
-        result = scan_output(log.read_text(encoding="utf-8", errors="replace"), by_crate[package])
+        result = scan_output(
+            log.read_text(encoding="utf-8", errors="replace"), by_crate[package]
+        )
         if completed.returncode != 0:
-            result.failed.append(f"{label}: cargo test exited {completed.returncode} (see {log})")
+            result.failed.append(
+                f"{label}: cargo test exited {completed.returncode} (see {log})"
+            )
         expected = {f"{package}::{target}" for target in targets}
         missing = sorted(expected - set(result.ran_targets))
         result.failed.extend(f"{target}: did not run" for target in missing)
@@ -279,7 +367,9 @@ def run_gate(scratch: Path) -> int:
         )
         print(f"    exit {completed.returncode} in {seconds}s; log {log}", flush=True)
     failures = contract_failures(results, allowlist)
-    (scratch / "summary.json").write_text(json.dumps({"plan": summary, "failures": failures}, indent=2))
+    (scratch / "summary.json").write_text(
+        json.dumps({"plan": summary, "failures": failures}, indent=2)
+    )
     for failure in failures:
         print(f"FAIL {failure}", file=sys.stderr)
     print(
@@ -292,13 +382,21 @@ def run_gate(scratch: Path) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--scratch", type=Path, help="log directory (default: a new temporary one)")
+    parser.add_argument(
+        "--scratch", type=Path, help="log directory (default: a new temporary one)"
+    )
     args = parser.parse_args(argv)
-    scratch = args.scratch or Path(tempfile.mkdtemp(prefix="fathomdb-feature-complete-"))
+    scratch = args.scratch or Path(
+        tempfile.mkdtemp(prefix="fathomdb-feature-complete-")
+    )
     scratch.mkdir(parents=True, exist_ok=True)
     try:
         return run_gate(scratch)
-    except (FeatureCompleteError, test_targets.TestTargetsError, subprocess.CalledProcessError) as exc:
+    except (
+        FeatureCompleteError,
+        test_targets.TestTargetsError,
+        subprocess.CalledProcessError,
+    ) as exc:
         print(f"feature-complete: {exc}", file=sys.stderr)
         return 2
 

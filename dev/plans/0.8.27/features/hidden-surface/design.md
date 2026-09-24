@@ -281,13 +281,13 @@ a small module, `scripts/lib/test_targets.py`, reads `Cargo.toml` and
   - `ignored-by-design`: for example Slice 72's watchdog child entry point,
     which must not run directly, and the TC-20 hard-gate body documented as
     never running;
-  - `opt-in-experiment`: for example the `ir_c_*` targets, which need
-    `IRC_RUN` and gitignored gold files. A single-test entry may set
-    `exclude = true` so the gate never runs that test. It is used for
-    `calibration_reports_p1_flips_and_p2_l2`, which rewrites a committed
-    calibration record. The gate runs that test's assertions through
-    `calibration_cpu_baseline_components_hold`, which writes nothing. The entry
-    is stale unless the test is listed;
+  - `opt-in-experiment`: a single test that needs an explicit opt-in or
+    gitignored inputs, for example the `ir_c_*` tests, which need `IRC_RUN`
+    and gitignored gold files. The entry must set `exclude = true`, and the
+    gate never runs the test. `calibration_reports_p1_flips_and_p2_l2` is one:
+    it rewrites a committed calibration record, and the gate runs its
+    assertions through `calibration_cpu_baseline_components_hold`, which
+    writes nothing. The entry is stale unless the test is listed;
   - `benign-message`: a harmless message that contains a skip word;
   - `platform-excluded`: a whole target whose file-level cfg excludes some
     hosts. Its `excluded_on` host predicate says where the entry applies, so the
@@ -304,10 +304,10 @@ a small module, `scripts/lib/test_targets.py`, reads `Cargo.toml` and
 
 **Model weights (G-4).** It builds `fathomdb-cli` with `default-embedder` and
 runs `doctor warm-cache` to download the embedder. The reranker has no warm
-verb, so its weights download on first use inside the tests; a failed download
-shows as a skip, which the skip contract turns into a failure. The gate unsets
-`FATHOMDB_SKIP_NETWORK_TESTS` and sets the runner variables tests need, for
-example `FATHOMDB_SLICE72_RUNNER=approved-nvidia` and
+verb, so its weights download on first use inside the tests; under
+`FATHOMDB_REQUIRE_LIVE=1` a failed download fails the test (see the skip
+contract). The gate unsets `FATHOMDB_SKIP_NETWORK_TESTS` and sets the runner
+variables tests need, for example `FATHOMDB_SLICE72_RUNNER=approved-nvidia` and
 `FATHOMDB_SLICE72_RECEIPT_DIR` under its own scratch directory.
 
 Every other asset is pinned and verified before use:
@@ -328,7 +328,10 @@ Every other asset is pinned and verified before use:
     The export runs in a throwaway virtual environment that installs
     `dev/tools/onnx/export-requirements.txt` with `--require-hashes
     --no-deps`, so every package is an exact, hash-pinned version. The export
-    is byte-deterministic with that set;
+    is byte-deterministic with that set. These pins are canonical. The
+    versions that first produced the pinned graph are unrecoverable, but the
+    pinned set was verified genuine and complete, and a re-export through it
+    reproduced the pinned model sha256 byte for byte;
   - the tokenizer is the one the embedder loader pins.
 
   The gate sets `ORT_DYLIB_PATH`, `FATHOMDB_ONNX_MODEL_PATH`, and
@@ -372,16 +375,33 @@ One thread per binary keeps each test's output contiguous, so every skip
 marker is attributed to exactly one test id (the harness's `test <name> ...`
 line precedes it).
 
+The gate sets `FATHOMDB_REQUIRE_LIVE=1`. Each self-skip in the workspace is
+one of two kinds:
+
+- **Provisioned prerequisite:** model weights, the cached reranker, nomic
+  weights, the ONNX Runtime assets, a GPU, network access, or the Slice 72
+  runner environment. The gate provisions all of these. Every such site calls
+  its crate's test-only `require_live_or_skip(message)`
+  (`tests/support/live.rs` in `fathomdb-embedder`, `fathomdb-engine`, and
+  `fathomdb-cli`; the embedder's unit tests include it by path). Under
+  `FATHOMDB_REQUIRE_LIVE=1` it panics with the message, so a missing
+  prerequisite fails the test. Otherwise it prints the message and the test
+  skips, so ordinary development runs are unchanged.
+- **Opt-in:** an explicit opt-in (`IRC_RUN`, `AGENT_LONG`, `EU_DUMP`,
+  `FATHOMDB_SLICE80_GPU_WITNESS` on a Jetson) or gitignored gold and corpus
+  files. These keep their skips. A gate-run test of this kind has an
+  `opt-in-experiment` entry with `exclude = true`, so the gate never runs it.
+
 Then:
 
 - **Skip markers:** the output after the first test binary starts is matched
   against `\bskip(s|ped|ping)?\b` (any case) and `\bPENDING(_EXTERNAL)?\b`.
   That covers `[SKIP] ...`, `SKIP name: ...`, `skipping ...`, and
-  `gated-to-skip`. Any match fails the gate unless its test id is on the
-  allowlist with class `opt-in-experiment` or `benign-message`.
-- **Ignored tests:** the per-target ignored count is compared with the
-  `ignored-by-design` entries. Any ignored test not on the allowlist fails
-  the gate.
+  `gated-to-skip`. Because opt-in tests are excluded and provisioned
+  prerequisites fail instead of skipping, a match is a defect: it fails the
+  gate unless its test id is on the allowlist with class `benign-message`.
+- **Ignored tests:** any ignored test that is not on the allowlist with class
+  `ignored-by-design` fails the gate.
 - **Stale entries:** an allowlist entry that no longer matches any test fails
   the gate.
 - **Result:** "passes" means every non-allowlisted test ran and passed.
@@ -391,10 +411,13 @@ Then:
   test that re-executes its own binary prints its child's results. A planned
   test with no status counts as failed, and one that never appears fails the
   gate.
-
-A later hardening step can replace marker matching with a shared
-`FATHOMDB_REQUIRE_LIVE=1` helper that turns a skip into a panic; that is not
-part of this unit.
+- **Child runs:** a `running N test(s)` line printed while a planned test is
+  still running opens a child scope, which the child's `test result:` line
+  closes. Lines inside it belong to the child: they record no status, failure,
+  or sighting, and a marker inside it is the running test's. So a child's run
+  of a planned worker never stands in for the worker's own run, and a child
+  failure the parent tolerates fails nothing. A planned test that starts but
+  never gets a status fails the gate.
 
 **Where it runs:** not in `agent-verify`, for runtime reasons.
 `scripts/check.sh` runs it when `FATHOMDB_FEATURE_COMPLETE=1`. Slice 70, Slice

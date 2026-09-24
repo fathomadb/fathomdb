@@ -11,8 +11,11 @@
 # CUDA_VISIBLE_DEVICES=0,1; never the K620) and real, pinned assets: the
 # embedder and reranker caches (`fathomdb doctor warm-cache`), nomic weights,
 # and the ONNX Runtime library and exported bge-small graph. Each run is
-# `cargo test ... -- --exact <tests> --nocapture --test-threads=1`; a skip
-# marker or ignored test outside scripts/test-skip-allowlist.toml, a stale
+# `cargo test ... -- --exact <tests> --nocapture --test-threads=1` with
+# FATHOMDB_REQUIRE_LIVE=1, under which a test whose provisioned prerequisite is
+# missing panics instead of skipping. Opt-in experiments are excluded by their
+# scripts/test-skip-allowlist.toml entries. A skip marker not allowlisted as
+# benign-message, an ignored test not allowlisted as ignored-by-design, a stale
 # allowlist entry, a test that does not build, or any failing test fails the
 # gate.
 #

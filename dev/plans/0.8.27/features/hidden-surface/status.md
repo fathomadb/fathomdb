@@ -37,6 +37,9 @@ the implementation closeout `HEAD`.
 | `e5d2df13` | docs | `fc7` recorded (its counts are corrected below). |
 | `9537bbc6` | RED | Code review FIX-2 contracts: extra feature sets, parent counts, calibration split, failure accounting, release-only scan, export pins. |
 | `fe947288` | fix | FIX-2 V-1 to V-6: extra feature sets, per-parent counts, `calibration_cpu_baseline_components_hold`, `run_failures`, item-gated release-only parsing, hash-pinned ONNX export. |
+| `05d3099c` | docs | `fc8` recorded; `fc7` claims corrected. |
+| `375d4816` | RED | Code review FIX-3 contracts: child scopes, injected `plan_runs` listings, `--write-matrix` keeps `[[extra]]`, the live-only skip contract. |
+| `c894ca97` | fix | FIX-3 W-1 to W-3 and ledger item 252: child scopes, `list_tests` injection, `FATHOMDB_REQUIRE_LIVE=1` with per-crate `require_live_or_skip`, opt-in tests excluded, markers excused only as `benign-message`. |
 
 RED evidence: `dc2aab69` failed with a `signature` key assertion in
 `test_walk_hazards` and with `FileNotFoundError` for `scripts/lib/test_targets.py`.
@@ -182,7 +185,74 @@ tests on x86_64. It is recorded in the allowlist under class
 `platform-excluded`, a fourth class this implementation added (see
 Deviations).
 
-### ACH-14: PASS (at `fe947288`, run `fc8`)
+### ACH-14: PASS (at `c894ca97`, run `fc9`)
+
+**Live-test hardening (FIX-3, ledger item 252).** The gate now runs every
+test with `FATHOMDB_REQUIRE_LIVE=1`. Every self-skip in the workspace was
+classified:
+
+- **Provisioned prerequisite (31 sites):** reranker and nomic weights, the
+  ONNX Runtime assets, network access (`FATHOMDB_SKIP_NETWORK_TESTS`), and the
+  Slice 72 runner environment. Each calls its crate's test-only
+  `require_live_or_skip`, which panics under `FATHOMDB_REQUIRE_LIVE=1` and
+  otherwise prints the same message as before.
+- **Opt-in:** `IRC_RUN`, `AGENT_LONG`, `EU_DUMP`, `SLICE6_EXPERIMENT`, the
+  Slice 72 stress switch, the Jetson-only witness, and gitignored gold and
+  corpus files. These keep their skips. The 10 gate-run ones are now
+  `opt-in-experiment` entries with `exclude = true`, and the gate never runs
+  them. The two whole-target entries (`ir_c_fusion_experiment`,
+  `ir_c_recall_run`) became single-test entries.
+
+A skip marker is now excused only by a `benign-message` entry (there are
+none), and an ignored test only by `ignored-by-design`. With the nomic cache
+empty, `nomic_loads_and_embeds` prints `[skip] nomic weights absent` and passes
+by default, and fails with `FATHOMDB_REQUIRE_LIVE=1 and a live prerequisite is
+missing` when the variable is set.
+
+**Child scopes (FIX-3 W-1).** Child runs of `calibration_leg_worker` print
+their `test calibration_leg_worker ... ok` lines before the worker's own
+top-level line, so the earlier first-status-wins rule could count a failed
+top-level worker as passed. The scanner now treats a `running N test(s)` line
+printed while a planned test is running as a child scope, closed by the
+child's `test result:` line, and records nothing from inside it.
+
+`fc9`, `bash scripts/test-feature-complete.sh --scratch <scratch>/fc9`, exited
+0:
+
+- 20 runs, 345 planned tests, counted per planned test from `summary.json`:
+  337 passed, 0 failed, and 8 ignored (all `ignored-by-design`). There were
+  0 failures, 0 skip markers in any run, and no extra-set drift.
+- Per run (planned / passed / ignored): `fathomdb[none]` 3/3/0;
+  `fathomdb-cli[default-embedder]` 1/1/0; `fathomdb-cli[default-reranker]`
+  1/1/0; `fathomdb-embedder[default-embedder]` 6/6/0;
+  `fathomdb-embedder[default-reranker]` 5/5/0; `fathomdb-embedder[embed-cuda]`
+  2/2/0; `fathomdb-embedder[loader-test-hooks]` 22/22/0;
+  `fathomdb-embedder[rerank-cuda]` 2/2/0; `fathomdb-embedder[tc5-benchmark]`
+  2/2/0; `fathomdb-embedder[default-embedder,onnx-embedder]` 15/15/0;
+  `fathomdb-engine[default-embedder]` 9/8/1;
+  `fathomdb-engine[default-reranker]` 19/19/0;
+  `fathomdb-engine[migration-test-hooks]` 6/5/1;
+  `fathomdb-engine[slice72-gpu-tests]` 19/17/2;
+  `fathomdb-engine[tc5-benchmark]` 4/4/0; `fathomdb-engine[test-hooks]`
+  130/127/3; `fathomdb-engine[default-embedder,operator]` 1/0/1;
+  `fathomdb-engine[operator,test-hooks]` 82/82/0;
+  `fathomdb-engine[migration-test-hooks,operator,test-hooks]` 3/3/0;
+  `fathomdb-tc5-benchmark[tc5-benchmark]` 13/13/0.
+- `fc8` planned 355 tests; the 10 fewer are the excluded opt-in tests, which
+  in `fc8` ran and printed their skip markers.
+- Every gate-run test with a provisioned-prerequisite site ran and passed:
+  `ort_bge_embeds_384_dim_finite_deterministic_vector`, the 5
+  `candle_reranker::tests` and 2 `candle_reranker::gpu_tests` tests,
+  `candle_onnx_equivalence_measurement`, `cpu_legs_reproduce_0816_baseline`,
+  `calibration_cpu_baseline_components_hold`,
+  `rerank_passages_threads_alpha_and_pool_n`, the 6 CE-dependent
+  `pr_g10_reranker_ce` tests, `nomic_loads_and_embeds`, the 4 network-gated
+  `eu5b_lockflip` tests, `cli_doctor_warm_cache_succeeds`, and the Slice 72
+  `basic` and `moderate` runs on RTX 3090 index 0.
+- After the gate, `git status` showed only this unit's uncommitted doc edits;
+  no committed record was rewritten.
+
+### ACH-14: earlier run (at `fe947288`, run `fc8`)
 
 **Corrections.** Two earlier versions of this section made false claims.
 
@@ -314,18 +384,24 @@ no `test-build: failed` entries. The exclusive-create guard is covered by
   `test_targets.py`, because Cargo cannot express that they build only on
   macOS. The gate also covers crates without test targets (`fathomdb-napi`,
   `fathomdb-py`, `fathomdb-tc5-benchmark`) when their features add tests.
-- **ONNX export pins.** The venv that built the cached model no longer exists,
-  so its versions could not be recovered. The lock
-  `dev/tools/onnx/export-requirements.txt` pins the current exact versions
-  (torch 2.4.1+cpu, transformers 4.44.2, numpy 1.26.4, onnx 1.23.0, and all
-  transitive dependencies) with sha256 hashes. It was checked by exporting
-  through the gate's own path into a scratch directory: the result matched the
-  pinned `c92689ec…` sha256, and no `model.onnx.onnx` was left behind.
+- **ONNX export pins.** The versions that first exported the cached model are
+  unrecoverable: the venv that built it no longer exists. The exact pins in
+  `dev/tools/onnx/export-requirements.txt` (torch 2.4.1+cpu, transformers
+  4.44.2, numpy 1.26.4, onnx 1.23.0, and every transitive dependency, each
+  with its sha256) are the canonical pins. They were verified genuine and
+  complete, and a re-export through the gate's own path into a scratch
+  directory reproduced the pinned model sha256 `c92689ec…` byte for byte,
+  leaving no `model.onnx.onnx` behind.
+- **Opt-in tests excluded, not excused.** An `opt-in-experiment` entry must now
+  set `exclude = true` for a single test; the coverage check rejects any other
+  form. The embedder's unit tests include `tests/support/live.rs` by path,
+  because the helper must stay test-only and the crate has no test support
+  module in `src`.
 - **Owner-gated impls.** The release probe names a trait impl through its
   owner when the owner itself is absent in release, because the canonical
   trait paths are private or unstable.
 
-## Final checks (2026-09-23, at `fe947288`)
+## Final checks (2026-09-23, at `c894ca97` plus this record)
 
 | Command | Result |
 | --- | --- |

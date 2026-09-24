@@ -4,8 +4,9 @@
 Sibling of `surface_comparator.py` (Slice 30), whose rows come from
 `cargo public-api` and therefore omit `#[doc(hidden)]` items. This tool builds
 rustdoc JSON with `--document-hidden-items` for each row, walks every item
-reachable by public path, and records each entry's per-site doc-hidden flags
-and cfg predicates. A release compile probe proves that debug-only items are
+reachable by public path, and signs each entry's effective doc-hidden flag and
+effective cfg predicate (over every site on its public path), plus static and
+per-binary test inventories. A release compile probe proves that debug-only items are
 absent, and release-only items present, in a real `--release` build.
 
 Design of record: `dev/plans/0.8.27/features/hidden-surface/design.md`.
@@ -1201,13 +1202,47 @@ def release_only_names(sources: dict[str, str]) -> set[str]:
     for text in sources.values():
         for match in re.finditer(r"#\[cfg\(", text):
             end = _balanced_end(text, match.start() + 1, "[", "]")
-            attribute = re.sub(r"\s+", "", text[match.start() : end])
-            if "not(debug_assertions)" not in attribute:
+            inner = text[match.end() : text.rindex(")", match.start(), end)]
+            try:
+                node = test_targets.parse_cfg(inner)
+            except test_targets.TestTargetsError as exc:
+                raise HiddenSurfaceError(f"release-only scan: {exc}") from exc
+            if not _release_only(node):
                 continue
             item = _ITEM_AFTER_ATTRS.match(text, _skip_trivia(text, end))
             if item is not None:
                 found.add(item.group(2).rsplit("::", 1)[-1])
     return found
+
+
+def _release_only(node: tuple) -> bool:
+    """True when, for some assignment of the other atoms (features, platform),
+    the cfg holds in a release build and fails in a debug build, with `test`
+    false in both."""
+
+    free = sorted(
+        (
+            atom
+            for atom in test_targets.cfg_atoms(node)
+            if not (atom[2] is None and atom[1] in ("debug_assertions", "test"))
+        ),
+        key=test_targets.render_atom,
+    )
+    for row in range(1 << len(free)):
+        truth = {atom: bool(row >> n & 1) for n, atom in enumerate(free)}
+
+        def assign(atom: tuple, debug: bool, truth: dict = truth) -> bool:
+            if atom[2] is None and atom[1] == "debug_assertions":
+                return debug
+            if atom[2] is None and atom[1] == "test":
+                return False
+            return truth[atom]
+
+        release = test_targets.evaluate(node, lambda atom: assign(atom, False))
+        debug = test_targets.evaluate(node, lambda atom: assign(atom, True))
+        if release and not debug:
+            return True
+    return False
 
 
 def check_release_only(
@@ -1963,18 +1998,19 @@ def discard_source(directory: Path) -> None:
 def prune() -> None:
     """Delete the build cache and every owned export."""
 
-    cache = OWNED_CACHE.parent
-    if os.path.lexists(cache):
-        shutil.rmtree(cache)
-    if os.path.lexists(OWNED_ROOT):
-        with _owned_lock():
-            for child in OWNED_ROOT.iterdir():
-                if child.name in (ROOT_MARKER, ".lock"):
-                    continue
-                if child.is_dir() and not child.is_symlink():
-                    shutil.rmtree(child)
-                else:
-                    child.unlink()
+    # Hold the capture lock so a concurrent capture never loses its cache or
+    # export mid-build.
+    with _owned_lock():
+        cache = OWNED_CACHE.parent
+        if os.path.lexists(cache):
+            shutil.rmtree(cache)
+        for child in OWNED_ROOT.iterdir():
+            if child.name in (ROOT_MARKER, ".lock"):
+                continue
+            if child.is_dir() and not child.is_symlink():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
 
 
 # --------------------------------------------------------------------------

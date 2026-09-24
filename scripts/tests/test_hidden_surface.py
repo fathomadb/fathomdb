@@ -217,6 +217,19 @@ def test_walk_hazards(tool: ModuleType) -> None:
     assert '"primitive":"u8"' in p("shadowed").signature
     all_records = tool.walk(doc("base-default"))
     assert [r.path for r in all_records].count(f"{root}::shadowed") == 1
+    # Rustdoc drops the shadowed glob item from a private module, so add one
+    # back: an explicit item must still win over a glob-imported namesake.
+    shadowing = doc("base-default")
+    index = shadowing["index"]
+    explicit = next(v for v in index.values() if v["name"] == "shadowed")
+    globbed = next(v for v in index.values() if v["name"] == "globbed")
+    namesake = copy.deepcopy(explicit)
+    namesake["id"] = 999_999
+    namesake["inner"]["function"]["sig"]["output"] = {"primitive": "u16"}
+    index["999999"] = namesake
+    globbed["inner"]["module"]["items"].append(999_999)
+    shadowed = [r for r in tool.walk(shadowing) if r.path == f"{root}::shadowed"]
+    assert len(shadowed) == 1 and '"primitive":"u8"' in shadowed[0].signature
     assert '"primitive":"u16"' not in p("shadowed").signature
     external_glob = p("ext_glob::external-glob:core::hint")
     assert external_glob.kind == "external-glob"

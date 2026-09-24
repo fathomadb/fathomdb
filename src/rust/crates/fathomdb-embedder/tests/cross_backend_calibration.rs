@@ -714,6 +714,37 @@ fn calibration_reports_p1_flips_and_p2_l2() {
     write_durable_doc(&candle_cpu, &onnx_cpu, &m, mean_l2, gpu.as_ref());
 }
 
+const RECORD_NAME: &str = "0.8.18-slice-0-cross-backend-calibration.md";
+
+fn tracked_record_path() -> PathBuf {
+    repo_root().join("dev/plans/runs").join(RECORD_NAME)
+}
+
+fn record_write_opted_in(value: Option<&str>) -> bool {
+    let _ = value;
+    true
+}
+
+fn record_destination(opted_in: bool) -> PathBuf {
+    let _ = opted_in;
+    tracked_record_path()
+}
+
+fn check_no_cuda_downgrade(existing: Option<&str>, rendered: &str) -> Result<(), String> {
+    let _ = (existing, rendered);
+    Ok(())
+}
+
+fn persist_durable_doc(path: &Path, doc: &str) {
+    let existing = std::fs::read_to_string(path).ok();
+    if let Err(refusal) = check_no_cuda_downgrade(existing.as_deref(), doc) {
+        panic!("refusing to write {}: {refusal}", path.display());
+    }
+    std::fs::write(path, doc)
+        .unwrap_or_else(|e| panic!("write durable doc {}: {e}", path.display()));
+    eprintln!("R-CAL-4 wrote durable results doc: {}", path.display());
+}
+
 /// R-CAL-4: write the durable results doc (mirrors the Slice-15 doc's shape).
 fn write_durable_doc(
     candle: &LegResult,
@@ -722,7 +753,19 @@ fn write_durable_doc(
     mean_l2: f64,
     gpu: Option<&GpuPairs>,
 ) {
-    let path = repo_root().join("dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md");
+    let doc = render_durable_doc(candle, onnx, m, mean_l2, gpu);
+    let opted_in =
+        record_write_opted_in(std::env::var("FATHOMDB_WRITE_CALIBRATION_RECORD").ok().as_deref());
+    persist_durable_doc(&record_destination(opted_in), &doc);
+}
+
+fn render_durable_doc(
+    candle: &LegResult,
+    onnx: &LegResult,
+    m: &PairMetrics,
+    mean_l2: f64,
+    gpu: Option<&GpuPairs>,
+) -> String {
     // candle-CUDA rows: measured when the GPU leg ran (MAIN tree), else pending.
     let (cpu_vs_cuda_row, cuda_vs_onnx_row, gpu_status) = match gpu {
         Some(g) => (
@@ -738,7 +781,7 @@ fn write_durable_doc(
             "PENDING (worktree runs CPU legs only; run on MAIN with `embed-cuda`)".to_string(),
         ),
     };
-    let doc = format!(
+    format!(
         r#"# 0.8.18 Slice 0 U3 — cross-backend vector-equivalence CALIBRATION (R-CAL-1..R-CAL-4)
 
 Status: **MEASURED + RECORDED** (calibration instrument — measures, does NOT
@@ -845,8 +888,93 @@ FATHOMDB_EMBED_DEVICE=auto cargo test -p fathomdb-embedder \
         cpu_vs_cuda_row = cpu_vs_cuda_row,
         cuda_vs_onnx_row = cuda_vs_onnx_row,
         gpu_status = gpu_status,
+    )
+}
+
+// ── durable-record destination + no-downgrade guard ─────────────────────────
+
+fn synthetic_leg(device: &str) -> LegResult {
+    LegResult {
+        skipped: false,
+        fallback: false,
+        reason: String::new(),
+        requested_device: device.to_string(),
+        effective_device: device.to_string(),
+        vectors: vec![vec![0.5; DIM]],
+    }
+}
+
+fn synthetic_render(gpu_measured: bool) -> String {
+    let mean = pinned_mean();
+    let leg = synthetic_leg("cpu");
+    let m = compare_pair(&leg.vectors, &leg.vectors, &mean);
+    let gpu = gpu_measured.then(|| GpuPairs {
+        effective: "cuda:0".to_string(),
+        cpu_vs_cuda: compare_pair(&leg.vectors, &leg.vectors, &mean),
+        cuda_vs_onnx: compare_pair(&leg.vectors, &leg.vectors, &mean),
+    });
+    render_durable_doc(&leg, &leg, &m, 1.0, gpu.as_ref())
+}
+
+fn scratch_file(name: &str) -> PathBuf {
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!(
+        "{}-{}-{name}",
+        std::process::id(),
+        SEQ.fetch_add(1, Ordering::Relaxed)
+    ))
+}
+
+#[test]
+fn calibration_record_write_needs_exact_opt_in() {
+    assert!(!record_write_opted_in(None));
+    assert!(!record_write_opted_in(Some("")));
+    assert!(!record_write_opted_in(Some("0")));
+    assert!(!record_write_opted_in(Some("true")));
+    assert!(record_write_opted_in(Some("1")));
+    assert_eq!(record_destination(true), tracked_record_path());
+}
+
+#[test]
+fn calibration_record_default_run_writes_scratch_and_leaves_tracked_record() {
+    let tracked = tracked_record_path();
+    let before = std::fs::read(&tracked).expect("read tracked calibration record");
+    let dest = record_destination(false);
+    // Checked before any write, so a wrong destination never reaches the record.
+    assert_ne!(dest, tracked, "a default run must not target the tracked record");
+    assert!(
+        dest.starts_with(env!("CARGO_TARGET_TMPDIR")),
+        "a default run must write under CARGO_TARGET_TMPDIR, got {}",
+        dest.display()
     );
-    std::fs::write(&path, doc)
-        .unwrap_or_else(|e| panic!("write durable doc {}: {e}", path.display()));
-    eprintln!("R-CAL-4 wrote durable results doc: {}", path.display());
+    let doc = synthetic_render(false);
+    persist_durable_doc(&dest, &doc);
+    assert_eq!(std::fs::read_to_string(&dest).expect("read scratch record"), doc);
+    assert_eq!(
+        std::fs::read(&tracked).expect("re-read tracked calibration record"),
+        before,
+        "a default run changed the tracked record"
+    );
+}
+
+#[test]
+fn calibration_record_refuses_pending_cuda_rows_over_measured() {
+    let measured = synthetic_render(true);
+    let pending = synthetic_render(false);
+    assert!(check_no_cuda_downgrade(None, &pending).is_ok());
+    assert!(check_no_cuda_downgrade(Some(&pending), &pending).is_ok());
+    assert!(check_no_cuda_downgrade(Some(&pending), &measured).is_ok());
+    assert!(check_no_cuda_downgrade(Some(&measured), &measured).is_ok());
+    assert!(check_no_cuda_downgrade(Some(&measured), &pending).is_err());
+
+    // The committed record carries MEASURED CUDA rows; a CPU-only render must
+    // not replace them. Exercised on a copy so the tracked file is never at risk.
+    let committed =
+        std::fs::read_to_string(tracked_record_path()).expect("read tracked calibration record");
+    assert!(check_no_cuda_downgrade(Some(&committed), &pending).is_err());
+    let copy = scratch_file("committed-record-copy.md");
+    std::fs::write(&copy, &committed).expect("write record copy");
+    let refused = std::panic::catch_unwind(|| persist_durable_doc(&copy, &pending));
+    assert!(refused.is_err(), "persisting a PENDING render over MEASURED rows must panic");
+    assert_eq!(std::fs::read_to_string(&copy).expect("re-read record copy"), committed);
 }

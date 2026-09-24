@@ -11,8 +11,15 @@ rows contain none of the moved hooks. The reviewer instead generated rustdoc
 JSON with `--document-hidden-items` (nightly-2026-04-24) for the pre
 (`5f5c1798`) and post (`e3358800`) trees under default, `test-hooks`,
 `slice72-test-hooks`, `operator`, and `operator,test-hooks`, and compared the
-root-reachable name sets: identical in all five. The JSON was not retained;
-re-run the same command pair to reproduce.
+root-reachable name sets: identical in all five.
+
+Recorded evidence (hidden-surface ACH-6): `dev/tools/hidden_surface.py` captured
+`5f5c1798` and compared it with the committed
+`dev/plans/0.8.27/features/hidden-surface/baseline-e3358800.json`. All eight
+rustdoc rows (effective `cfg` and `doc(hidden)` per public path) and the
+release-probe row are equal; the test inventories differ only by three
+Slice 40 test renames. Commands, digests, and the non-vacuity injection are in
+`dev/plans/0.8.27/features/hidden-surface/status.md` (ACH-6).
 
 ## Findings and remediation
 

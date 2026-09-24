@@ -386,6 +386,60 @@ def test_slice72_assets(fc: ModuleType) -> None:
         )
 
 
+def test_weight_provisioning(fc: ModuleType) -> None:
+    """Pinned weights are fetched once, verified before they are visible, and
+    a digest mismatch leaves nothing behind."""
+
+    import hashlib
+
+    def blob_sha1(data: bytes) -> str:
+        return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+
+    contents = {"tokenizer.json": b'{"t": 1}', "model.safetensors": b"weights"}
+    files = {
+        "tokenizer.json": (
+            "git-blob-sha1",
+            blob_sha1(contents["tokenizer.json"]),
+            "u/tok",
+        ),
+        "model.safetensors": (
+            "sha256",
+            hashlib.sha256(contents["model.safetensors"]).hexdigest(),
+            "u/model",
+        ),
+    }
+    fetched: list[str] = []
+
+    def fetch(url: str, destination: Path) -> None:
+        fetched.append(url)
+        name = "tokenizer.json" if url == "u/tok" else "model.safetensors"
+        destination.write_bytes(contents[name])
+
+    with tempfile.TemporaryDirectory() as directory:
+        target = Path(directory) / "fathomdb" / "embedders" / "nomic-v1.5"
+        assert fc.provision_weights(target, files, fetch) == [
+            "model.safetensors",
+            "tokenizer.json",
+        ]
+        assert (target / "model.safetensors").read_bytes() == b"weights"
+        assert sorted(fetched) == ["u/model", "u/tok"]
+        # Present and valid: nothing is fetched again.
+        fetched.clear()
+        assert fc.provision_weights(target, files, fetch) == []
+        assert fetched == []
+        # A mismatch fails and leaves no partial or final file.
+        bad = dict(files, **{"model.safetensors": ("sha256", "0" * 64, "u/model")})
+        (target / "model.safetensors").unlink()
+        expect_error(
+            fc.FeatureCompleteError,
+            lambda: fc.provision_weights(target, bad, fetch),
+            "sha256",
+        )
+        assert sorted(p.name for p in target.iterdir()) == ["tokenizer.json"]
+    assert fc.NOMIC_FILES["model.safetensors"][0] == "sha256"
+    assert fc.NOMIC_REVISION in fc.NOMIC_FILES["model.safetensors"][2]
+
+
 def test_repository_wiring(tt: ModuleType) -> None:
     script = (ROOT / "scripts" / "test-feature-complete.sh").read_text()
     assert "feature_complete.py" in script
@@ -421,7 +475,12 @@ def main() -> None:
         print(f"ok    {test.__name__}")
     test_skip_contract(fc, tt)
     print("ok    test_skip_contract")
-    for test in (test_cuda_preflight, test_runner_environment, test_slice72_assets):
+    for test in (
+        test_cuda_preflight,
+        test_runner_environment,
+        test_slice72_assets,
+        test_weight_provisioning,
+    ):
         test(fc)
         print(f"ok    {test.__name__}")
     print("ok    test-targets")

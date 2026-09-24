@@ -40,6 +40,12 @@ the implementation closeout `HEAD`.
 | `05d3099c` | docs | `fc8` recorded; `fc7` claims corrected. |
 | `375d4816` | RED | Code review FIX-3 contracts: child scopes, injected `plan_runs` listings, `--write-matrix` keeps `[[extra]]`, the live-only skip contract. |
 | `c894ca97` | fix | FIX-3 W-1 to W-3 and ledger item 252: child scopes, `list_tests` injection, `FATHOMDB_REQUIRE_LIVE=1` with per-crate `require_live_or_skip`, opt-in tests excluded, markers excused only as `benign-message`. |
+| `584eced5`, `544e3e40` | docs | `fc9` recorded; ledger item TC-a0fb71fa closed. |
+| `abb0c1d6` | fix | FIX-4 X-1: `candle_reranker` test modules moved after the loader items (clippy `items_after_test_module`). |
+| `efad28e5` | fix | FIX-4 X-2: deprecated `httpmock` `assert_hits` replaced by `assert_calls` in the loader tests. |
+| `f7b847fb` | test | FIX-4 X-3: `harness_skips_unavailable_backends_cleanly` fails its ONNX skips under `FATHOMDB_REQUIRE_LIVE=1`. |
+| `c202c27c` | test | FIX-4 X-4: child-scope cases (crash then next binary, nested child, scopeless child, prose `running` line). |
+| `36941495` | fix | FIX-4 X-5, X-6: `scan_output` documents its fail-closed limits; the microbench exclusion states its true basis. |
 
 RED evidence: `dc2aab69` failed with a `signature` key assertion in
 `test_walk_hazards` and with `FileNotFoundError` for `scripts/lib/test_targets.py`.
@@ -185,7 +191,58 @@ tests on x86_64. It is recorded in the allowlist under class
 `platform-excluded`, a fourth class this implementation added (see
 Deviations).
 
-### ACH-14: PASS (at `c894ca97`, run `fc9`)
+### ACH-14: PASS (at `36941495`, run `fc10`)
+
+**Code review FIX-4.**
+
+- **X-1.** `cargo clippy -p fathomdb-embedder --features default-reranker
+  --all-targets -- -D warnings` failed with `items_after_test_module`. The
+  `tests` and `gpu_tests` modules of `candle_reranker.rs` now sit at the end of
+  the file (a move only, same lines); the command is clean.
+- **X-2.** The loader tests used the deprecated `httpmock::Mock::assert_hits`,
+  which in httpmock 0.8.3 only calls `assert_calls`. The four sites use
+  `assert_calls(0)`; the 12 loader tests pass. Literal `--all-features` cannot
+  build on Linux (the Candle Metal backends need `objc2`, and `cudarc` needs a
+  CUDA toolkit), so the reproduction is `cargo clippy -p fathomdb-embedder
+  --features default-embedder,default-reranker,onnx-embedder,loader-test-hooks,tc5-benchmark
+  --all-targets -- -D warnings`, which is now clean.
+- **X-3.** `harness_skips_unavailable_backends_cleanly` accepted an unset ONNX
+  environment and an ONNX construction skip (`effective == "n/a"`) even under
+  `FATHOMDB_REQUIRE_LIVE=1`. Both now go through `require_live_or_skip`.
+  Before the change, all five scenarios below passed. After it: the default
+  run passes (printing the skip); `FATHOMDB_REQUIRE_LIVE=1` with the ONNX
+  environment unset panics; `FATHOMDB_REQUIRE_LIVE=1` with the gate's ONNX
+  environment passes; with a missing model file, the construction skip panics
+  under `FATHOMDB_REQUIRE_LIVE=1` and passes without it.
+- **X-4.** Four `test_child_scopes` cases now cover: a child that crashes
+  before its result line, followed by the next binary; a nested child; a
+  scopeless child; and a test whose output merely begins with `running 1
+  test`. Verifier mutations M3 (no depth reset on `Running`), M6
+  (first-status-wins), M12 (`_CHILD_RUN` without `$`), and M15 (`depth = 1`)
+  each now fail `test_test_targets.py`. All 16 verifier mutations are killed.
+- **X-5.** `scan_output` documents that its child scoping fails closed. A
+  planned test that prints a bare `running N test(s)` line, or a child that
+  crashes without a result line, is reported as `no result` or `did not run`,
+  never as a pass.
+- **X-6.** The `pr9_microbench_watchdog_overhead` exclusion now states its true
+  basis: the test is an assertion-free timing diagnostic. The gate could
+  provision its inputs, but running it would measure nothing.
+
+`fc10`, `bash scripts/test-feature-complete.sh --scratch <scratch>/fc10`,
+exited 0. It covered 20 runs and 345 planned tests: 337 passed, 0 failed, and
+8 ignored. There were 0 failures and 0 skip markers. Every per-run count
+matches `fc9`, and `harness_skips_unavailable_backends_cleanly` ran in
+`fathomdb-embedder[default-embedder,onnx-embedder]` (15/15). After the gate,
+`git status` was clean.
+
+One non-gate event: a standalone unfiltered `cross_backend_calibration` run
+done for X-3 also ran the excluded record writer
+`calibration_reports_p1_flips_and_p2_l2`. That writer rewrote
+`dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md` 4 minutes
+before `fc10` started, and the file was restored from git. The gate itself
+never runs the writer.
+
+### ACH-14: earlier run (at `c894ca97`, run `fc9`)
 
 **Live-test hardening (FIX-3, ledger item 252).** The gate now runs every
 test with `FATHOMDB_REQUIRE_LIVE=1`. Every self-skip in the workspace was
@@ -401,7 +458,7 @@ no `test-build: failed` entries. The exclusive-create guard is covered by
   owner when the owner itself is absent in release, because the canonical
   trait paths are private or unstable.
 
-## Final checks (2026-09-23, at `c894ca97` plus this record)
+## Final checks (2026-09-23, at `36941495` plus this record)
 
 | Command | Result |
 | --- | --- |
@@ -413,6 +470,11 @@ no `test-build: failed` entries. The exclusive-create guard is covered by
 | `bash scripts/agent-typecheck.sh` | exit 0 |
 | `bash scripts/agent-lint-shell.sh` | exit 0 |
 | `cargo clippy --workspace --all-targets -- -D warnings` | exit 0 |
+| `cargo clippy -p fathomdb-embedder --features default-reranker --all-targets -- -D warnings` | exit 0 |
+| `cargo clippy -p fathomdb-embedder --features default-embedder,default-reranker,onnx-embedder,loader-test-hooks,tc5-benchmark --all-targets -- -D warnings` | exit 0 |
+| `cargo test -p fathomdb-embedder` with the same features, `--test loader` | 12 passed |
+| `cargo test -p fathomdb-embedder --features default-embedder,onnx-embedder --test cross_backend_calibration`, gate ONNX env, `FATHOMDB_REQUIRE_LIVE=1` | 5 passed |
+| `bash scripts/test-feature-complete.sh --scratch <scratch>/fc10` | exit 0; 345 planned, 337 passed, 0 failed, 8 ignored |
 
 The Slice 30 test previously failed only on its 100 GB free-space guard. Code
 review H-4 (`df9cbf9f`) pins `disk_usage` in that test's scratch-ownership

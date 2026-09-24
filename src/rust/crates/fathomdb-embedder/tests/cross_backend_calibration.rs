@@ -576,7 +576,16 @@ fn harness_skips_unavailable_backends_cleanly() {
                 ogpu.effective_device
             );
         } else {
-            // CPU is the valid `auto` outcome; construction errors remain skips.
+            // CPU is the valid `auto` outcome; construction errors remain skips
+            // unless the gate provisioned the ONNX assets, where a construction
+            // skip would hide a broken provider behind a passing test.
+            if ogpu.skipped && ogpu.effective_device == "n/a" {
+                live::require_live_or_skip(&format!(
+                    "SKIP harness_skips_unavailable_backends_cleanly: ONNX auto leg could not be \
+                     constructed: {}",
+                    ogpu.reason
+                ));
+            }
             assert!(
                 !ogpu.skipped || ogpu.effective_device == "n/a",
                 "an ONNX auto CPU outcome must be a successful policy result; only construction \
@@ -584,6 +593,11 @@ fn harness_skips_unavailable_backends_cleanly() {
                 ogpu.effective_device
             );
         }
+    } else {
+        live::require_live_or_skip(
+            "SKIP harness_skips_unavailable_backends_cleanly ONNX leg: ONNX asset env unset — set \
+             ORT_DYLIB_PATH + FATHOMDB_ONNX_MODEL_PATH + FATHOMDB_ONNX_TOKENIZER_PATH",
+        );
     }
 }
 

@@ -2,8 +2,8 @@
 """Read every workspace test target and the feature set it requires.
 
 Shared by the feature-complete test gate (`scripts/test-feature-complete.sh`),
-the fast-tier coverage check (`scripts/check-test-target-coverage.py`), and the
-0.8.27 hidden-surface oracle. A target's requirements are its Cargo
+the fast-tier coverage check (`scripts/check-test-target-coverage.py`), and
+other release tooling. A target's requirements are its Cargo
 `required-features` plus any file-level `#![cfg(...)]`, parsed here by a small
 parser for Rust source cfgs. Nothing is built.
 
@@ -51,7 +51,9 @@ PLATFORM_NAMES = frozenset(
     }
 )
 
-Cfg = tuple  # ("atom", name, value|None) | ("not", [x]) | ("any", [...]) | ("all", [...])
+Cfg = (
+    tuple  # ("atom", name, value|None) | ("not", [x]) | ("any", [...]) | ("all", [...])
+)
 
 
 class TestTargetsError(Exception):
@@ -62,7 +64,9 @@ class TestTargetsError(Exception):
 # Rust cfg syntax
 
 
-_TOKEN = re.compile(r'\s*(?:(?P<ident>[A-Za-z_][A-Za-z0-9_]*)|(?P<string>"(?:[^"\\]|\\.)*")|(?P<punct>[(),=]))')
+_TOKEN = re.compile(
+    r'\s*(?:(?P<ident>[A-Za-z_][A-Za-z0-9_]*)|(?P<string>"(?:[^"\\]|\\.)*")|(?P<punct>[(),=]))'
+)
 
 
 def parse_cfg(text: str) -> Cfg:
@@ -104,7 +108,9 @@ def parse_cfg(text: str) -> Cfg:
                     expect(",")
             expect(")")
             if name == "not" and len(operands) != 1:
-                raise TestTargetsError(f"unparseable cfg {text!r}: not() takes one predicate")
+                raise TestTargetsError(
+                    f"unparseable cfg {text!r}: not() takes one predicate"
+                )
             return (name, operands)
         if peek("="):
             expect("=")
@@ -196,7 +202,11 @@ def canonical_cfg(node: Cfg | None) -> str | None:
     rows_to_primes = {row: [p for p in primes if covers(p, row)] for row in true_rows}
     essential = sorted({ps[0] for ps in rows_to_primes.values() if len(ps) == 1})
     remaining = [row for row in true_rows if not any(covers(p, row) for p in essential)]
-    optional = [p for p in primes if p not in essential and any(covers(p, row) for row in remaining)]
+    optional = [
+        p
+        for p in primes
+        if p not in essential and any(covers(p, row) for row in remaining)
+    ]
 
     def score(chosen: Sequence[tuple[int, int]]) -> tuple[int, int, str]:
         terms = sorted(render_term(term) for term in chosen)
@@ -227,7 +237,11 @@ def _prime_implicants(rows: list[int], width: int) -> list[tuple[int, int]]:
         for value, care in current:
             for bit in range(width):
                 mask = 1 << bit
-                if care & mask and value & mask == 0 and (value | mask, care) in current:
+                if (
+                    care & mask
+                    and value & mask == 0
+                    and (value | mask, care) in current
+                ):
                     merged.add((value, care & ~mask))
                     used.update(((value, care), (value | mask, care)))
         primes.update(current - used)
@@ -245,7 +259,11 @@ def host_assignment(triple: str) -> Callable[[Cfg], bool]:
 
     parts = triple.split("-")
     arch = parts[0]
-    os_name = "linux" if "linux" in parts else ("windows" if "windows" in parts else parts[2] if len(parts) > 2 else "")
+    os_name = (
+        "linux"
+        if "linux" in parts
+        else ("windows" if "windows" in parts else parts[2] if len(parts) > 2 else "")
+    )
     if os_name == "darwin":
         os_name = "macos"
     family = "windows" if os_name == "windows" else "unix"
@@ -312,7 +330,11 @@ class Crate:
     __slots__ = ("name", "directory", "features", "targets")
 
     def __init__(
-        self, name: str, directory: Path, features: dict[str, list[str]], targets: list[Target]
+        self,
+        name: str,
+        directory: Path,
+        features: dict[str, list[str]],
+        targets: list[Target],
     ) -> None:
         self.name = name
         self.directory = directory
@@ -397,24 +419,45 @@ def _read_crate(directory: Path) -> Crate:
             nested = f"tests/{target_name}/main.rs"
             if (directory / nested).is_file():
                 source = nested
-        declared[source] = (target_name, tuple(sorted(entry.get("required-features", []))))
+        declared[source] = (
+            target_name,
+            tuple(sorted(entry.get("required-features", []))),
+        )
     discovered: list[str] = []
     if package.get("autotests", True) and (directory / "tests").is_dir():
         discovered = sorted(
-            [p.relative_to(directory).as_posix() for p in (directory / "tests").glob("*.rs")]
-            + [p.relative_to(directory).as_posix() for p in (directory / "tests").glob("*/main.rs")]
+            [
+                p.relative_to(directory).as_posix()
+                for p in (directory / "tests").glob("*.rs")
+            ]
+            + [
+                p.relative_to(directory).as_posix()
+                for p in (directory / "tests").glob("*/main.rs")
+            ]
         )
     for source in sorted(set(declared) | set(discovered)):
         if source in declared:
             target_name, required = declared[source]
         else:
-            target_name = Path(source).parent.name if source.endswith("/main.rs") else Path(source).stem
+            target_name = (
+                Path(source).parent.name
+                if source.endswith("/main.rs")
+                else Path(source).stem
+            )
             required = ()
         path = directory / source
         if not path.is_file():
-            raise TestTargetsError(f"{name}: test target {target_name} has no source {source}")
+            raise TestTargetsError(
+                f"{name}: test target {target_name} has no source {source}"
+            )
         targets.append(
-            Target(name, target_name, source, required, file_cfg(path.read_text(encoding="utf-8")))
+            Target(
+                name,
+                target_name,
+                source,
+                required,
+                file_cfg(path.read_text(encoding="utf-8")),
+            )
         )
     targets.sort(key=lambda target: target.name)
     return Crate(name, directory, features, targets)
@@ -451,7 +494,10 @@ def feature_closure(crate: Crate, features: Iterable[str]) -> frozenset[str]:
 
 
 def _satisfied(
-    target: Target, crate: Crate, enabled: frozenset[str], platform: Callable[[Cfg], bool]
+    target: Target,
+    crate: Crate,
+    enabled: frozenset[str],
+    platform: Callable[[Cfg], bool],
 ) -> bool:
     if not set(target.required_features) <= enabled:
         return False
@@ -486,14 +532,18 @@ def requirement(crate: Crate, target: Target) -> tuple[str, ...]:
     )
     for atom in platform_atoms:
         if atom[1] not in PLATFORM_NAMES and atom[1] not in PROFILE_ATOMS:
-            raise TestTargetsError(f"{target.id}: cannot evaluate cfg atom {render_atom(atom)!r}")
+            raise TestTargetsError(
+                f"{target.id}: cannot evaluate cfg atom {render_atom(atom)!r}"
+            )
     for size in range(len(candidates) + 1):
         for chosen in combinations(candidates, size):
             enabled = feature_closure(crate, chosen)
             if not set(target.required_features) <= enabled:
                 continue
             for row in range(1 << len(platform_atoms)):
-                truth = {atom: bool(row >> n & 1) for n, atom in enumerate(platform_atoms)}
+                truth = {
+                    atom: bool(row >> n & 1) for n, atom in enumerate(platform_atoms)
+                }
 
                 def platform(atom: Cfg, truth: dict[Cfg, bool] = truth) -> bool:
                     if atom[1] in PROFILE_ATOMS and atom[2] is None:
@@ -508,7 +558,13 @@ def requirement(crate: Crate, target: Target) -> tuple[str, ...]:
 def derive_matrix(crates: Iterable[Crate]) -> list[tuple[str, tuple[str, ...]]]:
     """Every distinct (crate, requirement set), sorted."""
 
-    return sorted({(crate.name, requirement(crate, target)) for crate in crates for target in crate.targets})
+    return sorted(
+        {
+            (crate.name, requirement(crate, target))
+            for crate in crates
+            for target in crate.targets
+        }
+    )
 
 
 def render_matrix(entries: Iterable[tuple[str, tuple[str, ...]]]) -> str:
@@ -520,13 +576,20 @@ def render_matrix(entries: Iterable[tuple[str, tuple[str, ...]]]) -> str:
         "# scripts/check-test-target-coverage.py fails when the source drifts from it.",
     ]
     for crate, features in sorted(set(entries)):
-        lines += ["", "[[entry]]", f"crate = {json.dumps(crate)}", f"features = {json.dumps(list(features))}"]
+        lines += [
+            "",
+            "[[entry]]",
+            f"crate = {json.dumps(crate)}",
+            f"features = {json.dumps(list(features))}",
+        ]
     return "\n".join(lines) + "\n"
 
 
 def load_matrix(path: Path) -> list[tuple[str, tuple[str, ...]]]:
     data = _load_toml(path)
-    return sorted((entry["crate"], tuple(entry["features"])) for entry in data.get("entry", []))
+    return sorted(
+        (entry["crate"], tuple(entry["features"])) for entry in data.get("entry", [])
+    )
 
 
 def load_allowlist(path: Path) -> list[dict[str, str]]:
@@ -542,7 +605,9 @@ def _index(crates: Sequence[Crate]) -> dict[str, tuple[Crate, Target]]:
     return {target.id: (crate, target) for crate in crates for target in crate.targets}
 
 
-def _entry_target(entry_id: str, targets: dict[str, tuple[Crate, Target]]) -> str | None:
+def _entry_target(
+    entry_id: str, targets: dict[str, tuple[Crate, Target]]
+) -> str | None:
     parts = entry_id.split("::")
     if len(parts) >= 2 and "::".join(parts[:2]) in targets:
         return "::".join(parts[:2])
@@ -569,17 +634,27 @@ def check_coverage(
             "feature matrix drift (run `python3 scripts/lib/test_targets.py --write-matrix`): "
             f"source-only {added}, matrix-only {removed}"
         )
-    by_crate = {crate.name: crate for crate in crates}
     targets = _index(crates)
-    excluded = {
-        entry["id"]
-        for entry in allowlist
-        if entry.get("class") == "platform-excluded"
-    }
+    excluded: set[str] = set()
+    applies: dict[int, bool] = {}
+    for n, entry in enumerate(allowlist):
+        if entry.get("class") != "platform-excluded":
+            continue
+        predicate = entry.get("excluded_on")
+        if not isinstance(predicate, str) or not predicate.strip():
+            failures.append(
+                f"platform-excluded entry {entry.get('id')!r} needs an excluded_on host predicate"
+            )
+            continue
+        applies[n] = evaluate(parse_cfg(predicate), platform)
+        if applies[n]:
+            excluded.add(str(entry.get("id")))
     gate_only: list[str] = []
     covered_on_host: dict[str, bool] = {}
     for target_id, (crate, target) in sorted(targets.items()):
-        workspace = feature_closure(crate, workspace_features.get(crate.name, frozenset()))
+        workspace = feature_closure(
+            crate, workspace_features.get(crate.name, frozenset())
+        )
         by_workspace = _satisfied(target, crate, workspace, platform)
         # The gate runs a target only under its own requirement set.
         needed = requirement(crate, target)
@@ -597,11 +672,13 @@ def check_coverage(
                 f"(requires {list(requirement(crate, target))}"
                 f"{', cfg ' + target.cfg if target.cfg else ''})"
             )
-    for entry in allowlist:
+    for n, entry in enumerate(allowlist):
         entry_id = str(entry.get("id", ""))
         entry_class = entry.get("class")
         if entry_class not in ALLOWLIST_CLASSES:
-            failures.append(f"allowlist entry {entry_id!r} has unknown class {entry_class!r}")
+            failures.append(
+                f"allowlist entry {entry_id!r} has unknown class {entry_class!r}"
+            )
             continue
         if not str(entry.get("reason", "")).strip():
             failures.append(f"allowlist entry {entry_id!r} has no reason")
@@ -610,52 +687,35 @@ def check_coverage(
         if target_id is None:
             failures.append(f"stale allowlist entry {entry_id!r}: no such test target")
             continue
+        if entry.get("exclude") and (
+            entry_class != "opt-in-experiment" or entry_id == target_id
+        ):
+            failures.append(
+                f"allowlist entry {entry_id!r}: exclude is only for single opt-in-experiment tests"
+            )
+            continue
         if entry_class == "platform-excluded":
+            if n not in applies:
+                continue
             _, target = targets[target_id]
             has_platform = target.ast is not None and any(
                 atom[1] in PLATFORM_NAMES for atom in cfg_atoms(target.ast)
             )
-            if entry_id != target_id or not has_platform or covered_on_host[target_id]:
+            if entry_id != target_id or not has_platform:
                 failures.append(
-                    f"stale allowlist entry {entry_id!r}: target is not platform-excluded on {host}"
+                    f"stale allowlist entry {entry_id!r}: target has no platform cfg"
                 )
-        elif target_id not in gate_only:
+            elif applies[n] and covered_on_host[target_id]:
+                failures.append(
+                    f"stale allowlist entry {entry_id!r}: target is covered on {host}"
+                )
+        elif entry_id == target_id and target_id not in gate_only:
+            # Single tests in workspace-run targets can be gated item by item
+            # and run by the feature-complete gate; a whole target cannot.
             failures.append(
                 f"stale allowlist entry {entry_id!r}: the feature-complete gate does not run {target_id}"
             )
-    del by_crate
     return failures, gate_only
-
-
-def gate_plan(
-    crates: Sequence[Crate],
-    workspace_features: dict[str, frozenset[str]],
-    matrix: Sequence[tuple[str, tuple[str, ...]]],
-    allowlist: Sequence[dict[str, str]],
-    host: str,
-) -> list[tuple[str, tuple[str, ...], list[str]]]:
-    """Per matrix entry, the targets requiring exactly that set that the
-    workspace gate does not run on this host."""
-
-    platform = host_assignment(host)
-    plan: list[tuple[str, tuple[str, ...], list[str]]] = []
-    by_crate = {crate.name: crate for crate in crates}
-    for name, features in sorted(set(matrix)):
-        crate = by_crate.get(name)
-        if crate is None:
-            continue
-        workspace = feature_closure(crate, workspace_features.get(name, frozenset()))
-        enabled = feature_closure(crate, features)
-        chosen = [
-            target.name
-            for target in crate.targets
-            if requirement(crate, target) == features
-            and not _satisfied(target, crate, workspace, platform)
-            and _satisfied(target, crate, enabled, platform)
-        ]
-        if chosen:
-            plan.append((name, features, sorted(chosen)))
-    return plan
 
 
 def host_triple() -> str:
@@ -712,7 +772,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         for crate in crates:
             for target in crate.targets:
-                print(f"{target.id}\t{list(requirement(crate, target))}\t{target.cfg or ''}")
+                print(
+                    f"{target.id}\t{list(requirement(crate, target))}\t{target.cfg or ''}"
+                )
         return 0
     except TestTargetsError as exc:
         print(f"test-targets: {exc}", file=sys.stderr)

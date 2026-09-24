@@ -4,7 +4,10 @@
 #   ignored-by-design  a test that must never run directly (`#[ignore]`d on purpose)
 #   opt-in-experiment  needs an explicit opt-in or gitignored inputs to be live
 #   benign-message     prints a skip marker for something harmless
-#   platform-excluded  a whole target whose file-level cfg excludes this host
+#   platform-excluded  a whole target whose file-level cfg excludes some hosts;
+#                      `excluded_on` is the host cfg predicate where it applies
+# An opt-in-experiment entry for a single test may set `exclude = true`: the gate
+# then never runs that test (it must still be listed, or the entry is stale).
 # The gate fails on a skip or ignored test not listed here, and on an entry
 # that no longer matches anything (scripts/check-test-target-coverage.py
 # checks the static half on every fast-tier run).
@@ -12,7 +15,20 @@
 [[entry]]
 id = "fathomdb-embedder::aarch64_candle_cpu"
 class = "platform-excluded"
-reason = "#![cfg(all(target_arch = \"aarch64\", target_os = \"linux\", ...))]: the Jetson Candle CPU check compiles to nothing on x86_64 and runs on the aarch64 host."
+excluded_on = 'not(all(target_arch = "aarch64", target_os = "linux"))'
+reason = "#![cfg(all(target_arch = \"aarch64\", target_os = \"linux\", ...))]: the Jetson Candle CPU check compiles to nothing elsewhere and runs on aarch64 Linux hosts."
+
+[[entry]]
+id = "fathomdb-engine::durability_soak"
+class = "platform-excluded"
+excluded_on = "not(unix)"
+reason = "#![cfg(unix)]: the durability soak uses Unix process and signal APIs; it compiles to nothing on Windows."
+
+[[entry]]
+id = "fathomdb-embedder::cross_backend_calibration::calibration_reports_p1_flips_and_p2_l2"
+class = "opt-in-experiment"
+exclude = true
+reason = "Calibration instrument that rewrites the committed record dev/plans/runs/0.8.18-slice-0-cross-backend-calibration.md; its candle-CUDA rows need embed-cuda on the main tree. The gate runs the same CPU legs through cpu_legs_reproduce_0816_baseline and never overwrites the record."
 
 [[entry]]
 id = "fathomdb-embedder::candle_dump::dump_candle_vectors_for_agreement_check"

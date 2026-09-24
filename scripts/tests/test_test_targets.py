@@ -139,13 +139,17 @@ def test_coverage_check(tt: ModuleType) -> None:
     assert len(failures) == 1 and "drift" in failures[0], failures
 
     # Stale allowlist entries: a target that does not exist, and one the
-    # feature-complete gate does not run.
+    # feature-complete gate does not run. (A single test in a workspace-run
+    # target may be item-gated and run by the gate, so only the runtime skip
+    # contract can call it stale.)
     for entry in (
         {"id": "hs_fixture::gone", "class": "ignored-by-design", "reason": "r"},
-        {"id": "hs_fixture::plain::runs", "class": "ignored-by-design", "reason": "r"},
+        {"id": "hs_fixture::plain", "class": "ignored-by-design", "reason": "r"},
     ):
         failures, _ = tt.check_coverage(crates, workspace, complete, [entry], HOST)
         assert len(failures) == 1 and "stale" in failures[0], (entry, failures)
+    single = {"id": "hs_fixture::plain::runs", "class": "ignored-by-design", "reason": "r"}
+    assert tt.check_coverage(crates, workspace, complete, [single], HOST)[0] == []
     ok_entry = {
         "id": "hs_fixture::hooked::hooked",
         "class": "opt-in-experiment",
@@ -551,10 +555,11 @@ def test_canonical_properties(tt: ModuleType) -> None:
 
     check()
     # Ties between equally small covers resolve to the lexicographically
-    # smallest rendering: a·¬b + ¬a·c + b·c has two minimal forms.
+    # smallest rendering. The cyclic function ¬a¬b + b¬c + ac has two minimal
+    # forms of three terms and six literals; the other is ab + ¬bc + ¬a¬c.
     assert (
-        tt.canonical_cfg_text("any(all(a, not(b)), all(not(a), c), all(b, c))")
-        == "any(all(a, not(b)), all(not(a), c))"
+        tt.canonical_cfg_text("any(all(not(a), not(b)), all(b, not(c)), all(a, c))")
+        == "any(all(a, b), all(c, not(b)), all(not(a), not(c)))"
     )
     too_many = "any(" + ", ".join(f"x{n:02}" for n in range(13)) + ")"
     expect_error(tt.TestTargetsError, lambda: tt.canonical_cfg_text(too_many), "12")

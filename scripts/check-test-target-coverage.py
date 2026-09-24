@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail when a workspace test target is run by no gate (0.8.27 RH-15).
+"""Fail when a workspace test target is run by no gate.
 
 Reads every crate's test targets and requirements (Cargo `required-features`
 plus file-level `#![cfg(...)]`), the features `cargo test --workspace` unifies

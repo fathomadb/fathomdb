@@ -34,6 +34,9 @@ the implementation closeout `HEAD`.
 | `4c00d0f6` | fix | Every gate binary runs with `--no-fail-fast`; newly surfaced skips reasoned. |
 | `6e9c2f6e` | docs | Design text for provisioning and the listing contract; ledger entry for live-test hardening. |
 | `b3e32500` | fix | The legacy-upgrade test configures the SQLite runtime before its raw connection. |
+| `e5d2df13` | docs | `fc7` recorded (its counts are corrected below). |
+| `9537bbc6` | RED | Code review FIX-2 contracts: extra feature sets, parent counts, calibration split, failure accounting, release-only scan, export pins. |
+| `fe947288` | fix | FIX-2 V-1 to V-6: extra feature sets, per-parent counts, `calibration_cpu_baseline_components_hold`, `run_failures`, item-gated release-only parsing, hash-pinned ONNX export. |
 
 RED evidence: `dc2aab69` failed with a `signature` key assertion in
 `test_walk_hazards` and with `FileNotFoundError` for `scripts/lib/test_targets.py`.
@@ -179,41 +182,64 @@ tests on x86_64. It is recorded in the allowlist under class
 `platform-excluded`, a fourth class this implementation added (see
 Deviations).
 
-### ACH-14: PASS (at `b3e32500`, run `fc7`)
+### ACH-14: PASS (at `fe947288`, run `fc8`)
 
-**Correction.** An earlier version of this section recorded `fc4` as a pass
-with "nothing skipped outside the allowlist". That claim was false. The code
-review found two gaps:
+**Corrections.** Two earlier versions of this section made false claims.
 
-- The skip matcher missed bare `SKIP`, so three ONNX-equivalence tests skipped
-  in `fc4` and were counted as passed.
-- About 20 tests gated by an item-level `#[cfg(feature = ...)]` inside targets
-  the workspace gate runs were executed by no gate.
+- `fc4` was recorded as a pass with "nothing skipped outside the allowlist".
+  The skip matcher missed bare `SKIP`, so three ONNX-equivalence tests skipped
+  in `fc4` and were counted as passed. Code review FIX-1 fixed the matcher
+  (`88b180bd`, `4c00d0f6`).
+- `fc7` was recorded as running every test gated by an item-level
+  `#[cfg(feature = ...)]`. That was false. The matrix held only target-level
+  requirement sets, so tests gated on a feature no target requires never ran.
+  Examples are `cli_doctor_warm_cache_succeeds`,
+  `doctor_reranker_gpu_cpu_subprocess_has_exact_database_free_contract`, the
+  embedder's `cuda_probe_error_tests` and `candle_reranker::gpu_tests`, and
+  the `fathomdb-tc5-benchmark` binary's unit tests. The `fc7` counts were also
+  wrong: "326 passed" summed `test result` lines, which include the
+  `calibration_leg_worker` child runs. Per planned test, `fc7` was 321 passed
+  and 8 ignored, 329 in all. The `cross_backend_calibration` binary's 3 tests
+  took 118.45 s in total. The 37.0 s figure was one child worker.
 
-Code review FIX-1 closed both gaps (`88b180bd`, `4c00d0f6`). The gate then
-surfaced a genuine test failure in `fc5`:
+FIX-2 (`fe947288`) closed both gaps. The gate now lists each crate under the
+union of its host-buildable features and derives an extra set for every test
+that no other set lists. The committed matrix records the 6 derived sets as
+`[[extra]]`. The gate also counts each planned test from its own status.
+
+The FIX-1 gate had surfaced one genuine failure in `fc5`:
 `slice40_projection_generation::upgraded_nonempty_database_bootstraps_as_legacy_degraded`
 failed with `RuntimeConfiguration(TooLate)`, because it opened a raw SQLite
 connection before configuring the runtime. It was fixed test-first
 (`b3e32500`), with the assertions unchanged.
 
-The final run is `fc7`, `bash scripts/test-feature-complete.sh --scratch
-<scratch>/fc7` (a cold build after `cargo clean`), which exited 0:
+The final run is `fc8`, `bash scripts/test-feature-complete.sh --scratch
+<scratch>/fc8`, which exited 0:
 
-- 14 runs covering 329 planned tests: 326 passed, 0 failed, and 8 ignored,
-  all on the allowlist, with 0 contract failures.
+- 20 runs, 355 planned tests, counted per planned test: 347 passed, 0 failed,
+  and 8 ignored, all on the allowlist. There were 0 contract failures and no
+  extra-set drift.
 - The preflight found both 3090s (indices 0 and 1 in PCI bus order). The K620
   was not selected.
 - Pinned assets were verified from the cache: nomic-embed-text-v1.5, ONNX
   Runtime 1.26.0, and the exported bge-small ONNX graph.
-- The ONNX-equivalence tests executed rather than skipping.
-  `candle_onnx_equivalence_measurement` took 39.5 s and
-  `cpu_legs_reproduce_0816_baseline` took 37.0 s.
-  `calibration_reports_p1_flips_and_p2_l2` is excluded by design because it
-  rewrites a committed calibration record (allowlist `exclude`, reasoned).
-- Tests gated by item-level features ran, for example
-  `slice40_projection_generation::upgraded_nonempty_database_bootstraps_as_legacy_degraded`
-  and `vector_quant_pack1::migration_preflight_rejects_unknown_kind`, both ok.
+- The tests gated on features that no target requires ran:
+  - `fathomdb-cli[default-embedder]`: `cli_doctor_warm_cache_succeeds ... ok`.
+  - `fathomdb-cli[default-reranker]`:
+    `doctor_reranker_gpu_cpu_subprocess_has_exact_database_free_contract ... ok`.
+  - `fathomdb-embedder[embed-cuda]`: both
+    `candle_bge::cuda_probe_error_tests` tests passed.
+  - `fathomdb-embedder[rerank-cuda]`: `gpu_loads_and_scores_finite` (a
+    `cuda:0` logit) and `cpu_gpu_logits_close` (max abs diff 1.43e-6) passed.
+  - `fathomdb-tc5-benchmark[tc5-benchmark]`: 13 tests passed.
+- `tegra_gpu_allocation_witness_on_real_hardware` compiles under `embed-cuda`
+  and printed `SKIP tegra-gpu-allocation-witness: not_opted_in`. It is a
+  Jetson-only arm and is allowlisted as `opt-in-experiment`, with its reason.
+- The calibration's assertions ran in the new
+  `calibration_cpu_baseline_components_hold`, which passed. The writer
+  `calibration_reports_p1_flips_and_p2_l2` stays excluded. After the gate,
+  `git status` was clean, so the committed calibration record was not
+  modified. The `cross_backend_calibration` binary's 4 tests took 160.18 s.
 - Slice 72 ran live on RTX 3090 index 0.
 
 History:
@@ -279,11 +305,27 @@ no `test-build: failed` entries. The exclusive-create guard is covered by
 - **Slice 72 device.** The gate narrows `CUDA_VISIBLE_DEVICES` to `0` for the
   Slice 72 target, because the Slice 72 design requires exactly one visible
   device. It also stages `FATHOMDB_SLICE72_ASSET_ROOT`.
+- **Extra feature sets.** The matrix has a second, gate-derived table,
+  `[[extra]]`, for tests behind an item-level feature cfg that no target
+  requires. The gate derives it from test listings (a build per candidate
+  feature), so only the gate checks that it is complete; the fast-tier coverage
+  check validates only its entries. Host-buildable features exclude the Candle
+  Metal backends through the table `PLATFORM_DEPENDENCY_FEATURES` in
+  `test_targets.py`, because Cargo cannot express that they build only on
+  macOS. The gate also covers crates without test targets (`fathomdb-napi`,
+  `fathomdb-py`, `fathomdb-tc5-benchmark`) when their features add tests.
+- **ONNX export pins.** The venv that built the cached model no longer exists,
+  so its versions could not be recovered. The lock
+  `dev/tools/onnx/export-requirements.txt` pins the current exact versions
+  (torch 2.4.1+cpu, transformers 4.44.2, numpy 1.26.4, onnx 1.23.0, and all
+  transitive dependencies) with sha256 hashes. It was checked by exporting
+  through the gate's own path into a scratch directory: the result matched the
+  pinned `c92689ec…` sha256, and no `model.onnx.onnx` was left behind.
 - **Owner-gated impls.** The release probe names a trait impl through its
   owner when the owner itself is absent in release, because the canonical
   trait paths are private or unstable.
 
-## Final checks (2026-09-23, at `b3e32500`)
+## Final checks (2026-09-23, at `fe947288`)
 
 | Command | Result |
 | --- | --- |
@@ -294,6 +336,7 @@ no `test-build: failed` entries. The exclusive-create guard is covered by
 | `bash scripts/agent-lint.sh` | exit 0 |
 | `bash scripts/agent-typecheck.sh` | exit 0 |
 | `bash scripts/agent-lint-shell.sh` | exit 0 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | exit 0 |
 
 The Slice 30 test previously failed only on its 100 GB free-space guard. Code
 review H-4 (`df9cbf9f`) pins `disk_usage` in that test's scratch-ownership

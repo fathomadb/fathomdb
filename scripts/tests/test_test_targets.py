@@ -10,6 +10,7 @@ network, no GPU.
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 import shutil
 import tempfile
@@ -158,25 +159,39 @@ def test_coverage_check(tt: ModuleType) -> None:
         failures, _ = tt.check_coverage(crates, workspace, complete, [malformed], HOST)
         assert failures, malformed
 
-    # A target no gate can run on this host needs a platform-excluded entry.
+    # A target no gate can run on a host needs a platform-excluded entry whose
+    # `excluded_on` predicate names the hosts it applies to; elsewhere the entry
+    # is inert, and it is stale only on a matching host that covers the target.
     windows = "x86_64-pc-windows-msvc"
     failures, _ = tt.check_coverage(crates, workspace, complete, [], windows)
     assert any("hs_fixture::platform" in f for f in failures), failures
     excluded = {
         "id": "hs_fixture::platform",
         "class": "platform-excluded",
+        "excluded_on": "not(unix)",
         "reason": "unix only",
     }
-    assert tt.check_coverage(crates, workspace, complete, [excluded], windows)[0] == []
-    failures, _ = tt.check_coverage(crates, workspace, complete, [excluded], HOST)
+    for host in (HOST, windows, "aarch64-unknown-linux-gnu", "aarch64-apple-darwin"):
+        assert (
+            tt.check_coverage(crates, workspace, complete, [excluded], host)[0] == []
+        ), host
+    wrong_host = dict(excluded, excluded_on="unix")
+    failures, _ = tt.check_coverage(crates, workspace, complete, [wrong_host], HOST)
     assert len(failures) == 1 and "stale" in failures[0], failures
+    missing = {k: v for k, v in excluded.items() if k != "excluded_on"}
+    failures, _ = tt.check_coverage(crates, workspace, complete, [missing], windows)
+    assert any("excluded_on" in f for f in failures), failures
 
-    # The gate plan runs only what the workspace gate cannot, grouped by set.
-    plan = tt.gate_plan(crates, workspace, complete, [], HOST)
-    assert plan == [
-        ("hs_fixture", ("extra",), ["extra"]),
-        ("hs_fixture", ("hooks",), ["hooked", "required"]),
-    ], plan
+    # Unknown cfg atoms in a target's file cfg fail closed.
+    with tempfile.TemporaryDirectory() as directory:
+        root = copy_fixture(Path(directory))
+        (root / "tests" / "odd.rs").write_text('#![cfg(sanitize = "address")]\n')
+        expect_error(
+            tt.TestTargetsError,
+            lambda: tt.derive_matrix(tt.read_workspace(root)),
+            "sanitize",
+        )
+
     with tempfile.TemporaryDirectory() as directory:
         root = copy_fixture(Path(directory))
         (root / "tests" / "new_gated.rs").write_text(
@@ -194,8 +209,63 @@ def test_coverage_check(tt: ModuleType) -> None:
         assert failures == [], failures
 
 
+def test_run_pairs(fc: ModuleType) -> None:
+    """Tests present under a matrix set but not under the workspace features
+    (whole targets or item-level `#[cfg(feature = ...)]` tests) are run once,
+    under the smallest set that has them; excluded tests are not run."""
+
+    recorded = json.loads(
+        (
+            ROOT
+            / "scripts/tests/fixtures/hidden-surface/json/inventory-base-hooks.json"
+        ).read_text()
+    )
+    messages = "".join(json.dumps(m) + "\n" for m in recorded["messages"])
+
+    def lister(executable: str) -> tuple[str, str]:
+        listing = recorded["listings"][executable]
+        return listing["list"], listing["ignored"]
+
+    hooks = fc.parse_listing(messages, lister)
+    assert hooks == {
+        "lib": {"tests::unit_in_lib"},
+        "extra": set(),
+        "hooked": {"hooked"},
+        "plain": {"ignored_by_design", "runs", "second"},
+        "platform": {"on_unix"},
+        "required": {"required"},
+    }, hooks
+    workspace = {
+        "lib": {"tests::unit_in_lib"},
+        "plain": {"ignored_by_design", "runs"},
+        "platform": {"on_unix"},
+    }
+    both = {label: set(tests) for label, tests in hooks.items()}
+    both["plain"] = both["plain"] | {"only_with_both"}
+    pairs = fc.run_pairs(
+        workspace,
+        {("hooks",): hooks, ("extra", "hooks"): both},
+        excluded={"required::required"},
+    )
+    assert pairs == [
+        (("hooks",), {"hooked": ["hooked"], "plain": ["second"]}),
+        (("extra", "hooks"), {"plain": ["only_with_both"]}),
+    ], pairs
+    assert fc.selector("lib") == ["--lib"]
+    assert fc.selector("bin:fathomdb") == ["--bin", "fathomdb"]
+    assert fc.selector("plain") == ["--test", "plain"]
+
+
 def feature_complete_output() -> str:
     return (
+        "warning: skipping an unused dependency during the build\n"
+        "     Running unittests src/lib.rs (target/debug/deps/hs_fixture-89ab)\n"
+        "\n"
+        "running 1 test\n"
+        "test tests::unit_in_lib ... ok\n"
+        "\n"
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n"
+        "\n"
         "     Running tests/plain.rs (target/debug/deps/plain-0123)\n"
         "\n"
         "running 3 tests\n"
@@ -221,11 +291,15 @@ def test_skip_contract(fc: ModuleType, tt: ModuleType) -> None:
     (crate,) = tt.read_workspace(FIXTURE_CRATE)
     result = fc.scan_output(feature_complete_output(), crate)
     assert result.markers == [
-        ("hs_fixture::plain::runs", "[SKIP]"),
+        ("hs_fixture::plain::runs", "SKIP"),
         ("hs_fixture::hooked::hooked", "skipping"),
     ], result.markers
     assert result.ignored == ["hs_fixture::plain::ignored_by_design"]
-    assert result.ran_targets == ["hs_fixture::plain", "hs_fixture::hooked"]
+    assert result.ran_targets == [
+        "hs_fixture::lib",
+        "hs_fixture::plain",
+        "hs_fixture::hooked",
+    ]
     allowlist = [
         {
             "id": "hs_fixture::plain::ignored_by_design",
@@ -256,6 +330,27 @@ def test_skip_contract(fc: ModuleType, tt: ModuleType) -> None:
     # An ignored test is only excused by ignored-by-design (or a target entry).
     wrong_class = [dict(allowlist[0], **{"class": "benign-message"})] + allowlist[1:]
     assert len(fc.contract_failures([result], wrong_class)) == 1
+    # A skip marker is only excused by opt-in-experiment or benign-message.
+    marker_as_ignored = (
+        allowlist[:1]
+        + [dict(allowlist[1], **{"class": "ignored-by-design"})]
+        + allowlist[2:]
+    )
+    failures = fc.contract_failures([result], marker_as_ignored)
+    assert len(failures) == 1 and "hs_fixture::plain::runs" in failures[0], failures
+    # An excluded test is used when it is listed, and stale when it is not.
+    excluded = {
+        "id": "hs_fixture::plain::gone_measurement",
+        "class": "opt-in-experiment",
+        "exclude": True,
+        "reason": "r",
+    }
+    failures = fc.contract_failures([result], allowlist + [excluded])
+    assert len(failures) == 1 and "stale" in failures[0], failures
+    failures = fc.contract_failures(
+        [result], allowlist + [excluded], listed={"hs_fixture::plain::gone_measurement"}
+    )
+    assert failures == [], failures
     # A failing test run is reported.
     failed = fc.scan_output(
         feature_complete_output().replace(
@@ -267,6 +362,202 @@ def test_skip_contract(fc: ModuleType, tt: ModuleType) -> None:
         "FAILED" in f or "failed" in f
         for f in fc.contract_failures([failed], allowlist)
     )
+
+
+def test_skip_markers(fc: ModuleType, tt: ModuleType) -> None:
+    """Every self-skip phrasing found in gate-run targets is detected: word
+    boundary, case-insensitive `skip` forms and the `PENDING` markers."""
+
+    (crate,) = tt.read_workspace(FIXTURE_CRATE)
+    phrasings = [
+        "SKIP candle_onnx_equivalence_measurement: set ORT_DYLIB_PATH + FATHOMDB_ONNX_MODEL_PATH",
+        "SKIP cpu_legs_reproduce_0816_baseline: ONNX asset env unset — set ORT_DYLIB_PATH",
+        "SKIP calibration_reports_p1_flips_and_p2_l2: ONNX asset env unset",
+        "R-CAL-4 candle-CUDA leg gated-to-skip (effective=cpu) — recorded PENDING (run on MAIN)",
+        "EU_DUMP not set; skipping candle dump diagnostic",
+        "[skip] AGENT_LONG not set; PR-9 micro-benchmark is opt-in",
+        "[SKIP] CE model unavailable — pool_n bound needs the cached reranker",
+        "PENDING_EXTERNAL Slice 72 requires immutable FATHOMDB_SLICE72_ASSET_ROOT caches",
+        "Skipped: nothing to measure",
+    ]
+    for phrase in phrasings:
+        text = (
+            "     Running tests/plain.rs (target/debug/deps/plain-0123)\n"
+            f"test runs ... {phrase}\nok\n"
+        )
+        markers = fc.scan_output(text, crate).markers
+        assert [owner for owner, _ in markers] == ["hs_fixture::plain::runs"], (
+            phrase,
+            markers,
+        )
+    for benign in (
+        "test harness_skips_unavailable_backends_cleanly ... ok",
+        "note: skipjack and pendingly are not markers",
+        "pending writes flushed",
+    ):
+        text = (
+            "     Running tests/plain.rs (target/debug/deps/plain-0123)\n"
+            + benign
+            + "\n"
+        )
+        assert fc.scan_output(text, crate).markers == [], benign
+
+
+def test_onnx_provisioning(fc: ModuleType) -> None:
+    import hashlib
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as directory:
+        base = Path(directory)
+        wheel = base / "ort.whl"
+        with zipfile.ZipFile(wheel, "w") as archive:
+            archive.writestr("onnxruntime/capi/libonnxruntime.so.9", b"native")
+        member = hashlib.sha256(b"native").hexdigest()
+        spec = {
+            "url": "u/ort.whl",
+            "sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
+            "member": "onnxruntime/capi/libonnxruntime.so.9",
+            "member_sha256": member,
+        }
+
+        def fetch(url: str, destination: Path) -> None:
+            assert url == "u/ort.whl"
+            destination.write_bytes(wheel.read_bytes())
+
+        library = fc.provision_wheel_member(base / "cache", spec, fetch)
+        assert (
+            library.read_bytes() == b"native" and library.name == "libonnxruntime.so.9"
+        )
+        # Present and valid: no second fetch.
+        assert (
+            fc.provision_wheel_member(base / "cache", spec, lambda *_: 1 / 0) == library
+        )
+        bad = dict(spec, member_sha256="0" * 64)
+        library.unlink()
+        expect_error(
+            fc.FeatureCompleteError,
+            lambda: fc.provision_wheel_member(base / "cache", bad, fetch),
+            "sha256",
+        )
+
+        model = base / "onnx" / "model.onnx"
+        exported: list[Path] = []
+
+        def exporter(destination: Path) -> None:
+            exported.append(destination)
+            destination.write_bytes(b"graph")
+
+        digest = hashlib.sha256(b"graph").hexdigest()
+        assert fc.provision_generated(model, digest, exporter) is True
+        assert fc.provision_generated(model, digest, exporter) is False
+        assert len(exported) == 1
+        model.unlink()
+        expect_error(
+            fc.FeatureCompleteError,
+            lambda: fc.provision_generated(model, "0" * 64, exporter),
+            "sha256",
+        )
+        assert not model.exists()
+
+        env = fc.onnx_environment({"A": "1"}, library, model, base / "tok.json")
+        assert env["ORT_DYLIB_PATH"] == str(library)
+        assert env["FATHOMDB_ONNX_MODEL_PATH"] == str(model)
+        assert env["FATHOMDB_ONNX_TOKENIZER_PATH"] == str(base / "tok.json")
+    assert fc.ONNXRUNTIME_WHEEL["sha256"] and fc.ONNX_MODEL_SHA256
+
+
+def test_canonical_properties(tt: ModuleType) -> None:
+    """canonical_cfg is equivalent, idempotent, and the minimal sum of products
+    (fewest terms, then literals, then lexicographic) over all implicants."""
+
+    from itertools import combinations, product
+
+    from hypothesis import given, settings, strategies as st
+
+    names = ["a", "b", "c"]
+    leaves = st.sampled_from(names)
+    exprs = st.recursive(
+        leaves,
+        lambda inner: st.one_of(
+            inner.map(lambda e: f"not({e})"),
+            st.lists(inner, min_size=1, max_size=3).map(
+                lambda xs: f"any({', '.join(xs)})"
+            ),
+            st.lists(inner, min_size=1, max_size=3).map(
+                lambda xs: f"all({', '.join(xs)})"
+            ),
+        ),
+        max_leaves=6,
+    )
+
+    def table(text: str) -> tuple[bool, ...]:
+        node = tt.parse_cfg(text)
+        return tuple(
+            tt.evaluate(node, lambda atom, row=row: row[names.index(atom[1])])
+            for row in product([False, True], repeat=3)
+        )
+
+    terms = [
+        term
+        for term in product([None, True, False], repeat=3)
+        if any(value is not None for value in term)
+    ]
+
+    def render(term: tuple) -> str:
+        parts = sorted(
+            names[i] if value else f"not({names[i]})"
+            for i, value in enumerate(term)
+            if value is not None
+        )
+        return parts[0] if len(parts) == 1 else f"all({', '.join(parts)})"
+
+    def brute_force(truth: tuple[bool, ...]) -> str:
+        rows = list(product([False, True], repeat=3))
+        want = {row for row, value in zip(rows, truth) if value}
+        for size in range(1, 5):
+            best = None
+            for chosen in combinations(terms, size):
+                covered = {
+                    row
+                    for row in rows
+                    for term in chosen
+                    if all(v is None or row[i] == v for i, v in enumerate(term))
+                }
+                if covered == want:
+                    rendered = sorted(render(term) for term in chosen)
+                    text = rendered[0] if size == 1 else f"any({', '.join(rendered)})"
+                    literals = sum(sum(v is not None for v in term) for term in chosen)
+                    key = (literals, text)
+                    best = key if best is None or key < best else best
+            if best is not None:
+                return best[1]
+        raise AssertionError("no cover of four terms")
+
+    @settings(max_examples=150, deadline=None, derandomize=True)
+    @given(exprs)
+    def check(expr: str) -> None:
+        canonical = tt.canonical_cfg_text(expr)
+        truth = table(expr)
+        if canonical is None:
+            assert all(truth)
+            return
+        if canonical == "any()":
+            assert not any(truth)
+            return
+        assert table(canonical) == truth, (expr, canonical)
+        assert tt.canonical_cfg_text(canonical) == canonical
+        if sum(truth) <= 6:
+            assert canonical == brute_force(truth), (expr, canonical)
+
+    check()
+    # Ties between equally small covers resolve to the lexicographically
+    # smallest rendering: a·¬b + ¬a·c + b·c has two minimal forms.
+    assert (
+        tt.canonical_cfg_text("any(all(a, not(b)), all(not(a), c), all(b, c))")
+        == "any(all(a, not(b)), all(not(a), c))"
+    )
+    too_many = "any(" + ", ".join(f"x{n:02}" for n in range(13)) + ")"
+    expect_error(tt.TestTargetsError, lambda: tt.canonical_cfg_text(too_many), "12")
 
 
 def test_cuda_preflight(fc: ModuleType) -> None:
@@ -320,7 +611,9 @@ def test_runner_environment(fc: ModuleType) -> None:
     assert "FATHOMDB_SKIP_NETWORK_TESTS" not in env
     assert env["FATHOMDB_SLICE72_RUNNER"] == "approved-nvidia"
     assert env["FATHOMDB_SLICE72_RECEIPT_DIR"].startswith("/scratch/")
-    command = fc.test_command("fathomdb-engine", ("a", "b"), ["t1", "t2"])
+    command = fc.test_command(
+        "fathomdb-engine", ("a", "b"), ["--test", "t1", "--lib"], ["x::one", "two"]
+    )
     assert command == [
         "cargo",
         "test",
@@ -332,9 +625,11 @@ def test_runner_environment(fc: ModuleType) -> None:
         "a,b",
         "--test",
         "t1",
-        "--test",
-        "t2",
+        "--lib",
         "--",
+        "--exact",
+        "x::one",
+        "two",
         "--nocapture",
         "--test-threads=1",
     ]
@@ -475,11 +770,17 @@ def main() -> None:
         print(f"ok    {test.__name__}")
     test_skip_contract(fc, tt)
     print("ok    test_skip_contract")
+    test_skip_markers(fc, tt)
+    print("ok    test_skip_markers")
+    test_canonical_properties(tt)
+    print("ok    test_canonical_properties")
     for test in (
         test_cuda_preflight,
         test_runner_environment,
         test_slice72_assets,
         test_weight_provisioning,
+        test_onnx_provisioning,
+        test_run_pairs,
     ):
         test(fc)
         print(f"ok    {test.__name__}")

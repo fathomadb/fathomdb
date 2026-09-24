@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any, Callable
 from unittest import mock
 
@@ -215,6 +215,8 @@ def test_walk_hazards(tool: ModuleType) -> None:
     # Glob expansion, with explicit items shadowing glob names.
     assert p("g1").kind == "function" and p("G2").kind == "struct"
     assert '"primitive":"u8"' in p("shadowed").signature
+    all_records = tool.walk(doc("base-default"))
+    assert [r.path for r in all_records].count(f"{root}::shadowed") == 1
     assert '"primitive":"u16"' not in p("shadowed").signature
     external_glob = p("ext_glob::external-glob:core::hint")
     assert external_glob.kind == "external-glob"
@@ -480,7 +482,10 @@ def test_test_inventory(tool: ModuleType) -> None:
     (row,) = result["row_diffs"]
     # The shared compare keys entries by signature too, so a status change is
     # also one raw removal plus one raw addition, paired under `changed`.
-    assert sorted(e["path"] for e in row["added"]) == ["plain::added_later", "plain::runs"]
+    assert sorted(e["path"] for e in row["added"]) == [
+        "plain::added_later",
+        "plain::runs",
+    ]
     assert sorted(e["path"] for e in row["removed"]) == ["plain::runs", "plain::second"]
     assert [
         (c["before"]["signature"], c["after"]["signature"])
@@ -847,6 +852,14 @@ def test_release_probe(tool: ModuleType) -> None:
     expect_error(
         tool, lambda: tool.probe_statuses(json.dumps(odd) + "\n", ranges), "E0603"
     )
+    # A build error in any target other than the probe fails closed.
+    elsewhere = copy.deepcopy(first)
+    elsewhere["target"]["name"] = "fathomdb_engine"
+    expect_error(
+        tool,
+        lambda: tool.probe_statuses(json.dumps(elsewhere) + "\n", ranges),
+        "outside the probe",
+    )
 
     # Items the release probe cannot name fail closed instead of being skipped.
     unsupported = copy.deepcopy(fixture_items[0])
@@ -873,6 +886,27 @@ def test_release_probe_owner_gated_impls(tool: ModuleType) -> None:
     )
     items = {item.path: item for item in tool.select_probe_items(tool.walk(gated), [])}
     clone = items["hs_fixture::Thing::impl core::clone::Clone"]
+    # Fields inherit the parent type's effective cfg and hidden flag.
+    records = by_path(tool.walk(gated))
+    field = sig(records["hs_fixture::Thing::x"])
+    assert (field["hidden"], field["cfg"]) == (False, "debug_assertions"), field
+    fields = sig(records["hs_fixture::Thing"])["inner"]["struct"]["kind"]["plain"][
+        "fields"
+    ]
+    assert ["x", False, "debug_assertions"] in fields, fields
+    hidden_parent = doc("base-default")
+    thing_item = next(
+        item
+        for item in hidden_parent["index"].values()
+        if item["name"] == "Thing" and "struct" in item["inner"]
+    )
+    thing_item["attrs"].append({"other": "#[doc(hidden)]"})
+    hidden_records = by_path(tool.walk(hidden_parent))
+    assert sig(hidden_records["hs_fixture::Thing::x"])["hidden"] is True
+    hidden_fields = sig(hidden_records["hs_fixture::Thing"])["inner"]["struct"]["kind"][
+        "plain"
+    ]["fields"]
+    assert ["x", True, None] in hidden_fields, hidden_fields
     assert (clone.form, clone.owner_path) == ("owner", "hs_fixture::Thing")
     # Owner-gated wins over an impl-site gate: the owner's absence suffices.
     assert items["hs_fixture::Thing::impl hs_fixture::DebugOnlyTrait"].form == "owner"
@@ -903,6 +937,16 @@ def test_release_only_scan(tool: ModuleType) -> None:
         {"path": "fathomdb::release_surface_raw_sql_absence_proof", "kind": "module"}
     ]
     tool.check_release_only(sources, curated)
+    # The cfg is evaluated, not substring-matched: `not(any(test,
+    # debug_assertions))` is release-only; a cfg that merely mentions
+    # `not(debug_assertions)` inside a debug-true disjunction is not.
+    evaluated = {
+        "a.rs": (
+            "#[cfg(not(any(test, debug_assertions)))]\npub fn nested_release_only() {}\n"
+            "#[cfg(any(debug_assertions, not(debug_assertions)))]\npub fn always() {}\n"
+        )
+    }
+    assert tool.release_only_names(evaluated) == {"nested_release_only"}
     extra = dict(sources)
     extra["other.rs"] = (
         '#[cfg(all(feature = "x", not(debug_assertions)))]\n'
@@ -913,6 +957,45 @@ def test_release_only_scan(tool: ModuleType) -> None:
     expect_error(
         tool, lambda: tool.check_release_only(extra, curated), "surprise_release_only"
     )
+
+
+def test_capacity_and_prune_lock(tool: ModuleType) -> None:
+    usage = mock.Mock(return_value=SimpleNamespace(free=tool.MIN_FREE_BYTES - 1))
+    with mock.patch.object(tool.shutil, "disk_usage", usage):
+        expect_error(tool, tool._check_capacity, "required")
+    usage = mock.Mock(return_value=SimpleNamespace(free=tool.MIN_FREE_BYTES))
+    with mock.patch.object(tool.shutil, "disk_usage", usage):
+        tool._check_capacity()
+    # prune takes the owned-root lock before it deletes anything.
+    events: list[str] = []
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory) / "root"
+        cache = Path(directory) / "cache" / "target"
+        cache.mkdir(parents=True)
+
+        class Lock:
+            def __enter__(self) -> None:
+                events.append("lock")
+
+            def __exit__(self, *args: Any) -> None:
+                events.append("unlock")
+
+        real_rmtree = tool.shutil.rmtree
+
+        def rmtree(path: Any, *args: Any, **kwargs: Any) -> None:
+            events.append("rmtree")
+            real_rmtree(path, *args, **kwargs)
+
+        with (
+            mock.patch.object(tool, "OWNED_ROOT", root),
+            mock.patch.object(tool, "OWNED_CACHE", cache),
+            mock.patch.object(tool, "_owned_lock", Lock),
+            mock.patch.object(tool.shutil, "rmtree", rmtree),
+        ):
+            root.mkdir()
+            tool.prune()
+        assert events[0] == "lock" and "rmtree" in events, events
+        assert not cache.exists()
 
 
 def test_rows_and_wiring(tool: ModuleType) -> None:
@@ -998,6 +1081,7 @@ def main() -> None:
         test_release_probe,
         test_release_probe_owner_gated_impls,
         test_release_only_scan,
+        test_capacity_and_prune_lock,
         test_rows_and_wiring,
     ]
     for test in tests:

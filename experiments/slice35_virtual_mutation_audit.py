@@ -311,7 +311,7 @@ PRODUCTION_INVENTORY = [
 PRODUCTION_HELPER_CALLERS = {
     "delete_vector_partition_row": Counter(
         {
-            ("lib.rs", "apply_batch_in_transaction"): 2,
+            ("write_commit.rs", "apply_batch_in_transaction"): 2,
             ("lib.rs", "prune_edge_projection_shadows"): 1,
             ("lib.rs", "run_pin_and_requantize_pass"): 1,
             ("lib.rs", "prune_orphaned_edge_vectors"): 1,

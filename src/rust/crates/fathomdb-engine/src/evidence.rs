@@ -2759,7 +2759,7 @@ mod tests {
         let authority = graph_evidence_authority(connection, &frozen).unwrap();
         // Run the real reader transaction on this thread to isolate the hash observer
         // from background workers and parallel tests without a process-global counter.
-        crate::CANONICAL_BODY_HASH_CALLS.with(|calls| calls.set(0));
+        crate::write_commit::CANONICAL_BODY_HASH_CALLS.with(|calls| calls.set(0));
         let result = crate::graph_expand::read_graph_expand_in_tx(
             connection,
             &request,
@@ -2772,7 +2772,7 @@ mod tests {
             0,
         )
         .unwrap();
-        let calls = crate::CANONICAL_BODY_HASH_CALLS.with(|calls| calls.get());
+        let calls = crate::write_commit::CANONICAL_BODY_HASH_CALLS.with(|calls| calls.get());
         assert_eq!(result.targets.len(), 2);
         assert_eq!(result.evidence.unwrap().entries.len(), 2);
         assert_eq!(calls, 1, "four selected artifacts share one canonical source");

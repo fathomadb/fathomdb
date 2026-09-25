@@ -109,10 +109,10 @@ rerank-metal = ["default-reranker", "candle-core/metal", "candle-nn/metal", "can
 # `ort` ONNX-Runtime binding + the shared `tokenizers` stack (for BGE-small
 # tokenization parity with the candle reference). NON-default: the thin
 # `default = []` build gains ZERO new deps (footprint invariant / EMB-3).
-# The cross-vendor execution providers (ROCm / DirectML / OpenVINO / CUDA)
-# that candle cannot reach are selected at RUNTIME under the strict
-# `FATHOMDB_EMBED_DEVICE=auto|cpu|cuda:N` policy (R-ONNX-2); the ONNX Runtime
-# native lib is dlopen'd at runtime (load-dynamic).
+# Supported on CPU only: ONNX Runtime GPU execution providers are not a
+# supported FathomDB configuration (the supported GPU path is candle via
+# `embed-cuda` / `rerank-cuda`). The ONNX Runtime native lib is dlopen'd at
+# runtime (load-dynamic).
 # `sha2` derives the self-describing identity revision from a content digest of
 # the ACTUALLY-loaded model + tokenizer assets (codex §9 fix-5): two different
 # assets → two different identities, so the engine rejects cross-asset vector

@@ -30,16 +30,17 @@
 //!     without measured candle-CUDA rows refuses to replace a tracked record
 //!     that has them.
 //!
-//! **Build/run discipline (worktree):** ONLY the CPU legs run here (pure
-//! `cargo test` on CPU). The candle-CUDA leg + the ONNX-GPU-EP leg are gated to
-//! SKIP cleanly and are selectable by env so the orchestrator can run just that
-//! leg on the MAIN tree (`--features …,embed-cuda`, `FATHOMDB_EMBED_DEVICE=auto`,
-//! plus `FATHOMDB_WRITE_CALIBRATION_RECORD=1` to refresh the committed record).
-//! This harness NEVER builds or runs `embed-cuda`.
+//! **Build/run discipline:** a build without `embed-cuda` runs the CPU legs
+//! only and records the candle-CUDA rows PENDING. The candle-CUDA leg runs
+//! under `--features …,embed-cuda` with `FATHOMDB_EMBED_DEVICE=auto` on a CUDA
+//! host (the feature-complete gate builds that set); add
+//! `FATHOMDB_WRITE_CALIBRATION_RECORD=1` to refresh the committed record.
+//! ONNX runs on CPU only: ONNX Runtime GPU execution providers are not a
+//! supported FathomDB configuration, so there is no ONNX GPU leg.
 //!
 //!   * **R-CAL-5 — `calibration_candle_cuda_leg_measures_on_gpu` (item-level
 //!     `#[cfg(feature = "embed-cuda")]`, gate-only).** A host that DOES build
-//!     `embed-cuda` (the feature-complete gate, never this worktree) must
+//!     `embed-cuda` (e.g. the feature-complete gate) must
 //!     actually MEASURE the candle-CUDA leg, not silently record it PENDING:
 //!     this test hard-fails (`live::require_live_or_skip` under
 //!     `FATHOMDB_REQUIRE_LIVE=1`) when the `auto` policy does not select
@@ -57,7 +58,7 @@
 //! cargo test -p fathomdb-embedder --features default-embedder,onnx-embedder \
 //!     --test cross_backend_calibration -- --nocapture
 //!
-//! # Refresh the committed record, CUDA rows included (MAIN tree, CUDA host):
+//! # Refresh the committed record, CUDA rows included (CUDA host):
 //! FATHOMDB_WRITE_CALIBRATION_RECORD=1 FATHOMDB_EMBED_DEVICE=auto \
 //!     cargo test -p fathomdb-embedder \
 //!     --features default-embedder,onnx-embedder,embed-cuda \
@@ -463,7 +464,7 @@ fn compare_pair(a: &[Vec<f32>], b: &[Vec<f32>], mean: &[f32]) -> PairMetrics {
 }
 
 /// Measured candle-CUDA leg-pairs (present only when the CUDA leg actually ran
-/// on the GPU — i.e. the MAIN-tree `embed-cuda` build). Absent in the worktree.
+/// on the GPU — i.e. an `embed-cuda` build on a CUDA host). Absent otherwise.
 struct GpuPairs {
     effective: String,
     cpu_vs_cuda: PairMetrics,
@@ -551,7 +552,7 @@ fn harness_skips_unavailable_backends_cleanly() {
 
     // Candle GPU leg. `auto` has two valid strict-policy outcomes: CPU when CUDA
     // is unavailable and CUDA when it is compatible. A forced `cuda:N` probe
-    // would instead return an open error on the CPU-only worktree.
+    // would instead return an open error in a CPU-only build.
     let gpu = run_leg("candle", "auto");
     let gpu_backend = backend_of(&gpu.effective_device);
     assert!(
@@ -581,9 +582,10 @@ fn harness_skips_unavailable_backends_cleanly() {
         );
     }
 
-    // ONNX-GPU-EP leg: only when the ONNX asset env is present. `auto` records
-    // a CPU outcome when CUDA is unavailable; a CUDA provider that engages is a
-    // valid GPU measurement. `effective_provider()` reports the truth.
+    // ONNX `auto` leg: only when the ONNX asset env is present. ONNX GPU
+    // providers are unsupported, so the pinned CPU runtime resolves to CPU;
+    // should a CUDA provider engage, `effective_provider()` must still report
+    // it truthfully rather than as a skip or fallback.
     if onnx_env().is_some() {
         let ogpu = run_leg("onnx", "auto");
         if backend_of(&ogpu.effective_device) == "cuda" {
@@ -702,7 +704,7 @@ fn calibration_reports_p1_flips_and_p2_l2() {
     let mean_l2 = assert_cpu_baseline_components(&mean, &m);
 
     // R-CAL-4 candle-CUDA refresh: attempt the auto policy through the SAME
-    // harness. In the worktree it resolves to CPU; on MAIN with `embed-cuda` it
+    // harness. Without `embed-cuda` it resolves to CPU; with `embed-cuda` it
     // may select GPU and BOTH candle-CUDA leg-pairs are measured + written into
     // the doc. This is a CALIBRATION read, never a gate: no assertion is placed
     // on the GPU deltas.
@@ -731,7 +733,7 @@ fn calibration_reports_p1_flips_and_p2_l2() {
         // R-CAL-5: on a host that built `embed-cuda` the `auto` policy is
         // expected to select `cuda` (the gate runs on two CUDA-visible RTX
         // 3090s); a fallback there must be loud, not a silent PENDING record.
-        // A worktree that never builds `embed-cuda` cannot reach this arm
+        // A build without `embed-cuda` cannot reach this arm
         // under that feature at all (see `#[cfg]` below), so its PENDING
         // eprintln is unchanged.
         #[cfg(feature = "embed-cuda")]
@@ -742,7 +744,7 @@ fn calibration_reports_p1_flips_and_p2_l2() {
             candle_cuda.effective_device, candle_cuda.skipped
         ));
         eprintln!(
-            "R-CAL-4 candle-CUDA leg gated-to-skip (effective={}) — recorded PENDING (run on MAIN)",
+            "R-CAL-4 candle-CUDA leg gated-to-skip (effective={}) — recorded PENDING (run with `embed-cuda` on a CUDA host)",
             candle_cuda.effective_device
         );
         None
@@ -941,19 +943,19 @@ fn render_durable_doc(
     mean_l2: f64,
     gpu: Option<&GpuPairs>,
 ) -> String {
-    // candle-CUDA rows: measured when the GPU leg ran (MAIN tree), else pending.
+    // candle-CUDA rows: measured when the GPU leg ran (`embed-cuda` build), else pending.
     let (cpu_vs_cuda_row, cuda_vs_onnx_row, gpu_status) = match gpu {
         Some(g) => (
             measured_row("candle-CPU ↔ candle-CUDA", &g.cpu_vs_cuda),
             measured_row("candle-CUDA ↔ ONNX-CPU", &g.cuda_vs_onnx),
-            format!("MEASURED on `{}` (MAIN tree)", g.effective),
+            format!("MEASURED on `{}`", g.effective),
         ),
         None => (
-            "| candle-CPU ↔ candle-CUDA | — | pending (MAIN tree; `embed-cuda`, \
+            "| candle-CPU ↔ candle-CUDA | — | pending (`embed-cuda`, \
              `FATHOMDB_EMBED_DEVICE=auto`) | | | | | | |"
                 .to_string(),
-            "| candle-CUDA ↔ ONNX-CPU | — | pending (MAIN tree) | | | | | | |".to_string(),
-            "PENDING (worktree runs CPU legs only; run on MAIN with `embed-cuda`)".to_string(),
+            "| candle-CUDA ↔ ONNX-CPU | — | pending (`embed-cuda`) | | | | | | |".to_string(),
+            "PENDING (this build has no `embed-cuda`; CPU legs only)".to_string(),
         ),
     };
     format!(
@@ -1015,7 +1017,6 @@ un-centered L2 (`vec_distance_l2`).
 | candle-CPU ↔ ONNX-CPU | {n} | {cos_mean:.9} | {cos_min:.9} | {l2_mean:.3e} | {l2_max:.3e} | {maxabs:.3e} | **{raw} / {bits}** | **{mc} / {bits}** |
 {cpu_vs_cuda_row}
 {cuda_vs_onnx_row}
-| ONNX-GPU-EP (D3/U4/L3) | — | pending OOB (CUDA `libonnxruntime.so`) | | | | | | |
 
 **candle-CUDA legs: {gpu_status}.**
 
@@ -1029,23 +1030,20 @@ could push a component across a quantization threshold and flip a bit. Both P1
 flip counts and the P2 L2 are emitted so the 0.8.18 #5 **D4 floor** can be set on
 BOTH components after the GPU legs land.
 
-## Remaining legs (MAIN tree only — GPU discipline)
+## GPU legs
 
-The candle-CUDA + ONNX-GPU-EP legs are gated-to-skip in the worktree (which never
-builds `embed-cuda`) and are run by the orchestrator on the MAIN tree via the
-SAME harness:
+The candle-CUDA legs are measured by a build with `embed-cuda` on a CUDA host
+(the feature-complete gate builds that set); a build without it records them
+PENDING. ONNX runs on CPU only: ONNX Runtime GPU execution providers are not a
+supported FathomDB configuration, so there is no ONNX GPU leg.
 
 ```sh
-# candle-CUDA leg (MAIN tree; nvcc on PATH, CUDA_HOME set). Without
+# Refresh this record (nvcc on PATH, CUDA_PATH set, ONNX asset env set). Without
 # FATHOMDB_WRITE_CALIBRATION_RECORD=1 the render goes to CARGO_TARGET_TMPDIR:
 FATHOMDB_WRITE_CALIBRATION_RECORD=1 FATHOMDB_EMBED_DEVICE=auto \
     cargo test -p fathomdb-embedder \
     --features default-embedder,onnx-embedder,embed-cuda \
     --test cross_backend_calibration -- --nocapture
-
-# ONNX-GPU-EP leg (U4/L3, OOB): point ORT_DYLIB_PATH at a CUDA-enabled
-# libonnxruntime.so and set FATHOMDB_EMBED_DEVICE=auto — effective_provider()
-# records whether the CUDA EP actually engaged; CPU is the typed `auto` outcome.
 ```
 "#,
         c_req = candle.requested_device,

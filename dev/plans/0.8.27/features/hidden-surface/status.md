@@ -200,6 +200,26 @@ tests on x86_64. It is recorded in the allowlist under class
 `platform-excluded`, a fourth class this implementation added (see
 Deviations).
 
+### Calibration record refresh (2026-09-25, owner-directed)
+
+The owner ruled that ONNX Runtime on GPU is not a supported FathomDB
+configuration; the supported GPU path is candle via `embed-cuda` /
+`rerank-cuda`. The `onnx-embedder` comment in the embedder `Cargo.toml`, the
+calibration test's docs and its record template now say so: the
+`ONNX-GPU-EP` row and its refresh command are gone, and the "MAIN tree only"
+wording FIX-8 made stale is replaced by "a build with `embed-cuda` on a CUDA
+host".
+
+The committed record was refreshed through its opt-in:
+`FATHOMDB_WRITE_CALIBRATION_RECORD=1 FATHOMDB_EMBED_DEVICE=auto` with the
+CUDA and pinned ONNX environments, `--features
+default-embedder,onnx-embedder,embed-cuda`. The candle-CUDA legs measured on
+`cuda:0`; every pair keeps 0 of 17280 raw and mean-centered flips, and the
+L2 values moved only at the 1e-9 level (backend round-off). Record sha256
+`cef43f46…` → `9dce52e4b03440cfee2c339760dee9a3d56d887b56f746d2bc4f2d870c85f716`.
+Afterwards the full `cross_backend_calibration` target under the embedder's
+host-buildable features passed 12 of 12 with `FATHOMDB_REQUIRE_LIVE=1`.
+
 ### ACH-14: PASS (at `8404b679`, run `fc13`, FIX-8)
 
 **Gap.** `calibration_reports_p1_flips_and_p2_l2`'s candle-CUDA leg only

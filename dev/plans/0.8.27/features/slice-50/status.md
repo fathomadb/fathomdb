@@ -75,3 +75,22 @@ caches were removed. This slice used the existing durable release branch and
 worktree; it created no branch or worktree to merge or remove. The release
 worktree remains for uncommissioned Slice 60. Tags, registries, and publication
 remain unauthorized.
+
+## Post-close adversarial review (2026-09-25)
+
+A post-close adversarial review of `8e180a68..aa86a44d` found no P0/P1 issues.
+It mechanically confirmed the verbatim move and that the new state-machine
+tests fail on the pre-fix code. Findings and dispositions:
+
+- A-1/A-2 (records): the locked-matrix claim now records FIX-1's
+  `ROLLBACK_TABLES` strengthening, and the design names only
+  `excise_collection_record` as operator-gated (`e5221255`).
+- B-1/B-2 (tests): an unrelated nonterminal closure rooted at the surviving
+  revision plus a byte-exact before/after oracle now fail the over-deleting
+  `root_value=?1 OR 1` mutant at each erasure DELETE; case names label every
+  assertion and rollback covers all phase and cause pairs (`ee225b04`).
+- C-1 (narrow `ProspectiveCanonicalSource` visibility): refuted. The type is
+  returned by `load_persisted_canonical_source`, which `evidence.rs` calls, so
+  `pub(crate)` is the minimum; the compiler rejects private.
+
+Each layer closed in one fix cycle with an independent verification pass.

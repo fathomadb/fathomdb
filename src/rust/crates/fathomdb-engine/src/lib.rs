@@ -191,7 +191,8 @@ pub(crate) use write::storage_write_shape;
 pub use write::{PreparedWrite, WriteReceipt};
 pub(crate) use write_commit::{
     advance_read_visibility, apply_batch_in_transaction, canonical_body_hash,
-    checked_locator_columns, commit_batch, CommitBatchError, TriggerStateGuard,
+    checked_locator_columns, commit_batch, revision_hash_field, CommitBatchError,
+    TriggerStateGuard,
 };
 pub(crate) use write_validation::{
     collect_projection_jobs, prior_edge_cursors_by_logical_id, prior_edge_cursors_by_triple,
@@ -22719,6 +22720,37 @@ fn bm25f_search_inner(
     Ok(scored)
 }
 
+// Slice 15 stores no owner row for pre-step-27 content. Keep its deterministic
+// identity derivation internal until the opt-in Slice 50 evidence resolver
+// exposes it; default records and search hits remain unchanged.
+#[allow(dead_code)]
+fn legacy_revision_id(
+    artifact_class: &str,
+    cursor: u64,
+    source_id: Option<&str>,
+    body: Option<&str>,
+) -> String {
+    let mut hasher = Sha256::new();
+    revision_hash_field(&mut hasher, b"fathomdb:artifact-revision:migrated:v1");
+    revision_hash_field(&mut hasher, artifact_class.as_bytes());
+    revision_hash_field(&mut hasher, cursor.to_string().as_bytes());
+    match source_id {
+        Some(source_id) => {
+            revision_hash_field(&mut hasher, b"source-id:some");
+            revision_hash_field(&mut hasher, source_id.as_bytes());
+        }
+        None => revision_hash_field(&mut hasher, b"source-id:none"),
+    }
+    match body {
+        Some(body) => {
+            revision_hash_field(&mut hasher, b"body:some");
+            revision_hash_field(&mut hasher, body.as_bytes());
+        }
+        None => revision_hash_field(&mut hasher, b"body:none"),
+    }
+    format!("_fdb:m:{}", hex_encode(&hasher.finalize()))
+}
+
 fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
     let unexpected: bool = connection
         .prepare_cached(
@@ -23264,17 +23296,16 @@ mod slice20_fix1_tests;
 mod tests {
     use super::{
         acquire_lock_without_metadata_mutation, derive_stable_id,
-        install_admission_locked_hook_for_test, native_connection_state_for_test,
-        prepare_search_statement, resolve_source_type, retain_complete_rank_boundary_candidates,
-        DeviceResolution, EmbedderChoice, Engine, EngineError, EngineOpenError, IdSpace,
-        IdSpaceKind, InitialState, LoaderInfo, ManagedConnectionRegistry, NativeTransactionState,
-        PreparedWrite, ProjectionRuntime, ProjectionRuntimeStartupFaultForTest,
-        ProjectionRuntimeStartupRole, ReaderRequest, RuntimeProbeConnection, SearchHit,
-        SoftFallbackBranch, SourceId, WalAttributionCollector, WalAttributionRole,
-        ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS,
-        READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+        install_admission_locked_hook_for_test, legacy_revision_id,
+        native_connection_state_for_test, prepare_search_statement, resolve_source_type,
+        retain_complete_rank_boundary_candidates, DeviceResolution, EmbedderChoice, Engine,
+        EngineError, EngineOpenError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
+        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, ProjectionRuntime,
+        ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole, ReaderRequest,
+        RuntimeProbeConnection, SearchHit, SoftFallbackBranch, SourceId, WalAttributionCollector,
+        WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL,
+        PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
-    use crate::write_commit::legacy_revision_id;
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
     };

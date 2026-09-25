@@ -26,7 +26,7 @@ impl From<EngineError> for CommitBatchError {
     }
 }
 
-fn revision_hash_field(hasher: &mut Sha256, value: &[u8]) {
+pub(crate) fn revision_hash_field(hasher: &mut Sha256, value: &[u8]) {
     hasher.update((value.len() as u64).to_be_bytes());
     hasher.update(value);
 }
@@ -59,37 +59,6 @@ fn runtime_revision_id(write: &PreparedWrite, cursor: u64) -> String {
         _ => unreachable!("only canonical entities have artifact revisions"),
     }
     format!("_fdb:r:{}", hex_encode(&hasher.finalize()))
-}
-
-// Slice 15 stores no owner row for pre-step-27 content. Keep its deterministic
-// identity derivation internal until the opt-in Slice 50 evidence resolver
-// exposes it; default records and search hits remain unchanged.
-#[allow(dead_code)]
-pub(crate) fn legacy_revision_id(
-    artifact_class: &str,
-    cursor: u64,
-    source_id: Option<&str>,
-    body: Option<&str>,
-) -> String {
-    let mut hasher = Sha256::new();
-    revision_hash_field(&mut hasher, b"fathomdb:artifact-revision:migrated:v1");
-    revision_hash_field(&mut hasher, artifact_class.as_bytes());
-    revision_hash_field(&mut hasher, cursor.to_string().as_bytes());
-    match source_id {
-        Some(source_id) => {
-            revision_hash_field(&mut hasher, b"source-id:some");
-            revision_hash_field(&mut hasher, source_id.as_bytes());
-        }
-        None => revision_hash_field(&mut hasher, b"source-id:none"),
-    }
-    match body {
-        Some(body) => {
-            revision_hash_field(&mut hasher, b"body:some");
-            revision_hash_field(&mut hasher, body.as_bytes());
-        }
-        None => revision_hash_field(&mut hasher, b"body:none"),
-    }
-    format!("_fdb:m:{}", hex_encode(&hasher.finalize()))
 }
 
 #[cfg(test)]

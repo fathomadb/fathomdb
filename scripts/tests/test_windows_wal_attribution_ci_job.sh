@@ -36,8 +36,8 @@ assert_absent() {
 
 function_body() {
   awk -v name="$2" '
-    $0 ~ "^    (pub )?fn " name "\\(" { inside = 1 }
-    inside && $0 ~ "^    (pub )?fn " && $0 !~ "^    (pub )?fn " name "\\(" { exit }
+    $0 ~ "^    (pub(\\(crate\\))? )?fn " name "\\(" { inside = 1 }
+    inside && $0 ~ "^    (pub(\\(crate\\))? )?fn " && $0 !~ "^    (pub(\\(crate\\))? )?fn " name "\\(" { exit }
     inside { print }
   ' "$1"
 }
@@ -341,6 +341,12 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'ManagedConnectionCategory' \
   "source classifies every Engine-managed SQLite open"
+assert_contains "$(<"$ENGINE_SOURCE")" \
+  'fn wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' \
+  "engine source owns the WAL-attribution runtime and tests"
+assert_contains "$(<"$ERASURE_SOURCE")" \
+  'pub(crate) fn complete_erasure_at_rest(' \
+  "erasure source owns complete_erasure_at_rest"
 for marker in \
   'runtime_probe_lifecycle: Mutex<RuntimeProbeLifecycle>' \
   'struct RuntimeProbeLifecycle' \
@@ -540,17 +546,17 @@ assert_contains "$projection_worker_body" \
 assert_absent "$projection_worker_body" \
   'retry after release' \
   "projection-worker diagnostic does not retry the original erase"
-actual_checkpoint_engine_body="$(function_body "$ENGINE_SOURCE" "complete_erasure_at_rest")"
+actual_checkpoint_engine_body="$(function_body "$ERASURE_SOURCE" "complete_erasure_at_rest")"
 assert_before_in_text \
   "$actual_checkpoint_engine_body" \
   'self.actual_checkpoint_observation_for_test(' \
   'let checkpoint_result = self.wal_checkpoint_truncate_once(false);' \
-  "actual observer records immediately before the existing checkpoint call"
+  "erasure source keeps the before observer ahead of the checkpoint"
 assert_before_in_text \
   "$actual_checkpoint_engine_body" \
   'let checkpoint_result = self.wal_checkpoint_truncate_once(false);' \
   'checkpoint_result.as_ref().ok().cloned()' \
-  "actual observer records immediately after the existing checkpoint call"
+  "erasure source keeps the checkpoint ahead of the after observer result"
 actual_checkpoint_observer_body="$(function_body "$ENGINE_SOURCE" "actual_checkpoint_observation_for_test")"
 assert_contains "$actual_checkpoint_observer_body" \
   '"python_serial" => 0' \

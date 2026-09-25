@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 50 - TDD chronology
-status: IMPLEMENTED_PENDING_REVIEW
+status: COMPLETE
 implemented_on: 2026-09-25
 ---
 
@@ -213,11 +213,11 @@ load-bearing mutation fixtures. Both source paths are now independently
 injectable, and a wrong/missing erasure owner or swapped before-observer /
 checkpoint order fails closed.
 
-## Deferred closeout gates
+## Closeout gates
 
-Per the implementation handoff, this agent did not duplicate the root agent's
-post-review broad gates. `agent-verify`, workspace-wide Clippy/check, immutable
-public-surface capture/compare, hidden-surface capture/compare, independent
-code review, independent verification, and the Slice 50 status/release-state
-advance remain pending. No unavailable or skipped evidence is reported as a
-pass.
+The post-review closeout gates and their exact receipts are recorded in
+`review-verification.md`. Independent code review and verification both pass;
+the public surface is equal, hidden structural surfaces are equal with only
+reviewed additive test inventory, the canonical gate passed 127/127, strict
+security is 0/0/0, and workspace Clippy/check pass. No unavailable or skipped
+evidence is reported as a pass.

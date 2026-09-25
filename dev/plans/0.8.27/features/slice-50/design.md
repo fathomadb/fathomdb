@@ -234,10 +234,12 @@ execution because it moves no accelerator path.
 The final candidate runs focused owners first, then `agent-verify`, full-
 workspace Clippy with warnings denied, and
 `cargo check --workspace --all-targets`. Surface capture and comparison operate
-only on clean commits and must report empty metadata and row diffs; the tracked
-baselines are never regenerated. The broader registered/candidate gate is
-added only if the actual diff or a review finding touches shared gate/tooling
-beyond the Rust domain work.
+only on clean commits. The public comparator must report empty metadata and row
+diffs. Hidden structural rows and the release probe must compare equal; hidden
+test-inventory rows may contain only exact reviewed additive tests, with no
+removals or changes. The tracked baselines are never regenerated. The broader
+registered/candidate gate is added only if the actual diff or a review finding
+touches shared gate/tooling beyond the Rust domain work.
 
 ## Failure handling
 

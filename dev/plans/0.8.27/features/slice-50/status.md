@@ -4,7 +4,7 @@ status: COMPLETE
 implemented_on: 2026-09-25
 planning_commit: cc420df3cedeedbebc301693f7b8f5e5ddaf6d8a
 implementation_candidate: 1f5b8614813b5a363ec5f81fcb580d48da4a4e8f
-closeout_commit: PENDING_CLOSEOUT_BINDING
+closeout_commit: 4752b86158c61d97644eb714bca3796d83108d81
 ---
 
 # Slice 50 implementation status

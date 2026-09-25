@@ -442,14 +442,23 @@ Do not test filenames or widen engine fields.
 
 ### Slice 50 — erasure, lifecycle, dependency, and provenance
 
-Move the corrected Slice 20 implementation verbatim and keep its regression
-tests locked. Preserve the published `lifecycle` path and the
-drain → freeze → mutate → at-rest ordering.
+Execute the independently reviewed
+[`Slice 50 plan`](0.8.27/features/slice-50/plan.md) and
+[`design`](0.8.27/features/slice-50/design.md). First close Slice 20 carryover
+`TC-6acb0013-bba8-4fee-ac18-27c64442908a`: physical erasure must remove
+`proving`/`incomplete` nonphysical soft-closure identity for every erased
+revision after receipt validation while preserving physical proof rows. Then
+move the corrected implementation and its record-lifecycle, provenance-
+contract, and dependency-registration peers into private semantic modules.
+Keep existing regression assertions locked. Preserve the published
+observability `lifecycle` path and each operation's distinct validation,
+transaction, drain/freeze, cursor, retry, and at-rest ordering.
 
 Add focused coverage only for newly isolated dependency discovery,
 already-complete closure, exact physical deletion counts, rollback, ordering,
-and supported dependency-shape property/state-machine tests. Do not invent
-deferred multi-source semantics.
+and supported dependency-shape property/state-machine tests, including the
+nonterminal carryover across both hard-erasure verbs. Do not invent deferred
+multi-source semantics.
 
 ### Slice 60 — write, ingest, consolidation, and actuation
 

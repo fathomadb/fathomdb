@@ -124,6 +124,48 @@ python3 scripts/check-test-target-coverage.py
 passed. Test-target coverage reported 260 targets, with 53 explicitly owned by
 the feature-complete route.
 
+## FIX-1 review closure
+
+Commit `80d37a25` closes the two test-adequacy findings without changing
+production code. The `proving` arm now places its target closure after 32
+schema-valid nonterminal rows, exactly beyond `maintain_before_writer`'s
+bounded window. A fixture-only `BEFORE DELETE` trigger rejects any phase other
+than `proving` and writes the observed old phase to a witness table. The
+postcondition requires exactly one `proving` witness, so the target is proven
+non-vacuously to remain `proving` immediately before hard-erasure deletion.
+
+With both production cleanup statements temporarily restricted to
+`phase IN ('complete','incomplete')`, the focused command
+
+```text
+cargo test -p fathomdb-engine --test correction_safe_erasure \
+  nonterminal_soft_closure_state_machine_erases_identity_and_preserves_physical_proof \
+  -- --exact
+```
+
+failed on the first `proving` case with the exact retained-row oracle:
+
+```text
+assertion failed: nonphysical closure retained erased revision identity
+left: 1
+right: 0
+```
+
+The temporary mutant was restored before commit, leaving `erasure.rs`
+byte-identical to `8b398a7f`. The rollback snapshot now includes the complete
+`_fathomdb_open_state` table, including dependency-generation and closure-
+sequence singleton values. This makes a late refusal prove exact rollback of
+those counters as well as the previously covered primary planes.
+
+After restoring production:
+
+```text
+cargo fmt --all -- --check
+cargo test -p fathomdb-engine --test correction_safe_erasure
+```
+
+passed all 7 tests with no ignored cases.
+
 ## Deferred closeout gates
 
 Per the implementation handoff, this agent did not duplicate the root agent's

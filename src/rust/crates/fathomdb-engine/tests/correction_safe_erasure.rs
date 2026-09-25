@@ -816,3 +816,243 @@ fn purge_after_dependents_are_gone_leaves_no_closure_for_an_erased_revision() {
     fixture.opened.engine.close().unwrap();
     drop(fixture.dir);
 }
+
+#[derive(Clone, Copy, Debug)]
+enum HardErasure {
+    EraseSource,
+    Purge,
+}
+
+impl HardErasure {
+    fn all() -> [Self; 2] {
+        [Self::EraseSource, Self::Purge]
+    }
+
+    fn prepare(self, engine: &Engine) {
+        if matches!(self, Self::Purge) {
+            retire(
+                engine,
+                "slice50-retire-replacement",
+                "slice20-source",
+                "slice20-replacement-r2",
+            );
+        }
+    }
+
+    fn apply(self, engine: &Engine, source_bucket: &str) -> Result<(), EngineError> {
+        match self {
+            Self::EraseSource => engine.erase_source(source_bucket).map(|_| ()),
+            Self::Purge => engine.purge("slice20-source"),
+        }
+    }
+
+    fn expected_proof(self, source_bucket: &str) -> (&'static str, &str, &'static str) {
+        match self {
+            Self::EraseSource => ("source_bucket", source_bucket, "source_erased"),
+            Self::Purge => ("source_revision", "slice20-original-r1", "purged"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum DependencyShape {
+    SameBucket,
+    CrossBucket,
+}
+
+impl DependencyShape {
+    fn all() -> [Self; 2] {
+        [Self::SameBucket, Self::CrossBucket]
+    }
+
+    fn buckets(self) -> (&'static str, &'static str) {
+        match self {
+            Self::SameBucket => ("slice20-target", "slice20-target"),
+            Self::CrossBucket => ("slice20-original-bucket", "slice20-replacement-bucket"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum SoftClosurePhase {
+    Proving,
+    Incomplete,
+}
+
+impl SoftClosurePhase {
+    fn all() -> [Self; 2] {
+        [Self::Proving, Self::Incomplete]
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Proving => "proving",
+            Self::Incomplete => "incomplete",
+        }
+    }
+
+    fn blocker(self) -> Option<&'static str> {
+        match self {
+            Self::Proving => None,
+            Self::Incomplete => Some("proof_unavailable"),
+        }
+    }
+}
+
+fn make_soft_closure_nonterminal(db: &Path, cause: &str, phase: SoftClosurePhase) -> String {
+    let connection = Connection::open(db).unwrap();
+    let closure_id: String = connection
+        .query_row(
+            "SELECT closure_operation_id FROM _fathomdb_dependency_closures \
+             WHERE root_kind='source_revision' AND root_value='slice20-original-r1' \
+               AND cause=?1",
+            [cause],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let changed = connection
+        .execute(
+            "UPDATE _fathomdb_dependency_closures \
+             SET phase=?2,affected_count=affected_count+1000,blocker_code=?3,\
+                 structural_proof_write_boundary=NULL,proof_json=NULL \
+             WHERE closure_operation_id=?1",
+            rusqlite::params![closure_id, phase.as_str(), phase.blocker()],
+        )
+        .unwrap();
+    assert_eq!(changed, 1, "fixture must mutate exactly one soft closure");
+    closure_id
+}
+
+fn assert_soft_closure_absent(db: &Path, closure_id: &str) {
+    let connection = Connection::open(db).unwrap();
+    let count: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM _fathomdb_dependency_closures \
+             WHERE closure_operation_id=?1",
+            [closure_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(count, 0, "nonphysical closure retained erased revision identity");
+}
+
+fn assert_exact_physical_proof(db: &Path, erasure: HardErasure, source_bucket: &str) {
+    let expected = erasure.expected_proof(source_bucket);
+    let connection = Connection::open(db).unwrap();
+    let proofs = connection
+        .prepare(
+            "SELECT root_kind,root_value,cause,phase \
+             FROM _fathomdb_dependency_closures \
+             WHERE cause IN ('purged','source_erased') ORDER BY closure_sequence",
+        )
+        .unwrap()
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    assert_eq!(proofs.len(), 1, "hard erasure must retain exactly one physical proof");
+    assert_eq!(
+        proofs[0],
+        (expected.0.into(), expected.1.into(), expected.2.into(), "complete".into())
+    );
+}
+
+#[test]
+fn nonterminal_soft_closure_state_machine_erases_identity_and_preserves_physical_proof() {
+    for erasure in HardErasure::all() {
+        for shape in DependencyShape::all() {
+            for phase in SoftClosurePhase::all() {
+                for cause in ["superseded", "soft_deleted"] {
+                    let (original_bucket, replacement_bucket) = shape.buckets();
+                    let name = format!("slice50-{erasure:?}-{shape:?}-{}-{cause}", phase.as_str());
+                    let fixture = corrected_fixture(&name, original_bucket, replacement_bucket);
+                    erasure.prepare(&fixture.opened.engine);
+                    let closure_id = make_soft_closure_nonterminal(&fixture.db, cause, phase);
+
+                    let before = Connection::open(&fixture.db).unwrap();
+                    let erased_cursors = match erasure {
+                        HardErasure::EraseSource => requested_cursors(&before, original_bucket),
+                        HardErasure::Purge => {
+                            let mut cursors = requested_cursors(&before, original_bucket);
+                            if replacement_bucket != original_bucket {
+                                cursors.extend(requested_cursors(&before, replacement_bucket));
+                            }
+                            cursors
+                        }
+                    };
+                    assert!(!erased_cursors.is_empty(), "state-machine fixture is non-vacuous");
+                    drop(before);
+
+                    erasure
+                        .apply(&fixture.opened.engine, original_bucket)
+                        .unwrap_or_else(|error| panic!("{name}: hard erasure failed: {error}"));
+                    assert_soft_closure_absent(&fixture.db, &closure_id);
+                    assert_exact_physical_proof(&fixture.db, erasure, original_bucket);
+
+                    let connection = Connection::open(&fixture.db).unwrap();
+                    let survivor: String = connection
+                        .query_row(
+                            "SELECT body FROM canonical_nodes \
+                             WHERE logical_id='slice20-survivor'",
+                            [],
+                            |row| row.get(0),
+                        )
+                        .unwrap();
+                    assert_eq!(survivor, SURVIVOR_BODY, "unrelated row must survive");
+                    assert_cursors_physically_absent(&connection, &erased_cursors);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn nonterminal_soft_closure_refusal_rolls_back_every_primary_plane() {
+    for erasure in HardErasure::all() {
+        for shape in DependencyShape::all() {
+            let (original_bucket, replacement_bucket) = shape.buckets();
+            let name = format!("slice50-rollback-{erasure:?}-{shape:?}");
+            let fixture = corrected_fixture(&name, original_bucket, replacement_bucket);
+            erasure.prepare(&fixture.opened.engine);
+            make_soft_closure_nonterminal(&fixture.db, "superseded", SoftClosurePhase::Incomplete);
+            let connection = Connection::open(&fixture.db).unwrap();
+            connection
+                .execute_batch(
+                    "CREATE TRIGGER preserve_slice50_dependent \
+                     BEFORE DELETE ON canonical_nodes \
+                     WHEN OLD.logical_id='slice20-dependent' \
+                     BEGIN SELECT RAISE(IGNORE); END;",
+                )
+                .unwrap();
+            let before = database_plane_snapshot(&connection);
+            drop(connection);
+
+            assert!(matches!(
+                erasure.apply(&fixture.opened.engine, original_bucket),
+                Err(EngineError::Storage)
+            ));
+            let connection = Connection::open(&fixture.db).unwrap();
+            assert_eq!(
+                database_plane_snapshot(&connection),
+                before,
+                "{name}: refusal must restore every protected database plane exactly"
+            );
+            let physical_rows: i64 = connection
+                .query_row(
+                    "SELECT COUNT(*) FROM _fathomdb_dependency_closures \
+                     WHERE cause IN ('purged','source_erased')",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(physical_rows, 0, "refusal must not retain a physical proof");
+        }
+    }
+}

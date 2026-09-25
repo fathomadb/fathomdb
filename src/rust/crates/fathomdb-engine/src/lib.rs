@@ -13646,16 +13646,16 @@ impl Engine {
         }
         actuation::redact_actuation_receipts_for_refs(&tx, &receipt_refs)?;
         // Same hazard as `excise_source_inner`: receipt validation reads the
-        // completed correction closures, so they are deleted only afterwards,
-        // inside this transaction. Every erased revision is covered, not only
-        // those with a current dependent plan, because a completed soft
-        // closure outlives its dependents. This purge's own proof shares the
-        // `source_revision` root, so physical causes are excluded explicitly.
+        // correction closures, so they are deleted only afterwards, inside
+        // this transaction. Every erased revision is covered, not only those
+        // with a current dependent plan, because a nonterminal soft closure can
+        // outlive its dependents. This purge's own proof shares the
+        // `source_revision` root, so only nonphysical causes are removed.
         for source_revision in &source_revisions {
             tx.execute(
                 "DELETE FROM _fathomdb_dependency_closures \
-                 WHERE root_kind='source_revision' AND root_value=?1 AND phase='complete' \
-                   AND cause NOT IN ('purged','source_erased')",
+                 WHERE root_kind='source_revision' AND root_value=?1 \
+                   AND cause IN ('superseded','soft_deleted')",
                 [source_revision],
             )
             .map_err(|_| EngineError::Storage)?;
@@ -14490,15 +14490,16 @@ impl Engine {
         .into_iter()
         .collect::<Vec<_>>();
         actuation::redact_actuation_receipts_for_refs(&tx, &receipt_refs)?;
-        // A correction receipt can reference completed soft closures for the
-        // source revision being erased. Receipt validation therefore has to
-        // run while those closures still exist; deleting them first makes the
-        // valid receipt appear corrupt and rolls the erasure back. Both steps
-        // remain in this transaction, so any validation failure is atomic.
+        // A correction receipt can reference soft closures for the source
+        // revision being erased. Receipt validation therefore has to run while
+        // those closures still exist; deleting them first makes the valid
+        // receipt appear corrupt and rolls the erasure back. Both steps remain
+        // in this transaction, so any validation failure is atomic.
         for source_revision in &source_revisions {
             tx.execute(
                 "DELETE FROM _fathomdb_dependency_closures \
-                 WHERE root_kind='source_revision' AND root_value=?1 AND phase='complete'",
+                 WHERE root_kind='source_revision' AND root_value=?1 \
+                   AND cause IN ('superseded','soft_deleted')",
                 [source_revision],
             )
             .map_err(|_| EngineError::Storage)?;

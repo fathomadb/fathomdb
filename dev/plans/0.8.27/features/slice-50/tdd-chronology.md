@@ -166,6 +166,53 @@ cargo test -p fathomdb-engine --test correction_safe_erasure
 
 passed all 7 tests with no ignored cases.
 
+## FIX-2 registered-guard closure
+
+The unconfined post-review `agent-verify` exposed a split-owner assumption in
+`scripts/tests/test_windows_wal_attribution_ci_job.sh`: its registered suite
+reported 306 passed and 2 failed because it still extracted
+`complete_erasure_at_rest` from `lib.rs`. The implementation ordering in
+`erasure.rs` was already correct; no product Rust changed.
+
+Commit `d89f552c` added RED fixtures for three independent obligations:
+
+- `ENGINE_SOURCE` must still own the WAL-attribution runtime and inline tests;
+- a separately injectable `ERASURE_SOURCE` must own
+  `complete_erasure_at_rest`; and
+- moving the before-observer behind the real checkpoint must fail.
+
+Before the guard understood the new seam, its full recursive run reported 306
+passed and 5 failed: the original two extraction failures plus all three new
+fixture failures.
+
+Commit `b105a3d8` defaults `ERASURE_SOURCE` to
+`fathomdb-engine/src/erasure.rs`, teaches function extraction to accept
+crate-visible methods, and routes only the completion-body ownership and
+observer/checkpoint assertions through that source. All existing `lib.rs`
+markers, inline-test bodies, runtime ownership checks, and mutation tests
+remain on `ENGINE_SOURCE`.
+
+Focused GREEN evidence:
+
+```text
+WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 \
+  bash scripts/tests/test_windows_wal_attribution_ci_job.sh
+254 passed, 0 failed
+
+bash scripts/tests/test_windows_wal_attribution_ci_job.sh
+313 passed, 0 failed
+
+python3 scripts/tests/test_slice50_hook_inventory.py
+PASS test-slice50-hook-inventory
+
+bash -n scripts/tests/test_windows_wal_attribution_ci_job.sh
+```
+
+The full count grew by the two explicit owner assertions and three new
+load-bearing mutation fixtures. Both source paths are now independently
+injectable, and a wrong/missing erasure owner or swapped before-observer /
+checkpoint order fails closed.
+
 ## Deferred closeout gates
 
 Per the implementation handoff, this agent did not duplicate the root agent's

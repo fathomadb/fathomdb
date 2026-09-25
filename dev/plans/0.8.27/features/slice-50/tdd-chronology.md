@@ -26,7 +26,10 @@ Commit `c9d73e4e` added a bounded non-vacuous state-machine matrix covering:
 - exact physical proof preservation, unrelated-row survival, physical cursor
   absence, and an exact precommit rollback control.
 
-No prior assertion in `correction_safe_erasure.rs` changed. Against the
+No prior assertion in `correction_safe_erasure.rs` changed in the RED commit.
+FIX-1 (`80d37a25`) later added `_fathomdb_open_state` to the shared
+`ROLLBACK_TABLES` snapshot, which also widens the locked precommit-rollback
+case; that is a reviewed strengthening, not a weakening. Against the
 unmodified implementation, the exact new success oracle failed with:
 
 ```text

@@ -82,9 +82,9 @@ visibility changes only.
 
 Own the existing hard-erasure facade and its directly coupled implementation:
 
-- `ExciseReport` and operator-gated `ExciseRecordReport`;
-- `Engine::purge`, `erase_source`, `excise_source`, and operator-gated record
-  excision;
+- `ExciseReport` and `ExciseRecordReport` (both ungated types);
+- `Engine::purge`, `erase_source`, `excise_source`, and the operator-gated
+  record excision method `excise_collection_record`;
 - physical-closure finish/freeze coordination used only by hard erasure;
 - at-rest WAL completion, durable pending-redaction discharge, telemetry
   redaction, and their erasure-owned helpers; and

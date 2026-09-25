@@ -1,0 +1,228 @@
+use super::*;
+
+/// Completeness recorded for an artifact revision owner.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProvenanceCompleteness {
+    /// Exact source version, revision, locator and hash are present.
+    Complete,
+    /// The artifact is usable but exact source provenance is unavailable.
+    MigratedIncomplete,
+}
+
+impl ProvenanceCompleteness {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Complete => "complete",
+            Self::MigratedIncomplete => "migrated_incomplete",
+        }
+    }
+}
+
+/// Closed v1 locator into exact UTF-8 source bytes.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SourceLocator {
+    /// The entire canonical source body.
+    WholeBody,
+    /// A half-open range whose offsets count UTF-8 bytes.
+    Utf8Bytes {
+        /// Inclusive byte offset.
+        start_inclusive: u64,
+        /// Exclusive byte offset.
+        end_exclusive: u64,
+    },
+}
+
+impl SourceLocator {
+    /// Construct the whole-body locator.
+    #[must_use]
+    pub fn whole_body() -> Self {
+        Self::WholeBody
+    }
+
+    /// Construct a UTF-8 byte range. Bounds and code-point alignment are
+    /// validated against the referenced canonical source during the write.
+    #[must_use]
+    pub fn utf8_bytes(start_inclusive: u64, end_exclusive: u64) -> Self {
+        Self::Utf8Bytes { start_inclusive, end_exclusive }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ProvenanceRole {
+    Canonical,
+    Derived,
+}
+
+/// Closed schema-version-1 provenance attached to a versioned write.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WriteProvenanceV1 {
+    pub(crate) schema_version: u32,
+    pub(crate) role: ProvenanceRole,
+    pub(crate) artifact_revision_id: ArtifactRevisionId,
+    pub(crate) source_version_id: SourceVersionId,
+    pub(crate) source_revision_id: Option<SourceRevisionId>,
+    pub(crate) locator: Option<SourceLocator>,
+    pub(crate) canonical_source_hash: Option<CanonicalHash>,
+}
+
+impl WriteProvenanceV1 {
+    /// Describe a canonical source node. The Engine stores a whole-body
+    /// self-link and computes the source hash from the exact UTF-8 body.
+    #[must_use]
+    pub fn canonical(
+        artifact_revision_id: ArtifactRevisionId,
+        source_version_id: SourceVersionId,
+    ) -> Self {
+        Self {
+            schema_version: 1,
+            role: ProvenanceRole::Canonical,
+            artifact_revision_id,
+            source_version_id,
+            source_revision_id: None,
+            locator: None,
+            canonical_source_hash: None,
+        }
+    }
+
+    /// Describe an artifact derived from an already-stored canonical source.
+    #[must_use]
+    pub fn derived(
+        artifact_revision_id: ArtifactRevisionId,
+        source_version_id: SourceVersionId,
+        source_revision_id: SourceRevisionId,
+        locator: SourceLocator,
+        canonical_source_hash: CanonicalHash,
+    ) -> Self {
+        Self {
+            schema_version: 1,
+            role: ProvenanceRole::Derived,
+            artifact_revision_id,
+            source_version_id,
+            source_revision_id: Some(source_revision_id),
+            locator: Some(locator),
+            canonical_source_hash: Some(canonical_source_hash),
+        }
+    }
+}
+
+/// Versioned node input preserving the legacy node fields and adding exact
+/// provenance without changing `PreparedWrite::Node`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ProvenancedNodeV1 {
+    /// Caller-defined node kind.
+    pub kind: String,
+    /// Exact UTF-8 artifact body.
+    pub body: String,
+    /// Erasure and source-family identity.
+    pub source_id: SourceId,
+    /// Optional stable logical identity used for supersession.
+    pub logical_id: Option<String>,
+    /// Initial lifecycle state.
+    pub state: InitialState,
+    /// Optional advisory lifecycle reason.
+    pub reason: Option<String>,
+    /// Inclusive world-time validity bound in epoch seconds.
+    pub valid_from: Option<i64>,
+    /// Exclusive world-time validity bound in epoch seconds.
+    pub valid_until: Option<i64>,
+    /// Closed schema-version-1 provenance.
+    pub provenance: WriteProvenanceV1,
+}
+
+/// Versioned edge input preserving the legacy edge fields and adding exact
+/// provenance without changing `PreparedWrite::Edge`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ProvenancedEdgeV1 {
+    /// Caller-defined edge kind.
+    pub kind: String,
+    /// Logical identity of the source endpoint.
+    pub from: String,
+    /// Logical identity of the destination endpoint.
+    pub to: String,
+    /// Erasure and source-family identity.
+    pub source_id: SourceId,
+    /// Optional stable logical identity used for supersession.
+    pub logical_id: Option<String>,
+    /// Optional exact UTF-8 relationship body.
+    pub body: Option<String>,
+    /// Inclusive event-time validity bound in epoch seconds.
+    pub t_valid: Option<i64>,
+    /// Exclusive event-time validity bound in epoch seconds.
+    pub t_invalid: Option<i64>,
+    /// Optional extraction confidence in the closed interval `[0, 1]`.
+    pub confidence: Option<f64>,
+    /// Optional opaque extractor model identity.
+    pub extractor_model_id: Option<String>,
+    /// Whether event time fell back to ingestion time.
+    pub temporal_fallback: Option<bool>,
+    /// Closed schema-version-1 derived provenance.
+    pub provenance: WriteProvenanceV1,
+}
+
+/// Closed machine-readable reason for a provenance refusal.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProvenanceErrorReason {
+    RevisionIdInvalid,
+    RevisionIdConflict,
+    SourceVersionInvalid,
+    SourceVersionConflict,
+    SourceRevisionMissing,
+    SourceMismatch,
+    LocatorInvalid,
+    HashInvalid,
+    HashMismatch,
+    UnsupportedSchemaVersion,
+    UnknownField,
+    RoleInvalid,
+    ProvenanceInUse,
+    SourceRevisionIneligible,
+    SourceClosureActive,
+}
+
+impl ProvenanceErrorReason {
+    /// Stable lower-snake-case wire spelling.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::RevisionIdInvalid => "revision_id_invalid",
+            Self::RevisionIdConflict => "revision_id_conflict",
+            Self::SourceVersionInvalid => "source_version_invalid",
+            Self::SourceVersionConflict => "source_version_conflict",
+            Self::SourceRevisionMissing => "source_revision_missing",
+            Self::SourceMismatch => "source_mismatch",
+            Self::LocatorInvalid => "locator_invalid",
+            Self::HashInvalid => "hash_invalid",
+            Self::HashMismatch => "hash_mismatch",
+            Self::UnsupportedSchemaVersion => "unsupported_schema_version",
+            Self::UnknownField => "unknown_field",
+            Self::RoleInvalid => "role_invalid",
+            Self::ProvenanceInUse => "provenance_in_use",
+            Self::SourceRevisionIneligible => "source_revision_ineligible",
+            Self::SourceClosureActive => "source_closure_active",
+        }
+    }
+}
+
+/// Typed provenance refusal with an RFC 6901 pointer over canonical camel-case
+/// wire names.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProvenanceError {
+    /// Closed machine-readable refusal reason.
+    pub reason: ProvenanceErrorReason,
+    /// RFC 6901 pointer over canonical camel-case wire names.
+    pub field_path: String,
+}
+
+impl ProvenanceError {
+    pub(crate) fn new(reason: ProvenanceErrorReason, field_path: impl Into<String>) -> Self {
+        Self { reason, field_path: field_path.into() }
+    }
+}
+
+impl Display for ProvenanceError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} at {}", self.reason.as_str(), self.field_path)
+    }
+}
+
+impl Error for ProvenanceError {}

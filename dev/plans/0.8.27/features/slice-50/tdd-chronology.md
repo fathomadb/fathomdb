@@ -1,0 +1,134 @@
+---
+title: FathomDB 0.8.27 Slice 50 - TDD chronology
+status: IMPLEMENTED_PENDING_REVIEW
+implemented_on: 2026-09-25
+---
+
+# Slice 50 TDD chronology
+
+## Baseline and behavioral RED
+
+The implementation worktree was clean on `release/0.8.27` at
+`cc420df3cedeedbebc301693f7b8f5e5ddaf6d8a`. Before edits:
+
+```text
+cargo test -p fathomdb-engine --test correction_safe_erasure
+```
+
+passed 5 tests.
+
+Commit `c9d73e4e` added a bounded non-vacuous state-machine matrix covering:
+
+- `erase_source` and `purge`;
+- supported same-bucket and cross-bucket dependency shapes;
+- `superseded` and `soft_deleted` causes;
+- proof-invalid `proving` and `incomplete` phases;
+- exact physical proof preservation, unrelated-row survival, physical cursor
+  absence, and an exact precommit rollback control.
+
+No prior assertion in `correction_safe_erasure.rs` changed. Against the
+unmodified implementation, the exact new success oracle failed with:
+
+```text
+assertion failed: nonphysical closure retained erased revision identity
+left: 1
+right: 0
+```
+
+The separate exact rollback oracle passed before the fix.
+
+## Behavioral GREEN
+
+Commit `2891228e` changed only the two existing hard-erasure transactions.
+After actuation receipt validation, each now deletes
+`superseded`/`soft_deleted` closure rows for every erased source revision
+without a phase predicate. Physical `purged`/`source_erased` rows remain
+excluded. SQL order, transaction boundaries, receipt precedence, rollback,
+canonical deletion, proof measurement, commit, cursor, and at-rest ordering
+were otherwise unchanged.
+
+```text
+cargo fmt --all -- --check
+cargo test -p fathomdb-engine --test correction_safe_erasure
+```
+
+passed 7 tests, including all five pre-existing cases and both new oracles.
+
+## Structural GREEN
+
+Commit `c675ddf0` mechanically extracted the approved ownership domains:
+
+- private `record_lifecycle.rs`: lifecycle state vocabulary, target
+  resolution, and `Engine::transition`;
+- private `provenance.rs`: provenance contracts, constructors, and typed
+  errors;
+- private `dependency.rs`: dependency contracts, prospective/validated
+  carriers, generation state, persisted-chain validation, registration, and
+  reciprocal lookups; and
+- private `erasure.rs`: source/logical/record hard-erasure facades,
+  coordination, physical completion, telemetry/WAL redaction support, and
+  erasure-owned dependency/artifact cleanup.
+
+`Engine` remains rooted in `lib.rs`. The existing public items are explicitly
+re-exported from the root. Cross-module access was limited to crate-private
+fields, constructors, generation/validation helpers, and the existing bounded
+dependency/closure consumer seams. `PreparedWrite`, write execution,
+operator diagnostics, shared projection deletion/registry machinery, and
+read/evidence/runtime ownership remain in their later slices.
+
+The first default library check after relocation produced expected privacy and
+unresolved-import compile RED. Narrow `pub(crate)` seams restored GREEN; no
+item or module was made newly public. The complete correction-safe erasure
+suite remained 7/7 green after extraction.
+
+The first all-targets check then exposed one root unit-test caller of
+`Engine::complete_erasure_at_rest` (E0624). Commit `e5236c5e` made only that
+method crate-private. The unchanged all-targets command passed on rerun.
+
+## Focused verification
+
+The following owner groups passed:
+
+| Route | Result |
+| --- | --- |
+| lifecycle/existence/dependency-lifecycle and lifecycle reliability/observability | 45 passed, 4 explicitly ignored child/workload entries |
+| operator provenance, source-dependency, registration-inertness, closure, and dependency-trace owners | 75 passed |
+| actuation, actuation invariants/verification, frozen read, and evidence owners | 50 passed |
+| operator correction erasure, erasure completeness/drain/registry, and source excision owners | 32 passed |
+| facade re-export/governed/no-recovery controls | 5 default and 6 operator passed |
+
+Exact feature checks all passed with `--all-targets` for the engine crate:
+
+```text
+cargo check -p fathomdb-engine --all-targets
+cargo check -p fathomdb-engine --all-targets --features operator
+cargo check -p fathomdb-engine --all-targets --features test-hooks
+cargo check -p fathomdb-engine --all-targets --features slice72-test-hooks
+cargo check -p fathomdb-engine --all-targets --features migration-test-hooks
+cargo check -p fathomdb-engine --all-targets --features tc5-benchmark
+```
+
+The default command's first run supplied the E0624 RED above; its post-fix
+rerun passed. A first combined provenance test command correctly refused to
+run `provenance_mandatory` without its declared `operator` feature; the same
+owner set then passed with `--features operator`.
+
+Additional final checks:
+
+```text
+cargo fmt --all -- --check
+cargo clippy -p fathomdb-engine --all-targets -- -D warnings
+python3 scripts/check-test-target-coverage.py
+```
+
+passed. Test-target coverage reported 260 targets, with 53 explicitly owned by
+the feature-complete route.
+
+## Deferred closeout gates
+
+Per the implementation handoff, this agent did not duplicate the root agent's
+post-review broad gates. `agent-verify`, workspace-wide Clippy/check, immutable
+public-surface capture/compare, hidden-surface capture/compare, independent
+code review, independent verification, and the Slice 50 status/release-state
+advance remain pending. No unavailable or skipped evidence is reported as a
+pass.

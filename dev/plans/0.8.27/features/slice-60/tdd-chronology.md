@@ -257,3 +257,29 @@ The slice35 audit failure predates this slice. It fails identically at
 `INSERT INTO vector_default` sites and no such caller. Every entry this slice
 re-keyed matches the scan. The stale expectation is outside Slice 60 scope and
 was left unchanged.
+
+## Code-review FIX-1
+
+The independent code review (P2 #1) found that the scraper amendment covered
+only `lib.rs`, `write_commit.rs`, and `consolidation.rs`. Before the move,
+`lib.rs` also held the code that now lives in `write.rs`,
+`write_validation.rs`, `provider.rs`, and `ingest.rs`, so the manifest's
+unclassified-mutation counts no longer saw it. The fix adds those four files
+to the manifest's `SOURCE` `concat!`. It remains a path-only change: no
+needle, count, or assertion changed.
+
+`cargo test -p fathomdb-engine --test slice35_virtual_mutation_manifest`
+passed 1/1. As a non-vacuity check, appending a `"INSERT INTO search_index(`
+literal to `ingest.rs` made the test fail with
+`unclassified mutation: "INSERT INTO search_index(` (left 2, right 1). The
+temporary mutant was then reverted.
+
+The review's NIT #3 is recorded as a scoped exemption, not a test change. The
+validation-before-mutation property may generate an all-edge batch that
+carries no late vector kind. It still asserts `WriteValidation` and an
+unchanged full snapshot. Late-enrolment rollback is owned by the
+`late_provenance` and `enrolment_raise` table cases.
+
+The stale `commit_projection_outcomes` expectation in the slice35 Python audit
+predates this slice (`2a65a38a`). It is tracked as
+`TC-d0e9c5c9-1f4a-4cee-b175-286fd77efc42` (ledger `seq-257`).

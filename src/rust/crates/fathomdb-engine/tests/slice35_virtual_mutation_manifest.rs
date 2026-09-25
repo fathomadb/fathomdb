@@ -3,7 +3,11 @@
 
 const SOURCE: &str = concat!(
     include_str!("../src/lib.rs"),
+    include_str!("../src/write.rs"),
+    include_str!("../src/write_validation.rs"),
     include_str!("../src/write_commit.rs"),
+    include_str!("../src/provider.rs"),
+    include_str!("../src/ingest.rs"),
     include_str!("../src/consolidation.rs")
 );
 

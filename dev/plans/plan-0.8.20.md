@@ -29,7 +29,7 @@ target_release: 0.8.20
 | `derive_logical_id` = `SHA256("{kind}:{name}")` | natural-key derivation, **not** an opaque surrogate | ✓ `fn derive_logical_id` in `src/rust/crates/fathomdb-engine/src/identity.rs` |
 | `search_index_v2` = **content-storing** FTS5 | holds the **body verbatim** (no `content=''`) | ✓ `fathomdb-schema/src/lib.rs:427` |
 | `truncate_wal()` **already exists** | `PRAGMA wal_checkpoint(TRUNCATE)`, returns typed `TruncateWalStatus::{Done,Busy}` | ✓ `pub fn truncate_wal` / `fn wal_checkpoint_truncate_once` in `src/rust/crates/fathomdb-engine/src/lib.rs`; **CLI-only** (the `args.truncate_wal` → `wire_recover(…, "truncate-wal", …)` arm in `fathomdb-cli/src/lib.rs`); **NOT called by `purge`/`excise`** |
-| op-store record erasure | **does not exist** — only a cap-based retention sweep | ✓ `fn enforce_provenance_retention` in `src/rust/crates/fathomdb-engine/src/lib.rs` |
+| op-store record erasure | **does not exist** — only a cap-based retention sweep | ✓ `fn enforce_provenance_retention` in `src/rust/crates/fathomdb-engine/src/write_commit.rs` |
 | REQ-037 → AC-041 | recovery surface CLI-only; AC-041 tests the **REQ-054 five-name denylist** only | ✓ `dev/requirements.md:332`; `dev/acceptance.md:688` |
 | AC minting floor | ~~highest existing AC = AC-077~~ **CORRECTED (TC-14):** highest **defined, non-reserved** AC = **AC-076**; AC-077/078 are **live IR-1/IR-2 reservations** ⇒ **0.8.20 mints from AC-079**. Never mint by "max AC id + 1" — see the warning in §3. | ✓ `dev/acceptance.md:1147` (AC-076), `:1286`/`:1297` (reservations) |
 
@@ -1006,7 +1006,7 @@ broken code (§0.1). **Mint ACs from AC-079** (§3). **Run NO eu7 — R-20-EU7 i
    (TC-33 fix-4) was already fixed in-release; and "carried unfixed across releases" is the F-30 trap. **Fix
    shape (implementer + codex micro-call):** prefer `'up_to_date'` at both `record_projection_terminal` call
    sites that pass `"superseded"` — the two prune loops inside `fn commit_batch` in
-   `src/rust/crates/fathomdb-engine/src/lib.rs`, one after `prior_edge_cursors_by_logical_id` (G0) and one after
+   `src/rust/crates/fathomdb-engine/src/write_commit.rs`, one after `prior_edge_cursors_by_logical_id` (G0) and one after
    `prior_edge_cursors_by_triple` (G11); grep
    `record_projection_terminal(&tx, *sc as u64, "superseded")` for exactly those two —
    **no migration** — over widening the terminal CHECK to admit `'superseded'`

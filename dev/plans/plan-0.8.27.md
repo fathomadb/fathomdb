@@ -462,6 +462,12 @@ multi-source semantics.
 
 ### Slice 60 — write, ingest, consolidation, and actuation
 
+Execute the independently reviewed
+[`Slice 60 plan`](0.8.27/features/slice-60/plan.md) and
+[`design`](0.8.27/features/slice-60/design.md). They narrow actuation to
+import rewiring (`actuation.rs` already owns that domain) and add a full-state
+write-boundary characterization before the moves.
+
 Organize validation, translation, execution, commit, provenance, extractor,
 consolidator, and actuation boundaries while preserving transaction boundaries
 and call order.

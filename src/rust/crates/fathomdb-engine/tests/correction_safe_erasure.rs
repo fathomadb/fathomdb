@@ -274,6 +274,7 @@ const ROLLBACK_TABLES: &[&str] = &[
     "_fathomdb_source_links",
     "_fathomdb_source_versions",
     "_fathomdb_dependency_closures",
+    "_fathomdb_open_state",
     "_fathomdb_actuation_receipts",
     "_fathomdb_actuation_receipt_source_refs",
     "operational_mutations",
@@ -920,10 +921,73 @@ fn make_soft_closure_nonterminal(db: &Path, cause: &str, phase: SoftClosurePhase
         )
         .unwrap();
     assert_eq!(changed, 1, "fixture must mutate exactly one soft closure");
+    if matches!(phase, SoftClosurePhase::Proving) {
+        keep_proving_through_bounded_maintenance(&connection, &closure_id);
+    }
     closure_id
 }
 
-fn assert_soft_closure_absent(db: &Path, closure_id: &str) {
+fn keep_proving_through_bounded_maintenance(connection: &Connection, closure_id: &str) {
+    const MAINTENANCE_WINDOW: i64 = 32;
+
+    let maximum: i64 = connection
+        .query_row("SELECT MAX(closure_sequence) FROM _fathomdb_dependency_closures", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    let target_sequence = maximum + MAINTENANCE_WINDOW + 1;
+    connection
+        .execute(
+            "UPDATE _fathomdb_dependency_closures SET closure_sequence=?2 \
+             WHERE closure_operation_id=?1",
+            rusqlite::params![closure_id, target_sequence],
+        )
+        .unwrap();
+    for offset in 1..=MAINTENANCE_WINDOW {
+        let decoy_id = format!("_fdb:c:{}", digest(&format!("{closure_id}:decoy:{offset}")));
+        let retry = digest(&format!("{closure_id}:retry:{offset}"));
+        connection
+            .execute(
+                "INSERT INTO _fathomdb_dependency_closures(\
+                   schema_version,closure_operation_id,root_kind,root_value,cause,\
+                   effective_at_epoch_s,admitted_write_boundary,admitted_dependency_generation,\
+                   closure_sequence,retry_fingerprint,phase,affected_count,blocker_code,\
+                   structural_proof_write_boundary,proof_json\
+                 ) SELECT schema_version,?2,root_kind,root_value,cause,effective_at_epoch_s,\
+                          admitted_write_boundary,admitted_dependency_generation,?3,?4,\
+                          'incomplete',affected_count,'proof_unavailable',NULL,NULL \
+                   FROM _fathomdb_dependency_closures WHERE closure_operation_id=?1",
+                rusqlite::params![closure_id, decoy_id, maximum + offset, retry],
+            )
+            .unwrap();
+    }
+    connection
+        .execute(
+            "UPDATE _fathomdb_open_state SET value=?1 \
+             WHERE key='_fathomdb_closure_sequence'",
+            [target_sequence.to_string()],
+        )
+        .unwrap();
+    connection
+        .execute_batch(&format!(
+            "CREATE TABLE slice50_deletion_witness(\
+                 closure_operation_id TEXT NOT NULL, phase TEXT NOT NULL\
+             ); \
+             CREATE TRIGGER witness_slice50_proving_deletion \
+             BEFORE DELETE ON _fathomdb_dependency_closures \
+             WHEN OLD.closure_operation_id='{closure_id}' \
+             BEGIN \
+                 SELECT CASE WHEN OLD.phase!='proving' \
+                     THEN RAISE(ABORT, 'target closure left proving before deletion') END; \
+                 INSERT INTO slice50_deletion_witness VALUES(\
+                     OLD.closure_operation_id,OLD.phase\
+                 ); \
+             END;"
+        ))
+        .unwrap();
+}
+
+fn assert_soft_closure_absent(db: &Path, closure_id: &str, phase: SoftClosurePhase) {
     let connection = Connection::open(db).unwrap();
     let count: i64 = connection
         .query_row(
@@ -934,6 +998,23 @@ fn assert_soft_closure_absent(db: &Path, closure_id: &str) {
         )
         .unwrap();
     assert_eq!(count, 0, "nonphysical closure retained erased revision identity");
+    if matches!(phase, SoftClosurePhase::Proving) {
+        let witnessed = connection
+            .prepare(
+                "SELECT phase FROM slice50_deletion_witness \
+                 WHERE closure_operation_id=?1",
+            )
+            .unwrap()
+            .query_map([closure_id], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(
+            witnessed,
+            ["proving"],
+            "the target must still be proving immediately before hard-erasure deletion"
+        );
+    }
 }
 
 fn assert_exact_physical_proof(db: &Path, erasure: HardErasure, source_bucket: &str) {
@@ -993,7 +1074,7 @@ fn nonterminal_soft_closure_state_machine_erases_identity_and_preserves_physical
                     erasure
                         .apply(&fixture.opened.engine, original_bucket)
                         .unwrap_or_else(|error| panic!("{name}: hard erasure failed: {error}"));
-                    assert_soft_closure_absent(&fixture.db, &closure_id);
+                    assert_soft_closure_absent(&fixture.db, &closure_id, phase);
                     assert_exact_physical_proof(&fixture.db, erasure, original_bucket);
 
                     let connection = Connection::open(&fixture.db).unwrap();

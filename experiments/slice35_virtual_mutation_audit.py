@@ -294,7 +294,6 @@ PRODUCTION_INVENTORY = [
         ("migrate_vector_partition_to_pack1", "DROP TABLE", "vector_default"),
         ("migrate_vector_partition_to_pack1", "INSERT INTO", "vector_default"),
         ("project_canonical_edge_row", "INSERT INTO", "search_index_edges"),
-        ("prune_edge_projection_shadows", "DELETE FROM", "search_index_edges"),
         ("project_canonical_node_row", "INSERT INTO", "search_index"),
         ("project_canonical_node_row", "INSERT INTO", "search_index_v2"),
         ("project_one_attribute", "INSERT INTO", "property_search_index"),
@@ -306,13 +305,17 @@ PRODUCTION_INVENTORY = [
         ("vector_partition_create_sql", "CREATE VIRTUAL TABLE", "vector_default"),
         ("write_vector_for_test", "INSERT INTO", "vector_default"),
     ]
+] + [
+    MutationSite(
+        "consolidation.rs", "prune_edge_projection_shadows", "DELETE FROM", "search_index_edges"
+    )
 ]
 
 PRODUCTION_HELPER_CALLERS = {
     "delete_vector_partition_row": Counter(
         {
             ("write_commit.rs", "apply_batch_in_transaction"): 2,
-            ("lib.rs", "prune_edge_projection_shadows"): 1,
+            ("consolidation.rs", "prune_edge_projection_shadows"): 1,
             ("lib.rs", "run_pin_and_requantize_pass"): 1,
             ("lib.rs", "prune_orphaned_edge_vectors"): 1,
             ("lib.rs", "commit_projection_outcomes"): 1,

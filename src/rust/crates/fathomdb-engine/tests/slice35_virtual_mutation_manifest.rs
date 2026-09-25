@@ -1,7 +1,11 @@
 //! Coupling audit supplementing the whole-crate closed scanner in
 //! `experiments/slice35_virtual_mutation_audit.py`.
 
-const SOURCE: &str = concat!(include_str!("../src/lib.rs"), include_str!("../src/write_commit.rs"));
+const SOURCE: &str = concat!(
+    include_str!("../src/lib.rs"),
+    include_str!("../src/write_commit.rs"),
+    include_str!("../src/consolidation.rs")
+);
 
 fn function_body(name: &str) -> &'static str {
     let start = SOURCE.find(&format!("fn {name}(")).unwrap_or_else(|| panic!("missing {name}"));

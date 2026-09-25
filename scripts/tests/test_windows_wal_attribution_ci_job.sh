@@ -8,6 +8,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
 SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
 ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
+ERASURE_SOURCE="${ERASURE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/erasure.rs}"
 PY_SOURCE="${PY_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-py/src/lib.rs}"
 PY_CONTROL="${PY_CONTROL:-$REPO_ROOT/src/python/tests/test_slice65_wal_attribution_installed.py}"
 HOOK_CONTRACT="${HOOK_CONTRACT:-$REPO_ROOT/scripts/release/smoke/python-test-hooks-v1.json}"
@@ -657,6 +658,61 @@ done
 if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"
   trap 'rm -rf "$TMPROOT"' EXIT
+
+  WRONG_ENGINE_OWNER="$TMPROOT/erasure-as-engine-owner.rs"
+  cp "$ERASURE_SOURCE" "$WRONG_ENGINE_OWNER"
+  set +e
+  wrong_engine_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$WRONG_ENGINE_OWNER" ERASURE_SOURCE="$ERASURE_SOURCE" bash "$0" 2>&1)"
+  wrong_engine_owner_rc=$?
+  set -e
+  if [ "$wrong_engine_owner_rc" -ne 0 ] \
+    && grep -Fq 'engine source owns the WAL-attribution runtime and tests' <<<"$wrong_engine_owner_out"; then
+    pass "fixture proves ENGINE_SOURCE is independently injectable"
+  else
+    fail "fixture did not reject the wrong engine owner: $wrong_engine_owner_out"
+  fi
+
+  MISSING_ERASURE_OWNER="$TMPROOT/erasure-without-completion-owner.rs"
+  sed 's/fn complete_erasure_at_rest(/fn completion_owner_removed(/' \
+    "$ERASURE_SOURCE" >"$MISSING_ERASURE_OWNER"
+  set +e
+  missing_erasure_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ENGINE_SOURCE" ERASURE_SOURCE="$MISSING_ERASURE_OWNER" bash "$0" 2>&1)"
+  missing_erasure_owner_rc=$?
+  set -e
+  if [ "$missing_erasure_owner_rc" -ne 0 ] \
+    && grep -Fq 'erasure source owns complete_erasure_at_rest' <<<"$missing_erasure_owner_out"; then
+    pass "fixture proves ERASURE_SOURCE rejects a missing completion owner"
+  else
+    fail "fixture did not reject the missing erasure owner: $missing_erasure_owner_out"
+  fi
+
+  SWAPPED_ERASURE_ORDER="$TMPROOT/erasure-with-observer-after-checkpoint.rs"
+  python3 - "$ERASURE_SOURCE" "$SWAPPED_ERASURE_ORDER" <<'PY'
+import sys
+
+source_path, output_path = sys.argv[1:]
+source = open(source_path, encoding="utf-8").read()
+owner = source.index("    pub(crate) fn complete_erasure_at_rest(")
+checkpoint = source.index(
+    "            let checkpoint_result = self.wal_checkpoint_truncate_once(false);", owner
+)
+observer = source.rfind("            #[cfg(any(test, feature = \"test-hooks\"))]", owner, checkpoint)
+observer_end = source.index("            );\n", observer) + len("            );\n")
+checkpoint_end = source.index("\n", checkpoint) + 1
+observer_block = source[observer:observer_end]
+mutated = source[:observer] + source[observer_end:checkpoint_end] + observer_block + source[checkpoint_end:]
+open(output_path, "w", encoding="utf-8").write(mutated)
+PY
+  set +e
+  swapped_erasure_order_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ENGINE_SOURCE" ERASURE_SOURCE="$SWAPPED_ERASURE_ORDER" bash "$0" 2>&1)"
+  swapped_erasure_order_rc=$?
+  set -e
+  if [ "$swapped_erasure_order_rc" -ne 0 ] \
+    && grep -Fq 'erasure source keeps the before observer ahead of the checkpoint' <<<"$swapped_erasure_order_out"; then
+    pass "fixture proves ERASURE_SOURCE ordering is independently injectable"
+  else
+    fail "fixture did not reject swapped erasure observer/checkpoint ordering: $swapped_erasure_order_out"
+  fi
 
   BINDING_WORKFLOW_PROBES_MUTATED="$TMPROOT/ci-with-binding-probes-two.yml"
   sed '/python_binding_direct_inventory=/ s/workers:2,probes:0/workers:2,probes:2/' \

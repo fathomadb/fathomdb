@@ -938,7 +938,7 @@ impl Engine {
     /// [`EngineError::ErasureIncomplete`] — **an erasure verb must never report
     /// success on an incomplete erasure.** The retry budget is deliberately small
     /// (~100 ms total): the caller retries the verb, the verb does not block.
-    fn complete_erasure_at_rest(&self, verb: &'static str) -> Result<(), EngineError> {
+    pub(crate) fn complete_erasure_at_rest(&self, verb: &'static str) -> Result<(), EngineError> {
         // The ids are NOT passed in: they were persisted inside the erasing
         // transaction, and this drains that queue. The WAL truncation below then
         // runs AFTER the pending rows have been deleted, so the freed pages

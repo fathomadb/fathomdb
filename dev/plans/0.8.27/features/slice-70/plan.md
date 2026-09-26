@@ -91,7 +91,7 @@ points:
 
 ## Assigned inventory and disposition
 
-Line numbers are approximate at `6f3b625e`. The by-name inventory in
+Line numbers are approximate at `a95b5b0f`. The by-name inventory in
 `design.md` is authoritative.
 
 | Destination (private) | Inventory from `lib.rs` |

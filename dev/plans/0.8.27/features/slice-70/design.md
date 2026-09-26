@@ -119,7 +119,12 @@ their final owner. Slice 70 does not change the struct's shape.
     embed seams at `lib.rs:9401-10483`;
   - `projection_status`, whose only caller is `projection_status_for_test`;
   - `pub mod mean_centering_internals_for_test` and its public constant
-    `MEAN_VEC_PIN_THRESHOLD`. `mean.rs` reaches them through `super::`.
+    `MEAN_VEC_PIN_THRESHOLD`. `mean.rs` reaches the constant through
+    `super::`. In the other direction, the root module
+    `mean_centering_internals_for_test` uses `MeanAccumulator` (with its
+    `new`, `add`, `materialize`, and `count` methods) and
+    `run_requantize_pass`. After batch 3, the root imports them from `mean`,
+    and those items and methods become `pub(crate)`.
 - **Why these stay:** Slice 140 gates the always-compiled doc-hidden test
   seams, and root placement keeps that gating one edit.
 - **Unclassified items:** any item not listed above stays at root.
@@ -156,9 +161,11 @@ their final owner. Slice 70 does not change the struct's shape.
    - **Precedence:** the Slice 40 table lists both "`failed` + no sidecar +
      no vec0 → failed" and "edge member not enrolled → corrupt". For a
      failed, unenrolled edge, the specific failed row wins. It carries no
-     enrolment qualifier, and the same table states that "enrolment is
-     scheduler state, not physical-completion authority". The edge row's
-     rationale concerns enrolment required before publication. This is also
+     enrolment qualifier. The edge row's rationale concerns enrolment that
+     must be complete before publication. (The table's phrase "enrolment is
+     scheduler state" is scoped to node-only completion and is not relied
+     on here.) The ambiguity is recorded for a future Slice 40 design edit.
+     This is also
      current production behavior (`projection_generation.rs` `Failed` arm),
      which a characterization test must pin.
    - **Oracle:** a hand-written expected function that transcribes the
@@ -195,7 +202,8 @@ their final owner. Slice 70 does not change the struct's shape.
      transaction held both a `failed` terminal and a `projection_failures`
      audit row. At the pause, assert zero terminal rows and zero
      `operational_mutations` rows in collection `projection_failures` for
-     that cursor.
+     that cursor. Then release, `drain`, and assert that the failure count is
+     exactly 1, so the redispatched failure is recorded once.
    - **Non-vacuity mutant:** temporarily move the forced-failure block in
      `commit_projection_outcomes` after `tx.commit()`. Both arms must
      fail.
@@ -292,7 +300,9 @@ stops for a separate RED/GREEN correction.
     tests counts as a failure, not a pass.
   - the slice35 manifest test, the audit test, the manifest body-identity
     check, and the C1 gate when the batch moved a C1 owner.
-- **At the pre-move receipt and at the final Rust candidate (heavy):**
+- **At the pre-move receipt and at the final Rust candidate (heavy):** the
+  captures at the docs-only commit `a95b5b0f` serve as the pre-move receipt,
+  because the characterization tests change no public item.
   - a Slice 30 public capture and compare against the immutable
     `dev/plans/0.8.27/features/slice-30/baseline.json` (Node `v25.9.0`, as
     pinned);

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 70 - design review
-status: IN_REVIEW
+status: PASS
 target_release: 0.8.27
 ---
 
@@ -26,3 +26,25 @@ in the design and plan revision:
 | 8 | P3 | `mean_centering_internals_for_test` is a test seam, and the removal gate was named wrongly. | It stays at root with `MEAN_VEC_PIN_THRESHOLD`. AC-050c runs against the pre-move base. |
 | 9 | P3 | The slice35 manifest `function_body` can go vacuously green after a visibility change. | Per-batch byte-identity check of the extracted bodies. |
 | 10 | P3 | Stale plan text and baselines; the `plan-0.8.20.md` anchors were not named. | Corrected and named. |
+
+## Cycle 2 — PASS-WITH-FIXES at `b33e8091`
+
+Every cycle-1 resolution was verified against the code. The reviewer
+confirmed:
+
+- **C1 retarget:** owner-to-batch mapping and `--list-sources` fixture
+  derivation.
+- **Batches:** all ten are within 300-1,200 lines and compile-feasible.
+- **Classifier oracle:** it equals `classify_completion`, and both mutants
+  are killed.
+- **Failed-outcome arm:** the audit row and the `failed` terminal are written
+  on the transaction that the forced failure drops.
+
+Four P3 text findings were closed without a further review cycle:
+
+- the node-scoped precedence quote was removed;
+- the `mean.rs` dependency direction and the method visibility were stated;
+- the failed-outcome arm now checks recovery; and
+- the pre-move receipt and baseline wording were aligned.
+
+Implementation may start.

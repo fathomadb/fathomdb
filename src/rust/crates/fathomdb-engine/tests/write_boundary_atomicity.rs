@@ -483,6 +483,47 @@ fn row_trigger_commit_refusal_leaves_full_state_unchanged() {
     fixture.assert_next_cursor_unconsumed();
 }
 
+#[cfg(feature = "test-hooks")]
+#[test]
+fn armed_commit_abort_does_not_survive_validation_refusal() {
+    let fixture = seeded("commit-abort-validation");
+    arm_next_write_commit_abort(&fixture);
+    let outcome = fixture.engine().write(&[plain_node(
+        LATE_KIND,
+        "commit-abort-validation-bad",
+        "inverted window",
+        Some(20),
+        Some(10),
+    )]);
+    assert_eq!(outcome.unwrap_err(), EngineError::WriteValidation);
+    fixture.assert_next_cursor_unconsumed();
+}
+
+#[cfg(feature = "test-hooks")]
+#[test]
+fn commit_error_before_abort_hook_does_not_poison_next_write() {
+    let fixture = seeded("commit-abort-error");
+    fixture
+        .engine()
+        .execute_for_test(
+            "CREATE TABLE slice60_commit_parent(id INTEGER PRIMARY KEY); \
+             CREATE TABLE slice60_commit_child( \
+                 parent_id INTEGER REFERENCES slice60_commit_parent(id) \
+                 DEFERRABLE INITIALLY DEFERRED \
+             ); \
+             CREATE TEMP TRIGGER slice60_commit_deferred_fk \
+             AFTER INSERT ON main.canonical_nodes \
+             WHEN NEW.logical_id = 'commit-abort-error-bad' \
+             BEGIN INSERT INTO main.slice60_commit_child(parent_id) VALUES(1); END",
+        )
+        .unwrap();
+    arm_next_write_commit_abort(&fixture);
+    let outcome = fixture.engine().write(&[late_node("commit-abort-error-bad")]);
+    assert_eq!(outcome.unwrap_err(), EngineError::Storage);
+    drop_temp_trigger(&fixture, "slice60_commit_deferred_fk");
+    fixture.assert_next_cursor_unconsumed();
+}
+
 fn python_harness(script: &str) -> Vec<String> {
     vec!["python3".to_string(), "-c".to_string(), script.to_string()]
 }

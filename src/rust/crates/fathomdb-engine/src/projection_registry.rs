@@ -695,7 +695,7 @@ fn remove_projection_row(tx: &Connection, name: &str) -> rusqlite::Result<()> {
 /// 0.8.20 Slice 15d (R-20-EAV) — delete every EAV + property-FTS row for one
 /// attribute `name` (all owning nodes). The idempotent-rebuild primitive: a
 /// changed or dropped projection clears its rows before (re)backfill.
-pub(crate) fn clear_attribute_projection(tx: &Connection, name: &str) -> rusqlite::Result<()> {
+fn clear_attribute_projection(tx: &Connection, name: &str) -> rusqlite::Result<()> {
     tx.execute("DELETE FROM property_search_index WHERE attr_name = ?1", params![name])?;
     tx.execute("DELETE FROM canonical_attributes WHERE attr_name = ?1", params![name])?;
     Ok(())
@@ -886,7 +886,7 @@ pub(crate) fn project_node_attributes(
 /// non-superseded canonical node. Called by `configure_projections` when a
 /// projection is added/changed (after `clear_attribute_projection`), and by boot
 /// re-derive. Idempotent when paired with the clear.
-pub(crate) fn backfill_attribute(
+fn backfill_attribute(
     tx: &Connection,
     name: &str,
     stored: &StoredProjection,
@@ -1388,4 +1388,660 @@ impl Engine {
         }
         Ok(specs)
     }
+}
+
+/// 0.8.20 Slice 20c fix-1 (codex §9 [P2] "Stop embedding after vector projection
+/// drops") — **the inverse of [`enqueue_declared_vector_backfill`]'s enrolment.**
+///
+/// Slice 20c gave `_fathomdb_vector_kinds` its first governed-call-reachable
+/// writer for a NODE kind (before it, the only one was the `#[doc(hidden)]`
+/// `configure_vector_kind_for_test` hook). Forward without reverse is the defect:
+/// after `drop`ping the last `searchable→vector` declaration,
+/// [`project_canonical_node_row`]'s `kind_is_vector_indexed` gate and
+/// [`connection_has_pending_projection_work`] both still see the enrolment, so
+/// subsequent writes keep enqueueing embeds and `drain` keeps waiting on work for
+/// a projection [`Engine::read_projections`] no longer reports.
+///
+/// # It DELETES NO EMBEDDING — that is the point
+///
+/// The shipped drop arm ([`clear_attribute_projection`] +
+/// [`remove_projection_row`]) has never touched vec0, `_fathomdb_vector_rows` or
+/// `_fathomdb_vector_kinds`, so "vectors already at rest survive a drop" is
+/// ALREADY the shipped contract. Removing one registry row PRESERVES it; deleting
+/// embeddings would be the destructive delta, and is not done here.
+///
+/// # Why keyed to the TRANSITION, not to the bare post-state
+///
+/// The rule is "this call removed the last vector declaration"
+/// (`declared_before && !declared_after`), not "no vector declaration exists
+/// now". A workspace can hold enrolments this registry never made — the test hook
+/// does exactly that, and several shipped suites enrol a kind through it and then
+/// declare an unrelated `filterable`-only projection (e.g.
+/// `slice15e_prekn_filterable`). Firing on the bare post-state would un-enrol
+/// those and silently kill a dense arm the registry never owned. In production
+/// the two readings coincide: before this slice
+/// `production_vector_kind_surface=[]`, so a node kind can only be enrolled
+/// because a `searchable→vector` declaration existed.
+///
+/// It is still STATE-keyed, not delta-keyed: both members are reads of the
+/// registry, never "was this spec new". Re-applying the same drop finds
+/// `declared_before == false` and is a total no-op, and nothing re-enrols it
+/// ([`Engine::enrol_vector_kind_if_declared`] is gated on
+/// [`vector_projection_declared`]).
+///
+/// # 0.8.20 Slice 21 fix-1 — a SECOND, narrower authorisation now exists
+///
+/// The reasoning above is why the bare post-state cannot authorise this DELETE,
+/// and it still stands. What it does not cover is a database that ran the
+/// PRE-Slice-21c code and enrolled node kinds off a `{filterable, vector}`
+/// declaration: there the registry DID own the enrolment, and no transition will
+/// ever fire for it. [`registry_governs_an_inert_dense_arm`] adds exactly that
+/// case — positively conditioned on the registry existing AND declaring a
+/// `vector` sub-object AND declaring no `searchable→vector` projection, which is
+/// strictly narrower than the bare post-state and in particular excludes every
+/// workspace whose enrolment the registry never made. Its callers are
+/// [`reconcile_inert_vector_enrolments_on_boot`] and the drop arm of
+/// [`apply_projection_config`].
+///
+/// # `'edge_fact'` is excluded, deliberately
+///
+/// [`project_canonical_edge_row`] (G11) auto-registers `'edge_fact'` off the
+/// presence of an edge BODY, unconditionally and independently of the projection
+/// registry. That lifecycle predates this slice and is not the registry's to end,
+/// so a node-projection drop must not take the edge dense arm down with it.
+///
+/// # What it deliberately does NOT do
+///
+/// It touches no `_fathomdb_projection_terminal` row and no readiness watermark.
+/// A row enqueued-but-not-yet-embedded when the drop lands keeps its absent
+/// terminal, which pins the watermark below it — harmless, because both the
+/// scheduler and the pending-work probe join `_fathomdb_vector_kinds` and so no
+/// longer see it, and it is precisely what lets a later RE-declaration pick the
+/// row up again instead of stranding it.
+fn unenrol_registry_vector_node_kinds(tx: &Connection) -> rusqlite::Result<()> {
+    tx.execute("DELETE FROM _fathomdb_vector_kinds WHERE kind <> 'edge_fact'", [])?;
+    Ok(())
+}
+
+/// 0.8.20 Slice 21 fix-1 (codex §9 round 1 `[P2]`, ledger `TC-71`) — **does the
+/// registry GOVERN the dense arm while declaring none?** The narrow,
+/// positively-conditioned predicate that authorises
+/// [`unenrol_registry_vector_node_kinds`] on a bare STATE rather than on the
+/// `declared_before && !declared_after` transition.
+///
+/// # Why a state-keyed authorisation exists at all
+///
+/// Slice 21c gated the dense arm on the `searchable` ROLE, which closes the three
+/// FORWARD doors. It cannot reach a database that already ran the old code: those
+/// node kinds are already in `_fathomdb_vector_kinds`, and
+///
+/// - [`Engine::vector_kind_needs_enrolment`] returns early the moment
+///   [`kind_is_vector_indexed`] is true, so it never consults the new role-aware
+///   predicate for an EXISTING registration; and
+/// - [`project_canonical_node_row`] gates the embed enqueue solely on registry
+///   membership (deliberately — that is the hot write path, and the decision is
+///   meant to live upstream).
+///
+/// So without this, upgrading does not actually stop the billable, unexpected
+/// embeddings for exactly the population TC-71 was raised for — the finding's
+/// whole harm survives the fix unless the user happens to perform a
+/// searchable-vector-to-none transition later.
+///
+/// # THE TRAP: why it is not `!vector_projection_declared`
+///
+/// [`vector_projection_declared`] answers `false` when the registry table is
+/// ABSENT (pre-step-24) or merely EMPTY — which is every LEGACY database, many of
+/// which have a legitimately working dense arm enrolled by other means (the
+/// `#[doc(hidden)]` `configure_vector_kind_for_test` hook is one; before this
+/// slice `production_vector_kind_surface=[]`, but a workspace is not obliged to
+/// have reached its enrolment through the registry). Un-enrolling on that bare
+/// negative would silently switch vector search OFF for all of them — a far worse
+/// regression than TC-71 itself. So the rule is POSITIVE on all three counts:
+///
+///   1. `_fathomdb_projection_registry` EXISTS; **and**
+///   2. at least one row carries a `vector` sub-object (`vector_declared = 1`) —
+///      someone actually asked for a dense arm through the registry, which is
+///      precisely what identifies the affected population; **and**
+///   3. NO projection satisfies [`StoredProjection::wants_vector`], i.e. none of
+///      them is `searchable`.
+///
+/// Condition 2 is the load-bearing one. It leaves untouched a registry-governed
+/// database that declares no `vector` sub-object at all but holds enrolments from
+/// a pre-registry era (`slice15e_prekn_filterable` is exactly that shape). Being
+/// conservative here is the correct direction: never destroy a working dense arm.
+///
+/// Conditions 1+2 are the SAME two `prepare_cached` `EXISTS` probes
+/// [`vector_projection_declared`] opens with, so a workspace that never declared
+/// a `vector` sub-object — the overwhelmingly common shape — pays nothing beyond
+/// them and never reaches the typed [`load_projection_registry`] read. Condition 3
+/// is delegated to [`vector_projection_declared`] verbatim rather than re-derived,
+/// so the authorisation and the gate cannot drift.
+fn registry_governs_an_inert_dense_arm(conn: &Connection) -> rusqlite::Result<bool> {
+    // (1) the registry must EXIST. A pre-step-24 database has no registry at all
+    // and is therefore not registry-governed — hands off.
+    let table_exists: bool = conn
+        .prepare_cached(
+            "SELECT EXISTS(
+                 SELECT 1 FROM sqlite_master
+                 WHERE type = 'table' AND name = '_fathomdb_projection_registry'
+             )",
+        )?
+        .query_row([], |row| row.get(0))?;
+    if !table_exists {
+        return Ok(false);
+    }
+    // (2) …and it must actually DECLARE a `vector` sub-object somewhere. An empty
+    // or vector-less registry governs no dense arm, so any enrolment present came
+    // from outside it and is not ours to remove.
+    let any_vector_subobject: bool = conn
+        .prepare_cached(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_projection_registry WHERE vector_declared = 1)",
+        )?
+        .query_row([], |row| row.get(0))?;
+    if !any_vector_subobject {
+        return Ok(false);
+    }
+    // (3) …while declaring no `searchable→vector` projection. THE predicate,
+    // reused, so this can never disagree with the gate the write path applies.
+    Ok(!vector_projection_declared(conn)?)
+}
+
+/// 0.8.20 Slice 21 fix-1 (codex §9 round 1 `[P2]`) — the BOOT arm of the
+/// reconciliation: on every open, bring an already-enrolled inert vector kind
+/// into agreement with the role-aware decision, so an affected database
+/// self-heals without the user calling anything. Returns `true` iff it un-enrolled
+/// something.
+///
+/// Authorised by [`registry_governs_an_inert_dense_arm`] (read that for the trap
+/// this must not fall into), and performed by
+/// [`unenrol_registry_vector_node_kinds`] — the SAME writer the drop inverse uses,
+/// so `'edge_fact'` is excluded (G11 auto-registers it off the presence of an edge
+/// body, independently of the projection registry) and **no embedding is deleted**.
+///
+/// # It mirrors the drop inverse exactly, because that inverse does nothing else
+///
+/// `apply_projection_config`'s drop arm is a single call to
+/// [`unenrol_registry_vector_node_kinds`]: no terminal record is touched, no
+/// readiness watermark is rewound, no row is un-stranded, and nothing is notified
+/// (it returns `enqueued = false`). So leaving the database in "the state a drop
+/// transition would have left it in" is exactly that one `DELETE`, and there is
+/// no second half to mirror.
+///
+/// # Cheap when there is nothing to do, and idempotent
+///
+/// A workspace with no `vector` sub-object pays only the two cached `EXISTS`
+/// probes the authorisation opens with. When the authorisation DOES fire, a third
+/// cached `EXISTS` checks whether any node kind is actually enrolled, so the
+/// steady state after the first healing open is a pure READ — no write
+/// transaction, no `DELETE`, nothing to oscillate. `DELETE … WHERE kind <>
+/// 'edge_fact'` is a single statement, hence atomic on its own; no explicit
+/// transaction is opened around it.
+///
+/// # Placement
+///
+/// Runs inside `open_locked` on the writer connection, single-threaded, before
+/// readers and the projection workers spawn — alongside the other boot
+/// reconciliations ([`rederive_projections_on_boot`],
+/// [`reconcile_vector_attr_columns`]) and therefore BEFORE
+/// [`run_vector_equivalence_probe`], which is deliberate: on a database whose only
+/// enrolment was the inert one, reconciling first leaves `_fathomdb_vector_kinds`
+/// empty, so the probe correctly finds no dense arm to guard and the healing open
+/// spends no embed calls at all.
+///
+/// # Not a data migration
+///
+/// It removes a registration row inside ONE live database to match that
+/// database's own declarations. It converts no row across a version step; the
+/// reconciliation itself introduces no migration.
+pub(crate) fn reconcile_inert_vector_enrolments_on_boot(
+    conn: &Connection,
+) -> rusqlite::Result<bool> {
+    if !registry_governs_an_inert_dense_arm(conn)? {
+        return Ok(false);
+    }
+    // Nothing enrolled beyond the G11 edge arm ⇒ nothing to do. Keeps the steady
+    // state a pure read instead of a no-op write transaction on every open.
+    let any_node_kind: bool = conn
+        .prepare_cached(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_kinds WHERE kind <> 'edge_fact')",
+        )?
+        .query_row([], |row| row.get(0))?;
+    if !any_node_kind {
+        return Ok(false);
+    }
+    unenrol_registry_vector_node_kinds(conn)?;
+    Ok(true)
+}
+
+/// 0.8.20 Slice 20c (R-20-DR remainder) — is ANY `searchable→vector` projection
+/// declared in the durable registry?
+///
+/// This is the corpus-wide "the dense arm is live" predicate. It is corpus-wide
+/// rather than per-attribute for the same reason [`derive_dense_readiness`] is:
+/// Slice 15d persists the `searchable→vector` sub-object but defers building any
+/// per-attribute embedding, so every declared vector projection is served by the
+/// ONE engine vector pipeline. When per-attribute embedding lands, this is where
+/// the scoping goes — the same seam as readiness.
+///
+/// Safe on a pre-step-24 schema (the registry table is created by step 24): an
+/// absent table means nothing is declared, not an error. Mirrors the guard in
+/// [`load_projection_registry`], and uses `prepare_cached` because the write path
+/// calls this once per un-registered-kind row.
+///
+/// # 0.8.20 Slice 21c (ledger `TC-71`) — it requires the `searchable` ROLE
+///
+/// This used to answer `EXISTS(… WHERE vector_declared = 1)`, reading the stored
+/// `vector` sub-object and never the `roles` column. But the sub-object SELECTS
+/// a sub-target of `searchable`; it does not confer one (exactly as `fts` does
+/// not — see [`StoredProjection::wants_property_fts`]). So
+/// `{roles: [filterable], vector: {}}`, which Slice 15d documents as
+/// inert-but-round-trippable, turned the dense arm ON in any session with a live
+/// embedder: it enrolled node kinds, backfilled the corpus, and made every later
+/// write of those kinds enqueue an embedding. Wasted embed work and unexpected
+/// vectors at rest for a projection meant to do nothing. The answer now comes
+/// from [`StoredProjection::wants_vector`], the ONE predicate, so the three
+/// gated paths cannot drift.
+///
+/// **This flips the forward AND inverse arms of [`apply_projection_config`] at
+/// once**, which is a real semantic consequence and not an accident: demoting
+/// the last `{searchable, vector}` projection to `{filterable, vector}` (or
+/// dropping it while an inert `{filterable, vector}` sibling survives) now reads
+/// `declared → not-declared` and therefore UN-ENROLS, where before the surviving
+/// `vector_declared = 1` row masked the transition and the write path kept
+/// embedding. Pinned in `tests/slice21c_vector_role_gate.rs`.
+///
+/// # Why the cheap `EXISTS` survives as a pre-filter
+///
+/// The write path calls this once per un-registered-kind row, and the
+/// overwhelmingly common shape is a workspace that declared no `vector`
+/// sub-object at all. `EXISTS(… vector_declared = 1)` is a NECESSARY condition
+/// for [`StoredProjection::wants_vector`], so keeping it as a fast negative
+/// leaves that workspace paying exactly the two cached `EXISTS` probes it paid
+/// before — no typed load, no `BTreeMap`, no uncached `prepare`. Only a
+/// workspace that HAS a `vector` sub-object somewhere pays the
+/// [`load_projection_registry`] read, and there the registry is a handful of
+/// app-declared rows; in the ordinary `searchable→vector` case the kind is
+/// enrolled after the first probe and `kind_is_vector_indexed` short-circuits
+/// this call entirely from then on.
+pub(crate) fn vector_projection_declared(conn: &Connection) -> rusqlite::Result<bool> {
+    let table_exists: bool = conn
+        .prepare_cached(
+            "SELECT EXISTS(
+                 SELECT 1 FROM sqlite_master
+                 WHERE type = 'table' AND name = '_fathomdb_projection_registry'
+             )",
+        )?
+        .query_row([], |row| row.get(0))?;
+    if !table_exists {
+        return Ok(false);
+    }
+    // Fast negative: no `vector` sub-object anywhere ⇒ certainly no dense arm.
+    let any_vector_subobject: bool = conn
+        .prepare_cached(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_projection_registry WHERE vector_declared = 1)",
+        )?
+        .query_row([], |row| row.get(0))?;
+    if !any_vector_subobject {
+        return Ok(false);
+    }
+    // `roles` is persisted as a comma-joined sorted string, so it is not a
+    // trustworthy SQL predicate (a `LIKE` would match a forward-compat token that
+    // merely CONTAINS a role spelling). Answer through the typed registry and the
+    // ONE predicate instead.
+    Ok(load_projection_registry(conn)?.values().any(StoredProjection::wants_vector))
+}
+
+/// 0.8.20 Slice 20c (R-20-DR remainder) — enrol `kind` in the vector pipeline.
+///
+/// `INSERT OR IGNORE`, so it is idempotent and never disturbs an existing
+/// registration's `profile`/`created_at`. Same statement shape the G11 edge path
+/// uses for `'edge_fact'` ([`project_canonical_edge_row`]).
+pub(crate) fn register_vector_kind(tx: &Connection, kind: &str) -> rusqlite::Result<()> {
+    tx.execute(
+        "INSERT OR IGNORE INTO _fathomdb_vector_kinds(kind, profile, created_at)
+         VALUES(?1, ?2, 0)",
+        params![kind, DEFAULT_VECTOR_PROFILE],
+    )?;
+    Ok(())
+}
+
+/// 0.8.20 Slice 20c (R-20-DR remainder) — **the flush barrier's enqueue half**
+/// (`api-surface.md` **C4** rider: `drain` is a barrier, not a trigger, so
+/// deferred/backfill rows must be enqueued on the same projection runtime `drain`
+/// waits on).
+///
+/// Runs on the caller's `configure_projections` write transaction, AFTER the
+/// registry mutations, so the enrolment + re-enqueue commit atomically with the
+/// declaration that caused them. Returns `true` iff work was enqueued — the
+/// caller must then `notify_new_work()` (after the commit; the dispatcher opens
+/// its own connection).
+///
+/// # The defect this closes
+///
+/// `project_canonical_node_row` writes a PERMANENT `'up_to_date'` terminal for
+/// any row whose kind was not vector-registered *at write time*, and before this
+/// slice NOTHING but the `#[doc(hidden)]` test hook ever registered a node kind
+/// (`slice-G0-design.md`: `production_vector_kind_surface=[]`). So the ordinary
+/// "turn the dense arm on over an existing corpus" flow — write rows, then
+/// declare `searchable→vector` — left every row terminally marked done with no
+/// vector and no way to get one short of an operator `rebuild`. Both
+/// `drain`/`wait_for_idle` and `derive_dense_readiness` read that terminal
+/// through [`connection_has_pending_projection_work`], so the corpus reported
+/// `ready` while nothing would ever embed it.
+///
+/// # Shape (deliberately the `run_rebuild` shape, scoped)
+///
+/// `run_rebuild` truncates the readiness terminals and rewinds the projection
+/// cursor so the scheduler re-walks the corpus. This does the same, but scoped to
+/// the rows the declaration newly covers, and it does NOT truncate anything else:
+///
+/// 1. enrol every vector-eligible node kind present in `canonical_nodes`
+///    (`row_kind IN ('leaf','coverage')` — the `index_targets_for_row_kind`
+///    vector-eligibility predicate; `graph` rows are lexically searchable but
+///    never embedded, so enrolling on them would silently start embedding
+///    structural rows) **that the vector writer can commit**
+///    ([`kind_is_vector_committable`], fix-2 / codex §9 [P1]);
+/// 2. (and 3.) un-strand the rows that enrolment now covers, via
+///    [`reenqueue_stranded_vector_rows`] — shared verbatim with the write path's
+///    late enrolment.
+///
+/// # Why it is IDEMPOTENT (R-20-PR: "re-registration is a no-op")
+///
+/// Every step keys off *state*, not off "was this declaration new": step 1 is
+/// `INSERT OR IGNORE`; steps 2-3 act only on rows that are stranded RIGHT NOW.
+/// Once the backfill has been drained those rows carry vectors, so a re-apply
+/// finds an empty stranded set, returns `false`, and touches neither the
+/// terminals nor the cursor. No rewind, no re-embed, no spurious `embedding`
+/// window.
+///
+/// # Not a data migration
+///
+/// This re-enqueues embed work inside ONE live database at the caller's request.
+/// It converts no rows across a version step and introduces no migration (HITL
+/// 2026-07-21; cf. TC-46's in-place vec0 reshape).
+/// 0.8.20 Slice 22 (R-20-VC / **TC-67**) — the ONE scan of "which node kinds in
+/// this corpus are candidates for the dense arm?".
+///
+/// `row_kind IN ('leaf', 'coverage')` is the `index_targets_for_row_kind` vector
+/// -eligibility predicate: `graph` rows are lexically searchable but NEVER
+/// embedded, so they are excluded here on a ROW-KIND axis that has nothing to do
+/// with the `kind` vocabulary — including them would make TC-67 report structural
+/// rows as "unsupported kinds", which is a different (and false) statement.
+///
+/// Extracted so [`enqueue_declared_vector_backfill`] (which enrols the
+/// commit-able half) and [`unsupported_vector_kinds`] (which reports the other
+/// half) partition ONE list rather than running two hand-copied queries that
+/// could drift — the same TC-56 anti-drift discipline that made
+/// [`kind_is_vector_committable`] delegate to [`resolve_source_type`].
+///
+/// `SELECT DISTINCT … ORDER BY kind` gives the caller a sorted, de-duplicated
+/// list for free, which is the reported ordering.
+fn vector_eligible_node_kinds(tx: &Connection) -> rusqlite::Result<Vec<String>> {
+    let mut stmt = tx.prepare(
+        "SELECT DISTINCT kind FROM canonical_nodes
+         WHERE row_kind IN ('leaf', 'coverage')
+         ORDER BY kind",
+    )?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+    rows.collect::<rusqlite::Result<Vec<String>>>()
+}
+
+/// 0.8.20 Slice 22 (R-20-VC / **TC-67**) — **the report that replaces the
+/// silence.** The vector-eligible node kinds present in the corpus that
+/// [`kind_is_vector_committable`] excludes, i.e. the exact complement of the set
+/// [`enqueue_declared_vector_backfill`] enrols.
+///
+/// Populates [`ProjectionDelta::vector_unsupported_kinds`]. Read that field's
+/// doc-comment for the naming, the state-not-diff semantics and the residual;
+/// what belongs HERE is the one thing the call SITE decides:
+///
+/// **It is deliberately NOT gated on `dense_arm_live`.** The enrolment it mirrors
+/// is (`apply_projection_config` only calls `enqueue_declared_vector_backfill`
+/// with a usable dense runtime, the Q6a graceful-absent path), but this answer does not
+/// depend on the session: [`resolve_source_type`]'s vocabulary is a compile-time
+/// constant, so "this kind can never be embedded" is equally true with no
+/// embedder attached. Gating it would hide the permanent fact behind the
+/// transient one, which is the very conflation TC-67 exists to end — a
+/// no-embedder caller is exactly the caller who most needs to know that
+/// attaching an embedder later will still not embed these kinds.
+pub(crate) fn unsupported_vector_kinds(tx: &Connection) -> rusqlite::Result<Vec<String>> {
+    Ok(vector_eligible_node_kinds(tx)?
+        .into_iter()
+        .filter(|kind| !kind_is_vector_committable(kind))
+        .collect())
+}
+
+fn enqueue_declared_vector_backfill(tx: &Connection) -> rusqlite::Result<bool> {
+    if !vector_projection_declared(tx)? {
+        return Ok(false);
+    }
+
+    // (1) Enrol the vector-eligible kinds the live corpus actually contains —
+    // RESTRICTED to the ones the vector writer can actually commit
+    // ([`kind_is_vector_committable`], fix-2 / codex §9 [P1]). Enrolling a kind
+    // outside `resolve_source_type`'s locked vocabulary wedges the projection
+    // worker forever and starves every other kind with it.
+    //
+    // 0.8.20 Slice 22 (TC-67) — the kinds this filter DROPS are what
+    // [`unsupported_vector_kinds`] reports; both read the same scan through
+    // [`vector_eligible_node_kinds`] so the report can never describe a
+    // different set from the one actually excluded.
+    let kinds = vector_eligible_node_kinds(tx)?;
+    for kind in kinds.iter().filter(|kind| kind_is_vector_committable(kind)) {
+        register_vector_kind(tx, kind)?;
+    }
+
+    // (2)+(3) Un-strand the rows the new enrolment now covers.
+    reenqueue_stranded_vector_rows(tx)
+}
+
+/// Enrol and requeue a durable vector declaration during a safe open. The
+/// prospective-equivalence guard runs before this function; this function owns
+/// the one durable transaction that makes a crash converge to either the old
+/// state or a fully queued repair.
+pub(crate) fn boot_graft_declared_vector_backfill(
+    connection: &Connection,
+) -> rusqlite::Result<bool> {
+    if !vector_projection_declared(connection)? {
+        return Ok(false);
+    }
+    connection.execute_batch("BEGIN IMMEDIATE")?;
+    match enqueue_declared_vector_backfill(connection) {
+        Ok(enqueued) => {
+            connection.execute_batch("COMMIT")?;
+            Ok(enqueued)
+        }
+        Err(error) => {
+            let _ = connection.execute_batch("ROLLBACK");
+            Err(error)
+        }
+    }
+}
+
+/// 0.8.20 Slice 20c — steps (2) and (3) of the declared-backfill above, as their
+/// own function because **both** enrolment doors owe this treatment.
+///
+/// fix-2 (codex §9 [P2]): [`enqueue_declared_vector_backfill`] is the DECLARE-time
+/// door; [`Engine::batch_vector_kinds_needing_enrolment`] selects the WRITE-time
+/// enrolment set, and the old write-time path used to
+/// enrol a kind while enqueueing only the row in its own batch. A database that
+/// persisted a `searchable→vector` declaration while opened WITHOUT an embedder
+/// (Q6a graceful-absent: it defers, enrolling nothing), then reopened WITH one and
+/// wrote the same kind BEFORE re-applying the projection, therefore drained the new
+/// row and reported `ready` while every row from the no-embedder session kept its
+/// permanent `'up_to_date'` terminal and no vector. That is a FALSE READY — the
+/// exact defect class R-20-DR exists to eliminate — so the two doors share ONE
+/// implementation rather than one of them carrying a partial copy.
+///
+/// Returns `true` iff work was re-enqueued; the caller must then `notify_new_work()`
+/// (after its commit — the dispatcher opens its own connection).
+///
+///   2. find the STRANDED rows — vector-eligible, now vector-kind-registered,
+///      carrying an `'up_to_date'` terminal, and carrying NO `_fathomdb_vector_rows`
+///      row — and delete their terminals so the scheduler's `terminal IS NULL`
+///      predicate sees them again;
+///   3. rewind the readiness watermark to just below the lowest stranded cursor, so
+///      the scheduler's `write_cursor > cursor` filter reaches them.
+///
+/// The `_fathomdb_vector_kinds` join is what scopes this to the dense arm: a kind
+/// that is not enrolled (including one that is not commit-able, per
+/// [`kind_is_vector_committable`]) is not stranded — it has no dense arm to be
+/// behind on.
+///
+/// Idempotent by construction: it acts only on rows that are stranded RIGHT NOW, so
+/// once drained the set is empty, it returns `false`, and neither the terminals nor
+/// the cursor are touched. A `'failed'` terminal is deliberately NOT re-enqueued
+/// (the filter is `'up_to_date'`): re-enqueueing it would loop a permanently-failing
+/// row forever, and the documented failure boundary is that a terminally-failed
+/// embed stops being outstanding work (see [`derive_dense_readiness`]).
+pub(crate) fn reenqueue_stranded_vector_rows(tx: &Connection) -> rusqlite::Result<bool> {
+    // (2) The stranded set: covered by the dense arm, terminally marked done, no
+    // vector. `MIN` first so a no-op apply costs one indexed probe and stops.
+    let lowest_stranded: Option<u64> = tx.query_row(
+        "SELECT MIN(n.write_cursor)
+         FROM canonical_nodes n
+         JOIN _fathomdb_vector_kinds k ON k.kind = n.kind
+         JOIN _fathomdb_projection_terminal t ON t.write_cursor = n.write_cursor
+         LEFT JOIN _fathomdb_vector_rows v ON v.write_cursor = n.write_cursor
+         WHERE n.row_kind IN ('leaf', 'coverage')
+           AND t.state = 'up_to_date'
+           AND v.write_cursor IS NULL",
+        [],
+        |row| row.get::<_, Option<u64>>(0),
+    )?;
+    let Some(lowest_stranded) = lowest_stranded else {
+        return Ok(false);
+    };
+
+    tx.execute(
+        "DELETE FROM _fathomdb_projection_terminal
+         WHERE write_cursor IN (
+             SELECT n.write_cursor
+             FROM canonical_nodes n
+             JOIN _fathomdb_vector_kinds k ON k.kind = n.kind
+             JOIN _fathomdb_projection_terminal t ON t.write_cursor = n.write_cursor
+             LEFT JOIN _fathomdb_vector_rows v ON v.write_cursor = n.write_cursor
+             WHERE n.row_kind IN ('leaf', 'coverage')
+               AND t.state = 'up_to_date'
+               AND v.write_cursor IS NULL
+         )",
+        [],
+    )?;
+
+    // (3) Rewind the readiness watermark just below the lowest stranded row so the
+    // scheduler's `write_cursor > cursor` filter reaches it. Never move it
+    // FORWARD: rows above the watermark that still hold their terminals are
+    // skipped by the scheduler's `terminal IS NULL` predicate, and
+    // `advance_projection_cursor` walks the watermark back up over them.
+    let rewind_to = lowest_stranded.saturating_sub(1);
+    if load_projection_cursor(tx)? > rewind_to {
+        store_projection_cursor(tx, rewind_to)?;
+    }
+    Ok(true)
+}
+
+/// 0.8.20 Slice 15d (R-20-PR, Q5) — BOOT re-derive: the engine `ProjectionSpec`
+/// is a DERIVED cache, re-driven idempotently on boot. For every persisted
+/// registry declaration, clear + backfill its EAV / property-FTS rows from the
+/// canonical nodes — so a DB whose registry row survives but whose projection
+/// rows are missing/partial (a crash window, a restored registry) CONVERGES on
+/// the next open. A no-op (single empty-table read) when no projections are
+/// declared — which is every pre-`configure_projections` DB. Runs on the writer
+/// connection, single-threaded, before readers spawn.
+pub(crate) fn rederive_projections_on_boot(conn: &Connection) -> rusqlite::Result<()> {
+    let registry = load_projection_registry(conn)?;
+    if registry.is_empty() {
+        return Ok(());
+    }
+    let persisted = projection_registry_cache_snapshot(conn)?;
+    let expected = expected_projection_registry_cache_snapshot(conn, &registry)?;
+    if persisted == expected {
+        return Ok(());
+    }
+    conn.execute_batch("BEGIN IMMEDIATE")?;
+    let result = (|| {
+        for (name, stored) in &registry {
+            clear_attribute_projection(conn, name)?;
+            backfill_attribute(conn, name, stored)?;
+        }
+        Ok(())
+    })();
+    match result {
+        Ok(()) => conn.execute_batch("COMMIT"),
+        Err(err) => {
+            let _ = conn.execute_batch("ROLLBACK");
+            Err(err)
+        }
+    }
+}
+
+type ProjectionAttributeCacheRow = (i64, String, Option<String>);
+
+type ProjectionPropertyFtsCacheRow = (i64, String, String);
+
+type ProjectionRegistryCacheSnapshot =
+    (Vec<ProjectionAttributeCacheRow>, Vec<ProjectionPropertyFtsCacheRow>);
+
+fn expected_projection_registry_cache_snapshot(
+    conn: &Connection,
+    registry: &BTreeMap<String, StoredProjection>,
+) -> rusqlite::Result<ProjectionRegistryCacheSnapshot> {
+    let nodes = {
+        let mut statement = conn.prepare(
+            "SELECT write_cursor,body FROM canonical_nodes \
+             WHERE superseded_at IS NULL AND state='active' ORDER BY write_cursor",
+        )?;
+        let rows = statement
+            .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        rows
+    };
+    let mut attributes = Vec::new();
+    let mut property_fts = Vec::new();
+    for (name, stored) in registry {
+        if !stored.wants_eav() {
+            continue;
+        }
+        for (cursor, body) in &nodes {
+            if let Some(value) = extract_scalar_attribute(conn, body, name, stored)? {
+                attributes.push((*cursor, name.clone(), Some(value.clone())));
+                if stored.wants_property_fts() {
+                    property_fts.push((*cursor, name.clone(), value));
+                }
+            }
+        }
+    }
+    attributes.sort_by(|left, right| {
+        left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)).then_with(|| left.2.cmp(&right.2))
+    });
+    property_fts.sort_by(|left, right| {
+        left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)).then_with(|| left.2.cmp(&right.2))
+    });
+    Ok((attributes, property_fts))
+}
+
+fn projection_registry_cache_snapshot(
+    conn: &Connection,
+) -> rusqlite::Result<ProjectionRegistryCacheSnapshot> {
+    let attributes = {
+        let mut statement = conn.prepare(
+            "SELECT write_cursor,attr_name,attr_value FROM canonical_attributes \
+             ORDER BY write_cursor,CAST(attr_name AS BLOB),CAST(attr_value AS BLOB)",
+        )?;
+        let rows = statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        rows
+    };
+    let property_fts = {
+        let mut statement = conn.prepare(
+            "SELECT write_cursor,attr_name,attr_value FROM property_search_index \
+             ORDER BY write_cursor,CAST(attr_name AS BLOB),CAST(attr_value AS BLOB)",
+        )?;
+        let rows = statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        rows
+    };
+    Ok((attributes, property_fts))
 }

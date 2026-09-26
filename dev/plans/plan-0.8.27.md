@@ -573,6 +573,32 @@ Carried from Slice 70 (`features/slice-70/status.md`):
 - **Per-batch check.** The Slice 80 note on running source-scraping guards in
   every batch applies here too.
 
+Allocated by the Slice 80 design (`features/slice-80/design.md`):
+
+- **Reader data carriers.** `ReaderWorkerPool` (struct and `Debug`),
+  `SearchReaderWork`, every `*ReaderRequest` struct, `ReaderRequest`,
+  `FrozenQueryRuntime`, the reader response aliases, `SearchReaderError`,
+  `PageReaderError`, `CacheStatusReply`, the `READER_*` constants, and the
+  `Reader*Pause` aliases stay at root, so Slice 80 widens no field. Their
+  private fields are built at root, in `graph_expand`, and in the WAL seams.
+- **WAL arms in the reader loop.** The inline WAL and diagnostic match arms
+  (`HoldWalSnapshot*`, `LookasideStatus`, `CacheStatus`,
+  `SecureDeleteStatus`, and `Wal*Inventory`) move verbatim with
+  `reader_worker_loop` into `reader_pool.rs`. Slice 90 decides whether to
+  extract them.
+- **Open-path helpers.** `configure_reader_lookaside`,
+  `apply_perf_experiment_reader_pragmas`, and `Engine::usable_dense_runtime`
+  stay at root.
+- **Index projectors.** These stay at root: `project_canonical_node_row`,
+  `project_canonical_edge_row`, `IndexTargetSet`,
+  `index_targets_for_row_kind`,
+  `reproject_search_index_after_tokenizer_upgrade`,
+  `search_index_tokenizer_reproject_complete`, `CanonicalNodeRow`,
+  `canonical_node_rows`, and `row_kind_from_column`.
+- **Search-owned runtime fields.** The four search-owned
+  `ProjectionRuntimeShared` fields stay in place. Slice 90 may relocate them
+  when it finalizes `Engine` state, subject to its own design review.
+
 ### Slice 100 — PyO3 binding decomposition
 
 Decompose the binding into errors, types, facade, write translation,

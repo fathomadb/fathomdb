@@ -9,7 +9,8 @@ const SOURCE: &str = concat!(
     include_str!("../src/provider.rs"),
     include_str!("../src/ingest.rs"),
     include_str!("../src/consolidation.rs"),
-    include_str!("../src/vector_storage.rs")
+    include_str!("../src/vector_storage.rs"),
+    include_str!("../src/vector_equivalence.rs")
 );
 
 fn function_body(name: &str) -> &'static str {

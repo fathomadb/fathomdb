@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 70 - TDD chronology
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.27
 ---
 
@@ -202,11 +202,14 @@ added 11 unresolved links. Commit `0d2b336e` repairs them:
     `project_one_attribute`.
 
   This follows the Slice 60 `ERASURE_AUDIT_COLLECTIONS` precedent.
-- **Resolves through the root import.** `extract_scalar_attribute` resolves
-  because its operator-gated root import exists on the operator route.
+- **Code-review correction.** `0d2b336e` actually gave the
+  `extract_scalar_attribute` link an explicit
+  `projection_registry::extract_scalar_attribute` target. On the operator
+  route that added a `redundant explicit link target` warning. The code
+  review found it, and it is now a plain code span (see "Code review" below).
 
-The sorted warning set on both routes now equals the `4df75e07` set minus one
-entry. That entry is `dense_readiness` linking to the private
+After that correction, the sorted warning set on both routes equals the
+`4df75e07` set minus one entry. That entry is `dense_readiness` linking to the private
 `apply_projection_config`, which is now a code span.
 
 ### Scraper and gate retargets
@@ -233,9 +236,20 @@ unchanged.
     `erase_row_projections`, `purge_row_projections_for_cursor_in`, and
     `truncate_all_row_projections` (`projection_registry.rs`), and
     `rebuild_shadow_state` (`projection_rebuild.rs`).
-- **Manifest body identity.** Every batch reproduced the empty
-  `bodies-pre.txt` diff: all 15 `contains_all` bodies were byte-identical, and
-  each needle sat inside its own brace-matched body.
+- **Manifest body identity (corrected by code review).** Every batch
+  reproduced the empty `bodies-pre.txt` diff of the helper
+  `manifest_bodies.py`.
+  - **What the helper checks:** it brace-matches each function's own text.
+    It proved that all 15 `contains_all` functions moved byte-identically and
+    that every needle sits inside its own function.
+  - **What it did not check:** the test's own `function_body` extractor.
+    Under that extractor, six bodies had widened past their function. The
+    next item was now `pub(crate) fn`, which was not an end marker, or the
+    body ran across a `concat!` file boundary.
+  - **Impact:** no needle fell in a widened tail, so no check was vacuous.
+    The earlier claim that "all 15 bodies were byte-identical" was wrong for
+    the test's extractor. The extractor was hardened (see "Code review"
+    below).
 - **C1 gate (`scripts/check-c1-conformance.sh`).**
   - **Path constants.** Each batch that moved an owner first ran the gate RED
     (table below). It then added a path constant (`REGISTRY`, `RUNTIME`,
@@ -309,5 +323,54 @@ The following ran at `6f2012c8`, and the doc-link check at `0d2b336e`:
 - **AC-050a:** `scripts/security/ast_scan.py --language rust` reported the
   Rust surface clean.
 
-The heavy public and hidden surface captures belong to the main thread and
-are not recorded here.
+## Post-move receipt (`b0289e04`, main thread)
+
+| Capture | Result | SHA-256 |
+| --- | --- | --- |
+| Slice 30 public surface | Equal to the immutable `slice-30/baseline.json`; 13 rows; empty metadata and row diffs. This includes the three reranker functions, which now sit behind root `pub use`. | `c38153c973264897d2ca30e3b82fc1727753fc941f80f4d35587919069ee0d35` |
+| Hidden surface | Against the pre-move `a95b5b0f` capture: empty metadata diff. The only change is additive: the `slice70_projection_commit_residue` target and its 2 tests, in every row. No item row changed or was removed. The redundant `#[doc(hidden)]` on the reranker re-export therefore changed nothing. | `3ffedba2928afd6c4245b38af18cca6908661c2cf51eb945eb6b0e6cd9e3cff9` |
+
+The public capture refused to run again at 90 GB free. The move's builds had
+regrown the worktree's `target/debug/incremental` cache (15 GB), so it was
+removed before the capture.
+
+## Code review (Opus 5.5, high) — PASS-WITH-FIXES at `b0289e04`
+
+The review found no P1 and no semantic change. It verified the following:
+
+- **Verbatim move:** every moved item is a contiguous substring of the
+  baseline after normalizing visibility, whitespace, and link text.
+- **Attributes:** every item keeps an identical attribute set.
+- **Singleton:** the only `static` (`reranker_singleton`'s function-local
+  `OnceLock`) keeps a single instance.
+- **Manifest needles:** needle counts are unchanged.
+- **C1 gate:** 26/26 clauses, with the negative arms still able to fire.
+
+Its findings were closed as follows:
+
+1. **P2: the chronology's manifest body-identity claim was wrong.** The
+   claim was corrected above. `function_body` now also ends at `pub(crate)
+   fn` at both indents. A sentinel `fn` follows every `concat!` file, so a
+   body can no longer cross a file boundary. Under the hardened extractor,
+   13 of the 15 bodies equal the `4df75e07` bodies byte for byte:
+   - `commit_projection_outcomes` now ends at its own closing brace
+     (tighter);
+   - `migrate_vector_partition_pack1_to_pack2` gains the 11 characters of the
+     next item's `pub(crate)` prefix, which is inter-item text only.
+
+   Needles and counts are unchanged, and the manifest test passes.
+2. **P2: the post-batch-10 captures were missing.** They were run and
+   recorded above.
+3. **P3: the redundant explicit link target.** It is now a code span.
+4. **P3: the residue test could still hang.**
+   - `residue()` now returns a `Result`, and `release.wait()` runs before
+     unwrapping.
+   - The report wait now fails after 60 s instead of hanging.
+   - The mutant was re-run. Both arms fail cleanly, with `(1, 1, 1, 0)` and
+     `(1, 0, 0, 1)`, in 0.07 s. The production file was restored.
+5. **P3: the redundant `#[doc(hidden)]` on the reranker re-export.** It is
+   kept, because the hidden capture shows no change.
+
+All fixes touch only one doc comment and two test files. They were verified
+by the manifest and residue suites, crate Clippy with warnings denied, and
+`cargo fmt`. A full regression rerun was not warranted.

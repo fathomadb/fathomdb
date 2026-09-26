@@ -829,3 +829,367 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
         generation_id: job.generation_id.clone(),
     }
 }
+
+/// 0.8.20 Slice 20 fix-1 (codex §9 [P2]) — the ONE definition of "a canonical
+/// EDGE row the vector pipeline still owes an embed for".
+///
+/// Two call sites must agree on this predicate and had drifted:
+///
+/// - [`next_pending_projection_jobs`] — the SCHEDULER, and therefore the
+///   authority on what will actually be embedded. It joins
+///   `_fathomdb_vector_kinds` on `'edge_fact'`, so an edge body is only ever
+///   scheduled when that kind is registered.
+/// - [`connection_has_pending_projection_work`] — the PROBE behind
+///   `drain`/`wait_for_idle` and, since this slice, `dense_readiness`. It
+///   omitted that join.
+///
+/// The consequence of the drift: a live edge body written while `edge_fact` was
+/// not a registered vector kind (e.g. edges carried forward from before the G11
+/// edge-vector pipeline, which is what auto-registers the kind) counted as
+/// outstanding work the scheduler would NEVER take. `dense_readiness` reported
+/// `embedding` forever and `drain` could never report idle — both the mirror
+/// image of R-20-DR's property. Building both edge arms from this one fragment
+/// makes a repeat drift unrepresentable.
+///
+/// Emits the `FROM`/`JOIN` clauses plus the shared `WHERE` predicates, with the
+/// edge table aliased `ce` and the projection terminal aliased `pt`; `now_idx`
+/// is the 1-based bind index of the `:now` seam that [`edge_validity_sql`]
+/// consumes. Callers may append further `AND` predicates.
+///
+/// **The one predicate deliberately NOT shared** is the scheduler's
+/// `write_cursor > :cursor` watermark filter, which the scheduler appends and
+/// the probe must not: per the G11 (Slice 15) fix-1 note on the probe, the
+/// probe has to see edge bodies left un-projected BELOW the watermark when the
+/// engine closed mid-flight, or `drain` would report idle with edge vectors
+/// still missing on reopen. That asymmetry is intentional and load-bearing; the
+/// row-eligibility predicates above are not, and are shared.
+fn pending_edge_projection_from_where(now_idx: usize) -> String {
+    format!(
+        "FROM canonical_edges ce
+         JOIN _fathomdb_vector_kinds
+           ON _fathomdb_vector_kinds.kind = 'edge_fact'
+         LEFT JOIN _fathomdb_projection_terminal pt
+           ON pt.write_cursor = ce.write_cursor
+         WHERE ce.body IS NOT NULL
+           AND ce.superseded_at IS NULL{}
+           AND pt.write_cursor IS NULL",
+        edge_validity_sql("ce", now_idx)
+    )
+}
+
+const PROJECTION_CANDIDATE_PAGE: usize = 256;
+
+fn pending_projection_candidate_page(
+    connection: &Connection,
+    after_cursor: u64,
+    through_cursor: Option<u64>,
+    effective_at: i64,
+) -> rusqlite::Result<Vec<(u64, String)>> {
+    let sql = format!(
+        "SELECT pending.write_cursor,pending.kind FROM (
+           SELECT n.write_cursor,n.kind
+           FROM canonical_nodes n
+           JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind
+           LEFT JOIN _fathomdb_projection_terminal pt ON pt.write_cursor=n.write_cursor
+           WHERE n.write_cursor>?1 AND (?2 IS NULL OR n.write_cursor<=?2)
+             AND pt.write_cursor IS NULL
+           UNION ALL
+           SELECT ce.write_cursor,'edge_fact'
+           {}
+             AND ce.write_cursor>?1 AND (?2 IS NULL OR ce.write_cursor<=?2)
+         ) AS pending ORDER BY pending.write_cursor LIMIT {PROJECTION_CANDIDATE_PAGE}",
+        pending_edge_projection_from_where(3),
+    );
+    connection
+        .prepare_cached(&sql)?
+        .query_map(params![after_cursor, through_cursor, effective_at], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })?
+        .collect()
+}
+
+fn pending_projection_members_in_range(
+    connection: &Connection,
+    after_cursor: u64,
+    through_cursor: Option<u64>,
+    effective_at: i64,
+) -> rusqlite::Result<Vec<(u64, String)>> {
+    let mut members = Vec::new();
+    let mut page_cursor = after_cursor;
+    loop {
+        let page = pending_projection_candidate_page(
+            connection,
+            page_cursor,
+            through_cursor,
+            effective_at,
+        )?;
+        let page_len = page.len();
+        for (cursor, kind) in page {
+            page_cursor = cursor;
+            if projection_generation::dense_member_kind_at(connection, cursor, effective_at)
+                .map_err(|_| rusqlite::Error::InvalidQuery)?
+                .as_deref()
+                == Some(kind.as_str())
+            {
+                members.push((cursor, kind));
+            }
+        }
+        if page_len < PROJECTION_CANDIDATE_PAGE {
+            break;
+        }
+    }
+    Ok(members)
+}
+
+fn first_pending_projection_member_in_range(
+    connection: &Connection,
+    after_cursor: u64,
+    through_cursor: Option<u64>,
+    effective_at: i64,
+) -> rusqlite::Result<Option<(u64, String)>> {
+    let mut page_cursor = after_cursor;
+    loop {
+        let page = pending_projection_candidate_page(
+            connection,
+            page_cursor,
+            through_cursor,
+            effective_at,
+        )?;
+        let page_len = page.len();
+        for (cursor, kind) in page {
+            page_cursor = cursor;
+            if projection_generation::dense_member_kind_at(connection, cursor, effective_at)
+                .map_err(|_| rusqlite::Error::InvalidQuery)?
+                .as_deref()
+                == Some(kind.as_str())
+            {
+                return Ok(Some((cursor, kind)));
+            }
+        }
+        if page_len < PROJECTION_CANDIDATE_PAGE {
+            return Ok(None);
+        }
+    }
+}
+
+fn lowest_pending_projection_member_at_or_below(
+    connection: &Connection,
+    watermark: u64,
+    effective_at: i64,
+) -> rusqlite::Result<Option<u64>> {
+    if watermark == 0 {
+        return Ok(None);
+    }
+    Ok(first_pending_projection_member_in_range(connection, 0, Some(watermark), effective_at)?
+        .map(|(cursor, _)| cursor))
+}
+
+/// The SCHEDULER's scan: the next `max_jobs` pending projection jobs in
+/// `write_cursor` order.
+///
+/// `dense_arm_live` is `ProjectionRuntimeShared::embedder.is_some()`, read once
+/// per dispatcher because it is fixed for the session's lifetime.
+///
+/// # No configured embedder
+///
+/// A session with no configured runtime does not dispatch either node or edge
+/// embedding jobs. Dispatching an edge into the retry ladder used to record a
+/// durable `failed` terminal, contradicting Slice 30's immediate
+/// `FDB_EMBEDDER_REQUIRED` configuration feedback and losing work that a later
+/// configured session must be able to complete. The durable rows stay pending;
+/// `drain` names the configuration error and an erasure verb can remove them.
+fn next_pending_projection_jobs(
+    connection: &Connection,
+    in_flight: &BTreeSet<u64>,
+    max_jobs: usize,
+    dense_arm_live: bool,
+    attribution: &Arc<WalAttributionCollector>,
+    dispatcher_idx: usize,
+) -> rusqlite::Result<Vec<ProjectionJob>> {
+    if max_jobs == 0 || !dense_arm_live {
+        return Ok(Vec::new());
+    }
+    let effective_at = current_epoch_seconds();
+    let persisted_cursor = load_projection_cursor(connection)?;
+    // G11 (Slice 15) — UNION extends the projection queue to include edge bodies.
+    // Edge bodies use kind `'edge_fact'` so `resolve_source_type` maps them to
+    // `source_type = 'edge_fact'` in `vector_default` (partition correctness).
+    // The UNION is ordered by write_cursor so projection proceeds in
+    // insertion order across nodes and edges.
+    //
+    let sql = format!(
+        "SELECT pending.write_cursor, pending.kind, pending.body, current.generation_id FROM (
+             SELECT canonical_nodes.write_cursor AS write_cursor,
+                    canonical_nodes.kind AS kind,
+                    canonical_nodes.body AS body
+             FROM canonical_nodes
+             JOIN _fathomdb_vector_kinds
+               ON _fathomdb_vector_kinds.kind = canonical_nodes.kind
+             LEFT JOIN _fathomdb_projection_terminal
+               ON _fathomdb_projection_terminal.write_cursor = canonical_nodes.write_cursor
+             WHERE canonical_nodes.write_cursor > ?1
+               AND _fathomdb_projection_terminal.write_cursor IS NULL
+
+             UNION ALL
+
+             SELECT ce.write_cursor AS write_cursor,
+                    'edge_fact' AS kind,
+                    ce.body AS body
+             {edge_arm}
+               AND ce.write_cursor > ?1
+         ) AS pending
+         CROSS JOIN _fathomdb_projection_generation_current AS current
+         WHERE current.singleton=1
+         ORDER BY pending.write_cursor
+         LIMIT {PROJECTION_CANDIDATE_PAGE}",
+        // The persisted projection cursor remains the healthy fast path. TC-33:
+        // `?1` is the page cursor and the edge validity instant binds at `?2`.
+        edge_arm = pending_edge_projection_from_where(2),
+    );
+    let mut statement = connection.prepare_cached(&sql)?;
+    // SQLite starts the implicit read transaction at statement execution; do
+    // not call this a transaction before `query_map` succeeds.
+    let _activity = attribution.enabled.then(|| {
+        WalAttributionActivity::begin(
+            Arc::clone(attribution),
+            WalAttributionRole::ProjectionDispatcher,
+            dispatcher_idx,
+            "snapshot_acquired",
+        )
+    });
+    let mut scan_cursor = persisted_cursor;
+    let mut checked_below_watermark = false;
+    loop {
+        let mut jobs = Vec::with_capacity(max_jobs);
+        let mut after_cursor = scan_cursor;
+        loop {
+            let page = statement
+                .query_map(params![after_cursor, effective_at], |row| {
+                    let generation_id =
+                        projection_generation::parse_persisted_generation_id(row.get(3)?)
+                            .map_err(|_| rusqlite::Error::InvalidQuery)?;
+                    Ok(ProjectionJob {
+                        cursor: row.get(0)?,
+                        kind: row.get(1)?,
+                        body: row.get(2)?,
+                        generation_id,
+                    })
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            let page_len = page.len();
+            for job in page {
+                after_cursor = job.cursor;
+                if in_flight.contains(&job.cursor) {
+                    continue;
+                }
+                if projection_generation::dense_member_kind_at(connection, job.cursor, effective_at)
+                    .map_err(|_| rusqlite::Error::InvalidQuery)?
+                    .as_deref()
+                    != Some(job.kind.as_str())
+                {
+                    continue;
+                }
+                jobs.push(job);
+                if jobs.len() >= max_jobs {
+                    return Ok(jobs);
+                }
+            }
+            if page_len < PROJECTION_CANDIDATE_PAGE {
+                break;
+            }
+        }
+        if !jobs.is_empty() || checked_below_watermark {
+            return Ok(jobs);
+        }
+        checked_below_watermark = true;
+        let Some(cursor) = lowest_pending_projection_member_at_or_below(
+            connection,
+            persisted_cursor,
+            effective_at,
+        )?
+        else {
+            return Ok(Vec::new());
+        };
+        scan_cursor = cursor.saturating_sub(1);
+        if scan_cursor < persisted_cursor {
+            store_projection_cursor(connection, scan_cursor)?;
+        }
+    }
+}
+
+pub(crate) fn database_has_pending_projection_work(
+    path: &Path,
+    #[cfg(any(test, feature = "test-hooks"))] managed_connections: &Arc<ManagedConnectionRegistry>,
+) -> rusqlite::Result<bool> {
+    let connection = open_runtime_connection(
+        path,
+        #[cfg(any(test, feature = "test-hooks"))]
+        ManagedConnectionCategory::RuntimeProbe,
+        #[cfg(any(test, feature = "test-hooks"))]
+        managed_connections,
+    )?;
+    connection_has_pending_projection_work(&connection)
+}
+
+/// 0.8.20 Slice 20 (R-20-DR) — the body of
+/// [`database_has_pending_projection_work`], lifted so it can also run on a
+/// connection the caller ALREADY holds (the engine's own connection, inside
+/// [`Engine::read_projections`]) instead of opening a runtime connection from a
+/// path. Both callers run the same two arms and the same predicates — which is
+/// the point. Readiness and `drain`/`wait_for_idle` must key off ONE definition
+/// of "outstanding embed", or readiness could report `ready` for work `drain`
+/// still waits on.
+///
+/// fix-1 (codex §9 [P2]) — the edge arm is no longer a hand-copied mirror of
+/// the scheduler's: both are built from
+/// [`pending_edge_projection_from_where`]. The copy had lost the
+/// `_fathomdb_vector_kinds` join, so this probe reported permanent pending work
+/// for edge bodies the scheduler would never schedule. That was PRE-EXISTING —
+/// it reached `Engine::drain` through `wait_for_idle` before readiness existed.
+pub(crate) fn connection_has_pending_projection_work(
+    connection: &Connection,
+) -> rusqlite::Result<bool> {
+    // G11 (Slice 15) fix-1 [P2] — also check canonical_edges for edge bodies
+    // that were not projected before the engine closed. Without this check,
+    // drain() returns idle while edge vectors remain unembedded on reopen.
+    // fix-31 [P2]: exclude superseded edges from the pending check so the
+    // scheduler does not pick up stale tombstoned rows as projection work.
+    // 0.8.12 Slice A (R-CON-2 named default-ON blocker; Slice-20 codex §9
+    // [P2]) — also exclude t_invalid-excluded (recency-consolidated) edges,
+    // mirroring `next_pending_projection_jobs`'s edge arm. Required: without
+    // this mirror, a rebuild-truncated t_invalid edge that
+    // `next_pending_projection_jobs` now correctly skips would never gain a
+    // `_fathomdb_projection_terminal` row, so this probe would flag it as
+    // phantom-pending forever and `drain()`/`wait_for_idle` would hang.
+    // Slice-20 fix-1 [P2]: the mirror is now STRUCTURAL — the arm is built from
+    // `pending_edge_projection_from_where`, the same fragment the scheduler
+    // uses — because the hand-copied mirror had already lost the
+    // `_fathomdb_vector_kinds` join and produced exactly the phantom-pending
+    // hang described above for edge bodies under an unregistered `edge_fact`.
+    let effective_at = current_epoch_seconds();
+    let watermark = load_projection_cursor(connection)?;
+    if first_pending_projection_member_in_range(connection, watermark, None, effective_at)?
+        .is_some()
+    {
+        return Ok(true);
+    }
+    Ok(lowest_pending_projection_member_at_or_below(connection, watermark, effective_at)?.is_some())
+}
+
+/// One pure, count-preserving view of the projection rows that are presently
+/// eligible for embedding. It shares the scheduler and drain predicates, so a
+/// readiness report never names work that `drain` does not wait for.
+pub(crate) fn pending_embedding_work(
+    connection: &Connection,
+) -> rusqlite::Result<Vec<(String, u64)>> {
+    let effective_at = current_epoch_seconds();
+    let watermark = load_projection_cursor(connection)?;
+    let mut rows = pending_projection_members_in_range(connection, watermark, None, effective_at)?;
+    rows.extend(pending_projection_members_in_range(connection, 0, Some(watermark), effective_at)?);
+    let mut counts = BTreeMap::<String, u64>::new();
+    for (_, kind) in rows {
+        let count = counts.entry(kind).or_default();
+        *count = count.saturating_add(1);
+    }
+    Ok(counts.into_iter().collect())
+}

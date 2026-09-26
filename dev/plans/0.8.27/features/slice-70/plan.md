@@ -2,16 +2,17 @@
 title: FathomDB 0.8.27 Slice 70 - engine projection, embedding, vector, and reranking domains
 status: PROPOSED
 target_release: 0.8.27
-baseline_sha: 6f3b625e
+baseline_sha: a95b5b0f
 ---
 
 # Slice 70 plan
 
-This plan is proposed and awaits independent design review. It supersedes
-the six-paragraph master-plan draft (`dev/plans/plan-0.8.27.md`, "Slice 70 —
-projection, embedding, and reranking") as the execution authority for this
-slice once review passes. The detailed seam table and characterization design
-belong in `design.md`, which does not exist yet.
+This plan supersedes the six-paragraph master-plan draft
+(`dev/plans/plan-0.8.27.md`, "Slice 70 — projection, embedding, and
+reranking") as the execution authority for this slice once design review
+passes. `design.md` is the authority for the exact inventory, batches,
+characterization, and evidence. Where this plan and `design.md` differ,
+`design.md` wins. The review record is `design-review.md`.
 
 ## Outcome
 
@@ -62,8 +63,15 @@ points:
   Slice 140 gating.
 - **Public reranking:** `rerank_fused`, `try_rerank_fused`, and
   `rerank_passages` are public at the crate root. They move with root
-  `pub use` re-exports. The same applies to `MEAN_VEC_PIN_THRESHOLD` and
-  `mean_centering_internals_for_test`.
+  `pub use` re-exports. `MEAN_VEC_PIN_THRESHOLD` and
+  `mean_centering_internals_for_test` stay at root.
+- **Open-path helpers:** `default_embedder_identity`,
+  `edge_vector_prune_complete`, and `prune_orphaned_edge_vectors` are called
+  only from the open path, so they stay for Slice 90. `projection_status`
+  stays with its only caller, a Slice 140 test seam.
+- **Gates that name moved owners:** `scripts/check-c1-conformance.sh` and
+  its self-test get a Slice 40-style path retarget. AC-050c runs against the
+  pre-move base.
 - **Generation-race coverage:** R27-70B is already covered by
   `slice40_projection_generation` and
   `slice40_projection_generation_races`. No test is added for it.
@@ -83,21 +91,21 @@ points:
 
 ## Assigned inventory and disposition
 
-Line numbers are approximate at `6f3b625e`. `design.md` replaces them with a
-grep-derived seam table.
+Line numbers are approximate at `6f3b625e`. The by-name inventory in
+`design.md` is authoritative.
 
 | Destination (private) | Inventory from `lib.rs` |
 | --- | --- |
 | `projection_runtime.rs` | `ProjectionJob`, `ProjectionRuntimeState`, `ProjectionRuntimeShared` (unchanged, including the four search fields), `ProjectionRuntime`, and the startup types (around 685-957); `impl ProjectionRuntime` (around 2720-3300). |
 | `projection_worker.rs` | Startup reporting, `projection_dispatcher_loop`, `projection_worker_loop`, `ProjectionOutcome`, `run_projection_jobs`, `embed_projection_batch`, `run_projection_job`, and the pending-work scans (around 16146-17597). |
-| `projection_commit.rs` | Commit-failure reporting, the edge-vector prune, cursor helpers, `record_projection_terminal`, and `commit_projection_outcomes` with its `commit_gate` usage (around 17597-18424). |
+| `projection_commit.rs` | Cursor helpers, `record_projection_terminal`, and `commit_projection_outcomes` with its `commit_gate` usage (around 17880-18316). |
 | `projection_registry.rs` | Row-owned projections, `ProjectionPass`, `StoredProjection`, registry load and persist, `apply_projection_config`, vector enrolment and backfill, `rederive_projections_on_boot`, and the registry cache (around 20405-22330); `Engine::configure_projections` and `Engine::read_projections`. |
 | `vector_storage.rs` | Profile and partition helpers, vec0 attribute columns, reshape and pack migrations, the blob codec, `quantize_binary_via_sql`, and committable kinds (around 18887-19470 and 20143-20227). |
 | `vector_equivalence.rs` | The equivalence probes, `VectorEquivalenceOutcome`, `usable_dense_runtime`, `probe_embed`, and `run_vector_equivalence_probe` (around 19471-20143). |
-| `mean.rs` | `MeanAccumulator`, `run_requantize_pass`, `recover_mean_vec_pin`, `recompute_mean_in_tx`, the mean helpers, and `Engine::recompute_mean`. `mean_centering_internals_for_test` keeps its public path through a re-export. |
+| `mean.rs` | `MeanAccumulator`, `run_requantize_pass`, `recover_mean_vec_pin`, `recompute_mean_in_tx`, the mean helpers, and `Engine::recompute_mean`. |
 | `embedding.rs` | `embed_with_watchdog`, `embed_batch_with_watchdog`, the circuit-breaker helpers, and `map_runtime_embedder_error`. |
 | `rerank.rs` | `rerank_fused`, `try_rerank_fused`, `rerank_passages`, `ce_rerank`, `CandleCrossEncoder`, and `reranker_singleton`, with every `default-reranker` gate preserved. |
-| `projection_generation.rs` (extended) | Projection status reads such as `projection_status` and `Engine::read_projection_status`. No duplicate status module is created. |
+| `projection_generation.rs` (extended) | `derive_dense_readiness`, `Engine::read_projection_status`, and `Engine::read_embedding_readiness`. No duplicate status module is created. |
 | Stays at root | Public projection, embedding-readiness, and verify types keep their root paths (moved only with root re-exports, if at all). `check_embedder_profile`, the open-time embedder and reranker gates, and the `open_with_migrations` startup order stay for Slice 90. `fuse_rrf`, `RRF_*`, `SEARCH_RERANK_LIMIT`, and every `search_*` path stay for Slice 80. `PROJECTION_WORKERS` and the timeout default keep their values. |
 
 The call sites in `write.rs`, `write_commit.rs`, `erasure.rs`,
@@ -143,36 +151,28 @@ Use one writer in the release worktree. Read-only reviewers share it.
 3. **Map existing tests to R27-70B-G** in `tdd-chronology.md` before adding
    tests.
 4. **Characterize (tests only).** Add only these missing cases:
-   - immediate post-commit-failure zero residue (terminal, sidecar, vec0, and
-     failure audit), using `pause_projection_commit_failure_cleanup_for_test`;
-   - the classifier tuples `failed` with a physical row, and vec0 without a
-     sidecar;
+   - zero residue immediately after a failed projection commit, with a
+     success arm and a failed-outcome arm, using
+     `pause_projection_commit_failure_cleanup_for_test`;
+   - an exhaustive `classify_completion` table, including `failed` with a
+     physical row and vec0 without a sidecar;
    - the stale-inventory correction of the slice35 virtual-mutation audit
-     (seq 257), as a separate test-infrastructure commit.
+     (seq 257), as a separate test-infrastructure commit that fixes both the
+     `INSERT` entries and the stale helper-caller entry.
 
    Prove each case non-vacuous with a recorded temporary mutant. If a case
    fails against unmodified production, stop for a separate RED/GREEN
    correction with review.
-5. **Pre-move receipt.** Run the focused owner suites, the Slice 30 public
-   comparison, and the hidden-surface comparison at the characterization
-   commit.
-6. **Move in bounded batches**, one commit each, copied verbatim, in this
-   order:
-   1. vector storage and equivalence;
-   2. mean;
-   3. registry;
-   4. embedding;
-   5. runtime, worker, and commit;
-   6. rebuild;
-   7. rerank;
-   8. generation status.
-
-   Each batch re-keys the slice35 audit and manifest for the functions it
-   moved. Evidence per batch follows `design.md` "Structural-move evidence":
-   - feature-route checks, crate Clippy, focused owners, and the audit on
-     every batch;
-   - the public and hidden captures at the pre-move receipt, after the mean
-     and rerank batches, and at the final candidate.
+5. **Pre-move receipt.** The Slice 30 public comparison and the
+   hidden-surface capture were taken at `a95b5b0f`. The public capture
+   compared equal. The hidden capture showed only prior reviewed additions.
+   Run the focused owner suites at the characterization commit.
+6. **Move in the ten bounded batches** listed in `design.md`, one commit
+   each, copied verbatim. Each batch re-keys the slice35 audit, the
+   manifest, the C1 gate, and the plan-anchor citations for the functions it
+   moved. Per-batch evidence follows `design.md` "Structural-move
+   evidence". The heavy public and hidden captures run at batch 10 and at
+   the final candidate.
 7. **Refactor within the boundaries.** Imports and visibility only. A
    behavioral change requires its own RED test.
 8. **Code review.** Independent review of the actual diff. Resolve

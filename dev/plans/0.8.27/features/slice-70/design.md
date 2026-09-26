@@ -2,7 +2,7 @@
 title: FathomDB 0.8.27 Slice 70 - projection, embedding, vector, and reranking design
 status: PROPOSED
 target_release: 0.8.27
-baseline_sha: 86c66379
+baseline_sha: a95b5b0f
 ---
 
 # Slice 70 design
@@ -11,7 +11,9 @@ baseline_sha: 86c66379
 
 This is a behavior-preserving move of root-owned items in
 `src/rust/crates/fathomdb-engine/src/lib.rs` (25,899 lines at `86c66379`)
-into private sibling modules. The following do not change:
+into private sibling modules. Design review cycle 1 (`design-review.md`)
+returned FAIL on text-only findings; this revision closes them. The
+following do not change:
 
 - SQL text;
 - statement order;
@@ -31,7 +33,8 @@ The only permitted changes are:
   modules;
 - root `pub use` re-exports for moved public items;
 - link-only repairs of moved intra-doc links; and
-- the source-scraper re-keys listed under "Source scrapers".
+- the source-scraper and gate retargets listed under "Source scrapers and
+  gates".
 
 Moved code is copied verbatim.
 
@@ -63,17 +66,17 @@ records every visibility change.
 
 | Module | Items (by name, at `86c66379`) |
 | --- | --- |
-| `vector_storage.rs` | `load_default_profile`, `default_profile_dimension`, `kind_is_vector_indexed`, `ensure_vector_partition`, `vector_partition_create_sql`, `create_vector_partition`, `attr_vec0_column`, `decode_attr_vec0_column`, `desired_vector_attr_columns`, `actual_vector_attr_columns`, `delete_vector_partition_row`, `reconcile_vector_attr_columns`, `refresh_vector_attr_values`, `refresh_vector_attr_values_for_row`, `reshape_vector_partition_nondestructive`, `migrate_vector_partition_pack1_to_pack2`, `KIND_TO_SOURCE_TYPE_CASE_SQL`, `migrate_vector_partition_to_pack1`, `encode_vector_blob`, `decode_vector_blob`, `quantize_binary_via_sql`, `hamming_bytes`, `VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES`, `resolve_source_type`, `kind_is_vector_committable`, `edge_vector_prune_complete`, `prune_orphaned_edge_vectors` |
+| `vector_storage.rs` | `load_default_profile`, `default_profile_dimension`, `kind_is_vector_indexed`, `ensure_vector_partition`, `vector_partition_create_sql`, `create_vector_partition`, `attr_vec0_column`, `decode_attr_vec0_column`, `desired_vector_attr_columns`, `actual_vector_attr_columns`, `delete_vector_partition_row`, `reconcile_vector_attr_columns`, `refresh_vector_attr_values`, `refresh_vector_attr_values_for_row`, `reshape_vector_partition_nondestructive`, `migrate_vector_partition_pack1_to_pack2`, `KIND_TO_SOURCE_TYPE_CASE_SQL`, `migrate_vector_partition_to_pack1`, `encode_vector_blob`, `decode_vector_blob`, `quantize_binary_via_sql`, `hamming_bytes`, `VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES`, `resolve_source_type`, `kind_is_vector_committable` |
 | `vector_equivalence.rs` | `vector_equivalence_probes`, `VectorEquivalenceOutcome`, `usable_dense_runtime`, `probe_embed`, `run_vector_equivalence_probe`, `probe_populate_or_check`, `collect_probe_baseline`, `persist_probe_baseline`, `StoredProbeRow`, `hash_fingerprint_field`, `probe_verification_fingerprint`, `probe_verification_is_cached`, `record_probe_verification`, `clear_probe_verification`, `probe_check_against_baseline`, `load_stored_probe_baseline`, `probe_check_stored_baseline`, `l2_distance` |
-| `mean.rs` | `MEAN_VEC_PIN_THRESHOLD` (public; root re-export), `MeanAccumulator`, `cosine_similarity`, `run_pin_and_requantize_pass`, `run_requantize_pass`, `pub mod mean_centering_internals_for_test` (root re-export keeps `fathomdb_engine::mean_centering_internals_for_test`), `recover_mean_vec_pin`, `recompute_mean_in_tx`, `recompute_mean_in_tx_inner`, `identity_requires_mean_centering`, `read_pinned_mean_vec`, `subtract_mean`, and `Engine::recompute_mean` |
-| `embedding.rs` | `embed_with_watchdog`, `embed_batch_with_watchdog`, `map_runtime_embedder_error`, `default_embedder_identity`, `Engine::embed_text` |
+| `mean.rs` | `MeanAccumulator`, `cosine_similarity`, `run_pin_and_requantize_pass`, `run_requantize_pass`, `recover_mean_vec_pin`, `recompute_mean_in_tx`, `recompute_mean_in_tx_inner`, `identity_requires_mean_centering`, `read_pinned_mean_vec`, `subtract_mean`, and `Engine::recompute_mean` |
+| `embedding.rs` | `embed_with_watchdog`, `embed_batch_with_watchdog`, `map_runtime_embedder_error`, `Engine::embed_text` |
 | `projection_registry.rs` | `ProjectionClass`, `RowOwnedProjection`, `ROW_OWNED_PROJECTIONS`, `erase_row_projections`, `delete_row_owned_projection`, `saturating_add_u64`, `purge_row_projections_for_cursor_in`, `truncate_row_projections_in`, `truncate_all_row_projections`, `ProjectionPass`, `StoredProjection`, the attribute and nested-source helpers (`is_valid_attribute_name` through `validate_nested_projection_sources_for_body_in_registry`), `load_projection_registry`, `load_projection_registry_row`, `parse_roles_json`, `roles_to_storage`, `persist_projection_row`, `remove_projection_row`, `clear_attribute_projection`, `project_one_attribute`, `ATTR_VEC0_PRESENT_MARKER`, `encode_attr_vec0_present`, `extract_scalar_attribute`, `vector_attr_insert_fragments`, `project_node_attributes`, `backfill_attribute`, `is_destructive_projection_change`, `describe_projection_delta`, `apply_projection_config`, the vector enrolment and backfill functions (`unenrol_registry_vector_node_kinds` through `reenqueue_stranded_vector_rows`), `rederive_projections_on_boot`, the registry cache snapshot types and functions, `Engine::configure_projections`, `Engine::read_projections` |
 | `projection_runtime.rs` | `ProjectionJob`, `ProjectionRuntimeState`, `ProjectionRuntimeShared` (shape unchanged), its `Debug` impl, `ProjectionRuntime`, the startup types and `missing_projection_runtime_roles`, `impl ProjectionRuntime` |
 | `projection_worker.rs` | `report_projection_runtime_startup_failure`, `projection_runtime_injected_setup_failure`, `complete_projection_runtime_startup`, `projection_dispatcher_loop`, `projection_worker_loop`, `ProjectionOutcome`, `run_projection_jobs`, `projection_batch_enabled`, `embed_projection_batch`, `commit_projection_panic_failures`, `report_projection_commit_failure`, `run_projection_job`, the pending-work scans (`pending_edge_projection_from_where` through `pending_embedding_work`) |
 | `projection_commit.rs` | `load_projection_cursor`, `store_projection_cursor`, `record_projection_terminal`, `terminal_state_for_cursor`, `projection_physical_tuple_is_empty`, `projection_tuple_corruption`, `advance_projection_cursor`, `commit_projection_outcomes` |
 | `projection_rebuild.rs` | `Engine::rebuild_projections`, `Engine::rebuild_vec0`, `Engine::run_rebuild`, `Engine::rebuild_shadow_state` (every `operator` gate kept) |
-| `rerank.rs` | `rerank_fused`, `try_rerank_fused`, `rerank_passages` (public; root re-exports), `ce_rerank`, `CandleCrossEncoder`, `reranker_singleton`, and their private helpers if they are used only by rerank |
-| `projection_generation.rs` (extended) | `projection_status`, `derive_dense_readiness`, `Engine::read_projection_status`, `Engine::read_embedding_readiness` |
+| `rerank.rs` | `rerank_fused`, `try_rerank_fused`, `rerank_passages` (public; root `pub use` re-exports), `ce_rerank`, `CandleCrossEncoder`, `reranker_singleton` |
+| `projection_generation.rs` (extended) | `derive_dense_readiness`, `Engine::read_projection_status`, `Engine::read_embedding_readiness` |
 
 `ProjectionRuntimeShared` carries four search-owned fields:
 `search_limit_override`, `recency_reweight_enabled`,
@@ -92,6 +95,8 @@ their final owner. Slice 70 does not change the struct's shape.
     `build_importance_confidence_maps`;
   - `vector_filter_*`, `read_search_in_tx`, every `search_*` method;
   - `bm25f_search`, `write_node_importance`, `node_importance`;
+  - the telemetry helpers `branch_str` and `append_jsonl`, used only by
+    search;
   - `reproject_search_index_after_tokenizer_upgrade` and its
     `CanonicalNodeRow` helpers;
   - `project_canonical_node_row` / `project_canonical_edge_row` and
@@ -103,12 +108,18 @@ their final owner. Slice 70 does not change the struct's shape.
   - the integrity sections;
   - `verify_embedder`, `check_integrity`, `safe_export`, the `dump_*`
     methods, and the WAL operations;
+  - `default_embedder_identity`, `edge_vector_prune_complete`, and
+    `prune_orphaned_edge_vectors`, called only from the open path;
+  - `Engine::drain_embedder_events`;
   - `PROJECTION_WORKERS` and the other runtime constants at `lib.rs:463-488`
     (unchanged values);
   - `Engine::close`.
 - **Slice 140:**
   - every `*_for_test` Engine seam, including the projection, vector, and
-    embed seams at `lib.rs:9401-10483`.
+    embed seams at `lib.rs:9401-10483`;
+  - `projection_status`, whose only caller is `projection_status_for_test`;
+  - `pub mod mean_centering_internals_for_test` and its public constant
+    `MEAN_VEC_PIN_THRESHOLD`. `mean.rs` reaches them through `super::`.
 - **Why these stay:** Slice 140 gates the always-compiled doc-hidden test
   seams, and root placement keeps that gating one edit.
 - **Unclassified items:** any item not listed above stays at root.
@@ -140,15 +151,26 @@ their final owner. Slice 70 does not change the struct's shape.
      - `is_edge` ∈ {false, true};
      - `enrolled` ∈ {false, true};
      - runtime state ∈ every `ProjectionRuntimeStateV1` variant.
+   - **Kinds:** `is_edge = true` uses `edge_fact`. `is_edge = false` uses a
+     node kind that `resolve_source_type` accepts.
+   - **Precedence:** the Slice 40 table lists both "`failed` + no sidecar +
+     no vec0 → failed" and "edge member not enrolled → corrupt". For a
+     failed, unenrolled edge, the specific failed row wins. It carries no
+     enrolment qualifier, and the same table states that "enrolment is
+     scheduler state, not physical-completion authority". The edge row's
+     rationale concerns enrolment required before publication. This is also
+     current production behavior (`projection_generation.rs` `Failed` arm),
+     which a characterization test must pin.
    - **Oracle:** a hand-written expected function that transcribes the
-     0.8.25 Slice 40 table as it is written:
+     0.8.25 Slice 40 table with that precedence:
      - `Complete` iff `up_to_date` and matching sidecar and matching physical
        row and (node or enrolled);
      - `Failed` iff `failed` and neither sidecar nor physical row;
      - `Pending` iff no terminal, sidecar, or physical row and enrolled, or
        the stranded-node marker case (node, `up_to_date`, no sidecar, no
        physical row, not enrolled, runtime not `Usable`);
-     - otherwise typed corruption.
+     - otherwise typed corruption, asserted as
+       `ProjectionGenerationErrorReason::ProjectionGenerationCorrupt`.
    - **Named assertions:** `failed` with a physical row, and a physical row
      without a sidecar, are both corruption.
    - **Non-vacuity mutants:**
@@ -157,27 +179,33 @@ their final owner. Slice 70 does not change the struct's shape.
 2. **Zero residue immediately after a failed projection commit
    (R27-70C).**
    - **Where:** `tests/slice70_projection_commit_residue.rs`, gated
-     `#![cfg(all(feature = "test-hooks", debug_assertions))]` like
-     `slice40_projection_completion.rs`.
-   - **Setup:** open with a fixed embedder, configure a vector projection,
-     arm `force_next_projection_commit_failure_for_test`, and pause cleanup
-     with `pause_projection_commit_failure_cleanup_for_test`, with no
-     pre-seeded rows.
-   - **Snapshot:** write one node and wait on `reported`. From a separate
-     connection, assert zero terminal rows, sidecar rows, `vector_default`
-     rows, and `operational_mutations` rows in collection
-     `projection_failures` for that cursor.
-   - **Recovery:** release, `drain`, and assert that the vector is present
-     and the failure count is 0.
-   - **Non-vacuity mutant:** temporarily commit the terminal before the
-     injected failure point in `commit_projection_outcomes`.
+     `#![cfg(debug_assertions)]` like `tc91_projection_commit_hardening.rs`,
+     because the hooks are `debug_assertions`-only. It runs in the default
+     debug route.
+   - **Hooks:** `force_next_projection_commit_failure_for_test` plus
+     `pause_projection_commit_failure_cleanup_for_test`. The pause fires
+     after the forced error dropped the uncommitted transaction and before
+     redispatch. No rows are pre-seeded.
+   - **Success arm:** a fixed embedder and a configured vector projection.
+     Write one node and wait on `reported`. From a separate connection,
+     assert zero terminal, sidecar, and `vector_default` rows for that
+     cursor. Then release, `drain`, and assert that the vector is present.
+   - **Failed-outcome arm:** an always-failing embedder with short retry
+     delays (`set_projection_retry_delays_for_test`), so the rolled-back
+     transaction held both a `failed` terminal and a `projection_failures`
+     audit row. At the pause, assert zero terminal rows and zero
+     `operational_mutations` rows in collection `projection_failures` for
+     that cursor.
+   - **Non-vacuity mutant:** temporarily move the forced-failure block in
+     `commit_projection_outcomes` after `tx.commit()`. Both arms must
+     fail.
 3. **Stale-job generation.** Already covered, as the owners above show. No
    test is added.
 
 If a characterization test fails against unmodified production, the move
 stops for a separate RED/GREEN correction.
 
-## Source scrapers
+## Source scrapers and gates
 
 - `tests/slice35_virtual_mutation_manifest.rs` counts literal mutation
   needles over a `concat!` of `include_str!` files. Each new module that
@@ -192,28 +220,78 @@ stops for a separate RED/GREEN correction.
     but 0.8.25 Slice 40 (`2a65a38a`) deliberately made publication
     `INSERT INTO`, so a partial tuple fails rather than being repaired.
   - **First fix:** a standalone test-infrastructure commit corrects those
-    two entries to `INSERT INTO`, and
+    two entries to `INSERT INTO`. It also removes the stale
+    `PRODUCTION_HELPER_CALLERS["delete_vector_partition_row"]` entry for
+    `commit_projection_outcomes`, which no longer calls that helper. After
+    that commit,
     `tests/experiments/test_slice35_virtual_mutation_audit.py` goes green.
   - **During the move:** each batch re-keys its moved functions from
     `lib.rs` to the new file, path-only.
   - **Closeout:** seq 257 is closed as done.
+- **Manifest body identity.** `function_body` ends a body at `\nfn`,
+  `\n    fn`, `\n    pub fn`, or `\n    pub async fn`, not at
+  `pub(crate) fn`. A visibility change could therefore widen an extracted
+  body and make a `contains_all` check vacuously green. Each batch records
+  that every `contains_all` target's extracted body is byte-identical before
+  and after the move.
+- **C1 conformance gate.**
+  - **What breaks:** `scripts/check-c1-conformance.sh` reads `ENG = …/lib.rs`
+    for `configure_projections`, `apply_projection_config`,
+    `commit_projection_outcomes`, `notify_new_work`, and
+    `load_projection_registry`. Its self-test fixtures
+    (`scripts/tests/test_check_c1_conformance.sh`) edit
+    `configure_projections` and `apply_projection_config` text in `lib.rs`.
+  - **How it is fixed:** following Slice 40 (`11962b37`, `19e4028f`), the
+    batch that moves each owner first shows the gate RED. It then adds
+    per-module path constants to the gate, listed in its source manifest,
+    and retargets the matching probes and fixture paths.
+  - **What stays the same:** probe semantics and assertions.
+    `scripts/c1-conformance-pin.json` is unchanged; its `lib.rs:NNNN`
+    evidence strings are prose.
+- **Removal detector.** AC-050c (`scripts/security/check-removal-changelog.sh`)
+  runs with its base at the pre-move SHA and must report zero removals. That
+  includes the three reranker functions moved behind root `pub use`.
 - **Other checks:**
-  - Plan-anchor citations: `scripts/lint-plan-anchors.sh` cites functions by
-    file. Any citation of a moved function is corrected to the new path, as
-    Slice 60 did.
-  - `scripts/c1-conformance-pin.json`, `scripts/check-c1-conformance.sh`,
-    and AC-050a are re-run after the move. Line-number comments in test
-    prose (`perf_gates.rs` and similar) are not gates and are not edited.
+  - **Plan-anchor citations.** `scripts/lint-plan-anchors.sh` checks
+    citations of functions by file. The ACTIVE `dev/plans/plan-0.8.20.md`
+    cites `migrate_vector_partition_pack1_to_pack2` and
+    `run_pin_and_requantize_pass` in `lib.rs` (around lines 730 and 749).
+    Those citations are corrected in the batches that move the functions,
+    as Slice 60 did.
+  - Line-number comments in test prose (`perf_gates.rs` and similar) are
+    not gates and are not edited.
 
 ## Structural-move evidence
 
+- **Batches (each about 300-1,200 moved lines, one commit each):**
+  1. vector storage (about 620 lines);
+  2. vector equivalence (about 670);
+  3. mean and embedding (about 500);
+  4. registry A: row-owned projections, `ProjectionPass`,
+     `StoredProjection`, nested-source validation, and registry load and
+     persist (about 700);
+  5. registry B: attribute projection, `apply_projection_config`, and
+     `Engine::configure_projections` / `read_projections` (about 750);
+  6. registry C: vector enrolment and backfill, boot rederive, and the cache
+     snapshot (about 600);
+  7. runtime types and `impl ProjectionRuntime` (about 880);
+  8. dispatcher and worker loops through `run_projection_job` (about 955);
+  9. pending scans and projection commit (about 810);
+  10. rerank, rebuild, and generation status (about 600).
 - **Per batch (cheap):**
-  - `cargo check -p fathomdb-engine --all-targets` with default,
+  - `cargo check -p fathomdb-engine --all-targets` with each of: default,
     `operator`, `test-hooks`, `default-embedder`, `default-reranker`,
+    `default-reranker,tc5-benchmark`, `default-reranker,slice72-test-hooks`,
     `tc5-benchmark`, `slice72-test-hooks`, and `migration-test-hooks`;
   - `cargo clippy -p fathomdb-engine --all-targets -- -D warnings`;
-  - that batch's focused owners from the table above, run serially;
-  - the slice35 manifest test and the audit test.
+  - that batch's focused owners from the table above, run serially, each
+    on its required route: `rebuild_*` and `pr2b_mean_recompute` operator
+    arms on `operator`; `slice40_*` on `test-hooks` in debug, plus
+    `migration-test-hooks` where required; `slice71_*` and
+    `pr_g10_reranker_ce` on `default-reranker`. A route that executes zero
+    tests counts as a failure, not a pass.
+  - the slice35 manifest test, the audit test, the manifest body-identity
+    check, and the C1 gate when the batch moved a C1 owner.
 - **At the pre-move receipt and at the final Rust candidate (heavy):**
   - a Slice 30 public capture and compare against the immutable
     `dev/plans/0.8.27/features/slice-30/baseline.json` (Node `v25.9.0`, as
@@ -222,9 +300,9 @@ stops for a separate RED/GREEN correction.
     `dev/plans/0.8.27/features/hidden-surface/baseline-8e2afb29.json`;
   - the release probe;
   - test inventory.
-- **Why heavy captures are not run per batch:** they are not run after each
-  batch because moved items are private. Any batch that adds a root
-  `pub use` (mean, rerank) also runs the public capture.
+- **Why heavy captures are not run per batch:** moved items are private.
+  Batch 10, which adds the root `pub use` of the reranker functions, runs the
+  public and hidden captures before its commit.
 - **Expected hidden diff:** additive only, meaning the Slice 50/60 reviewed
   additions plus the Slice 70 tests.
 - **Doc warnings:** the post-move `rustdoc::broken_intra_doc_links` warning
@@ -254,10 +332,10 @@ stops for a separate RED/GREEN correction.
     `use` line must match its item's.
   - **Mitigation:** the release `--tests` typecheck catches dead imports.
 - **Public re-exports:**
-  - **Where it bites:** `rerank_fused`, `try_rerank_fused`,
-    `rerank_passages`, `MEAN_VEC_PIN_THRESHOLD`, and
-    `mean_centering_internals_for_test` must keep their exact root paths,
-    docs, and `cfg`.
+  - **Where it bites:** `rerank_fused`, `try_rerank_fused`, and
+    `rerank_passages` must keep their exact root paths, docs, and `cfg`.
+    `MEAN_VEC_PIN_THRESHOLD` and `mean_centering_internals_for_test` stay at
+    root.
   - **Mitigation:** the public and hidden captures after those batches are
     the oracle.
 - **Unit tests in `lib.rs` `mod tests`:** they reach moved private items

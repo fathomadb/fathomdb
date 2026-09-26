@@ -402,6 +402,7 @@ CONTRACT, PIN, ROOT, LIST_SOURCES = sys.argv[1], sys.argv[2], sys.argv[3], sys.a
 ENG = "src/rust/crates/fathomdb-engine/src/lib.rs"
 ERR = "src/rust/crates/fathomdb-engine/src/errors.rs"
 IDENTITY = "src/rust/crates/fathomdb-engine/src/identity.rs"
+REGISTRY = "src/rust/crates/fathomdb-engine/src/projection_registry.rs"
 SCH = "src/rust/crates/fathomdb-schema/src/lib.rs"
 EMB = "src/rust/crates/fathomdb-embedder/src/candle_bge.rs"
 T15 = "src/rust/crates/fathomdb-engine/tests/slice15d_projection_registry.rs"
@@ -675,7 +676,7 @@ def crate_manifest_for(test_path):
 # things that remain.
 #
 # NO PYTHON OR TYPESCRIPT TEST IS CITED BY ANY CLAUSE. `--list-sources` is the
-# authority: the gate reads ten files (six Rust modules/tests, one markdown
+# authority: the gate reads eleven files (seven Rust modules/tests, one markdown
 # plan, the two crate lib.rs, and one Cargo manifest) and three trees, and not
 # one `.py` or `.ts` among them. The
 # same evaporation exists in those languages (`@pytest.mark.skip`, `xfail`,
@@ -989,7 +990,7 @@ ASSERTIONS = {
          "readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready"),
     ],
     "C1-AA-CRASH-HEAL-BOOT-REDERIVE": [
-        ("fn_defined", ENG, "load_projection_registry"),
+        ("fn_defined", REGISTRY, "load_projection_registry"),
         ("test_defined", T15, "boot_rederive_converges_after_simulated_crash"),
     ],
     # ---- Tokenizer / embedder defaults -----------------------------------

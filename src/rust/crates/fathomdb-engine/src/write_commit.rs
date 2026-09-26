@@ -389,6 +389,33 @@ pub(crate) fn commit_batch(
     vector_kinds_to_enrol: &[String],
     #[cfg(feature = "test-hooks")] abort_next_commit_for_test: bool,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
+    #[cfg(feature = "test-hooks")]
+    if abort_next_commit_for_test {
+        connection.commit_hook(Some(|| true))?;
+    }
+    let result = commit_batch_transaction(
+        connection,
+        batch,
+        plans,
+        base_cursor,
+        provenance_row_cap,
+        vector_kinds_to_enrol,
+    );
+    #[cfg(feature = "test-hooks")]
+    if abort_next_commit_for_test {
+        connection.commit_hook(None::<fn() -> bool>)?;
+    }
+    result
+}
+
+fn commit_batch_transaction(
+    connection: &mut Connection,
+    batch: &[PreparedWrite],
+    plans: &[WritePlan],
+    base_cursor: u64,
+    provenance_row_cap: u64,
+    vector_kinds_to_enrol: &[String],
+) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     // 0.8.20 Slice 21a-2 (TC-57) — `BEGIN IMMEDIATE`, not rusqlite's `BEGIN
     // DEFERRED` default. Take the WAL write lock AT `BEGIN`, before the
     // supersession SELECT below, so this transaction never has to PROMOTE a read
@@ -457,11 +484,7 @@ pub(crate) fn commit_batch(
         drop(trigger_guard);
         return match (attempted, restored) {
             (Ok(result), Ok(())) => {
-                commit_write_transaction(
-                    tx,
-                    #[cfg(feature = "test-hooks")]
-                    abort_next_commit_for_test,
-                )?;
+                tx.commit()?;
                 Ok(result)
             }
             (Err(error), Ok(())) => Err(error),
@@ -478,11 +501,7 @@ pub(crate) fn commit_batch(
         vector_kinds_to_enrol,
         dependency_closure::SoftClosureMode::Complete,
     )?;
-    commit_write_transaction(
-        tx,
-        #[cfg(feature = "test-hooks")]
-        abort_next_commit_for_test,
-    )?;
+    tx.commit()?;
     Ok(result)
 }
 
@@ -500,18 +519,6 @@ pub(super) fn take_write_commit_abort_marker_for_test(
         connection.execute_batch("DROP TABLE temp._fathomdb_test_abort_next_write_commit")?;
     }
     Ok(armed)
-}
-
-fn commit_write_transaction(
-    tx: rusqlite::Transaction<'_>,
-    #[cfg(feature = "test-hooks")] abort_next_commit_for_test: bool,
-) -> rusqlite::Result<()> {
-    #[cfg(feature = "test-hooks")]
-    if abort_next_commit_for_test {
-        let mut armed = true;
-        tx.commit_hook(Some(move || std::mem::take(&mut armed)))?;
-    }
-    tx.commit()
 }
 
 pub(crate) fn advance_read_visibility(connection: &Connection) -> rusqlite::Result<()> {

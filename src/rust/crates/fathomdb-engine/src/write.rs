@@ -393,6 +393,10 @@ impl Engine {
 
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        #[cfg(feature = "test-hooks")]
+        let abort_next_commit_for_test =
+            crate::write_commit::take_write_commit_abort_marker_for_test(connection)
+                .map_err(|_| EngineError::Storage)?;
         dependency_closure::maintain_before_writer(connection)?;
         let plans = validate_batch(connection, batch)?;
         validate_nested_projection_sources_for_write(connection, batch)?;
@@ -422,10 +426,6 @@ impl Engine {
         let has_edge_body_work = batch.iter().any(|write| {
             matches!(storage_write_shape(write).as_ref(), PreparedWrite::Edge { body: Some(_), .. })
         });
-        #[cfg(feature = "test-hooks")]
-        let abort_next_commit_for_test =
-            crate::write_commit::take_write_commit_abort_marker_for_test(connection)
-                .map_err(|_| EngineError::Storage)?;
         let (dangling_edge_endpoints, unstranded, _closure_ids) = match commit_batch(
             connection,
             batch,

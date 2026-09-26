@@ -2,7 +2,7 @@
 title: FathomDB 0.8.27 Slice 80 - engine read, search, graph, and evidence domains
 status: PROPOSED
 target_release: 0.8.27
-baseline_sha: bb077cfa
+baseline_sha: e6601c67
 ---
 
 # Slice 80 plan
@@ -77,23 +77,34 @@ The draft was written in prework at `a3e6cff6`. The baseline is now
      an engine dependency.
    - **What is approved:** a directory module with `types`, `codec`,
      `execution` (including validation), and `traversal` (see item 5).
-5. **Legacy traversal and the search graph arm are graph code.** These are
-   `graph_neighbors`, `search_expand`, the BFS SQL builders, and
-   `bfs_graph_arm_candidates`, which depends only on
-   `append_node_eligibility_sql`. Together they move to
-   `graph_expand/traversal.rs`.
-6. **The reader pool's request enum mixes read verbs with WAL and diagnostic
-   variants.** The enum and its worker loop move whole to
-   `reader_pool.rs`, because the dispatch cannot be split across slices. The
-   WAL and diagnostic executors and facades remain for Slice 90.
+5. **Legacy traversal is graph code.** That covers `graph_neighbors`,
+   `search_expand`, and the BFS SQL builders, which move to
+   `graph_expand/traversal.rs`. The search graph arm is not graph code.
+   `bfs_graph_arm_candidates` is generic over search's capture trait and
+   uses search result types, not the BFS builders, so it moves to
+   `search.rs`. Putting it under `graph_expand` would create a cycle.
+6. **Reader-pool data carriers stay at root.**
+   - **The rule:** PW27-4A forbids field widening.
+   - **Why it matters here:** the pool's data carriers
+     (`ReaderWorkerPool`, `SearchReaderWork`, the request structs and enum,
+     and `FrozenQueryRuntime`) have private fields. Those fields are built
+     at root, in `graph_expand`, and in Slice 90's WAL seams.
+   - **What moves:** only the pool's functions move to `reader_pool.rs`.
+     That includes the worker loop, whole, with its inline WAL and
+     diagnostic arms.
+   - **What Slice 90 gets:** the carriers and the extraction of the WAL
+     arms, as an explicit hand-off.
 7. **The draft's test obligations are already met by existing owners.**
    These include snapshot authority under concurrent mutation, eligibility
    before every bounded cap, deterministic tie ordering, codec round-trip
    and corruption properties (proptest in `slice60_wire` and
    `slice55_wire`), and SQL/plan assertions. `design.md` maps each owner.
-   Characterization is limited to gaps that the mapping proves. Two
-   candidates are named: search visibility-axis parity (open consideration
-   TC-38) and reader transaction release after a refused search.
+   Characterization is limited to gaps that the mapping proves.
+   - **TC-38 (search visibility):** covered by `slice15b_search_validity`
+     and `opp12_existence_axis`. The mapping confirms the graph-arm and
+     projected-text paths.
+   - **The one proven gap:** reader transaction release after a refusal
+     inside the transaction.
 8. **Graph and evidence tests stay together.** The in-crate evidence tests
    call `graph_expand` execution internals directly. That confirms the
    draft's "keep graph and evidence tests together". No test is split.
@@ -104,8 +115,12 @@ The draft was written in prework at `a3e6cff6`. The baseline is now
    - the ACTIVE `dev/plans/plan-0.8.20.md` cites `text_hit_passes_filter`
      and `edge_fts_hit_passes_filter` in `lib.rs`.
 
-   The Windows WAL guard reads only root tests and open-path items, which
-   stay, so it is expected to stay green. It still runs every batch.
+   Further retargets:
+   - the Windows WAL guard reads a reader-completion needle and
+     `WalConnectionInventory` from `lib.rs`, so it needs a
+     `READER_POOL_SOURCE` retarget when the pool functions move;
+   - the C1 self-test fixtures edit `SearchHit` in `lib.rs`;
+   - `plan-0.8.20.md` also cites `pub fn search_filtered`.
 10. **The remaining write/search index projectors are not read code.** These
     are `project_canonical_*_row`, `index_targets_for_row_kind`, the
     tokenizer reproject, and `canonical_node_rows`, all called from write,
@@ -137,16 +152,16 @@ The fields are `search_limit_override`, `recency_reweight_enabled`,
 
 | Destination (private) | Owns |
 | --- | --- |
-| `fusion.rs` | the search-limit constants and validation, `RRF_*`, `RECENCY_WEIGHT`, `fuse_rrf`, `fuse_three_arms`, the reweights, the importance maps, `branch_str` |
+| `fusion.rs` | `RRF_*`, `RECENCY_WEIGHT`, `fuse_rrf`, `fuse_three_arms`, the reweights, and the importance maps |
 | `filter.rs` | `ScalarValue`, `ComparisonOp`, `Predicate`, `SearchFilter`, `FilterTerm`, `Filter`, filter validation, the SQL eligibility and rank builders, and the hit post-filters |
-| `search_types.rs` | the public search result, explanation, trace, and fallback types, and the BM25F plan types |
-| `search.rs` | `read_search_in_tx` and its capture, statement, and rank-boundary helpers, the `test-hooks` search witnesses, and BM25F execution |
+| `search_types.rs` | the public search result, explanation, trace, and fallback types, the BM25F plan types, and the search-limit constants and validation |
+| `search.rs` | `read_search_in_tx` and its capture, statement, and rank-boundary helpers, the search graph arm, the `test-hooks` search witnesses, and BM25F execution |
 | `search_api.rs` | the `impl Engine` search, frozen-search, and evidence facades |
-| `telemetry.rs` | `TelemetrySink` and search observability, telemetry, and feedback |
+| `telemetry.rs` | `TelemetrySink`, `append_jsonl`, `branch_str`, and search observability, telemetry, and feedback |
 | `read.rs` | the read-verb, canonical-page, and operational-state in-transaction functions, and their `impl Engine` facades |
-| `reader_pool.rs` | the pool, request and response types, the worker loop, and reader connection setup |
-| `graph_expand/` (split) | `mod.rs` re-exports; `types.rs`; `codec.rs`; `execution.rs` (with validation and `test-hooks` seams); `traversal.rs` (legacy traversal, the BFS builders, the search graph arm, and their `impl Engine` facades) |
-| Stays at root | `Engine`, the open, runtime, WAL, and operator facade (Slice 90), the index projectors (Slice 90), every `*_for_test` Engine seam and `pub fn *_for_test` wrapper (Slice 140), `hex_encode`, `RowKind`, `append_jsonl` (shared by telemetry and the reader loop, so it moves only if the design shows a single owner) |
+| `reader_pool.rs` | the pool's functions: its impl and `Drop`, the worker loop, `finish_reader_request`, `begin_attributed_reader_tx`, and reader connection setup (the data carriers stay at root) |
+| `graph_expand/` (split) | `mod.rs` re-exports; `types.rs`; `codec.rs`; `execution.rs` (with validation and `test-hooks` seams); `traversal.rs` (legacy traversal, the BFS builders, and their `impl Engine` facades) |
+| Stays at root | `Engine`; the open, runtime, WAL, and operator facade, the reader data carriers, `usable_dense_runtime`, and the index projectors (Slice 90); every `*_for_test` Engine seam and `pub fn *_for_test` wrapper (Slice 140); `hex_encode`; `RowKind` |
 
 Public items keep their exact root paths through `pub use`. Doc-hidden items
 keep their hidden status.
@@ -178,12 +193,11 @@ Use one writer in the release worktree. Read-only reviewers share it.
    reviewer (Opus 5.5, high effort) until it passes. Record the review in
    `design-review.md`.
 2. **Map owners and characterize.** Map each existing owner to R27-80B-F in
-   `tdd-chronology.md`. Resolve the two named candidates (TC-38 visibility
-   parity and reader transaction release):
-   - **If a candidate is already covered:** cite the owner.
-   - **If it is not covered:** add the test, show that it passes on
-     unmodified production, kill a recorded temporary mutant, and restore
-     the code.
+   `tdd-chronology.md`. Characterization covers:
+   - **The reader-release test:** add it, show that it passes on unmodified
+     production, kill a recorded temporary mutant, and restore the code.
+   - **TC-38 view paths:** confirm them. If an owner is missing, add one
+     bounded test with a recorded mutant.
 
    If a characterization test fails on production, stop for a separate
    RED/GREEN fix.

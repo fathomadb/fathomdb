@@ -4,6 +4,7 @@ status: COMPLETE
 implemented_on: 2026-09-26
 planning_commit: 4da6a8c5
 implementation_candidate: 36fc2352cf243e022315ea302368d9424096aebd
+closeout_commit: e3ab55f683cf797ea020fcd8dea2eb927d6ec86c
 ---
 
 # Slice 70 implementation status

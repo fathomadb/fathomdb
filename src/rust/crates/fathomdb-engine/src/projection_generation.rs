@@ -1720,10 +1720,10 @@ pub(crate) fn parse_persisted_generation_id(
 /// torn `ready`-without-vector FORBIDDEN. A stored flag is precisely the thing
 /// that can tear. Deriving it makes the invariant true **by construction**:
 /// readiness is a pure function of state that
-/// [`commit_projection_outcomes`] already writes inside a single transaction —
+/// [`commit_projection_outcomes`](crate::projection_commit::commit_projection_outcomes) already writes inside a single transaction —
 /// the `vector_default` / `_fathomdb_vector_rows` INSERTs, the
-/// `_fathomdb_projection_terminal` row ([`record_projection_terminal`]) and the
-/// readiness watermark ([`advance_projection_cursor`], which only ever steps
+/// `_fathomdb_projection_terminal` row ([`record_projection_terminal`](crate::projection_commit::record_projection_terminal)) and the
+/// readiness watermark ([`advance_projection_cursor`](crate::projection_commit::advance_projection_cursor), which only ever steps
 /// over cursors that ALREADY hold a terminal) all commit together or not at all.
 /// So `ready` cannot be observed before the vector is durable, and the only
 /// reachable torn state is the tolerated one (`embedding` with the vector

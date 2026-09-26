@@ -357,7 +357,7 @@ const VECTOR_EQUIVALENCE_L2_EPSILON: f32 = 1e-5;
 const VECTOR_EQUIVALENCE_P1_FLIP_FLOOR: u64 = 0;
 
 /// 0.8.20 Slice 22 (TC-68) — `_fathomdb_open_state` key holding the
-/// [`probe_verification_fingerprint`] of the last open at which the
+/// `probe_verification_fingerprint` of the last open at which the
 /// vector-equivalence probe actually RAN and PASSED on this workspace. An open
 /// whose freshly computed fingerprint equals this value reuses that verdict and
 /// performs ZERO probe embeds; anything else re-runs the full probe.
@@ -4667,7 +4667,7 @@ pub struct ProjectionVector {
     /// justify accept-inert by analogy with "the already-audited accept-inert
     /// ruling on an `fts`/`vector` sub-object declared without the `searchable`
     /// role". **That ruling is OVERRULED** — the HITL ruled the shape an INVALID
-    /// SPEC on 2026-07-24 and [`apply_projection_config`] now rejects it with
+    /// SPEC on 2026-07-24 and `apply_projection_config` now rejects it with
     /// [`EngineError::WriteValidation`]. `dense_readiness` accept-inert is
     /// UNCHANGED and stands on its own footing: it is engine-set READ METADATA,
     /// never part of the declaration, so there is nothing about it to reject.
@@ -10732,7 +10732,7 @@ fn build_importance_confidence_maps(
 /// The vector arm lowers each `filter.attributes` term to `AND attr_<hex>=?`
 /// against a vec0 metadata column that exists ONLY for a declared `filterable`
 /// projection (the reshape in [`reconcile_vector_attr_columns`] tracks exactly the
-/// registry's `filterable` set; see [`desired_vector_attr_columns`]). A name that
+/// registry's `filterable` set; see `desired_vector_attr_columns`). A name that
 /// is not a declared `filterable` projection therefore has no column: the vec0 KNN
 /// would fail with `no such column` (surfacing as an opaque `Storage` error),
 /// while the FTS arm ([`hit_attributes_pass_filter`]) would silently no-match. That
@@ -11130,7 +11130,7 @@ fn text_hit_passes_filter(
 ///
 /// The value is read from the row-owned `canonical_attributes` EAV table (keyed
 /// by the hit's `write_cursor` + `attr_name`), which Slice 15d keeps active-only
-/// and populates via the SAME [`extract_scalar_attribute`] that fills the vec0
+/// and populates via the SAME [`extract_scalar_attribute`](projection_registry::extract_scalar_attribute) that fills the vec0
 /// `attr_<hex>` column — so the two arms see IDENTICAL values by construction.
 ///
 /// # fix-3 [P2]: ABSENT vs PRESENT-EMPTY
@@ -11141,14 +11141,14 @@ fn text_hit_passes_filter(
 /// NONE. So a filter `("status","")` matches present-empty (row exists, RAW value
 /// `''`) but NOT absent (no row), and `("status","open")` matches only the
 /// `open` row. The vec0 arm reaches the SAME verdict via its `\x01`-marker
-/// encoding (see [`ATTR_VEC0_PRESENT_MARKER`]): present-empty is the bare marker,
+/// encoding (see `ATTR_VEC0_PRESENT_MARKER`): present-empty is the bare marker,
 /// absent is `''`, so `attr_<hex> = enc("")` matches present-empty but never
 /// absent. `canonical_attributes.attr_value` and `property_search_index` stay RAW.
 ///
 /// # 0.8.20 semantics (Finding 1 → HITL ruling (A)): attribute filters are NODE-scoped
 ///
 /// Attribute projection is `PreparedWrite::Node`-gated (see `collect_projection_jobs`
-/// / [`project_one_attribute`]): an EDGE is never projected into
+/// / `project_one_attribute`): an EDGE is never projected into
 /// `canonical_attributes`, and its `vector_default` row (kind `edge_fact`) carries
 /// the `''` sentinel in every `attr_<hex>` column (the async worker reads the body
 /// from `canonical_nodes`, which has no row for an edge cursor). Therefore an

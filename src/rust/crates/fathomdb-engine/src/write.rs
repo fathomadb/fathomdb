@@ -222,7 +222,7 @@ impl Engine {
     /// 0.8.20 Slice 20c (R-20-DR remainder) — **late enrolment**, the write-path
     /// half of the C4 rider.
     ///
-    /// [`enqueue_declared_vector_backfill`] enrols the kinds the corpus held AT
+    /// `enqueue_declared_vector_backfill` enrols the kinds the corpus held AT
     /// DECLARATION TIME. A kind first written AFTERWARDS would otherwise fall
     /// through [`project_canonical_node_row`]'s `kind_is_vector_indexed` gate
     /// straight onto a permanent `'up_to_date'` terminal and be silently,
@@ -244,7 +244,7 @@ impl Engine {
     ///
     /// fix-1 (codex §9 [P2]) — the `vector_projection_declared` probe below is
     /// what stops this path re-enrolling immediately after
-    /// [`unenrol_registry_vector_node_kinds`] has run: the inverse removes the
+    /// `unenrol_registry_vector_node_kinds` has run: the inverse removes the
     /// registry row, and with no active declaration this returns without
     /// re-adding it. (The kind registry DOES now have delete paths: that one, plus
     /// the Slice-21 fix-1 reconciliation

@@ -311,3 +311,41 @@ plain code span. With private items documented and broken intra-doc links
 enabled, both exact pre-move commit `2300e11b` and the Test FIX-1 tree emitted
 58 unresolved-link warnings, with identical sorted warning-message multisets.
 The move no longer adds a warning.
+
+## Owner follow-up RED/GREEN
+
+Owner review on 2026-09-26 identified two carry-over paths in the private
+`test-hooks` commit-abort seam.
+
+RED commit `81d723b1` added:
+
+- `armed_commit_abort_does_not_survive_validation_refusal`; and
+- `commit_error_before_abort_hook_does_not_poison_next_write`.
+
+Against `100fa230`, the first test failed because the marker was consumed only
+after validation, so the following cursor probe received `EngineError::Storage`.
+The second used a deferred foreign-key violation to make commit fail before
+the abort hook fired; the still-armed hook then aborted the next trigger-
+cleanup commit.
+
+GREEN commit `d5a5bd39` moves marker consumption to the start of every
+non-empty write after connection acquisition. `commit_batch` installs the
+connection hook immediately before its one transaction body and removes it
+after every commit attempt, whether that attempt succeeds or fails for another
+reason. Both new tests then passed, and the complete boundary suite passed
+15/15 debug and 14/14 release with `test-hooks`.
+
+Final structural and repository receipts at clean `d5a5bd39`:
+
+- public capture SHA-256
+  `dba5b143b362f84887913ad9d51600c0c9d91614b98ef19531cfc8fc43e289ff`,
+  equal to the immutable 13-row baseline with empty metadata and row diffs;
+- hidden capture SHA-256
+  `132c5176e82e590a457716960345ab29a62afdfb2e90f41079ffa54798ec1895`,
+  with all eight structural rows and the 41-item release probe equal, zero
+  test removals or changes, and reviewed additions only;
+- target coverage 261 targets, including 53 feature-complete-only targets;
+- full `agent-verify`: 127/127 suites, zero skipped or excluded, with the
+  2026-09-26 unconfined executor running and passing live AC-037 at security
+  0 violations / 0 blockers / 0 downgrades; and
+- workspace Clippy with warnings denied and Cargo all-target check: PASS.

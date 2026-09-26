@@ -2,9 +2,10 @@
 title: FathomDB 0.8.27 Slice 60 - implementation status
 status: COMPLETE
 implemented_on: 2026-09-25
+corrected_on: 2026-09-26
 planning_commit: 3d5b7c45
-implementation_candidate: 5627c78b185d8fae9febe9f642a3b729363c75ea
-closeout_commit: 573b0054cdc4a1c7e352d1ecf7acb76e1ead562a
+implementation_candidate: d5a5bd39b3ee8a04bd080df451204564c6849bd1
+closeout_commit: b6677f251f2ba1f0f51602fdf8b7bf35fc24fd13
 ---
 
 # Slice 60 implementation status
@@ -90,7 +91,7 @@ proven with a mutant.
 The pre-existing slice35 Python-audit failure (since `2a65a38a`) is tracked as
 `TC-d0e9c5c9-1f4a-4cee-b175-286fd77efc42` (`seq-257`).
 
-## Final receipts and cleanup
+## Original closeout receipts and cleanup
 
 Independent verification passed at `5627c78b`, as recorded in
 `review-verification.md`:
@@ -101,9 +102,9 @@ Independent verification passed at `5627c78b`, as recorded in
 - 0 security violations; and
 - workspace Clippy and check clean.
 
-AC-037's live network-namespace layer is **unavailable** on this host
-(AppArmor restricts unprivileged user namespaces). It is carried to
-Slice 150, not counted as a pass.
+On the 2026-09-25 original closeout executor, AC-037's live network-namespace
+layer was **unavailable** because AppArmor restricted unprivileged user
+namespaces. That historical receipt did not count the layer as a pass.
 
 This slice used the existing durable release worktree. It created no
 temporary branch or worktree to merge or remove. All temporary environments,
@@ -129,8 +130,47 @@ The post-closeout review completed within every limit:
 - tests: Cycle 1 FAIL, FIX-1; Cycle 2 PASS; and
 - code: Cycle 1 PASS, with no code fix required.
 
-The superseding receipts are 13/13 debug and 12/12 release boundary cases
-with `test-hooks`, identical 58-warning baseline and candidate rustdoc sets,
-workspace formatting/lint/Clippy/check PASS, strict security PASS, and
-122/122 fast-verifier suites passed with no skips or exclusions. The complete
-cycle-by-cycle audit is in `adversarial-review.md`.
+The first post-closeout receipts were 13/13 debug and 12/12 release boundary
+cases with `test-hooks`, identical 58-warning baseline and candidate rustdoc
+sets, workspace formatting/lint/Clippy/check PASS, and 122/122 fast-verifier
+suites passed with no skips or exclusions. The complete cycle-by-cycle audit
+is in `adversarial-review.md`.
+
+## Owner follow-up correction
+
+Owner review on 2026-09-26 found that the release state still named the
+pre-review candidate, the corrected plan's final surface comparisons had not
+been rerun, the security prose combined incompatible receipts, and the
+test-only abort seam could carry into a later write.
+
+RED commit `81d723b1` adds two cases. One arms the marker, receives a
+validation refusal, and requires the next valid write to succeed. The other
+causes a deferred foreign-key commit failure before the abort hook can fire,
+then requires the following operation and write to succeed. Both failed
+against `100fa230`.
+
+GREEN commit `d5a5bd39` consumes the marker when a non-empty write acquires its
+connection and scopes the SQLite commit hook around exactly one transaction,
+explicitly removing it after every commit attempt. The complete boundary
+suite passed 15/15 in debug and 14/14 in release with `test-hooks`.
+
+Final candidate evidence at `d5a5bd39` is measured, not inferred:
+
+- the 13-row public surface compares equal to the immutable Slice 30 baseline,
+  with empty metadata and row diffs;
+- all eight hidden structural rows and the 41-item release probe compare equal;
+- test inventory has zero removals and zero changes, with only reviewed
+  additions; the two new tests appear in exactly the three applicable
+  `test-hooks` inventories;
+- target coverage is complete at 261 targets, including 53 feature-complete-
+  only targets;
+- the full canonical verifier passed 127/127 suites with no skips or
+  exclusions;
+- on the named 2026-09-26 unconfined executor, AC-037's live layer ran and
+  passed; security was 0 violations, 0 blockers, and 0 downgrades; and
+- full-workspace Clippy with warnings denied, Cargo all-target check, and the
+  candidate-bound Python native receipt passed.
+
+These final receipts supersede the candidate-specific and security conclusions
+of both earlier closeouts. Tags, registries, and publication remain
+unauthorized; Slice 70 remains uncommissioned.

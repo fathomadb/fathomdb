@@ -2,12 +2,12 @@
 title: FathomDB 0.8.27 Slice 60 - independent verification
 status: PASS
 target_release: 0.8.27
-candidate: 5627c78b185d8fae9febe9f642a3b729363c75ea
+candidate: d5a5bd39b3ee8a04bd080df451204564c6849bd1
 ---
 
 # Slice 60 independent verification
 
-The independent read-only verifier (Sonnet) returned **PASS** at clean
+The original independent read-only verifier (Sonnet) returned **PASS** at clean
 candidate `5627c78b185d8fae9febe9f642a3b729363c75ea`.
 
 | Gate | Result |
@@ -31,7 +31,7 @@ candidate-bound Python native module SHA-256 was
 `b349d7b146a7e349bdb887bb992dce9f4889fcab79d93ad4845eeb5cc9090b49`, identical
 to the implementer's rebuild. No baseline was regenerated.
 
-## Unavailable evidence
+## Original unavailable evidence (2026-09-25)
 
 AC-037's live network-namespace layer could not run on this host, including
 with the tool sandbox disabled. A direct `unshare -rUn true` fails with
@@ -68,11 +68,52 @@ candidate was clean commit `100fa230`.
 | Workspace Clippy, warnings denied | PASS |
 | Workspace Cargo all-target check | PASS |
 | Engine feature profiles | Default, `operator`, `test-hooks`, `slice72-test-hooks`, `migration-test-hooks`, and `tc5-benchmark` all passed |
-| Strict security, outside the restricted tool sandbox | 0 violations, 0 blockers, 0 downgrades |
+| Strict security | The aggregate 0/0/0 claim conflicted with the 2026-09-25 AC-037 unavailable receipt; it is not accepted as final evidence and is superseded below |
 | `scripts/agent-verify.sh --tier=fast` | 122/122 suites passed; 0 skipped, 0 excluded |
 
 The first security invocation was intentionally run in the restricted tool
 sandbox and could not exercise AC-036 because ptrace was denied there. The
 unchanged canonical security gate was rerun outside that sandbox and passed;
 the aggregate verifier then completed in the same environment. This was an
-execution-environment limitation, not a product failure or waived gate.
+execution-environment limitation, not a product failure or waived gate. The
+security aggregate did not preserve enough per-layer context to reconcile its
+0/0/0 summary with the earlier AC-037 result, so the final correction below
+reruns and names the exact environment instead of relying on that summary.
+
+## Final correction verification (2026-09-26)
+
+The final clean implementation candidate is
+`d5a5bd39b3ee8a04bd080df451204564c6849bd1`. The owner follow-up RED/GREEN
+commits are `81d723b1` and `d5a5bd39`.
+
+| Gate | Result |
+| --- | --- |
+| Write-boundary atomicity, debug `test-hooks` | 15/15 passed |
+| Write-boundary atomicity, release `test-hooks` | 14/14 passed; the debug-only pre-transaction-hook case is absent by design |
+| Slice 30 public surface | Equal; 13 rows; empty metadata and row diffs |
+| Hidden structural surface | All eight rustdoc rows equal; 41-item release probe equal |
+| Hidden test inventory | 0 removals; 0 changes; reviewed additions only; both new carry-over tests appear in the three applicable `test-hooks` rows |
+| Fast-tier target coverage | 261 targets; 53 feature-complete-only |
+| `scripts/agent-verify.sh` | 127/127 suites passed; 0 skipped, 0 excluded |
+| Security on 2026-09-26 unconfined executor | 0 violations; 0 blockers; 0 downgrades; AC-037 live netns layer ran and passed |
+| Candidate-bound Python receipt | PASS; candidate `d5a5bd39`; native module SHA-256 `0d56d9c926a7def6f056041e1277a3951dc2f12e83a4f6170f3c6cbcec7391d4` |
+| Workspace Clippy, warnings denied | PASS |
+| Workspace Cargo all-target check | PASS |
+
+The public capture SHA-256 was
+`dba5b143b362f84887913ad9d51600c0c9d91614b98ef19531cfc8fc43e289ff`.
+The hidden capture SHA-256 was
+`132c5176e82e590a457716960345ab29a62afdfb2e90f41079ffa54798ec1895`.
+The hidden comparator's only differences from
+`baseline-8e2afb29.json` were additive test-target and test-inventory entries:
+193 feature-row occurrences covering 26 unique added test paths accumulated
+since that baseline. There were no removed or changed tests, and every hidden
+structural or release-probe row was byte-equal. No baseline was regenerated.
+
+The first final-gate attempts were rejected by disposable-environment
+controls: a linked venv could not authorize a candidate rebuild, the first
+worktree-owned venv lacked pinned console entries, the retained capture files
+made Git dirty, and the non-editable package plus checkout-local `src/python`
+path were initially absent. Each attempt stopped on that environment defect.
+After the focused affected suite passed 24/24 and Git was clean, the unchanged
+full verifier passed. No environment failure was reported as a product pass.

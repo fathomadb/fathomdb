@@ -2,7 +2,7 @@
 title: FathomDB 0.8.27 Slice 60 - post-closeout adversarial review
 status: PASS
 reviewed_on: 2026-09-25
-reviewed_range: 517e0545..100fa230
+reviewed_range: 517e0545..d5a5bd39
 ---
 
 # Slice 60 post-closeout adversarial review
@@ -121,6 +121,18 @@ The reviewer independently reran the debug and release boundary suites, the
 default all-target check, and the diff-integrity check. No code FIX cycle was
 required.
 
+## Owner follow-up after review
+
+Subsequent owner review found one test-only lifetime gap outside the completed
+code-review cycles: a marker survived a validation refusal, and an abort hook
+could survive a different commit failure if SQLite had not invoked it. RED
+commit `81d723b1` proves both carry-over paths. GREEN commit `d5a5bd39`
+consumes the marker at write entry and installs then removes the connection
+hook around exactly one transaction attempt.
+
+The new cases fail on `100fa230` and pass on `d5a5bd39`. The entire boundary
+suite passes 15/15 debug and 14/14 release with `test-hooks`.
+
 ## Final status
 
 **PASS.** Design completed in three cycles with two fixes, test review
@@ -128,14 +140,20 @@ completed in two cycles with one fix, and code review passed in its first
 cycle. The review implementation commits are:
 
 - `1e3d275c` - correct the Slice 60 requirements and design contract; and
-- `100fa230` - add real commit-refusal coverage and the private test seam.
+- `100fa230` - add real commit-refusal coverage and the private test seam;
+- `81d723b1` - expose abort-marker and hook carry-over; and
+- `d5a5bd39` - scope the abort seam to exactly one write attempt.
 
 Final verification passed:
 
-- boundary atomicity: 13/13 debug and 12/12 release with `test-hooks`;
+- boundary atomicity: 15/15 debug and 14/14 release with `test-hooks`;
 - both commit-path non-vacuity mutants failed only their corresponding case;
 - rustdoc broken-link warning multiset: 58 baseline, 58 candidate, identical;
+- public surface: 13 rows equal with empty metadata and row diffs;
+- hidden structural surface: eight rows and the 41-item release probe equal;
+- test inventory: 0 removals, 0 changes, reviewed additions only;
 - workspace formatting, markdown lint, Clippy with warnings denied, and Cargo
   all-target checks: PASS;
-- strict security gate: 0 violations, 0 blockers, 0 downgrades; and
-- fast aggregate verifier: 122/122 suites passed, 0 skipped, 0 excluded.
+- 2026-09-26 unconfined security gate: AC-037 live ran and security passed
+  with 0 violations, 0 blockers, and 0 downgrades; and
+- full aggregate verifier: 127/127 suites passed, 0 skipped, 0 excluded.

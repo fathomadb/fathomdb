@@ -67,8 +67,13 @@ scripts/agent-security.sh` reported:
 - **Live catch:** `AC-037 catch OK (live netns)`.
 - **Summary:** 0 violations, 0 blockers, 0 downgrades.
 
-The profile was temporary and is not a standing host configuration. Slice 150
-must still run the live layer on its qualification executor.
+The repository owner then reverted the profile (`apparmor_parser -R` and
+file removal). Afterwards, `unshare -rUn true` again failed with
+`write failed /proc/self/uid_map: Operation not permitted`, confirming the
+default restriction was restored. The procedure is recorded in
+`dev/release/ac-037-live-netns-hitl-runbook.md`. Slice 150 must still run the
+live layer on its qualification executor, following that runbook on Ubuntu
+24.04 hosts.
 
 ## Feature-complete and CUDA evidence (main thread)
 

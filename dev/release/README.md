@@ -8,7 +8,8 @@ Internal release process, checklists, and shipping coordination notes.
 
 - internal release sequencing
 - packaging coordination notes
-- publish and verification checklists
+- publish and verification checklists, including the HITL runbook for the
+  AC-037 live netns check (`ac-037-live-netns-hitl-runbook.md`)
 
 ## Do not keep here
 

@@ -652,6 +652,12 @@ not an active release gate.
 **Assertion:** `Engine.open` on a fresh database, with the default embedder configured by the caller, triggers zero outbound network requests.
 **Measurement:** Run `Engine.open` inside a network namespace with default-deny egress; assert open succeeds and no `connect()` syscalls outside loopback.
 **Fixture:** netns-deny-egress fixture (test-plan.md fixture spec — pending).
+**Executor:** the live layers need rootless user namespaces. On Ubuntu 24.04
+hosts (`kernel.apparmor_restrict_unprivileged_userns=1`), follow
+`dev/release/ac-037-live-netns-hitl-runbook.md`. In that runbook the HITL
+temporarily grants `userns` to `/usr/bin/unshare` only, runs `STRICT=1
+scripts/agent-security.sh`, and then restores the restriction. Without that
+grant, the live layers are an environmental downgrade and never a pass.
 
 ## AC-038: FTS5-injection-safe text query
 

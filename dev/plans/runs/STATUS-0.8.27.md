@@ -115,8 +115,9 @@ unchanged. A new residue suite proves that a failed projection commit leaves
 no terminal, sidecar, vec0, or failure audit. The pre-existing red slice35
 audit was repaired. The public surface is equal; the hidden surface is
 additive only. The canonical gate passed after a path-only Windows WAL guard
-retarget. Security was 0/0/1: the AC-037 live layer was unavailable on this
-executor, so Slice 150 must run it. The feature-complete gate passed 349/357
+retarget. Strict security was 0/0/0 with both AC-037 live layers, run
+through a temporary per-binary AppArmor `userns` profile for
+`/usr/bin/unshare`. The feature-complete gate passed 349/357
 with 8 documented ignores on the RTX 3090s. Workspace Clippy/check and the
 candidate-bound Python receipt passed.
 

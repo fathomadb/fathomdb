@@ -48,7 +48,11 @@ Observed local facts:
 - Node 26.8.2/npm 12.0.2; manifests require Node >=25 <26 and npm 11.12.1.
 - GCC, CMake, pkg-config, strace, actionlint, lychee, gitleaks, Docker, and
   Podman clients are present. Clang, sqlite3 CLI, and nvcc are absent.
-- The local NVIDIA driver is unavailable. Libvirt access to the Windows VM is
+- The NVIDIA driver was not visible from the prework sandbox. Correction
+  (2026-09-26, Slice 70): the host `windchill3` has NVIDIA driver 580.173.02
+  with two RTX 3090s (`cuda:0`, `cuda:1`) and a display-only Quadro K620. It
+  ran `scripts/test-feature-complete.sh` with CUDA-selected legs; `nvcc` is
+  still absent and was not required. Libvirt access to the Windows VM is
   unavailable in this sandbox. The VM remains an external named executor, not
   a local pass.
 - `gh auth status` reports the default token invalid. Read-only public access
@@ -60,8 +64,9 @@ Observed local facts:
 | Python | 3.12.3; no worktree venv | Tool-only venv may be checkout-local; native claims use a disposable wheel installed non-editably in a fresh environment. |
 | Node/TypeScript | Host runtime is outside the declared range; no worktree install | Use declared Node 25.9.0/npm 11.12.1 for Slice 110/120 and artifact qualification. |
 | ptrace | `strace` present | AC-036 must run unchanged on a capable executor if the sandbox denies ptrace. |
+| user namespaces | Ubuntu 24.04 sets `kernel.apparmor_restrict_unprivileged_userns=1`, so `unshare -rUn` fails and the AC-037 live netns layer is unavailable by default | Run AC-037 live on an executor that permits rootless user namespaces. On `windchill3` (2026-09-26, Slice 70), a per-binary AppArmor profile granting `userns` to `/usr/bin/unshare` only was installed temporarily for that run, and strict security passed 0/0/0 with both live AC-037 layers. The profile is not a standing host configuration. |
 | platforms | Linux x64 local | Slice 150 owns Linux ARM64, macOS x64/ARM64, Windows x64, and any Jetson evidence warranted by moved paths. |
-| accelerators | No usable NVIDIA driver/nvcc; no Metal host | Slice 70/150 use named capable hosts only if affected paths warrant it; driverless CPU remains mandatory. |
+| accelerators | Corrected 2026-09-26: `windchill3` has two RTX 3090s (driver 580.173.02; K620 display-only) and is the named CUDA feature-complete executor; `nvcc` absent and not required; no Metal host | Slice 70/150 use this named host for CUDA evidence where affected paths warrant it; Metal remains unavailable; driverless CPU remains mandatory. |
 | credentials/network | GitHub default token invalid | No privileged operation before exact auth revalidation; dependency evidence records network limits honestly. |
 | storage | 170 GiB free | Recheck before broad native/package matrices; every cache/artifact cleanup needs proven ownership. |
 

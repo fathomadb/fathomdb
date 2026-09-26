@@ -73,8 +73,9 @@ findings; the second was PASS-WITH-FIXES (`design-review.md`).
 
 - **Code review** (Opus 5.5, high): PASS-WITH-FIXES, with no P1 and no
   semantic change. All findings were closed (`code-review.md`).
-- **Independent verification** (Sonnet): PASS with unavailable evidence at
-  `36fc2352` (`review-verification.md`).
+- **Independent verification** (Sonnet): PASS at `36fc2352`
+  (`review-verification.md`). The AC-037 live layer it could not run was run
+  afterwards and passed.
   - **Canonical gate:** 126/127 at first. The failing Windows WAL guard was a
     move side effect, fixed by a path-only retarget.
   - **Workspace:** Clippy and check pass.
@@ -83,12 +84,13 @@ findings; the second was PASS-WITH-FIXES (`design-review.md`).
     surface is additive only (the residue tests).
   - **Feature-complete on the 3090s:** 349/357 passed, 0 failed,
     8 documented ignored. It includes CUDA-selection and tolerance evidence.
-  - **Unavailable:** AC-037's live network-namespace layer.
+  - **Strict security with live AC-037:** 0/0/0, after a temporary per-binary
+    AppArmor `userns` profile for `/usr/bin/unshare`.
 
 ## Open items
 
-- **AC-037 live layer:** unavailable on this executor; Slice 150 must run it
-  on a capable route.
+- **AC-037 live layer:** passed for Slice 70 through a temporary AppArmor
+  profile. Slice 150 must still run it on its qualification executor.
 - **Slice 80:** the owner of `ProjectionRuntimeShared`'s four search fields.
 - **Slice 90:** the configurable embedder pool and timeout forwarding (seq 258).
 - **Slice 140:** the dual-runtime ADR status (seq 259).

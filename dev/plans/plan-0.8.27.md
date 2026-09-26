@@ -509,6 +509,32 @@ SQL/plan assertions where result-only tests could miss an ineligible row
 consuming a candidate window. Keep graph and evidence tests together until
 behavior proves independent seams.
 
+Carried from Slice 70 (`features/slice-70/status.md`):
+
+- **Search-owned runtime fields.** Decide the owner of the four search-owned
+  fields that Slice 70 left unchanged on `ProjectionRuntimeShared` (now in
+  `projection_runtime.rs`): `search_limit_override`,
+  `recency_reweight_enabled`, `importance_reweight_enabled`, and
+  `vector_stage_only_for_test`. Moving them changes the struct's shape, so
+  design review must approve it.
+- **Slice 80 items.** These items are Slice 80's. Slice 70 kept them at
+  root:
+  - `fuse_rrf`, `fuse_three_arms`, `RRF_*`, and `RECENCY_WEIGHT`;
+  - `apply_recency_reweight`, `apply_importance_reweight`, and their maps;
+  - `branch_str` and `append_jsonl`;
+  - the search-limit constants;
+  - `vector_filter_*` and `read_search_in_tx`.
+
+  Search keeps calling `rerank::try_rerank_fused`.
+- **Per-batch check.** Every gate that scrapes engine source by file must run
+  in each batch, not only at closeout. Slice 70 missed two:
+  - `scripts/tests/test_windows_wal_attribution_ci_job.sh`, whose
+    `function_body` matches only indented methods;
+  - the slice35 manifest and audit.
+
+  Before moving code, grep `scripts/tests` and `tests/` for `src/lib.rs`
+  readers.
+
 ### Slice 90 — open, configuration, runtime, operator, and facade closure
 
 Move open/probes, runtime configuration, WAL ownership, and operator
@@ -521,6 +547,31 @@ open/close/reopen, WAL ownership and busy/locking behavior, probe side effects,
 error precedence, and faulted open/shutdown without orphaned runtime or WAL
 state. Re-run root re-export and operator-feature comparisons after each
 extraction.
+
+Carried from Slice 70 (`features/slice-70/status.md`):
+
+- **Configuration contract gap (ledger seq 258, `TC-b602d87a…`).**
+  - **Code:** `PROJECTION_WORKERS = 2` and `DEFAULT_EMBED_TIMEOUT_MS` are
+    fixed in `fathomdb-engine`.
+  - **Bindings:** Python and TypeScript store `EngineConfig` without
+    forwarding it, and NAPI `open` ignores `engine_config`.
+  - **Contract:** the accepted `ADR-0.6.0-embedder-protocol.md` and the
+    locked `dev/design/bindings.md` require a configurable embedder pool size
+    and call timeout.
+  - **Slice 90's job:** resolve the gap by implementing the forwarding or by
+    proposing a successor ADR. Do not describe the fixed constants as
+    satisfying the contract.
+- **Open-path and runtime items.** These are Slice 90's. Slice 70 kept them
+  at root:
+  - `check_embedder_profile`, `default_embedder_identity`,
+    `edge_vector_prune_complete`, and `prune_orphaned_edge_vectors`;
+  - the embedder and reranker open gates;
+  - `open_managed_connection` and `open_runtime_connection`;
+  - `verify_embedder` and the other operator diagnostics;
+  - `drain_embedder_events`;
+  - the runtime constants.
+- **Per-batch check.** The Slice 80 note on running source-scraping guards in
+  every batch applies here too.
 
 ### Slice 100 — PyO3 binding decomposition
 
@@ -574,6 +625,27 @@ or follow-up, every 2,000–3,500-line review has a recorded human verdict, and
 the exception register covers every trigger. Do not make file size itself a
 blocking automated test. The five named outliers must no longer remain
 unexplained monoliths.
+
+Carried from Slice 70 (`features/slice-70/status.md`):
+
+- **Dual-runtime ADR status (ledger seq 259, `TC-7fed8d8d…`).**
+  `ADR-0.8.23-dual-runtime-device-policy.md` and decision-index row 43 still
+  read `proposed`. HITL `seq-250` and `seq-252` (0.8.23) required the shipped
+  CPU/GPU runtime. Present a HITL status ruling; do not edit the status
+  without one.
+- **Unreviewed design memos.** `dev/design/embedder-decision.md` and
+  `dev/design/0.8.1-slice-10-reranker-design.md` are still `UNREVIEWED`.
+  Slice 70 treated them as informative history. Review them or mark them
+  historical.
+- **Slice 40 precedence edit.** The 0.8.25 Slice 40 dense-state table
+  (`dev/plans/0.8.25/features/slice-40/design.md`) lists both "`failed` + no
+  sidecar + no vec0 → failed" and "edge member not enrolled → corrupt".
+  Production and the in-crate classifier test apply the `failed` row to an
+  unenrolled edge. State that precedence in the table.
+- **Test seams.** The `*_for_test` Engine seams that Slice 70 left at root
+  (including the projection, vector, and embed seams, `projection_status`,
+  and `mean_centering_internals_for_test`) fall under the existing Slice 140
+  test-seam gating ruling.
 
 Slice 140's intended hidden-surface differences, including the test-seam
 gating, are captured at its landing commit as a successor hidden baseline with

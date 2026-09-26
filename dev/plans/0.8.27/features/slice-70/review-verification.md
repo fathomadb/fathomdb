@@ -9,12 +9,15 @@ candidate: 36fc2352cf243e022315ea302368d9424096aebd
 
 The independent read-only verifier (Sonnet) returned **PASS with
 unavailable evidence** at clean candidate `36fc2352`. The single unavailable
-item is AC-037's live network-namespace layer.
+item, AC-037's live network-namespace layer, was then run and passed on
+2026-09-26 (see "AC-037 live layer" below). With it, no Slice 70 evidence is
+unavailable except Metal.
 
 | Gate | Result |
 | --- | --- |
 | `scripts/agent-verify.sh` at `6d13f548` | Lint and typecheck pass. 127 registered, 126 passed, 1 failed, 0 skipped, 0 excluded. The failure is resolved below. |
-| Security | 0 violations, 0 blockers, 1 downgrade. AC-036, AC-038 (2/2), AC-050a (Rust, Python, TypeScript), and AC-050c (29 documented) pass. AC-037's offline catch and policy self-test pass; its live layer is **unavailable** (below). |
+| Security (verifier run) | 0 violations, 0 blockers, 1 downgrade. AC-036, AC-038 (2/2), AC-050a (Rust, Python, TypeScript), and AC-050c (29 documented) pass. AC-037's offline catch and policy self-test pass; its live layer was unavailable in that run. |
+| Security, strict, live AC-037 (main thread, `cacfce45`) | 0 violations, 0 blockers, 0 downgrades. `AC-037 OK` (every `connect()` loopback, `AF_UNIX`, or `AF_NETLINK` under `unshare -rUn` and `strace`) and `AC-037 catch OK (live netns)`. |
 | `test-windows-wal-attribution-ci-job` after `36fc2352` | 313 passed, 0 failed, including the load-bearing timeout mutation |
 | Candidate-bound Python receipt | Candidate `6d13f548`; native module SHA-256 `2e8e834900f819c615ec6e86b7e260128a4f5e5cd6633ad785785e4f92b19fed` |
 | Workspace Clippy, warnings denied | PASS |
@@ -46,14 +49,26 @@ Neither the design review nor the per-batch evidence had exercised this
 guard. Its marker-level checks read `lib.rs` as a whole and still passed;
 only its function-body probes read the moved methods.
 
-## Unavailable evidence
+## AC-037 live layer
 
-AC-037's live layer could not create an unprivileged user namespace on this
-host (`kernel.apparmor_restrict_unprivileged_userns=1`). The gate classified
-this as an environmental downgrade. It is recorded as unavailable, not as a
-pass. Slice 60 reproduced the live pass only through a Codex
-escalated-execution route. Slice 150 qualification must run the live layer on
-a capable route.
+In the verifier's run, AC-037's live layer could not create an unprivileged
+user namespace (`kernel.apparmor_restrict_unprivileged_userns=1` on Ubuntu
+24.04). The gate classified this as an environmental downgrade, and it was
+not counted as a pass.
+
+The repository owner then installed a temporary per-binary AppArmor profile
+granting `userns` to `/usr/bin/unshare` only. The global restriction stayed
+enabled. `unshare -rUn true` succeeded. At `cacfce45`, whose `src/` and
+`scripts/` are identical to candidate `36fc2352`, `STRICT=1
+scripts/agent-security.sh` reported:
+
+- **AC-037:** `AC-037 OK: all connect() syscalls were loopback / AF_UNIX /
+  AF_NETLINK.`
+- **Live catch:** `AC-037 catch OK (live netns)`.
+- **Summary:** 0 violations, 0 blockers, 0 downgrades.
+
+The profile was temporary and is not a standing host configuration. Slice 150
+must still run the live layer on its qualification executor.
 
 ## Feature-complete and CUDA evidence (main thread)
 

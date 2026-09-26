@@ -1115,7 +1115,7 @@ expect_out 'C1-Q6B-H-TERMINAL-NOT-LIFECYCLE-ADDRESSABLE' \
 # rewrites `configure_projections`'s actual signature and plants a decoy verb
 # carrying the three probed fragments.
 DECOY_SIG_ROOT="$(make_root apply-verb-signature-rewritten)"
-python3 - "$DECOY_SIG_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$DECOY_SIG_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -1157,7 +1157,7 @@ expect_out 'configure_projections' "the rewritten-signature failure NAMES the su
 # transaction and removes the wake, leaving a decoy call and the three unrelated
 # `notify_new_work()` call sites the file already carries.
 OUTSIDE_VERB_ROOT="$(make_root apply-verb-body-gutted)"
-python3 - "$OUTSIDE_VERB_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$OUTSIDE_VERB_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -1737,7 +1737,7 @@ expect_out 'file\s+src/rust/crates/fathomdb-engine/Cargo\.toml' \
 # `self` receiver is legal ONLY inside an `impl`/trait block, so requiring one
 # excludes both a free function and a receiver-less associated function.
 RECEIVERLESS_ROOT="$(make_root apply-verb-receiver-deleted)"
-python3 - "$RECEIVERLESS_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$RECEIVERLESS_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -1769,7 +1769,7 @@ SPELLING_IDX=0
 for SPELLING in '& self,' '&mut self,' "&'life self," 'mut self,' 'self,'; do
   SPELLING_IDX=$((SPELLING_IDX + 1))
   MIRROR_ROOT="$(make_root "apply-verb-receiver-$SPELLING_IDX")"
-  python3 - "$MIRROR_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" "$SPELLING" <<'PY'
+  python3 - "$MIRROR_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" "$SPELLING" <<'PY'
 import sys
 p, spelling = sys.argv[1], sys.argv[2]
 text = open(p, encoding="utf-8").read()

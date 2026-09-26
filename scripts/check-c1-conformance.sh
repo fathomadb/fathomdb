@@ -732,7 +732,7 @@ ASSERTIONS = {
     # instance verb the pin's evidence records and every call site in this repo
     # uses, stops compiling. So the RECEIVER is probed too.
     "C1-SEAM-ENGINE-BUILD-DROP": [
-        ("present", ENG, r"pub fn configure_projections\("),
+        ("present", REGISTRY, r"pub fn configure_projections\("),
         # A `self` receiver is legal ONLY inside an `impl`/trait block, so
         # requiring one excludes both shapes the finding names (a free function
         # and a receiver-less associated function) without this gate having to
@@ -741,11 +741,11 @@ ASSERTIONS = {
         # `mut self` — because a formatting-only edit must not manufacture a
         # false RED (`self` may only ever be the FIRST parameter, so the open
         # paren this anchors on can only be the parameter list's).
-        ("fn_sig", ENG, "configure_projections",
+        ("fn_sig", REGISTRY, "configure_projections",
          r"\(\s*(?:&\s*(?:'[A-Za-z_]\w*\s+)?)?(?:mut\s+)?self\b"),
-        ("fn_sig", ENG, "configure_projections", r"specs:\s*&\[ProjectionSpec\]"),
-        ("fn_sig", ENG, "configure_projections", r"drop:\s*&\[String\]"),
-        ("fn_sig", ENG, "configure_projections",
+        ("fn_sig", REGISTRY, "configure_projections", r"specs:\s*&\[ProjectionSpec\]"),
+        ("fn_sig", REGISTRY, "configure_projections", r"drop:\s*&\[String\]"),
+        ("fn_sig", REGISTRY, "configure_projections",
          r"->\s*Result<\s*ProjectionDelta\s*,\s*EngineError\s*>"),
     ],
     # ---- Q1 --------------------------------------------------------------
@@ -762,7 +762,7 @@ ASSERTIONS = {
     "C1-Q3-SOLE-AUTHORITY": [
         ("sql_ddl", SCH, "_fathomdb_projection_registry",
          r"(?i)\bname\s+TEXT\s+PRIMARY\s+KEY\b"),
-        ("fn_defined", ENG, "apply_projection_config"),
+        ("fn_defined", REGISTRY, "apply_projection_config"),
         ("in_item", ENG, "struct", "ProjectionDelta",
          r"pub\s+dropped\s*:\s*Vec\s*<\s*String\s*>"),
     ],
@@ -837,7 +837,7 @@ ASSERTIONS = {
     # apply verb's BODY, and was probed file-wide — a decoy call elsewhere
     # satisfied it while the real call ran outside the transaction.
     "C1-Q4-CHEAP-SAME-TRANSACTION": [
-        ("in_item", ENG, "fn", "configure_projections", r"apply_projection_config\(&tx,"),
+        ("in_item", REGISTRY, "fn", "configure_projections", r"apply_projection_config\(&tx,"),
         ("in_item", ENG, "struct", "ProjectionDelta", r"pub\s+built\s*:\s*Vec\s*<\s*String\s*>"),
     ],
     # "EXACTLY {unavailable, embedding, ready}" is a CLOSED vocabulary, so it
@@ -985,7 +985,7 @@ ASSERTIONS = {
     # unrelated wake sites, so removing the wake FROM THE APPLY was invisible.
     "C1-AA-NO-BLOCK-ON-EMBEDDING": [
         ("fn_defined", ENG, "notify_new_work"),
-        ("in_item", ENG, "fn", "configure_projections", r"notify_new_work\(\)"),
+        ("in_item", REGISTRY, "fn", "configure_projections", r"notify_new_work\(\)"),
         ("test_defined", T20,
          "readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready"),
     ],

@@ -284,13 +284,11 @@ def validate_engine_tree(
 PRODUCTION_INVENTORY = [
     MutationSite("lib.rs", function, verb, table)
     for function, verb, table in [
-        ("clear_attribute_projection", "DELETE FROM", "property_search_index"),
         ("commit_projection_outcomes", "INSERT INTO", "vector_default"),
         ("commit_projection_outcomes", "INSERT INTO", "vector_default"),
         ("project_canonical_edge_row", "INSERT INTO", "search_index_edges"),
         ("project_canonical_node_row", "INSERT INTO", "search_index"),
         ("project_canonical_node_row", "INSERT INTO", "search_index_v2"),
-        ("project_one_attribute", "INSERT INTO", "property_search_index"),
         ("write_vector_for_test", "INSERT INTO", "vector_default"),
     ]
 ] + [
@@ -318,7 +316,9 @@ PRODUCTION_INVENTORY = [
 ] + [
     MutationSite("projection_registry.rs", function, verb, table)
     for function, verb, table in [
+        ("clear_attribute_projection", "DELETE FROM", "property_search_index"),
         ("delete_row_owned_projection", "DELETE FROM", "<allowlisted>"),
+        ("project_one_attribute", "INSERT INTO", "property_search_index"),
         ("truncate_row_projections_in", "DELETE FROM", "<allowlisted>"),
     ]
 ]

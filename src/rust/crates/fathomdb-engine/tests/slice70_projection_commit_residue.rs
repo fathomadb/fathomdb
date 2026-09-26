@@ -10,7 +10,9 @@
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{Engine, InitialState, PreparedWrite, SourceId};
 use rusqlite::Connection;
-use std::sync::{Arc, Barrier};
+use std::sync::{mpsc, Arc, Barrier};
+use std::thread;
+use std::time::Duration;
 use tempfile::TempDir;
 
 struct FixedEmbedder;
@@ -52,20 +54,30 @@ fn node(label: &str) -> PreparedWrite {
 
 /// Terminal, sidecar, and failure-audit rows for one cursor, plus every vec0
 /// row (each fixture database holds exactly one write).
-fn residue(path: &std::path::Path, cursor: u64) -> (u64, u64, u64, u64) {
-    Connection::open(path)
-        .expect("observer connection")
-        .query_row(
-            "SELECT \
-               (SELECT COUNT(*) FROM _fathomdb_projection_terminal WHERE write_cursor=?1),\
-               (SELECT COUNT(*) FROM _fathomdb_vector_rows WHERE write_cursor=?1),\
-               (SELECT COUNT(*) FROM vector_default),\
-               (SELECT COUNT(*) FROM operational_mutations \
-                  WHERE collection_name='projection_failures' AND record_key=CAST(?1 AS TEXT))",
-            [cursor],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-        )
-        .expect("residue query")
+fn residue(path: &std::path::Path, cursor: u64) -> rusqlite::Result<(u64, u64, u64, u64)> {
+    Connection::open(path)?.query_row(
+        "SELECT \
+           (SELECT COUNT(*) FROM _fathomdb_projection_terminal WHERE write_cursor=?1),\
+           (SELECT COUNT(*) FROM _fathomdb_vector_rows WHERE write_cursor=?1),\
+           (SELECT COUNT(*) FROM vector_default),\
+           (SELECT COUNT(*) FROM operational_mutations \
+              WHERE collection_name='projection_failures' AND record_key=CAST(?1 AS TEXT))",
+        [cursor],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+    )
+}
+
+/// Wait for the paused worker to report, failing instead of hanging when the
+/// forced commit failure is never consumed.
+fn wait_reported(reported: Arc<Barrier>) {
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        reported.wait();
+        let _ = sender.send(());
+    });
+    receiver
+        .recv_timeout(Duration::from_secs(60))
+        .expect("the worker reports the forced projection commit failure");
 }
 
 fn arm_failure_pause(engine: &Engine) -> (Arc<Barrier>, Arc<Barrier>) {
@@ -88,11 +100,12 @@ fn failed_success_commit_leaves_no_terminal_sidecar_or_vector() {
     let (reported, release) = arm_failure_pause(&opened.engine);
 
     let cursor = opened.engine.write(&[node("success")]).expect("caller write").cursor;
-    reported.wait();
+    wait_reported(reported);
     // Release before asserting: a panic while the worker is paused would
     // deadlock `Engine` drop instead of failing the test.
     let observed = residue(&path, cursor);
     release.wait();
+    let observed = observed.expect("residue query");
     assert_eq!(observed, (0, 0, 0, 0), "rolled-back publication left residue");
 
     opened.engine.drain(10_000).expect("redispatch reaches idle");
@@ -110,11 +123,12 @@ fn failed_failure_outcome_commit_leaves_no_terminal_or_audit() {
     let (reported, release) = arm_failure_pause(&opened.engine);
 
     let cursor = opened.engine.write(&[node("failed")]).expect("caller write").cursor;
-    reported.wait();
+    wait_reported(reported);
     // Release before asserting: a panic while the worker is paused would
     // deadlock `Engine` drop instead of failing the test.
     let observed = residue(&path, cursor);
     release.wait();
+    let observed = observed.expect("residue query");
     assert_eq!(observed, (0, 0, 0, 0), "rolled-back failure outcome left residue");
 
     opened.engine.drain(10_000).expect("redispatch reaches idle");

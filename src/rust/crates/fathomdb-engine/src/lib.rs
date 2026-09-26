@@ -11130,7 +11130,7 @@ fn text_hit_passes_filter(
 ///
 /// The value is read from the row-owned `canonical_attributes` EAV table (keyed
 /// by the hit's `write_cursor` + `attr_name`), which Slice 15d keeps active-only
-/// and populates via the SAME [`extract_scalar_attribute`](projection_registry::extract_scalar_attribute) that fills the vec0
+/// and populates via the SAME `extract_scalar_attribute` that fills the vec0
 /// `attr_<hex>` column — so the two arms see IDENTICAL values by construction.
 ///
 /// # fix-3 [P2]: ABSENT vs PRESENT-EMPTY

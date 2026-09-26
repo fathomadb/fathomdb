@@ -1,35 +1,61 @@
 //! Coupling audit supplementing the whole-crate closed scanner in
 //! `experiments/slice35_virtual_mutation_audit.py`.
 
+// Each file is followed by a sentinel `fn` so `function_body` never extends
+// a body across a file boundary.
 const SOURCE: &str = concat!(
     include_str!("../src/lib.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/write.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/write_validation.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/write_commit.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/provider.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/ingest.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/consolidation.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/vector_storage.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/vector_equivalence.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/mean.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/embedding.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/projection_registry.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/projection_runtime.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/projection_worker.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/projection_commit.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/projection_rebuild.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/projection_generation.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/rerank.rs")
 );
 
 fn function_body(name: &str) -> &'static str {
     let start = SOURCE.find(&format!("fn {name}(")).unwrap_or_else(|| panic!("missing {name}"));
     let tail = &SOURCE[start + 1..];
-    let end = ["\nfn ", "\n    fn ", "\n    pub fn ", "\n    pub async fn "]
-        .iter()
-        .filter_map(|marker| tail.find(marker))
-        .min()
-        .map_or(SOURCE.len(), |offset| start + 1 + offset);
+    let end = [
+        "\nfn ",
+        "\n    fn ",
+        "\n    pub fn ",
+        "\n    pub async fn ",
+        "\npub(crate) fn ",
+        "\n    pub(crate) fn ",
+    ]
+    .iter()
+    .filter_map(|marker| tail.find(marker))
+    .min()
+    .map_or(SOURCE.len(), |offset| start + 1 + offset);
     &SOURCE[start..end]
 }
 

@@ -288,27 +288,31 @@ PRODUCTION_INVENTORY = [
         ("commit_projection_outcomes", "INSERT INTO", "vector_default"),
         ("commit_projection_outcomes", "INSERT INTO", "vector_default"),
         ("delete_row_owned_projection", "DELETE FROM", "<allowlisted>"),
-        ("delete_vector_partition_row", "DELETE FROM", "vector_default"),
-        ("migrate_vector_partition_pack1_to_pack2", "DROP TABLE", "vector_default"),
-        ("migrate_vector_partition_pack1_to_pack2", "INSERT INTO", "vector_default"),
-        ("migrate_vector_partition_to_pack1", "DROP TABLE", "vector_default"),
-        ("migrate_vector_partition_to_pack1", "INSERT INTO", "vector_default"),
         ("project_canonical_edge_row", "INSERT INTO", "search_index_edges"),
         ("project_canonical_node_row", "INSERT INTO", "search_index"),
         ("project_canonical_node_row", "INSERT INTO", "search_index_v2"),
         ("project_one_attribute", "INSERT INTO", "property_search_index"),
-        ("refresh_vector_attr_values_for_row", "UPDATE", "vector_default"),
-        ("reshape_vector_partition_nondestructive", "DROP TABLE", "vector_default"),
-        ("reshape_vector_partition_nondestructive", "INSERT INTO", "vector_default"),
         ("run_pin_and_requantize_pass", "INSERT INTO", "vector_default"),
         ("truncate_row_projections_in", "DELETE FROM", "<allowlisted>"),
-        ("vector_partition_create_sql", "CREATE VIRTUAL TABLE", "vector_default"),
         ("write_vector_for_test", "INSERT INTO", "vector_default"),
     ]
 ] + [
     MutationSite(
         "consolidation.rs", "prune_edge_projection_shadows", "DELETE FROM", "search_index_edges"
     )
+] + [
+    MutationSite("vector_storage.rs", function, verb, table)
+    for function, verb, table in [
+        ("delete_vector_partition_row", "DELETE FROM", "vector_default"),
+        ("migrate_vector_partition_pack1_to_pack2", "DROP TABLE", "vector_default"),
+        ("migrate_vector_partition_pack1_to_pack2", "INSERT INTO", "vector_default"),
+        ("migrate_vector_partition_to_pack1", "DROP TABLE", "vector_default"),
+        ("migrate_vector_partition_to_pack1", "INSERT INTO", "vector_default"),
+        ("refresh_vector_attr_values_for_row", "UPDATE", "vector_default"),
+        ("reshape_vector_partition_nondestructive", "DROP TABLE", "vector_default"),
+        ("reshape_vector_partition_nondestructive", "INSERT INTO", "vector_default"),
+        ("vector_partition_create_sql", "CREATE VIRTUAL TABLE", "vector_default"),
+    ]
 ]
 
 PRODUCTION_HELPER_CALLERS = {

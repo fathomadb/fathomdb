@@ -727,7 +727,7 @@ framing; 15 is landed and 20/25 are unblocked.)*
 > it does **not** reach a runtime reconfiguration of a live DB.) `filterable` **already works** via the
 > Slice-15d row-owned EAV table (`canonical_attributes`); 15e adds the **pre-KNN vector-path** routing
 > only (ADR-0.8.11 D3). The tree already ships this exact operation as
-> `fn migrate_vector_partition_pack1_to_pack2` (in `src/rust/crates/fathomdb-engine/src/lib.rs`) — **follow that precedent.**
+> `fn migrate_vector_partition_pack1_to_pack2` (in `src/rust/crates/fathomdb-engine/src/vector_storage.rs`) — **follow that precedent.**
 >
 > **The four load-bearing conditions (steward-investigated against code; all MUST hold or query results
 > go silently wrong):**
@@ -738,15 +738,16 @@ framing; 15 is landed and 20/25 are unblocked.)*
 >    vec0 auto-assign rowids silently decouples every embedding.
 > 2. **New attribute column is plain metadata OR a partition key — NEVER a vec0 `aux`/`+` column.** An aux
 >    column hard-**errors** every filtered KNN query (see the `aux` note on `fn vector_partition_create_sql`
->    in `src/rust/crates/fathomdb-engine/src/lib.rs`).
+>    in `src/rust/crates/fathomdb-engine/src/vector_storage.rs`).
 > 3. **Back-fill old rows with the `''` sentinel** (vec0 TEXT metadata is NOT-NULL-able — the `''` back-fill
 >    in `fn vector_partition_create_sql`'s callers, e.g. the `status` sentinel in
 >    `fn migrate_vector_partition_pack1_to_pack2`) so they cleanly fail-to-match a filter rather than erroring.
 > 4. **Copy `embedding_bin` verbatim via `vec_bit(...)` — do NOT re-quantize.** Re-deriving bits from the
 >    raw `embedding` leaves old rows quantized **un-centered** while new rows stay mean-centered ⇒
 >    incomparable Hamming distances, silent recall corruption, no error (the `vec_bit(embedding_bin)`
->    re-insert inside `fn migrate_vector_partition_pack1_to_pack2`, and the anti-pattern to avoid — the
->    DELETE+INSERT re-quantize in `fn run_pin_and_requantize_pass` — both in `src/rust/crates/fathomdb-engine/src/lib.rs`).
+>    re-insert inside `fn migrate_vector_partition_pack1_to_pack2` in
+>    `src/rust/crates/fathomdb-engine/src/vector_storage.rs`, and the anti-pattern to avoid — the
+>    DELETE+INSERT re-quantize in `fn run_pin_and_requantize_pass` in `src/rust/crates/fathomdb-engine/src/lib.rs`).
 >
 > Idempotent re-registration still diffs to a **no-op**; a shape-changing reshape is an **explicit**
 > drop (`api-surface.md:26-30`), never a silent boot-time wipe. `run_pin_and_requantize_pass` is a

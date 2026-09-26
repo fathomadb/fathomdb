@@ -43,7 +43,7 @@ draft and raised seven findings. Each finding was verified read-only against
 | --- | --- | --- | --- |
 | 1 | No slice-level plan or design | ACCEPT | Only the master paragraph existed. This plan follows the Slice 50/60 artifact set: `plan`, `design`, `design-review`, `tdd-chronology`, `code-review`, `review-verification`, and `status`. |
 | 2 | "Recovery after interruption" is ambiguous | ACCEPT, citation corrected | `tests/projection_runtime.rs` AC-063a/b (around line 480/513) covers only the terminal half. Pending-after-reopen is covered by `tc91_projection_commit_failure_survives_stop_and_reopen` and `slice21_projection_runtime_state::approved_open_boot_grafts_once_and_never_reopens_failed_terminals`. Rebuild retry is covered by `rebuild_projections::ac_063c_rebuild_projections_materializes_failed_terminal_rows`. In source, `next_pending_projection_jobs` treats a missing terminal as pending, and `reenqueue_stranded_vector_rows` skips `failed`. The replacement wording is adopted in R27-70C. |
-| 3 | Physical-readiness language is overbroad | ACCEPT, gaps found | The member-scoped triple (terminal, `_fathomdb_vector_rows` sidecar, vec0 row) is specified in `dev/plans/0.8.25/features/slice-40/design.md` and enforced by `projection_generation.rs` `member_completion` / `classify_completion`, with eligibility checked separately. `member_completion` issues three reads without its own transaction, so the single-snapshot guarantee rests on callers. There is no test for `failed` plus a physical row or for vec0 without a sidecar, although that design claims exhaustive coverage. Both gaps enter characterization. |
+| 3 | Physical-readiness language is overbroad | ACCEPT | The member-scoped triple (terminal, `_fathomdb_vector_rows` sidecar, vec0 row) is specified in `dev/plans/0.8.25/features/slice-40/design.md` and enforced by `projection_generation.rs` `member_completion` / `classify_completion`, with eligibility checked separately. `member_completion` issues three reads without its own transaction, so the single-snapshot guarantee rests on callers. The claimed test gap (`failed` plus a physical row; vec0 without a sidecar) was wrong: the in-crate unit test `completion_classifier_is_closed_over_every_persisted_shape` already covers the whole domain. |
 | 4 | Ownership overlaps Slices 80 and 90 | ACCEPT, refined | `ProjectionRuntimeShared` holds four search fields: `search_limit_override`, `recency_reweight_enabled`, `importance_reweight_enabled`, and `vector_stage_only_for_test`. Slice 70 relocates the struct unchanged and records those fields as a Slice 80 hand-off; the struct's shape does not change. `fuse_rrf`, the `RRF_*` constants, and `read_search_in_tx` stay for Slice 80. `rerank_fused` and `try_rerank_fused` move as rerank implementation, and search keeps calling them. |
 | 5 | Embedder configuration contract and code disagree | ACCEPT | `PROJECTION_WORKERS = 2` and `DEFAULT_EMBED_TIMEOUT_MS = 30_000` are fixed in `lib.rs`. The accepted `ADR-0.6.0-embedder-protocol.md` and the locked `dev/design/bindings.md` say pool size and timeout are configurable. Python `Engine.open` stores `EngineConfig` without forwarding it to native open. NAPI `open` ignores `engine_config`, and TypeScript only stores it. This is recorded as a known gap assigned to Slice 90. Slice 70 preserves current behavior and must not describe the fixed worker count as meeting the configurable-pool contract. |
 | 6 | Feature and GPU evidence is under-specified | ACCEPT, premise corrected | `scripts/test-feature-complete.sh` (via `scripts/lib/feature_complete.py`) requires both RTX 3090s and pinned weights and fails closed when they are missing (`FATHOMDB_REQUIRE_LIVE=1`). It never uses `--all-features`, because the Metal features are macOS-gated. The claim that no usable CUDA host exists is stale: `prework/slice-0.md` says so, but the hidden-surface unit later ran the gate on the 3090 executor (`features/hidden-surface/status.md`). This plan names that executor. Metal remains unavailable and is recorded as such. |
@@ -75,9 +75,9 @@ points:
 - **Generation-race coverage:** R27-70B is already covered by
   `slice40_projection_generation` and
   `slice40_projection_generation_races`. No test is added for it.
-- **Classifier coverage:** the R27-70D gap is closed by an exhaustive unit
-  table over `classify_completion`, which is a pure function. No new database
-  fixture is needed.
+- **Classifier coverage:** R27-70D is already covered by the in-crate
+  exhaustive `completion_classifier_is_closed_over_every_persisted_shape`,
+  so no test is added (`design.md`).
 - **Mutation audit:**
   - **Status:** `experiments/slice35_virtual_mutation_audit.py` is red at the
     baseline (ledger seq 257).
@@ -154,8 +154,6 @@ Use one writer in the release worktree. Read-only reviewers share it.
    - zero residue immediately after a failed projection commit, with a
      success arm and a failed-outcome arm, using
      `pause_projection_commit_failure_cleanup_for_test`;
-   - an exhaustive `classify_completion` table, including `failed` with a
-     physical row and vec0 without a sidecar;
    - the stale-inventory correction of the slice35 virtual-mutation audit
      (seq 257), as a separate test-infrastructure commit that fixes both the
      `INSERT` entries and the stale helper-caller entry.

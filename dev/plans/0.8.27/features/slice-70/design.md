@@ -137,52 +137,29 @@ their final owner. Slice 70 does not change the struct's shape.
 | --- | --- |
 | R27-70B generation | `slice40_projection_generation::{non_noop_configuration_mints_but_exact_replay_reuses_generation, each_operator_rebuild_mints_a_distinct_generation, fresh_generation_is_stable_across_restart}`; `slice40_projection_generation_races::{stale_worker_result_cannot_publish_into_a_new_generation, worker_computing_across_generation_transition_discards_stale_result, queued_worker_across_generation_transition_is_rediscovered, worker_at_write_lock_boundary_discards_after_transition, publication_holding_write_lock_linearizes_before_transition}` |
 | R27-70C recovery | `projection_runtime::{ac_063a_*, ac_063b_restart_does_not_retry_terminal_projection_failures}`; `tc91_projection_commit_hardening::*` (six tests); `slice21_projection_runtime_state::approved_open_boot_grafts_once_and_never_reopens_failed_terminals`; `slice40_projection_completion::missing_member_below_the_watermark_is_rediscovered_before_drain_returns`; `rebuild_projections::ac_063c_*` |
-| R27-70D completeness | `slice40_projection_completion::{worker_publication_never_repairs_a_partial_projection_tuple, sidecar_row_identity_must_match_the_projection_owner, usable_runtime_cannot_leave_a_stranded_node_marker, complete_edge_without_required_enrolment_is_corrupt, global_status_rejects_a_cursor_owned_by_both_node_and_edge}`; `slice40_projection_generation::a_terminal_without_its_physical_vector_is_typed_corruption` |
+| R27-70D completeness | `projection_generation::tests::completion_classifier_is_closed_over_every_persisted_shape` (lib); `slice40_projection_completion::{worker_publication_never_repairs_a_partial_projection_tuple, sidecar_row_identity_must_match_the_projection_owner, usable_runtime_cannot_leave_a_stranded_node_marker, complete_edge_without_required_enrolment_is_corrupt, global_status_rejects_a_cursor_owned_by_both_node_and_edge}`; `slice40_projection_generation::a_terminal_without_its_physical_vector_is_typed_corruption` |
 | R27-70E embedding | `pr9_embed_watchdog`, `pr9_embed_serialization`, `pr9_concurrent_embed`, `slice30_embedding_readiness`, `slice70_runtime_policy` (`default-embedder`) |
 | R27-70F vector and mean | `tc91_projection_commit_failure_at_mean_pin_is_rollback_safe`, `pr2b_mean_recompute`, `eu5a1`, `eu5a2`, `eu5b`, `eu5f_production_pin`, `vector_contracts`, `vector_quant_pack1`, `vector_equivalence_probe`, `tc68_probe_fingerprint_cache`, `tc76_vec0_long_metadata_delete`, `tc33_fix6_edge_vector_prune`, `rebuild_vec0` (`operator`) |
 | R27-70G rerank | `pr_g10_reranker`, `pr_e2_rerank_nonfinite`; with `default-reranker`: `pr_g10_reranker_ce`, `pr_e2_rerank_passages`, `slice71_rerank_policy`, `slice71_open_report`; `slice72_*` (feature-complete) |
 
 ### Added characterization (only the gaps)
 
-1. **Exhaustive completion classifier (R27-70D).**
-   - **What:** a `#[cfg(test)]` unit test in `projection_generation.rs` over
-     `classify_completion`.
-   - **Input domain:**
-     - terminal ∈ {none, `up_to_date`, `failed`};
-     - sidecar ∈ {none, expected kind with matching identity, expected kind
-       with mismatched identity, other kind};
-     - physical ∈ {none, expected source type and kind, wrong source type,
-       wrong kind};
-     - `is_edge` ∈ {false, true};
-     - `enrolled` ∈ {false, true};
-     - runtime state ∈ every `ProjectionRuntimeStateV1` variant.
-   - **Kinds:** `is_edge = true` uses `edge_fact`. `is_edge = false` uses a
-     node kind that `resolve_source_type` accepts.
+1. **Exhaustive completion classifier (R27-70D): already covered.** At
+   implementation, `projection_generation::tests::completion_classifier_is_closed_over_every_persisted_shape`
+   was found to already enumerate the whole `classify_completion` domain,
+   with the same Slice 40 oracle and precedence as designed here. It adds a
+   foreign terminal value and asserts `ProjectionGenerationCorrupt` for every
+   unlisted tuple, including `failed` with a physical row and vec0 without a
+   sidecar. The pre-commission inventory searched only `tests/` and missed
+   this in-crate test. A drafted duplicate was run (green), then discarded.
+   The existing test is the owner. The precedence note below records why its
+   failed-unenrolled-edge expectation is correct:
    - **Precedence:** the Slice 40 table lists both "`failed` + no sidecar +
      no vec0 → failed" and "edge member not enrolled → corrupt". For a
      failed, unenrolled edge, the specific failed row wins. It carries no
      enrolment qualifier. The edge row's rationale concerns enrolment that
-     must be complete before publication. (The table's phrase "enrolment is
-     scheduler state" is scoped to node-only completion and is not relied
-     on here.) The ambiguity is recorded for a future Slice 40 design edit.
-     This is also
-     current production behavior (`projection_generation.rs` `Failed` arm),
-     which a characterization test must pin.
-   - **Oracle:** a hand-written expected function that transcribes the
-     0.8.25 Slice 40 table with that precedence:
-     - `Complete` iff `up_to_date` and matching sidecar and matching physical
-       row and (node or enrolled);
-     - `Failed` iff `failed` and neither sidecar nor physical row;
-     - `Pending` iff no terminal, sidecar, or physical row and enrolled, or
-       the stranded-node marker case (node, `up_to_date`, no sidecar, no
-       physical row, not enrolled, runtime not `Usable`);
-     - otherwise typed corruption, asserted as
-       `ProjectionGenerationErrorReason::ProjectionGenerationCorrupt`.
-   - **Named assertions:** `failed` with a physical row, and a physical row
-     without a sidecar, are both corruption.
-   - **Non-vacuity mutants:**
-     - drop the `physical.is_none()` term of the `Failed` arm;
-     - drop the `sidecar` term of the `Complete` arm.
+     must be complete before publication. The ambiguity is recorded for a
+     future Slice 40 design edit.
 2. **Zero residue immediately after a failed projection commit
    (R27-70C).**
    - **Where:** `tests/slice70_projection_commit_residue.rs`, gated

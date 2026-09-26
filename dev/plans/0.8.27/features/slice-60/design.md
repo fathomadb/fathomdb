@@ -9,6 +9,10 @@ target_release: 0.8.27
 Independent design review passed after three correction cycles. The durable
 record is `design-review.md`.
 
+Post-closeout adversarial Design FIX-1 is recorded in
+`adversarial-review.md`. It corrects the commit-boundary oracle, the
+AC-050a-driven legacy-helper exception, and the rustdoc warning policy.
+
 ## Boundary
 
 Slice 60 changes only Rust source ownership inside `fathomdb-engine` and adds
@@ -16,7 +20,9 @@ characterization tests. `Engine` stays in `lib.rs`. All new modules are
 private, and root `pub use` keeps every public path. The following are copied
 verbatim:
 
-- public signatures, derives, variant order, and doc comments;
+- public signatures, derives, variant order, and doc comments, except a
+  link-only/plain-code-span repair when a moved private symbol would otherwise
+  add a broken intra-doc link;
 - SQL text and statement order;
 - `BEGIN IMMEDIATE` and the trigger-guard path choice;
 - the `connection` mutex acquisition;
@@ -47,7 +53,7 @@ already was.
 | `apply_batch_in_transaction`, `CommitBatchError` | `write_commit` | `actuation.rs:1523-2276` | `pub(crate)` |
 | `canonical_body_hash`, `CANONICAL_BODY_HASH_CALLS` (`#[cfg(test)]`) | `write_commit` | `evidence.rs:798`, `1204`, `1766`, `2685`, `2762`, `2775`; `dependency.rs:277`, `720` | `pub(crate) static` inside `thread_local!`; the `evidence.rs` test path follows it to `crate::write_commit::…` |
 | `checked_locator_columns` | `write_commit` | `dependency.rs:280` | `pub(crate)` |
-| `legacy_revision_id` (`#[allow(dead_code)]`) | `write_commit` | root `mod tests` (`lib.rs:26117`, `26292-26303`) | `pub(crate)`; the root `mod tests` imports it from `crate::write_commit`, with no ungated root `use` |
+| `legacy_revision_id` (`#[allow(dead_code)]`) | root exception | root `mod tests` (`lib.rs:26117`, `26292-26303`) | Stays private at root. AC-050a forbids the `pub(crate)` visibility that a sibling move would require. `revision_hash_field` becomes the narrow `pub(crate)` seam instead. |
 | `TriggerStateGuard` (type plus `disable`/`restore`), `advance_read_visibility` | `write_commit` | root projection-worker commit (`lib.rs:19427`, ~`19673`, `19671`; Slice 70) | `pub(crate)` |
 | `validate_batch`, `collect_projection_jobs` | `write_validation` | `write` (`lib.rs:7957`, `7963`) | `pub(crate)` |
 | `prior_node_cursors_by_logical_id`, `prior_edge_cursors_by_logical_id`, `prior_edge_cursors_by_triple` | `write_validation` | `write_commit` (`lib.rs:25288`, `25393`, `25429`) | `pub(crate)` |
@@ -103,19 +109,33 @@ validator, so it stays at root and is called as before.
 
 ### `write_commit.rs` — transactional execution
 
-Owns `CommitBatchError` and its `From` impls, revision identity (hash fields,
-runtime and legacy revision ids, `canonical_body_hash`,
+Owns `CommitBatchError` and its `From` impls, runtime revision identity (hash
+fields, runtime revision ids, `canonical_body_hash`,
 `checked_locator_columns`, `revision_is_registered`,
 `register_artifact_identity`, and the `#[cfg(test)]` counter
 `CANONICAL_BODY_HASH_CALLS`), `TriggerStateGuard`,
 `canonical_batch_has_no_custom_triggers`, `commit_batch`,
 `advance_read_visibility`, and `apply_batch_in_transaction`.
 `projection_batch_has_no_custom_triggers` has only a projection-worker caller
-and stays at root.
+and stays at root. The private root `legacy_revision_id` exception calls the
+crate-visible `revision_hash_field` seam from this module.
 
 The Slice 71B trigger-suppressed path and the row-trigger fallback remain one
 function. They are not split. `apply_batch_in_transaction` remains the
 shared seam for `commit_batch` and actuation.
+
+Under `test-hooks`, a test arms the next writer commit through the existing
+`execute_for_test` surface by creating a uniquely named TEMP marker table on
+the writer connection. Immediately before `commit_batch`, a private helper
+detects and drops that marker outside the transaction, returning a one-shot
+boolean. `write_inner` passes it into `commit_batch`, which invokes the same
+small commit helper at both real `tx.commit()` exits. When armed, that helper
+installs a one-shot SQLite commit hook whose first invocation requests
+rollback, then calls the real `tx.commit()`. The commit therefore fails after
+every write statement, visibility advance, and trigger restoration has run;
+the installed hook is a no-op on later commits. This adds no public or hidden
+path, and the default production/release path has no marker read, hook, or
+branch.
 `dependency.rs` and `evidence.rs` import `canonical_body_hash` and
 `checked_locator_columns` from here. Projection row writers
 (`project_canonical_*_row`) and dependency/closure helpers stay where they
@@ -231,6 +251,8 @@ mutant's failing assertion in `tdd-chronology.md`.
 | late_provenance | apply, inside the transaction | a replayed `ProvenancedNode` (same `artifact_revision_id`) batched with a new-kind node, so `register_vector_kind` runs before `RevisionIdConflict` | `Provenance(RevisionIdConflict)` | Temporarily commit enrolment through `enrol_and_unstrand` before `commit_batch`. |
 | execution_raise | apply, inside the transaction, on the row-trigger path | a TEMP `BEFORE INSERT` trigger on `canonical_edges`, installed through `execute_for_test`, raising on a sentinel edge placed after nodes | `Storage` | On the row-trigger path, temporarily apply and commit each item in its own `BEGIN IMMEDIATE` transaction. |
 | visibility_last | last statement before `COMMIT` | `_fathomdb_read_visibility_state.generation` set to `i64::MAX` | `Storage` | Temporarily ignore the visibility result (`let _ = advance_read_visibility(&tx);`). |
+| commit_suppressed | trigger-suppressed real `tx.commit()` exit | create the TEMP commit-abort marker through `execute_for_test`, then write a canonical batch with no custom triggers | `Storage` | Temporarily ignore the consumed marker at the trigger-suppressed commit helper call, allowing the write to commit. |
+| commit_row_trigger | row-trigger fallback real `tx.commit()` exit | install a harmless matching TEMP trigger, create the marker, and write a canonical batch | `Storage` | Temporarily ignore the consumed marker at the row-trigger commit helper call, allowing the write to commit. |
 | provider_handshake | before the first provider write | a harness replying with a wrong protocol in `ready` | `Extractor` | Temporarily write a sentinel row before the handshake. |
 | provider_request_id | shared transport (`ProviderSession::request`), before the first batch write; `max_docs_per_request` at least the document count | mismatched `request_id` | `Extractor` | Temporarily write a sentinel row in `run_extract_session` before its `.request(..)` call. |
 | consolidate_verdict | verdict validation | an out-of-cluster verdict that follows an applied `invalidate` verdict (which set `t_invalid`), inside the consolidation `BEGIN IMMEDIATE`; the cursor probe does not apply (plan item 8) | `Consolidator` | Temporarily run `tx.execute_batch("COMMIT; BEGIN IMMEDIATE")` after each applied verdict. |
@@ -248,6 +270,10 @@ itself. A snapshot difference is a defect.
 seams are therefore gated as follows:
 
 - `pre_tx_hook` carries `#[cfg(debug_assertions)]`.
+- `commit_suppressed`, `commit_row_trigger`, the private marker consumer, and
+  the commit helper's abort arm carry `#[cfg(feature = "test-hooks")]`, which
+  also supplies rusqlite's commit-hook API. Tests arm the marker only through
+  the existing `execute_for_test` surface.
 - `execution_raise` and `enrolment_raise` need a TEMP trigger on the engine's own connection
   through `execute_for_test`, so it carries
   `#[cfg(any(debug_assertions, feature = "test-hooks"))]`.
@@ -277,6 +303,10 @@ the mutant is reverted. Production is byte-identical at the test commit.
   comparison, and hidden comparison against
   `dev/plans/0.8.27/features/hidden-surface/baseline-*.json` (latest
   ancestor).
+- **Documentation warnings:** capture the pre-move and post-move
+  `rustdoc::broken_intra_doc_links` warning sets with private items documented.
+  The post-move set may relocate an unchanged warning with its symbol, but may
+  not add a warning caused by the move.
 - **Expected hidden diff:** additive tests only. These are the new suite's
   tests and none else. The moved private items do not appear in the
   hidden-inclusive rustdoc rows, because private items are not captured. If
@@ -301,11 +331,10 @@ the mutant is reverted. Production is byte-identical at the test commit.
 
 ## Risks
 
-- **Doc intra-links** (for example, the `[`enforce_provenance_retention`]`
-  link at `erasure.rs:1430`) may stop resolving after the move. No gate runs
-  rustdoc link checks. Doc text stays verbatim, and the implementer records
-  each newly unresolved link in `tdd-chronology.md` rather than editing
-  public docs.
+- **Doc intra-links** may stop resolving after a private helper moves. Repair
+  the target path when that remains valid; otherwise preserve the prose as a
+  plain code span. The warning-set comparison above prevents the move from
+  ratcheting the baseline.
 - **Source scrapers.** `tests/slice35_virtual_mutation_manifest.rs` and
   `experiments/slice35_virtual_mutation_audit.py` scrape
   `apply_batch_in_transaction` and `prune_edge_projection_shadows` by file.

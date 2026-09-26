@@ -285,8 +285,8 @@ PRODUCTION_INVENTORY = [
     MutationSite("lib.rs", function, verb, table)
     for function, verb, table in [
         ("clear_attribute_projection", "DELETE FROM", "property_search_index"),
-        ("commit_projection_outcomes", "INSERT OR IGNORE INTO", "vector_default"),
-        ("commit_projection_outcomes", "INSERT OR IGNORE INTO", "vector_default"),
+        ("commit_projection_outcomes", "INSERT INTO", "vector_default"),
+        ("commit_projection_outcomes", "INSERT INTO", "vector_default"),
         ("delete_row_owned_projection", "DELETE FROM", "<allowlisted>"),
         ("delete_vector_partition_row", "DELETE FROM", "vector_default"),
         ("migrate_vector_partition_pack1_to_pack2", "DROP TABLE", "vector_default"),
@@ -318,7 +318,6 @@ PRODUCTION_HELPER_CALLERS = {
             ("consolidation.rs", "prune_edge_projection_shadows"): 1,
             ("lib.rs", "run_pin_and_requantize_pass"): 1,
             ("lib.rs", "prune_orphaned_edge_vectors"): 1,
-            ("lib.rs", "commit_projection_outcomes"): 1,
             ("lib.rs", "delete_row_owned_projection"): 1,
         }
     ),

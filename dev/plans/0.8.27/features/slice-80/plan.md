@@ -7,7 +7,9 @@ baseline_sha: e6601c67
 
 # Slice 80 plan
 
-This plan supersedes the master-plan draft (`dev/plans/plan-0.8.27.md`,
+Design review passed in two cycles (`design-review.md`). Slice 80 still
+needs its execution commission (step 0). This plan supersedes the
+master-plan draft (`dev/plans/plan-0.8.27.md`,
 "Slice 80 — read, search, graph, and evidence") as execution authority once
 design review passes. `design.md` is the authority for the exact inventory,
 batches, gate retargets, and evidence. Where the two differ, `design.md`
@@ -159,7 +161,7 @@ The fields are `search_limit_override`, `recency_reweight_enabled`,
 | `search_api.rs` | the `impl Engine` search, frozen-search, and evidence facades |
 | `telemetry.rs` | `TelemetrySink`, `append_jsonl`, `branch_str`, and search observability, telemetry, and feedback |
 | `read.rs` | the read-verb, canonical-page, and operational-state in-transaction functions, and their `impl Engine` facades |
-| `reader_pool.rs` | the pool's functions: its impl and `Drop`, the worker loop, `finish_reader_request`, `begin_attributed_reader_tx`, and reader connection setup (the data carriers stay at root) |
+| `reader_pool.rs` | the pool's functions: its impl and `Drop` (including its two `*_for_test` methods), the worker loop, `finish_reader_request`, `begin_attributed_reader_tx`, and the reader cache and lookaside probes (the data carriers and the open-path connection setup stay at root) |
 | `graph_expand/` (split) | `mod.rs` re-exports; `types.rs`; `codec.rs`; `execution.rs` (with validation and `test-hooks` seams); `traversal.rs` (legacy traversal, the BFS builders, and their `impl Engine` facades) |
 | Stays at root | `Engine`; the open, runtime, WAL, and operator facade, the reader data carriers, `usable_dense_runtime`, and the index projectors (Slice 90); every `*_for_test` Engine seam and `pub fn *_for_test` wrapper (Slice 140); `hex_encode`; `RowKind` |
 

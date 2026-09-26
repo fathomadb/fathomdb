@@ -166,8 +166,12 @@ Final candidate evidence at `d5a5bd39` is measured, not inferred:
   only targets;
 - the full canonical verifier passed 127/127 suites with no skips or
   exclusions;
-- on the named 2026-09-26 unconfined executor, AC-037's live layer ran and
-  passed; security was 0 violations, 0 blockers, and 0 downgrades; and
+- on the 2026-09-26 executor, AC-037's live layer ran and passed; security
+  was 0 violations, 0 blockers, and 0 downgrades. That executor was Codex CLI
+  session `01a0db63-a1ab-78b3-8ece-1ba0ba36a0a3` on host `windchill3`,
+  running `./scripts/agent-verify.sh` through `exec_command` with
+  `require_escalated` sandbox permissions (details in
+  `review-verification.md`); and
 - full-workspace Clippy with warnings denied, Cargo all-target check, and the
   candidate-bound Python native receipt passed.
 

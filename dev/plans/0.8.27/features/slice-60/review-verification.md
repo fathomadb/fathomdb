@@ -117,3 +117,15 @@ made Git dirty, and the non-editable package plus checkout-local `src/python`
 path were initially absent. Each attempt stopped on that environment defect.
 After the focused affected suite passed 24/24 and Git was clean, the unchanged
 full verifier passed. No environment failure was reported as a product pass.
+
+The 2026-09-26 security executor was Codex CLI session
+`01a0db63-a1ab-78b3-8ece-1ba0ba36a0a3`, on host `windchill3` (the same host as
+the 2026-09-25 run). It ran `./scripts/agent-verify.sh` from the release
+worktree through `exec_command`, with `sandbox_permissions: require_escalated`,
+which runs outside the Codex Linux sandbox. The final run was around
+2026-09-26T14:00Z. Its output recorded `AC-037 catch OK (live netns)` as PASS
+and a security summary of 0 violations, 0 blockers, and 0 downgrades. The
+host's `kernel.apparmor_restrict_unprivileged_userns` stayed at `1`. The
+2026-09-25 Claude Code runs, including the one with the Bash sandbox disabled,
+could not create the unprivileged user namespace on this host. To reproduce
+the live-layer pass, use the same Codex escalated-exec route.

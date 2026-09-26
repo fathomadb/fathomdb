@@ -2062,6 +2062,8 @@ expect_out 'file\s+src/rust/crates/fathomdb-engine/src/identity.rs' \
   "--list-sources names the engine identity source the assertions read"
 expect_out 'file\s+src/rust/crates/fathomdb-engine/src/projection_registry.rs' \
   "--list-sources names the engine projection-registry source the assertions read"
+expect_out 'file\s+src/rust/crates/fathomdb-engine/src/projection_runtime.rs' \
+  "--list-sources names the engine projection-runtime source the assertions read"
 expect_out 'tree\s+src' "--list-sources names the tree the negative-space clause scans"
 # fix-3: the crate SOURCE TREES are now first-class subjects, so they must appear
 # in the manifest — that manifest is what builds every fixture root here AND the

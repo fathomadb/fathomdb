@@ -403,6 +403,7 @@ ENG = "src/rust/crates/fathomdb-engine/src/lib.rs"
 ERR = "src/rust/crates/fathomdb-engine/src/errors.rs"
 IDENTITY = "src/rust/crates/fathomdb-engine/src/identity.rs"
 REGISTRY = "src/rust/crates/fathomdb-engine/src/projection_registry.rs"
+RUNTIME = "src/rust/crates/fathomdb-engine/src/projection_runtime.rs"
 SCH = "src/rust/crates/fathomdb-schema/src/lib.rs"
 EMB = "src/rust/crates/fathomdb-embedder/src/candle_bge.rs"
 T15 = "src/rust/crates/fathomdb-engine/tests/slice15d_projection_registry.rs"
@@ -676,7 +677,7 @@ def crate_manifest_for(test_path):
 # things that remain.
 #
 # NO PYTHON OR TYPESCRIPT TEST IS CITED BY ANY CLAUSE. `--list-sources` is the
-# authority: the gate reads eleven files (seven Rust modules/tests, one markdown
+# authority: the gate reads twelve files (eight Rust modules/tests, one markdown
 # plan, the two crate lib.rs, and one Cargo manifest) and three trees, and not
 # one `.py` or `.ts` among them. The
 # same evaporation exists in those languages (`@pytest.mark.skip`, `xfail`,
@@ -984,7 +985,7 @@ ASSERTIONS = {
     # verb. `notify_new_work()` file-wide is satisfied by the engine's three
     # unrelated wake sites, so removing the wake FROM THE APPLY was invisible.
     "C1-AA-NO-BLOCK-ON-EMBEDDING": [
-        ("fn_defined", ENG, "notify_new_work"),
+        ("fn_defined", RUNTIME, "notify_new_work"),
         ("in_item", REGISTRY, "fn", "configure_projections", r"notify_new_work\(\)"),
         ("test_defined", T20,
          "readiness_reads_embedding_while_embeds_are_outstanding_then_flips_to_ready"),

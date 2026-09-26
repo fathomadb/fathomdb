@@ -1191,7 +1191,7 @@ expect_out 'C1-AA-NO-BLOCK-ON-EMBEDDING' "the gutted-verb failure NAMES the no-b
 # still EXISTS. `fn <name>(` matched a COMMENT just as happily as a definition, so
 # deleting the proof and leaving a reference to it behind exited 0.
 COMMENT_ONLY_ROOT="$(make_root definition-replaced-by-comment)"
-python3 - "$COMMENT_ONLY_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$COMMENT_ONLY_ROOT/src/rust/crates/fathomdb-engine/src/projection_commit.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -2064,6 +2064,8 @@ expect_out 'file\s+src/rust/crates/fathomdb-engine/src/projection_registry.rs' \
   "--list-sources names the engine projection-registry source the assertions read"
 expect_out 'file\s+src/rust/crates/fathomdb-engine/src/projection_runtime.rs' \
   "--list-sources names the engine projection-runtime source the assertions read"
+expect_out 'file\s+src/rust/crates/fathomdb-engine/src/projection_commit.rs' \
+  "--list-sources names the engine projection-commit source the assertions read"
 expect_out 'tree\s+src' "--list-sources names the tree the negative-space clause scans"
 # fix-3: the crate SOURCE TREES are now first-class subjects, so they must appear
 # in the manifest — that manifest is what builds every fixture root here AND the

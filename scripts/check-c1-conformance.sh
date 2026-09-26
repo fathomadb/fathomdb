@@ -404,6 +404,7 @@ ERR = "src/rust/crates/fathomdb-engine/src/errors.rs"
 IDENTITY = "src/rust/crates/fathomdb-engine/src/identity.rs"
 REGISTRY = "src/rust/crates/fathomdb-engine/src/projection_registry.rs"
 RUNTIME = "src/rust/crates/fathomdb-engine/src/projection_runtime.rs"
+COMMIT = "src/rust/crates/fathomdb-engine/src/projection_commit.rs"
 SCH = "src/rust/crates/fathomdb-schema/src/lib.rs"
 EMB = "src/rust/crates/fathomdb-embedder/src/candle_bge.rs"
 T15 = "src/rust/crates/fathomdb-engine/tests/slice15d_projection_registry.rs"
@@ -677,7 +678,7 @@ def crate_manifest_for(test_path):
 # things that remain.
 #
 # NO PYTHON OR TYPESCRIPT TEST IS CITED BY ANY CLAUSE. `--list-sources` is the
-# authority: the gate reads twelve files (eight Rust modules/tests, one markdown
+# authority: the gate reads thirteen files (nine Rust modules/tests, one markdown
 # plan, the two crate lib.rs, and one Cargo manifest) and three trees, and not
 # one `.py` or `.ts` among them. The
 # same evaporation exists in those languages (`@pytest.mark.skip`, `xfail`,
@@ -977,7 +978,7 @@ ASSERTIONS = {
     # functions in the engine; the gate refuses to evaluate `fn_defined` against a
     # `tests/` path at all.
     "C1-AA-ATOMIC-FLIP": [
-        ("fn_defined", ENG, "commit_projection_outcomes"),
+        ("fn_defined", COMMIT, "commit_projection_outcomes"),
         ("test_defined", T20,
          "atomic_flip_never_exposes_ready_without_the_vector_under_concurrent_write"),
     ],

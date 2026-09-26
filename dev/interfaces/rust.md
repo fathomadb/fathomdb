@@ -673,8 +673,8 @@ the read verbs, so search validity is deterministically testable.
 commands (`configure_projections`, `read.projections`), the types
 `ProjectionSpec` / `ProjectionRole` / `ProjectionDelta`, and the typed
 `ProjectionDestructiveError` — all recorded in
-`src/conformance/governed-surface-allowlist.json`. **AC-079 remains UNMINTED**
-(it mints at Slice 40); the signature is pinned to that file's content, so any
+`src/conformance/governed-surface-allowlist.json`. **AC-079 is minted** (0.8.20
+Slice 40; `dev/acceptance.md`); the signature is pinned to that file's content, so any
 diff re-opens the gate (T1e pin).
 
 ⚠ **`ProjectionFts` and `ProjectionVector` are NOT part of that `seq-157`

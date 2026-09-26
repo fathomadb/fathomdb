@@ -356,9 +356,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 70** (`ENGINE-PROJECTION`) — engine projection, embedding, and reranking domains
+**IMMEDIATE NEXT: Slice 80** (`ENGINE-READ`) — engine read, search, graph, and evidence domains
 
-**Remaining ladder:** 70 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 

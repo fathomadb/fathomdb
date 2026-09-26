@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 70 - engine projection, embedding, vector, and reranking domains
-status: PROPOSED
+status: COMPLETE
 target_release: 0.8.27
 baseline_sha: a95b5b0f
 ---

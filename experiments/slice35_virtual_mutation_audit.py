@@ -345,7 +345,7 @@ PRODUCTION_HELPER_CALLERS = {
     ),
     "truncate_row_projections_in": Counter(
         {
-            ("lib.rs", "rebuild_shadow_state"): 1,
+            ("projection_rebuild.rs", "rebuild_shadow_state"): 1,
             ("lib.rs", "reproject_search_index_after_tokenizer_upgrade"): 1,
             ("projection_registry.rs", "truncate_all_row_projections"): 1,
         }

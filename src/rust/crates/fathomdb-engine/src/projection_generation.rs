@@ -1,9 +1,16 @@
 use std::fmt::{Display, Formatter};
+use std::sync::atomic::Ordering;
 
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::{Digest, Sha256};
 
-use super::{current_epoch_seconds, valid_caller_identity, Engine, EngineError};
+use super::{
+    connection_has_pending_projection_work, current_epoch_seconds, embedder_required_for,
+    load_projection_registry, pending_embedding_work, unsupported_vector_kinds,
+    valid_caller_identity, DenseReadiness, EmbeddingReadiness, EmbeddingReadinessState, Engine,
+    EngineError, ProjectionRuntimeStatus, ProjectionRuntimeStatusEntry,
+    ProjectionRuntimeUnavailabilityReason, ProjectionStatusDenseReadiness, StoredProjection,
+};
 
 const PREFIX: &str = "pgen1:";
 
@@ -1701,6 +1708,159 @@ pub(crate) fn parse_persisted_generation_id(
     value: String,
 ) -> Result<ProjectionGenerationId, EngineError> {
     ProjectionGenerationId::parse(value).map_err(|_| corruption())
+}
+
+/// 0.8.20 Slice 20 (R-20-DR) — the `dense_readiness` of the `searchable→vector`
+/// projection, DERIVED. There is no stored flag and this feature adds no schema
+/// step or `MIGRATIONS` entry; later unrelated migrations do not affect that
+/// property.
+///
+/// **Why derived is the design, not a shortcut.** §4.1 invariant 1 requires
+/// `{ vector-insert ∧ dense_readiness := ready }` to be ONE transaction, with a
+/// torn `ready`-without-vector FORBIDDEN. A stored flag is precisely the thing
+/// that can tear. Deriving it makes the invariant true **by construction**:
+/// readiness is a pure function of state that
+/// [`commit_projection_outcomes`] already writes inside a single transaction —
+/// the `vector_default` / `_fathomdb_vector_rows` INSERTs, the
+/// `_fathomdb_projection_terminal` row ([`record_projection_terminal`]) and the
+/// readiness watermark ([`advance_projection_cursor`], which only ever steps
+/// over cursors that ALREADY hold a terminal) all commit together or not at all.
+/// So `ready` cannot be observed before the vector is durable, and the only
+/// reachable torn state is the tolerated one (`embedding` with the vector
+/// absent — the dense arm simply reads as partial).
+///
+/// It reuses the EXACT predicate `drain`/`wait_for_idle` use
+/// ([`connection_has_pending_projection_work`]), so "readiness is `ready`" and
+/// "`drain` reports idle" cannot disagree.
+///
+/// **Scope note (honest boundary).** The predicate is corpus-wide, not
+/// per-attribute, because Slice 15d persists the `searchable→vector` sub-object
+/// but DEFERS building any per-attribute embedding (`ProjectionDelta::deferred`)
+/// — every declared vector projection is served by the one engine vector
+/// pipeline, so per-projection scoping has no distinct meaning yet. A stored
+/// column would not have been more specific; it would only have been tearable.
+/// When per-attribute embedding lands, this function is where the scoping goes.
+///
+/// **Failure boundary.** A row whose embed FAILED terminally records a `failed`
+/// terminal (no vector row), so it stops being outstanding. With a usable dense
+/// runtime, readiness returns to `ready`: the row will never embed, so reporting
+/// `embedding` forever would be a lie. The usable-runtime predicate takes
+/// precedence: when no usable runtime exists the state is `Unavailable`; when
+/// it exists this function selects `Embedding` / `Ready` without changing the
+/// failed-terminal boundary. Failures stay
+/// separately observable through the `projection_failures` collection. A
+/// `ready` corpus can therefore lack a vector row only for a failed terminal; it
+/// is NOT a torn write because no `up_to_date` terminal exists for it.
+pub(crate) fn derive_dense_readiness(
+    connection: &Connection,
+    dense_runtime_usable: bool,
+) -> Result<DenseReadiness, EngineError> {
+    if !dense_runtime_usable {
+        return Ok(DenseReadiness::Unavailable);
+    }
+    if connection_has_pending_projection_work(connection).map_err(|_| EngineError::Storage)? {
+        Ok(DenseReadiness::Embedding)
+    } else {
+        Ok(DenseReadiness::Ready)
+    }
+}
+
+impl Engine {
+    /// Read the current projection-runtime status without changing the engine.
+    ///
+    /// Unlike [`read_projections`][Self::read_projections], this returns a
+    /// purpose-built status facade rather than a decorated caller declaration.
+    /// It reads the durable registry plus current session facts only: it does
+    /// not configure projections, enroll kinds, enqueue work, call `drain`, or
+    /// notify the projection scheduler. It uses the ordinarily opened engine
+    /// connection and may take its lock; it is not a `ReaderWorkerPool` request
+    /// and does not open a separately read-only SQLite connection. A legacy
+    /// stored vector sub-object that is not `searchable` is `NotDeclared`,
+    /// because the effective-arm predicate is the engine's
+    /// `StoredProjection::wants_vector` predicate.
+    pub fn read_projection_status(&self) -> Result<ProjectionRuntimeStatus, EngineError> {
+        self.ensure_open()?;
+        let runtime_embedder_available = self.usable_dense_runtime();
+        let runtime_unavailability_reason = if runtime_embedder_available {
+            ProjectionRuntimeUnavailabilityReason::None
+        } else if self.dense_disabled.load(Ordering::Acquire) {
+            ProjectionRuntimeUnavailabilityReason::VectorEquivalenceDisabled
+        } else {
+            ProjectionRuntimeUnavailabilityReason::NoRuntime
+        };
+
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let registry = load_projection_registry(connection).map_err(|_| EngineError::Storage)?;
+        let has_effective_vector_arm = registry.values().any(StoredProjection::wants_vector);
+        let effective_dense_readiness = if has_effective_vector_arm {
+            match derive_dense_readiness(connection, runtime_embedder_available)? {
+                DenseReadiness::Unavailable => ProjectionStatusDenseReadiness::Unavailable,
+                DenseReadiness::Embedding => ProjectionStatusDenseReadiness::Embedding,
+                DenseReadiness::Ready => ProjectionStatusDenseReadiness::Ready,
+            }
+        } else {
+            ProjectionStatusDenseReadiness::NotDeclared
+        };
+        let projections = registry
+            .into_iter()
+            .map(|(name, stored)| {
+                let dense_readiness = if stored.wants_vector() {
+                    effective_dense_readiness
+                } else {
+                    ProjectionStatusDenseReadiness::NotDeclared
+                };
+                ProjectionRuntimeStatusEntry { name, dense_readiness }
+            })
+            .collect();
+        let vector_unsupported_kinds = if has_effective_vector_arm {
+            unsupported_vector_kinds(connection).map_err(|_| EngineError::Storage)?
+        } else {
+            Vec::new()
+        };
+
+        Ok(ProjectionRuntimeStatus {
+            runtime_embedder_available,
+            runtime_unavailability_reason,
+            projections,
+            vector_unsupported_kinds,
+        })
+    }
+
+    /// Report whether this session can complete outstanding embedding work.
+    ///
+    /// This is a pure read over the current session and durable projection
+    /// state. It neither configures an embedder nor wakes, schedules, or drains
+    /// work. A `Blocked` report carries the exact payload that [`Self::drain`]
+    /// returns immediately as [`EngineError::EmbedderRequired`].
+    pub fn read_embedding_readiness(&self) -> Result<EmbeddingReadiness, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let pending = pending_embedding_work(connection).map_err(|_| EngineError::Storage)?;
+        let pending_count = pending.iter().map(|(_, count)| *count).sum();
+        let affected_kinds: Vec<String> = pending.iter().map(|(kind, _)| kind.clone()).collect();
+        let usable_embedder = self.usable_dense_runtime();
+        // The scheduler intentionally drops a runtime that equivalence refused,
+        // but it remains attached to this Engine. Only an actually absent
+        // configuration is the typed caller-remediable outcome; a refused or
+        // failed live runtime remains an operational deferred condition.
+        let blocked = if !pending.is_empty() && self.runtime_embedder.is_none() {
+            Some(embedder_required_for(&affected_kinds))
+        } else {
+            None
+        };
+        let state = if blocked.is_some() {
+            EmbeddingReadinessState::Blocked
+        } else if pending.is_empty() {
+            EmbeddingReadinessState::Ready
+        } else if usable_embedder {
+            EmbeddingReadinessState::Processing
+        } else {
+            EmbeddingReadinessState::Deferred
+        };
+        Ok(EmbeddingReadiness { state, usable_embedder, pending_count, affected_kinds, blocked })
+    }
 }
 
 #[cfg(test)]

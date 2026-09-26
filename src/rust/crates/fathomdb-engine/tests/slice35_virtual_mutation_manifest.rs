@@ -16,7 +16,10 @@ const SOURCE: &str = concat!(
     include_str!("../src/projection_registry.rs"),
     include_str!("../src/projection_runtime.rs"),
     include_str!("../src/projection_worker.rs"),
-    include_str!("../src/projection_commit.rs")
+    include_str!("../src/projection_commit.rs"),
+    include_str!("../src/projection_rebuild.rs"),
+    include_str!("../src/projection_generation.rs"),
+    include_str!("../src/rerank.rs")
 );
 
 fn function_body(name: &str) -> &'static str {

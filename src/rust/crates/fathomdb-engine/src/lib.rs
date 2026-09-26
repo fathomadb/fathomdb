@@ -395,7 +395,7 @@ const REDACTED_STABLE_ID: &str = "[erased]";
 /// HITL-ruled 2026-07-19: *"there must be an auditable record of deletion
 /// event."*) — op-store collections holding ERASURE-AUDIT records.
 ///
-/// These rows are **exempt from [`enforce_provenance_retention`]**. Before this
+/// These rows are **exempt from `enforce_provenance_retention`**. Before this
 /// slice they were swept like any other op-store row: cap-first, oldest-`id`
 /// first, with no collection filter — and because the audit row is written
 /// *before* the workload that follows it, it was among the FIRST evicted. The

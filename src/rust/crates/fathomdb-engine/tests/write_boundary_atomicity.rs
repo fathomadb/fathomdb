@@ -281,6 +281,16 @@ fn drop_temp_trigger(fixture: &Fixture, name: &str) {
     fixture.engine().execute_for_test(&format!("DROP TRIGGER temp.{name}")).unwrap();
 }
 
+#[cfg(feature = "test-hooks")]
+fn arm_next_write_commit_abort(fixture: &Fixture) {
+    fixture
+        .engine()
+        .execute_for_test(
+            "CREATE TEMP TABLE _fathomdb_test_abort_next_write_commit(marker INTEGER)",
+        )
+        .unwrap();
+}
+
 #[test]
 fn structural_validation_refusal_leaves_full_state_unchanged() {
     let fixture = seeded("structural");
@@ -434,6 +444,42 @@ fn visibility_exhaustion_refusal_leaves_full_state_unchanged() {
             [original],
         )
         .unwrap();
+    fixture.assert_next_cursor_unconsumed();
+}
+
+#[cfg(feature = "test-hooks")]
+#[test]
+fn trigger_suppressed_commit_refusal_leaves_full_state_unchanged() {
+    let fixture = seeded("commit-suppressed");
+    let before = fixture.settled_snapshot();
+    arm_next_write_commit_abort(&fixture);
+    let outcome = fixture.engine().write(&[late_node("commit-suppressed-1")]);
+    fixture.assert_unchanged(&before);
+    let error = outcome.unwrap_err();
+    assert_eq!(error, EngineError::Storage);
+    fixture.assert_next_cursor_unconsumed();
+}
+
+#[cfg(feature = "test-hooks")]
+#[test]
+fn row_trigger_commit_refusal_leaves_full_state_unchanged() {
+    let fixture = seeded("commit-row-trigger");
+    fixture
+        .engine()
+        .execute_for_test(
+            "CREATE TEMP TRIGGER slice60_commit_row_trigger \
+             AFTER INSERT ON main.canonical_nodes \
+             WHEN NEW.logical_id = 'commit-row-trigger-1' \
+             BEGIN SELECT 1; END",
+        )
+        .unwrap();
+    let before = fixture.settled_snapshot();
+    arm_next_write_commit_abort(&fixture);
+    let outcome = fixture.engine().write(&[late_node("commit-row-trigger-1")]);
+    fixture.assert_unchanged(&before);
+    let error = outcome.unwrap_err();
+    assert_eq!(error, EngineError::Storage);
+    drop_temp_trigger(&fixture, "slice60_commit_row_trigger");
     fixture.assert_next_cursor_unconsumed();
 }
 

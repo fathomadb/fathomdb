@@ -283,3 +283,31 @@ unchanged full snapshot. Late-enrolment rollback is owned by the
 The stale `commit_projection_outcomes` expectation in the slice35 Python audit
 predates this slice (`2a65a38a`). It is tracked as
 `TC-d0e9c5c9-1f4a-4cee-b175-286fd77efc42` (ledger `seq-257`).
+
+## Post-closeout adversarial Test FIX-1
+
+The post-closeout design correction added two missing real-commit cases. They
+are `#[cfg(feature = "test-hooks")]` because that private feature supplies
+rusqlite's commit-hook API:
+
+- `trigger_suppressed_commit_refusal_leaves_full_state_unchanged`; and
+- `row_trigger_commit_refusal_leaves_full_state_unchanged`.
+
+Each test was added before production changed. Each RED run exited 101 at the
+full-snapshot assertion because the write committed. Production then gained a
+private TEMP-marker consumer, armed through the existing `execute_for_test`
+surface, and one commit helper shared by both `tx.commit()` exits. The marker
+is dropped before `BEGIN`, and the installed SQLite commit hook requests
+rollback only on its first invocation. No public or hidden item was added.
+
+The complete suite passed 13/13 in debug with `test-hooks` and 12/12 in release
+with `test-hooks`; the debug-only pre-transaction hook accounts for the count
+difference. For non-vacuity, each commit-helper call was independently changed
+to ignore the consumed marker. Its corresponding test exited 101 at the
+full-snapshot assertion, and each mutant was reverted.
+
+The moved-symbol doc link at `lib.rs` `ERASURE_AUDIT_COLLECTIONS` is now a
+plain code span. With private items documented and broken intra-doc links
+enabled, both exact pre-move commit `2300e11b` and the Test FIX-1 tree emitted
+58 unresolved-link warnings, with identical sorted warning-message multisets.
+The move no longer adds a warning.

@@ -56,7 +56,48 @@ mandatory. No actionable design finding remains.
 
 ## Test review
 
-Pending design PASS.
+### Cycle 1 - FAIL
+
+A distinct `gpt-5.6-terra` high-reasoning reviewer audited the tests and gate
+receipts after design PASS.
+
+| ID | Severity | Finding | Test FIX-1 |
+| --- | --- | --- | --- |
+| T1 | P1 | The boundary suite still enumerated 11 tests and exercised neither real writer `tx.commit()` exit. | Add `test-hooks` cases for the trigger-suppressed and row-trigger exits, then add the private TEMP-marker consumer and one-shot SQLite commit hook used by both exits. |
+| T2 | P2 | The corrected rustdoc criterion contradicted the retained 58-to-59 broken-link regression and stale 11-test verification receipt. | Repair the moved-symbol link, compare baseline and candidate warning counts, and supersede the test receipts. |
+
+#### RED/GREEN and non-vacuity
+
+Before production changed, each new commit test failed at the full-snapshot
+assertion because the write committed. After the private seam landed:
+
+- debug `test-hooks`: 13/13 passed;
+- release `test-hooks`: 12/12 passed (`pre_tx_hook` is debug-only); and
+- each required mutant, which passed `false` at exactly one commit-helper
+  call, made only its corresponding commit test fail at the snapshot
+  assertion.
+
+The rustdoc comparison used the exact pre-move characterization commit
+`2300e11b` and the Test FIX-1 tree with private items documented. Both emitted
+58 `rustdoc::broken_intra_doc_links` unresolved-link warnings, and the sorted
+warning-message multisets were identical. The newly added
+`enforce_provenance_retention` warning is gone.
+
+Changed in Test FIX-1:
+
+- `src/rust/crates/fathomdb-engine/tests/write_boundary_atomicity.rs`
+- `src/rust/crates/fathomdb-engine/src/write.rs`
+- `src/rust/crates/fathomdb-engine/src/write_commit.rs`
+- `src/rust/crates/fathomdb-engine/src/lib.rs`
+- `dev/plans/0.8.27/features/slice-60/tdd-chronology.md`
+- this review record
+
+### Cycle 2 - PASS
+
+The Cycle 1 reviewer independently reran the complete boundary suite in both
+required profiles and returned PASS. It verified both commit-path assertions,
+the private one-shot seam, the mutant receipts, and the repaired rustdoc
+warning-set receipt. No actionable test finding remains.
 
 ## Code review
 

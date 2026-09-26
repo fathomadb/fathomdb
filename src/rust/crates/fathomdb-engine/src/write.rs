@@ -422,6 +422,10 @@ impl Engine {
         let has_edge_body_work = batch.iter().any(|write| {
             matches!(storage_write_shape(write).as_ref(), PreparedWrite::Edge { body: Some(_), .. })
         });
+        #[cfg(feature = "test-hooks")]
+        let abort_next_commit_for_test =
+            crate::write_commit::take_write_commit_abort_marker_for_test(connection)
+                .map_err(|_| EngineError::Storage)?;
         let (dangling_edge_endpoints, unstranded, _closure_ids) = match commit_batch(
             connection,
             batch,
@@ -429,6 +433,8 @@ impl Engine {
             base_cursor,
             self.provenance_row_cap.load(Ordering::Relaxed),
             &vector_kinds_to_enrol,
+            #[cfg(feature = "test-hooks")]
+            abort_next_commit_for_test,
         ) {
             Ok(count) => count,
             Err(CommitBatchError::Sql(err)) => {

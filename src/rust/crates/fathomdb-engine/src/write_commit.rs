@@ -387,6 +387,7 @@ pub(crate) fn commit_batch(
     base_cursor: u64,
     provenance_row_cap: u64,
     vector_kinds_to_enrol: &[String],
+    #[cfg(feature = "test-hooks")] abort_next_commit_for_test: bool,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     // 0.8.20 Slice 21a-2 (TC-57) — `BEGIN IMMEDIATE`, not rusqlite's `BEGIN
     // DEFERRED` default. Take the WAL write lock AT `BEGIN`, before the
@@ -456,7 +457,11 @@ pub(crate) fn commit_batch(
         drop(trigger_guard);
         return match (attempted, restored) {
             (Ok(result), Ok(())) => {
-                tx.commit()?;
+                commit_write_transaction(
+                    tx,
+                    #[cfg(feature = "test-hooks")]
+                    abort_next_commit_for_test,
+                )?;
                 Ok(result)
             }
             (Err(error), Ok(())) => Err(error),
@@ -473,8 +478,40 @@ pub(crate) fn commit_batch(
         vector_kinds_to_enrol,
         dependency_closure::SoftClosureMode::Complete,
     )?;
-    tx.commit()?;
+    commit_write_transaction(
+        tx,
+        #[cfg(feature = "test-hooks")]
+        abort_next_commit_for_test,
+    )?;
     Ok(result)
+}
+
+#[cfg(feature = "test-hooks")]
+pub(super) fn take_write_commit_abort_marker_for_test(
+    connection: &Connection,
+) -> rusqlite::Result<bool> {
+    let armed = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM temp.sqlite_temp_master \
+         WHERE type='table' AND name='_fathomdb_test_abort_next_write_commit')",
+        [],
+        |row| row.get(0),
+    )?;
+    if armed {
+        connection.execute_batch("DROP TABLE temp._fathomdb_test_abort_next_write_commit")?;
+    }
+    Ok(armed)
+}
+
+fn commit_write_transaction(
+    tx: rusqlite::Transaction<'_>,
+    #[cfg(feature = "test-hooks")] abort_next_commit_for_test: bool,
+) -> rusqlite::Result<()> {
+    #[cfg(feature = "test-hooks")]
+    if abort_next_commit_for_test {
+        let mut armed = true;
+        tx.commit_hook(Some(move || std::mem::take(&mut armed)))?;
+    }
+    tx.commit()
 }
 
 pub(crate) fn advance_read_visibility(connection: &Connection) -> rusqlite::Result<()> {

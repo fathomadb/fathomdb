@@ -5,7 +5,7 @@ implemented_on: 2026-09-25
 corrected_on: 2026-09-26
 planning_commit: 3d5b7c45
 implementation_candidate: d5a5bd39b3ee8a04bd080df451204564c6849bd1
-closeout_commit: b6677f251f2ba1f0f51602fdf8b7bf35fc24fd13
+closeout_commit: 74b1cf45ea98d69482a52ced1c422c00e819b0d6
 ---
 
 # Slice 60 implementation status

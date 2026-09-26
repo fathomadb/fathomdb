@@ -8,6 +8,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
 SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
 ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
+# `impl ProjectionRuntime` (runtime inventory replies) lives in its own module.
+RUNTIME_SOURCE="${RUNTIME_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/projection_runtime.rs}"
 ERASURE_SOURCE="${ERASURE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/erasure.rs}"
 PY_SOURCE="${PY_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-py/src/lib.rs}"
 PY_CONTROL="${PY_CONTROL:-$REPO_ROOT/src/python/tests/test_slice65_wal_attribution_installed.py}"
@@ -561,7 +563,7 @@ actual_checkpoint_observer_body="$(function_body "$ENGINE_SOURCE" "actual_checkp
 assert_contains "$actual_checkpoint_observer_body" \
   '"python_serial" => 0' \
   "feature-built Python observer expects no cfg(test)-only runtime probes"
-normal_runtime_inventory_body="$(function_body "$ENGINE_SOURCE" "report_runtime_connection_inventory_for_test")"
+normal_runtime_inventory_body="$(function_body "$RUNTIME_SOURCE" "report_runtime_connection_inventory_for_test")"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'respond: SyncSender<(WalAttributionRole, usize, bool)>' \
   "normal actual/post-commit runtime inventory retains boolean replies"
@@ -574,7 +576,7 @@ assert_absent "$normal_runtime_inventory_body" \
 assert_absent "$normal_runtime_inventory_body" \
   'NativeConnectionStateFact' \
   "normal actual/post-commit runtime inventory cannot return native state facts"
-native_runtime_inventory_body="$(function_body "$ENGINE_SOURCE" "report_runtime_native_state_inventory_for_test")"
+native_runtime_inventory_body="$(function_body "$RUNTIME_SOURCE" "report_runtime_native_state_inventory_for_test")"
 assert_contains "$native_runtime_inventory_body" \
   'Duration::from_millis(250)' \
   "binding native-state runtime inventory has its own finite timeout"
@@ -1293,11 +1295,11 @@ PY
     fail "mutation did not fail normal actual/native-state isolation: $actual_native_state_out"
   fi
 
-  RUNTIME_TIMEOUT_MUTATED="$TMPROOT/lib-with-short-normal-runtime-timeout.rs"
-  sed 's/recv_timeout(Duration::from_secs(2))/recv_timeout(Duration::from_millis(250))/' "$ENGINE_SOURCE" \
+  RUNTIME_TIMEOUT_MUTATED="$TMPROOT/runtime-with-short-normal-runtime-timeout.rs"
+  sed 's/recv_timeout(Duration::from_secs(2))/recv_timeout(Duration::from_millis(250))/' "$RUNTIME_SOURCE" \
     >"$RUNTIME_TIMEOUT_MUTATED"
   set +e
-  runtime_timeout_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$RUNTIME_TIMEOUT_MUTATED" bash "$0" 2>&1)"
+  runtime_timeout_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 RUNTIME_SOURCE="$RUNTIME_TIMEOUT_MUTATED" bash "$0" 2>&1)"
   runtime_timeout_rc=$?
   set -e
   if [ "$runtime_timeout_rc" -ne 0 ] \

@@ -1,8 +1,8 @@
 ---
 title: FathomDB 0.8.27 Slice 60 - post-closeout adversarial review
-status: IN_PROGRESS
+status: PASS
 reviewed_on: 2026-09-25
-reviewed_range: 517e0545..792aa6c9
+reviewed_range: 517e0545..100fa230
 ---
 
 # Slice 60 post-closeout adversarial review
@@ -101,8 +101,41 @@ warning-set receipt. No actionable test finding remains.
 
 ## Code review
 
-Pending test PASS.
+### Cycle 1 - PASS
+
+A distinct `gpt-5.6-terra` high-reasoning reviewer audited the complete Slice
+60 range through Test FIX-1 and returned PASS with no P0-P3 findings. It
+confirmed that:
+
+- both commit exits consume the same private, connection-local marker before
+  transaction start and install the refusal hook only for the requested write;
+- a refused commit maps through `CommitBatchError::Sql` to
+  `EngineError::Storage` and SQLite rolls back the full transaction;
+- the installed hook is inert after the one requested refusal, so later
+  commits are unaffected;
+- the production surface is unchanged when `test-hooks` is disabled; and
+- the six-module ownership move, visibility changes, and structural scrapers
+  remain consistent with the corrected requirements and design.
+
+The reviewer independently reran the debug and release boundary suites, the
+default all-target check, and the diff-integrity check. No code FIX cycle was
+required.
 
 ## Final status
 
-IN PROGRESS.
+**PASS.** Design completed in three cycles with two fixes, test review
+completed in two cycles with one fix, and code review passed in its first
+cycle. The review implementation commits are:
+
+- `1e3d275c` - correct the Slice 60 requirements and design contract; and
+- `100fa230` - add real commit-refusal coverage and the private test seam.
+
+Final verification passed:
+
+- boundary atomicity: 13/13 debug and 12/12 release with `test-hooks`;
+- both commit-path non-vacuity mutants failed only their corresponding case;
+- rustdoc broken-link warning multiset: 58 baseline, 58 candidate, identical;
+- workspace formatting, markdown lint, Clippy with warnings denied, and Cargo
+  all-target checks: PASS;
+- strict security gate: 0 violations, 0 blockers, 0 downgrades; and
+- fast aggregate verifier: 122/122 suites passed, 0 skipped, 0 excluded.

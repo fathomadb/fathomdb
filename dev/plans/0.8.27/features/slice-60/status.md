@@ -109,3 +109,28 @@ This slice used the existing durable release worktree. It created no
 temporary branch or worktree to merge or remove. All temporary environments,
 captures, caches, and receipts were removed. Tags, registries, and publication
 remain unauthorized. Slice 70 is next and is uncommissioned.
+
+## Post-closeout adversarial review
+
+A requested post-closeout adversarial review on 2026-09-25 found that the
+original closeout did not exercise either real writer `tx.commit()` exit,
+despite AC27-60B claiming commit-boundary coverage. It also reconciled the
+approved ownership inventory with AC-050a's ban on visible legacy-name seams
+and removed a broken rustdoc link introduced by the move.
+
+The requirements and design correction is `1e3d275c`. Test FIX-1 is
+`100fa230`; it adds a private `test-hooks`-only, one-shot SQLite commit-refusal
+seam and cases for both trigger-suppressed and row-trigger commit paths. The
+seam introduces no public or hidden API path when the feature is disabled.
+
+The post-closeout review completed within every limit:
+
+- design: Cycle 1 FAIL, FIX-1; Cycle 2 FAIL, FIX-2; Cycle 3 PASS;
+- tests: Cycle 1 FAIL, FIX-1; Cycle 2 PASS; and
+- code: Cycle 1 PASS, with no code fix required.
+
+The superseding receipts are 13/13 debug and 12/12 release boundary cases
+with `test-hooks`, identical 58-warning baseline and candidate rustdoc sets,
+workspace formatting/lint/Clippy/check PASS, strict security PASS, and
+122/122 fast-verifier suites passed with no skips or exclusions. The complete
+cycle-by-cycle audit is in `adversarial-review.md`.

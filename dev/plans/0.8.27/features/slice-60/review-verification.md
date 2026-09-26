@@ -51,3 +51,28 @@ second attempt used a non-editable `[dev]` install plus a `.pth` entry naming
 `src/python`, and passed. All environments, captures, caches, the in-place
 native build byproduct, and receipts were removed. The tracked tree was clean
 at the unchanged candidate.
+
+## Post-closeout adversarial verification
+
+The 2026-09-25 adversarial review supersedes only the boundary-suite and
+candidate-specific portions of the original receipt. Its implementation
+candidate was clean commit `100fa230`.
+
+| Gate | Result |
+| --- | --- |
+| Write-boundary atomicity, debug `test-hooks` | 13/13 passed |
+| Write-boundary atomicity, release `test-hooks` | 12/12 passed; the debug-only pre-transaction-hook case is absent by design |
+| Commit-exit non-vacuity mutants | Each targeted mutant failed only its corresponding full-snapshot assertion; restored cases passed |
+| Rustdoc broken-link baseline | 58 baseline, 58 candidate; sorted warning-message multisets identical |
+| Formatting and markdown lint | PASS |
+| Workspace Clippy, warnings denied | PASS |
+| Workspace Cargo all-target check | PASS |
+| Engine feature profiles | Default, `operator`, `test-hooks`, `slice72-test-hooks`, `migration-test-hooks`, and `tc5-benchmark` all passed |
+| Strict security, outside the restricted tool sandbox | 0 violations, 0 blockers, 0 downgrades |
+| `scripts/agent-verify.sh --tier=fast` | 122/122 suites passed; 0 skipped, 0 excluded |
+
+The first security invocation was intentionally run in the restricted tool
+sandbox and could not exercise AC-036 because ptrace was denied there. The
+unchanged canonical security gate was rerun outside that sandbox and passed;
+the aggregate verifier then completed in the same environment. This was an
+execution-environment limitation, not a product failure or waived gate.

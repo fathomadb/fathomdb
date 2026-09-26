@@ -48,6 +48,39 @@ draft and raised seven findings. Each finding was verified read-only against
 | 6 | Feature and GPU evidence is under-specified | ACCEPT, premise corrected | `scripts/test-feature-complete.sh` (via `scripts/lib/feature_complete.py`) requires both RTX 3090s and pinned weights and fails closed when they are missing (`FATHOMDB_REQUIRE_LIVE=1`). It never uses `--all-features`, because the Metal features are macOS-gated. The claim that no usable CUDA host exists is stale: `prework/slice-0.md` says so, but the hidden-surface unit later ran the gate on the 3090 executor (`features/hidden-surface/status.md`). This plan names that executor. Metal remains unavailable and is recorded as such. |
 | 7 | Stale authority metadata | ACCEPT, rescoped | AC-079: `dev/interfaces/rust.md` says it remains unminted, while `dev/acceptance.md` records it as HITL-signed and minted at Slice 40. This is corrected in Step 0. `ADR-0.8.23-dual-runtime-device-policy.md` is still `proposed` (decision-index row 43). Ledger `seq-250`/`seq-252` concern 0.8.23's Slice 70, not this slice, and an ADR status change needs a HITL ruling, so it is proposed to Slice 140 and not edited here. `dev/design/embedder-decision.md` and `dev/design/0.8.1-slice-10-reranker-design.md` remain `UNREVIEWED`. They are treated as informative history in the design's authority hierarchy and are not edited. |
 
+## Design-time reconciliation (at `86c66379`)
+
+`design.md` is the authority for the exact inventory. It settles these
+points:
+
+- **Maintenance:** `rebuild_projections`, `rebuild_vec0`, `run_rebuild`, and
+  `rebuild_shadow_state` move to `projection_rebuild.rs`, because the master
+  plan assigns projection maintenance to this slice.
+- **Operator methods:** `verify_embedder` and the other operator diagnostics
+  stay for Slice 90.
+- **Test seams:** every `*_for_test` Engine seam stays at root for the
+  Slice 140 gating.
+- **Public reranking:** `rerank_fused`, `try_rerank_fused`, and
+  `rerank_passages` are public at the crate root. They move with root
+  `pub use` re-exports. The same applies to `MEAN_VEC_PIN_THRESHOLD` and
+  `mean_centering_internals_for_test`.
+- **Generation-race coverage:** R27-70B is already covered by
+  `slice40_projection_generation` and
+  `slice40_projection_generation_races`. No test is added for it.
+- **Classifier coverage:** the R27-70D gap is closed by an exhaustive unit
+  table over `classify_completion`, which is a pure function. No new database
+  fixture is needed.
+- **Mutation audit:**
+  - **Status:** `experiments/slice35_virtual_mutation_audit.py` is red at the
+    baseline (ledger seq 257).
+  - **Cause:** its inventory predates the deliberate `INSERT OR IGNORE` to
+    `INSERT` change in 0.8.25 Slice 40.
+  - **Fix:** the audit keys the functions this slice moves, so the slice
+    corrects the stale entry first and then re-keys each batch.
+- **Surface captures:** the heavy public and hidden captures run at the
+  pre-move receipt, after the batches that add root re-exports, and at the
+  final candidate. Cheap checks run per batch.
+
 ## Assigned inventory and disposition
 
 Line numbers are approximate at `6f3b625e`. `design.md` replaces them with a
@@ -114,8 +147,8 @@ Use one writer in the release worktree. Read-only reviewers share it.
      failure audit), using `pause_projection_commit_failure_cleanup_for_test`;
    - the classifier tuples `failed` with a physical row, and vec0 without a
      sidecar;
-   - a captured stale job cannot publish into a newer generation, if it is
-     not already covered.
+   - the stale-inventory correction of the slice35 virtual-mutation audit
+     (seq 257), as a separate test-infrastructure commit.
 
    Prove each case non-vacuous with a recorded temporary mutant. If a case
    fails against unmodified production, stop for a separate RED/GREEN
@@ -123,16 +156,23 @@ Use one writer in the release worktree. Read-only reviewers share it.
 5. **Pre-move receipt.** Run the focused owner suites, the Slice 30 public
    comparison, and the hidden-surface comparison at the characterization
    commit.
-6. **Move in bounded batches**, one commit each, copied verbatim: vector
-   storage and equivalence, mean, registry, embedding, runtime and worker and
-   commit, rerank, then generation status. After every batch:
-   - compare the 13-row public surface with the Slice 30 baseline;
-   - compare the eight hidden rows and the release probe;
-   - check that the test inventory changed additively only;
-   - run `cargo clippy --workspace --all-targets -- -D warnings` and
-     `cargo check --workspace --all-targets`;
-   - run the focused feature routes: default, `default-embedder`,
-     `default-reranker`, `operator`, `test-hooks`, and `tc5-benchmark`.
+6. **Move in bounded batches**, one commit each, copied verbatim, in this
+   order:
+   1. vector storage and equivalence;
+   2. mean;
+   3. registry;
+   4. embedding;
+   5. runtime, worker, and commit;
+   6. rebuild;
+   7. rerank;
+   8. generation status.
+
+   Each batch re-keys the slice35 audit and manifest for the functions it
+   moved. Evidence per batch follows `design.md` "Structural-move evidence":
+   - feature-route checks, crate Clippy, focused owners, and the audit on
+     every batch;
+   - the public and hidden captures at the pre-move receipt, after the mean
+     and rerank batches, and at the final candidate.
 7. **Refactor within the boundaries.** Imports and visibility only. A
    behavioral change requires its own RED test.
 8. **Code review.** Independent review of the actual diff. Resolve

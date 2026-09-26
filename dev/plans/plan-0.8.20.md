@@ -747,7 +747,7 @@ framing; 15 is landed and 20/25 are unblocked.)*
 >    incomparable Hamming distances, silent recall corruption, no error (the `vec_bit(embedding_bin)`
 >    re-insert inside `fn migrate_vector_partition_pack1_to_pack2` in
 >    `src/rust/crates/fathomdb-engine/src/vector_storage.rs`, and the anti-pattern to avoid — the
->    DELETE+INSERT re-quantize in `fn run_pin_and_requantize_pass` in `src/rust/crates/fathomdb-engine/src/lib.rs`).
+>    DELETE+INSERT re-quantize in `fn run_pin_and_requantize_pass` in `src/rust/crates/fathomdb-engine/src/mean.rs`).
 >
 > Idempotent re-registration still diffs to a **no-op**; a shape-changing reshape is an **explicit**
 > drop (`api-surface.md:26-30`), never a silent boot-time wipe. `run_pin_and_requantize_pass` is a

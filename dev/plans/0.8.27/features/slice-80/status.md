@@ -5,7 +5,7 @@ implemented_on: 2026-09-27
 planning_commit: 9a31e979
 implementation_candidate: 31e78529fdb047e4827d1d3836e6b076ab358705
 reviewed_candidate: e9631b9761d292a4115d1beee95678801512f4f2
-closeout_commit: 4299511c7f725fab3fdad5add7a01e299076bd1b
+closeout_commit: bca0c99d46e0111c1bd3906d78a77668801463bc
 ---
 
 # Slice 80 implementation status

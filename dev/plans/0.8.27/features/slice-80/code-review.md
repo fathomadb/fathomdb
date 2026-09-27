@@ -2,7 +2,8 @@
 title: FathomDB 0.8.27 Slice 80 - code review
 status: PASS
 target_release: 0.8.27
-reviewed_range: bb077cfa..ac404a81
+initial_reviewed_range: bb077cfa..ac404a81
+reviewed_range: 0efa62c544af00858aa6975944e8f36c99f13218..e9631b9761d292a4115d1beee95678801512f4f2
 review_fix_candidate: e9631b9761d292a4115d1beee95678801512f4f2
 ---
 
@@ -11,8 +12,9 @@ review_fix_candidate: e9631b9761d292a4115d1beee95678801512f4f2
 The reviewer was an independent, read-only `gpt-5.6-sol` subagent at high
 reasoning. It reviewed the commissioned plan, design, implementation commits,
 and clean candidate `ac404a81`. Its initial verdict was **FAIL**, with two P2
-architectural findings. Both findings are closed by `8e449963` without a
-behavioral change.
+architectural findings. Both findings were closed at historical fix candidate
+`8e449963` without a behavioral change; the current follow-up review binding
+is recorded below.
 
 ## Findings and resolutions
 
@@ -41,12 +43,14 @@ item beyond the item's own visibility. Their `graph_expand/mod.rs` aliases are
   WAL attribution fixture passed 313/313. The Slice 35 virtual-mutation
   manifest passed, `slice60_fix1_wire` passed 4/4, plan anchors passed, and
   AC-050c found no unrecorded public removal against `bb077cfa`.
-- Public capture at `8e4499637e9d40ac6fcb9579f352b9f643e86709`
-  contains 13 rows and is exactly equal to the pre-move capture, the original
-  implementation candidate, and the tracked Slice 30 baseline.
-- Hidden capture at the same SHA contains 33 rows and is exactly equal to the
-  pre-move capture and original implementation candidate. Against the tracked
-  `8e2afb29` hidden baseline it has 261 additions, 0 changes, and 0 removals.
+- The historical public capture at
+  `8e4499637e9d40ac6fcb9579f352b9f643e86709` contains 13 rows and is exactly
+  equal to the pre-move capture, the original implementation candidate, and
+  the tracked Slice 30 baseline.
+- The hidden capture at that historical SHA contains 33 rows and is exactly
+  equal to the pre-move capture and original implementation candidate.
+  Against the tracked `8e2afb29` hidden baseline it has 261 additions, 0
+  changes, and 0 removals.
 
 > **Post-hoc correction (2026-09-27).** The post-hoc adversarial design
 > review found that the finding 1 resolution overstated its effect. Moving

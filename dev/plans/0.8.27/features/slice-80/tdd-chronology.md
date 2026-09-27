@@ -220,8 +220,8 @@ mutation manifest passed, `slice60_fix1_wire` passed 4/4, plan anchors verified
 ## Code-review fixes
 
 The independent `gpt-5.6-sol` reviewer at high reasoning returned **FAIL** on
-candidate `ac404a81`, with two P2 architectural findings. Commit `8e449963`
-closes both:
+candidate `ac404a81`, with two P2 architectural findings. Historical fix
+candidate `8e449963` closed both initial findings:
 
 1. The `begin_attributed_reader_tx` body moved unchanged from `reader_pool.rs`
    back to root-private ownership. The pool dispatches to read, search, and graph
@@ -260,9 +260,10 @@ compile/lint and blast-radius evidence was:
 ## Review and final verification
 
 Code review is closed in `code-review.md`. A separate read-only
-`gpt-5.6-terra` subagent returned PASS at clean candidate `3e60cc5d`; the
-canonical gate passed 127/127, workspace Clippy/check passed, strict security
-passed 0/0/0 (the live AC-037 claim at `3e60cc5d` is UNEVIDENCED; a
+`gpt-5.6-terra` subagent returned PASS at historical clean candidate
+`3e60cc5d`; the canonical gate passed 127/127, workspace Clippy/check passed,
+and strict security reported 0/0/0 (the live AC-037 claim at `3e60cc5d` is
+UNEVIDENCED; a
 HITL-granted re-run passed at `66e27983` as historical evidence for that
 candidate only; see `review-verification.md`), and the feature-complete gate
 passed 349/357 with 8 documented ignores. Exact-final-candidate live AC-037 is

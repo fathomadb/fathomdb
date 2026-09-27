@@ -78,12 +78,34 @@ A qualifying live run requires a HITL grant and a re-run through the runbook
 at a candidate whose `src/` and `scripts/` match. No evidence was fabricated
 or inferred for this amendment.
 
+### HITL-granted re-run (2026-09-27): live AC-037 PASS at `66e27983`
+
+The HITL applied the runbook's temporary per-binary grant for
+`/usr/bin/unshare` on host `windchill3`; `unshare -rUn true` then printed
+`userns-ok`. The agent ran `STRICT=1 bash scripts/agent-security.sh` from a
+temporary detached worktree at `66e279831fd49e71fc392e9eda37ed511b7766a1`
+(the candidate after post-hoc fix-1 and fix-2; its `src/` and `scripts/`
+match the release branch at that commit). Exit status was 0, with all three
+required lines:
+
+- `AC-037 OK: all connect() syscalls were loopback / AF_UNIX / AF_NETLINK.`
+- `AC-037 catch OK (live netns): deliberate egress flagged:`
+- `agent-security: 0 violation(s), 0 blocker(s), 0 downgrade(s)`
+
+The temporary worktree was removed at 2026-09-27T15:54-05:00. The HITL then
+reverted the grant (`apparmor_parser -R` and removal of
+`/etc/apparmor.d/fathomdb-unshare`), and `unshare -rUn true` again failed with
+`write failed /proc/self/uid_map: Operation not permitted`. The grant was
+temporary and per-binary, never standing host configuration. The original
+`3e60cc5d` claim stays UNEVIDENCED; the live layer is satisfied at
+`66e27983`.
+
 ## Verdict
 
-Slice 80 satisfies AC27-80A through AC27-80G at the reviewed candidate. It
-also satisfies AC27-80H except for the live AC-037 layer, which is
-UNEVIDENCED (see the amendment above) until a HITL-granted runbook re-run is
-recorded. The
+Slice 80 satisfies AC27-80A through AC27-80G at the reviewed candidate. Its
+live AC-037 claim at that candidate is UNEVIDENCED (see the amendment above);
+the HITL-granted runbook re-run passed at `66e27983`, which satisfies
+AC27-80H's live layer for the post-fix candidate. The
 implementation commit remains `8e4499637e9d40ac6fcb9579f352b9f643e86709`;
 `3e60cc5d` adds the closed review record without changing production or test
 code. Slice 90 may proceed only when separately commissioned.

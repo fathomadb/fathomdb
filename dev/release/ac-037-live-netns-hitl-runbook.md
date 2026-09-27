@@ -114,3 +114,8 @@ Hosted CI is unaffected. The authoritative `security` job runs on
   the `uid_map` error, and `/etc/apparmor.d/fathomdb-unshare` did not exist.
   The Slice 80 live layer is therefore recorded as UNEVIDENCED, not as a pass.
   No grant was applied and no re-run was performed.
+- **2026-09-27, 0.8.27 Slice 80 re-run, host `windchill3`.** The HITL applied
+  the grant. Strict security passed 0/0/0 with both AC-037 live layers at
+  `66e27983` (Slice 80 after post-hoc fix-1 and fix-2), run from a temporary
+  worktree at that commit. The grant was reverted, and `unshare -rUn true`
+  failed again with the `uid_map` error.

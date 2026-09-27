@@ -58,7 +58,7 @@ There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE
 | 50 | Engine erasure, lifecycle, dependency, and provenance | Complete at `1f5b8614`; private semantic modules preserve root paths and close nonterminal soft-closure residue with reviewed RED/GREEN evidence. |
 | 60 | Engine write, ingest, and consolidation | Complete at `d5a5bd39`; six private write-domain modules, full-state write-boundary characterization, and bounded abort-seam carry-over correction. Public/hidden structural surfaces and release probe equal; test inventory additive-only; 127/127 gate and live AC-037 pass. |
 | 70 | Engine projection, embedding, and reranking | Complete at `36fc2352`; ten private modules preserve public paths and runtime shape. Canonical, security, feature-complete, workspace, and artifact gates pass. |
-| 80 | Engine read, search, graph, and evidence | Complete at `8e449963`; private read-domain modules preserve public/hidden surfaces and runtime behavior. Independent review findings are closed; verification passes 127/127, strict security 0/0/0 (live AC-037 UNEVIDENCED), and feature-complete 349/357 with 8 documented ignores. |
+| 80 | Engine read, search, graph, and evidence | Complete at `8e449963`; private read-domain modules preserve public/hidden surfaces and runtime behavior. Independent review findings are closed; verification passes 127/127, strict security 0/0/0 (live AC-037 re-run PASS at `66e27983`), and feature-complete 349/357 with 8 documented ignores. |
 
 ## Verification boundary
 
@@ -142,8 +142,9 @@ candidate-bound Python receipt passed. The 13-row public capture is exact; the
 removals. Strict security was claimed 0/0/0 including live AC-037 through an
 already-active capability. The post-hoc design review (2026-09-27) found no
 captured pass lines or grant/revert record, so the live AC-037 layer is
-UNEVIDENCED and does not count as a pass. A re-run requires a HITL grant
-through `dev/release/ac-037-live-netns-hitl-runbook.md`. The
+UNEVIDENCED at `3e60cc5d`. A HITL-granted re-run through
+`dev/release/ac-037-live-netns-hitl-runbook.md` passed 0/0/0 with both live
+layers at `66e27983`, and the grant was reverted. The
 feature-complete gate passed 349/357 with 8 documented ignores. The verifier
 removed its disposable Python environment, restored the tracked stub, and
 left the tree clean.

@@ -61,10 +61,11 @@ visibility; it changed no behavior.
   - hidden surface: 33 rows, additive only, with 261 additions, 0 changes,
     and 0 removals;
   - strict security: claimed 0 violations, 0 blockers, and 0 downgrades,
-    including live AC-037. The live AC-037 layer is **UNEVIDENCED**: the pass
-    lines and the grant/revert record were not captured, so it does not count
-    as a pass. A re-run through `dev/release/ac-037-live-netns-hitl-runbook.md`
-    requires a HITL grant (post-hoc amendment, 2026-09-27); and
+    including live AC-037. That claim at `3e60cc5d` is **UNEVIDENCED**: the pass
+    lines and the grant/revert record were not captured. A HITL-granted re-run
+    through `dev/release/ac-037-live-netns-hitl-runbook.md` then passed 0/0/0
+    with both live layers at `66e27983`, and the grant was reverted
+    (2026-09-27; `review-verification.md`); and
   - feature-complete: 21 runs, 357 planned, 349 passed, 0 failed, and 8
     documented ignores.
 

@@ -582,8 +582,15 @@ Allocated by the Slice 80 design (`features/slice-80/design.md`):
   `SearchReaderWork`, every `*ReaderRequest` struct, `ReaderRequest`,
   `FrozenQueryRuntime`, the reader response aliases, `SearchReaderError`,
   `PageReaderError`, `CacheStatusReply`, the `READER_*` constants, and the
-  `Reader*Pause` aliases stay at root, so Slice 80 widens no field. Their
-  private fields are built at root, in `graph_expand`, and in the WAL seams.
+  `Reader*Pause` aliases stay at root, so no reader carrier field widens.
+  Their private fields are built at root, in `graph_expand`, and in the WAL
+  seams.
+- **Telemetry and evidence carriers.** Slice 80 first moved `TelemetrySink`
+  and `EvidenceCapture` and widened four fields. The post-hoc design review
+  (2026-09-27) caught this, and fix-1 returned both to the root with private
+  fields, because `erasure.rs` reads `TelemetrySink.path` and `reader_pool.rs`
+  constructs `EvidenceCapture`. Slice 90 owns their final placement, with no
+  field widening.
 - **WAL arms in the reader loop.** The inline WAL and diagnostic match arms
   (`HoldWalSnapshot*`, `LookasideStatus`, `CacheStatus`,
   `SecureDeleteStatus`, and `Wal*Inventory`) move verbatim with
@@ -601,9 +608,13 @@ Allocated by the Slice 80 design (`features/slice-80/design.md`):
 - **Search-owned runtime fields.** The four search-owned
   `ProjectionRuntimeShared` fields stay in place. Slice 90 may relocate them
   when it finalizes `Engine` state, subject to its own design review.
-- **Retained dependency seam.** `search` ↔ `graph_expand` remains the sole
-  approved cycle from Slice 80. Slice 90 must preserve or unwind it explicitly
-  when closing the facade.
+- **Retained dependency seams.** Slice 80 approved one handler-level cycle,
+  `search` ↔ `graph_expand`. It also leaves three module-level cycles, caused
+  by `impl Engine` facades sharing modules with their handlers. The post-hoc
+  design review (2026-09-27) recorded these; `features/slice-80/design.md`
+  has the details. The three are `read` ↔ `reader_pool`, `graph_expand` ↔
+  `reader_pool`, and `graph_expand` ↔ `search_api`. When Slice 90 closes the
+  facade, it must explicitly preserve or unwind all four.
 
 ### Slice 100 — PyO3 binding decomposition
 
@@ -678,6 +689,49 @@ Carried from Slice 70 (`features/slice-70/status.md`):
   (including the projection, vector, and embed seams, `projection_status`,
   and `mean_centering_internals_for_test`) fall under the existing Slice 140
   test-seam gating ruling.
+
+Carried from Slice 80 (`features/slice-80/design.md`, post-hoc design review
+2026-09-27). These test seams moved out of `lib.rs`, or already lived in
+`graph_expand.rs` and moved with its split. Slice 140's test-seam inventory
+and gating ruling must cover them at their new owners:
+
+- **`reader_pool.rs`:** the pool methods `wal_connection_inventory_for_test`
+  and `wal_native_state_inventory_for_test` (`pub(crate)`).
+- **`search.rs`:** the `test-hooks` search witnesses
+  `append_json_witness_for_test`, `record_fts_route_for_test`,
+  `slice71_search_statement_trace`,
+  `record_slice71_profile_statement_for_test`, and
+  `record_fts_query_plan_for_test`.
+- **`filter.rs`:** the `Filter` methods `to_search_filter_for_test` and
+  `lower_for_read_list_for_test`.
+- **`graph_expand/execution.rs`:**
+  - the `Engine` seams `measure_graph_expand_for_test`,
+    `seed_graph_expand_dependency_closure_for_test`,
+    `seed_graph_expand_nonterminal_dependency_closure_for_test`,
+    `seed_graph_expand_erasure_for_test`,
+    `seed_graph_expand_projection_state_for_test`,
+    `graph_expand_current_rss_samples_for_test`,
+    `graph_expand_isolated_process_rss_samples_for_test`,
+    `graph_expand_with_rendezvous_for_test`,
+    `graph_expand_with_projection_state_for_test`,
+    `graph_expand_with_statement_count_for_test`,
+    `graph_expand_with_projection_generation_for_test`, and
+    `explain_graph_expand_for_test`;
+  - the private helpers `measure_isolated_process_rss_arm_for_test` and
+    `seed_graph_expand_rss_fixture_for_test`;
+  - the `*ForTest` carriers `GraphExpandRetentionCountersForTest`,
+    `GraphExpandRendezvousForTest`, `GraphExpandMeasurementForTest`,
+    `GraphExpandCurrentRssSampleForTest`,
+    `GraphExpandIsolatedProcessRssSampleForTest`,
+    `GraphExpandProjectionStateForTest`,
+    `GraphExpandProjectionGenerationForTest`, and
+    `GraphExpandReaderControlsForTest`.
+- **`graph_expand/types.rs`:**
+  `graph_expansion_degradation_codes_for_test`.
+- **Root wrappers:** the root `pub fn *_for_test` wrappers still in
+  `lib.rs` now call these moved `pub(crate)` items. They include
+  `vector_phase1_sql_for_test`, `slice35_ranked_eligibility_sql_for_test`,
+  and `take_slice71_search_statement_trace_for_test`.
 
 Slice 140's intended hidden-surface differences, including the test-seam
 gating, are captured at its landing commit as a successor hidden baseline with

@@ -48,6 +48,23 @@ item beyond the item's own visibility. Their `graph_expand/mod.rs` aliases are
   pre-move capture and original implementation candidate. Against the tracked
   `8e2afb29` hidden baseline it has 261 additions, 0 changes, and 0 removals.
 
+> **Post-hoc correction (2026-09-27).** The post-hoc adversarial design
+> review found that the finding 1 resolution overstated its effect. Moving
+> `begin_attributed_reader_tx` back to the root removed the *handler*-level
+> dependency on `reader_pool`. At module level, however, the `impl Engine`
+> facades that share modules with the handlers still close three cycles:
+> `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and
+> `graph_expand` ↔ `search_api`. So `search` ↔ `graph_expand` is not the only
+> retained module cycle. `design.md` now states the invariant at
+> facade-vs-handler granularity and hands the three facade cycles to Slice 90
+> as accepted seams.
+>
+> The finding 2 closure was also incomplete. Six items stayed wider than
+> their users required, and four struct fields had widened
+> (`TelemetrySink.path` and the three `EvidenceCapture` fields). Fix-1
+> (`b8af4d86`) narrows the items and restores the private fields. The table
+> above is left as originally recorded.
+
 Both review findings are **CLOSED**. Independent final verification ran as a
 separate gate and is recorded in `review-verification.md`; it is not part of
 this review verdict.

@@ -109,7 +109,7 @@ re-exports, and path-only gate retargets.
 
 | Batch | Commit | Destination and focused evidence |
 | --- | --- | --- |
-| 1 | `02a848f6` | `fusion.rs`; default and hook checks, focused fusion owners, C1, WAL guard, plan anchors, and AC-050c passed. |
+| 1 | `02a848f6` | `fusion.rs`; default and hook checks, focused fusion owners, C1, WAL guard, plan anchors, and AC-050c passed. *Deviation (recorded post hoc, 2026-09-27):* this batch deleted 264 lines from `lib.rs`, below the AC27-80A floor of 300 moved lines. The behavior-preservation evidence is unaffected. |
 | 2 | `71598dae` | filter carriers in `filter.rs`; the same per-batch gates passed. |
 | 3 | `695079db` | filter execution in `filter.rs`; active plan anchors were retargeted and passed. |
 | 4 | `58972419` | `search_types.rs`; C1 first went RED because its `SearchHit` probe still named `lib.rs`, then GREEN after the probe and self-test fixture arms 12p/12w were retargeted. |
@@ -142,11 +142,24 @@ mutation manifest passed, `slice60_fix1_wire` passed 4/4, plan anchors verified
 - Root consumers required crate-visible filter SQL/post-filter helpers, the
   importance-map helper, read in-transaction helpers, search capture and
   execution helpers, search-inner methods, the telemetry sink, and the five
-  traversal entry points. Their private fields did not widen beyond the
-  predeclared search capture carriers.
+  traversal entry points.
+- *Correction (post-hoc design review, 2026-09-27).* This record originally
+  said private fields "did not widen beyond the predeclared search capture
+  carriers". That was false: the design predeclares no field widening, and
+  moving `TelemetrySink` to `telemetry.rs` and `EvidenceCapture` to
+  `search.rs` widened four fields (`TelemetrySink.path` and the three
+  `EvidenceCapture` fields) to `pub(crate)`, violating PW27-4A. Fix-1
+  (`b8af4d86`) returned both struct definitions, unchanged, to the crate
+  root with private fields. Fix-1 also made six over-visible items private
+  again: `capture_telemetry`, `capture_telemetry_with_sink`,
+  `mint_explanation_correlation_id`,
+  `search_inner_with_frozen_binding_and_expansion`, `direction_str`, and
+  `parse_canonical_u64`.
 - The graph split required only sibling visibility:
-  `encode_graph_evidence_request`, `GraphExpansionErrorV1::new`,
-  `direction_str`, and `parse_canonical_u64` became `pub(super)`. The existing
+  `encode_graph_evidence_request` and `GraphExpansionErrorV1::new` (called
+  from `codec.rs`) became `pub(super)`. `direction_str` and
+  `parse_canonical_u64` were also made `pub(super)` but are used only in
+  `codec.rs`; fix-1 made them private. The existing
   test-hook controls and `SCHEMA_VERSION` retained or narrowed to their
   directory-module ownership. Public graph/search types remain root re-exports.
 - No reader carrier field, public contract, SQL, feature gate, wire carrier, or
@@ -212,3 +225,34 @@ canonical gate passed 127/127, workspace Clippy/check passed, strict security
 passed 0/0/0 including live AC-037, and the feature-complete gate passed
 349/357 with 8 documented ignores. `review-verification.md` records the full
 receipts and cleanup.
+
+## Post-hoc design review fix-1 (2026-09-27)
+
+A post-hoc adversarial design review of HEAD `a68e90b7` returned
+PASS-WITH-FIXES (`design-review.md`). Fix-1 is mechanical and changes no
+behavior, SQL, feature gate, or public or hidden path. Under the TDD exception
+for mechanical refactors, it adds no new tests. Commit `b8af4d86`:
+
+- returns `TelemetrySink` and `EvidenceCapture` to the crate root with
+  private fields, and narrows the six over-visible items listed in the
+  visibility seam record above;
+- removes the `#[allow(unused_imports)]` on the `graph_expand/mod.rs`
+  test-hook re-export, and drops the three re-exported `*ForTest` types that
+  nothing imports;
+- in `slice80_reader_transaction_release.rs`, gates only the two debug-only
+  guards and the worker-count check on `cfg(debug_assertions)`, rather than
+  the whole file, as `design.md` specifies. The loop count is the shipped
+  pool size of 8, and every assertion and oracle is unchanged. The test now
+  also runs under release `--tests`;
+- points the `perf_gates.rs` ground-truth comment at
+  `filter.rs::build_vector_phase1_sql`;
+- makes three changes to the Windows WAL guard:
+  - splits the needles, so the completion pause is checked on
+    `READER_POOL_SOURCE` and `binding_connection_inventory_for_test` and
+    `checkpoint_at_rest_for_test` are checked on `ENGINE_SOURCE`;
+  - makes `assert_contains` check every needle;
+  - corrects the one latent needle this exposed
+    (`reader_native_state_for_test()` did not match the binding's
+    `fn reader_native_state_for_test(&self)`).
+
+  The recursive fixture now passes 314/314.

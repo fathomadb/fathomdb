@@ -106,3 +106,11 @@ Hosted CI is unaffected. The authoritative `security` job runs on
   Strict security passed 0/0/0 with both AC-037 live layers at `cacfce45`,
   whose code is identical to candidate `36fc2352`. The grant was reverted,
   and `unshare -rUn true` failed again with the `uid_map` error.
+- **2026-09-27, 0.8.27 Slice 80, post-hoc review.** Slice 80's verification
+  record claimed that live AC-037 passed at candidate `3e60cc5d` using an
+  "already-active host capability". It recorded none of the step 5 facts: no
+  pass lines, no grant, and no revert. On 2026-09-27 the host was restricted:
+  `apparmor_restrict_unprivileged_userns=1`, `unshare -rUn true` failed with
+  the `uid_map` error, and `/etc/apparmor.d/fathomdb-unshare` did not exist.
+  The Slice 80 live layer is therefore recorded as UNEVIDENCED, not as a pass.
+  No grant was applied and no re-run was performed.

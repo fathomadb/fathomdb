@@ -139,11 +139,25 @@ reviewed clean candidate is `3e60cc5d`.
 The canonical gate passed 127/127. Workspace Clippy/check and the
 candidate-bound Python receipt passed. The 13-row public capture is exact; the
 33-row hidden capture is additive only, with 261 additions, 0 changes, and 0
-removals. Strict security passed 0/0/0 including live AC-037 through an
-already-active capability that the verifier did not modify. The
+removals. Strict security was claimed 0/0/0 including live AC-037 through an
+already-active capability. The post-hoc design review (2026-09-27) found no
+captured pass lines or grant/revert record, so the live AC-037 layer is
+UNEVIDENCED and does not count as a pass. A re-run requires a HITL grant
+through `dev/release/ac-037-live-netns-hitl-runbook.md`. The
 feature-complete gate passed 349/357 with 8 documented ignores. The verifier
 removed its disposable Python environment, restored the tracked stub, and
 left the tree clean.
+
+The post-hoc adversarial design review of Slice 80 (2026-09-27) returned
+PASS-WITH-FIXES. Fix-1 `b8af4d86` made two changes, with no behavior change:
+
+- it restored four widened carrier fields to private by keeping
+  `TelemetrySink` and `EvidenceCapture` at the root;
+- it narrowed six over-visible items.
+
+The records now list three facade-induced module cycles as Slice 90 seams,
+and they add the Slice 140 test-seam carry-over. See
+`features/slice-80/design-review.md`.
 
 ## Boundaries
 

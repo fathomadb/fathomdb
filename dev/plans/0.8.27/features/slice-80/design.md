@@ -70,7 +70,10 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
 - **No field widening (PW27-4A):** no struct field widens. Data carriers
   whose private fields are built at root stay at root (see
   `reader_pool.rs`). A child module of the crate root can read root-private
-  fields.
+  fields. The same rule keeps `TelemetrySink` (its `path` is read by
+  `erasure.rs`) and `EvidenceCapture` (constructed by `reader_pool.rs`) at
+  root; the implementation first moved them and widened four fields, which the
+  post-hoc design review (2026-09-27) found and reverted.
 
 - **Placement rule:** a helper used only by moved items moves with them. A
   helper shared with root items stays at root, or moves with its dominant
@@ -78,7 +81,13 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
 - **Dependency direction:** the root re-import strategy makes every moved
   item reachable from every module, so a cycle would compile silently. The
   intended direction is recorded here, and the code review checks each new
-  module's `use`/`super::` references against it:
+  module's `use`/`super::` references against it. The rules apply at
+  **facade-vs-handler granularity**: an `impl Engine` facade that lives in
+  the same module as its handlers (for example the read facades in `read.rs`
+  or the traversal facades in `graph_expand/traversal.rs`) may call
+  `reader_pool` dispatch or `search_api` even though that module's handlers
+  must not. At module granularity this produces the facade-induced cycles
+  listed below.
   - `search_types` depends only on carrier and value types.
   - `filter` and `fusion` never depend on `search_api` or `telemetry`.
   - Among the new modules, `search` never depends on `search_api` or
@@ -87,12 +96,26 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
   - One module cycle exists today and is kept verbatim as an accepted Slice 90
     seam: `search` ↔ `graph_expand` (`read_search_in_tx` calls
     `search_expand_on_snapshot`; `graph_expand/execution` calls
-    `structural_dependency_state`). No new cycle may be added.
+    `structural_dependency_state`). No new handler-level cycle may be added.
+  - Three further module-level cycles are facade-induced and accepted as
+    Slice 90 seams (recorded by the post-hoc design review, 2026-09-27; the
+    earlier claim that `search` ↔ `graph_expand` was the only cycle was
+    false):
+    - `read` ↔ `reader_pool`: the `read.rs` `impl Engine` facades call
+      `self.reader_pool.dispatch`, and the pool calls the `read_*_in_tx`
+      handlers.
+    - `graph_expand` ↔ `reader_pool`: the traversal and execution facades
+      (`traversal.rs`, `execution.rs`) call dispatch, and the pool calls the
+      traversal and `read_graph_expand_in_tx` handlers.
+    - `graph_expand` ↔ `search_api`: the `search_expand*` facade in
+      `traversal.rs` calls `self.search_inner`, and `search_api.rs` names
+      `traversal::SearchExpandResult`.
   - `reader_pool` calls the read, search, and graph handlers. Those handlers
-    use the root-private `begin_attributed_reader_tx` primitive, so none
-    depends back on `reader_pool`.
-  - `search_api` and `telemetry` may call domain logic; domain logic never
-    calls them.
+    use the root-private `begin_attributed_reader_tx` primitive, so no
+    handler depends back on `reader_pool`; only facades do.
+  - `search_api` and `telemetry` may call domain logic; domain handlers never
+    call them. The `graph_expand` traversal facade calling `search_inner` is
+    the accepted facade exception above.
   - `graph_expand/codec` depends on `graph_expand/types` and on crate
     value and carrier types (`ReadContextV1`, `ReadView`, `SearchFilter`,
     the `Structural*StateV1` types, `ArtifactRevisionId`, and the evidence
@@ -120,9 +143,9 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
 | `fusion.rs` | `RRF_K`, `RRF_WEIGHT_VECTOR`, `RRF_WEIGHT_TEXT`, `RRF_WEIGHT_GRAPH`, `RECENCY_WEIGHT`, `fuse_rrf`, `fuse_three_arms`, `apply_recency_reweight`, `apply_importance_reweight`, `build_importance_confidence_maps` |
 | `filter.rs` | `ScalarValue`, `ComparisonOp`, `PREDICATE_PATH_ALLOWLIST`, `Predicate` (and impl), `SearchFilter` (and impl), `FilterTerm`, `Filter` (with `TryFrom` and impl), `validate_filter_attributes_on_snapshot`, `vector_filter_clause`, `vector_filter_values`, `build_vector_phase1_sql`, `append_node_eligibility_sql`, `append_edge_eligibility_sql`, `body_fts_rank_sql`, `edge_fts_rank_sql`, `property_fts_rank_sql`, `text_hit_passes_filter`, `hit_attributes_pass_filter`, `edge_fts_hit_passes_filter`, `edge_fts_hit_passes_non_attribute_filter` |
 | `search_types.rs` | `SoftFallback`, `SoftFallbackBranch`, `SearchHit`, `GraphFrontierStats` (and impl), `SearchResult`, `Explanation`, `StructuralInclusionStateV1`, `StructuralProjectionOriginV1`, `StructuralDependencyStateV1`, `StructuralLifecycleStateV1`, `StructuralDegradationCodeV1`, `StructuralInclusionV1`, `QueryTrace`, `PerHitExplain`, `Bm25fFieldWeights`, `Bm25fQueryPlan` (with `Default` impls), `TOP_K_BIT_CANDIDATES`, `SEARCH_RERANK_LIMIT`, `DEFAULT_SEARCH_RESULT_LIMIT`, `MAX_SEARCH_RESULT_LIMIT`, `validate_search_result_limit` |
-| `search.rs` | `structural_dependency_state`, `structural_lifecycle_state`, `read_projected_text_in_tx`, `CapturedGraphOrigin`, `SearchOriginCapture`, `NoEvidenceCapture` (with its size assert), `EvidenceCapture`, `read_search_work_in_tx`, `SearchStatement` (and impls), `prepare_search_statement`, `load_projection_cursor_for_search`, `read_search_in_tx`, `rank_search_hit_from_row`, `collect_complete_rank_boundary`, `retain_complete_rank_boundary_candidates`, `bfs_graph_arm_candidates` (generic over `SearchOriginCapture`; it uses `CapturedGraphOrigin`, `SearchHit`, `GraphFrontierStats`, and `append_node_eligibility_sql`, not the BFS builders), the `test-hooks` search witnesses (`append_json_witness_for_test`, `record_fts_route_for_test`, `slice71_search_statement_trace`, `record_slice71_profile_statement_for_test`, `record_fts_query_plan_for_test`), `fts5_tokenize`, `bm25f_match_expression`, `bm25f_score_doc`, `bm25f_search_inner` |
+| `search.rs` | `structural_dependency_state`, `structural_lifecycle_state`, `read_projected_text_in_tx`, `CapturedGraphOrigin`, `SearchOriginCapture`, `NoEvidenceCapture` (with its size assert), the `SearchOriginCapture` impl for the root `EvidenceCapture`, `read_search_work_in_tx`, `SearchStatement` (and impls), `prepare_search_statement`, `load_projection_cursor_for_search`, `read_search_in_tx`, `rank_search_hit_from_row`, `collect_complete_rank_boundary`, `retain_complete_rank_boundary_candidates`, `bfs_graph_arm_candidates` (generic over `SearchOriginCapture`; it uses `CapturedGraphOrigin`, `SearchHit`, `GraphFrontierStats`, and `append_node_eligibility_sql`, not the BFS builders), the `test-hooks` search witnesses (`append_json_witness_for_test`, `record_fts_route_for_test`, `slice71_search_statement_trace`, `record_slice71_profile_statement_for_test`, `record_fts_query_plan_for_test`), `fts5_tokenize`, `bm25f_match_expression`, `bm25f_score_doc`, `bm25f_search_inner` |
 | `search_api.rs` | `impl Engine`: `freeze_read_context`, `validate_frozen_read_context_for_binding`, `search_frozen`, `search_with_evidence`, `resolve_evidence`, `resolve_graph_evidence`, `search_expand_frozen`, `tc5_vector_stage`, the `search*` variants (`search` through `search_projected_text_with_limit`), `dense_disabled`, `dense_disabled_reason`, `vector_equivalence_refusal_count`, `search_reranked_with_explain`, `search_inner`, `search_inner_with_stats`, `search_inner_with_frozen_binding_and_stats`, `search_inner_with_frozen_binding_and_expansion`, `bm25f_search` |
-| `telemetry.rs` | `TelemetrySink`, `append_jsonl`, `branch_str` (both used only by telemetry); `impl Engine`: `enable_telemetry`, `last_telemetry_query_id`, `capture_telemetry`, `finalize_search_observability`, `mint_explanation_correlation_id`, `capture_telemetry_with_sink`, `record_feedback` |
+| `telemetry.rs` | `append_jsonl`, `branch_str` (both used only by telemetry); `impl Engine`: `enable_telemetry`, `last_telemetry_query_id`, `capture_telemetry`, `finalize_search_observability`, `mint_explanation_correlation_id`, `capture_telemetry_with_sink`, `record_feedback` |
 | `read.rs` | `NodeRecord`, `OpStoreRow`, `OperationalStateRecordV1`, `READ_COLLECTION_MAX_LIMIT`, `read_get_by_id_in_tx`, `read_collection_in_tx`, `read_list_in_tx`, `read_canonical_page_in_tx`, `read_canonical_page_baseline_in_tx`, `query_canonical_page_rows`, `canonical_page_query`, `OPERATIONAL_STATE_POINT_SQL`, `OPERATIONAL_STATE_PAGE_SQL`, `read_operational_state_in_tx`, `read_operational_state_page_in_tx`, `validate_operational_context`, `validate_operational_collection`, `page_search_error`; `impl Engine`: `read_get`, `read_get_many`, `read_collection`, `read_mutations`, `read_collection_dispatch`, `read_list`, `read_list_filter`, `read_canonical_page`, `read_operational_state`, `read_operational_state_page`, `receive_page_result` |
 | `reader_pool.rs` | **Functions only:** `impl ReaderWorkerPool` (including `Drop`), `reader_worker_loop` (moved whole, including its inline WAL and diagnostic match arms: `HoldWalSnapshot*`, `LookasideStatus`, `CacheStatus`, `SecureDeleteStatus`, and `Wal*Inventory`, with their snapshot-hold behavior verbatim), `finish_reader_request`, `read_lookaside_used_hiwtr`, `read_cache_status`. The pool's two `*_for_test` methods (`wal_connection_inventory_for_test` and `wal_native_state_inventory_for_test`) move with the impl, because they are pool methods, not `Engine` seams. Slice 140's inventory must include them. **Kept at root** as shared infrastructure and data carriers: the private `begin_attributed_reader_tx` primitive; `ReaderWorkerPool` (struct and `Debug`), `SearchReaderWork`, every `*ReaderRequest` struct, `ReaderRequest`, `FrozenQueryRuntime`, the response aliases, `SearchReaderError`, `PageReaderError` (and their `From` impls), `CacheStatusReply`, the `READER_*` constants, and the `Reader*Pause` aliases (used only by the root `WalAttributionCollector`). The carrier fields are built at root, in `graph_expand`, and in Slice 90's WAL seams (`self.reader_pool.senders[0]`). Slice 90 owns these carriers, the shared transaction primitive, and the WAL arms. |
 | `graph_expand/` | Replaces `graph_expand.rs`. `mod.rs` holds declarations and re-exports that keep every `crate::graph_expand::X` path, including `read_graph_expand_in_tx` and `GraphExpandReaderControlsForTest`. The submodules are listed in the next four rows. |
@@ -138,6 +161,8 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     `mint_explanation_open_nonce` and its nonce `static`;
   - `detect_slow`, `emit_event`, and `emit_sqlite_internal_error`;
   - the reader data carriers listed under `reader_pool.rs`;
+  - the `TelemetrySink` and `EvidenceCapture` carriers, kept at root so their
+    private fields do not widen (post-hoc design review, 2026-09-27);
   - the shared private `begin_attributed_reader_tx` primitive;
   - `configure_reader_lookaside` and `apply_perf_experiment_reader_pragmas`,
     called only from the open path;

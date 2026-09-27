@@ -92,3 +92,36 @@ All fixes are mechanical corrections of fact, so no further cycle was run.
 The status stays PASS.
 
 Implementation may start once Slice 80 is commissioned.
+
+## Post-hoc adversarial design review (2026-09-27)
+
+A read-only, adversarial review re-checked the recorded design claims against
+the implementation. It covered range `9a31e979..a68e90b7` against baseline
+production `bb077cfa`.
+
+- **Cycle 1 verdict:** PASS-WITH-FIXES.
+- **Behavior preservation:** confirmed mechanically. Of 12,413 moved
+  non-blank lines, only 8 are not verbatim, and each is explained. The
+  attribute sets are identical before and after, and no SQL, error mapping,
+  or feature gate changed.
+- **Where the defects lie:** in the recorded claims, not in behavior.
+
+> **Correction to cycle 3 row 3.** The resolution text of row 3 was rewritten
+> after implementation. It is marked "later", but it still said "only
+> `search` ↔ `graph_expand` remains". That is false at module level; see
+> finding 2 below. The row is left as written, and this section is the
+> correction of record.
+
+| # | Severity | Finding | Resolution |
+| --- | --- | --- | --- |
+| 1 | P1 | Four struct fields widened to `pub(crate)`, violating PW27-4A: `TelemetrySink.path` and the three `EvidenceCapture` fields. The records claimed no widening. | **Fixed** in `b8af4d86`. Both struct definitions returned unchanged to the crate root with private fields, following the carriers-stay-at-root rule. `tdd-chronology.md`, `design.md`, and the Slice 90 section of the master plan are corrected. |
+| 2 | P2 | The dependency invariant is false at module level. Beyond `search` ↔ `graph_expand`, the design's facade placement closes three cycles: `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`. | **Records corrected; no code moved.** `design.md` restates the invariant at facade-vs-handler granularity and lists the three cycles as accepted seams handed to Slice 90. `code-review.md` gets a post-hoc correction note, and the master plan's "sole approved cycle" bullet is corrected. |
+| 3 | P2 | The Slice 140 handoff for relocated test seams was missing from the master plan. | **Fixed.** Slice 140 now has a "Carried from Slice 80" block that names each relocated seam and its file. |
+| 4 | P2 | Live AC-037 evidence was not recorded per the runbook: no pass lines, no grant, and no revert. The host is restricted today. | **Recorded as unevidenced.** No captured run output was found. `review-verification.md` and `status.md` now mark the live AC-037 layer at the candidate as UNEVIDENCED, which does not count as a pass. A re-run needs a HITL grant through the runbook. The runbook History records this. |
+| 5 | P3 | The WAL guard retarget bundled lib.rs-only needles into a check on `READER_POOL_SOURCE`, and `assert_contains` checked only its first needle. | **Fixed** in `b8af4d86`. The needles are split, and `assert_contains` checks every needle. One latent vacuous needle in the PyO3 check is corrected. The fixture passes 314/314. |
+| 6 | P3 | Items were wider than their users need (the finding says six but lists seven). | **Partly fixed** in `b8af4d86`: six items are now private. The seventh, `GraphExpansionErrorV1::new`, is **rebutted**: `graph_expand/codec.rs` calls it at lines 207, 214, 1000, and 1007, so `pub(super)` is required. |
+| 7 | P3 | A `perf_gates.rs` comment pointed at `search.rs`. | **Fixed:** the comment now points at `filter.rs::build_vector_phase1_sql`. |
+| 8 | P3 | The whole reader-release test file was gated on `debug_assertions`. | **Fixed.** Only the debug-only guards are gated, the assertions are unchanged, and the test passes in both debug and release. |
+| 9 | P3 | Batch 1 moved 264 lines, below the AC27-80A floor of 300. | **Recorded** as a deviation in `tdd-chronology.md`. |
+| 10 | P3 | A blanket `#[allow(unused_imports)]` sat on a re-export list. | **Fixed.** The allow is removed and the three unused `*ForTest` re-exports are trimmed. None was root-exported before the move. |
+| 11 | P3 | A review record was rewritten after the fact (cycle 3 row 3). | **Folded into finding 2.** See the correction note above. |

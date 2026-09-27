@@ -60,8 +60,11 @@ visibility; it changed no behavior.
   - public surface: 13 rows, exact;
   - hidden surface: 33 rows, additive only, with 261 additions, 0 changes,
     and 0 removals;
-  - strict security: 0 violations, 0 blockers, and 0 downgrades, including
-    live AC-037; and
+  - strict security: claimed 0 violations, 0 blockers, and 0 downgrades,
+    including live AC-037. The live AC-037 layer is **UNEVIDENCED**: the pass
+    lines and the grant/revert record were not captured, so it does not count
+    as a pass. A re-run through `dev/release/ac-037-live-netns-hitl-runbook.md`
+    requires a HITL grant (post-hoc amendment, 2026-09-27); and
   - feature-complete: 21 runs, 357 planned, 349 passed, 0 failed, and 8
     documented ignores.
 
@@ -76,7 +79,11 @@ plan and `design.md`:
 - reader open-path helpers and the remaining search-index projectors;
 - final placement of the four search-owned `ProjectionRuntimeShared` fields;
   and
-- the retained `search` ↔ `graph_expand` dependency seam.
+- the retained `search` ↔ `graph_expand` dependency seam, plus three
+  facade-induced module cycles: `read` ↔ `reader_pool`, `graph_expand` ↔
+  `reader_pool`, and `graph_expand` ↔ `search_api`. The post-hoc design review
+  recorded these; see `design.md`;
+- the root `TelemetrySink` and `EvidenceCapture` carriers.
 
 These are handoffs, not authority to begin Slice 90.
 
@@ -84,6 +91,24 @@ These are handoffs, not authority to begin Slice 90.
 
 No new branch or worktree was created. The verifier removed its disposable
 Python 3.12 environment and generated artifacts, restored the tracked
-`src/python/fathomdb/_fathomdb.pyi`, and left the tree clean. It used the
-already-active AC-037 capability without changing AppArmor state. Tags,
+`src/python/fathomdb/_fathomdb.pyi`, and left the tree clean. It reported
+using an already-active AC-037 capability without changing AppArmor state;
+that claim is unevidenced (see above). Tags,
 registries, publication, and later slices were not touched.
+
+## Post-hoc design review fix-1 (2026-09-27)
+
+A post-hoc adversarial design review returned PASS-WITH-FIXES:
+
+- one P1: four struct fields had widened;
+- three P2s: the dependency invariant was false at module level, the Slice
+  140 handoff was missing, and the live AC-037 layer was unevidenced;
+- seven P3s.
+
+Fix-1 made the following changes, with no behavior change:
+
+- restored the private carrier fields and narrowed visibility (`b8af4d86`);
+- corrected the design, review, and plan records;
+- marked live AC-037 UNEVIDENCED.
+
+The per-finding record is in `design-review.md`.

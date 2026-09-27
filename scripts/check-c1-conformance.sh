@@ -400,6 +400,7 @@ CONTRACT, PIN, ROOT, LIST_SOURCES = sys.argv[1], sys.argv[2], sys.argv[3], sys.a
 # path-#4 evaporation and stop testing what it claims).
 # ---------------------------------------------------------------------------
 ENG = "src/rust/crates/fathomdb-engine/src/lib.rs"
+SEARCH_TYPES = "src/rust/crates/fathomdb-engine/src/search_types.rs"
 ERR = "src/rust/crates/fathomdb-engine/src/errors.rs"
 IDENTITY = "src/rust/crates/fathomdb-engine/src/identity.rs"
 REGISTRY = "src/rust/crates/fathomdb-engine/src/projection_registry.rs"
@@ -678,7 +679,7 @@ def crate_manifest_for(test_path):
 # things that remain.
 #
 # NO PYTHON OR TYPESCRIPT TEST IS CITED BY ANY CLAUSE. `--list-sources` is the
-# authority: the gate reads thirteen files (nine Rust modules/tests, one markdown
+# authority: the gate reads fourteen files (ten Rust modules/tests, one markdown
 # plan, the two crate lib.rs, and one Cargo manifest) and three trees, and not
 # one `.py` or `.ts` among them. The
 # same evaporation exists in those languages (`@pytest.mark.skip`, `xfail`,
@@ -950,7 +951,7 @@ ASSERTIONS = {
     # SearchHit's field (rather than making it nullable) does not trip the
     # negative probe either, so the clause had a complete false-green path.
     "C1-Q6B-ID-NON-NULL": [
-        ("in_item", ENG, "struct", "SearchHit", r"pub\s+id\s*:\s*IdSpace\s*,"),
+        ("in_item", SEARCH_TYPES, "struct", "SearchHit", r"pub\s+id\s*:\s*IdSpace\s*,"),
         ("absent_tree", ENG_TREE, r"pub\s+id\s*:\s*Option\s*<\s*IdSpace", (".rs",)),
     ],
     # fix-4 SWEEP: the error variant is read out of `enum EngineError`. File-wide,

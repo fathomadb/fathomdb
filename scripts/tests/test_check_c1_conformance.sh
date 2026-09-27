@@ -848,7 +848,7 @@ expect_out 'vector' "the or-pattern failure NAMES the unpinned token it found"
 # decoy struct carrying that exact text. With the present probe satisfied, the
 # narrow `absent` probe was the only thing left standing, and it exited 0.
 SPACED_OPT_ROOT="$(make_root id-non-null-respaced)"
-python3 - "$SPACED_OPT_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$SPACED_OPT_ROOT/src/rust/crates/fathomdb-engine/src/search_types.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -1040,22 +1040,26 @@ expect_out 'C1-TE-DEFAULT-TOKENIZER' "the deleted-tokenizer failure NAMES the cl
 # SearchHit no typed `id`, ProjectionVector no `embedder` and ProjectionFts no
 # `tokenizer`. The gate exited 0 on this tree.
 DECOY_FIELD_ROOT="$(make_root decoy-struct-fields)"
-python3 - "$DECOY_FIELD_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$DECOY_FIELD_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" \
+  "$DECOY_FIELD_ROOT/src/rust/crates/fathomdb-engine/src/search_types.rs" <<'PY'
 import sys
-p = sys.argv[1]
+p, search_types_path = sys.argv[1:]
 text = open(p, encoding="utf-8").read()
+search_types = open(search_types_path, encoding="utf-8").read()
 renames = [
     ("    pub roles: BTreeSet<ProjectionRole>,", "    pub role_set: BTreeSet<ProjectionRole>,"),
     ("    pub built: Vec<String>,", "    pub built_names: Vec<String>,"),
     ("    pub deferred: Vec<String>,", "    pub deferred_names: Vec<String>,"),
     ("    pub unchanged: bool,", "    pub no_op: bool,"),
-    ("    pub id: IdSpace,", "    pub hit_id: IdSpace,"),
     ("    pub embedder: Option<String>,", "    pub embedder_name: Option<String>,"),
     ("    pub tokenizer: Option<String>,", "    pub tokenizer_name: Option<String>,"),
 ]
 for old, new in renames:
     assert text.count(old) == 1, old
     text = text.replace(old, new, 1)
+old, new = "    pub id: IdSpace,", "    pub hit_id: IdSpace,"
+assert search_types.count(old) == 1, old
+search_types = search_types.replace(old, new, 1)
 text += """
 /// Fixture only (fix-4 SWEEP). A decoy carrying the exact text each clause's
 /// `present` probe looked for — in a struct the contract never names. With this
@@ -1072,6 +1076,7 @@ pub struct FixtureFieldDecoy {
 }
 """
 open(p, "w", encoding="utf-8").write(text)
+open(search_types_path, "w", encoding="utf-8").write(search_types)
 PY
 run_checker --contract "$CLEAN_CONTRACT" --pin "$REAL_PIN" --root "$DECOY_FIELD_ROOT"
 expect_rc 1 "fields moved OUT of their named structs (with a decoy) HARD-fail every affected clause"
@@ -2056,6 +2061,8 @@ run_checker --list-sources
 expect_rc 0 "--list-sources exits 0"
 expect_out 'file\s+src/rust/crates/fathomdb-engine/src/lib.rs' \
   "--list-sources names the engine source the assertions read"
+expect_out 'file\s+src/rust/crates/fathomdb-engine/src/search_types.rs' \
+  "--list-sources names the engine search-types source the assertions read"
 expect_out 'file\s+src/rust/crates/fathomdb-engine/src/errors.rs' \
   "--list-sources names the engine error source the assertions read"
 expect_out 'file\s+src/rust/crates/fathomdb-engine/src/identity.rs' \

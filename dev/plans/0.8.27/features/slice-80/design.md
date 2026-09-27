@@ -74,6 +74,31 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
 - **Placement rule:** a helper used only by moved items moves with them. A
   helper shared with root items stays at root, or moves with its dominant
   owner as `pub(crate)`.
+- **Dependency direction:** the root re-import strategy makes every moved
+  item reachable from every module, so a cycle would compile silently. The
+  intended direction is recorded here, and the code review checks each new
+  module's `use`/`super::` references against it:
+  - `search_types` depends only on carrier and value types.
+  - `filter` and `fusion` never depend on `search_api` or `telemetry`.
+  - Among the new modules, `search` never depends on `search_api` or
+    `telemetry`. It also uses `temporal`, `dependency_closure`, `evidence`,
+    and `frozen_read`.
+  - Two module cycles exist today and are kept verbatim as accepted Slice 90
+    seams: `search` ↔ `graph_expand` (`read_search_in_tx` calls
+    `search_expand_on_snapshot`; `graph_expand/execution` calls
+    `structural_dependency_state`), and `search` ↔ `reader_pool`
+    (`read_projected_text_in_tx` calls `begin_attributed_reader_tx`;
+    `reader_worker_loop` calls the search entry points). No new cycle may
+    be added.
+  - `search_api` and `telemetry` may call domain logic; domain logic never
+    calls them.
+  - `graph_expand/codec` depends on `graph_expand/types` and on crate
+    value and carrier types (`ReadContextV1`, `ReadView`, `SearchFilter`,
+    the `Structural*StateV1` types, `ArtifactRevisionId`, and the evidence
+    sidecar types), never on `execution` or `traversal` functions.
+    `graph_expand/types` depends on nothing else in `graph_expand`.
+  - The reader carriers kept at root are a temporary Slice 90 seam, not a
+    destination.
 - **Public items:** each moved public item gets a root `pub use` with the
   same `cfg`.
 - **Seam table:** `tdd-chronology.md` records every visibility change. The
@@ -99,10 +124,10 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
 | `read.rs` | `NodeRecord`, `OpStoreRow`, `OperationalStateRecordV1`, `READ_COLLECTION_MAX_LIMIT`, `read_get_by_id_in_tx`, `read_collection_in_tx`, `read_list_in_tx`, `read_canonical_page_in_tx`, `read_canonical_page_baseline_in_tx`, `query_canonical_page_rows`, `canonical_page_query`, `OPERATIONAL_STATE_POINT_SQL`, `OPERATIONAL_STATE_PAGE_SQL`, `read_operational_state_in_tx`, `read_operational_state_page_in_tx`, `validate_operational_context`, `validate_operational_collection`, `page_search_error`; `impl Engine`: `read_get`, `read_get_many`, `read_collection`, `read_mutations`, `read_collection_dispatch`, `read_list`, `read_list_filter`, `read_canonical_page`, `read_operational_state`, `read_operational_state_page`, `receive_page_result` |
 | `reader_pool.rs` | **Functions only:** `impl ReaderWorkerPool` (including `Drop`), `reader_worker_loop` (moved whole, including its inline WAL and diagnostic match arms: `HoldWalSnapshot*`, `LookasideStatus`, `CacheStatus`, `SecureDeleteStatus`, and `Wal*Inventory`, with their snapshot-hold behavior verbatim), `finish_reader_request`, `begin_attributed_reader_tx`, `read_lookaside_used_hiwtr`, `read_cache_status`. The pool's two `*_for_test` methods (`wal_connection_inventory_for_test` and `wal_native_state_inventory_for_test`) move with the impl, because they are pool methods, not `Engine` seams. Slice 140's inventory must include them. **Kept at root** as data carriers, because their private fields are built at root, in `graph_expand`, and in Slice 90's WAL seams (`self.reader_pool.senders[0]`): `ReaderWorkerPool` (struct and `Debug`), `SearchReaderWork`, every `*ReaderRequest` struct, `ReaderRequest`, `FrozenQueryRuntime`, the response aliases, `SearchReaderError`, `PageReaderError` (and their `From` impls), `CacheStatusReply`, the `READER_*` constants, and the `Reader*Pause` aliases (used only by the root `WalAttributionCollector`). Slice 90 owns these carriers and the WAL arms. |
 | `graph_expand/` | Replaces `graph_expand.rs`. `mod.rs` holds declarations and re-exports that keep every `crate::graph_expand::X` path, including `read_graph_expand_in_tx` and `GraphExpandReaderControlsForTest`. The submodules are listed in the next four rows. |
-| `graph_expand/types.rs` | Current lines 24-25 (`SCHEMA_VERSION`) and 90-378. `SCHEMA_VERSION` becomes `pub(super)`. |
+| `graph_expand/types.rs` | Current lines 24-25 (`SCHEMA_VERSION`) and 90-378, plus `TraversalDirection` from `lib.rs` (a value type used by the request types and the codec; its root `pub use` keeps the public path). `SCHEMA_VERSION` becomes `pub(super)`. |
 | `graph_expand/codec.rs` | Current lines 1922-3470, plus `is_false` (lines 26-28). |
-| `graph_expand/execution.rs` | Current lines 30-89, 379-1920 (validation included), and the in-file tests at 3472-3525. |
-| `graph_expand/traversal.rs` | `TraversalDirection`, `SearchExpandResult`, `GRAPH_NEIGHBORS_HARD_CAP`, `build_bfs_sql`, `build_bfs_with_depth_sql`, `crossed_boundary_since_in_tx`, `graph_neighbors_in_tx`, `search_expand_in_tx`, `search_expand_on_snapshot`, `explain_graph_neighbors_in_tx`; `impl Engine`: `graph_neighbors`, `search_expand`, `search_expand_with_limit`, `crossed_boundary_since` |
+| `graph_expand/execution.rs` | Current lines 30-89 and 379-1920 (validation included). The in-file `graph_evidence_request_tests` (3472-3525) do **not** move here: they go to `graph_expand/mod.rs`, so their qualified names stay `lib::graph_expand::graph_evidence_request_tests::*`, as the hidden baseline records. `mod.rs` brings the items those tests name into scope (`use super::*` inside the test module then resolves them); an item private to a submodule becomes `pub(super)`, which is item visibility, not field widening. The imports that only the tests need (`execution::encode_graph_evidence_request`, which becomes `pub(super)`; `ReadContextV1`, `ReadView`, `SearchFilter`, `IdSpace`, `FrozenReadContextV1`) go in `#[cfg(test)] use` lines in `mod.rs`, so the non-test build has no unused imports. Names already re-exported by `mod.rs`, such as `TraversalDirection`, are not imported again. |
+| `graph_expand/traversal.rs` | `SearchExpandResult`, `GRAPH_NEIGHBORS_HARD_CAP`, `build_bfs_sql`, `build_bfs_with_depth_sql`, `crossed_boundary_since_in_tx`, `graph_neighbors_in_tx`, `search_expand_in_tx`, `search_expand_on_snapshot`, `explain_graph_neighbors_in_tx`; `impl Engine`: `graph_neighbors`, `search_expand`, `search_expand_with_limit`, `crossed_boundary_since` |
 
 ### Stays at root
 
@@ -121,7 +146,12 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     `search_index_tokenizer_reproject_complete`, `CanonicalNodeRow`,
     `canonical_node_rows`, `row_kind_from_column`).
 - **Slice 140:**
-  - every `*_for_test` `Engine` seam;
+  - every `*_for_test` `Engine` seam defined in `lib.rs`. The seams
+    already in `graph_expand.rs` (`measure_graph_expand_for_test`, the
+    `seed_graph_expand_*_for_test` and `graph_expand_with_*_for_test`
+    families, `explain_graph_expand_for_test`, and
+    `pub fn graph_expansion_degradation_codes_for_test`) move with the file
+    into `graph_expand/execution.rs`;
   - every root `pub fn *_for_test` (`vector_phase1_sql_for_test`,
     `slice35_ranked_eligibility_sql_for_test`,
     `take_slice71_search_statement_trace_for_test`), now calling the moved
@@ -170,8 +200,10 @@ finalizes `Engine` state.
 11. **`reader_pool.rs`**: the functions only (about 640). Retarget the
     Windows WAL guard (see gates).
 12. **Graph split, first step:** `git mv graph_expand.rs
-    graph_expand/execution.rs`, add `mod.rs`, and move the types into
-    `types.rs` (about 330). Retarget `slice60_fix1_wire`.
+    graph_expand/execution.rs`, add `mod.rs`, move the in-file tests into
+    `mod.rs`, and move the types into `types.rs` (about 330). Retarget
+    `slice60_fix1_wire`. Confirm that the two graph unit-test names are
+    unchanged in `cargo test --lib -- --list`.
 13. **Request codec** into `graph_expand/codec.rs` (about 755).
 14. **Result codec** into `graph_expand/codec.rs` (about 795).
 15. **`graph_expand/traversal.rs`** (about 575).
@@ -234,16 +266,16 @@ cheap public-removal check.
 - `slice50_evidence::authorized_*_corruption_is_typed*`
 - `slice35_frozen_read`
 
-**R27-80F — visibility and filters.** Consideration TC-38 is already covered:
+**R27-80F — visibility and filters.** Search applies the validity axis and
+refuses existence relaxation. Consideration TC-38 is covered for these
+paths:
 
 - `slice15b_search_validity::{read_view_on_search_selects_by_instant_and_can_relax_validity, text_only_search_also_hides_out_of_window_nodes, filtered_and_explained_search_hide_out_of_window_nodes, search_refuses_a_view_that_relaxes_the_existence_axis}`
 - `opp12_existence_axis::{r_ex_2_pending_absent_from_default_search_and_read, r_ex_2_vector_search_excludes_superseded_node_version}`
 - `slice35_filter_grammar`, `slice40_filter_unification`, and
   `slice10_read_view`
-- **TC-38 view paths not yet confirmed:** the TDD mapping step checks that
-  the view axes also reach the graph-arm and `search_projected_text` paths.
-  If an owner is missing, it adds one bounded characterization test with a
-  recorded mutant.
+- **Not covered:** the graph arm and `search_projected_text` under a
+  non-default view. Both get the mandatory characterization below.
 
 **Plan and statement structure:**
 
@@ -253,7 +285,7 @@ cheap public-removal check.
 - `slice71_search_statement_trace`
 - `slice20_graph_evidence::evidence_hydration_executes_zero_or_exactly_two_sql_statements`
 
-### Added (the only gap): reader transaction release after refusal (R27-80B)
+### Added (proven gaps): reader transaction release after refusal (R27-80B)
 
 No owner proves that a search refused *inside* a reader transaction releases
 that worker's snapshot. The reader-pool tests cover success paths, and the
@@ -268,9 +300,13 @@ the WAL and silently degrade later erasure.
      `READER_POOL_SIZE` is 8 and private, and dispatch is round-robin, so
      each worker takes exactly one. Debug-only guards, gated on
      `cfg(debug_assertions)` so the release `--tests` check compiles, assert
-     two things: `reader_worker_count_for_test() == 8`, and that
-     `next_reader_worker_index_for_test()` advances by exactly 8 across the
-     refusals. Together they prove one dispatch per refusal onto 8 distinct
+     two things: `reader_worker_count_for_test() == 8`, and the per-dispatch
+     progression. `next_reader_worker_index_for_test()` returns the counter
+     modulo the worker count, so its value after eight dispatches equals its
+     value before; comparing only the endpoints would be vacuous. Instead,
+     record `start` before the first refusal and assert that the index is
+     `(start + i) % 8` before refusal `i` and `(start + i + 1) % 8` after
+     it. Together these prove one dispatch per refusal onto 8 distinct
      workers. Each call asserts the typed `InvalidFilter`. That rejects any
      refusal made before dispatch, such as a closed engine, disabled dense
      search, or an empty query. The refusal must happen on the reader
@@ -291,6 +327,54 @@ the WAL and silently degrade later erasure.
   - **Hang risk:** there is none. Erasure retries a bounded 5 × 25 ms. The mutant is reverted, and a byte comparison confirms the
   production file is restored.
 - **If the test fails on unmodified production:** stop for a RED/GREEN fix.
+
+### Added (proven gaps): search view paths (R27-80F)
+
+Search's shipped contract applies the validity axis and refuses existence
+relaxation (`ReadView::reject_existence_relaxation_on_search`). The owners
+cover the hybrid, text-only, filtered, and explained paths. No owner asserts
+validity exclusion or inclusion on the graph arm or on
+`search_projected_text` under a non-default view. (`slice50_evidence` runs
+the graph arm with `valid_as_of: Some(1_000)` but asserts evidence, not
+window exclusion; every `search_projected_text` call uses
+`ReadView::default()`.)
+
+- **Where:** `tests/slice80_search_view_paths.rs`, default features.
+  Fixtures follow `slice15b_search_validity`: set `valid_from`/`valid_until`
+  through the governed write path, with the far-future and past constants.
+- **Graph arm** (`search_reranked_view`, `use_graph_arm = true`,
+  `rerank_depth = 0`): a seed node matches the query and is in window; an
+  edge reaches a neighbor that does not match the query and whose window
+  has closed. The seed's window must also cover the assertion-3 instant
+  (`valid_from` NULL), and the edge must have NULL or later `t_invalid`,
+  because edge validity binds the same instant (`temporal.rs` `edge_now`).
+  Otherwise the arm has no root and the test fails for the wrong reason.
+  `slice30_graph_arm::graph_arm_temporal_fallback_excluded_or_downweighted`
+  shows a non-matching neighbor surfacing as a hit.
+  1. Under the default view the neighbor is absent.
+  2. Under `include_out_of_window` it is present, which proves the arm
+     reached it.
+  3. Under a `valid_as_of` inside its window it is present.
+  4. `include_superseded` and `include_inactive` each return
+     `InvalidArgument`.
+- **Projected text** (`search_projected_text` on a declared `searchable`
+  projection): the same four assertions for one in-window and one
+  out-of-window node that both match.
+- **Non-vacuity mutants:** each must fail assertion 1 and be recorded;
+  restore the code and compare bytes.
+  - **Graph arm:** node validity on the neighbor path is applied twice, so
+    one mutant removes both: the validity part of `target_node`
+    (`view.node_sql("target", 3)`, the edge-query join) and the
+    `body_validity` string (`view.validity_sql("canonical_nodes", 2)`, the
+    hydration query), keeping every bound parameter referenced (`?2` and
+    `?3` stay in use through `read_eligibility_sql`). The seed and resolve
+    sites are out of scope, because the neighbor never seeds.
+  - **Projected text:** remove the validity part of `frozen.node_sql("n",
+    3)` in `read_projected_text_in_tx`, its only validity site.
+- **If the TDD step finds that the fixture cannot reach a path** (for
+  example, the graph arm does not surface a non-matching neighbor as a
+  hit), it adjusts the fixture, not the assertions, and records why.
+- **If a test fails on unmodified production:** stop for a RED/GREEN fix.
 
 ## Source-scraping gates and retargets
 
@@ -382,7 +466,8 @@ batch that moves the named item:
   - strict security with live AC-037 through the HITL runbook;
   - `scripts/test-feature-complete.sh` on the RTX 3090 host;
   - the public capture, equal to the Slice 30 baseline;
-  - the hidden capture, additive only (the new test).
+  - the hidden capture, additive only (the two new test files; no
+    existing test path renamed).
 
 ## Risks
 
@@ -396,8 +481,8 @@ batch that moves the named item:
   batch is a single contiguous cut. It must not be refactored.
 - **The graph file split.** `git mv` preserves history for `execution.rs`.
   The codec batches must keep item order within `codec.rs`. The in-file
-  `graph_evidence_request_tests` stay with `encode_graph_evidence_request`
-  in `execution.rs`.
+  `graph_evidence_request_tests` go to `graph_expand/mod.rs` so their
+  qualified names do not change; the hidden capture checks this.
 - **Doc-hidden re-exports.** `rerank.rs` showed that a redundant
   `#[doc(hidden)]` on the re-export is harmless. The hidden capture is the
   oracle.

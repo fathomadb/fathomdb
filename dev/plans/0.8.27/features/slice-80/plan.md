@@ -102,11 +102,17 @@ The draft was written in prework at `a3e6cff6`. The baseline is now
    and corruption properties (proptest in `slice60_wire` and
    `slice55_wire`), and SQL/plan assertions. `design.md` maps each owner.
    Characterization is limited to gaps that the mapping proves.
-   - **TC-38 (search visibility):** covered by `slice15b_search_validity`
-     and `opp12_existence_axis`. The mapping confirms the graph-arm and
-     projected-text paths.
-   - **The one proven gap:** reader transaction release after a refusal
-     inside the transaction.
+   - **TC-38 (search visibility):** the hybrid, text-only, filtered, and
+     explained paths are covered by `slice15b_search_validity` and
+     `opp12_existence_axis`. Search honors only the validity axis
+     (`valid_as_of`, `include_out_of_window`) and refuses existence
+     relaxation (`include_superseded`, `include_inactive`) with
+     `InvalidArgument`. No owner asserts validity exclusion or inclusion on
+     the graph arm or on `search_projected_text` under a non-default view;
+     every existing `search_projected_text` call uses
+     `ReadView::default()`.
+   - **The proven gaps:** reader transaction release after a refusal inside
+     the transaction, and the two view paths above.
 8. **Graph and evidence tests stay together.** The in-crate evidence tests
    call `graph_expand` execution internals directly. That confirms the
    draft's "keep graph and evidence tests together". No test is split.
@@ -162,7 +168,7 @@ The fields are `search_limit_override`, `recency_reweight_enabled`,
 | `telemetry.rs` | `TelemetrySink`, `append_jsonl`, `branch_str`, and search observability, telemetry, and feedback |
 | `read.rs` | the read-verb, canonical-page, and operational-state in-transaction functions, and their `impl Engine` facades |
 | `reader_pool.rs` | the pool's functions: its impl and `Drop` (including its two `*_for_test` methods), the worker loop, `finish_reader_request`, `begin_attributed_reader_tx`, and the reader cache and lookaside probes (the data carriers and the open-path connection setup stay at root) |
-| `graph_expand/` (split) | `mod.rs` re-exports; `types.rs`; `codec.rs`; `execution.rs` (with validation and `test-hooks` seams); `traversal.rs` (legacy traversal, the BFS builders, and their `impl Engine` facades) |
+| `graph_expand/` (split) | `mod.rs` re-exports and the in-file `graph_evidence_request_tests` (qualified names unchanged); `types.rs`; `codec.rs`; `execution.rs` (with validation and `test-hooks` seams); `traversal.rs` (legacy traversal, the BFS builders, and their `impl Engine` facades) |
 | Stays at root | `Engine`; the open, runtime, WAL, and operator facade, the reader data carriers, `usable_dense_runtime`, and the index projectors (Slice 90); every `*_for_test` Engine seam and `pub fn *_for_test` wrapper (Slice 140); `hex_encode`; `RowKind` |
 
 Public items keep their exact root paths through `pub use`. Doc-hidden items
@@ -180,7 +186,7 @@ slice adds:
 | R27-80C | Eligibility precedes every bounded cap. | AC27-80C: the mapped pretruncation, frontier, page, and graph owners pass, including their SQL and query-plan assertions. |
 | R27-80D | Ordering and fusion are unchanged. | AC27-80D: the RRF, three-arm, reweight, tie-ordering, and prefix-stability owners pass. Graph response bytes stay identical across insertion permutations. |
 | R27-80E | Codecs are byte-stable. | AC27-80E: the graph request and result codecs, and the evidence, frozen, pagination, and trace codecs, round-trip and refuse corruption. The existing proptests and canonical fixtures pass unchanged. |
-| R27-80F | Search applies every read-view axis and the filter grammar. | AC27-80F: the filter-grammar and unification owners pass. If no owner shows that search applies every `ReadView` axis (TC-38), a characterization test is added and proven non-vacuous with a mutant. |
+| R27-80F | Search keeps its shipped view contract and the filter grammar: it applies the validity axis (`valid_as_of`, `include_out_of_window`) and refuses existence relaxation (`include_superseded`, `include_inactive`) with a typed `InvalidArgument`. | AC27-80F: the filter-grammar, unification, `slice15b_search_validity`, and `opp12_existence_axis` owners pass. Two mandatory characterization tests, each proven non-vacuous with a recorded mutant, cover the paths without an owner: the graph arm and `search_projected_text` each hide an out-of-window node under the default view, return it under `include_out_of_window` and under a `valid_as_of` inside its window, and refuse existence relaxation with `InvalidArgument`. |
 | R27-80G | The search runtime fields keep their owner. | AC27-80G: `ProjectionRuntimeShared` is unchanged in shape, and search reads the same fields. |
 | R27-80H | Structural and feature evidence. | AC27-80H: the public surface equals the Slice 30 baseline, and the hidden surface is additive only. Every named source-scraping gate is retargeted path-only and passes in every batch. The focused feature routes pass. The final gates pass: the canonical gate, workspace Clippy with warnings denied, `cargo check --workspace --all-targets`, the Python receipt, strict security with live AC-037 (through `dev/release/ac-037-live-netns-hitl-runbook.md`), and `scripts/test-feature-complete.sh` on the RTX 3090 host (search calls the feature-gated reranker and embedder). |
 
@@ -198,8 +204,11 @@ Use one writer in the release worktree. Read-only reviewers share it.
    `tdd-chronology.md`. Characterization covers:
    - **The reader-release test:** add it, show that it passes on unmodified
      production, kill a recorded temporary mutant, and restore the code.
-   - **TC-38 view paths:** confirm them. If an owner is missing, add one
-     bounded test with a recorded mutant.
+   - **The two view-path tests (R27-80F):** add them, show that they pass
+     on unmodified production, kill a recorded temporary mutant for each
+     (as `design.md` defines them: both neighbor-path validity sites on the
+     graph arm, and the single site in projected text),
+     and restore the code.
 
    If a characterization test fails on production, stop for a separate
    RED/GREEN fix.
@@ -242,9 +251,20 @@ Use one writer in the release worktree. Read-only reviewers share it.
   arithmetic, ranking, or codec bytes.
 - No new snapshot leases (0.8.28 D28-05).
 - No move of the open, runtime, WAL, or operator facade, or of the index
-  projectors (Slice 90). No move of `*_for_test` seams (Slice 140).
+  projectors (Slice 90). No move of `*_for_test` `Engine` seams or root
+  `pub fn *_for_test` wrappers (Slice 140). The exceptions move with their
+  owners, as `design.md` lists: the reader pool's
+  `wal_connection_inventory_for_test` and
+  `wal_native_state_inventory_for_test`, the `Filter` impl's test methods,
+  the `test-hooks` search witnesses in `search.rs`, and the seams already
+  in `graph_expand.rs` (`measure_graph_expand_for_test`, the
+  `seed_graph_expand_*_for_test` and `graph_expand_with_*_for_test`
+  families, `explain_graph_expand_for_test`, and
+  `graph_expansion_degradation_codes_for_test`), which move with the file
+  into `graph_expand/execution.rs`.
 - No split of `evidence.rs`, `frozen_read.rs`, `pagination.rs`, or
-  `dependency_trace.rs`, and no split of graph and evidence tests.
+  `dependency_trace.rs`, and no split of graph and evidence tests. No
+  existing test changes its qualified name.
 - No change to `ProjectionRuntimeShared`'s shape.
 - No binding or SDK change.
 - No duplicate of existing owner tests.

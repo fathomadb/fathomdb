@@ -48,6 +48,45 @@ Five P3 items were closed without another cycle:
 - The two open-path reader helpers stay at root, so they need no
   `pub(crate)`.
 - A `next_reader_worker_index_for_test` advance-by-8 guard was added.
+  *Superseded in cycle 3:* the index is modulo 8, so an endpoint check is
+  vacuous; the guard is now a per-dispatch progression.
 - The pool's `*_for_test` methods are recorded as moving with the impl.
+
+## External review — FAIL at `06e748c2`
+
+An external review found four issues. All were checked against the code and
+accepted:
+
+| # | Severity | Finding | Resolution |
+| --- | --- | --- | --- |
+| E1 | P1 | Leaving `graph_evidence_request_tests` in `execution.rs` renames both tests, which the hidden baseline forbids. | The test module goes to `graph_expand/mod.rs`; names are checked in batch 12. |
+| E2 | P1 | R27-80F required every `ReadView` axis, but search refuses existence relaxation by design. Graph-arm and projected-text view coverage was claimed but absent. | R27-80F restated as validity axis plus typed refusal. Two mandatory characterization tests with mutants. |
+| E3 | P2 | `next_reader_worker_index_for_test` is modulo 8, so "advances by 8" is vacuous. | Per-dispatch progression `(start + i) % 8`. |
+| E4 | P2 | The `*_for_test` non-goal contradicted the moving inventory. | Scoped to `Engine` seams and root wrappers, with named exceptions. |
+
+A dependency-direction invariant was also added to the design.
+
+## Cycle 3 — PASS-WITH-FIXES on the external-review revision
+
+Confirmed:
+
+- both search entry points refuse existence relaxation;
+- projected text has one validity site;
+- the graph-arm fixture is feasible;
+- dispatch is the only increment of the routing counter;
+- the `mod.rs` placement keeps the baseline test names.
+
+| # | Severity | Finding | Resolution |
+| --- | --- | --- | --- |
+| 1 | P1 | The graph arm applies neighbor validity twice (edge-query `target_node` and hydration `body_validity`), so a one-site mutant survives. | The mutant removes both sites and keeps bound parameters referenced. The seed and resolve sites are out of scope. |
+| 2 | P1 | `TraversalDirection`, assigned to `traversal.rs`, is used by `types.rs` and `codec.rs`. The codec also uses filter, search-type, and evidence carriers. | `TraversalDirection` moves to `graph_expand/types.rs`. The codec rule is restated: types plus crate value and carrier types, never `execution` or `traversal` functions. |
+| 3 | P2 | The `search` rule was a closed list and hid two existing cycles (`search` ↔ `graph_expand` and `search` ↔ `reader_pool`). | Reworded to exclude only `search_api` and `telemetry`. Both cycles are kept verbatim as Slice 90 seams, and no new cycle may be added. |
+| 4 | P2 | Test-only imports in `mod.rs` would be unused in the lib build and fail Clippy with warnings denied. | They are `#[cfg(test)] use` lines, `encode_graph_evidence_request` becomes `pub(super)`, and re-exported names are not imported again. |
+| 5 | P2 | The existing `graph_expand.rs` `*_for_test` seams move with the file, but neither non-goal listed them. | Listed as exceptions in both files. |
+| 6 | P3 | `slice50_evidence` does run the graph arm under `valid_as_of`. | The claim is reworded: no owner asserts window exclusion there. |
+| 7 | P3 | The assertion-3 fixture needs the seed's window and the edge's `t_invalid` to cover the instant. The cycle-2 record of the advance-by-8 guard is stale. | The fixture is pinned in the design, and the record is marked superseded. |
+
+All fixes are mechanical corrections of fact, so no further cycle was run.
+The status stays PASS.
 
 Implementation may start once Slice 80 is commissioned.

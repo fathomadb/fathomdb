@@ -1,21 +1,5 @@
 use super::*;
 
-/// 0.8.8 Slice 15 (OPP-9) — opt-in telemetry capture state (per `enable_telemetry`).
-/// Records query→result→feedback events to a local JSONL sink. Ids are
-/// `SearchHit.id` — the interim identity carrier per
-/// `ADR-0.8.0-canonical-identity-substrate` (write_cursor today; swaps to
-/// `logical_id` at the G0 keystone with no carrier reshape), consistent with
-/// `PerHitExplain.id`. Query text and `source_id` are NEVER captured (privacy, ADR
-/// §C). `query_id = "q{nonce}-{seq}"` is fully deterministic; `ts_monotonic_ms` is
-/// monotonic since enable (NOT wall-clock).
-pub(crate) struct TelemetrySink {
-    pub(crate) path: PathBuf,
-    base: Instant,
-    nonce: u64,
-    seq: u64,
-    last_query_id: Option<String>,
-}
-
 /// 0.8.8 Slice 15 — append one JSON value as a line to the telemetry sink
 /// (append-only, local file; no network). Best-effort caller handles the error.
 fn append_jsonl(path: &Path, value: &serde_json::Value) -> std::io::Result<()> {
@@ -84,7 +68,7 @@ impl Engine {
     /// pre-Cause-A gold and sink byte-output stay valid (the F-8a `id_space` flip
     /// is a separate, conscious step — see
     /// `dev/plans/runs/NOTE-0.8.8-to-steward-id-contract.md`).
-    pub(crate) fn capture_telemetry(&self, query: &str, result: &SearchResult) {
+    fn capture_telemetry(&self, query: &str, result: &SearchResult) {
         // Fast OFF path (codex §9 P2): a single atomic load when telemetry has
         // never been enabled — NO mutex acquisition, NO contention with the search
         // hot path.
@@ -120,12 +104,12 @@ impl Engine {
         }
     }
 
-    pub(crate) fn mint_explanation_correlation_id(&self) -> String {
+    fn mint_explanation_correlation_id(&self) -> String {
         let sequence = self.explanation_sequence.fetch_add(1, Ordering::Relaxed);
         format!("x{:032x}-{sequence}", self.explanation_open_nonce)
     }
 
-    pub(crate) fn capture_telemetry_with_sink(
+    fn capture_telemetry_with_sink(
         query: &str,
         result: &SearchResult,
         sink: &mut TelemetrySink,

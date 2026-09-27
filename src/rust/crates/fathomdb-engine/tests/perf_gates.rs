@@ -785,9 +785,9 @@ fn ac_013b_recall_at_10_floor() {
 
     // Raw read-only connection for the f32 ground-truth pass. sqlite_vec
     // is process-global after Engine::open, so vec0 vtabs are reachable.
-    // Mirrors the SQL in src/rust/crates/fathomdb-engine/src/search.rs
-    // (rowid lookup against vector_default, body fetch against
-    // canonical_nodes by write_cursor).
+    // Mirrors the SQL built by `build_vector_phase1_sql` in
+    // src/rust/crates/fathomdb-engine/src/filter.rs (rowid lookup against
+    // vector_default, body fetch against canonical_nodes by write_cursor).
     let db_path = opened.engine.path().to_path_buf();
     let conn = rusqlite::Connection::open(&db_path).expect("raw ground-truth conn");
     conn.pragma_update(None, "query_only", "ON").ok();

@@ -158,12 +158,6 @@ pub(crate) struct NoEvidenceCapture;
 // provenance collection are absent unless the explicit evidence operation is used.
 const _: () = assert!(std::mem::size_of::<NoEvidenceCapture>() == 0);
 
-pub(crate) struct EvidenceCapture {
-    pub(crate) frozen: FrozenReadContextV1,
-    pub(crate) include_explanation: bool,
-    pub(crate) graph_origins: HashMap<u64, CapturedGraphOrigin>,
-}
-
 pub(crate) fn read_search_work_in_tx<C: SearchOriginCapture>(
     reader: &mut Connection,
     work: SearchReaderWork,

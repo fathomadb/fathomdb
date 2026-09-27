@@ -114,7 +114,7 @@ struct RequestWire<'a> {
     include_evidence: bool,
 }
 
-pub(super) fn direction_str(value: TraversalDirection) -> &'static str {
+fn direction_str(value: TraversalDirection) -> &'static str {
     match value {
         TraversalDirection::Incoming => "incoming",
         TraversalDirection::Outgoing => "outgoing",
@@ -267,7 +267,7 @@ fn parse_u32(
         .ok_or_else(|| request_error(reason, path))
 }
 
-pub(super) fn parse_canonical_u64(
+fn parse_canonical_u64(
     value: &serde_json::Value,
     reason: GraphExpansionErrorReasonV1,
     path: &str,

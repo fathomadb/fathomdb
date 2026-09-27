@@ -250,8 +250,7 @@ pub(crate) use search::{
 };
 pub(crate) use search::{
     bm25f_search_inner, prepare_search_statement, read_projected_text_in_tx,
-    read_search_work_in_tx, structural_dependency_state, CapturedGraphOrigin, EvidenceCapture,
-    NoEvidenceCapture,
+    read_search_work_in_tx, structural_dependency_state, CapturedGraphOrigin, NoEvidenceCapture,
 };
 pub(crate) use search_types::validate_search_result_limit;
 pub use search_types::{
@@ -261,7 +260,6 @@ pub use search_types::{
     StructuralLifecycleStateV1, StructuralProjectionOriginV1, DEFAULT_SEARCH_RESULT_LIMIT,
     MAX_SEARCH_RESULT_LIMIT, SEARCH_RERANK_LIMIT, TOP_K_BIT_CANDIDATES,
 };
-pub(crate) use telemetry::TelemetrySink;
 #[doc(hidden)]
 pub use temporal::clock_reads_for_test;
 pub(crate) use temporal::{
@@ -777,6 +775,30 @@ pub struct Engine {
     actuation_after_initial_lookup_delay_ms: AtomicU64,
     #[cfg(debug_assertions)]
     actuation_failure_after_operation: AtomicUsize,
+}
+
+/// 0.8.8 Slice 15 (OPP-9) — opt-in telemetry capture state (per `enable_telemetry`).
+/// Records query→result→feedback events to a local JSONL sink. Ids are
+/// `SearchHit.id` — the interim identity carrier per
+/// `ADR-0.8.0-canonical-identity-substrate` (write_cursor today; swaps to
+/// `logical_id` at the G0 keystone with no carrier reshape), consistent with
+/// `PerHitExplain.id`. Query text and `source_id` are NEVER captured (privacy, ADR
+/// §C). `query_id = "q{nonce}-{seq}"` is fully deterministic; `ts_monotonic_ms` is
+/// monotonic since enable (NOT wall-clock).
+struct TelemetrySink {
+    path: PathBuf,
+    base: Instant,
+    nonce: u64,
+    seq: u64,
+    last_query_id: Option<String>,
+}
+
+// Carriers built or read outside their domain module stay at root so their
+// fields remain private (descendant modules can still read them).
+struct EvidenceCapture {
+    frozen: FrozenReadContextV1,
+    include_explanation: bool,
+    graph_origins: HashMap<u64, CapturedGraphOrigin>,
 }
 
 const PROJECTION_RUNTIME_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);

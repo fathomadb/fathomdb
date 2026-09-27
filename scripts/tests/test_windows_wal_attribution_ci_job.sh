@@ -30,8 +30,15 @@ job_block() {
   ' "$1"
 }
 
+# assert_contains HAYSTACK NEEDLE... MESSAGE — every needle must be present.
 assert_contains() {
-  if grep -Fq -- "$2" <<<"$1"; then pass "$3"; else fail "$3 (missing: $2)"; fi
+  local haystack="$1" message="${!#}" missing="" needle
+  shift
+  while (($# > 1)); do
+    grep -Fq -- "$1" <<<"$haystack" || missing="${missing:+$missing, }$1"
+    shift
+  done
+  if [[ -z "$missing" ]]; then pass "$message"; else fail "$message (missing: $missing)"; fi
 }
 
 assert_absent() {
@@ -300,7 +307,7 @@ assert_contains "$(<"$PY_SOURCE")" \
   "installed binding exposes the private binding native-state observer only in its test-hooks build"
 assert_contains "$(<"$PY_SOURCE")" \
   '_wal_attribution_binding_native_state_inventory_for_test' \
-  'reader_native_state_for_test()' \
+  'fn reader_native_state_for_test(&self)' \
   "installed binding exposes complete native-state inventory and held-reader positive evidence"
 assert_contains "$(<"$PY_SOURCE")" \
   '_native_raw_wal_checkpoint_for_test' \
@@ -318,9 +325,11 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
   "managed-reader hook is unavailable from shipped production builds"
 assert_contains "$(<"$READER_POOL_SOURCE")" \
   'wal_attribution.fire_reader_completion_pause(connection.is_autocommit())' \
+  "reader pool retains the private completion-pause seam"
+assert_contains "$(<"$ENGINE_SOURCE")" \
   'binding_connection_inventory_for_test' \
   'checkpoint_at_rest_for_test' \
-  "engine retains private completion, inventory, and checkpoint sampler seams"
+  "engine retains private inventory and checkpoint sampler seams"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'NativeTransactionState' \
   'native_connection_state_for_test' \

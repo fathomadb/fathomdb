@@ -16,11 +16,8 @@ pub(super) use execution::read_graph_expand_in_tx;
 #[cfg(feature = "test-hooks")]
 pub(super) use execution::{count_graph_expand_sql_statement, GraphExpandReaderControlsForTest};
 #[cfg(feature = "test-hooks")]
-#[allow(unused_imports)]
 pub use execution::{
-    GraphExpandCurrentRssSampleForTest, GraphExpandIsolatedProcessRssSampleForTest,
-    GraphExpandMeasurementForTest, GraphExpandProjectionGenerationForTest,
-    GraphExpandProjectionStateForTest, GraphExpandRendezvousForTest,
+    GraphExpandMeasurementForTest, GraphExpandProjectionStateForTest, GraphExpandRendezvousForTest,
 };
 pub use traversal::SearchExpandResult;
 pub(super) use traversal::{

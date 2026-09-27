@@ -143,7 +143,7 @@ in FIX-2 without another cycle:
 
 The Slice 80 implementation design review is closed.
 
-## Slice 85 planning FIX-1 (2026-09-27) — pending rereview
+## Slice 85 planning FIX-1 (2026-09-27) — closed by final rereview
 
 The independent review of the planning-only Slice 85 insertion found two
 architectural defects. FIX-1 corrects the plan and all current allocations;
@@ -154,10 +154,10 @@ the original Slice 80 finding text above remains historical evidence.
 | 1 | P1 | R27-85A allowed carriers to remain indefinitely at crate root and therefore did not establish semantic ownership. | Every root-kept reader carrier, `TelemetrySink`, `EvidenceCapture`, and `begin_attributed_reader_tx` must receive non-root semantic ownership with private fields and rooted contracts preserved. Root retention requires an item-specific reviewed exception proving it is durable and protects a stronger invariant. |
 | 2 | P1 | The plan treated `search` ↔ `graph_expand` as accepted while requiring only the other three Slice 80 cycles to be removed. | **FIX-1 wording superseded by FIX-2 below.** Slice 85 must eliminate all four Slice 80 cycles. Only the three named inherited earlier-slice cycles are initially eligible for a narrow allowlist; FIX-1's statement that any other retained cycle could be reviewed as unavoidable was too broad. |
 
-This FIX-1 does not rebind the authoritative Slice 80 SHA or claim a Slice 85
-design-review pass. Independent rereview is required.
+FIX-1 was rechecked in the final independent review recorded in
+`code-review.md`; the later FIX-2 was still required before the review passed.
 
-## Slice 85 planning FIX-2 (2026-09-27) — pending rereview
+## Slice 85 planning FIX-2 (2026-09-27) — closed by final rereview
 
 The second independent review found one remaining P2 ambiguity: the Slice 80
 design still described `graph_expand` → `search_api` as an accepted facade
@@ -171,5 +171,6 @@ Only the three named inherited earlier-slice cycles are initial allowlist
 candidates. Any reviewed unavoidable-cycle exception mechanism applies solely
 to a cycle outside those four.
 
-This FIX-2 does not rebind the authoritative Slice 80 SHA or claim a Slice 85
-design-review pass. Independent rereview is required.
+The final independent `gpt-5.6-sol` high-reasoning rereview returned **PASS**
+at clean candidate `e9631b9761d292a4115d1beee95678801512f4f2`. Slice 85
+remains planning-only and separately commissioned.

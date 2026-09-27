@@ -3,7 +3,7 @@ title: FathomDB 0.8.27 Slice 80 - code review
 status: PASS
 target_release: 0.8.27
 reviewed_range: bb077cfa..ac404a81
-review_fix_candidate: 8e4499637e9d40ac6fcb9579f352b9f643e86709
+review_fix_candidate: e9631b9761d292a4115d1beee95678801512f4f2
 ---
 
 # Slice 80 code review
@@ -91,12 +91,32 @@ Both fixes are mechanical; workspace Clippy, the three engine feature-set
 Clippy runs, `cargo fmt --check`, and the engine lib tests (78 passed)
 passed after them, so no further cycle was run.
 
-## Follow-up review boundary
+## Follow-up independent rereview (2026-09-27) — PASS
 
-Commit `9700991f` adds the missing graph-result codec properties and changes no
-production code; `31e78529` is its lint-only test-helper follow-up. The two
-temporary production mutants and focused GREEN are recorded in
-`tdd-chronology.md`. This existing code-review verdict predates both commits
-and therefore does not review or bind them. Independent rereview is
-required before `review_fix_candidate`, Slice 80 `sha`, `reviewed_candidate`,
-or `closeout_sha` is updated.
+An independent, read-only `gpt-5.6-sol` subagent at high reasoning reviewed
+the follow-up through clean candidate
+`e9631b9761d292a4115d1beee95678801512f4f2`. Production is unchanged after
+`0efa62c544af00858aa6975944e8f36c99f13218`; the test implementation
+candidate is `31e78529fdb047e4827d1d3836e6b076ab358705`.
+
+The rereview took three cycles:
+
+1. **FAIL.** The result-codec properties and mutation evidence were sound,
+   but the initial Slice 85 plan did not guarantee non-root semantic ownership
+   for every root-kept carrier and did not require removal of all four Slice
+   80 cycles. FIX-1 made both requirements categorical.
+2. **FAIL (P2).** The Slice 80 design still called
+   `graph_expand` → `search_api` an accepted facade exception, while the
+   general exception wording could allow one of the four cycles to survive.
+   FIX-2 marked that language historical/current-only and made all four cycles
+   ineligible for retention, exception, or allowlisting.
+3. **PASS.** Candidate `e9631b97` closes both review cycles. Only the three
+   named inherited earlier-slice cycles are initial allowlist candidates; an
+   unavoidable-cycle exception mechanism applies solely outside the four
+   Slice 80 cycles.
+
+The final rereview binds the codec-property test implementation and the Slice
+85 planning corrections. It does not convert the historical `66e27983`
+AC-037 receipt into evidence for this candidate or the final release
+candidate; Slice 150 still owns exact-final-candidate qualification after
+Slice 130.

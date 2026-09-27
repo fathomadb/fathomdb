@@ -261,9 +261,9 @@ Use one writer in the release worktree. Read-only reviewers share it.
    - Anything unavailable is recorded as unavailable, never as a pass.
 8. **Close.**
    - Write `status.md`.
-   - Keep Slice 80 `COMPLETE_ON_RELEASE_BRANCH`; its recorded SHAs remain
-     historical pending independent rereview of the result-codec follow-up.
-     Advance `next_slice` to planning-only Slice 85 and regenerate the views.
+   - Keep Slice 80 `COMPLETE_ON_RELEASE_BRANCH`; bind the result-codec test
+     implementation and its final independent rereview. Advance `next_slice`
+     to planning-only Slice 85 and regenerate the views.
    - Record any carry-overs in the master plan's Slice 85, 90, 140, or 150
      sections.
    - Clean up scratch material and caches whose ownership is proven. No

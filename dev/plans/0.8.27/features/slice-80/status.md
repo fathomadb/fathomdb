@@ -3,8 +3,8 @@ title: FathomDB 0.8.27 Slice 80 - implementation status
 status: COMPLETE
 implemented_on: 2026-09-27
 planning_commit: 9a31e979
-implementation_candidate: 8e4499637e9d40ac6fcb9579f352b9f643e86709
-reviewed_candidate: 3e60cc5dd37c8771d607285985337a7f35223aa1
+implementation_candidate: 31e78529fdb047e4827d1d3836e6b076ab358705
+reviewed_candidate: e9631b9761d292a4115d1beee95678801512f4f2
 closeout_commit: 4299511c7f725fab3fdad5add7a01e299076bd1b
 ---
 
@@ -40,9 +40,10 @@ temporary mutant, and passed again after exact restoration:
 - projected-text search applies the validity view.
 
 Fifteen mechanical extraction batches then moved the implementation. The final
-structural batch was `f333926e`. Code-review fix `8e449963` returned the shared
-reader-transaction primitive to root-private ownership and narrowed unnecessary
-visibility; it changed no behavior.
+structural batch was `f333926e`. Historical code-review fix `8e449963`
+returned the shared reader-transaction primitive to root-private ownership and
+narrowed unnecessary visibility; later production changes ended at
+`0efa62c544af00858aa6975944e8f36c99f13218`.
 
 Follow-up test commit `9700991f` closes the graph-result codec property gap.
 Generated coherent results now prove typed decode→encode→decode equality across
@@ -59,10 +60,12 @@ carrier; test behavior and production remain unchanged.
 - **Design review:** PASS after three cycles plus an external code-grounded
   review (`design-review.md`).
 - **Code review:** the independent `gpt-5.6-sol` high-reasoning review first
-  returned FAIL with two P2 architectural findings. Both are closed in
-  `8e449963` (`code-review.md`).
+  returned FAIL with two P2 architectural findings, closed historically in
+  `8e449963`. The follow-up rereview covered the codec properties and Slice 85
+  handoff in three cycles: two correction cycles followed by final **PASS** at
+  clean reviewed candidate `e9631b97` (`code-review.md`).
 - **Independent verification:** the separate read-only `gpt-5.6-terra`
-  verifier returned PASS at clean candidate `3e60cc5d`
+  verifier returned PASS at historical clean candidate `3e60cc5d`
   (`review-verification.md`).
   - canonical verification: 127/127;
   - workspace Clippy/check: PASS;
@@ -105,10 +108,11 @@ search-index projectors, and final placement of the four search-owned
 These are handoffs. Slice 85 is planned but uncommissioned; no Slice 85 feature
 directory or implementation was created.
 
-The frontmatter and release-state `sha`, `reviewed_candidate`, and
-`closeout_sha` values remain the prior historical bindings. They must not be
-read as binding follow-up commit `9700991f` or later HEAD; independent rereview
-must complete before those fields are rebound.
+The current test implementation candidate is `31e78529`; production is
+unchanged after `0efa62c5`. Independent `gpt-5.6-sol` high-reasoning rereview
+binds clean reviewed candidate `e9631b97`. The earlier `8e449963`,
+`3e60cc5d`, and `4299511c` bindings are historical and are retained only where
+their original evidence is discussed.
 
 ## Cleanup
 

@@ -322,3 +322,29 @@ Recorded limits:
 - Non-Linux compilation of the moved `graph_expand/execution.rs` arm was not
   checked on this host; a green non-Linux CI build is required before
   release closeout.
+
+## Follow-up independent review binding (2026-09-27)
+
+The current test implementation candidate is
+`31e78529fdb047e4827d1d3836e6b076ab358705`; production is unchanged after
+`0efa62c544af00858aa6975944e8f36c99f13218`. An independent, read-only
+`gpt-5.6-sol` subagent at high reasoning reviewed the result-codec properties,
+their unchanged-oracle mutant evidence, and the planning-only Slice 85
+architectural handoff.
+
+The first review cycle rejected root retention as an ordinary carrier outcome
+and rejected leaving `search` ↔ `graph_expand` outside the four-cycle
+elimination requirement. FIX-1 gave every root-kept carrier mandatory
+non-root semantic ownership absent an item-specific stronger-invariant
+exception, and required elimination of all four Slice 80 cycles. The second
+cycle found one P2: the design still described `graph_expand` → `search_api`
+as accepted and the general cycle-exception wording was too broad. FIX-2 made
+that description historical/current-only and barred all four cycles from
+retention, exception, or allowlisting.
+
+The third cycle returned **PASS** at clean reviewed candidate
+`e9631b9761d292a4115d1beee95678801512f4f2`. These were planning and record
+corrections, so no production or test code changed and no new behavioral RED
+was warranted. The `66e27983` AC-037 receipt remains historical only;
+exact-final-candidate live qualification remains deferred to Slice 150 after
+Slice 130.

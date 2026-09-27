@@ -2,15 +2,20 @@
 title: FathomDB 0.8.27 Slice 80 - independent verification
 status: PASS
 target_release: 0.8.27
-candidate: 3e60cc5dd37c8771d607285985337a7f35223aa1
+candidate: e9631b9761d292a4115d1beee95678801512f4f2
 ---
 
 # Slice 80 independent verification
 
-An independent, read-only `gpt-5.6-terra` subagent returned **PASS** at clean
-candidate `3e60cc5dd37c8771d607285985337a7f35223aa1`. No required evidence was
-unavailable. *Post-hoc amendment:* the live AC-037 layer lacks its
-runbook evidence; see "AC-037 capability ownership".
+This record now binds reviewed candidate
+`e9631b9761d292a4115d1beee95678801512f4f2`. The full independent,
+read-only `gpt-5.6-terra` execution below returned **PASS** at historical
+candidate `3e60cc5dd37c8771d607285985337a7f35223aa1`; no required evidence was
+reported unavailable. Later production is unchanged after `0efa62c5`, and
+the follow-up test implementation at `31e78529` has the focused RED/GREEN and
+independent review evidence recorded below and in `code-review.md`.
+*Post-hoc amendment:* the live AC-037 layer at `3e60cc5d` lacks its runbook
+evidence; see "AC-037 capability ownership".
 
 | Gate | Result |
 | --- | --- |
@@ -111,15 +116,34 @@ capture the required pass/catch/summary lines and grant/revert evidence, and
 bind the receipt to that SHA. This avoids repeated host-capability changes while
 later binding and SDK slices can still change the candidate.
 
+## Follow-up review and candidate binding
+
+The result-codec follow-up added generated coherent typed round-trip and
+positional evidence-corruption properties. Each killed its specified
+temporary production mutant without changing its test or oracle, passed after
+exact byte restoration, and passed the focused and full `slice60_wire` routes
+at test implementation candidate `31e78529`. Production remains byte-for-byte
+unchanged after `0efa62c544af00858aa6975944e8f36c99f13218`.
+
+An independent, read-only `gpt-5.6-sol` subagent at high reasoning reviewed
+the tests, mutation evidence, records, and Slice 85 architectural handoff in
+three cycles. The final verdict is **PASS** at clean reviewed candidate
+`e9631b9761d292a4115d1beee95678801512f4f2`; the two earlier cycles and their
+dispositions are recorded in `code-review.md`.
+
+No full verification gate was rerun for the documentation-only review fixes.
+The historical `gpt-5.6-terra` receipts above remain applicable to unchanged
+production; the new tests carry their focused evidence. The `66e27983`
+runbook receipt remains historical only and does not qualify `e9631b97` or the
+final candidate. Exact-final-candidate live AC-037 remains a Slice 150 gate
+after Slice 130.
+
 ## Verdict
 
-Slice 80 satisfies AC27-80A through AC27-80G at the reviewed candidate. Its
-live AC-037 claim at that candidate is UNEVIDENCED (see the amendment above);
-the HITL-granted runbook re-run passed at `66e27983` as historical
-post-fix-candidate evidence only. It is not a later-HEAD or final-candidate
-qualification. The
-implementation commit remains `8e4499637e9d40ac6fcb9579f352b9f643e86709`;
-`3e60cc5d` adds the closed review record without changing production or test
-code. The new result-codec properties require independent rereview before the
-Slice 80 bindings are updated. Slice 85 may proceed only when separately
-commissioned.
+Slice 80 satisfies AC27-80A through AC27-80G at reviewed candidate
+`e9631b9761d292a4115d1beee95678801512f4f2` on the combined evidence above.
+Its current test implementation candidate is
+`31e78529fdb047e4827d1d3836e6b076ab358705`, and production is unchanged
+after `0efa62c544af00858aa6975944e8f36c99f13218`. No current-candidate or
+final-candidate live AC-037 pass is claimed. Slice 85 may proceed only when
+separately commissioned.

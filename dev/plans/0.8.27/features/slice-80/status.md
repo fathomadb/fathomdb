@@ -44,6 +44,16 @@ structural batch was `f333926e`. Code-review fix `8e449963` returned the shared
 reader-transaction primitive to root-private ownership and narrowed unnecessary
 visibility; it changed no behavior.
 
+Follow-up test commit `9700991f` closes the graph-result codec property gap.
+Generated coherent results now prove typed decode→encode→decode equality across
+linked fields, canonical integer strings, finite/null score, and optional valid
+evidence. A second property proves generated nonzero first-entry evidence
+positions are refused at the exact path. Both killed their specified temporary
+production mutants and passed after exact restoration; production is unchanged
+and no generated golden oracle was added.
+Lint-only follow-up `31e78529` packages fixture inputs in one private test
+carrier; test behavior and production remain unchanged.
+
 ## Review and verification
 
 - **Design review:** PASS after three cycles plus an external code-grounded
@@ -65,28 +75,37 @@ visibility; it changed no behavior.
     lines and the grant/revert record were not captured. A HITL-granted re-run
     through `dev/release/ac-037-live-netns-hitl-runbook.md` then passed 0/0/0
     with both live layers at `66e27983`, and the grant was reverted
-    (2026-09-27; `review-verification.md`); and
+    (2026-09-27; `review-verification.md`). That run is historical only: it
+    does not qualify later HEAD or the final candidate. By owner ruling, the
+    next live AC-037 run is deferred until after Slice 130 and Slice 150 must
+    bind the runbook receipt to the exact final candidate; and
   - feature-complete: 21 runs, 357 planned, 349 passed, 0 failed, and 8
     documented ignores.
 
-## Slice 90 handoff
+## Slice 85 and Slice 90 handoff
 
-Slice 90 owns the remaining runtime and facade closure recorded in the master
-plan and `design.md`:
+Planning-only Slice 85 owns the carrier and dependency boundary work recorded
+in the master plan and `design.md`:
 
 - root reader data carriers and their private fields;
 - the shared root-private `begin_attributed_reader_tx` primitive;
-- the reader loop's inline WAL and diagnostic arms;
-- reader open-path helpers and the remaining search-index projectors;
-- final placement of the four search-owned `ProjectionRuntimeShared` fields;
-  and
-- the retained `search` ↔ `graph_expand` dependency seam, plus three
-  facade-induced module cycles: `read` ↔ `reader_pool`, `graph_expand` ↔
-  `reader_pool`, and `graph_expand` ↔ `search_api`. The post-hoc design review
-  recorded these; see `design.md`;
-- the root `TelemetrySink` and `EvidenceCapture` carriers.
+- the root `TelemetrySink` and `EvidenceCapture` carriers; and
+- removal of the three facade-induced cycles (`read` ↔ `reader_pool`,
+  `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`) plus an
+  enforceable exact or allowlisted remaining dependency graph.
 
-These are handoffs, not authority to begin Slice 90.
+Slice 90 consumes those settled boundaries, then owns the runtime facade,
+reader-loop WAL/diagnostic arms, reader open-path helpers, remaining
+search-index projectors, and final placement of the four search-owned
+`ProjectionRuntimeShared` fields.
+
+These are handoffs. Slice 85 is planned but uncommissioned; no Slice 85 feature
+directory or implementation was created.
+
+The frontmatter and release-state `sha`, `reviewed_candidate`, and
+`closeout_sha` values remain the prior historical bindings. They must not be
+read as binding follow-up commit `9700991f` or later HEAD; independent rereview
+must complete before those fields are rebound.
 
 ## Cleanup
 

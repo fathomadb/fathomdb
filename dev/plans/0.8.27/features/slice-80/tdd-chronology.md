@@ -101,6 +101,42 @@ After exact restoration, `git diff -- src/rust/crates/fathomdb-engine/src/lib.rs
 was empty and the combined focused run passed 3/3 again. No production behavior
 change was required.
 
+### Post-closeout graph-result codec properties
+
+Follow-up commit `9700991fe648eb8d81efb1cde041a2b1093a3fc0` closes the
+result-codec property gap without changing production. The tests live in
+`tests/slice60_wire.rs`; their invariants are human-defined and no generated
+golden oracle is written. Commit `31e78529` then replaced the eight-argument
+test-fixture helper with an input carrier to satisfy Clippy; it changes no test
+inputs, assertions, production code, or mutation result.
+
+1. `result_codec_round_trips_coherent_generated_carriers` generates linked
+   seed, target, and explanation identities; a nonempty target body; arbitrary
+   `u64` write/work values encoded as canonical decimal strings; finite or
+   null query scores; and optional valid positional evidence. It decodes,
+   encodes, decodes again, and asserts typed equality plus the two canonical
+   integer-string fields.
+2. `result_codec_rejects_generated_nonzero_first_evidence_position` generates
+   a coherent result with evidence, changes only
+   `evidence.entries[0].targetIndex` to a generated nonzero `u32`, and asserts
+   `GraphCorrupt` at `/evidence/entries/0`.
+
+The exact RED/GREEN chronology was:
+
+| Property | Temporary production mutant | RED evidence |
+| --- | --- | --- |
+| coherent typed round-trip | In `graph_expand/codec.rs`, changed only `TargetWire.body` from `&target.body` to `""`. | `cargo test -p fathomdb-engine --test slice60_wire result_codec_round_trips_coherent_generated_carriers -- --nocapture` exited 101. Proptest shrank to `body = "0"`; the decoded encoded result had `body: ""` instead of `body: "0"`; 0 passed, 1 failed. |
+| positional evidence corruption | In `validate_response_coherence`, removed only `entry.target_index as usize != index` while retaining the schema-version condition. | `cargo test -p fathomdb-engine --test slice60_wire result_codec_rejects_generated_nonzero_first_evidence_position -- --nocapture` exited 101. Proptest shrank to `target_index = 1`; decoding returned `Ok` instead of the required error; 0 passed, 1 failed. |
+
+Each mutant was restored immediately. Proptest's temporary regression file was
+deleted rather than committed. `git diff --
+src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs` was empty after both
+restorations; the restored production file SHA-256 is
+`2748b3505d814f6329bcd52ebaf833f223c35f0c77b357dc5deb7783e2166d52`.
+The focused GREEN command
+`cargo test -p fathomdb-engine --test slice60_wire result_codec_ -- --nocapture`
+passed 2/2.
+
 ## Structural batches
 
 All batches were mechanical moves from `bb077cfa`. The compile boundary after
@@ -223,8 +259,10 @@ Code review is closed in `code-review.md`. A separate read-only
 `gpt-5.6-terra` subagent returned PASS at clean candidate `3e60cc5d`; the
 canonical gate passed 127/127, workspace Clippy/check passed, strict security
 passed 0/0/0 (the live AC-037 claim at `3e60cc5d` is UNEVIDENCED; a
-HITL-granted re-run passed at `66e27983`; see `review-verification.md`), and the feature-complete gate passed
-349/357 with 8 documented ignores. `review-verification.md` records the full
+HITL-granted re-run passed at `66e27983` as historical evidence for that
+candidate only; see `review-verification.md`), and the feature-complete gate
+passed 349/357 with 8 documented ignores. Exact-final-candidate live AC-037 is
+deferred to Slice 150 after Slice 130. `review-verification.md` records the full
 receipts and cleanup.
 
 ## Post-hoc design review fix-1 (2026-09-27)
@@ -272,8 +310,9 @@ Recorded limits:
 - Removing only the second graph-arm validity site (hydration
   `body_validity`) survives, because the edge-query site already filters.
   The mutant therefore removes both sites, as the design states.
-- The graph result codec has no round-trip or corruption property; see
-  `design.md` R27-80E and `TC-aa4bea08-f281-47eb-8022-d63250d1daac`.
+- The graph result codec property gap is closed by follow-up commit
+  `9700991f`; see the chronology above. Consideration
+  `TC-aa4bea08-f281-47eb-8022-d63250d1daac` is closed.
 - `slice60_fix1_wire`'s negative scan lists its files explicitly, so a new
   `graph_expand/*.rs` file would escape it; Slices 90 and 140 must extend it.
 - Non-Linux compilation of the moved `graph_expand/execution.rs` arm was not

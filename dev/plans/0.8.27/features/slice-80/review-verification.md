@@ -97,15 +97,29 @@ reverted the grant (`apparmor_parser -R` and removal of
 `/etc/apparmor.d/fathomdb-unshare`), and `unshare -rUn true` again failed with
 `write failed /proc/self/uid_map: Operation not permitted`. The grant was
 temporary and per-binary, never standing host configuration. The original
-`3e60cc5d` claim stays UNEVIDENCED; the live layer is satisfied at
-`66e27983`.
+`3e60cc5d` claim stays UNEVIDENCED. The `66e27983` pass is valid historical
+evidence for that post-fix candidate only; it does not cover later HEAD, the
+`9700991f` property follow-up and its lint-only `31e78529` adjustment, or the
+final release candidate.
+
+### Owner ruling: exact-candidate AC-037 is deferred
+
+The repository owner ruled on 2026-09-27 that no further live AC-037 claim is
+made for current Slice 80 HEAD. The next live run is deferred until after Slice
+130, and Slice 150 must execute the HITL runbook on the exact final candidate,
+capture the required pass/catch/summary lines and grant/revert evidence, and
+bind the receipt to that SHA. This avoids repeated host-capability changes while
+later binding and SDK slices can still change the candidate.
 
 ## Verdict
 
 Slice 80 satisfies AC27-80A through AC27-80G at the reviewed candidate. Its
 live AC-037 claim at that candidate is UNEVIDENCED (see the amendment above);
-the HITL-granted runbook re-run passed at `66e27983`, which satisfies
-AC27-80H's live layer for the post-fix candidate. The
+the HITL-granted runbook re-run passed at `66e27983` as historical
+post-fix-candidate evidence only. It is not a later-HEAD or final-candidate
+qualification. The
 implementation commit remains `8e4499637e9d40ac6fcb9579f352b9f643e86709`;
 `3e60cc5d` adds the closed review record without changing production or test
-code. Slice 90 may proceed only when separately commissioned.
+code. The new result-codec properties require independent rereview before the
+Slice 80 bindings are updated. Slice 85 may proceed only when separately
+commissioned.

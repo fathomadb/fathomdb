@@ -88,3 +88,13 @@ identical at base and head.
 Both fixes are mechanical; workspace Clippy, the three engine feature-set
 Clippy runs, `cargo fmt --check`, and the engine lib tests (78 passed)
 passed after them, so no further cycle was run.
+
+## Follow-up review boundary
+
+Commit `9700991f` adds the missing graph-result codec properties and changes no
+production code; `31e78529` is its lint-only test-helper follow-up. The two
+temporary production mutants and focused GREEN are recorded in
+`tdd-chronology.md`. This existing code-review verdict predates both commits
+and therefore does not review or bind them. Independent rereview is
+required before `review_fix_candidate`, Slice 80 `sha`, `reviewed_candidate`,
+or `closeout_sha` is updated.

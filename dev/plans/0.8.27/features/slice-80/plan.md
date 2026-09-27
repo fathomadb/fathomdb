@@ -95,16 +95,19 @@ The draft was written in prework at `a3e6cff6`. The baseline is now
    - **What moves:** only the pool's functions move to `reader_pool.rs`.
      That includes the worker loop, whole, with its inline WAL and
      diagnostic arms.
-   - **What Slice 90 gets:** the carriers and the extraction of the WAL
-     arms, as an explicit hand-off.
-7. **The draft's test obligations are already met by existing owners.**
+   - **What Slice 85 gets:** durable carrier ownership without field widening;
+     Slice 90 retains only the runtime decision on extracting the WAL arms.
+7. **The draft's original test obligations were mapped to existing owners.**
    These include snapshot authority under concurrent mutation, eligibility
-   before every bounded cap, deterministic tie ordering, codec round-trip
-   and corruption properties (proptest round-trips in `slice60_wire` and
-   `slice55_wire` cover the graph request and trace codecs; the graph result
-   codec and corruption refusal are fixture-covered only — a pre-existing gap
-   logged as `TC-aa4bea08-f281-47eb-8022-d63250d1daac`), and SQL/plan
-   assertions. `design.md` maps each owner.
+   before every bounded cap, deterministic tie ordering, codec round-trip and
+   corruption properties, and SQL/plan assertions. The original commission
+   had proptest coverage for the graph request and trace codecs but only
+   fixtures for the graph result. Follow-up commit `9700991f` closes that gap
+   with generated coherent result decode→encode→decode typed equality and
+   generated positional evidence corruption at `/evidence/entries/0`; both
+   properties killed their specified production mutants without a generated
+   golden oracle. `TC-aa4bea08-f281-47eb-8022-d63250d1daac` is closed.
+   `design.md` maps each owner.
    Characterization is limited to gaps that the mapping proves.
    - **TC-38 (search visibility):** the hybrid, text-only, filtered, and
      explained paths are covered by `slice15b_search_validity` and
@@ -169,7 +172,7 @@ The fields are `search_limit_override`, `recency_reweight_enabled`,
 | `search_types.rs` | the public search result, explanation, trace, and fallback types, the BM25F plan types, and the search-limit constants and validation |
 | `search.rs` | `read_search_in_tx` and its capture, statement, and rank-boundary helpers, the search graph arm, the `test-hooks` search witnesses, and BM25F execution |
 | `search_api.rs` | the `impl Engine` search, frozen-search, and evidence facades |
-| `telemetry.rs` | `TelemetrySink`, `append_jsonl`, `branch_str`, and search observability, telemetry, and feedback |
+| `telemetry.rs` | `append_jsonl`, `branch_str`, and search observability, telemetry, and feedback; `TelemetrySink` remains at root with its private field |
 | `read.rs` | the read-verb, canonical-page, and operational-state in-transaction functions, and their `impl Engine` facades |
 | `reader_pool.rs` | the pool's functions: its impl and `Drop` (including its two `*_for_test` methods), the worker loop, `finish_reader_request`, and the reader cache and lookaside probes (the data carriers, the shared `begin_attributed_reader_tx` primitive, and the open-path connection setup stay at root) |
 | `graph_expand/` (split) | `mod.rs` re-exports and the in-file `graph_evidence_request_tests` (qualified names unchanged); `types.rs`; `codec.rs`; `execution.rs` (with validation and `test-hooks` seams); `traversal.rs` (legacy traversal, the BFS builders, and their `impl Engine` facades) |
@@ -189,10 +192,10 @@ slice adds:
 | R27-80B | Snapshot authority and transaction lifetime are unchanged. | AC27-80B: the mapped snapshot-race, linearization, and reader-pool owners pass unchanged. A reader transaction is released after both success and refusal (tested if the mapping finds it uncovered). |
 | R27-80C | Eligibility precedes every bounded cap. | AC27-80C: the mapped pretruncation, frontier, page, and graph owners pass, including their SQL and query-plan assertions. |
 | R27-80D | Ordering and fusion are unchanged. | AC27-80D: the RRF, three-arm, reweight, tie-ordering, and prefix-stability owners pass. Graph response bytes stay identical across insertion permutations. |
-| R27-80E | Codecs are byte-stable. | AC27-80E: the graph request and result codecs, and the evidence, frozen, pagination, and trace codecs, round-trip and refuse corruption. The existing proptests and canonical fixtures pass unchanged. |
+| R27-80E | Codecs are byte-stable. | AC27-80E: the graph request and result codecs, and the evidence, frozen, pagination, and trace codecs, round-trip and refuse corruption. Canonical fixtures pass unchanged. Generated result carriers preserve linked origin/explanation fields, canonical integer strings, finite/null scores, and optional valid evidence through decode→encode→decode typed equality; a generated nonzero `evidence.entries[0].targetIndex` is refused as `GraphCorrupt` at `/evidence/entries/0`. No generated golden oracle is used. |
 | R27-80F | Search keeps its shipped view contract and the filter grammar: it applies the validity axis (`valid_as_of`, `include_out_of_window`) and refuses existence relaxation (`include_superseded`, `include_inactive`) with a typed `InvalidArgument`. | AC27-80F: the filter-grammar, unification, `slice15b_search_validity`, and `opp12_existence_axis` owners pass. Two mandatory characterization tests, each proven non-vacuous with a recorded mutant, cover the paths without an owner: the graph arm and `search_projected_text` each hide an out-of-window node under the default view, return it under `include_out_of_window` and under a `valid_as_of` inside its window, and refuse existence relaxation with `InvalidArgument`. |
 | R27-80G | The search runtime fields keep their owner. | AC27-80G: `ProjectionRuntimeShared` is unchanged in shape, and search reads the same fields. |
-| R27-80H | Structural and feature evidence. | AC27-80H: the public surface equals the Slice 30 baseline, and the hidden surface is additive only. Every named source-scraping gate is retargeted path-only and passes in every batch. The focused feature routes pass. The final gates pass: the canonical gate, workspace Clippy with warnings denied, `cargo check --workspace --all-targets`, the Python receipt, strict security with live AC-037 (through `dev/release/ac-037-live-netns-hitl-runbook.md`), and `scripts/test-feature-complete.sh` on the RTX 3090 host (search calls the feature-gated reranker and embedder). |
+| R27-80H | Structural and feature evidence. | AC27-80H: the public surface equals the Slice 30 baseline, and the hidden surface is additive only. Every named source-scraping gate is retargeted path-only and passes in every batch. The focused feature routes pass. The recorded canonical gate, workspace Clippy with warnings denied, `cargo check --workspace --all-targets`, Python receipt, and feature-complete gate pass at their named candidates. The live AC-037 pass at `66e27983` is historical evidence only, not evidence for later HEAD or the final candidate; the owner defers exact-candidate live AC-037 to Slice 150 after Slice 130. |
 
 ## TDD implementation sequence
 
@@ -247,13 +250,16 @@ Use one writer in the release worktree. Read-only reviewers share it.
 7. **Verify.** After implementation and code-review closure, a separate
    read-only test/verification subagent using `gpt-5.6-terra` runs the final
    gates in AC27-80H and records them in `review-verification.md`:
-   - The live AC-037 layer follows the HITL runbook: grant, check, revert.
+   - The historical live AC-037 re-run followed the HITL runbook: grant,
+     check, revert. It does not qualify later HEAD or the final candidate; a
+     fresh exact-candidate run is deferred to Slice 150 after Slice 130.
    - Anything unavailable is recorded as unavailable, never as a pass.
 8. **Close.**
    - Write `status.md`.
-   - Set Slice 80 to `COMPLETE_ON_RELEASE_BRANCH` with its SHAs, advance
-     `next_slice` to 90, and regenerate the views.
-   - Record any carry-overs in the master plan's Slice 90, 140, or 150
+   - Keep Slice 80 `COMPLETE_ON_RELEASE_BRANCH`; its recorded SHAs remain
+     historical pending independent rereview of the result-codec follow-up.
+     Advance `next_slice` to planning-only Slice 85 and regenerate the views.
+   - Record any carry-overs in the master plan's Slice 85, 90, 140, or 150
      sections.
    - Clean up scratch material and caches whose ownership is proven. No
      push, tag, or publication.

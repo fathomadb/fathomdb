@@ -11,7 +11,7 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 90 (ENGINE-RUNTIME), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`8e4499637e9d40ac6fcb9579f352b9f643e86709`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 85 (ENGINE-BOUNDARIES), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`8e4499637e9d40ac6fcb9579f352b9f643e86709`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
 
 Prework Slices 0-9, bounded preparation Slice 10, correction-safe erasure
 Slice 20, real-surface comparator Slice 30, and engine-foundation Slice 40 are
@@ -28,7 +28,7 @@ semantic modules.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 90 (ENGINE-RUNTIME)** — engine open, configuration, runtime, operator, and facade closure. **Remaining ladder:** 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 85 (ENGINE-BOUNDARIES)** — engine carrier ownership and dependency-boundary enforcement. **Remaining ladder:** 85 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -58,7 +58,8 @@ There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE
 | 50 | Engine erasure, lifecycle, dependency, and provenance | Complete at `1f5b8614`; private semantic modules preserve root paths and close nonterminal soft-closure residue with reviewed RED/GREEN evidence. |
 | 60 | Engine write, ingest, and consolidation | Complete at `d5a5bd39`; six private write-domain modules, full-state write-boundary characterization, and bounded abort-seam carry-over correction. Public/hidden structural surfaces and release probe equal; test inventory additive-only; 127/127 gate and live AC-037 pass. |
 | 70 | Engine projection, embedding, and reranking | Complete at `36fc2352`; ten private modules preserve public paths and runtime shape. Canonical, security, feature-complete, workspace, and artifact gates pass. |
-| 80 | Engine read, search, graph, and evidence | Complete at `8e449963`; private read-domain modules preserve public/hidden surfaces and runtime behavior. Independent review findings are closed; verification passes 127/127, strict security 0/0/0 (live AC-037 re-run PASS at `66e27983`), and feature-complete 349/357 with 8 documented ignores. |
+| 80 | Engine read, search, graph, and evidence | Complete, with historical binding at `8e449963`; private read-domain modules preserve public/hidden surfaces and runtime behavior. Follow-up `9700991f` plus lint-only `31e78529` close the graph-result codec property gap and await independent rereview before the Slice 80 SHA fields are rebound. The live AC-037 re-run at `66e27983` is historical only. |
+| 85 | Engine carrier ownership and dependency-boundary enforcement | Planned and uncommissioned. Settle root reader/telemetry/evidence carrier ownership without field widening, remove three facade-induced cycles, and add a non-vacuous normal-lint dependency-direction gate before Slice 90. |
 
 ## Verification boundary
 
@@ -156,16 +157,30 @@ PASS-WITH-FIXES. Fix-1 `b8af4d86` made two changes, with no behavior change:
   `TelemetrySink` and `EvidenceCapture` at the root;
 - it narrowed six over-visible items.
 
-The records now list three facade-induced module cycles as Slice 90 seams,
-and they add the Slice 140 test-seam carry-over. See
+The records list three facade-induced module cycles and add the Slice 140
+test-seam carry-over. Planning-only Slice 85 owns removal of those three cycles
+and durable carrier placement; Slice 90 consumes the settled boundary. See
 `features/slice-80/design-review.md`.
+
+Follow-up `9700991f` adds generated coherent result-codec typed round-trip and
+positional evidence-corruption properties. Both killed their specified
+temporary production mutants and passed after exact restoration. This closes
+`TC-aa4bea08-f281-47eb-8022-d63250d1daac` without changing production or
+creating a generated golden oracle. The recorded Slice 80 implementation,
+reviewed-candidate, and closeout SHAs remain historical pending independent
+rereview.
+
+The `66e27983` live AC-037 receipt applies only to that historical candidate;
+it does not qualify later HEAD or the final candidate. By owner ruling, a fresh
+live run is deferred until after Slice 130, and Slice 150 must execute the HITL
+runbook against the exact final candidate with grant/revert evidence.
 
 ## Boundaries
 
 - This release starts at schema 34 and currently proposes no schema migration.
 - Publication is unauthorized.
 - Slices 30, 40, 50, 60, 70, and 80 were directly authorized by the
-  repository owner and are complete; Slice 90 and later slices require
+  repository owner and are complete; Slice 85 and later slices require
   separate commission.
 - No temporary branch or worktree was created for prework; the existing
   `release/0.8.27` worktree remains the active release workspace.

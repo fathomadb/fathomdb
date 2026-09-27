@@ -356,9 +356,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 90** (`ENGINE-RUNTIME`) — engine open, configuration, runtime, operator, and facade closure
+**IMMEDIATE NEXT: Slice 85** (`ENGINE-BOUNDARIES`) — engine carrier ownership and dependency-boundary enforcement
 
-**Remaining ladder:** 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 85 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -532,8 +532,53 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     `function_body` matches only indented methods;
   - the slice35 manifest and audit.
 
-  Before moving code, grep `scripts/tests` and `tests/` for `src/lib.rs`
-  readers.
+Before moving code, grep `scripts/tests` and `tests/` for `src/lib.rs`
+readers.
+
+The post-closeout result-codec follow-up adds generated coherent
+decode→encode→decode typed equality and positional evidence-corruption
+properties. Both use human-defined invariants, kill their specified temporary
+production mutants, and create no generated golden oracle.
+
+### Slice 85 — engine carrier ownership and dependency-boundary enforcement
+
+Settle the read-side carrier ownership and module dependency graph before the
+runtime facade is reduced. This is a planned slice only: this section does not
+commission implementation, and no Slice 85 feature directory exists yet.
+
+Slice 85 owns the root reader carriers, `TelemetrySink`, `EvidenceCapture`, and
+`begin_attributed_reader_tx`. It must choose durable owners that preserve all
+private fields; moving a carrier is allowed only when every constructor and
+field reader fits below the chosen boundary without widening a field. It also
+separates the `impl Engine` dispatch facades from their handlers sufficiently
+to remove the three facade-induced cycles recorded by Slice 80:
+`read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and
+`graph_expand` ↔ `search_api`.
+
+The slice establishes one checked dependency-direction contract for the
+resulting engine modules. The contract must describe the exact permitted graph
+or an explicit narrow allowlist for every remaining cycle, including the
+existing `search` ↔ `graph_expand` handler seam and inherited earlier-slice
+dependencies. Its normal lint-path gate must resolve aliases, grouped imports,
+re-exports, and wildcard imports rather than relying on a fragile textual
+spelling. Dedicated fixtures and temporary mutations must prove both that the
+gate catches a forbidden edge and that it cannot pass vacuously when no
+production modules were examined.
+
+| ID | Requirement | Falsifiable acceptance |
+| --- | --- | --- |
+| R27-85A | Reader carriers have durable ownership without widening their fields. | AC27-85A: `ReaderWorkerPool`, `SearchReaderWork`, every reader request/response carrier, `FrozenQueryRuntime`, reader errors/constants/pause aliases, `TelemetrySink`, `EvidenceCapture`, and `begin_attributed_reader_tx` have named owners; all previously private fields remain private, and constructor/field access compiles through the designed boundary. |
+| R27-85B | Facades do not create reverse handler dependencies. | AC27-85B: the `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api` cycles are absent from the measured module graph. |
+| R27-85C | Remaining dependencies are explicit and minimal. | AC27-85C: a committed exact graph or reviewed allowlist accounts for every remaining engine-module edge and cycle; an unexpected edge fails with the source and destination named. |
+| R27-85D | Dependency direction is enforced by a normal lint gate. | AC27-85D: the standard lint path runs a syntax-aware check that handles aliases, grouped imports, re-exports, and wildcards and does not depend on one source spelling. |
+| R27-85E | The structural gate is non-vacuous. | AC27-85E: committed fixtures plus recorded temporary mutations prove forbidden-edge detection, alias/wildcard coverage, and a hard failure when zero governed modules are inspected. |
+| R27-85F | The boundary change preserves behavior and surfaces. | AC27-85F: focused read/search/graph/evidence/reader/WAL routes, applicable feature builds, source-scraping gates, exact public surface, additive-only hidden surface, and runtime receipts match the pre-slice candidate except for reviewed structural inventory additions. |
+| R27-85G | Security evidence is not overstated. | AC27-85G: Slice 85 makes no current-HEAD or final-candidate AC-037 claim. The `66e27983` run remains historical only; exact-final-candidate live qualification stays deferred to Slice 150 after Slice 130. |
+
+Implementation, once separately commissioned, follows characterization-first
+TDD for the dependency gate and mechanical RED/GREEN compile cycles for carrier
+or facade moves. Slice 90 may start only after these boundaries are reviewed,
+verified, and recorded as settled.
 
 ### Slice 90 — open, configuration, runtime, operator, and facade closure
 
@@ -573,29 +618,24 @@ Carried from Slice 70 (`features/slice-70/status.md`):
 - **Per-batch check.** The Slice 80 note on running source-scraping guards in
   every batch applies here too.
 
-Allocated by the Slice 80 design (`features/slice-80/design.md`):
+Consumed from Slice 85 after its boundaries are settled:
 
-- **Shared reader transaction primitive.** `begin_attributed_reader_tx`
-  remains root-private so read, search, and graph handlers do not depend back
-  on `reader_pool`. Slice 90 owns its final placement.
-- **Reader data carriers.** `ReaderWorkerPool` (struct and `Debug`),
-  `SearchReaderWork`, every `*ReaderRequest` struct, `ReaderRequest`,
-  `FrozenQueryRuntime`, the reader response aliases, `SearchReaderError`,
-  `PageReaderError`, `CacheStatusReply`, the `READER_*` constants, and the
-  `Reader*Pause` aliases stay at root, so no reader carrier field widens.
-  Their private fields are built at root, in `graph_expand`, and in the WAL
-  seams.
-- **Telemetry and evidence carriers.** Slice 80 first moved `TelemetrySink`
-  and `EvidenceCapture` and widened four fields. The post-hoc design review
-  (2026-09-27) caught this, and fix-1 returned both to the root with private
-  fields, because `erasure.rs` reads `TelemetrySink.path` and `reader_pool.rs`
-  constructs `EvidenceCapture`. Slice 90 owns their final placement, with no
-  field widening.
-- **WAL arms in the reader loop.** The inline WAL and diagnostic match arms
+- the durable owners of the reader carriers, `TelemetrySink`,
+  `EvidenceCapture`, and `begin_attributed_reader_tx`, with private fields
+  preserved;
+- the facade/handler separation that removes the three Slice 80
+  facade-induced cycles; and
+- the normal-lint dependency-direction gate and exact or allowlisted remaining
+  module graph.
+
+Slice 90 must consume those boundaries, not redesign them while extracting the
+runtime facade. The following runtime-owned work remains in Slice 90:
+
+- **Reader-loop runtime arms.** The inline WAL and diagnostic match arms
   (`HoldWalSnapshot*`, `LookasideStatus`, `CacheStatus`,
-  `SecureDeleteStatus`, and `Wal*Inventory`) move verbatim with
-  `reader_worker_loop` into `reader_pool.rs`. Slice 90 decides whether to
-  extract them.
+  `SecureDeleteStatus`, and `Wal*Inventory`) currently live with
+  `reader_worker_loop`; Slice 90 decides whether runtime ownership warrants
+  extracting them.
 - **Open-path helpers.** `configure_reader_lookaside`,
   `apply_perf_experiment_reader_pragmas`, and `Engine::usable_dense_runtime`
   stay at root.
@@ -608,20 +648,10 @@ Allocated by the Slice 80 design (`features/slice-80/design.md`):
 - **Search-owned runtime fields.** The four search-owned
   `ProjectionRuntimeShared` fields stay in place. Slice 90 may relocate them
   when it finalizes `Engine` state, subject to its own design review.
-- **Retained dependency seams.** Slice 80 approved one handler-level cycle,
-  `search` ↔ `graph_expand`. It also leaves three module-level cycles, caused
-  by `impl Engine` facades sharing modules with their handlers. The post-hoc
-  design review (2026-09-27) recorded these; `features/slice-80/design.md`
-  has the details. The three are `read` ↔ `reader_pool`, `graph_expand` ↔
-  `reader_pool`, and `graph_expand` ↔ `search_api`. When Slice 90 closes the
-  facade, it must explicitly preserve or unwind all four. Three further
-  cycles with earlier-slice modules (`search` ↔ `dependency_closure`,
-  `search` ↔ `evidence`, `graph_expand` ↔ `evidence`) were inherited from
-  root and are listed in the same design as Slice 90 context.
 - **Test-gate carry-overs (Slice 80 post-hoc test review).**
   `slice60_fix1_wire`'s negative scan names its files explicitly; any new
-  `graph_expand/*.rs` file must be added to it. Module dependency direction
-  is enforced only by review; Slice 90 should consider a scripted check.
+  `graph_expand/*.rs` file must be added to it. Slice 85 supplies the scripted
+  dependency-direction check; Slice 90 keeps it green.
   A green non-Linux build of the moved `graph_expand/execution.rs` arm is
   required before release closeout.
 
@@ -665,6 +695,10 @@ Test root and documented imports, contractual `__all__`, callable signatures,
 exception identities, stub/type-checker agreement, and public examples or
 doctests. Keep deep database semantics in Rust and use thin Python parity
 checks. No test may depend on a particular helper file.
+
+Completing Slice 130 unlocks the deferred exact-candidate live AC-037 window.
+It does not itself make that claim: subsequent documentation convergence may
+still change the candidate, so Slice 150 owns the final runbook execution.
 
 ### Slice 140 — documentation and structural convergence
 
@@ -761,6 +795,12 @@ Write little or no new product test code. Re-run:
 - required native CPU/platform routes;
 - warranted CUDA routes; and
 - Memex's unchanged exact test against the candidate artifact.
+
+After Slice 130 and on the exact final candidate, run strict security through
+`dev/release/ac-037-live-netns-hitl-runbook.md`, capture the required live
+AC-037 pass/catch/summary lines plus grant and revert evidence, and bind that
+receipt to the candidate SHA. The historical `66e27983` run is not substitute
+evidence for this qualification gate.
 
 Bind the candidate manifest to the reviewed commit, platforms, feature sets,
 commands, test counts, and artifact hashes. A qualification defect returns to

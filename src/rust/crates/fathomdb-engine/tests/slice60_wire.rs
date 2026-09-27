@@ -336,8 +336,7 @@ proptest! {
         let encoded = encode_graph_expand_result_v1(&decoded).unwrap();
         let encoded_value: Value = serde_json::from_slice(&encoded).unwrap();
 
-        prop_assert_eq!(&encoded_value["targets"][0]["writeCursor"], &json!(write_cursor.to_string()));
-        prop_assert_eq!(&encoded_value["workUnits"], &json!(work_units.to_string()));
+        prop_assert_eq!(encoded_value, value);
         prop_assert_eq!(decode_graph_expand_result_v1(&encoded).unwrap(), decoded);
     }
 

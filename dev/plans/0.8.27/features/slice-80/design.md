@@ -1,8 +1,8 @@
 ---
 title: FathomDB 0.8.27 Slice 80 - read, search, graph, and evidence design
-status: PROPOSED
+status: APPROVED
 target_release: 0.8.27
-baseline_sha: e6601c67
+baseline_sha: bb077cfa
 ---
 
 # Slice 80 design
@@ -12,8 +12,9 @@ baseline_sha: e6601c67
 This slice is a behavior-preserving move of root-owned read-side items in
 `src/rust/crates/fathomdb-engine/src/lib.rs` (19,001 lines at `bb077cfa`)
 into private modules. It also splits `graph_expand.rs` into a directory
-module. Design review cycle 1 (`design-review.md`) returned FAIL on
-targeted findings; this revision closes them. The following do not change:
+module. Three design-review cycles plus an external code-grounded review
+(`design-review.md`) closed every finding before commission. The following do
+not change:
 
 - SQL text and statement order;
 - snapshot, transaction, and reader-dispatch behavior;

@@ -6,8 +6,10 @@ target_release: 0.8.27
 
 # Slice 80 design review
 
-The reviewer is an independent, read-only, adversarial subagent (Opus 5.5,
-high effort).
+Cycles 1 and 2 were performed by an independent, read-only, adversarial
+subagent using Opus 5.5 at high effort. The later external code-grounded review
+and cycle 3 were a separate independent review; this record does not infer a
+model identity that was not captured with that review.
 
 ## Cycle 1 — FAIL at `e6601c67`
 

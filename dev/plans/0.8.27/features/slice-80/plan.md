@@ -1,14 +1,15 @@
 ---
 title: FathomDB 0.8.27 Slice 80 - engine read, search, graph, and evidence domains
-status: PROPOSED
+status: APPROVED
 target_release: 0.8.27
-baseline_sha: e6601c67
+baseline_sha: bb077cfa
 ---
 
 # Slice 80 plan
 
-Design review passed in two cycles (`design-review.md`). Slice 80 still
-needs its execution commission (step 0). This plan supersedes the
+Design review passed after three cycles plus an external code-grounded review
+(`design-review.md`). Slice 80 was commissioned by the repository owner on
+2026-09-27. This plan supersedes the
 master-plan draft (`dev/plans/plan-0.8.27.md`,
 "Slice 80 — read, search, graph, and evidence") as execution authority once
 design review passes. `design.md` is the authority for the exact inventory,
@@ -196,10 +197,11 @@ Use one writer in the release worktree. Read-only reviewers share it.
 
 0. **Commission.** Record the `slice-80-execution` ruling in
    `release-state-0.8.27.json`, set Slice 80 to `IN_PROGRESS` with this
-   plan in `design_refs`, and regenerate the views.
+   plan, design, design review, and TDD chronology in `design_refs`, and
+   regenerate the views.
 1. **Design and review.** Iterate on `design.md` with an independent design
-   reviewer (Opus 5.5, high effort) until it passes. Record the review in
-   `design-review.md`.
+   reviewer until it passes. The completed three-cycle record, including the
+   external code-grounded review, is in `design-review.md`.
 2. **Map owners and characterize.** Map each existing owner to R27-80B-F in
    `tdd-chronology.md`. Characterization covers:
    - **The reader-release test:** add it, show that it passes on unmodified
@@ -210,8 +212,12 @@ Use one writer in the release worktree. Read-only reviewers share it.
      graph arm, and the single site in projected text),
      and restore the code.
 
-   If a characterization test fails on production, stop for a separate
-   RED/GREEN fix.
+   These are characterization-first tests: GREEN on unmodified production,
+   RED against the specified temporary mutant, then GREEN again after exact
+   restoration. Record commands, observed failures, and restoration evidence
+   in `tdd-chronology.md`. If a characterization test instead fails on
+   unmodified production, treat it as a genuine behavioral RED and stop the
+   structural move until the smallest production fix makes it GREEN.
 3. **Pre-move receipt.**
    - Take the public and hidden captures at the characterization commit
      (Node `v25.9.0`, at least 100 GB free).
@@ -227,13 +233,17 @@ Use one writer in the release worktree. Read-only reviewers share it.
 
    Heavy captures run after the batches that add root re-exports and at the
    final candidate.
-5. **Refactor within the boundaries.** Imports and visibility only. A
-   behavioral change requires its own RED test.
-6. **Code review.** An independent code reviewer (Opus 5.5, high effort)
-   reviews the whole diff. Behavioral findings are closed with RED/GREEN.
-   The review is recorded in `code-review.md`.
-7. **Verify.** A read-only verifier (Sonnet) runs the final gates in
-   AC27-80H and records them in `review-verification.md`:
+5. **Refactor within the boundaries.** Imports and visibility only. Every
+   behavioral correction follows RED → GREEN: first commit or otherwise
+   preserve the failing test, then make the smallest production change, then
+   refactor without weakening the oracle. Record the chronology.
+6. **Code review.** An independent read-only code-review subagent using
+   `gpt-5.6-sol` with `high` reasoning reviews the whole diff. Behavioral
+   findings are closed with a recorded RED/GREEN cycle. The review and finding
+   dispositions are recorded in `code-review.md`.
+7. **Verify.** After implementation and code-review closure, a separate
+   read-only test/verification subagent using `gpt-5.6-terra` runs the final
+   gates in AC27-80H and records them in `review-verification.md`:
    - The live AC-037 layer follows the HITL runbook: grant, check, revert.
    - Anything unavailable is recorded as unavailable, never as a pass.
 8. **Close.**

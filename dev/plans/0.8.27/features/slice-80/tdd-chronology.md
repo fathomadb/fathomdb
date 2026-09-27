@@ -103,13 +103,73 @@ change was required.
 
 ## Structural batches
 
-Not started. Each batch will record its commit, compile RED, import/visibility
-GREEN, focused owner counts, source-scraper retargets, and surface evidence here.
+All batches were mechanical moves from `bb077cfa`. The compile boundary after
+each move was closed only with imports, the visibility seams below, root
+re-exports, and path-only gate retargets.
+
+| Batch | Commit | Destination and focused evidence |
+| --- | --- | --- |
+| 1 | `02a848f6` | `fusion.rs`; default and hook checks, focused fusion owners, C1, WAL guard, plan anchors, and AC-050c passed. |
+| 2 | `71598dae` | filter carriers in `filter.rs`; the same per-batch gates passed. |
+| 3 | `695079db` | filter execution in `filter.rs`; active plan anchors were retargeted and passed. |
+| 4 | `58972419` | `search_types.rs`; C1 first went RED because its `SearchHit` probe still named `lib.rs`, then GREEN after the probe and self-test fixture arms 12p/12w were retargeted. |
+| 5 | `885b0222` | search helpers in `search.rs`; focused search routes and all source gates passed. |
+| 6 | `2adf2577` | search graph arm in `search.rs`; graph-frontier and search routes passed. |
+| 7 | `3e4c55eb` | `read_search_in_tx` in `search.rs`; focused search, view, and eligibility routes passed. |
+| 8 | `52e24968` | frozen/evidence search facade in `search_api.rs`; focused frozen/evidence routes passed. |
+| 9 | `d187af8e` | remaining search facade plus `telemetry.rs`; the active plan anchor was retargeted. Midpoint public and hidden captures compared exactly equal to the pre-move captures. |
+| 10 | `811ca9e2` | `read.rs`; focused read, canonical-page, and operational-state routes passed. |
+| 11 | `bd3eb94b` | `reader_pool.rs`; the Windows WAL guard was retargeted through `READER_POOL_SOURCE` and its recursive fixture passed 313/313. |
+| 12 | `2a36a242` | graph directory split and `types.rs`; 37 Slice 60 integration tests and the two unchanged qualified unit-test names passed. C1 self-test and WAL guard passed. |
+| 13 | `a125f7b1` | request codec in `codec.rs`; 16 wire tests, C1 self-test, and WAL guard passed. |
+| 14 | `51791245` | result codec in `codec.rs`; 16 wire tests, crate Clippy with warnings denied, C1 self-test, and WAL guard passed. |
+| 15 | `f333926e` | `traversal.rs`; 41 graph/traversal/view owners passed. The first hidden capture exposed a missing path-only `tc5-benchmark` sibling import; that route was RED, the gated import made it GREEN, and the batch was amended before the final capture. |
+
+The repeated path-sensitive gates stayed GREEN after their owning retargets:
+C1 conformance proved all 26 checkable clauses, its recursive self-test passed,
+the Windows WAL attribution fixture passed 313/313, the Slice 35 virtual
+mutation manifest passed, `slice60_fix1_wire` passed 4/4, plan anchors verified
+22 citations, and AC-050c reported no unrecorded public removal against
+`bb077cfa`.
+
+### Visibility seam record
+
+- The reader-pool methods and `begin_attributed_reader_tx` became
+  `pub(crate)` exactly as predeclared in `design.md`; its data carriers and
+  private worker helpers did not widen.
+- Root consumers required crate-visible filter SQL/post-filter helpers, the
+  importance-map helper, read in-transaction helpers, search capture and
+  execution helpers, search-inner methods, the telemetry sink, and the five
+  traversal entry points. Their private fields did not widen beyond the
+  predeclared search capture carriers.
+- The graph split required only sibling visibility:
+  `encode_graph_evidence_request`, `GraphExpansionErrorV1::new`,
+  `direction_str`, and `parse_canonical_u64` became `pub(super)`. The existing
+  test-hook controls and `SCHEMA_VERSION` retained or narrowed to their
+  directory-module ownership. Public graph/search types remain root re-exports.
+- No reader carrier field, public contract, SQL, feature gate, wire carrier, or
+  runtime-state shape changed.
+
+### Final implementation receipts
+
+- Ten explicit no-default/default feature routes passed: engine default,
+  `test-hooks`, `slice72-test-hooks`, `operator,test-hooks`,
+  `migration-test-hooks`, `tc5-benchmark`, `default-reranker`, and
+  `default-embedder`, plus facade default and facade `operator`.
+- Public capture at `f333926eec5454a04ab29e561e0c25f88e22aced` contains
+  13 rows. It compares exactly equal to both the characterization capture and
+  the Slice 30 baseline: no metadata or row differences.
+- Hidden capture at the same SHA contains 33 rows. It compares exactly equal
+  to the characterization capture. Against the tracked hidden baseline it is
+  additive only: no metadata differences and no changed or removed entries.
+  The two graph evidence unit tests retain their original qualified names.
+- The clean implementation candidate before review is
+  `f333926eec5454a04ab29e561e0c25f88e22aced`.
 
 ## Review and final verification
 
-Not started. The completed implementation will receive independent read-only
-code review from a `gpt-5.6-sol` subagent at high reasoning. After its findings
-are closed, a separate `gpt-5.6-terra` subagent will run the final test and
-verification gates. Their durable records are `code-review.md` and
-`review-verification.md`.
+Implementation is ready for review. Independent read-only code review by a
+`gpt-5.6-sol` subagent at high reasoning and final verification by a separate
+`gpt-5.6-terra` subagent remain pending. Their durable records will be
+`code-review.md` and `review-verification.md`; neither record is authored by
+the implementer.

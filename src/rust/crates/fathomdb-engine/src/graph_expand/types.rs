@@ -1,6 +1,6 @@
 use super::*;
 
-pub(crate) const SCHEMA_VERSION: u32 = 1;
+pub(super) const SCHEMA_VERSION: u32 = 1;
 
 /// The source from which graph-expansion seeds were resolved.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -209,7 +209,7 @@ pub struct GraphExpansionErrorV1 {
 /// Compose graph-expansion degradation codes from the three contract axes.
 #[doc(hidden)]
 #[must_use]
-pub(crate) fn graph_expansion_degradation_codes_impl(
+fn graph_expansion_degradation_codes_impl(
     seed_source: GraphSeedSourceV1,
     origin: GraphProjectionOriginV1,
     readiness: GraphProjectionReadinessV1,
@@ -241,7 +241,7 @@ pub(crate) fn graph_expansion_degradation_codes_impl(
     codes
 }
 
-pub(crate) fn graph_expansion_degradation_codes(
+pub(super) fn graph_expansion_degradation_codes(
     seed_source: GraphSeedSourceV1,
     origin: GraphProjectionOriginV1,
     readiness: GraphProjectionReadinessV1,

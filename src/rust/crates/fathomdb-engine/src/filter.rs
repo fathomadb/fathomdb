@@ -471,7 +471,7 @@ pub(crate) fn validate_filter_attributes_on_snapshot(
 /// `filterable`-attribute predicates (`attr_<hex>=?n`) in `attributes` order, and
 /// is mirrored exactly by [`vector_filter_values`]. Empty for `None`/all-`None`
 /// (byte-identity path).
-pub(crate) fn vector_filter_clause(filter: Option<&SearchFilter>) -> String {
+fn vector_filter_clause(filter: Option<&SearchFilter>) -> String {
     let Some(filter) = filter else {
         return String::new();
     };
@@ -931,7 +931,7 @@ pub(crate) fn edge_fts_hit_passes_filter(
 /// the explanatory count from edge candidates rejected for an independent
 /// source-type, relation-kind, or vec-metadata predicate.
 #[allow(dead_code)]
-pub(crate) fn edge_fts_hit_passes_non_attribute_filter(
+fn edge_fts_hit_passes_non_attribute_filter(
     tx: &rusqlite::Transaction<'_>,
     write_cursor: u64,
     row_kind: &str,

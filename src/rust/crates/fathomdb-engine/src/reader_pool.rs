@@ -349,29 +349,6 @@ fn finish_reader_request(
     let _ = connection;
 }
 
-/// Begin a reader transaction and, only while attribution is opted in, acquire
-/// its actual SQLite snapshot with a harmless canonical-table read before
-/// recording it. `SELECT 1` is insufficient because SQLite can satisfy it
-/// without touching the database/WAL; this probe has the same table-backed
-/// snapshot semantics as the managed-reader witness. It keeps the collector
-/// off normal paths and prevents a queued request from masquerading as a live
-/// snapshot.
-pub(crate) fn begin_attributed_reader_tx<'a>(
-    reader: &'a mut Connection,
-    attribution: &Arc<WalAttributionCollector>,
-    worker_idx: usize,
-) -> rusqlite::Result<rusqlite::Transaction<'a>> {
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
-    if attribution.enabled {
-        attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "transaction_opened");
-        tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))?;
-        attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "snapshot_acquired");
-        #[cfg(any(test, feature = "test-hooks"))]
-        attribution.fire_reader_snapshot_pause(&tx, worker_idx);
-    }
-    Ok(tx)
-}
-
 /// Read the high-water-mark for `SQLITE_DBSTATUS_LOOKASIDE_USED` on
 /// `connection`. The `current` out-param is the live checked-out slot
 /// count and decays as transactions finalize, so it is unreliable as

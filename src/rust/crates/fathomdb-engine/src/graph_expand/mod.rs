@@ -12,9 +12,9 @@ pub use codec::{
     decode_graph_expand_request_v1, decode_graph_expand_result_v1, encode_graph_expand_request_v1,
     encode_graph_expand_result_v1,
 };
-pub(crate) use execution::read_graph_expand_in_tx;
+pub(super) use execution::read_graph_expand_in_tx;
 #[cfg(feature = "test-hooks")]
-pub(crate) use execution::{count_graph_expand_sql_statement, GraphExpandReaderControlsForTest};
+pub(super) use execution::{count_graph_expand_sql_statement, GraphExpandReaderControlsForTest};
 #[cfg(feature = "test-hooks")]
 #[allow(unused_imports)]
 pub use execution::{
@@ -23,13 +23,13 @@ pub use execution::{
     GraphExpandProjectionStateForTest, GraphExpandRendezvousForTest,
 };
 pub use traversal::SearchExpandResult;
-pub(crate) use traversal::{
+pub(super) use traversal::{
     crossed_boundary_since_in_tx, explain_graph_neighbors_in_tx, graph_neighbors_in_tx,
     search_expand_in_tx, search_expand_on_snapshot,
 };
 #[cfg(feature = "test-hooks")]
 pub use types::graph_expansion_degradation_codes_for_test;
-pub(crate) use types::{graph_expansion_degradation_codes, SCHEMA_VERSION};
+use types::{graph_expansion_degradation_codes, SCHEMA_VERSION};
 pub use types::{
     GraphExpandRequestV1, GraphExpandResultV1, GraphExpansionDegradationCodeV1,
     GraphExpansionErrorReasonV1, GraphExpansionErrorV1, GraphExpansionExplanationV1, GraphOriginV1,

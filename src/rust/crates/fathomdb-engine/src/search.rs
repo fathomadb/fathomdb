@@ -29,7 +29,7 @@ pub(crate) fn structural_dependency_state(
     })
 }
 
-pub(crate) fn structural_lifecycle_state(
+fn structural_lifecycle_state(
     tx: &Connection,
     write_cursor: u64,
 ) -> rusqlite::Result<StructuralLifecycleStateV1> {
@@ -211,7 +211,7 @@ pub(crate) fn prepare_search_statement<'connection>(
     connection.prepare_cached(sql).map(|statement| SearchStatement { statement })
 }
 
-pub(crate) fn load_projection_cursor_for_search(connection: &Connection) -> rusqlite::Result<u64> {
+fn load_projection_cursor_for_search(connection: &Connection) -> rusqlite::Result<u64> {
     prepare_search_statement(connection, "SELECT value FROM _fathomdb_open_state WHERE key = ?1")?
         .query_row([PROJECTION_CURSOR_KEY], |row| row.get::<_, String>(0))
         .map(|value| value.parse::<u64>().unwrap_or(0))
@@ -221,7 +221,7 @@ pub(crate) fn load_projection_cursor_for_search(connection: &Connection) -> rusq
         })
 }
 
-pub(crate) fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SearchHit> {
+fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SearchHit> {
     let body = row.get::<_, String>(0)?;
     let logical_id = row.get::<_, Option<String>>(4)?;
     Ok(SearchHit {
@@ -236,7 +236,7 @@ pub(crate) fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Res
     })
 }
 
-pub(crate) fn collect_complete_rank_boundary(
+fn collect_complete_rank_boundary(
     rows: &mut rusqlite::Rows<'_>,
     limit: usize,
 ) -> rusqlite::Result<(Vec<SearchHit>, bool)> {
@@ -292,7 +292,7 @@ pub(crate) fn append_json_witness_for_test(variable: &str, value: &serde_json::V
 }
 
 #[cfg(feature = "test-hooks")]
-pub(crate) fn record_fts_route_for_test(route: &str) {
+fn record_fts_route_for_test(route: &str) {
     append_json_witness_for_test(
         "FATHOMDB_FTS_ROUTE_WITNESS_FOR_TEST",
         &serde_json::json!({"route": route}),
@@ -323,7 +323,7 @@ pub(crate) fn record_slice71_profile_statement_for_test(sql: &str) {
 }
 
 #[cfg(feature = "test-hooks")]
-pub(crate) fn record_fts_query_plan_for_test(
+fn record_fts_query_plan_for_test(
     transaction: &rusqlite::Transaction<'_>,
     statement: &str,
     parameters: &[rusqlite::types::Value],
@@ -681,7 +681,7 @@ impl std::ops::DerefMut for SearchStatement<'_> {
 /// neighbors; within a phase, `ORDER BY write_cursor` makes the earliest-written
 /// edge win). A NULL edge confidence is simply not inserted ⇒ neutral (1.0).
 #[allow(clippy::too_many_arguments)] // Shared graph capture preserves the zero-cost default path.
-pub(crate) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
+fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     tx: &Connection,
     fused_hits: &[SearchHit],
     match_expression: &str,

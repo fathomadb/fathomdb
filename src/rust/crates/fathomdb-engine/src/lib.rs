@@ -158,7 +158,7 @@ pub use fusion::{
     apply_importance_reweight, apply_recency_reweight, fuse_rrf, fuse_three_arms, RECENCY_WEIGHT,
     RRF_K, RRF_WEIGHT_GRAPH, RRF_WEIGHT_TEXT, RRF_WEIGHT_VECTOR,
 };
-pub(crate) use graph_expand::{
+use graph_expand::{
     crossed_boundary_since_in_tx, explain_graph_neighbors_in_tx, graph_neighbors_in_tx,
     search_expand_in_tx, search_expand_on_snapshot,
 };
@@ -237,7 +237,6 @@ pub(crate) use read::{
     read_operational_state_in_tx, read_operational_state_page_in_tx,
 };
 pub use read::{NodeRecord, OpStoreRow, OperationalStateRecordV1};
-pub(crate) use reader_pool::begin_attributed_reader_tx;
 pub use record_lifecycle::{InitialState, LifecycleState};
 pub use rerank::rerank_passages;
 #[doc(hidden)]
@@ -1488,6 +1487,29 @@ fn format_active_wal_roles(roles: &[(WalAttributionRole, usize)]) -> String {
         .map(|(role, index)| format!("{}:{index}", role.name()))
         .collect::<Vec<_>>()
         .join(",")
+}
+
+/// Begin a reader transaction and, only while attribution is opted in, acquire
+/// its actual SQLite snapshot with a harmless canonical-table read before
+/// recording it. `SELECT 1` is insufficient because SQLite can satisfy it
+/// without touching the database/WAL; this probe has the same table-backed
+/// snapshot semantics as the managed-reader witness. It keeps the collector
+/// off normal paths and prevents a queued request from masquerading as a live
+/// snapshot.
+fn begin_attributed_reader_tx<'a>(
+    reader: &'a mut Connection,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
+) -> rusqlite::Result<rusqlite::Transaction<'a>> {
+    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    if attribution.enabled {
+        attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "transaction_opened");
+        tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))?;
+        attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "snapshot_acquired");
+        #[cfg(any(test, feature = "test-hooks"))]
+        attribution.fire_reader_snapshot_pause(&tx, worker_idx);
+    }
+    Ok(tx)
 }
 
 /// Thread-affine reader worker pool (Pack 6 F.0).

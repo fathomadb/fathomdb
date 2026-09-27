@@ -41,17 +41,18 @@ are mapped as follows:
 | R27-80E codec stability | Existing graph/evidence/frozen/pagination/trace fixtures and property tests; no generated oracle. |
 | R27-80F view and filter contract | Existing hybrid, text-only, filtered, explained, existence-refusal, filter-grammar, and unification owners; add graph-arm and projected-text validity characterizations. |
 
-## Planned RED/GREEN evidence
+## Characterization RED/GREEN evidence
 
 ### Reader refusal releases every worker transaction
 
-- Test: `tests/slice80_reader_refusal_release.rs`.
+- Test: `tests/slice80_reader_transaction_release.rs`.
 - Baseline: eight typed in-transaction refusals, with per-dispatch modulo
   progression proving one request reached each of the eight workers, followed
   by bounded erasure completion.
 - RED mutant: omit rollback/release on the selected refusal path. The bounded
   erasure assertion must fail or time out for the intended WAL-retention reason.
-- GREEN restoration: restore exact bytes and rerun the focused test.
+- GREEN restoration: exact source restoration returned the focused test to
+  1/1 passing.
 
 ### Graph-arm validity path
 
@@ -62,7 +63,8 @@ are mapped as follows:
 - RED mutant: remove both neighbor-validity sites identified in `design.md`
   while keeping their parameters referenced. The default-view absence
   assertion must fail.
-- GREEN restoration: restore exact bytes and rerun the focused test.
+- GREEN restoration: exact source restoration returned the focused test to
+  1/1 passing.
 
 ### Projected-text validity path
 
@@ -72,7 +74,32 @@ are mapped as follows:
   existence-refusal behavior.
 - RED mutant: remove the single projected-text validity site identified in
   `design.md`. The default-view absence assertion must fail.
-- GREEN restoration: restore exact bytes and rerun the focused test.
+- GREEN restoration: exact source restoration returned the focused test to
+  1/1 passing.
+
+### Observed chronology
+
+The tests were added against unmodified production. The initial focused run
+passed 3/3:
+
+```text
+cargo test -p fathomdb-engine \
+  --test slice80_reader_transaction_release \
+  --test slice80_search_view_paths -- --test-threads=1
+```
+
+Each mutant changed only `src/rust/crates/fathomdb-engine/src/lib.rs` and was
+restored immediately after its focused run:
+
+| Test | Temporary mutant | RED evidence |
+| --- | --- | --- |
+| `projected_text_applies_the_search_validity_view` | Replaced `frozen.node_sql("n", 3)` with existence plus dependency eligibility, omitting only validity. | Failed `default view must hide the expired projected hit`; 0 passed, 1 failed. |
+| `graph_arm_applies_the_search_validity_view_to_reached_neighbors` | Removed both neighbor-validity sites: `target_node` kept existence/dependency eligibility and `body_validity` became empty. | Failed `default view must hide the expired neighbor`; 0 passed, 1 failed. |
+| `in_transaction_refusal_releases_every_reader_snapshot` | On the undeclared projected-field refusal, deliberately forgot the live reader transaction. | Eight typed refusals reached eight distinct workers, then `erase_source` failed with bounded `ErasureIncomplete { stage: "wal_checkpoint" }`; 0 passed, 1 failed. |
+
+After exact restoration, `git diff -- src/rust/crates/fathomdb-engine/src/lib.rs`
+was empty and the combined focused run passed 3/3 again. No production behavior
+change was required.
 
 ## Structural batches
 

@@ -453,7 +453,7 @@ impl Engine {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn search_inner_with_frozen_binding_and_stats(
+    fn search_inner_with_frozen_binding_and_stats(
         &self,
         query: &str,
         filter: Option<SearchFilter>,

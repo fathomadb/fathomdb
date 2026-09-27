@@ -54,7 +54,7 @@ const READ_COLLECTION_MAX_LIMIT: usize = 1_000_000;
 /// Slice 30 (G2) — active-only point lookup by `logical_id` on the DEFERRED
 /// reader tx (mirrors `read_search_in_tx`'s snapshot-stable BEGIN DEFERRED). One
 /// returned slot per requested id, in REQUEST ORDER; `None` where no ACTIVE row
-/// (`superseded_at IS NULL`) carries that id. Mirrors the `:4170` canonical
+/// (`superseded_at IS NULL`) carries that id. Mirrors the canonical
 /// projection columns + `logical_id`; superseded versions are never returned.
 pub(crate) fn read_get_by_id_in_tx(
     reader: &mut Connection,

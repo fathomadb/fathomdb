@@ -68,3 +68,23 @@ item beyond the item's own visibility. Their `graph_expand/mod.rs` aliases are
 Both review findings are **CLOSED**. Independent final verification ran as a
 separate gate and is recorded in `review-verification.md`; it is not part of
 this review verdict.
+
+## Post-hoc adversarial code review (2026-09-27) — PASS-WITH-FIXES
+
+An independent read-only review of `9a31e979..c152d74b` (`src`, `scripts`;
+also covering docs-only `bd1347d7`) found no P0-P2 defects. Workspace Clippy
+and check, engine Clippy on `test-hooks`, `operator,test-hooks`, and
+`tc5-benchmark`, the engine lib tests, the Slice 80, Slice 35, and Slice 60
+wire tests, the WAL guard (314/0), and C1 (26/26) passed. Name resolution,
+statics, module-path-dependent output, doc/derive attachment, and
+`#[doc(hidden)]` counts are unchanged from `bb077cfa`; rustdoc warnings are
+identical at base and head.
+
+| # | Severity | Finding | Resolution |
+| --- | --- | --- | --- |
+| 1 | P3 | `search_inner_with_frozen_binding_and_stats` was `pub(crate)` although private at `bb077cfa` and used only in `search_api.rs`. | Made private. |
+| 2 | P3 | `read.rs` cited a `:4170` line anchor that was already wrong at baseline and cannot resolve. | Anchor removed. |
+
+Both fixes are mechanical; workspace Clippy, the three engine feature-set
+Clippy runs, `cargo fmt --check`, and the engine lib tests (78 passed)
+passed after them, so no further cycle was run.

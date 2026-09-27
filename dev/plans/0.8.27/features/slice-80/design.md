@@ -84,13 +84,13 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
   - Among the new modules, `search` never depends on `search_api` or
     `telemetry`. It also uses `temporal`, `dependency_closure`, `evidence`,
     and `frozen_read`.
-  - Two module cycles exist today and are kept verbatim as accepted Slice 90
-    seams: `search` ↔ `graph_expand` (`read_search_in_tx` calls
+  - One module cycle exists today and is kept verbatim as an accepted Slice 90
+    seam: `search` ↔ `graph_expand` (`read_search_in_tx` calls
     `search_expand_on_snapshot`; `graph_expand/execution` calls
-    `structural_dependency_state`), and `search` ↔ `reader_pool`
-    (`read_projected_text_in_tx` calls `begin_attributed_reader_tx`;
-    `reader_worker_loop` calls the search entry points). No new cycle may
-    be added.
+    `structural_dependency_state`). No new cycle may be added.
+  - `reader_pool` calls the read, search, and graph handlers. Those handlers
+    use the root-private `begin_attributed_reader_tx` primitive, so none
+    depends back on `reader_pool`.
   - `search_api` and `telemetry` may call domain logic; domain logic never
     calls them.
   - `graph_expand/codec` depends on `graph_expand/types` and on crate
@@ -108,11 +108,12 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     `live_count`, `next_worker_index`, `lookaside_used_per_worker`,
     `cache_status_per_worker`, `secure_delete_per_worker`,
     `wal_connection_inventory_for_test`, and
-    `wal_native_state_inventory_for_test`;
-  - `begin_attributed_reader_tx`.
+    `wal_native_state_inventory_for_test`.
 
   `reader_worker_loop`, `finish_reader_request`,
   `read_lookaside_used_hiwtr`, and `read_cache_status` stay private.
+  `begin_attributed_reader_tx` stays root-private because read, search, and
+  graph handlers share it and the pool dispatches to those handlers.
 
 | Module | Items at `bb077cfa` (by name) |
 | --- | --- |
@@ -123,7 +124,7 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
 | `search_api.rs` | `impl Engine`: `freeze_read_context`, `validate_frozen_read_context_for_binding`, `search_frozen`, `search_with_evidence`, `resolve_evidence`, `resolve_graph_evidence`, `search_expand_frozen`, `tc5_vector_stage`, the `search*` variants (`search` through `search_projected_text_with_limit`), `dense_disabled`, `dense_disabled_reason`, `vector_equivalence_refusal_count`, `search_reranked_with_explain`, `search_inner`, `search_inner_with_stats`, `search_inner_with_frozen_binding_and_stats`, `search_inner_with_frozen_binding_and_expansion`, `bm25f_search` |
 | `telemetry.rs` | `TelemetrySink`, `append_jsonl`, `branch_str` (both used only by telemetry); `impl Engine`: `enable_telemetry`, `last_telemetry_query_id`, `capture_telemetry`, `finalize_search_observability`, `mint_explanation_correlation_id`, `capture_telemetry_with_sink`, `record_feedback` |
 | `read.rs` | `NodeRecord`, `OpStoreRow`, `OperationalStateRecordV1`, `READ_COLLECTION_MAX_LIMIT`, `read_get_by_id_in_tx`, `read_collection_in_tx`, `read_list_in_tx`, `read_canonical_page_in_tx`, `read_canonical_page_baseline_in_tx`, `query_canonical_page_rows`, `canonical_page_query`, `OPERATIONAL_STATE_POINT_SQL`, `OPERATIONAL_STATE_PAGE_SQL`, `read_operational_state_in_tx`, `read_operational_state_page_in_tx`, `validate_operational_context`, `validate_operational_collection`, `page_search_error`; `impl Engine`: `read_get`, `read_get_many`, `read_collection`, `read_mutations`, `read_collection_dispatch`, `read_list`, `read_list_filter`, `read_canonical_page`, `read_operational_state`, `read_operational_state_page`, `receive_page_result` |
-| `reader_pool.rs` | **Functions only:** `impl ReaderWorkerPool` (including `Drop`), `reader_worker_loop` (moved whole, including its inline WAL and diagnostic match arms: `HoldWalSnapshot*`, `LookasideStatus`, `CacheStatus`, `SecureDeleteStatus`, and `Wal*Inventory`, with their snapshot-hold behavior verbatim), `finish_reader_request`, `begin_attributed_reader_tx`, `read_lookaside_used_hiwtr`, `read_cache_status`. The pool's two `*_for_test` methods (`wal_connection_inventory_for_test` and `wal_native_state_inventory_for_test`) move with the impl, because they are pool methods, not `Engine` seams. Slice 140's inventory must include them. **Kept at root** as data carriers, because their private fields are built at root, in `graph_expand`, and in Slice 90's WAL seams (`self.reader_pool.senders[0]`): `ReaderWorkerPool` (struct and `Debug`), `SearchReaderWork`, every `*ReaderRequest` struct, `ReaderRequest`, `FrozenQueryRuntime`, the response aliases, `SearchReaderError`, `PageReaderError` (and their `From` impls), `CacheStatusReply`, the `READER_*` constants, and the `Reader*Pause` aliases (used only by the root `WalAttributionCollector`). Slice 90 owns these carriers and the WAL arms. |
+| `reader_pool.rs` | **Functions only:** `impl ReaderWorkerPool` (including `Drop`), `reader_worker_loop` (moved whole, including its inline WAL and diagnostic match arms: `HoldWalSnapshot*`, `LookasideStatus`, `CacheStatus`, `SecureDeleteStatus`, and `Wal*Inventory`, with their snapshot-hold behavior verbatim), `finish_reader_request`, `read_lookaside_used_hiwtr`, `read_cache_status`. The pool's two `*_for_test` methods (`wal_connection_inventory_for_test` and `wal_native_state_inventory_for_test`) move with the impl, because they are pool methods, not `Engine` seams. Slice 140's inventory must include them. **Kept at root** as shared infrastructure and data carriers: the private `begin_attributed_reader_tx` primitive; `ReaderWorkerPool` (struct and `Debug`), `SearchReaderWork`, every `*ReaderRequest` struct, `ReaderRequest`, `FrozenQueryRuntime`, the response aliases, `SearchReaderError`, `PageReaderError` (and their `From` impls), `CacheStatusReply`, the `READER_*` constants, and the `Reader*Pause` aliases (used only by the root `WalAttributionCollector`). The carrier fields are built at root, in `graph_expand`, and in Slice 90's WAL seams (`self.reader_pool.senders[0]`). Slice 90 owns these carriers, the shared transaction primitive, and the WAL arms. |
 | `graph_expand/` | Replaces `graph_expand.rs`. `mod.rs` holds declarations and re-exports that keep every `crate::graph_expand::X` path, including `read_graph_expand_in_tx` and `GraphExpandReaderControlsForTest`. The submodules are listed in the next four rows. |
 | `graph_expand/types.rs` | Current lines 24-25 (`SCHEMA_VERSION`) and 90-378, plus `TraversalDirection` from `lib.rs` (a value type used by the request types and the codec; its root `pub use` keeps the public path). `SCHEMA_VERSION` becomes `pub(super)`. |
 | `graph_expand/codec.rs` | Current lines 1922-3470, plus `is_false` (lines 26-28). |
@@ -137,6 +138,7 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     `mint_explanation_open_nonce` and its nonce `static`;
   - `detect_slow`, `emit_event`, and `emit_sqlite_internal_error`;
   - the reader data carriers listed under `reader_pool.rs`;
+  - the shared private `begin_attributed_reader_tx` primitive;
   - `configure_reader_lookaside` and `apply_perf_experiment_reader_pragmas`,
     called only from the open path;
   - `Engine::usable_dense_runtime`, a runtime helper called from projection

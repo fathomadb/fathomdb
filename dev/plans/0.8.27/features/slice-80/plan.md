@@ -168,9 +168,9 @@ The fields are `search_limit_override`, `recency_reweight_enabled`,
 | `search_api.rs` | the `impl Engine` search, frozen-search, and evidence facades |
 | `telemetry.rs` | `TelemetrySink`, `append_jsonl`, `branch_str`, and search observability, telemetry, and feedback |
 | `read.rs` | the read-verb, canonical-page, and operational-state in-transaction functions, and their `impl Engine` facades |
-| `reader_pool.rs` | the pool's functions: its impl and `Drop` (including its two `*_for_test` methods), the worker loop, `finish_reader_request`, `begin_attributed_reader_tx`, and the reader cache and lookaside probes (the data carriers and the open-path connection setup stay at root) |
+| `reader_pool.rs` | the pool's functions: its impl and `Drop` (including its two `*_for_test` methods), the worker loop, `finish_reader_request`, and the reader cache and lookaside probes (the data carriers, the shared `begin_attributed_reader_tx` primitive, and the open-path connection setup stay at root) |
 | `graph_expand/` (split) | `mod.rs` re-exports and the in-file `graph_evidence_request_tests` (qualified names unchanged); `types.rs`; `codec.rs`; `execution.rs` (with validation and `test-hooks` seams); `traversal.rs` (legacy traversal, the BFS builders, and their `impl Engine` facades) |
-| Stays at root | `Engine`; the open, runtime, WAL, and operator facade, the reader data carriers, `usable_dense_runtime`, and the index projectors (Slice 90); every `*_for_test` Engine seam and `pub fn *_for_test` wrapper (Slice 140); `hex_encode`; `RowKind` |
+| Stays at root | `Engine`; the open, runtime, WAL, and operator facade, the reader data carriers and shared private `begin_attributed_reader_tx` primitive, `usable_dense_runtime`, and the index projectors (Slice 90); every `*_for_test` Engine seam and `pub fn *_for_test` wrapper (Slice 140); `hex_encode`; `RowKind` |
 
 Public items keep their exact root paths through `pub use`. Doc-hidden items
 keep their hidden status.

@@ -134,9 +134,11 @@ mutation manifest passed, `slice60_fix1_wire` passed 4/4, plan anchors verified
 
 ### Visibility seam record
 
-- The reader-pool methods and `begin_attributed_reader_tx` became
-  `pub(crate)` exactly as predeclared in `design.md`; its data carriers and
-  private worker helpers did not widen.
+- The reader-pool methods became `pub(crate)` exactly as predeclared in
+  `design.md`; its data carriers and private worker helpers did not widen.
+  Review moved the shared `begin_attributed_reader_tx` primitive back to the
+  crate root, where it remains private and creates no reverse dependency on
+  `reader_pool`.
 - Root consumers required crate-visible filter SQL/post-filter helpers, the
   importance-map helper, read in-transaction helpers, search capture and
   execution helpers, search-inner methods, the telemetry sink, and the five
@@ -166,10 +168,44 @@ mutation manifest passed, `slice60_fix1_wire` passed 4/4, plan anchors verified
 - The clean implementation candidate before review is
   `f333926eec5454a04ab29e561e0c25f88e22aced`.
 
+## Code-review fixes
+
+The independent `gpt-5.6-sol` reviewer at high reasoning returned **FAIL** on
+candidate `ac404a81`, with two P2 architectural findings. Commit `8e449963`
+closes both:
+
+1. The `begin_attributed_reader_tx` body moved unchanged from `reader_pool.rs`
+   back to root-private ownership. The pool dispatches to read, search, and graph
+   handlers; those handlers now depend on the root primitive rather than back
+   on the pool. This removes the unapproved `read` ↔ `reader_pool` and
+   `graph_expand` ↔ `reader_pool` cycles.
+2. Same-file search and filter helpers became private. Graph type seams and
+   parent-only aliases narrowed to `pub(super)` or private. An attempted
+   `pub(super)` visibility on the underlying execution/traversal definitions
+   produced the intended compile RED (`E0364`): Rust cannot re-export those
+   items to the crate root beyond their definition visibility. Keeping the
+   definitions `pub(crate)` while narrowing the directory aliases to
+   `pub(super)` is the minimum compiling seam.
+
+No new behavioral test was warranted for these structural corrections. The
+compile/lint and blast-radius evidence was:
+
+- focused reader, graph, traversal, transaction-release, and search-view
+  suites: 47 passed;
+- ten affected engine/facade feature routes: all passed;
+- crate Clippy with warnings denied on the hook and TC5 routes: passed;
+- C1 conformance: 26/26; recursive C1 self-test: passed;
+- Windows WAL attribution recursive fixture: 313/313;
+- Slice 35 virtual-mutation manifest: 1/1; `slice60_fix1_wire`: 4/4;
+- plan anchors and AC-050c against `bb077cfa`: passed;
+- public surface: 13 rows, exactly equal to the pre-move capture, original
+  implementation candidate, and tracked Slice 30 baseline.
+- hidden surface: 33 rows, exactly equal to the pre-move capture and original
+  implementation candidate; against the tracked `8e2afb29` baseline, 261
+  additions, 0 changes, and 0 removals.
+
 ## Review and final verification
 
-Implementation is ready for review. Independent read-only code review by a
-`gpt-5.6-sol` subagent at high reasoning and final verification by a separate
-`gpt-5.6-terra` subagent remain pending. Their durable records will be
-`code-review.md` and `review-verification.md`; neither record is authored by
-the implementer.
+Code review is closed in `code-review.md`. Final verification by a separate
+read-only `gpt-5.6-terra` subagent remains pending and will be recorded in
+`review-verification.md`.

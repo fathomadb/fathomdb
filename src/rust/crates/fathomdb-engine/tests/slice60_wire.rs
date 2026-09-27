@@ -50,28 +50,30 @@ fn decode_response(value: &Value) -> fathomdb_engine::GraphExpansionErrorV1 {
     decode_graph_expand_result_v1(&serde_json::to_vec(value).unwrap()).unwrap_err()
 }
 
-fn coherent_response(
-    seed_logical_id: &str,
-    target_logical_id: &str,
-    predecessor_logical_id: &str,
-    body: &str,
+struct CoherentResponseInput<'a> {
+    seed_logical_id: &'a str,
+    target_logical_id: &'a str,
+    predecessor_logical_id: &'a str,
+    body: &'a str,
     write_cursor: u64,
     work_units: u64,
     query_score: Option<f64>,
     include_evidence: bool,
-) -> Value {
+}
+
+fn coherent_response(input: CoherentResponseInput<'_>) -> Value {
     let mut value = fixture()["response"].clone();
-    value["seeds"][0]["logicalId"] = json!(seed_logical_id);
-    value["seeds"][0]["queryScore"] = json!(query_score);
-    value["targets"][0]["logicalId"] = json!(target_logical_id);
-    value["targets"][0]["body"] = json!(body);
-    value["targets"][0]["writeCursor"] = json!(write_cursor.to_string());
-    value["targets"][0]["origin"]["seedLogicalId"] = json!(seed_logical_id);
-    value["targets"][0]["origin"]["predecessorLogicalId"] = json!(predecessor_logical_id);
-    value["targets"][0]["origin"]["targetLogicalId"] = json!(target_logical_id);
+    value["seeds"][0]["logicalId"] = json!(input.seed_logical_id);
+    value["seeds"][0]["queryScore"] = json!(input.query_score);
+    value["targets"][0]["logicalId"] = json!(input.target_logical_id);
+    value["targets"][0]["body"] = json!(input.body);
+    value["targets"][0]["writeCursor"] = json!(input.write_cursor.to_string());
+    value["targets"][0]["origin"]["seedLogicalId"] = json!(input.seed_logical_id);
+    value["targets"][0]["origin"]["predecessorLogicalId"] = json!(input.predecessor_logical_id);
+    value["targets"][0]["origin"]["targetLogicalId"] = json!(input.target_logical_id);
     value["explanation"]["perTarget"][0]["origin"] = value["targets"][0]["origin"].clone();
-    value["workUnits"] = json!(work_units.to_string());
-    if include_evidence {
+    value["workUnits"] = json!(input.work_units.to_string());
+    if input.include_evidence {
         value["evidence"] = json!({
             "schemaVersion": 1,
             "entries": [{
@@ -320,16 +322,16 @@ proptest! {
         include_evidence in any::<bool>(),
     ) {
         let query_score = score_numerator.map(|score| f64::from(score) / 10.0);
-        let value = coherent_response(
-            &seed_logical_id,
-            &target_logical_id,
-            &predecessor_logical_id,
-            &body,
+        let value = coherent_response(CoherentResponseInput {
+            seed_logical_id: &seed_logical_id,
+            target_logical_id: &target_logical_id,
+            predecessor_logical_id: &predecessor_logical_id,
+            body: &body,
             write_cursor,
             work_units,
             query_score,
             include_evidence,
-        );
+        });
         let decoded = decode_graph_expand_result_v1(&serde_json::to_vec(&value).unwrap()).unwrap();
         let encoded = encode_graph_expand_result_v1(&decoded).unwrap();
         let encoded_value: Value = serde_json::from_slice(&encoded).unwrap();
@@ -345,16 +347,16 @@ proptest! {
         target_logical_id in "[A-Za-z0-9][A-Za-z0-9._:-]{0,31}",
         write_cursor in any::<u64>(),
     ) {
-        let mut value = coherent_response(
-            "seed-a",
-            &target_logical_id,
-            "middle-b",
-            "generated target body",
+        let mut value = coherent_response(CoherentResponseInput {
+            seed_logical_id: "seed-a",
+            target_logical_id: &target_logical_id,
+            predecessor_logical_id: "middle-b",
+            body: "generated target body",
             write_cursor,
-            2,
-            None,
-            true,
-        );
+            work_units: 2,
+            query_score: None,
+            include_evidence: true,
+        });
         value["evidence"]["entries"][0]["targetIndex"] = json!(target_index);
 
         let error = decode_response(&value);

@@ -9,6 +9,7 @@ use serde_json::Value;
 
 const GRAPH_EXPAND_SOURCE: &str = concat!(
     include_str!("../src/graph_expand/mod.rs"),
+    include_str!("../src/graph_expand/codec.rs"),
     include_str!("../src/graph_expand/execution.rs"),
     include_str!("../src/graph_expand/types.rs"),
 );

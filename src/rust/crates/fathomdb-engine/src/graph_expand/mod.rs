@@ -1,3 +1,4 @@
+mod codec;
 mod execution;
 mod types;
 
@@ -6,13 +7,11 @@ use crate::{
     StructuralLifecycleStateV1,
 };
 
+pub use codec::{decode_graph_expand_request_v1, encode_graph_expand_request_v1};
 pub(crate) use execution::read_graph_expand_in_tx;
 #[cfg(feature = "test-hooks")]
 pub(crate) use execution::{count_graph_expand_sql_statement, GraphExpandReaderControlsForTest};
-pub use execution::{
-    decode_graph_expand_request_v1, decode_graph_expand_result_v1, encode_graph_expand_request_v1,
-    encode_graph_expand_result_v1,
-};
+pub use execution::{decode_graph_expand_result_v1, encode_graph_expand_result_v1};
 #[cfg(feature = "test-hooks")]
 #[allow(unused_imports)]
 pub use execution::{

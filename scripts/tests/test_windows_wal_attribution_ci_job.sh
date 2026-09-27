@@ -8,6 +8,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
 SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
 ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
+# Reader-pool ownership and completion live in their extracted module.
+READER_POOL_SOURCE="${READER_POOL_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/reader_pool.rs}"
 # `impl ProjectionRuntime` (runtime inventory replies) lives in its own module.
 RUNTIME_SOURCE="${RUNTIME_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/projection_runtime.rs}"
 ERASURE_SOURCE="${ERASURE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/erasure.rs}"
@@ -282,7 +284,7 @@ for marker in \
   'fn wal_attribution_close_boundary_read_get_is_clean' \
   'fn wal_attribution_close_boundary_neighbors_is_clean' \
   'unclassified_external'; do
-  assert_contains "$(<"$SOURCE_TEST") $(<"$ENGINE_SOURCE")" "$marker" "source retains $marker"
+  assert_contains "$(<"$SOURCE_TEST") $(<"$ENGINE_SOURCE") $(<"$READER_POOL_SOURCE")" "$marker" "source retains $marker"
 done
 assert_contains "$(<"$PY_SOURCE")" \
   '_arm_next_reader_snapshot_pause_for_test' \
@@ -314,7 +316,7 @@ assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml")" \
 assert_contains "$(<"$ENGINE_SOURCE")" \
   '#[cfg(any(debug_assertions, feature = "test-hooks"))]' \
   "managed-reader hook is unavailable from shipped production builds"
-assert_contains "$(<"$ENGINE_SOURCE")" \
+assert_contains "$(<"$READER_POOL_SOURCE")" \
   'wal_attribution.fire_reader_completion_pause(connection.is_autocommit())' \
   'binding_connection_inventory_for_test' \
   'checkpoint_at_rest_for_test' \

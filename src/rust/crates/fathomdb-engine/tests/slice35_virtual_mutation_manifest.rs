@@ -52,7 +52,9 @@ const SOURCE: &str = concat!(
     "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/telemetry.rs"),
     "\nfn __slice35_source_boundary__() {}\n",
-    include_str!("../src/read.rs")
+    include_str!("../src/read.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
+    include_str!("../src/reader_pool.rs")
 );
 
 fn function_body(name: &str) -> &'static str {

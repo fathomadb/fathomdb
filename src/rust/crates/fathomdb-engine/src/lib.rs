@@ -164,7 +164,7 @@ pub use graph_expand::{
     GraphExpansionDegradationCodeV1, GraphExpansionErrorReasonV1, GraphExpansionErrorV1,
     GraphExpansionExplanationV1, GraphOriginV1, GraphProjectionOriginV1,
     GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1, GraphSeedSourceV1,
-    GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, ResolvedGraphSeedV1,
+    GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, ResolvedGraphSeedV1, TraversalDirection,
 };
 #[cfg(feature = "test-hooks")]
 pub use graph_expand::{
@@ -2736,21 +2736,6 @@ pub struct Slice45MintStageTiming {
     pub snapshot_validation_ns: u128,
     pub binding_ns: u128,
     pub token_codec_ns: u128,
-}
-
-// ===== Slice 20 (G5/G6) — graph traversal types =========================
-
-/// Slice 20 (G5) — direction of graph traversal for
-/// [`Engine::graph_neighbors`] / [`Engine::search_expand`].
-///
-/// `Outgoing` follows edges where the root is the `from_id` (source).
-/// `Incoming` follows edges where the root is the `to_id` (target).
-/// `Both` follows edges in either direction.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TraversalDirection {
-    Outgoing,
-    Incoming,
-    Both,
 }
 
 /// Slice 20 (G6) — result of [`Engine::search_expand`]: initial search hits

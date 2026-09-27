@@ -7,6 +7,12 @@ use fathomdb_engine::{
 };
 use serde_json::Value;
 
+const GRAPH_EXPAND_SOURCE: &str = concat!(
+    include_str!("../src/graph_expand/mod.rs"),
+    include_str!("../src/graph_expand/execution.rs"),
+    include_str!("../src/graph_expand/types.rs"),
+);
+
 fn request() -> GraphExpandRequestV1 {
     GraphExpandRequestV1 {
         schema_version: 1,
@@ -66,7 +72,7 @@ fn seed_unknown_field_precedes_missing_or_invalid_discriminant_with_escaped_poin
 
 #[test]
 fn graph_rendezvous_is_test_hooks_gated_owned_and_production_explain_reuses_incident_builder() {
-    let source = include_str!("../src/graph_expand.rs");
+    let source = GRAPH_EXPAND_SOURCE;
     assert!(source.contains("#[cfg(feature = \"test-hooks\")]\nstruct GraphExpandPinRendezvous"));
     assert!(!source.contains("static BEFORE_PIN_HOOK: OneShotHook"));
     assert!(source.contains("graph_expand_incident_sql"));
@@ -75,7 +81,7 @@ fn graph_rendezvous_is_test_hooks_gated_owned_and_production_explain_reuses_inci
 
 #[test]
 fn real_database_high_bound_rss_dependency_erasure_and_projection_matrix_have_owned_test_seams() {
-    let source = include_str!("../src/graph_expand.rs");
+    let source = GRAPH_EXPAND_SOURCE;
     for required in [
         "GraphExpandMeasurementForTest",
         "measure_graph_expand_for_test",

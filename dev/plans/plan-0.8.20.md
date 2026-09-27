@@ -734,7 +734,7 @@ framing; 15 is landed and 20/25 are unblocked.)*
 >
 > 1. **List `rowid` explicitly** in the re-insert — a vec0 row maps to its node by `rowid == write_cursor`
 >    (the identity documented on `write_canonical_row_with_kind_for_test` and relied on by
->    `fn text_hit_passes_filter` / `fn edge_fts_hit_passes_filter` in `src/rust/crates/fathomdb-engine/src/lib.rs`); letting
+>    `fn text_hit_passes_filter` / `fn edge_fts_hit_passes_filter` in `src/rust/crates/fathomdb-engine/src/filter.rs`); letting
 >    vec0 auto-assign rowids silently decouples every embedding.
 > 2. **New attribute column is plain metadata OR a partition key — NEVER a vec0 `aux`/`+` column.** An aux
 >    column hard-**errors** every filtered KNN query (see the `aux` note on `fn vector_partition_create_sql`

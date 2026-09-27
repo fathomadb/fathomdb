@@ -618,6 +618,12 @@ Allocated by the Slice 80 design (`features/slice-80/design.md`):
   cycles with earlier-slice modules (`search` ↔ `dependency_closure`,
   `search` ↔ `evidence`, `graph_expand` ↔ `evidence`) were inherited from
   root and are listed in the same design as Slice 90 context.
+- **Test-gate carry-overs (Slice 80 post-hoc test review).**
+  `slice60_fix1_wire`'s negative scan names its files explicitly; any new
+  `graph_expand/*.rs` file must be added to it. Module dependency direction
+  is enforced only by review; Slice 90 should consider a scripted check.
+  A green non-Linux build of the moved `graph_expand/execution.rs` arm is
+  required before release closeout.
 
 ### Slice 100 — PyO3 binding decomposition
 

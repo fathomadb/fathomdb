@@ -301,6 +301,11 @@ cheap public-removal check.
   `slice60_fix2_wire`, and `slice60_fix3_wire`; these also own error
   precedence (typed refusal order for malformed carriers)
 - `slice55_wire` (proptest)
+- Post-hoc test review correction (2026-09-27): the proptests round-trip
+  only the graph request codec (`slice60_wire`) and the trace codec
+  (`slice55_wire`). The graph result codec and corruption refusal are covered
+  by canonical fixtures and typed-refusal tests, not properties. The gap
+  predates Slice 80 and is logged as `TC-aa4bea08-f281-47eb-8022-d63250d1daac`.
 - the in-file tests of `evidence.rs`, `frozen_read.rs`, and `pagination.rs`
 - `slice50_evidence::authorized_*_corruption_is_typed*`
 - `slice35_frozen_read`

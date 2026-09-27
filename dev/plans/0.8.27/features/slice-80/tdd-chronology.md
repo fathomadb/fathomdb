@@ -257,3 +257,25 @@ for mechanical refactors, it adds no new tests. Commit `b8af4d86`:
     `fn reader_native_state_for_test(&self)`).
 
   The recursive fixture now passes 314/314.
+
+## Post-hoc test review (2026-09-27)
+
+An independent read-only test review at `66e27983` returned PASS with P3
+advisories only. It re-ran each recorded mutant (projected-text validity,
+both graph-arm validity sites, and the leaked reader transaction in debug and
+release); each failed at its intended assertion and was restored. Rustdoc
+JSON surfaces at `bb077cfa` and HEAD were identical at three feature sets,
+item `cfg` attributes matched, and lib test names were unchanged (80 = 80).
+
+Recorded limits:
+
+- Removing only the second graph-arm validity site (hydration
+  `body_validity`) survives, because the edge-query site already filters.
+  The mutant therefore removes both sites, as the design states.
+- The graph result codec has no round-trip or corruption property; see
+  `design.md` R27-80E and `TC-aa4bea08-f281-47eb-8022-d63250d1daac`.
+- `slice60_fix1_wire`'s negative scan lists its files explicitly, so a new
+  `graph_expand/*.rs` file would escape it; Slices 90 and 140 must extend it.
+- Non-Linux compilation of the moved `graph_expand/execution.rs` arm was not
+  checked on this host; a green non-Linux CI build is required before
+  release closeout.

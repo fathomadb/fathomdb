@@ -100,8 +100,11 @@ The draft was written in prework at `a3e6cff6`. The baseline is now
 7. **The draft's test obligations are already met by existing owners.**
    These include snapshot authority under concurrent mutation, eligibility
    before every bounded cap, deterministic tie ordering, codec round-trip
-   and corruption properties (proptest in `slice60_wire` and
-   `slice55_wire`), and SQL/plan assertions. `design.md` maps each owner.
+   and corruption properties (proptest round-trips in `slice60_wire` and
+   `slice55_wire` cover the graph request and trace codecs; the graph result
+   codec and corruption refusal are fixture-covered only — a pre-existing gap
+   logged as `TC-aa4bea08-f281-47eb-8022-d63250d1daac`), and SQL/plan
+   assertions. `design.md` maps each owner.
    Characterization is limited to gaps that the mapping proves.
    - **TC-38 (search visibility):** the hybrid, text-only, filtered, and
      explained paths are covered by `slice15b_search_validity` and

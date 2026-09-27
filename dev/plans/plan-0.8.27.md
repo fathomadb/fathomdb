@@ -614,7 +614,10 @@ Allocated by the Slice 80 design (`features/slice-80/design.md`):
   design review (2026-09-27) recorded these; `features/slice-80/design.md`
   has the details. The three are `read` ↔ `reader_pool`, `graph_expand` ↔
   `reader_pool`, and `graph_expand` ↔ `search_api`. When Slice 90 closes the
-  facade, it must explicitly preserve or unwind all four.
+  facade, it must explicitly preserve or unwind all four. Three further
+  cycles with earlier-slice modules (`search` ↔ `dependency_closure`,
+  `search` ↔ `evidence`, `graph_expand` ↔ `evidence`) were inherited from
+  root and are listed in the same design as Slice 90 context.
 
 ### Slice 100 — PyO3 binding decomposition
 

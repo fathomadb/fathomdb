@@ -110,6 +110,17 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     - `graph_expand` ↔ `search_api`: the `search_expand*` facade in
       `traversal.rs` calls `self.search_inner`, and `search_api.rs` names
       `traversal::SearchExpandResult`.
+  - The four cycles above are complete **among Slice 80's modules**. Three
+    further cycles with earlier-slice modules were inherited unchanged from
+    root ↔ module cycles when code left the root; they are recorded here as
+    Slice 90 context, not as new Slice 80 seams:
+    - `search` ↔ `dependency_closure`: `dependency_closure.rs` calls
+      `crate::prepare_search_statement`, and `search.rs` calls
+      `dependency_closure::read_eligibility_sql`.
+    - `search` ↔ `evidence`: `evidence.rs` uses `CapturedGraphOrigin`, and
+      `search.rs` calls `evidence::build_search_result`.
+    - `graph_expand` ↔ `evidence`: `evidence.rs` uses `TraversalDirection`,
+      and `graph_expand/execution.rs` uses `GraphEvidenceAuthority`.
   - `reader_pool` calls the read, search, and graph handlers. Those handlers
     use the root-private `begin_attributed_reader_tx` primitive, so no
     handler depends back on `reader_pool`; only facades do.

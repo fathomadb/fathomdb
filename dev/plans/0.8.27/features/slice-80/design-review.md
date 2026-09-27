@@ -125,3 +125,20 @@ production `bb077cfa`.
 | 9 | P3 | Batch 1 moved 264 lines, below the AC27-80A floor of 300. | **Recorded** as a deviation in `tdd-chronology.md`. |
 | 10 | P3 | A blanket `#[allow(unused_imports)]` sat on a re-export list. | **Fixed.** The allow is removed and the three unused `*ForTest` re-exports are trimmed. None was root-exported before the move. |
 | 11 | P3 | A review record was rewritten after the fact (cycle 3 row 3). | **Folded into finding 2.** See the correction note above. |
+
+### Post-hoc cycle 2 — PASS-WITH-FIXES at `2121690e`
+
+All 11 cycle-1 resolutions were verified against code; the
+`GraphExpansionErrorV1::new` rebuttal is correct (`codec.rs` calls it). The
+FIX-1 diff changes no behavior, widens nothing, and leaves public and hidden
+surfaces unchanged. A rebuilt module graph confirms the four recorded cycles
+are complete among Slice 80's modules. Three P3 wording findings were closed
+in FIX-2 without another cycle:
+
+| # | Severity | Finding | Resolution |
+| --- | --- | --- | --- |
+| N1 | P3 | `tdd-chronology.md` still claimed live AC-037 passed. | Qualified as UNEVIDENCED. |
+| N2 | P3 | The `STATUS-0.8.27.md` Slice 80 row was unqualified. | Qualified as UNEVIDENCED. |
+| N3 | P3 | The cycle list read as global; three inherited cycles with earlier-slice modules were unrecorded. | Scoped to Slice 80 modules; the inherited cycles are recorded as Slice 90 context in `design.md` and the master plan. |
+
+The design review is closed.

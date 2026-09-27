@@ -222,7 +222,8 @@ compile/lint and blast-radius evidence was:
 Code review is closed in `code-review.md`. A separate read-only
 `gpt-5.6-terra` subagent returned PASS at clean candidate `3e60cc5d`; the
 canonical gate passed 127/127, workspace Clippy/check passed, strict security
-passed 0/0/0 including live AC-037, and the feature-complete gate passed
+passed 0/0/0 (the live AC-037 layer is UNEVIDENCED and not counted as a
+pass; see `review-verification.md`), and the feature-complete gate passed
 349/357 with 8 documented ignores. `review-verification.md` records the full
 receipts and cleanup.
 

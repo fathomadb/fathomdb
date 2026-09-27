@@ -11,7 +11,7 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 80 (ENGINE-READ), IN_PROGRESS.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 90 (ENGINE-RUNTIME), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`8e4499637e9d40ac6fcb9579f352b9f643e86709`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
 
 Prework Slices 0-9, bounded preparation Slice 10, correction-safe erasure
 Slice 20, real-surface comparator Slice 30, and engine-foundation Slice 40 are
@@ -19,11 +19,16 @@ complete on `release/0.8.27`. Slice 40 preserves runtime behavior, schema,
 public API, feature gates, and publication state while moving shared engine
 foundations to private modules.
 
+Engine-domain Slices 50, 60, 70, and 80 are also complete. Slice 80 preserves
+the read, search, graph, evidence, public, hidden, schema, SQL, wire, and
+feature-gated contracts while moving their implementation into private
+semantic modules.
+
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Continue Slice 80 (ENGINE-READ)** — engine read, search, graph, and evidence domains. **Remaining ladder:** 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 90 (ENGINE-RUNTIME)** — engine open, configuration, runtime, operator, and facade closure. **Remaining ladder:** 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -50,7 +55,10 @@ There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE
 | 20 | Correction-safe source erasure | Product complete at `b455bb73`; exact atomicity, at-rest, binding, and unchanged-fixture Memex evidence pass review. The shared Python artifact gate is corrected at `6ba3be95`. |
 | 30 | Current inventory and comparison guardrails | Complete at `6ba3be95`; deterministic 13-row real-surface baseline, mutation-tested comparator, candidate-bound artifact gates, independent design/code review, and focused verification pass. |
 | 40 | Engine foundation and test seams | Complete at `fdd7fb64`; private error, identity, temporal, and hook modules preserve root paths and cfg gates. Final surface comparison, 124-suite gate, strict security, workspace Clippy/check, and independent review pass. |
+| 50 | Engine erasure, lifecycle, dependency, and provenance | Complete at `1f5b8614`; private semantic modules preserve root paths and close nonterminal soft-closure residue with reviewed RED/GREEN evidence. |
 | 60 | Engine write, ingest, and consolidation | Complete at `d5a5bd39`; six private write-domain modules, full-state write-boundary characterization, and bounded abort-seam carry-over correction. Public/hidden structural surfaces and release probe equal; test inventory additive-only; 127/127 gate and live AC-037 pass. |
+| 70 | Engine projection, embedding, and reranking | Complete at `36fc2352`; ten private modules preserve public paths and runtime shape. Canonical, security, feature-complete, workspace, and artifact gates pass. |
+| 80 | Engine read, search, graph, and evidence | Complete at `8e449963`; private read-domain modules preserve public/hidden surfaces and runtime behavior. Independent review findings are closed; verification passes 127/127, strict security 0/0/0, and feature-complete 349/357 with 8 documented ignores. |
 
 ## Verification boundary
 
@@ -121,12 +129,28 @@ through a temporary per-binary AppArmor `userns` profile for
 with 8 documented ignores on the RTX 3090s. Workspace Clippy/check and the
 candidate-bound Python receipt passed.
 
+Slice 80's implementation candidate `8e449963` moved fusion, filter, search
+types and execution, search APIs, telemetry, read verbs, the reader-pool
+implementation, and graph types/codec/execution/traversal into private
+modules. Three characterization tests killed their specified mutants before
+the moves. Independent code review closed two P2 architectural findings; the
+reviewed clean candidate is `3e60cc5d`.
+
+The canonical gate passed 127/127. Workspace Clippy/check and the
+candidate-bound Python receipt passed. The 13-row public capture is exact; the
+33-row hidden capture is additive only, with 261 additions, 0 changes, and 0
+removals. Strict security passed 0/0/0 including live AC-037 through an
+already-active capability that the verifier did not modify. The
+feature-complete gate passed 349/357 with 8 documented ignores. The verifier
+removed its disposable Python environment, restored the tracked stub, and
+left the tree clean.
+
 ## Boundaries
 
 - This release starts at schema 34 and currently proposes no schema migration.
 - Publication is unauthorized.
-- Slices 30, 40, 50, 60, and 70 were directly authorized by the repository
-  owner and are complete; Slice 80 and later slices require separate
-  commission.
+- Slices 30, 40, 50, 60, 70, and 80 were directly authorized by the
+  repository owner and are complete; Slice 90 and later slices require
+  separate commission.
 - No temporary branch or worktree was created for prework; the existing
   `release/0.8.27` worktree remains the active release workspace.

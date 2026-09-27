@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 80 - engine read, search, graph, and evidence domains
-status: APPROVED
+status: COMPLETE
 target_release: 0.8.27
 baseline_sha: bb077cfa
 ---

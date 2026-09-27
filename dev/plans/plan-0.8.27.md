@@ -356,9 +356,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 80** (`ENGINE-READ`) — engine read, search, graph, and evidence domains
+**IMMEDIATE NEXT: Slice 90** (`ENGINE-RUNTIME`) — engine open, configuration, runtime, operator, and facade closure
 
-**Remaining ladder:** 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -575,6 +575,9 @@ Carried from Slice 70 (`features/slice-70/status.md`):
 
 Allocated by the Slice 80 design (`features/slice-80/design.md`):
 
+- **Shared reader transaction primitive.** `begin_attributed_reader_tx`
+  remains root-private so read, search, and graph handlers do not depend back
+  on `reader_pool`. Slice 90 owns its final placement.
 - **Reader data carriers.** `ReaderWorkerPool` (struct and `Debug`),
   `SearchReaderWork`, every `*ReaderRequest` struct, `ReaderRequest`,
   `FrozenQueryRuntime`, the reader response aliases, `SearchReaderError`,
@@ -598,6 +601,9 @@ Allocated by the Slice 80 design (`features/slice-80/design.md`):
 - **Search-owned runtime fields.** The four search-owned
   `ProjectionRuntimeShared` fields stay in place. Slice 90 may relocate them
   when it finalizes `Engine` state, subject to its own design review.
+- **Retained dependency seam.** `search` ↔ `graph_expand` remains the sole
+  approved cycle from Slice 80. Slice 90 must preserve or unwind it explicitly
+  when closing the facade.
 
 ### Slice 100 — PyO3 binding decomposition
 

@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 80 - TDD chronology
-status: IN_PROGRESS
+status: COMPLETE
 started_on: 2026-09-27
 baseline_sha: bb077cfa
 ---
@@ -206,6 +206,9 @@ compile/lint and blast-radius evidence was:
 
 ## Review and final verification
 
-Code review is closed in `code-review.md`. Final verification by a separate
-read-only `gpt-5.6-terra` subagent remains pending and will be recorded in
-`review-verification.md`.
+Code review is closed in `code-review.md`. A separate read-only
+`gpt-5.6-terra` subagent returned PASS at clean candidate `3e60cc5d`; the
+canonical gate passed 127/127, workspace Clippy/check passed, strict security
+passed 0/0/0 including live AC-037, and the feature-complete gate passed
+349/357 with 8 documented ignores. `review-verification.md` records the full
+receipts and cleanup.

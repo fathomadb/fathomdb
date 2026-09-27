@@ -48,5 +48,6 @@ item beyond the item's own visibility. Their `graph_expand/mod.rs` aliases are
   pre-move capture and original implementation candidate. Against the tracked
   `8e2afb29` hidden baseline it has 261 additions, 0 changes, and 0 removals.
 
-Both review findings are **CLOSED**. Independent final verification remains a
-separate gate and is not part of this review record.
+Both review findings are **CLOSED**. Independent final verification ran as a
+separate gate and is recorded in `review-verification.md`; it is not part of
+this review verdict.

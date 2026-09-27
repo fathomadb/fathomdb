@@ -152,7 +152,24 @@ the original Slice 80 finding text above remains historical evidence.
 | # | Severity | Finding | FIX-1 disposition |
 | --- | --- | --- | --- |
 | 1 | P1 | R27-85A allowed carriers to remain indefinitely at crate root and therefore did not establish semantic ownership. | Every root-kept reader carrier, `TelemetrySink`, `EvidenceCapture`, and `begin_attributed_reader_tx` must receive non-root semantic ownership with private fields and rooted contracts preserved. Root retention requires an item-specific reviewed exception proving it is durable and protects a stronger invariant. |
-| 2 | P1 | The plan treated `search` ↔ `graph_expand` as accepted while requiring only the other three Slice 80 cycles to be removed. | Slice 85 must eliminate all four Slice 80 cycles. Only the three named inherited earlier-slice cycles are initially eligible for a narrow allowlist; any other retained cycle requires design review to prove it unavoidable. |
+| 2 | P1 | The plan treated `search` ↔ `graph_expand` as accepted while requiring only the other three Slice 80 cycles to be removed. | **FIX-1 wording superseded by FIX-2 below.** Slice 85 must eliminate all four Slice 80 cycles. Only the three named inherited earlier-slice cycles are initially eligible for a narrow allowlist; FIX-1's statement that any other retained cycle could be reviewed as unavoidable was too broad. |
 
 This FIX-1 does not rebind the authoritative Slice 80 SHA or claim a Slice 85
+design-review pass. Independent rereview is required.
+
+## Slice 85 planning FIX-2 (2026-09-27) — pending rereview
+
+The second independent review found one remaining P2 ambiguity: the Slice 80
+design still described `graph_expand` → `search_api` as an accepted facade
+exception, and the Slice 85 exception language could be read to permit one of
+the four Slice 80 cycles to survive review.
+
+FIX-2 makes the constraint categorical. The facade exception is historical
+and describes the current Slice 80 layout only. None of the four Slice 80
+cycles is eligible for retention, an exception, or an allowlist in Slice 85.
+Only the three named inherited earlier-slice cycles are initial allowlist
+candidates. Any reviewed unavoidable-cycle exception mechanism applies solely
+to a cycle outside those four.
+
+This FIX-2 does not rebind the authoritative Slice 80 SHA or claim a Slice 85
 design-review pass. Independent rereview is required.

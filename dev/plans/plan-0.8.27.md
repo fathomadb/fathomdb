@@ -559,20 +559,22 @@ from their handlers sufficiently to eliminate all four Slice 80 cycles:
 
 The slice establishes one checked dependency-direction contract for the
 resulting engine modules. The contract must describe the exact permitted graph.
-Only the three inherited earlier-slice cycles are initially eligible for a
-narrow explicit allowlist: `search` ↔ `dependency_closure`,
-`search` ↔ `evidence`, and `graph_expand` ↔ `evidence`. Any other retained
-cycle requires design review to prove an unavoidable exception. The normal
-lint-path gate must resolve aliases, grouped imports, re-exports, and wildcard
-imports rather than relying on a fragile textual spelling. Dedicated fixtures
-and temporary mutations must prove both that the gate catches a forbidden edge
-and that it cannot pass vacuously when no production modules were examined.
+None of the four Slice 80 cycles is eligible for retention, an exception, or
+an allowlist. Only the three inherited earlier-slice cycles are initial
+candidates for a narrow explicit allowlist: `search` ↔
+`dependency_closure`, `search` ↔ `evidence`, and `graph_expand` ↔ `evidence`.
+Any reviewed unavoidable-cycle exception mechanism applies only to cycles
+outside the four Slice 80 cycles. The normal lint-path gate must resolve
+aliases, grouped imports, re-exports, and wildcard imports rather than relying
+on a fragile textual spelling. Dedicated fixtures and temporary mutations
+must prove both that the gate catches a forbidden edge and that it cannot pass
+vacuously when no production modules were examined.
 
 | ID | Requirement | Falsifiable acceptance |
 | --- | --- | --- |
 | R27-85A | Every root-kept carrier receives durable non-root semantic ownership without field widening or rooted-contract drift. | AC27-85A: `ReaderWorkerPool`, `SearchReaderWork`, every reader request/response carrier, `FrozenQueryRuntime`, reader errors/constants/pause aliases, `TelemetrySink`, `EvidenceCapture`, and `begin_attributed_reader_tx` each move to a named non-root semantic owner; all previously private fields remain private and every rooted public/re-export path is exact. Any item retained at root has an item-specific design-review exception proving durable ownership and the stronger invariant that a move would violate. |
 | R27-85B | Facades do not create reverse handler dependencies. | AC27-85B: all four Slice 80 cycles—`search` ↔ `graph_expand`, `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`—are absent from the measured module graph. |
-| R27-85C | Remaining dependencies are explicit and minimal. | AC27-85C: a committed exact graph accounts for every engine-module edge. Only `search` ↔ `dependency_closure`, `search` ↔ `evidence`, and `graph_expand` ↔ `evidence` are eligible for a narrow reviewed allowlist; any other exception must be proven unavoidable in design review. An unexpected edge fails with the source and destination named. |
+| R27-85C | Remaining dependencies are explicit and minimal. | AC27-85C: a committed exact graph accounts for every engine-module edge. None of the four Slice 80 cycles is eligible for retention, an exception, or an allowlist. Only `search` ↔ `dependency_closure`, `search` ↔ `evidence`, and `graph_expand` ↔ `evidence` are initial candidates for a narrow reviewed allowlist. Any reviewed unavoidable-cycle exception applies only to cycles outside the four Slice 80 cycles. An unexpected edge fails with the source and destination named. |
 | R27-85D | Dependency direction is enforced by a normal lint gate. | AC27-85D: the standard lint path runs a syntax-aware check that handles aliases, grouped imports, re-exports, and wildcards and does not depend on one source spelling. |
 | R27-85E | The structural gate is non-vacuous. | AC27-85E: committed fixtures plus recorded temporary mutations prove forbidden-edge detection, alias/wildcard coverage, and a hard failure when zero governed modules are inspected. |
 | R27-85F | The boundary change preserves behavior and surfaces. | AC27-85F: focused read/search/graph/evidence/reader/WAL routes, applicable feature builds, source-scraping gates, exact public surface, additive-only hidden surface, and runtime receipts match the pre-slice candidate except for reviewed structural inventory additions. |
@@ -627,8 +629,9 @@ Consumed from Slice 85 after its boundaries are settled:
   `EvidenceCapture`, and `begin_attributed_reader_tx`, with private fields and
   rooted contracts preserved (or an item-specific reviewed root exception);
 - the facade/handler separation that removes all four Slice 80 cycles; and
-- the normal-lint dependency-direction gate and exact or allowlisted remaining
-  module graph.
+- the normal-lint dependency-direction gate and exact module graph, with only
+  the three named inherited cycles eligible for a reviewed allowlist and none
+  of the four Slice 80 cycles eligible for retention or exception.
 
 Slice 90 must consume those boundaries, not redesign them while extracting the
 runtime facade. The following runtime-owned work remains in Slice 90:

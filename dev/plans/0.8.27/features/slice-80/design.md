@@ -114,9 +114,11 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
   - The four cycles above are complete **among Slice 80's modules**, and all
     four must be eliminated in Slice 85. Three further cycles with
     earlier-slice modules were inherited unchanged from root ↔ module cycles
-    when code left the root. Only these three are initially eligible for a
-    narrow explicit Slice 85 allowlist; any other retained cycle requires
-    design review to prove an unavoidable exception:
+    when code left the root. None of the four Slice 80 cycles is eligible for
+    retention, an exception, or an allowlist. Only these three inherited
+    cycles are initial candidates for a narrow explicit Slice 85 allowlist.
+    Any reviewed unavoidable-cycle exception applies only to cycles outside
+    the four Slice 80 cycles:
     - `search` ↔ `dependency_closure`: `dependency_closure.rs` calls
       `crate::prepare_search_statement`, and `search.rs` calls
       `dependency_closure::read_eligibility_sql`.
@@ -129,7 +131,9 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     handler depends back on `reader_pool`; only facades do.
   - `search_api` and `telemetry` may call domain logic; domain handlers never
     call them. The `graph_expand` traversal facade calling `search_inner` is
-    the accepted facade exception above.
+    a historical/current-layout exception in Slice 80 only. It is one of the
+    four cycles Slice 85 must eliminate and is not eligible for retention,
+    an exception, or an allowlist.
   - `graph_expand/codec` depends on `graph_expand/types` and on crate
     value and carrier types (`ReadContextV1`, `ReadView`, `SearchFilter`,
     the `Structural*StateV1` types, `ArtifactRevisionId`, and the evidence

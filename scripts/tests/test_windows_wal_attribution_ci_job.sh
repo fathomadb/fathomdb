@@ -32,7 +32,7 @@ job_block() {
 
 # assert_contains HAYSTACK NEEDLE... MESSAGE — every needle must be present.
 assert_contains() {
-  local haystack="$1" message="${!#}" missing="" needle
+  local haystack="$1" message="${!#}" missing=""
   shift
   while (($# > 1)); do
     grep -Fq -- "$1" <<<"$haystack" || missing="${missing:+$missing, }$1"

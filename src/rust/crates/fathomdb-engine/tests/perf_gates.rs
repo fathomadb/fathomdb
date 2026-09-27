@@ -785,8 +785,8 @@ fn ac_013b_recall_at_10_floor() {
 
     // Raw read-only connection for the f32 ground-truth pass. sqlite_vec
     // is process-global after Engine::open, so vec0 vtabs are reachable.
-    // Mirrors the SQL at src/rust/crates/fathomdb-engine/src/lib.rs:2317-
-    // 2342 (rowid lookup against vector_default, body fetch against
+    // Mirrors the SQL in src/rust/crates/fathomdb-engine/src/search.rs
+    // (rowid lookup against vector_default, body fetch against
     // canonical_nodes by write_cursor).
     let db_path = opened.engine.path().to_path_buf();
     let conn = rusqlite::Connection::open(&db_path).expect("raw ground-truth conn");
@@ -1108,7 +1108,7 @@ fn ac_019_mixed_retrieval_stress_workload_tail() {
     // Stress pass — N concurrent reader threads, mixed FTS5 + vector
     // + canonical reads. The single embedder-bearing `search()` path
     // exercises both vector ANN and FTS5 MATCH per call (see
-    // `read_search_in_tx` in fathomdb-engine/src/lib.rs); mixing
+    // `read_search_in_tx` in fathomdb-engine/src/search.rs); mixing
     // distinct query bodies across threads keeps the working set
     // realistic.
     let engine = Arc::new(opened.engine);

@@ -762,7 +762,7 @@ framing; 15 is landed and 20/25 are unblocked.)*
 > - **Not consumer-reachable in 0.8.20 (verified):** `attributes` is **not** on the Py/TS `search` wire
 >   (`fathomdb-napi SearchFilterInput`, `fathomdb-py search` carry only `source_type/kind/created_after/
 >   status`); attribute-filtering is **engine-internal only** (the comment inside `pub fn search_filtered` in
->   `src/rust/crates/fathomdb-engine/src/lib.rs` — "a later slice adds that surface"). So the edge-semantics choice governs a
+>   `src/rust/crates/fathomdb-engine/src/search_api.rs` — "a later slice adds that surface"). So the edge-semantics choice governs a
 >   feature no consumer can call this release; (A)
 >   forecloses nothing and is a pure query-time behavior with **zero stored-data and zero wire commitment**.
 > - **(B) raw pass-through — DECLINED.** Predicate-honest failure (Memex): returning rows never evaluated

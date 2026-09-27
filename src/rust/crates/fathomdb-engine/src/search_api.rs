@@ -687,3 +687,618 @@ impl Engine {
         ))
     }
 }
+
+impl Engine {
+    pub fn search(&self, query: &str) -> Result<SearchResult, EngineError> {
+        self.search_with_limit(query, DEFAULT_SEARCH_RESULT_LIMIT)
+    }
+
+    /// Hybrid search with an explicit ranked-result limit in `1..=100`.
+    pub fn search_with_limit(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        self.search_filtered_with_limit(query, None, limit)
+    }
+
+    /// 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — `search` under an explicit
+    /// [`ReadView`], the escape hatch matching the one the five read verbs got in
+    /// Slice 10b. `search(query)` is exactly `search_view(query, &ReadView::default())`.
+    ///
+    /// **Scope: the VALIDITY axis only.** `include_out_of_window` and
+    /// `valid_as_of` are honoured; the EXISTENCE flags (`include_superseded`,
+    /// `include_inactive`) are **refused** with
+    /// [`EngineError::InvalidArgument`] rather than silently ignored. Relaxing
+    /// `superseded_at IS NULL` on a retrieval path would resurrect the stale-body
+    /// leak the Slice-15 fix-1 review closed, and search hydrates from projection
+    /// indexes (`search_index`, `vector_default`) that are not version-complete —
+    /// so "include superseded" has no truthful answer here. Refusing says that;
+    /// ignoring would be the dead surface this fix exists to remove.
+    ///
+    /// Governed surface: PROPOSED / NOT SIGNED (0.8.20 Slice 15b fix-2).
+    pub fn search_view(&self, query: &str, view: &ReadView) -> Result<SearchResult, EngineError> {
+        self.search_view_with_limit(query, view, DEFAULT_SEARCH_RESULT_LIMIT)
+    }
+
+    /// Hybrid search under a [`ReadView`] with an explicit ranked-result limit.
+    pub fn search_view_with_limit(
+        &self,
+        query: &str,
+        view: &ReadView,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        self.search_reranked_view_with_limit(query, None, 0, false, 0.3, 0, false, view, limit)
+    }
+
+    /// 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — the FULL-arity view entry
+    /// point: [`search_reranked`][Engine::search_reranked] /
+    /// [`search_explained`][Engine::search_explained] under an explicit
+    /// [`ReadView`]. This is what the Python and TypeScript `search(..., view=)`
+    /// bindings call, so a caller can combine a content filter, the CE knobs and
+    /// a validity view in one query — passing `view` must not silently disable
+    /// the filter, and passing a filter must not silently disable `view`.
+    ///
+    /// `search_reranked(q, f, d, g, a, p)` is exactly
+    /// `search_reranked_view(q, f, d, g, a, p, false, &ReadView::default())`.
+    ///
+    /// Validity axis only; existence flags are refused. See
+    /// [`search_view`][Engine::search_view].
+    ///
+    /// Governed surface: PROPOSED / NOT SIGNED (0.8.20 Slice 15b fix-2).
+    #[allow(clippy::too_many_arguments)] // mirrors search_explained + the view
+    pub fn search_reranked_view(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        view: &ReadView,
+    ) -> Result<SearchResult, EngineError> {
+        self.search_reranked_view_with_limit(
+            query,
+            filter,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            view,
+            DEFAULT_SEARCH_RESULT_LIMIT,
+        )
+    }
+
+    /// Full-arity hybrid search under a [`ReadView`] with an explicit ranked-result limit.
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_reranked_view_with_limit(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        view: &ReadView,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        let limit = validate_search_result_limit(limit)?;
+        self.search_reranked_with_explain(
+            query,
+            filter,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            *view,
+            limit,
+        )
+    }
+
+    /// G10 — hybrid `search` with an optional closed [`SearchFilter`]. `None`
+    /// (or an all-`None` filter) is the unfiltered path whose phase-1 SQL is
+    /// byte-identical to 0.7.2. The filter prunes the vector branch in the
+    /// single phase-1 candidates statement and constrains the text branch by the
+    /// same metadata. Ranking is the unconditional G9 RRF fusion.
+    pub fn search_filtered(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+    ) -> Result<SearchResult, EngineError> {
+        self.search_filtered_with_limit(query, filter, DEFAULT_SEARCH_RESULT_LIMIT)
+    }
+
+    /// Hybrid search with an optional [`SearchFilter`] and explicit ranked-result limit.
+    pub fn search_filtered_with_limit(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        // 0.8.11 Slice 40 (R-FIL-2): re-express the shipped G10 `SearchFilter`
+        // sugar through the unified `Filter` type, then lower back to the vec0
+        // backend's `SearchFilter` (D4). The round-trip is lossless +
+        // canonical-order-preserving, so the produced phase-1 SQL stays
+        // byte-identical to 0.7.2 on the `None`/all-`None` path. `SearchFilter`
+        // never carries a `Json` term, so `to_search_filter` never rejects here.
+        //
+        // 0.8.20 Slice 15e — the unified `Filter`/`FilterTerm` grammar does not yet
+        // carry `filterable`-attribute terms (a later slice adds that surface), so
+        // the round-trip would drop `SearchFilter.attributes`. Carry them across
+        // explicitly: they already route pre-KNN through `vector_filter_clause`.
+        let lowered = filter
+            .map(|mut sf| {
+                let attributes = sf.attributes.clone();
+                // Attribute predicates are intentionally absent from the unified
+                // grammar, but this legacy/hybrid entry point owns their existing
+                // pre-KNN lowering. Remove them only for the metadata round-trip,
+                // then restore them on its `SearchFilter` output.
+                sf.attributes.clear();
+                Filter::try_from(&sf).and_then(|filter| {
+                    filter.to_search_filter().map(|mut lo| {
+                        lo.attributes = attributes;
+                        lo
+                    })
+                })
+            })
+            .transpose()?;
+        // FIX-6: delegate to search_reranked(depth=0, use_graph_arm=false) to eliminate the
+        // ~26-line duplicate body that would otherwise drift with search_reranked.
+        // 0.8.5: depth=0 is inert, so the α/pool_n defaults (0.3, 0) never reach the blend.
+        self.search_reranked_with_limit(query, lowered, 0, false, 0.3, 0, limit)
+    }
+
+    /// 0.8.11 Slice 40 (#17) — unified-`Filter` entry point for the vec0 search
+    /// backend. Lowers the metadata subset to the indexed pre-KNN `WHERE` and
+    /// **typed-rejects** a [`FilterTerm::Json`] term with
+    /// [`EngineError::InvalidFilter`] (D3 no-demotion guarantee). This is the
+    /// unified surface the 0.8.15 router `constraints` block reasons over; the
+    /// shipped [`Engine::search_filtered`]`(query, Option<SearchFilter>)` stays
+    /// as sugar over the same path.
+    pub fn search_filter(&self, query: &str, filter: &Filter) -> Result<SearchResult, EngineError> {
+        self.search_filter_with_limit(query, filter, DEFAULT_SEARCH_RESULT_LIMIT)
+    }
+
+    /// Unified-filter hybrid search with an explicit ranked-result limit.
+    pub fn search_filter_with_limit(
+        &self,
+        query: &str,
+        filter: &Filter,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        let sf = filter.to_search_filter()?;
+        self.search_reranked_with_limit(query, Some(sf), 0, false, 0.3, 0, limit)
+    }
+
+    /// 0.8.1 Slice 10 (R1) / Slice 30 (R3) — `search_reranked`: hybrid search
+    /// with optional CE reranking and optional graph-BFS third arm. `rerank_depth
+    /// = 0` is the identity (soft-fallback) path, byte-identical to
+    /// [`search_filtered`][Engine::search_filtered]. `rerank_depth = N > 0`
+    /// applies the cross-encoder over the top-N fused hits (when the
+    /// `default-reranker` feature is enabled and the model is loaded); without the
+    /// model, the call falls back to the fused order.
+    ///
+    /// `use_graph_arm = false` (the default) produces byte-identical results to
+    /// the pre-Slice-30 two-arm pipeline. `use_graph_arm = true` seeds a BFS over
+    /// temporal fact-edges from the top-10 fused hits and fuses the reachable
+    /// nodes as a third RRF arm.
+    ///
+    /// Governed surface: re-exported from `fathomdb` facade.
+    pub fn search_reranked(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+    ) -> Result<SearchResult, EngineError> {
+        self.search_reranked_with_limit(
+            query,
+            filter,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            DEFAULT_SEARCH_RESULT_LIMIT,
+        )
+    }
+
+    /// Hybrid search with optional reranking and an explicit ranked-result limit.
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_reranked_with_limit(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        let limit = validate_search_result_limit(limit)?;
+        // explain=false → `SearchResult.explanation == None`, byte-identical results.
+        self.search_reranked_with_explain(
+            query,
+            filter,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            false,
+            ReadView::default(),
+            limit,
+        )
+    }
+
+    /// 0.8.8 EXP-OBS (Slice 5) — `search_explained`: the opt-in `explain=true`
+    /// surface. Identical retrieval to [`search_reranked`][Engine::search_reranked]
+    /// (same fused/CE ranking, same `results`), additionally returning a
+    /// [`Explanation`] sidecar on `SearchResult.explanation` with per-hit arm
+    /// provenance + score breakdown + a query-level [`QueryTrace`]. The default
+    /// `search`/`search_filtered`/`search_reranked` paths are unaffected and stay
+    /// byte-identical (R-OBS-2).
+    ///
+    /// Governed surface: re-exported from `fathomdb` facade.
+    pub fn search_explained(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+    ) -> Result<SearchResult, EngineError> {
+        self.search_explained_with_limit(
+            query,
+            filter,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            DEFAULT_SEARCH_RESULT_LIMIT,
+        )
+    }
+
+    /// Explained hybrid search with an explicit ranked-result limit.
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_explained_with_limit(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        let limit = validate_search_result_limit(limit)?;
+        self.search_reranked_with_explain(
+            query,
+            filter,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            true,
+            ReadView::default(),
+            limit,
+        )
+    }
+
+    /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4) — the explicit
+    /// **text-only / FTS-only** search path. It does NOT embed the query and does
+    /// NOT route through the vector-dependent choke point
+    /// [`search_inner_with_stats`][Engine::search_inner_with_stats], so it NEVER
+    /// raises [`EngineError::VectorEquivalenceMismatch`] and stays serviceable when
+    /// the engine opened in the degraded `dense_disabled` state (the D2 "keep FTS
+    /// servable" contract; codex R2 U1-2). Results come from the node- and
+    /// edge-body FTS branches only — no vector recall, no CE rerank, no graph arm.
+    /// Available regardless of degraded state; when dense is healthy it is simply a
+    /// text-only view of the same corpus. Matching node- and edge-body
+    /// candidates are body-deduplicated and deterministically ranked before
+    /// the requested result limit is applied.
+    ///
+    /// Governed surface: re-exported from the `fathomdb` facade + Py/TS bindings.
+    pub fn search_text_only(&self, query: &str) -> Result<SearchResult, EngineError> {
+        self.search_text_only_with_limit(query, DEFAULT_SEARCH_RESULT_LIMIT)
+    }
+
+    /// Text-only search with an explicit ranked-result limit in `1..=100`.
+    ///
+    /// For the same immutable selection and effective validity time, a smaller
+    /// limit's ordered results are the prefix of a larger limit's results.
+    pub fn search_text_only_with_limit(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        self.search_text_only_view_with_limit(query, &ReadView::default(), limit)
+    }
+
+    /// 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — [`search_text_only`][Engine::search_text_only]
+    /// under an explicit [`ReadView`]. Same validity-axis-only scope, and the same
+    /// typed refusal of the existence flags, as [`search_view`][Engine::search_view].
+    ///
+    /// Governed surface: PROPOSED / NOT SIGNED (0.8.20 Slice 15b fix-2).
+    pub fn search_text_only_view(
+        &self,
+        query: &str,
+        view: &ReadView,
+    ) -> Result<SearchResult, EngineError> {
+        self.search_text_only_view_with_limit(query, view, DEFAULT_SEARCH_RESULT_LIMIT)
+    }
+
+    /// Text-only search under a [`ReadView`] with an explicit ranked-result limit.
+    ///
+    /// For the same immutable selection and explicit effective validity time, a
+    /// smaller limit's ordered results are the prefix of a larger limit's
+    /// results. `ReadView::valid_as_of = None` resolves independently per call,
+    /// so callers comparing calls must provide a fixed value.
+    pub fn search_text_only_view_with_limit(
+        &self,
+        query: &str,
+        view: &ReadView,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        let limit = validate_search_result_limit(limit)?;
+        self.ensure_open()?;
+        view.reject_existence_relaxation_on_search()?;
+        if query.trim().is_empty() {
+            return Err(EngineError::WriteValidation);
+        }
+        let compiled = compile_text_query(query);
+        let candidate_limit =
+            self.projection_runtime.shared.search_limit_override.load(Ordering::SeqCst).max(limit);
+        let (response_tx, response_rx) = mpsc::sync_channel::<ReaderResponse>(1);
+        // This explicit marker distinguishes direct text-only search from a hybrid
+        // request whose embedder yields no vector. Only the direct path gets the
+        // fixed node candidate bound before node/edge body deduplication and RRF.
+        let request = ReaderRequest::Search(Box::new(SearchReaderRequest {
+            work: SearchReaderWork {
+                compiled: Some(compiled),
+                query_vector: None,
+                query_vector_bin: None,
+                result_limit: limit,
+                candidate_limit,
+                direct_text_candidate_limit: Some(MAX_SEARCH_RESULT_LIMIT),
+                filter: None,
+                recency_enabled: false,
+                importance_enabled: false,
+                vector_stage_only: false,
+                raw_query: Box::from(query),
+                rerank_depth: 0,
+                use_graph_arm: false,
+                alpha: 0.3,
+                pool_n: 0,
+                explain: false,
+                projection_runtime_state: ProjectionRuntimeStateV1::Absent,
+                view: *view,
+                frozen_binding: None,
+                frozen_query_runtime: None,
+                expand_depth: None,
+            },
+            respond: response_tx,
+        }));
+        if self.reader_pool.dispatch(request).is_err() {
+            return Err(EngineError::Closing);
+        }
+        let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
+        let (cursor, soft_fallback, results, _graph_stats, explanation, _expanded) =
+            match search_result {
+                Ok(result) => result,
+                // fix-3 (codex §9 [P2]) — carry the reader-snapshot validation verdict
+                // through: an undeclared `filterable` attribute is the EXISTING typed
+                // `InvalidFilter`, never collapsed to `Storage`. (This path takes
+                // `filter = None`, so it never fires here, but the match stays total.)
+                Err(SearchReaderError::InvalidFilter(reason)) => {
+                    return Err(EngineError::InvalidFilter { reason });
+                }
+                Err(SearchReaderError::Evidence(error)) => return Err(error),
+                Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                    return Err(EngineError::RerankerDevicePolicy(error));
+                }
+                Err(SearchReaderError::FrozenRead(error)) => {
+                    return Err(EngineError::FrozenRead(error));
+                }
+                Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
+                    return Err(EngineError::VectorEquivalenceMismatch { reason });
+                }
+                Err(SearchReaderError::WriteValidation) => {
+                    return Err(EngineError::WriteValidation);
+                }
+                Err(SearchReaderError::InvalidArgument(msg)) => {
+                    return Err(EngineError::InvalidArgument { msg });
+                }
+                Err(SearchReaderError::Sqlite(err)) => {
+                    self.emit_sqlite_internal_error(&err);
+                    return Err(EngineError::Storage);
+                }
+            };
+        Ok(SearchResult { projection_cursor: cursor, soft_fallback, results, explanation })
+    }
+
+    /// Search one declared `searchable→FTS` projection without invoking body
+    /// search, vector search, score fusion, or a fallback arm. Results carry the
+    /// ordinary text branch shape and are ordered by property-FTS bm25 ascending
+    /// then write cursor ascending.
+    pub fn search_projected_text(
+        &self,
+        query: &str,
+        name: &str,
+        filter: Option<SearchFilter>,
+        view: &ReadView,
+    ) -> Result<SearchResult, EngineError> {
+        self.search_projected_text_with_limit(
+            query,
+            name,
+            filter,
+            view,
+            DEFAULT_SEARCH_RESULT_LIMIT,
+        )
+    }
+
+    /// Search one declared property-FTS projection with an explicit ranked-result limit.
+    pub fn search_projected_text_with_limit(
+        &self,
+        query: &str,
+        name: &str,
+        filter: Option<SearchFilter>,
+        view: &ReadView,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        let limit = validate_search_result_limit(limit)?;
+        self.ensure_open()?;
+        view.reject_existence_relaxation_on_search()?;
+        if query.trim().is_empty() {
+            return Err(EngineError::WriteValidation);
+        }
+
+        let (response_tx, response_rx) = mpsc::sync_channel(1);
+        let request = ReaderRequest::SearchProjectedText {
+            query: query.to_string(),
+            name: name.to_string(),
+            filter: filter.map(Box::new),
+            limit,
+            view: *view,
+            respond: response_tx,
+        };
+        if self.reader_pool.dispatch(request).is_err() {
+            return Err(EngineError::Closing);
+        }
+        match response_rx.recv().map_err(|_| EngineError::Storage)? {
+            Ok(result) => Ok(result),
+            Err(SearchReaderError::Evidence(error)) => Err(error),
+            Err(SearchReaderError::InvalidFilter(reason)) => {
+                Err(EngineError::InvalidFilter { reason })
+            }
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                Err(EngineError::RerankerDevicePolicy(error))
+            }
+            Err(SearchReaderError::FrozenRead(error)) => Err(EngineError::FrozenRead(error)),
+            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
+                Err(EngineError::VectorEquivalenceMismatch { reason })
+            }
+            Err(SearchReaderError::WriteValidation) => Err(EngineError::WriteValidation),
+            Err(SearchReaderError::InvalidArgument(msg)) => {
+                Err(EngineError::InvalidArgument { msg })
+            }
+            Err(SearchReaderError::Sqlite(err)) => {
+                self.emit_sqlite_internal_error(&err);
+                Err(EngineError::Storage)
+            }
+        }
+    }
+
+    /// 0.8.18 Slice 5 (R-VEQ-6) — degraded-open observability accessor. `true` iff
+    /// the open-time #5 self-check found a vector-equivalence divergence and every
+    /// vector-dependent arm is refusing. Mirrors `OpenReport.dense_disabled`; read
+    /// lock-free.
+    #[must_use]
+    pub fn dense_disabled(&self) -> bool {
+        self.dense_disabled.load(Ordering::Acquire)
+    }
+
+    /// 0.8.18 Slice 5 (R-VEQ-6) — the human-readable reason for the degraded state
+    /// (which representation tripped), or `None` when dense is healthy.
+    #[must_use]
+    pub fn dense_disabled_reason(&self) -> Option<String> {
+        self.dense_disabled_reason.lock().ok().and_then(|g| g.clone())
+    }
+
+    /// 0.8.18 Slice 5 (R-VEQ-6) — telemetry counter: number of query-time
+    /// vector-dependent-arm refusals raised because the engine opened degraded.
+    /// Observable pre/post-query.
+    #[must_use]
+    pub fn vector_equivalence_refusal_count(&self) -> u64 {
+        self.vector_equivalence_refusals.load(Ordering::Relaxed)
+    }
+
+    /// Shared event-wrapped body for [`search_reranked`][Engine::search_reranked]
+    /// (`explain=false`) and [`search_explained`][Engine::search_explained]
+    /// (`explain=true`). Keeps the Started/Finished/Failed lifecycle emissions +
+    /// slow detection in one place.
+    #[allow(clippy::too_many_arguments)] // mirrors search_reranked + the explain flag
+    fn search_reranked_with_explain(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        view: ReadView,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        // fix-2: refuse an existence-relaxing view BEFORE any work (and before the
+        // Started event), so the refusal is a pure argument error rather than a
+        // half-emitted query lifecycle.
+        view.reject_existence_relaxation_on_search()?;
+        self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Search, None);
+        let started = Instant::now();
+        let outcome = self.search_inner(
+            query,
+            filter,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            view,
+            limit,
+        );
+        self.detect_slow(started, lifecycle::EventCategory::Search);
+        match outcome {
+            Ok(mut result) => {
+                self.counters.record_query();
+                self.finalize_search_observability(query, &mut result);
+                self.emit_event(lifecycle::Phase::Finished, lifecycle::EventCategory::Search, None);
+                Ok(result)
+            }
+            Err(err) => {
+                let code = err.stable_code();
+                self.counters.record_error(code);
+                self.emit_event(
+                    lifecycle::Phase::Failed,
+                    lifecycle::EventCategory::Search,
+                    Some(code),
+                );
+                self.emit_event(
+                    lifecycle::Phase::Failed,
+                    lifecycle::EventCategory::Error,
+                    Some(code),
+                );
+                Err(err)
+            }
+        }
+    }
+
+    /// F5 (0.8.14 Slice 10) — the fielded BM25F lexical arm over
+    /// `search_index_v2`. Recalls candidate rows through the FTS5 index
+    /// (`search_index_v2 MATCH`) and scores them with a textbook BM25F using the
+    /// plan's tunable per-field `weights` and tunable `b`/`k1`, returning
+    /// `(write_cursor, score)` in descending score order (write_cursor asc as the
+    /// deterministic tiebreak). Superseded node versions are excluded (join to
+    /// `canonical_nodes WHERE superseded_at IS NULL`).
+    ///
+    /// This is the engine-internal `BM25fQueryPlan` compiler path (`ADR-0.8.1`
+    /// §3.2); there is no public Py/TS SDK surface this release. The score is
+    /// computed in-engine (not via SQLite's `bm25()`, which cannot express a
+    /// tunable `b`); the FTS5 index remains load-bearing for candidate recall.
+    #[doc(hidden)]
+    pub fn bm25f_search(
+        &self,
+        query: &str,
+        plan: &Bm25fQueryPlan,
+    ) -> Result<Vec<(u64, f64)>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        bm25f_search_inner(connection, query, plan).map_err(|_| EngineError::Storage)
+    }
+}

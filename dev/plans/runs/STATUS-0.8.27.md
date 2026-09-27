@@ -59,7 +59,7 @@ There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE
 | 60 | Engine write, ingest, and consolidation | Complete at `d5a5bd39`; six private write-domain modules, full-state write-boundary characterization, and bounded abort-seam carry-over correction. Public/hidden structural surfaces and release probe equal; test inventory additive-only; 127/127 gate and live AC-037 pass. |
 | 70 | Engine projection, embedding, and reranking | Complete at `36fc2352`; ten private modules preserve public paths and runtime shape. Canonical, security, feature-complete, workspace, and artifact gates pass. |
 | 80 | Engine read, search, graph, and evidence | Complete, with historical binding at `8e449963`; private read-domain modules preserve public/hidden surfaces and runtime behavior. Follow-up `9700991f` plus lint-only `31e78529` close the graph-result codec property gap and await independent rereview before the Slice 80 SHA fields are rebound. The live AC-037 re-run at `66e27983` is historical only. |
-| 85 | Engine carrier ownership and dependency-boundary enforcement | Planned and uncommissioned. Settle root reader/telemetry/evidence carrier ownership without field widening, remove three facade-induced cycles, and add a non-vacuous normal-lint dependency-direction gate before Slice 90. |
+| 85 | Engine carrier ownership and dependency-boundary enforcement | Planned and uncommissioned. Give every root-kept reader/telemetry/evidence carrier a non-root semantic owner without field widening or rooted-contract drift, eliminate all four Slice 80 cycles, and add a non-vacuous normal-lint dependency-direction gate before Slice 90. Root retention requires an item-specific reviewed durable exception. |
 
 ## Verification boundary
 
@@ -157,10 +157,11 @@ PASS-WITH-FIXES. Fix-1 `b8af4d86` made two changes, with no behavior change:
   `TelemetrySink` and `EvidenceCapture` at the root;
 - it narrowed six over-visible items.
 
-The records list three facade-induced module cycles and add the Slice 140
-test-seam carry-over. Planning-only Slice 85 owns removal of those three cycles
-and durable carrier placement; Slice 90 consumes the settled boundary. See
-`features/slice-80/design-review.md`.
+The records list four Slice 80 module cycles and add the Slice 140 test-seam
+carry-over. Planning-only Slice 85 owns elimination of all four and non-root
+semantic placement of every root-kept carrier; only the three inherited
+earlier-slice cycles are initially allowlist-eligible. Slice 90 consumes the
+settled boundary. See `features/slice-80/design-review.md`.
 
 Follow-up `9700991f` adds generated coherent result-codec typed round-trip and
 positional evidence-corruption properties. Both killed their specified

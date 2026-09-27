@@ -86,7 +86,7 @@ The draft was written in prework at `a3e6cff6`. The baseline is now
    `bfs_graph_arm_candidates` is generic over search's capture trait and
    uses search result types, not the BFS builders, so it moves to
    `search.rs`. Putting it under `graph_expand` would create a cycle.
-6. **Reader-pool data carriers stay at root.**
+6. **Reader-pool data carriers stayed at root for Slice 80.**
    - **The rule:** PW27-4A forbids field widening.
    - **Why it matters here:** the pool's data carriers
      (`ReaderWorkerPool`, `SearchReaderWork`, the request structs and enum,
@@ -95,8 +95,13 @@ The draft was written in prework at `a3e6cff6`. The baseline is now
    - **What moves:** only the pool's functions move to `reader_pool.rs`.
      That includes the worker loop, whole, with its inline WAL and
      diagnostic arms.
-   - **What Slice 85 gets:** durable carrier ownership without field widening;
-     Slice 90 retains only the runtime decision on extracting the WAL arms.
+   - **What Slice 85 gets:** every root-kept carrier, `TelemetrySink`,
+     `EvidenceCapture`, and `begin_attributed_reader_tx` move to non-root
+     semantic ownership without field widening or rooted-contract drift. Root
+     may remain only through an item-specific reviewed exception proving it is
+     durable and protects a stronger invariant. Slice 85 also eliminates all
+     four Slice 80 cycles. Slice 90 retains only the runtime decision on
+     extracting the WAL arms.
 7. **The draft's original test obligations were mapped to existing owners.**
    These include snapshot authority under concurrent mutation, eligibility
    before every bounded cap, deterministic tie ordering, codec round-trip and

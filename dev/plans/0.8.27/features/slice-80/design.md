@@ -93,13 +93,13 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
   - Among the new modules, `search` never depends on `search_api` or
     `telemetry`. It also uses `temporal`, `dependency_closure`, `evidence`,
     and `frozen_read`.
-  - One module cycle exists today and is kept verbatim as an accepted Slice 85
-    seam: `search` ↔ `graph_expand` (`read_search_in_tx` calls
+  - One handler-level module cycle exists today and is Slice 85 debt:
+    `search` ↔ `graph_expand` (`read_search_in_tx` calls
     `search_expand_on_snapshot`; `graph_expand/execution` calls
     `structural_dependency_state`). No new handler-level cycle may be added.
-  - Three further module-level cycles are facade-induced and handed to
-    Slice 85 for removal (recorded by the post-hoc design review, 2026-09-27;
-    the
+  - Three further module-level cycles are facade-induced and are also handed
+    to Slice 85 for removal (recorded by the post-hoc design review,
+    2026-09-27; the
     earlier claim that `search` ↔ `graph_expand` was the only cycle was
     false):
     - `read` ↔ `reader_pool`: the `read.rs` `impl Engine` facades call
@@ -111,10 +111,12 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     - `graph_expand` ↔ `search_api`: the `search_expand*` facade in
       `traversal.rs` calls `self.search_inner`, and `search_api.rs` names
       `traversal::SearchExpandResult`.
-  - The four cycles above are complete **among Slice 80's modules**. Three
-    further cycles with earlier-slice modules were inherited unchanged from
-    root ↔ module cycles when code left the root; they are recorded here as
-    Slice 85 context, not as new Slice 80 seams:
+  - The four cycles above are complete **among Slice 80's modules**, and all
+    four must be eliminated in Slice 85. Three further cycles with
+    earlier-slice modules were inherited unchanged from root ↔ module cycles
+    when code left the root. Only these three are initially eligible for a
+    narrow explicit Slice 85 allowlist; any other retained cycle requires
+    design review to prove an unavoidable exception:
     - `search` ↔ `dependency_closure`: `dependency_closure.rs` calls
       `crate::prepare_search_statement`, and `search.rs` calls
       `dependency_closure::read_eligibility_sql`.
@@ -134,7 +136,9 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     sidecar types), never on `execution` or `traversal` functions.
     `graph_expand/types` depends on nothing else in `graph_expand`.
   - The reader carriers kept at root are a temporary Slice 85 seam, not a
-    destination.
+    destination. Slice 85 assigns every one a non-root semantic owner unless
+    an item-specific design review proves root is durable and moving it would
+    violate a stronger invariant.
 - **Public items:** each moved public item gets a root `pub use` with the
   same `cfg`.
 - **Seam table:** `tdd-chronology.md` records every visibility change. The
@@ -159,7 +163,7 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
 | `search_api.rs` | `impl Engine`: `freeze_read_context`, `validate_frozen_read_context_for_binding`, `search_frozen`, `search_with_evidence`, `resolve_evidence`, `resolve_graph_evidence`, `search_expand_frozen`, `tc5_vector_stage`, the `search*` variants (`search` through `search_projected_text_with_limit`), `dense_disabled`, `dense_disabled_reason`, `vector_equivalence_refusal_count`, `search_reranked_with_explain`, `search_inner`, `search_inner_with_stats`, `search_inner_with_frozen_binding_and_stats`, `search_inner_with_frozen_binding_and_expansion`, `bm25f_search` |
 | `telemetry.rs` | `append_jsonl`, `branch_str` (both used only by telemetry); `impl Engine`: `enable_telemetry`, `last_telemetry_query_id`, `capture_telemetry`, `finalize_search_observability`, `mint_explanation_correlation_id`, `capture_telemetry_with_sink`, `record_feedback` |
 | `read.rs` | `NodeRecord`, `OpStoreRow`, `OperationalStateRecordV1`, `READ_COLLECTION_MAX_LIMIT`, `read_get_by_id_in_tx`, `read_collection_in_tx`, `read_list_in_tx`, `read_canonical_page_in_tx`, `read_canonical_page_baseline_in_tx`, `query_canonical_page_rows`, `canonical_page_query`, `OPERATIONAL_STATE_POINT_SQL`, `OPERATIONAL_STATE_PAGE_SQL`, `read_operational_state_in_tx`, `read_operational_state_page_in_tx`, `validate_operational_context`, `validate_operational_collection`, `page_search_error`; `impl Engine`: `read_get`, `read_get_many`, `read_collection`, `read_mutations`, `read_collection_dispatch`, `read_list`, `read_list_filter`, `read_canonical_page`, `read_operational_state`, `read_operational_state_page`, `receive_page_result` |
-| `reader_pool.rs` | **Functions only:** `impl ReaderWorkerPool` (including `Drop`), `reader_worker_loop` (moved whole, including its inline WAL and diagnostic match arms: `HoldWalSnapshot*`, `LookasideStatus`, `CacheStatus`, `SecureDeleteStatus`, and `Wal*Inventory`, with their snapshot-hold behavior verbatim), `finish_reader_request`, `read_lookaside_used_hiwtr`, `read_cache_status`. The pool's two `*_for_test` methods (`wal_connection_inventory_for_test` and `wal_native_state_inventory_for_test`) move with the impl, because they are pool methods, not `Engine` seams. Slice 140's inventory must include them. **Kept at root** as shared infrastructure and data carriers: the private `begin_attributed_reader_tx` primitive; `ReaderWorkerPool` (struct and `Debug`), `SearchReaderWork`, every `*ReaderRequest` struct, `ReaderRequest`, `FrozenQueryRuntime`, the response aliases, `SearchReaderError`, `PageReaderError` (and their `From` impls), `CacheStatusReply`, the `READER_*` constants, and the `Reader*Pause` aliases (used only by the root `WalAttributionCollector`). The carrier fields are built at root, in `graph_expand`, and in the WAL seams (`self.reader_pool.senders[0]`). Slice 85 owns durable carrier and transaction-primitive placement without field widening; Slice 90 consumes that settled boundary and owns only runtime/WAL extraction decisions. |
+| `reader_pool.rs` | **Functions only:** `impl ReaderWorkerPool` (including `Drop`), `reader_worker_loop` (moved whole, including its inline WAL and diagnostic match arms: `HoldWalSnapshot*`, `LookasideStatus`, `CacheStatus`, `SecureDeleteStatus`, and `Wal*Inventory`, with their snapshot-hold behavior verbatim), `finish_reader_request`, `read_lookaside_used_hiwtr`, `read_cache_status`. The pool's two `*_for_test` methods (`wal_connection_inventory_for_test` and `wal_native_state_inventory_for_test`) move with the impl, because they are pool methods, not `Engine` seams. Slice 140's inventory must include them. **Kept at root during Slice 80** as shared infrastructure and data carriers: the private `begin_attributed_reader_tx` primitive; `ReaderWorkerPool` (struct and `Debug`), `SearchReaderWork`, every `*ReaderRequest` struct, `ReaderRequest`, `FrozenQueryRuntime`, the response aliases, `SearchReaderError`, `PageReaderError` (and their `From` impls), `CacheStatusReply`, the `READER_*` constants, and the `Reader*Pause` aliases (used only by the root `WalAttributionCollector`). The carrier fields are built at root, in `graph_expand`, and in the WAL seams (`self.reader_pool.senders[0]`). Slice 85 must give each item a non-root semantic owner without field widening or rooted-contract drift, unless design review proves an item-specific durable root exception. Slice 90 consumes that settled boundary and owns only runtime/WAL extraction decisions. |
 | `graph_expand/` | Replaces `graph_expand.rs`. `mod.rs` holds declarations and re-exports that keep every `crate::graph_expand::X` path, including `read_graph_expand_in_tx` and `GraphExpandReaderControlsForTest`. The submodules are listed in the next four rows. |
 | `graph_expand/types.rs` | Current lines 24-25 (`SCHEMA_VERSION`) and 90-378, plus `TraversalDirection` from `lib.rs` (a value type used by the request types and the codec; its root `pub use` keeps the public path). `SCHEMA_VERSION` becomes `pub(super)`. |
 | `graph_expand/codec.rs` | Current lines 1922-3470, plus `is_false` (lines 26-28). |
@@ -169,12 +173,14 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
 ### Stays at root
 
 - **Slice 85 boundary handoff:**
-  - the reader data carriers listed under `reader_pool.rs`;
-  - the `TelemetrySink` and `EvidenceCapture` carriers, kept at root so their
-    private fields do not widen (post-hoc design review, 2026-09-27);
-  - the shared private `begin_attributed_reader_tx` primitive; and
-  - the exact dependency graph, including removal of the three facade-induced
-    cycles above and an enforceable allowlist for anything retained.
+  - non-root semantic ownership for every reader data carrier listed under
+    `reader_pool.rs`, `TelemetrySink`, `EvidenceCapture`, and
+    `begin_attributed_reader_tx`, preserving private fields and rooted public
+    or re-export contracts; an item may stay root-owned only through a reviewed
+    durable exception tied to a stronger invariant;
+  - the exact dependency graph, including removal of all four Slice 80 cycles;
+    only the three inherited earlier-slice cycles above are initially eligible
+    for a narrow allowlist.
 - **Slice 90 runtime handoff:**
   - the open, runtime, WAL, and operator facade, including
     `mint_explanation_open_nonce` and its nonce `static`;
@@ -530,9 +536,10 @@ batch that moves the named item:
   - The worker loop moves whole, including its inline WAL and diagnostic
     arms, so WAL snapshot-hold behavior now lives in `reader_pool.rs`.
   - The data carriers stay at root, and no field widens.
-  - Carrier ownership and cycle removal are handed to Slice 85 without field
-    widening. Slice 90 consumes that boundary and decides only whether to
-    extract the runtime-owned WAL arms.
+  - Non-root carrier ownership and elimination of all four Slice 80 cycles are
+    handed to Slice 85 without field widening or rooted-contract drift. Slice
+    90 consumes that boundary and decides only whether to extract the
+    runtime-owned WAL arms.
 - **`read_search_in_tx` size.** At about 1,110 lines in one function, the
   batch is a single contiguous cut. It must not be refactored.
 - **The graph file split.** `git mv` preserves history for `execution.rs`.

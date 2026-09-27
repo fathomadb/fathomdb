@@ -87,12 +87,15 @@ carrier; test behavior and production remain unchanged.
 Planning-only Slice 85 owns the carrier and dependency boundary work recorded
 in the master plan and `design.md`:
 
-- root reader data carriers and their private fields;
-- the shared root-private `begin_attributed_reader_tx` primitive;
-- the root `TelemetrySink` and `EvidenceCapture` carriers; and
-- removal of the three facade-induced cycles (`read` ↔ `reader_pool`,
-  `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`) plus an
-  enforceable exact or allowlisted remaining dependency graph.
+- move every root reader carrier, `begin_attributed_reader_tx`,
+  `TelemetrySink`, and `EvidenceCapture` to non-root semantic ownership while
+  preserving private fields and rooted contracts; root ownership requires an
+  item-specific reviewed durable exception tied to a stronger invariant;
+- eliminate all four Slice 80 cycles: `search` ↔ `graph_expand`,
+  `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and
+  `graph_expand` ↔ `search_api`; and
+- enforce the exact dependency graph. Only the three inherited earlier-slice
+  cycles named in `design.md` are initially eligible for a narrow allowlist.
 
 Slice 90 consumes those settled boundaries, then owns the runtime facade,
 reader-loop WAL/diagnostic arms, reader open-path helpers, remaining

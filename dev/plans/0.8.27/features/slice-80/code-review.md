@@ -18,7 +18,7 @@ behavioral change.
 
 | # | Severity | Finding | Resolution |
 | --- | --- | --- | --- |
-| 1 | P2 | Moving `begin_attributed_reader_tx` into `reader_pool` created unapproved `read` ↔ `reader_pool` and `graph_expand` ↔ `reader_pool` cycles: handlers called the pool-owned helper while the pool dispatched to those handlers. | Moved the helper body unchanged back to the crate root and restored private visibility. `reader_pool` now depends on the read, search, and graph handlers; those handlers depend only on the root primitive. The only retained module cycle is the approved `search` ↔ `graph_expand` seam. The plan and design inventory now say so explicitly. |
+| 1 | P2 | Moving `begin_attributed_reader_tx` into `reader_pool` created unapproved `read` ↔ `reader_pool` and `graph_expand` ↔ `reader_pool` cycles: handlers called the pool-owned helper while the pool dispatched to those handlers. | **Historical resolution at review time; corrected below.** Moved the helper body unchanged back to the crate root and restored private visibility. `reader_pool` now depends on the read, search, and graph handlers; those handlers depend only on the root primitive. The review then claimed the only retained module cycle was `search` ↔ `graph_expand`; the post-hoc correction below records why that claim was false. |
 | 2 | P2 | Several helpers and graph-module aliases were widened to `pub(crate)` even though their users did not require crate-wide visibility. | Same-file search and filter helpers are private. `SCHEMA_VERSION` and `graph_expansion_degradation_codes` are `pub(super)` and their implementation helper is private. The graph directory aliases used only by the crate root are `pub(super)`; type aliases used only inside the directory are private. The root graph-handler import is private. |
 
 The execution and traversal definitions re-exported to the crate root remain
@@ -56,8 +56,10 @@ item beyond the item's own visibility. Their `graph_expand/mod.rs` aliases are
 > `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and
 > `graph_expand` ↔ `search_api`. So `search` ↔ `graph_expand` is not the only
 > retained module cycle. `design.md` now states the invariant at
-> facade-vs-handler granularity and hands the three facade cycles to Slice 90
-> as accepted seams.
+> facade-vs-handler granularity. The earlier Slice 90 allocation is superseded:
+> Slice 85 must eliminate all four cycles, including
+> `search` ↔ `graph_expand`. Only the three inherited earlier-slice cycles
+> named in `design.md` are initially eligible for narrow allowlisting.
 >
 > The finding 2 closure was also incomplete. Six items stayed wider than
 > their users required, and four struct fields had widened

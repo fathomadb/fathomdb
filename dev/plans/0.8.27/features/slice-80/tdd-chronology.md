@@ -226,8 +226,12 @@ closes both:
 1. The `begin_attributed_reader_tx` body moved unchanged from `reader_pool.rs`
    back to root-private ownership. The pool dispatches to read, search, and graph
    handlers; those handlers now depend on the root primitive rather than back
-   on the pool. This removes the unapproved `read` ↔ `reader_pool` and
-   `graph_expand` ↔ `reader_pool` cycles.
+   on the pool for transaction creation. The original review-fix record called
+   this removal of the `read` ↔ `reader_pool` and
+   `graph_expand` ↔ `reader_pool` module cycles. That was false at module
+   granularity: the colocated `impl Engine` facades still dispatch through the
+   pool, so both cycles remain. Together with `search` ↔ `graph_expand` and
+   `graph_expand` ↔ `search_api`, all four are Slice 85 elimination debt.
 2. Same-file search and filter helpers became private. Graph type seams and
    parent-only aliases narrowed to `pub(super)` or private. An attempted
    `pub(super)` visibility on the underlying execution/traversal definitions

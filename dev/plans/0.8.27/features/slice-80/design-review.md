@@ -15,7 +15,7 @@ model identity that was not captured with that review.
 
 | # | Severity | Finding | Resolution |
 | --- | --- | --- | --- |
-| 1 | P1 | Moving the reader-pool data carriers would widen dozens of private fields, which PW27-4A forbids. They are built at root, in `graph_expand`, and in Slice 90's WAL seams. | Only the pool's functions move. The carriers stay at root, where a child module can read their private fields. The carriers go to Slice 90. |
+| 1 | P1 | Moving the reader-pool data carriers would widen dozens of private fields, which PW27-4A forbids. They are built at root, in `graph_expand`, and in Slice 90's WAL seams. | **Historical cycle-1 resolution; superseded by the planning FIX-1 below.** Only the pool's functions move. The carriers stay at root, where a child module can read their private fields. They were then allocated to Slice 90. |
 | 2 | P2 | The Windows WAL guard reads `WalConnectionInventory` and the reader-completion pause needle, which move. | Retarget through an injectable `READER_POOL_SOURCE`, following the `36fc2352` precedent, with fixtures injecting it. |
 | 3 | P2 | `plan-0.8.20.md` also cites `pub fn search_filtered` in `lib.rs`. | Retargeted in batch 9. |
 | 4 | P2 | C1 self-test arms 12p and 12w edit `SearchHit` in `lib.rs`. | Pointed at `search_types.rs` in batch 4. |
@@ -114,8 +114,8 @@ production `bb077cfa`.
 
 | # | Severity | Finding | Resolution |
 | --- | --- | --- | --- |
-| 1 | P1 | Four struct fields widened to `pub(crate)`, violating PW27-4A: `TelemetrySink.path` and the three `EvidenceCapture` fields. The records claimed no widening. | **Fixed** in `b8af4d86`. Both struct definitions returned unchanged to the crate root with private fields, following the carriers-stay-at-root rule. `tdd-chronology.md`, `design.md`, and the Slice 90 section of the master plan are corrected. |
-| 2 | P2 | The dependency invariant is false at module level. Beyond `search` ↔ `graph_expand`, the design's facade placement closes three cycles: `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`. | **Records corrected; no code moved.** `design.md` restates the invariant at facade-vs-handler granularity and lists the three cycles as accepted seams handed to Slice 90. `code-review.md` gets a post-hoc correction note, and the master plan's "sole approved cycle" bullet is corrected. |
+| 1 | P1 | Four struct fields widened to `pub(crate)`, violating PW27-4A: `TelemetrySink.path` and the three `EvidenceCapture` fields. The records claimed no widening. | **Historical fix-1 resolution; its later-slice allocation is superseded below.** Fixed in `b8af4d86`: both struct definitions returned unchanged to crate root with private fields, following the carriers-stay-at-root rule. `tdd-chronology.md`, `design.md`, and the Slice 90 section of the master plan were corrected. |
+| 2 | P2 | The dependency invariant is false at module level. Beyond `search` ↔ `graph_expand`, the design's facade placement closes three cycles: `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`. | **Historical resolution; superseded by the owner directive below.** Records were corrected without moving code: `design.md` restated the facade-vs-handler invariant and handed three accepted seams to Slice 90; `code-review.md` received a correction note. |
 | 3 | P2 | The Slice 140 handoff for relocated test seams was missing from the master plan. | **Fixed.** Slice 140 now has a "Carried from Slice 80" block that names each relocated seam and its file. |
 | 4 | P2 | Live AC-037 evidence was not recorded per the runbook: no pass lines, no grant, and no revert. The host is restricted today. | **Recorded as unevidenced.** No captured run output was found. `review-verification.md` and `status.md` now mark the live AC-037 layer at the candidate as UNEVIDENCED, which does not count as a pass. A re-run needs a HITL grant through the runbook. The runbook History records this. |
 | 5 | P3 | The WAL guard retarget bundled lib.rs-only needles into a check on `READER_POOL_SOURCE`, and `assert_contains` checked only its first needle. | **Fixed** in `b8af4d86`. The needles are split, and `assert_contains` checks every needle. One latent vacuous needle in the PyO3 check is corrected. The fixture passes 314/314. |
@@ -139,6 +139,20 @@ in FIX-2 without another cycle:
 | --- | --- | --- | --- |
 | N1 | P3 | `tdd-chronology.md` still claimed live AC-037 passed. | Qualified as UNEVIDENCED. |
 | N2 | P3 | The `STATUS-0.8.27.md` Slice 80 row was unqualified. | Qualified as UNEVIDENCED. |
-| N3 | P3 | The cycle list read as global; three inherited cycles with earlier-slice modules were unrecorded. | Scoped to Slice 80 modules; the inherited cycles are recorded as Slice 90 context in `design.md` and the master plan. |
+| N3 | P3 | The cycle list read as global; three inherited cycles with earlier-slice modules were unrecorded. | **Historical resolution; allocation superseded below.** The list was scoped to Slice 80 modules, and the inherited cycles were recorded as Slice 90 context. |
 
-The design review is closed.
+The Slice 80 implementation design review is closed.
+
+## Slice 85 planning FIX-1 (2026-09-27) — pending rereview
+
+The independent review of the planning-only Slice 85 insertion found two
+architectural defects. FIX-1 corrects the plan and all current allocations;
+the original Slice 80 finding text above remains historical evidence.
+
+| # | Severity | Finding | FIX-1 disposition |
+| --- | --- | --- | --- |
+| 1 | P1 | R27-85A allowed carriers to remain indefinitely at crate root and therefore did not establish semantic ownership. | Every root-kept reader carrier, `TelemetrySink`, `EvidenceCapture`, and `begin_attributed_reader_tx` must receive non-root semantic ownership with private fields and rooted contracts preserved. Root retention requires an item-specific reviewed exception proving it is durable and protects a stronger invariant. |
+| 2 | P1 | The plan treated `search` ↔ `graph_expand` as accepted while requiring only the other three Slice 80 cycles to be removed. | Slice 85 must eliminate all four Slice 80 cycles. Only the three named inherited earlier-slice cycles are initially eligible for a narrow allowlist; any other retained cycle requires design review to prove it unavoidable. |
+
+This FIX-1 does not rebind the authoritative Slice 80 SHA or claim a Slice 85
+design-review pass. Independent rereview is required.

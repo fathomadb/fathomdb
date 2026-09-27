@@ -646,3 +646,459 @@ impl std::ops::DerefMut for SearchStatement<'_> {
         &mut self.statement
     }
 }
+
+/// R3 (Slice 30) + C1 (0.8.1 graph-arm seeding) — graph-arm BFS candidate generation.
+///
+/// **C1 seeding (the BLOCK-1 fix):** the frontier is seeded from the graph's OWN
+/// query-matched text surfaces — NOT from doc-node hits (doc nodes carry
+/// `logical_id = NULL`, so the old doc-seeding produced an empty frontier). Two
+/// seed sources are unioned on `match_expression` (the compiled FTS query):
+///   A. **edge-fact FTS** (`search_index_edges`) — both endpoints (`from_id`,
+///      `to_id`) of matched, temporally-live, non-fallback edges;
+///   B. **entity-node FTS** (`search_index` ⋈ `canonical_nodes`) — matched nodes
+///      with `logical_id IS NOT NULL` (excludes doc nodes — the bug surface).
+/// Each distinct candidate `logical_id` is counted in `seeds_considered`; those
+/// confirmed active in `canonical_nodes` are `seeds_resolved` and pushed onto the
+/// frontier (dangling edge endpoints count considered-but-unresolved).
+///
+/// Phase 2 is unchanged: BFS over `canonical_edges` with the temporal filter,
+/// carrying each traversed edge's `source_id` (G0 BLOCK-2) onto the emitted hit.
+/// Collects reachable node bodies (up to `cap`) as [`SearchHit`]s tagged
+/// `SoftFallbackBranch::GraphArm`. Score = `1.0 / (1.0 + hop_count)` with a
+/// synthesized-node penalty (`kind = 'unknown'` → score *= 0.3). Bodies already
+/// present in `fused_hits` are excluded (already covered by the two-arm result).
+///
+/// **F9 (0.8.16 Slice 5) confidence carry:** the third tuple element maps each
+/// emitted graph-arm hit's `write_cursor` (its `SearchHit.id`, a NODE cursor) to
+/// the `confidence` of the EDGE traversed to reach that node — the input the F9
+/// reweight (`graph_rrf_score(edge) = confidence × 1/(K+bfs_rank)`) consumes.
+/// `build_importance_confidence_maps` keys edge confidence on the EDGE
+/// `write_cursor`, which never equals a reached node's cursor, so without this
+/// carry edge confidence never reaches a graph-arm hit. **Determinism rule (matches
+/// the BLOCK-2 provenance carry):** when several edges reach the same node, the
+/// FIRST edge to claim the node in the `visited` dedup wins — i.e. the edge that
+/// produced the node's winning `bfs_rank` (seeds are considered before Phase-2
+/// neighbors; within a phase, `ORDER BY write_cursor` makes the earliest-written
+/// edge win). A NULL edge confidence is simply not inserted ⇒ neutral (1.0).
+#[allow(clippy::too_many_arguments)] // Shared graph capture preserves the zero-cost default path.
+pub(crate) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
+    tx: &Connection,
+    fused_hits: &[SearchHit],
+    match_expression: &str,
+    max_depth: u32,
+    cap: usize,
+    view: FrozenView,
+    filter: Option<&SearchFilter>,
+    capture: &mut C,
+) -> rusqlite::Result<(Vec<SearchHit>, GraphFrontierStats, HashMap<u64, f64>)> {
+    // fix-2 (codex §9 [P2]): the opt-in graph arm hydrates NODES too, so it takes
+    // the same validity conjunct as the vector and FTS branches — otherwise
+    // `search_reranked(.., use_graph_arm = true)` would keep the exact leak the
+    // other two branches just closed. Same generator, same bound `:now`.
+    //
+    // fix-3 (F2): the instant arrives ALREADY RESOLVED in the `FrozenView` — it
+    // is the identical value the vector and FTS arms bound. This arm cannot
+    // re-read the clock: a `FrozenView` carries no route to one.
+    let now_param = view.now_param();
+    // C1 — seed-FTS fan-out cap per source (A: edge endpoints, B: entity nodes).
+    const SEED_FTS_N: usize = 10;
+    const SYNTHESIZED_PENALTY: f64 = 0.3;
+
+    // Bodies already in the fused result — exclude these from graph arm output.
+    let seed_bodies: std::collections::HashSet<&str> =
+        fused_hits.iter().map(|h| h.body.as_str()).collect();
+
+    let mut frontier: VecDeque<(String, u32)> = VecDeque::new(); // (logical_id, depth)
+    let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut candidates: Vec<SearchHit> = Vec::new();
+    // F9 (0.8.16 Slice 5) — per-hit traversing-edge confidence, keyed by the
+    // emitted hit's NODE `write_cursor`. First edge to reach a node wins (visited
+    // dedup); NULL confidence is never inserted (⇒ neutral in the reweight).
+    let mut edge_confidence_by_cursor: HashMap<u64, f64> = HashMap::new();
+    // G0 Phase-2 (BLOCK-1) frontier meter — distinct seed candidates considered vs
+    // resolved-active; `resolved_seed_rate` flips 0→>0 once entities/edge-facts seed.
+    let mut stats = GraphFrontierStats::default();
+    {
+        // C1 seeding — gather distinct candidate (logical_id, provenance source_id)
+        // pairs from the graph's OWN query-matched FTS surfaces (NOT doc-node hits).
+        // Order-preserving dedup (first provenance wins) so `seeds_considered` counts
+        // each candidate once. `source_id` is the session the seed traces back to: the
+        // matched edge's `source_id` (source A) or the entity node's own (source B).
+        // F9: each seed carries the confidence of the edge that surfaced it
+        // (`None` for entity-FTS seeds, which have no traversing edge).
+        let mut candidate_seeds: Vec<(String, Option<String>, Option<f64>, CapturedGraphOrigin)> =
+            Vec::new();
+        let mut seen_candidates: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        let push_candidate = |lid: String,
+                              source_id: Option<String>,
+                              confidence: Option<f64>,
+                              origin: CapturedGraphOrigin,
+                              seen: &mut std::collections::HashSet<String>,
+                              out: &mut Vec<(
+            String,
+            Option<String>,
+            Option<f64>,
+            CapturedGraphOrigin,
+        )>| {
+            if seen.insert(lid.clone()) {
+                out.push((lid, source_id, confidence, origin));
+            }
+        };
+
+        // Seed source A — edge-fact endpoints (primary). Both endpoints of each
+        // matched, temporally-live, non-fallback edge are candidate seeds, tagged with
+        // the edge's `source_id` provenance and (F9) `confidence`. `search_index_edges`
+        // may be absent on very old DBs (< step-14) — degrade to no edge seeds rather
+        // than error.
+        // TC-33: `?1` MATCH, `?2` LIMIT ⇒ the edge `:now` binds at `?3`.
+        let mut edge_seed_params: Vec<rusqlite::types::Value> = vec![
+            rusqlite::types::Value::Text(match_expression.to_string()),
+            rusqlite::types::Value::Integer(SEED_FTS_N as i64),
+            rusqlite::types::Value::Integer(view.edge_now()),
+        ];
+        let endpoint_now_index = 4;
+        if let Some(now) = now_param {
+            edge_seed_params.push(rusqlite::types::Value::Integer(now));
+        }
+        let from_filter = append_node_eligibility_sql(filter, "ef", &mut edge_seed_params);
+        let to_filter = append_node_eligibility_sql(filter, "et", &mut edge_seed_params);
+        let from_validity = view.validity_sql("ef", endpoint_now_index);
+        let to_validity = view.validity_sql("et", endpoint_now_index);
+        let from_dependency = dependency_closure::read_eligibility_sql(
+            "ef",
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            endpoint_now_index,
+        );
+        let to_dependency = dependency_closure::read_eligibility_sql(
+            "et",
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            endpoint_now_index,
+        );
+        if let Ok(mut edge_seed_stmt) = tx.prepare(&format!(
+            "SELECT ce.from_id, ce.to_id, ce.source_id, ce.confidence, ce.write_cursor \
+             FROM search_index_edges sei \
+             JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
+             WHERE search_index_edges MATCH ?1 \
+               AND ce.superseded_at IS NULL{} \
+               AND (ce.temporal_fallback IS NULL OR ce.temporal_fallback = 0) \
+               AND (EXISTS(SELECT 1 FROM canonical_nodes ef WHERE ef.logical_id=ce.from_id \
+                    AND ef.superseded_at IS NULL AND ef.state='active'\
+                    {from_validity}{from_dependency}{from_filter}) \
+                 OR EXISTS(SELECT 1 FROM canonical_nodes et WHERE et.logical_id=ce.to_id \
+                    AND et.superseded_at IS NULL AND et.state='active'\
+                    {to_validity}{to_dependency}{to_filter})) \
+             ORDER BY bm25(search_index_edges), sei.write_cursor \
+             LIMIT ?2",
+            edge_validity_sql_for_view("ce", 3, &view.view)
+        )) {
+            let rows = edge_seed_stmt.query_map(
+                rusqlite::params_from_iter(edge_seed_params.iter()),
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, Option<f64>>(3)?,
+                        row.get::<_, i64>(4)?,
+                    ))
+                },
+            )?;
+            for quintuple in rows {
+                let (from_id, to_id, source_id, confidence, edge_cursor) = quintuple?;
+                push_candidate(
+                    from_id,
+                    source_id.clone(),
+                    confidence,
+                    CapturedGraphOrigin::EdgeSeed { edge_cursor: edge_cursor as u64 },
+                    &mut seen_candidates,
+                    &mut candidate_seeds,
+                );
+                push_candidate(
+                    to_id,
+                    source_id,
+                    confidence,
+                    CapturedGraphOrigin::EdgeSeed { edge_cursor: edge_cursor as u64 },
+                    &mut seen_candidates,
+                    &mut candidate_seeds,
+                );
+            }
+        }
+
+        // Seed source B — entity-node FTS (isolated / strongly-named entities).
+        // `logical_id IS NOT NULL` structurally excludes doc nodes (the bug surface).
+        // Provenance = the node's own `source_id` (the session it was extracted from).
+        {
+            // `?1` MATCH, `?2` LIMIT ⇒ `:now` binds at `?3`.
+            let seed_validity = view.validity_sql("cn", 3);
+            let seed_eligibility = dependency_closure::read_eligibility_sql(
+                "cn",
+                view.view.include_superseded,
+                view.view.include_inactive,
+                view.view.include_out_of_window,
+                3,
+            );
+            let mut seed_params: Vec<rusqlite::types::Value> = vec![
+                rusqlite::types::Value::Text(match_expression.to_string()),
+                rusqlite::types::Value::Integer(SEED_FTS_N as i64),
+            ];
+            if let Some(now) = now_param {
+                seed_params.push(rusqlite::types::Value::Integer(now));
+            }
+            let seed_filter = append_node_eligibility_sql(filter, "cn", &mut seed_params);
+            let mut node_seed_stmt = tx.prepare(&format!(
+                "SELECT cn.logical_id, cn.source_id \
+                 FROM search_index si \
+                 JOIN canonical_nodes cn ON cn.write_cursor = si.write_cursor \
+                 WHERE search_index MATCH ?1 \
+                   AND cn.superseded_at IS NULL \
+                   AND cn.state = 'active' \
+                   AND cn.logical_id IS NOT NULL\
+                   {seed_validity}{seed_eligibility}{seed_filter} \
+                 ORDER BY bm25(search_index), si.write_cursor \
+                 LIMIT ?2"
+            ))?;
+            let rows = node_seed_stmt
+                .query_map(rusqlite::params_from_iter(seed_params.iter()), |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+                })?;
+            for pair in rows {
+                let (lid, source_id) = pair?;
+                // Entity-FTS seed: no traversing edge ⇒ no edge confidence (neutral).
+                push_candidate(
+                    lid,
+                    source_id,
+                    None,
+                    CapturedGraphOrigin::EntitySeed,
+                    &mut seen_candidates,
+                    &mut candidate_seeds,
+                );
+            }
+        }
+
+        // Resolve + emit: a seed is `resolved` only if an ACTIVE canonical_node carries
+        // that logical_id (dangling edge endpoints count considered-not-resolved). A
+        // resolved seed is BOTH a BFS root AND emitted as a graph-arm candidate (depth
+        // 0, hop_score 1.0) — so an edge-only query match surfaces the connected ENTITY
+        // nodes, not just the fact body (codex §9 [P2]). Seeds whose body is already in
+        // the two-arm result are skipped; the cap is respected.
+        let active_validity = view.validity_sql("canonical_nodes", 2);
+        let active_eligibility = dependency_closure::read_eligibility_sql(
+            "canonical_nodes",
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            2,
+        );
+        let mut active_params_template = vec![rusqlite::types::Value::Text(String::new())];
+        if let Some(now) = now_param {
+            active_params_template.push(rusqlite::types::Value::Integer(now));
+        }
+        let active_filter =
+            append_node_eligibility_sql(filter, "canonical_nodes", &mut active_params_template);
+        let mut active_stmt = tx.prepare(&format!(
+            "SELECT kind, body, write_cursor FROM canonical_nodes \
+             WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
+             {active_validity}{active_eligibility}{active_filter} LIMIT 1"
+        ))?;
+        for (lid, source_id, seed_confidence, graph_origin) in candidate_seeds {
+            stats.seeds_considered += 1;
+            let mut active_params = active_params_template.clone();
+            active_params[0] = rusqlite::types::Value::Text(lid.clone());
+            let row: Option<(String, String, i64)> = active_stmt
+                .query_row(rusqlite::params_from_iter(active_params.iter()), |r| {
+                    Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)?))
+                })
+                .optional()?;
+            if let Some((kind, body, write_cursor)) = row {
+                stats.seeds_resolved += 1;
+                if visited.insert(lid.clone()) {
+                    // Cause-A: the seed's `logical_id` is in hand (`lid`) — derive the
+                    // stable id before `lid` is moved onto the frontier (zero extra query).
+                    let id = derive_stable_id(Some(&lid), &body);
+                    frontier.push_back((lid, 0));
+                    if !seed_bodies.contains(body.as_str()) && candidates.len() < cap {
+                        // depth-0 hop_score = 1.0/(1.0+0) = 1.0; synthesized penalty for
+                        // 'unknown' kind (mirrors the Phase-2 neighbor scoring).
+                        let score = if kind == "unknown" { SYNTHESIZED_PENALTY } else { 1.0 };
+                        // F9: an edge-seeded endpoint carries its seeding edge's
+                        // confidence (source A); entity-FTS seeds carry None.
+                        if let Some(c) = seed_confidence {
+                            edge_confidence_by_cursor.insert(write_cursor as u64, c);
+                        }
+                        capture.record_graph_origin(write_cursor as u64, graph_origin);
+                        candidates.push(SearchHit {
+                            id,
+                            write_cursor: write_cursor as u64,
+                            kind,
+                            body,
+                            score,
+                            branch: SoftFallbackBranch::GraphArm,
+                            source_id,
+                            ce_score: None,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    stats.frontier_nonempty = !frontier.is_empty();
+
+    // Phase 2: BFS over canonical_edges (temporal filter). `candidates` already
+    // holds the depth-0 emitted seeds; BFS appends the reachable neighbors.
+    // Both statements are prepared ONCE outside the loops — re-preparing inside
+    // would issue O(frontier_size × neighbors) sqlite3_prepare_v2 calls.
+    let target_node = view.node_sql("target", 3);
+    let mut edge_params_template = vec![
+        rusqlite::types::Value::Text(String::new()),
+        rusqlite::types::Value::Integer(view.edge_now()),
+    ];
+    if let Some(now) = now_param {
+        edge_params_template.push(rusqlite::types::Value::Integer(now));
+    }
+    let target_filter = append_node_eligibility_sql(filter, "target", &mut edge_params_template);
+    let mut edge_stmt = tx.prepare(
+        // G0 Phase-2 (BLOCK-2): carry the traversed edge's `source_id` so a
+        // graph-reached neighbor can resolve back to the session it was extracted
+        // from. `ORDER BY e.write_cursor` makes the traversal deterministic: when
+        // several active edges connect this node to the SAME neighbor with
+        // different `source_id`s, the earliest-written edge wins the `visited`
+        // dedup, so the carried provenance is stable (not SQLite-order-dependent).
+        // (codex §9 [P2]; the design §B already rejected the memo's arbitrary
+        // `LIMIT 1` lookup for the same reason.)
+        // F9: also carry the traversed edge's `confidence` — the reweight input for
+        // the reached node (keyed downstream by the node's `write_cursor`). Same
+        // determinism as `source_id`: the earliest-written edge wins the `visited`
+        // dedup, so the reached node's confidence is the winning-`bfs_rank` edge's.
+        // TC-33: `?1` is the anchor logical_id ⇒ the edge `:now` binds at `?2`.
+        &format!(
+            "SELECT e.from_id, e.to_id, e.source_id, e.confidence, e.write_cursor \
+             FROM canonical_edges e \
+             JOIN canonical_nodes target ON target.logical_id = \
+               CASE WHEN e.from_id = ?1 THEN e.to_id ELSE e.from_id END \
+             WHERE (e.from_id = ?1 OR e.to_id = ?1) \
+               AND e.superseded_at IS NULL{} \
+               AND (e.temporal_fallback IS NULL OR e.temporal_fallback = 0) \
+               {target_node}{target_filter} \
+             ORDER BY e.write_cursor \
+             LIMIT 64",
+            edge_validity_sql_for_view("e", 2, &view.view)
+        ),
+    )?;
+    // Fetch write_cursor alongside kind+body so graph-arm hits carry a real id
+    // for apply_recency_reweight (id=0 would force min_id=0 and distort span).
+    let body_validity = view.validity_sql("canonical_nodes", 2);
+    let body_eligibility = dependency_closure::read_eligibility_sql(
+        "canonical_nodes",
+        view.view.include_superseded,
+        view.view.include_inactive,
+        view.view.include_out_of_window,
+        2,
+    );
+    let mut body_params_template = vec![rusqlite::types::Value::Text(String::new())];
+    if let Some(now) = now_param {
+        body_params_template.push(rusqlite::types::Value::Integer(now));
+    }
+    let body_filter =
+        append_node_eligibility_sql(filter, "canonical_nodes", &mut body_params_template);
+    let mut body_stmt = tx.prepare(&format!(
+        "SELECT kind, body, write_cursor FROM canonical_nodes \
+         WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
+         {body_validity}{body_eligibility}{body_filter} \
+         LIMIT 1"
+    ))?;
+
+    'frontier: while let Some((lid, depth)) = frontier.pop_front() {
+        if depth >= max_depth {
+            continue;
+        }
+
+        // Fetch temporal-live neighbors via edges, each paired with the
+        // traversing edge's `source_id` (BLOCK-2 provenance carry) and (F9)
+        // `confidence` (the reweight input for the reached node).
+        let neighbors: Vec<(String, Option<String>, Option<f64>, u64)> = {
+            let mut edge_params = edge_params_template.clone();
+            edge_params[0] = rusqlite::types::Value::Text(lid.clone());
+            let rows =
+                edge_stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, Option<f64>>(3)?,
+                        row.get::<_, i64>(4)? as u64,
+                    ))
+                })?;
+            rows.flatten()
+                .map(|(from_id, to_id, source_id, confidence, edge_cursor)| {
+                    let neighbor = if from_id == lid { to_id } else { from_id };
+                    (neighbor, source_id, confidence, edge_cursor)
+                })
+                .collect()
+        };
+
+        for (neighbor, edge_source_id, edge_confidence, edge_cursor) in neighbors {
+            if visited.contains(&neighbor) {
+                continue;
+            }
+            visited.insert(neighbor.clone());
+
+            // Fetch neighbor body + write_cursor from canonical_nodes.
+            let mut body_params = body_params_template.clone();
+            body_params[0] = rusqlite::types::Value::Text(neighbor.clone());
+            let row: Option<(String, String, i64)> = body_stmt
+                .query_row(rusqlite::params_from_iter(body_params.iter()), |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, i64>(2)?))
+                })
+                .optional()?;
+
+            if let Some((kind, body, write_cursor)) = row {
+                // Skip bodies already covered by the two-arm result.
+                if !seed_bodies.contains(body.as_str()) {
+                    if candidates.len() >= cap {
+                        stats.bound_reached = true;
+                        break 'frontier;
+                    }
+                    let hop_score = 1.0 / (1.0 + (depth + 1) as f64);
+                    let score =
+                        if kind == "unknown" { hop_score * SYNTHESIZED_PENALTY } else { hop_score };
+                    // Cause-A: the neighbor's `logical_id` is `neighbor` (still in
+                    // scope here; only moved onto the frontier below) — derive the
+                    // stable id with no extra query.
+                    let id = derive_stable_id(Some(&neighbor), &body);
+                    // F9: record the traversing edge's confidence for this node
+                    // (first edge wins — this is the winning-`bfs_rank` edge).
+                    if let Some(c) = edge_confidence {
+                        edge_confidence_by_cursor.insert(write_cursor as u64, c);
+                    }
+                    capture.record_graph_origin(
+                        write_cursor as u64,
+                        CapturedGraphOrigin::Traversal { edge_cursor, hop_count: depth + 1 },
+                    );
+                    candidates.push(SearchHit {
+                        id,
+                        write_cursor: write_cursor as u64,
+                        kind,
+                        body,
+                        score,
+                        branch: SoftFallbackBranch::GraphArm,
+                        // BLOCK-2: the session this fact-edge was extracted from.
+                        source_id: edge_source_id.clone(),
+                        ce_score: None,
+                    });
+                }
+                // Always push neighbor to frontier for further BFS expansion.
+                frontier.push_back((neighbor, depth + 1));
+            }
+        }
+    }
+
+    drop(edge_stmt);
+    drop(body_stmt);
+    stats.graph_candidates_emitted = candidates.len() as u32;
+    Ok((candidates, stats, edge_confidence_by_cursor))
+}

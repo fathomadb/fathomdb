@@ -128,22 +128,28 @@ in the master plan and `design.md`:
   `Reader*Pause` alias, and related attribution phases/helpers, pool protocol
   in `reader_pool.rs`, handler-returned errors/results with their handlers
   (`PageReaderError` in `read.rs`, the projected-text result in `search.rs`),
-  search carriers in `search.rs`, and `TelemetrySink` in
-  `telemetry.rs`. Fields stay private and Slice 90 must not redesign these
-  boundaries. `graph_expand/execution.rs` retains only private non-`Engine`
-  helpers and `*ForTest` carriers, while typed private pool factories cover
-  the existing `VectorStage` and `ExplainGraphNeighbors` requests without
-  exposing senders or the request protocol;
+  search carriers and the search-only `SearchReaderError` in `search.rs`, a
+  narrow validation error in `filter.rs`, a narrow graph search-expansion
+  handler error in `graph_expand`, and `TelemetrySink` in `telemetry.rs`.
+  Graph/read/filter/frozen-read code does not depend on
+  `search::SearchReaderError`. Fields stay private and Slice 90 must not
+  redesign these boundaries. `graph_expand/execution.rs` retains only private
+  non-`Engine` helpers and `*ForTest` carriers, while typed private pool
+  factories cover the existing `VectorStage` and `ExplainGraphNeighbors`
+  requests without exposing senders or the request protocol;
 - eliminate all four Slice 80 cycles: `search` ↔ `graph_expand`,
   `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and
   `graph_expand` ↔ `search_api`; and
-- enforce the exact dependency graph through a non-vacuous `syn` AST gate in
+- enforce the bounded dependency policy through a non-vacuous `syn` AST gate
+  that emits an exact graph under its documented source grammar in
   normal lint over explicit ownership (Rust privacy enforces only fields and
-  construction). It must derive/compare the module set, governed
-  Engine-field set, `Engine` method map, and cross-module inherent methods,
-  record every field access and `Engine`-method call, and define crate-root
-  semantics, allowing only named reviewed exclusions; only the three inherited earlier-slice cycles named in
-  `design.md` are initially eligible for a shrink-only allowlist; and
+  construction). It derives the complete source inventory but enforces the
+  reviewed read/search/graph boundary, with item-level root executable nodes,
+  source-derived Engine methods, explicit field/inherent/root classifications,
+  and callable-reference coverage. It reports rather than absorbs unrelated
+  crate cycles or broad import cleanup; only the three inherited boundary
+  cycles named in `design.md` are initially eligible for a shrink-only
+  allowlist; and
 - before any move, obtain successful exact-baseline canonical verification,
   native receipt, and official public and hidden captures on a capable host.
 
@@ -152,8 +158,9 @@ reader-loop WAL/diagnostic arms, reader open-path helpers, remaining
 search-index projectors, and final placement of the four search-owned
 `ProjectionRuntimeShared` fields.
 
-These are handoffs. Slice 85 is planned but uncommissioned; no Slice 85 feature
-directory or implementation was created.
+These are handoffs. Slice 85 is planned but uncommissioned; its feature
+directory contains only the durable architecture recommendation, and no
+implementation package was created.
 
 Production is unchanged after `0efa62c5`. The implementation candidate is the
 test-only `1d7f826c`; the independently reviewed candidate is `b7403958`, and

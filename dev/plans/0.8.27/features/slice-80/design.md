@@ -201,9 +201,12 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     `read.rs` and the projected-text result in `search.rs` (corrected by the
     2026-09-27 Slice 85 design review; the master plan is authoritative).
     `search.rs` owns `SearchReaderWork`, `FrozenQueryRuntime`,
-    `EvidenceCapture`, `NoEvidenceCapture`, and `SearchReaderError`.
-    `telemetry.rs` owns `TelemetrySink`; reader pause carriers move with WAL
-    attribution.
+    `EvidenceCapture`, `NoEvidenceCapture`, and the search-only
+    `SearchReaderError`. Filter validation and graph search-expansion handlers
+    receive characterized narrow errors owned with their responsibilities, so
+    graph/read/filter/frozen-read code does not depend on
+    `search::SearchReaderError`. `telemetry.rs` owns `TelemetrySink`; reader
+    pause carriers move with WAL attribution.
   - all existing private fields remain private. Cross-owner construction uses
     `EvidenceCapture::new`, `FrozenQueryRuntime::new`, named
     `SearchReaderWork` constructors for hybrid, text-only, and evidence work,
@@ -229,10 +232,12 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     time.
   - the target graph is
     `read_api/search_api/graph_api → reader_pool → read/search/graph_expand`,
-    `search → graph_expand`,
+    `search → graph_expand`, `read/search/graph_expand → filter`,
     `read/search/graph_expand → reader_transaction`,
     `reader_pool/reader_transaction → wal_attribution`, and
-    `search/graph_expand → structural_state`.
+    `search/graph_expand → structural_state`. This is the bounded Slice 85
+    ownership policy, not a whole-crate cycle claim; unrelated import
+    normalization remains outside Slice 85.
   - *Superseded 2026-09-27:* the corrected Slice 85 section of
     `plan-0.8.27.md` is authoritative for enforcement. The summary below
     predates it: it omits `Engine`-method, field-alias, and crate-root edges

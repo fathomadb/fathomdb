@@ -169,9 +169,11 @@ PASS-WITH-FIXES. Fix-1 `b8af4d86` made two changes, with no behavior change:
 
 The records list four Slice 80 module cycles and add the Slice 140 test-seam
 carry-over. Planning-only Slice 85 owns elimination of all four and non-root
-semantic placement of every root-kept carrier; only the three inherited
-earlier-slice cycles are initially allowlist-eligible. Slice 90 consumes the
-settled boundary. See `features/slice-80/design-review.md`.
+semantic placement of every root-kept carrier; only the three inherited cycles
+inside its bounded read/search/graph policy are initially allowlist-eligible.
+Other crate cycles and broad import normalization are reported without being
+absorbed into Slice 85. Slice 90 consumes the settled boundary. See
+`features/slice-80/design-review.md`.
 
 Follow-up `9700991f` adds generated coherent result-codec typed round-trip and
 positional evidence-corruption properties. Lint-only follow-up `31e78529`
@@ -196,7 +198,10 @@ grant/revert evidence.
   owner and are complete. Slice 85 and later slices require separate
   commission. The Slice 85 design was corrected on 2026-09-27 after a
   code-grounded review (handler-result ownership, `Engine`-method and
-  field-alias edges, crate-root semantics, ordered batches) and needs an
+  field-alias edges, crate-root semantics, ordered batches), then aligned with
+  the release's established bounded-decomposition method: narrower handler
+  errors, item-level root nodes, complete inventory with scoped enforcement,
+  and no whole-crate or line-count-driven ownership expansion. It needs an
   independent design review before it is commissioned.
 - No temporary branch or worktree was created for prework; the existing
   `release/0.8.27` worktree remains the active release workspace.

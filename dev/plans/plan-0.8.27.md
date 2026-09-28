@@ -543,17 +543,20 @@ production mutants, and create no generated golden oracle.
 ### Slice 85 — engine carrier ownership and dependency-boundary enforcement
 
 Settle the read-side carrier ownership and module dependency graph before the
-runtime facade is reduced. This is a planned slice only: this section does not
-commission implementation. The Slice 85 feature directory contains only the
-durable architecture recommendation and prospective design-review records;
-no implementation package exists yet.
+runtime facade is reduced. Slice 85 is commissioned by owner decision
+`seq-294` after its independent design review and exact-candidate AC27-85F
+entry receipts passed at `4c75bfec2985f4001690673cc5b38dfdce2081bf`.
+Implementation has not started; the reviewed section below is the binding
+implementation package.
 
 **Design status.** A code-grounded review on 2026-09-27 found that the earlier
 revision re-created prohibited cycles through handler-returned types, left
 `Engine`-method calls, crate-root edges, and `Engine`-field aliases invisible
 to the gate, and overstated compiler enforcement. This revision corrects
-those defects. It must pass an independent design review before Slice 85 is
-commissioned.
+those defects. Independent review of the corrected committed text returned
+PASS with no P0-P3 findings; `features/slice-85/design-review.md` is the
+durable receipt. The commissioning baseline and surface receipts are recorded
+in `features/slice-85/baseline-verification.md`.
 
 #### Final homes
 

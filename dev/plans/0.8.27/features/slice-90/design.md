@@ -221,15 +221,16 @@ open-time vector-equivalence dispatch; nonblocking bounded
 admission with absolute queue-plus-service deadlines; one fixed timeout per
 provider invocation/batch; operation-specific fallback/error behavior;
 recovering timed-out-slot accounting without replacement threads; an absolute
-close budget and truthful incomplete-shutdown result; exact projection row
-capacity/observability; current Python either/or and TypeScript object input;
+embed-runtime drain budget after safe database quiescence and a truthful
+incomplete-embed-shutdown result; exact projection row capacity/observability;
+current Python either/or and TypeScript object input;
 no hypothetical binding custom-embedder bridge; the configured open integrated
 with `EmbedderChoice`; and clause-level supersession of scheduler, writer,
-embedder, projection-model and async-binding authorities. The proposed numeric
-ceilings, default-one embed concurrency, new typed configuration error and
-public configured-open delta are included in the ruled direction, subject to
-the independent review and exact successor wording required before formal ADR
-acceptance and implementation.
+embedder, projection-model and async-binding authorities. Decision `seq-293`
+selects only that architectural direction. The numeric ceilings, queue
+multiplier, default-one embed concurrency, new typed configuration error,
+public configured-open delta and exact incomplete-close outcome remain
+successor proposals subject to independent review and formal ADR acceptance.
 
 AC27-90B and commissioning of dependent runtime changes are **BLOCKED** until
 the resulting contract passes independent design review and is formally
@@ -269,11 +270,41 @@ late-result discard, no committed late result, and healthy subsequent work.
 Use controlled blocking embedders/rendezvous and bounded waits, never a
 sleep-based race or a mocked database. Check omitted options, zero/negative,
 overflow, wrong types, and mixed config/keyword precedence where applicable.
+Installed TypeScript tests reject zero only for the three strictly positive
+runtime controls and accept/prove the existing zero behavior of
+`provenance_row_cap` and `slow_threshold_ms`.
 Dynamic worker-count changes must update capacity, shutdown joins, WAL
 inventory expectations and fault cleanup; replacing one constant is not enough.
 Preserve Python's existing rejection of mixed `config=` plus per-knob keywords
 and TypeScript's single `engineConfig` object; do not invent override/merge
 precedence.
+
+Distinguish projection dispatch admission full, queued expiration,
+started-provider timeout, provider error and close cancellation. Admission or
+queued expiration retains durable pending work without consuming the existing
+provider-failure retry budget or producing terminal residue. A real saturation
+test holds capacity unavailable longer than that retry schedule, then releases
+it and proves projection succeeds without manual repair. Only a started
+provider timeout or provider error may consume the existing failure budget.
+
+Shutdown is explicitly two-phase. Database quiescence first stops new
+admission, safely drains active primary/reader/projection database work and
+joins every SQLite owner in the existing teardown order; it is not covered by
+the 30-second inference-runtime drain budget, so Slice 90 does not claim a
+bounded total `Engine::close`. Full-reader-queue, synchronized active-query and
+active-primary-operation real-database tests prove no stop signal is trapped
+behind work, no owner is released early, and close completes after the active
+operation is released. Only then does the absolute 30-second embed-runtime
+drain begin. A provider exceeding it retains no SQLite/WAL/admission ownership,
+remains counted in a per-session runtime reaper without a replacement worker,
+and produces the formally accepted successor's typed
+incomplete-embed-shutdown outcome.
+
+For frozen hybrid search, the inference deadline bounds only extra snapshot
+retention caused by dispatch/provider waiting. Sparse fallback continues on
+the same authoritative reader transaction and releases it at normal query
+completion or error; it must not reacquire a different snapshot. A total-query
+deadline is not introduced by this slice.
 
 Before executor changes, investigate the likely batch-fallback self-deadlock at
 `projection_worker.rs:553-575`: `embed_projection_batch` invokes `per_job()`
@@ -400,7 +431,8 @@ invent final homes during implementation. AC27-90B is gated by the reviewed
 and formally codified Option B successor; its pass requires real
 executors and all five table rows' consuming-effect/width/precedence tests,
 including open-time equivalence, query, direct-call and projection deadline
-coverage, per-operation outcomes, bounded shutdown, documentation, and
+coverage, stage-specific projection outcomes, frozen-snapshot authority,
+database quiescence, bounded embed-runtime drain, documentation, and
 slow-threshold open initialization. A config echo, worker-count rename,
 proposed ADR or forwarder without an executor is a failing result. AC27-90H consumes Slice 85's
 whole-crate extraction, transitive root reach and named type-only admission;
@@ -409,9 +441,9 @@ it does not treat newly moved owners as invisible out-of-scope endpoints.
 | ID | Requirement | Falsifiable acceptance |
 | --- | --- | --- |
 | R27-90A | Complete semantic ownership and root closure. | AC27-90A: the source-derived entry and final inventories account for every named/root item, field, method and cfg variant; each reaches its approved final owner or named retained-root disposition, with no unresolved/optional entries or production carryover. Root retains only composition/state/core controls and specifically justified test/contract items. The 300–800-line aspiration cannot override ownership. |
-| R27-90B | Runtime configuration is effective, symmetric and documented. | AC27-90B: all five advertised knobs have an authoritative contract and observable consuming effect; Rust plus installed Python/Node default/nondefault/invalid cases pass. Pool sizing, exact projection-row capacity, every production inference path, operation-specific fallback/errors, queue/service timeout, mixed foreground/projection load, frozen-reader WAL release, late completion, recovering hung-slot accounting, concurrent engines, absolute-budget cleanup, and truthful incomplete shutdown match the accepted contract. The successor/ADR index, internal designs, all language interfaces, public config reference and affected error guidance document every accepted setting and behavior before closeout. Seq-258's gap is closed by implementation evidence or an accepted and implemented successor, never by a proposal alone. |
+| R27-90B | Runtime configuration is effective, symmetric and documented. | AC27-90B: all five advertised knobs have an authoritative contract and observable consuming effect; Rust plus installed Python/Node default/nondefault/invalid cases pass, including accepted zero values for provenance retention and slow thresholds. Pool sizing, exact projection-row capacity, every production inference path, stage-specific projection retry accounting, operation-specific fallback/errors, queue/service timeout, mixed foreground/projection load, same-snapshot frozen fallback, late completion, recovering hung-slot accounting, concurrent engines, safe database quiescence, absolute embed-drain cleanup, and truthful incomplete embed shutdown match the accepted contract. Saturation longer than the provider-failure retry schedule cannot terminalize durable projection work. The successor/ADR index, internal designs, all language interfaces, public config reference and affected error guidance document every accepted setting and behavior before closeout. Seq-258's gap is closed by implementation evidence or an accepted and implemented successor, never by a proposal alone. |
 | R27-90C | Open and connection semantics survive extraction. | AC27-90C: fresh-process admission/probe/runtime-mode/error-order tests and failure injection pass with unchanged SQL, locks, side effects, cfg and cleanup apart from the separately approved configuration behavior. Every named open/connection helper has its inventory disposition. |
-| R27-90D | WAL and lifecycle ownership is complete. | AC27-90D: open/close/reopen, drain, idempotent close, faulted startup/shutdown, busy/checkpoint behavior, native inventories and worker-zero pause/ack tests pass. Retained reader arms execute on their existing connection/thread; no sender escapes. No orphaned workers, runtime probes, WAL pins or profile callbacks survive the defined cleanup point. |
+| R27-90D | WAL and lifecycle ownership is complete. | AC27-90D: open/close/reopen, drain, idempotent close, faulted startup/shutdown, full reader queues, active long queries, active primary operations, busy/checkpoint behavior, native inventories and worker-zero pause/ack tests pass. Retained reader arms execute on their existing connection/thread; no sender escapes. No SQLite owner, runtime probe, WAL pin, profile callback or admission lock survives database quiescence. Any provider call surviving the later embed-drain deadline is counted, reaper-owned, has no database state, receives no replacement worker and cannot be reported as complete shutdown. |
 | R27-90E | Projector and operator work is finished. | AC27-90E: every projector and operator family in the owner map is moved and tested under its exact feature gates; projection/registry/vector state, integrity findings, reports, error mappings and nonmutating diagnostic behavior match the entry evidence. No index-projector or operator item remains pending for Slice 100. |
 | R27-90F | Shared runtime field decisions are closed. | AC27-90F: the four named search-control fields remain one value each on the shared runtime allocation; exact defaults, atomics, lifetime and test controls are characterized and unchanged. Storage and consumer ownership are both recorded; there is no remaining relocation decision. |
 | R27-90G | Surfaces and platform coverage remain truthful. | AC27-90G: immutable Slice 30 comparison reports only individually reviewed config deltas; mechanical comparisons against the post-correction candidate are equal. Hidden surface is additive only unless an existing accepted contract explicitly requires a reviewed change. Rust root paths, Python stubs, Node declarations, feature gates and qualified tests remain accounted for. All required matrix routes, including non-Linux compilation, have candidate-bound receipts; an unavailable executor blocks closeout. |

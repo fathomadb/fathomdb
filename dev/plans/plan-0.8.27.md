@@ -977,9 +977,11 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     minimum ruled-direction contract for B, pending independent design approval
     and formal successor-ADR codification: it covers open-time equivalence,
     projection/query/direct dispatch, operation-specific fallback, bounded
-    admission, recovering hung slots, an independent close budget, exact
-    projection-row capacity, current binding input shapes and clause-level ADR
-    supersession. This is architecture correction plus forwarding, not
+    admission, recovering hung slots, safe database quiescence followed by an
+    independent embed-runtime drain budget, stage-specific projection retry
+    accounting, same-snapshot frozen fallback, exact projection-row capacity,
+    current binding input shapes and clause-level ADR supersession. This is
+    architecture correction plus forwarding, not
     forwarding alone. No Slice 91 technical boundary has been demonstrated;
     runtime qualification precedes moves within 90 unless an explicitly
     reviewed dependency requires a ladder change.

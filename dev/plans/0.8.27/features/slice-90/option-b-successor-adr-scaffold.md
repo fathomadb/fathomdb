@@ -234,11 +234,14 @@ unbounded is not proposed.
 
 Python rejects booleans, negative values, zero for the three strictly positive
 runtime knobs, and values outside the canonical range before native open.
-TypeScript rejects non-finite, fractional, unsafe, negative, zero, and
-out-of-range numbers. NAPI performs checked conversion rather than relying on
-coercion. Rust uses the same validation constructor. Validation finishes
-before filesystem mutation, database admission, model warmup, connection
-creation, or thread creation.
+TypeScript rejects non-finite, fractional, unsafe, negative, and out-of-range
+numbers; it rejects zero only for those same three strictly positive runtime
+knobs and accepts zero for `provenance_row_cap` and `slow_threshold_ms`. NAPI
+performs checked conversion rather than relying on coercion. Rust uses the same
+validation constructor. Installed-artifact tests must accept both zero-valued
+existing controls and prove their disabling/zero-threshold behavior. Validation
+finishes before filesystem mutation, database admission, model warmup,
+connection creation, or thread creation.
 
 ### Configuration seam
 
@@ -287,32 +290,52 @@ Omission remains distinct from an explicit zero where zero is accepted.
   half-open provider calls. Queue expiration never counts as a live call. This
   availability state replaces the current session-latched leak breaker; a
   permanent latch is not introduced.
-- Close uses one absolute 30-second lifecycle budget independent of
-  `embedder_call_timeout_ms` and batch size. It marks the engine closing, stops
-  new projection discovery and embed admission, cancels queued/result waiters,
-  interrupts retry waits, and preserves cancelled projection work for durable
-  rediscovery rather than terminalizing it as provider failure.
-- Every SQLite-owning dispatcher/projection/reader worker must join before its
-  connection, profile context, or admission lock is released. Only a still-
-  running embed worker may outlive database close, and only after it is reduced
-  to provider/request state with no engine-owned SQLite connection,
-  transaction, profile context, callback registration, or admission lock.
-  This is a per-session count bound, not a claim of zero retained provider
-  resources: a permanently hung arbitrary provider may retain its detached
-  thread/model until it returns or the process exits. Explicit close returns
-  the existing typed scheduler failure if the engine cannot honestly report
-  complete embed shutdown; `Drop` remains best effort.
+- Close has two ordered phases. **Database quiescence** first marks the engine
+  closing, stops new public/database admission and projection discovery,
+  disconnects or cancels pending work without placing a stop message behind a
+  full work queue, and then waits for active primary, reader, dispatcher and
+  projection database operations to finish. Every SQLite-owning worker joins
+  before its connection, profile context, callback registration, admission
+  lock, or sidecar lock is released. This phase preserves the existing safe
+  ownership contract and is intentionally not covered by the embed-drain
+  deadline; Option B does not invent cancellation of arbitrary SQLite work or
+  claim that total `Engine::close` latency is bounded.
+- **Embed-runtime drain** begins only after database quiescence has removed all
+  SQLite ownership from outstanding inference work. It uses one absolute
+  30-second budget independent of `embedder_call_timeout_ms` and batch size,
+  stops new embed admission, cancels queued/result waiters, interrupts retry
+  waits, and preserves cancelled projection work for durable rediscovery rather
+  than terminalizing it as provider failure. Only a still-running embed worker
+  may remain after this budget, and only with provider/request state and no
+  engine-owned SQLite connection, transaction, profile context, callback
+  registration, admission lock, or sidecar lock.
+- An embed worker that exceeds the drain budget remains owned by a detached
+  per-session runtime reaper and is counted until the provider returns; no
+  replacement worker is created. Explicit close returns the proposed typed
+  incomplete-embed-shutdown outcome rather than claiming full runtime teardown.
+  `Drop` is best effort. This is a proposal for successor-ADR acceptance, not a
+  claim that `seq-293` chose its exact API.
 - Reader shutdown, primary-profile teardown, connection release, and sidecar
-  lock release retain the order in `dev/design/engine.md:151-168`.
+  lock release retain the order in `dev/design/engine.md:151-168`. Real-database
+  tests cover a full reader queue, a synchronized active long query, and a
+  synchronized active primary operation: close stops new admission, remains
+  pending without unsafe release, and completes after the operation is allowed
+  to finish. Those tests do not apply the 30-second embed-drain budget to
+  database quiescence.
 
-Operation-specific mapping is fixed as follows:
+Operation-specific mapping distinguishes failure stages:
 
-| Caller | Queue full / deadline / provider failure |
-| --- | --- |
-| Projection | Bounded defer/retry where work remains durable; after the existing retry policy, record the existing projection failure outcome. Cancellation for close never becomes a provider-failure terminal. |
-| Ordinary or frozen hybrid search | Preserve the existing sparse/text fallback produced by `.embed(...).ok()`; no new query exception or changed refusal precedence. |
-| Direct `Engine::embed_text` | Preserve `EngineError::Embedder`; queue saturation may use the existing `EngineError::Overloaded` before invocation. |
-| Open-time vector-equivalence probe | Preserve degraded open/dense-disabled behavior, baseline/cache mutation rules, and identity/error precedence; a failed or timed-out probe never persists a new accepted baseline. |
+| Caller | Admission full / queued expiration | Started-provider timeout / provider error | Close cancellation |
+| --- | --- | --- | --- |
+| Projection | Retain durable pending work and defer with bounded backoff or capacity notification. These outcomes do **not** consume the provider-failure retry budget and cannot create terminal projection residue. | Apply the existing provider-failure retry budget and existing terminal outcome only after that budget is exhausted. | Retain durable pending work for rediscovery; never consume provider-failure retries or create terminal residue. |
+| Ordinary or frozen hybrid search | Preserve the existing sparse/text fallback produced by `.embed(...).ok()`; no new query exception or changed refusal precedence. | Preserve the same sparse/text fallback and refusal precedence. | Return through the existing close/cancellation precedence without retaining a reader transaction. |
+| Direct `Engine::embed_text` | Return the existing `EngineError::Overloaded` before provider invocation. | Preserve `EngineError::Embedder`. | Return the existing close/cancellation error precedence. |
+| Open-time vector-equivalence probe | Preserve degraded open/dense-disabled behavior, baseline/cache mutation rules, and identity/error precedence; never persist a new accepted baseline. | Preserve the same degraded-open and mutation rules. | Unwind open without publishing a partially initialized engine or baseline. |
+
+A real saturation test holds the dispatch queue unavailable longer than the
+existing projection provider-failure retry schedule, proves that no failure
+budget or terminal residue is consumed, then releases capacity and proves the
+durable projection succeeds without manual residue repair.
 
 Invalid per-engine configuration receives a narrow typed
 `EngineConfigurationError` carried by `EngineOpenError`, distinct from the
@@ -379,10 +402,13 @@ production mutant. At minimum:
    and does not block/rollback canonical commit; bounded queues do not grow
    with database backlog.
 7. **Shutdown:** close under queued, retry-sleeping, running, timed-out,
-   panicking, and completed-late embeds respects the independent absolute
-   lifecycle deadline, joins every SQLite owner, reports incomplete embed
-   shutdown truthfully, and releases SQLite/WAL/admission resources in the
-   existing order. Repeated close/reopen bounds retained calls per session.
+   panicking, and completed-late embeds first quiesces and joins every SQLite
+   owner in the existing safe order, then applies the independent absolute
+   embed-drain deadline, reports incomplete embed shutdown truthfully, and
+   bounds retained calls per session across repeated close/reopen. Real-database
+   full-reader-queue, active-query and active-primary-operation tests prove that
+   database quiescence neither releases ownership early nor inherits a false
+   30-second total-close guarantee.
 8. **Validation:** default, boundary, invalid and overflow cases pass through
    Rust and installed Python/Node artifacts; effects are measured, not echoed
    from stored config.
@@ -401,9 +427,13 @@ production mutant. At minimum:
 11. **Mixed workload and snapshot effects:** saturate the shared default-one
     embed capacity with projection and foreground calls in both directions;
     prove bounded foreground behavior, durable projection progress, no
-    starvation loop, and correct frozen-read authority. A frozen query waiting
-    for dispatch may retain its WAL snapshot only within the request deadline;
-    timeout/fallback must release the reader transaction and WAL pin.
+    starvation loop, and correct frozen-read authority. The absolute inference
+    deadline bounds only the **additional** frozen-snapshot retention caused by
+    waiting for dispatch/provider completion. On timeout, the existing sparse
+    fallback continues on the same authoritative reader transaction and releases
+    that transaction/WAL pin at normal query completion or error; reacquiring a
+    different snapshot is forbidden. A separate total-query deadline would be
+    a new behavior decision and is not introduced here.
 
 The existing relevant oracles include:
 
@@ -470,8 +500,12 @@ The independent design review's eight questions are resolved in this revision:
 8. The public configured open joins the existing `EmbedderChoice` family; no
    binding-only public seam is introduced.
 
-The architectural direction, new numeric ceilings/ranges, changed embedder
-default, typed configuration delta, exact close outcome, and required ADR
-supersession are selected by `D27-runtime-topology` decision `seq-293`. This
-scaffold records the ruled direction but does not substitute for independent
-design approval or the formally accepted successor ADR.
+`D27-runtime-topology` decision `seq-293` selects only Option B's architectural
+direction: preserve synchronous projection/commit ownership and define real
+engine-owned orchestration/embed-dispatch capacities, universal inference
+deadlines, operation-specific outcomes, and bounded embed-runtime shutdown.
+The numeric ceilings/ranges, default-one embed concurrency, typed configuration
+delta, exact configured-open API, queue multiplier, and exact incomplete-close
+outcome in this scaffold are reviewed successor proposals requiring formal ADR
+acceptance. This scaffold does not substitute for independent design approval
+or the formally accepted successor ADR.

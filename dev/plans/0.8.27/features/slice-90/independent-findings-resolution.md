@@ -4,6 +4,7 @@ status: PLANNED
 reviewed_candidate: ab8f43be2c9ceaa9ad19b23b23f40e9d2c484513
 minor_review_candidate: ce71afe511545d963f141b5c9c051fc8638bd6b4
 option_b_review_base: 9b00a980ca222d05f3af063168ed45c2b0a4a526
+ruled_option_b_review_base: f7e6d8abaed2744fd58369165fe2c85ce2f0dba9
 target_release: 0.8.27
 ---
 
@@ -75,6 +76,31 @@ holding `embed_serialize`, and `run_projection_job` reacquires that mutex. Slice
 a failing restoration mutant before the executor work can hide or replace the
 old path. Configuration documentation is likewise an explicit Slice 90 batch
 and acceptance obligation, not deferred to Slice 140.
+
+## Ruled Option B review and correction
+
+The same independent GPT-6 Astra medium reviewer examined the clean ruled
+candidate above and returned **FAIL as a commissionable successor contract**
+with two P1 and three P2 findings. It affirmed Option B as the correct ruled
+direction and did not recommend reopening `seq-293`. The author applied these
+required contract corrections before the next independent pass:
+
+- narrow the 30-second guarantee to embed-runtime drain after safe database
+  quiescence; preserve the existing potentially longer wait for active SQLite
+  owners and add real-database full-queue/active-operation tests rather than
+  claiming bounded total `Engine::close`;
+- separate projection admission full, queued expiration, started-provider
+  timeout, provider error and close cancellation so transient capacity cannot
+  consume provider-failure retries or terminalize durable work;
+- bound only additional frozen-snapshot retention caused by inference waiting,
+  then run sparse fallback on the same authoritative transaction through normal
+  query completion;
+- attribute only the Option B architectural direction to `seq-293`; numeric
+  limits, queue multiplier, default, APIs and exact errors remain proposals for
+  formal successor-ADR acceptance; and
+- reject TypeScript zero only for the three strictly positive runtime controls,
+  while accepting and behavior-testing zero provenance retention and slow
+  thresholds.
 
 ## Evidence
 

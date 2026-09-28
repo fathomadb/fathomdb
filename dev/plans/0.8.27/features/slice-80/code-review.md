@@ -1,10 +1,11 @@
 ---
 title: FathomDB 0.8.27 Slice 80 - code review
-status: PASS
+status: HISTORICAL_PASS_PENDING_REREVIEW
 target_release: 0.8.27
 initial_reviewed_range: bb077cfa..ac404a81
-reviewed_range: 0efa62c544af00858aa6975944e8f36c99f13218..e9631b9761d292a4115d1beee95678801512f4f2
-review_fix_candidate: e9631b9761d292a4115d1beee95678801512f4f2
+historical_reviewed_range: 0efa62c544af00858aa6975944e8f36c99f13218..e9631b9761d292a4115d1beee95678801512f4f2
+historical_review_fix_candidate: e9631b9761d292a4115d1beee95678801512f4f2
+authoritative_binding: PENDING_INDEPENDENT_REREVIEW
 ---
 
 # Slice 80 code review
@@ -122,5 +123,13 @@ The rereview took three cycles:
 The final rereview binds the codec-property test implementation and the Slice
 85 planning corrections. It does not convert the historical `66e27983`
 AC-037 receipt into evidence for this candidate or the final release
-candidate; Slice 150 still owns exact-final-candidate qualification after
-Slice 130.
+candidate; Slice 150 alone owns exact-final-candidate qualification.
+
+## Owner-directed follow-up pending rereview
+
+The `e9631b97` PASS predates the strengthened canonical JSON-value assertion,
+the corrected verification record, and the code-grounded Slice 85 boundary
+design. It remains a historical review receipt and does not bind the new
+follow-up commits. A fresh independent `gpt-5.6-sol` high-reasoning rereview
+must bind the exact new candidate before the release-state SHA,
+reviewed-candidate, or closeout fields change.

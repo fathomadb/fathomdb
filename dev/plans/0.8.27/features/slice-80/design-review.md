@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 80 - design review
-status: PASS
+status: HISTORICAL_PASS_PENDING_REREVIEW
 target_release: 0.8.27
 ---
 
@@ -174,3 +174,13 @@ to a cycle outside those four.
 The final independent `gpt-5.6-sol` high-reasoning rereview returned **PASS**
 at clean candidate `e9631b9761d292a4115d1beee95678801512f4f2`. Slice 85
 remains planning-only and separately commissioned.
+
+## Owner-directed semantic boundary revision
+
+The prior PASS is historical. A later code-grounded audit selected final
+non-root homes for every remaining carrier and facade, rejected the
+rust-analyzer SCIP experiment as an incomplete/noisy dependency oracle, and
+specified a compiler-enforced explicit dependency shape plus a small
+`syn`-based normal-lint gate. Those changes are recorded in `design.md` and the
+master plan and require independent rereview before any authoritative Slice 80
+candidate is rebound.

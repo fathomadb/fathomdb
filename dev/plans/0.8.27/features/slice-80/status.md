@@ -1,11 +1,12 @@
 ---
 title: FathomDB 0.8.27 Slice 80 - implementation status
-status: COMPLETE
+status: IN_PROGRESS_PENDING_REREVIEW
 implemented_on: 2026-09-27
-planning_commit: 9a31e979
-implementation_candidate: 31e78529fdb047e4827d1d3836e6b076ab358705
-reviewed_candidate: e9631b9761d292a4115d1beee95678801512f4f2
-closeout_commit: bca0c99d46e0111c1bd3906d78a77668801463bc
+historical_planning_commit: 9a31e979
+follow_up_commit: 1d7f826c2125d5de6d852ddbc96d35fec2de5816
+authoritative_binding: PENDING_INDEPENDENT_REREVIEW
+historical_reviewed_candidate: e9631b9761d292a4115d1beee95678801512f4f2
+historical_closeout_commit: bca0c99d46e0111c1bd3906d78a77668801463bc
 ---
 
 # Slice 80 implementation status
@@ -57,16 +58,19 @@ carrier; test behavior and production remain unchanged.
 
 ## Review and verification
 
-- **Design review:** PASS after three cycles plus an external code-grounded
-  review (`design-review.md`).
+- **Design review:** historical PASS after three cycles plus an external
+  code-grounded review (`design-review.md`); the revised boundary contract is
+  pending independent rereview.
 - **Code review:** the independent `gpt-5.6-sol` high-reasoning review first
   returned FAIL with two P2 architectural findings, closed historically in
   `8e449963`. The follow-up rereview covered the codec properties and Slice 85
-  handoff in three cycles: two correction cycles followed by final **PASS** at
-  clean reviewed candidate `e9631b97` (`code-review.md`).
+  handoff in three cycles: two correction cycles followed by a historical
+  **PASS** at clean reviewed candidate `e9631b97` (`code-review.md`).
 - **Independent verification:** the separate read-only `gpt-5.6-terra`
   verifier returned PASS at historical clean candidate `3e60cc5d`
-  (`review-verification.md`).
+  (`review-verification.md`). Those receipts apply only to `3e60cc5d`;
+  production subsequently changed through `0efa62c5`, so they do not verify
+  later production or `e9631b97`.
   - canonical verification: 127/127;
   - workspace Clippy/check: PASS;
   - candidate-bound Python receipt: PASS;
@@ -80,25 +84,46 @@ carrier; test behavior and production remain unchanged.
     with both live layers at `66e27983`, and the grant was reverted
     (2026-09-27; `review-verification.md`). That run is historical only: it
     does not qualify later HEAD or the final candidate. By owner ruling, the
-    next live AC-037 run is deferred until after Slice 130 and Slice 150 must
-    bind the runbook receipt to the exact final candidate; and
+    Slice 150 alone must bind a new runbook receipt to the exact final
+    candidate; and
   - feature-complete: 21 runs, 357 planned, 349 passed, 0 failed, and 8
     documented ignores.
+
+The post-fix production changes were covered by focused tests, affected-route
+Clippy, and an exact rustdoc surface diff. There is no post-fix full canonical
+PASS and no official post-fix public or hidden capture. Attempts at exact
+historical candidate `e9631b97` were blocked by the public capture's 100 GB
+free-space minimum, `nvidia-smi` exit 9 for the hidden capture, and the
+advanced release reference making one historical-ref `agent-verify` fixture
+inapplicable.
+
+An unconfined diagnostic `agent-verify` at live `24813b8e`—with `src/`
+identical to `31e78529` and `e9631b97`—passed strict security 0/0/0 including
+AC-036 and both AC-037 layers, and passed `test-rust` in 516,820 ms. It
+registered 127 suites: 125 ran, 123 passed, 2 failed, 2 skipped, and none were
+excluded. Both failures came from the missing local `fathomdb._fathomdb`
+module and the consequent native-receipt failure. It is not a canonical PASS
+or release-qualifying AC-037 receipt.
 
 ## Slice 85 and Slice 90 handoff
 
 Planning-only Slice 85 owns the carrier and dependency boundary work recorded
 in the master plan and `design.md`:
 
-- move every root reader carrier, `begin_attributed_reader_tx`,
-  `TelemetrySink`, and `EvidenceCapture` to non-root semantic ownership while
-  preserving private fields and rooted contracts; root ownership requires an
-  item-specific reviewed durable exception tied to a stronger invariant;
+- establish final homes: `read_api.rs`, `graph_api.rs`, existing
+  `search_api.rs`, leaf `structural_state.rs`, leaf `reader_transaction.rs`,
+  pool protocol in `reader_pool.rs`, search carriers in `search.rs`,
+  `TelemetrySink` in `telemetry.rs`, and pause carriers with WAL attribution;
+  fields stay private and Slice 90 must not move these boundaries again;
 - eliminate all four Slice 80 cycles: `search` ↔ `graph_expand`,
   `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and
   `graph_expand` ↔ `search_api`; and
-- enforce the exact dependency graph. Only the three inherited earlier-slice
-  cycles named in `design.md` are initially eligible for a narrow allowlist.
+- enforce the exact dependency graph through compiler-visible ownership and a
+  non-vacuous `syn` AST gate in normal lint. Only the three inherited
+  earlier-slice cycles named in `design.md` are initially eligible for a
+  shrink-only allowlist; and
+- before any move, obtain successful exact-baseline canonical verification,
+  native receipt, and official public and hidden captures on a capable host.
 
 Slice 90 consumes those settled boundaries, then owns the runtime facade,
 reader-loop WAL/diagnostic arms, reader open-path helpers, remaining
@@ -108,11 +133,13 @@ search-index projectors, and final placement of the four search-owned
 These are handoffs. Slice 85 is planned but uncommissioned; no Slice 85 feature
 directory or implementation was created.
 
-The current test implementation candidate is `31e78529`; production is
-unchanged after `0efa62c5`. Independent `gpt-5.6-sol` high-reasoning rereview
-binds clean reviewed candidate `e9631b97`. The earlier `8e449963`,
-`3e60cc5d`, and `4299511c` bindings are historical and are retained only where
-their original evidence is discussed.
+Production is unchanged after `0efa62c5`. The `31e78529` test candidate and
+`e9631b97` reviewed candidate are now historical: the strengthened codec
+property and corrected Slice 85 plan supersede them. Authoritative
+implementation, reviewed-candidate, and closeout fields remain pending a new
+independent rereview and must not be rebound by this change. The earlier
+`8e449963`, `3e60cc5d`, and `4299511c` bindings are retained only where their
+original evidence is discussed.
 
 ## Cleanup
 

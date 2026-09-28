@@ -356,9 +356,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 85** (`ENGINE-BOUNDARIES`) — engine carrier ownership and dependency-boundary enforcement
+**IMMEDIATE NEXT: Slice 80** (`ENGINE-READ`) — engine read, search, graph, and evidence domains
 
-**Remaining ladder:** 85 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 80 → 85 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -546,39 +546,92 @@ Settle the read-side carrier ownership and module dependency graph before the
 runtime facade is reduced. This is a planned slice only: this section does not
 commission implementation, and no Slice 85 feature directory exists yet.
 
-Slice 85 moves every reader carrier currently kept at crate root,
-`TelemetrySink`, `EvidenceCapture`, and `begin_attributed_reader_tx` to a
-non-root semantic owner while preserving all private fields and rooted public
-or re-export contracts. Root ownership is permitted only as an explicit design
-review exception that proves the placement is durable and that moving the item
-would violate a stronger named invariant; temporary cross-module convenience
-is not sufficient. The slice also separates the `impl Engine` dispatch facades
-from their handlers sufficiently to eliminate all four Slice 80 cycles:
-`search` ↔ `graph_expand`, `read` ↔ `reader_pool`,
+Slice 85 establishes these final homes once; Slice 90 consumes them without
+moving them again:
+
+- new top-level `read_api.rs`: the current `read.rs` `impl Engine` facade;
+- new top-level `graph_api.rs`: graph-neighbor, graph-expand, boundary, and
+  relevant graph `Engine` test facades;
+- existing `search_api.rs`: additionally owns `search_expand` and
+  `search_expand_with_limit`;
+- new leaf `structural_state.rs`: `structural_dependency_state`, so the
+  remaining search-to-graph dependency is one-way;
+- new leaf `reader_transaction.rs`: `begin_attributed_reader_tx`, below the
+  pool and every read/search/graph handler, with its exact borrow lifetime,
+  deferred-transaction behavior, attribution ordering, table-backed snapshot
+  probe, and pause-hook order preserved;
+- `reader_pool.rs`: pool implementation, pool protocol, request envelopes,
+  response aliases, page errors, reader constants, and `CacheStatusReply` with
+  its exact root re-export;
+- `search.rs`: `SearchReaderWork`, `FrozenQueryRuntime`, `EvidenceCapture`,
+  `NoEvidenceCapture`, and `SearchReaderError`;
+- `telemetry.rs`: `TelemetrySink`; and
+- the WAL-attribution owner: reader pause carriers.
+
+All existing private fields remain private. Construction crosses boundaries
+only through `EvidenceCapture::new`, `FrozenQueryRuntime::new`, named
+`SearchReaderWork` constructors for hybrid, text-only, and evidence paths, and
+pool-owned request factories. Those factories cover every direct facade/path
+construction today: get-by-id, collection/list, canonical/operational page,
+projected-text, hybrid/text/evidence search, graph-neighbor/search-expand,
+crossed-boundary, `GraphExpandReaderRequest`, and the cfg-gated baseline page.
+The WAL seam receives typed cfg-gated worker-zero controls for
+`HoldWalSnapshot`, `HoldWalSnapshotBounded`,
+`HoldWalSnapshotWithCommitAck`, and the two inventory requests. No pool sender
+accessor or generic sender exposure is permitted. Root ownership is allowed
+only through an item-specific design-review exception proving durable ownership
+and a stronger invariant that moving the item would violate.
+
+The settled graph is
+`read_api/search_api/graph_api → reader_pool → read/search/graph_expand`,
+`search → graph_expand`, `read/search/graph_expand → reader_transaction`,
+and `search/graph_expand → structural_state`. It eliminates all four Slice
+80 cycles: `search` ↔ `graph_expand`, `read` ↔ `reader_pool`,
 `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`.
 
-The slice establishes one checked dependency-direction contract for the
-resulting engine modules. The contract must describe the exact permitted graph.
-None of the four Slice 80 cycles is eligible for retention, an exception, or
-an allowlist. Only the three inherited earlier-slice cycles are initial
-candidates for a narrow explicit allowlist: `search` ↔
-`dependency_closure`, `search` ↔ `evidence`, and `graph_expand` ↔ `evidence`.
-Any reviewed unavoidable-cycle exception mechanism applies only to cycles
-outside the four Slice 80 cycles. The normal lint-path gate must resolve
-aliases, grouped imports, re-exports, and wildcard imports rather than relying
-on a fragile textual spelling. Dedicated fixtures and temporary mutations
-must prove both that the gate catches a forbidden edge and that it cannot pass
-vacuously when no production modules were examined.
+The enforcement design is compiler-enforced explicit dependency shape plus a
+small `syn`-based AST gate in the normal agent-lint path. Governed modules:
+
+- forbid wildcard imports/re-exports and root-re-export indirection;
+- name semantic owners in internal imports;
+- colocate inherent impls with their owned types, except the explicitly named
+  `Engine` facade homes above;
+- express cross-module calls as module-qualified free functions or methods on
+  explicitly imported owner traits/capabilities; and
+- fail on macro-hidden boundaries unless an item-specific review records and
+  tests the expansion boundary.
+
+The gate resolves grouped and aliased imports and explicit owner traits. Its
+committed governed manifest contains the complete, reviewed mapping from each
+governed `Engine` receiver field to its owner (for example,
+`Engine.reader_pool` → `reader_pool`); that map, not Rust type inference or
+name guessing, is the only way a call such as
+`self.reader_pool.dispatch(...)` becomes an edge. Every other cross-module
+call must be an imported capability/owner trait or a module-qualified free
+function. The gate emits the exact graph and SCCs with source/destination
+diagnostics, and fails when the governed manifest or field-owner map is empty.
+Its allowlist is shrink-only over time.
+None of the four Slice 80 cycles is eligible for retention, exception, or
+allowlisting. Only the three inherited earlier-slice cycles are initial narrow
+allowlist candidates: `search` ↔ `dependency_closure`, `search` ↔
+`evidence`, and `graph_expand` ↔ `evidence`.
+
+A rust-analyzer SCIP trial is rejected as the gate. It resolved a same-line
+dispatch but omitted multiline dispatches and the `search_inner` edge. On the
+measured host, engine indexing cost about 6.8–6.9 seconds, 1.37 GB peak RSS,
+and an 11 MB index; workspace indexing cost about 8 seconds, 1.386 GB, and a
+14 MB index. The tooling is absent by default and its output is too noisy for
+a deterministic normal-lint contract.
 
 | ID | Requirement | Falsifiable acceptance |
 | --- | --- | --- |
 | R27-85A | Every root-kept carrier receives durable non-root semantic ownership without field widening or rooted-contract drift. | AC27-85A: `ReaderWorkerPool`, `SearchReaderWork`, every reader request/response carrier, `FrozenQueryRuntime`, reader errors/constants/pause aliases, `TelemetrySink`, `EvidenceCapture`, and `begin_attributed_reader_tx` each move to a named non-root semantic owner; all previously private fields remain private and every rooted public/re-export path is exact. Any item retained at root has an item-specific design-review exception proving durable ownership and the stronger invariant that a move would violate. |
 | R27-85B | Facades do not create reverse handler dependencies. | AC27-85B: all four Slice 80 cycles—`search` ↔ `graph_expand`, `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`—are absent from the measured module graph. |
 | R27-85C | Remaining dependencies are explicit and minimal. | AC27-85C: a committed exact graph accounts for every engine-module edge. None of the four Slice 80 cycles is eligible for retention, an exception, or an allowlist. Only `search` ↔ `dependency_closure`, `search` ↔ `evidence`, and `graph_expand` ↔ `evidence` are initial candidates for a narrow reviewed allowlist. Any reviewed unavoidable-cycle exception applies only to cycles outside the four Slice 80 cycles. An unexpected edge fails with the source and destination named. |
-| R27-85D | Dependency direction is enforced by a normal lint gate. | AC27-85D: the standard lint path runs a syntax-aware check that handles aliases, grouped imports, re-exports, and wildcards and does not depend on one source spelling. |
-| R27-85E | The structural gate is non-vacuous. | AC27-85E: committed fixtures plus recorded temporary mutations prove forbidden-edge detection, alias/wildcard coverage, and a hard failure when zero governed modules are inspected. |
-| R27-85F | The boundary change preserves behavior and surfaces. | AC27-85F: focused read/search/graph/evidence/reader/WAL routes, applicable feature builds, source-scraping gates, exact public surface, additive-only hidden surface, and runtime receipts match the pre-slice candidate except for reviewed structural inventory additions. |
-| R27-85G | Security evidence is not overstated. | AC27-85G: Slice 85 makes no current-HEAD or final-candidate AC-037 claim. The `66e27983` run remains historical only; exact-final-candidate live qualification stays deferred to Slice 150 after Slice 130. |
+| R27-85D | Dependency direction is enforced by compiler-visible ownership and a normal-lint AST gate. | AC27-85D: governed code follows the explicit import/call/impl rules above, and normal `agent-lint` runs the `syn` gate. The gate resolves grouped/aliased imports and owner traits, uses only the complete explicit governed `Engine`-field-owner map for receiver calls (never general Rust type inference), rejects globs, root-re-export indirection, and unreviewed macro-hidden boundaries, emits exact graph/SCC diagnostics, and enforces nonempty manifest and field-owner-map inputs plus the shrink-only three-cycle initial allowlist. |
+| R27-85E | The structural gate is non-vacuous across Rust call spellings. | AC27-85E: a compiled two-module reciprocal method-call fixture covers grouped and aliased traits; removing its necessary import fails compilation. Gate fixtures cover import and re-export glob variants, aliases, and same-line/multiline parity. A compiled fixture whose only reverse edge is `self.reader_pool.dispatch(...)` proves the explicit field-owner map produces the exact rejected edge without a textual module-qualified call or type inference; the equivalent temporary production mutation fails and is restored exactly. Zero governed modules or an empty field-owner map hard-fails. |
+| R27-85F | The boundary change preserves behavior and surfaces from a verified exact baseline. | AC27-85F: before any move, a capable host with the required free space, native module, and GPU tooling must pass exact-baseline `agent-verify`, the candidate-bound native receipt, and official public and hidden captures. After the move, focused read/search/graph/evidence/reader/WAL routes, applicable feature builds, source-scraping gates, exact public surface, additive-only hidden surface, and runtime receipts match that baseline except for reviewed structural inventory additions. The request envelope remains within its size bound; transaction lifetime, attribution finish order, pool-before-profile-context drop order, worker-zero WAL pinning, cfg gates, and qualified test identities are unchanged. |
+| R27-85G | Security evidence is not overstated. | AC27-85G: Slice 85 makes no current-HEAD or final-candidate AC-037 claim. The `66e27983` and `24813b8e` runs remain historical or diagnostic only; Slice 150 alone owns exact-final-candidate live qualification. |
 
 Implementation, once separately commissioned, follows characterization-first
 TDD for the dependency gate and mechanical RED/GREEN compile cycles for carrier
@@ -701,10 +754,6 @@ exception identities, stub/type-checker agreement, and public examples or
 doctests. Keep deep database semantics in Rust and use thin Python parity
 checks. No test may depend on a particular helper file.
 
-Completing Slice 130 unlocks the deferred exact-candidate live AC-037 window.
-It does not itself make that claim: subsequent documentation convergence may
-still change the candidate, so Slice 150 owns the final runbook execution.
-
 ### Slice 140 — documentation and structural convergence
 
 Converge architecture, design, interfaces, examples, and source citations on
@@ -801,7 +850,7 @@ Write little or no new product test code. Re-run:
 - warranted CUDA routes; and
 - Memex's unchanged exact test against the candidate artifact.
 
-After Slice 130 and on the exact final candidate, run strict security through
+As a Slice 150-owned gate on the exact final candidate, run strict security through
 `dev/release/ac-037-live-netns-hitl-runbook.md`, capture the required live
 AC-037 pass/catch/summary lines plus grant and revert evidence, and bind that
 receipt to the candidate SHA. The historical `66e27983` run is not substitute

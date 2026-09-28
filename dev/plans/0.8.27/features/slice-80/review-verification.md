@@ -1,21 +1,24 @@
 ---
 title: FathomDB 0.8.27 Slice 80 - independent verification
-status: PASS
+status: PARTIAL_HISTORICAL_PENDING_REREVIEW
 target_release: 0.8.27
-candidate: e9631b9761d292a4115d1beee95678801512f4f2
+historical_candidate: e9631b9761d292a4115d1beee95678801512f4f2
+authoritative_binding: PENDING_INDEPENDENT_REREVIEW
 ---
 
 # Slice 80 independent verification
 
-This record now binds reviewed candidate
-`e9631b9761d292a4115d1beee95678801512f4f2`. The full independent,
-read-only `gpt-5.6-terra` execution below returned **PASS** at historical
-candidate `3e60cc5dd37c8771d607285985337a7f35223aa1`; no required evidence was
-reported unavailable. Later production is unchanged after `0efa62c5`, and
-the follow-up test implementation at `31e78529` has the focused RED/GREEN and
-independent review evidence recorded below and in `code-review.md`.
-*Post-hoc amendment:* the live AC-037 layer at `3e60cc5d` lacks its runbook
-evidence; see "AC-037 capability ownership".
+The full independent, read-only `gpt-5.6-terra` execution below returned
+**PASS** at historical candidate
+`3e60cc5dd37c8771d607285985337a7f35223aa1`. Those receipts are evidence for
+that exact historical candidate only. Production subsequently changed through
+`0efa62c544af00858aa6975944e8f36c99f13218`, so the Terra receipts do not
+verify later production or the former reviewed candidate
+`e9631b9761d292a4115d1beee95678801512f4f2`. The production changes have
+focused test, Clippy, and rustdoc surface-diff evidence, but there is no
+post-fix full canonical PASS and no official post-fix public or hidden capture.
+The live AC-037 layer claimed at `3e60cc5d` also lacks its runbook evidence;
+see "AC-037 capability ownership".
 
 | Gate | Result |
 | --- | --- |
@@ -110,11 +113,11 @@ final release candidate.
 ### Owner ruling: exact-candidate AC-037 is deferred
 
 The repository owner ruled on 2026-09-27 that no further live AC-037 claim is
-made for current Slice 80 HEAD. The next live run is deferred until after Slice
-130, and Slice 150 must execute the HITL runbook on the exact final candidate,
-capture the required pass/catch/summary lines and grant/revert evidence, and
-bind the receipt to that SHA. This avoids repeated host-capability changes while
-later binding and SDK slices can still change the candidate.
+made for current Slice 80 HEAD. Slice 150 must execute the HITL runbook on the
+exact final candidate, capture the required pass/catch/summary lines and
+grant/revert evidence, and bind the receipt to that SHA. This avoids repeated
+host-capability changes while later binding and SDK slices can still change the
+candidate.
 
 ## Follow-up review and candidate binding
 
@@ -131,19 +134,47 @@ three cycles. The final verdict is **PASS** at clean reviewed candidate
 `e9631b9761d292a4115d1beee95678801512f4f2`; the two earlier cycles and their
 dispositions are recorded in `code-review.md`.
 
-No full verification gate was rerun for the documentation-only review fixes.
-The historical `gpt-5.6-terra` receipts above remain applicable to unchanged
-production; the new tests carry their focused evidence. The `66e27983`
-runbook receipt remains historical only and does not qualify `e9631b97` or the
-final candidate. Exact-final-candidate live AC-037 remains a Slice 150 gate
-after Slice 130.
+The statement formerly made here that the historical Terra receipts remained
+applicable to later production was incorrect. Production changed through
+`0efa62c5`; only the focused tests, Clippy routes, and rustdoc surface diff
+recorded in the implementation and review chronology cover those changes.
+
+At exact historical candidate `e9631b97`, attempts to replace the missing
+canonical evidence did not complete:
+
+- the public capture refused to run with less than 100 GB free;
+- the hidden capture stopped when `nvidia-smi` exited 9; and
+- `agent-verify` could not pass because a historical-reference fixture is
+  intentionally incompatible with the advanced release reference.
+
+At live `24813b8eb321ae5a12e2943d33b1a30dc1b7e121`, whose `src/` is identical
+to `31e78529` and `e9631b97`, an unconfined `agent-verify` run established:
+
+- strict security, including AC-036 and both AC-037 layers: 0 violations, 0
+  blockers, and 0 downgrades;
+- `test-rust`: PASS in 516,820 ms; and
+- 127 suites registered, 125 run, 123 passed, 2 failed, 2 skipped, and 0
+  excluded. Both failures were environmental: the checkout lacked the local
+  `fathomdb._fathomdb` native module, and the candidate-bound native receipt
+  consequently failed.
+
+This is useful diagnostic evidence, not a post-fix canonical PASS. No official
+post-fix public or hidden capture exists. The `66e27983` runbook receipt and
+the live `24813b8e` security result are not release qualification: by owner
+ruling, Slice 150 alone must run AC-037 through the runbook on the exact final
+candidate and bind the grant/run/revert receipt to that SHA.
+
+Before Slice 85 moves any code, a capable host must establish a successful
+exact-baseline `agent-verify`, candidate-bound native receipt, exact public
+capture, and hidden capture. This is a Slice 85 preflight and acceptance
+prerequisite, not evidence that Slice 80 already obtained those post-fix
+receipts.
 
 ## Verdict
 
-Slice 80 satisfies AC27-80A through AC27-80G at reviewed candidate
-`e9631b9761d292a4115d1beee95678801512f4f2` on the combined evidence above.
-Its current test implementation candidate is
-`31e78529fdb047e4827d1d3836e6b076ab358705`, and production is unchanged
-after `0efa62c544af00858aa6975944e8f36c99f13218`. No current-candidate or
-final-candidate live AC-037 pass is claimed. Slice 85 may proceed only when
-separately commissioned.
+The former `e9631b97` binding is historical and does not cover the strengthened
+property or the corrected Slice 85 plan. Production is unchanged after
+`0efa62c544af00858aa6975944e8f36c99f13218`; the current follow-up requires
+independent rereview before authoritative SHA, reviewed-candidate, or closeout
+fields are rebound. No post-fix canonical PASS, official post-fix public or
+hidden capture, or final-candidate AC-037 pass is claimed.

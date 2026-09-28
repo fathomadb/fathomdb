@@ -177,14 +177,85 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
 ### Stays at root
 
 - **Slice 85 boundary handoff:**
-  - non-root semantic ownership for every reader data carrier listed under
-    `reader_pool.rs`, `TelemetrySink`, `EvidenceCapture`, and
-    `begin_attributed_reader_tx`, preserving private fields and rooted public
-    or re-export contracts; an item may stay root-owned only through a reviewed
-    durable exception tied to a stronger invariant;
-  - the exact dependency graph, including removal of all four Slice 80 cycles;
-    only the three inherited earlier-slice cycles above are initially eligible
-    for a narrow allowlist.
+  - `read_api.rs` becomes the final home of the current `read.rs` `impl Engine`
+    facade. `graph_api.rs` becomes the final home of graph-neighbor,
+    graph-expand, boundary, and relevant graph `Engine` test facades.
+    `search_expand` and `search_expand_with_limit` move to the existing
+    `search_api.rs`. Slice 90 consumes these homes and does not move them.
+  - `structural_dependency_state` moves to a new leaf
+    `structural_state.rs`, leaving `search` → `graph_expand` one-way.
+    `begin_attributed_reader_tx` moves to a new leaf
+    `reader_transaction.rs` below the pool and every read/search/graph handler.
+  - `reader_pool.rs` owns `ReaderWorkerPool`, the request protocol and boxed
+    envelopes, response aliases, page errors, reader constants, and
+    `CacheStatusReply`; the latter keeps its exact rooted public re-export.
+    `search.rs` owns `SearchReaderWork`, `FrozenQueryRuntime`,
+    `EvidenceCapture`, `NoEvidenceCapture`, and `SearchReaderError`.
+    `telemetry.rs` owns `TelemetrySink`; reader pause carriers move with WAL
+    attribution.
+  - all existing private fields remain private. Cross-owner construction uses
+    `EvidenceCapture::new`, `FrozenQueryRuntime::new`, named
+    `SearchReaderWork` constructors for hybrid, text-only, and evidence work,
+    and pool-owned factories for every present direct construction: get-by-id,
+    collection/list, canonical/operational page, projected-text,
+    hybrid/text/evidence search, graph-neighbor/search-expand,
+    crossed-boundary, `GraphExpandReaderRequest`, and the cfg-gated baseline
+    page. The WAL seam receives typed cfg-gated worker-zero controls for
+    `HoldWalSnapshot`, `HoldWalSnapshotBounded`,
+    `HoldWalSnapshotWithCommitAck`, and both inventory requests. No `senders`
+    accessor or generic sender exposure is allowed.
+  - root retention remains possible only through an item-specific reviewed
+    durable exception tied to a stronger invariant. None of the four Slice 80
+    cycles is exception-eligible. The only initial allowlist candidates are
+    the three inherited cycles above, and that allowlist only shrinks over
+    time.
+  - the target graph is
+    `read_api/search_api/graph_api → reader_pool → read/search/graph_expand`,
+    `search → graph_expand`,
+    `read/search/graph_expand → reader_transaction`, and
+    `search/graph_expand → structural_state`.
+  - dependency enforcement combines compiler-visible explicit ownership with
+    a small `syn` AST gate in normal `agent-lint`. Governed modules forbid
+    wildcard import/re-export and root-re-export indirection, colocate inherent
+    impls with owners except the named `Engine` API homes, and express
+    cross-module calls through module-qualified free functions or explicitly
+    imported owner traits/capabilities. Macro-hidden boundaries fail unless
+    individually reviewed. A committed, complete governed `Engine` field-owner
+    map explicitly maps `Engine.reader_pool` to `reader_pool` (and every other
+    governed receiver field); the gate uses that map, never general Rust type
+    inference or name guessing, for `self.reader_pool.dispatch(...)` edges.
+    It resolves grouped/aliased imports, reports exact graph/SCC edges, and
+    hard-fails on an empty governed manifest or field-owner map.
+  - a rust-analyzer SCIP trial is rejected: it found a same-line dispatch but
+    omitted multiline dispatches and the `search_inner` edge. Engine indexing
+    measured about 6.8–6.9 s, 1.37 GB RSS, and 11 MB; workspace indexing about
+    8 s, 1.386 GB, and 14 MB. The optional tooling and noisy incomplete output
+    are unsuitable for the normal-lint contract.
+  - `begin_attributed_reader_tx<'a>` must continue borrowing the mutable
+    connection for the returned `Transaction<'a>`. Deferred begin, opt-in
+    attribution, the canonical-table snapshot probe, `transaction_opened`
+    before `snapshot_acquired`, and the snapshot pause retain their order.
+    `finish_reader_request` remains after every handler-local SQLite value and
+    transaction drop, but before response send.
+  - `Engine` field order stays unchanged so the pool joins and drops reader
+    connections before profile-context boxes are freed. `ReaderRequest`
+    remains at or below its 128-byte bound. Worker-zero WAL controls stay
+    pinned and never use round-robin dispatch. Every `test-hooks`,
+    `tc5-benchmark`, `debug_assertions`, and `cfg(test)` boundary stays exact.
+  - preserve the two `lib::graph_expand::graph_evidence_request_tests::*`
+    qualified identities, root and doc-hidden re-exports, and the non-frozen
+    two-transaction versus frozen same-transaction search-expand behavior.
+    Retarget `slice60_fix1_wire`, the Windows WAL guard, and every other source
+    scraper with non-vacuity coverage when final API files are added.
+  - focused owners include `slice80_reader_transaction_release`,
+    `reader_pool`, `pr_g2_get_by_id`, `pr_g3_read_collection`,
+    `slice45_pagination`, `slice20_graph_traversal`, `slice60_graph_expand`,
+    `slice60_wire`, `slice80_search_view_paths`, `slice50_evidence`,
+    `telemetry_capture`, and the Slice 35 frozen-read and race suites.
+  - before any Slice 85 move, a capable host must produce a successful exact
+    baseline `agent-verify`, candidate-bound native receipt, and official
+    public and hidden captures. Slice 80 has no post-fix canonical PASS or
+    official post-fix surface capture to reuse.
 - **Slice 90 runtime handoff:**
   - the open, runtime, WAL, and operator facade, including
     `mint_explanation_open_nonce` and its nonce `static`;
@@ -527,8 +598,8 @@ batch that moves the named item:
   - workspace Clippy and check;
   - the Python receipt;
   - strict-security evidence at its named candidate; the later live AC-037
-    run at `66e27983` is historical only, and exact-final-candidate AC-037 is
-    deferred to Slice 150 after Slice 130;
+    run at `66e27983` is historical only, and Slice 150 alone owns
+    exact-final-candidate AC-037;
   - `scripts/test-feature-complete.sh` on the RTX 3090 host;
   - the public capture, equal to the Slice 30 baseline;
   - the hidden capture, additive only (the two new test files; no

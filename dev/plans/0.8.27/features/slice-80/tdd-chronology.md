@@ -269,16 +269,26 @@ compile/lint and blast-radius evidence was:
 
 ## Review and final verification
 
-Code review is closed in `code-review.md`. A separate read-only
-`gpt-5.6-terra` subagent returned PASS at historical clean candidate
-`3e60cc5d`; the canonical gate passed 127/127, workspace Clippy/check passed,
-and strict security reported 0/0/0 (the live AC-037 claim at `3e60cc5d` is
-UNEVIDENCED; a
-HITL-granted re-run passed at `66e27983` as historical evidence for that
-candidate only; see `review-verification.md`), and the feature-complete gate
-passed 349/357 with 8 documented ignores. Exact-final-candidate live AC-037 is
-deferred to Slice 150 after Slice 130. `review-verification.md` records the full
-receipts and cleanup.
+Code review at `e9631b97` is historical and the strengthened property and
+revised Slice 85 plan require rereview. A separate read-only `gpt-5.6-terra`
+subagent returned PASS at historical clean candidate `3e60cc5d`; those receipts
+apply only to that exact candidate because production later changed through
+`0efa62c5`. At `3e60cc5d`, the canonical gate passed 127/127, workspace
+Clippy/check passed, and the feature-complete gate passed 349/357 with 8
+documented ignores. Its live AC-037 claim is UNEVIDENCED. A HITL-granted
+runbook re-run passed at `66e27983`, but that is also historical evidence only.
+
+At exact historical candidate `e9631b97`, a public capture was blocked by less
+than 100 GB free, a hidden capture was blocked by `nvidia-smi` exit 9, and the
+canonical gate could not pass an intentionally stale historical-ref fixture
+against the advanced release reference. At live `24813b8e`, whose `src/`
+matches `31e78529` and `e9631b97`, unconfined verification passed strict
+security 0/0/0 including AC-036 and both AC-037 layers and passed `test-rust`
+in 516,820 ms. Of 127 registered suites, 125 ran, 123 passed, 2 failed, 2
+skipped, and 0 were excluded; both failures were the missing local
+`fathomdb._fathomdb` module and its consequent native receipt. Therefore there
+is no post-fix full canonical PASS and no official post-fix public or hidden
+capture. Slice 150 alone owns qualifying AC-037 on the exact final candidate.
 
 ## Post-hoc design review fix-1 (2026-09-27)
 
@@ -336,8 +346,10 @@ Recorded limits:
 
 ## Follow-up independent review binding (2026-09-27)
 
-The current test implementation candidate is
-`31e78529fdb047e4827d1d3836e6b076ab358705`; production is unchanged after
+The historical test implementation candidate is
+`31e78529fdb047e4827d1d3836e6b076ab358705`. Follow-up
+`1d7f826c2125d5de6d852ddbc96d35fec2de5816` adds the exact canonical
+JSON-value assertion described above; production remains unchanged after
 `0efa62c544af00858aa6975944e8f36c99f13218`. An independent, read-only
 `gpt-5.6-sol` subagent at high reasoning reviewed the result-codec properties,
 their unchanged-oracle mutant evidence, and the planning-only Slice 85
@@ -356,6 +368,7 @@ retention, exception, or allowlisting.
 The third cycle returned **PASS** at clean reviewed candidate
 `e9631b9761d292a4115d1beee95678801512f4f2`. These were planning and record
 corrections, so no production or test code changed and no new behavioral RED
-was warranted. The `66e27983` AC-037 receipt remains historical only;
-exact-final-candidate live qualification remains deferred to Slice 150 after
-Slice 130.
+was warranted. That PASS is now historical pending rereview of the strengthened
+property and this corrected boundary contract. The `66e27983` AC-037 receipt
+remains historical only; Slice 150 alone owns exact-final-candidate live
+qualification.

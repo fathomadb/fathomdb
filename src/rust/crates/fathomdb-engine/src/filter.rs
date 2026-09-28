@@ -944,3 +944,18 @@ fn edge_fts_hit_passes_non_attribute_filter(
     non_attribute_filter.attributes.clear();
     edge_fts_hit_passes_filter(tx, write_cursor, row_kind, Some(&non_attribute_filter))
 }
+
+#[cfg(test)]
+mod slice85_boundary_tests {
+    use super::*;
+
+    #[test]
+    fn snapshot_filter_error_is_narrow_and_preserves_its_payload() {
+        let storage = SnapshotFilterError::from(rusqlite::Error::InvalidQuery);
+        assert!(matches!(storage, SnapshotFilterError::Sqlite(rusqlite::Error::InvalidQuery)));
+
+        let reason = "undeclared filterable attribute".to_string();
+        let invalid = SnapshotFilterError::InvalidFilter(reason.clone());
+        assert!(matches!(invalid, SnapshotFilterError::InvalidFilter(value) if value == reason));
+    }
+}

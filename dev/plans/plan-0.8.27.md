@@ -980,13 +980,12 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     `scheduler_runtime_threads * PROJECTION_COMMIT_BATCH`,
     `EngineConfig`/configured-open public delta, typed configuration error,
     Number-safe binding caps and `Scheduler` incomplete-drain outcome are a
-    separate open HITL decision, `D27-successor-adr-acceptance`, registered in
-    release state; Slice 90 is not commissionable until it is ruled.
+    separate HITL decision accepted at `seq-295`. The binding authority is
+    `dev/adr/ADR-0.8.27-engine-owned-runtime-topology.md`.
     The dedicated design records current substrates/widths, exact consumers,
     item-specific owners and required effect tests. The revised
-    `features/slice-90/option-b-successor-adr-scaffold.md` is the reviewed
-    minimum ruled-direction contract for B, pending independent design approval
-    and formal successor-ADR codification: it covers open-time equivalence,
+    `features/slice-90/option-b-successor-adr-scaffold.md` is the reviewed design
+    source incorporated into that accepted successor: it covers open-time equivalence,
     projection/query/direct dispatch, operation-specific fallback, bounded
     admission, recovering hung slots, safe database quiescence followed by an
     independent embed-runtime drain budget, stage-specific projection retry

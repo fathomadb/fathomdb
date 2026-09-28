@@ -4,12 +4,16 @@ date: 2026-04-27
 target_release: 0.6.0
 desc: Single-writer-thread engine for 0.6.0; MVCC and concurrent writers explicitly out of scope
 blast_radius: src/rust/crates/fathomdb-engine writer architecture; rusqlite usage; op-store dispatch; vector-projection scheduler; every binding's write path; ADR-0.6.0-async-surface; ADR-0.6.0-op-store-same-file; ADR-0.6.0-embedder-protocol
-status: accepted
+status: accepted; writer mechanism partially superseded by ADR-0.8.27-engine-owned-runtime-topology
 ---
 
 # ADR-0.6.0 — Single-writer-thread
 
 **Status:** accepted (HITL 2026-04-27, decision-recording).
+The dedicated writer OS thread, channel ownership and projection-worker writer
+prohibition are partially superseded by
+[`ADR-0.8.27-engine-owned-runtime-topology`](ADR-0.8.27-engine-owned-runtime-topology.md);
+one-at-a-time SQLite write serialization remains authoritative.
 
 Promoted from critic-3 M-3. The single-writer-thread invariant is
 already cited as load-bearing in three accepted ADRs

@@ -294,3 +294,12 @@ instruction; this section is that remediation record, not a third review.
 No production source, accepted ADR or Steward ledger entry changed. Slice 91
 remains unnecessary. Slices 85 and 90 remain PLANNED and uncommissioned;
 `D27-successor-adr-acceptance` is unruled and blocks Slice 90 commissioning.
+
+## Post-review HITL disposition
+
+The paragraph above is the review-time state. The repository owner subsequently
+approved `D27-successor-adr-acceptance` at `seq-295` on 2026-09-28. The accepted
+authority is
+[`ADR-0.8.27-engine-owned-runtime-topology`](../../../../adr/ADR-0.8.27-engine-owned-runtime-topology.md).
+This closes the D27 successor-design block but does not commission Slice 90;
+Slice 85 completion and an explicit Slice 90 execution ruling remain required.

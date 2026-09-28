@@ -72,7 +72,7 @@ the split preserves ownership; line count alone is not a reason.
 | Owner | Final disposition |
 | --- | --- |
 | `open` | All `Engine::open*` paths and their common admission/open implementation; `OpenReport`, `OpenedEngine`, `EmbedderChoice`; `check_embedder_profile`, `default_embedder_identity`, embedder/reranker open gates, GPU-allocation witness helpers, database-path/lock/admission/header/schema/WAL-sidecar probes, migration error conversion, and open-only startup wiring. Preserve each failure's precedence and cleanup. |
-| `runtime_configuration` | `RuntimeConfiguration`, `RuntimeConfigurationError`, `RuntimeSqliteMode`, `configure_runtime`, its locking/effective-state helpers and process-global initialization state; the proposed public `EngineConfig`/`EngineConfigurationError`, private resolved per-engine configuration and validation introduced by the correction. Process-global SQLite mode remains distinct from per-engine knobs. |
+| `runtime_configuration` | `RuntimeConfiguration`, `RuntimeConfigurationError`, `RuntimeSqliteMode`, `configure_runtime`, its locking/effective-state helpers and process-global initialization state; the accepted public `EngineConfig`/`EngineConfigurationError`, private resolved per-engine configuration and validation introduced by the correction. Process-global SQLite mode remains distinct from per-engine knobs. |
 | `embed_dispatch` | Concrete private embedding queue/workers, request-state/deadline protocol, dispatch outcomes, accounting and bounded drain. It receives the provider and typed runtime fields, never an `Engine`, SQLite connection or projection state. Caller owners translate outcomes into their existing public/panic boundaries. No generic executor, reaper thread, callback bridge or reverse dependency on open/search/projection is introduced. |
 | `connection_runtime` | `open_managed_connection`, `open_runtime_connection`, `configure_reader_lookaside`, `apply_perf_experiment_reader_pragmas`, `apply_perf_experiment_writer_pragmas`, SQLite extension/connection setup, profile-callback installation/uninstallation and connection-only constants. Preserve ABI-sensitive types and exact pragmas. |
 | `runtime_lifecycle` | `Engine::close`, `drain`, `drain_for_non_embedding_mutation`, engine `Drop`, and their lifecycle coordination. Retain exact idempotence, drain/freeze, worker join and pool-before-profile-context destruction order. |
@@ -222,10 +222,11 @@ public saturation-metric prescription: retain public readiness reporting and
 private testable runtime accounting, without changing the locked public
 `CounterSnapshot` keys or inventing a telemetry API.
 
-The revised, ruled-direction but not-yet-approved
-[`Option B successor scaffold`](option-b-successor-adr-scaffold.md) records the
-minimum commissionable B contract for independent design review. The accepted
-successor and this design must incorporate all of it before production work:
+The accepted
+[`engine-owned runtime successor ADR`](../../../../adr/ADR-0.8.27-engine-owned-runtime-topology.md)
+codifies the reviewed
+[`Option B successor scaffold`](option-b-successor-adr-scaffold.md). The ADR and
+this design require the following before production work:
 open-time vector-equivalence dispatch; nonblocking bounded
 admission with absolute queue-plus-service deadlines; one fixed timeout per
 provider invocation/batch; operation-specific fallback/error behavior;
@@ -236,29 +237,23 @@ current Python either/or and TypeScript object input;
 no hypothetical binding custom-embedder bridge; the configured open integrated
 with `EmbedderChoice`; and clause-level supersession of scheduler, writer,
 embedder, projection-model and async-binding authorities. Decision `seq-293`
-selects only that architectural direction. The numeric ceilings, queue
-multiplier, default-one embed concurrency, new typed configuration error,
-public configured-open delta and exact incomplete-close outcome remain
-successor proposals subject to independent review and formal ADR acceptance.
-That acceptance is registered in release state as the open decision
-`D27-successor-adr-acceptance`; Slice 90 is not commissionable while it is
-unruled. The acceptance package must state one consequence plainly rather
-than leave it implicit: with default-one embed concurrency, a single hung
+selected the architectural direction; `seq-295` accepted the numeric ceilings,
+distinct queue/admission bounds, default-one embed concurrency, new typed
+configuration error, public configured-open delta, exact incomplete-close
+outcome and supersession map. One accepted consequence is explicit: with
+default-one embed concurrency, a single hung
 provider call occupies the only slot, so every later dense projection and
 foreground embed in that session is admission-unavailable until the call
 returns, durable projection work stays pending, and bounded drain reports
 `Scheduler`. Under PR-9 today the projection watchdog retries and can
 terminalize the affected row while later work continues until the session
 live-thread breaker prevents additional projection embedding; it is not a
-general foreground-safe pool. The fixed-slot stall is therefore a
-reliability-posture change the HITL accepts or rejects explicitly, not a side
-effect of the ceiling proposal.
+general foreground-safe pool. The HITL accepted that fixed-slot stall trade;
+it is not mislabeled as unchanged behavior.
 
-AC27-90B and commissioning of dependent runtime changes are **BLOCKED** until
-the resulting contract passes independent design review and is formally
-codified. Safe characterization, ownership design and Slice 85 planning can
-proceed. There is no automatic waiver or deferral of the five controls. This
-design carries the ruled direction and exact tests for that review.
+The D27 successor-design block is closed. Slice 90 still depends on Slice 85
+completion and its own explicit execution ruling; `seq-295` does not commission
+implementation, waive any of the five controls, or authorize publication.
 
 Implement-as-accepted does not itself create a Slice 91 necessity: verified
 runtime replacement can be a mandatory checkpoint inside Slice 90 before
@@ -326,7 +321,7 @@ behind work, no owner is released early, and close completes after the active
 operation is released. Only then does the absolute 30-second embed-runtime
 drain begin. A provider exceeding it retains no SQLite/WAL/admission ownership,
 remains counted by worker-owned shared state without a replacement or reaper
-thread, and produces the proposed existing `EngineError::Scheduler` outcome.
+thread, and produces the accepted existing `EngineError::Scheduler` outcome.
 The budget is shared across joins and is never renewed by repeated close or
 Drop. Concurrent close has one teardown; later calls report incomplete while
 workers remain and success after they exit. This is a per-session retention
@@ -496,9 +491,9 @@ the candidate-bound result, commands and artifact hashes to
    Slice 85 receipts only when source/artifact/features genuinely match.
    Freeze focused route counts, public/hidden captures and configuration
    expectations; identify source scrapers before moving their inputs.
-2. Implement the configuration correction after `D27-successor-adr-acceptance`
-   is ruled and the design is independently approved, as the following ordered
-   RED/GREEN sub-batches. Each is separately buildable, separately reviewed
+2. Implement the accepted runtime successor after Slice 85 closes and Slice 90
+   receives its explicit execution ruling, as the following ordered RED/GREEN
+   sub-batches. Each is separately buildable, separately reviewed
    against the 300–600 non-mechanical threshold, and lands its own tests:
    1. **2a — R27-90J.** Bounded RED for the `embed_projection_batch`
       error/timeout under-guard fallback under `FATHOMDB_PROJECTION_BATCH`;
@@ -602,8 +597,8 @@ existing codec/property tests and qualified test identities.
 ## Requirements and exit acceptance
 
 AC27-90A's entry inventory confirms the item-specific owners above; it cannot
-invent final homes during implementation. AC27-90B is gated by the reviewed
-and formally codified Option B successor; its pass requires real
+invent final homes during implementation. AC27-90B implements the reviewed and
+formally accepted Option B successor; its pass requires real
 executors and all five table rows' consuming-effect/width/precedence tests,
 including open-time equivalence, query, direct-call and projection deadline
 coverage, stage-specific projection outcomes, frozen-snapshot authority,

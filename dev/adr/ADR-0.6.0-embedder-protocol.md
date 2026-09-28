@@ -4,12 +4,16 @@ date: 2026-04-27
 target_release: 0.6.0
 desc: Embedder trait contract; reentrancy + GIL + unit-norm + timeout invariants
 blast_radius: src/rust/crates/fathomdb-engine embedder dispatch layer; PyO3 binding (Python embedder bridge); napi-rs binding (TS embedder bridge); design/embedder.md; interfaces/python.md; interfaces/typescript.md; interfaces/rust.md
-status: accepted
+status: accepted; dispatch and deadline details partially superseded by ADR-0.8.27-engine-owned-runtime-topology
 ---
 
 # ADR-0.6.0 — Embedder protocol
 
 **Status:** accepted (HITL 2026-04-27).
+Invariant 4's exact pool/default and Invariant 5's deadline mechanics are
+partially superseded by
+[`ADR-0.8.27-engine-owned-runtime-topology`](ADR-0.8.27-engine-owned-runtime-topology.md);
+the provider trait, no-reentry and finish-and-discard contracts remain.
 
 This ADR records the language-agnostic contract for any `Embedder` impl
 plugged into FathomDB. It exists because critic-3 (ASYNC-3) showed

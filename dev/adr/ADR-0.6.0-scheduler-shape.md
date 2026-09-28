@@ -4,12 +4,16 @@ date: 2026-04-27
 target_release: 0.6.0
 desc: Vector-projection scheduler implementation — single tokio runtime + per-job async tasks + projection_cursor surface
 blast_radius: design/scheduler.md; engine open path; tokio dep; ADR-0.6.0-async-surface Invariant A; ADR-0.6.0-projection-freshness-sli (#8); embedder pool sizing
-status: accepted
+status: accepted; runtime topology partially superseded by ADR-0.8.27-engine-owned-runtime-topology
 ---
 
 # ADR-0.6.0 — Scheduler shape
 
 **Status:** accepted (HITL 2026-04-27).
+The Tokio/task, pool-default, admission, writer-channel and shutdown mechanisms
+are partially superseded by
+[`ADR-0.8.27-engine-owned-runtime-topology`](ADR-0.8.27-engine-owned-runtime-topology.md);
+post-commit projection and freshness obligations remain authoritative.
 
 Phase 2 #14 architecture ADR. Pins the dispatcher implementation behind ADR-0.6.0-async-surface Invariant A and the cursor surface from ADR-0.6.0-projection-freshness-sli.
 

@@ -34,23 +34,17 @@ binding, not a claim of post-fix full canonical or surface verification.
 
 ## Open decisions
 
-There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->TWO<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
+There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
 
-- `D27-successor-adr-acceptance`: formally accept the Option B successor ADR
-  (proposed `1..=64` ceilings, default-one embed concurrency and its hung-
-  provider stall posture, `4×N` queue multiplier, `EngineConfig` /
-  `open_with_choice_and_config` public delta and typed configuration error,
-  Number-safe binding caps, `EngineError::Scheduler` for incomplete drain).
-  Slice 90 cannot be commissioned until this is ruled.
 - authorize tagging/publication only after the complete ladder and release
   qualification pass.
 
 `D27-runtime-topology` is ruled as Option B by HITL decision `seq-293`. That
-ruling selects only the architectural direction; the numeric, default, API and
-error proposals above are a separate open decision.
-Slice 90 retains the synchronous projection/commit ownership model and must
-codify, independently review, implement, and verify the narrow successor before
-AC27-90B passes. Its stage-2 runtime checkpoint must be bound in release state
+ruling selected the architectural direction. `seq-295` accepted the reviewed
+numeric, default, API, error, shutdown and supersession specifics in
+`ADR-0.8.27-engine-owned-runtime-topology.md`. Slice 90 retains the synchronous
+projection/commit ownership model and must implement and verify that successor
+before AC27-90B passes. Its stage-2 runtime checkpoint must be bound in release state
 (`runtime_checkpoint_sha` with independent code-review and read-only
 verification receipts) before mechanical runtime moves start. See the
 [code-grounded resolution](../0.8.27/features/slice-90/independent-findings-resolution.md).

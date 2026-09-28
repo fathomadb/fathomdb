@@ -1,6 +1,6 @@
 ---
 title: D27 runtime topology Option B — successor ADR scaffold
-status: DRAFT-REVIEWED-PENDING-SUCCESSOR-ADR
+status: REVIEW-SOURCE-SUPERSEDED-BY-ACCEPTED-ADR
 target_release: 0.8.27
 initial_review_base: 9b00a980ca222d05f3af063168ed45c2b0a4a526
 corrected_review_base: 418240673f8a22027a67330c2c21cd19b773bb47
@@ -8,12 +8,13 @@ corrected_review_base: 418240673f8a22027a67330c2c21cd19b773bb47
 
 # D27 runtime topology Option B — successor ADR scaffold
 
-This is a design-review scaffold, not yet an accepted successor ADR,
-implementation authority, or evidence receipt. HITL decision `seq-293` rules
-`D27-runtime-topology` as Option B. AC27-90B remains blocked until this contract
-passes independent design review, is formally codified as the successor ADR,
-and is implemented and verified. The approved material must be folded into the
-Slice 90 design before commissioning production work.
+This is the design-review source for the accepted
+[`ADR-0.8.27-engine-owned-runtime-topology`](../../../../adr/ADR-0.8.27-engine-owned-runtime-topology.md),
+not a second implementation authority or evidence receipt. HITL decision
+`seq-293` selected Option B's direction; `seq-295` accepted its reviewed
+specifics and clause-level supersession map. Historical proposal/approval
+wording below records the review chronology. The ADR and Slice 90 design own
+the current normative contract and implementation acceptance.
 The latest candidate-bound review and its limitations are recorded in
 [`independent findings resolution`](independent-findings-resolution.md).
 
@@ -245,11 +246,10 @@ and produces one engine-owned `ResolvedRuntimeConfiguration`; runtime owners
 receive only their typed fields. Defaults and rejected values are the same in
 Rust, Python, and TypeScript after language-level conversion.
 
-The fixed upper bound of 64 below is proposed, not accepted. It bounds thread,
-SQLite-connection, WAL-inventory, and queue multiplication while remaining
-well above intended embedded deployments. Review should replace it if there
-is stronger repository evidence for another bound; leaving the limit
-unbounded is not proposed.
+The accepted fixed upper bound of 64 bounds thread, SQLite-connection,
+WAL-inventory and queue multiplication while remaining well above intended
+embedded deployments. Changing it now requires a successor decision; leaving
+the limit unbounded is not permitted.
 
 With scheduler count S and attached-provider count E, the engine-owned steady
 inventory is `1 + S + 8 + E` threads (dispatcher, projection, readers, embed)
@@ -629,7 +629,7 @@ may converge prose but may not supply missing Slice 90 configuration truth.
   decomposition may move already-correct forwarding and handoff code, but may
   not create the engine executors later.
 
-## Independent-review dispositions and remaining approvals
+## Independent-review dispositions and acceptance
 
 The independent design review's eight questions are resolved in this revision:
 
@@ -657,15 +657,14 @@ direction: preserve synchronous projection/commit ownership and define real
 engine-owned orchestration/embed-dispatch capacities, universal inference
 deadlines, operation-specific outcomes, and bounded embed-runtime shutdown.
 The numeric ceilings/ranges, default-one embed concurrency, typed configuration
-delta, exact configured-open API, queue multiplier, and exact incomplete-close
-outcome in this scaffold are reviewed successor proposals requiring formal ADR
-acceptance. This scaffold does not substitute for independent design approval
-or the formally accepted successor ADR.
+delta, exact configured-open API, distinct queue/admission bounds and exact
+incomplete-close outcome were accepted by `seq-295` and are now authoritative
+through the successor ADR. This scaffold remains the detailed review source,
+not a substitute for that ADR.
 
-That acceptance is the open release-state decision
-`D27-successor-adr-acceptance`. The acceptance package must present, in plain
-terms, the reliability-posture change carried by default-one embed
-concurrency: one hung provider call occupies the only embed slot, so all later
+The acceptance explicitly includes the reliability posture carried by
+default-one embed concurrency: one hung provider call occupies the only embed
+slot, so all later
 dense projection and foreground embeds in that session are
 admission-unavailable until it returns, durable projection work remains
 pending, and bounded close reports `Scheduler`. Under PR-9 today the projection

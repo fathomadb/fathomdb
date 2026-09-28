@@ -74,3 +74,19 @@ gate implementation, or destructive mutant was run by the design reviewer.
 This PASS authorizes no implementation by itself. Slice 85 becomes
 commissionable only after AC27-85F evidence and the owner execution ruling are
 durably recorded.
+
+## Execution-plan review — FAIL at `ca93721c`
+
+The required GPT-6 Astra medium execution-plan review confirmed that engine
+source and assigned carriers had not drifted since `d1918892`, the accepted
+D27 runtime successor remained Slice 90 work, and the reviewed requirements,
+acceptance criteria, ownership design, boundary gate, TDD stages, and review
+plan remained feasible and appropriately scoped.
+
+It found one P3 reconciliation defect: the manual Slice 85 board row still
+said planned/uncommissioned and instructed the already-completed capable-host
+entry qualification. The release-state JSON and execution plan correctly said
+`IN_PROGRESS`, recorded the commission, and bound the passing entry receipts.
+The board row is corrected in the same fix. No design or production change is
+required. A subsequent GPT-5.6 Sol high review must verify this correction
+before implementation begins.

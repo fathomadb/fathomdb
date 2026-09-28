@@ -71,7 +71,7 @@ verification receipts) before mechanical runtime moves start. See the
 | 60 | Engine write, ingest, and consolidation | Complete at `d5a5bd39`; six private write-domain modules, full-state write-boundary characterization, and bounded abort-seam carry-over correction. Public/hidden structural surfaces and release probe equal; test inventory additive-only; 127/127 gate and live AC-037 pass. |
 | 70 | Engine projection, embedding, and reranking | Complete at `36fc2352`; ten private modules preserve public paths and runtime shape. Canonical, security, feature-complete, workspace, and artifact gates pass. |
 | 80 | Engine read, search, graph, and evidence | Complete at reviewed candidate `b7403958` and closeout `e8e603b7`. `e9631b97`/`bca0c99d` remain historical. Production changes ended at `0efa62c5`; no post-fix canonical PASS or official post-fix public/hidden capture is claimed. |
-| 85 | Engine carrier ownership and dependency-boundary enforcement | Planned and uncommissioned. First establish successful exact-baseline canonical/native/public/hidden receipts on a capable host. Then install the final API/carrier homes, eliminate all four Slice 80 cycles, and add the compiler-plus-`syn`, non-vacuous, shrink-only dependency gate before Slice 90. |
+| 85 | Engine carrier ownership and dependency-boundary enforcement | In progress from commissioned baseline `4c75bfec`. Exact-baseline canonical/native/public/hidden entry receipts pass and remain recorded in `features/slice-85/baseline-verification.md`; implementation now owns the final API/carrier homes, elimination of all four Slice 80 cycles, and the compiler-plus-`syn`, non-vacuous, shrink-only dependency gate before Slice 90. |
 
 ## Verification boundary
 

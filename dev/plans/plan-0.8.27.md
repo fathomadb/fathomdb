@@ -968,10 +968,33 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     AC27-90B and dependent runtime commissioning: choose literal accepted
     topology or an accepted narrow successor (recommended, not ruled).
     The dedicated design records current substrates/widths, exact consumers,
-    item-specific owners and required effect tests. This is architecture
-    correction plus forwarding, not forwarding alone. No Slice 91 technical
-    boundary has been demonstrated; runtime qualification precedes moves
-    within 90 unless an explicitly reviewed dependency requires a ladder change.
+    item-specific owners and required effect tests. The revised
+    `features/slice-90/option-b-successor-adr-scaffold.md` is the reviewed
+    minimum for B, but remains unaccepted: it covers open-time equivalence,
+    projection/query/direct dispatch, operation-specific fallback, bounded
+    admission, recovering hung slots, an independent close budget, exact
+    projection-row capacity, current binding input shapes and clause-level ADR
+    supersession. This is architecture correction plus forwarding, not
+    forwarding alone. No Slice 91 technical boundary has been demonstrated;
+    runtime qualification precedes moves within 90 unless an explicitly
+    reviewed dependency requires a ladder change.
+  - **Configuration documentation action:** in the functional configuration
+    batch, update the accepted successor and decision index, internal engine/
+    embedder/bindings designs, Rust/Python/TypeScript interfaces,
+    `docs/reference/config.md`, and affected error guidance. Document each
+    setting's spelling, default, unit, accepted range, zero/omission meaning,
+    mutability, precedence, consuming component, backpressure and observable
+    error/fallback behavior. This truth must land in Slice 90, not be deferred
+    to Slice 140.
+  - **Batch-fallback deadlock action:** before executor changes, add a bounded
+    RED test for `embed_projection_batch` calling `per_job()` from its
+    breaker/error paths while `embed_serialize` is held
+    (`fn embed_projection_batch` in
+    `src/rust/crates/fathomdb-engine/src/projection_worker.rs`). Resolve every
+    route so the guard or new
+    executor permit is dropped before per-job fallback; require a mutant that
+    restores the under-guard fallback to fail. Do not let the executor rewrite
+    erase the investigation without proving the replacement lock order.
 - **Open-path and runtime items.** These are Slice 90's. Slice 70 kept them
   at root:
   - `check_embedder_profile`, `default_embedder_identity`,

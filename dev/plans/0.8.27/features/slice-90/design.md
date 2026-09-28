@@ -159,8 +159,8 @@ Rust currently has per-field atomics/constants, not one resolved option API.
 | Knob | Accepted/design default | Current consumer and width | Correction/proof obligation |
 | --- | --- | --- | --- |
 | `scheduler_runtime_threads` | Scheduler ADR: two dedicated Tokio orchestration workers | No engine consumer or Tokio runtime; dispatcher plus two OS projection workers use `usize` constants. NAPI's Tokio `spawn_blocking` is a separate binding handoff, not this executor. | Requires the architecture decision below; never wire this to the reader pool, NAPI pool or merely rename projection workers. Prove selected orchestration capacity and bounded backlog under the accepted final contract. |
-| `embedder_pool_size` | Scheduler/embedder ADRs: `num_cpus::get()` dedicated dispatch slots | No configured pool. Projection worker count is two, healthy projection embeds serialize through one mutex, and each watchdog invocation spawns an OS thread. Query/direct embeds execute on their caller. | New engine-owned dispatch capacity for all engine embed paths; prove selected bound, independent-engine isolation, hung-slot accounting and no calls on host runtime threads. The current serialization guard cannot make a claimed N-slot pool effective. |
-| `embedder_call_timeout_ms` | Embedder ADR: 30,000 ms for every embed call | `ProjectionRuntimeShared::embed_timeout_ms: AtomicU64`, default30,000; projection batch watchdog multiplies by batch length. `search.rs`, `embedding::embed_text`, and root test vector writes call directly without it. | Route engine-owned query, projection and direct embedding through the accepted watchdog contract; specify batch deadline and queue-wait versus service deadline before RED tests. Preserve public error precedence unless an approved delta explicitly changes it. |
+| `embedder_pool_size` | Scheduler/embedder ADRs: `num_cpus::get()` dedicated dispatch slots | No configured pool. Projection worker count is two, healthy projection embeds serialize through one mutex, and each watchdog invocation spawns an OS thread. Query/direct embeds and open-time vector-equivalence probes invoke the provider outside that guard. | New engine-owned dispatch capacity for every production inference path, including first-open/reopen equivalence probes; prove selected bound, independent-engine isolation, hung-slot accounting and no calls on host runtime threads. The current serialization guard cannot make a claimed N-slot pool effective. |
+| `embedder_call_timeout_ms` | Embedder ADR: 30,000 ms for every embed call | `ProjectionRuntimeShared::embed_timeout_ms: AtomicU64`, default30,000; projection batch watchdog multiplies by batch length. `search.rs`, `search_api.rs`, `embedding::embed_text`, vector-equivalence probes, and root test vector writes call directly without it. | Route all production inference through the accepted deadline contract; specify admission, queue/service, batch, open-probe and per-operation outcome semantics before RED tests. Preserve hybrid sparse fallback, degraded-open behavior, direct-call errors and projection retry/terminal precedence unless an approved delta explicitly changes one. |
 | `provenance_row_cap` | Existing engine default1,000,000 rows | `Engine::provenance_row_cap: AtomicU64`, used by `write`/`actuation` → `write_commit::enforce_provenance_retention`; zero currently disables retention. It is not consumed by the reader/provenance reporting pool. | Forward open-time value and prove actual retention after real write/actuation commits, including zero and independent engines; do not prove it by echoing config. |
 | `slow_threshold_ms` | Existing engine default100 ms | Shared `Arc<AtomicU64>` read by `detect_slow` and SQLite profile callback; public setter works after open (PyO3 `u64`, NAPI `u32`), but open config is ignored. | Set before connection/profile setup; prove both operation and statement slow signals plus subsequent setter behavior, retaining strict elapsed>threshold semantics. |
 
@@ -174,7 +174,8 @@ Resolve numeric contracts before implementation: NAPI `u32` cannot represent
 Rust `u64` timeouts/caps, and JS `number` loses integer precision above
 2^53−1; Python type annotations do not validate values. The option/interface
 delta must explicitly choose and justify checked ranges for each field,
-including `usize` platform limits and checked `4*N`/batch multiplication,
+including `usize` platform limits and checked `4*N`/projection-capacity
+multiplication,
 and preserve or explicitly amend zero semantics. Neither lossy casts nor
 silently narrowing Rust to NAPI's current width satisfies symmetry. Test
 fractional/negative/NaN/infinity, booleans where relevant, u32+1, JS safe-integer
@@ -206,6 +207,23 @@ public sync Rust/Python APIs; conflicting language-adapter constraints must
 be resolved in the same accepted contract, not silently assigned to Slice 110.
 Standalone SDK embedding utilities are not Engine config consumers and retain
 their own contract; inventory them to prevent a false universal claim.
+
+The revised, still-unaccepted
+[`Option B successor scaffold`](option-b-successor-adr-scaffold.md) records the
+minimum commissionable B contract after independent design review. If B is
+ruled, the accepted successor and this design must incorporate all of it before
+production work: open-time vector-equivalence dispatch; nonblocking bounded
+admission with absolute queue-plus-service deadlines; one fixed timeout per
+provider invocation/batch; operation-specific fallback/error behavior;
+recovering timed-out-slot accounting without replacement threads; an absolute
+close budget and truthful incomplete-shutdown result; exact projection row
+capacity/observability; current Python either/or and TypeScript object input;
+no hypothetical binding custom-embedder bridge; the configured open integrated
+with `EmbedderChoice`; and clause-level supersession of scheduler, writer,
+embedder, projection-model and async-binding authorities. The proposed numeric
+ceilings, default-one embed concurrency, new typed configuration error and
+public configured-open delta require the same ruling; the draft itself grants
+none of them.
 
 AC27-90B and commissioning of dependent runtime changes are **BLOCKED** until
 this choice and the resulting contract are approved. Safe characterization,
@@ -247,6 +265,19 @@ sleep-based race or a mocked database. Check omitted options, zero/negative,
 overflow, wrong types, and mixed config/keyword precedence where applicable.
 Dynamic worker-count changes must update capacity, shutdown joins, WAL
 inventory expectations and fault cleanup; replacing one constant is not enough.
+Preserve Python's existing rejection of mixed `config=` plus per-knob keywords
+and TypeScript's single `engineConfig` object; do not invent override/merge
+precedence.
+
+Before executor changes, investigate the likely batch-fallback self-deadlock at
+`projection_worker.rs:553-575`: `embed_projection_batch` invokes `per_job()`
+from breaker/error branches while `_embed_permit` still owns
+`embed_serialize`, and `run_projection_job` attempts to acquire the same mutex.
+Add a bounded RED test that reaches this fallback, then ensure every fallback
+drops the guard/permit before entering the per-job path. A mutant that restores
+the under-guard fallback must fail. If the approved executor removes this
+mutex, preserve the same no-reentrant-permit proof rather than treating the
+mechanical disappearance as evidence.
 
 This functional correction can require an additive Rust/native option seam.
 Review and update the applicable ADR/interface docs and a named allowed-delta
@@ -256,6 +287,16 @@ All unrelated public rows remain exact. Subsequent mechanical batches compare
 against the separately captured post-correction candidate as well. Binding
 decomposition still belongs to Slices 100/110/120/130; only config forwarding
 and its necessary native signature/stub/declaration updates occur here.
+
+Documentation is part of the configuration correction, not deferred
+convergence. In the same reviewed batch, update the accepted successor and ADR
+index, `dev/design/engine.md`, `dev/design/embedder.md`,
+`dev/design/bindings.md`, the Rust/Python/TypeScript interface contracts,
+`docs/reference/config.md`, and affected error guidance. Record every setting's
+binding spelling, default, unit, accepted range, zero/omission meaning,
+mutability, precedence, consuming component, backpressure, and observable
+error/fallback behavior. Slice 140 may remove stale prose but may not supply
+missing Slice 90 configuration truth.
 
 ### Binding handoff to Slices 100 and 110
 
@@ -291,11 +332,15 @@ callback/executor conformance is inferred from configuration tests.
    Slice 85 receipts only when source/artifact/features genuinely match.
    Freeze focused route counts, public/hidden captures and configuration
    expectations; identify source scrapers before moving their inputs.
-2. Implement the configuration correction in RED/GREEN sub-batches: engine
-   validation/executor/watchdog after the architecture ruling and design
-   approval; Python/PyO3 forwarding; Node/TypeScript/NAPI
-   forwarding; installed-artifact parity and independent review. Do not mix
-   structural movement into these diffs.
+2. Implement the configuration correction in RED/GREEN sub-batches after the
+   architecture ruling and design approval: characterize and resolve the
+   `embed_projection_batch` under-guard fallback self-deadlock; engine
+   validation/configured-open seam; orchestration/embed executors plus
+   open/query/direct/projection deadline and lifecycle behavior; Python/PyO3
+   forwarding; Node/TypeScript/NAPI forwarding; configuration/ADR/interface/
+   public-reference documentation; installed-artifact parity and independent
+   review. Do not mix structural movement into these diffs. Runtime review is
+   a mandatory checkpoint before stage 3.
 3. Move resolved/process runtime configuration, then connection primitives,
    then open/admission and open maintenance. Split open by an actual admission
    or cleanup phase while retaining one public path and exact sequencing.
@@ -348,16 +393,17 @@ AC27-90A's entry inventory confirms the item-specific owners above; it cannot
 invent final homes during implementation. AC27-90B is blocked by
 `D27-runtime-topology`; its pass requires the approved topology's real
 executors and all five table rows' consuming-effect/width/precedence tests,
-including query and direct-call timeout coverage and slow-threshold open
-initialization. A config echo, worker-count rename, proposed ADR or forwarder
-without an executor is a failing result. AC27-90H consumes Slice 85's
+including open-time equivalence, query, direct-call and projection deadline
+coverage, per-operation outcomes, bounded shutdown, documentation, and
+slow-threshold open initialization. A config echo, worker-count rename,
+proposed ADR or forwarder without an executor is a failing result. AC27-90H consumes Slice 85's
 whole-crate extraction, transitive root reach and named type-only admission;
 it does not treat newly moved owners as invisible out-of-scope endpoints.
 
 | ID | Requirement | Falsifiable acceptance |
 | --- | --- | --- |
 | R27-90A | Complete semantic ownership and root closure. | AC27-90A: the source-derived entry and final inventories account for every named/root item, field, method and cfg variant; each reaches its approved final owner or named retained-root disposition, with no unresolved/optional entries or production carryover. Root retains only composition/state/core controls and specifically justified test/contract items. The 300–800-line aspiration cannot override ownership. |
-| R27-90B | Runtime configuration is effective and symmetric. | AC27-90B: all five advertised knobs have an authoritative contract and observable consuming effect; Rust plus installed Python/Node default/nondefault/invalid cases pass. Pool sizing, timeout, late completion, concurrent engines, and cleanup match the accepted contract. Seq-258's gap is closed by implementation evidence or an accepted and implemented successor, never by a proposal alone. |
+| R27-90B | Runtime configuration is effective, symmetric and documented. | AC27-90B: all five advertised knobs have an authoritative contract and observable consuming effect; Rust plus installed Python/Node default/nondefault/invalid cases pass. Pool sizing, exact projection-row capacity, every production inference path, operation-specific fallback/errors, queue/service timeout, mixed foreground/projection load, frozen-reader WAL release, late completion, recovering hung-slot accounting, concurrent engines, absolute-budget cleanup, and truthful incomplete shutdown match the accepted contract. The successor/ADR index, internal designs, all language interfaces, public config reference and affected error guidance document every accepted setting and behavior before closeout. Seq-258's gap is closed by implementation evidence or an accepted and implemented successor, never by a proposal alone. |
 | R27-90C | Open and connection semantics survive extraction. | AC27-90C: fresh-process admission/probe/runtime-mode/error-order tests and failure injection pass with unchanged SQL, locks, side effects, cfg and cleanup apart from the separately approved configuration behavior. Every named open/connection helper has its inventory disposition. |
 | R27-90D | WAL and lifecycle ownership is complete. | AC27-90D: open/close/reopen, drain, idempotent close, faulted startup/shutdown, busy/checkpoint behavior, native inventories and worker-zero pause/ack tests pass. Retained reader arms execute on their existing connection/thread; no sender escapes. No orphaned workers, runtime probes, WAL pins or profile callbacks survive the defined cleanup point. |
 | R27-90E | Projector and operator work is finished. | AC27-90E: every projector and operator family in the owner map is moved and tested under its exact feature gates; projection/registry/vector state, integrity findings, reports, error mappings and nonmutating diagnostic behavior match the entry evidence. No index-projector or operator item remains pending for Slice 100. |
@@ -365,6 +411,7 @@ it does not treat newly moved owners as invisible out-of-scope endpoints.
 | R27-90G | Surfaces and platform coverage remain truthful. | AC27-90G: immutable Slice 30 comparison reports only individually reviewed config deltas; mechanical comparisons against the post-correction candidate are equal. Hidden surface is additive only unless an existing accepted contract explicitly requires a reviewed change. Rust root paths, Python stubs, Node declarations, feature gates and qualified tests remain accounted for. All required matrix routes, including non-Linux compilation, have candidate-bound receipts; an unavailable executor blocks closeout. |
 | R27-90H | Structural enforcement survives runtime moves. | AC27-90H: the bounded Slice 85 gate and negative fixtures pass; root-item paths and touched new owners are classified, source scrapers retain their oracles, and none of the four forbidden cycles or a new governed return path is introduced. No whole-crate normalization or automatic exception growth occurs. |
 | R27-90I | Completion is independently demonstrated before bindings decompose. | AC27-90I: independent code review and read-only verification pass at the final candidate, repository-required gates and installed-artifact receipts pass, and the owner/requirement inventory has zero open Slice 90 items. Only then can release state mark Slice 90 complete and unblock Slice 100. Slice 150 still owns exact-final-candidate AC-037; historical security receipts are not reused as current claims. |
+| R27-90J | Batch embed fallback cannot reacquire its own serialization guard or executor permit. | AC27-90J: a bounded RED test reproduces the `embed_projection_batch` breaker/error fallback while the batch guard is held; GREEN proves every per-job fallback occurs only after the guard/permit is dropped, normal and mutant routes terminate without deadlock, the mutant restoring under-guard fallback fails, and the approved executor transition retains the same lock-order guarantee. |
 
 If any acceptance remains unmet, Slice 90 remains incomplete. A revision of
 the ladder requires an explicit reviewed dependency/verification reason; batch

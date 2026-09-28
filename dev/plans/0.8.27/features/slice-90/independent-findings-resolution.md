@@ -3,6 +3,7 @@ title: Slice 85 and 90 independent findings — code-grounded resolution
 status: PLANNED
 reviewed_candidate: ab8f43be2c9ceaa9ad19b23b23f40e9d2c484513
 minor_review_candidate: ce71afe511545d963f141b5c9c051fc8638bd6b4
+option_b_review_base: 9b00a980ca222d05f3af063168ed45c2b0a4a526
 target_release: 0.8.27
 ---
 
@@ -35,6 +36,43 @@ independent pass. All are correct and beneficial:
 | P3-4: the prose boundary could be mistaken for the exact policy | Make the report-only-frozen committed policy file authoritative, with prose examples explicitly illustrative. |
 | P3-5: the AC-037 decision ID named the wrong predecessor | Rename it to `final-candidate-ac-037-at-slice-150`; its ruled content is unchanged. |
 | P3-6: Slice 80's historical handoff wording conflicted with the later design | Add a supersession note while preserving the historical decision and implementation record. |
+
+## Option B independent design review
+
+A fresh read-only GPT-6 Astra medium review of the Option B scaffold at the
+recorded base returned **FAIL as a commissionable design; Option B remains the
+recommended direction**. The revised scaffold and Slice 90 design incorporate
+the required corrections without recording a D27 ruling:
+
+- route open-time vector-equivalence probes as well as both query paths,
+  projection and direct embedding through engine-owned dispatch;
+- preserve degraded open, hybrid sparse fallback, direct-call errors and
+  projection retry/terminal behavior rather than forcing one public timeout
+  result;
+- use nonblocking bounded admission and one absolute queue-plus-service
+  deadline per provider invocation, including one fixed deadline per batch;
+- keep timed-out calls in their slots without replacement threads, then reopen
+  capacity when they return instead of permanently latching the default
+  one-slot engine;
+- use an independent absolute close budget, join every SQLite owner, and report
+  incomplete embed shutdown without claiming arbitrary provider teardown;
+- state exact active-plus-queued projection row units and separate durable,
+  admitted, queued, active and timed-out-live observations;
+- preserve Python's either/or input and TypeScript's object input, avoid
+  hypothetical custom binding embedders, and integrate the configured open with
+  `EmbedderChoice`;
+- enumerate clause-level successor obligations across scheduler, writer,
+  embedder, projection-model and async-binding authorities; and
+- make the numeric ceilings, default-one embed concurrency, typed configuration
+  delta and public configured-open seam explicit approval items.
+
+The review also found a likely existing self-deadlock:
+`embed_projection_batch` calls `per_job()` from breaker/error branches while
+holding `embed_serialize`, and `run_projection_job` reacquires that mutex. Slice
+90 now requires a bounded RED reproduction, a GREEN guard/permit-drop fix, and
+a failing restoration mutant before the executor work can hide or replace the
+old path. Configuration documentation is likewise an explicit Slice 90 batch
+and acceptance obligation, not deferred to Slice 140.
 
 ## Evidence
 

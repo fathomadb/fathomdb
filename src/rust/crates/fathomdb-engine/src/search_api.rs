@@ -130,52 +130,34 @@ impl Engine {
             .search_limit_override
             .load(Ordering::SeqCst)
             .max(result_limit);
-        let work = SearchReaderWork {
-            compiled: None,
-            query_vector: None,
-            query_vector_bin: None,
+        let work = SearchReaderWork::evidence(
             result_limit,
             candidate_limit,
-            direct_text_candidate_limit: None,
-            filter: Some(Box::new(request.context.context.eligibility.clone())),
-            recency_enabled: self
-                .projection_runtime
-                .shared
-                .recency_reweight_enabled
-                .load(Ordering::SeqCst),
-            importance_enabled: self
-                .projection_runtime
-                .shared
-                .importance_reweight_enabled
-                .load(Ordering::SeqCst),
-            vector_stage_only: self
-                .projection_runtime
-                .shared
-                .vector_stage_only_for_test
-                .load(Ordering::SeqCst),
-            raw_query: Box::from(request.query.as_str()),
-            rerank_depth: request.rerank_depth as usize,
-            use_graph_arm: request.use_graph_arm,
-            alpha: request.alpha,
-            pool_n: request.pool_n as usize,
-            explain: true,
-            projection_runtime_state: if self.runtime_embedder.is_none() {
+            request.context.context.eligibility.clone(),
+            self.projection_runtime.shared.recency_reweight_enabled.load(Ordering::SeqCst),
+            self.projection_runtime.shared.importance_reweight_enabled.load(Ordering::SeqCst),
+            self.projection_runtime.shared.vector_stage_only_for_test.load(Ordering::SeqCst),
+            &request.query,
+            request.rerank_depth as usize,
+            request.use_graph_arm,
+            request.alpha,
+            request.pool_n as usize,
+            if self.runtime_embedder.is_none() {
                 ProjectionRuntimeStateV1::Absent
             } else if self.dense_disabled.load(Ordering::Acquire) {
                 ProjectionRuntimeStateV1::Refused
             } else {
                 ProjectionRuntimeStateV1::Usable
             },
-            view: request.context.context.view,
-            frozen_binding: Some(Box::new(binding)),
-            frozen_query_runtime: Some(Box::new(FrozenQueryRuntime {
-                embedder: self.runtime_embedder.clone(),
-                embedder_identity: self.runtime_embedder_identity.clone(),
+            request.context.context.view,
+            binding,
+            FrozenQueryRuntime::new(
+                self.runtime_embedder.clone(),
+                self.runtime_embedder_identity.clone(),
                 dense_disabled_reason,
-                observed_generation: Arc::clone(&self.read_visibility_generation),
-            })),
-            expand_depth: None,
-        };
+                Arc::clone(&self.read_visibility_generation),
+            ),
+        );
         let (response_tx, response_rx) = mpsc::sync_channel::<EvidenceReaderResponse>(1);
         self.reader_pool
             .dispatch(ReaderRequest::SearchEvidence(Box::new(EvidenceSearchReaderRequest {
@@ -579,12 +561,12 @@ impl Engine {
         };
         let query_vector = raw_query_vector.and_then(|vector| serde_json::to_string(&vector).ok());
         let frozen_query_runtime = is_frozen.then(|| {
-            Box::new(FrozenQueryRuntime {
-                embedder: self.runtime_embedder.clone(),
-                embedder_identity: self.runtime_embedder_identity.clone(),
+            Box::new(FrozenQueryRuntime::new(
+                self.runtime_embedder.clone(),
+                self.runtime_embedder_identity.clone(),
                 dense_disabled_reason,
-                observed_generation: Arc::clone(&self.read_visibility_generation),
-            })
+                Arc::clone(&self.read_visibility_generation),
+            ))
         });
         // The public result limit is independent of the test-only vector
         // candidate fanout. The seam may raise this fanout for recall tests,
@@ -603,24 +585,23 @@ impl Engine {
             self.projection_runtime.shared.vector_stage_only_for_test.load(Ordering::SeqCst);
         let (response_tx, response_rx) = mpsc::sync_channel::<ReaderResponse>(1);
         let request = ReaderRequest::Search(Box::new(SearchReaderRequest {
-            work: SearchReaderWork {
+            work: SearchReaderWork::hybrid(
                 compiled,
                 query_vector,
                 query_vector_bin,
                 result_limit,
                 candidate_limit,
-                direct_text_candidate_limit: None,
-                filter: filter.map(Box::new),
+                filter,
                 recency_enabled,
                 importance_enabled,
                 vector_stage_only,
-                raw_query: Box::from(query), // FIX-4: Box<str> (16B) not String (24B)
+                query,
                 rerank_depth,
                 use_graph_arm,
                 alpha,
                 pool_n,
                 explain,
-                projection_runtime_state: if self.runtime_embedder.is_none() {
+                if self.runtime_embedder.is_none() {
                     ProjectionRuntimeStateV1::Absent
                 } else if self.dense_disabled.load(Ordering::Acquire) {
                     ProjectionRuntimeStateV1::Refused
@@ -628,10 +609,10 @@ impl Engine {
                     ProjectionRuntimeStateV1::Usable
                 },
                 view,
-                frozen_binding: frozen_binding.map(Box::new),
+                frozen_binding,
                 frozen_query_runtime,
                 expand_depth,
-            },
+            ),
             respond: response_tx,
         }));
         if self.reader_pool.dispatch(request).is_err() {
@@ -1059,29 +1040,7 @@ impl Engine {
         // request whose embedder yields no vector. Only the direct path gets the
         // fixed node candidate bound before node/edge body deduplication and RRF.
         let request = ReaderRequest::Search(Box::new(SearchReaderRequest {
-            work: SearchReaderWork {
-                compiled: Some(compiled),
-                query_vector: None,
-                query_vector_bin: None,
-                result_limit: limit,
-                candidate_limit,
-                direct_text_candidate_limit: Some(MAX_SEARCH_RESULT_LIMIT),
-                filter: None,
-                recency_enabled: false,
-                importance_enabled: false,
-                vector_stage_only: false,
-                raw_query: Box::from(query),
-                rerank_depth: 0,
-                use_graph_arm: false,
-                alpha: 0.3,
-                pool_n: 0,
-                explain: false,
-                projection_runtime_state: ProjectionRuntimeStateV1::Absent,
-                view: *view,
-                frozen_binding: None,
-                frozen_query_runtime: None,
-                expand_depth: None,
-            },
+            work: SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view),
             respond: response_tx,
         }));
         if self.reader_pool.dispatch(request).is_err() {

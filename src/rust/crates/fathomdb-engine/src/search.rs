@@ -1,5 +1,185 @@
 use super::*;
 
+pub(crate) struct EvidenceCapture {
+    frozen: FrozenReadContextV1,
+    include_explanation: bool,
+    graph_origins: HashMap<u64, CapturedGraphOrigin>,
+}
+
+impl EvidenceCapture {
+    pub(crate) fn new(frozen: FrozenReadContextV1, include_explanation: bool) -> Self {
+        Self { frozen, include_explanation, graph_origins: HashMap::new() }
+    }
+}
+
+/// Capability payload kept behind one pointer so adding optional search state
+/// cannot inflate every request crossing the bounded reader channel.
+pub(crate) struct SearchReaderWork {
+    compiled: Option<fathomdb_query::CompiledQuery>,
+    query_vector: Option<String>,
+    query_vector_bin: Option<String>,
+    result_limit: usize,
+    candidate_limit: usize,
+    direct_text_candidate_limit: Option<usize>,
+    filter: Option<Box<SearchFilter>>,
+    recency_enabled: bool,
+    importance_enabled: bool,
+    vector_stage_only: bool,
+    raw_query: Box<str>,
+    rerank_depth: usize,
+    use_graph_arm: bool,
+    alpha: f64,
+    pool_n: usize,
+    explain: bool,
+    projection_runtime_state: ProjectionRuntimeStateV1,
+    view: ReadView,
+    frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
+    frozen_query_runtime: Option<Box<FrozenQueryRuntime>>,
+    expand_depth: Option<u32>,
+}
+
+impl SearchReaderWork {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn hybrid(
+        compiled: Option<fathomdb_query::CompiledQuery>,
+        query_vector: Option<String>,
+        query_vector_bin: Option<String>,
+        result_limit: usize,
+        candidate_limit: usize,
+        filter: Option<SearchFilter>,
+        recency_enabled: bool,
+        importance_enabled: bool,
+        vector_stage_only: bool,
+        raw_query: &str,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        projection_runtime_state: ProjectionRuntimeStateV1,
+        view: ReadView,
+        frozen_binding: Option<frozen_read::FrozenReadBinding>,
+        frozen_query_runtime: Option<Box<FrozenQueryRuntime>>,
+        expand_depth: Option<u32>,
+    ) -> Self {
+        Self {
+            compiled,
+            query_vector,
+            query_vector_bin,
+            result_limit,
+            candidate_limit,
+            direct_text_candidate_limit: None,
+            filter: filter.map(Box::new),
+            recency_enabled,
+            importance_enabled,
+            vector_stage_only,
+            raw_query: Box::from(raw_query),
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            projection_runtime_state,
+            view,
+            frozen_binding: frozen_binding.map(Box::new),
+            frozen_query_runtime,
+            expand_depth,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn evidence(
+        result_limit: usize,
+        candidate_limit: usize,
+        filter: SearchFilter,
+        recency_enabled: bool,
+        importance_enabled: bool,
+        vector_stage_only: bool,
+        raw_query: &str,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        projection_runtime_state: ProjectionRuntimeStateV1,
+        view: ReadView,
+        frozen_binding: frozen_read::FrozenReadBinding,
+        frozen_query_runtime: FrozenQueryRuntime,
+    ) -> Self {
+        Self::hybrid(
+            None,
+            None,
+            None,
+            result_limit,
+            candidate_limit,
+            Some(filter),
+            recency_enabled,
+            importance_enabled,
+            vector_stage_only,
+            raw_query,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            true,
+            projection_runtime_state,
+            view,
+            Some(frozen_binding),
+            Some(Box::new(frozen_query_runtime)),
+            None,
+        )
+    }
+
+    pub(crate) fn text_only(
+        compiled: fathomdb_query::CompiledQuery,
+        query: &str,
+        result_limit: usize,
+        candidate_limit: usize,
+        view: ReadView,
+    ) -> Self {
+        Self {
+            compiled: Some(compiled),
+            query_vector: None,
+            query_vector_bin: None,
+            result_limit,
+            candidate_limit,
+            direct_text_candidate_limit: Some(MAX_SEARCH_RESULT_LIMIT),
+            filter: None,
+            recency_enabled: false,
+            importance_enabled: false,
+            vector_stage_only: false,
+            raw_query: Box::from(query),
+            rerank_depth: 0,
+            use_graph_arm: false,
+            alpha: 0.3,
+            pool_n: 0,
+            explain: false,
+            projection_runtime_state: ProjectionRuntimeStateV1::Absent,
+            view,
+            frozen_binding: None,
+            frozen_query_runtime: None,
+            expand_depth: None,
+        }
+    }
+}
+
+pub(crate) struct FrozenQueryRuntime {
+    embedder: Option<Arc<dyn Embedder>>,
+    embedder_identity: EmbedderIdentity,
+    dense_disabled_reason: Option<String>,
+    observed_generation: Arc<AtomicU64>,
+}
+
+impl FrozenQueryRuntime {
+    pub(crate) fn new(
+        embedder: Option<Arc<dyn Embedder>>,
+        embedder_identity: EmbedderIdentity,
+        dense_disabled_reason: Option<String>,
+        observed_generation: Arc<AtomicU64>,
+    ) -> Self {
+        Self { embedder, embedder_identity, dense_disabled_reason, observed_generation }
+    }
+}
+
 fn structural_lifecycle_state(
     tx: &Connection,
     write_cursor: u64,

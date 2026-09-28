@@ -70,7 +70,7 @@ fn reader_worker_loop(
                 let result = read_search_work_in_tx(
                     &mut connection,
                     work,
-                    EvidenceCapture { frozen, include_explanation, graph_origins: HashMap::new() },
+                    EvidenceCapture::new(frozen, include_explanation),
                     &wal_attribution,
                     worker_idx,
                 );

@@ -155,6 +155,21 @@ pub(crate) enum SearchReaderError {
     InvalidArgument(String),
 }
 
+impl From<rusqlite::Error> for SearchReaderError {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::Sqlite(error)
+    }
+}
+
+impl From<SnapshotFilterError> for SearchReaderError {
+    fn from(error: SnapshotFilterError) -> Self {
+        match error {
+            SnapshotFilterError::Sqlite(error) => Self::Sqlite(error),
+            SnapshotFilterError::InvalidFilter(reason) => Self::InvalidFilter(reason),
+        }
+    }
+}
+
 // Ordinary search retains a zero-sized capture strategy: evidence state and
 // provenance collection are absent unless the explicit evidence operation is used.
 const _: () = assert!(std::mem::size_of::<NoEvidenceCapture>() == 0);

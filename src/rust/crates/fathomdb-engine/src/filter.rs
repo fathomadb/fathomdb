@@ -438,30 +438,41 @@ impl Filter {
 /// authority (correct even with no embedder / no `vector_default`, where a
 /// declared-`filterable` term still filters legitimately via the row-owned
 /// `canonical_attributes` EAV store). The caller re-raises
-/// [`SearchReaderError::InvalidFilter`] as the EXISTING typed
+/// [`SnapshotFilterError::InvalidFilter`] as the EXISTING typed
 /// [`EngineError::InvalidFilter`], so both arms see the SAME rejection because it is
 /// raised before either runs.
 pub(crate) fn validate_filter_attributes_on_snapshot(
     conn: &Connection,
     filter: &SearchFilter,
-) -> Result<(), SearchReaderError> {
+) -> Result<(), SnapshotFilterError> {
     if filter.attributes.is_empty() {
         return Ok(());
     }
-    // `?` maps a registry-read failure to `SearchReaderError::Sqlite` (unchanged
+    // `?` maps a registry-read failure to `SnapshotFilterError::Sqlite` (unchanged
     // `Storage` semantics for a genuine backend fault) via the `From` impl.
     let registry = load_projection_registry(conn)?;
     for (name, _value) in &filter.attributes {
         let declared_filterable =
             registry.get(name).is_some_and(|s| s.roles.contains(&ProjectionRole::Filterable));
         if !declared_filterable {
-            return Err(SearchReaderError::InvalidFilter(format!(
+            return Err(SnapshotFilterError::InvalidFilter(format!(
                 "filter attribute {name:?} is not a declared `filterable` projection; \
                  declare it via configure_projections before filtering on it"
             )));
         }
     }
     Ok(())
+}
+
+pub(crate) enum SnapshotFilterError {
+    Sqlite(rusqlite::Error),
+    InvalidFilter(String),
+}
+
+impl From<rusqlite::Error> for SnapshotFilterError {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::Sqlite(error)
+    }
 }
 
 /// G10 — the `AND col=?n` predicate fragment appended to the phase-1 candidates

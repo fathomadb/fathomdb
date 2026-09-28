@@ -1228,10 +1228,10 @@ pub(crate) fn read_graph_expand_in_tx(
     };
     validate_filter_attributes_on_snapshot(&tx, &context.eligibility).map_err(
         |error| match error {
-            crate::SearchReaderError::InvalidFilter(_) => {
+            crate::SnapshotFilterError::InvalidFilter(_) => {
                 graph_error(GraphExpansionErrorReasonV1::GraphContextInvalid, "/context")
             }
-            _ => EngineError::Storage,
+            crate::SnapshotFilterError::Sqlite(_) => EngineError::Storage,
         },
     )?;
     let view = context.view.freeze();
@@ -1647,6 +1647,6 @@ pub(super) fn encode_graph_evidence_request(value: &GraphExpandRequestV1) -> Vec
 fn validate_filter_attributes_on_snapshot(
     connection: &Connection,
     filter: &SearchFilter,
-) -> Result<(), crate::SearchReaderError> {
+) -> Result<(), crate::SnapshotFilterError> {
     crate::validate_filter_attributes_on_snapshot(connection, filter)
 }

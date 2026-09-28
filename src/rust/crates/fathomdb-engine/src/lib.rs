@@ -152,7 +152,7 @@ pub(crate) use filter::{
     append_edge_eligibility_sql, append_node_eligibility_sql, body_fts_rank_sql,
     build_vector_phase1_sql, edge_fts_hit_passes_filter, edge_fts_rank_sql,
     hit_attributes_pass_filter, property_fts_rank_sql, text_hit_passes_filter,
-    validate_filter_attributes_on_snapshot, vector_filter_values,
+    validate_filter_attributes_on_snapshot, vector_filter_values, SnapshotFilterError,
 };
 pub use filter::{ComparisonOp, Filter, FilterTerm, Predicate, ScalarValue, SearchFilter};
 pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};

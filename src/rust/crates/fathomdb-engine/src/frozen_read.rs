@@ -219,10 +219,10 @@ fn mint_inner(
         .map_err(|_| EngineError::Storage)?;
     super::validate_filter_attributes_on_snapshot(&tx, &resolved.eligibility).map_err(|error| {
         match error {
-            super::SearchReaderError::InvalidFilter(reason) => {
+            super::SnapshotFilterError::InvalidFilter(reason) => {
                 EngineError::InvalidFilter { reason }
             }
-            _ => EngineError::Storage,
+            super::SnapshotFilterError::Sqlite(_) => EngineError::Storage,
         }
     })?;
     #[cfg(feature = "test-hooks")]

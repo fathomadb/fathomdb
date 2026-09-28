@@ -281,7 +281,7 @@ pub(crate) fn read_canonical_page_in_tx(
     frozen_read::validate_snapshot(&tx, &binding)?;
     frozen_after_validation_hook::fire();
     validate_filter_attributes_on_snapshot(&tx, &frozen.context.eligibility)
-        .map_err(page_search_error)?;
+        .map_err(page_filter_error)?;
 
     let (mut items, has_more) = query_canonical_page_rows(
         &tx,
@@ -322,7 +322,7 @@ pub(crate) fn read_canonical_page_baseline_in_tx(
 ) -> Result<Vec<NodeRecord>, PageReaderError> {
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     validate_filter_attributes_on_snapshot(&tx, &context.context.eligibility)
-        .map_err(page_search_error)?;
+        .map_err(page_filter_error)?;
     let (mut items, has_more) = query_canonical_page_rows(
         &tx,
         kind,
@@ -545,13 +545,12 @@ fn validate_operational_collection(
     Ok(())
 }
 
-fn page_search_error(error: SearchReaderError) -> PageReaderError {
+fn page_filter_error(error: SnapshotFilterError) -> PageReaderError {
     match error {
-        SearchReaderError::Sqlite(error) => PageReaderError::Sqlite(error),
-        SearchReaderError::InvalidFilter(reason) => {
+        SnapshotFilterError::Sqlite(error) => PageReaderError::Sqlite(error),
+        SnapshotFilterError::InvalidFilter(reason) => {
             PageReaderError::Engine(EngineError::InvalidFilter { reason })
         }
-        _ => PageReaderError::Engine(EngineError::Storage),
     }
 }
 
@@ -575,12 +574,6 @@ impl From<EngineError> for PageReaderError {
 impl From<FrozenReadError> for PageReaderError {
     fn from(error: FrozenReadError) -> Self {
         Self::Engine(EngineError::FrozenRead(error))
-    }
-}
-
-impl From<rusqlite::Error> for SearchReaderError {
-    fn from(err: rusqlite::Error) -> Self {
-        SearchReaderError::Sqlite(err)
     }
 }
 

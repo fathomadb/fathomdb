@@ -221,3 +221,49 @@ the generated release-state view check and `git diff --check`. The final
 candidate-bound re-review and record-only verification follow below after the
 remediation commit is fixed. No JSON changed; no runtime, installed-binding,
 full-workspace, freshness-performance or deadlock-mutant pass is claimed.
+
+### Final candidate-bound re-review
+
+**Reviewed candidate:** `920cfdc9f6da8200eeaa8fad176d6b8e29aadb7c`, clean on
+`release/0.8.27`. **Verdict: PASS for the prospective Option B design.** All
+seven findings above are resolved; no P0/P1/P2/P3 finding remains in this
+contract review. This is the commissioned independent reviewer's re-review
+after its own authorized planning remediation, not a claim that a second
+reviewer independently examined those edits.
+
+Re-review checked the complete corrected contract against scheduler-shape,
+async-surface, embedder-protocol, single-writer, projection-model and freshness
+authority; engine open/probe/watchdog/projection/reader/close code; NAPI's actual
+`spawn_blocking` and ignored configuration input; Python's either/or open
+shape; TypeScript's object input; and the existing PR-9 failure assertions.
+It confirms that the successor preserves SQLite connection ownership,
+primary-writer/projection-worker/commit-gate authority, generation checks,
+mean recomputation and frozen-snapshot authority without adding a generic
+executor, writer thread, reaper, binding custom-provider bridge, or Slice 85
+ownership redesign. The configuration/TDD/documentation obligations are
+falsifiable and remain mandatory implementation work, not completed evidence.
+
+The plan is ready to be folded into and formally accepted as a successor ADR.
+That acceptance must explicitly approve the proposed numeric/default/API/
+error/observation changes and the exact supersession map; this PASS is not ADR
+acceptance. Slice 90 is not commissioned. After Slice 85 closes, formal
+successor acceptance, the required exact-entry inventory/receipts and explicit
+commissioning remain prerequisites. No independent technical delivery boundary
+justifies Slice 91; runtime qualification stays ahead of mechanical extraction
+inside Slice 90.
+
+Checks at the reviewed commit: `scripts/agent-lint-md.sh` **PASS**;
+`scripts/check-release-state-views.sh --check` **PASS** (12 generated blocks,
+seven state files); `git diff --check 41824067 HEAD` **PASS**. Git confirmed no
+change to `src/`, accepted ADRs, release state or the Steward ledger, and a
+clean worktree. JSON parsing was not separately required because no JSON was
+edited; the view gate parsed the state files. The normal commit hooks ran,
+including secret scanning and AST-guarded Markdown fixing; none was skipped.
+
+This final receipt is the only post-review edit. Its recording commit does
+not change the reviewed scaffold/design/master-plan contents and is checked
+again with the same focused planning/view/whitespace gates. Runtime tests,
+installed native artifacts, the existing deadlock reproduction/mutant,
+performance/freshness gates and full-workspace verification were not run in
+this planning-only task. Their absence is not implementation conformance and
+does not close AC27-90B, authorize production changes, tags, push or publication.

@@ -1,5 +1,304 @@
 use super::*;
 
+/// Thread-affine reader worker pool (Pack 6 F.0).
+///
+/// Per `dev/design/engine.md` § Writer / reader split, reader connections
+/// must not serialize behind a single mutex. Each worker thread owns
+/// exactly one read-only `Connection` for its lifetime; `Connection`
+/// objects never cross thread boundaries after startup. `Engine::search`
+/// dispatches a request via a per-worker bounded channel using a
+/// lock-free round-robin counter on the hot path.
+pub(crate) struct ReaderWorkerPool {
+    senders: Vec<SyncSender<ReaderRequest>>,
+    handles: Mutex<Option<Vec<JoinHandle<()>>>>,
+    next: AtomicUsize,
+    shutdown: AtomicBool,
+    live_workers: Arc<AtomicUsize>,
+}
+
+impl std::fmt::Debug for ReaderWorkerPool {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReaderWorkerPool")
+            .field("worker_count", &self.senders.len())
+            .field("live_workers", &self.live_workers.load(Ordering::Relaxed))
+            .field("shutdown", &self.shutdown.load(Ordering::Relaxed))
+            .finish()
+    }
+}
+
+pub(crate) struct SearchReaderRequest {
+    pub(crate) work: SearchReaderWork,
+    pub(crate) respond: SyncSender<ReaderResponse>,
+}
+
+pub(crate) struct EvidenceSearchReaderRequest {
+    pub(crate) work: SearchReaderWork,
+    pub(crate) frozen: FrozenReadContextV1,
+    pub(crate) include_explanation: bool,
+    pub(crate) respond: SyncSender<EvidenceReaderResponse>,
+}
+
+pub(crate) struct CanonicalPageReaderRequest {
+    pub(crate) kind: String,
+    pub(crate) frozen: FrozenReadContextV1,
+    pub(crate) page: PageRequestV1,
+    pub(crate) respond: SyncSender<Result<PageV1<NodeRecord>, PageReaderError>>,
+}
+
+pub(crate) struct GraphExpandReaderRequest {
+    pub(crate) request: GraphExpandRequestV1,
+    pub(crate) frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
+    pub(crate) projection_runtime_state: ProjectionRuntimeStateV1,
+    pub(crate) evidence_authority: Option<evidence::GraphEvidenceAuthority>,
+    #[cfg(feature = "test-hooks")]
+    pub(crate) test_controls: graph_expand::GraphExpandReaderControlsForTest,
+    pub(crate) respond: SyncSender<Result<GraphExpandResultV1, EngineError>>,
+}
+
+pub(crate) struct OperationalStateReaderRequest {
+    pub(crate) collection: String,
+    pub(crate) record_key: String,
+    pub(crate) frozen: Option<FrozenReadContextV1>,
+    pub(crate) respond: SyncSender<Result<Option<OperationalStateRecordV1>, PageReaderError>>,
+}
+
+pub(crate) struct OperationalStatePageReaderRequest {
+    pub(crate) collection: String,
+    pub(crate) frozen: FrozenReadContextV1,
+    pub(crate) page: PageRequestV1,
+    pub(crate) respond: SyncSender<Result<PageV1<OperationalStateRecordV1>, PageReaderError>>,
+}
+
+#[cfg(feature = "test-hooks")]
+pub(crate) struct CanonicalPageBaselineReaderRequest {
+    pub(crate) kind: String,
+    pub(crate) context: FrozenReadContextV1,
+    pub(crate) limit: usize,
+    pub(crate) respond: SyncSender<Result<Vec<NodeRecord>, PageReaderError>>,
+}
+
+/// One request handled by exactly one reader worker. The response is
+/// returned through a fresh oneshot channel so requests cannot be
+/// routed to or duplicated across workers.
+pub(crate) enum ReaderRequest {
+    #[cfg(feature = "tc5-benchmark")]
+    /// Benchmark-only direct vector pipeline. This is intentionally separate
+    /// from `Search`: it has no text, fusion, graph, or CE fields.
+    VectorStage {
+        request: tc5_benchmark::VectorStageRequest,
+        respond:
+            SyncSender<Result<tc5_benchmark::VectorStageResult, tc5_benchmark::VectorStageError>>,
+    },
+    /// Slice 60 — property-FTS search stays on a reader-owned connection, never
+    /// the writer connection. It shares the snapshot-local filter validation of
+    /// the hybrid search path.
+    SearchProjectedText {
+        query: String,
+        name: String,
+        filter: Option<Box<SearchFilter>>,
+        limit: usize,
+        view: ReadView,
+        respond: SyncSender<ProjectedTextReaderResponse>,
+    },
+    Search(Box<SearchReaderRequest>),
+    /// Slice 50 — opt-in evidence capture uses the same search algorithm but a
+    /// distinct response channel and compile-time capture strategy. Ordinary
+    /// search therefore carries no evidence branch or allocation.
+    SearchEvidence(Box<EvidenceSearchReaderRequest>),
+    /// Slice 30 (G2) — active-only point lookup by `logical_id`. Returns one
+    /// slot per requested id, in request order, `None` where no active row
+    /// carries that id. Its own typed `respond` channel keeps the `Search`
+    /// `ReaderResponse` byte-identical (no Search regression).
+    GetById {
+        logical_ids: Vec<String>,
+        /// R-20-RV — the read view this lookup runs under. `ReadView::default()`
+        /// is the strict (pre-slice) view.
+        view: ReadView,
+        respond: SyncSender<rusqlite::Result<Vec<Option<NodeRecord>>>>,
+    },
+    /// Slice 30 (G3) — paginated op-store read-back over `operational_mutations`
+    /// for a `collection`, `ORDER BY id`, with a MANDATORY (already-clamped)
+    /// limit + optional after-id cursor.
+    ReadCollection {
+        collection: String,
+        after_id: Option<i64>,
+        limit: usize,
+        respond: SyncSender<rusqlite::Result<Vec<OpStoreRow>>>,
+    },
+    /// Slice 35 (G4) — list active canonical nodes of a `kind`, filtered by
+    /// zero or more `Predicate`s (AND-combined), up to `limit` rows.
+    /// Path validation already happened at `Predicate` construction time;
+    /// the worker only compiles + executes parameterized SQL.
+    ReadList {
+        kind: String,
+        predicates: Vec<Predicate>,
+        limit: usize,
+        /// R-20-RV — the read view this listing runs under.
+        view: ReadView,
+        respond: SyncSender<rusqlite::Result<Vec<NodeRecord>>>,
+    },
+    ReadCanonicalPage(Box<CanonicalPageReaderRequest>),
+    ReadOperationalState(Box<OperationalStateReaderRequest>),
+    ReadOperationalStatePage(Box<OperationalStatePageReaderRequest>),
+    #[cfg(feature = "test-hooks")]
+    ReadCanonicalPageBaseline(Box<CanonicalPageBaselineReaderRequest>),
+    /// Slice 20 (G5) — bounded BFS from a single root node over
+    /// `canonical_edges`. Returns the set of reachable nodes (excluding the
+    /// root) within `depth` hops, limited to the hard cap 50.
+    GraphNeighbors {
+        root_logical_id: String,
+        depth: u32,
+        direction: TraversalDirection,
+        /// R-20-RV — the read view applied at EVERY node position of the BFS
+        /// CTE (anchor, recursive join, final projection), for every direction.
+        view: ReadView,
+        respond: SyncSender<rusqlite::Result<Vec<NodeRecord>>>,
+    },
+    GraphExpand(Box<GraphExpandReaderRequest>),
+    /// 0.8.20 Slice 10b (R-20-NV) — nodes that crossed a validity boundary in
+    /// `(since, view-instant]`.
+    CrossedBoundarySince {
+        since: i64,
+        view: ReadView,
+        respond: SyncSender<rusqlite::Result<Vec<BoundaryCrossing>>>,
+    },
+    /// Slice 20 (G6) — compose the previous search result with BFS expansion.
+    /// Resolves search hit `write_cursor`s to `logical_id`s, runs G5 traversal
+    /// for each root, deduplicates, and returns a `SearchExpandResult`.
+    SearchExpand {
+        search_hits: Vec<SearchHit>,
+        depth: u32,
+        view: ReadView,
+        filter: Option<Box<SearchFilter>>,
+        frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
+        respond: SyncSender<Result<SearchExpandResult, SearchReaderError>>,
+    },
+    /// Slice 20 test seam — run `EXPLAIN QUERY PLAN` on the BFS CTE SQL for
+    /// the given root/depth/direction and return the plan detail lines.
+    #[doc(hidden)]
+    ExplainGraphNeighbors {
+        root_logical_id: String,
+        depth: u32,
+        direction: TraversalDirection,
+        respond: SyncSender<rusqlite::Result<Vec<String>>>,
+    },
+    Shutdown,
+    /// Pack 6.G G.1 — debug-only request that asks a worker to read its
+    /// own connection's `SQLITE_DBSTATUS_LOOKASIDE_USED` and return the
+    /// high-water mark (`hiwtr` out-param). Used solely by the integration
+    /// test that asserts post-warmup lookaside slots were consumed; not
+    /// on any production path.
+    #[cfg(debug_assertions)]
+    LookasideStatus {
+        respond: SyncSender<i32>,
+    },
+    /// Pack 6.G G.3.5 — debug-only request that asks a worker to read
+    /// `SQLITE_DBSTATUS_CACHE_HIT`, `_CACHE_MISS`, and `_CACHE_USED`
+    /// off its own connection and return them as `(hit, miss, used_bytes)`.
+    /// `snapshot_label` is opaque to the worker; the caller uses it to
+    /// distinguish pre/post snapshots in its own bookkeeping.
+    #[cfg(debug_assertions)]
+    CacheStatus {
+        snapshot_label: String,
+        respond: SyncSender<(String, i32, i32, i32)>,
+    },
+    /// OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — debug-only request
+    /// that asks a worker to read its own connection's `PRAGMA secure_delete`
+    /// and return it (`0`/`1`). Used solely by the gap-4 test that asserts the
+    /// standing secure_delete flag is ON at EVERY open, not just the writer.
+    #[cfg(debug_assertions)]
+    SecureDeleteStatus {
+        respond: SyncSender<i64>,
+    },
+    /// Slice 65 test-only real SQLite control. The worker opens a deferred
+    /// transaction, executes a query to acquire its WAL snapshot, reports the
+    /// rendezvous, and holds the snapshot until released. It is never compiled
+    /// into a release SDK artifact.
+    // `test` added alongside `debug_assertions`/`test-hooks` so the crate's own
+    // `--release --tests` lib-test build (cfg(test) true, debug_assertions
+    // false) can still see this variant; it stays absent from any shipped build.
+    #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+    #[allow(dead_code)]
+    HoldWalSnapshot {
+        snapshot_ready: Arc<Barrier>,
+        release: Arc<Barrier>,
+    },
+    /// Slice 80 test-only variant with bounded/disconnect-safe release. The
+    /// sender dropping is cancellation, so a failed test cannot strand close.
+    #[cfg(debug_assertions)]
+    HoldWalSnapshotBounded {
+        snapshot_ready: SyncSender<usize>,
+        release: Receiver<()>,
+    },
+    /// Slice 65 follow-on: the acknowledgement fires only after SQLite has
+    /// completed `COMMIT` and the collector has returned to idle. This is a
+    /// private test diagnostic, not a release signal or SDK synchronization
+    /// surface.
+    #[cfg(test)]
+    HoldWalSnapshotWithCommitAck {
+        snapshot_ready: Arc<Barrier>,
+        release: Arc<Barrier>,
+        committed: Arc<Barrier>,
+    },
+    /// Slice 65 follow-on: reports this reader's direct SQLite transaction
+    /// state for the private complete-connection inventory.
+    #[cfg(any(test, feature = "test-hooks"))]
+    WalConnectionInventory {
+        respond: SyncSender<bool>,
+    },
+    /// Slice 65 N23-WAL-BINDING-NATIVE-STATE: report direct SQLite state
+    /// from the thread that owns this reader connection. The reply carries no
+    /// SQL, path, request, or user data.
+    #[cfg(any(test, feature = "test-hooks"))]
+    WalNativeStateInventory {
+        respond: SyncSender<NativeConnectionStateFact>,
+    },
+}
+
+// G0 Phase-2: the Search response carries a 4th element — the graph-arm frontier
+// meter (`GraphFrontierStats`). It rides the internal channel but is dropped before
+// `SearchResult` is built (kept OFF the governed surface); the
+// `_graph_frontier_stats_for_test` seam captures it. Default (all-zero) on non-graph paths.
+// 0.8.8 EXP-OBS (Slice 5): the Search response carries a 5th element — the opt-in
+// retrieval `Explanation` (`None` on every default `explain=false` path; `Some`
+// only on the `search_explained` path). Like the `GraphFrontierStats` 4th element
+// it rides the internal channel as a side-channel; unlike it, the explanation IS
+// surfaced (onto `SearchResult.explanation`) when requested.
+pub(crate) type ReaderResponse = Result<
+    (
+        u64,
+        Option<SoftFallback>,
+        Vec<SearchHit>,
+        GraphFrontierStats,
+        Option<Explanation>,
+        Option<SearchExpandResult>,
+    ),
+    SearchReaderError,
+>;
+
+pub(crate) type EvidenceReaderResponse = Result<EvidenceSearchResultV1, SearchReaderError>;
+
+pub(crate) type ProjectedTextReaderResponse = Result<SearchResult, SearchReaderError>;
+
+/// Pack 6.G G.3.5 — per-worker cache-pressure snapshot. Carried only on
+/// the debug-only `CacheStatus` broadcast path and the test accessor;
+/// not part of the public 0.6.0 surface.
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+#[derive(Clone, Debug)]
+pub struct CacheStatusReply {
+    pub worker_idx: usize,
+    pub snapshot_label: String,
+    pub cache_hit: i32,
+    pub cache_miss: i32,
+    pub cache_used_bytes: i32,
+}
+
+/// Per-worker outbound channel capacity. Round-robin dispatch keeps
+/// queue depth at ~0 on hot paths; the small slack absorbs jitter
+/// without a runtime mutex.
+const READER_WORKER_CHANNEL_CAPACITY: usize = 4;
+
 fn reader_worker_loop(
     mut connection: Connection,
     rx: Receiver<ReaderRequest>,
@@ -487,6 +786,44 @@ impl ReaderWorkerPool {
         let worker_count = self.senders.len();
         assert!(worker_count > 0, "reader pool must have workers");
         self.next.load(Ordering::Relaxed) % worker_count
+    }
+
+    #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+    pub(crate) fn hold_worker_zero_wal_snapshot(
+        &self,
+        snapshot_ready: Arc<Barrier>,
+        release: Arc<Barrier>,
+    ) {
+        self.senders[0]
+            .send(ReaderRequest::HoldWalSnapshot { snapshot_ready, release })
+            .expect("reader worker must be live for WAL attribution control");
+    }
+
+    #[cfg(debug_assertions)]
+    pub(crate) fn hold_worker_zero_wal_snapshot_bounded(
+        &self,
+        snapshot_ready: SyncSender<usize>,
+        release: Receiver<()>,
+    ) {
+        self.senders[0]
+            .send(ReaderRequest::HoldWalSnapshotBounded { snapshot_ready, release })
+            .expect("reader worker must be live for independence control");
+    }
+
+    #[cfg(test)]
+    pub(crate) fn hold_worker_zero_wal_snapshot_with_commit_ack(
+        &self,
+        snapshot_ready: Arc<Barrier>,
+        release: Arc<Barrier>,
+        committed: Arc<Barrier>,
+    ) {
+        self.senders[0]
+            .send(ReaderRequest::HoldWalSnapshotWithCommitAck {
+                snapshot_ready,
+                release,
+                committed,
+            })
+            .expect("reader worker must be live for post-COMMIT WAL acknowledgement");
     }
 
     #[cfg(any(test, feature = "test-hooks"))]

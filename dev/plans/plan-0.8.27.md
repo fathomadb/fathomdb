@@ -551,7 +551,8 @@ moving them again:
 
 - new top-level `read_api.rs`: the current `read.rs` `impl Engine` facade;
 - new top-level `graph_api.rs`: graph-neighbor, graph-expand, boundary, and
-  relevant graph `Engine` test facades;
+  every graph `Engine` test facade, including the root
+  `explain_graph_neighbors_for_test` seam;
 - existing `search_api.rs`: additionally owns `search_expand` and
   `search_expand_with_limit`;
 - new leaf `structural_state.rs`: `structural_dependency_state`, so the
@@ -560,6 +561,11 @@ moving them again:
   pool and every read/search/graph handler, with its exact borrow lifetime,
   deferred-transaction behavior, attribution ordering, table-backed snapshot
   probe, and pause-hook order preserved;
+- new top-level `wal_attribution.rs`: `WalAttributionCollector`, every
+  `Reader*Pause` alias, and the related attribution roles, activity, phases,
+  snapshots, and private helpers. `reader_transaction` depends on this owner;
+  the collector and aliases move together, and Slice 90 consumes rather than
+  redesigns this boundary;
 - `reader_pool.rs`: pool implementation, pool protocol, request envelopes,
   response aliases, page errors, reader constants, and `CacheStatusReply` with
   its exact root re-export;
@@ -574,7 +580,14 @@ only through `EvidenceCapture::new`, `FrozenQueryRuntime::new`, named
 pool-owned request factories. Those factories cover every direct facade/path
 construction today: get-by-id, collection/list, canonical/operational page,
 projected-text, hybrid/text/evidence search, graph-neighbor/search-expand,
-crossed-boundary, `GraphExpandReaderRequest`, and the cfg-gated baseline page.
+crossed-boundary, `GraphExpandReaderRequest`, the cfg-gated baseline page, the
+`tc5-benchmark`-gated `VectorStage` request, and the
+`#[doc(hidden)]` `explain_graph_neighbors_for_test` request. The last two are
+private typed pool capabilities/factories, not sender or `ReaderRequest`
+exposure; their existing `tc5-benchmark` feature gate and `#[doc(hidden)]`
+surface remain exact. Focused
+verification includes `tc5_vector_stage` under `tc5-benchmark` and
+`slice20_graph_traversal::explain_plan_uses_indexes` under its existing gate.
 The WAL seam receives typed cfg-gated worker-zero controls for
 `HoldWalSnapshot`, `HoldWalSnapshotBounded`,
 `HoldWalSnapshotWithCommitAck`, and the two inventory requests. No pool sender
@@ -585,7 +598,8 @@ and a stronger invariant that moving the item would violate.
 The settled graph is
 `read_api/search_api/graph_api → reader_pool → read/search/graph_expand`,
 `search → graph_expand`, `read/search/graph_expand → reader_transaction`,
-and `search/graph_expand → structural_state`. It eliminates all four Slice
+`reader_pool/reader_transaction → wal_attribution`, and
+`search/graph_expand → structural_state`. It eliminates all four Slice
 80 cycles: `search` ↔ `graph_expand`, `read` ↔ `reader_pool`,
 `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`.
 
@@ -601,16 +615,19 @@ small `syn`-based AST gate in the normal agent-lint path. Governed modules:
 - fail on macro-hidden boundaries unless an item-specific review records and
   tests the expansion boundary.
 
-The gate resolves grouped and aliased imports and explicit owner traits. Its
-committed governed manifest contains the complete, reviewed mapping from each
-governed `Engine` receiver field to its owner (for example,
-`Engine.reader_pool` → `reader_pool`); that map, not Rust type inference or
-name guessing, is the only way a call such as
+The gate resolves grouped and aliased imports and explicit owner traits. It
+derives the in-scope module set from the Engine declarations and corresponding
+source files, and the governed `Engine` field set from the `Engine` AST. Both
+derived sets must exactly equal their committed manifest/map after only named,
+reviewed exclusions; omitted or stale entries fail. Its committed field-owner
+map maps every resulting governed `Engine` receiver field to its owner (for
+example, `Engine.reader_pool` → `reader_pool`); that map, not Rust type
+inference or name guessing, is the only way a call such as
 `self.reader_pool.dispatch(...)` becomes an edge. Every other cross-module
 call must be an imported capability/owner trait or a module-qualified free
 function. The gate emits the exact graph and SCCs with source/destination
-diagnostics, and fails when the governed manifest or field-owner map is empty.
-Its allowlist is shrink-only over time.
+diagnostics, and fails when either derived set, the manifest, or the
+field-owner map is empty. Its allowlist is shrink-only over time.
 None of the four Slice 80 cycles is eligible for retention, exception, or
 allowlisting. Only the three inherited earlier-slice cycles are initial narrow
 allowlist candidates: `search` ↔ `dependency_closure`, `search` ↔
@@ -625,11 +642,11 @@ a deterministic normal-lint contract.
 
 | ID | Requirement | Falsifiable acceptance |
 | --- | --- | --- |
-| R27-85A | Every root-kept carrier receives durable non-root semantic ownership without field widening or rooted-contract drift. | AC27-85A: `ReaderWorkerPool`, `SearchReaderWork`, every reader request/response carrier, `FrozenQueryRuntime`, reader errors/constants/pause aliases, `TelemetrySink`, `EvidenceCapture`, and `begin_attributed_reader_tx` each move to a named non-root semantic owner; all previously private fields remain private and every rooted public/re-export path is exact. Any item retained at root has an item-specific design-review exception proving durable ownership and the stronger invariant that a move would violate. |
+| R27-85A | Every root-kept carrier receives durable non-root semantic ownership without field widening or rooted-contract drift. | AC27-85A: `ReaderWorkerPool`, `SearchReaderWork`, every reader request/response carrier, `FrozenQueryRuntime`, reader errors/constants, `WalAttributionCollector`, every `Reader*Pause` alias and related attribution helper, `TelemetrySink`, `EvidenceCapture`, and `begin_attributed_reader_tx` each move to a named non-root semantic owner; all previously private fields remain private and every rooted public/re-export path is exact. Any item retained at root has an item-specific design-review exception proving durable ownership and the stronger invariant that a move would violate. |
 | R27-85B | Facades do not create reverse handler dependencies. | AC27-85B: all four Slice 80 cycles—`search` ↔ `graph_expand`, `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`—are absent from the measured module graph. |
 | R27-85C | Remaining dependencies are explicit and minimal. | AC27-85C: a committed exact graph accounts for every engine-module edge. None of the four Slice 80 cycles is eligible for retention, an exception, or an allowlist. Only `search` ↔ `dependency_closure`, `search` ↔ `evidence`, and `graph_expand` ↔ `evidence` are initial candidates for a narrow reviewed allowlist. Any reviewed unavoidable-cycle exception applies only to cycles outside the four Slice 80 cycles. An unexpected edge fails with the source and destination named. |
-| R27-85D | Dependency direction is enforced by compiler-visible ownership and a normal-lint AST gate. | AC27-85D: governed code follows the explicit import/call/impl rules above, and normal `agent-lint` runs the `syn` gate. The gate resolves grouped/aliased imports and owner traits, uses only the complete explicit governed `Engine`-field-owner map for receiver calls (never general Rust type inference), rejects globs, root-re-export indirection, and unreviewed macro-hidden boundaries, emits exact graph/SCC diagnostics, and enforces nonempty manifest and field-owner-map inputs plus the shrink-only three-cycle initial allowlist. |
-| R27-85E | The structural gate is non-vacuous across Rust call spellings. | AC27-85E: a compiled two-module reciprocal method-call fixture covers grouped and aliased traits; removing its necessary import fails compilation. Gate fixtures cover import and re-export glob variants, aliases, and same-line/multiline parity. A compiled fixture whose only reverse edge is `self.reader_pool.dispatch(...)` proves the explicit field-owner map produces the exact rejected edge without a textual module-qualified call or type inference; the equivalent temporary production mutation fails and is restored exactly. Zero governed modules or an empty field-owner map hard-fails. |
+| R27-85D | Dependency direction is enforced by compiler-visible ownership and a normal-lint AST gate. | AC27-85D: governed code follows the explicit import/call/impl rules above, and normal `agent-lint` runs the `syn` gate. The gate resolves grouped/aliased imports and owner traits, derives and exactly compares its in-scope modules from Engine declarations/files and its governed fields from the `Engine` AST against complete manifests, allowing only named reviewed exclusions. It uses only the complete explicit `Engine`-field-owner map for receiver calls (never general Rust type inference), rejects globs, root-re-export indirection, and unreviewed macro-hidden boundaries, emits exact graph/SCC diagnostics, and enforces nonempty derived/manifest/field-owner inputs plus the shrink-only three-cycle initial allowlist. |
+| R27-85E | The structural gate is non-vacuous across Rust call spellings. | AC27-85E: a compiled two-module reciprocal method-call fixture covers grouped and aliased traits; removing its necessary import fails compilation. Gate fixtures cover import and re-export glob variants, aliases, and same-line/multiline parity. A compiled fixture whose only reverse edge is `self.reader_pool.dispatch(...)` proves the explicit field-owner map produces the exact rejected edge without a textual module-qualified call or type inference; the equivalent temporary production mutation fails and is restored exactly. Fixtures/mutations deleting one non-excluded in-scope module entry and one field-owner entry each fail with the missing or stale entry named. Zero governed modules or an empty field-owner map hard-fails. |
 | R27-85F | The boundary change preserves behavior and surfaces from a verified exact baseline. | AC27-85F: before any move, a capable host with the required free space, native module, and GPU tooling must pass exact-baseline `agent-verify`, the candidate-bound native receipt, and official public and hidden captures. After the move, focused read/search/graph/evidence/reader/WAL routes, applicable feature builds, source-scraping gates, exact public surface, additive-only hidden surface, and runtime receipts match that baseline except for reviewed structural inventory additions. The request envelope remains within its size bound; transaction lifetime, attribution finish order, pool-before-profile-context drop order, worker-zero WAL pinning, cfg gates, and qualified test identities are unchanged. |
 | R27-85G | Security evidence is not overstated. | AC27-85G: Slice 85 makes no current-HEAD or final-candidate AC-037 claim. The `66e27983` and `24813b8e` runs remain historical or diagnostic only; Slice 150 alone owns exact-final-candidate live qualification. |
 
@@ -801,28 +818,29 @@ and gating ruling must cover them at their new owners:
   `record_fts_query_plan_for_test`.
 - **`filter.rs`:** the `Filter` methods `to_search_filter_for_test` and
   `lower_for_read_list_for_test`.
-- **`graph_expand/execution.rs`:**
-  - the `Engine` seams `measure_graph_expand_for_test`,
-    `seed_graph_expand_dependency_closure_for_test`,
-    `seed_graph_expand_nonterminal_dependency_closure_for_test`,
-    `seed_graph_expand_erasure_for_test`,
-    `seed_graph_expand_projection_state_for_test`,
-    `graph_expand_current_rss_samples_for_test`,
-    `graph_expand_isolated_process_rss_samples_for_test`,
-    `graph_expand_with_rendezvous_for_test`,
-    `graph_expand_with_projection_state_for_test`,
-    `graph_expand_with_statement_count_for_test`,
-    `graph_expand_with_projection_generation_for_test`, and
-    `explain_graph_expand_for_test`;
-  - the private helpers `measure_isolated_process_rss_arm_for_test` and
-    `seed_graph_expand_rss_fixture_for_test`;
-  - the `*ForTest` carriers `GraphExpandRetentionCountersForTest`,
-    `GraphExpandRendezvousForTest`, `GraphExpandMeasurementForTest`,
-    `GraphExpandCurrentRssSampleForTest`,
-    `GraphExpandIsolatedProcessRssSampleForTest`,
-    `GraphExpandProjectionStateForTest`,
-    `GraphExpandProjectionGenerationForTest`, and
-    `GraphExpandReaderControlsForTest`.
+- **`graph_api.rs`:** all graph `Engine` seams, including the root
+  `explain_graph_neighbors_for_test` seam and
+  `measure_graph_expand_for_test`,
+  `seed_graph_expand_dependency_closure_for_test`,
+  `seed_graph_expand_nonterminal_dependency_closure_for_test`,
+  `seed_graph_expand_erasure_for_test`,
+  `seed_graph_expand_projection_state_for_test`,
+  `graph_expand_current_rss_samples_for_test`,
+  `graph_expand_isolated_process_rss_samples_for_test`,
+  `graph_expand_with_rendezvous_for_test`,
+  `graph_expand_with_projection_state_for_test`,
+  `graph_expand_with_statement_count_for_test`,
+  `graph_expand_with_projection_generation_for_test`, and
+  `explain_graph_expand_for_test`.
+- **`graph_expand/execution.rs`:** only its private non-`Engine` helpers
+  `measure_isolated_process_rss_arm_for_test` and
+  `seed_graph_expand_rss_fixture_for_test`, plus the `*ForTest` carriers
+  `GraphExpandRetentionCountersForTest`, `GraphExpandRendezvousForTest`,
+  `GraphExpandMeasurementForTest`, `GraphExpandCurrentRssSampleForTest`,
+  `GraphExpandIsolatedProcessRssSampleForTest`,
+  `GraphExpandProjectionStateForTest`,
+  `GraphExpandProjectionGenerationForTest`, and
+  `GraphExpandReaderControlsForTest`.
 - **`graph_expand/types.rs`:**
   `graph_expansion_degradation_codes_for_test`.
 - **Root wrappers:** the root `pub fn *_for_test` wrappers still in

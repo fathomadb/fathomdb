@@ -172,20 +172,28 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
 | `graph_expand/types.rs` | Current lines 24-25 (`SCHEMA_VERSION`) and 90-378, plus `TraversalDirection` from `lib.rs` (a value type used by the request types and the codec; its root `pub use` keeps the public path). `SCHEMA_VERSION` becomes `pub(super)`. |
 | `graph_expand/codec.rs` | Current lines 1922-3470, plus `is_false` (lines 26-28). |
 | `graph_expand/execution.rs` | Current lines 30-89 and 379-1920 (validation included). The in-file `graph_evidence_request_tests` (3472-3525) do **not** move here: they go to `graph_expand/mod.rs`, so their qualified names stay `lib::graph_expand::graph_evidence_request_tests::*`, as the hidden baseline records. `mod.rs` brings the items those tests name into scope (`use super::*` inside the test module then resolves them); an item private to a submodule becomes `pub(super)`, which is item visibility, not field widening. The imports that only the tests need (`execution::encode_graph_evidence_request`, which becomes `pub(super)`; `ReadContextV1`, `ReadView`, `SearchFilter`, `IdSpace`, `FrozenReadContextV1`) go in `#[cfg(test)] use` lines in `mod.rs`, so the non-test build has no unused imports. Names already re-exported by `mod.rs`, such as `TraversalDirection`, are not imported again. |
-| `graph_expand/traversal.rs` | `SearchExpandResult`, `GRAPH_NEIGHBORS_HARD_CAP`, `build_bfs_sql`, `build_bfs_with_depth_sql`, `crossed_boundary_since_in_tx`, `graph_neighbors_in_tx`, `search_expand_in_tx`, `search_expand_on_snapshot`, `explain_graph_neighbors_in_tx`; `impl Engine`: `graph_neighbors`, `search_expand`, `search_expand_with_limit`, `crossed_boundary_since` |
+| `graph_expand/traversal.rs` | `SearchExpandResult`, `GRAPH_NEIGHBORS_HARD_CAP`, `build_bfs_sql`, `build_bfs_with_depth_sql`, `crossed_boundary_since_in_tx`, `graph_neighbors_in_tx`, `search_expand_in_tx`, `search_expand_on_snapshot`, and `explain_graph_neighbors_in_tx`. Slice 85 moves every `impl Engine` facade out to `graph_api.rs`; `search_expand` and `search_expand_with_limit` go to `search_api.rs`. |
 
 ### Stays at root
 
 - **Slice 85 boundary handoff:**
   - `read_api.rs` becomes the final home of the current `read.rs` `impl Engine`
     facade. `graph_api.rs` becomes the final home of graph-neighbor,
-    graph-expand, boundary, and relevant graph `Engine` test facades.
+    graph-expand, boundary, every graph `Engine` test facade, and the root
+    `explain_graph_neighbors_for_test` seam. Only private non-`Engine` helpers
+    and `*ForTest` carriers stay in `graph_expand/execution.rs`.
     `search_expand` and `search_expand_with_limit` move to the existing
     `search_api.rs`. Slice 90 consumes these homes and does not move them.
   - `structural_dependency_state` moves to a new leaf
     `structural_state.rs`, leaving `search` → `graph_expand` one-way.
     `begin_attributed_reader_tx` moves to a new leaf
-    `reader_transaction.rs` below the pool and every read/search/graph handler.
+    `reader_transaction.rs` below the pool and every read/search/graph handler;
+    it depends on the new `wal_attribution.rs` owner.
+  - `wal_attribution.rs` owns `WalAttributionCollector`, `ReaderSnapshotPause`,
+    `ReaderHandoffPause`, `ReaderCompletionPause`, and the associated
+    attribution roles, activities, phases, snapshots, and private helpers.
+    The collector and aliases move together; Slice 90 consumes this settled
+    boundary without redesigning it.
   - `reader_pool.rs` owns `ReaderWorkerPool`, the request protocol and boxed
     envelopes, response aliases, page errors, reader constants, and
     `CacheStatusReply`; the latter keeps its exact rooted public re-export.
@@ -199,8 +207,15 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     and pool-owned factories for every present direct construction: get-by-id,
     collection/list, canonical/operational page, projected-text,
     hybrid/text/evidence search, graph-neighbor/search-expand,
-    crossed-boundary, `GraphExpandReaderRequest`, and the cfg-gated baseline
-    page. The WAL seam receives typed cfg-gated worker-zero controls for
+    crossed-boundary, `GraphExpandReaderRequest`, the cfg-gated baseline page,
+    the `tc5-benchmark`-gated `VectorStage` request, and the
+    `#[doc(hidden)]` `explain_graph_neighbors_for_test` request. The latter two
+    use private typed pool factories/capabilities, never sender or protocol
+    exposure; their exact `tc5-benchmark` feature gate and `#[doc(hidden)]`
+    surface are preserved. Focused
+    verification includes `tc5_vector_stage` under `tc5-benchmark` and
+    `slice20_graph_traversal::explain_plan_uses_indexes`. The WAL seam receives
+    typed cfg-gated worker-zero controls for
     `HoldWalSnapshot`, `HoldWalSnapshotBounded`,
     `HoldWalSnapshotWithCommitAck`, and both inventory requests. No `senders`
     accessor or generic sender exposure is allowed.
@@ -212,7 +227,8 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
   - the target graph is
     `read_api/search_api/graph_api → reader_pool → read/search/graph_expand`,
     `search → graph_expand`,
-    `read/search/graph_expand → reader_transaction`, and
+    `read/search/graph_expand → reader_transaction`,
+    `reader_pool/reader_transaction → wal_attribution`, and
     `search/graph_expand → structural_state`.
   - dependency enforcement combines compiler-visible explicit ownership with
     a small `syn` AST gate in normal `agent-lint`. Governed modules forbid
@@ -220,12 +236,18 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     impls with owners except the named `Engine` API homes, and express
     cross-module calls through module-qualified free functions or explicitly
     imported owner traits/capabilities. Macro-hidden boundaries fail unless
-    individually reviewed. A committed, complete governed `Engine` field-owner
-    map explicitly maps `Engine.reader_pool` to `reader_pool` (and every other
-    governed receiver field); the gate uses that map, never general Rust type
-    inference or name guessing, for `self.reader_pool.dispatch(...)` edges.
-    It resolves grouped/aliased imports, reports exact graph/SCC edges, and
-    hard-fails on an empty governed manifest or field-owner map.
+    individually reviewed. The gate derives the in-scope modules from Engine
+    declarations and source files, and governed fields from the `Engine` AST;
+    both must exactly match the committed manifest/map after only named,
+    reviewed exclusions. A complete field-owner map explicitly maps
+    `Engine.reader_pool` to `reader_pool` (and every other resulting governed
+    receiver field); the gate uses that map, never general Rust type inference
+    or name guessing, for `self.reader_pool.dispatch(...)` edges. It resolves
+    grouped/aliased imports, reports exact graph/SCC edges, and hard-fails on
+    an empty or incomplete/stale manifest or field-owner map.
+    Fixtures and temporary mutations delete one non-excluded in-scope module
+    entry and one field-owner entry; each must fail with the missing or stale
+    entry named, in addition to the zero-module failure.
   - a rust-analyzer SCIP trial is rejected: it found a same-line dispatch but
     omitted multiline dispatches and the `search_inner` edge. Engine indexing
     measured about 6.8–6.9 s, 1.37 GB RSS, and 11 MB; workspace indexing about

@@ -11,12 +11,13 @@ historical_closeout_commit: bca0c99d46e0111c1bd3906d78a77668801463bc
 
 # Slice 80 implementation status
 
-## Completed scope
+## Product extraction completed; Slice 80 binding pending
 
-Slice 80 is complete on `release/0.8.27`. It moved the root-owned read side
-into private semantic modules without changing behavior, schema 34, SQL,
-statement ordering, snapshot or transaction scope, error mapping, feature
-gates, public paths, or wire encodings:
+The product extraction is complete on `release/0.8.27`: it moved the
+root-owned read side into private semantic modules without changing behavior,
+schema 34, SQL, statement ordering, snapshot or transaction scope, error
+mapping, feature gates, public paths, or wire encodings. Overall Slice 80 is
+**IN_PROGRESS** pending independent rereview and authoritative binding:
 
 - `fusion.rs` and `filter.rs` own ranking fusion and filtering;
 - `search_types.rs`, `search.rs`, and `search_api.rs` own search carriers,
@@ -110,18 +111,25 @@ or release-qualifying AC-037 receipt.
 Planning-only Slice 85 owns the carrier and dependency boundary work recorded
 in the master plan and `design.md`:
 
-- establish final homes: `read_api.rs`, `graph_api.rs`, existing
+- establish final homes: `read_api.rs`, `graph_api.rs` for every graph
+  `Engine` facade including `explain_graph_neighbors_for_test`, existing
   `search_api.rs`, leaf `structural_state.rs`, leaf `reader_transaction.rs`,
-  pool protocol in `reader_pool.rs`, search carriers in `search.rs`,
-  `TelemetrySink` in `telemetry.rs`, and pause carriers with WAL attribution;
-  fields stay private and Slice 90 must not move these boundaries again;
+  top-level `wal_attribution.rs` for `WalAttributionCollector`, every
+  `Reader*Pause` alias, and related attribution phases/helpers, pool protocol
+  in `reader_pool.rs`, search carriers in `search.rs`, and `TelemetrySink` in
+  `telemetry.rs`. Fields stay private and Slice 90 must not redesign these
+  boundaries. `graph_expand/execution.rs` retains only private non-`Engine`
+  helpers and `*ForTest` carriers, while typed private pool factories cover
+  the existing `VectorStage` and `ExplainGraphNeighbors` requests without
+  exposing senders or the request protocol;
 - eliminate all four Slice 80 cycles: `search` ↔ `graph_expand`,
   `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and
   `graph_expand` ↔ `search_api`; and
 - enforce the exact dependency graph through compiler-visible ownership and a
-  non-vacuous `syn` AST gate in normal lint. Only the three inherited
-  earlier-slice cycles named in `design.md` are initially eligible for a
-  shrink-only allowlist; and
+  non-vacuous `syn` AST gate in normal lint. It must derive/compare the full
+  in-scope module and governed Engine-field sets, allowing only named reviewed
+  exclusions; only the three inherited earlier-slice cycles named in
+  `design.md` are initially eligible for a shrink-only allowlist; and
 - before any move, obtain successful exact-baseline canonical verification,
   native receipt, and official public and hidden captures on a capable host.
 

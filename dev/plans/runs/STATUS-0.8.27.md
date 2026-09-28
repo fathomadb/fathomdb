@@ -19,10 +19,11 @@ complete on `release/0.8.27`. Slice 40 preserves runtime behavior, schema,
 public API, feature gates, and publication state while moving shared engine
 foundations to private modules.
 
-Engine-domain Slices 50, 60, 70, and 80 are also complete. Slice 80 preserves
-the read, search, graph, evidence, public, hidden, schema, SQL, wire, and
-feature-gated contracts while moving their implementation into private
-semantic modules.
+Engine-domain Slices 50, 60, and 70 are complete. Slice 80's product
+extraction preserves the read, search, graph, evidence, public, hidden,
+schema, SQL, wire, and feature-gated contracts while moving their
+implementation into private semantic modules; Slice 80 itself remains
+**IN_PROGRESS** pending independent rereview and authoritative binding.
 
 ## Immediate next action
 

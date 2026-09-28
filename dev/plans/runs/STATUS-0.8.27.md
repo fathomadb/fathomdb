@@ -189,8 +189,10 @@ grant/revert evidence.
 
 - This release starts at schema 34 and currently proposes no schema migration.
 - Publication is unauthorized.
-- Slices 30, 40, 50, 60, 70, and 80 were directly authorized by the
-  repository owner and are complete; Slice 85 and later slices require
-  separate commission.
+- Slices 30, 40, 50, 60, and 70 were directly authorized by the repository
+  owner and are complete. Slice 80 was directly authorized and its product
+  extraction is complete, but Slice 80 remains **IN_PROGRESS** pending
+  independent rereview and authoritative binding. Slice 85 and later slices
+  require separate commission.
 - No temporary branch or worktree was created for prework; the existing
   `release/0.8.27` worktree remains the active release workspace.

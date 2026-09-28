@@ -665,9 +665,10 @@ default features and enables exactly `full`, `parsing`, and `visit`; its direct
 checks in its own lockfile, is covered by the repository dependency/license
 gates, and is invoked by `scripts/agent-lint.sh` through a thin script that
 reuses a cached binary only when its manifest, lockfile, or Rust sources are
-unchanged. The implementation batch updates `AGENTS.md` only if review changes
-this decision and makes the tool a root-workspace member; no stale crate-count
-exception is permitted.
+unchanged. The implementation batch always updates the `AGENTS.md` §3 lint row
+when the boundary gate joins `scripts/agent-lint.sh`. It updates the §2 root
+workspace crate count only if a reviewed change makes the tool a root-workspace
+member; no stale lint-content or crate-count exception is permitted.
 
 Governed modules:
 

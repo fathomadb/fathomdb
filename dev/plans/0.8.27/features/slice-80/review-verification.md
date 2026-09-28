@@ -1,9 +1,10 @@
 ---
 title: FathomDB 0.8.27 Slice 80 - independent verification
-status: PARTIAL_HISTORICAL_PENDING_REREVIEW
+status: PARTIAL_HISTORICAL_REVIEWED
 target_release: 0.8.27
 historical_candidate: e9631b9761d292a4115d1beee95678801512f4f2
-authoritative_binding: PENDING_INDEPENDENT_REREVIEW
+reviewed_candidate: b7403958a3839d371c1672335c517fa762a451cf
+authoritative_binding: REVIEW_PASS_VERIFICATION_PARTIAL
 ---
 
 # Slice 80 independent verification
@@ -172,9 +173,11 @@ receipts.
 
 ## Verdict
 
-The former `e9631b97` binding is historical and does not cover the strengthened
-property or the corrected Slice 85 plan. Production is unchanged after
-`0efa62c544af00858aa6975944e8f36c99f13218`; the current follow-up requires
-independent rereview before authoritative SHA, reviewed-candidate, or closeout
-fields are rebound. No post-fix canonical PASS, official post-fix public or
-hidden capture, or final-candidate AC-037 pass is claimed.
+The independent rereview at `b7403958` is a review PASS for the strengthened
+property and corrected Slice 85 plan. It may support release-state binding, but
+it does not alter this verification record's limits: no post-fix canonical
+PASS, official post-fix public or hidden capture, or final-candidate AC-037
+pass is claimed. The Terra receipts remain limited to `3e60cc5d`; the partial
+`24813b8e` diagnostic run and the blocked `e9631b97` captures are not passes.
+Slice 85 still needs the capable-host exact-baseline prerequisite, and Slice
+150 alone qualifies live AC-037 on the exact final candidate.

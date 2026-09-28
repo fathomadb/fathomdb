@@ -1,11 +1,13 @@
 ---
 title: FathomDB 0.8.27 Slice 80 - code review
-status: HISTORICAL_PASS_PENDING_REREVIEW
+status: PASS
 target_release: 0.8.27
 initial_reviewed_range: bb077cfa..ac404a81
 historical_reviewed_range: 0efa62c544af00858aa6975944e8f36c99f13218..e9631b9761d292a4115d1beee95678801512f4f2
 historical_review_fix_candidate: e9631b9761d292a4115d1beee95678801512f4f2
-authoritative_binding: PENDING_INDEPENDENT_REREVIEW
+reviewed_range: 1d7f826c2125d5de6d852ddbc96d35fec2de5816..b7403958a3839d371c1672335c517fa762a451cf
+review_fix_candidate: b7403958a3839d371c1672335c517fa762a451cf
+authoritative_binding: PENDING_RELEASE_STATE_BINDING
 ---
 
 # Slice 80 code review
@@ -125,11 +127,37 @@ The final rereview binds the codec-property test implementation and the Slice
 AC-037 receipt into evidence for this candidate or the final release
 candidate; Slice 150 alone owns exact-final-candidate qualification.
 
-## Owner-directed follow-up pending rereview
+## Final independent rereview closure (2026-09-27) — PASS
 
-The `e9631b97` PASS predates the strengthened canonical JSON-value assertion,
-the corrected verification record, and the code-grounded Slice 85 boundary
-design. It remains a historical review receipt and does not bind the new
-follow-up commits. A fresh independent `gpt-5.6-sol` high-reasoning rereview
-must bind the exact new candidate before the release-state SHA,
-reviewed-candidate, or closeout fields change.
+An independent, read-only three-cycle rereview covered the strengthened
+fixed-shape result-codec property, its canonical JSON-value equality and
+mutant evidence, the corrected verification limits, and the final Slice 85
+dependency-boundary design through clean candidate
+`b7403958a3839d371c1672335c517fa762a451cf`.
+
+1. **Cycle 1 — FAIL:** one P1 and four P2 findings. The P1 required the
+   dependency gate to compare complete Engine-module and Engine-field-owner
+   inventories mechanically, rather than merely require nonempty manifests.
+   The four P2s required private typed pool capabilities for the distinct
+   `VectorStage` and `ExplainGraphNeighbors` construction seams, final
+   `graph_api.rs` placement and Slice 140 carryover for all graph `Engine`
+   facades, and a final non-root WAL attribution owner. FIX-1 made the
+   manifest coverage exact with deletion fixtures, preserved each request's
+   cfg/doc-hidden boundary, set the graph home, and assigned
+   `wal_attribution.rs` together with its aliases and helpers.
+2. **Cycle 2 — FAIL (P2):** manual release-board prose still said Slice 80
+   was complete while the release state correctly kept it in progress pending
+   this review. FIX-2 corrected that boundary statement without changing
+   implementation or verification evidence.
+3. **Cycle 3 — PASS:** the reviewer confirmed the property, design, and
+   record corrections through `b7403958`. The compiler-visible explicit-edge
+   shape and the `syn` gate do not rely on general Rust type inference; a
+   `self.reader_pool` edge is governed only by the explicit Engine-field
+   ownership map or an imported capability/free-function edge.
+
+This is a code-review PASS and supplies the reviewed candidate for the
+separate release-state binding. It does **not** make the historical Terra
+receipts, the partial `24813b8e` diagnostic run, or blocked surface captures
+current verification passes. Slice 85 still requires its capable-host,
+exact-baseline prerequisite, and Slice 150 alone owns exact-final-candidate
+AC-037 qualification.

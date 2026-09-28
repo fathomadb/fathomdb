@@ -269,8 +269,10 @@ compile/lint and blast-radius evidence was:
 
 ## Review and final verification
 
-Code review at `e9631b97` is historical and the strengthened property and
-revised Slice 85 plan require rereview. A separate read-only `gpt-5.6-terra`
+The independent three-cycle rereview closed with code-review PASS at
+`b7403958`; it covered the strengthened fixed-shape property and the corrected
+Slice 85 boundary design. It does not turn the verification evidence below
+into a current full pass. A separate read-only `gpt-5.6-terra`
 subagent returned PASS at historical clean candidate `3e60cc5d`; those receipts
 apply only to that exact candidate because production later changed through
 `0efa62c5`. At `3e60cc5d`, the canonical gate passed 127/127, workspace
@@ -365,10 +367,11 @@ as accepted and the general cycle-exception wording was too broad. FIX-2 made
 that description historical/current-only and barred all four cycles from
 retention, exception, or allowlisting.
 
-The third cycle returned **PASS** at clean reviewed candidate
-`e9631b9761d292a4115d1beee95678801512f4f2`. These were planning and record
-corrections, so no production or test code changed and no new behavioral RED
-was warranted. That PASS is now historical pending rereview of the strengthened
-property and this corrected boundary contract. The `66e27983` AC-037 receipt
-remains historical only; Slice 150 alone owns exact-final-candidate live
-qualification.
+The earlier third cycle returned **PASS** at clean reviewed candidate
+`e9631b9761d292a4115d1beee95678801512f4f2`. Its review is historical. The
+final independent rereview then covered the strengthened property and corrected
+boundary contract through `b7403958`, with Cycle 1 finding one P1 and four P2s,
+Cycle 2 finding one P2, and Cycle 3 returning PASS. These are test, planning,
+and record corrections, so no new production behavioral RED was warranted.
+The `66e27983` AC-037 receipt remains historical only; Slice 150 alone owns
+exact-final-candidate live qualification.

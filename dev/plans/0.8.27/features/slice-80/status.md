@@ -1,23 +1,25 @@
 ---
 title: FathomDB 0.8.27 Slice 80 - implementation status
-status: IN_PROGRESS_PENDING_REREVIEW
+status: IN_PROGRESS_PENDING_BINDING
 implemented_on: 2026-09-27
 historical_planning_commit: 9a31e979
 follow_up_commit: 1d7f826c2125d5de6d852ddbc96d35fec2de5816
-authoritative_binding: PENDING_INDEPENDENT_REREVIEW
+authoritative_binding: PENDING_RELEASE_STATE_BINDING
 historical_reviewed_candidate: e9631b9761d292a4115d1beee95678801512f4f2
 historical_closeout_commit: bca0c99d46e0111c1bd3906d78a77668801463bc
+reviewed_candidate: b7403958a3839d371c1672335c517fa762a451cf
 ---
 
 # Slice 80 implementation status
 
-## Product extraction completed; Slice 80 binding pending
+## Product extraction completed; Slice 80 release-state binding pending
 
 The product extraction is complete on `release/0.8.27`: it moved the
 root-owned read side into private semantic modules without changing behavior,
 schema 34, SQL, statement ordering, snapshot or transaction scope, error
 mapping, feature gates, public paths, or wire encodings. Overall Slice 80 is
-**IN_PROGRESS** pending independent rereview and authoritative binding:
+**IN_PROGRESS** pending release-state binding of the completed independent
+rereview:
 
 - `fusion.rs` and `filter.rs` own ranking fusion and filtering;
 - `search_types.rs`, `search.rs`, and `search_api.rs` own search carriers,
@@ -105,6 +107,13 @@ registered 127 suites: 125 ran, 123 passed, 2 failed, 2 skipped, and none were
 excluded. Both failures came from the missing local `fathomdb._fathomdb`
 module and the consequent native-receipt failure. It is not a canonical PASS
 or release-qualifying AC-037 receipt.
+
+The final independent three-cycle rereview then covered the strengthened
+result-codec property and the corrected Slice 85 boundary design through
+`b7403958`. Cycle 1 found one P1 and four P2s, Cycle 2 found one P2 in manual
+board status prose, and Cycle 3 returned PASS. This review result prepares the
+separate release-state binding; it does not make the historical, partial, or
+blocked verification evidence above a current pass.
 
 ## Slice 85 and Slice 90 handoff
 

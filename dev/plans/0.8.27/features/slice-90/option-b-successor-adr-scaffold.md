@@ -510,9 +510,11 @@ production mutant. At minimum:
    not invent provider failures to preserve the historical oracle.
 10. **Batch fallback self-deadlock:** first reproduce the current
     `embed_projection_batch` returned-error/timeout path that invokes `per_job()`
-    while holding `embed_serialize` (`projection_worker.rs:553-575`). The RED test
-    uses bounded synchronization and proves the per-job path attempts the same
-    guard. GREEN requires dropping the guard/permit before every per-job
+    while holding `embed_serialize` (`projection_worker.rs:553-575` at
+    `ab8f43be`; the offending arm is `Err(_) => return per_job()` at line 575,
+    reached only with `FATHOMDB_PROJECTION_BATCH` enabled). The RED test sets
+    that variable, uses bounded synchronization and proves the per-job path
+    attempts the same guard. GREEN requires dropping the guard/permit before every per-job
     fallback, and a production mutant that returns under the guard must fail.
     The executor replacement must preserve that lock-order proof rather than
     merely making the old mutex disappear.
@@ -609,3 +611,14 @@ delta, exact configured-open API, queue multiplier, and exact incomplete-close
 outcome in this scaffold are reviewed successor proposals requiring formal ADR
 acceptance. This scaffold does not substitute for independent design approval
 or the formally accepted successor ADR.
+
+That acceptance is the open release-state decision
+`D27-successor-adr-acceptance`. The acceptance package must present, in plain
+terms, the reliability-posture change carried by default-one embed
+concurrency: one hung provider call occupies the only embed slot, so all later
+dense projection and foreground embeds in that session are
+admission-unavailable until it returns, durable projection work remains
+pending, and bounded close reports `Scheduler`. Under PR-9 today the hung row
+fails terminally and the engine keeps moving. Accepting the default accepts
+that trade; rejecting it requires a different default or a separate
+foreground/projection capacity, either of which is a change to this scaffold.

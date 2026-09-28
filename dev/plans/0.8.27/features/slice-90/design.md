@@ -19,7 +19,9 @@ production work.
 
 ## Evidence and scope
 
-Reviewed baseline: `459d528f2af008739dfb81656403d0a55e23072b`. The current
+Reviewed baseline: `ab8f43be2c9ceaa9ad19b23b23f40e9d2c484513` (the substrate
+table below is bound to the same commit; engine source is identical to the
+earlier `459d528f` review base). The current
 engine root still owns open/admission, runtime configuration, connection
 helpers, WAL and operator facades, index projectors, runtime carriers, and
 test seams. `projection_runtime.rs` owns the shared runtime allocation and
@@ -238,6 +240,16 @@ selects only that architectural direction. The numeric ceilings, queue
 multiplier, default-one embed concurrency, new typed configuration error,
 public configured-open delta and exact incomplete-close outcome remain
 successor proposals subject to independent review and formal ADR acceptance.
+That acceptance is registered in release state as the open decision
+`D27-successor-adr-acceptance`; Slice 90 is not commissionable while it is
+unruled. The acceptance package must state one consequence plainly rather
+than leave it implicit: with default-one embed concurrency, a single hung
+provider call occupies the only slot, so every later dense projection and
+foreground embed in that session is admission-unavailable until the call
+returns, durable projection work stays pending, and bounded drain reports
+`Scheduler`. This replaces the PR-9 posture (terminal failure per row while the
+engine keeps moving) and is a reliability-posture change the HITL accepts or
+rejects explicitly, not a side effect of the ceiling proposal.
 
 AC27-90B and commissioning of dependent runtime changes are **BLOCKED** until
 the resulting contract passes independent design review and is formally
@@ -331,10 +343,17 @@ the same authoritative reader transaction and releases it at normal query
 completion or error; it must not reacquire a different snapshot. A total-query
 deadline is not introduced by this slice.
 
-Before executor changes, investigate the likely batch-fallback self-deadlock at
-`projection_worker.rs:553-575`: `embed_projection_batch` invokes `per_job()`
-from its error/timeout branch while `_embed_permit` still owns
-`embed_serialize`, and `run_projection_job` attempts to acquire the same mutex.
+Before executor changes, resolve the batch-fallback self-deadlock at
+`projection_worker.rs:553-575` (line numbers at the reviewed baseline). It is
+confirmed by reading, not suspected: `embed_projection_batch` binds
+`_embed_permit` on `embed_serialize` at line 557 and the `Err(_) => return
+per_job()` arm at line 575 evaluates `per_job()` while that guard is still
+alive; `run_projection_job` then locks the same non-reentrant mutex at line
+754. The row-count and dimension-mismatch fallbacks after the guard block are
+not affected. Reachability: the batch path runs only when
+`FATHOMDB_PROJECTION_BATCH` is set (`projection_batch_enabled`, opt-in), so
+the defect is latent in default configurations and reachable in any session
+that opts in and then receives a provider error, timeout or disconnect.
 Add a bounded RED test that reaches this fallback, then ensure every fallback
 drops the guard/permit before entering the per-job path. A mutant that restores
 the under-guard fallback must fail. If the approved executor removes this
@@ -401,15 +420,52 @@ callback/executor conformance is inferred from configuration tests.
    Slice 85 receipts only when source/artifact/features genuinely match.
    Freeze focused route counts, public/hidden captures and configuration
    expectations; identify source scrapers before moving their inputs.
-2. Implement the configuration correction in RED/GREEN sub-batches after the
-   architecture ruling and design approval: characterize and resolve the
-   `embed_projection_batch` under-guard fallback self-deadlock; engine
-   validation/configured-open seam; orchestration/embed executors plus
-   open/query/direct/projection deadline and lifecycle behavior; Python/PyO3
-   forwarding; Node/TypeScript/NAPI forwarding; configuration/ADR/interface/
-   public-reference documentation; installed-artifact parity and independent
-   review. Do not mix structural movement into these diffs. Runtime review is
-   a mandatory checkpoint before stage 3.
+2. Implement the configuration correction after `D27-successor-adr-acceptance`
+   is ruled and the design is independently approved, as the following ordered
+   RED/GREEN sub-batches. Each is separately buildable, separately reviewed
+   against the 300–600 non-mechanical threshold, and lands its own tests:
+   1. **2a — R27-90J.** Bounded RED for the `embed_projection_batch`
+      error/timeout under-guard fallback under `FATHOMDB_PROJECTION_BATCH`;
+      GREEN drops the guard before every per-job route; restoration mutant
+      fails under a subprocess/cancellation-safe bound.
+   2. **2b — validation and configured-open seam.** `EngineConfig` /
+      `ResolvedRuntimeConfiguration` / typed configuration error;
+      `open_with_choice_and_config` joins the `EmbedderChoice` family; range,
+      zero/omission and precedence tests; no executor yet.
+   3. **2c — executor core.** Engine-owned orchestration and embed-dispatch
+      executors with bounded admission, absolute queue-plus-service deadlines,
+      per-engine hung-slot accounting and `Overloaded` saturation; unit and
+      mixed-load tests against the executor alone.
+   4. **2d — projection path.** Route `run_projection_job` /
+      `embed_projection_batch` through the executor; stage-specific retry
+      accounting; retire `embed_serialize`, the session latch and the
+      detached watchdog threads for this path while preserving the 2a
+      lock-order proof.
+   5. **2e — query and direct paths.** Route `search_api`, reader-worker
+      hybrid search and `Engine::embed_text` through the executor with
+      same-snapshot sparse fallback and operation-specific outcomes.
+   6. **2f — open-time probe.** Route the vector-equivalence probe; degraded
+      open retains its live engine; failed post-probe startup preserves the
+      original error.
+   7. **2g — close protocol.** Two-phase close: database quiescence with
+      cancellation-before-join, then the bounded embed-runtime drain and the
+      truthful incomplete result; PR-9 oracle delta applied as reviewed.
+   8. **2h — Python/PyO3 forwarding** with either/or input and installed
+      artifact tests.
+   9. **2i — Node/TypeScript/NAPI forwarding** with object input, Number-safe
+      caps and installed artifact tests.
+   10. **2j — documentation.** Successor ADR and decision index, internal
+       designs, three interface contracts, `docs/reference/config.md`, error
+       guidance.
+   11. **2k — installed-artifact parity and checkpoint receipts.**
+   Do not mix structural movement into these diffs. **Runtime checkpoint:**
+   after 2k, obtain independent code review and independent read-only
+   verification at the exact candidate and record it as
+   `runtime_checkpoint_sha` in the Slice 90 release-state ladder entry with
+   both receipts. Stage 3 may not start until that binding exists. The
+   checkpoint is the candidate-bound verification boundary that makes a
+   separate runtime slice unnecessary; it is not optional and cannot be
+   replaced by the final Slice 90 closeout review.
 3. Move resolved/process runtime configuration, then connection primitives,
    then open/admission and open maintenance. Split open by an actual admission
    or cleanup phase while retaining one public path and exact sequencing.
@@ -480,8 +536,8 @@ it does not treat newly moved owners as invisible out-of-scope endpoints.
 | R27-90F | Shared runtime field decisions are closed. | AC27-90F: the four named search-control fields remain one value each on the shared runtime allocation; exact defaults, atomics, lifetime and test controls are characterized and unchanged. Storage and consumer ownership are both recorded; there is no remaining relocation decision. |
 | R27-90G | Surfaces and platform coverage remain truthful. | AC27-90G: immutable Slice 30 comparison reports only individually reviewed config deltas; mechanical comparisons against the post-correction candidate are equal. Hidden surface is additive only unless an existing accepted contract explicitly requires a reviewed change. Rust root paths, Python stubs, Node declarations, feature gates and qualified tests remain accounted for. All required matrix routes, including non-Linux compilation, have candidate-bound receipts; an unavailable executor blocks closeout. |
 | R27-90H | Structural enforcement survives runtime moves. | AC27-90H: the bounded Slice 85 gate and negative fixtures pass; root-item paths and touched new owners are classified, source scrapers retain their oracles, and none of the four forbidden cycles or a new governed return path is introduced. No whole-crate normalization or automatic exception growth occurs. |
-| R27-90I | Completion is independently demonstrated before bindings decompose. | AC27-90I: independent code review and read-only verification pass at the final candidate, repository-required gates and installed-artifact receipts pass, and the owner/requirement inventory has zero open Slice 90 items. Only then can release state mark Slice 90 complete and unblock Slice 100. Slice 150 still owns exact-final-candidate AC-037; historical security receipts are not reused as current claims. |
-| R27-90J | Batch embed fallback cannot reacquire its own serialization guard or executor permit. | AC27-90J: a bounded RED test reproduces the `embed_projection_batch` returned-error/timeout fallback while the batch guard is held; breaker-open fast failure is tested separately. GREEN proves every per-job fallback occurs only after the guard/permit is dropped; the restoration mutant fails under a subprocess/cancellation-safe bound rather than hanging Drop, and the approved executor transition retains the same lock-order guarantee. |
+| R27-90I | Completion is independently demonstrated before bindings decompose. | AC27-90I: the stage-2 runtime checkpoint is bound in release state as `runtime_checkpoint_sha` with its own independent code-review and read-only verification receipts before any stage-3 move commit; independent code review and read-only verification pass at the final candidate, repository-required gates and installed-artifact receipts pass, and the owner/requirement inventory has zero open Slice 90 items. Only then can release state mark Slice 90 complete and unblock Slice 100. Slice 150 still owns exact-final-candidate AC-037; historical security receipts are not reused as current claims. |
+| R27-90J | Batch embed fallback cannot reacquire its own serialization guard or executor permit. | AC27-90J: a bounded RED test, run with `FATHOMDB_PROJECTION_BATCH` enabled, reproduces the `embed_projection_batch` returned-error/timeout fallback (the `Err(_) => return per_job()` arm) while the batch guard is held; breaker-open fast failure is tested separately. GREEN proves every per-job fallback occurs only after the guard/permit is dropped; the restoration mutant fails under a subprocess/cancellation-safe bound rather than hanging Drop, and the approved executor transition retains the same lock-order guarantee. |
 
 If any acceptance remains unmet, Slice 90 remains incomplete. A revision of
 the ladder requires an explicit reviewed dependency/verification reason; batch

@@ -6,6 +6,7 @@ minor_review_candidate: ce71afe511545d963f141b5c9c051fc8638bd6b4
 option_b_review_base: 9b00a980ca222d05f3af063168ed45c2b0a4a526
 ruled_option_b_review_base: f7e6d8abaed2744fd58369165fe2c85ce2f0dba9
 corrected_ruled_option_b_review_base: 418240673f8a22027a67330c2c21cd19b773bb47
+second_independent_review_base: 3b3607155ae5445bde3a771ed9e05606c2d33155
 target_release: 0.8.27
 ---
 
@@ -267,3 +268,29 @@ installed native artifacts, the existing deadlock reproduction/mutant,
 performance/freshness gates and full-workspace verification were not run in
 this planning-only task. Their absence is not implementation conformance and
 does not close AC27-90B, authorize production changes, tags, push or publication.
+
+## Second independent review — 3b360715
+
+A second reviewer, independent of the author of the Option B revisions above,
+reviewed clean `3b3607155ae5445bde3a771ed9e05606c2d33155` on
+`release/0.8.27` and returned **PASS-WITH-FIXES** for the revised Slice 90
+design and the Option B scaffold: no P0/P1, two P2, three P3. It confirmed
+against source that the five-knob substrate table, the existing
+`EngineError::{Scheduler, Overloaded, Closing, Embedder}` variants, the
+`Embedder: Send + Sync` bound, the PR-9 oracle delta, and the R27-90J
+deadlock (real on the `Err(_) => return per_job()` arm, fast-failing on the
+breaker arm, reachable only with `FATHOMDB_PROJECTION_BATCH`) are accurately
+described. The same reviewer then remediated its own findings under an explicit
+instruction; this section is that remediation record, not a third review.
+
+| ID | Finding | Remediation |
+| --- | --- | --- |
+| P2-1 | Successor-ADR acceptance (ceilings, default-one concurrency, `4×N` queue, `EngineConfig`/configured-open delta, typed error, Number-safe caps, `Scheduler` drain outcome) was an open HITL decision not registered in `decisions.unruled`; the board's generated count read ONE. | Added unruled `D27-successor-adr-acceptance` to `release-state-0.8.27.json`; regenerated the board count (TWO); listed the decision on the board, in the master plan's Slice 90 section, in the design's ruled-direction section and in the scaffold's remaining-approvals section. |
+| P2-2 | Stage 2 bundled executor construction, four call-path migrations, the two-phase close and lifecycle into one sub-batch with no release-state-bound verification boundary before stage 3. | Enumerated stage 2 as ordered sub-batches 2a–2k in the design; added `runtime_checkpoint_sha`, `runtime_checkpoint_requires` and `runtime_checkpoint_gate` to the Slice 90 ladder entry; AC27-90I now requires the bound checkpoint with its own independent code-review and read-only verification receipts before any stage-3 move. This is the candidate-bound boundary that makes Slice 91 unnecessary. |
+| P3-1 | The reliability-posture change carried by default-one embed concurrency (one hung call stalls all dense work in the session) was accepted in the scaffold but not stated plainly for the acceptance package. | Stated it explicitly in the design's ruled-direction section, the scaffold's remaining-approvals section and the decision title. |
+| P3-2 | R27-90J said "likely" and did not name the reachability condition or the exact arm. | Design, scaffold, master plan and AC27-90J now name the `FATHOMDB_PROJECTION_BATCH` opt-in, the line-575 arm at `ab8f43be`, and state the defect is confirmed by reading. |
+| P3-3 | Design cited `459d528f` as the reviewed baseline while its substrate table cited `ab8f43be`. | Design now cites `ab8f43be` with the note that engine source is identical between the two. |
+
+No production source, accepted ADR or Steward ledger entry changed. Slice 91
+remains unnecessary. Slices 85 and 90 remain PLANNED and uncommissioned;
+`D27-successor-adr-acceptance` is unruled and blocks Slice 90 commissioning.

@@ -974,7 +974,12 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     successor with real engine-owned orchestration/embed-dispatch capacities,
     universal deadlines, operation-specific timeout outcomes and bounded
     shutdown. The literal historical Tokio/task/dedicated-writer topology is
-    not selected.
+    not selected. The successor's numeric ceilings, default-one embed
+    concurrency and its hung-provider stall posture, queue multiplier,
+    `EngineConfig`/configured-open public delta, typed configuration error,
+    Number-safe binding caps and `Scheduler` incomplete-drain outcome are a
+    separate open HITL decision, `D27-successor-adr-acceptance`, registered in
+    release state; Slice 90 is not commissionable until it is ruled.
     The dedicated design records current substrates/widths, exact consumers,
     item-specific owners and required effect tests. The revised
     `features/slice-90/option-b-successor-adr-scaffold.md` is the reviewed
@@ -994,7 +999,11 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     architecture correction plus forwarding, not
     forwarding alone. No Slice 91 technical boundary has been demonstrated;
     runtime qualification precedes moves within 90 unless an explicitly
-    reviewed dependency requires a ladder change.
+    reviewed dependency requires a ladder change. The qualification boundary
+    is the stage-2 runtime checkpoint: the design enumerates stage 2 as
+    ordered sub-batches 2a–2k, and the Slice 90 release-state ladder entry
+    binds `runtime_checkpoint_sha` with independent code-review and
+    read-only verification receipts before any stage-3 mechanical move.
   - **Configuration documentation action:** in the functional configuration
     batch, update the accepted successor and decision index, internal engine/
     scheduler/embedder/bindings designs, Rust/Python/TypeScript interfaces,
@@ -1009,7 +1018,9 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     RED test for `embed_projection_batch` calling `per_job()` from its
     returned-error/timeout path while `embed_serialize` is held
     (`fn embed_projection_batch` in
-    `src/rust/crates/fathomdb-engine/src/projection_worker.rs`). Resolve every
+    `src/rust/crates/fathomdb-engine/src/projection_worker.rs`; the batch
+    path is opt-in via `FATHOMDB_PROJECTION_BATCH`, so the RED test enables
+    it). The defect is confirmed by reading, not suspected. Resolve every
     route so the guard or new
     executor permit is dropped before per-job fallback; require a mutant that
     restores the under-guard fallback to fail. Do not let the executor rewrite

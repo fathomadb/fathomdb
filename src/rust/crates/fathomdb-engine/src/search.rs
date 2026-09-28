@@ -125,6 +125,36 @@ pub(crate) trait SearchOriginCapture: Sized {
 
 pub(crate) struct NoEvidenceCapture;
 
+/// 0.8.20 keystone closeout fix-3 (codex §9 [P2], TOCTOU) — the error a Search
+/// reader worker can return. Two arms:
+///   * `Sqlite` — a backend/storage failure (the pre-fix-3 `rusqlite::Result`
+///     behaviour verbatim; the caller emits the internal-error event and maps to
+///     `EngineError::Storage`);
+///   * `InvalidFilter` — a filter naming an UNDECLARED `filterable` attribute,
+///     detected on the reader's OWN transaction snapshot (see
+///     [`validate_filter_attributes_on_snapshot`]). The caller re-raises it as the
+///     EXISTING `EngineError::InvalidFilter { reason }` typed variant.
+///
+/// Why a channel-carried variant and not a pre-dispatch check on the writer
+/// connection: fix-2 validated on `self.connection` BEFORE dispatch, then the
+/// reader prepared the vec0 query on a DIFFERENT connection/snapshot. A
+/// `configure_projections` DROP landing in that window let the vec0 `attr_<hex>`
+/// column vanish AFTER validation passed → an opaque `no such column` `Storage`
+/// error (the exact untyped failure fix-2 meant to prevent). Validating INSIDE
+/// the reader transaction that also compiles+executes the search binds the check
+/// and the query to ONE snapshot, closing the race; carrying the typed reason
+/// back through this variant keeps the outcome `InvalidFilter`, never `Storage`.
+pub(crate) enum SearchReaderError {
+    Sqlite(rusqlite::Error),
+    Evidence(EngineError),
+    InvalidFilter(String),
+    RerankerDevicePolicy(RerankerDevicePolicyError),
+    FrozenRead(FrozenReadError),
+    VectorEquivalenceMismatch(String),
+    WriteValidation,
+    InvalidArgument(String),
+}
+
 // Ordinary search retains a zero-sized capture strategy: evidence state and
 // provenance collection are absent unless the explicit evidence operation is used.
 const _: () = assert!(std::mem::size_of::<NoEvidenceCapture>() == 0);

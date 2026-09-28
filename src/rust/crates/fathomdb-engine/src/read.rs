@@ -555,6 +555,35 @@ fn page_search_error(error: SearchReaderError) -> PageReaderError {
     }
 }
 
+pub(crate) enum PageReaderError {
+    Sqlite(rusqlite::Error),
+    Engine(EngineError),
+}
+
+impl From<rusqlite::Error> for PageReaderError {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::Sqlite(error)
+    }
+}
+
+impl From<EngineError> for PageReaderError {
+    fn from(error: EngineError) -> Self {
+        Self::Engine(error)
+    }
+}
+
+impl From<FrozenReadError> for PageReaderError {
+    fn from(error: FrozenReadError) -> Self {
+        Self::Engine(EngineError::FrozenRead(error))
+    }
+}
+
+impl From<rusqlite::Error> for SearchReaderError {
+    fn from(err: rusqlite::Error) -> Self {
+        SearchReaderError::Sqlite(err)
+    }
+}
+
 impl Engine {
     /// Slice 30 (G2) — `read.get`: active-only point lookup by `logical_id`.
     /// Delegates to [`Engine::read_get_many`]; returns the single slot. A

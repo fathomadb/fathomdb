@@ -230,6 +230,7 @@ pub use provenance::{
     ProvenancedNodeV1, SourceLocator, WriteProvenanceV1,
 };
 pub(crate) use provider::{ProviderSession, ProviderTask};
+pub(crate) use read::PageReaderError;
 #[cfg(feature = "test-hooks")]
 pub(crate) use read::{
     canonical_page_query, read_canonical_page_baseline_in_tx, OPERATIONAL_STATE_PAGE_SQL,
@@ -254,7 +255,7 @@ pub(crate) use search::{
 };
 pub(crate) use search::{
     bm25f_search_inner, prepare_search_statement, read_projected_text_in_tx,
-    read_search_work_in_tx, CapturedGraphOrigin, NoEvidenceCapture,
+    read_search_work_in_tx, CapturedGraphOrigin, NoEvidenceCapture, SearchReaderError,
 };
 pub(crate) use search_types::validate_search_result_limit;
 pub use search_types::{
@@ -1374,65 +1375,6 @@ type ReaderResponse = Result<
 type EvidenceReaderResponse = Result<EvidenceSearchResultV1, SearchReaderError>;
 
 type ProjectedTextReaderResponse = Result<SearchResult, SearchReaderError>;
-
-/// 0.8.20 keystone closeout fix-3 (codex §9 [P2], TOCTOU) — the error a Search
-/// reader worker can return. Two arms:
-///   * `Sqlite` — a backend/storage failure (the pre-fix-3 `rusqlite::Result`
-///     behaviour verbatim; the caller emits the internal-error event and maps to
-///     `EngineError::Storage`);
-///   * `InvalidFilter` — a filter naming an UNDECLARED `filterable` attribute,
-///     detected on the reader's OWN transaction snapshot (see
-///     [`validate_filter_attributes_on_snapshot`]). The caller re-raises it as the
-///     EXISTING `EngineError::InvalidFilter { reason }` typed variant.
-///
-/// Why a channel-carried variant and not a pre-dispatch check on the writer
-/// connection: fix-2 validated on `self.connection` BEFORE dispatch, then the
-/// reader prepared the vec0 query on a DIFFERENT connection/snapshot. A
-/// `configure_projections` DROP landing in that window let the vec0 `attr_<hex>`
-/// column vanish AFTER validation passed → an opaque `no such column` `Storage`
-/// error (the exact untyped failure fix-2 meant to prevent). Validating INSIDE
-/// the reader transaction that also compiles+executes the search binds the check
-/// and the query to ONE snapshot, closing the race; carrying the typed reason
-/// back through this variant keeps the outcome `InvalidFilter`, never `Storage`.
-enum SearchReaderError {
-    Sqlite(rusqlite::Error),
-    Evidence(EngineError),
-    InvalidFilter(String),
-    RerankerDevicePolicy(RerankerDevicePolicyError),
-    FrozenRead(FrozenReadError),
-    VectorEquivalenceMismatch(String),
-    WriteValidation,
-    InvalidArgument(String),
-}
-
-enum PageReaderError {
-    Sqlite(rusqlite::Error),
-    Engine(EngineError),
-}
-
-impl From<rusqlite::Error> for PageReaderError {
-    fn from(error: rusqlite::Error) -> Self {
-        Self::Sqlite(error)
-    }
-}
-
-impl From<EngineError> for PageReaderError {
-    fn from(error: EngineError) -> Self {
-        Self::Engine(error)
-    }
-}
-
-impl From<FrozenReadError> for PageReaderError {
-    fn from(error: FrozenReadError) -> Self {
-        Self::Engine(EngineError::FrozenRead(error))
-    }
-}
-
-impl From<rusqlite::Error> for SearchReaderError {
-    fn from(err: rusqlite::Error) -> Self {
-        SearchReaderError::Sqlite(err)
-    }
-}
 
 /// Pack 6.G G.3.5 — per-worker cache-pressure snapshot. Carried only on
 /// the debug-only `CacheStatus` broadcast path and the test accessor;

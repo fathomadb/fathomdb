@@ -9,9 +9,10 @@ target_release: 0.8.27
 This is prospective design, not implementation authority or a verification
 receipt. Slice 85 must close first; Slice 90 remains uncommissioned. This
 record and the master plan own the complete Slice 90 obligation. Slice 100
-cannot start with any requirement below incomplete. No Slice 91 is needed:
-the configuration correction and structural work have distinct batches and
-review checkpoints within one coherent runtime-closure slice.
+cannot start with any requirement below incomplete. No Slice 91 is allocated:
+runtime implementation and verification can precede structural moves inside
+Slice 90. AC27-90B is currently blocked on the unruled architecture choice
+below; this record does not authorize a successor to an accepted ADR.
 
 ## Evidence and scope
 
@@ -26,6 +27,8 @@ NAPI, but NAPI's open implementation consumes only the embedder choice.
 The SDK/native config declarations contain five knobs.
 
 Authority is the accepted
+[`scheduler-shape ADR`](../../../../adr/ADR-0.6.0-scheduler-shape.md),
+[`async-surface ADR`](../../../../adr/ADR-0.6.0-async-surface.md),
 [`embedder protocol ADR`](../../../../adr/ADR-0.6.0-embedder-protocol.md),
 [`bindings design`](../../../../design/bindings.md), and the applicable
 [`Rust`](../../../../interfaces/rust.md),
@@ -34,9 +37,16 @@ Authority is the accepted
 requires an engine-owned embedder pool with a configurable size (CPU-count
 default) and a configurable per-call timeout (30-second default), with
 late results discarded rather than forcibly cancelling a running thread.
-Projection-worker count is not automatically synonymous with embedder-pool
-size: the implementation design must trace query and projection calls to the
-actual executor and watchdog before choosing the wiring.
+The scheduler ADR also requires a distinct dedicated Tokio orchestration pool
+(default two), per-job tasks bounded at four times embedder-pool size, and
+channel submission to a dedicated writer. The current engine has no Tokio
+dependency or such pools: projection runtime starts an OS dispatcher and two
+OS workers; workers serialize healthy embedding via `embed_serialize`, call
+detached per-call watchdog threads, and commit through worker connections.
+`Engine` writes use its mutex-protected connection. Query embedding in
+`search.rs` and `embedding::Engine::embed_text` invokes the embedder directly,
+without that watchdog. Therefore this is a runtime architecture correction,
+not just option forwarding or replacing `PROJECTION_WORKERS`.
 
 Keep one engine crate, rooted `Engine`, private implementation modules, public
 root paths and exact cfg gates. Preserve SQL, transaction/lock/commit order,
@@ -63,11 +73,52 @@ the split preserves ownership; line count alone is not a reason.
 | `wal_runtime` | Engine WAL/checkpoint orchestration, `truncate_wal`, `wal_checkpoint_truncate_once`, `TruncateWalStatus`/`TruncateWalReport`, connection-inventory/actual-checkpoint coordination and associated runtime observation carriers. It consumes Slice 85's `wal_attribution` and typed reader capabilities. It does not take ownership of the collector again. |
 | `reader_pool` (retained) | `HoldWalSnapshot`, `HoldWalSnapshotBounded`, `HoldWalSnapshotWithCommitAck`, `LookasideStatus`, `CacheStatus`, `SecureDeleteStatus`, and both `Wal*Inventory` arms remain beside the worker-owned connection and request loop. These operations must run on that connection/thread; retaining them preserves pin/ack/release and request-finish ordering. This is a final disposition, not a deferred extraction choice. |
 | `operator` | `verify_embedder`, `check_integrity`, `safe_export`, `dump_schema`, `dump_row_counts`, `dump_profile`, `orphan_provenance`, their report/option carriers, integrity sections and pure formatting helpers. Existing data-plane inspection/recovery entry points and their admission/URI helpers live in a private operator submodule; public and operator-feature availability remain exact. |
-| Existing domain owners | `trace_source_ref` and trace carriers go to `provenance`; `trace_dependency` to `dependency_trace`; `check_data_plane_integrity` to `data_plane_integrity`; `drain_embedder_events` and `Engine::usable_dense_runtime` to `embedding`; `detect_slow`, event emission, counters/profiling/subscription controls and `CounterSnapshot` to `telemetry`/existing `lifecycle` according to their actual single owner in the item map. No new public module path is introduced. |
+| Existing domain owners | `trace_source_ref`, `TraceReport`, `TraceEvent` go to `provenance`; `trace_dependency` and `DependencyTraceMeasurement` to `dependency_trace`; `check_data_plane_integrity` to `data_plane_integrity`; `drain_embedder_events` and `Engine::usable_dense_runtime` to `embedding`. No new public module path is introduced. |
 | `index_projector` | `project_canonical_node_row`, `project_canonical_edge_row`, `IndexTargetSet`, `index_targets_for_row_kind`, `reproject_search_index_after_tokenizer_upgrade`, `search_index_tokenizer_reproject_complete`, `CanonicalNodeRow`, `canonical_node_rows`, `row_kind_from_column`, and `restore_registered_derived_projections`. Existing projection/vector helpers are called through their owners, not copied. |
 | `open` maintenance | `edge_vector_prune_complete` and `prune_orphaned_edge_vectors` remain together under open maintenance because their current authority is admission-time compatibility work. Their markers and ordering move intact. |
-| Existing runtime/domain owners | Projection scheduling constants belong to `projection_runtime`; embedder/watchdog defaults to resolved configuration/embedding runtime; reader constants are already pool-owned after Slice 85. Remaining root value/report types and constants move to their existing semantic owner, or receive an item-specific root-retention entry under the rule below. |
+| Runtime constants | `PROJECTION_CURSOR_KEY`, `PROJECTION_WORKERS`, `PROJECTION_COMMIT_BATCH`, `PROJECTION_INFLIGHT_LIMIT`, `PROJECTION_SCAN_FETCH`, `PROJECTION_TEMPORAL_WAKE_POLL`, `DEFAULT_PROJECTION_RETRY_DELAYS_MS`, `PROJECTION_RUNTIME_STARTUP_TIMEOUT` go to `projection_runtime`; `DEFAULT_EMBED_TIMEOUT_MS` and `DEFAULT_EMBED_CIRCUIT_THRESHOLD` to `embedding`; configuration consumes defaults from these owners. Reader constants are pool-owned after Slice 85. |
 | Root | `Engine` storage, module declarations, exact public re-exports, and the small `path`/`ensure_open` core controls remain rooted. Their role is state identity/composition, not a catch-all helper home. Test modules and explicitly inventoried Slice 140 test-seam exceptions preserve qualified test identities. |
+
+The following named residual dispositions are fixed now, not delegated to an
+implementation-time inventory. Existing root public paths remain re-exports;
+private imports use the semantic owner. A change requires design review.
+
+| Items | Final owner and reason |
+| --- | --- |
+| `Engine::write_node_importance` | `write`; preserves validation-before-close and its existing transaction/closure guard. |
+| `Engine::node_importance` | `read_api`; preserves the present writer-connection read and eligibility predicate, not a new pool dispatch. |
+| `EXPLANATION_OPEN_NONCE_SEQUENCE`, `mint_explanation_open_nonce` | `open`; session identity minting is admission wiring; consumers receive the stored Engine nonce, not another global counter. |
+| `RowKind` and its impl | `write_types` (new small private contract owner); shared canonical write classification used by write, projection and index projectors, not owned by an executor. |
+| `is_legal_transition_move`, `LIFECYCLE_DRAIN_TIMEOUT_MS` | `record_lifecycle`; transition legality and its drain budget. |
+| `embedder_required_for`, `EmbeddingReadinessState`, `EmbeddingOperation`, `EmbedderRequired`, `EmbeddingReadiness` and impls | `embedding`; capability/refusal vocabulary, with no second public definition. |
+| `RebuildKind`, `RebuildReport`, `REBUILD_DRAIN_TIMEOUT_MS` | `projection_rebuild`. |
+| `ProjectionRole`, `ProjectionFts`, `DenseReadiness`, `ProjectionVector`, `ProjectionSpec`, `ProjectionDelta` and impls | `projection_registry`; declaration and registry contract, consumed by runtime. |
+| `ProjectionRuntimeUnavailabilityReason`, `ProjectionStatusDenseReadiness`, `ProjectionRuntimeStatusEntry`, `ProjectionRuntimeStatus` and impls | `projection_runtime`; runtime availability report, distinct from registry readiness. |
+| `load_next_cursor`, `reserved_write_cursor`, `max_cursor` | `write_commit`; cursor high-water semantics shared with open, including reserved migration boundary. |
+| `projection_status`, `PROJECTION_CURSOR_KEY` readers | `projection_runtime`; retain durable terminal/cursor interpretation and `lifecycle::ProjectionStatus` public type. The constant has the single runtime owner above. |
+| `projection_batch_has_no_custom_triggers` | `projection_commit`; commit batching safety predicate. |
+| `legacy_revision_id`, `digest_record_identity`, root `hex_encode`/`hex_nibble` | `identity`; stable hash/identity recipes shared by write, actuation, projection and export, unchanged. The separate frozen-token codec is not merged into this work. |
+| `map_open_sqlite_error`, `map_migration_error` | `errors`; typed corruption/open conversion, called by open and operator without a reverse open dependency. |
+| `sqlite_extended_code_name`, `sqlite_extended_code_name_from_int` | `lifecycle`; diagnostic code naming, retaining `SQLITE_UNKNOWN` behavior (no unrelated error redesign). |
+| `detect_slow`, `emit_event`, `emit_sqlite_internal_error`, `emit_open_error_event`, `Engine::subscribe` | `lifecycle`; lifecycle event construction/delivery. Existing `Event`, `Phase`, `EventSource`, `EventCategory`, `SubscriberRegistry`, `Subscription` remain there. |
+| `CounterSnapshot`, `Engine::counters`, `set_profiling`, `set_slow_threshold_ms`, `DEFAULT_SLOW_THRESHOLD_MS`, both cfg versions of `process_current_rss_bytes`/`process_peak_rss_bytes` | `telemetry`; observability state and controls; connection callback installation/context/trampoline remain `connection_runtime`, which consumes lifecycle events and shared threshold state. |
+| `MeanRecomputeReport` | `mean`; existing recomputation result contract. |
+| `table_exists` | `open`; admission-only legacy-shape probe. |
+| `read_schema_objects`, `order_canonical_first` | `operator`; schema inspection/export helpers. |
+
+All root constants already consumed by an extracted domain follow that
+specific domain: `DEFAULT_VECTOR_PROFILE`/`DEFAULT_VECTOR_PARTITION` to
+`vector_storage`; the `VECTOR_EQUIVALENCE_*` constants to `vector_equivalence`;
+`DEFAULT_EMBEDDER_*`/`BGE_SMALL_EMBEDDER_NAME` to `open`;
+`DEFAULT_PROVENANCE_ROW_CAP` to `provenance`; `DEPENDENCY_GENERATION_KEY`,
+`SOURCE_DEPENDENCY_SCHEMA_VERSION`, `DEPENDENCY_LOOKUP_LIMIT` to
+`dependency_trace`; `EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION` to `temporal`;
+`SEARCH_INDEX_TOKENIZER_SCHEMA_VERSION`/`SEARCH_INDEX_TOKENIZER_REPROJECT_MARKER_KEY`
+to `index_projector`; `EDGE_VECTOR_PRUNE_MARKER_KEY` to open maintenance;
+`ERASURE_WAL_TRUNCATE_ATTEMPTS`, `ERASURE_WAL_TRUNCATE_BACKOFF_MS`,
+`REDACTED_STABLE_ID`, `ERASURE_AUDIT_COLLECTIONS`,
+`ERASURE_PENDING_REDACTION_COLLECTION`, `is_erasure_bookkeeping_collection`
+to `erasure`. These are moves, not permission to alter values or policies.
 
 The four fields `search_limit_override`, `recency_reweight_enabled`,
 `importance_reweight_enabled`, and `vector_stage_only_for_test` remain on
@@ -82,8 +133,10 @@ not a pending decision left at Slice 90 closeout.
 
 Before the first production edit, derive an exact inventory at the Slice 85
 exit SHA of every root item, Engine method/field, relevant runtime constant,
-and named handoff item. Classify each into one final owner above, already
-settled Slice 85 ownership, or an item-specific retained-root entry. Expand
+and named handoff item. Confirm each final owner above or already settled
+Slice 85 ownership; inventory is not authority to assign a different owner.
+Any newly discovered unallocated item blocks movement until a prospective
+item-specific design amendment is reviewed. Expand
 grouped rows into actual symbol names in that inventory, including cfg-gated
 variants, impls, statics and test carriers. For each root retention, record its
 callers, invariant, cfg, why moving would be worse, and whether it is a
@@ -94,6 +147,78 @@ production deferral to Slice 100/140 is permitted; existing Slice 140 test-gate
 work stays there without concealing production logic.
 
 ## Configuration correction
+
+### Current substrate and required consuming effects
+
+This table describes candidate `ab8f43be2c9ceaa9ad19b23b23f40e9d2c484513`,
+not a claim that the accepted executor topology exists. Python exposes
+optional arbitrary-precision `int` fields, TypeScript optional `number`, and
+NAPI optional `u32` fields; PyO3 has no equivalent five-knob open input yet.
+Rust currently has per-field atomics/constants, not one resolved option API.
+
+| Knob | Accepted/design default | Current consumer and width | Correction/proof obligation |
+| --- | --- | --- | --- |
+| `scheduler_runtime_threads` | Scheduler ADR: two dedicated Tokio orchestration workers | No engine consumer or Tokio runtime; dispatcher plus two OS projection workers use `usize` constants. NAPI's Tokio `spawn_blocking` is a separate binding handoff, not this executor. | Requires the architecture decision below; never wire this to the reader pool, NAPI pool or merely rename projection workers. Prove selected orchestration capacity and bounded backlog under the accepted final contract. |
+| `embedder_pool_size` | Scheduler/embedder ADRs: `num_cpus::get()` dedicated dispatch slots | No configured pool. Projection worker count is two, healthy projection embeds serialize through one mutex, and each watchdog invocation spawns an OS thread. Query/direct embeds execute on their caller. | New engine-owned dispatch capacity for all engine embed paths; prove selected bound, independent-engine isolation, hung-slot accounting and no calls on host runtime threads. The current serialization guard cannot make a claimed N-slot pool effective. |
+| `embedder_call_timeout_ms` | Embedder ADR: 30,000 ms for every embed call | `ProjectionRuntimeShared::embed_timeout_ms: AtomicU64`, default30,000; projection batch watchdog multiplies by batch length. `search.rs`, `embedding::embed_text`, and root test vector writes call directly without it. | Route engine-owned query, projection and direct embedding through the accepted watchdog contract; specify batch deadline and queue-wait versus service deadline before RED tests. Preserve public error precedence unless an approved delta explicitly changes it. |
+| `provenance_row_cap` | Existing engine default1,000,000 rows | `Engine::provenance_row_cap: AtomicU64`, used by `write`/`actuation` → `write_commit::enforce_provenance_retention`; zero currently disables retention. It is not consumed by the reader/provenance reporting pool. | Forward open-time value and prove actual retention after real write/actuation commits, including zero and independent engines; do not prove it by echoing config. |
+| `slow_threshold_ms` | Existing engine default100 ms | Shared `Arc<AtomicU64>` read by `detect_slow` and SQLite profile callback; public setter works after open (PyO3 `u64`, NAPI `u32`), but open config is ignored. | Set before connection/profile setup; prove both operation and statement slow signals plus subsequent setter behavior, retaining strict elapsed>threshold semantics. |
+
+The reader pool is eight dedicated OS threads (`READER_POOL_SIZE`) and is not
+an exposed scheduler or embedder control. Projection dispatcher/worker
+connections and their WAL inventory counts must track the chosen actual
+runtime topology. NAPI `call_engine` uses its host-side Tokio blocking
+executor, never evidence that the engine owns the required pools.
+
+Resolve numeric contracts before implementation: NAPI `u32` cannot represent
+Rust `u64` timeouts/caps, and JS `number` loses integer precision above
+2^53−1; Python type annotations do not validate values. The option/interface
+delta must explicitly choose and justify checked ranges for each field,
+including `usize` platform limits and checked `4*N`/batch multiplication,
+and preserve or explicitly amend zero semantics. Neither lossy casts nor
+silently narrowing Rust to NAPI's current width satisfies symmetry. Test
+fractional/negative/NaN/infinity, booleans where relevant, u32+1, JS safe-integer
+boundary and Rust overflow; legitimate language-specific representations
+need not have identical syntax. Defaults without a pinned accepted range
+above are current behavior to characterize, not an invented HITL contract.
+
+### Architecture decision required before AC27-90B
+
+**Unruled `D27-runtime-topology`.** Should Slice 90 (A) implement the accepted
+scheduler ADR literally, including its Tokio/task/writer-channel topology,
+or (B, recommended) seek an accepted narrow successor retaining the current
+synchronous projection/commit architecture while specifying two real,
+independently configurable engine-owned orchestration/embedding capacities
+and universal embed deadlines? B is a proposal, not permission to reinterpret
+`scheduler_runtime_threads`; its successor must define that option's exact
+meaning/default, dispatch ownership, bounded backlog, serialized-provider
+safety, timeout slot accounting, shutdown and binding invariants before code.
+
+A is substantially more than forwarding: it replaces scheduling and writer
+handoff/commit ownership and needs generation-token, transaction order,
+backpressure, failure recovery and lifecycle qualification. B avoids that
+unrelated writer-topology rewrite while closing the advertised controls, but
+cannot override the accepted scheduler/async/embedder ADRs without acceptance.
+Do not infer acceptance from this recommendation or from a source comment
+calling the current serialization trade-off accepted. Both options preserve
+no-reentrancy, no host-thread embedding, finish-and-discard cancellation and
+public sync Rust/Python APIs; conflicting language-adapter constraints must
+be resolved in the same accepted contract, not silently assigned to Slice 110.
+Standalone SDK embedding utilities are not Engine config consumers and retain
+their own contract; inventory them to prevent a false universal claim.
+
+AC27-90B and commissioning of dependent runtime changes are **BLOCKED** until
+this choice and the resulting contract are approved. Safe characterization,
+ownership design and Slice 85 planning can proceed. There is no automatic
+waiver or deferral of the five controls. After a ruling, amend this design
+with exact topology and tests before independent design approval.
+
+Implement-as-accepted does not itself create a Slice 91 necessity: verified
+runtime replacement can be a mandatory checkpoint inside Slice 90 before
+mechanical extraction. No external prerequisite or independently delivered
+artifact currently forces a new slice. If the approved topology exposes one,
+review that concrete boundary and update the ladder before commissioning;
+size or an incomplete runtime receipt cannot justify declaring 90 complete.
 
 Close ledger gap `TC-b602d87a…` (seq 258) within this slice. Trace all five
 existing knobs from Python/TypeScript through PyO3/NAPI to the engine's
@@ -167,7 +292,8 @@ callback/executor conformance is inferred from configuration tests.
    Freeze focused route counts, public/hidden captures and configuration
    expectations; identify source scrapers before moving their inputs.
 2. Implement the configuration correction in RED/GREEN sub-batches: engine
-   validation/executor/watchdog; Python/PyO3 forwarding; Node/TypeScript/NAPI
+   validation/executor/watchdog after the architecture ruling and design
+   approval; Python/PyO3 forwarding; Node/TypeScript/NAPI
    forwarding; installed-artifact parity and independent review. Do not mix
    structural movement into these diffs.
 3. Move resolved/process runtime configuration, then connection primitives,
@@ -217,6 +343,16 @@ runtime/WAL state. Independent reopen verifies persistent results. Preserve
 existing codec/property tests and qualified test identities.
 
 ## Requirements and exit acceptance
+
+AC27-90A's entry inventory confirms the item-specific owners above; it cannot
+invent final homes during implementation. AC27-90B is blocked by
+`D27-runtime-topology`; its pass requires the approved topology's real
+executors and all five table rows' consuming-effect/width/precedence tests,
+including query and direct-call timeout coverage and slow-threshold open
+initialization. A config echo, worker-count rename, proposed ADR or forwarder
+without an executor is a failing result. AC27-90H consumes Slice 85's
+whole-crate extraction, transitive root reach and named type-only admission;
+it does not treat newly moved owners as invisible out-of-scope endpoints.
 
 | ID | Requirement | Falsifiable acceptance |
 | --- | --- | --- |

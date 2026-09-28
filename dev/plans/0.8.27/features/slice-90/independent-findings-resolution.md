@@ -1,0 +1,102 @@
+---
+title: Slice 85 and 90 independent findings — code-grounded resolution
+status: PLANNED
+reviewed_candidate: ab8f43be2c9ceaa9ad19b23b23f40e9d2c484513
+target_release: 0.8.27
+---
+
+# Slice 85 and 90 independent findings resolution
+
+Reviewed exact clean candidate above on `release/0.8.27`. This record is
+author review and remediation of independent findings, not independent
+approval. No production source changed. Slices 85/90 remain PLANNED and
+uncommissioned; the original verbatim recommendation and historical reviews
+are unchanged.
+
+## Findings and disposition
+
+| Finding | Verdict | Resolution |
+| --- | --- | --- |
+| P1-1: five-knob work is not merely forwarding | Correct and beneficial; initial design FAIL | Cite scheduler/async/embedder authority, distinguish missing topology from existing threads, expose unruled `D27-runtime-topology`, and block AC27-90B/dependent runtime commissioning. No HITL ruling or ADR amendment is fabricated. |
+| P2-1: gate can miss indirect returns | Correct and beneficial | Whole-crate edge extraction precedes scoped enforcement; executable-root reach is a fixed point, outside globs conservatively retain candidate edges, and named errors→graph-types payload admission is item/edge-kind specific. Add transitive/outside/admitted-path fixtures and executable mutants. |
+| P2-2: governed glob removal has no batch allocation | Correct and beneficial | Explicit one-module import batches inside stages 3–5, 300–1,200 mechanical changed lines, compile/focused/report gates each time, zero unapproved governed globs at enforcement. Edge-admitted modules are not wholesale governed modules. |
+| P2-3: remainder owner map delegates design | Correct and beneficial | Add fixed rows for importance operations, nonce, RowKind, transition/embedder helpers, cursor/projection helpers, SQLite conversion/name helpers, public status/readiness types, telemetry/lifecycle and domain constants. Entry inventory confirms, never invents, final owners. |
+| P2-4: missing current consumer/default/width map | Correct and beneficial | Add five-row code-grounded table, actual versus accepted executor distinction, reader-pool and NAPI separation, retention and slow-threshold consumers, and explicit numeric-range/overflow/precedence acceptance. |
+
+## Evidence
+
+At the reviewed SHA, engine `Cargo.toml` has no Tokio dependency.
+`projection_runtime.rs:404–427` creates an OS dispatcher and two workers;
+`lib.rs:576–598` fixes worker and queue limits. The shared runtime documents
+`embed_serialize` at `projection_runtime.rs:49–90`; workers hold it around
+watchdog calls (`projection_worker.rs:549–569,742–779`).
+`embedding.rs:26–97` spawns per-call detached threads with receiver deadlines;
+`embedding.rs:119–123` and `search.rs:1205` directly invoke `embed` without
+that watchdog. `lib.rs:5942` is another test-only direct path. These are not
+the two pools specified by accepted
+[`scheduler shape`](../../../../adr/ADR-0.6.0-scheduler-shape.md).
+
+Accepted [`async surface`](../../../../adr/ADR-0.6.0-async-surface.md)
+and [`embedder protocol`](../../../../adr/ADR-0.6.0-embedder-protocol.md)
+require engine-owned embed dispatch, no reentrancy and deadline behavior.
+The scheduler additionally names a dedicated writer/channel topology;
+current `Engine::write_node_importance` (`lib.rs:6141–6165`) is one concrete
+mutex-connection transaction, not that dedicated writer. The current
+[`engine design`](../../../../design/engine.md) also describes the actual
+mutex writer model. A contradictory implementation/current design is not an
+accepted supersession of the scheduler ADR.
+
+NAPI `call_engine` (`lib.rs:602`) uses `tokio::task::spawn_blocking`;
+its five config fields (`lib.rs:2557–2561`) are optional u32s. Python's
+`config.py:21–25` uses optional ints; TS `index.ts:168–172` uses numbers.
+The Rust provenance cap is u64 and reaches
+`write_commit::enforce_provenance_retention` (`write_commit.rs:939`)
+through write/actuation. Retention counts sweepable operational mutations,
+exempts erasure accountability rows and has hysteresis; tests must preserve
+these semantics, not demand an exact physical-table cap.
+`lib.rs:3910,5253–5254,8961` shows slow-threshold default initialization,
+working setter and profile consumer; forwarding at open is still absent.
+
+`errors.rs:198` embeds `GraphExpansionErrorV1`; its defining owner is
+`graph_expand/types.rs`, with its constructor/Display/Error impls currently
+in `execution.rs:88–123`. Root re-exports must resolve to the defining type,
+not invent an execution edge to the facade. Conversely conversions and
+formatting bodies are executable dependencies, not silently admitted data.
+`errors.rs` and governed graph files currently use `super::*`; hiding their
+outgoing edges would invalidate the promised boundary proof.
+
+Root evidence for the named residuals includes `lib.rs:629–636` nonce,
+`2804–2835` RowKind/transition legality, `3050–3330` projection/readiness
+contracts, `4919–4951` lifecycle events, `6141–6190` importance operations,
+`7651–7690` identity/status, and `8532–8706` cursor/SQLite/event helpers.
+Root hex encoding also serves actuation, closure, projection generation and
+write hashing, so it belongs with `identity`, not operator merely because
+export uses it. No generic utility bucket or aesthetic relocation is added.
+
+## Decision and ladder
+
+**Question:** implement accepted scheduler topology literally (A), or accept
+a narrow successor preserving synchronous projection/commit ownership while
+defining real independent orchestration/embedder capacity and universal
+deadlines (B)? **Recommendation: B**, because A changes writer topology and
+transaction scheduling beyond a forwarding correction. B must explicitly
+amend the authoritative contracts, preserve isolation/no-reentrancy, define
+pool/queue/timeout/shutdown behavior, and then be implemented and tested;
+current no-op knobs are not an acceptable successor. This is unruled.
+
+No Slice 91 is added. Even A can have runtime qualification as a mandatory
+in-slice checkpoint before mechanical moves; no separate technical delivery
+dependency has been demonstrated. A concrete dependency discovered in the
+approved topology would require a reviewed ladder change, not silent debt.
+Slice 90 cannot close or unblock 100 with AC27-90B blocked. The design and
+release-state open decision make that dependency explicit.
+
+## Verification scope and verdict
+
+The full Markdown wrapper, separate plan-status lint, generated-view check,
+plan-anchor check, JSON parse and `git diff --check` passed. The stale/optional
+wording scan found no permission to ignore a knob or silently defer closure;
+the original verbatim recommendation has no diff. No engine/runtime correctness or
+independent design approval is claimed by those checks. The P2 findings are
+remediated in prospective design; P1's evidence and scope are corrected but
+its architectural acceptance remains **BLOCKED pending HITL decision**.

@@ -981,13 +981,19 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     independent embed-runtime drain budget, stage-specific projection retry
     accounting, same-snapshot frozen fallback, exact projection-row capacity,
     current binding input shapes and clause-level ADR supersession. This is
+    cancellation-before-join, not deferred cancellation after database drain.
+    Failed-open cleanup uses the same provider-only retention exception;
+    successful degraded open retains a live engine. No reaper thread is added,
+    repeated close does not restart the shared drain budget, and historical
+    PR-9 terminal-failure expectations are explicitly amended where fixed
+    hung-slot accounting instead leaves durable pending work. This is
     architecture correction plus forwarding, not
     forwarding alone. No Slice 91 technical boundary has been demonstrated;
     runtime qualification precedes moves within 90 unless an explicitly
     reviewed dependency requires a ladder change.
   - **Configuration documentation action:** in the functional configuration
     batch, update the accepted successor and decision index, internal engine/
-    embedder/bindings designs, Rust/Python/TypeScript interfaces,
+    scheduler/embedder/bindings designs, Rust/Python/TypeScript interfaces,
     `docs/reference/config.md`, and affected error guidance. Document each
     setting's spelling, default, unit, accepted range, zero/omission meaning,
     mutability, precedence, consuming component, backpressure and observable
@@ -997,13 +1003,15 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     contract.
   - **Batch-fallback deadlock action:** before executor changes, add a bounded
     RED test for `embed_projection_batch` calling `per_job()` from its
-    breaker/error paths while `embed_serialize` is held
+    returned-error/timeout path while `embed_serialize` is held
     (`fn embed_projection_batch` in
     `src/rust/crates/fathomdb-engine/src/projection_worker.rs`). Resolve every
     route so the guard or new
     executor permit is dropped before per-job fallback; require a mutant that
     restores the under-guard fallback to fail. Do not let the executor rewrite
     erase the investigation without proving the replacement lock order.
+    Test the breaker-open fast-failure route separately; it is not the same
+    reacquisition witness. Bound the mutant independently of Engine Drop.
 - **Open-path and runtime items.** These are Slice 90's. Slice 70 kept them
   at root:
   - `check_embedder_profile`, `default_embedder_identity`,

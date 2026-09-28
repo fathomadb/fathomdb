@@ -70,7 +70,8 @@ the split preserves ownership; line count alone is not a reason.
 | Owner | Final disposition |
 | --- | --- |
 | `open` | All `Engine::open*` paths and their common admission/open implementation; `OpenReport`, `OpenedEngine`, `EmbedderChoice`; `check_embedder_profile`, `default_embedder_identity`, embedder/reranker open gates, GPU-allocation witness helpers, database-path/lock/admission/header/schema/WAL-sidecar probes, migration error conversion, and open-only startup wiring. Preserve each failure's precedence and cleanup. |
-| `runtime_configuration` | `RuntimeConfiguration`, `RuntimeConfigurationError`, `RuntimeSqliteMode`, `configure_runtime`, its locking/effective-state helpers and process-global initialization state; the engine-owned resolved per-engine configuration and validation introduced by the correction. Process-global SQLite mode remains distinct from per-engine knobs. |
+| `runtime_configuration` | `RuntimeConfiguration`, `RuntimeConfigurationError`, `RuntimeSqliteMode`, `configure_runtime`, its locking/effective-state helpers and process-global initialization state; the proposed public `EngineConfig`/`EngineConfigurationError`, private resolved per-engine configuration and validation introduced by the correction. Process-global SQLite mode remains distinct from per-engine knobs. |
+| `embed_dispatch` | Concrete private embedding queue/workers, request-state/deadline protocol, dispatch outcomes, accounting and bounded drain. It receives the provider and typed runtime fields, never an `Engine`, SQLite connection or projection state. Caller owners translate outcomes into their existing public/panic boundaries. No generic executor, reaper thread, callback bridge or reverse dependency on open/search/projection is introduced. |
 | `connection_runtime` | `open_managed_connection`, `open_runtime_connection`, `configure_reader_lookaside`, `apply_perf_experiment_reader_pragmas`, `apply_perf_experiment_writer_pragmas`, SQLite extension/connection setup, profile-callback installation/uninstallation and connection-only constants. Preserve ABI-sensitive types and exact pragmas. |
 | `runtime_lifecycle` | `Engine::close`, `drain`, `drain_for_non_embedding_mutation`, engine `Drop`, and their lifecycle coordination. Retain exact idempotence, drain/freeze, worker join and pool-before-profile-context destruction order. |
 | `wal_runtime` | Engine WAL/checkpoint orchestration, `truncate_wal`, `wal_checkpoint_truncate_once`, `TruncateWalStatus`/`TruncateWalReport`, connection-inventory/actual-checkpoint coordination and associated runtime observation carriers. It consumes Slice 85's `wal_attribution` and typed reader capabilities. It does not take ownership of the collector again. |
@@ -79,7 +80,7 @@ the split preserves ownership; line count alone is not a reason.
 | Existing domain owners | `trace_source_ref`, `TraceReport`, `TraceEvent` go to `provenance`; `trace_dependency` and `DependencyTraceMeasurement` to `dependency_trace`; `check_data_plane_integrity` to `data_plane_integrity`; `drain_embedder_events` and `Engine::usable_dense_runtime` to `embedding`. No new public module path is introduced. |
 | `index_projector` | `project_canonical_node_row`, `project_canonical_edge_row`, `IndexTargetSet`, `index_targets_for_row_kind`, `reproject_search_index_after_tokenizer_upgrade`, `search_index_tokenizer_reproject_complete`, `CanonicalNodeRow`, `canonical_node_rows`, `row_kind_from_column`, and `restore_registered_derived_projections`. Existing projection/vector helpers are called through their owners, not copied. |
 | `open` maintenance | `edge_vector_prune_complete` and `prune_orphaned_edge_vectors` remain together under open maintenance because their current authority is admission-time compatibility work. Their markers and ordering move intact. |
-| Runtime constants | `PROJECTION_CURSOR_KEY`, `PROJECTION_WORKERS`, `PROJECTION_COMMIT_BATCH`, `PROJECTION_INFLIGHT_LIMIT`, `PROJECTION_SCAN_FETCH`, `PROJECTION_TEMPORAL_WAKE_POLL`, `DEFAULT_PROJECTION_RETRY_DELAYS_MS`, `PROJECTION_RUNTIME_STARTUP_TIMEOUT` go to `projection_runtime`; `DEFAULT_EMBED_TIMEOUT_MS` and `DEFAULT_EMBED_CIRCUIT_THRESHOLD` to `embedding`; configuration consumes defaults from these owners. Reader constants are pool-owned after Slice 85. |
+| Runtime constants | `PROJECTION_CURSOR_KEY`, `PROJECTION_COMMIT_BATCH`, `PROJECTION_TEMPORAL_WAKE_POLL`, `DEFAULT_PROJECTION_RETRY_DELAYS_MS`, `PROJECTION_RUNTIME_STARTUP_TIMEOUT` remain projection-runtime-owned. The functional correction replaces fixed `PROJECTION_WORKERS`/`PROJECTION_INFLIGHT_LIMIT`/`PROJECTION_SCAN_FETCH` with resolved worker count and checked row-capacity derivation. `embed_dispatch` owns timeout/queue/drain policy; the successor retires `DEFAULT_EMBED_CIRCUIT_THRESHOLD` rather than moving an unused session-latch control. Configuration consumes defaults from these owners. Reader constants are pool-owned after Slice 85. |
 | Root | `Engine` storage, module declarations, exact public re-exports, and the small `path`/`ensure_open` core controls remain rooted. Their role is state identity/composition, not a catch-all helper home. Test modules and explicitly inventoried Slice 140 test-seam exceptions preserve qualified test identities. |
 
 The following named residual dispositions are fixed now, not delegated to an
@@ -212,6 +213,12 @@ language-adapter constraints must be resolved in the same accepted contract,
 not silently assigned to Slice 110.
 Standalone SDK embedding utilities are not Engine config consumers and retain
 their own contract; inventory them to prevent a false universal claim.
+The deadline covers the engine's `Embedder::embed`/`embed_batch` invocations,
+not cross-encoder reranking, provider construction/warmup or identity. The
+scaffold's explicit clause map also retires the obsolete adapter shedding and
+public saturation-metric prescription: retain public readiness reporting and
+private testable runtime accounting, without changing the locked public
+`CounterSnapshot` keys or inventing a telemetry API.
 
 The revised, ruled-direction but not-yet-approved
 [`Option B successor scaffold`](option-b-successor-adr-scaffold.md) records the
@@ -284,11 +291,18 @@ started-provider timeout, provider error and close cancellation. Admission or
 queued expiration retains durable pending work without consuming the existing
 provider-failure retry budget or producing terminal residue. A real saturation
 test holds capacity unavailable longer than that retry schedule, then releases
-it and proves projection succeeds without manual repair. Only a started
-provider timeout or provider error may consume the existing failure budget.
+it and proves projection succeeds without manual repair. Started-provider
+timeouts/errors consume the existing failure budget; existing
+invalid-vector/dimension validation keeps its current retry/code
+semantics. Preserve spent attempts across interruptible capacity waits for the
+same admitted generation, within the row-capacity bound. Panics remain a
+separate outcome transported to existing caller panic boundaries; they neither
+become retryable embed errors nor silently trigger sparse fallback. Late
+panics are discarded and fixed dispatch workers remain reusable.
 
 Shutdown is explicitly two-phase. Database quiescence first stops new
-admission, safely drains active primary/reader/projection database work and
+public and embed admission, cancels queued/running-result waiters, wakes
+projection retry/capacity waits, safely drains active database work and
 joins every SQLite owner in the existing teardown order; it is not covered by
 the 30-second inference-runtime drain budget, so Slice 90 does not claim a
 bounded total `Engine::close`. Full-reader-queue, synchronized active-query and
@@ -296,9 +310,20 @@ active-primary-operation real-database tests prove no stop signal is trapped
 behind work, no owner is released early, and close completes after the active
 operation is released. Only then does the absolute 30-second embed-runtime
 drain begin. A provider exceeding it retains no SQLite/WAL/admission ownership,
-remains counted in a per-session runtime reaper without a replacement worker,
-and produces the formally accepted successor's typed
-incomplete-embed-shutdown outcome.
+remains counted by worker-owned shared state without a replacement or reaper
+thread, and produces the proposed existing `EngineError::Scheduler` outcome.
+The budget is shared across joins and is never renewed by repeated close or
+Drop. Concurrent close has one teardown; later calls report incomplete while
+workers remain and success after they exit. This is a per-session retention
+bound, not a process-wide limit across arbitrarily many reopenings.
+
+Engine publication, not arbitrary provider termination, is all-or-nothing.
+A timed-out equivalence probe leaves a live degraded engine with an occupied
+slot and no accepted baseline mutation. Separately test a post-probe startup
+failure: cancel waiters, unwind database/profile/admission state, apply bounded
+embed drain, and retain only provider/request/accounting state while preserving
+the original open error. Do not claim complete thread cleanup for a hung
+provider or destroy the executor of a successfully degraded open.
 
 For frozen hybrid search, the inference deadline bounds only extra snapshot
 retention caused by dispatch/provider waiting. Sparse fallback continues on
@@ -308,13 +333,20 @@ deadline is not introduced by this slice.
 
 Before executor changes, investigate the likely batch-fallback self-deadlock at
 `projection_worker.rs:553-575`: `embed_projection_batch` invokes `per_job()`
-from breaker/error branches while `_embed_permit` still owns
+from its error/timeout branch while `_embed_permit` still owns
 `embed_serialize`, and `run_projection_job` attempts to acquire the same mutex.
 Add a bounded RED test that reaches this fallback, then ensure every fallback
 drops the guard/permit before entering the per-job path. A mutant that restores
 the under-guard fallback must fail. If the approved executor removes this
 mutex, preserve the same no-reentrant-permit proof rather than treating the
 mechanical disappearance as evidence.
+The breaker-open route is a separate fast-failure check, not a deadlock RED
+witness. Bound the mutant with a subprocess or cancellation-safe harness so
+Engine Drop cannot hang the test runner. Review the intentional PR-9 oracle
+delta: one hung default slot now leaves durable work pending and drain returns
+`Scheduler` until capacity recovers, instead of spending fabricated retries to
+force terminal failure. Preserve write liveness, no late commit, finite thread
+counts and recovery tests; do not label this unchanged historical behavior.
 
 This functional correction can require an additive Rust/native option seam.
 Review and update the applicable ADR/interface docs and a named allowed-delta
@@ -327,7 +359,7 @@ and its necessary native signature/stub/declaration updates occur here.
 
 Documentation is part of the configuration correction, not deferred
 convergence. In the same reviewed batch, update the accepted successor and ADR
-index, `dev/design/engine.md`, `dev/design/embedder.md`,
+index, `dev/design/engine.md`, `dev/design/scheduler.md`, `dev/design/embedder.md`,
 `dev/design/bindings.md`, the Rust/Python/TypeScript interface contracts,
 `docs/reference/config.md`, and affected error guidance. Record every setting's
 binding spelling, default, unit, accepted range, zero/omission meaning,
@@ -443,13 +475,13 @@ it does not treat newly moved owners as invisible out-of-scope endpoints.
 | R27-90A | Complete semantic ownership and root closure. | AC27-90A: the source-derived entry and final inventories account for every named/root item, field, method and cfg variant; each reaches its approved final owner or named retained-root disposition, with no unresolved/optional entries or production carryover. Root retains only composition/state/core controls and specifically justified test/contract items. The 300–800-line aspiration cannot override ownership. |
 | R27-90B | Runtime configuration is effective, symmetric and documented. | AC27-90B: all five advertised knobs have an authoritative contract and observable consuming effect; Rust plus installed Python/Node default/nondefault/invalid cases pass, including accepted zero values for provenance retention and slow thresholds. Pool sizing, exact projection-row capacity, every production inference path, stage-specific projection retry accounting, operation-specific fallback/errors, queue/service timeout, mixed foreground/projection load, same-snapshot frozen fallback, late completion, recovering hung-slot accounting, concurrent engines, safe database quiescence, absolute embed-drain cleanup, and truthful incomplete embed shutdown match the accepted contract. Saturation longer than the provider-failure retry schedule cannot terminalize durable projection work. The successor/ADR index, internal designs, all language interfaces, public config reference and affected error guidance document every accepted setting and behavior before closeout. Seq-258's gap is closed by implementation evidence or an accepted and implemented successor, never by a proposal alone. |
 | R27-90C | Open and connection semantics survive extraction. | AC27-90C: fresh-process admission/probe/runtime-mode/error-order tests and failure injection pass with unchanged SQL, locks, side effects, cfg and cleanup apart from the separately approved configuration behavior. Every named open/connection helper has its inventory disposition. |
-| R27-90D | WAL and lifecycle ownership is complete. | AC27-90D: open/close/reopen, drain, idempotent close, faulted startup/shutdown, full reader queues, active long queries, active primary operations, busy/checkpoint behavior, native inventories and worker-zero pause/ack tests pass. Retained reader arms execute on their existing connection/thread; no sender escapes. No SQLite owner, runtime probe, WAL pin, profile callback or admission lock survives database quiescence. Any provider call surviving the later embed-drain deadline is counted, reaper-owned, has no database state, receives no replacement worker and cannot be reported as complete shutdown. |
+| R27-90D | WAL and lifecycle ownership is complete. | AC27-90D: open/close/reopen, drain, concurrent/idempotent close, faulted startup/shutdown, full reader queues, active long queries, active primary operations, busy/checkpoint behavior, native inventories and worker-zero pause/ack tests pass. With an inference timeout longer than the drain budget, cancellation still wakes SQLite-owning waiters before join. Retained reader arms execute on their existing connection/thread; no sender escapes. No SQLite owner, runtime probe, WAL pin, profile callback or admission lock survives database quiescence. Any provider call surviving the later shared embed-drain deadline is counted by worker-owned state, has no database state, receives no replacement/reaper thread and cannot be reported as complete shutdown. Repeated close/Drop never renews the budget. Failed post-probe startup preserves the original error and cleans database ownership; successful degraded open retains its usable engine/executor. |
 | R27-90E | Projector and operator work is finished. | AC27-90E: every projector and operator family in the owner map is moved and tested under its exact feature gates; projection/registry/vector state, integrity findings, reports, error mappings and nonmutating diagnostic behavior match the entry evidence. No index-projector or operator item remains pending for Slice 100. |
 | R27-90F | Shared runtime field decisions are closed. | AC27-90F: the four named search-control fields remain one value each on the shared runtime allocation; exact defaults, atomics, lifetime and test controls are characterized and unchanged. Storage and consumer ownership are both recorded; there is no remaining relocation decision. |
 | R27-90G | Surfaces and platform coverage remain truthful. | AC27-90G: immutable Slice 30 comparison reports only individually reviewed config deltas; mechanical comparisons against the post-correction candidate are equal. Hidden surface is additive only unless an existing accepted contract explicitly requires a reviewed change. Rust root paths, Python stubs, Node declarations, feature gates and qualified tests remain accounted for. All required matrix routes, including non-Linux compilation, have candidate-bound receipts; an unavailable executor blocks closeout. |
 | R27-90H | Structural enforcement survives runtime moves. | AC27-90H: the bounded Slice 85 gate and negative fixtures pass; root-item paths and touched new owners are classified, source scrapers retain their oracles, and none of the four forbidden cycles or a new governed return path is introduced. No whole-crate normalization or automatic exception growth occurs. |
 | R27-90I | Completion is independently demonstrated before bindings decompose. | AC27-90I: independent code review and read-only verification pass at the final candidate, repository-required gates and installed-artifact receipts pass, and the owner/requirement inventory has zero open Slice 90 items. Only then can release state mark Slice 90 complete and unblock Slice 100. Slice 150 still owns exact-final-candidate AC-037; historical security receipts are not reused as current claims. |
-| R27-90J | Batch embed fallback cannot reacquire its own serialization guard or executor permit. | AC27-90J: a bounded RED test reproduces the `embed_projection_batch` breaker/error fallback while the batch guard is held; GREEN proves every per-job fallback occurs only after the guard/permit is dropped, normal and mutant routes terminate without deadlock, the mutant restoring under-guard fallback fails, and the approved executor transition retains the same lock-order guarantee. |
+| R27-90J | Batch embed fallback cannot reacquire its own serialization guard or executor permit. | AC27-90J: a bounded RED test reproduces the `embed_projection_batch` returned-error/timeout fallback while the batch guard is held; breaker-open fast failure is tested separately. GREEN proves every per-job fallback occurs only after the guard/permit is dropped; the restoration mutant fails under a subprocess/cancellation-safe bound rather than hanging Drop, and the approved executor transition retains the same lock-order guarantee. |
 
 If any acceptance remains unmet, Slice 90 remains incomplete. A revision of
 the ladder requires an explicit reviewed dependency/verification reason; batch

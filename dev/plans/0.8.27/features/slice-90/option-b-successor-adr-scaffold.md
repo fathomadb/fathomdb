@@ -1,8 +1,9 @@
 ---
 title: D27 runtime topology Option B — successor ADR scaffold
-status: DRAFT-RULED-DIRECTION-PENDING-DESIGN-REVIEW
+status: DRAFT-REVIEWED-PENDING-SUCCESSOR-ADR
 target_release: 0.8.27
-reviewed_candidate: 9b00a980ca222d05f3af063168ed45c2b0a4a526
+initial_review_base: 9b00a980ca222d05f3af063168ed45c2b0a4a526
+corrected_review_base: 418240673f8a22027a67330c2c21cd19b773bb47
 ---
 
 # D27 runtime topology Option B — successor ADR scaffold
@@ -13,6 +14,8 @@ implementation authority, or evidence receipt. HITL decision `seq-293` rules
 passes independent design review, is formally codified as the successor ADR,
 and is implemented and verified. The approved material must be folded into the
 Slice 90 design before commissioning production work.
+The latest candidate-bound review and its limitations are recorded in
+[`independent findings resolution`](independent-findings-resolution.md).
 
 ## Proposed decision
 
@@ -25,11 +28,15 @@ separate, bounded, engine-owned synchronous executors:
 2. an embed-dispatch executor whose worker count and maximum simultaneous
    provider calls are controlled by `embedder_pool_size`.
 
-All engine-owned inference paths—open-time vector-equivalence probes,
+All engine-owned embedding paths—open-time vector-equivalence probes,
 projection, ordinary and frozen search/query, and direct `Engine::embed_text`—
 submit to the embed-dispatch executor and observe one dispatch/deadline
 contract. Model construction, warmup, and `Embedder::identity` remain separate
 open-time operations; this decision does not claim they can be cancelled. The
+universal deadline covers engine calls to `Embedder::{embed,embed_batch}`, not
+the separate cross-encoder reranker or standalone SDK embedding utilities.
+Provider-internal calls within the default `embed_batch` implementation share
+the enclosing batch deadline; they do not create nested dispatch requests. The
 caller-facing Rust/Python API remains synchronous. Bindings may move a complete
 synchronous engine call off their event-loop thread, but neither a binding
 pool nor a projection worker may invoke the embedder directly.
@@ -52,12 +59,28 @@ in:
   channel ownership, prohibition on projection-worker writers, and total
   submission-order claims; SQLite single-write serialization remains);
 - `dev/adr/ADR-0.6.0-embedder-protocol.md` Invariant 4's CPU-count default and
-  the exact executor description, while retaining engine ownership and the
-  provider protocol;
-- `dev/adr/ADR-0.6.0-projection-model.md` only if the final batch-deadline,
-  admission-unit, shedding, or metric clauses differ; and
-- `dev/adr/ADR-0.6.0-async-surface.md` where it prescribes a specific NAPI
-  ThreadsafeFunction mechanism rather than the retained isolation outcome.
+  exact executor description, plus Invariant 5's deadline scope to include
+  queue wait and fixed batches, while retaining the provider trait and
+  finish-and-discard rule;
+- `dev/adr/ADR-0.6.0-projection-model.md` Granularity's scheduler-entry batch
+  unit, Backpressure's unbounded-internal-queue/single-writer/adapter-shedding
+  prescriptions, and Restart durability's cursor-only discovery recipe:
+  replace these with bounded admitted rows, batching at worker dequeue,
+  generation/terminal-aware durable rediscovery, and the operation-specific
+  admission outcomes below. Retain push dispatch, fixed batch deadlines,
+  provider retry schedule, and terminal-state cursor authority; and
+- `dev/adr/ADR-0.6.0-async-surface.md` Decision/Consequences and ASYNC-1's exact
+  ThreadsafeFunction, binding-pool sizing/configuration, and internal Arc/async
+  prescriptions. Retain Promise/off-event-loop/libuv isolation and A–D's
+  product outcomes without requiring the historical scheduler mechanism.
+
+Codification must name these clauses in the successor and add reciprocal
+supersession pointers plus the decision-index entry. The current
+`dev/design/engine.md` is code-grounded evidence, not a formal supersession of
+the writer ADR. Its Close path's total-bounded-close assertion must be amended
+to the two-phase contract below. Keep the freshness SLI and current
+generation/mean/commit authority unchanged; a different default pool size is
+not a waiver of their qualification gates.
 
 It retains these load-bearing contracts:
 
@@ -99,9 +122,10 @@ References: `dev/design/engine.md:52-69,125-140`,
 `src/rust/crates/fathomdb-engine/src/projection_runtime.rs:121-127,402-432`,
 and `src/rust/crates/fathomdb-engine/src/lib.rs:576-598`.
 
-SQLite and rusqlite require disciplined connection ownership, post-commit
-background work, and write serialization. They do not require Tokio, a
-dedicated writer OS thread, or an MPSC commit channel. Replacing the working
+SQLite and rusqlite require disciplined connection ownership and write
+serialization; post-commit background dispatch is a FathomDB contract. They
+do not require Tokio, a dedicated writer OS thread, or an MPSC commit channel.
+Replacing the working
 commit topology solely to make a historical ADR literal would enlarge Slice
 90, disturb WAL/thread inventories, and combine a behavior-changing writer
 rewrite with the release's structural root closure.
@@ -162,7 +186,9 @@ Admission is bounded and nonblocking. The caller creates one absolute monotonic
 deadline before enqueue; a full queue returns internal overload immediately,
 and an accepted request carries that deadline through queue wait and service.
 A queued request whose deadline expires is cancelled or skipped without
-invoking the provider. A running request that reaches the deadline becomes a
+invoking the provider. Worker start atomically checks request state and the
+absolute deadline; it cannot start an expired or cancelled request. No queue
+or request-state lock is held during provider code. A running request that reaches the deadline becomes a
 timed-out-live call until it returns. Result arrival versus expiration is
 linearized under the request state so exactly one outcome wins. This prevents
 queue admission or wait from evading the universal timeout and prevents dead
@@ -178,12 +204,13 @@ was transiently full.
 
 ### Provider concurrency and PR-9
 
-The default effective embed concurrency remains one, preserving the PR-9
+The default healthy projection embed concurrency remains one, preserving the PR-9
 safety contract proven by
 `tests/pr9_embed_serialization.rs:1-16,87-128`. The prior implementation
-serialized arbitrary binding-supplied embedders because their practical
-thread safety may be weaker than the Rust `Send + Sync` surface promises;
-concurrent Candle calls were measured safe but throughput-neutral.
+serialized caller-supplied providers defensively, partly motivated by future
+binding-bridge safety concerns. Current custom providers use the Rust
+`Send + Sync` surface; the bindings have no such bridge today. Concurrent
+Candle calls were measured safe but throughput-neutral.
 
 Proposed successor rule:
 
@@ -223,6 +250,15 @@ SQLite-connection, WAL-inventory, and queue multiplication while remaining
 well above intended embedded deployments. Review should replace it if there
 is stronger repository evidence for another bound; leaving the limit
 unbounded is not proposed.
+
+With scheduler count S and attached-provider count E, the engine-owned steady
+inventory is `1 + S + 8 + E` threads (dispatcher, projection, readers, embed)
+and `1 + 1 + S + 8` SQLite connections (primary, dispatcher, projection,
+readers). At S=E=64 this is 137 threads, 74 connections, 4,096 admitted
+projection rows and 256 queued embed requests. With no provider E contributes
+zero threads/requests. Caller/binding threads and provider-internal resources
+are outside these counts; the ceiling is a guardrail, not a memory or
+throughput guarantee. Exact inventory/fault-cleanup tests must match this map.
 
 | Knob | Proposed canonical contract | Sole consuming effect | Evidence / amendment |
 | --- | --- | --- | --- |
@@ -276,8 +312,14 @@ Omission remains distinct from an explicit zero where zero is accepted.
 
 ## Failure, shutdown, and isolation
 
-- Opening any executor is all-or-nothing. A thread, channel, connection, or
-  warmup failure unwinds already-created resources before returning an error.
+- Publishing an engine is all-or-nothing; provider termination is not. Before
+  any probe starts, executor-start failure joins the started idle workers and
+  unwinds database resources. After a probe starts, a later startup failure
+  cancels dispatch and safely unwinds all SQLite/profile/admission resources,
+  then uses the same bounded embed drain and provider-only retention rule as
+  close. Preserve the original open error; cleanup must not mask it or publish
+  an engine. A timed-out probe alone instead returns a live degraded engine
+  with its executor and occupied slot intact, not a half-destroyed engine.
 - A projection-queue capacity limit never rejects or rolls back the canonical
   write that created durable pending work.
 - An embed-dispatch queue admission failure or deadline maps through the
@@ -292,29 +334,40 @@ Omission remains distinct from an explicit zero where zero is accepted.
   permanent latch is not introduced.
 - Close has two ordered phases. **Database quiescence** first marks the engine
   closing, stops new public/database admission and projection discovery,
-  disconnects or cancels pending work without placing a stop message behind a
-  full work queue, and then waits for active primary, reader, dispatcher and
-  projection database operations to finish. Every SQLite-owning worker joins
-  before its connection, profile context, callback registration, admission
-  lock, or sidecar lock is released. This phase preserves the existing safe
-  ownership contract and is intentionally not covered by the embed-drain
+  closes embed admission, cancels queued and running-result waiters, and wakes
+  projection retry/capacity waits **before** joining any database worker.
+  Cancellation competes with start/completion under the request-state lock;
+  it never waits for or aborts a running provider. Disconnect/cancel pending
+  reader work without placing a stop message behind a full work queue, then
+  wait for active primary, reader, dispatcher and projection database work.
+  Each worker removes its callbacks and releases its own connection before
+  exiting; join every SQLite owner before releasing shared profile contexts
+  or the sidecar admission lock. Preserve the existing safe teardown order.
+  Cancelled projection work stays durable and creates no terminal failure.
+  This phase preserves the existing safe ownership contract and is
+  intentionally not covered by the embed-drain
   deadline; Option B does not invent cancellation of arbitrary SQLite work or
   claim that total `Engine::close` latency is bounded.
 - **Embed-runtime drain** begins only after database quiescence has removed all
   SQLite ownership from outstanding inference work. It uses one absolute
   30-second budget independent of `embedder_call_timeout_ms` and batch size,
-  stops new embed admission, cancels queued/result waiters, interrupts retry
-  waits, and preserves cancelled projection work for durable rediscovery rather
-  than terminalizing it as provider failure. Only a still-running embed worker
-  may remain after this budget, and only with provider/request state and no
+  shared by all joins rather than renewed per worker. Admission and waiter
+  cancellation have already happened in phase one. Only a still-running embed
+  worker may remain after this budget, and only with provider/request state and no
   engine-owned SQLite connection, transaction, profile context, callback
   registration, admission lock, or sidecar lock.
-- An embed worker that exceeds the drain budget remains owned by a detached
-  per-session runtime reaper and is counted until the provider returns; no
-  replacement worker is created. Explicit close returns the proposed typed
-  incomplete-embed-shutdown outcome rather than claiming full runtime teardown.
-  `Drop` is best effort. This is a proposal for successor-ADR acceptance, not a
-  claim that `seq-293` chose its exact API.
+- On drain expiry, detach only the unfinished embed worker handles; no reaper
+  thread or replacement worker is created. Those workers retain only provider,
+  request and shared accounting state and decrement the live count on exit.
+  Propose the existing `EngineError::Scheduler` for incomplete embed shutdown;
+  no new public close-error variant is needed. Close is serialized/idempotent:
+  concurrent callers observe one teardown, subsequent close does not restart
+  its budget, and it reports `Scheduler` while retained workers remain, `Ok`
+  once none remain. `Drop` never restarts the wait or panics. Retention is at
+  most the configured worker count **per session**, not a process-wide bound:
+  repeated opens with permanently hung providers can retain additional
+  threads/models. Document that residual; do not claim guaranteed provider
+  reclamation. These are successor proposals, not exact API rulings by seq-293.
 - Reader shutdown, primary-profile teardown, connection release, and sidecar
   lock release retain the order in `dev/design/engine.md:151-168`. Real-database
   tests cover a full reader queue, a synchronized active long query, and a
@@ -328,14 +381,33 @@ Operation-specific mapping distinguishes failure stages:
 | Caller | Admission full / queued expiration | Started-provider timeout / provider error | Close cancellation |
 | --- | --- | --- | --- |
 | Projection | Retain durable pending work and defer with bounded backoff or capacity notification. These outcomes do **not** consume the provider-failure retry budget and cannot create terminal projection residue. | Apply the existing provider-failure retry budget and existing terminal outcome only after that budget is exhausted. | Retain durable pending work for rediscovery; never consume provider-failure retries or create terminal residue. |
-| Ordinary or frozen hybrid search | Preserve the existing sparse/text fallback produced by `.embed(...).ok()`; no new query exception or changed refusal precedence. | Preserve the same sparse/text fallback and refusal precedence. | Return through the existing close/cancellation precedence without retaining a reader transaction. |
-| Direct `Engine::embed_text` | Return the existing `EngineError::Overloaded` before provider invocation. | Preserve `EngineError::Embedder`. | Return the existing close/cancellation error precedence. |
+| Ordinary or frozen hybrid search | Preserve the existing sparse/text fallback produced by `.embed(...).ok()`; no new query exception or changed refusal precedence. | Preserve the same sparse/text fallback and refusal precedence. | A cancelled embed wait returns `EngineError::Closing` through the settled reader/API boundary and releases its transaction; add only a narrow private closing outcome where needed, not a new broad error carrier or ownership change. A result that already won may finish normally on its snapshot while close waits. Do not replace earlier validation/refusal errors. |
+| Direct `Engine::embed_text` | Return the existing `EngineError::Overloaded` before provider invocation. | Preserve `EngineError::Embedder`. | A cancelled wait returns `EngineError::Closing`; preserve already-winning completion and earlier validation errors. |
 | Open-time vector-equivalence probe | Preserve degraded open/dense-disabled behavior, baseline/cache mutation rules, and identity/error precedence; never persist a new accepted baseline. | Preserve the same degraded-open and mutation rules. | Unwind open without publishing a partially initialized engine or baseline. |
 
 A real saturation test holds the dispatch queue unavailable longer than the
 existing projection provider-failure retry schedule, proves that no failure
 budget or terminal residue is consumed, then releases capacity and proves the
 durable projection succeeds without manual residue repair.
+
+Capacity unavailability while all slots are timed-out-live is an admission
+outcome, not another provider failure. Keep already-spent provider retry counts
+across capacity waits for the same admitted generation; a wait neither resets
+nor increments them. Retain that work within the existing admitted-row bound,
+with interruptible waits, not an unbounded retry-state side map. Generation
+change/close releases admission and current durable state drives rediscovery.
+Existing returned-invalid-vector handling (including dimension mismatch) still
+consumes its current retry budget and retains its existing failure code.
+
+Panics are not ordinary provider errors. Catch them inside the fixed worker,
+restore accounting, and transport timely panic payloads to the existing
+caller panic boundary: projection records `ProjectionPanic`, the open probe
+degrades, and direct/query callers retain their existing panic handling.
+Do not retry or silently sparse-fallback a panic as an `EmbedderError`. A late
+panic loses to timeout/cancellation, is discarded, and cannot poison/kill the
+dispatch worker or reduce pool capacity. This covers unwind builds; process
+abort is not cancellable. Result validation remains with the existing caller,
+not duplicated inside a generic executor.
 
 Invalid per-engine configuration receives a narrow typed
 `EngineConfigurationError` carried by `EngineOpenError`, distinct from the
@@ -374,6 +446,14 @@ timed-out-but-live calls. Counters are per engine and separately testable;
 `embedder_pool_size` is an invocation upper bound, not a promise that an
 internally synchronized provider achieves N-way throughput.
 
+Retain existing public projection-status/readiness reporting for durable
+backlog. Executor accounting is a private per-engine snapshot with test-hook
+access; do not add keys to the locked `CounterSnapshot` public contract. The
+successor explicitly replaces scheduler Observability and projection-model
+Backpressure's hypothetical public saturation metrics/automatic SDK shedding
+with this bounded admission and existing readiness surface. No new adapter
+shed policy or public telemetry API is silently introduced.
+
 ## Required RED/GREEN evidence
 
 Before implementation, each behavior-changing batch adds a failing test or
@@ -389,8 +469,11 @@ production mutant. At minimum:
    plus first-open and reopen vector-equivalence tests record that the provider
    runs on named engine embed workers rather than the caller, projection
    worker, NAPI Tokio worker, Python caller, or JS event-loop thread. A hung
-   open-time probe degrades dense availability within its deadline and cleans
-   every partially created executor/connection without persisting a baseline.
+   open-time probe degrades dense availability within its deadline without
+   persisting a baseline, leaving a usable text-only engine and an accurately
+   occupied embed slot. Separately inject a later startup failure and prove
+   complete SQLite/profile/admission cleanup, preserved original open error,
+   and bounded provider-only retention without publishing an engine.
 4. **Deadline:** queue wait and running service both consume the deadline;
    each operation preserves the mapping table above; a late result is discarded
    and cannot commit; healthy later work succeeds when capacity returns.
@@ -405,7 +488,10 @@ production mutant. At minimum:
    panicking, and completed-late embeds first quiesces and joins every SQLite
    owner in the existing safe order, then applies the independent absolute
    embed-drain deadline, reports incomplete embed shutdown truthfully, and
-   bounds retained calls per session across repeated close/reopen. Real-database
+   bounds retained calls per session across repeated close/reopen. Set the
+   inference timeout above the drain budget and prove cancellation wakes the
+   SQLite-owning waiter before join; cover concurrent/repeated close and later
+   provider return without a replacement/reaper thread. Real-database
    full-reader-queue, active-query and active-primary-operation tests prove that
    database quiescence neither releases ownership early nor inherits a false
    30-second total-close guarantee.
@@ -415,15 +501,24 @@ production mutant. At minimum:
 9. **Existing invariants:** PR-9 watchdog/serialization/circuit tests,
    projection runtime close/drain tests, generation/terminal residue tests,
    write-race tests, exact WAL inventories, and public/hidden surface
-   comparisons pass with only the reviewed configuration delta.
+   comparisons pass with only explicitly reviewed successor deltas. In
+   particular, the old hung-provider PR-9 oracle expecting successful drain
+   and terminal failure is replaced: with one permanently occupied slot,
+   further attempts are unavailable, work remains pending, and bounded drain
+   reports `Scheduler`. Releasing the provider restores progress. Retain its
+   no-late-commit, finite-thread, write-liveness and recovery assertions; do
+   not invent provider failures to preserve the historical oracle.
 10. **Batch fallback self-deadlock:** first reproduce the current
-    `embed_projection_batch` failure/breaker path that invokes `per_job()` while
-    holding `embed_serialize` (`projection_worker.rs:553-575`). The RED test
+    `embed_projection_batch` returned-error/timeout path that invokes `per_job()`
+    while holding `embed_serialize` (`projection_worker.rs:553-575`). The RED test
     uses bounded synchronization and proves the per-job path attempts the same
     guard. GREEN requires dropping the guard/permit before every per-job
     fallback, and a production mutant that returns under the guard must fail.
     The executor replacement must preserve that lock-order proof rather than
     merely making the old mutex disappear.
+    Exercise breaker-open separately: it fast-fails before reacquisition and
+    is not the RED deadlock witness. Use a subprocess or cancellation-safe
+    bounded harness so the mutant cannot hang the test process during Drop.
 11. **Mixed workload and snapshot effects:** saturate the shared default-one
     embed capacity with projection and foreground calls in both directions;
     prove bounded foreground behavior, durable projection progress, no
@@ -434,6 +529,10 @@ production mutant. At minimum:
     that transaction/WAL pin at normal query completion or error; reacquiring a
     different snapshot is forbidden. A separate total-query deadline would be
     a new behavior decision and is not introduced here.
+12. **Outcome preservation:** provider errors and invalid vectors exhaust the
+    existing retry policy with unchanged codes; capacity waits preserve rather
+    than reset that budget. Timely and late panics preserve the operation's
+    panic boundary, release accounting and leave dispatch workers reusable.
 
 The existing relevant oracles include:
 
@@ -451,7 +550,8 @@ Existing Python/TypeScript surface tests only prove value retention
 Before Slice 90 closes, document every accepted setting, default, unit, range,
 zero/omission meaning, mutability, precedence, consuming component,
 backpressure behavior, error/fallback outcome, and binding spelling in the
-successor ADR, `dev/design/engine.md`, `dev/design/embedder.md`,
+successor ADR, `dev/design/engine.md`, `dev/design/scheduler.md`,
+`dev/design/embedder.md`,
 `dev/design/bindings.md`, all three `dev/interfaces/` language contracts, and
 `docs/reference/config.md`. Correct `docs/reference/errors.md` wherever its
 operator guidance assumes the historical pools. Documentation is part of the

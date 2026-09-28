@@ -5,6 +5,7 @@ reviewed_candidate: ab8f43be2c9ceaa9ad19b23b23f40e9d2c484513
 minor_review_candidate: ce71afe511545d963f141b5c9c051fc8638bd6b4
 option_b_review_base: 9b00a980ca222d05f3af063168ed45c2b0a4a526
 ruled_option_b_review_base: f7e6d8abaed2744fd58369165fe2c85ce2f0dba9
+corrected_ruled_option_b_review_base: 418240673f8a22027a67330c2c21cd19b773bb47
 target_release: 0.8.27
 ---
 
@@ -182,3 +183,41 @@ or independent design approval is claimed by those checks. The P2 and P3
 findings are remediated in prospective design; P1's evidence and scope are
 corrected; `seq-293` supplies the HITL direction, while independent design
 approval and formal successor-ADR codification remain pending.
+
+## Corrected ruled-plan review — 41824067
+
+This is a new review/remediation record, not a rewrite of the historical
+verdicts above. The delegated reviewer verified clean
+`418240673f8a22027a67330c2c21cd19b773bb47` on `release/0.8.27`, then became the
+sole planning-file writer under an explicit review-and-remediate instruction.
+No Steward/Orchestrator role, production change, release-state mutation or
+commissioning was used. The five findings from `f7e6d8ab` were corrected in
+this input. The remaining initial verdict was **FAIL**, with no P0 findings,
+two P1, four P2 and one P3 below. Evidence line numbers in this table are bound
+to the clean input SHA, not to later edited documents. Engine source paths are
+relative to `src/rust/crates/fathomdb-engine/`.
+
+| ID | Initial finding and evidence | Planning remediation |
+| --- | --- | --- |
+| P1-R1 | Cancellation was deferred until after database-owner joins: scaffold lines 293–311, versus `src/projection_runtime.rs:849–885` and `src/reader_pool.rs:669–680`. A worker waiting on a long configured inference timeout or retry could therefore hold phase one hostage before the advertised drain even started. | Close embed admission and cancel queued/running-result waiters and retry/capacity waits before any join. Keep database quiescence unbounded by the embed budget; start one shared 30-second provider-drain budget afterward. Clarify worker-local callback/connection cleanup before exit and shared-context/sidecar release after joins. Add a timeout-greater-than-drain-budget test and preserve the active-SQL/full-reader-queue tests. |
+| P1-R2 | Scaffold lines 279–280 and 388–393 promised all executor cleanup while also accepting a degraded open after a hung probe. The probe precedes fallible later startup (`src/lib.rs:3886–3936`); arbitrary providers cannot be forcibly reclaimed, and successful degraded open still needs its live engine. | Separate engine publication from provider termination. Successful degraded open keeps its executor/occupied slot and writes no accepted baseline; later startup failure cancels dispatch, unwinds every database resource and preserves the original open error, with only bounded provider-only retention. Require distinct degraded-success and post-probe-failure tests. |
+| P2-R3 | The failure-stage table omitted panic and invalid-output outcomes; design lines 283–288 allowed only provider errors/timeouts to spend retries. Current dimension rejection retries with `EmbedderDimensionMismatchError` (`src/projection_worker.rs:802–804`), while watchdog panic transport and the projection panic boundary are explicit (`src/embedding.rs:40–50`, `src/projection_worker.rs:411–428`, `src/vector_equivalence.rs:37–42`). | Preserve existing result validation/retry codes and operation-specific panic boundaries. Timely panics are transported, not converted to sparse fallback or retryable errors; late panics lose to cancellation/timeout, release accounting and leave fixed workers reusable. Specify close-cancellation versus already-winning completion without changing earlier refusal precedence. |
+| P2-R4 | Supersession remained conditional for projection-model (scaffold lines 54–60), despite conflicts with its Granularity/Backpressure/Restart clauses; async-surface still prescribed internal Arc/async and binding-pool sizing, while engine.md called total close bounded. The runtime constant map still assigned a session-latch threshold after retiring that latch. | Make the exact successor clause map mandatory, including scheduler observation/adapter-shed policy, async mechanism, deadline scope and engine close wording. Retain current readiness reporting and private testable executor accounting without changing the locked public `CounterSnapshot` keys (`src/lib.rs:2845–2853`). Keep the freshness SLI, generation/mean/commit authority and Slice 85 boundaries. Name the concrete private dispatch owner, retire obsolete constants, and include scheduler design in configuration documentation. Scope universal dispatch to `Embedder` calls, not independent reranking or SDK utilities. |
+| P2-R5 | Scaffold lines 312–317 introduced a detached per-session reaper without specifying whether it added a thread, exact close error or repeated-close behavior. That could add needless retained ownership and renew a nominally absolute budget. | Remove the reaper: detach only unfinished fixed workers, whose provider/request/accounting state remains counted until exit. Propose existing `EngineError::Scheduler` for incomplete drain; serialize teardown, never restart its budget, and distinguish later still-incomplete versus completed close. State the per-session—not process-wide—retention residual and exact engine-owned thread/connection/queue accounting. |
+| P2-R6 | Scaffold lines 415–418 required historical PR-9 tests to pass without naming the incompatible terminal-failure oracle. `tests/pr9_embed_watchdog.rs:191–226` expects successful drain plus terminal failure for a hung provider; fixed default-one capacity instead leaves later attempts admission-unavailable. Capacity deferrals also lacked an explicit rule preserving already-spent retry attempts. | Record the successor oracle delta: pending durable work and bounded `Scheduler` drain failure until capacity returns, with existing no-late-commit/write-liveness/thread-bound/recovery assertions retained. Capacity waits neither reset nor increment the retry count; retain admitted-generation state inside the row bound rather than an unbounded side map. |
+| P3-R7 | The RED description conflated breaker-open and actual fallback reacquisition (scaffold lines 419–426; design lines 309–317). In `src/projection_worker.rs:560–575`, breaker-open sets the flag and the per-job route can fast-fail, while the returned-error/timeout arm really attempts the held guard. The scaffold also called post-commit dispatch a SQLite requirement at lines 102–104. | Target the error/timeout arm for the bounded RED and restoration mutant; separately test breaker fast failure. Require a subprocess/cancellation-safe mutant harness so Drop cannot hang the suite. Attribute post-commit dispatch to the product contract rather than SQLite. |
+
+All corrections above are prospective contract/TDD changes in the scaffold,
+Slice 90 design and master plan; no production oracle was edited or executed.
+Numeric limits, default-one concurrency, the configured-open seam, private
+observation policy and exact errors remain proposals for formal successor-ADR
+acceptance, not additional decisions attributed to seq-293. The ledger entry
+was read via `ledgerwatch --dry-run --select seq=293`; release state continues
+to record only the ruled Option B direction.
+
+The initial focused verification after remediation passed
+`scripts/agent-lint-md.sh` (including planning/design/findings/anchor gates),
+the generated release-state view check and `git diff --check`. The final
+candidate-bound re-review and record-only verification follow below after the
+remediation commit is fixed. No JSON changed; no runtime, installed-binding,
+full-workspace, freshness-performance or deadlock-mutant pass is claimed.

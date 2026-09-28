@@ -1174,7 +1174,7 @@ impl Engine {
         let erased: std::collections::HashSet<&str> =
             erased_stable_ids.iter().map(String::as_str).collect();
 
-        match redact_jsonl_stable_ids(&sink.path, &erased) {
+        match redact_jsonl_stable_ids(sink.path(), &erased) {
             Ok(()) => Ok(()),
             // 0.8.20 Slice 5 fix-3 (codex §9 round-3 P2) — `NotFound` is NOT a
             // discharge. It previously returned `Ok(())` ("the sink is gone,
@@ -1206,13 +1206,13 @@ impl Engine {
                          redaction is durable: restore the sink at this path and retry (if the \
                          sink really was destroyed, an empty file at this path discharges the \
                          obligation).",
-                        sink.path.display()
+                        sink.path().display()
                     )
                 } else {
                     format!(
                         "`{verb}` deleted its rows, but the erased stable ids could not be \
                          redacted from the telemetry sink {}: {err}",
-                        sink.path.display()
+                        sink.path().display()
                     )
                 },
             }),

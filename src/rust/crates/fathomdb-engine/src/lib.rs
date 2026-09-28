@@ -751,7 +751,7 @@ pub struct Engine {
     /// 0.8.8 Slice 15 (OPP-9) — opt-in telemetry sink. `None` (default) = OFF.
     /// Local JSONL append; no network/egress. The OFF path never takes this lock —
     /// it is gated by `telemetry_enabled` (below).
-    telemetry: Mutex<Option<TelemetrySink>>,
+    telemetry: Mutex<Option<telemetry::TelemetrySink>>,
     /// 0.8.8 Slice 15 — fast OFF-path guard. `false` (default) → search does ZERO
     /// telemetry work: a single `Relaxed` atomic load, NO mutex acquisition (the
     /// §B.1 footprint / zero-cost gate, codex §9 P2). Set `true` by
@@ -781,22 +781,6 @@ pub struct Engine {
     actuation_after_initial_lookup_delay_ms: AtomicU64,
     #[cfg(debug_assertions)]
     actuation_failure_after_operation: AtomicUsize,
-}
-
-/// 0.8.8 Slice 15 (OPP-9) — opt-in telemetry capture state (per `enable_telemetry`).
-/// Records query→result→feedback events to a local JSONL sink. Ids are
-/// `SearchHit.id` — the interim identity carrier per
-/// `ADR-0.8.0-canonical-identity-substrate` (write_cursor today; swaps to
-/// `logical_id` at the G0 keystone with no carrier reshape), consistent with
-/// `PerHitExplain.id`. Query text and `source_id` are NEVER captured (privacy, ADR
-/// §C). `query_id = "q{nonce}-{seq}"` is fully deterministic; `ts_monotonic_ms` is
-/// monotonic since enable (NOT wall-clock).
-struct TelemetrySink {
-    path: PathBuf,
-    base: Instant,
-    nonce: u64,
-    seq: u64,
-    last_query_id: Option<String>,
 }
 
 // Carriers built or read outside their domain module stay at root so their

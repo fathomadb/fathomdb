@@ -1,5 +1,23 @@
 use super::*;
 
+/// 0.8.8 Slice 15 (OPP-9) — opt-in telemetry capture state (per `enable_telemetry`).
+/// Records query→result→feedback events to a local JSONL sink. Query text and
+/// `source_id` are never captured. `query_id = "q{nonce}-{seq}"` is fully
+/// deterministic; `ts_monotonic_ms` is monotonic since enable.
+pub(super) struct TelemetrySink {
+    path: PathBuf,
+    base: Instant,
+    nonce: u64,
+    seq: u64,
+    last_query_id: Option<String>,
+}
+
+impl TelemetrySink {
+    pub(super) fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
 /// 0.8.8 Slice 15 — append one JSON value as a line to the telemetry sink
 /// (append-only, local file; no network). Best-effort caller handles the error.
 fn append_jsonl(path: &Path, value: &serde_json::Value) -> std::io::Result<()> {

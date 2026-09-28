@@ -1,0 +1,103 @@
+I verified a clean `2c9f15a9816cf684ab074c529afed34d106d9c42` and read the Slice 85 plan, Slice 80 handoff/status, release board, and the relevant source definitions and call sites. No files changed.
+
+My recommendation is to resolve the ownership issue with narrower errors, and make the gate’s guarantee explicitly structural and syntax-bounded. The independent review is right about all seven deficiencies, but its proposed shared error leaf and single `root_exec` node need refinement.
+
+| Finding | Verdict and recommendation |
+| --- | --- |
+| 1. `SearchReaderError` | Confirmed. Prefer splitting errors by responsibility; moving the current enum unchanged to a new file does not make it a leaf. |
+| 2. Root | Confirmed. Separate composition/type contracts from executable items; retain root executable **item** nodes, rather than collapsing every unrelated root function into one node. |
+| 3. Module scope | Confirmed. Derive the complete module inventory, then require every discovered module to have an explicit policy classification. State precisely whether the SCC guarantee is whole-crate or scoped. |
+| 4. Method manifest | Confirmed contradiction. Derive Engine methods exclusively from source; no duplicate hand-maintained method manifest. |
+| 5. Call classification | Confirmed. Use a small documented source grammar, conservatively reject unresolved relevant method calls, and test both false negatives and false positives. |
+| 6. Handler invariant | Confirmed. Restrict it to pool dependencies and private response/error carriers. |
+| 7. Batch sizing | Confirmed. Add split thresholds, especially for gate development and facade moves. |
+
+The most important additional finding is that the proposed graph still conflates data-contract dependencies with runtime ownership dependencies beyond `lib.rs`.
+
+`SearchReaderError` contains `EngineError` and `FrozenReadError` ([lib.rs:1921](/home/coreyt/projects/fathomdb-worktrees/release-0.8.27/src/rust/crates/fathomdb-engine/src/lib.rs:1921)). But `frozen_read` matches `SearchReaderError` ([frozen_read.rs:222](/home/coreyt/projects/fathomdb-worktrees/release-0.8.27/src/rust/crates/fathomdb-engine/src/frozen_read.rs:222)). Moving the enum unchanged into `reader_error` therefore creates `reader_error ↔ frozen_read`. In addition, `EngineError` contains `GraphExpansionErrorV1` ([errors.rs:198](/home/coreyt/projects/fathomdb-worktrees/release-0.8.27/src/rust/crates/fathomdb-engine/src/errors.rs:198)), while graph execution uses `EngineError`. Thus a whole-crate module-import graph cannot yet be promised to contain only the three documented cycles. The report-only phase must measure this before that promise is frozen.
+
+For final homes, I recommend this concrete adjustment:
+
+- Keep `PageReaderError` in `read`.
+- Keep `SearchReaderError` in `search`, but remove its use from filtering, frozen-read validation, and graph handlers.
+- Give snapshot filter validation a narrow error—storage failure or invalid filter—owned alongside `validate_filter_attributes_on_snapshot` in `filter`. That function currently returns `SearchReaderError` ([filter.rs:447](/home/coreyt/projects/fathomdb-worktrees/release-0.8.27/src/rust/crates/fathomdb-engine/src/filter.rs:447)).
+- Give graph search-expansion handlers a graph-owned error containing only the cases they actually produce: SQLite, invalid filter, and frozen-read failure. Confirm that exact variant inventory during implementation.
+- Convert the narrow filter error at each caller into its local error, retaining the existing public error mapping and refusal precedence. This is especially important for `page_search_error`, frozen reads, and graph-context validation.
+- Use `Result<SearchResult, SearchReaderError>` directly for projected text.
+- Retain the other proposed homes: `reader_pool` protocol/factories, `reader_transaction`, `wal_attribution`, `structural_state`, facade modules, and `telemetry::TelemetrySink`.
+
+This avoids forcing graph and read handlers to consume search-specific reranker, evidence, and vector-equivalence errors. A shared `reader_error` module remains a valid alternative only after its **transitive** dependencies are shown to be below every consumer; the current enum does not meet that condition.
+
+The intended ownership edges then remain:
+
+```text
+read_api / search_api / graph_api → reader_pool
+reader_pool → read / search / graph_expand
+search → graph_expand
+read / search / graph_expand → filter
+read / search / graph_expand → reader_transaction → wal_attribution
+reader_pool → wal_attribution
+search / graph_expand → structural_state
+```
+
+There must be no reverse dependency from any handler to `reader_pool`, and no graph dependency on `search::SearchReaderError`. This is the intended boundary graph, not yet an exhaustive claim about all crate imports.
+
+For the gate, I recommend the following exact design:
+
+1. Recursively discover modules from `lib.rs`, including inline modules, out-of-line modules, and declared graph submodules. Resolve imports and re-exports to the item’s defining owner. Record source locations and cfg conditions.
+2. Derive local type owners, inherent impl owners, all `impl Engine` methods, and the full Engine field inventory. Maintain separate identities for `graph_expand::types`, `execution`, `traversal`, and `codec`; do not collapse them before SCC analysis.
+3. Emit a complete report with edge kinds: composition, contract/type reference, ordinary owner dependency, Engine-field capability access, and callable reference.
+4. For root, treat declarations/re-exports/Engine storage layout as composition. Root-owned contracts have explicit item identities and a reviewed admission list. Root free functions and methods are executable item nodes. This catches actual paths through a root helper without inventing a path from one unrelated root function through another.
+5. Include ordinary governed type-owner dependencies in SCCs. Exempt only specifically reviewed contract relationships, naming both item and reason. Do not silently exempt every type dependency.
+6. Count references to callable items, not just immediate calls. `let f = Engine::search_inner; f(engine, ...)` and `let f = root_helper; f(...)` must establish the edge at the function-item reference.
+7. Require owner-qualified free functions by default. For inherent calls, resolve only documented forms: qualified paths, `self`/`Self` in a known impl, typed parameters/locals, and simple reference/dereference/parenthesized aliases. Handle lexical shadowing. A relevant unresolved receiver fails with a suggested explicit form.
+8. Count every Engine field access, including closures, references and dereferences. The conservative field-name fallback is acceptable, but diagnostics must label it as conservative; it is not proof that the receiver was Engine.
+
+For duplicate method names, my recommendation is stronger and simpler than “unique among governed types”: any unresolved dot call whose name belongs to a governed cross-boundary method must be rewritten to an owner-qualified call or given a syntactically resolvable receiver. External-type collisions must never be silently assigned to the governed owner. Qualified callable references also solve the function-pointer escape.
+
+The plan should call the output an “exact graph under the enforced source grammar,” not an exact Rust call graph. Macro expansion, trait dispatch, generated code, Deref behavior, and implicit conversions make that distinction material.
+
+Manifest policy should be:
+
+| Input | Policy |
+| --- | --- |
+| Modules | Source-derived inventory; reviewed classification for **every** module, with missing/stale classifications rejected. |
+| Engine fields | Source-derived full inventory; exact owner/exemption map. |
+| Engine methods | Entirely source-derived; nonempty, uniqueness/cfg-overlap checks; no duplicate method manifest. |
+| Externally visible inherent methods | Reviewed owner-qualified list, compared to declarations; distinguish Engine methods, which already have their own rule. |
+| Root contracts and exclusions | Explicit reviewed item lists, with stale entries rejected. |
+| Expected edges | Reviewed boundary policy and allowed edges; never auto-refresh the expected graph from a failing candidate. |
+
+The unresolved whole-crate/scoped question is a real design choice, not wording alone. For a bounded Slice 85, I recommend deriving the whole inventory but enforcing the ownership rules over an explicitly listed read/search/graph boundary plus root executable dependencies. Report outside-scope dependencies prominently and stop claiming “every engine-module edge.” If the owner requires whole-crate SCC enforcement, commission that scope explicitly and first inventory the additional contract cycles; do not quietly expand the three-cycle allowlist.
+
+AC27-85D should state those discovery, classification, source-grammar, root-item, callable-reference, and manifest rules. It should additionally define cfg treatment: default, test hooks, benchmark, and test code must not disappear because the gate happens to run under one build configuration. Either analyze a conservative union and label it accordingly, or compute the specified configuration graphs independently.
+
+AC27-85E should have the following minimum matrix:
+
+| Family | Required cases |
+| --- | --- |
+| Imports | Grouped/aliased paths, re-export resolution, glob rejection, same-line/multiline parity. |
+| Fields | Direct receiver; non-call access; `(*self).field`; typed Engine parameter; simple alias; closure capture; conservative unknown base. |
+| Engine methods | `self.m`; `Self::m`; `Engine::m`; typed binding; simple alias; function-item reference; unresolved alias rejection. |
+| Inherent methods | Listed qualified constructor; listed qualified receiver operation; unlisted visible declaration; duplicate name; external-type same-name call; stale list entry. |
+| Root | Approved contract succeeds; composition does not create an SCC; executable helper cycle fails; unrelated root helpers do not invent a cycle. |
+| Scope/configuration | New/deleted module classification; missing/stale field owner; empty derived maps; cfg-gated edge; nested module. |
+
+Every edge-detection family needs a compiled negative fixture where the tested edge is the only reverse edge. Policy failures such as an unlisted declaration are distinct from cycle failures and should assert the relevant diagnostic. Production mutants should exercise each independent extractor and the actual former cycles; run them on an isolated temporary copy and verify exact restoration. Running the entire mutation suite on every ordinary lint invocation would add unnecessary cost—normal lint should run the gate and its fast unit fixtures; production mutation qualification belongs to gate changes and closeout.
+
+For batching, retain the six stages but split them:
+
+1. Baseline receipts: one evidence batch.
+2. Gate: discovery/manifests, path/root graph, Engine fields/methods, and inherent-policy/negative fixtures—four separately reviewable sub-batches.
+3. Leaves: one batch each for structural state, attributed transactions, and WAL attribution.
+4. Error separation first; then search constructors; then pool request families. Keep one semantic owner or request family per batch.
+5. One facade family per batch: read, graph, then search expansion.
+6. Enforcement and closeout after the production report matches the reviewed boundary policy.
+
+Use roughly 300–600 non-mechanical changed lines per gate/error batch; split above 800 unless there is a specific cohesion reason. Pure moves can be larger, but should move only one ownership cluster and introduce no behavior changes. Treat these as review-size thresholds, not implementation estimates.
+
+Finally, narrow the invariant to:
+
+> Handler modules never depend on `reader_pool`. Private result and error carriers crossing from handlers to the pool belong to the handler or an explicitly verified lower shared owner. Pool protocol types may depend on those carriers.
+
+The current design is not ready for commissioning. The next useful deliverable is a corrected design containing these precise guarantees and scope choices, followed by review—not further claims that a newly named error module is automatically a leaf or that the current three-cycle inventory is complete.

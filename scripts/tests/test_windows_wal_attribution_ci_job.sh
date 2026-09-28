@@ -342,9 +342,9 @@ assert_contains "$(<"$WAL_ATTRIBUTION_SOURCE")" \
   'connection.transaction_state(Some("main"))' \
   'connection.is_busy()' \
   "WAL owner uses rusqlite state APIs on owning connections without custom SQLite FFI"
-assert_contains "$(<"$ENGINE_SOURCE")" \
+assert_contains "$(<"$READER_POOL_SOURCE")" \
   'WalNativeStateInventory' \
-  "engine retains the native-state reader request"
+  "reader pool retains the native-state reader request"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   '#[cfg(any(test, feature = "test-hooks"))]' \
   'actual_checkpoint_observations: Mutex<Option<ActualCheckpointObserver>>' \

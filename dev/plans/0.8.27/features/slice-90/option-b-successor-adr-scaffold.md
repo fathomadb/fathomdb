@@ -535,6 +535,56 @@ production mutant. At minimum:
     existing retry policy with unchanged codes; capacity waits preserve rather
     than reset that budget. Timely and late panics preserve the operation's
     panic boundary, release accounting and leave dispatch workers reusable.
+13. **Configuration compatibility and performance:** bind a release-build
+    qualification receipt to the exact stage-2 candidate. Every valid
+    configuration must be behaviorally correct, resource-bounded and exhibit
+    its advertised consuming effect; only the default configuration carries
+    the release performance promises. The matrix is:
+    - `scheduler_runtime_threads=2`, `embedder_pool_size=1`: canonical default
+      performance gate and installed-binding parity;
+    - `1/1`: minimum-bound correctness, progress and shutdown;
+    - `2/2`: real provider concurrency and foreground/projection contention;
+    - `4/4`: representative larger override, capacity effect and bounded
+      resource growth; and
+    - `64/64`: ceiling validation, exact thread/connection/queue inventory and
+      cleanup only, not a throughput target.
+
+    A pure resolved-configuration property test covers every scheduler/embed
+    pair in `1..=64`, including checked row/queue derivation. A `2/no-provider`
+    case proves that configured embed capacity allocates no idle embed workers
+    or requests when no provider is attached.
+
+    On the default, run the existing AC-011a/b write-throughput, AC-017
+    projection-freshness, AC-018 projection-drain, AC-029 projection-stall
+    write-tolerance, AC-072 vector-retrieval, AC-073 real-corpus retrieval-tail,
+    AC-076 text/hybrid-query and AC-081a/b/c reader-progress gates. Add one
+    D27-specific mixed workload that concurrently performs canonical writes,
+    dense projection, foreground hybrid queries and direct embeds. Record
+    commit throughput; projection and foreground-query p50/p95/p99; queue wait,
+    saturation and durable-backlog high-water marks; observed provider
+    concurrency; thread/SQLite-connection inventories; close latency and
+    residual workers; and starvation in both foreground-to-projection and
+    projection-to-foreground directions.
+
+    Capture exact candidate, features, optimized build, hardware/software,
+    dataset/workload, warm-up, repetitions, raw or reproducible output and an
+    entry-candidate comparison. Before the post-change run, freeze a
+    noise-aware decision rule from the existing gate thresholds and entry
+    measurements; the new mixed workload must show progress in both directions
+    without exceeding contractual queues or resource counts. A default
+    regression, starvation result or missed project gate blocks the runtime
+    checkpoint: optimize within the accepted contract and repeat the identical
+    matrix, or formally revise/succeed the ADR if the remedy changes a default
+    or executor shape. It cannot be deferred to Slices 114, 115 or 135. A
+    separate Slice 91 is justified only if evidence demonstrates a materially
+    different executor/remediation boundary; normal qualification remains
+    Slice 90 work. Preserve the candidate, commands, raw/reproducible outputs
+    and hashes in
+    `dev/plans/0.8.27/features/slice-90/runtime-performance-qualification.md`.
+    After Slice 90's mechanical moves, repeat the default gates, mixed workload
+    and exact resource/cleanup inventory at the final slice candidate. Any
+    post-checkpoint semantic runtime/configuration change requires the full
+    matrix again.
 
 The existing relevant oracles include:
 
@@ -618,7 +668,10 @@ terms, the reliability-posture change carried by default-one embed
 concurrency: one hung provider call occupies the only embed slot, so all later
 dense projection and foreground embeds in that session are
 admission-unavailable until it returns, durable projection work remains
-pending, and bounded close reports `Scheduler`. Under PR-9 today the hung row
-fails terminally and the engine keeps moving. Accepting the default accepts
-that trade; rejecting it requires a different default or a separate
-foreground/projection capacity, either of which is a change to this scaffold.
+pending, and bounded close reports `Scheduler`. Under PR-9 today the projection
+watchdog retries and can terminalize the affected row while later work
+continues until the session live-thread breaker prevents additional projection
+embedding; it does not provide a general foreground-safe pool. Accepting the
+default accepts the new fixed-slot stall trade; rejecting it requires a
+different default or separate foreground/projection capacity, either of which
+is a change to this scaffold.

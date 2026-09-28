@@ -975,7 +975,9 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     universal deadlines, operation-specific timeout outcomes and bounded
     shutdown. The literal historical Tokio/task/dedicated-writer topology is
     not selected. The successor's numeric ceilings, default-one embed
-    concurrency and its hung-provider stall posture, queue multiplier,
+    concurrency and its hung-provider stall posture, the embed waiting bound
+    of `4 * embedder_pool_size`, projection admission of
+    `scheduler_runtime_threads * PROJECTION_COMMIT_BATCH`,
     `EngineConfig`/configured-open public delta, typed configuration error,
     Number-safe binding caps and `Scheduler` incomplete-drain outcome are a
     separate open HITL decision, `D27-successor-adr-acceptance`, registered in
@@ -1001,9 +1003,10 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     runtime qualification precedes moves within 90 unless an explicitly
     reviewed dependency requires a ladder change. The qualification boundary
     is the stage-2 runtime checkpoint: the design enumerates stage 2 as
-    ordered sub-batches 2a–2k, and the Slice 90 release-state ladder entry
-    binds `runtime_checkpoint_sha` with independent code-review and
-    read-only verification receipts before any stage-3 mechanical move.
+    ordered sub-batches 2a–2l, and the Slice 90 release-state ladder entry
+    binds `runtime_checkpoint_sha` with independent code-review, read-only
+    verification and runtime-performance receipts before any stage-3
+    mechanical move.
   - **Configuration documentation action:** in the functional configuration
     batch, update the accepted successor and decision index, internal engine/
     scheduler/embedder/bindings designs, Rust/Python/TypeScript interfaces,
@@ -1014,6 +1017,34 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     to Slice 140. Slice 114 later audits that documented behavior across every
     engine component; it does not defer or reopen Slice 90's functional runtime
     contract.
+  - **Runtime compatibility and performance action:** before the stage-2
+    checkpoint, qualify the exact candidate under the default `2/1`, minimum
+    `1/1`, concurrent `2/2`, representative `4/4`, and ceiling `64/64`
+    scheduler/embed matrices. Every accepted value must prove its consuming
+    effect, correctness, resource bounds, cleanup and fault behavior. Only the
+    default carries release performance promises; the ceiling run is an exact
+    inventory/cleanup test, not a throughput target. Add a pure property test
+    over every `1..=64` scheduler/embed pair and a `2/no-provider` runtime case
+    that allocates no idle embed capacity. At default, run the
+    existing AC-011a/b, AC-017, AC-018, AC-029, AC-072, AC-073, AC-076 and
+    AC-081a/b/c gates unchanged, plus a D27 mixed workload combining canonical
+    writes, dense projection, foreground hybrid queries and direct embeds.
+    Record throughput; p50/p95/p99 projection and query latency; queue wait,
+    saturation and durable-backlog high water; provider concurrency;
+    thread/SQLite-connection inventory; close latency/residual workers; and
+    starvation in both directions. Bind the exact candidate, optimized build,
+    features, hardware/software, workload/dataset, warm-up, repetitions and raw
+    or reproducible output. Freeze a noise-aware decision rule from existing
+    thresholds and entry measurements before the post-change run. A default
+    miss, starvation result or resource-bound violation blocks Slice 90:
+    optimize within the accepted contract or formally revise/succeed the ADR.
+    Do not defer first proof to Slices 114, 115 or 135; allocate Slice 91 only
+    if the evidence establishes a materially different executor/remediation
+    boundary. Preserve the candidate-bound receipt at
+    `features/slice-90/runtime-performance-qualification.md`. At the final
+    Slice 90 candidate, repeat the default gates, D27 mixed workload and exact
+    resource/cleanup inventory; if any post-checkpoint runtime/configuration
+    change was semantic rather than verbatim movement, repeat the full matrix.
   - **Batch-fallback deadlock action:** before executor changes, add a bounded
     RED test for `embed_projection_batch` calling `per_job()` from its
     returned-error/timeout path while `embed_serialize` is held
@@ -1132,7 +1163,10 @@ default and accepted range with evidence and state explicitly when no safe range
 can yet be justified. Reconcile those records with Slice 90's runtime contract,
 Rust/Python/TypeScript interfaces, and public configuration guidance. Any
 recommended setting change requires its own reviewed behavior and performance
-evidence before adoption.
+evidence before adoption. This audit consumes Slice 90's candidate-bound D27
+compatibility/performance receipt. It may detect drift or propose a successor,
+but it may not supply missing consuming-effect tests, default performance
+evidence or runtime behavior that should have blocked Slice 90's checkpoint.
 
 ### Slice 115 — engine performance data collection and lightweight profiling
 
@@ -1147,7 +1181,11 @@ This slice characterizes the release candidate; it does not tune by anecdote or
 silently alter feature/function. It must preserve raw or reproducible receipts
 and identify any regression or profile hotspot that needs a separately reviewed
 remediation. Its data and methods become the input to Slice 135's full
-0.8.26 comparison.
+0.8.26 comparison. It broadens and profiles the already-qualified Slice 90
+runtime; it is not the first proof that D27 settings work or that the accepted
+default meets the named project gates. A D27 regression found here blocks and
+is remediated against the accepted contract rather than retroactively
+validating an incomplete Slice 90.
 
 ### Slice 120 — TypeScript SDK decomposition
 
@@ -1187,6 +1225,10 @@ Pre-register the metrics, tolerances, and decision rule before the comparison.
 Publish reproducible receipts and an explicit feature/function parity inventory.
 Any regression, inconclusive result, or attempted feature trade-off blocks
 closeout until a separately reviewed resolution preserves the release contract.
+This final comparison supplements, and never substitutes for, Slice 90's D27
+runtime qualification. Keep the accepted D27 defaults and topology fixed unless
+a formally reviewed successor changes them; a regression attributable to D27
+still blocks release and requires reviewed remediation.
 
 ### Slice 140 — documentation and structural convergence
 

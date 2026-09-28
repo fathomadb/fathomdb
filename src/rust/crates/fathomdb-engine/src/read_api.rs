@@ -28,11 +28,7 @@ impl Engine {
             return Ok(Vec::new());
         }
         let (response_tx, response_rx) = mpsc::sync_channel(1);
-        let request = ReaderRequest::GetById {
-            logical_ids: logical_ids.to_vec(),
-            view: *view,
-            respond: response_tx,
-        };
+        let request = ReaderRequest::get_by_id(logical_ids.to_vec(), *view, response_tx);
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
@@ -77,12 +73,8 @@ impl Engine {
     ) -> Result<Vec<OpStoreRow>, EngineError> {
         self.ensure_open()?;
         let (response_tx, response_rx) = mpsc::sync_channel(1);
-        let request = ReaderRequest::ReadCollection {
-            collection: collection.to_string(),
-            after_id,
-            limit,
-            respond: response_tx,
-        };
+        let request =
+            ReaderRequest::read_collection(collection.to_string(), after_id, limit, response_tx);
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
@@ -126,13 +118,13 @@ impl Engine {
             }
         }
         let (response_tx, response_rx) = mpsc::sync_channel(1);
-        let request = ReaderRequest::ReadList {
-            kind: kind.to_string(),
-            predicates: predicates.to_vec(),
+        let request = ReaderRequest::read_list(
+            kind.to_string(),
+            predicates.to_vec(),
             limit,
-            view: *view,
-            respond: response_tx,
-        };
+            *view,
+            response_tx,
+        );
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
@@ -183,12 +175,12 @@ impl Engine {
         pagination::validate_request(page)?;
         let (respond, receive) = mpsc::sync_channel(1);
         self.reader_pool
-            .dispatch(ReaderRequest::ReadCanonicalPage(Box::new(CanonicalPageReaderRequest {
-                kind: kind.to_string(),
-                frozen: context.clone(),
-                page: page.clone(),
+            .dispatch(ReaderRequest::canonical_page(
+                kind.to_string(),
+                context.clone(),
+                page.clone(),
                 respond,
-            })))
+            ))
             .map_err(|_| EngineError::Closing)?;
         self.receive_page_result(receive)
     }
@@ -206,14 +198,12 @@ impl Engine {
         self.ensure_open()?;
         let (respond, receive) = mpsc::sync_channel(1);
         self.reader_pool
-            .dispatch(ReaderRequest::ReadOperationalState(Box::new(
-                OperationalStateReaderRequest {
-                    collection: collection.to_string(),
-                    record_key: record_key.to_string(),
-                    frozen: context.cloned(),
-                    respond,
-                },
-            )))
+            .dispatch(ReaderRequest::operational_state(
+                collection.to_string(),
+                record_key.to_string(),
+                context.cloned(),
+                respond,
+            ))
             .map_err(|_| EngineError::Closing)?;
         self.receive_page_result(receive)
     }
@@ -229,14 +219,12 @@ impl Engine {
         pagination::validate_request(page)?;
         let (respond, receive) = mpsc::sync_channel(1);
         self.reader_pool
-            .dispatch(ReaderRequest::ReadOperationalStatePage(Box::new(
-                OperationalStatePageReaderRequest {
-                    collection: collection.to_string(),
-                    frozen: context.clone(),
-                    page: page.clone(),
-                    respond,
-                },
-            )))
+            .dispatch(ReaderRequest::operational_state_page(
+                collection.to_string(),
+                context.clone(),
+                page.clone(),
+                respond,
+            ))
             .map_err(|_| EngineError::Closing)?;
         self.receive_page_result(receive)
     }

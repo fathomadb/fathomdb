@@ -1,6 +1,5 @@
 use super::*;
 use crate::graph_expand::execution::*;
-use crate::graph_expand::traversal::*;
 use std::sync::atomic::Ordering as AtomicOrdering;
 
 #[cfg(feature = "test-hooks")]
@@ -348,12 +347,12 @@ impl Engine {
     ) -> Result<Vec<String>, EngineError> {
         self.ensure_open()?;
         let (response_tx, response_rx) = mpsc::sync_channel(1);
-        let request = ReaderRequest::ExplainGraphNeighbors {
-            root_logical_id: root_logical_id.to_string(),
+        let request = ReaderRequest::explain_graph_neighbors(
+            root_logical_id.to_string(),
             depth,
             direction,
-            respond: response_tx,
-        };
+            response_tx,
+        );
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
@@ -517,17 +516,15 @@ impl Engine {
         };
         let (respond, receive) = std::sync::mpsc::sync_channel(1);
         self.reader_pool
-            .dispatch(crate::ReaderRequest::GraphExpand(Box::new(
-                crate::GraphExpandReaderRequest {
-                    request: request.clone(),
-                    frozen_binding,
-                    projection_runtime_state,
-                    evidence_authority,
-                    #[cfg(feature = "test-hooks")]
-                    test_controls,
-                    respond,
-                },
-            )))
+            .dispatch(ReaderRequest::graph_expand(
+                request.clone(),
+                frozen_binding,
+                projection_runtime_state,
+                evidence_authority,
+                #[cfg(feature = "test-hooks")]
+                test_controls,
+                respond,
+            ))
             .map_err(|_| EngineError::Closing)?;
         let received = receive.recv().map_err(|_| EngineError::Storage)?;
         let mut result = received?;
@@ -586,13 +583,13 @@ impl Engine {
             });
         }
         let (response_tx, response_rx) = mpsc::sync_channel(1);
-        let request = ReaderRequest::GraphNeighbors {
-            root_logical_id: root_logical_id.to_string(),
+        let request = ReaderRequest::graph_neighbors(
+            root_logical_id.to_string(),
             depth,
             direction,
-            view: *view,
-            respond: response_tx,
-        };
+            *view,
+            response_tx,
+        );
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
@@ -636,8 +633,7 @@ impl Engine {
     ) -> Result<Vec<BoundaryCrossing>, EngineError> {
         self.ensure_open()?;
         let (response_tx, response_rx) = mpsc::sync_channel(1);
-        let request =
-            ReaderRequest::CrossedBoundarySince { since, view: *view, respond: response_tx };
+        let request = ReaderRequest::crossed_boundary_since(since, *view, response_tx);
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }

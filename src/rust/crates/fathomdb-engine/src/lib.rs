@@ -245,13 +245,9 @@ pub(crate) use read::{
 pub use read::{NodeRecord, OpStoreRow, OperationalStateRecordV1};
 #[cfg(debug_assertions)]
 pub use reader_pool::CacheStatusReply;
-#[cfg(feature = "test-hooks")]
-pub(crate) use reader_pool::CanonicalPageBaselineReaderRequest;
 pub(crate) use reader_pool::{
-    CanonicalPageReaderRequest, EvidenceReaderResponse, EvidenceSearchReaderRequest,
-    GraphExpandReaderRequest, OperationalStatePageReaderRequest, OperationalStateReaderRequest,
-    ProjectedTextReaderResponse, ReaderRequest, ReaderResponse, ReaderWorkerPool,
-    SearchReaderRequest,
+    EvidenceReaderResponse, ProjectedTextReaderResponse, ReaderRequest, ReaderResponse,
+    ReaderWorkerPool,
 };
 pub(crate) use reader_transaction::begin_attributed_reader_tx;
 pub use record_lifecycle::{InitialState, LifecycleState};
@@ -4012,14 +4008,12 @@ impl Engine {
         self.ensure_open()?;
         let (respond, receive) = mpsc::sync_channel(1);
         self.reader_pool
-            .dispatch(ReaderRequest::ReadCanonicalPageBaseline(Box::new(
-                CanonicalPageBaselineReaderRequest {
-                    kind: kind.to_string(),
-                    context: context.clone(),
-                    limit,
-                    respond,
-                },
-            )))
+            .dispatch(ReaderRequest::canonical_page_baseline(
+                kind.to_string(),
+                context.clone(),
+                limit,
+                respond,
+            ))
             .map_err(|_| EngineError::Closing)?;
         self.receive_page_result(receive)
     }

@@ -1,14 +1,13 @@
 use super::*;
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
 use crate::{
     append_node_eligibility_sql, begin_attributed_reader_tx, dependency_closure,
     edge_validity_sql_for_view, frozen_read, validate_filter_attributes_on_snapshot,
-    validate_search_result_limit, BoundaryCrossing, Engine, EngineError, FrozenReadError,
-    FrozenView, NodeRecord, ReadView, ReaderRequest, SearchFilter, SearchHit, SnapshotFilterError,
-    SoftFallbackBranch, WalAttributionCollector, DEFAULT_SEARCH_RESULT_LIMIT,
+    BoundaryCrossing, FrozenReadError, FrozenView, NodeRecord, ReadView, SearchFilter, SearchHit,
+    SnapshotFilterError, SoftFallbackBranch, WalAttributionCollector,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 

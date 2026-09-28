@@ -27,54 +27,54 @@ impl std::fmt::Debug for ReaderWorkerPool {
 }
 
 pub(crate) struct SearchReaderRequest {
-    pub(crate) work: SearchReaderWork,
-    pub(crate) respond: SyncSender<ReaderResponse>,
+    work: SearchReaderWork,
+    respond: SyncSender<ReaderResponse>,
 }
 
 pub(crate) struct EvidenceSearchReaderRequest {
-    pub(crate) work: SearchReaderWork,
-    pub(crate) frozen: FrozenReadContextV1,
-    pub(crate) include_explanation: bool,
-    pub(crate) respond: SyncSender<EvidenceReaderResponse>,
+    work: SearchReaderWork,
+    frozen: FrozenReadContextV1,
+    include_explanation: bool,
+    respond: SyncSender<EvidenceReaderResponse>,
 }
 
 pub(crate) struct CanonicalPageReaderRequest {
-    pub(crate) kind: String,
-    pub(crate) frozen: FrozenReadContextV1,
-    pub(crate) page: PageRequestV1,
-    pub(crate) respond: SyncSender<Result<PageV1<NodeRecord>, PageReaderError>>,
+    kind: String,
+    frozen: FrozenReadContextV1,
+    page: PageRequestV1,
+    respond: SyncSender<Result<PageV1<NodeRecord>, PageReaderError>>,
 }
 
 pub(crate) struct GraphExpandReaderRequest {
-    pub(crate) request: GraphExpandRequestV1,
-    pub(crate) frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
-    pub(crate) projection_runtime_state: ProjectionRuntimeStateV1,
-    pub(crate) evidence_authority: Option<evidence::GraphEvidenceAuthority>,
+    request: GraphExpandRequestV1,
+    frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
+    projection_runtime_state: ProjectionRuntimeStateV1,
+    evidence_authority: Option<evidence::GraphEvidenceAuthority>,
     #[cfg(feature = "test-hooks")]
-    pub(crate) test_controls: graph_expand::GraphExpandReaderControlsForTest,
-    pub(crate) respond: SyncSender<Result<GraphExpandResultV1, EngineError>>,
+    test_controls: graph_expand::GraphExpandReaderControlsForTest,
+    respond: SyncSender<Result<GraphExpandResultV1, EngineError>>,
 }
 
 pub(crate) struct OperationalStateReaderRequest {
-    pub(crate) collection: String,
-    pub(crate) record_key: String,
-    pub(crate) frozen: Option<FrozenReadContextV1>,
-    pub(crate) respond: SyncSender<Result<Option<OperationalStateRecordV1>, PageReaderError>>,
+    collection: String,
+    record_key: String,
+    frozen: Option<FrozenReadContextV1>,
+    respond: SyncSender<Result<Option<OperationalStateRecordV1>, PageReaderError>>,
 }
 
 pub(crate) struct OperationalStatePageReaderRequest {
-    pub(crate) collection: String,
-    pub(crate) frozen: FrozenReadContextV1,
-    pub(crate) page: PageRequestV1,
-    pub(crate) respond: SyncSender<Result<PageV1<OperationalStateRecordV1>, PageReaderError>>,
+    collection: String,
+    frozen: FrozenReadContextV1,
+    page: PageRequestV1,
+    respond: SyncSender<Result<PageV1<OperationalStateRecordV1>, PageReaderError>>,
 }
 
 #[cfg(feature = "test-hooks")]
 pub(crate) struct CanonicalPageBaselineReaderRequest {
-    pub(crate) kind: String,
-    pub(crate) context: FrozenReadContextV1,
-    pub(crate) limit: usize,
-    pub(crate) respond: SyncSender<Result<Vec<NodeRecord>, PageReaderError>>,
+    kind: String,
+    context: FrozenReadContextV1,
+    limit: usize,
+    respond: SyncSender<Result<Vec<NodeRecord>, PageReaderError>>,
 }
 
 /// One request handled by exactly one reader worker. The response is
@@ -253,6 +253,205 @@ pub(crate) enum ReaderRequest {
     WalNativeStateInventory {
         respond: SyncSender<NativeConnectionStateFact>,
     },
+}
+
+impl ReaderRequest {
+    #[cfg(feature = "tc5-benchmark")]
+    pub(crate) fn vector_stage(
+        request: tc5_benchmark::VectorStageRequest,
+        respond: SyncSender<
+            Result<tc5_benchmark::VectorStageResult, tc5_benchmark::VectorStageError>,
+        >,
+    ) -> Self {
+        Self::VectorStage { request, respond }
+    }
+
+    pub(crate) fn projected_text(
+        query: String,
+        name: String,
+        filter: Option<SearchFilter>,
+        limit: usize,
+        view: ReadView,
+        respond: SyncSender<ProjectedTextReaderResponse>,
+    ) -> Self {
+        Self::SearchProjectedText {
+            query,
+            name,
+            filter: filter.map(Box::new),
+            limit,
+            view,
+            respond,
+        }
+    }
+
+    pub(crate) fn search(work: SearchReaderWork, respond: SyncSender<ReaderResponse>) -> Self {
+        Self::Search(Box::new(SearchReaderRequest { work, respond }))
+    }
+
+    pub(crate) fn search_evidence(
+        work: SearchReaderWork,
+        frozen: FrozenReadContextV1,
+        include_explanation: bool,
+        respond: SyncSender<EvidenceReaderResponse>,
+    ) -> Self {
+        Self::SearchEvidence(Box::new(EvidenceSearchReaderRequest {
+            work,
+            frozen,
+            include_explanation,
+            respond,
+        }))
+    }
+
+    pub(crate) fn get_by_id(
+        logical_ids: Vec<String>,
+        view: ReadView,
+        respond: SyncSender<rusqlite::Result<Vec<Option<NodeRecord>>>>,
+    ) -> Self {
+        Self::GetById { logical_ids, view, respond }
+    }
+
+    pub(crate) fn read_collection(
+        collection: String,
+        after_id: Option<i64>,
+        limit: usize,
+        respond: SyncSender<rusqlite::Result<Vec<OpStoreRow>>>,
+    ) -> Self {
+        Self::ReadCollection { collection, after_id, limit, respond }
+    }
+
+    pub(crate) fn read_list(
+        kind: String,
+        predicates: Vec<Predicate>,
+        limit: usize,
+        view: ReadView,
+        respond: SyncSender<rusqlite::Result<Vec<NodeRecord>>>,
+    ) -> Self {
+        Self::ReadList { kind, predicates, limit, view, respond }
+    }
+
+    pub(crate) fn canonical_page(
+        kind: String,
+        frozen: FrozenReadContextV1,
+        page: PageRequestV1,
+        respond: SyncSender<Result<PageV1<NodeRecord>, PageReaderError>>,
+    ) -> Self {
+        Self::ReadCanonicalPage(Box::new(CanonicalPageReaderRequest {
+            kind,
+            frozen,
+            page,
+            respond,
+        }))
+    }
+
+    pub(crate) fn operational_state(
+        collection: String,
+        record_key: String,
+        frozen: Option<FrozenReadContextV1>,
+        respond: SyncSender<Result<Option<OperationalStateRecordV1>, PageReaderError>>,
+    ) -> Self {
+        Self::ReadOperationalState(Box::new(OperationalStateReaderRequest {
+            collection,
+            record_key,
+            frozen,
+            respond,
+        }))
+    }
+
+    pub(crate) fn operational_state_page(
+        collection: String,
+        frozen: FrozenReadContextV1,
+        page: PageRequestV1,
+        respond: SyncSender<Result<PageV1<OperationalStateRecordV1>, PageReaderError>>,
+    ) -> Self {
+        Self::ReadOperationalStatePage(Box::new(OperationalStatePageReaderRequest {
+            collection,
+            frozen,
+            page,
+            respond,
+        }))
+    }
+
+    #[cfg(feature = "test-hooks")]
+    pub(crate) fn canonical_page_baseline(
+        kind: String,
+        context: FrozenReadContextV1,
+        limit: usize,
+        respond: SyncSender<Result<Vec<NodeRecord>, PageReaderError>>,
+    ) -> Self {
+        Self::ReadCanonicalPageBaseline(Box::new(CanonicalPageBaselineReaderRequest {
+            kind,
+            context,
+            limit,
+            respond,
+        }))
+    }
+
+    pub(crate) fn graph_neighbors(
+        root_logical_id: String,
+        depth: u32,
+        direction: TraversalDirection,
+        view: ReadView,
+        respond: SyncSender<rusqlite::Result<Vec<NodeRecord>>>,
+    ) -> Self {
+        Self::GraphNeighbors { root_logical_id, depth, direction, view, respond }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn graph_expand(
+        request: GraphExpandRequestV1,
+        frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
+        projection_runtime_state: ProjectionRuntimeStateV1,
+        evidence_authority: Option<evidence::GraphEvidenceAuthority>,
+        #[cfg(feature = "test-hooks")]
+        test_controls: graph_expand::GraphExpandReaderControlsForTest,
+        respond: SyncSender<Result<GraphExpandResultV1, EngineError>>,
+    ) -> Self {
+        Self::GraphExpand(Box::new(GraphExpandReaderRequest {
+            request,
+            frozen_binding,
+            projection_runtime_state,
+            evidence_authority,
+            #[cfg(feature = "test-hooks")]
+            test_controls,
+            respond,
+        }))
+    }
+
+    pub(crate) fn crossed_boundary_since(
+        since: i64,
+        view: ReadView,
+        respond: SyncSender<rusqlite::Result<Vec<BoundaryCrossing>>>,
+    ) -> Self {
+        Self::CrossedBoundarySince { since, view, respond }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn search_expand(
+        search_hits: Vec<SearchHit>,
+        depth: u32,
+        view: ReadView,
+        filter: Option<SearchFilter>,
+        frozen_binding: Option<frozen_read::FrozenReadBinding>,
+        respond: SyncSender<Result<SearchExpandResult, graph_expand::SearchExpandHandlerError>>,
+    ) -> Self {
+        Self::SearchExpand {
+            search_hits,
+            depth,
+            view,
+            filter: filter.map(Box::new),
+            frozen_binding: frozen_binding.map(Box::new),
+            respond,
+        }
+    }
+
+    pub(crate) fn explain_graph_neighbors(
+        root_logical_id: String,
+        depth: u32,
+        direction: TraversalDirection,
+        respond: SyncSender<rusqlite::Result<Vec<String>>>,
+    ) -> Self {
+        Self::ExplainGraphNeighbors { root_logical_id, depth, direction, respond }
+    }
 }
 
 // G0 Phase-2: the Search response carries a 4th element — the graph-arm frontier

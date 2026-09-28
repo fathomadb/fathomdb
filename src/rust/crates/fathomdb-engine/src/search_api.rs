@@ -160,12 +160,12 @@ impl Engine {
         );
         let (response_tx, response_rx) = mpsc::sync_channel::<EvidenceReaderResponse>(1);
         self.reader_pool
-            .dispatch(ReaderRequest::SearchEvidence(Box::new(EvidenceSearchReaderRequest {
+            .dispatch(ReaderRequest::search_evidence(
                 work,
-                frozen: request.context.clone(),
-                include_explanation: request.include_explanation,
-                respond: response_tx,
-            })))
+                request.context.clone(),
+                request.include_explanation,
+                response_tx,
+            ))
             .map_err(|_| EngineError::Closing)?;
         let mut result = match response_rx.recv().map_err(|_| EngineError::Storage)? {
             Ok(result) => result,
@@ -369,7 +369,7 @@ impl Engine {
         self.ensure_open().map_err(|_| tc5_benchmark::VectorStageError::Closing)?;
         let (respond, received) = mpsc::sync_channel(1);
         self.reader_pool
-            .dispatch(ReaderRequest::VectorStage { request, respond })
+            .dispatch(ReaderRequest::vector_stage(request, respond))
             .map_err(|_| tc5_benchmark::VectorStageError::Closing)?;
         received.recv().map_err(|_| tc5_benchmark::VectorStageError::Closing)?
     }
@@ -584,8 +584,8 @@ impl Engine {
         let vector_stage_only =
             self.projection_runtime.shared.vector_stage_only_for_test.load(Ordering::SeqCst);
         let (response_tx, response_rx) = mpsc::sync_channel::<ReaderResponse>(1);
-        let request = ReaderRequest::Search(Box::new(SearchReaderRequest {
-            work: SearchReaderWork::hybrid(
+        let request = ReaderRequest::search(
+            SearchReaderWork::hybrid(
                 compiled,
                 query_vector,
                 query_vector_bin,
@@ -613,8 +613,8 @@ impl Engine {
                 frozen_query_runtime,
                 expand_depth,
             ),
-            respond: response_tx,
-        }));
+            response_tx,
+        );
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
@@ -1039,10 +1039,10 @@ impl Engine {
         // This explicit marker distinguishes direct text-only search from a hybrid
         // request whose embedder yields no vector. Only the direct path gets the
         // fixed node candidate bound before node/edge body deduplication and RRF.
-        let request = ReaderRequest::Search(Box::new(SearchReaderRequest {
-            work: SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view),
-            respond: response_tx,
-        }));
+        let request = ReaderRequest::search(
+            SearchReaderWork::text_only(compiled, query, limit, candidate_limit, *view),
+            response_tx,
+        );
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
@@ -1118,14 +1118,14 @@ impl Engine {
         }
 
         let (response_tx, response_rx) = mpsc::sync_channel(1);
-        let request = ReaderRequest::SearchProjectedText {
-            query: query.to_string(),
-            name: name.to_string(),
-            filter: filter.map(Box::new),
+        let request = ReaderRequest::projected_text(
+            query.to_string(),
+            name.to_string(),
+            filter,
             limit,
-            view: *view,
-            respond: response_tx,
-        };
+            *view,
+            response_tx,
+        );
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
@@ -1320,14 +1320,14 @@ impl Engine {
         // depth=0 is forwarded to the reader so it can populate all_logical_ids
         // (the union of search-hit logical_ids), even with no expansion.
         let (response_tx, response_rx) = mpsc::sync_channel(1);
-        let request = ReaderRequest::SearchExpand {
-            search_hits: search_result.results,
+        let request = ReaderRequest::search_expand(
+            search_result.results,
             depth,
-            view: ReadView::default(),
-            filter: None,
-            frozen_binding: None,
-            respond: response_tx,
-        };
+            ReadView::default(),
+            None,
+            None,
+            response_tx,
+        );
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }

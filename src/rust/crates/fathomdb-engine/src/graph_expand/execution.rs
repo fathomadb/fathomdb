@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
+#[cfg(feature = "test-hooks")]
 use std::sync::atomic::Ordering as AtomicOrdering;
 #[cfg(feature = "test-hooks")]
 use std::sync::atomic::{AtomicBool, AtomicU64};
@@ -9,14 +10,10 @@ use std::sync::Mutex;
 
 use crate::{
     append_node_eligibility_sql, begin_attributed_reader_tx, compile_text_query, frozen_read,
-    projection_generation, structural_dependency_state, Engine, EngineError, FrozenView,
-    IdSpaceKind, ProjectionGenerationOriginV1, ProjectionReadinessV1, ProjectionRuntimeStateV1,
-    SearchFilter, StructuralLifecycleStateV1, WalAttributionCollector,
+    projection_generation, structural_dependency_state, EngineError, FrozenView, IdSpaceKind,
+    ProjectionGenerationOriginV1, ProjectionReadinessV1, ProjectionRuntimeStateV1, SearchFilter,
+    StructuralLifecycleStateV1, WalAttributionCollector,
 };
-#[cfg(feature = "test-hooks")]
-use crate::{dependency_closure, ClosureCauseV1};
-#[cfg(feature = "test-hooks")]
-use rusqlite::params;
 use rusqlite::{Connection, OptionalExtension};
 
 use super::*;

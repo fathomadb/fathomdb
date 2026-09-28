@@ -7,7 +7,7 @@ historical_reviewed_range: 0efa62c544af00858aa6975944e8f36c99f13218..e9631b9761d
 historical_review_fix_candidate: e9631b9761d292a4115d1beee95678801512f4f2
 reviewed_range: 1d7f826c2125d5de6d852ddbc96d35fec2de5816..b7403958a3839d371c1672335c517fa762a451cf
 review_fix_candidate: b7403958a3839d371c1672335c517fa762a451cf
-authoritative_binding: PENDING_RELEASE_STATE_BINDING
+authoritative_binding: PASS
 ---
 
 # Slice 80 code review

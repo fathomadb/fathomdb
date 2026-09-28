@@ -1,25 +1,26 @@
 ---
 title: FathomDB 0.8.27 Slice 80 - implementation status
-status: IN_PROGRESS_PENDING_BINDING
+status: COMPLETE
 implemented_on: 2026-09-27
 historical_planning_commit: 9a31e979
 follow_up_commit: 1d7f826c2125d5de6d852ddbc96d35fec2de5816
-authoritative_binding: PENDING_RELEASE_STATE_BINDING
+authoritative_binding: PASS
 historical_reviewed_candidate: e9631b9761d292a4115d1beee95678801512f4f2
 historical_closeout_commit: bca0c99d46e0111c1bd3906d78a77668801463bc
 reviewed_candidate: b7403958a3839d371c1672335c517fa762a451cf
+implementation_candidate: 1d7f826c2125d5de6d852ddbc96d35fec2de5816
+closeout_commit: e8e603b7bc5fd3a87616382ffd82273f04931f4f
 ---
 
 # Slice 80 implementation status
 
-## Product extraction completed; Slice 80 release-state binding pending
+## Slice 80 complete on the release branch
 
 The product extraction is complete on `release/0.8.27`: it moved the
 root-owned read side into private semantic modules without changing behavior,
 schema 34, SQL, statement ordering, snapshot or transaction scope, error
 mapping, feature gates, public paths, or wire encodings. Overall Slice 80 is
-**IN_PROGRESS** pending release-state binding of the completed independent
-rereview:
+**COMPLETE** after independent rereview and release-state binding:
 
 - `fusion.rs` and `filter.rs` own ranking fusion and filtering;
 - `search_types.rs`, `search.rs`, and `search_api.rs` own search carriers,
@@ -61,14 +62,14 @@ carrier; test behavior and production remain unchanged.
 
 ## Review and verification
 
-- **Design review:** historical PASS after three cycles plus an external
-  code-grounded review (`design-review.md`); the revised boundary contract is
-  pending independent rereview.
+- **Design review:** the final boundary rereview returned PASS at `b7403958`
+  after the recorded three cycles (`design-review.md`).
 - **Code review:** the independent `gpt-5.6-sol` high-reasoning review first
   returned FAIL with two P2 architectural findings, closed historically in
   `8e449963`. The follow-up rereview covered the codec properties and Slice 85
-  handoff in three cycles: two correction cycles followed by a historical
-  **PASS** at clean reviewed candidate `e9631b97` (`code-review.md`).
+  handoff in three cycles: Cycle 1 found one P1 and four P2s, Cycle 2 one P2,
+  and Cycle 3 returned **PASS** at clean reviewed candidate `b7403958`
+  (`code-review.md`).
 - **Independent verification:** the separate read-only `gpt-5.6-terra`
   verifier returned PASS at historical clean candidate `3e60cc5d`
   (`review-verification.md`). Those receipts apply only to `3e60cc5d`;
@@ -150,13 +151,12 @@ search-index projectors, and final placement of the four search-owned
 These are handoffs. Slice 85 is planned but uncommissioned; no Slice 85 feature
 directory or implementation was created.
 
-Production is unchanged after `0efa62c5`. The `31e78529` test candidate and
-`e9631b97` reviewed candidate are now historical: the strengthened codec
-property and corrected Slice 85 plan supersede them. Authoritative
-implementation, reviewed-candidate, and closeout fields remain pending a new
-independent rereview and must not be rebound by this change. The earlier
-`8e449963`, `3e60cc5d`, and `4299511c` bindings are retained only where their
-original evidence is discussed.
+Production is unchanged after `0efa62c5`. The implementation candidate is the
+test-only `1d7f826c`; the independently reviewed candidate is `b7403958`, and
+this closeout is `e8e603b7`. The earlier `e9631b97`/`bca0c99d` binding is
+historical, as are `8e449963`, `3e60cc5d`, and `4299511c` where their original
+evidence is discussed. Current review binding does not enlarge the historical
+or partial verification evidence.
 
 ## Cleanup
 

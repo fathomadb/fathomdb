@@ -11,7 +11,7 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 80 (ENGINE-READ), IN_PROGRESS.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 85 (ENGINE-BOUNDARIES), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
 
 Prework Slices 0-9, bounded preparation Slice 10, correction-safe erasure
 Slice 20, real-surface comparator Slice 30, and engine-foundation Slice 40 are
@@ -19,17 +19,18 @@ complete on `release/0.8.27`. Slice 40 preserves runtime behavior, schema,
 public API, feature gates, and publication state while moving shared engine
 foundations to private modules.
 
-Engine-domain Slices 50, 60, and 70 are complete. Slice 80's product
+Engine-domain Slices 50, 60, 70, and 80 are complete. Slice 80's product
 extraction preserves the read, search, graph, evidence, public, hidden,
 schema, SQL, wire, and feature-gated contracts while moving their
-implementation into private semantic modules; Slice 80 itself remains
-**IN_PROGRESS** pending independent rereview and authoritative binding.
+implementation into private semantic modules. Its independent three-cycle
+rereview is bound at `b7403958`, with closeout `e8e603b7`. This is a review
+binding, not a claim of post-fix full canonical or surface verification.
 
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Continue Slice 80 (ENGINE-READ)** — engine read, search, graph, and evidence domains. **Remaining ladder:** 80 → 85 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 85 (ENGINE-BOUNDARIES)** — engine carrier ownership and dependency-boundary enforcement. **Remaining ladder:** 85 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -59,8 +60,8 @@ There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE
 | 50 | Engine erasure, lifecycle, dependency, and provenance | Complete at `1f5b8614`; private semantic modules preserve root paths and close nonterminal soft-closure residue with reviewed RED/GREEN evidence. |
 | 60 | Engine write, ingest, and consolidation | Complete at `d5a5bd39`; six private write-domain modules, full-state write-boundary characterization, and bounded abort-seam carry-over correction. Public/hidden structural surfaces and release probe equal; test inventory additive-only; 127/127 gate and live AC-037 pass. |
 | 70 | Engine projection, embedding, and reranking | Complete at `36fc2352`; ten private modules preserve public paths and runtime shape. Canonical, security, feature-complete, workspace, and artifact gates pass. |
-| 80 | Engine read, search, graph, and evidence | Independent rereview is pending. `e9631b97`/`bca0c99d` are historical, not authoritative, bindings; the current follow-up includes the strengthened result property and corrected Slice 85 handoff. Production changes ended at `0efa62c5`. No post-fix canonical PASS or official post-fix public/hidden capture is claimed. |
-| 85 | Engine carrier ownership and dependency-boundary enforcement | Planned and uncommissioned after Slice 80 rereview. First establish successful exact-baseline canonical/native/public/hidden receipts on a capable host. Then install the final API/carrier homes, eliminate all four Slice 80 cycles, and add the compiler-plus-`syn`, non-vacuous, shrink-only dependency gate before Slice 90. |
+| 80 | Engine read, search, graph, and evidence | Complete at reviewed candidate `b7403958` and closeout `e8e603b7`. `e9631b97`/`bca0c99d` remain historical. Production changes ended at `0efa62c5`; no post-fix canonical PASS or official post-fix public/hidden capture is claimed. |
+| 85 | Engine carrier ownership and dependency-boundary enforcement | Planned and uncommissioned. First establish successful exact-baseline canonical/native/public/hidden receipts on a capable host. Then install the final API/carrier homes, eliminate all four Slice 80 cycles, and add the compiler-plus-`syn`, non-vacuous, shrink-only dependency gate before Slice 90. |
 
 ## Verification boundary
 
@@ -138,8 +139,9 @@ modules. Three characterization tests killed their specified mutants before the
 moves. Production is unchanged after `0efa62c5`; historical test candidate
 `31e78529` added the initial result-codec properties, and `1d7f826c` adds the
 exact JSON-value assertion. The former independent `gpt-5.6-sol` high-reasoning
-rereview at `e9631b97` and closeout `bca0c99d` are historical only, pending a
-new independent rereview.
+rereview at `e9631b97` and closeout `bca0c99d` are historical only. The
+strengthened follow-up and corrected Slice 85 contract were independently
+rereviewed through `b7403958`.
 
 At exact historical candidate `3e60cc5d`, the canonical gate passed 127/127,
 workspace Clippy/check and the candidate-bound Python receipt passed, the
@@ -177,8 +179,9 @@ packages the fixture input. Follow-up `1d7f826c` strengthens the coherent
 property to exact generated canonical JSON-value equality for its fixed
 one-seed/one-target/zero-or-one-evidence shape; the body-loss mutant fails that
 assertion and exact restoration passes. No generated golden oracle exists.
-The former `e9631b97` review and `bca0c99d` closeout are historical until a new
-independent rereview binds the current follow-up.
+The former `e9631b97` review and `bca0c99d` closeout are historical. The
+current follow-up is independently review-bound at `b7403958`; closeout is
+`e8e603b7`, without expanding the verification evidence above.
 
 The `66e27983` live AC-037 receipt and `24813b8e` diagnostic result do not
 qualify later HEAD or the final candidate. By owner ruling, Slice 150 alone
@@ -189,10 +192,8 @@ grant/revert evidence.
 
 - This release starts at schema 34 and currently proposes no schema migration.
 - Publication is unauthorized.
-- Slices 30, 40, 50, 60, and 70 were directly authorized by the repository
-  owner and are complete. Slice 80 was directly authorized and its product
-  extraction is complete, but Slice 80 remains **IN_PROGRESS** pending
-  independent rereview and authoritative binding. Slice 85 and later slices
-  require separate commission.
+- Slices 30, 40, 50, 60, 70, and 80 were directly authorized by the repository
+  owner and are complete. Slice 85 and later slices require separate
+  commission.
 - No temporary branch or worktree was created for prework; the existing
   `release/0.8.27` worktree remains the active release workspace.

@@ -38,14 +38,17 @@
     {"slice": 90, "short": "ENGINE-RUNTIME", "title": "engine open, configuration, runtime, operator, and facade closure", "depends_on": [85], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/features/slice-90/design.md", "dev/plans/0.8.27/features/slice-90/independent-findings-resolution.md", "dev/plans/0.8.27/features/slice-90/option-b-successor-adr-scaffold.md"], "sha": null},
     {"slice": 100, "short": "PYO3", "title": "PyO3 binding decomposition", "depends_on": [90], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/features/slice-100/design.md"], "sha": null},
     {"slice": 110, "short": "NAPI", "title": "napi-rs binding decomposition", "depends_on": [100], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/features/slice-110/design.md", "dev/plans/0.8.27/features/slice-110/binding-closure-review.md"], "sha": null},
-    {"slice": 120, "short": "TYPESCRIPT", "title": "TypeScript SDK decomposition", "depends_on": [110], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
+    {"slice": 114, "short": "ENGINE-CONFIG-AUDIT", "title": "engine configuration, constants, and documentation audit", "depends_on": [110], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
+    {"slice": 115, "short": "ENGINE-PERF-DATA", "title": "engine performance data-collection and lightweight profiling", "depends_on": [114], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
+    {"slice": 120, "short": "TYPESCRIPT", "title": "TypeScript SDK decomposition", "depends_on": [115], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
     {"slice": 130, "short": "PYTHON", "title": "Python SDK decomposition", "depends_on": [120], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
-    {"slice": 140, "short": "DOC-CONVERGENCE", "title": "documentation and structural convergence", "depends_on": [130], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
+    {"slice": 135, "short": "PERFORMANCE-BASELINE", "title": "0.8.26 performance preservation and improvement qualification", "depends_on": [130], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
+    {"slice": 140, "short": "DOC-CONVERGENCE", "title": "documentation and structural convergence", "depends_on": [135], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
     {"slice": 150, "short": "QUALIFICATION", "title": "integrated release qualification", "depends_on": [140], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md"], "sha": null}
   ],
   "landed": [],
   "next_slice": 85,
-  "remaining_ladder": [85, 90, 100, 110, 120, 130, 140, 150],
+  "remaining_ladder": [85, 90, 100, 110, 114, 115, 120, 130, 135, 140, 150],
   "decisions": {
     "unruled": [
       {"id": "D27-runtime-topology", "title": "Choose literal accepted scheduler topology or approve a narrow successor preserving synchronous projection/commit ownership while defining real configurable engine orchestration/embedder capacity and universal deadlines; AC27-90B and dependent runtime commissioning remain blocked. Recommendation only: successor, not a ruling."},

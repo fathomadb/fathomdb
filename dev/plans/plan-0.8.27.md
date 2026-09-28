@@ -358,7 +358,7 @@ user actually commissioned.
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 85** (`ENGINE-BOUNDARIES`) — engine carrier ownership and dependency-boundary enforcement
 
-**Remaining ladder:** 85 → 90 → 100 → 110 → 120 → 130 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 85 → 90 → 100 → 110 → 114 → 115 → 120 → 130 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -985,7 +985,9 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     setting's spelling, default, unit, accepted range, zero/omission meaning,
     mutability, precedence, consuming component, backpressure and observable
     error/fallback behavior. This truth must land in Slice 90, not be deferred
-    to Slice 140.
+    to Slice 140. Slice 114 later audits that documented behavior across every
+    engine component; it does not defer or reopen Slice 90's functional runtime
+    contract.
   - **Batch-fallback deadlock action:** before executor changes, add a bounded
     RED test for `embed_projection_batch` calling `per_job()` from its
     breaker/error paths while `embed_serialize` is held
@@ -1084,6 +1086,39 @@ exports are separate oracles. Zero open Slice 110 obligations unblocks Slice
 120. No Slice 111 is allocated: bounded sub-batches provide sufficient review
 and verification boundaries within 110.
 
+### Slice 114 — engine configuration, constants, and documentation audit
+
+**PLANNED; uncommissioned.** After the native binding decompositions, perform a
+component-by-component audit of Rust engine configuration, setting consumers,
+constants, and variables. Identify unused constants and variables; classify
+each as retained with a documented reason, removed, or assigned to a separately
+reviewed follow-up. Do not use the audit as authority for opportunistic behavior
+changes.
+
+For every user- or operator-relevant setting, record its owner, spelling,
+default, unit, effective precedence, mutability, consumer, and observable
+failure or fallback behavior. Where a bounded value is applicable, propose a
+default and accepted range with evidence and state explicitly when no safe range
+can yet be justified. Reconcile those records with Slice 90's runtime contract,
+Rust/Python/TypeScript interfaces, and public configuration guidance. Any
+recommended setting change requires its own reviewed behavior and performance
+evidence before adoption.
+
+### Slice 115 — engine performance data collection and lightweight profiling
+
+**PLANNED; uncommissioned.** On the refactored Rust engine, collect repeatable
+performance data and lightweight profiling evidence for representative
+open/close, write/ingest, projection/embed, search, graph, evidence, and
+erasure paths. Record the exact candidate, hardware and software environment,
+workload shape, warm-up, repetitions, collected metrics, profiler method, and
+known measurement limits.
+
+This slice characterizes the release candidate; it does not tune by anecdote or
+silently alter feature/function. It must preserve raw or reproducible receipts
+and identify any regression or profile hotspot that needs a separately reviewed
+remediation. Its data and methods become the input to Slice 135's full
+0.8.26 comparison.
+
 ### Slice 120 — TypeScript SDK decomposition
 
 Consumes the complete, reviewed native substrate and installed-package
@@ -1108,6 +1143,20 @@ Test root and documented imports, contractual `__all__`, callable signatures,
 exception identities, stub/type-checker agreement, and public examples or
 doctests. Keep deep database semantics in Rust and use thin Python parity
 checks. No test may depend on a particular helper file.
+
+### Slice 135 — 0.8.26 performance preservation and improvement qualification
+
+**PLANNED; uncommissioned.** Compare the completed 0.8.27 candidate against
+0.8.26 using a fixed, representative workload and the Slice 115 collection
+method. Verify that performance matches or improves on 0.8.26 without reducing
+any supported feature or function. Hold workload, dataset, feature set,
+configuration, hardware, software environment, warm-up, and repetition policy
+constant unless the comparison explicitly documents and justifies a difference.
+
+Pre-register the metrics, tolerances, and decision rule before the comparison.
+Publish reproducible receipts and an explicit feature/function parity inventory.
+Any regression, inconclusive result, or attempted feature trade-off blocks
+closeout until a separately reviewed resolution preserves the release contract.
 
 ### Slice 140 — documentation and structural convergence
 

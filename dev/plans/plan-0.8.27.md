@@ -546,8 +546,9 @@ Settle the read-side carrier ownership and module dependency graph before the
 runtime facade is reduced. Slice 85 is commissioned by owner decision
 `seq-294` after its independent design review and exact-candidate AC27-85F
 entry receipts passed at `4c75bfec2985f4001690673cc5b38dfdce2081bf`.
-Implementation has not started; the reviewed section below is the binding
-implementation package.
+Implementation begins from reconciled baseline `8b2a9eda`; the reviewed
+section below remains the binding design and
+`features/slice-85/plan.md` records the execution reconciliation and TDD plan.
 
 **Design status.** A code-grounded review on 2026-09-27 found that the earlier
 revision re-created prohibited cycles through handler-returned types, left

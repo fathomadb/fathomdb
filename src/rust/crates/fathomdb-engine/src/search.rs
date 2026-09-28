@@ -350,6 +350,18 @@ impl From<SnapshotFilterError> for SearchReaderError {
     }
 }
 
+impl From<graph_expand::SearchExpandHandlerError> for SearchReaderError {
+    fn from(error: graph_expand::SearchExpandHandlerError) -> Self {
+        match error {
+            graph_expand::SearchExpandHandlerError::Sqlite(error) => Self::Sqlite(error),
+            graph_expand::SearchExpandHandlerError::FrozenRead(error) => Self::FrozenRead(error),
+            graph_expand::SearchExpandHandlerError::InvalidFilter(reason) => {
+                Self::InvalidFilter(reason)
+            }
+        }
+    }
+}
+
 // Ordinary search retains a zero-sized capture strategy: evidence state and
 // provenance collection are absent unless the explicit evidence operation is used.
 const _: () = assert!(std::mem::size_of::<NoEvidenceCapture>() == 0);

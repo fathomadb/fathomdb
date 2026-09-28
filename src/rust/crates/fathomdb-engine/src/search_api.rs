@@ -1333,22 +1333,13 @@ impl Engine {
         }
         match response_rx.recv().map_err(|_| EngineError::Storage)? {
             Ok(result) => Ok(result),
-            Err(SearchReaderError::Evidence(error)) => Err(error),
-            Err(SearchReaderError::InvalidFilter(reason)) => {
+            Err(graph_expand::SearchExpandHandlerError::InvalidFilter(reason)) => {
                 Err(EngineError::InvalidFilter { reason })
             }
-            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
-                Err(EngineError::RerankerDevicePolicy(error))
+            Err(graph_expand::SearchExpandHandlerError::FrozenRead(error)) => {
+                Err(EngineError::FrozenRead(error))
             }
-            Err(SearchReaderError::FrozenRead(error)) => Err(EngineError::FrozenRead(error)),
-            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
-                Err(EngineError::VectorEquivalenceMismatch { reason })
-            }
-            Err(SearchReaderError::WriteValidation) => Err(EngineError::WriteValidation),
-            Err(SearchReaderError::InvalidArgument(msg)) => {
-                Err(EngineError::InvalidArgument { msg })
-            }
-            Err(SearchReaderError::Sqlite(err)) => {
+            Err(graph_expand::SearchExpandHandlerError::Sqlite(err)) => {
                 self.emit_sqlite_internal_error(&err);
                 Err(EngineError::Storage)
             }

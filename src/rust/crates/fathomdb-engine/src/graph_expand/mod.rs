@@ -19,6 +19,7 @@ pub(super) use execution::{count_graph_expand_sql_statement, GraphExpandReaderCo
 pub use execution::{
     GraphExpandMeasurementForTest, GraphExpandProjectionStateForTest, GraphExpandRendezvousForTest,
 };
+pub(crate) use traversal::SearchExpandHandlerError;
 pub use traversal::SearchExpandResult;
 pub(super) use traversal::{
     crossed_boundary_since_in_tx, explain_graph_neighbors_in_tx, graph_neighbors_in_tx,

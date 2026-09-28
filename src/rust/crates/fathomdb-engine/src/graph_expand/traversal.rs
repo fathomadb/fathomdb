@@ -6,11 +6,32 @@ use crate::tc5_benchmark;
 use crate::{
     append_node_eligibility_sql, begin_attributed_reader_tx, dependency_closure,
     edge_validity_sql_for_view, frozen_read, validate_filter_attributes_on_snapshot,
-    validate_search_result_limit, BoundaryCrossing, Engine, EngineError, FrozenView, NodeRecord,
-    ReadView, ReaderRequest, SearchFilter, SearchHit, SearchReaderError, SoftFallbackBranch,
-    WalAttributionCollector, DEFAULT_SEARCH_RESULT_LIMIT,
+    validate_search_result_limit, BoundaryCrossing, Engine, EngineError, FrozenReadError,
+    FrozenView, NodeRecord, ReadView, ReaderRequest, SearchFilter, SearchHit, SnapshotFilterError,
+    SoftFallbackBranch, WalAttributionCollector, DEFAULT_SEARCH_RESULT_LIMIT,
 };
 use rusqlite::{params, Connection, OptionalExtension};
+
+pub(crate) enum SearchExpandHandlerError {
+    Sqlite(rusqlite::Error),
+    FrozenRead(FrozenReadError),
+    InvalidFilter(String),
+}
+
+impl From<rusqlite::Error> for SearchExpandHandlerError {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::Sqlite(error)
+    }
+}
+
+impl From<SnapshotFilterError> for SearchExpandHandlerError {
+    fn from(error: SnapshotFilterError) -> Self {
+        match error {
+            SnapshotFilterError::Sqlite(error) => Self::Sqlite(error),
+            SnapshotFilterError::InvalidFilter(reason) => Self::InvalidFilter(reason),
+        }
+    }
+}
 
 /// Slice 20 (G6) — result of [`Engine::search_expand`]: initial search hits
 /// plus nodes reached by bounded BFS expansion that are not already in the
@@ -307,10 +328,11 @@ pub(crate) fn search_expand_in_tx(
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
-) -> Result<SearchExpandResult, SearchReaderError> {
+) -> Result<SearchExpandResult, SearchExpandHandlerError> {
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(expected) = frozen_binding {
-        frozen_read::validate_snapshot(&tx, expected).map_err(SearchReaderError::FrozenRead)?;
+        frozen_read::validate_snapshot(&tx, expected)
+            .map_err(SearchExpandHandlerError::FrozenRead)?;
     }
     if let Some(filter) = filter {
         validate_filter_attributes_on_snapshot(&tx, filter)?;
@@ -327,7 +349,7 @@ pub(crate) fn search_expand_on_snapshot(
     depth: u32,
     frozen: FrozenView,
     filter: Option<&SearchFilter>,
-) -> Result<SearchExpandResult, SearchReaderError> {
+) -> Result<SearchExpandResult, SearchExpandHandlerError> {
     // Step 1: resolve write_cursor → logical_id for each search hit.
     // Possible outcomes per hit:
     //   - None: no matching write_cursor in canonical_nodes (superseded) → drop.

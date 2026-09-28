@@ -171,7 +171,7 @@ pub(crate) enum ReaderRequest {
         view: ReadView,
         filter: Option<Box<SearchFilter>>,
         frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
-        respond: SyncSender<Result<SearchExpandResult, SearchReaderError>>,
+        respond: SyncSender<Result<SearchExpandResult, graph_expand::SearchExpandHandlerError>>,
     },
     /// Slice 20 test seam — run `EXPLAIN QUERY PLAN` on the BFS CTE SQL for
     /// the given root/depth/direction and return the plan detail lines.

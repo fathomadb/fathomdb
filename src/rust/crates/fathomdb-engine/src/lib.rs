@@ -80,6 +80,7 @@ mod rerank;
 mod search;
 mod search_api;
 mod search_types;
+mod structural_state;
 #[cfg(feature = "tc5-benchmark")]
 pub mod tc5_benchmark;
 mod telemetry;
@@ -250,7 +251,7 @@ pub(crate) use search::{
 };
 pub(crate) use search::{
     bm25f_search_inner, prepare_search_statement, read_projected_text_in_tx,
-    read_search_work_in_tx, structural_dependency_state, CapturedGraphOrigin, NoEvidenceCapture,
+    read_search_work_in_tx, CapturedGraphOrigin, NoEvidenceCapture,
 };
 pub(crate) use search_types::validate_search_result_limit;
 pub use search_types::{
@@ -260,6 +261,7 @@ pub use search_types::{
     StructuralLifecycleStateV1, StructuralProjectionOriginV1, DEFAULT_SEARCH_RESULT_LIMIT,
     MAX_SEARCH_RESULT_LIMIT, SEARCH_RERANK_LIMIT, TOP_K_BIT_CANDIDATES,
 };
+pub(crate) use structural_state::structural_dependency_state;
 #[doc(hidden)]
 pub use temporal::clock_reads_for_test;
 pub(crate) use temporal::{

@@ -1,6 +1,6 @@
 mod codec;
-mod execution;
-mod traversal;
+pub(crate) mod execution;
+pub(crate) mod traversal;
 mod types;
 
 use crate::{

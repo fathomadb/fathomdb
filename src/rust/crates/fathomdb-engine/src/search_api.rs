@@ -1261,3 +1261,97 @@ impl Engine {
         bm25f_search_inner(connection, query, plan).map_err(|_| EngineError::Storage)
     }
 }
+
+impl Engine {
+    /// Slice 20 (G6) — `search_expand`: hybrid search (`G1+G9`) followed by
+    /// bounded BFS expansion (`G5`) of each search hit. Returns the original
+    /// search hits (with RRF scores) plus nodes reachable from any hit via
+    /// up to `depth` hops that are NOT already in the search hit set.
+    ///
+    /// Returns `Err(EngineError::InvalidArgument)` for `depth > 3`.
+    /// A `depth = 0` call returns search hits with their logical_ids resolved
+    /// but no BFS expansion. Reads ride the `ReaderWorkerPool` DEFERRED-tx path.
+    ///
+    /// **Snapshot note:** the search phase (`search_inner`) and the expansion
+    /// phase (`SearchExpand` reader request) run in separate DEFERRED reader
+    /// transactions; a write that lands between them is visible to expansion
+    /// but not search (or vice-versa). In practice the window is negligible for
+    /// single-process embedded use. The expansion phase mitigates drift by
+    /// filtering `search_hits` to only include hits whose `write_cursor` is
+    /// still active in the expansion snapshot (superseded hits are dropped from
+    /// the result rather than surfaced with stale data).
+    pub fn search_expand(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        depth: u32,
+    ) -> Result<SearchExpandResult, EngineError> {
+        self.search_expand_with_limit(query, filter, depth, DEFAULT_SEARCH_RESULT_LIMIT)
+    }
+
+    /// Hybrid search followed by graph expansion, with an explicit limit for
+    /// the initial ranked `search_hits` set.
+    pub fn search_expand_with_limit(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        depth: u32,
+        limit: usize,
+    ) -> Result<SearchExpandResult, EngineError> {
+        let limit = validate_search_result_limit(limit)?;
+        self.ensure_open()?;
+        if depth > 3 {
+            return Err(EngineError::InvalidArgument {
+                msg: format!("traversal depth {depth} exceeds the SDK ceiling of 3"),
+            });
+        }
+        // Step 1: run the hybrid search to get initial hits (no CE reranking in expand).
+        // 0.8.5: depth=0 → no rerank, so α/pool_n (0.3, 0) are inert here.
+        let search_result =
+            self.search_inner(query, filter, 0, false, 0.3, 0, false, ReadView::default(), limit)?;
+        if search_result.results.is_empty() {
+            return Ok(SearchExpandResult {
+                search_hits: Vec::new(),
+                expanded: Vec::new(),
+                all_logical_ids: Vec::new(),
+            });
+        }
+        // Step 2: dispatch to the reader pool to resolve logical_ids and run BFS.
+        // depth=0 is forwarded to the reader so it can populate all_logical_ids
+        // (the union of search-hit logical_ids), even with no expansion.
+        let (response_tx, response_rx) = mpsc::sync_channel(1);
+        let request = ReaderRequest::SearchExpand {
+            search_hits: search_result.results,
+            depth,
+            view: ReadView::default(),
+            filter: None,
+            frozen_binding: None,
+            respond: response_tx,
+        };
+        if self.reader_pool.dispatch(request).is_err() {
+            return Err(EngineError::Closing);
+        }
+        match response_rx.recv().map_err(|_| EngineError::Storage)? {
+            Ok(result) => Ok(result),
+            Err(SearchReaderError::Evidence(error)) => Err(error),
+            Err(SearchReaderError::InvalidFilter(reason)) => {
+                Err(EngineError::InvalidFilter { reason })
+            }
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                Err(EngineError::RerankerDevicePolicy(error))
+            }
+            Err(SearchReaderError::FrozenRead(error)) => Err(EngineError::FrozenRead(error)),
+            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
+                Err(EngineError::VectorEquivalenceMismatch { reason })
+            }
+            Err(SearchReaderError::WriteValidation) => Err(EngineError::WriteValidation),
+            Err(SearchReaderError::InvalidArgument(msg)) => {
+                Err(EngineError::InvalidArgument { msg })
+            }
+            Err(SearchReaderError::Sqlite(err)) => {
+                self.emit_sqlite_internal_error(&err);
+                Err(EngineError::Storage)
+            }
+        }
+    }
+}

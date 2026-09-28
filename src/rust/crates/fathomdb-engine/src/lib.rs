@@ -58,6 +58,7 @@ mod evidence;
 mod filter;
 mod frozen_read;
 mod fusion;
+mod graph_api;
 mod graph_expand;
 mod identity;
 mod ingest;
@@ -4294,35 +4295,6 @@ impl Engine {
             DEFAULT_SEARCH_RESULT_LIMIT,
         )
         .map(|(_result, stats)| stats)
-    }
-
-    /// Slice 20 test seam — run `EXPLAIN QUERY PLAN` on the BFS CTE SQL and
-    /// return the plan detail lines. Used by `explain_plan_uses_indexes`.
-    #[doc(hidden)]
-    pub fn explain_graph_neighbors_for_test(
-        &self,
-        root_logical_id: &str,
-        depth: u32,
-        direction: TraversalDirection,
-    ) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
-        let (response_tx, response_rx) = mpsc::sync_channel(1);
-        let request = ReaderRequest::ExplainGraphNeighbors {
-            root_logical_id: root_logical_id.to_string(),
-            depth,
-            direction,
-            respond: response_tx,
-        };
-        if self.reader_pool.dispatch(request).is_err() {
-            return Err(EngineError::Closing);
-        }
-        match response_rx.recv().map_err(|_| EngineError::Storage)? {
-            Ok(plan) => Ok(plan),
-            Err(err) => {
-                self.emit_sqlite_internal_error(&err);
-                Err(EngineError::Storage)
-            }
-        }
     }
 
     /// Test-only matched-shape canonical query without frozen-token or cursor

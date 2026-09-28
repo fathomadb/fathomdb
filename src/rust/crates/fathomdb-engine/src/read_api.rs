@@ -1,6 +1,36 @@
-use super::*;
+use crate::errors::EngineError;
+use crate::filter::{Filter, Predicate, PREDICATE_PATH_ALLOWLIST};
+use crate::frozen_read::FrozenReadContextV1;
+use crate::pagination::{self, PageRequestV1, PageV1};
+use crate::read::{NodeRecord, OpStoreRow, OperationalStateRecordV1, PageReaderError};
+use crate::reader_pool::ReaderRequest;
+use crate::temporal::ReadView;
+use crate::Engine;
+use std::sync::mpsc::{self, Receiver};
 
 impl Engine {
+    /// Test-only matched-shape canonical query without frozen-token or cursor work.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn read_canonical_page_baseline_for_test(
+        &self,
+        kind: &str,
+        context: &FrozenReadContextV1,
+        limit: usize,
+    ) -> Result<Vec<NodeRecord>, EngineError> {
+        self.ensure_open()?;
+        let (respond, receive) = mpsc::sync_channel(1);
+        self.reader_pool
+            .dispatch(ReaderRequest::canonical_page_baseline(
+                kind.to_string(),
+                context.clone(),
+                limit,
+                respond,
+            ))
+            .map_err(|_| EngineError::Closing)?;
+        self.receive_page_result(receive)
+    }
+
     /// Slice 30 (G2) — `read.get`: active-only point lookup by `logical_id`.
     /// Delegates to [`Engine::read_get_many`]; returns the single slot. A
     /// missing/superseded id is `None` (a normal absence, not an error). Reads

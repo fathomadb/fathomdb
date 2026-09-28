@@ -5,10 +5,12 @@ use std::time::Instant;
 use rusqlite::{Connection, OptionalExtension};
 use sha2::{Digest, Sha256};
 
-use crate::{
-    current_epoch_seconds, load_dependency_generation, load_next_cursor, load_projection_cursor,
-    EngineError, ReadView, SearchFilter,
-};
+use crate::dependency::load_dependency_generation;
+use crate::errors::EngineError;
+use crate::filter::SearchFilter;
+use crate::load_next_cursor;
+use crate::projection_commit::load_projection_cursor;
+use crate::temporal::{current_epoch_seconds, ReadView};
 
 pub(crate) const FROZEN_READ_SCHEMA_VERSION: u32 = 1;
 const TOKEN_PREFIX: &str = "fdbfr1";
@@ -813,9 +815,16 @@ pub(crate) fn page_context_digest(frozen: &FrozenReadContextV1) -> Result<[u8; 3
 mod tests {
     use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS};
     use proptest::prelude::*;
+    use rusqlite::Connection;
     use serde_json::Value;
 
-    use super::*;
+    use super::{
+        authenticate, decode_binding, digest, encode_binding, encode_context, hex_decode,
+        hex_encode, load_visibility_generation, mint, projection_registry_digest,
+        projection_serving_digest, projection_serving_encoding, validate_snapshot,
+        FrozenReadBinding, FrozenReadErrorReason, ReadContextV1, ReadView, SearchFilter,
+        CONTEXT_DOMAIN,
+    };
 
     proptest! {
         #[test]

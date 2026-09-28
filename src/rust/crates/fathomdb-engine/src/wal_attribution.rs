@@ -1,5 +1,3 @@
-use super::*;
-
 /// Connection identities intentionally contain no path, SQL, request, or user
 /// data. They are used only in the opt-in WAL diagnostic stream.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -518,3 +516,14 @@ pub(super) fn format_active_wal_roles(roles: &[(WalAttributionRole, usize)]) -> 
         .collect::<Vec<_>>()
         .join(",")
 }
+use crate::{TruncateWalReport, TruncateWalStatus};
+#[cfg(any(test, feature = "test-hooks"))]
+use rusqlite::{Connection, TransactionState};
+use std::collections::BTreeMap;
+#[cfg(any(test, feature = "test-hooks"))]
+use std::collections::BTreeSet;
+use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(any(test, feature = "test-hooks"))]
+use std::sync::Barrier;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};

@@ -1,10 +1,10 @@
-use super::*;
-
 pub(crate) struct EvidenceCapture {
     frozen: FrozenReadContextV1,
     include_explanation: bool,
     graph_origins: HashMap<u64, CapturedGraphOrigin>,
 }
+
+pub(crate) type ProjectedTextReaderResponse = Result<SearchResult, SearchReaderError>;
 
 impl EvidenceCapture {
     pub(crate) fn new(frozen: FrozenReadContextV1, include_explanation: bool) -> Self {
@@ -2413,3 +2413,52 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     tx.commit()?;
     Ok(output)
 }
+use crate::dependency_closure;
+use crate::errors::EngineError;
+use crate::evidence::{self, EvidenceSearchResultV1};
+use crate::filter::{
+    append_edge_eligibility_sql, append_node_eligibility_sql, body_fts_rank_sql,
+    build_vector_phase1_sql, edge_fts_rank_sql, hit_attributes_pass_filter, property_fts_rank_sql,
+    validate_filter_attributes_on_snapshot, vector_filter_values, SearchFilter,
+    SnapshotFilterError,
+};
+use crate::frozen_read::{self, FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason};
+use crate::fusion::{
+    apply_importance_reweight, apply_recency_reweight, build_importance_confidence_maps, fuse_rrf,
+    fuse_three_arms,
+};
+use crate::graph_expand::{self, search_expand_on_snapshot, SearchExpandResult};
+use crate::identity::{derive_stable_id, IdSpace};
+use crate::mean::{identity_requires_mean_centering, read_pinned_mean_vec, subtract_mean};
+use crate::projection_commit::load_projection_cursor;
+use crate::projection_generation::{
+    self, ProjectionGenerationOriginV1, ProjectionReadinessV1, ProjectionRuntimeStateV1,
+};
+use crate::projection_registry::load_projection_registry;
+use crate::reader_transaction::begin_attributed_reader_tx;
+use crate::rerank::try_rerank_fused;
+use crate::search_types::{
+    validate_search_result_limit, Bm25fQueryPlan, Explanation, GraphFrontierStats, PerHitExplain,
+    QueryTrace, SearchHit, SearchResult, SoftFallback, SoftFallbackBranch,
+    StructuralDegradationCodeV1, StructuralInclusionStateV1, StructuralInclusionV1,
+    StructuralLifecycleStateV1, StructuralProjectionOriginV1, MAX_SEARCH_RESULT_LIMIT,
+    TOP_K_BIT_CANDIDATES,
+};
+use crate::structural_state::structural_dependency_state;
+#[cfg(feature = "tc5-benchmark")]
+use crate::tc5_benchmark;
+use crate::temporal::{current_epoch_seconds, edge_validity_sql_for_view, FrozenView, ReadView};
+use crate::test_hooks::{
+    evidence_linearization_hooks, frozen_after_validation_hook, reader_search_hook,
+};
+use crate::wal_attribution::WalAttributionCollector;
+use crate::{load_next_cursor, PROJECTION_CURSOR_KEY};
+use fathomdb_embedder::RerankerDevicePolicyError;
+use fathomdb_embedder_api::{Embedder, EmbedderIdentity};
+use fathomdb_query::compile_text_query;
+use rusqlite::{params, CachedStatement, Connection, OptionalExtension, Statement};
+use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+#[cfg(feature = "test-hooks")]
+use std::{fs::OpenOptions, io::Write, sync::Mutex};

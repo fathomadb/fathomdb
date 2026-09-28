@@ -1,6 +1,38 @@
-use super::*;
-use crate::graph_expand::execution::*;
+#[cfg(feature = "test-hooks")]
+use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering as AtomicOrdering;
+use std::sync::mpsc;
+
+#[cfg(feature = "test-hooks")]
+use rusqlite::params;
+
+#[cfg(feature = "test-hooks")]
+use crate::dependency_closure::{self, ClosureCauseV1};
+use crate::errors::EngineError;
+use crate::frozen_read;
+use crate::graph_expand::execution::{
+    explain_graph_expand_incident_query, graph_error, graph_expand_incident_query,
+    validate_semantics,
+};
+#[cfg(feature = "test-hooks")]
+use crate::graph_expand::execution::{
+    GraphExpandCurrentRssSampleForTest, GraphExpandIsolatedProcessRssSampleForTest,
+    GraphExpandMeasurementForTest, GraphExpandProjectionGenerationForTest,
+    GraphExpandProjectionStateForTest, GraphExpandReaderControlsForTest,
+    GraphExpandRendezvousForTest, GraphExpandRetentionCountersForTest,
+    GRAPH_EXPAND_RSS_SAMPLE_SEQUENCE, GRAPH_EXPAND_SQL_STATEMENTS,
+};
+use crate::graph_expand::{
+    GraphExpandRequestV1, GraphExpandResultV1, GraphExpansionErrorReasonV1, GraphReadContextV1,
+    TraversalDirection, SCHEMA_VERSION,
+};
+use crate::projection_generation::ProjectionRuntimeStateV1;
+#[cfg(feature = "test-hooks")]
+use crate::projection_generation::{ProjectionGenerationOriginV1, ProjectionReadinessV1};
+use crate::read::NodeRecord;
+use crate::reader_pool::ReaderRequest;
+use crate::temporal::{BoundaryCrossing, ReadView};
+use crate::Engine;
 
 #[cfg(feature = "test-hooks")]
 impl Engine {
@@ -257,7 +289,9 @@ impl Engine {
         work: u64,
         unrelated: u64,
     ) -> Result<(), EngineError> {
-        use crate::{InitialState, PreparedWrite, SourceId};
+        use crate::identity::SourceId;
+        use crate::record_lifecycle::InitialState;
+        use crate::write::PreparedWrite;
 
         {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;

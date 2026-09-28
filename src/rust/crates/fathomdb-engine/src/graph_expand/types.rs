@@ -1,6 +1,8 @@
-use super::*;
+use crate::frozen_read::{FrozenReadContextV1, ReadContextV1};
+use crate::identity::IdSpace;
+use crate::search_types::{StructuralDependencyStateV1, StructuralLifecycleStateV1};
 
-pub(super) const SCHEMA_VERSION: u32 = 1;
+pub(crate) const SCHEMA_VERSION: u32 = 1;
 
 /// The source from which graph-expansion seeds were resolved.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

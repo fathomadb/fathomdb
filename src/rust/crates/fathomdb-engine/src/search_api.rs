@@ -1,5 +1,3 @@
-use super::*;
-
 impl Engine {
     /// Mint an authenticated read context bound to the current database state.
     ///
@@ -1346,3 +1344,35 @@ impl Engine {
         }
     }
 }
+use crate::errors::EngineError;
+use crate::evidence::{
+    self, EvidenceArtifactClassV1, EvidenceArtifactLifecycleV1, EvidenceErrorReasonV1,
+    EvidenceErrorV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1, EvidenceSearchResultV1,
+    GraphEvidenceArtifactV1, GraphEvidenceResolveRequestV1, ResolvedEvidenceV1,
+    ResolvedGraphEvidenceV1,
+};
+use crate::filter::{Filter, SearchFilter};
+use crate::frozen_read::{
+    self, FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1,
+};
+use crate::graph_expand::{self, SearchExpandResult};
+use crate::identity::{ArtifactRevisionId, CanonicalHash, SourceRevisionId};
+use crate::lifecycle;
+use crate::mean::{identity_requires_mean_centering, read_pinned_mean_vec, subtract_mean};
+use crate::projection_generation::ProjectionRuntimeStateV1;
+use crate::reader_pool::{EvidenceReaderResponse, ReaderRequest, ReaderResponse};
+use crate::record_lifecycle::LifecycleState;
+use crate::search::{bm25f_search_inner, FrozenQueryRuntime, SearchReaderError, SearchReaderWork};
+use crate::search_types::{
+    validate_search_result_limit, Bm25fQueryPlan, GraphFrontierStats, SearchResult,
+    DEFAULT_SEARCH_RESULT_LIMIT,
+};
+#[cfg(feature = "tc5-benchmark")]
+use crate::tc5_benchmark;
+use crate::temporal::ReadView;
+use crate::test_hooks::evidence_linearization_hooks;
+use crate::Engine;
+use fathomdb_query::compile_text_query;
+use std::sync::atomic::Ordering;
+use std::sync::{mpsc, Arc};
+use std::time::Instant;

@@ -1,4 +1,9 @@
-use super::*;
+use crate::errors::EngineError;
+use crate::projection_registry::{encode_attr_vec0_present, load_projection_registry};
+use crate::search_types::TOP_K_BIT_CANDIDATES;
+use crate::vector_storage::{attr_vec0_column, resolve_source_type};
+use crate::ProjectionRole;
+use rusqlite::{params, Connection, OptionalExtension};
 
 // ===== G4 filter grammar types (Slice 35) ===============================
 
@@ -958,7 +963,7 @@ fn edge_fts_hit_passes_non_attribute_filter(
 
 #[cfg(test)]
 mod slice85_boundary_tests {
-    use super::*;
+    use super::SnapshotFilterError;
 
     #[test]
     fn snapshot_filter_error_is_narrow_and_preserves_its_payload() {

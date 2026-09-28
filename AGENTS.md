@@ -39,7 +39,7 @@ Use the typed dev-loop verbs (Phase 2). Each emits **concise output on pass, str
 | Verb      | Script                         | Purpose                                                           |
 | --------- | ------------------------------ | ----------------------------------------------------------------- |
 | build     | `./scripts/agent-build.sh`     | Compile workspace (Rust + Python install + TS build if installed) |
-| lint      | `./scripts/agent-lint.sh`      | clippy + rustfmt + migration policy + ruff + actionlint + md + lychee |
+| lint      | `./scripts/agent-lint.sh`      | module boundaries + clippy + rustfmt + migration policy + ruff + actionlint + md + lychee |
 | typecheck | `./scripts/agent-typecheck.sh` | cargo check + pyright + tsc --noEmit                              |
 | test      | `./scripts/agent-test.sh`      | cargo test + pytest                                               |
 | verify    | `./scripts/agent-verify.sh`    | lint → typecheck → test (short-circuits on first fail)            |

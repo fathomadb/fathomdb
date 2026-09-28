@@ -1,5 +1,3 @@
-use super::*;
-
 /// 0.8.8 Slice 15 (OPP-9) — opt-in telemetry capture state (per `enable_telemetry`).
 /// Records query→result→feedback events to a local JSONL sink. Query text and
 /// `source_id` are never captured. `query_id = "q{nonce}-{seq}"` is fully
@@ -215,3 +213,12 @@ impl Engine {
         append_jsonl(&sink.path, &record).map_err(|_| EngineError::Storage)
     }
 }
+use crate::errors::EngineError;
+use crate::search_types::{SearchResult, SoftFallbackBranch};
+#[cfg(feature = "test-hooks")]
+use crate::test_hooks::explanation_finalization_hooks;
+use crate::Engine;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::Ordering;
+use std::time::Instant;

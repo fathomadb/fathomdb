@@ -3,11 +3,6 @@ pub(crate) mod execution;
 pub(crate) mod traversal;
 mod types;
 
-use crate::{
-    FrozenReadContextV1, IdSpace, ReadContextV1, StructuralDependencyStateV1,
-    StructuralLifecycleStateV1,
-};
-
 pub use codec::{
     decode_graph_expand_request_v1, decode_graph_expand_result_v1, encode_graph_expand_request_v1,
     encode_graph_expand_result_v1,
@@ -27,7 +22,7 @@ pub(super) use traversal::{
 };
 #[cfg(feature = "test-hooks")]
 pub use types::graph_expansion_degradation_codes_for_test;
-use types::{graph_expansion_degradation_codes, SCHEMA_VERSION};
+pub(crate) use types::SCHEMA_VERSION;
 pub use types::{
     GraphExpandRequestV1, GraphExpandResultV1, GraphExpansionDegradationCodeV1,
     GraphExpansionErrorReasonV1, GraphExpansionErrorV1, GraphExpansionExplanationV1, GraphOriginV1,
@@ -37,13 +32,19 @@ pub use types::{
 };
 
 #[cfg(test)]
-use crate::{ReadView, SearchFilter};
-#[cfg(test)]
 use execution::encode_graph_evidence_request;
 
 #[cfg(test)]
 mod graph_evidence_request_tests {
-    use super::*;
+    use crate::filter::SearchFilter;
+    use crate::frozen_read::{FrozenReadContextV1, ReadContextV1};
+    use crate::identity::IdSpace;
+    use crate::temporal::ReadView;
+
+    use super::{
+        encode_graph_evidence_request, GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1,
+        TraversalDirection,
+    };
 
     fn request(token: &str) -> GraphExpandRequestV1 {
         let context = ReadContextV1::new(

@@ -1,0 +1,463 @@
+# FathomDB engine module-boundary policy.
+# Classifications and expected edges are reviewed, shrink-only Slice 85 inputs.
+version 1
+
+reported actuation
+reported consolidation
+reported data_plane_integrity
+reported dependency
+admitted dependency_closure
+reported dependency_trace
+reported embedding
+reported erasure
+admitted errors
+admitted evidence
+governed filter
+governed frozen_read
+reported fusion
+governed graph_api
+governed graph_expand
+governed graph_expand::codec
+governed graph_expand::execution
+governed graph_expand::traversal
+governed graph_expand::types
+reported identity
+reported ingest
+reported lifecycle
+reported mean
+reported pagination
+reported projection_commit
+reported projection_generation
+reported projection_rebuild
+reported projection_registry
+reported projection_runtime
+reported projection_worker
+reported provenance
+reported provider
+governed read
+governed read_api
+governed reader_pool
+governed reader_transaction
+reported record_lifecycle
+reported rerank
+admitted root
+governed search
+governed search_api
+governed search_types
+reported slice20_fix1_tests
+governed structural_state
+reported tc5_benchmark
+governed telemetry
+reported temporal
+reported test_hooks
+reported vector_equivalence
+reported vector_storage
+governed wal_attribution
+reported write
+reported write_commit
+reported write_validation
+
+field actual_checkpoint_observations root
+field actuation_after_initial_lookup_delay_ms root
+field actuation_failure_after_operation root
+field binding_native_state_observations root
+field closed root
+field connection root
+field counters root
+field dense_disabled root
+field dense_disabled_reason root
+field erasure_before_primary_lock_hook root
+field explanation_open_nonce telemetry
+field explanation_sequence telemetry
+field force_next_commit_failure root
+field graph_evidence_before_resolve_return_hook root
+field graph_expand_rss_baseline_bytes root
+field graph_expand_rss_delta_bytes root
+field lock root
+field managed_connections root
+field mutation_projection_status_cache root
+field next_cursor root
+field path root
+field profile_contexts root
+field profiling_enabled root
+field projection_generation_status_cache root
+field projection_generation_status_full_owner_scan_count root
+field projection_runtime root
+field provenance_row_cap root
+field read_visibility_generation root
+field reader_lookaside_rcs root
+field reader_pool reader_pool
+field runtime_embedder root
+field runtime_embedder_identity root
+field slow_threshold_ms root
+field subscribers root
+field telemetry telemetry
+field telemetry_enabled telemetry
+field vector_equivalence_refusals root
+field wal_attribution wal_attribution
+field writer_connection_registration root
+
+owner ReaderWorkerPool reader_pool
+owner ReaderRequest reader_pool
+owner CacheStatusReply reader_pool
+owner SearchReaderWork search
+owner FrozenQueryRuntime search
+owner EvidenceCapture search
+owner SearchReaderError search
+owner PageReaderError read
+owner SnapshotFilterError filter
+owner SearchExpandHandlerError graph_expand::traversal
+owner TelemetrySink telemetry
+owner WalAttributionCollector wal_attribution
+
+forbid-dependency read reader_pool
+forbid-dependency graph_expand reader_pool
+forbid-dependency graph_expand search_api
+forbid-dependency graph_expand search
+forbid-dependency graph_expand::codec reader_pool
+forbid-dependency graph_expand::execution reader_pool
+forbid-dependency graph_expand::execution search_api
+forbid-dependency graph_expand::execution search
+forbid-dependency graph_expand::traversal reader_pool
+forbid-dependency graph_expand::traversal search_api
+forbid-dependency graph_expand::traversal search
+forbid-dependency graph_expand::types reader_pool
+forbid-dependency graph_expand::types search_api
+forbid-dependency graph_expand::types search
+forbid-dependency search reader_pool
+
+forbid-cycle search graph_expand
+forbid-cycle read reader_pool
+forbid-cycle graph_expand reader_pool
+forbid-cycle graph_expand search_api
+forbid-cycle search reader_pool
+allow-cycle search dependency_closure
+allow-cycle search evidence
+allow-cycle graph_expand evidence
+
+inherent filter Filter::lower_for_read_list
+inherent filter Filter::lower_for_read_list_for_test
+inherent filter Filter::to_search_filter
+inherent filter Filter::to_search_filter_for_test
+inherent filter Predicate::bind_value
+inherent filter Predicate::json_path_compare
+inherent filter Predicate::json_path_eq
+inherent filter Predicate::path
+inherent filter Predicate::to_sql_clause
+inherent filter SearchFilter::is_unfiltered
+inherent frozen_read FrozenReadErrorReason::as_str
+inherent frozen_read ReadContextV1::new
+inherent graph_expand::execution GraphExpandProjectionGenerationForTest::new
+inherent graph_expand::execution GraphExpandProjectionStateForTest::configuration_blocked
+inherent graph_expand::execution GraphExpandProjectionStateForTest::configuration_processing
+inherent graph_expand::execution GraphExpandProjectionStateForTest::fresh_ready
+inherent graph_expand::execution GraphExpandProjectionStateForTest::projection_legacy_unverified_degraded
+inherent graph_expand::execution GraphExpandProjectionStateForTest::rebuild_deferred
+inherent graph_expand::execution GraphExpandRendezvousForTest::after_pin
+inherent graph_expand::execution GraphExpandRendezvousForTest::before_pin
+inherent graph_expand::execution GraphExpandRendezvousForTest::release
+inherent graph_expand::execution GraphExpandRendezvousForTest::wait_until_entered
+inherent graph_expand::execution GraphExpansionErrorReasonV1::as_str
+inherent graph_expand::execution GraphExpansionErrorV1::new
+inherent reader_pool ReaderRequest::canonical_page
+inherent reader_pool ReaderRequest::canonical_page_baseline
+inherent reader_pool ReaderRequest::crossed_boundary_since
+inherent reader_pool ReaderRequest::explain_graph_neighbors
+inherent reader_pool ReaderRequest::get_by_id
+inherent reader_pool ReaderRequest::graph_expand
+inherent reader_pool ReaderRequest::graph_neighbors
+inherent reader_pool ReaderRequest::operational_state
+inherent reader_pool ReaderRequest::operational_state_page
+inherent reader_pool ReaderRequest::projected_text
+inherent reader_pool ReaderRequest::read_collection
+inherent reader_pool ReaderRequest::read_list
+inherent reader_pool ReaderRequest::search
+inherent reader_pool ReaderRequest::search_evidence
+inherent reader_pool ReaderRequest::search_expand
+inherent reader_pool ReaderRequest::vector_stage
+inherent reader_pool ReaderWorkerPool::cache_status_per_worker
+inherent reader_pool ReaderWorkerPool::dispatch
+inherent reader_pool ReaderWorkerPool::hold_worker_zero_wal_snapshot
+inherent reader_pool ReaderWorkerPool::hold_worker_zero_wal_snapshot_bounded
+inherent reader_pool ReaderWorkerPool::hold_worker_zero_wal_snapshot_with_commit_ack
+inherent reader_pool ReaderWorkerPool::live_count
+inherent reader_pool ReaderWorkerPool::lookaside_used_per_worker
+inherent reader_pool ReaderWorkerPool::new
+inherent reader_pool ReaderWorkerPool::next_worker_index
+inherent reader_pool ReaderWorkerPool::secure_delete_per_worker
+inherent reader_pool ReaderWorkerPool::shutdown
+inherent reader_pool ReaderWorkerPool::wal_connection_inventory_for_test
+inherent reader_pool ReaderWorkerPool::wal_native_state_inventory_for_test
+inherent reader_pool ReaderWorkerPool::worker_count
+inherent search EvidenceCapture::new
+inherent search FrozenQueryRuntime::new
+inherent search SearchReaderWork::evidence
+inherent search SearchReaderWork::hybrid
+inherent search SearchReaderWork::text_only
+inherent search SearchStatement::reprepare_count
+inherent search SearchStatement::was_reused
+inherent search_types GraphFrontierStats::resolved_seed_rate
+inherent telemetry TelemetrySink::path
+inherent wal_attribution WalAttributionActivity::begin
+inherent wal_attribution WalAttributionCollector::arm_reader_completion_pause
+inherent wal_attribution WalAttributionCollector::arm_reader_handoff_pause
+inherent wal_attribution WalAttributionCollector::arm_reader_snapshot_pause
+inherent wal_attribution WalAttributionCollector::checkpoint_begin
+inherent wal_attribution WalAttributionCollector::checkpoint_end
+inherent wal_attribution WalAttributionCollector::checkpoint_event
+inherent wal_attribution WalAttributionCollector::checkpoints
+inherent wal_attribution WalAttributionCollector::classification
+inherent wal_attribution WalAttributionCollector::emit
+inherent wal_attribution WalAttributionCollector::fire_reader_completion_pause
+inherent wal_attribution WalAttributionCollector::fire_reader_handoff_pause
+inherent wal_attribution WalAttributionCollector::fire_reader_snapshot_pause
+inherent wal_attribution WalAttributionCollector::new
+inherent wal_attribution WalAttributionCollector::register
+inherent wal_attribution WalAttributionCollector::set
+inherent wal_attribution WalAttributionCollector::snapshot
+inherent wal_attribution WalAttributionRole::name
+edge filter errors import
+edge filter projection_registry callable
+edge filter projection_registry import
+edge filter root engine-method
+edge filter search_types import
+edge filter vector_storage callable
+edge filter vector_storage import
+edge frozen_read dependency callable
+edge frozen_read dependency import
+edge frozen_read errors callable
+edge frozen_read errors import
+edge frozen_read filter callable
+edge frozen_read filter import
+edge frozen_read projection_commit callable
+edge frozen_read projection_commit import
+edge frozen_read projection_generation callable
+edge frozen_read root field-access
+edge frozen_read temporal callable
+edge frozen_read temporal import
+edge frozen_read vector_storage callable
+edge graph_api dependency_closure callable
+edge graph_api dependency_closure import
+edge graph_api errors callable
+edge graph_api errors import
+edge graph_api evidence callable
+edge graph_api frozen_read callable
+edge graph_api frozen_read import
+edge graph_api graph_expand callable
+edge graph_api graph_expand import
+edge graph_api graph_expand::execution callable
+edge graph_api graph_expand::execution import
+edge graph_api identity callable
+edge graph_api identity import
+edge graph_api projection_generation callable
+edge graph_api projection_generation import
+edge graph_api read import
+edge graph_api reader_pool callable
+edge graph_api reader_pool field-access
+edge graph_api reader_pool import
+edge graph_api record_lifecycle callable
+edge graph_api record_lifecycle import
+edge graph_api root callable
+edge graph_api root engine-method
+edge graph_api root field-access
+edge graph_api telemetry field-access
+edge graph_api temporal import
+edge graph_api write engine-method
+edge graph_api write import
+edge graph_expand filter callable
+edge graph_expand filter import
+edge graph_expand frozen_read callable
+edge graph_expand frozen_read import
+edge graph_expand identity import
+edge graph_expand temporal callable
+edge graph_expand temporal import
+edge graph_expand::codec evidence callable
+edge graph_expand::codec filter import
+edge graph_expand::codec frozen_read import
+edge graph_expand::codec graph_expand::types callable
+edge graph_expand::codec graph_expand::types import
+edge graph_expand::codec identity callable
+edge graph_expand::codec identity import
+edge graph_expand::codec root callable
+edge graph_expand::codec search_types callable
+edge graph_expand::codec search_types import
+edge graph_expand::codec temporal import
+edge graph_expand::execution errors callable
+edge graph_expand::execution errors import
+edge graph_expand::execution evidence callable
+edge graph_expand::execution filter callable
+edge graph_expand::execution filter import
+edge graph_expand::execution frozen_read callable
+edge graph_expand::execution frozen_read import
+edge graph_expand::execution graph_expand::types callable
+edge graph_expand::execution graph_expand::types import
+edge graph_expand::execution identity callable
+edge graph_expand::execution identity import
+edge graph_expand::execution projection_generation callable
+edge graph_expand::execution projection_generation import
+edge graph_expand::execution reader_transaction callable
+edge graph_expand::execution reader_transaction import
+edge graph_expand::execution search_types callable
+edge graph_expand::execution search_types import
+edge graph_expand::execution structural_state callable
+edge graph_expand::execution structural_state import
+edge graph_expand::execution temporal import
+edge graph_expand::execution wal_attribution import
+edge graph_expand::traversal dependency_closure callable
+edge graph_expand::traversal dependency_closure import
+edge graph_expand::traversal filter callable
+edge graph_expand::traversal filter import
+edge graph_expand::traversal frozen_read callable
+edge graph_expand::traversal frozen_read import
+edge graph_expand::traversal graph_expand::types callable
+edge graph_expand::traversal graph_expand::types import
+edge graph_expand::traversal read import
+edge graph_expand::traversal reader_transaction callable
+edge graph_expand::traversal reader_transaction import
+edge graph_expand::traversal search_types callable
+edge graph_expand::traversal search_types import
+edge graph_expand::traversal tc5_benchmark callable
+edge graph_expand::traversal tc5_benchmark import
+edge graph_expand::traversal temporal callable
+edge graph_expand::traversal temporal import
+edge graph_expand::traversal wal_attribution import
+edge graph_expand::types frozen_read import
+edge graph_expand::types graph_expand callable
+edge graph_expand::types identity import
+edge graph_expand::types search_types import
+edge read errors callable
+edge read errors import
+edge read filter callable
+edge read filter import
+edge read frozen_read callable
+edge read frozen_read import
+edge read pagination callable
+edge read pagination import
+edge read reader_transaction callable
+edge read reader_transaction import
+edge read temporal import
+edge read test_hooks callable
+edge read test_hooks import
+edge read wal_attribution import
+edge read_api errors callable
+edge read_api errors import
+edge read_api filter callable
+edge read_api filter import
+edge read_api frozen_read import
+edge read_api pagination callable
+edge read_api pagination import
+edge read_api read import
+edge read_api reader_pool callable
+edge read_api reader_pool field-access
+edge read_api reader_pool import
+edge read_api root engine-method
+edge read_api temporal import
+edge reader_pool errors import
+edge reader_pool evidence import
+edge reader_pool filter callable
+edge reader_pool filter import
+edge reader_pool frozen_read import
+edge reader_pool graph_expand callable
+edge reader_pool graph_expand import
+edge reader_pool pagination import
+edge reader_pool projection_generation import
+edge reader_pool read callable
+edge reader_pool read import
+edge reader_pool search callable
+edge reader_pool search import
+edge reader_pool search_types import
+edge reader_pool tc5_benchmark callable
+edge reader_pool tc5_benchmark import
+edge reader_pool temporal import
+edge reader_pool wal_attribution callable
+edge reader_pool wal_attribution import
+edge reader_transaction wal_attribution callable
+edge reader_transaction wal_attribution import
+edge search dependency_closure callable
+edge search dependency_closure import
+edge search errors import
+edge search evidence callable
+edge search evidence import
+edge search filter callable
+edge search filter import
+edge search frozen_read callable
+edge search frozen_read import
+edge search fusion callable
+edge search fusion import
+edge search graph_expand callable
+edge search graph_expand import
+edge search identity callable
+edge search identity import
+edge search mean callable
+edge search mean import
+edge search projection_commit callable
+edge search projection_commit import
+edge search projection_generation callable
+edge search projection_generation import
+edge search projection_registry callable
+edge search projection_registry import
+edge search reader_transaction callable
+edge search reader_transaction import
+edge search rerank callable
+edge search rerank import
+edge search root field-access
+edge search search_types callable
+edge search search_types import
+edge search structural_state callable
+edge search structural_state import
+edge search tc5_benchmark callable
+edge search tc5_benchmark import
+edge search temporal callable
+edge search temporal import
+edge search test_hooks callable
+edge search test_hooks import
+edge search wal_attribution import
+edge search_api errors callable
+edge search_api errors import
+edge search_api evidence callable
+edge search_api evidence import
+edge search_api filter callable
+edge search_api filter import
+edge search_api frozen_read callable
+edge search_api frozen_read import
+edge search_api graph_expand callable
+edge search_api graph_expand import
+edge search_api identity callable
+edge search_api identity import
+edge search_api lifecycle callable
+edge search_api lifecycle import
+edge search_api mean callable
+edge search_api mean import
+edge search_api projection_generation callable
+edge search_api projection_generation import
+edge search_api reader_pool callable
+edge search_api reader_pool field-access
+edge search_api reader_pool import
+edge search_api record_lifecycle callable
+edge search_api record_lifecycle import
+edge search_api root engine-method
+edge search_api root field-access
+edge search_api search callable
+edge search_api search import
+edge search_api search_types callable
+edge search_api search_types import
+edge search_api tc5_benchmark callable
+edge search_api tc5_benchmark import
+edge search_api telemetry engine-method
+edge search_api temporal callable
+edge search_api temporal import
+edge search_api test_hooks callable
+edge search_api test_hooks import
+edge search_types errors import
+edge search_types identity import
+edge structural_state dependency_trace callable
+edge structural_state dependency_trace import
+edge structural_state search_types callable
+edge structural_state search_types import
+edge telemetry errors callable
+edge telemetry errors import
+edge telemetry root field-access
+edge telemetry search_types callable
+edge telemetry search_types import
+edge telemetry test_hooks callable
+edge telemetry test_hooks import

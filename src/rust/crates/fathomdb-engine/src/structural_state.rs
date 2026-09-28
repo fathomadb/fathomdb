@@ -1,6 +1,7 @@
 use rusqlite::{Connection, OptionalExtension};
 
-use crate::{dependency_trace, StructuralDependencyStateV1};
+use crate::dependency_trace;
+use crate::search_types::StructuralDependencyStateV1;
 
 pub(crate) fn structural_dependency_state(
     tx: &Connection,

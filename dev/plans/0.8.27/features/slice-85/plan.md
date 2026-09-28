@@ -28,6 +28,14 @@ or `AGENTS.md` changes after `d1918892`. The assigned Slice 85 functions and
 carriers therefore have not drifted. The Slice 90 documents consume Slice 85's
 settled boundaries and do not add Slice 85 work.
 
+Two preallocated files whose names also contain `slice85` were reviewed:
+`scripts/release/verify-slice85-manifest.py` and
+`scripts/tests/test_slice85_final_gate.py`. They are the closed 0.8.25 final
+evidence gate (their paths, schemas, versions, and obligations are explicitly
+0.8.25), not drafts for 0.8.27 ENGINE-BOUNDARIES. Reusing or revising them is
+rejected as cross-release scope contamination. The 0.8.27 boundary gate gets
+its own narrowly named checker and mutation test.
+
 ## Plan disposition
 
 The reviewed Slice 85 design is **approved without scope expansion**. Its

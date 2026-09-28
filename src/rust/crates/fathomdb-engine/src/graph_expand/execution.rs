@@ -8,15 +8,28 @@ use std::sync::atomic::{AtomicBool, AtomicU64};
 #[cfg(feature = "test-hooks")]
 use std::sync::Mutex;
 
-use crate::{
-    append_node_eligibility_sql, begin_attributed_reader_tx, compile_text_query, frozen_read,
-    projection_generation, structural_dependency_state, EngineError, FrozenView, IdSpaceKind,
-    ProjectionGenerationOriginV1, ProjectionReadinessV1, ProjectionRuntimeStateV1, SearchFilter,
-    StructuralLifecycleStateV1, WalAttributionCollector,
+use crate::errors::EngineError;
+use crate::filter::{append_node_eligibility_sql, SearchFilter};
+use crate::frozen_read;
+use crate::identity::IdSpaceKind;
+use crate::projection_generation::{
+    self, ProjectionGenerationOriginV1, ProjectionReadinessV1, ProjectionRuntimeStateV1,
 };
+use crate::reader_transaction::begin_attributed_reader_tx;
+use crate::search_types::StructuralLifecycleStateV1;
+use crate::structural_state::structural_dependency_state;
+use crate::temporal::FrozenView;
+use crate::wal_attribution::WalAttributionCollector;
+use fathomdb_query::compile_text_query;
 use rusqlite::{Connection, OptionalExtension};
 
-use super::*;
+use super::types::{
+    graph_expansion_degradation_codes, GraphExpandRequestV1, GraphExpandResultV1,
+    GraphExpansionErrorReasonV1, GraphExpansionErrorV1, GraphExpansionExplanationV1, GraphOriginV1,
+    GraphProjectionOriginV1, GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1,
+    GraphSeedSourceV1, GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, ResolvedGraphSeedV1,
+    TraversalDirection, SCHEMA_VERSION,
+};
 
 #[cfg(feature = "test-hooks")]
 pub(crate) static GRAPH_EXPAND_RSS_SAMPLE_SEQUENCE: AtomicU64 = AtomicU64::new(0);

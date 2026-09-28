@@ -1,15 +1,21 @@
-use super::*;
 use std::sync::Arc;
 
+use crate::dependency_closure;
+use crate::filter::{
+    append_node_eligibility_sql, validate_filter_attributes_on_snapshot, SearchFilter,
+    SnapshotFilterError,
+};
+use crate::frozen_read::{self, FrozenReadError};
+use crate::read::NodeRecord;
+use crate::reader_transaction::begin_attributed_reader_tx;
+use crate::search_types::{SearchHit, SoftFallbackBranch};
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
-use crate::{
-    append_node_eligibility_sql, begin_attributed_reader_tx, dependency_closure,
-    edge_validity_sql_for_view, frozen_read, validate_filter_attributes_on_snapshot,
-    BoundaryCrossing, FrozenReadError, FrozenView, NodeRecord, ReadView, SearchFilter, SearchHit,
-    SnapshotFilterError, SoftFallbackBranch, WalAttributionCollector,
-};
+use crate::temporal::{edge_validity_sql_for_view, BoundaryCrossing, FrozenView, ReadView};
+use crate::wal_attribution::WalAttributionCollector;
 use rusqlite::{params, Connection, OptionalExtension};
+
+use super::types::TraversalDirection;
 
 pub(crate) enum SearchExpandHandlerError {
     Sqlite(rusqlite::Error),

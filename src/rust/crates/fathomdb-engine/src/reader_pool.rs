@@ -1,5 +1,3 @@
-use super::*;
-
 /// Thread-affine reader worker pool (Pack 6 F.0).
 ///
 /// Per `dev/design/engine.md` § Writer / reader split, reader connections
@@ -476,8 +474,6 @@ pub(crate) type ReaderResponse = Result<
 >;
 
 pub(crate) type EvidenceReaderResponse = Result<EvidenceSearchResultV1, SearchReaderError>;
-
-pub(crate) type ProjectedTextReaderResponse = Result<SearchResult, SearchReaderError>;
 
 /// Pack 6.G G.3.5 — per-worker cache-pressure snapshot. Carried only on
 /// the debug-only `CacheStatus` broadcast path and the test accessor;
@@ -1224,3 +1220,47 @@ impl Drop for ReaderWorkerPool {
         self.shutdown();
     }
 }
+use crate::errors::EngineError;
+use crate::evidence::{self, EvidenceSearchResultV1};
+use crate::filter::{Predicate, SearchFilter};
+use crate::frozen_read::{self, FrozenReadContextV1};
+use crate::graph_expand::{
+    self, crossed_boundary_since_in_tx, explain_graph_neighbors_in_tx, graph_neighbors_in_tx,
+    search_expand_in_tx, GraphExpandRequestV1, GraphExpandResultV1, SearchExpandResult,
+    TraversalDirection,
+};
+use crate::pagination::{PageRequestV1, PageV1};
+use crate::projection_generation::ProjectionRuntimeStateV1;
+#[cfg(feature = "test-hooks")]
+use crate::read::read_canonical_page_baseline_in_tx;
+use crate::read::{
+    read_canonical_page_in_tx, read_collection_in_tx, read_get_by_id_in_tx, read_list_in_tx,
+    read_operational_state_in_tx, read_operational_state_page_in_tx, NodeRecord, OpStoreRow,
+    OperationalStateRecordV1, PageReaderError,
+};
+use crate::search::{
+    read_projected_text_in_tx, read_search_work_in_tx, EvidenceCapture, NoEvidenceCapture,
+    ProjectedTextReaderResponse, SearchReaderError, SearchReaderWork,
+};
+use crate::search_types::{Explanation, GraphFrontierStats, SearchHit, SoftFallback};
+#[cfg(feature = "tc5-benchmark")]
+use crate::tc5_benchmark;
+use crate::temporal::{BoundaryCrossing, ReadView};
+use crate::uninstall_profile_callback;
+#[cfg(any(test, feature = "test-hooks"))]
+use crate::wal_attribution::{
+    native_connection_state_for_test, unavailable_native_connection_state_for_test,
+    NativeConnectionStateFact, NativeStateReply,
+};
+use crate::wal_attribution::{WalAttributionCollector, WalAttributionRole};
+#[cfg(any(test, feature = "test-hooks"))]
+use crate::ManagedConnectionRegistry;
+use rusqlite::Connection;
+use std::fmt::Formatter;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::mpsc::{self, Receiver, SyncSender};
+use std::sync::{Arc, Barrier, Mutex};
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
+#[cfg(any(test, feature = "test-hooks"))]
+use std::time::Instant;

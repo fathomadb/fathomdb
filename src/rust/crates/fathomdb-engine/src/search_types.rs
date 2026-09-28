@@ -1,4 +1,5 @@
-use super::*;
+use crate::errors::EngineError;
+use crate::identity::IdSpace;
 
 /// Soft-fallback signal carried on hybrid `search` results.
 ///

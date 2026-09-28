@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 
-use crate::{WalAttributionCollector, WalAttributionRole};
+use crate::wal_attribution::{WalAttributionCollector, WalAttributionRole};
 
 /// Begin a deferred reader transaction and attribute its real SQLite snapshot.
 pub(crate) fn begin_attributed_reader_tx<'a>(

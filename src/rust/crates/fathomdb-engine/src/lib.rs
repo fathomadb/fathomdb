@@ -149,23 +149,16 @@ pub use evidence::{
     GraphEvidenceSidecarEntryV1, GraphEvidenceSidecarV1, ResolvedEvidenceV1,
     ResolvedGraphEvidenceV1,
 };
-pub(crate) use filter::PREDICATE_PATH_ALLOWLIST;
 pub(crate) use filter::{
     append_edge_eligibility_sql, append_node_eligibility_sql, body_fts_rank_sql,
-    build_vector_phase1_sql, edge_fts_hit_passes_filter, edge_fts_rank_sql,
-    hit_attributes_pass_filter, property_fts_rank_sql, text_hit_passes_filter,
-    validate_filter_attributes_on_snapshot, vector_filter_values, SnapshotFilterError,
+    build_vector_phase1_sql, edge_fts_hit_passes_filter, edge_fts_rank_sql, property_fts_rank_sql,
+    text_hit_passes_filter, validate_filter_attributes_on_snapshot, SnapshotFilterError,
 };
 pub use filter::{ComparisonOp, Filter, FilterTerm, Predicate, ScalarValue, SearchFilter};
 pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};
-pub(crate) use fusion::build_importance_confidence_maps;
 pub use fusion::{
     apply_importance_reweight, apply_recency_reweight, fuse_rrf, fuse_three_arms, RECENCY_WEIGHT,
     RRF_K, RRF_WEIGHT_GRAPH, RRF_WEIGHT_TEXT, RRF_WEIGHT_VECTOR,
-};
-use graph_expand::{
-    crossed_boundary_since_in_tx, explain_graph_neighbors_in_tx, graph_neighbors_in_tx,
-    search_expand_in_tx, search_expand_on_snapshot,
 };
 pub use graph_expand::{
     decode_graph_expand_request_v1, decode_graph_expand_result_v1, encode_graph_expand_request_v1,
@@ -203,8 +196,8 @@ pub use projection_generation::{
     ProjectionGenerationStatusV1, ProjectionReadinessV1, ProjectionRuntimeStateV1,
 };
 use projection_registry::{
-    boot_graft_declared_vector_backfill, encode_attr_vec0_present, erase_row_projections,
-    load_projection_registry, project_node_attributes, purge_row_projections_for_cursor_in,
+    boot_graft_declared_vector_backfill, erase_row_projections, load_projection_registry,
+    project_node_attributes, purge_row_projections_for_cursor_in,
     reconcile_inert_vector_enrolments_on_boot, rederive_projections_on_boot,
     reenqueue_stranded_vector_rows, register_vector_kind, truncate_row_projections_in,
     unsupported_vector_kinds, validate_nested_projection_sources_for_body,
@@ -232,24 +225,14 @@ pub use provenance::{
     ProvenancedNodeV1, SourceLocator, WriteProvenanceV1,
 };
 pub(crate) use provider::{ProviderSession, ProviderTask};
-pub(crate) use read::PageReaderError;
 #[cfg(feature = "test-hooks")]
 pub(crate) use read::{
-    canonical_page_query, read_canonical_page_baseline_in_tx, OPERATIONAL_STATE_PAGE_SQL,
-    OPERATIONAL_STATE_POINT_SQL,
-};
-pub(crate) use read::{
-    read_canonical_page_in_tx, read_collection_in_tx, read_get_by_id_in_tx, read_list_in_tx,
-    read_operational_state_in_tx, read_operational_state_page_in_tx,
+    canonical_page_query, OPERATIONAL_STATE_PAGE_SQL, OPERATIONAL_STATE_POINT_SQL,
 };
 pub use read::{NodeRecord, OpStoreRow, OperationalStateRecordV1};
 #[cfg(debug_assertions)]
 pub use reader_pool::CacheStatusReply;
-pub(crate) use reader_pool::{
-    EvidenceReaderResponse, ProjectedTextReaderResponse, ReaderRequest, ReaderResponse,
-    ReaderWorkerPool,
-};
-pub(crate) use reader_transaction::begin_attributed_reader_tx;
+pub(crate) use reader_pool::ReaderWorkerPool;
 pub use record_lifecycle::{InitialState, LifecycleState};
 pub use rerank::rerank_passages;
 #[doc(hidden)]
@@ -261,12 +244,7 @@ pub(crate) use search::{
     append_json_witness_for_test, record_slice71_profile_statement_for_test,
     slice71_search_statement_trace,
 };
-pub(crate) use search::{
-    bm25f_search_inner, prepare_search_statement, read_projected_text_in_tx,
-    read_search_work_in_tx, CapturedGraphOrigin, EvidenceCapture, FrozenQueryRuntime,
-    NoEvidenceCapture, SearchReaderError, SearchReaderWork,
-};
-pub(crate) use search_types::validate_search_result_limit;
+pub(crate) use search::{prepare_search_statement, CapturedGraphOrigin};
 pub use search_types::{
     Bm25fFieldWeights, Bm25fQueryPlan, Explanation, GraphFrontierStats, PerHitExplain, QueryTrace,
     SearchHit, SearchResult, SoftFallback, SoftFallbackBranch, StructuralDegradationCodeV1,
@@ -274,14 +252,15 @@ pub use search_types::{
     StructuralLifecycleStateV1, StructuralProjectionOriginV1, DEFAULT_SEARCH_RESULT_LIMIT,
     MAX_SEARCH_RESULT_LIMIT, SEARCH_RERANK_LIMIT, TOP_K_BIT_CANDIDATES,
 };
-pub(crate) use structural_state::structural_dependency_state;
 #[doc(hidden)]
 pub use temporal::clock_reads_for_test;
 pub(crate) use temporal::{
-    current_epoch_seconds, edge_validity_sql, edge_validity_sql_for_view, epoch_seconds_to_iso8601,
-    normalize_extractor_timestamp, reject_unrenderable_edge_epoch, FrozenView,
+    current_epoch_seconds, edge_validity_sql, epoch_seconds_to_iso8601,
+    normalize_extractor_timestamp, reject_unrenderable_edge_epoch,
 };
 pub use temporal::{BoundaryCrossing, ReadView};
+#[cfg(feature = "test-hooks")]
+pub(crate) use test_hooks::slice15_erasure_lock_hook;
 #[cfg(feature = "slice72-test-hooks")]
 #[doc(hidden)]
 pub use test_hooks::slice72_test_hooks;
@@ -298,16 +277,11 @@ pub use test_hooks::{
     arm_frozen_after_validation_hook_for_test, arm_page_after_validation_hook_for_test,
     arm_reader_search_hook_for_test, clear_reader_search_hook_for_test,
 };
-pub(crate) use test_hooks::{
-    evidence_linearization_hooks, frozen_after_validation_hook, reader_search_hook,
-};
-#[cfg(feature = "test-hooks")]
-pub(crate) use test_hooks::{explanation_finalization_hooks, slice15_erasure_lock_hook};
 #[cfg(debug_assertions)]
 pub use test_hooks::{ProjectionWorkerPauseReadyError, ProjectionWorkerTransactionPauseForTest};
 use vector_equivalence::{run_vector_equivalence_probe, usable_dense_runtime};
 use vector_storage::{
-    actual_vector_attr_columns, attr_vec0_column, decode_attr_vec0_column, decode_vector_blob,
+    actual_vector_attr_columns, decode_attr_vec0_column, decode_vector_blob,
     default_profile_dimension, delete_vector_partition_row, encode_vector_blob,
     ensure_vector_partition, hamming_bytes, kind_is_vector_committable, kind_is_vector_indexed,
     load_default_profile, quantize_binary_via_sql, reconcile_vector_attr_columns,
@@ -351,7 +325,6 @@ use fathomdb_embedder::{
 #[cfg(feature = "operator")]
 use fathomdb_embedder::MeanRecomputeTrigger;
 use fathomdb_embedder_api::{Embedder, EmbedderError as RuntimeEmbedderError, EmbedderIdentity};
-use fathomdb_query::compile_text_query;
 use fathomdb_schema::{
     migrate_with_event_sink, MigrationError as SchemaMigrationError, MigrationStepReport,
     LOCK_SUFFIX, MIGRATIONS, SCHEMA_VERSION,
@@ -362,11 +335,7 @@ use fathomdb_schema::CANONICAL_TABLES;
 use jsonschema::JSONSchema;
 #[cfg(feature = "operator")]
 use rusqlite::OpenFlags;
-#[cfg(any(test, feature = "test-hooks"))]
-use rusqlite::TransactionState;
-use rusqlite::{
-    config::DbConfig, params, CachedStatement, Connection, OptionalExtension, Statement,
-};
+use rusqlite::{config::DbConfig, params, Connection, OptionalExtension};
 use serde_json::Value;
 // `sha2::Digest` + `sha2::Sha256` — used by `safe_export` (operator-gated)
 // and unconditionally by `ingest_with_extractor` (G11 logical_id derivation).
@@ -3992,30 +3961,6 @@ impl Engine {
             DEFAULT_SEARCH_RESULT_LIMIT,
         )
         .map(|(_result, stats)| stats)
-    }
-
-    /// Test-only matched-shape canonical query without frozen-token or cursor
-    /// work. Slice 45 uses this to attribute overhead without removing
-    /// lifecycle, dependency, validity, or eligibility predicates.
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn read_canonical_page_baseline_for_test(
-        &self,
-        kind: &str,
-        context: &FrozenReadContextV1,
-        limit: usize,
-    ) -> Result<Vec<NodeRecord>, EngineError> {
-        self.ensure_open()?;
-        let (respond, receive) = mpsc::sync_channel(1);
-        self.reader_pool
-            .dispatch(ReaderRequest::canonical_page_baseline(
-                kind.to_string(),
-                context.clone(),
-                limit,
-                respond,
-            ))
-            .map_err(|_| EngineError::Closing)?;
-        self.receive_page_result(receive)
     }
 
     /// Test-only stage attribution for the Slice 45 performance receipt.
@@ -7948,6 +7893,7 @@ mod slice20_fix1_tests;
 
 #[cfg(test)]
 mod tests {
+    use super::reader_pool::ReaderRequest;
     use super::vector_storage::KIND_TO_SOURCE_TYPE_CASE_SQL;
     use super::{
         acquire_lock_without_metadata_mutation, derive_stable_id,
@@ -7956,10 +7902,9 @@ mod tests {
         retain_complete_rank_boundary_candidates, DeviceResolution, EmbedderChoice, Engine,
         EngineError, EngineOpenError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
         ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, ProjectionRuntime,
-        ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole, ReaderRequest,
-        RuntimeProbeConnection, SearchHit, SoftFallbackBranch, SourceId, WalAttributionCollector,
-        WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS, PROJECTION_WORKERS, READER_POOL_SIZE,
-        ROW_OWNED_PROJECTIONS,
+        ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole, RuntimeProbeConnection,
+        SearchHit, SoftFallbackBranch, SourceId, WalAttributionCollector, WalAttributionRole,
+        ERASURE_WAL_TRUNCATE_ATTEMPTS, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,

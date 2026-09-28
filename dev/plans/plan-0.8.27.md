@@ -586,10 +586,10 @@ moving them again:
 - `search.rs`: `SearchReaderWork`, `FrozenQueryRuntime`, `EvidenceCapture`,
   `NoEvidenceCapture`, the search-only `SearchReaderError`, and the
   projected-text handler result. `read_projected_text_in_tx` returns
-  `Result<SearchResult, SearchReaderError>` directly, or
-  `ProjectedTextReaderResponse` moves to `search.rs`. Before that ownership is
-  final, filter validation, frozen-read validation, read handlers, and graph
-  handlers stop consuming `SearchReaderError`;
+  `Result<SearchResult, SearchReaderError>` directly; no pool-owned response
+  alias crosses into the handler. Before that ownership is final, filter
+  validation, frozen-read validation, read handlers, and graph handlers stop
+  consuming `SearchReaderError`;
 - `filter.rs`: a narrow private snapshot-filter validation error containing
   only storage and invalid-filter outcomes. Each caller maps it into its local
   error without changing public error mapping or refusal precedence;
@@ -635,8 +635,13 @@ The intended governed boundary is
 80 cycles: `search` ↔ `graph_expand`, `read` ↔ `reader_pool`,
 `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`, and it
 introduces no `search` ↔ `reader_pool` cycle. This is a boundary policy, not a
-claim that it enumerates every dependency or cycle in the crate. In particular,
-graph and read handlers do not depend on `search::SearchReaderError`.
+claim that this prose enumerates every permitted dependency or cycle in the
+crate. Facade-to-handler type edges such as `read_api → read` and
+`search_api → search/search_types/frozen_read/graph_expand` are expected.
+The report-only phase freezes their exact item-level forms in the committed
+policy file; that file, not this illustrative list, defines the expected edge
+set used by AC27-85C. In particular, graph and read handlers do not depend on
+`search::SearchReaderError`.
 
 Slice 85 must not expand into whole-crate import normalization or force a type
 or helper into an unnatural owner merely to make the graph visually simpler.
@@ -651,6 +656,18 @@ Rust privacy enforces field privacy and construction boundaries. Explicit
 imports make most edges visible. Dependency direction is enforced by a small
 `syn`-based AST gate in the normal `agent-lint` path; the compiler does not
 prove the module graph.
+
+The gate lives in `dev/tools/module-boundary-gate/` as a locked standalone
+developer-tool crate with its own `[workspace]`; it is not a shipping crate or
+an eleventh member of the root Cargo workspace. Its `syn` dependency disables
+default features and enables exactly `full`, `parsing`, and `visit`; its direct
+`proc-macro2` dependency enables `span-locations` for diagnostics. The crate
+checks in its own lockfile, is covered by the repository dependency/license
+gates, and is invoked by `scripts/agent-lint.sh` through a thin script that
+reuses a cached binary only when its manifest, lockfile, or Rust sources are
+unchanged. The implementation batch updates `AGENTS.md` only if review changes
+this decision and makes the tool a root-workspace member; no stale crate-count
+exception is permitted.
 
 Governed modules:
 
@@ -780,6 +797,12 @@ model:
 - callable references such as `let f = Engine::search_inner` and
   `let f = root_helper` create the edge when the item is referenced, even if
   invocation occurs later; and
+- a governed module may not define an unlisted local free function whose name
+  shadows a governed owner-qualified callable. The gate resolves declarations
+  before calls, reports both locations, and requires an owner-qualified call
+  or a reviewed local adapter name; this catches wrappers such as the current
+  graph-local `validate_filter_attributes_on_snapshot` instead of attributing
+  them silently to `filter`; and
 - an unresolved dot call whose name belongs to a governed cross-boundary
   method fails with a request for an owner-qualified call or a syntactically
   resolvable receiver. External same-name methods are never silently assigned
@@ -832,7 +855,9 @@ focused behavior tests.
 2. Build the gate in four independently reviewable RED/GREEN sub-batches:
    source discovery/classification; imports and item-level root graph; Engine
    fields/methods and callable references; inherent-method policy plus negative
-   fixtures. Run it report-only against production.
+   fixtures. The first sub-batch creates the standalone tool crate, lockfile,
+   lint hook, dependency/license coverage and cache-staleness test. Run it
+   report-only against production.
 3. Move one lower owner per batch: `structural_state`, then
    `wal_attribution`, then its consumer `reader_transaction`.
 4. Characterize and separate the narrow handler errors first, preserving exact
@@ -861,10 +886,12 @@ AC27-85D additionally requires whole-crate edge extraction and fixed-point
 root reach as specified above. AC27-85E additionally requires a two-helper
 root chain, a return path through two report-only modules (one glob-only),
 and a path through an admitted module, each with the tested edge as the sole
-reverse edge. Positive fixtures retain an unrelated outside glob and the
-named `EngineError` payload admission; negative mutants add executable graph
-calls behind that admission and ambiguous-glob return paths. No fixture may
-pass merely because its intermediate module is outside the governed seed.
+reverse edge. It also requires a local free-function shadow fixture whose only
+reverse edge passes through the shadowing wrapper. Positive fixtures retain an
+unrelated outside glob and the named `EngineError` payload admission; negative
+mutants add executable graph calls behind that admission, ambiguous-glob
+return paths, and an unlisted shadowing adapter. No fixture may pass merely
+because its intermediate module is outside the governed seed.
 
 The gate follows characterization-first TDD; carrier and facade moves follow
 mechanical RED/GREEN compile cycles. Gate and error batches target roughly
@@ -886,9 +913,9 @@ verification bind the closeout to the exact candidate, as for prior slices.
 | --- | --- | --- |
 | R27-85A | Every root-kept carrier receives durable non-root semantic ownership without field widening, rooted-contract drift, or invented leaf ownership. | AC27-85A: `ReaderWorkerPool`, `SearchReaderWork`, every reader request/response carrier, `FrozenQueryRuntime`, reader errors/constants, `WalAttributionCollector`, every `Reader*Pause` alias and related attribution helper, `TelemetrySink`, `EvidenceCapture`, and `begin_attributed_reader_tx` each move to a named non-root semantic owner. `PageReaderError` is read-owned; projected text uses the direct search result; filter validation and graph search expansion use characterized narrow errors rather than `SearchReaderError`. Handler modules never depend on `reader_pool`, and every proposed shared leaf has its transitive dependencies verified. All previously private fields remain private and every rooted public/re-export path is exact. Any item retained at root has an item-specific design-review exception proving durable ownership and the stronger invariant that moving it would violate. |
 | R27-85B | Facades and handler results do not create reverse handler dependencies. | AC27-85B: all four Slice 80 cycles—`search` ↔ `graph_expand`, `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`—are absent from every applicable governed configuration graph; no `search` ↔ `reader_pool` or other new governed cycle appears; and graph/read/filter/frozen-read code does not depend on `search::SearchReaderError`. |
-| R27-85C | Remaining governed dependencies are explicit and minimal without expanding Slice 85 into whole-crate normalization. | AC27-85C: source discovery classifies every crate module, while a committed graph accounts for every edge in the reviewed read/search/graph boundary under the enforced source grammar. Composition, contract, ordinary owner, capability, and callable-reference edges remain distinguishable. Root executable items participate individually in SCCs; admitted root contracts do not invent executable paths. None of the four Slice 80 cycles is eligible for retention, an exception, or an allowlist. Only `search` ↔ `dependency_closure`, `search` ↔ `evidence`, and `graph_expand` ↔ `evidence` are initial candidates for the narrow, shrink-only boundary allowlist. Other crate cycles are reported without automatic scope expansion. An unexpected governed edge fails with source, destination, edge kind, configuration, and location. |
-| R27-85D | Dependency direction is enforced by a normal-lint AST gate over explicit ownership; Rust privacy enforces field and construction boundaries. | AC27-85D: normal `agent-lint` runs the `syn` gate under the source grammar above. The source-derived module inventory has a complete reviewed classification; the source-derived Engine field inventory has an exact owner/exemption map; the Engine method map is derived only from source and is nonempty and cfg-consistent; externally visible inherent methods equal their reviewed owner-qualified list; and root contracts/exclusions are exact and stale-safe. The gate extracts whole-crate edges, records field access and callable references as well as calls, follows item-level executable root reach to a fixed point, rejects governed globs and conservatively handles outside globs, rejects unresolvable relevant receivers, external-name ambiguity, root-re-export indirection, and unreviewed relevant macros, and emits separately labelled default, test-hooks, tc5-benchmark, and cfg(test) graphs plus SCC diagnostics. |
-| R27-85E | The structural gate is non-vacuous across its enforced source grammar. | AC27-85E: compiled fixtures cover grouped/aliased/re-exported imports, glob rejection, same-line/multiline parity; direct, non-call, dereferenced, typed-binding, simple-alias, closure-captured, and conservative-unknown-base Engine fields; `self`/`Self`/`Engine` method calls, typed bindings, simple aliases, callable references, and unresolved-alias rejection; listed qualified constructors/receiver operations, unlisted declarations, duplicate names, external same-name calls, and stale list entries; admitted root contracts, composition-only root metadata, a sole reverse edge through one executable root helper, and unrelated root helpers; nested and cfg-gated modules plus missing/stale/empty classifications and maps. Each edge family has a compiled negative fixture whose tested edge is the only reverse edge. Independent production mutants exercise each extractor and the four former cycles, fail with the exact edge/policy diagnostic, and restore the source exactly. Fast fixtures run in normal lint; production mutation qualification runs when the gate changes and at closeout. |
+| R27-85C | Remaining governed dependencies are explicit and minimal without expanding Slice 85 into whole-crate normalization. | AC27-85C: source discovery classifies every crate module, while a committed policy file frozen after report-only accounts for every expected item-level edge in the reviewed read/search/graph boundary under the enforced source grammar; prose examples are non-authoritative. Composition, contract, ordinary owner, capability, and callable-reference edges remain distinguishable. Root executable items participate individually in SCCs; admitted root contracts do not invent executable paths. None of the four Slice 80 cycles is eligible for retention, an exception, or an allowlist. Only `search` ↔ `dependency_closure`, `search` ↔ `evidence`, and `graph_expand` ↔ `evidence` are initial candidates for the narrow, shrink-only boundary allowlist. Other crate cycles are reported without automatic scope expansion. An edge absent from the frozen policy fails with source, destination, item identities, edge kind, configuration, and location. |
+| R27-85D | Dependency direction is enforced by a normal-lint AST gate over explicit ownership; Rust privacy enforces field and construction boundaries. | AC27-85D: normal `agent-lint` runs the locked standalone `dev/tools/module-boundary-gate` crate with the specified minimal parser features and a tested stale-cache rebuild rule. The source-derived module inventory has a complete reviewed classification; the source-derived Engine field inventory has an exact owner/exemption map; the Engine method map is derived only from source and is nonempty and cfg-consistent; externally visible inherent methods equal their reviewed owner-qualified list; and root contracts/exclusions are exact and stale-safe. The gate extracts whole-crate edges, records field access and callable references as well as calls, follows item-level executable root reach to a fixed point, rejects governed globs and conservatively handles outside globs, rejects unresolvable relevant receivers, external-name ambiguity, root-re-export indirection, and unreviewed relevant macros, and emits separately labelled default, test-hooks, tc5-benchmark, and cfg(test) graphs plus SCC diagnostics. |
+| R27-85E | The structural gate is non-vacuous across its enforced source grammar. | AC27-85E: compiled fixtures cover grouped/aliased/re-exported imports, glob rejection, same-line/multiline parity; direct, non-call, dereferenced, typed-binding, simple-alias, closure-captured, and conservative-unknown-base Engine fields; `self`/`Self`/`Engine` method calls, typed bindings, simple aliases, callable references, unresolved-alias rejection, and a local free-function shadow; listed qualified constructors/receiver operations, unlisted declarations, duplicate names, external same-name calls, and stale list entries; admitted root contracts, composition-only root metadata, a sole reverse edge through one executable root helper, a transitive leave-and-return path, and unrelated root helpers; nested and cfg-gated modules plus missing/stale/empty classifications and maps. Each edge family has a compiled negative fixture whose tested edge is the only reverse edge. Independent production mutants exercise each extractor and the four former cycles, fail with the exact edge/policy diagnostic, and restore the source exactly. Fast fixtures run in normal lint; production mutation qualification runs when the gate changes and at closeout. |
 | R27-85F | The boundary change preserves behavior and surfaces from a verified exact baseline. | AC27-85F: before any move, a capable host with the required free space, native module, and GPU tooling must pass exact-baseline `agent-verify`, the candidate-bound native receipt, and official public and hidden captures. After the move, focused read/search/graph/evidence/reader/WAL routes, applicable feature builds, source-scraping gates, exact public surface, additive-only hidden surface, and runtime receipts match that baseline except for reviewed structural inventory additions. The request envelope remains within its size bound; transaction lifetime, attribution finish order, pool-before-profile-context drop order, worker-zero WAL pinning, cfg gates, and qualified test identities are unchanged. |
 | R27-85G | Security evidence is not overstated. | AC27-85G: Slice 85 makes no current-HEAD or final-candidate AC-037 claim. The `66e27983` and `24813b8e` runs remain historical or diagnostic only; Slice 150 alone owns exact-final-candidate live qualification. |
 

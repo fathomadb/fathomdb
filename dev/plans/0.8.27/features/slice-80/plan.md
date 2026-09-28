@@ -161,8 +161,9 @@ The fields are `search_limit_override`, `recency_reweight_enabled`,
   - Moving them to `Engine` state would change two struct shapes and touch
     the test seams, which are Slice 140 territory.
   - The move buys no behavior.
-  - Slice 90 finalizes `Engine`'s state, and it may relocate them then, as
-    part of the facade closure, with its own design review.
+  - Historical note: this plan originally allowed Slice 90 to relocate them.
+    The later reviewed Slice 90 design supersedes that optional handoff and
+    retains them on `ProjectionRuntimeShared` with item-specific rationale.
 - **What records the decision:** `design.md` records it. Search reads the
   fields through the unchanged `projection_runtime.shared` path.
 

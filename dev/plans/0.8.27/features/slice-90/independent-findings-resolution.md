@@ -2,6 +2,7 @@
 title: Slice 85 and 90 independent findings — code-grounded resolution
 status: PLANNED
 reviewed_candidate: ab8f43be2c9ceaa9ad19b23b23f40e9d2c484513
+minor_review_candidate: ce71afe511545d963f141b5c9c051fc8638bd6b4
 target_release: 0.8.27
 ---
 
@@ -22,6 +23,18 @@ are unchanged.
 | P2-2: governed glob removal has no batch allocation | Correct and beneficial | Explicit one-module import batches inside stages 3–5, 300–1,200 mechanical changed lines, compile/focused/report gates each time, zero unapproved governed globs at enforcement. Edge-admitted modules are not wholesale governed modules. |
 | P2-3: remainder owner map delegates design | Correct and beneficial | Add fixed rows for importance operations, nonce, RowKind, transition/embedder helpers, cursor/projection helpers, SQLite conversion/name helpers, public status/readiness types, telemetry/lifecycle and domain constants. Entry inventory confirms, never invents, final owners. |
 | P2-4: missing current consumer/default/width map | Correct and beneficial | Add five-row code-grounded table, actual versus accepted executor distinction, reader-pool and NAPI separation, retention and slow-threshold consumers, and explicit numeric-range/overflow/precedence acceptance. |
+
+The primary agent separately reviewed the six minor findings from the same
+independent pass. All are correct and beneficial:
+
+| Finding | Resolution |
+| --- | --- |
+| P3-1: projected-text ownership retained an alternative | Select the already accepted direct `Result<SearchResult, SearchReaderError>` shape and delete the unused alternative. |
+| P3-2: the gate had no implementation home | Fix it as a locked standalone crate under `dev/tools/module-boundary-gate`, outside the shipping workspace, with minimal named `syn`/`proc-macro2` features and an explicit normal-lint hook/cache contract. |
+| P3-3: local free-function shadowing was unchecked | Reject unlisted governed-owner function shadows and add a sole-reverse-edge fixture and production mutant. |
+| P3-4: the prose boundary could be mistaken for the exact policy | Make the report-only-frozen committed policy file authoritative, with prose examples explicitly illustrative. |
+| P3-5: the AC-037 decision ID named the wrong predecessor | Rename it to `final-candidate-ac-037-at-slice-150`; its ruled content is unchanged. |
+| P3-6: Slice 80's historical handoff wording conflicted with the later design | Add a supersession note while preserving the historical decision and implementation record. |
 
 ## Evidence
 
@@ -96,7 +109,8 @@ release-state open decision make that dependency explicit.
 The full Markdown wrapper, separate plan-status lint, generated-view check,
 plan-anchor check, JSON parse and `git diff --check` passed. The stale/optional
 wording scan found no permission to ignore a knob or silently defer closure;
-the original verbatim recommendation has no diff. No engine/runtime correctness or
-independent design approval is claimed by those checks. The P2 findings are
-remediated in prospective design; P1's evidence and scope are corrected but
-its architectural acceptance remains **BLOCKED pending HITL decision**.
+the original verbatim recommendation has no diff. No engine/runtime correctness
+or independent design approval is claimed by those checks. The P2 and P3
+findings are remediated in prospective design; P1's evidence and scope are
+corrected but its architectural acceptance remains **BLOCKED pending HITL
+decision**.

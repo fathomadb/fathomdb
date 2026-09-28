@@ -74,6 +74,7 @@ mod projection_worker;
 mod provenance;
 mod provider;
 mod read;
+mod read_api;
 mod reader_pool;
 mod reader_transaction;
 mod record_lifecycle;

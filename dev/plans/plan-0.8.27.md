@@ -950,25 +950,34 @@ Slice 140 work. The following runtime-owned work remains in Slice 90:
 
 ### Slice 100 — PyO3 binding decomposition
 
-Decompose the binding into errors, types, facade, write translation,
-read/search, graph/evidence, projection, and embedding/admin concerns.
-
-Build and import an actual artifact. Compare registrations, names, signatures,
-exception identity/mapping, stub alignment, and supported imports with the
-Slice 30 baseline. Test blocking/GIL behavior with deterministic barriers.
-Preserve one `_fathomdb` module and update `_fathomdb.pyi` in the same change.
+**PLANNED; uncommissioned.** Execute the prospective
+[`Slice 100 design`](0.8.27/features/slice-100/design.md) after Slice 90's
+configuration handoff is complete. Decompose native errors, FFI execution,
+carriers and semantic operations while retaining one `_fathomdb` initializer
+and one native Engine identity. Exact source/registration inventories,
+GIL/lifetime/error tests, immutable-plus-reviewed-delta surface comparisons,
+fresh installed-wheel evidence and independent review/verification are exit
+requirements. Python SDK decomposition remains Slice 130. Zero open Slice
+100 obligations is a prerequisite for Slice 110.
 
 ### Slice 110 — napi-rs binding decomposition
 
-Apply the same vocabulary where responsibilities match while retaining
-language-specific conversion and async plumbing.
-
-Build and pack/install the artifact in a clean Node consumer. Compare generated
-exports/declarations, package exports, error envelopes, panic containment,
-synchronous throw versus Promise rejection, hostile-string fixtures, wrong
-types, overflow, and async responsiveness. Do not assert Rust file placement.
+**PLANNED; uncommissioned.** Execute the prospective
+[`Slice 110 design`](0.8.27/features/slice-110/design.md) after Slice 100 closes.
+Use shared vocabulary only where responsibilities match; preserve NAPI's
+language-specific conversion, registration and async boundaries. The design
+requires exact native/runtime/declaration inventories, resolved executor and
+subscriber contracts, async/lifetime/FFI proof, and an installed thin-main plus
+platform-binary package pair. Production declaration generation and runtime
+exports are separate oracles. Zero open Slice 110 obligations unblocks Slice
+120. No Slice 111 is allocated: bounded sub-batches provide sufficient review
+and verification boundaries within 110.
 
 ### Slice 120 — TypeScript SDK decomposition
+
+Consumes the complete, reviewed native substrate and installed-package
+receipts from Slice 110. No native conversion, callback/executor, error,
+registration, declaration-generation or packaging obligation is deferred here.
 
 Reduce `index.ts` to exports and thin `Engine` wiring, with domain logic under
 read, write, search, graph, evidence, projection, and admin modules.

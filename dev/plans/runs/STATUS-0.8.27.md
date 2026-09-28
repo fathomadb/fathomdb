@@ -210,5 +210,14 @@ grant/revert evidence.
   shared search-control fields have explicit retained-owner dispositions.
   Slice 90 remains PLANNED. No Slice 91 is allocated; ordered reviewed batches
   provide the needed boundaries within Slice 90.
+- Prospective [Slice 100](../0.8.27/features/slice-100/design.md) and
+  [Slice 110](../0.8.27/features/slice-110/design.md) designs now require exact
+  native ownership/registration inventories, contract disposition, installed
+  artifact and feature/platform proof, and zero outstanding obligations at
+  each exit. Slice 90 supplies completed configuration behavior; 100/110
+  decompose the native bindings. The existing no-op subscribers and NAPI
+  executor/ADR mismatch need explicit closure within their owning binding
+  slices. These are planned obligations, not implementation findings claimed
+  fixed. No Slice 111 is allocated; Slice 120 still depends on completed 110.
 - No temporary branch or worktree was created for prework; the existing
   `release/0.8.27` worktree remains the active release workspace.

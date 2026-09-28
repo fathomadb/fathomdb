@@ -132,6 +132,34 @@ against the separately captured post-correction candidate as well. Binding
 decomposition still belongs to Slices 100/110/120/130; only config forwarding
 and its necessary native signature/stub/declaration updates occur here.
 
+### Binding handoff to Slices 100 and 110
+
+Slice 90 closes configuration behavior before either binding is decomposed.
+Keep changes in the existing binding owners: Python config/open, the PyO3
+native open seam and stub, NAPI options/open, and TypeScript options/open.
+Do not introduce a second Engine wrapper, alternate native module, generic
+adapter hierarchy, or new callback executor merely to forward configuration.
+The engine-owned scheduler/embedder knobs do not configure the NAPI host
+handoff pool. Review that distinction in the five-knob consuming-component
+map and test it directly.
+
+The handoff is a candidate-bound package containing the resolved option
+contracts, conversion/validation order, effective-value evidence, exact native
+signatures, approved surface deltas, production and test-feature artifacts,
+runtime export/registration captures, Python stub and generated Node
+declarations, hashes, and installed-consumer results. Slices 100/110 compare
+their moves against these corrected entry contracts as well as the immutable
+Slice 30 baseline plus reviewed deltas. They do not reimplement forwarding or
+repeat a completed configuration correction. A missing or failing handoff
+receipt blocks Slice 90 exit rather than becoming binding-decomposition debt.
+
+At baseline the native subscriber methods accept arguments but do not deliver
+events, and NAPI's executor differs from the older accepted async ADR's named
+mechanism. These are separate binding-contract questions, not engine-config
+options. The binding designs require explicit pre-move disposition and any
+necessary separately tested correction within their own slice; no claim of
+callback/executor conformance is inferred from configuration tests.
+
 ## Ordered batches and checks
 
 1. Capture the exact entry baseline, inventory and reviewed owner map. Reuse

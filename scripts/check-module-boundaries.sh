@@ -9,6 +9,7 @@ MANIFEST="$TOOL_DIR/Cargo.toml"
 LOCKFILE="$TOOL_DIR/Cargo.lock"
 BINARY="$TOOL_DIR/target/debug/fathomdb-module-boundary-gate"
 CARGO_BIN="${FATHOMDB_MODULE_BOUNDARY_CARGO:-cargo}"
+newer_source="$(find "$TOOL_DIR/src" -type f -name '*.rs' -newer "$BINARY" -print -quit 2>/dev/null || true)"
 
 if ! grep -Fqx 'license = "MIT"' "$MANIFEST" ||
   ! grep -Fqx 'proc-macro2 = { version = "1.0.106", features = ["span-locations"] }' "$MANIFEST" ||
@@ -22,7 +23,7 @@ if [ ! -x "$BINARY" ]; then
   stale=1
 elif [ "$MANIFEST" -nt "$BINARY" ] || [ "$LOCKFILE" -nt "$BINARY" ]; then
   stale=1
-elif find "$TOOL_DIR/src" -type f -name '*.rs' -newer "$BINARY" -print -quit | grep -q .; then
+elif [ -n "$newer_source" ]; then
   stale=1
 fi
 

@@ -194,6 +194,9 @@ grant/revert evidence.
 - Publication is unauthorized.
 - Slices 30, 40, 50, 60, 70, and 80 were directly authorized by the repository
   owner and are complete. Slice 85 and later slices require separate
-  commission.
+  commission. The Slice 85 design was corrected on 2026-09-27 after a
+  code-grounded review (handler-result ownership, `Engine`-method and
+  field-alias edges, crate-root semantics, ordered batches) and needs an
+  independent design review before it is commissioned.
 - No temporary branch or worktree was created for prework; the existing
   `release/0.8.27` worktree remains the active release workspace.

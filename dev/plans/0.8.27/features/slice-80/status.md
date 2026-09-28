@@ -126,7 +126,9 @@ in the master plan and `design.md`:
   `search_api.rs`, leaf `structural_state.rs`, leaf `reader_transaction.rs`,
   top-level `wal_attribution.rs` for `WalAttributionCollector`, every
   `Reader*Pause` alias, and related attribution phases/helpers, pool protocol
-  in `reader_pool.rs`, search carriers in `search.rs`, and `TelemetrySink` in
+  in `reader_pool.rs`, handler-returned errors/results with their handlers
+  (`PageReaderError` in `read.rs`, the projected-text result in `search.rs`),
+  search carriers in `search.rs`, and `TelemetrySink` in
   `telemetry.rs`. Fields stay private and Slice 90 must not redesign these
   boundaries. `graph_expand/execution.rs` retains only private non-`Engine`
   helpers and `*ForTest` carriers, while typed private pool factories cover
@@ -135,10 +137,12 @@ in the master plan and `design.md`:
 - eliminate all four Slice 80 cycles: `search` ↔ `graph_expand`,
   `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and
   `graph_expand` ↔ `search_api`; and
-- enforce the exact dependency graph through compiler-visible ownership and a
-  non-vacuous `syn` AST gate in normal lint. It must derive/compare the full
-  in-scope module and governed Engine-field sets, allowing only named reviewed
-  exclusions; only the three inherited earlier-slice cycles named in
+- enforce the exact dependency graph through a non-vacuous `syn` AST gate in
+  normal lint over explicit ownership (Rust privacy enforces only fields and
+  construction). It must derive/compare the module set, governed
+  Engine-field set, `Engine` method map, and cross-module inherent methods,
+  record every field access and `Engine`-method call, and define crate-root
+  semantics, allowing only named reviewed exclusions; only the three inherited earlier-slice cycles named in
   `design.md` are initially eligible for a shrink-only allowlist; and
 - before any move, obtain successful exact-baseline canonical verification,
   native receipt, and official public and hidden captures on a capable host.

@@ -195,8 +195,11 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     The collector and aliases move together; Slice 90 consumes this settled
     boundary without redesigning it.
   - `reader_pool.rs` owns `ReaderWorkerPool`, the request protocol and boxed
-    envelopes, response aliases, page errors, reader constants, and
+    envelopes, the pool-level response aliases, reader constants, and
     `CacheStatusReply`; the latter keeps its exact rooted public re-export.
+    Handler-returned types stay with their handlers: `PageReaderError` in
+    `read.rs` and the projected-text result in `search.rs` (corrected by the
+    2026-09-27 Slice 85 design review; the master plan is authoritative).
     `search.rs` owns `SearchReaderWork`, `FrozenQueryRuntime`,
     `EvidenceCapture`, `NoEvidenceCapture`, and `SearchReaderError`.
     `telemetry.rs` owns `TelemetrySink`; reader pause carriers move with WAL
@@ -230,6 +233,10 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
     `read/search/graph_expand → reader_transaction`,
     `reader_pool/reader_transaction → wal_attribution`, and
     `search/graph_expand → structural_state`.
+  - *Superseded 2026-09-27:* the corrected Slice 85 section of
+    `plan-0.8.27.md` is authoritative for enforcement. The summary below
+    predates it: it omits `Engine`-method, field-alias, and crate-root edges
+    and overstates compiler enforcement.
   - dependency enforcement combines compiler-visible explicit ownership with
     a small `syn` AST gate in normal `agent-lint`. Governed modules forbid
     wildcard import/re-export and root-re-export indirection, colocate inherent

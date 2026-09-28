@@ -8,6 +8,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
 SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
 ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
+WAL_ATTRIBUTION_SOURCE="${WAL_ATTRIBUTION_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/wal_attribution.rs}"
 # Reader-pool ownership and completion live in their extracted module.
 READER_POOL_SOURCE="${READER_POOL_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/reader_pool.rs}"
 # `impl ProjectionRuntime` (runtime inventory replies) lives in its own module.
@@ -330,16 +331,20 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
   'binding_connection_inventory_for_test' \
   'checkpoint_at_rest_for_test' \
   "engine retains private inventory and checkpoint sampler seams"
-assert_contains "$(<"$ENGINE_SOURCE")" \
+assert_contains "$(<"$WAL_ATTRIBUTION_SOURCE")" \
   'NativeTransactionState' \
   'native_connection_state_for_test' \
-  'binding_native_state_observations' \
-  "engine retains private native SQLite transaction and statement-state observation"
+  "WAL owner retains private native SQLite transaction and statement-state observation"
 assert_contains "$(<"$ENGINE_SOURCE")" \
+  'binding_native_state_observations' \
+  "engine retains the private binding observer field"
+assert_contains "$(<"$WAL_ATTRIBUTION_SOURCE")" \
   'connection.transaction_state(Some("main"))' \
   'connection.is_busy()' \
+  "WAL owner uses rusqlite state APIs on owning connections without custom SQLite FFI"
+assert_contains "$(<"$ENGINE_SOURCE")" \
   'WalNativeStateInventory' \
-  "engine uses rusqlite state APIs on owning connections without custom SQLite FFI"
+  "engine retains the native-state reader request"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   '#[cfg(any(test, feature = "test-hooks"))]' \
   'actual_checkpoint_observations: Mutex<Option<ActualCheckpointObserver>>' \
@@ -356,7 +361,11 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
   "source classifies every Engine-managed SQLite open"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'fn wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' \
-  "engine source owns the WAL-attribution runtime and tests"
+  "engine source retains the WAL-attribution tests"
+assert_contains "$(<"$WAL_ATTRIBUTION_SOURCE")" \
+  'struct WalAttributionCollector' \
+  'enum WalAttributionRole' \
+  "WAL attribution module owns the runtime"
 assert_contains "$(<"$ERASURE_SOURCE")" \
   'pub(crate) fn complete_erasure_at_rest(' \
   "erasure source owns complete_erasure_at_rest"
@@ -685,7 +694,7 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   wrong_engine_owner_rc=$?
   set -e
   if [ "$wrong_engine_owner_rc" -ne 0 ] \
-    && grep -Fq 'engine source owns the WAL-attribution runtime and tests' <<<"$wrong_engine_owner_out"; then
+    && grep -Fq 'engine source retains the WAL-attribution tests' <<<"$wrong_engine_owner_out"; then
     pass "fixture proves ENGINE_SOURCE is independently injectable"
   else
     fail "fixture did not reject the wrong engine owner: $wrong_engine_owner_out"

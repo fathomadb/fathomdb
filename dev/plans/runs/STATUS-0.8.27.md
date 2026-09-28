@@ -178,7 +178,7 @@ PASS-WITH-FIXES. Fix-1 `b8af4d86` made two changes, with no behavior change:
 - it narrowed six over-visible items.
 
 The records list four Slice 80 module cycles and add the Slice 140 test-seam
-carry-over. Planning-only Slice 85 owns elimination of all four and non-root
+carry-over. Commissioned Slice 85 owns elimination of all four and non-root
 semantic placement of every root-kept carrier; only the three inherited cycles
 inside its bounded read/search/graph policy are initially allowlist-eligible.
 Other crate cycles and broad import normalization are reported without being

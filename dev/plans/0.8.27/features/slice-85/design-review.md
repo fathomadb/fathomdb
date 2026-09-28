@@ -90,3 +90,12 @@ entry qualification. The release-state JSON and execution plan correctly said
 The board row is corrected in the same fix. No design or production change is
 required. A subsequent GPT-5.6 Sol high review must verify this correction
 before implementation begins.
+
+## Execution-plan rereview cycle 2 — FAIL at `20910eee`
+
+The required GPT-5.6 Sol high rereview verified the corrected Slice 85 table
+row but found a second P3 in the same living board: a later verification
+paragraph still called Slice 85 planning-only. That paragraph is corrected to
+say commissioned. The same phrase in closed Slice 80 records is retained as
+historically accurate at the time those records were written. No requirements,
+acceptance, design, or production change is required.

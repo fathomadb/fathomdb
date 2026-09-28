@@ -159,8 +159,11 @@ search-index projectors, and final placement of the four search-owned
 `ProjectionRuntimeShared` fields.
 
 These are handoffs. Slice 85 is planned but uncommissioned; its feature
-directory contains only the durable architecture recommendation, and no
-implementation package was created.
+directory contains prospective review records and the unchanged durable
+architecture recommendation; no implementation package was created. The
+prospective [Slice 90 design](../slice-90/design.md) closes every named runtime
+handoff within Slice 90 through explicit ownership dispositions and acceptance
+before Slice 100; it does not reopen this historical Slice 80 closeout.
 
 Production is unchanged after `0efa62c5`. The implementation candidate is the
 test-only `1d7f826c`; the independently reviewed candidate is `b7403958`, and

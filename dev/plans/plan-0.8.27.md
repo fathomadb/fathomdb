@@ -545,7 +545,8 @@ production mutants, and create no generated golden oracle.
 Settle the read-side carrier ownership and module dependency graph before the
 runtime facade is reduced. This is a planned slice only: this section does not
 commission implementation. The Slice 85 feature directory contains only the
-durable architecture recommendation; no implementation package exists yet.
+durable architecture recommendation and prospective design-review records;
+no implementation package exists yet.
 
 **Design status.** A code-grounded review on 2026-09-27 found that the earlier
 revision re-created prohibited cycles through handler-returned types, left
@@ -694,12 +695,13 @@ module is Slice 85 work.
   new endpoint needs an item-specific contract admission or a reviewed plan
   change.
 - **`Engine` field set.** Derive the complete `Engine` struct field inventory.
-  A committed field-owner or reviewed-exemption map accounts for every field
-  relevant to the governed boundary.
+  Every discovered field has exactly one committed owner or named reviewed
+  out-of-scope exemption; relevance is never inferred by omitting a field.
 - **`Engine` method set.** Derive every method and defining module from every
   `impl Engine` block, including overlapping `cfg` forms. This map is
-  source-authoritative and has no duplicate hand-kept manifest; empty,
-  duplicate, or cfg-overlapping definitions fail.
+  source-authoritative and has no duplicate hand-kept manifest. Empty maps and
+  multiple definitions active in the same checked configuration fail;
+  mutually exclusive platform/feature definitions remain separate entries.
 - **Cross-module inherent methods.** Derive every inherent method on a governed
   type whose visibility exceeds its owner module. The declarations must equal
   a reviewed owner-qualified list; stale and unlisted entries fail. `Engine`
@@ -713,6 +715,15 @@ The gate reports composition edges, contract/type references, ordinary owner
 dependencies, `Engine`-field capability accesses, and callable references as
 different edge kinds. Ordinary governed type-owner dependencies participate in
 SCC calculation unless an item-specific contract admission says otherwise.
+Admissions are limited to named type-only relationships, never a callable,
+field access, or any edge needed to recreate one of the four forbidden cycles.
+Re-export facades resolve to the defining item; their composition links must
+not manufacture execution edges between graph submodules. Every admitted or
+out-of-scope endpoint is reported. A path that leaves the governed set and
+returns is reported as an unresolved boundary path and blocks closeout until
+its intervening items are analysed or a reviewed type-only admission proves
+there is no executable return path. This requires focused item inspection,
+not import normalization of the intervening subsystem.
 
 **Crate-root semantics.** `lib.rs` is the composition root, but root is not one
 aggregate executable node:
@@ -747,9 +758,16 @@ model:
   to a governed owner.
 
 The gate therefore emits an exact graph **under the enforced source grammar**,
-not an exact Rust semantic call graph. It computes separately labelled graphs
-for default, `test-hooks`, `tc5-benchmark`, and `cfg(test)` code; a union report
-does not replace those configuration-specific results.
+not an exact Rust semantic call graph. Configuration inputs are explicit
+compiler-reported target cfg values and Cargo feature closures, not guessed
+Rust type information. Evaluate `cfg`/`cfg_attr` against each recorded input;
+unsupported predicates, generated source, and unresolved includes fail with a
+named resolution requirement. Compute separately labelled default,
+`test-hooks`, `tc5-benchmark`, and test-build graphs, including applicable
+feature combinations and the Linux/non-Linux arms. A union report does not
+replace these results. Production call sites in test builds are still checked;
+test bodies have a separately reported test policy preserving existing test
+identities rather than forcing domain ownership on the harness.
 
 Within the governed boundary, the allowlist is shrink-only. None of the four
 Slice 80 cycles is eligible for retention, exception, or allowlisting. Only
@@ -787,8 +805,8 @@ focused behavior tests.
    source discovery/classification; imports and item-level root graph; Engine
    fields/methods and callable references; inherent-method policy plus negative
    fixtures. Run it report-only against production.
-3. Move one leaf owner per batch: `structural_state`, then
-   `reader_transaction`, then `wal_attribution`.
+3. Move one lower owner per batch: `structural_state`, then
+   `wal_attribution`, then its consumer `reader_transaction`.
 4. Characterize and separate the narrow handler errors first, preserving exact
    mappings and precedence; then add search constructors; then move one pool
    request family per batch.
@@ -803,6 +821,13 @@ mechanical RED/GREEN compile cycles. Gate and error batches target roughly
 cohesion reason is recorded. Pure moves may be larger, but each contains one
 ownership cluster and no behavior change. The narrow error work is not called
 a verbatim move; its RED tests cover every existing mapping and refusal order.
+Resolve report-only edges before freezing the enforcement policy. A named
+inherited cycle allowance authorizes only its reviewed directed edges, not an
+entire SCC or a new path through an allowed module. Unknown paths and unlisted
+edges fail. Normal lint uses the cached gate binary and fast fixtures; record
+warm runtime/RSS and keep the gate free of whole-workspace indexing and
+production mutation runs. Independent code review and independent read-only
+verification bind the closeout to the exact candidate, as for prior slices.
 
 #### Requirements and acceptance
 
@@ -820,6 +845,15 @@ Slice 90 may start only after these boundaries are reviewed, verified, and
 recorded as settled.
 
 ### Slice 90 — open, configuration, runtime, operator, and facade closure
+
+**PLANNED; uncommissioned.** The complete prospective ownership, requirements,
+acceptance, and ordered batch contract is
+[`Slice 90 design`](0.8.27/features/slice-90/design.md). It supersedes the
+optional placement wording in earlier handoffs. All work promised below must
+be completed and independently verified within Slice 90 before Slice 100;
+there is no Slice 91 allocation. Internal batches provide sufficient isolation
+without a new ladder dependency. A later discovery requiring a scope change
+blocks closeout and requires a reviewed plan change, not silent deferral.
 
 Move open/probes, runtime configuration, WAL ownership, and operator
 diagnostics after domain paths stabilize. Finish engine `lib.rs` as module
@@ -844,9 +878,12 @@ Carried from Slice 70 (`features/slice-70/status.md`):
   - **Contract:** the accepted `ADR-0.6.0-embedder-protocol.md` and the
     locked `dev/design/bindings.md` require a configurable embedder pool size
     and call timeout.
-  - **Slice 90's job:** resolve the gap by implementing the forwarding or by
-    proposing a successor ADR. Do not describe the fixed constants as
-    satisfying the contract.
+  - **Slice 90's job:** implement and verify the accepted runtime contract
+    end-to-end, in a separate RED/GREEN batch before mechanical moves. A
+    merely proposed successor ADR does not close the gap. Only an accepted
+    successor with its implementation and tests completed within Slice 90
+    can replace that obligation. The dedicated design specifies the five-knob
+    forwarding audit, public-surface delta review, and closure evidence.
 - **Open-path and runtime items.** These are Slice 90's. Slice 70 kept them
   at root:
   - `check_embedder_profile`, `default_embedder_identity`,
@@ -885,28 +922,31 @@ Slice 140 work. The following runtime-owned work remains in Slice 90:
 - **Reader-loop runtime arms.** The inline WAL and diagnostic match arms
   (`HoldWalSnapshot*`, `LookasideStatus`, `CacheStatus`,
   `SecureDeleteStatus`, and `Wal*Inventory`) currently live with
-  `reader_worker_loop`; Slice 90 decides whether runtime ownership warrants
-  extracting them.
+  `reader_worker_loop`; they remain reader-owned connection operations in
+  `reader_pool`. Slice 90 closes their ownership review and tests the typed
+  capabilities, worker-zero routing, exact connection lifecycle, and pause
+  ordering. Engine-facing WAL orchestration moves to `wal_runtime`.
 - **Open-path helpers.** `configure_reader_lookaside`,
   `apply_perf_experiment_reader_pragmas`, and `Engine::usable_dense_runtime`
-  stay at root.
-- **Index projectors.** These stay at root: `project_canonical_node_row`,
+  move to `connection_runtime` and `embedding` respectively.
+- **Index projectors.** `index_projector` owns `project_canonical_node_row`,
   `project_canonical_edge_row`, `IndexTargetSet`,
   `index_targets_for_row_kind`,
   `reproject_search_index_after_tokenizer_upgrade`,
   `search_index_tokenizer_reproject_complete`, `CanonicalNodeRow`,
   `canonical_node_rows`, and `row_kind_from_column`.
 - **Search-owned runtime fields.** The four search-owned
-  `ProjectionRuntimeShared` fields stay in place. Slice 90 may relocate them
-  when it finalizes `Engine` state, subject to its own design review. Keeping a
-  field at root with an item-specific ownership reason is preferable to an
-  artificial module placement made solely to satisfy the advisory line target.
+  `ProjectionRuntimeShared` fields remain physically on that shared runtime
+  allocation, with each exact field and reason recorded in the design.
+  Slice 90 verifies defaults, atomic ordering, lifetime, and existing search
+  test seams; it does not duplicate the values or move them solely for naming.
 - **Test-gate carry-overs (Slice 80 post-hoc test review).**
   `slice60_fix1_wire`'s negative scan names its files explicitly; any new
   `graph_expand/*.rs` file must be added to it. Slice 85 supplies the scripted
   dependency-direction check; Slice 90 keeps it green.
   A green non-Linux build of the moved `graph_expand/execution.rs` arm is
-  required before release closeout.
+  required by Slice 90 closeout, alongside the configuration/feature matrix in
+  the dedicated design. Slice 150 still owns final-candidate qualification.
 
 ### Slice 100 — PyO3 binding decomposition
 

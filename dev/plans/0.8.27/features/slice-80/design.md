@@ -331,8 +331,11 @@ Every module is private. Every item keeps its `cfg` and `doc(hidden)`.
 `importance_reweight_enabled`, and `vector_stage_only_for_test` stay on
 `ProjectionRuntimeShared`, with its shape unchanged. The rationale is in
 `plan.md`. The moved search facades read them through the same
-`self.projection_runtime.shared` path. Slice 90 may relocate them when it
-finalizes `Engine` state.
+`self.projection_runtime.shared` path. The prospective
+[Slice 90 design](../slice-90/design.md) retains each field on that shared
+allocation with an item-specific lifetime/state-identity rationale and
+mandatory characterization. Its closure checklist replaces the earlier
+optional relocation handoff; the Slice 80 implementation is unchanged.
 
 ## Batches (one commit each, about 300-1,200 moved lines)
 

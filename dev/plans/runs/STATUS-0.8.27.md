@@ -203,5 +203,12 @@ grant/revert evidence.
   errors, item-level root nodes, complete inventory with scoped enforcement,
   and no whole-crate or line-count-driven ownership expansion. It needs an
   independent design review before it is commissioned.
+- The prospective [Slice 90 design](../0.8.27/features/slice-90/design.md)
+  assigns all runtime/projector/operator handoffs, closes the configuration
+  gap through separately tested behavior work, and requires zero outstanding
+  Slice 90 obligations before Slice 100. Reader connection arms and the four
+  shared search-control fields have explicit retained-owner dispositions.
+  Slice 90 remains PLANNED. No Slice 91 is allocated; ordered reviewed batches
+  provide the needed boundaries within Slice 90.
 - No temporary branch or worktree was created for prework; the existing
   `release/0.8.27` worktree remains the active release workspace.

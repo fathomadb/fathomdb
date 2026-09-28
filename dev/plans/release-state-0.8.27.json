@@ -51,7 +51,6 @@
   "remaining_ladder": [85, 90, 100, 110, 114, 115, 120, 130, 135, 140, 150],
   "decisions": {
     "unruled": [
-      {"id": "D27-runtime-topology", "title": "Choose literal accepted scheduler topology or approve a narrow successor preserving synchronous projection/commit ownership while defining real configurable engine orchestration/embedder capacity and universal deadlines; AC27-90B and dependent runtime commissioning remain blocked. Recommendation only: successor, not a ruling."},
       {"id": "release-0.8.27-publication", "title": "Authorize tagging and publication only after the full release ladder and qualification gates pass."}
     ],
     "ruled": [
@@ -69,6 +68,7 @@
       {"id": "slice-70-execution", "title": "Complete reviewed Slice 70 requirements, acceptance, design, TDD implementation, code review, independent verification, status, and cleanup in the release worktree without Steward or Orchestrator roles.", "source": "repository owner 2026-09-26"},
       {"id": "slice-80-execution", "title": "Complete reviewed Slice 80 requirements, acceptance, design, TDD implementation, gpt-5.6-sol high code review, gpt-5.6-terra final verification, status, and cleanup in the existing release worktree without Steward or Orchestrator roles.", "source": "repository owner 2026-09-27"},
       {"id": "slice-85-planning-only", "title": "Plan Slice 85 for engine carrier ownership and dependency-boundary enforcement, but do not commission or implement it.", "source": "repository owner 2026-09-27"},
+      {"id": "D27-runtime-topology", "title": "Select Option B: preserve the current synchronous primary-writer, projection-worker, and commit_gate ownership model and require a narrow successor defining real configurable engine orchestration and embed-dispatch capacities, universal inference deadlines, operation-specific timeout outcomes, and bounded shutdown; do not implement the literal historical Tokio task and dedicated-writer topology. Slice 90 must codify, review, implement, and test the successor contract.", "source": "seq-293"},
       {"id": "final-candidate-ac-037-at-slice-150", "title": "Treat the 66e27983 and 24813b8e AC-037 results as historical or diagnostic only; Slice 150 alone must qualify the exact final candidate through the AC-037 runbook.", "source": "repository owner 2026-09-27"},
       {"id": "slice-50-hidden-surface-oracle", "title": "Add hidden-items rustdoc surface rows (default, test-hooks, slice72-test-hooks, operator+test-hooks) with a supplementary baseline at e3358800 before Slice 50 starts (TC-3e54ed95).", "source": "repository owner 2026-09-23"},
       {"id": "hidden-surface-extra-rows", "title": "Extend the hidden-surface oracle to nine rows: add engine migration-test-hooks, engine tc5-benchmark, engine default release-profile, facade default, and facade operator.", "source": "repository owner 2026-09-23"},

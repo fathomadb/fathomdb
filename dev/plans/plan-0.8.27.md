@@ -964,13 +964,18 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     end-to-end, in a separate RED/GREEN batch before mechanical moves. A
     merely proposed successor ADR does not close the gap. Only an accepted
     successor with its implementation and tests completed within Slice 90
-    can replace that obligation. Unruled `D27-runtime-topology` blocks
-    AC27-90B and dependent runtime commissioning: choose literal accepted
-    topology or an accepted narrow successor (recommended, not ruled).
+    can replace that obligation. HITL decision `seq-293` rules
+    `D27-runtime-topology` as Option B: preserve the synchronous primary-writer,
+    projection-worker and `commit_gate` ownership model, and codify a narrow
+    successor with real engine-owned orchestration/embed-dispatch capacities,
+    universal deadlines, operation-specific timeout outcomes and bounded
+    shutdown. The literal historical Tokio/task/dedicated-writer topology is
+    not selected.
     The dedicated design records current substrates/widths, exact consumers,
     item-specific owners and required effect tests. The revised
     `features/slice-90/option-b-successor-adr-scaffold.md` is the reviewed
-    minimum for B, but remains unaccepted: it covers open-time equivalence,
+    minimum ruled-direction contract for B, pending independent design approval
+    and formal successor-ADR codification: it covers open-time equivalence,
     projection/query/direct dispatch, operation-specific fallback, bounded
     admission, recovering hung slots, an independent close budget, exact
     projection-row capacity, current binding input shapes and clause-level ADR

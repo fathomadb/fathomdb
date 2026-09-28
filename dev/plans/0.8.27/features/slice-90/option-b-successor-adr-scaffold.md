@@ -1,17 +1,18 @@
 ---
 title: D27 runtime topology Option B — successor ADR scaffold
-status: DRAFT-REVISED-UNACCEPTED
+status: DRAFT-RULED-DIRECTION-PENDING-DESIGN-REVIEW
 target_release: 0.8.27
 reviewed_candidate: 9b00a980ca222d05f3af063168ed45c2b0a4a526
 ---
 
 # D27 runtime topology Option B — successor ADR scaffold
 
-This is a design-review scaffold, not an accepted ADR, implementation
-authority, or evidence receipt. `D27-runtime-topology` remains unruled and
-AC27-90B remains blocked. If accepted after review and HITL ruling, this
-material should become a successor ADR and the approved portions should be
-folded into the Slice 90 design before commissioning.
+This is a design-review scaffold, not yet an accepted successor ADR,
+implementation authority, or evidence receipt. HITL decision `seq-293` rules
+`D27-runtime-topology` as Option B. AC27-90B remains blocked until this contract
+passes independent design review, is formally codified as the successor ADR,
+and is implemented and verified. The approved material must be folded into the
+Slice 90 design before commissioning production work.
 
 ## Proposed decision
 
@@ -470,6 +471,7 @@ The independent design review's eight questions are resolved in this revision:
    binding-only public seam is introduced.
 
 The architectural direction, new numeric ceilings/ranges, changed embedder
-default, typed configuration delta, exact close outcome, and ADR supersession
-still require acceptance through `D27-runtime-topology`. This document does not
-record that ruling.
+default, typed configuration delta, exact close outcome, and required ADR
+supersession are selected by `D27-runtime-topology` decision `seq-293`. This
+scaffold records the ruled direction but does not substitute for independent
+design approval or the formally accepted successor ADR.

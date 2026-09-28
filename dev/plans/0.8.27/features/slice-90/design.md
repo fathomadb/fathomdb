@@ -11,8 +11,11 @@ receipt. Slice 85 must close first; Slice 90 remains uncommissioned. This
 record and the master plan own the complete Slice 90 obligation. Slice 100
 cannot start with any requirement below incomplete. No Slice 91 is allocated:
 runtime implementation and verification can precede structural moves inside
-Slice 90. AC27-90B is currently blocked on the unruled architecture choice
-below; this record does not authorize a successor to an accepted ADR.
+Slice 90. `D27-runtime-topology` is ruled as Option B by HITL decision
+`seq-293`. AC27-90B remains blocked on independent approval, formal
+codification, implementation, and verification of the successor contract
+below; the ruling does not by itself amend an accepted ADR or commission
+production work.
 
 ## Evidence and scope
 
@@ -183,36 +186,38 @@ boundary and Rust overflow; legitimate language-specific representations
 need not have identical syntax. Defaults without a pinned accepted range
 above are current behavior to characterize, not an invented HITL contract.
 
-### Architecture decision required before AC27-90B
+### Ruled architecture direction before AC27-90B
 
-**Unruled `D27-runtime-topology`.** Should Slice 90 (A) implement the accepted
-scheduler ADR literally, including its Tokio/task/writer-channel topology,
-or (B, recommended) seek an accepted narrow successor retaining the current
-synchronous projection/commit architecture while specifying two real,
+**Ruled `D27-runtime-topology`, Option B (`seq-293`).** Slice 90 must retain the
+current synchronous primary-writer, projection-worker, and `commit_gate`
+ownership model and adopt a narrow successor specifying two real,
 independently configurable engine-owned orchestration/embedding capacities
-and universal embed deadlines? B is a proposal, not permission to reinterpret
-`scheduler_runtime_threads`; its successor must define that option's exact
-meaning/default, dispatch ownership, bounded backlog, serialized-provider
-safety, timeout slot accounting, shutdown and binding invariants before code.
+and universal embed deadlines. The literal historical Tokio/task/writer-channel
+topology (Option A) is not selected. The successor must define
+`scheduler_runtime_threads` meaning/default, dispatch ownership, bounded
+backlog, serialized-provider safety, timeout slot accounting, shutdown, and
+binding invariants before production code.
 
 A is substantially more than forwarding: it replaces scheduling and writer
 handoff/commit ownership and needs generation-token, transaction order,
 backpressure, failure recovery and lifecycle qualification. B avoids that
-unrelated writer-topology rewrite while closing the advertised controls, but
-cannot override the accepted scheduler/async/embedder ADRs without acceptance.
-Do not infer acceptance from this recommendation or from a source comment
-calling the current serialization trade-off accepted. Both options preserve
-no-reentrancy, no host-thread embedding, finish-and-discard cancellation and
-public sync Rust/Python APIs; conflicting language-adapter constraints must
-be resolved in the same accepted contract, not silently assigned to Slice 110.
+unrelated writer-topology rewrite while closing the advertised controls. The
+HITL ruling selects its architecture, but the reviewed successor ADR must
+explicitly supersede the conflicting scheduler/async/embedder clauses before
+implementation. Do not infer formal ADR amendment from the ruling or from a
+source comment calling the current serialization trade-off accepted. The
+selected option preserves no-reentrancy, no host-thread embedding,
+finish-and-discard cancellation and public sync Rust/Python APIs; conflicting
+language-adapter constraints must be resolved in the same accepted contract,
+not silently assigned to Slice 110.
 Standalone SDK embedding utilities are not Engine config consumers and retain
 their own contract; inventory them to prevent a false universal claim.
 
-The revised, still-unaccepted
+The revised, ruled-direction but not-yet-approved
 [`Option B successor scaffold`](option-b-successor-adr-scaffold.md) records the
-minimum commissionable B contract after independent design review. If B is
-ruled, the accepted successor and this design must incorporate all of it before
-production work: open-time vector-equivalence dispatch; nonblocking bounded
+minimum commissionable B contract for independent design review. The accepted
+successor and this design must incorporate all of it before production work:
+open-time vector-equivalence dispatch; nonblocking bounded
 admission with absolute queue-plus-service deadlines; one fixed timeout per
 provider invocation/batch; operation-specific fallback/error behavior;
 recovering timed-out-slot accounting without replacement threads; an absolute
@@ -222,14 +227,15 @@ no hypothetical binding custom-embedder bridge; the configured open integrated
 with `EmbedderChoice`; and clause-level supersession of scheduler, writer,
 embedder, projection-model and async-binding authorities. The proposed numeric
 ceilings, default-one embed concurrency, new typed configuration error and
-public configured-open delta require the same ruling; the draft itself grants
-none of them.
+public configured-open delta are included in the ruled direction, subject to
+the independent review and exact successor wording required before formal ADR
+acceptance and implementation.
 
 AC27-90B and commissioning of dependent runtime changes are **BLOCKED** until
-this choice and the resulting contract are approved. Safe characterization,
-ownership design and Slice 85 planning can proceed. There is no automatic
-waiver or deferral of the five controls. After a ruling, amend this design
-with exact topology and tests before independent design approval.
+the resulting contract passes independent design review and is formally
+codified. Safe characterization, ownership design and Slice 85 planning can
+proceed. There is no automatic waiver or deferral of the five controls. This
+design carries the ruled direction and exact tests for that review.
 
 Implement-as-accepted does not itself create a Slice 91 necessity: verified
 runtime replacement can be a mandatory checkpoint inside Slice 90 before
@@ -390,8 +396,8 @@ existing codec/property tests and qualified test identities.
 ## Requirements and exit acceptance
 
 AC27-90A's entry inventory confirms the item-specific owners above; it cannot
-invent final homes during implementation. AC27-90B is blocked by
-`D27-runtime-topology`; its pass requires the approved topology's real
+invent final homes during implementation. AC27-90B is gated by the reviewed
+and formally codified Option B successor; its pass requires real
 executors and all five table rows' consuming-effect/width/precedence tests,
 including open-time equivalence, query, direct-call and projection deadline
 coverage, per-operation outcomes, bounded shutdown, documentation, and

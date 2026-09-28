@@ -34,14 +34,16 @@ binding, not a claim of post-fix full canonical or surface verification.
 
 ## Open decisions
 
-There are <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->TWO<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
+There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decision:
 
-- `D27-runtime-topology`: literal accepted scheduler topology or an accepted
-  narrow successor; recommendation is a successor, not a ruling. Slice 90's
-  AC27-90B and dependent runtime commissioning remain blocked. See the
-  [code-grounded resolution](../0.8.27/features/slice-90/independent-findings-resolution.md).
 - authorize tagging/publication only after the complete ladder and release
   qualification pass.
+
+`D27-runtime-topology` is ruled as Option B by HITL decision `seq-293`.
+Slice 90 retains the synchronous projection/commit ownership model and must
+codify, independently review, implement, and verify the narrow successor before
+AC27-90B passes. See the
+[code-grounded resolution](../0.8.27/features/slice-90/independent-findings-resolution.md).
 
 ## Completed release-branch ladder
 
@@ -214,8 +216,10 @@ grant/revert evidence.
   shared search-control fields have explicit retained-owner dispositions.
   Slice 90 remains PLANNED. No Slice 91 is allocated; ordered reviewed batches
   provide the needed boundaries within Slice 90. The independent findings
-  correction makes AC27-90B visibly blocked on unruled `D27-runtime-topology`:
-  accepted pools are absent, so forwarding alone cannot close this gap.
+  correction makes AC27-90B visibly gated by the ruled Option B successor:
+  accepted pools are absent, so forwarding alone cannot close this gap, and
+  independent design approval plus formal ADR codification precede production
+  commissioning.
 - Prospective [Slice 100](../0.8.27/features/slice-100/design.md) and
   [Slice 110](../0.8.27/features/slice-110/design.md) designs now require exact
   native ownership/registration inventories, contract disposition, installed

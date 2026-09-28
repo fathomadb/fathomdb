@@ -19,7 +19,7 @@ are unchanged.
 
 | Finding | Verdict | Resolution |
 | --- | --- | --- |
-| P1-1: five-knob work is not merely forwarding | Correct and beneficial; initial design FAIL | Cite scheduler/async/embedder authority, distinguish missing topology from existing threads, expose unruled `D27-runtime-topology`, and block AC27-90B/dependent runtime commissioning. No HITL ruling or ADR amendment is fabricated. |
+| P1-1: five-knob work is not merely forwarding | Correct and beneficial; initial design FAIL | Cite scheduler/async/embedder authority, distinguish missing topology from existing threads, and block AC27-90B/dependent runtime commissioning pending a ruling. HITL decision `seq-293` later selected Option B; the original review finding remains historical. |
 | P2-1: gate can miss indirect returns | Correct and beneficial | Whole-crate edge extraction precedes scoped enforcement; executable-root reach is a fixed point, outside globs conservatively retain candidate edges, and named errors→graph-types payload admission is item/edge-kind specific. Add transitive/outside/admitted-path fixtures and executable mutants. |
 | P2-2: governed glob removal has no batch allocation | Correct and beneficial | Explicit one-module import batches inside stages 3–5, 300–1,200 mechanical changed lines, compile/focused/report gates each time, zero unapproved governed globs at enforcement. Edge-admitted modules are not wholesale governed modules. |
 | P2-3: remainder owner map delegates design | Correct and beneficial | Add fixed rows for importance operations, nonce, RowKind, transition/embedder helpers, cursor/projection helpers, SQLite conversion/name helpers, public status/readiness types, telemetry/lifecycle and domain constants. Entry inventory confirms, never invents, final owners. |
@@ -40,9 +40,11 @@ independent pass. All are correct and beneficial:
 ## Option B independent design review
 
 A fresh read-only GPT-6 Astra medium review of the Option B scaffold at the
-recorded base returned **FAIL as a commissionable design; Option B remains the
-recommended direction**. The revised scaffold and Slice 90 design incorporate
-the required corrections without recording a D27 ruling:
+recorded base returned **FAIL as a commissionable design; Option B remained the
+recommended direction**. The revised scaffold and Slice 90 design incorporated
+the required corrections. HITL decision `seq-293` subsequently selected Option
+B; a fresh independent review of the ruled contract is required before formal
+successor-ADR codification or production commissioning:
 
 - route open-time vector-equivalence probes as well as both query paths,
   projection and direct embedding through engine-owned dispatch;
@@ -133,14 +135,16 @@ deadlines (B)? **Recommendation: B**, because A changes writer topology and
 transaction scheduling beyond a forwarding correction. B must explicitly
 amend the authoritative contracts, preserve isolation/no-reentrancy, define
 pool/queue/timeout/shutdown behavior, and then be implemented and tested;
-current no-op knobs are not an acceptable successor. This is unruled.
+current no-op knobs are not an acceptable successor. HITL decision `seq-293`
+rules B; independent design approval and formal successor-ADR codification are
+still required before implementation.
 
 No Slice 91 is added. Even A can have runtime qualification as a mandatory
 in-slice checkpoint before mechanical moves; no separate technical delivery
 dependency has been demonstrated. A concrete dependency discovered in the
 approved topology would require a reviewed ladder change, not silent debt.
-Slice 90 cannot close or unblock 100 with AC27-90B blocked. The design and
-release-state open decision make that dependency explicit.
+Slice 90 cannot close or unblock 100 until AC27-90B passes. The design and
+ruled release-state decision make that dependency explicit.
 
 ## Verification scope and verdict
 
@@ -150,5 +154,5 @@ wording scan found no permission to ignore a knob or silently defer closure;
 the original verbatim recommendation has no diff. No engine/runtime correctness
 or independent design approval is claimed by those checks. The P2 and P3
 findings are remediated in prospective design; P1's evidence and scope are
-corrected but its architectural acceptance remains **BLOCKED pending HITL
-decision**.
+corrected; `seq-293` supplies the HITL direction, while independent design
+approval and formal successor-ADR codification remain pending.

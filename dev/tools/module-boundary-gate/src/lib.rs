@@ -80,6 +80,17 @@ pub struct MacroUse {
     pub location: Location,
 }
 
+/// A serde function-key string value (`serialize_with`, `with`, ...) that
+/// is not an expression path, so the call it names is unknown.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct UnparsedSerdePath {
+    pub key: String,
+    pub value: String,
+    pub source_scope: String,
+    pub source_item: String,
+    pub location: Location,
+}
+
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ModuleDecl {
     pub name: String,
@@ -140,6 +151,9 @@ pub struct Analysis {
     /// `matches!`-style `expr, pattern` body, or a statement list. Their
     /// dependencies are invisible, so governed modules fail closed on them.
     pub unparsed_macros: BTreeSet<MacroUse>,
+    /// Serde function-key values that are not expression paths; the gate
+    /// fails closed on them.
+    pub unparsed_serde_paths: BTreeSet<UnparsedSerdePath>,
 }
 
 /// Parses one engine source file and extracts its edges, evaluating every
@@ -645,11 +659,31 @@ impl<'s> Analyzer<'s> {
             | "default"
             | "getter"
             | "crate" => {
-                if let Ok(path) = value.parse::<syn::Path>() {
-                    self.record_path(&path, true);
-                    for segment in &path.segments {
-                        self.visit_path_arguments(&segment.arguments);
+                // serde_derive parses these as expression paths, which admit a
+                // qualified self (`<T as Trait>::f`, `<T>::f`).
+                let Ok(path) = value.parse::<ExprPath>() else {
+                    self.analysis.unparsed_serde_paths.insert(UnparsedSerdePath {
+                        key: key.to_string(),
+                        value: value.value(),
+                        source_scope: self.module_stack.join("::"),
+                        source_item: self
+                            .item_stack
+                            .last()
+                            .cloned()
+                            .unwrap_or_else(|| "<module>".to_string()),
+                        location: literal.span().into(),
+                    });
+                    return;
+                };
+                match &path.qself {
+                    Some(qself) => {
+                        self.visit_type(&qself.ty);
+                        self.record_qualified_self_path(qself, &path.path, EdgeKind::Callable);
                     }
+                    None => self.record_path(&path.path, true),
+                }
+                for segment in &path.path.segments {
+                    self.visit_path_arguments(&segment.arguments);
                 }
             }
             "from" | "try_from" | "into" | "remote" => {

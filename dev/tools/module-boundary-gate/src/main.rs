@@ -992,6 +992,8 @@ fn evaluate(
             &mut actual_unparsed_macros,
             &mut errors,
         );
+        reject_include_imports(module, info, source_root, &mut errors);
+        reject_unparsed_serde_paths(module, info, source_root, &mut errors);
     }
 
     for (key, count) in &unresolved_receivers {
@@ -1592,9 +1594,10 @@ fn reject_relevant_macros(
             }
             continue;
         }
-        // `include!` splices source the gate never parses, in any module;
+        // `include!` splices source the gate never parses, in any module and
+        // under any path (`std::prelude::v1::include!`);
         // `include_str!`/`include_bytes!` are data.
-        if matches!(usage.target.as_str(), "include" | "std::include" | "core::include") {
+        if usage.target.rsplit("::").next() == Some("include") {
             errors.push(format!(
                 "unreviewed include source={module} item={} macro={} at {}:{}:{}; the included \
                  source is not parsed, so declare it as a module instead",
@@ -1619,6 +1622,54 @@ fn reject_relevant_macros(
                 usage.location.column
             ));
         }
+    }
+}
+
+/// A `use` that imports `include`, renamed or not, would let `include!`
+/// be invoked under a name the macro check cannot recognise.
+fn reject_include_imports(
+    physical_module: &str,
+    info: &ModuleInfo,
+    source_root: &Path,
+    errors: &mut Vec<String>,
+) {
+    for edge in &info.analysis.edges {
+        if !matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport)
+            || edge.target.rsplit("::").next() != Some("include")
+        {
+            continue;
+        }
+        errors.push(format!(
+            "unreviewed include import source={} item={} path={} at {}:{}:{}; `include!` \
+             splices source the gate never parses, so declare it as a module instead",
+            scoped_module(physical_module, &edge.source_scope),
+            edge.source_item,
+            edge.target,
+            relative(source_root, &info.file),
+            edge.location.line,
+            edge.location.column
+        ));
+    }
+}
+
+fn reject_unparsed_serde_paths(
+    physical_module: &str,
+    info: &ModuleInfo,
+    source_root: &Path,
+    errors: &mut Vec<String>,
+) {
+    for usage in &info.analysis.unparsed_serde_paths {
+        errors.push(format!(
+            "unparsable serde path source={} item={} key={} value={} at {}:{}:{}; serde \
+             parses this key as an expression path, so write one",
+            scoped_module(physical_module, &usage.source_scope),
+            usage.source_item,
+            usage.key,
+            usage.value,
+            relative(source_root, &info.file),
+            usage.location.line,
+            usage.location.column
+        ));
     }
 }
 

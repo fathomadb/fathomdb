@@ -32,6 +32,9 @@ fi
 
 if [ "$stale" -eq 1 ]; then
   "$CARGO_BIN" build --quiet --locked --target-dir "$TARGET_DIR" --manifest-path "$MANIFEST"
+  # Cargo does not relink for a manifest or lockfile edit that changes no
+  # build input; mark the checked binary fresh so it is not judged stale again.
+  touch "$BINARY"
 fi
 
 exec "$BINARY" --root "$REPO_ROOT"

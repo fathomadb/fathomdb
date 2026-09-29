@@ -152,6 +152,8 @@ allow-cycle search dependency_closure
 allow-cycle search evidence
 allow-cycle graph_expand evidence
 
+local-macro identity caller_identity_newtype
+
 inherent filter Filter::lower_for_read_list
 inherent filter Filter::lower_for_read_list_for_test
 inherent filter Filter::to_search_filter

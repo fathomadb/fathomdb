@@ -6,8 +6,8 @@ use proc_macro2::Span;
 use syn::visit::{self, Visit};
 use syn::{
     Attribute, Expr, ExprCall, ExprField, ExprMethodCall, ExprPath, FnArg, ImplItem, ImplItemFn,
-    ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait, ItemType, ItemUse, Local, Macro,
-    Member, Meta, Pat, Type, TypePath, Visibility,
+    ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod, ItemStruct, ItemTrait, ItemType, ItemUse,
+    Local, Macro, Member, Meta, Pat, Type, TypePath, Visibility,
 };
 
 pub const CONFIGURATIONS: [&str; 16] = [
@@ -173,6 +173,15 @@ impl Analyzer {
             source_scope: self.module_stack.join("::"),
             source_item: self.item_stack.last().cloned().unwrap_or_else(|| "<module>".to_string()),
             location: span.into(),
+        });
+    }
+
+    fn record_local_macro(&mut self, name: &syn::Ident) {
+        self.analysis.macros.insert(MacroUse {
+            target: format!("macro_rules::{name}"),
+            source_scope: self.module_stack.join("::"),
+            source_item: self.item_stack.last().cloned().unwrap_or_else(|| "<module>".to_string()),
+            location: name.span().into(),
         });
     }
 
@@ -550,6 +559,16 @@ impl<'ast> Visit<'ast> for Analyzer {
             self.record_macro(&mac.path, segment.ident.span());
         }
         visit::visit_macro(self, mac);
+    }
+
+    fn visit_item_macro(&mut self, item: &'ast ItemMacro) {
+        if item.mac.path.is_ident("macro_rules") {
+            if let Some(name) = &item.ident {
+                self.record_local_macro(name);
+            }
+            return;
+        }
+        visit::visit_item_macro(self, item);
     }
 
     fn visit_type_path(&mut self, ty: &'ast TypePath) {
@@ -1104,10 +1123,7 @@ mod tests {
              }}; }",
         )
         .expect("fixture parses");
-        assert!(analysis
-            .macros
-            .iter()
-            .any(|usage| usage.target == "macro_rules::hidden_boundary"));
+        assert!(analysis.macros.iter().any(|usage| usage.target == "macro_rules::hidden_boundary"));
     }
 
     #[test]

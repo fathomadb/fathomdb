@@ -179,7 +179,7 @@ cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/sear
 
 printf '\nmacro_rules! slice85_hidden_boundary { () => {{ let _ = crate::reader_pool::ReaderRequest::Shutdown; }}; }\nfn slice85_macro_call() { slice85_hidden_boundary!(); }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
-expect_failure local-macro 'unreviewed governed macro' "$GATE" --root "$fixture"
+expect_failure local-macro 'unreviewed local macro definition source=search' "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
 printf '\nmacro_rules! slice85_admitted_hidden_boundary { () => {{ let _ = crate::graph_expand::encode_graph_expand_result_v1; }}; }\nfn slice85_admitted_macro_call() { slice85_admitted_hidden_boundary!(); }\n' \

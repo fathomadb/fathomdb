@@ -16,6 +16,7 @@ struct Policy {
     forbidden_dependencies: BTreeSet<(String, String)>,
     forbidden_cycles: BTreeSet<(String, String)>,
     allowed_cycles: BTreeSet<(String, String)>,
+    allowed_local_macros: BTreeSet<(String, String)>,
     inherent_methods: BTreeSet<(String, String)>,
     expected_edges: BTreeSet<(String, String, String, String, String, String)>,
 }
@@ -230,6 +231,9 @@ fn parse_policy(path: &Path) -> Result<Policy, Vec<String>> {
             }
             ["allow-cycle", left, right] => {
                 policy.allowed_cycles.insert(sorted_pair(left, right));
+            }
+            ["local-macro", module, name] => {
+                policy.allowed_local_macros.insert(((*module).to_string(), (*name).to_string()));
             }
             ["inherent", module, method] => {
                 if !policy.inherent_methods.insert(((*module).to_string(), (*method).to_string())) {
@@ -669,8 +673,19 @@ fn reject_relevant_macros(
     for usage in &info.analysis.macros {
         let module = scoped_module(physical_module, &usage.source_scope);
         let governed = policy.classified.get(&module).map(String::as_str) == Some("governed");
+        if let Some(name) = usage.target.strip_prefix("macro_rules::") {
+            if !policy.allowed_local_macros.contains(&(module.clone(), name.to_string())) {
+                errors.push(format!(
+                    "unreviewed local macro definition source={module} item={} macro={name} at {}:{}:{}",
+                    usage.source_item,
+                    relative(source_root, &info.file),
+                    usage.location.line,
+                    usage.location.column
+                ));
+            }
+            continue;
+        }
         let internal = usage.target == "include"
-            || usage.target == "macro_rules"
             || usage.target.starts_with("crate::")
             || usage.target.starts_with("super::")
             || usage.target.starts_with("self::");

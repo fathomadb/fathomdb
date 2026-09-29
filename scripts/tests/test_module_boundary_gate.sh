@@ -810,6 +810,37 @@ expect_failure product-ml-split-cycle 'unapproved governed cycle search <-> tele
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 cp "$fixture/telemetry.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
 
+# Design review cycle 2, D-19: module-level cycles joining a governed module
+# are a frozen, stale-checked inventory. A new governed <-> reported 2-cycle
+# with no item-level cycle, or a module newly joining a governed
+# module-level SCC, is a reviewed policy diff.
+printf '\npub(crate) fn slice85_mc_out() { crate::fusion::slice85_mc_in(); }\npub(crate) fn slice85_mc_target() {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/filter.rs"
+printf '\npub(crate) fn slice85_mc_in() {}\npub(crate) fn slice85_mc_back() { crate::filter::slice85_mc_target(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+printf 'edge filter slice85_mc_out fusion slice85_mc_in callable all\nedge fusion slice85_mc_back filter slice85_mc_target callable all\n' \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure module-two-cycle 'unreviewed module-level cycle filter <-> fusion configurations=all' \
+  "$GATE" --root "$fixture"
+cp "$fixture/filter.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/filter.rs"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+cp "$fixture/src/rust/crates/fathomdb-engine/src/lifecycle.rs" "$fixture/lifecycle.rs.clean"
+printf '\npub(crate) fn slice85_scc_join() { let _ = crate::fusion::fuse_rrf; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/lifecycle.rs"
+expect_failure module-scc-join 'module lifecycle joins a governed module-level SCC configurations=all' \
+  "$GATE" --root "$fixture"
+cp "$fixture/lifecycle.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/lifecycle.rs"
+
+printf 'module-cycle filter fusion all\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure stale-module-cycle 'stale module-cycle filter fusion all' "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+printf 'module-scc lifecycle all\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure stale-module-scc 'stale module-scc lifecycle all' "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

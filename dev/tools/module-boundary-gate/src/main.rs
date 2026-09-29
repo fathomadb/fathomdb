@@ -850,16 +850,20 @@ fn evaluate(
 
     validate_cycle_policy(policy, &merged_edge_kinds, &mut errors);
 
-    for (source, target) in &policy.forbidden_dependencies {
-        if let Some(configurations) =
-            module_dependencies.edges.get(&(source.clone(), target.clone()))
+    // A forbidden dependency covers descendant modules on both sides.
+    for ((source, target), configurations) in &module_dependencies.edges {
+        if source == target
+            || !policy.forbidden_dependencies.iter().any(|(forbidden_source, forbidden_target)| {
+                covers(forbidden_source, source) && covers(forbidden_target, target)
+            })
         {
-            for index in configurations.indices() {
-                errors.push(format!(
-                    "forbidden dependency {source} -> {target} configuration={}",
-                    space.configurations[index].label
-                ));
-            }
+            continue;
+        }
+        for index in configurations.indices() {
+            errors.push(format!(
+                "forbidden dependency {source} -> {target} configuration={}",
+                space.configurations[index].label
+            ));
         }
     }
     let mut cycle_findings = CycleFindings::default();

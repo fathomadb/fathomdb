@@ -37,7 +37,11 @@ pub enum EdgeKind {
     Callable,
     FieldAccess,
     EngineMethod,
-    TypeOrComposition,
+    /// A `pub`/`pub(crate)`/`pub(super)` `use`: composition metadata.
+    Reexport,
+    /// A type, constant, variant, struct literal or pattern reference: a
+    /// contract/owner dependency.
+    Type,
 }
 
 impl EdgeKind {
@@ -47,7 +51,8 @@ impl EdgeKind {
             Self::Callable => "callable",
             Self::FieldAccess => "field-access",
             Self::EngineMethod => "engine-method",
-            Self::TypeOrComposition => "type-or-composition",
+            Self::Reexport => "reexport",
+            Self::Type => "type",
         }
     }
 }
@@ -213,7 +218,7 @@ impl Analyzer {
             if segments.len() < 2 || segments.first().is_some_and(|segment| segment == "Self") {
                 return;
             }
-            let kind = if call_position { EdgeKind::Callable } else { EdgeKind::TypeOrComposition };
+            let kind = if call_position { EdgeKind::Callable } else { EdgeKind::Type };
             self.edge(kind, segments.join("::"), path.segments[0].ident.span());
             return;
         }
@@ -546,7 +551,7 @@ impl<'ast> Visit<'ast> for Analyzer {
     fn visit_item_use(&mut self, item: &'ast ItemUse) {
         let previous = self.enter_attrs(&item.attrs);
         let kind = if visibility_exceeds_module(&item.vis) {
-            EdgeKind::TypeOrComposition
+            EdgeKind::Reexport
         } else {
             EdgeKind::Import
         };
@@ -707,7 +712,7 @@ impl<'ast> Visit<'ast> for Analyzer {
                 .collect::<Vec<_>>()
                 .join("::");
             if let Some(first) = ty.path.segments.first() {
-                self.edge(EdgeKind::TypeOrComposition, target, first.ident.span());
+                self.edge(EdgeKind::Type, target, first.ident.span());
             }
         }
         visit::visit_type_path(self, ty);
@@ -996,21 +1001,28 @@ fn collect_use_tree(
         }
         syn::UseTree::Name(name) => {
             let mut target = prefix.clone();
-            target.push(name.ident.to_string());
+            let binding = if name.ident == "self" {
+                prefix.last().cloned().unwrap_or_else(|| name.ident.to_string())
+            } else {
+                target.push(name.ident.to_string());
+                name.ident.to_string()
+            };
             let target = target.join("::");
-            aliases.insert(name.ident.to_string(), target.clone());
+            aliases.insert(binding.clone(), target.clone());
             edges.insert(Edge {
                 kind: kind.clone(),
                 target,
                 source_scope: source_scope.to_string(),
-                source_item: use_source_item(source_item, &kind, &name.ident.to_string()),
+                source_item: use_source_item(source_item, &kind, &binding),
                 location: name.ident.span().into(),
                 configurations: configurations.clone(),
             });
         }
         syn::UseTree::Rename(rename) => {
             let mut target = prefix.clone();
-            target.push(rename.ident.to_string());
+            if rename.ident != "self" {
+                target.push(rename.ident.to_string());
+            }
             let target = target.join("::");
             aliases.insert(rename.rename.to_string(), target.clone());
             edges.insert(Edge {
@@ -1055,7 +1067,7 @@ fn collect_use_tree(
 }
 
 fn use_source_item(source_item: &str, kind: &EdgeKind, binding: &str) -> String {
-    if source_item == "<module>" && *kind == EdgeKind::TypeOrComposition {
+    if source_item == "<module>" && *kind == EdgeKind::Reexport {
         format!("<module>::{binding}")
     } else {
         source_item.to_string()
@@ -1301,7 +1313,7 @@ mod tests {
         )
         .expect("fixture parses");
         assert!(analysis.edges.iter().any(|edge| {
-            edge.kind == EdgeKind::TypeOrComposition
+            edge.kind == EdgeKind::Type
                 && edge.source_item == "hidden_type"
                 && edge.target == "crate::reader_pool::ReaderRequest"
         }));
@@ -1427,12 +1439,12 @@ mod tests {
         )
         .expect("fixture parses");
         for (target, kind) in [
-            ("crate::a::CONST", EdgeKind::TypeOrComposition),
-            ("crate::a::E::V", EdgeKind::TypeOrComposition),
+            ("crate::a::CONST", EdgeKind::Type),
+            ("crate::a::E::V", EdgeKind::Type),
             ("crate::a::Ctor", EdgeKind::Callable),
-            ("crate::a::S", EdgeKind::TypeOrComposition),
-            ("crate::a::T", EdgeKind::TypeOrComposition),
-            ("crate::a::P", EdgeKind::TypeOrComposition),
+            ("crate::a::S", EdgeKind::Type),
+            ("crate::a::T", EdgeKind::Type),
+            ("crate::a::P", EdgeKind::Type),
         ] {
             assert!(
                 analysis.edges.iter().any(|edge| edge.target == target && edge.kind == kind),

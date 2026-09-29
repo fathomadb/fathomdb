@@ -428,7 +428,7 @@ fn evaluate(
                 }
             }
             if governed
-                && matches!(edge.kind, EdgeKind::Import | EdgeKind::TypeOrComposition)
+                && matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport | EdgeKind::Type)
                 && root_reexport_indirection(&edge.target, root_aliases)
             {
                 errors.push(format!(
@@ -520,7 +520,7 @@ fn evaluate(
                 if nonroot_local {
                     continue;
                 }
-                if edge.kind != EdgeKind::TypeOrComposition || governed || source_module == "root" {
+                if frozen_scope(policy, &source_module) || frozen_scope(policy, &target.module) {
                     let record = (
                         source_module.clone(),
                         edge.source_item.clone(),
@@ -655,6 +655,18 @@ fn evaluate(
         if policy.expected_edges.is_empty() {
             errors.push("policy expected-edge set is empty".to_string());
         }
+        for (source, source_item, target, target_item, kind, configurations) in
+            &policy.expected_edges
+        {
+            if !frozen_scope(policy, source) && !frozen_scope(policy, target) {
+                errors.push(format!(
+                    "policy edge outside the frozen scope source={source} source_item={source_item} \
+                     destination={target} target_item={target_item} kind={kind} \
+                     configurations={configurations}; only edges with a governed or root \
+                     endpoint are frozen"
+                ));
+            }
+        }
         for missing in actual_edges.difference(&policy.expected_edges) {
             let origin = edge_origins.get(missing).expect("actual edge has an origin");
             errors.push(format!(
@@ -672,6 +684,9 @@ fn evaluate(
             ));
         }
         for stale in policy.expected_edges.difference(&actual_edges) {
+            if !frozen_scope(policy, &stale.0) && !frozen_scope(policy, &stale.2) {
+                continue;
+            }
             errors.push(format!(
                 "stale boundary edge source={} source_item={} destination={} target_item={} kind={} configurations={}",
                 stale.0, stale.1, stale.2, stale.3, stale.4, stale.5
@@ -684,6 +699,13 @@ fn evaluate(
     } else {
         Err(errors)
     }
+}
+
+/// Edges are frozen in the policy only when at least one endpoint is a
+/// governed module or the crate root; the rest of the crate is extracted for
+/// reachability and SCCs but its edges are not inventoried.
+fn frozen_scope(policy: &Policy, module: &str) -> bool {
+    module == "root" || policy.classified.get(module).map(String::as_str) == Some("governed")
 }
 
 fn direct_reader_request_variant(target: &str) -> bool {
@@ -819,6 +841,126 @@ fn reject_unparsed_macros(
 
 #[allow(clippy::too_many_arguments)]
 fn edge_targets(
+    module: &str,
+    edge: &fathomdb_module_boundary_gate::Edge,
+    modules: &BTreeMap<String, ModuleInfo>,
+    root_aliases: Option<&BTreeMap<String, String>>,
+    engine_fields: &BTreeSet<String>,
+    field_owners: &BTreeMap<String, String>,
+    method_owners: &BTreeMap<String, BTreeSet<String>>,
+) -> BTreeSet<ResolvedTarget> {
+    let targets = direct_edge_targets(
+        module,
+        edge,
+        modules,
+        root_aliases,
+        engine_fields,
+        field_owners,
+        method_owners,
+    );
+    if matches!(edge.kind, EdgeKind::FieldAccess | EdgeKind::EngineMethod) {
+        return targets;
+    }
+    targets.into_iter().map(|target| chase_reexports(target, modules)).collect()
+}
+
+/// Follows `use` aliases (at any visibility, since descendants may name a
+/// parent's private import) and single-candidate glob re-exports from the
+/// module a path resolved to, until the path reaches its defining module.
+/// Chains that leave the crate stop at the last in-crate hop.
+fn chase_reexports(
+    start: ResolvedTarget,
+    modules: &BTreeMap<String, ModuleInfo>,
+) -> ResolvedTarget {
+    let mut current = start;
+    let mut seen = BTreeSet::new();
+    while seen.insert(current.clone()) {
+        if current.item == "<module>" {
+            break;
+        }
+        let (head, rest) = current
+            .item
+            .split_once("::")
+            .map_or((current.item.as_str(), None), |(head, rest)| (head, Some(rest)));
+        let Some(info) = modules.get(&current.module) else { break };
+        let next = if let Some(alias) = info.analysis.import_aliases.get(head) {
+            qualify_alias(&current.module, alias, modules)
+        } else if info.analysis.declared_items.contains(head) {
+            None
+        } else {
+            let candidates = info
+                .analysis
+                .edges
+                .iter()
+                .filter(|edge| {
+                    matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport)
+                        && edge.source_scope.is_empty()
+                        && edge.target.ends_with("::*")
+                })
+                .filter_map(|glob| {
+                    let namespace = qualify_glob_namespace(
+                        &current.module,
+                        glob.target.trim_end_matches("::*"),
+                    );
+                    modules
+                        .get(&namespace)
+                        .filter(|owner| {
+                            owner.analysis.declared_items.contains(head)
+                                || owner.analysis.import_aliases.contains_key(head)
+                        })
+                        .map(|_| format!("{namespace}::{head}"))
+                })
+                .collect::<BTreeSet<_>>();
+            if candidates.len() == 1 {
+                candidates.into_iter().next()
+            } else {
+                None
+            }
+        };
+        let Some(path) = next else { break };
+        let full = rest.map_or_else(|| path.clone(), |rest| format!("{path}::{rest}"));
+        let Some(resolved) = resolve_path(&full, modules) else { break };
+        current = resolved;
+    }
+    current
+}
+
+/// Qualifies a `use` path written inside `module` to a crate-relative path
+/// (without `crate::`), or `None` when it names another crate.
+fn qualify_alias(
+    module: &str,
+    alias: &str,
+    modules: &BTreeMap<String, ModuleInfo>,
+) -> Option<String> {
+    if let Some(rest) = alias.strip_prefix("crate::") {
+        return Some(rest.to_string());
+    }
+    let mut base = module.to_string();
+    let mut rest = alias;
+    let mut relative = false;
+    loop {
+        if let Some(tail) = rest.strip_prefix("super::") {
+            base = base.rsplit_once("::").map_or("root", |(parent, _)| parent).to_string();
+            rest = tail;
+            relative = true;
+        } else if let Some(tail) = rest.strip_prefix("self::") {
+            rest = tail;
+            relative = true;
+        } else {
+            break;
+        }
+    }
+    let joined = if base == "root" { rest.to_string() } else { format!("{base}::{rest}") };
+    if relative {
+        return Some(joined);
+    }
+    let first = rest.split("::").next().unwrap_or(rest);
+    let child = if base == "root" { first.to_string() } else { format!("{base}::{first}") };
+    modules.contains_key(&child).then_some(joined)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn direct_edge_targets(
     module: &str,
     edge: &fathomdb_module_boundary_gate::Edge,
     modules: &BTreeMap<String, ModuleInfo>,

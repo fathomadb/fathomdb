@@ -791,6 +791,25 @@ rm "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/slice85_sub.rs"
 cp "$fixture/graph-expand.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
 cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
 
+# Design review cycle 2, D-18: shipped consumer closures are evaluated. The
+# CLI builds operator with one ML feature and test-hooks off; the GPU
+# product artifact enables both ML stacks without the private slice72 hooks.
+printf '\n#[cfg(all(feature = "operator", not(feature = "test-hooks")))]\npub(crate) fn slice85_split_a() { crate::telemetry::slice85_split_b(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\n#[cfg(feature = "default-embedder")]\npub(crate) fn slice85_split_b() { crate::search::slice85_split_a(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
+expect_failure operator-ml-split-cycle 'unapproved governed cycle search <-> telemetry' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/telemetry.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
+
+printf '\n#[cfg(all(feature = "default-embedder", not(feature = "slice72-test-hooks")))]\npub(crate) fn slice85_product_a() { crate::telemetry::slice85_product_b(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\n#[cfg(feature = "default-reranker")]\npub(crate) fn slice85_product_b() { crate::search::slice85_product_a(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
+expect_failure product-ml-split-cycle 'unapproved governed cycle search <-> telemetry' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/telemetry.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

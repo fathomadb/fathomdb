@@ -620,6 +620,56 @@ expect_failure stale-external-receiver 'stale external-receiver search slice85_m
   "$GATE" --root "$fixture"
 cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
 
+# Design review cycle 2, D-14: generic arguments and qualified-self in call
+# position, and trait paths (bounds, where clauses, impl headers, dyn/impl
+# Trait, supertraits), are type edges; repeated self::/super:: prefixes
+# resolve. The graph_expand -> search turbofish recreates a Slice 80 direction.
+printf '\nfn slice85_turbofish_call() { let _ = Vec::<crate::search::SearchReaderWork>::new(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
+expect_failure turbofish-call 'forbidden dependency graph_expand -> search' "$GATE" --root "$fixture"
+cp "$fixture/graph-expand.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
+
+d14_read_mutant() {
+  local label="$1" body="$2"
+  printf '\n%s\n' "$body" >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+  expect_failure "$label" 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
+  cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+}
+d14_read_mutant qself-type-call \
+  'fn slice85_qself_type() { let _ = <crate::reader_pool::ReaderRequest as Default>::default(); }'
+d14_read_mutant qself-trait-call \
+  'fn slice85_qself_trait(x: u8) { let _ = <u8 as crate::reader_pool::S85Trait>::go(x); }'
+d14_read_mutant qself-trait-reference \
+  'fn slice85_qself_trait_ref() { let _ = <u8 as crate::reader_pool::S85Trait>::go; }'
+d14_read_mutant qself-trait-type \
+  'fn slice85_qself_trait_type(_: <u8 as crate::reader_pool::S85Trait>::Out) {}'
+d14_read_mutant free-fn-turbofish \
+  'fn slice85_size_of() { let _ = std::mem::size_of::<crate::reader_pool::ReaderRequest>(); }'
+d14_read_mutant const-generic-turbofish \
+  'fn slice85_const_generic() { let _ = S85G::<{ crate::reader_pool::S85_N }>::new(); }'
+d14_read_mutant impl-trait-header \
+  'impl crate::reader_pool::S85Trait for u8 {}'
+d14_read_mutant generic-bound \
+  'fn slice85_bound<T: crate::reader_pool::S85Trait>(_: T) {}'
+d14_read_mutant where-bound \
+  'fn slice85_where<T>(_: T) where T: crate::reader_pool::S85Trait {}'
+d14_read_mutant impl-trait-argument \
+  'fn slice85_impl_arg(_: impl crate::reader_pool::S85Trait) {}'
+d14_read_mutant dyn-trait-reference \
+  'fn slice85_dyn_ref(_: &dyn crate::reader_pool::S85Trait) {}'
+d14_read_mutant boxed-dyn-trait \
+  'fn slice85_dyn_box(_: Box<dyn crate::reader_pool::S85Trait>) {}'
+d14_read_mutant supertrait \
+  'trait Slice85Super: crate::reader_pool::S85Trait {}'
+d14_read_mutant self-super-chain \
+  'fn slice85_self_super() { let _ = self::super::reader_pool::slice85_probe(); }'
+
+# Control: std generic arguments and trait bounds name no in-crate owner.
+printf '\nfn slice85_generic_control<T: std::fmt::Debug>(_: T) { let _ = Vec::<u8>::new(); let _ = <u8 as Default>::default(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+expect_success generic-control "$GATE" --root "$fixture"
+cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

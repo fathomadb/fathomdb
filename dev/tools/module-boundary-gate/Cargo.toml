@@ -10,4 +10,3 @@ publish = false
 [dependencies]
 proc-macro2 = { version = "1.0.106", features = ["span-locations"] }
 syn = { version = "2.0.117", default-features = false, features = ["full", "parsing", "visit"] }
-

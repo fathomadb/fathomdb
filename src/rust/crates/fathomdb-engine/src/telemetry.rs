@@ -19,7 +19,9 @@ impl TelemetrySink {
 /// 0.8.8 Slice 15 — append one JSON value as a line to the telemetry sink
 /// (append-only, local file; no network). Best-effort caller handles the error.
 fn append_jsonl(path: &Path, value: &serde_json::Value) -> std::io::Result<()> {
-    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(path)?;
+    let mut options = std::fs::OpenOptions::new();
+    options.create(true).append(true);
+    let mut file = std::fs::OpenOptions::open(&options, path)?;
     writeln!(file, "{value}")?;
     Ok(())
 }
@@ -44,11 +46,9 @@ impl Engine {
     pub fn enable_telemetry(&self, sink_path: &str) -> Result<(), EngineError> {
         // Touch the sink (create + validate writable) before arming capture, so a
         // bad path fails loudly here rather than silently dropping events.
-        std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(sink_path)
-            .map_err(|_| EngineError::Storage)?;
+        let mut options = std::fs::OpenOptions::new();
+        options.create(true).append(true);
+        std::fs::OpenOptions::open(&options, sink_path).map_err(|_| EngineError::Storage)?;
         let mut guard = self.telemetry.lock().map_err(|_| EngineError::Storage)?;
         *guard = Some(TelemetrySink {
             path: PathBuf::from(sink_path),

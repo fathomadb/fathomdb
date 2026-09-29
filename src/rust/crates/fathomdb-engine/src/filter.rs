@@ -214,7 +214,7 @@ impl Predicate {
         //   - Integer predicates: AND json_type = 'integer' — exclude booleans
         // Text predicates need no guard: json_extract returns TEXT for strings and
         // the coercion never conflates TEXT with integer/bool.
-        let path = self.path();
+        let path = Predicate::path(self);
         match self {
             Self::JsonPathEq { value, .. } => match value {
                 ScalarValue::Bool(_) => format!(

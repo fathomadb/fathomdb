@@ -5,12 +5,29 @@ use std::collections::{BTreeMap, BTreeSet};
 use proc_macro2::Span;
 use syn::visit::{self, Visit};
 use syn::{
-    Attribute, Expr, ExprField, ExprMethodCall, ExprPath, ImplItem, ImplItemFn, ItemEnum, ItemFn,
-    ItemImpl, ItemMod, ItemStruct, ItemTrait, ItemType, ItemUse, Local, Member, Meta, Pat, Type,
-    Visibility,
+    Attribute, Expr, ExprCall, ExprField, ExprMethodCall, ExprPath, ImplItem, ImplItemFn, ItemEnum,
+    ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait, ItemType, ItemUse, Local, Macro, Member,
+    Meta, Pat, Type, Visibility,
 };
 
-pub const CONFIGURATIONS: [&str; 4] = ["default", "test-hooks", "tc5-benchmark", "cfg(test)"];
+pub const CONFIGURATIONS: [&str; 16] = [
+    "default-linux",
+    "default-nonlinux",
+    "hooks-linux",
+    "hooks-nonlinux",
+    "tc5-linux",
+    "tc5-nonlinux",
+    "hooks-tc5-linux",
+    "hooks-tc5-nonlinux",
+    "test-linux",
+    "test-nonlinux",
+    "test-hooks-linux",
+    "test-hooks-nonlinux",
+    "test-tc5-linux",
+    "test-tc5-nonlinux",
+    "test-hooks-tc5-linux",
+    "test-hooks-tc5-nonlinux",
+];
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum EdgeKind {
@@ -50,13 +67,24 @@ impl From<Span> for Location {
 pub struct Edge {
     pub kind: EdgeKind,
     pub target: String,
+    pub source_scope: String,
+    pub source_item: String,
     pub location: Location,
     pub configurations: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MacroUse {
+    pub target: String,
+    pub source_scope: String,
+    pub source_item: String,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ModuleDecl {
     pub name: String,
+    pub scope: String,
     pub inline: bool,
     pub depth: usize,
     pub location: Location,
@@ -81,6 +109,7 @@ pub struct Analysis {
     pub local_functions: BTreeMap<String, Location>,
     pub import_aliases: BTreeMap<String, String>,
     pub unsupported_cfg: BTreeSet<String>,
+    pub macros: BTreeSet<MacroUse>,
 }
 
 pub fn analyze_source(source: &str) -> Result<Analysis, syn::Error> {
@@ -97,20 +126,20 @@ struct Analyzer {
     impl_owners: Vec<String>,
     configurations: BTreeSet<String>,
     module_depth: usize,
+    module_stack: Vec<String>,
+    item_stack: Vec<String>,
 }
 
 impl Default for Analyzer {
     fn default() -> Self {
         Self {
             analysis: Analysis::default(),
-            engine_aliases: BTreeSet::from([
-                "self".to_string(),
-                "engine".to_string(),
-                "opened".to_string(),
-            ]),
+            engine_aliases: BTreeSet::from(["engine".to_string()]),
             impl_owners: Vec::new(),
             configurations: CONFIGURATIONS.into_iter().map(str::to_string).collect(),
             module_depth: 0,
+            module_stack: Vec::new(),
+            item_stack: Vec::new(),
         }
     }
 }
@@ -120,6 +149,8 @@ impl Analyzer {
         self.analysis.edges.insert(Edge {
             kind,
             target: target.into(),
+            source_scope: self.module_stack.join("::"),
+            source_item: self.item_stack.last().cloned().unwrap_or_else(|| "<module>".to_string()),
             location: span.into(),
             configurations: self.configurations.clone(),
         });
@@ -129,9 +160,90 @@ impl Analyzer {
         self.analysis.declared_items.insert(name.into());
     }
 
+    fn record_macro(&mut self, path: &syn::Path, span: Span) {
+        self.analysis.macros.insert(MacroUse {
+            target: path
+                .segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::"),
+            source_scope: self.module_stack.join("::"),
+            source_item: self.item_stack.last().cloned().unwrap_or_else(|| "<module>".to_string()),
+            location: span.into(),
+        });
+    }
+
+    fn record_callable_path(&mut self, path: &syn::Path) {
+        let segments =
+            path.segments.iter().map(|segment| segment.ident.to_string()).collect::<Vec<_>>();
+        let Some(last) = segments.last() else { return };
+        let reader_request_variant = segments.windows(2).any(|pair| pair[0] == "ReaderRequest");
+        if last.chars().next().is_some_and(char::is_uppercase) && !reader_request_variant {
+            return;
+        }
+        if segments.first().is_some_and(|segment| segment == "Engine")
+            || (segments.first().is_some_and(|segment| segment == "Self")
+                && self.impl_owners.last().is_some_and(|owner| owner == "Engine"))
+        {
+            self.edge(EdgeKind::EngineMethod, last.clone(), path.segments[0].ident.span());
+        } else {
+            self.edge(EdgeKind::Callable, segments.join("::"), path.segments[0].ident.span());
+        }
+    }
+
     fn enter_attrs(&mut self, attrs: &[Attribute]) -> BTreeSet<String> {
         let previous = self.configurations.clone();
-        for attr in attrs.iter().filter(|attr| attr.path().is_ident("cfg")) {
+        for attr in attrs {
+            if attr.path().is_ident("cfg_attr") {
+                let Meta::List(list) = &attr.meta else {
+                    self.analysis
+                        .unsupported_cfg
+                        .insert("malformed cfg_attr attribute".to_string());
+                    self.configurations.clear();
+                    continue;
+                };
+                let compact = list
+                    .tokens
+                    .to_string()
+                    .chars()
+                    .filter(|ch| !ch.is_whitespace())
+                    .collect::<String>();
+                let Some((condition, nested)) = split_cfg_attr(&compact) else {
+                    self.analysis.unsupported_cfg.insert(compact);
+                    self.configurations.clear();
+                    continue;
+                };
+                if let Some(predicate) =
+                    nested.strip_prefix("cfg(").and_then(|value| value.strip_suffix(')'))
+                {
+                    let mut unsupported = false;
+                    self.configurations = self
+                        .configurations
+                        .iter()
+                        .filter(|configuration| {
+                            let active = evaluate_cfg(condition, configuration);
+                            let nested_active = evaluate_cfg(predicate, configuration);
+                            match (active, nested_active) {
+                                (Some(false), _) => true,
+                                (Some(true), Some(value)) => value,
+                                _ => {
+                                    unsupported = true;
+                                    false
+                                }
+                            }
+                        })
+                        .cloned()
+                        .collect();
+                    if unsupported {
+                        self.analysis.unsupported_cfg.insert(compact);
+                    }
+                }
+                continue;
+            }
+            if !attr.path().is_ident("cfg") {
+                continue;
+            }
             let Meta::List(list) = &attr.meta else {
                 self.analysis.unsupported_cfg.insert("malformed cfg attribute".to_string());
                 self.configurations.clear();
@@ -166,11 +278,15 @@ impl Analyzer {
                 .target
                 .split_once("::")
                 .map_or((edge.target.as_str(), None), |(head, rest)| (head, Some(rest)));
-            if let Some(owner) = aliases.get(first) {
+            if self.analysis.local_functions.contains_key(first) {
+                resolved.insert(edge.clone());
+            } else if let Some(owner) = aliases.get(first) {
                 let target = tail.map_or_else(|| owner.clone(), |rest| format!("{owner}::{rest}"));
                 resolved.insert(Edge {
                     kind: edge.kind.clone(),
                     target,
+                    source_scope: edge.source_scope.clone(),
+                    source_item: edge.source_item.clone(),
                     location: edge.location,
                     configurations: edge.configurations.clone(),
                 });
@@ -204,16 +320,31 @@ fn evaluate_cfg_compact(predicate: &str, configuration: &str) -> Option<bool> {
         return evaluate_cfg_compact(inner, configuration).map(|active| !active);
     }
     match predicate {
-        "test" => Some(configuration == "cfg(test)"),
-        "debug_assertions" | "unix" | "target_os=\"linux\"" => Some(true),
+        "test" => Some(configuration.starts_with("test-")),
+        "debug_assertions" => Some(true),
+        "unix" | "target_os=\"linux\"" => Some(configuration.ends_with("-linux")),
+        "windows" | "target_os=\"windows\"" => Some(configuration.ends_with("-nonlinux")),
         _ => predicate.strip_prefix("feature=\"").and_then(|value| value.strip_suffix('"')).map(
             |feature| match feature {
-                "test-hooks" => configuration == "test-hooks",
-                "tc5-benchmark" => configuration == "tc5-benchmark",
+                "test-hooks" => configuration.contains("hooks"),
+                "tc5-benchmark" => configuration.contains("tc5"),
                 _ => false,
             },
         ),
     }
+}
+
+fn split_cfg_attr(source: &str) -> Option<(&str, &str)> {
+    let mut depth = 0usize;
+    for (index, ch) in source.char_indices() {
+        match ch {
+            '(' => depth += 1,
+            ')' => depth = depth.checked_sub(1)?,
+            ',' if depth == 0 => return Some((&source[..index], &source[index + 1..])),
+            _ => {}
+        }
+    }
+    None
 }
 
 fn split_cfg_arguments(source: &str) -> Vec<&str> {
@@ -252,6 +383,7 @@ impl<'ast> Visit<'ast> for Analyzer {
         let previous = self.enter_attrs(&item.attrs);
         self.analysis.modules.insert(ModuleDecl {
             name: item.ident.to_string(),
+            scope: self.module_stack.join("::"),
             inline: item.content.is_some(),
             depth: self.module_depth,
             location: item.ident.span().into(),
@@ -259,9 +391,11 @@ impl<'ast> Visit<'ast> for Analyzer {
         self.declared(item.ident.to_string());
         if item.content.is_some() {
             self.module_depth += 1;
+            self.module_stack.push(item.ident.to_string());
         }
         visit::visit_item_mod(self, item);
         if item.content.is_some() {
+            self.module_stack.pop();
             self.module_depth -= 1;
         }
         self.configurations = previous;
@@ -288,6 +422,8 @@ impl<'ast> Visit<'ast> for Analyzer {
             &mut self.analysis.globs,
             aliases,
             &self.configurations,
+            &self.module_stack.join("::"),
+            self.item_stack.last().map_or("<module>", String::as_str),
         );
         visit::visit_item_use(self, item);
         self.configurations = previous;
@@ -324,8 +460,10 @@ impl<'ast> Visit<'ast> for Analyzer {
         let previous = self.enter_attrs(&item.attrs);
         let name = item.sig.ident.to_string();
         self.declared(name.clone());
-        self.analysis.local_functions.insert(name, item.sig.ident.span().into());
+        self.analysis.local_functions.insert(name.clone(), item.sig.ident.span().into());
+        self.item_stack.push(name);
         visit::visit_item_fn(self, item);
+        self.item_stack.pop();
         self.configurations = previous;
     }
 
@@ -365,8 +503,20 @@ impl<'ast> Visit<'ast> for Analyzer {
 
     fn visit_impl_item_fn(&mut self, item: &'ast ImplItemFn) {
         let previous = self.enter_attrs(&item.attrs);
+        let owner = self.impl_owners.last().map_or("<impl>", String::as_str);
+        self.item_stack.push(format!("{owner}::{}", item.sig.ident));
         visit::visit_impl_item_fn(self, item);
+        self.item_stack.pop();
         self.configurations = previous;
+    }
+
+    fn visit_macro(&mut self, mac: &'ast Macro) {
+        if !mac.path.is_ident("macro_rules") {
+            if let Some(segment) = mac.path.segments.first() {
+                self.record_macro(&mac.path, segment.ident.span());
+            }
+        }
+        visit::visit_macro(self, mac);
     }
 
     fn visit_expr_field(&mut self, expression: &'ast ExprField) {
@@ -374,6 +524,12 @@ impl<'ast> Visit<'ast> for Analyzer {
             visit::visit_expr_field(self, expression);
             return;
         };
+        if expression_base_ident(&expression.base).as_deref() == Some("self")
+            && !self.impl_owners.last().is_some_and(|owner| owner == "Engine")
+        {
+            visit::visit_expr_field(self, expression);
+            return;
+        }
         // Resolution against the source-derived Engine field set happens after
         // all modules are parsed. Recording every named access makes an
         // unknown receiver conservative without manufacturing an edge for
@@ -383,9 +539,11 @@ impl<'ast> Visit<'ast> for Analyzer {
     }
 
     fn visit_expr_method_call(&mut self, expression: &'ast ExprMethodCall) {
-        if expression_base_ident(&expression.receiver)
-            .is_some_and(|ident| self.engine_aliases.contains(&ident))
-        {
+        if expression_base_ident(&expression.receiver).is_some_and(|ident| {
+            self.engine_aliases.contains(&ident)
+                || (ident == "self"
+                    && self.impl_owners.last().is_some_and(|owner| owner == "Engine"))
+        }) {
             self.edge(
                 EdgeKind::EngineMethod,
                 expression.method.to_string(),
@@ -401,6 +559,19 @@ impl<'ast> Visit<'ast> for Analyzer {
         visit::visit_expr_method_call(self, expression);
     }
 
+    fn visit_expr_call(&mut self, expression: &'ast ExprCall) {
+        if let Expr::Path(path) = expression.func.as_ref() {
+            if path.qself.is_none() {
+                self.record_callable_path(&path.path);
+            }
+        } else {
+            self.visit_expr(&expression.func);
+        }
+        for argument in &expression.args {
+            self.visit_expr(argument);
+        }
+    }
+
     fn visit_expr_path(&mut self, expression: &'ast ExprPath) {
         if expression.qself.is_none() {
             let segments = expression
@@ -409,31 +580,13 @@ impl<'ast> Visit<'ast> for Analyzer {
                 .iter()
                 .map(|segment| segment.ident.to_string())
                 .collect::<Vec<_>>();
-            if segments.len() >= 2 {
-                if segments.first().is_some_and(|segment| segment == "Engine")
-                    || (segments.first().is_some_and(|segment| segment == "Self")
-                        && self.impl_owners.last().is_some_and(|owner| owner == "Engine"))
-                {
-                    if let Some(method) = segments.last() {
-                        self.edge(
-                            EdgeKind::EngineMethod,
-                            method.clone(),
-                            expression.path.segments[0].ident.span(),
-                        );
-                    }
-                } else {
-                    self.edge(
-                        EdgeKind::Callable,
-                        segments.join("::"),
-                        expression.path.segments[0].ident.span(),
-                    );
-                }
-            } else if let Some(name) = segments.first() {
-                self.edge(
-                    EdgeKind::Callable,
-                    name.clone(),
-                    expression.path.segments[0].ident.span(),
-                );
+            let callable_reference = segments.len() >= 2
+                || segments.first().is_some_and(|name| {
+                    self.analysis.local_functions.contains_key(name)
+                        || self.analysis.import_aliases.contains_key(name)
+                });
+            if callable_reference {
+                self.record_callable_path(&expression.path);
             }
         }
         visit::visit_expr_path(self, expression);
@@ -476,6 +629,10 @@ fn expression_base_ident(expression: &Expr) -> Option<String> {
             path.path.segments.first().map(|segment| segment.ident.to_string())
         }
         Expr::Paren(paren) => expression_base_ident(&paren.expr),
+        Expr::Field(field) => match &field.member {
+            Member::Named(member) if member == "engine" => Some("engine".to_string()),
+            _ => expression_base_ident(&field.base),
+        },
         Expr::Reference(reference) => expression_base_ident(&reference.expr),
         Expr::Unary(unary) => expression_base_ident(&unary.expr),
         _ => None,
@@ -495,11 +652,23 @@ fn collect_use_tree(
     globs: &mut BTreeSet<Location>,
     aliases: &mut BTreeMap<String, String>,
     configurations: &BTreeSet<String>,
+    source_scope: &str,
+    source_item: &str,
 ) {
     match tree {
         syn::UseTree::Path(path) => {
             prefix.push(path.ident.to_string());
-            collect_use_tree(&path.tree, prefix, kind, edges, globs, aliases, configurations);
+            collect_use_tree(
+                &path.tree,
+                prefix,
+                kind,
+                edges,
+                globs,
+                aliases,
+                configurations,
+                source_scope,
+                source_item,
+            );
             prefix.pop();
         }
         syn::UseTree::Name(name) => {
@@ -510,6 +679,8 @@ fn collect_use_tree(
             edges.insert(Edge {
                 kind,
                 target,
+                source_scope: source_scope.to_string(),
+                source_item: source_item.to_string(),
                 location: name.ident.span().into(),
                 configurations: configurations.clone(),
             });
@@ -522,6 +693,8 @@ fn collect_use_tree(
             edges.insert(Edge {
                 kind,
                 target,
+                source_scope: source_scope.to_string(),
+                source_item: source_item.to_string(),
                 location: rename.ident.span().into(),
                 configurations: configurations.clone(),
             });
@@ -534,13 +707,25 @@ fn collect_use_tree(
             edges.insert(Edge {
                 kind,
                 target: target.join("::"),
+                source_scope: source_scope.to_string(),
+                source_item: source_item.to_string(),
                 location,
                 configurations: configurations.clone(),
             });
         }
         syn::UseTree::Group(group) => {
             for item in &group.items {
-                collect_use_tree(item, prefix, kind.clone(), edges, globs, aliases, configurations);
+                collect_use_tree(
+                    item,
+                    prefix,
+                    kind.clone(),
+                    edges,
+                    globs,
+                    aliases,
+                    configurations,
+                    source_scope,
+                    source_item,
+                );
             }
         }
     }
@@ -711,12 +896,58 @@ mod tests {
             .iter()
             .find(|edge| edge.target.ends_with("test_hooks::seam"))
             .expect("test hook edge");
-        assert_eq!(seam.configurations, BTreeSet::from(["test-hooks".to_string()]));
+        assert_eq!(
+            seam.configurations,
+            CONFIGURATIONS
+                .into_iter()
+                .filter(|configuration| configuration.contains("hooks"))
+                .map(str::to_string)
+                .collect()
+        );
         let tc5 = analysis
             .edges
             .iter()
             .find(|edge| edge.target == "crate::tc5_benchmark::run")
             .expect("tc5 edge");
-        assert_eq!(tc5.configurations, BTreeSet::from(["tc5-benchmark".to_string()]));
+        assert_eq!(
+            tc5.configurations,
+            CONFIGURATIONS
+                .into_iter()
+                .filter(|configuration| configuration.contains("tc5"))
+                .map(str::to_string)
+                .collect()
+        );
+    }
+
+    #[test]
+    fn source_items_inline_scopes_cfg_attr_and_macros_are_preserved() {
+        let analysis = analyze_source(
+            r#"
+            mod tests {
+                #[cfg_attr(target_os = "linux", cfg(feature = "test-hooks"))]
+                fn helper() { crate::internal_macro!(); crate::reader_pool::dispatch(); }
+            }
+            "#,
+        )
+        .expect("fixture parses");
+        let call = analysis
+            .edges
+            .iter()
+            .find(|edge| edge.target == "crate::reader_pool::dispatch")
+            .expect("call edge");
+        assert_eq!(call.source_scope, "tests");
+        assert_eq!(call.source_item, "helper");
+        assert!(call.configurations.iter().all(|configuration| {
+            !configuration.ends_with("-linux") || configuration.contains("hooks")
+        }));
+        assert!(
+            analysis.macros.iter().any(|usage| {
+                usage.target == "crate::internal_macro"
+                    && usage.source_scope == "tests"
+                    && usage.source_item == "helper"
+            }),
+            "{:?}",
+            analysis.macros
+        );
     }
 }

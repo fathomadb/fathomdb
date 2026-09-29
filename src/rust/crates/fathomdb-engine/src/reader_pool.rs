@@ -1259,8 +1259,11 @@ use rusqlite::Connection;
 use std::fmt::Formatter;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender};
-use std::sync::{Arc, Barrier, Mutex};
+#[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+use std::sync::Barrier;
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
+#[cfg(any(test, debug_assertions, feature = "test-hooks"))]
 use std::time::Duration;
 #[cfg(any(test, feature = "test-hooks"))]
 use std::time::Instant;

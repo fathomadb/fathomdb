@@ -488,7 +488,9 @@ pub(crate) fn append_json_witness_for_test(variable: &str, value: &serde_json::V
     let Ok(_guard) = WITNESS_LOCK.get_or_init(|| Mutex::new(())).lock() else {
         return;
     };
-    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
+    let mut options = OpenOptions::new();
+    options.create(true).append(true);
+    if let Ok(mut file) = OpenOptions::open(&options, path) {
         let _ = writeln!(file, "{value}");
     }
 }

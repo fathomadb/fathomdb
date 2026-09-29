@@ -309,7 +309,9 @@ use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::mpsc::{self, Receiver, SyncSender};
+#[cfg(any(test, debug_assertions, feature = "test-hooks"))]
+use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::{self, Receiver};
 #[cfg(any(test, debug_assertions, feature = "test-hooks"))]
 use std::sync::Barrier;
 use std::sync::Once;

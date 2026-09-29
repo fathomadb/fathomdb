@@ -140,7 +140,7 @@ impl Engine {
         // Defense-in-depth: revalidate paths even if the caller bypassed the
         // validated constructors by constructing enum variants directly.
         for pred in predicates {
-            let path = pred.path();
+            let path = Predicate::path(pred);
             if !PREDICATE_PATH_ALLOWLIST.contains(&path) {
                 return Err(EngineError::InvalidFilter {
                     reason: format!("path '{path}' is not in the predicate path allowlist"),

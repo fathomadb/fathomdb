@@ -9,7 +9,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::Mutex;
 
 use crate::errors::EngineError;
-use crate::filter::{append_node_eligibility_sql, SearchFilter};
+use crate::filter::{
+    append_node_eligibility_sql, validate_filter_attributes_on_snapshot, SearchFilter,
+};
 use crate::frozen_read;
 use crate::identity::IdSpaceKind;
 use crate::projection_generation::{
@@ -1135,11 +1137,4 @@ pub(super) fn encode_graph_evidence_request(value: &GraphExpandRequestV1) -> Vec
     bytes.push(u8::from(value.include_explanation));
     bytes.push(u8::from(value.include_evidence));
     bytes
-}
-
-fn validate_filter_attributes_on_snapshot(
-    connection: &Connection,
-    filter: &SearchFilter,
-) -> Result<(), crate::SnapshotFilterError> {
-    crate::validate_filter_attributes_on_snapshot(connection, filter)
 }

@@ -1269,7 +1269,7 @@ t11_bridge_mutant() {
     printf '\nmod s85_a {\n    use super::*;\n    pub(crate) fn s85_bridge(c: &rusqlite::Connection) {\n        %s\n    }\n}\n' \
       "$body" >>"$engine_root"
   else
-    printf '\nmod s85_a {\n    pub(crate) fn s85_bridge(c: &rusqlite::Connection) {\n        %s\n    }\n}\n' \
+    printf '\npub(crate) mod s85_a {\n    pub(crate) fn s85_bridge(c: &rusqlite::Connection) {\n        %s\n    }\n}\n' \
       "$body" >>"$fixture/src/rust/crates/fathomdb-engine/src/$host.rs"
   fi
   printf '\n%spub(crate) fn s85_g(c: &rusqlite::Connection) { %s(c); }\n' "$import" "$call" \
@@ -1316,6 +1316,171 @@ t11_bridge_mutant inline-file-item-cycle telemetry crate::telemetry::s85_a::s85_
   'edge graph_expand s85_g telemetry::s85_a s85_bridge callable all' \
   'edge telemetry::s85_a s85_bridge search s85_ret callable all' \
   'edge search s85_ret graph_expand s85_g callable all'
+
+# Test review cycle 2, T-9 (AC27-85E): compiled negative fixtures. Each family
+# the AC names gets at least one mutant that also passes `cargo check -p
+# fathomdb-engine --lib --profile test --features test-hooks,operator`, by adding
+# the stub items it names. The syntactic mutants above stay: they pin the same
+# forms against items that do not exist. Each file is restored from the source
+# tree, which is clean.
+compiled_src="$fixture/src/rust/crates/fathomdb-engine/src"
+# compiled_mutant LABEL DIAGNOSTIC FILE BODY [STUB_FILE STUB]...
+compiled_mutant() {
+  local label="$1" expected="$2" file="$3" body="$4"
+  shift 4
+  local touched=("$file")
+  printf '\n%s\n' "$body" >>"$compiled_src/$file"
+  while [ "$#" -ge 2 ]; do
+    printf '\n%s\n' "$2" >>"$compiled_src/$1"
+    touched+=("$1")
+    shift 2
+  done
+  expect_failure "$label" "$expected" "$GATE" --root "$fixture"
+  local restored
+  for restored in "${touched[@]}"; do
+    cp "$REPO_ROOT/src/rust/crates/fathomdb-engine/src/$restored" "$compiled_src/$restored"
+  done
+}
+pool_probe='pub(crate) fn slice85_probe() -> u8 { 0 }'
+pool_trait='pub(crate) trait S85Trait {}'
+read_pool='forbidden dependency read -> reader_pool'
+search_pool='forbidden dependency search -> reader_pool'
+
+# A local free-function shadow: a block-local item may shadow the import.
+compiled_mutant compiled-shadow 'local function shadows governed callable' search.rs \
+  'fn slice85_shadow_call() { fn validate_filter_attributes_on_snapshot() {} validate_filter_attributes_on_snapshot(); }'
+
+# Unresolved-alias rejection: the receiver's type comes from a local
+# function's return, which the gate does not infer.
+compiled_mutant compiled-untyped-receiver 'source=search source_item=slice85_untyped method=slice85_recv' \
+  search.rs 'fn slice85_make() -> crate::telemetry::TelemetrySink { todo!() }
+pub(crate) fn slice85_untyped() { let sink = slice85_make(); sink.slice85_recv(); }' \
+  telemetry.rs 'impl TelemetrySink { pub(crate) fn slice85_recv(&self) {} }'
+compiled_mutant compiled-generic-parameter-receiver \
+  'source=read source_item=slice85_generic_receiver method=cache_status_per_worker' read.rs \
+  'fn slice85_generic_receiver<T: std::ops::Deref<Target = crate::reader_pool::ReaderWorkerPool>>(p: T) { let _ = p.cache_status_per_worker(""); }'
+
+# Duplicate names: overlapping Engine method twins. They compile in the
+# checked feature set, which lacks tc5-benchmark; the gate evaluates the
+# overlap that a tc5-benchmark build would reject.
+compiled_mutant compiled-overlapping-engine-method-twins \
+  'Engine method slice85_platform has multiple defining modules in configuration' read_api.rs \
+  $'#[cfg(target_os = "linux")]\nimpl Engine {\n    pub(crate) fn slice85_platform(&self) {}\n}' \
+  graph_api.rs $'#[cfg(feature = "tc5-benchmark")]\nimpl Engine {\n    pub(crate) fn slice85_platform(&self) {}\n}'
+
+# A missing Engine field-map entry, with the field initialised.
+sed -i 's/^pub struct Engine {$/pub struct Engine {\n    slice85_field: u8,/' "$engine_root"
+sed -i 's/^                        path: canonical_path.clone(),$/&\n                        slice85_field: 0,/' "$engine_root"
+if ! grep -Fqx '                        slice85_field: 0,' "$engine_root"; then
+  printf 'compiled-engine-field-missing constructor anchor vanished from lib.rs\n' >&2
+  exit 1
+fi
+expect_failure compiled-engine-field-missing 'Engine field map missing slice85_field' "$GATE" --root "$fixture"
+cp "$fixture/lib.rs.clean" "$engine_root"
+
+# Trait references: bounds, where clauses, impl headers, impl/dyn Trait,
+# supertraits and qualified-self.
+compiled_mutant compiled-generic-bound "$read_pool" read.rs \
+  'fn slice85_bound<T: crate::reader_pool::S85Trait>(_: T) {}' reader_pool.rs "$pool_trait"
+compiled_mutant compiled-where-bound "$read_pool" read.rs \
+  'fn slice85_where<T>(_: T) where T: crate::reader_pool::S85Trait {}' reader_pool.rs "$pool_trait"
+compiled_mutant compiled-impl-trait-header "$read_pool" read.rs \
+  'impl crate::reader_pool::S85Trait for u8 {}' reader_pool.rs "$pool_trait"
+compiled_mutant compiled-impl-trait-argument "$read_pool" read.rs \
+  'fn slice85_impl_arg(_: impl crate::reader_pool::S85Trait) {}' reader_pool.rs "$pool_trait"
+compiled_mutant compiled-dyn-trait-reference "$read_pool" read.rs \
+  'fn slice85_dyn_ref(_: &dyn crate::reader_pool::S85Trait) {}' reader_pool.rs "$pool_trait"
+compiled_mutant compiled-boxed-dyn-trait "$read_pool" read.rs \
+  'fn slice85_dyn_box(_: Box<dyn crate::reader_pool::S85Trait>) {}' reader_pool.rs "$pool_trait"
+compiled_mutant compiled-supertrait "$read_pool" read.rs \
+  'trait Slice85Super: crate::reader_pool::S85Trait {}' reader_pool.rs "$pool_trait"
+compiled_mutant compiled-qself-trait-call "$read_pool" read.rs \
+  'fn slice85_qself_trait(x: u8) { let _ = <u8 as crate::reader_pool::S85QTrait>::go(x); }' \
+  reader_pool.rs 'pub(crate) trait S85QTrait { type Out; fn go(x: u8) -> u8 { x } }
+impl S85QTrait for u8 { type Out = u8; }'
+compiled_mutant compiled-qself-trait-type "$read_pool" read.rs \
+  'fn slice85_qself_trait_type(_: <u8 as crate::reader_pool::S85QTrait>::Out) {}' \
+  reader_pool.rs 'pub(crate) trait S85QTrait { type Out; }
+impl S85QTrait for u8 { type Out = u8; }'
+compiled_mutant compiled-self-super-chain "$read_pool" read.rs \
+  'fn slice85_self_super() { let _ = self::super::reader_pool::slice85_probe(); }' reader_pool.rs "$pool_probe"
+compiled_mutant compiled-const-generic-turbofish "$read_pool" read.rs \
+  'struct S85G<const N: usize>; impl<const N: usize> S85G<N> { fn new() -> Self { Self } }
+fn slice85_const_generic() { let _ = S85G::<{ crate::reader_pool::S85_N }>::new(); }' \
+  reader_pool.rs 'pub(crate) const S85_N: usize = 1;'
+
+# Capitalised module-qualified paths: constants, variants, tuple and unit
+# constructors, and tuple/struct patterns.
+compiled_mutant compiled-capital-const "$search_pool" search.rs \
+  'fn slice85_const_probe() -> usize { crate::reader_pool::S85_PROBE_CONST }' \
+  reader_pool.rs 'pub(crate) const S85_PROBE_CONST: usize = 1;'
+pool_enum='pub(crate) enum S85Enum { A, B(usize) }'
+compiled_mutant compiled-capital-variant "$search_pool" search.rs \
+  'fn slice85_variant_probe() { let _ = crate::reader_pool::S85Enum::A; }' reader_pool.rs "$pool_enum"
+compiled_mutant compiled-capital-constructor "$read_pool" read.rs \
+  'fn slice85_constructor_probe() { let _ = crate::reader_pool::S85Carrier(1); }' \
+  reader_pool.rs 'pub(crate) struct S85Carrier(pub(crate) u8);'
+compiled_mutant compiled-capital-unit "$search_pool" search.rs \
+  'fn slice85_unit_probe() { let _ = crate::reader_pool::S85Unit; }' reader_pool.rs 'pub(crate) struct S85Unit;'
+compiled_mutant compiled-capital-tuple-pattern "$read_pool" read.rs \
+  'fn slice85_pattern_probe(value: crate::reader_pool::S85Enum) { if let crate::reader_pool::S85Enum::B(_) = value {} }' \
+  reader_pool.rs "$pool_enum"
+compiled_mutant compiled-capital-struct-pattern "$read_pool" read.rs \
+  'fn slice85_struct_pattern_probe(value: crate::reader_pool::S85Struct) { let crate::reader_pool::S85Struct { .. } = value; }' \
+  reader_pool.rs 'pub(crate) struct S85Struct { pub(crate) a: u8 }'
+compiled_mutant compiled-type-kind 'target_item=Slice85Probe syntax=crate::fusion::Slice85Probe kind=type ' \
+  search.rs 'fn slice85_type_only(_: crate::fusion::Slice85Probe) {}' fusion.rs 'pub(crate) struct Slice85Probe;'
+
+# Macro bodies: std, rusqlite and local statement macros, and an unparsed
+# body; the governed macro path names a macro the crate exports.
+compiled_mutant compiled-macro 'unreviewed governed macro' search.rs \
+  'fn slice85_hidden_macro() { crate::slice85_dependency!(); }' \
+  lib.rs $'#[macro_export]\nmacro_rules! slice85_dependency { () => {}; }'
+compiled_mutant compiled-macro-vec-repeat "$read_pool" read.rs \
+  'fn slice85_macro_repeat() { let _ = vec![crate::reader_pool::slice85_probe(); 2]; }' reader_pool.rs "$pool_probe"
+compiled_mutant compiled-macro-params "$read_pool" read.rs \
+  'fn slice85_macro_params() { let _ = rusqlite::params![crate::reader_pool::slice85_probe()]; }' \
+  reader_pool.rs "$pool_probe"
+compiled_mutant compiled-macro-assert-matches 'forbidden dependency graph_expand -> search_api' \
+  graph_expand/mod.rs 'fn slice85_macro_matches() { assert!(matches!(crate::search_api::slice85_probe(), 1)); }' \
+  search_api.rs "$pool_probe"
+compiled_mutant compiled-macro-assert-matches-capital 'forbidden dependency graph_expand -> search_api' \
+  graph_expand/mod.rs 'fn slice85_macro_matches_capital() { assert!(matches!(crate::search_api::S85(1), _)); }' \
+  search_api.rs 'pub(crate) struct S85(pub(crate) u8);'
+compiled_mutant compiled-macro-matches-guard 'forbidden dependency graph_expand -> search' \
+  graph_expand/mod.rs 'fn slice85_macro_pattern(value: u8) -> bool { matches!(value, x if x == crate::search::slice85_probe()) }' \
+  search.rs "$pool_probe"
+compiled_mutant compiled-macro-format "$search_pool" search.rs \
+  'fn slice85_macro_format() -> String { format!("{}", crate::reader_pool::slice85_probe()) }' \
+  reader_pool.rs "$pool_probe"
+compiled_mutant compiled-macro-write 'forbidden dependency graph_expand::traversal -> search' \
+  graph_expand/traversal.rs 'fn slice85_macro_write(f: &mut String) { use std::fmt::Write as _; let _ = write!(f, "{}", crate::search::slice85_probe()); }' \
+  search.rs "$pool_probe"
+compiled_mutant compiled-macro-statements "$search_pool" search.rs \
+  'macro_rules! slice85_block_macro { ($($body:tt)*) => { $($body)* }; }
+fn slice85_macro_block() { slice85_block_macro! { let _ = crate::reader_pool::slice85_probe(); } }' \
+  reader_pool.rs "$pool_probe"
+compiled_mutant compiled-macro-unparsed \
+  'unparsed macro body source=search item=slice85_macro_opaque macro=slice85_opaque at search.rs:' search.rs \
+  'macro_rules! slice85_opaque { (=> $p:path) => { let _ = $p; }; }
+fn slice85_macro_opaque() { slice85_opaque!(=> crate::reader_pool::slice85_probe); }' \
+  reader_pool.rs "$pool_probe"
+
+# Descendant forbids and item cycles through a helper and a submodule.
+compiled_mutant compiled-codec-search-api 'forbidden dependency graph_expand::codec -> search_api' \
+  graph_expand/codec.rs 'pub(crate) fn slice85_codec_search_api() { let _ = crate::search_api::slice85_probe; }' \
+  search_api.rs "$pool_probe"
+printf 'edge search slice85_cycle_out telemetry slice85_cycle_in callable all\nedge telemetry slice85_cycle_in search slice85_cycle_return callable all\n' \
+  >>"$policy_file"
+compiled_mutant compiled-local-helper-cycle 'unapproved governed cycle search <-> telemetry' search.rs \
+  'pub(crate) fn slice85_cycle_out() { crate::telemetry::slice85_cycle_in(); }
+pub(crate) fn slice85_cycle_return() { slice85_cycle_out(); }' \
+  telemetry.rs 'pub(crate) fn slice85_cycle_in() { crate::search::slice85_cycle_return(); }'
+cp "$fixture/module-boundary-policy.clean" "$policy_file"
+compiled_mutant compiled-forbidden-submodule-cycle 'forbidden cycle graph_expand <-> search graph=item' \
+  graph_expand/codec.rs 'pub(crate) fn slice85_codec_out() { crate::search::slice85_codec_in(); }' \
+  graph_expand/mod.rs 'pub(crate) use codec::slice85_codec_out;' \
+  search.rs 'pub(crate) fn slice85_codec_in() { crate::graph_expand::slice85_codec_out(); }'
 
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \

@@ -1099,6 +1099,52 @@ expect_failure python-dev-split-cycle 'unapproved governed cycle search <-> tele
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 cp "$fixture/telemetry.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
 
+# Test review cycle 1, T-1: the policy inventories themselves. Each Engine
+# field, module classification, owner assertion and governed inherent method
+# is an exact, stale-checked map, and an empty field map fails closed.
+engine_root="$fixture/src/rust/crates/fathomdb-engine/src/lib.rs"
+reader_pool_file="$fixture/src/rust/crates/fathomdb-engine/src/reader_pool.rs"
+policy_file="$fixture/dev/tools/module-boundary-policy.txt"
+sed -i 's/^pub struct Engine {$/pub struct Engine {\n    slice85_field: u8,/' "$engine_root"
+if ! grep -Fqx '    slice85_field: u8,' "$engine_root"; then
+  printf 'engine-field-missing anchor vanished from lib.rs\n' >&2
+  exit 1
+fi
+expect_failure engine-field-missing 'Engine field map missing slice85_field' "$GATE" --root "$fixture"
+cp "$fixture/lib.rs.clean" "$engine_root"
+
+printf 'field slice85_ghost root\n' >>"$policy_file"
+expect_failure engine-field-stale 'Engine field map stale slice85_ghost' "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$policy_file"
+
+sed -i '/^field /d' "$policy_file"
+expect_failure engine-field-map-empty 'policy has an empty Engine field map' "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$policy_file"
+
+printf 'reported slice85_ghost_mod\n' >>"$policy_file"
+expect_failure classification-stale 'module classification stale slice85_ghost_mod' "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$policy_file"
+
+sed -i 's/^owner SearchReaderError search$/owner SearchReaderError read/' "$policy_file"
+expect_failure owner-stale 'owner assertion stale: read does not declare SearchReaderError' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$policy_file"
+
+printf 'owner Slice85Ghost slice85_nosuch\n' >>"$policy_file"
+expect_failure owner-missing-module 'owner assertion names missing module slice85_nosuch for Slice85Ghost' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$policy_file"
+
+printf '\nimpl ReaderRequest {\n    pub(crate) fn slice85_unlisted(&self) {}\n}\n' >>"$reader_pool_file"
+expect_failure unlisted-inherent 'unlisted governed inherent method reader_pool ReaderRequest::slice85_unlisted' \
+  "$GATE" --root "$fixture"
+cp "$fixture/reader-pool.rs.clean" "$reader_pool_file"
+
+printf 'inherent search Slice85Ghost::slice85_m\n' >>"$policy_file"
+expect_failure stale-inherent 'stale governed inherent method search Slice85Ghost::slice85_m' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$policy_file"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

@@ -8,6 +8,27 @@ GATE="$REPO_ROOT/dev/tools/module-boundary-gate/target/debug/fathomdb-module-bou
 cargo test --quiet --manifest-path "$TOOL_MANIFEST"
 "$REPO_ROOT/scripts/check-module-boundaries.sh"
 
+# Design review cycle 1, D-8/D-9: ownership invariants of the moved carriers.
+engine_src="$REPO_ROOT/src/rust/crates/fathomdb-engine/src"
+if grep -nE '^impl .*GraphExpansionError(ReasonV1|V1)\b' "$engine_src/graph_expand/execution.rs"; then
+  printf 'GraphExpansionError impls must be colocated with graph_expand::types\n' >&2
+  exit 1
+fi
+for impl_header in 'impl GraphExpansionErrorReasonV1 {' 'impl GraphExpansionErrorV1 {' \
+  'impl Display for GraphExpansionErrorV1 {' 'impl std::error::Error for GraphExpansionErrorV1 {}'; do
+  if ! grep -Fqx "$impl_header" "$engine_src/graph_expand/types.rs"; then
+    printf 'graph_expand/types.rs is missing %s\n' "$impl_header" >&2
+    exit 1
+  fi
+done
+if awk '/^pub\(crate\) struct GraphExpandRetentionCountersForTest \{/{inside=1; next}
+  inside && /^\}/{inside=0}
+  inside && /^[[:space:]]*pub/{found=1}
+  END{exit !found}' "$engine_src/graph_expand/execution.rs"; then
+  printf 'GraphExpandRetentionCountersForTest fields must stay private\n' >&2
+  exit 1
+fi
+
 fixture="$(mktemp -d)"
 trap 'rm -rf "$fixture"' EXIT
 

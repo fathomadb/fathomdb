@@ -37,11 +37,20 @@
 # Configurations: the feature set is read from the engine Cargo.toml
 # [features] table (an undeclared cfg feature fails). `configuration-feature
 # <feature> <label>` names the reviewed axis features, enumerated in every
-# combination (profile:base); every other declared feature gets its own
-# single-feature-closure profile, and profile:all-features enables every
-# closure. Each profile is crossed with test/non-test, linux/non-linux and
-# debug/release (debug_assertions), giving 144 evaluated configurations. An
-# edge in the frozen scope that is active in none of them fails closed.
+# combination (profile:base). Every other declared feature gets its own
+# single-feature-closure profile, and each `configuration-profile <name>
+# <features>` line is a reviewed consumer profile enabling the closure of
+# its list (gpu-product: the CLI/binding GPU artifact with both ML stacks).
+# Those profiles are crossed with every combination of the
+# `configuration-cross` axes (operator: the CLI enables it with any ML
+# feature), other axes off. profile:all-features enables every closure.
+# Each point is crossed with test/non-test, linux/non-linux and
+# debug/release (debug_assertions), giving 232 evaluated configurations. A
+# feature set outside this enumeration (for example test-hooks or
+# tc5-benchmark together with an ML feature, or two ML features no profile
+# combines) is not evaluated as such: only all-features combines them, with
+# every other feature also on. An edge in the frozen scope that is active in
+# none of the evaluated configurations fails closed.
 # Edge configuration fields are canonical expressions: `all`, or
 # `|`-separated cubes of `&`-joined literals over test, the axis labels,
 # linux, debug (each optionally `!`-negated) and `profile:<value>`.
@@ -50,6 +59,8 @@ version 1
 configuration-feature test-hooks hooks
 configuration-feature tc5-benchmark tc5
 configuration-feature operator operator
+configuration-cross operator
+configuration-profile gpu-product embed-cuda,rerank-cuda
 
 reported actuation
 reported actuation::tests
@@ -1957,7 +1968,7 @@ edge record_lifecycle Engine::transition root next_cursor field-access all
 edge record_lifecycle Engine::transition root projection_runtime field-access all
 edge record_lifecycle Engine::transition root restore_registered_derived_projections callable all
 edge record_lifecycle LifecycleState::legal_next_states root is_legal_transition_move callable all
-edge rerank ce_rerank search_types SearchHit type profile:all-features|profile:default-reranker|profile:rerank-cuda|profile:rerank-metal|profile:slice72-gpu-tests
+edge rerank ce_rerank search_types SearchHit type profile:all-features|profile:default-reranker|profile:gpu-product|profile:rerank-cuda|profile:rerank-metal|profile:slice72-gpu-tests
 edge rerank rerank_fused search_types SearchHit type all
 edge rerank rerank_passages search_types SearchHit type all
 edge rerank rerank_passages search_types SoftFallbackBranch type all
@@ -2613,11 +2624,11 @@ edge root Engine::open root OpenedEngine type all
 edge root Engine::open root default_embedder_identity callable all
 edge root Engine::open root open_with_embedder_and_subscriber engine-method all
 edge root Engine::open_default_embedder errors EngineOpenError type all
-edge root Engine::open_default_embedder errors EngineOpenError::EmbedDevicePolicy type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
+edge root Engine::open_default_embedder errors EngineOpenError::EmbedDevicePolicy type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:gpu-product|profile:slice72-gpu-tests
 edge root Engine::open_default_embedder errors EngineOpenError::Embedder callable all
 edge root Engine::open_default_embedder root OpenedEngine type all
-edge root Engine::open_default_embedder root open_with_embedder_and_subscriber engine-method profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
-edge root Engine::open_default_embedder root witness_gpu_allocation_if_requested callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
+edge root Engine::open_default_embedder root open_with_embedder_and_subscriber engine-method profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:gpu-product|profile:slice72-gpu-tests
+edge root Engine::open_default_embedder root witness_gpu_allocation_if_requested callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:gpu-product|profile:slice72-gpu-tests
 edge root Engine::open_locked dependency_closure validate_closure_state_on_open callable all
 edge root Engine::open_locked errors CorruptionKind::ProjectionGenerationDrift type all
 edge root Engine::open_locked errors CorruptionLocator::TableRow type all
@@ -3143,8 +3154,8 @@ edge root emit_open_error_event lifecycle EventSource::SqliteInternal type all
 edge root emit_open_error_event lifecycle Phase::Failed type all
 edge root emit_open_error_event lifecycle Subscriber type all
 edge root emit_open_error_event root sqlite_extended_code_name_from_int callable all
-edge root gpu_allocation_witness_refusal errors EngineOpenError type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
-edge root gpu_allocation_witness_refusal errors EngineOpenError::Embedder callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
+edge root gpu_allocation_witness_refusal errors EngineOpenError type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:gpu-product|profile:slice72-gpu-tests
+edge root gpu_allocation_witness_refusal errors EngineOpenError::Embedder callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:gpu-product|profile:slice72-gpu-tests
 edge root hex_encode root hex_nibble callable all
 edge root immutable_sqlite_uri root sqlite_uri callable operator
 edge root index_targets_for_row_kind root IndexTargetSet type all
@@ -3334,8 +3345,8 @@ edge root row_kind_from_column root RowKind::Coverage type all
 edge root row_kind_from_column root RowKind::Graph type all
 edge root row_kind_from_column root RowKind::Leaf type all
 edge root run_admission_locked_hook_for_test root path field-access test
-edge root run_requested_gpu_allocation_witness errors EngineOpenError type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
-edge root run_requested_gpu_allocation_witness root gpu_allocation_witness_refusal callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
+edge root run_requested_gpu_allocation_witness errors EngineOpenError type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:gpu-product|profile:slice72-gpu-tests
+edge root run_requested_gpu_allocation_witness root gpu_allocation_witness_refusal callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:gpu-product|profile:slice72-gpu-tests
 edge root semantic_section errors CorruptionLocator::OpaqueSqliteError type operator
 edge root semantic_section root Section type operator
 edge root semantic_section root Section::Clean type operator
@@ -3375,10 +3386,10 @@ edge root validate_recovery_schema_invariants root recovery_schema_corruption ca
 edge root validate_recovery_schema_invariants root validate_dependency_generation_on_open callable operator
 edge root vector_phase1_sql_for_test filter SearchFilter type all
 edge root vector_phase1_sql_for_test filter build_vector_phase1_sql callable all
-edge root witness_gpu_allocation_if_requested errors EngineOpenError type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
-edge root witness_gpu_allocation_if_requested errors EngineOpenError::Embedder callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
-edge root witness_gpu_allocation_if_requested root parse_gpu_allocation_witness_opt_in callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
-edge root witness_gpu_allocation_if_requested root run_requested_gpu_allocation_witness callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
+edge root witness_gpu_allocation_if_requested errors EngineOpenError type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:gpu-product|profile:slice72-gpu-tests
+edge root witness_gpu_allocation_if_requested errors EngineOpenError::Embedder callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:gpu-product|profile:slice72-gpu-tests
+edge root witness_gpu_allocation_if_requested root parse_gpu_allocation_witness_opt_in callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:gpu-product|profile:slice72-gpu-tests
+edge root witness_gpu_allocation_if_requested root run_requested_gpu_allocation_witness callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:gpu-product|profile:slice72-gpu-tests
 edge root::gpu_allocation_witness_opt_in_tests <module> root ENV_GPU_ALLOCATION_WITNESS import test
 edge root::gpu_allocation_witness_opt_in_tests <module> root parse_gpu_allocation_witness_opt_in import test
 edge root::mean_centering_internals_for_test accumulator_add root AccumulatorHandle type all

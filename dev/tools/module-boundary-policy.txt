@@ -325,7 +325,7 @@ edge embedding Engine::embed_text root runtime_embedder field-access all
 edge erasure <module> root Engine type all
 edge erasure Engine::clear_pending_redactions root connection field-access all
 edge erasure Engine::complete_erasure_at_rest root TruncateWalReport type all
-edge erasure Engine::complete_erasure_at_rest root actual_checkpoint_observation_for_test engine-method all
+edge erasure Engine::complete_erasure_at_rest root actual_checkpoint_observation_for_test engine-method hooks|test
 edge erasure Engine::complete_erasure_at_rest root wal_checkpoint_truncate_once engine-method all
 edge erasure Engine::complete_erasure_at_rest wal_attribution wal_attribution field-access all
 edge erasure Engine::discharge_pending_redactions telemetry telemetry_enabled field-access all
@@ -585,7 +585,6 @@ edge graph_api <module> read NodeRecord import all
 edge graph_api <module> reader_pool ReaderRequest import all
 edge graph_api <module> root Engine import all
 edge graph_api <module> root Engine type all
-edge graph_api <module> root Engine type hooks
 edge graph_api <module> temporal BoundaryCrossing import all
 edge graph_api <module> temporal ReadView import all
 edge graph_api Engine::crossed_boundary_since errors EngineError type all
@@ -1751,9 +1750,7 @@ edge root <module> root Engine type all
 edge root <module> root Finding type all
 edge root <module> root ManagedConnectionCategory type all
 edge root <module> root ManagedConnectionRegistration type all
-edge root <module> root ManagedConnectionRegistration type hooks|test
 edge root <module> root ManagedConnectionRegistry type all
-edge root <module> root ManagedConnectionRegistry type hooks|test
 edge root <module> root OpenReport type all
 edge root <module> root OpenedEngine type all
 edge root <module> root OrphanProvenanceSource type all
@@ -1772,7 +1769,6 @@ edge root <module> root RuntimeConfigurationError type all
 edge root <module> root RuntimeProbeConnection type test
 edge root <module> root RuntimeProbeLifecycle type all
 edge root <module> root RuntimeProbeRegistration type all
-edge root <module> root RuntimeProbeRegistration type test
 edge root <module> root RuntimeSqliteMode type all
 edge root <module> root RuntimeState type all
 edge root <module> root SchemaObject type all
@@ -2337,13 +2333,10 @@ edge root Engine::open errors EngineOpenError type all
 edge root Engine::open root OpenedEngine type all
 edge root Engine::open root default_embedder_identity callable all
 edge root Engine::open root open_with_embedder_and_subscriber engine-method all
-edge root Engine::open_default_embedder errors EngineOpenError type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
-edge root Engine::open_default_embedder errors EngineOpenError type profile:base|profile:default-reranker|profile:migration-test-hooks|profile:rerank-cuda|profile:rerank-metal|profile:slice72-test-hooks
+edge root Engine::open_default_embedder errors EngineOpenError type all
 edge root Engine::open_default_embedder errors EngineOpenError::EmbedDevicePolicy type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
-edge root Engine::open_default_embedder errors EngineOpenError::Embedder callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
-edge root Engine::open_default_embedder errors EngineOpenError::Embedder callable profile:base|profile:default-reranker|profile:migration-test-hooks|profile:rerank-cuda|profile:rerank-metal|profile:slice72-test-hooks
-edge root Engine::open_default_embedder root OpenedEngine type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
-edge root Engine::open_default_embedder root OpenedEngine type profile:base|profile:default-reranker|profile:migration-test-hooks|profile:rerank-cuda|profile:rerank-metal|profile:slice72-test-hooks
+edge root Engine::open_default_embedder errors EngineOpenError::Embedder callable all
+edge root Engine::open_default_embedder root OpenedEngine type all
 edge root Engine::open_default_embedder root open_with_embedder_and_subscriber engine-method profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
 edge root Engine::open_default_embedder root witness_gpu_allocation_if_requested callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
 edge root Engine::open_locked dependency_closure validate_closure_state_on_open callable all
@@ -2945,10 +2938,8 @@ edge root restore_registered_derived_projections vector_storage kind_is_vector_c
 edge root restore_registered_derived_projections vector_storage resolve_source_type callable all
 edge root row_kind_from_column root RowKind type all
 edge root run_admission_locked_hook_for_test root path field-access test
-edge root run_requested_gpu_allocation_witness errors EngineOpenError type profile:all-features|profile:embed-cuda|profile:slice72-gpu-tests
-edge root run_requested_gpu_allocation_witness errors EngineOpenError type profile:default-embedder|profile:embed-metal
-edge root run_requested_gpu_allocation_witness root gpu_allocation_witness_refusal callable profile:all-features|profile:embed-cuda|profile:slice72-gpu-tests
-edge root run_requested_gpu_allocation_witness root gpu_allocation_witness_refusal callable profile:default-embedder|profile:embed-metal
+edge root run_requested_gpu_allocation_witness errors EngineOpenError type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
+edge root run_requested_gpu_allocation_witness root gpu_allocation_witness_refusal callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
 edge root semantic_section errors CorruptionLocator::OpaqueSqliteError type operator
 edge root semantic_section root Section type operator
 edge root semantic_section root locator_from_rusqlite_error callable operator

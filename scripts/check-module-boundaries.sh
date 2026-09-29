@@ -7,7 +7,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TOOL_DIR="$REPO_ROOT/dev/tools/module-boundary-gate"
 MANIFEST="$TOOL_DIR/Cargo.toml"
 LOCKFILE="$TOOL_DIR/Cargo.lock"
-BINARY="$TOOL_DIR/target/debug/fathomdb-module-boundary-gate"
+# Build into a fixed target dir: the binary executed below must be the one
+# just built, whatever CARGO_TARGET_DIR the caller exports.
+TARGET_DIR="$TOOL_DIR/target"
+BINARY="$TARGET_DIR/debug/fathomdb-module-boundary-gate"
 CARGO_BIN="${FATHOMDB_MODULE_BOUNDARY_CARGO:-cargo}"
 newer_source="$(find "$TOOL_DIR/src" -type f -name '*.rs' -newer "$BINARY" -print -quit 2>/dev/null || true)"
 
@@ -28,7 +31,7 @@ elif [ -n "$newer_source" ]; then
 fi
 
 if [ "$stale" -eq 1 ]; then
-  "$CARGO_BIN" build --quiet --locked --manifest-path "$MANIFEST"
+  "$CARGO_BIN" build --quiet --locked --target-dir "$TARGET_DIR" --manifest-path "$MANIFEST"
 fi
 
 exec "$BINARY" --root "$REPO_ROOT"

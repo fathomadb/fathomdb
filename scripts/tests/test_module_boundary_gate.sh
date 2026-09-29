@@ -2,11 +2,19 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TOOL_MANIFEST="$REPO_ROOT/dev/tools/module-boundary-gate/Cargo.toml"
-GATE="$REPO_ROOT/dev/tools/module-boundary-gate/target/debug/fathomdb-module-boundary-gate"
+TOOL_DIR="$REPO_ROOT/dev/tools/module-boundary-gate"
+TOOL_MANIFEST="$TOOL_DIR/Cargo.toml"
+# The wrapper builds into this fixed target dir whatever CARGO_TARGET_DIR is,
+# so every mutant below runs the gate built from the current source.
+GATE="$TOOL_DIR/target/debug/fathomdb-module-boundary-gate"
 
-cargo test --quiet --manifest-path "$TOOL_MANIFEST"
+cargo test --quiet --locked --target-dir "$TOOL_DIR/target" --manifest-path "$TOOL_MANIFEST"
 "$REPO_ROOT/scripts/check-module-boundaries.sh"
+stale_gate_source="$(find "$TOOL_DIR/src" "$TOOL_MANIFEST" "$TOOL_DIR/Cargo.lock" -newer "$GATE" -print -quit)"
+if [ -n "$stale_gate_source" ]; then
+  printf 'module-boundary gate binary is older than %s\n' "$stale_gate_source" >&2
+  exit 1
+fi
 
 # Design review cycle 1, D-8/D-9: ownership invariants of the moved carriers.
 engine_src="$REPO_ROOT/src/rust/crates/fathomdb-engine/src"

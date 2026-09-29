@@ -478,9 +478,7 @@ fn evaluate(
                 &method_owners,
             );
             for target in targets {
-                if target.module == source_module && source_module != "root" {
-                    continue;
-                }
+                let nonroot_local = target.module == source_module && source_module != "root";
                 if edge.kind != EdgeKind::TypeOrComposition {
                     for configuration in &edge.configurations {
                         dependencies_by_configuration
@@ -502,7 +500,10 @@ fn evaluate(
                         }
                     }
                 }
-                if edge.kind != EdgeKind::TypeOrComposition || governed {
+                if nonroot_local {
+                    continue;
+                }
+                if edge.kind != EdgeKind::TypeOrComposition || governed || source_module == "root" {
                     let record = (
                         source_module.clone(),
                         edge.source_item.clone(),
@@ -766,13 +767,28 @@ fn edge_targets(
                     && candidate.source_scope == edge.source_scope
             }) {
                 let namespace = glob.target.trim_end_matches("::*");
-                let namespace = namespace.strip_prefix("crate::").unwrap_or(namespace);
-                if let Some(owner) = modules.get(namespace) {
-                    if owner.analysis.declared_items.contains(target) {
+                let namespace = qualify_glob_namespace(module, namespace);
+                if namespace == "root" {
+                    if let Some(root_target) = root_aliases.and_then(|aliases| aliases.get(target))
+                    {
+                        let root_target =
+                            root_target.strip_prefix("crate::").unwrap_or(root_target);
+                        if let Some(owner) = resolve_path(root_target, modules) {
+                            candidates.insert(owner);
+                        }
+                    } else if modules
+                        .get("root")
+                        .is_some_and(|root| root.analysis.declared_items.contains(target))
+                    {
                         candidates.insert(ResolvedTarget {
-                            module: namespace.to_string(),
+                            module: "root".to_string(),
                             item: target.to_string(),
                         });
+                    }
+                } else if let Some(owner) = modules.get(&namespace) {
+                    if owner.analysis.declared_items.contains(target) {
+                        candidates
+                            .insert(ResolvedTarget { module: namespace, item: target.to_string() });
                     }
                 }
             }
@@ -788,6 +804,29 @@ fn edge_targets(
         }]);
     }
     BTreeSet::new()
+}
+
+fn qualify_glob_namespace(module: &str, namespace: &str) -> String {
+    if namespace == "crate" {
+        return "root".to_string();
+    }
+    if let Some(rest) = namespace.strip_prefix("crate::") {
+        return rest.to_string();
+    }
+    if namespace == "self" {
+        return module.to_string();
+    }
+    if let Some(rest) = namespace.strip_prefix("self::") {
+        return if module == "root" { rest.to_string() } else { format!("{module}::{rest}") };
+    }
+    if namespace == "super" {
+        return module.rsplit_once("::").map_or("root", |(parent, _)| parent).to_string();
+    }
+    if let Some(rest) = namespace.strip_prefix("super::") {
+        let parent = module.rsplit_once("::").map_or("root", |(parent, _)| parent);
+        return if parent == "root" { rest.to_string() } else { format!("{parent}::{rest}") };
+    }
+    namespace.to_string()
 }
 
 fn resolve_path(target: &str, modules: &BTreeMap<String, ModuleInfo>) -> Option<ResolvedTarget> {

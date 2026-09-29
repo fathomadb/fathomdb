@@ -5,9 +5,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use proc_macro2::Span;
 use syn::visit::{self, Visit};
 use syn::{
-    Attribute, Expr, ExprCall, ExprField, ExprMethodCall, ExprPath, ImplItem, ImplItemFn, ItemEnum,
-    ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait, ItemType, ItemUse, Local, Macro, Member,
-    Meta, Pat, Type, Visibility,
+    Attribute, Expr, ExprCall, ExprField, ExprMethodCall, ExprPath, FnArg, ImplItem, ImplItemFn,
+    ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait, ItemType, ItemUse, Local, Macro,
+    Member, Meta, Pat, Type, Visibility,
 };
 
 pub const CONFIGURATIONS: [&str; 16] = [
@@ -128,6 +128,7 @@ struct Analyzer {
     module_depth: usize,
     module_stack: Vec<String>,
     item_stack: Vec<String>,
+    binding_stack: Vec<BTreeSet<String>>,
 }
 
 impl Default for Analyzer {
@@ -140,6 +141,7 @@ impl Default for Analyzer {
             module_depth: 0,
             module_stack: Vec::new(),
             item_stack: Vec::new(),
+            binding_stack: Vec::new(),
         }
     }
 }
@@ -324,13 +326,24 @@ fn evaluate_cfg_compact(predicate: &str, configuration: &str) -> Option<bool> {
         "debug_assertions" => Some(true),
         "unix" | "target_os=\"linux\"" => Some(configuration.ends_with("-linux")),
         "windows" | "target_os=\"windows\"" => Some(configuration.ends_with("-nonlinux")),
-        _ => predicate.strip_prefix("feature=\"").and_then(|value| value.strip_suffix('"')).map(
-            |feature| match feature {
-                "test-hooks" => configuration.contains("hooks"),
-                "tc5-benchmark" => configuration.contains("tc5"),
-                _ => false,
-            },
-        ),
+        _ => predicate
+            .strip_prefix("feature=\"")
+            .and_then(|value| value.strip_suffix('"'))
+            .and_then(|feature| match feature {
+                "test-hooks" => Some(configuration.contains("hooks")),
+                "tc5-benchmark" => Some(configuration.contains("tc5")),
+                "default-embedder"
+                | "default-reranker"
+                | "embed-cuda"
+                | "embed-metal"
+                | "migration-test-hooks"
+                | "operator"
+                | "rerank-cuda"
+                | "rerank-metal"
+                | "slice72-gpu-tests"
+                | "slice72-test-hooks" => Some(false),
+                _ => return None,
+            }),
     }
 }
 
@@ -376,7 +389,18 @@ impl<'ast> Visit<'ast> for Analyzer {
                 self.engine_aliases.insert(binding.ident.to_string());
             }
         }
-        visit::visit_local(self, local);
+        for attribute in &local.attrs {
+            self.visit_attribute(attribute);
+        }
+        if let Some(init) = &local.init {
+            self.visit_expr(&init.expr);
+            if let Some((_, diverge)) = &init.diverge {
+                self.visit_expr(diverge);
+            }
+        }
+        if let Some(bindings) = self.binding_stack.last_mut() {
+            collect_pattern_bindings(&local.pat, bindings);
+        }
     }
 
     fn visit_item_mod(&mut self, item: &'ast ItemMod) {
@@ -462,7 +486,9 @@ impl<'ast> Visit<'ast> for Analyzer {
         self.declared(name.clone());
         self.analysis.local_functions.insert(name.clone(), item.sig.ident.span().into());
         self.item_stack.push(name);
+        self.binding_stack.push(function_bindings(&item.sig.inputs));
         visit::visit_item_fn(self, item);
+        self.binding_stack.pop();
         self.item_stack.pop();
         self.configurations = previous;
     }
@@ -505,7 +531,9 @@ impl<'ast> Visit<'ast> for Analyzer {
         let previous = self.enter_attrs(&item.attrs);
         let owner = self.impl_owners.last().map_or("<impl>", String::as_str);
         self.item_stack.push(format!("{owner}::{}", item.sig.ident));
+        self.binding_stack.push(function_bindings(&item.sig.inputs));
         visit::visit_impl_item_fn(self, item);
+        self.binding_stack.pop();
         self.item_stack.pop();
         self.configurations = previous;
     }
@@ -584,12 +612,75 @@ impl<'ast> Visit<'ast> for Analyzer {
                 || segments.first().is_some_and(|name| {
                     self.analysis.local_functions.contains_key(name)
                         || self.analysis.import_aliases.contains_key(name)
+                        || (self.analysis.edges.iter().any(|edge| {
+                            edge.kind == EdgeKind::Import
+                                && (edge.target == "super::*" || edge.target.starts_with("super::"))
+                                && edge.source_scope == self.module_stack.join("::")
+                        }) && !self
+                            .binding_stack
+                            .last()
+                            .is_some_and(|bindings| bindings.contains(name)))
                 });
             if callable_reference {
                 self.record_callable_path(&expression.path);
             }
         }
         visit::visit_expr_path(self, expression);
+    }
+}
+
+fn function_bindings(
+    inputs: &syn::punctuated::Punctuated<FnArg, syn::token::Comma>,
+) -> BTreeSet<String> {
+    let mut bindings = BTreeSet::new();
+    for input in inputs {
+        match input {
+            FnArg::Receiver(_) => {
+                bindings.insert("self".to_string());
+            }
+            FnArg::Typed(typed) => collect_pattern_bindings(&typed.pat, &mut bindings),
+        }
+    }
+    bindings
+}
+
+fn collect_pattern_bindings(pattern: &Pat, bindings: &mut BTreeSet<String>) {
+    match pattern {
+        Pat::Ident(binding) => {
+            bindings.insert(binding.ident.to_string());
+            if let Some((_, subpattern)) = &binding.subpat {
+                collect_pattern_bindings(subpattern, bindings);
+            }
+        }
+        Pat::Reference(reference) => collect_pattern_bindings(&reference.pat, bindings),
+        Pat::Type(typed) => collect_pattern_bindings(&typed.pat, bindings),
+        Pat::Paren(paren) => collect_pattern_bindings(&paren.pat, bindings),
+        Pat::Slice(slice) => {
+            for element in &slice.elems {
+                collect_pattern_bindings(element, bindings);
+            }
+        }
+        Pat::Struct(structure) => {
+            for field in &structure.fields {
+                collect_pattern_bindings(&field.pat, bindings);
+            }
+        }
+        Pat::Tuple(tuple) => {
+            for element in &tuple.elems {
+                collect_pattern_bindings(element, bindings);
+            }
+        }
+        Pat::TupleStruct(tuple) => {
+            for element in &tuple.elems {
+                collect_pattern_bindings(element, bindings);
+            }
+        }
+        Pat::Or(or) => {
+            for case in &or.cases {
+                collect_pattern_bindings(case, bindings);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -661,7 +752,7 @@ fn collect_use_tree(
             collect_use_tree(
                 &path.tree,
                 prefix,
-                kind,
+                kind.clone(),
                 edges,
                 globs,
                 aliases,
@@ -677,10 +768,10 @@ fn collect_use_tree(
             let target = target.join("::");
             aliases.insert(name.ident.to_string(), target.clone());
             edges.insert(Edge {
-                kind,
+                kind: kind.clone(),
                 target,
                 source_scope: source_scope.to_string(),
-                source_item: source_item.to_string(),
+                source_item: use_source_item(source_item, &kind, &name.ident.to_string()),
                 location: name.ident.span().into(),
                 configurations: configurations.clone(),
             });
@@ -691,10 +782,10 @@ fn collect_use_tree(
             let target = target.join("::");
             aliases.insert(rename.rename.to_string(), target.clone());
             edges.insert(Edge {
-                kind,
+                kind: kind.clone(),
                 target,
                 source_scope: source_scope.to_string(),
-                source_item: source_item.to_string(),
+                source_item: use_source_item(source_item, &kind, &rename.rename.to_string()),
                 location: rename.ident.span().into(),
                 configurations: configurations.clone(),
             });
@@ -705,10 +796,10 @@ fn collect_use_tree(
             let mut target = prefix.clone();
             target.push("*".to_string());
             edges.insert(Edge {
-                kind,
+                kind: kind.clone(),
                 target: target.join("::"),
                 source_scope: source_scope.to_string(),
-                source_item: source_item.to_string(),
+                source_item: use_source_item(source_item, &kind, "*"),
                 location,
                 configurations: configurations.clone(),
             });
@@ -728,6 +819,14 @@ fn collect_use_tree(
                 );
             }
         }
+    }
+}
+
+fn use_source_item(source_item: &str, kind: &EdgeKind, binding: &str) -> String {
+    if source_item == "<module>" && *kind == EdgeKind::TypeOrComposition {
+        format!("<module>::{binding}")
+    } else {
+        source_item.to_string()
     }
 }
 
@@ -941,6 +1040,24 @@ mod tests {
             edge.kind == EdgeKind::Callable
                 && edge.source_item == "hidden_exec"
                 && edge.target == "encode_graph_expand_result_v1"
+        }));
+    }
+
+    #[test]
+    fn root_glob_candidates_respect_parameter_and_local_shadowing() {
+        let analysis = analyze_source(
+            "use super::*; \
+             fn parameter(encode_graph_expand_result_v1: usize) { \
+                 let _ = encode_graph_expand_result_v1; \
+             } \
+             fn local() { \
+                 let encode_graph_expand_result_v1 = 1usize; \
+                 let _ = encode_graph_expand_result_v1; \
+             }",
+        )
+        .expect("fixture parses");
+        assert!(!analysis.edges.iter().any(|edge| {
+            edge.kind == EdgeKind::Callable && edge.target == "encode_graph_expand_result_v1"
         }));
     }
 

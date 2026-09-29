@@ -410,7 +410,8 @@ expect_failure all-features-configuration 'forbidden dependency search -> reader
   "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
-printf '\nslice85-manifest-only = []\n' >>"$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
+sed -i 's/^\[features\]$/[features]\nslice85-manifest-only = []/' \
+  "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
 printf '\n#[cfg(feature = "slice85-manifest-only")] use crate::reader_pool::ReaderRequest as Slice85ManifestRequest;\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 expect_failure manifest-derived-feature 'forbidden dependency search -> reader_pool configuration=all-features-linux' \
@@ -418,8 +419,12 @@ expect_failure manifest-derived-feature 'forbidden dependency search -> reader_p
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 cp "$fixture/Cargo.toml.clean" "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
 
-sed -i '/^operator = \[\]$/d' "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
+sed -i '/^default-reranker = /d' "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
 expect_failure manifest-feature-removed 'unsupported cfg predicate' "$GATE" --root "$fixture"
+cp "$fixture/Cargo.toml.clean" "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
+
+sed -i '/^operator = \[\]$/d' "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
+expect_failure manifest-axis-removed 'configuration feature operator is not declared' "$GATE" --root "$fixture"
 cp "$fixture/Cargo.toml.clean" "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
 
 printf '\n#[cfg(all(test, not(test)))] use crate::fusion::fuse_rrf as slice85_never_compiled;\n' \
@@ -428,7 +433,7 @@ expect_failure empty-configuration 'edge has no evaluated configuration source=s
   "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
-printf 'configuration-feature slice85-undeclared\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+printf 'configuration-feature slice85-undeclared undeclared\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
 expect_failure undeclared-axis 'configuration feature slice85-undeclared is not declared' \
   "$GATE" --root "$fixture"
 cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"

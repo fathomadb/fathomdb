@@ -197,7 +197,11 @@ cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/sear
 
 printf '\n#[cfg(not(target_os = "linux"))] use crate::reader_pool::ReaderRequest as Slice85NonLinuxRequest;\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
-expect_failure nonlinux-configuration 'nonlinux' "$GATE" --root "$fixture"
+expect_failure nonlinux-configuration \
+  'target_item=ReaderRequest syntax=crate::reader_pool::ReaderRequest kind=import configurations=!linux at search.rs:' \
+  "$GATE" --root "$fixture"
+expect_failure nonlinux-configuration 'forbidden dependency search -> reader_pool configuration=default-nonlinux' \
+  "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
 printf '\nfn validate_filter_attributes_on_snapshot() {}\nfn slice85_shadow_call() { validate_filter_attributes_on_snapshot(); }\n' \
@@ -441,24 +445,34 @@ expect_failure out-of-scope-edge-line 'policy edge outside the frozen scope sour
   "$GATE" --root "$fixture"
 cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
 
+# Test review cycle 1, T-4: the configuration mutants assert the exact
+# canonical expression of the unexpected edge, so an edge leaked into other
+# configurations fails them, not only one that is dropped.
 # Design review cycle 1, D-6: configurations come from the engine manifest's
 # feature table plus operator and debug_assertions axes and an all-features
 # closure; nothing a shipped build compiles is invisible (P3/P4).
 cp "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml" "$fixture/Cargo.toml.clean"
 printf '\n#[cfg(feature = "operator")] use crate::reader_pool::ReaderRequest as Slice85OperatorRequest;\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure operator-configuration 'target_item=ReaderRequest syntax=crate::reader_pool::ReaderRequest kind=import configurations=operator at search.rs:' \
+  "$GATE" --root "$fixture"
 expect_failure operator-configuration 'forbidden dependency search -> reader_pool configuration=operator-linux' \
   "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
 printf '\n#[cfg(not(debug_assertions))] use crate::reader_pool::ReaderRequest as Slice85ReleaseRequest;\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure release-configuration 'target_item=ReaderRequest syntax=crate::reader_pool::ReaderRequest kind=import configurations=!debug at search.rs:' \
+  "$GATE" --root "$fixture"
 expect_failure release-configuration 'forbidden dependency search -> reader_pool configuration=default-linux-release' \
   "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
 printf '\n#[cfg(feature = "default-reranker")] use crate::reader_pool::ReaderRequest as Slice85RerankRequest;\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure all-features-configuration \
+  'target_item=ReaderRequest syntax=crate::reader_pool::ReaderRequest kind=import configurations=profile:all-features|profile:default-reranker|profile:gpu-product|profile:python-dev|profile:rerank-cuda|profile:rerank-metal|profile:slice72-gpu-tests at search.rs:' \
+  "$GATE" --root "$fixture"
 expect_failure all-features-configuration 'forbidden dependency search -> reader_pool configuration=all-features-linux' \
   "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
@@ -467,6 +481,9 @@ sed -i 's/^\[features\]$/[features]\nslice85-manifest-only = []/' \
   "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
 printf '\n#[cfg(feature = "slice85-manifest-only")] use crate::reader_pool::ReaderRequest as Slice85ManifestRequest;\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure manifest-derived-feature \
+  'target_item=ReaderRequest syntax=crate::reader_pool::ReaderRequest kind=import configurations=profile:all-features|profile:slice85-manifest-only at search.rs:' \
+  "$GATE" --root "$fixture"
 expect_failure manifest-derived-feature 'forbidden dependency search -> reader_pool configuration=all-features-linux' \
   "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"

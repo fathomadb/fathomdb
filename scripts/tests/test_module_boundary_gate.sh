@@ -769,6 +769,28 @@ d16_receiver_mutant typed-receiver-missing-method slice85_typed_missing \
 d16_receiver_mutant generic-parameter-receiver slice85_generic_receiver \
   'fn slice85_generic_receiver<T>(p: T) { p.cache_status_per_worker(); }'
 
+# Design review cycle 2, D-17: forbid-dependency covers descendant modules,
+# so every graph_expand submodule, including one added later, is forbidden
+# to depend on search, search_api and reader_pool.
+printf '\npub(crate) fn slice85_codec_search() { let _ = crate::search::prepare_search_statement; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
+expect_failure codec-search 'forbidden dependency graph_expand::codec -> search' "$GATE" --root "$fixture"
+cp "$fixture/codec.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
+
+printf '\npub(crate) fn slice85_codec_search_api() { let _ = crate::search_api::slice85_probe; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
+expect_failure codec-search-api 'forbidden dependency graph_expand::codec -> search_api' "$GATE" --root "$fixture"
+cp "$fixture/codec.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
+
+printf '\nmod slice85_sub;\n' >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
+printf 'pub(crate) fn slice85_sub_search() { let _ = crate::search::prepare_search_statement; }\n' \
+  >"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/slice85_sub.rs"
+printf 'governed graph_expand::slice85_sub\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure new-submodule-search 'forbidden dependency graph_expand::slice85_sub -> search' "$GATE" --root "$fixture"
+rm "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/slice85_sub.rs"
+cp "$fixture/graph-expand.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

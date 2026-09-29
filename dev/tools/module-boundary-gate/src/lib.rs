@@ -87,6 +87,8 @@ pub struct ModuleDecl {
     pub inline: bool,
     pub depth: usize,
     pub location: Location,
+    /// Configurations in which the declaration (and so the module) exists.
+    pub configurations: ConfigSet,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -143,8 +145,20 @@ pub struct Analysis {
 /// Parses one engine source file and extracts its edges, evaluating every
 /// `cfg`/`cfg_attr` in each configuration of `space`.
 pub fn analyze_source(source: &str, space: &ConfigSpace) -> Result<Analysis, syn::Error> {
+    analyze_source_in(source, space, space.all())
+}
+
+/// Like [`analyze_source`] for a file whose declaring `mod` item exists only
+/// in `configurations`; the file's inner `#![cfg]` narrows it further.
+pub fn analyze_source_in(
+    source: &str,
+    space: &ConfigSpace,
+    configurations: ConfigSet,
+) -> Result<Analysis, syn::Error> {
     let file = syn::parse_file(source)?;
     let mut visitor = Analyzer::new(space);
+    visitor.configurations = configurations;
+    visitor.enter_attrs(&file.attrs);
     collect_struct_fields(&file.items, &mut visitor.struct_fields);
     visitor.visit_file(&file);
     visitor.resolve_aliases();
@@ -430,6 +444,36 @@ impl<'s> Analyzer<'s> {
         false
     }
 
+    fn visit_local_inner(&mut self, local: &Local) {
+        if let (Some(binding), Some(init)) = (pattern_ident(&local.pat), &local.init) {
+            if expression_base_ident(&init.expr)
+                .is_some_and(|ident| self.engine_aliases.contains(&ident))
+                || pattern_type(&local.pat).is_some_and(type_is_engine)
+            {
+                self.engine_aliases.insert(binding.ident.to_string());
+            }
+        }
+        for attribute in &local.attrs {
+            self.visit_attribute(attribute);
+        }
+        if let Some(init) = &local.init {
+            self.visit_expr(&init.expr);
+            if let Some((_, diverge)) = &init.diverge {
+                self.visit_expr(diverge);
+            }
+        }
+        self.visit_pat(&local.pat);
+        if let (Pat::Ident(binding), Some(init)) = (&local.pat, &local.init) {
+            let constructed = constructed_type(&init.expr).and_then(|ty| self.concrete_type(ty));
+            if let (Some(ty), Some(types)) = (constructed, self.receiver_types.last_mut()) {
+                types.insert(binding.ident.to_string(), ty);
+            }
+        }
+        if let Some(bindings) = self.binding_stack.last_mut() {
+            collect_pattern_bindings(&local.pat, bindings);
+        }
+    }
+
     fn filter_configurations(&mut self, mut keep: impl FnMut(usize) -> Option<bool>) -> bool {
         let mut unsupported = false;
         let mut kept = ConfigSet::default();
@@ -578,35 +622,28 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
     }
 
     fn visit_local(&mut self, local: &'ast Local) {
-        if let (Some(binding), Some(init)) = (pattern_ident(&local.pat), &local.init) {
-            if expression_base_ident(&init.expr)
-                .is_some_and(|ident| self.engine_aliases.contains(&ident))
-                || pattern_type(&local.pat).is_some_and(type_is_engine)
-            {
-                self.engine_aliases.insert(binding.ident.to_string());
-            }
-        }
-        for attribute in &local.attrs {
-            self.visit_attribute(attribute);
-        }
-        if let Some(init) = &local.init {
-            self.visit_expr(&init.expr);
-            if let Some((_, diverge)) = &init.diverge {
-                self.visit_expr(diverge);
-            }
-        }
-        self.visit_pat(&local.pat);
-        if let (Pat::Ident(binding), Some(init)) = (&local.pat, &local.init) {
-            let constructed = constructed_type(&init.expr).and_then(|ty| self.concrete_type(ty));
-            if let (Some(ty), Some(types)) = (constructed, self.receiver_types.last_mut()) {
-                types.insert(binding.ident.to_string(), ty);
-            }
-        }
-        if let Some(bindings) = self.binding_stack.last_mut() {
-            collect_pattern_bindings(&local.pat, bindings);
-        }
+        let previous = self.enter_attrs(&local.attrs);
+        self.visit_local_inner(local);
+        self.configurations = previous;
     }
 
+    fn visit_expr(&mut self, expression: &'ast Expr) {
+        let previous = self.enter_attrs(expression_attrs(expression));
+        visit::visit_expr(self, expression);
+        self.configurations = previous;
+    }
+
+    fn visit_stmt_macro(&mut self, statement: &'ast syn::StmtMacro) {
+        let previous = self.enter_attrs(&statement.attrs);
+        visit::visit_stmt_macro(self, statement);
+        self.configurations = previous;
+    }
+
+    fn visit_field_value(&mut self, field: &'ast syn::FieldValue) {
+        let previous = self.enter_attrs(&field.attrs);
+        visit::visit_field_value(self, field);
+        self.configurations = previous;
+    }
     fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
         // Any rebinding forgets a receiver type; forgetting is conservative.
         if let Some(types) = self.receiver_types.last_mut() {
@@ -634,9 +671,11 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
     }
 
     fn visit_arm(&mut self, arm: &'ast syn::Arm) {
+        let previous = self.enter_attrs(&arm.attrs);
         self.push_inherited_scope();
         visit::visit_arm(self, arm);
         self.pop_scope();
+        self.configurations = previous;
     }
 
     fn visit_expr_for_loop(&mut self, expression: &'ast syn::ExprForLoop) {
@@ -653,6 +692,7 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
             inline: item.content.is_some(),
             depth: self.module_depth,
             location: item.ident.span().into(),
+            configurations: self.configurations,
         });
         self.declared(item.ident.to_string());
         if item.content.is_some() {
@@ -1393,6 +1433,53 @@ fn constructed_type(expression: &Expr) -> Option<String> {
         Expr::Reference(reference) => constructed_type(&reference.expr),
         Expr::Paren(paren) => constructed_type(&paren.expr),
         _ => None,
+    }
+}
+
+/// The outer attributes of an expression (`#[cfg]` on a statement
+/// expression lands here).
+fn expression_attrs(expression: &Expr) -> &[Attribute] {
+    match expression {
+        Expr::Array(e) => &e.attrs,
+        Expr::Assign(e) => &e.attrs,
+        Expr::Async(e) => &e.attrs,
+        Expr::Await(e) => &e.attrs,
+        Expr::Binary(e) => &e.attrs,
+        Expr::Block(e) => &e.attrs,
+        Expr::Break(e) => &e.attrs,
+        Expr::Call(e) => &e.attrs,
+        Expr::Cast(e) => &e.attrs,
+        Expr::Closure(e) => &e.attrs,
+        Expr::Const(e) => &e.attrs,
+        Expr::Continue(e) => &e.attrs,
+        Expr::Field(e) => &e.attrs,
+        Expr::ForLoop(e) => &e.attrs,
+        Expr::Group(e) => &e.attrs,
+        Expr::If(e) => &e.attrs,
+        Expr::Index(e) => &e.attrs,
+        Expr::Infer(e) => &e.attrs,
+        Expr::Let(e) => &e.attrs,
+        Expr::Lit(e) => &e.attrs,
+        Expr::Loop(e) => &e.attrs,
+        Expr::Macro(e) => &e.attrs,
+        Expr::Match(e) => &e.attrs,
+        Expr::MethodCall(e) => &e.attrs,
+        Expr::Paren(e) => &e.attrs,
+        Expr::Path(e) => &e.attrs,
+        Expr::Range(e) => &e.attrs,
+        Expr::RawAddr(e) => &e.attrs,
+        Expr::Reference(e) => &e.attrs,
+        Expr::Repeat(e) => &e.attrs,
+        Expr::Return(e) => &e.attrs,
+        Expr::Struct(e) => &e.attrs,
+        Expr::Try(e) => &e.attrs,
+        Expr::TryBlock(e) => &e.attrs,
+        Expr::Tuple(e) => &e.attrs,
+        Expr::Unary(e) => &e.attrs,
+        Expr::Unsafe(e) => &e.attrs,
+        Expr::While(e) => &e.attrs,
+        Expr::Yield(e) => &e.attrs,
+        _ => &[],
     }
 }
 

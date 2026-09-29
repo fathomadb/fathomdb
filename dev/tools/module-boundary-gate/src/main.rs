@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use fathomdb_module_boundary_gate::{
-    analyze_source, Analysis, ConfigSet, ConfigSpace, EdgeKind, InherentMethod,
+    analyze_source, analyze_source_in, Analysis, ConfigSet, ConfigSpace, EdgeKind, InherentMethod,
 };
 
 #[derive(Debug, Default)]
@@ -149,6 +149,38 @@ fn discover_modules(
                 }
             }
             Err(error) => errors.push(format!("cannot parse {module}: {error}")),
+        }
+    }
+    // A file's module exists only where its declaring `mod` item does:
+    // re-analyse, parents first, every file whose declaration is cfg-gated.
+    let mut order = modules.keys().cloned().collect::<Vec<_>>();
+    order.sort_by_key(|module| (module != "root", module.matches("::").count()));
+    for module in order {
+        if module == "root" {
+            continue;
+        }
+        let (parent, name) = module.rsplit_once("::").unwrap_or(("root", module.as_str()));
+        let Some(declared) = modules.get(parent).and_then(|info| {
+            info.analysis
+                .modules
+                .iter()
+                .find(|item| item.depth == 0 && !item.inline && item.name == name)
+                .map(|item| item.configurations)
+        }) else {
+            continue;
+        };
+        if declared == space.all() {
+            continue;
+        }
+        let info = modules.get_mut(&module).expect("module is discovered");
+        match fs::read_to_string(&info.file)
+            .map_err(|error| format!("cannot read {}: {error}", info.file.display()))
+            .and_then(|source| {
+                analyze_source_in(&source, space, declared)
+                    .map_err(|error| format!("cannot parse {module}: {error}"))
+            }) {
+            Ok(analysis) => info.analysis = analysis,
+            Err(error) => errors.push(error),
         }
     }
     let mut declared_files = BTreeSet::from(["root".to_string()]);

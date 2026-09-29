@@ -806,11 +806,14 @@ edge filter text_hit_passes_filter vector_storage resolve_source_type callable a
 edge filter validate_filter_attributes_on_snapshot projection_registry load_projection_registry callable all
 edge filter vector_filter_clause vector_storage attr_vec0_column callable all
 edge filter vector_filter_values projection_registry encode_attr_vec0_present callable all
+edge filter::slice85_boundary_tests <module> filter SearchFilter import test
 edge filter::slice85_boundary_tests <module> filter SnapshotFilterError import test
-edge filter::slice85_boundary_tests snapshot_filter_error_is_narrow_and_preserves_its_payload filter SnapshotFilterError::InvalidFilter callable test
+edge filter::slice85_boundary_tests <module> filter validate_filter_attributes_on_snapshot import test
+edge filter::slice85_boundary_tests snapshot_filter_error_is_narrow_and_preserves_its_payload filter SearchFilter::default callable test
 edge filter::slice85_boundary_tests snapshot_filter_error_is_narrow_and_preserves_its_payload filter SnapshotFilterError::InvalidFilter type test
 edge filter::slice85_boundary_tests snapshot_filter_error_is_narrow_and_preserves_its_payload filter SnapshotFilterError::Sqlite type test
 edge filter::slice85_boundary_tests snapshot_filter_error_is_narrow_and_preserves_its_payload filter SnapshotFilterError::from callable test
+edge filter::slice85_boundary_tests snapshot_filter_error_is_narrow_and_preserves_its_payload filter validate_filter_attributes_on_snapshot callable test
 edge frozen_read <module> dependency load_dependency_generation import all
 edge frozen_read <module> errors EngineError import all
 edge frozen_read <module> filter SearchFilter import all

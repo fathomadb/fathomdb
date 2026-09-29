@@ -963,15 +963,29 @@ fn edge_fts_hit_passes_non_attribute_filter(
 
 #[cfg(test)]
 mod slice85_boundary_tests {
-    use super::SnapshotFilterError;
+    use super::{validate_filter_attributes_on_snapshot, SearchFilter, SnapshotFilterError};
 
     #[test]
     fn snapshot_filter_error_is_narrow_and_preserves_its_payload() {
         let storage = SnapshotFilterError::from(rusqlite::Error::InvalidQuery);
         assert!(matches!(storage, SnapshotFilterError::Sqlite(rusqlite::Error::InvalidQuery)));
 
-        let reason = "undeclared filterable attribute".to_string();
-        let invalid = SnapshotFilterError::InvalidFilter(reason.clone());
-        assert!(matches!(invalid, SnapshotFilterError::InvalidFilter(value) if value == reason));
+        // A connection without the registry table declares no projection, so
+        // the validator itself must raise the narrow InvalidFilter with its reason.
+        let conn = rusqlite::Connection::open_in_memory().expect("in-memory connection");
+        let mut filter = SearchFilter::default();
+        filter.attributes = vec![("slice85_undeclared".to_string(), "x".to_string())];
+        match validate_filter_attributes_on_snapshot(&conn, &filter) {
+            Err(SnapshotFilterError::InvalidFilter(reason)) => assert_eq!(
+                reason,
+                "filter attribute \"slice85_undeclared\" is not a declared `filterable` \
+                 projection; declare it via configure_projections before filtering on it"
+            ),
+            Err(SnapshotFilterError::Sqlite(error)) => {
+                panic!("expected InvalidFilter, got {error}")
+            }
+            Ok(()) => panic!("an undeclared attribute must be rejected"),
+        }
+        assert!(validate_filter_attributes_on_snapshot(&conn, &SearchFilter::default()).is_ok());
     }
 }

@@ -138,6 +138,8 @@ struct Analyzer<'s> {
     /// Named-field types of structs declared in this file, for receivers of
     /// the form `binding.field` where the binding's type is such a struct.
     struct_fields: BTreeMap<(String, String), String>,
+    /// Module scopes that have already imported through `super::`.
+    super_import_scopes: BTreeSet<String>,
 }
 
 impl<'s> Analyzer<'s> {
@@ -154,6 +156,7 @@ impl<'s> Analyzer<'s> {
             binding_stack: Vec::new(),
             receiver_types: Vec::new(),
             struct_fields: BTreeMap::new(),
+            super_import_scopes: BTreeSet::new(),
         }
     }
 
@@ -580,17 +583,25 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         } else {
             &mut nested_aliases
         };
+        let mut use_edges = BTreeSet::new();
         collect_use_tree(
             &item.tree,
             &mut Vec::new(),
             kind,
-            &mut self.analysis.edges,
+            &mut use_edges,
             &mut self.analysis.globs,
             aliases,
             self.configurations,
             &self.module_stack.join("::"),
             self.item_stack.last().map_or("<module>", String::as_str),
         );
+        if use_edges.iter().any(|edge| {
+            edge.kind == EdgeKind::Import
+                && (edge.target == "super::*" || edge.target.starts_with("super::"))
+        }) {
+            self.super_import_scopes.insert(self.module_stack.join("::"));
+        }
+        self.analysis.edges.extend(use_edges);
         visit::visit_item_use(self, item);
         self.configurations = previous;
     }
@@ -878,14 +889,11 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
                 || segments.first().is_some_and(|name| {
                     self.analysis.local_functions.contains_key(name)
                         || self.analysis.import_aliases.contains_key(name)
-                        || (self.analysis.edges.iter().any(|edge| {
-                            edge.kind == EdgeKind::Import
-                                && (edge.target == "super::*" || edge.target.starts_with("super::"))
-                                && edge.source_scope == self.module_stack.join("::")
-                        }) && !self
-                            .binding_stack
-                            .last()
-                            .is_some_and(|bindings| bindings.contains(name)))
+                        || (self.super_import_scopes.contains(&self.module_stack.join("::"))
+                            && !self
+                                .binding_stack
+                                .last()
+                                .is_some_and(|bindings| bindings.contains(name)))
                 });
             if callable_reference {
                 self.record_path(&expression.path, false);

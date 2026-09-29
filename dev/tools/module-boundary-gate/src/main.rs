@@ -482,10 +482,9 @@ fn evaluate(
     // another module, counted per source item for reviewed exceptions.
     let mut unresolved_receivers = BTreeMap::<(String, String, String), usize>::new();
     let mut unresolved_origins = BTreeMap::<(String, String, String), String>::new();
-    let mut adjacency_by_configuration =
-        vec![BTreeMap::<String, BTreeSet<String>>::new(); space.len()];
-    let mut dependencies_by_configuration =
-        vec![BTreeMap::<String, BTreeSet<String>>::new(); space.len()];
+    // Every graph is kept as `(from, to) -> configurations`.
+    let mut item_graph = MaskedGraph::new();
+    let mut module_dependencies = MaskedGraph::new();
     // Three graphs per configuration. `item`: the whole-crate item graph of
     // executable (callable, field, Engine-method, typed-receiver) and type
     // references. `governed-module`: module-level, induced on the governed
@@ -493,10 +492,8 @@ fn evaluate(
     // module-level graph (root split into items), reported only. Re-exports,
     // the Engine storage layout and admitted type-only edges are composition
     // metadata and join none of them.
-    let mut governed_graph_by_configuration =
-        vec![BTreeMap::<String, BTreeSet<String>>::new(); space.len()];
-    let mut module_graph_by_configuration =
-        vec![BTreeMap::<String, BTreeSet<String>>::new(); space.len()];
+    let mut governed_graph = MaskedGraph::new();
+    let mut module_graph = MaskedGraph::new();
     let inherent_owners = actual_inherent.iter().fold(
         BTreeMap::<String, BTreeSet<String>>::new(),
         |mut owners, (module, method)| {
@@ -683,29 +680,19 @@ fn evaluate(
                     && target.module != source_module
                     && classification(policy, &target.module) == Some("governed");
                 let module_edge = !composition && dependency_source != dependency_target;
-                for configuration in configurations.indices() {
-                    dependencies_by_configuration[configuration]
-                        .entry(source_module.clone())
-                        .or_default()
-                        .insert(target.module.clone());
-                    if governed_edge {
-                        governed_graph_by_configuration[configuration]
-                            .entry(source_module.clone())
-                            .or_default()
-                            .insert(target.module.clone());
-                    }
-                    if module_edge {
-                        module_graph_by_configuration[configuration]
-                            .entry(dependency_source.clone())
-                            .or_default()
-                            .insert(dependency_target.clone());
-                    }
-                    if item_edge {
-                        adjacency_by_configuration[configuration]
-                            .entry(graph_node(&source_module, &edge.source_item))
-                            .or_default()
-                            .insert(graph_node(&target.module, &target.item));
-                    }
+                module_dependencies.add(&source_module, &target.module, configurations);
+                if governed_edge {
+                    governed_graph.add(&source_module, &target.module, configurations);
+                }
+                if module_edge {
+                    module_graph.add(&dependency_source, &dependency_target, configurations);
+                }
+                if item_edge {
+                    item_graph.add(
+                        &graph_node(&source_module, &edge.source_item),
+                        &graph_node(&target.module, &target.item),
+                        configurations,
+                    );
                 }
                 if nonroot_local {
                     continue;
@@ -806,31 +793,22 @@ fn evaluate(
 
     validate_cycle_policy(policy, &merged_edge_kinds, &mut errors);
 
-    let mut cycle_findings = CycleFindings::default();
-    for index in 0..space.len() {
-        let configuration = &space.configurations[index].label;
-        let dependencies = &dependencies_by_configuration[index];
-        for (source, target) in &policy.forbidden_dependencies {
-            if dependencies.get(source).is_some_and(|targets| targets.contains(target)) {
+    for (source, target) in &policy.forbidden_dependencies {
+        if let Some(configurations) =
+            module_dependencies.edges.get(&(source.clone(), target.clone()))
+        {
+            for index in configurations.indices() {
                 errors.push(format!(
-                    "forbidden dependency {source} -> {target} configuration={configuration}"
+                    "forbidden dependency {source} -> {target} configuration={}",
+                    space.configurations[index].label
                 ));
             }
         }
-        for (graph, adjacency) in [
-            ("item", &adjacency_by_configuration[index]),
-            ("governed-module", &governed_graph_by_configuration[index]),
-        ] {
-            let graph_nodes = adjacency
-                .keys()
-                .chain(adjacency.values().flatten())
-                .cloned()
-                .collect::<BTreeSet<_>>();
-            for component in strongly_connected(adjacency, &graph_nodes) {
-                if component.len() >= 2 {
-                    cycle_findings.record(policy, graph, index, component);
-                }
-            }
+    }
+    let mut cycle_findings = CycleFindings::default();
+    for (graph, masked) in [("item", &item_graph), ("governed-module", &governed_graph)] {
+        for (index, component) in masked.components_by_configuration() {
+            cycle_findings.record(policy, graph, index, component);
         }
     }
     cycle_findings.report_errors(policy, space, &mut errors);
@@ -860,18 +838,7 @@ fn evaluate(
             let label = if *governed { "unparsed-macro" } else { "reported-unparsed-macro" };
             println!("{label}\t{module}\t{item}\t{name}\t{fingerprint}");
         }
-        let mut dependency_rows = BTreeMap::<(String, String), ConfigSet>::new();
-        for (index, adjacency) in module_graph_by_configuration.iter().enumerate() {
-            for (source, targets) in adjacency {
-                for target in targets {
-                    dependency_rows
-                        .entry((source.clone(), target.clone()))
-                        .or_default()
-                        .insert(index);
-                }
-            }
-        }
-        for ((source, target), configurations) in &dependency_rows {
+        for ((source, target), configurations) in &module_graph.edges {
             println!(
                 "module-dependency\t{source}\t{target}\t{}",
                 space.expression(*configurations)
@@ -882,17 +849,8 @@ fn evaluate(
         // the central error enum), so these are inventory for item-level
         // review, not boundary verdicts.
         let mut module_components = BTreeMap::<BTreeSet<String>, ConfigSet>::new();
-        for (index, adjacency) in module_graph_by_configuration.iter().enumerate() {
-            let nodes = adjacency
-                .keys()
-                .chain(adjacency.values().flatten())
-                .cloned()
-                .collect::<BTreeSet<_>>();
-            for component in strongly_connected(adjacency, &nodes) {
-                if component.len() >= 2 {
-                    module_components.entry(component).or_default().insert(index);
-                }
-            }
+        for (index, component) in module_graph.components_by_configuration() {
+            module_components.entry(component).or_default().insert(index);
         }
         for (component, configurations) in &module_components {
             println!(
@@ -910,10 +868,13 @@ fn evaluate(
                 component.iter().cloned().collect::<Vec<_>>().join(",")
             );
         }
-        for (index, adjacency) in adjacency_by_configuration.iter().enumerate() {
-            let label = &space.configurations[index].label;
-            let edge_count = adjacency.values().map(BTreeSet::len).sum::<usize>();
-            println!("configuration\t{label}\texecutable_edges={edge_count}");
+        for (index, configuration) in space.configurations.iter().enumerate() {
+            let edge_count = item_graph
+                .edges
+                .values()
+                .filter(|configurations| configurations.contains(index))
+                .count();
+            println!("configuration\t{}\titem_edges={edge_count}", configuration.label);
         }
     } else {
         if policy.expected_edges.is_empty() {
@@ -1617,6 +1578,61 @@ fn longest_module_prefix(target: &str, modules: &BTreeMap<String, ModuleInfo>) -
         .rev()
         .map(|end| segments[..end].join("::"))
         .find(|candidate| modules.contains_key(candidate))
+}
+
+/// A directed graph whose edges carry the configurations they are active in.
+struct MaskedGraph {
+    edges: BTreeMap<(String, String), ConfigSet>,
+}
+
+impl MaskedGraph {
+    fn new() -> Self {
+        Self { edges: BTreeMap::new() }
+    }
+
+    fn add(&mut self, from: &str, to: &str, configurations: ConfigSet) {
+        let entry = self.edges.entry((from.to_string(), to.to_string())).or_default();
+        *entry = entry.union(configurations);
+    }
+
+    /// Nontrivial SCCs of each configuration's graph. Any cycle of one
+    /// configuration lies inside an SCC of the union graph, so only those
+    /// SCCs are re-examined per configuration.
+    fn components_by_configuration(&self) -> Vec<(usize, BTreeSet<String>)> {
+        let mut union = BTreeMap::<String, BTreeSet<String>>::new();
+        for (from, to) in self.edges.keys() {
+            union.entry(from.clone()).or_default().insert(to.clone());
+        }
+        let nodes = union.keys().chain(union.values().flatten()).cloned().collect();
+        let mut found = Vec::new();
+        for component in strongly_connected(&union, &nodes) {
+            if component.len() < 2 {
+                continue;
+            }
+            let internal = self
+                .edges
+                .iter()
+                .filter(|((from, to), _)| component.contains(from) && component.contains(to))
+                .collect::<Vec<_>>();
+            let active = internal
+                .iter()
+                .fold(ConfigSet::default(), |set, (_, configurations)| set.union(**configurations));
+            for index in active.indices() {
+                let mut adjacency = BTreeMap::<String, BTreeSet<String>>::new();
+                for ((from, to), configurations) in &internal {
+                    if configurations.contains(index) {
+                        adjacency.entry(from.clone()).or_default().insert(to.clone());
+                    }
+                }
+                for sub in strongly_connected(&adjacency, &component) {
+                    if sub.len() >= 2 {
+                        found.push((index, sub));
+                    }
+                }
+            }
+        }
+        found
+    }
 }
 
 fn strongly_connected(

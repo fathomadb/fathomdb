@@ -2056,6 +2056,21 @@ mod tests {
     }
 
     #[test]
+    fn inline_module_import_wins_over_a_same_file_function() {
+        let analysis = analyze(
+            "fn helper() {} mod inner { use crate::reader_pool::helper; fn call() { helper(); } }",
+        )
+        .expect("fixture parses");
+        assert!(
+            analysis.edges.iter().any(|edge| edge.kind == EdgeKind::Callable
+                && edge.source_item == "call"
+                && edge.target == "crate::reader_pool::helper"),
+            "{:?}",
+            analysis.edges
+        );
+    }
+
+    #[test]
     fn externally_visible_inherent_methods_are_owner_qualified() {
         let analysis = analyze(
             "struct Work; impl Work { pub(crate) fn new() -> Self { Self } fn hidden() {} }",

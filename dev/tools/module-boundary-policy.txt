@@ -1,38 +1,42 @@
 # FathomDB engine module-boundary policy.
 #
 # Shrink-only reviewed inputs: module classifications, field/owner maps,
-# forbid-dependency, forbid-cycle, allow-cycle, report-cycle and admit-type
-# lines, and the local-macro, unparsed-macro and external-receiver
+# configuration-feature/-cross/-profile lines, forbid-dependency,
+# forbid-cycle, allow-cycle, report-cycle and admit-type lines, and the
+# local-macro, unparsed-macro, external-receiver and typed-receiver
 # exceptions. Loosening any of them needs a reviewed plan change; every
 # allowance and exception is stale-checked and fails when unused.
 #
 # Classifications: `governed` modules are enforced; `admitted` modules are
 # contract dependencies that hold at least one allow-cycle or admit-type
 # entry (root is always admitted: its items are separate nodes); `reported`
-# modules are extracted and reported only.
+# modules are extracted and take part in cycle detection. In every module,
+# an unparsed macro body and an untyped dot call whose method name is a
+# governed inherent method of another module fail unless an exception
+# admits them. forbid-dependency and the cycle directives cover descendant
+# modules.
 #
 # Cycles (checked in every configuration): the `item` graph is the whole
 # crate at item granularity (callable, field, Engine-method, typed-receiver
-# and type references; root items are separate nodes); the
-# `governed-module` graph is module-level over every non-composition edge
-# between governed modules. Every SCC with a governed member must account
-# for each (governed, other) module pair: forbid-cycle pairs always fail;
-# allow-cycle joins a governed module with a governed or admitted one;
-# report-cycle acknowledges a governed/reported pair. Cycle directives cover
-# descendant modules. Re-exports, the Engine storage layout and admit-type
-# edges (`admit-type <source> <item> <target> <item>`, an admitted
-# module's type-only reference to a governed item) are composition metadata
-# and join no graph. Whole-crate module-level SCCs are printed by --report as
-# inventory only. `external-receiver <module> <item> <method> <calls>`
-# records a reviewed count of unresolved dot calls whose name is also a
-# governed inherent method of another module.
+# and type references; root items are separate nodes; an untyped dot call
+# in a governed module has an edge to every same-named visible inherent
+# method); the `governed-module` graph is module-level over every
+# non-composition edge between governed modules. Every SCC with a governed
+# member must account for each (governed, other) module pair: forbid-cycle
+# pairs always fail; allow-cycle joins a governed module with a governed or
+# admitted one; report-cycle acknowledges a governed/reported pair.
+# Re-exports, the Engine storage layout and admit-type edges (`admit-type
+# <source> <item> <target> <item>`, an admitted module's type-only
+# reference to a governed item) are composition metadata and join no graph.
 #
-# Regenerable-with-review inventories: the `inherent` and `edge` lines. They
-# are regenerated from `fathomdb-module-boundary-gate --report` and the diff
-# is reviewed like code. `edge` lines cover only edges with at least one
-# governed or root endpoint; edges between two non-governed modules are
-# extracted for reachability and SCCs but are not frozen, and a policy line
-# for one fails as out of scope.
+# Regenerable-with-review inventories: the `inherent`, `edge`,
+# `module-cycle` and `module-scc` lines. They are regenerated from
+# `fathomdb-module-boundary-gate --report` and the diff is reviewed like
+# code. `edge` lines cover only edges with at least one governed or root
+# endpoint; edges between two non-governed modules are extracted for
+# reachability and SCCs but are not frozen, and a policy line for one fails
+# as out of scope. `module-cycle` and `module-scc` freeze the whole-crate
+# module-level cycles that touch the governed set (see their section).
 #
 # Configurations: the feature set is read from the engine Cargo.toml
 # [features] table (an undeclared cfg feature fails). `configuration-feature

@@ -131,3 +131,56 @@ module-level graph has one large SCC of 33 or 34 modules, depending on
 `search_types`, and `structural_state`. They are reached through the central
 `EngineError` payloads and unrelated items in shared reported modules. It is printed by `--report` as `module-scc`
 inventory, and the plan's FIX-1 amendment records why it is not enforced.
+
+## FIX-2 (design review cycle 2)
+
+Design review cycle 2 of the FIX-1 head `51f2a9a3` found residual gate gaps
+(D-14..D-22). FIX-2 ran on branch `slice-85-fix` from that head. Each RED
+test was committed before its fix. It was run against the gate of the
+preceding commit (a scratch harness whose `expect_*` print instead of
+exiting), and every new mutant was reported RED there: either the gate
+passed, or the expected diagnostic was missing. GREEN is the unmodified
+`bash scripts/tests/test_module_boundary_gate.sh` (exit 0), plus
+`scripts/check-module-boundaries.sh` and the gate crate's `cargo test`.
+
+No mutant was removed and no asserted diagnostic was weakened. Two existing
+fixtures changed their inputs only:
+
+- `stale-external-receiver` writes its policy line in the new entry format
+  (`… as_str 1 value String`); its asserted diagnostic is unchanged.
+- The `reported-cycle-accounted` and `admitted-cycle-allowed` positive
+  fixtures add the `module-cycle` inventory line their deliberate 2-cycle
+  needs, just as they already add its `edge` lines.
+
+| Finding | RED (commit: failing mutants) | GREEN (fix + policy commits) |
+| --- | --- | --- |
+| D-14 call generics, qualified-self, trait paths | `69fef3b1`: `turbofish-call` (graph_expand → search), `qself-type-call`, `qself-trait-call`, `qself-trait-reference`, `qself-trait-type`, `free-fn-turbofish`, `const-generic-turbofish`, `impl-trait-header`, `generic-bound`, `where-bound`, `impl-trait-argument`, `dyn-trait-reference`, `boxed-dyn-trait`, `supertrait`, `self-super-chain` gate passed; control `generic-control` passes. `e3c13b7b`: `super-root-reexport`, `super-root-indirection` (a `super::` path to a root re-export resolved to nothing) | `bc5502f8` + `964017e3` (8 new real edges); root-relative resolution in `a7b32fe0` |
+| D-15 alias laundering | `fb194410`: `type-alias-laundering`, `generic-type-alias-laundering`, `inline-module-reexport-laundering`, `inline-module-reexport-call` missed `forbidden dependency search -> reader_pool` | `a7b32fe0` + `2ee23f0a` (3750 → 3833 edges, all previously invisible real dependencies); engine re-spelling `3f183b37` |
+| D-16 reported-only rules, mistyped receivers | `b5b468a8`: `reported-unparsed-macro`, `reported-untyped-receiver`, `untyped-receiver-cycle`, `mistyped-local-constructor`, `generic-parameter-receiver` gate passed; `mistyped-foreign-constructor`, `typed-receiver-missing-method` missed the unresolved-receiver diagnostic | `b0ae8767` + `2745671e` (5 `unparsed-macro` entries for the `proptest!` bodies; receiver entries 21 → 152; 27 edges to nonexistent methods dropped) |
+| D-17 descendant forbids | `e345502b`: `codec-search`, `codec-search-api`, `new-submodule-search` missed `forbidden dependency graph_expand::… -> …` | `5ed4a85b` + `206c2268` (15 forbid lines → 5 family roots, a strict superset) |
+| D-18 shipped closures | `bcf8a008`: `operator-ml-split-cycle`, `product-ml-split-cycle` missed `unapproved governed cycle search <-> telemetry` | `fa0d9c81` + `20f261aa` (144 → 232 configurations; 12 edges relabelled) |
+| D-19 module-level cycles | `2254b572`: `module-two-cycle`, `module-scc-join` gate passed; `stale-module-cycle`, `stale-module-scc` missed their diagnostics; `7399a6f7` adds the inventory line to two positive fixtures | `f20b5e7a` + `ce706334` (6 `module-cycle`, 34 `module-scc`) |
+| D-20 statement and parent-mod cfg | `12a01934`: `statement-unknown-feature`, `statement-cfg`, `let-cfg`, `arm-cfg`, `parent-mod-cfg` missed their diagnostics; unit test `statement_expression_and_inner_cfg_are_evaluated` failed | `f3b9c436` + `7d93f304` (relabelling only, 3806 edges before and after) |
+| D-21 receiver identity | `c93a26b3`: `receiver-swap` (the reviewer's same-count swap in `search::read_search_in_tx`) gate passed; `in-crate-listed-external`, `typed-receiver-edge`, `typed-receiver-missing-method` missed their diagnostics | `921e9b61` + `f7a76d29` (233 entries: 128 external, 105 typed; 25 new typed edges) |
+| D-22 records | n/a (record) | this closeout commit |
+
+The receiver entries were classified from compiler output. In a scratch copy
+of the engine, each counted call's method was renamed at its exact span.
+`cargo check -p fathomdb-engine --lib --profile test --features
+test-hooks,operator,tc5-benchmark` then reports each receiver's type in
+E0599, and three passes cover calls whose errors rustc suppressed. The two
+calls under `default-embedder`/`default-reranker` were read from their
+declarations.
+
+Engine change demanded by the stronger gate, behaviour-identical: in
+`frozen_read.rs` `mint_inner`, `super::validate_filter_attributes_on_snapshot`
+and `super::SnapshotFilterError::{InvalidFilter, Sqlite}` reached the
+`filter` items through their crate-root re-exports. They now name
+`crate::filter::…`, with the same items and match arms. Once `super::` paths
+that climb to the root resolve, a governed module using one is root
+re-export indirection.
+
+Newly visible inventory: `frozen_read ↔ errors` and `read ↔ temporal` join
+the four previously named module-level 2-cycles. None is an item-level or
+governed-module cycle. No forbidden dependency or item-level cycle surfaced
+in any of the 232 configurations.

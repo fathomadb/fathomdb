@@ -857,9 +857,14 @@ Slice 85.
   → search`, which is no item-level path). No item-level or governed-module
   cycle exists, so enforcing module granularity across the whole crate would
   need either an allowlist far beyond the three named candidates or a
-  source-level change to the error enum, both outside Slice 85. `--report`
-  prints these module-level SCCs as inventory; a path that leaves the
-  governed set and returns is judged on the item graph.
+  source-level change to the error enum, both outside Slice 85. A path that
+  leaves the governed set and returns is judged on the item graph. FIX-2
+  clarification: the module-level cycles that touch the governed set are a
+  frozen, regenerable-with-review inventory (`module-cycle` pairs for each
+  direct 2-cycle with a governed member, `module-scc` members of each
+  module-level SCC containing a governed module), so a new one is a
+  reviewed policy diff rather than a silent `--report` row; they remain
+  inventory, not boundary verdicts.
 - **Allowlist.** No named candidate forms an item-level or governed-module
   cycle, so all three `allow-cycle` lines were stale and are removed; the
   allowlist is empty and every allowance is stale-checked. `admitted` means
@@ -872,17 +877,30 @@ Slice 85.
   parameters and lets, constructors, `Arc`/`Rc`/`Box`, `self`, and same-file
   struct fields). An untyped call whose name is another module's governed
   inherent method fails unless a reviewed `external-receiver` entry records
-  its exact call count.
+  its exact call count. FIX-2 clarification: this applies in every module,
+  not only governed ones; a constructor types its binding only when it is
+  declared to return that type, and an in-crate receiver type is used only
+  when the type has the method. Each exception names the receiver
+  expression and its type: `external-receiver` for a type outside the
+  crate, `typed-receiver` for an in-crate type, whose calls become typed
+  edges.
 - **Configurations.** The feature set is read from the engine manifest. The
   reviewed axis features are `test-hooks`, `tc5-benchmark`, and `operator`.
   Every other feature gets a single-feature-closure profile, plus one
   all-features profile. Each profile is crossed with test, Linux, and
   `debug_assertions`, giving 144 configurations. A frozen-scope edge that
-  is active in no configuration fails.
+  is active in no configuration fails. FIX-2 clarification: the
+  single-feature profiles and a reviewed `gpu-product` consumer profile
+  (`embed-cuda`, `rerank-cuda`) are each also crossed with `operator`,
+  which the CLI enables together with any ML feature, giving 232
+  configurations; `cfg` on statements, expressions and match arms and the
+  declaring `mod` item's `cfg` are evaluated too.
 - **Inventory scope.** Classifications, forbids, cycle directives,
   admissions and exceptions are shrink-only. The `inherent` and `edge`
   inventories are regenerated from `--report` and reviewed. They cover edges
-  with a governed or root endpoint.
+  with a governed or root endpoint. FIX-2 clarification: `forbid-dependency`
+  covers descendant modules like the cycle directives, and the
+  `module-cycle`/`module-scc` inventory is regenerable-with-review as well.
 
 #### Why not rust-analyzer SCIP
 

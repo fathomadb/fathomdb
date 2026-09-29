@@ -310,6 +310,21 @@ printf '\nfn slice85_unit_probe() { let _ = crate::reader_pool::S85Unit; }\n' \
 expect_failure capital-unit 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
+printf '\nfn slice85_struct_literal_probe() { let _ = crate::reader_pool::S85Struct { value: 1 }; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure capital-struct-literal 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\nfn slice85_pattern_probe(value: usize) { if let crate::reader_pool::S85Enum::B(_) = value {} }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+expect_failure capital-tuple-pattern 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+
+printf '\nfn slice85_struct_pattern_probe(value: usize) { let crate::reader_pool::S85Struct { .. } = value; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+expect_failure capital-struct-pattern 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

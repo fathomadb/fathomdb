@@ -76,6 +76,7 @@ pub struct Edge {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MacroUse {
     pub target: String,
+    pub fingerprint: Option<String>,
     pub source_scope: String,
     pub source_item: String,
     pub location: Location,
@@ -170,15 +171,18 @@ impl Analyzer {
                 .map(|segment| segment.ident.to_string())
                 .collect::<Vec<_>>()
                 .join("::"),
+            fingerprint: None,
             source_scope: self.module_stack.join("::"),
             source_item: self.item_stack.last().cloned().unwrap_or_else(|| "<module>".to_string()),
             location: span.into(),
         });
     }
 
-    fn record_local_macro(&mut self, name: &syn::Ident) {
+    fn record_local_macro(&mut self, item: &ItemMacro) {
+        let name = item.ident.as_ref().expect("macro_rules item has a name");
         self.analysis.macros.insert(MacroUse {
             target: format!("macro_rules::{name}"),
+            fingerprint: Some(stable_token_fingerprint(&item.mac.tokens.to_string())),
             source_scope: self.module_stack.join("::"),
             source_item: self.item_stack.last().cloned().unwrap_or_else(|| "<module>".to_string()),
             location: name.span().into(),
@@ -563,8 +567,8 @@ impl<'ast> Visit<'ast> for Analyzer {
 
     fn visit_item_macro(&mut self, item: &'ast ItemMacro) {
         if item.mac.path.is_ident("macro_rules") {
-            if let Some(name) = &item.ident {
-                self.record_local_macro(name);
+            if item.ident.is_some() {
+                self.record_local_macro(item);
             }
             return;
         }
@@ -667,6 +671,15 @@ impl<'ast> Visit<'ast> for Analyzer {
         }
         visit::visit_expr_path(self, expression);
     }
+}
+
+fn stable_token_fingerprint(source: &str) -> String {
+    let mut hash = 0xcbf29ce484222325u64;
+    for byte in source.bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("{hash:016x}")
 }
 
 fn function_bindings(
@@ -1128,8 +1141,8 @@ mod tests {
 
     #[test]
     fn local_macro_definition_identity_changes_with_its_body() {
-        let clean = analyze_source("macro_rules! m { () => {{ 1usize }}; }")
-            .expect("clean fixture parses");
+        let clean =
+            analyze_source("macro_rules! m { () => {{ 1usize }}; }").expect("clean fixture parses");
         let changed = analyze_source("macro_rules! m { () => {{ 2usize }}; }")
             .expect("changed fixture parses");
         assert_ne!(clean.macros, changed.macros);

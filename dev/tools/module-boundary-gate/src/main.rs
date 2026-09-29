@@ -16,7 +16,7 @@ struct Policy {
     forbidden_dependencies: BTreeSet<(String, String)>,
     forbidden_cycles: BTreeSet<(String, String)>,
     allowed_cycles: BTreeSet<(String, String)>,
-    allowed_local_macros: BTreeSet<(String, String)>,
+    allowed_local_macros: BTreeSet<(String, String, String)>,
     inherent_methods: BTreeSet<(String, String)>,
     expected_edges: BTreeSet<(String, String, String, String, String, String)>,
 }
@@ -232,8 +232,12 @@ fn parse_policy(path: &Path) -> Result<Policy, Vec<String>> {
             ["allow-cycle", left, right] => {
                 policy.allowed_cycles.insert(sorted_pair(left, right));
             }
-            ["local-macro", module, name] => {
-                policy.allowed_local_macros.insert(((*module).to_string(), (*name).to_string()));
+            ["local-macro", module, name, fingerprint] => {
+                policy.allowed_local_macros.insert((
+                    (*module).to_string(),
+                    (*name).to_string(),
+                    (*fingerprint).to_string(),
+                ));
             }
             ["inherent", module, method] => {
                 if !policy.inherent_methods.insert(((*module).to_string(), (*method).to_string())) {
@@ -374,6 +378,7 @@ fn evaluate(
 
     let root_aliases = root.map(|module| &module.analysis.import_aliases);
     let mut actual_edges = BTreeSet::new();
+    let mut actual_local_macros = BTreeSet::new();
     let mut edge_origins: BTreeMap<
         (String, String, String, String, String, String),
         (String, usize, usize, String),
@@ -527,7 +532,18 @@ fn evaluate(
             }
         }
 
-        reject_relevant_macros(module, info, policy, source_root, &mut errors);
+        reject_relevant_macros(
+            module,
+            info,
+            policy,
+            source_root,
+            &mut actual_local_macros,
+            &mut errors,
+        );
+    }
+
+    for (module, name, _) in policy.allowed_local_macros.difference(&actual_local_macros) {
+        errors.push(format!("stale local macro policy source={module} macro={name}"));
     }
 
     for (configuration, adjacency) in &adjacency_by_configuration {
@@ -591,6 +607,9 @@ fn evaluate(
             println!(
                 "edge\t{source}\t{source_item}\t{target}\t{target_item}\t{kind}\t{configurations}"
             );
+        }
+        for (module, name, fingerprint) in &actual_local_macros {
+            println!("local-macro\t{module}\t{name}\t{fingerprint}");
         }
         for (label, adjacency) in &adjacency_by_configuration {
             let edge_count = adjacency.values().map(BTreeSet::len).sum::<usize>();
@@ -668,13 +687,31 @@ fn reject_relevant_macros(
     info: &ModuleInfo,
     policy: &Policy,
     source_root: &Path,
+    actual_local_macros: &mut BTreeSet<(String, String, String)>,
     errors: &mut Vec<String>,
 ) {
     for usage in &info.analysis.macros {
         let module = scoped_module(physical_module, &usage.source_scope);
         let governed = policy.classified.get(&module).map(String::as_str) == Some("governed");
         if let Some(name) = usage.target.strip_prefix("macro_rules::") {
-            if !policy.allowed_local_macros.contains(&(module.clone(), name.to_string())) {
+            let fingerprint = usage.fingerprint.as_deref().expect("definition fingerprint");
+            let actual = (module.clone(), name.to_string(), fingerprint.to_string());
+            actual_local_macros.insert(actual.clone());
+            if policy.allowed_local_macros.contains(&actual) {
+                continue;
+            }
+            if policy
+                .allowed_local_macros
+                .iter()
+                .any(|(owner, allowed_name, _)| owner == &module && allowed_name == name)
+            {
+                errors.push(format!(
+                    "local macro definition fingerprint mismatch source={module} macro={name} actual={fingerprint} at {}:{}:{}",
+                    relative(source_root, &info.file),
+                    usage.location.line,
+                    usage.location.column
+                ));
+            } else {
                 errors.push(format!(
                     "unreviewed local macro definition source={module} item={} macro={name} at {}:{}:{}",
                     usage.source_item,

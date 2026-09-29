@@ -1692,6 +1692,17 @@ compiled_mutant compiled-forbidden-submodule-cycle 'forbidden cycle graph_expand
   graph_expand/mod.rs 'pub(crate) use codec::slice85_codec_out;' \
   search.rs 'pub(crate) fn slice85_codec_in() { crate::graph_expand::slice85_codec_out(); }'
 
+# An Engine method call or field access keeps its edge when the module also
+# imports an unrelated item under the method's or field's name.
+compiled_mutant compiled-engine-method-named-like-import 'forbidden dependency graph_expand -> search_api' \
+  graph_expand/mod.rs '#[allow(unused_imports)]
+use crate::fusion::fuse_rrf as search;
+pub(crate) fn slice85_engine_method(engine: &crate::Engine) { let _ = engine.search(""); }'
+compiled_mutant compiled-engine-field-named-like-import 'forbidden dependency graph_expand -> reader_pool' \
+  graph_expand/mod.rs '#[allow(unused_imports)]
+use crate::fusion::fuse_rrf as reader_pool;
+pub(crate) fn slice85_engine_field(engine: &crate::Engine) { let _ = &engine.reader_pool; }'
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

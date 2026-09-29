@@ -120,9 +120,10 @@ if [ "$build_count" -ne 4 ]; then
   printf 'manifest-only edit kept the module-boundary binary stale: %s builds\n' "$build_count" >&2
   exit 1
 fi
-if [ -n "$(find "$cache_fixture/dev/tools/module-boundary-gate/Cargo.toml" \
+newer_manifest="$(find "$cache_fixture/dev/tools/module-boundary-gate/Cargo.toml" \
   "$cache_fixture/dev/tools/module-boundary-gate/Cargo.lock" \
-  -newer "$cache_fixture/dev/tools/module-boundary-gate/target/debug/fathomdb-module-boundary-gate")" ]; then
+  -newer "$cache_fixture/dev/tools/module-boundary-gate/target/debug/fathomdb-module-boundary-gate")"
+if [ -n "$newer_manifest" ]; then
   printf 'manifest-only edit left the module-boundary binary older than its manifest\n' >&2
   exit 1
 fi

@@ -44,16 +44,18 @@
 # combination (profile:base). Every other declared feature gets its own
 # single-feature-closure profile, and each `configuration-profile <name>
 # <features>` line is a reviewed consumer profile enabling the closure of
-# its list (gpu-product: the CLI/binding GPU artifact with both ML stacks).
-# Those profiles are crossed with every combination of the
-# `configuration-cross` axes (operator: the CLI enables it with any ML
-# feature), other axes off. profile:all-features enables every closure.
-# Each point is crossed with test/non-test, linux/non-linux and
-# debug/release (debug_assertions), giving 232 evaluated configurations. A
+# its list (gpu-product: the CLI/binding GPU artifact with both ML stacks;
+# python-dev: the default `pip install -e`/pytest build from
+# src/python/pyproject.toml). Those profiles are crossed with every
+# combination of the `configuration-cross` axes (operator: the CLI enables it
+# with any ML feature), other axes off. profile:all-features enables every
+# closure. Each point is crossed with test/non-test, linux/non-linux and
+# debug/release (debug_assertions), giving 248 evaluated configurations. A
 # feature set outside this enumeration (for example test-hooks or
-# tc5-benchmark together with an ML feature, or two ML features no profile
-# combines) is not evaluated as such: only all-features combines them, with
-# every other feature also on. An edge in the frozen scope that is active in
+# tc5-benchmark together with an ML feature, such as the N-API debug build
+# test-hooks,default-embedder, or two ML features no profile combines) is
+# not evaluated as such: only all-features combines them, with every other
+# feature also on. An edge in the frozen scope that is active in
 # none of the evaluated configurations fails closed.
 # Edge configuration fields are canonical expressions: `all`, or
 # `|`-separated cubes of `&`-joined literals over test, the axis labels,
@@ -65,6 +67,7 @@ configuration-feature tc5-benchmark tc5
 configuration-feature operator operator
 configuration-cross operator
 configuration-profile gpu-product embed-cuda,rerank-cuda
+configuration-profile python-dev default-embedder,default-reranker
 
 reported actuation
 reported actuation::tests

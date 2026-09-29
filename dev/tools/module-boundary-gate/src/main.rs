@@ -620,6 +620,11 @@ fn evaluate(
     // another module, counted per source item for reviewed exceptions.
     let mut unresolved_receivers = BTreeMap::<ReceiverKey, usize>::new();
     let mut unresolved_origins = BTreeMap::<ReceiverKey, Vec<String>>::new();
+    // (source, forbidden target, source item, method, reachable method node)
+    // for untyped dot calls whose over-approximation reaches a forbidden
+    // module, with the configurations and first call site.
+    let mut receiver_forbids =
+        BTreeMap::<(String, String, String, String, String), (ConfigSet, String)>::new();
     // Every graph is kept as `(from, to) -> configurations`.
     let mut item_graph = MaskedGraph::new();
     let mut module_dependencies = MaskedGraph::new();
@@ -830,6 +835,39 @@ fn evaluate(
                                 receiver_type.unwrap_or("<unknown>")
                             ));
                         }
+                        if reviewed_type.is_none() {
+                            // The untyped call may reach any same-named
+                            // inherent method, so a forbidden module's is a
+                            // forbidden dependency even under a reviewed
+                            // external receiver type.
+                            for node in crate_inherent.get(method).into_iter().flatten() {
+                                let target = node_module(node);
+                                if target != source_module
+                                    && forbidden(policy, &source_module, &target)
+                                {
+                                    let origin = receiver_forbids
+                                        .entry((
+                                            source_module.clone(),
+                                            target,
+                                            edge.source_item.clone(),
+                                            method.to_string(),
+                                            node.clone(),
+                                        ))
+                                        .or_insert_with(|| {
+                                            (
+                                                ConfigSet::default(),
+                                                format!(
+                                                    "{}:{}:{}",
+                                                    relative(source_root, &info.file),
+                                                    edge.location.line,
+                                                    edge.location.column
+                                                ),
+                                            )
+                                        });
+                                    origin.0 = origin.0.union(edge.configurations);
+                                }
+                            }
+                        }
                         if let Some(reviewed) = reviewed_type {
                             targets = reviewed;
                         } else if governed {
@@ -1028,11 +1066,7 @@ fn evaluate(
 
     // A forbidden dependency covers descendant modules on both sides.
     for ((source, target), configurations) in &module_dependencies.edges {
-        if source == target
-            || !policy.forbidden_dependencies.iter().any(|(forbidden_source, forbidden_target)| {
-                covers(forbidden_source, source) && covers(forbidden_target, target)
-            })
-        {
+        if source == target || !forbidden(policy, source, target) {
             continue;
         }
         for index in configurations.indices() {
@@ -1041,6 +1075,15 @@ fn evaluate(
                 space.configurations[index].label
             ));
         }
+    }
+    for ((source, target, item, method, node), (configurations, origin)) in &receiver_forbids {
+        errors.push(format!(
+            "forbidden dependency {source} -> {target} via untyped receiver source_item={item} \
+             method={method} may reach {node} configurations={} at {origin}; the call's receiver \
+             type is not syntactic, so it over-approximates to every same-named inherent method: \
+             type the receiver or rename the method",
+            space.expression(*configurations)
+        ));
     }
     let mut cycle_findings = CycleFindings::default();
     for (graph, masked) in [("item", &item_graph), ("governed-module", &governed_graph)] {
@@ -1347,6 +1390,13 @@ fn validate_cycle_policy(
     }
 }
 
+/// Whether a forbid-dependency line covers `source -> target`.
+fn forbidden(policy: &Policy, source: &str, target: &str) -> bool {
+    policy.forbidden_dependencies.iter().any(|(forbidden_source, forbidden_target)| {
+        covers(forbidden_source, source) && covers(forbidden_target, target)
+    })
+}
+
 /// A cycle directive names modules; it also covers their descendants, so
 /// `graph_expand` covers `graph_expand::traversal`.
 fn covers(directive: &str, module: &str) -> bool {
@@ -1541,8 +1591,21 @@ fn reject_relevant_macros(
             }
             continue;
         }
-        let internal = usage.target == "include"
-            || usage.target.starts_with("crate::")
+        // `include!` splices source the gate never parses, in any module;
+        // `include_str!`/`include_bytes!` are data.
+        if matches!(usage.target.as_str(), "include" | "std::include" | "core::include") {
+            errors.push(format!(
+                "unreviewed include source={module} item={} macro={} at {}:{}:{}; the included \
+                 source is not parsed, so declare it as a module instead",
+                usage.source_item,
+                usage.target,
+                relative(source_root, &info.file),
+                usage.location.line,
+                usage.location.column
+            ));
+            continue;
+        }
+        let internal = usage.target.starts_with("crate::")
             || usage.target.starts_with("super::")
             || usage.target.starts_with("self::");
         if governed && internal {
@@ -1695,6 +1758,21 @@ fn chase_step(
         return (next.is_none(), next.into_iter().collect());
     }
     let alias_key = if scope.is_empty() { head.to_string() } else { format!("{scope}::{head}") };
+    // `Owner::Name` names an associated-type binding `impl Trait for Owner
+    // { type Name = P; }`: kept, and every in-crate path it names is added.
+    if let Some(binding) = rest
+        .as_ref()
+        .and_then(|rest| info.analysis.type_aliases.get(&format!("{alias_key}::{rest}")))
+    {
+        let qualify = |path: &str| qualify_in_scope(&current.module, &scope, info, path, modules);
+        let next = binding
+            .mentioned
+            .iter()
+            .chain(&binding.primary)
+            .filter_map(|path| qualify(path).and_then(|path| resolve_path(&path, modules)))
+            .collect();
+        return (true, next);
+    }
     if let Some(alias) = info.analysis.type_aliases.get(&alias_key) {
         let qualify = |path: &str| qualify_in_scope(&current.module, &scope, info, path, modules);
         let mut next = Vec::new();

@@ -564,6 +564,114 @@ impl<'s> Analyzer<'s> {
         previous
     }
 
+    /// Derive helper attributes can name code in string literals, which the
+    /// derive expands into real references: serde's function, module and
+    /// type keys (and `bound` predicates) become edges, as does any other
+    /// attribute string that is a multi-segment path. A `cfg_attr` narrows
+    /// the configurations of the attributes it wraps.
+    fn record_attribute_paths(&mut self, meta: &Meta) {
+        let Meta::List(list) = meta else { return };
+        if list.path.is_ident("doc") || list.path.is_ident("cfg") {
+            return;
+        }
+        if list.path.is_ident("cfg_attr") {
+            let mut entries = split_top_level_commas(list.tokens.clone()).into_iter();
+            let Some(condition) = entries.next() else { return };
+            let condition = condition.to_string();
+            let previous = self.configurations;
+            let space = self.space;
+            if self.filter_configurations(|index| space.evaluate(&condition, index)) {
+                self.analysis.unsupported_cfg.insert(condition);
+            }
+            for entry in entries {
+                if let Ok(nested) = syn::parse2::<Meta>(entry) {
+                    self.record_attribute_paths(&nested);
+                }
+            }
+            self.configurations = previous;
+            return;
+        }
+        if list.path.is_ident("serde") {
+            self.record_serde_paths(list.tokens.clone());
+            return;
+        }
+        for literal in string_literals(list.tokens.clone()) {
+            if let Ok(path) = syn::parse_str::<syn::Path>(&literal.value()) {
+                if path.segments.len() >= 2
+                    && path.segments.iter().all(|segment| segment.arguments.is_none())
+                {
+                    self.record_path(&path, true);
+                }
+            }
+        }
+    }
+
+    fn record_serde_paths(&mut self, tokens: TokenStream) {
+        for entry in split_top_level_commas(tokens) {
+            let entry = entry.into_iter().collect::<Vec<_>>();
+            let Some(TokenTree::Ident(key)) = entry.first() else { continue };
+            let key = key.to_string();
+            match (key.as_str(), &entry[1..]) {
+                ("bound", [TokenTree::Group(group)]) => {
+                    for nested in split_top_level_commas(group.stream()) {
+                        let nested = nested.into_iter().collect::<Vec<_>>();
+                        if let [TokenTree::Ident(_), TokenTree::Punct(eq), TokenTree::Literal(lit)] =
+                            nested.as_slice()
+                        {
+                            if eq.as_char() == '=' {
+                                self.record_serde_value("bound", lit);
+                            }
+                        }
+                    }
+                }
+                (_, [TokenTree::Punct(eq), TokenTree::Literal(lit)]) if eq.as_char() == '=' => {
+                    self.record_serde_value(&key, lit);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn record_serde_value(&mut self, key: &str, literal: &proc_macro2::Literal) {
+        let Ok(value) = syn::parse2::<syn::LitStr>(TokenTree::Literal(literal.clone()).into())
+        else {
+            return;
+        };
+        match key {
+            "serialize_with"
+            | "deserialize_with"
+            | "with"
+            | "skip_serializing_if"
+            | "default"
+            | "getter"
+            | "crate" => {
+                if let Ok(path) = value.parse::<syn::Path>() {
+                    self.record_path(&path, true);
+                    for segment in &path.segments {
+                        self.visit_path_arguments(&segment.arguments);
+                    }
+                }
+            }
+            "from" | "try_from" | "into" | "remote" => {
+                if let Ok(ty) = value.parse::<Type>() {
+                    self.visit_type(&ty);
+                }
+            }
+            "bound" => {
+                let parser = syn::punctuated::Punctuated::<
+                    syn::WherePredicate,
+                    syn::Token![,],
+                >::parse_terminated;
+                if let Ok(predicates) = value.parse_with(parser) {
+                    for predicate in &predicates {
+                        self.visit_where_predicate(predicate);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn resolve_aliases(&mut self) {
         let top_level = &self.analysis.import_aliases;
         let mut resolved = BTreeSet::new();
@@ -621,6 +729,34 @@ impl AliasScope<'_> {
     }
 }
 
+fn split_top_level_commas(tokens: TokenStream) -> Vec<TokenStream> {
+    let mut entries = vec![TokenStream::new()];
+    for token in tokens {
+        match &token {
+            TokenTree::Punct(punct) if punct.as_char() == ',' => entries.push(TokenStream::new()),
+            _ => entries.last_mut().expect("one entry").extend([token]),
+        }
+    }
+    entries.retain(|entry| !entry.is_empty());
+    entries
+}
+
+fn string_literals(tokens: TokenStream) -> Vec<syn::LitStr> {
+    let mut literals = Vec::new();
+    for token in tokens {
+        match token {
+            TokenTree::Group(group) => literals.extend(string_literals(group.stream())),
+            TokenTree::Literal(literal) => {
+                if let Ok(value) = syn::parse2::<syn::LitStr>(TokenTree::Literal(literal).into()) {
+                    literals.push(value);
+                }
+            }
+            _ => {}
+        }
+    }
+    literals
+}
+
 fn split_cfg_attr(source: &str) -> Option<(&str, &str)> {
     let mut depth = 0usize;
     for (index, ch) in source.char_indices() {
@@ -635,6 +771,11 @@ fn split_cfg_attr(source: &str) -> Option<(&str, &str)> {
 }
 
 impl<'ast> Visit<'ast> for Analyzer<'_> {
+    fn visit_attribute(&mut self, attr: &'ast Attribute) {
+        self.record_attribute_paths(&attr.meta);
+        visit::visit_attribute(self, attr);
+    }
+
     fn visit_block(&mut self, block: &'ast syn::Block) {
         self.push_inherited_scope();
         visit::visit_block(self, block);
@@ -851,33 +992,13 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
     fn visit_item_type(&mut self, item: &'ast ItemType) {
         let previous = self.enter_attrs(&item.attrs);
         self.declared(item.ident.to_string());
-        let generics = item
-            .generics
-            .params
-            .iter()
-            .filter_map(|parameter| match parameter {
-                syn::GenericParam::Type(parameter) => Some(parameter.ident.to_string()),
-                _ => None,
-            })
-            .collect::<BTreeSet<_>>();
-        let mut collector = PathCollector::default();
-        collector.visit_type(&item.ty);
         let scope = self.module_stack.join("::");
         let key = if scope.is_empty() {
             item.ident.to_string()
         } else {
             format!("{scope}::{}", item.ident)
         };
-        let named = |path: &String| {
-            !generics.contains(path.split("::").next().unwrap_or(path)) && path != "Self"
-        };
-        self.analysis.type_aliases.insert(
-            key,
-            TypeAlias {
-                primary: plain_type_path(&item.ty).filter(named),
-                mentioned: collector.paths.into_iter().filter(named).collect(),
-            },
-        );
+        self.analysis.type_aliases.insert(key, type_alias(&item.ty, &item.generics));
         self.item_stack.push(item.ident.to_string());
         visit::visit_item_type(self, item);
         self.item_stack.pop();
@@ -934,6 +1055,21 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         }
         if let Some((_, trait_path, _)) = &item.trait_ {
             self.record_trait_path(trait_path);
+        }
+        if let (Some(owner), Some(_)) = (&owner, &item.trait_) {
+            // `impl Trait for Owner { type Name = P; }` is chased like a
+            // `type` alias when a projection `<Owner as Trait>::Name` names it.
+            let scope = self.module_stack.join("::");
+            for member in &item.items {
+                if let ImplItem::Type(binding) = member {
+                    let key = if scope.is_empty() {
+                        format!("{owner}::{}", binding.ident)
+                    } else {
+                        format!("{scope}::{owner}::{}", binding.ident)
+                    };
+                    self.analysis.type_aliases.insert(key, type_alias(&binding.ty, &item.generics));
+                }
+            }
         }
         if let Some(owner) = &owner {
             for member in &item.items {
@@ -1031,6 +1167,12 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
     fn visit_type_path(&mut self, ty: &'ast TypePath) {
         if let Some(qself) = &ty.qself {
             self.record_qualified_self_path(qself, &ty.path, EdgeKind::Type);
+            // `<Owner as Trait>::Name` names the impl's `type Name` binding.
+            if let Some(projection) = projection_path(qself, &ty.path)
+                .filter(|path| self.concrete_type(path.clone()).is_some())
+            {
+                self.edge(EdgeKind::Type, projection, ty.path.segments[0].ident.span());
+            }
         } else {
             let target = ty
                 .path
@@ -1185,6 +1327,7 @@ impl<'ast> Visit<'ast> for PathCollector {
         match &ty.qself {
             Some(qself) if qself.position > 0 => {
                 self.paths.insert(segments[..qself.position].join("::"));
+                self.paths.extend(projection_path(qself, &ty.path));
             }
             Some(_) => {}
             None => {
@@ -1206,6 +1349,44 @@ impl<'ast> Visit<'ast> for PathCollector {
         );
         visit::visit_trait_bound(self, bound);
     }
+}
+
+/// The paths a `type` alias or associated-type binding names, generic
+/// parameters of `generics` and `Self` excluded.
+fn type_alias(ty: &Type, generics: &syn::Generics) -> TypeAlias {
+    let generics = generics
+        .params
+        .iter()
+        .filter_map(|parameter| match parameter {
+            syn::GenericParam::Type(parameter) => Some(parameter.ident.to_string()),
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    let mut collector = PathCollector::default();
+    collector.visit_type(ty);
+    let named = |path: &String| {
+        !generics.contains(path.split("::").next().unwrap_or(path)) && path != "Self"
+    };
+    TypeAlias {
+        primary: plain_type_path(ty).filter(named),
+        mentioned: collector.paths.into_iter().filter(named).collect(),
+    }
+}
+
+/// `<Owner as Trait>::Name` as `Owner::Name` when `Owner` is a plain path.
+fn projection_path(qself: &syn::QSelf, path: &syn::Path) -> Option<String> {
+    if qself.position == 0 || qself.position >= path.segments.len() {
+        return None;
+    }
+    let owner = plain_type_path(&qself.ty).filter(|owner| owner != "Self")?;
+    let item = path
+        .segments
+        .iter()
+        .skip(qself.position)
+        .map(|segment| segment.ident.to_string())
+        .collect::<Vec<_>>()
+        .join("::");
+    Some(format!("{owner}::{item}"))
 }
 
 /// The path of a type written as a plain path (through references,

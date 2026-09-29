@@ -200,6 +200,11 @@ forbid-dependency graph_expand reader_pool
 forbid-dependency graph_expand search_api
 forbid-dependency graph_expand search
 forbid-dependency read reader_pool
+# AC27-85B: read, filter and frozen_read never depend on search (its
+# SearchReaderError included).
+forbid-dependency read search
+forbid-dependency filter search
+forbid-dependency frozen_read search
 forbid-dependency search reader_pool
 
 forbid-cycle search graph_expand

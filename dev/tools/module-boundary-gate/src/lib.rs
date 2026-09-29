@@ -153,6 +153,10 @@ pub struct Analysis {
     /// `inner::Alias`).
     pub type_aliases: BTreeMap<String, TypeAlias>,
     pub unsupported_cfg: BTreeSet<String>,
+    /// `mod` items carrying `#[path]` (bare or inside `cfg_attr`), by name.
+    /// The compiler then builds a file other than the one the gate maps the
+    /// module to, so the gate fails closed on every one.
+    pub path_attributes: BTreeSet<(String, Location)>,
     /// `extern crate` declarations by the name they bind. One can rename
     /// this crate (`extern crate self as x`) or another out of path
     /// resolution, so the gate fails closed on every one.
@@ -817,6 +821,21 @@ fn string_literals(tokens: TokenStream) -> Vec<syn::LitStr> {
     literals
 }
 
+/// `path = ".."` itself, or a `cfg_attr` that applies one under any condition.
+fn attribute_sets_path(meta: &Meta) -> bool {
+    if meta.path().is_ident("path") {
+        return true;
+    }
+    let Meta::List(list) = meta else { return false };
+    if !list.path.is_ident("cfg_attr") {
+        return false;
+    }
+    split_top_level_commas(list.tokens.clone())
+        .into_iter()
+        .skip(1)
+        .any(|entry| syn::parse2::<Meta>(entry).is_ok_and(|nested| attribute_sets_path(&nested)))
+}
+
 fn split_cfg_attr(source: &str) -> Option<(&str, &str)> {
     let mut depth = 0usize;
     for (index, ch) in source.char_indices() {
@@ -906,6 +925,11 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
     }
 
     fn visit_item_mod(&mut self, item: &'ast ItemMod) {
+        if item.attrs.iter().any(|attr| attribute_sets_path(&attr.meta)) {
+            self.analysis
+                .path_attributes
+                .insert((item.ident.to_string(), item.ident.span().into()));
+        }
         let previous = self.enter_attrs(&item.attrs);
         self.analysis.modules.insert(ModuleDecl {
             name: item.ident.to_string(),

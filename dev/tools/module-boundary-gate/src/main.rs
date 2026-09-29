@@ -209,6 +209,17 @@ fn discover_modules(
             Err(error) => errors.push(error),
         }
     }
+    for info in modules.values() {
+        for (name, location) in &info.analysis.path_attributes {
+            errors.push(format!(
+                "unsupported #[path] on mod {name} at {}:{}:{}; the compiler would build a file \
+                 other than the one the gate analyses for this module",
+                relative(source_root, &info.file),
+                location.line,
+                location.column
+            ));
+        }
+    }
     let mut declared_files = BTreeSet::from(["root".to_string()]);
     for (parent, info) in &modules {
         for declaration in

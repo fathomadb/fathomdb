@@ -1042,7 +1042,7 @@ edge graph_api Engine::graph_expand_inner errors EngineError::Storage type all
 edge graph_api Engine::graph_expand_inner evidence graph_evidence_authority callable all
 edge graph_api Engine::graph_expand_inner frozen_read authenticate callable all
 edge graph_api Engine::graph_expand_inner frozen_read validate_context callable all
-edge graph_api Engine::graph_expand_inner graph_expand::execution GraphExpandReaderControlsForTest type all
+edge graph_api Engine::graph_expand_inner graph_expand::execution GraphExpandReaderControlsForTest type hooks
 edge graph_api Engine::graph_expand_inner graph_expand::execution graph_error callable all
 edge graph_api Engine::graph_expand_inner graph_expand::execution validate_semantics callable all
 edge graph_api Engine::graph_expand_inner graph_expand::types GraphExpandRequestV1 type all
@@ -1815,11 +1815,11 @@ edge projection_registry parse_roles_json root ProjectionRole::from_str_opt call
 edge projection_registry roles_to_storage root ProjectionRole type all
 edge projection_registry roles_to_storage root ProjectionRole::as_str callable all
 edge projection_runtime <module> root * import all
-edge projection_runtime ProjectionRuntime::new root ManagedConnectionRegistry type all
+edge projection_runtime ProjectionRuntime::new root ManagedConnectionRegistry type hooks|test
 edge projection_runtime ProjectionRuntime::new wal_attribution WalAttributionCollector type all
 edge projection_runtime ProjectionRuntime::new_for_test root ManagedConnectionRegistry type test
 edge projection_runtime ProjectionRuntime::new_for_test wal_attribution WalAttributionCollector type test
-edge projection_runtime ProjectionRuntime::new_with_startup_control root ManagedConnectionRegistry type all
+edge projection_runtime ProjectionRuntime::new_with_startup_control root ManagedConnectionRegistry type hooks|test
 edge projection_runtime ProjectionRuntime::new_with_startup_control wal_attribution WalAttributionCollector type all
 edge projection_runtime ProjectionRuntime::report_runtime_connection_inventory_for_test wal_attribution WalAttributionRole type hooks|test
 edge projection_runtime ProjectionRuntime::report_runtime_connection_inventory_for_test wal_attribution WalAttributionRole::ProjectionDispatcher type hooks|test
@@ -1833,7 +1833,7 @@ edge projection_runtime ProjectionRuntimeShared root RuntimeNativeStateRequest t
 edge projection_runtime ProjectionRuntimeShared wal_attribution WalAttributionCollector type all
 edge projection_worker <module> root * import all
 edge projection_worker database_has_pending_projection_work root ManagedConnectionCategory::RuntimeProbe type hooks|test
-edge projection_worker database_has_pending_projection_work root ManagedConnectionRegistry type all
+edge projection_worker database_has_pending_projection_work root ManagedConnectionRegistry type hooks|test
 edge projection_worker database_has_pending_projection_work root open_runtime_connection callable all
 edge projection_worker next_pending_projection_jobs wal_attribution WalAttributionActivity::begin callable all
 edge projection_worker next_pending_projection_jobs wal_attribution WalAttributionCollector type all
@@ -2183,7 +2183,7 @@ edge reader_pool ReaderRequest::get_by_id temporal ReadView type all
 edge reader_pool ReaderRequest::graph_expand errors EngineError type all
 edge reader_pool ReaderRequest::graph_expand evidence GraphEvidenceAuthority type all
 edge reader_pool ReaderRequest::graph_expand frozen_read FrozenReadBinding type all
-edge reader_pool ReaderRequest::graph_expand graph_expand::execution GraphExpandReaderControlsForTest type all
+edge reader_pool ReaderRequest::graph_expand graph_expand::execution GraphExpandReaderControlsForTest type hooks
 edge reader_pool ReaderRequest::graph_expand graph_expand::types GraphExpandRequestV1 type all
 edge reader_pool ReaderRequest::graph_expand graph_expand::types GraphExpandResultV1 type all
 edge reader_pool ReaderRequest::graph_expand projection_generation ProjectionRuntimeStateV1 type all
@@ -2233,7 +2233,7 @@ edge reader_pool ReaderResponse search_types Explanation type all
 edge reader_pool ReaderResponse search_types GraphFrontierStats type all
 edge reader_pool ReaderResponse search_types SearchHit type all
 edge reader_pool ReaderResponse search_types SoftFallback type all
-edge reader_pool ReaderWorkerPool::new root ManagedConnectionRegistry type all
+edge reader_pool ReaderWorkerPool::new root ManagedConnectionRegistry type hooks|test
 edge reader_pool ReaderWorkerPool::new wal_attribution WalAttributionCollector type all
 edge reader_pool ReaderWorkerPool::wal_native_state_inventory_for_test wal_attribution NativeConnectionStateFact type hooks|test
 edge reader_pool ReaderWorkerPool::wal_native_state_inventory_for_test wal_attribution NativeStateReply::Error callable hooks|test
@@ -2265,7 +2265,7 @@ edge reader_pool reader_worker_loop read read_get_by_id_in_tx callable all
 edge reader_pool reader_worker_loop read read_list_in_tx callable all
 edge reader_pool reader_worker_loop read read_operational_state_in_tx callable all
 edge reader_pool reader_worker_loop read read_operational_state_page_in_tx callable all
-edge reader_pool reader_worker_loop root ManagedConnectionRegistry type all
+edge reader_pool reader_worker_loop root ManagedConnectionRegistry type hooks|test
 edge reader_pool reader_worker_loop root ManagedConnectionRegistry::register callable hooks|test
 edge reader_pool reader_worker_loop root uninstall_profile_callback callable all
 edge reader_pool reader_worker_loop search EvidenceCapture::new callable all
@@ -2990,7 +2990,7 @@ edge root Engine::open_locked projection_registry reconcile_inert_vector_enrolme
 edge root Engine::open_locked projection_registry rederive_projections_on_boot callable all
 edge root Engine::open_locked root ManagedConnectionCategory::ReaderWorker type hooks|test
 edge root Engine::open_locked root ManagedConnectionCategory::Writer type hooks|test
-edge root Engine::open_locked root ManagedConnectionRegistry type all
+edge root Engine::open_locked root ManagedConnectionRegistry type hooks|test
 edge root Engine::open_locked root OpenReport type all
 edge root Engine::open_locked root apply_perf_experiment_reader_pragmas callable all
 edge root Engine::open_locked root apply_perf_experiment_writer_pragmas callable all
@@ -3579,11 +3579,11 @@ edge root map_open_sqlite_error errors OpenStage::HeaderProbe type all
 edge root map_open_sqlite_error errors OpenStage::ProjectionGeneration type all
 edge root map_open_sqlite_error errors OpenStage::SchemaProbe type all
 edge root map_open_sqlite_error errors OpenStage::WalReplay type all
-edge root open_managed_connection root ManagedConnectionCategory type all
-edge root open_managed_connection root ManagedConnectionRegistry type all
+edge root open_managed_connection root ManagedConnectionCategory type hooks|test
+edge root open_managed_connection root ManagedConnectionRegistry type hooks|test
 edge root open_managed_connection root ManagedConnectionRegistry::record_open callable hooks|test
-edge root open_runtime_connection root ManagedConnectionCategory type all
-edge root open_runtime_connection root ManagedConnectionRegistry type all
+edge root open_runtime_connection root ManagedConnectionCategory type hooks|test
+edge root open_runtime_connection root ManagedConnectionRegistry type hooks|test
 edge root open_runtime_connection root open_managed_connection callable all
 edge root order_canonical_first root SchemaObject type operator
 edge root physical_section root Section type operator

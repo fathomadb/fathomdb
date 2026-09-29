@@ -8,6 +8,11 @@ reviewer: gpt-5.6-sol-high
 
 # Slice 85 code review
 
+> **Superseded.** This record describes candidate `7a2f9bf9` only. Design
+> review cycles 1-4 (FIX-1..FIX-4) and test review cycle 1 (test FIX-1)
+> changed the gate after it; `status.md` and `tdd-chronology.md` hold the
+> current counts and evidence.
+
 An independent read-only GPT-5.6 Sol reviewer at high reasoning reviewed the
 whole Slice 85 change. The initial candidate failed on five P1 enforcement
 gaps and one P3 formatting issue. Successive exact-candidate rereviews used

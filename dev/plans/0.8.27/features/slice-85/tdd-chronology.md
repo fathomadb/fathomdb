@@ -305,3 +305,44 @@ Surfaced by the fix: no new edge, cycle or forbidden dependency. The
 `inherent` 82, `module-cycle` 6, `module-scc` 34, `external-receiver` 128,
 `typed-receiver` 105, `unparsed-macro` 5), so the policy was not
 regenerated. No engine source changed in FIX-4.
+
+## Test review FIX-1
+
+An adversarial test review of the FIX-4 head `8385ddca` returned
+PASS-WITH-FIXES with findings T-1..T-8. Test FIX-1 ran on branch
+`slice-85-fix` from that head. RED for new mutants was shown with the same
+scratch harness as FIX-2..FIX-4 (`expect_*` print instead of exiting), run
+against a gate or source broken in the way each test must catch. GREEN is
+the unmodified `bash scripts/tests/test_module_boundary_gate.sh` (exit 0,
+175 assertions), `scripts/check-module-boundaries.sh`, the gate crate's
+`cargo test` and the focused engine tests. No mutant was removed and no
+asserted diagnostic was weakened.
+
+| Finding | RED | GREEN | What changed |
+| --- | --- | --- | --- |
+| T-1 (P1) policy inventories untested | `256c9fcd`: 8 new mutants. Against a gate whose 8 checks were replaced by `drop(...)`, 7 passed the gate and `engine-field-map-empty` missed its diagnostic. | `256c9fcd` (the checks already existed) | Mutants `engine-field-missing`, `engine-field-stale`, `engine-field-map-empty`, `classification-stale`, `owner-stale`, `owner-missing-module`, `unlisted-inherent` and `stale-inherent` each assert their exact diagnostic. No check was unreachable. |
+| T-2 (P2) stale binary under `CARGO_TARGET_DIR` | `c213659c`: the fake cargo honours `--target-dir` and `CARGO_TARGET_DIR`; the new arm printed `fake-gate-build-2` (the stale build) | `b38e9164` | The wrapper and the mutation suite pass `--target-dir "$TOOL_DIR/target"`; the suite also fails if its gate binary is older than any gate source. Real reproduction: after a patch that prints `NEWBUILD2`, the pre-fix wrapper under `CARGO_TARGET_DIR` still ran the old `NEWBUILD` binary, and the fixed wrapper runs the new one. |
+| T-8 (P3) `SearchReaderError` clause | `2445ab0c`: `read-search-error`, `filter-search-error` and `frozen-read-search-error` each missed `forbidden dependency <module> -> search` | `d3f4c093` | The gate has no item-level forbid, so the policy forbids `read`, `filter` and `frozen_read` → `search` at module level; the current graph has no such edge. |
+| T-4 (P3) weak configuration assertions | `0f8826e6`: with the cfg attribute stripped (a cfg-blind extraction), the five new exact-label assertions failed while the retained forbidden-dependency assertions still passed | `0f8826e6` (assertion-only) | `nonlinux`, `operator`, `release`, `all-features` and `manifest-derived` also assert `kind=import configurations=<canonical expression> at search.rs:`. |
+| T-5 (P3) tautological filter test | `5cb3d56b`: each assertion fails when its mapping is broken in a scratch copy: validator reason text (unit test and mint/search test), search `From` (search assertion), frozen mint mapping, graph execution mapping | `5cb3d56b`, `fa700c8c` (characterization tests; the second is a clippy-only rewrite) | The filter unit test drives `validate_filter_attributes_on_snapshot` on a registry-less connection and pins its exact reason. New `tests/slice85_filter_error_routes.rs` pins the frozen mint and search to the same reason and graph expansion to `GraphContextInvalid` at `/context`. |
+| Found during T-5: inline import vs same-file function | `cffeb9a5`: unit test `inline_module_import_wins_over_a_same_file_function` failed | `38801b4e` | A bare call in an inline module to a name it imports was kept as a local call whenever the file also defined a function of that name, so the callable edge was dropped (only the import edge remained). The inline module's own import now wins. Regenerating the edge inventory added 23 test-only callable edges (`frozen_read::tests`, `root::tests`, `root::gpu_allocation_witness_opt_in_tests`); no cycle or module inventory changed. |
+| T-3 (P3) non-compiling fixtures | n/a (fixture repair) | `fa8e02bb` | The sampled mutants name real items (`ReaderRequest::crossed_boundary_since`, `CacheStatusReply`, `fuse_rrf(a, b)`, a defined `slice85_reason`, a real serializer, a `reader_pool` `S85Trait` stub; `governed-std-include` writes its own `.inc`). All compile except `attribute-string-path` and `serde-unparsable-path`, which are syntactic by design and say so. A compile check of every mutant found 63 of 175 gate runs still not compiling, mostly placeholder items; `status.md` records this. |
+
+T-6 (TDD chronology, not fixable retroactively). Three rows of "RED/GREEN
+batches" above have no RED commit: `90671456` (the gate `main.rs`, the policy
+and the first 113-line mutation script landed with the implementation),
+`1d917643` (its 56 lines of mutants landed in the fix commit) and `2c57f267`.
+Their RED column names a non-commit RED. The test review ran `1d917643`'s
+script against the `90671456` gate: all 9 mutants new in `1d917643` were
+RED there. In FIX-2, `3f183b37` (the parent of the D-15 fix `a7b32fe0`) is
+not bisect-clean: the real gate fails there with three unexpected
+`frozen_read … mint_inner` edges until `2ee23f0a` regenerates the policy.
+D-15 RED was measured at `e3c13b7b`, which is genuinely RED.
+
+T-7 (records). `code-review.md` and `review-verification.md` now say they
+describe candidate `7a2f9bf9` and are superseded; the `status.md` intro
+covers FIX-4 and this cycle. The `status.md` frontmatter candidate is left
+for the orchestrator to rebind.
+
+Counts after test FIX-1: 31 library and 2 binary gate unit tests; 175
+mutation assertions (169 negative, 6 positive); edge inventory 3855 lines.

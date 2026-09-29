@@ -22,8 +22,18 @@ residual gate gaps (D-14..D-22); FIX-2 remediates them on the same branch,
 recorded under "FIX-2 (design review cycle 2)". Design review cycle 3 of the
 FIX-2 head (`abcb29b2`) found two macro-hidden edge families and three
 smaller gaps (D-23..D-27); FIX-3 remediates them, recorded under "FIX-3
-(design review cycle 3)". The release-state candidate is rebound only after
-FIX-3 review. The sections below describe the FIX-3 gate.
+(design review cycle 3)". Design review cycle 4 of the FIX-3 head
+(`06a3f712`) found a renamed or re-pathed `include!` and qualified-self serde
+paths (D-28, D-29); FIX-4 remediates them, recorded under "FIX-4 (design
+review cycle 4)". An adversarial test review of the FIX-4 head (`8385ddca`)
+then found untested policy-inventory diagnostics, a stale-binary defect in the
+gate wrappers under `CARGO_TARGET_DIR`, and weaker fixture and assertion
+evidence (T-1..T-8); test FIX-1 remediates them, recorded under "Test review
+FIX-1". The release-state candidate is rebound only after these reviews. The
+sections below describe the gate after test FIX-1.
+
+`code-review.md` and `review-verification.md` describe the original
+candidate `7a2f9bf9` only; the FIX cycles above supersede their counts.
 
 ## Complete on the release branch
 
@@ -89,7 +99,8 @@ extracted for reachability but not frozen. It extracts dependencies:
 
 It resolves `self::`/`super::` chains (through the crate root like `crate::`).
 It resolves `use` re-exports, including those inside inline modules, to the
-defining owner. A `type` alias keeps its own edge and adds one to every
+defining owner. A bare call in an inline module resolves through that
+module's own imports before any same-named function elsewhere in the file. A `type` alias keeps its own edge and adds one to every
 in-crate path its definition names. An associated-type projection
 `<Owner as Trait>::Name` names the impl's `type Name = …` binding, which is
 chased the same way.
@@ -106,7 +117,9 @@ a module the source is forbidden to depend on fails as a forbidden
 dependency.
 Module-level 2-cycles and SCC membership that touch the governed set are a
 frozen, regenerable inventory (6 `module-cycle` pairs, 34 `module-scc`
-members). `forbid-dependency` covers descendant modules.
+members). `forbid-dependency` covers descendant modules. `read`, `filter`
+and `frozen_read` are forbidden to depend on `search` (and so on
+`SearchReaderError`), like `graph_expand`.
 
 The following fail closed, each unless a reviewed, stale-checked,
 item-specific policy entry admits it:
@@ -145,13 +158,31 @@ The grammar remains syntactic. Examples of what it does not see:
 
 Warm runtime and peak RSS of `scripts/check-module-boundaries.sh` with a
 cached binary (host: 24-core x86_64, `/usr/bin/time -v`, three runs after
-FIX-4): 2.11 s / 43,728 KB, 2.13 s / 43,428 KB, 2.12 s / 43,044 KB (FIX-3:
-2.12–2.14 s / 42.7–42.9 MB; FIX-2: 2.03–2.05 s / 40.4–40.7 MB; FIX-1:
-1.64–1.67 s / 34.8–35.1 MB). The gate reads only the engine sources, its
+test FIX-1): 2.12 s / 44,032 KB, 2.11 s / 43,532 KB, 2.12 s / 43,708 KB
+(FIX-4: 2.11–2.13 s / 43.0–43.7 MB; FIX-3: 2.12–2.14 s / 42.7–42.9 MB;
+FIX-2: 2.03–2.05 s / 40.4–40.7 MB; FIX-1: 1.64–1.67 s / 34.8–35.1 MB).
+The wrapper and the mutation suite build the gate into
+`dev/tools/module-boundary-gate/target` whatever `CARGO_TARGET_DIR` says, so
+the binary they run is always the one built from the current source. The gate reads only the engine sources, its
 manifest and the policy; it performs no whole-workspace indexing. The gate
-crate has 30 library and 2 binary unit tests, and
-`scripts/tests/test_module_boundary_gate.sh` runs 159 production mutation
-assertions (153 negative, 6 positive).
+crate has 31 library and 2 binary unit tests, and
+`scripts/tests/test_module_boundary_gate.sh` runs 175 production mutation
+assertions (169 negative, 6 positive) in about 6.3 minutes.
+
+The mutation fixtures are syntactic, not all compiled. A compile check of
+every mutant (`cargo check -p fathomdb-engine --lib --profile test
+--features test-hooks,operator`) after test FIX-1: 112 of the 175 gate runs
+compile and 63 do not. Most of the 63 name placeholder items that do not
+exist (`slice85_probe`, `S85Trait`, `slice85_make`, …). A few are invalid on
+purpose: `shadow` and `overlapping-engine-method-twins` are name
+collisions, the two manifest mutants remove a feature, `engine-field-missing`
+leaves the new field out of the constructor, `serde-unparsable-path` is
+rejected by serde_derive, and no dependency provides the non-serde derive
+that `attribute-string-path` uses. Each mutant has the same syntax shape as a
+compiling form, so a gate that dropped edges to missing items would fail it
+rather than pass it. The ten non-compiling mutants the test review sampled
+compile now, except the last two. AC27-85E's "compiled fixtures" is
+therefore met only by the compiling subset; the rest is syntactic evidence.
 
 ## Acceptance
 
@@ -169,7 +200,14 @@ assertions (153 negative, 6 positive).
   the crate root and its descendants, the same reach they had as private
   root fields.
 - **AC27-85B:** the four Slice 80 cycles and new search/reader-pool cycles are
-  prohibited and mutation-tested.
+  prohibited and mutation-tested. "No dependency on `SearchReaderError`" is
+  pinned by `forbid-dependency` lines from `read`, `filter` and
+  `frozen_read` (and `graph_expand`) to `search`, with one mutant each. The
+  gate has no item-level forbid; these module-level lines are stricter.
+  `slice60_graph_expand` (19 tests, including the D-9 accessor evidence)
+  still requires the `test-hooks` feature and so runs only in the opt-in
+  `FATHOMDB_FEATURE_COMPLETE=1` gate. That gating predates the slice and is
+  unchanged.
 - **AC27-85C/D/E:** exact policy, whole-crate extraction, item and
   governed-module SCCs, the frozen module-level cycle inventory,
   source-derived inventories, 248 configurations, cache behavior, negative

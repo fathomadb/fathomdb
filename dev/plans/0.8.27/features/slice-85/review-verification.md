@@ -8,6 +8,11 @@ verifier: gpt-5.6-terra-high
 
 # Slice 85 independent verification
 
+> **Superseded.** This record describes candidate `7a2f9bf9` only. Design
+> review cycles 1-4 (FIX-1..FIX-4) and test review cycle 1 (test FIX-1)
+> changed the gate after it; `status.md` and `tdd-chronology.md` hold the
+> current counts and evidence.
+
 The independent read-only GPT-5.6 Terra verifier returned **PASS** on the
 clean exact candidate. Per owner direction this was a targeted structural and
 blast-radius verification, not a full repository regression run.

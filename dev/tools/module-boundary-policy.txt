@@ -176,20 +176,12 @@ owner SearchExpandHandlerError graph_expand::traversal
 owner TelemetrySink telemetry
 owner WalAttributionCollector wal_attribution
 
-forbid-dependency read reader_pool
+# forbid-dependency covers descendant modules on both sides: the graph_expand
+# lines forbid every graph_expand submodule, present or future.
 forbid-dependency graph_expand reader_pool
 forbid-dependency graph_expand search_api
 forbid-dependency graph_expand search
-forbid-dependency graph_expand::codec reader_pool
-forbid-dependency graph_expand::execution reader_pool
-forbid-dependency graph_expand::execution search_api
-forbid-dependency graph_expand::execution search
-forbid-dependency graph_expand::traversal reader_pool
-forbid-dependency graph_expand::traversal search_api
-forbid-dependency graph_expand::traversal search
-forbid-dependency graph_expand::types reader_pool
-forbid-dependency graph_expand::types search_api
-forbid-dependency graph_expand::types search
+forbid-dependency read reader_pool
 forbid-dependency search reader_pool
 
 forbid-cycle search graph_expand

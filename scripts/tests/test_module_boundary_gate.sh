@@ -69,6 +69,16 @@ expect_failure() {
   fi
 }
 
+expect_success() {
+  local label="$1"
+  shift
+  local output
+  if ! output="$("$@" 2>&1)"; then
+    printf 'expected %s positive fixture to pass\n%s\n' "$label" "$output" >&2
+    exit 1
+  fi
+}
+
 cp "$fixture/src/rust/crates/fathomdb-engine/src/search.rs" "$fixture/search.rs.clean"
 printf '\nuse crate::*;\n' >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 expect_failure glob 'governed internal glob import search.rs' "$GATE" --root "$fixture"
@@ -329,6 +339,53 @@ printf '\nfn slice85_let_type_probe() { let _probe: Option<crate::reader_pool::R
   >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
 expect_failure let-type-annotation 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
 cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+
+# Design review cycle 1, D-3: a non-root re-export resolves to its defining
+# item, so laundering a forbidden owner through a reported module fails (P12).
+cp "$fixture/src/rust/crates/fathomdb-engine/src/rerank.rs" "$fixture/rerank.rs.clean"
+printf '\npub(crate) use crate::reader_pool::ReaderRequest as S85Laundered;\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+printf '\nuse crate::fusion::S85Laundered;\nfn slice85_launder(_: &S85Laundered) {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure reexport-laundering 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\npub(crate) use crate::fusion::S85Laundered as S85LaunderedTwice;\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/rerank.rs"
+printf '\nfn slice85_launder_twice(_: &crate::rerank::S85LaunderedTwice) {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure reexport-laundering-chain 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+cp "$fixture/rerank.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/rerank.rs"
+
+# Design review cycle 1, D-13: composition (re-export) and contract (type)
+# edges are distinct kinds.
+printf '\npub(crate) use crate::fusion::fuse_rrf as slice85_reexported;\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure reexport-kind 'target_item=fuse_rrf syntax=crate::fusion::fuse_rrf kind=reexport ' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\nfn slice85_type_only(_: crate::fusion::Slice85Probe) {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure type-kind 'target_item=Slice85Probe syntax=crate::fusion::Slice85Probe kind=type ' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+# Design review cycle 1, D-7: the frozen edge inventory covers edges with a
+# governed or root endpoint; reported-to-reported edges are extracted for
+# reachability but need no policy line (P13), and such a line is rejected.
+printf '\nfn slice85_reported_only() { let _ = crate::rerank::rerank_passages; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+expect_success reported-to-reported "$GATE" --root "$fixture"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+
+printf 'edge fusion slice85_reported_only rerank rerank_passages callable all\n' \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure out-of-scope-edge-line 'policy edge outside the frozen scope source=fusion' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
 
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \

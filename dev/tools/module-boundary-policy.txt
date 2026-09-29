@@ -1751,7 +1751,7 @@ edge read <module> pagination PageRequestV1 import all
 edge read <module> pagination PageV1 import all
 edge read <module> reader_transaction begin_attributed_reader_tx import all
 edge read <module> temporal ReadView import all
-edge read <module> test_hooks frozen_after_validation_hook import all
+edge read <module> test_hooks::frozen_after_validation_hook <module> import all
 edge read <module> wal_attribution WalAttributionCollector import all
 edge read PageReaderError::Engine errors EngineError type all
 edge read PageReaderError::from errors EngineError type all
@@ -1784,7 +1784,7 @@ edge read read_canonical_page_in_tx pagination authenticate_cursor callable all
 edge read read_canonical_page_in_tx pagination continuation callable all
 edge read read_canonical_page_in_tx pagination resume_after callable all
 edge read read_canonical_page_in_tx reader_transaction begin_attributed_reader_tx callable all
-edge read read_canonical_page_in_tx test_hooks frozen_after_validation_hook::fire callable all
+edge read read_canonical_page_in_tx test_hooks::frozen_after_validation_hook fire callable all
 edge read read_canonical_page_in_tx wal_attribution WalAttributionCollector type all
 edge read read_collection_in_tx reader_transaction begin_attributed_reader_tx callable all
 edge read read_collection_in_tx wal_attribution WalAttributionCollector type all
@@ -1805,7 +1805,7 @@ edge read read_operational_state_in_tx frozen_read FrozenReadContextV1 type all
 edge read read_operational_state_in_tx frozen_read authenticate callable all
 edge read read_operational_state_in_tx frozen_read validate_snapshot callable all
 edge read read_operational_state_in_tx reader_transaction begin_attributed_reader_tx callable all
-edge read read_operational_state_in_tx test_hooks frozen_after_validation_hook::fire callable all
+edge read read_operational_state_in_tx test_hooks::frozen_after_validation_hook fire callable all
 edge read read_operational_state_in_tx wal_attribution WalAttributionCollector type all
 edge read read_operational_state_page_in_tx errors EngineError::Storage type all
 edge read read_operational_state_page_in_tx frozen_read FrozenReadContextV1 type all
@@ -1818,7 +1818,7 @@ edge read read_operational_state_page_in_tx pagination authenticate_cursor calla
 edge read read_operational_state_page_in_tx pagination continuation callable all
 edge read read_operational_state_page_in_tx pagination resume_after callable all
 edge read read_operational_state_page_in_tx reader_transaction begin_attributed_reader_tx callable all
-edge read read_operational_state_page_in_tx test_hooks frozen_after_validation_hook::fire callable all
+edge read read_operational_state_page_in_tx test_hooks::frozen_after_validation_hook fire callable all
 edge read read_operational_state_page_in_tx wal_attribution WalAttributionCollector type all
 edge read validate_operational_collection errors EngineError type all
 edge read validate_operational_collection errors EngineError::Storage type all
@@ -2492,9 +2492,9 @@ edge root <module>::rerank_passages rerank rerank_passages reexport all
 edge root <module>::reserve_dependency_generation dependency reserve_dependency_generation reexport all
 edge root <module>::retain_complete_rank_boundary_candidates search retain_complete_rank_boundary_candidates reexport test
 edge root <module>::revision_hash_field write_commit revision_hash_field reexport all
-edge root <module>::slice15_erasure_lock_hook test_hooks slice15_erasure_lock_hook reexport hooks
+edge root <module>::slice15_erasure_lock_hook test_hooks::slice15_erasure_lock_hook <module> reexport hooks
 edge root <module>::slice71_search_statement_trace search slice71_search_statement_trace reexport hooks
-edge root <module>::slice72_test_hooks test_hooks slice72_test_hooks reexport profile:all-features|profile:slice72-gpu-tests|profile:slice72-test-hooks
+edge root <module>::slice72_test_hooks test_hooks::slice72_test_hooks <module> reexport profile:all-features|profile:slice72-gpu-tests|profile:slice72-test-hooks
 edge root <module>::storage_write_shape write storage_write_shape reexport all
 edge root <module>::store_dependency_generation dependency store_dependency_generation reexport all
 edge root <module>::stored_artifact_revision_id_is_valid dependency stored_artifact_revision_id_is_valid reexport all
@@ -3832,9 +3832,9 @@ edge search <module> temporal FrozenView import all
 edge search <module> temporal ReadView import all
 edge search <module> temporal current_epoch_seconds import all
 edge search <module> temporal edge_validity_sql_for_view import all
-edge search <module> test_hooks evidence_linearization_hooks import all
-edge search <module> test_hooks frozen_after_validation_hook import all
-edge search <module> test_hooks reader_search_hook import all
+edge search <module> test_hooks::evidence_linearization_hooks <module> import all
+edge search <module> test_hooks::frozen_after_validation_hook <module> import all
+edge search <module> test_hooks::reader_search_hook <module> import all
 edge search <module> wal_attribution WalAttributionCollector import all
 edge search EvidenceCapture frozen_read FrozenReadContextV1 type all
 edge search EvidenceCapture::finish evidence build_search_result callable all
@@ -3843,7 +3843,7 @@ edge search EvidenceCapture::finish search_types Explanation type all
 edge search EvidenceCapture::finish search_types GraphFrontierStats type all
 edge search EvidenceCapture::finish search_types SearchHit type all
 edge search EvidenceCapture::finish search_types SoftFallback type all
-edge search EvidenceCapture::finish test_hooks evidence_linearization_hooks::fire_before_sidecar callable all
+edge search EvidenceCapture::finish test_hooks::evidence_linearization_hooks fire_before_sidecar callable all
 edge search EvidenceCapture::new frozen_read FrozenReadContextV1 type all
 edge search NoEvidenceCapture::finish graph_expand::traversal SearchExpandResult type all
 edge search NoEvidenceCapture::finish search_types Explanation type all
@@ -3973,8 +3973,8 @@ edge search read_search_in_tx tc5_benchmark record_fts_route callable tc5
 edge search read_search_in_tx temporal ReadView type all
 edge search read_search_in_tx temporal ReadView::freeze callable all
 edge search read_search_in_tx temporal edge_validity_sql_for_view callable all
-edge search read_search_in_tx test_hooks frozen_after_validation_hook::fire callable all
-edge search read_search_in_tx test_hooks reader_search_hook::fire callable all
+edge search read_search_in_tx test_hooks::frozen_after_validation_hook fire callable all
+edge search read_search_in_tx test_hooks::reader_search_hook fire callable all
 edge search read_search_in_tx wal_attribution WalAttributionCollector type all
 edge search read_search_work_in_tx wal_attribution WalAttributionCollector type all
 edge search retain_complete_rank_boundary_candidates search_types SearchHit type all
@@ -4033,7 +4033,7 @@ edge search_api <module> search_types SoftFallback import all
 edge search_api <module> search_types validate_search_result_limit import all
 edge search_api <module> tc5_benchmark <module> import tc5
 edge search_api <module> temporal ReadView import all
-edge search_api <module> test_hooks evidence_linearization_hooks import all
+edge search_api <module> test_hooks::evidence_linearization_hooks <module> import all
 edge search_api Engine::bm25f_search errors EngineError type all
 edge search_api Engine::bm25f_search errors EngineError::Closing type all
 edge search_api Engine::bm25f_search errors EngineError::Storage type all
@@ -4067,7 +4067,7 @@ edge search_api Engine::resolve_evidence frozen_read authenticate callable all
 edge search_api Engine::resolve_evidence frozen_read validate_snapshot callable all
 edge search_api Engine::resolve_evidence root connection field-access all
 edge search_api Engine::resolve_evidence root ensure_open engine-method all
-edge search_api Engine::resolve_evidence test_hooks evidence_linearization_hooks::fire_before_resolve_return callable all
+edge search_api Engine::resolve_evidence test_hooks::evidence_linearization_hooks fire_before_resolve_return callable all
 edge search_api Engine::resolve_graph_evidence errors EngineError type all
 edge search_api Engine::resolve_graph_evidence errors EngineError::Closing type all
 edge search_api Engine::resolve_graph_evidence errors EngineError::Evidence callable all
@@ -4406,15 +4406,15 @@ edge telemetry <module> root Engine import all
 edge telemetry <module> root Engine type all
 edge telemetry <module> search_types SearchResult import all
 edge telemetry <module> search_types SoftFallbackBranch import all
-edge telemetry <module> test_hooks explanation_finalization_hooks import hooks
+edge telemetry <module> test_hooks::explanation_finalization_hooks <module> import hooks
 edge telemetry Engine::capture_telemetry search_types SearchResult type all
 edge telemetry Engine::capture_telemetry_with_sink root path field-access all
 edge telemetry Engine::capture_telemetry_with_sink search_types SearchResult type all
 edge telemetry Engine::enable_telemetry errors EngineError type all
 edge telemetry Engine::enable_telemetry errors EngineError::Storage type all
 edge telemetry Engine::finalize_search_observability search_types SearchResult type all
-edge telemetry Engine::finalize_search_observability test_hooks explanation_finalization_hooks::fire_after callable hooks
-edge telemetry Engine::finalize_search_observability test_hooks explanation_finalization_hooks::fire_before callable hooks
+edge telemetry Engine::finalize_search_observability test_hooks::explanation_finalization_hooks fire_after callable hooks
+edge telemetry Engine::finalize_search_observability test_hooks::explanation_finalization_hooks fire_before callable hooks
 edge telemetry Engine::record_feedback errors EngineError type all
 edge telemetry Engine::record_feedback errors EngineError::InvalidArgument type all
 edge telemetry Engine::record_feedback errors EngineError::Storage type all

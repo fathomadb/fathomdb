@@ -2175,4 +2175,73 @@ mod tests {
         }
         assert!(analysis.unsupported_cfg.contains("feature = \"slice85-unknown\""));
     }
+
+    #[test]
+    fn serde_helper_string_paths_are_edges() {
+        let space = space();
+        let analysis = analyze(
+            r#"#[derive(Serialize, Deserialize)]
+            #[serde(from = "crate::a::From", into = "Vec<crate::a::Into>", bound(serialize = "T: crate::a::Bound"))]
+            #[serde(rename_all = "snake_case", tag = "kind::tag")]
+            struct S<T> {
+                #[serde(serialize_with = "crate::a::ser", skip_serializing_if = "is_false")]
+                a: u8,
+                #[serde(with = "crate::a::codec", rename(serialize = "not::a_path"))]
+                b: T,
+                #[cfg_attr(feature = "operator", serde(default = "crate::a::default"))]
+                c: u8,
+                #[other(path = "crate::a::other")]
+                d: u8,
+            }"#,
+        )
+        .expect("fixture parses");
+        for (target, kind) in [
+            ("crate::a::From", EdgeKind::Type),
+            ("crate::a::Into", EdgeKind::Type),
+            ("crate::a::Bound", EdgeKind::Type),
+            ("crate::a::ser", EdgeKind::Callable),
+            ("is_false", EdgeKind::Callable),
+            ("crate::a::codec", EdgeKind::Callable),
+            ("crate::a::default", EdgeKind::Callable),
+            ("crate::a::other", EdgeKind::Callable),
+        ] {
+            assert!(
+                analysis.edges.iter().any(|edge| edge.target == target && edge.kind == kind),
+                "missing {target}: {:?}",
+                analysis.edges.iter().map(|edge| &edge.target).collect::<Vec<_>>()
+            );
+        }
+        for absent in ["snake_case", "kind::tag", "not::a_path"] {
+            assert!(!analysis.edges.iter().any(|edge| edge.target == absent), "{absent}");
+        }
+        let default = analysis
+            .edges
+            .iter()
+            .find(|edge| edge.target == "crate::a::default")
+            .expect("cfg_attr serde edge");
+        assert_eq!(default.configurations, feature_set(&space, "operator"));
+        let unknown = analyze(
+            r#"struct S { #[cfg_attr(feature = "slice85-unknown", serde(with = "crate::a::m"))] a: u8 }"#,
+        )
+        .expect("parses");
+        assert!(unknown.unsupported_cfg.contains("feature = \"slice85-unknown\""));
+    }
+
+    #[test]
+    fn associated_type_bindings_are_aliases_and_projections_name_them() {
+        let analysis = analyze(
+            "pub(crate) struct H; impl crate::t::Tr for H { type Out = crate::a::Target; } \
+             mod inner { impl super::Tr for super::G<u8> { type Out = Vec<crate::a::Other>; } } \
+             fn f(_: <crate::b::H as crate::b::Tr>::Out) {}",
+        )
+        .expect("fixture parses");
+        let alias = analysis.type_aliases.get("H::Out").expect("H::Out binding");
+        assert_eq!(alias.primary.as_deref(), Some("crate::a::Target"));
+        let inner = analysis.type_aliases.get("inner::G::Out").expect("scoped binding");
+        assert!(inner.mentioned.contains("crate::a::Other"));
+        assert!(analysis
+            .edges
+            .iter()
+            .any(|edge| edge.target == "crate::b::H::Out" && edge.kind == EdgeKind::Type));
+    }
 }

@@ -906,11 +906,139 @@ cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-p
 
 printf 'typed-receiver search slice85_recv_kind as_str 1 slice85_make() frozen_read::ReadContextV1\n' \
   >>"$fixture/dev/tools/module-boundary-policy.txt"
-expect_failure typed-receiver-missing-method \
+expect_failure typed-receiver-type-without-method \
   'typed-receiver search slice85_recv_kind as_str names frozen_read::ReadContextV1, which has no method as_str' \
   "$GATE" --root "$fixture"
 cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+# Design review cycle 3, D-23: macro-hidden edges. A serde derive helper
+# attribute names a function, module or type in a string literal, and the
+# derive expands it into a real call or type reference; `include!` splices
+# source the gate never parses, in any module.
+printf '\n#[derive(serde::Serialize)]\npub(crate) struct S85D { #[serde(serialize_with = "crate::search::s85_ser")] a: u8 }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
+printf '\npub(crate) fn s85_ser() {}\n' >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure serde-serialize-with-codec-search 'forbidden dependency graph_expand::codec -> search' \
+  "$GATE" --root "$fixture"
+cp "$fixture/codec.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+d23_serde_mutant() {
+  local label="$1" body="$2"
+  printf '\n%s\n' "$body" >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+  expect_failure "$label" 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
+  cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+}
+d23_serde_mutant serde-deserialize-with \
+  '#[derive(serde::Deserialize)] struct S85De { #[serde(deserialize_with = "crate::reader_pool::s85_de")] a: u8 }'
+d23_serde_mutant serde-skip-serializing-if \
+  '#[derive(serde::Serialize)] struct S85Skip { #[serde(skip_serializing_if = "crate::reader_pool::s85_skip")] a: u8 }'
+d23_serde_mutant serde-default-path \
+  '#[derive(serde::Deserialize)] struct S85Default { #[serde(default = "crate::reader_pool::s85_default")] a: u8 }'
+d23_serde_mutant serde-with-module \
+  '#[derive(serde::Serialize)] struct S85With { #[serde(with = "crate::reader_pool::s85_codec")] a: u8 }'
+d23_serde_mutant serde-getter \
+  '#[derive(serde::Serialize)] #[serde(remote = "S85Remote")] struct S85RemoteDef { #[serde(getter = "crate::reader_pool::s85_get")] a: u8 }'
+d23_serde_mutant serde-remote-type \
+  '#[derive(serde::Serialize)] #[serde(remote = "crate::reader_pool::ReaderRequest")] enum S85RemoteDef { Shutdown }'
+d23_serde_mutant serde-from-type \
+  '#[derive(serde::Deserialize)] #[serde(from = "crate::reader_pool::ReaderRequest")] struct S85From { a: u8 }'
+d23_serde_mutant serde-try-from-type \
+  '#[derive(serde::Deserialize)] #[serde(try_from = "Vec<crate::reader_pool::ReaderRequest>")] struct S85TryFrom { a: u8 }'
+d23_serde_mutant serde-into-type \
+  '#[derive(Clone, serde::Serialize)] #[serde(into = "crate::reader_pool::ReaderRequest")] struct S85Into { a: u8 }'
+d23_serde_mutant serde-bound \
+  '#[derive(serde::Serialize)] #[serde(bound = "T: crate::reader_pool::S85Trait")] struct S85Bound<T> { a: T }'
+d23_serde_mutant serde-bound-serialize \
+  '#[derive(serde::Serialize)] #[serde(bound(serialize = "T: crate::reader_pool::S85Trait"))] struct S85Bound<T> { a: T }'
+d23_serde_mutant serde-variant-with \
+  '#[derive(serde::Serialize)] enum S85Variant { #[serde(serialize_with = "crate::reader_pool::s85_ser")] A(u8) }'
+d23_serde_mutant serde-cfg-attr \
+  '#[derive(serde::Serialize)] struct S85CfgAttr { #[cfg_attr(test, serde(serialize_with = "crate::reader_pool::s85_ser"))] a: u8 }'
+d23_serde_mutant attribute-string-path \
+  '#[derive(schemars::JsonSchema)] struct S85Schema { #[schemars(with = "crate::reader_pool::ReaderRequest")] a: u8 }'
+
+printf '\npub(crate) fn s85_a() -> u8 { crate::fusion::s85_b() }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\ninclude!("s85.inc");\n' >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+printf 'pub(crate) fn s85_b() -> u8 { let _ = crate::search::s85_a; 0 }\n' \
+  >"$fixture/src/rust/crates/fathomdb-engine/src/s85.inc"
+printf 'edge search s85_a fusion s85_b callable all\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure reported-include-item 'unreviewed include source=fusion item=<module> macro=include' \
+  "$GATE" --root "$fixture"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+printf '\npub(crate) fn s85_b() -> u8 { include!("s85.inc") }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+expect_failure reported-include-expression 'unreviewed include source=fusion item=s85_b macro=include' \
+  "$GATE" --root "$fixture"
+rm "$fixture/src/rust/crates/fathomdb-engine/src/s85.inc"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+printf '\npub(crate) fn s85_std_include() -> u8 { std::include!("s85.inc") }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure governed-std-include 'unreviewed include source=search item=s85_std_include macro=std::include' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+# Design review cycle 3, D-24: forbid-dependency applies to the item-graph
+# over-approximation of an untyped (or externally reviewed) dot call, so a
+# reviewed receiver re-typed under the same spelling cannot reach a
+# forbidden module's same-named inherent method.
+codec_source="$(cat "$fixture/codec.rs.clean")"
+codec_anchor='if let Some(field) = object.keys().filter(|field| !allowed.contains(&field.as_str())).min() {'
+codec_retyped='for field in crate::fusion::s85_fields() { let _ = field.as_str(); }
+    if let Some(field) = object.keys().filter(|f| !allowed.contains(&f.as_ref())).min() {'
+if [[ "$codec_source" != *"$codec_anchor"* ]]; then
+  printf 'retyped-receiver-forbidden anchor vanished from graph_expand/codec.rs\n' >&2
+  exit 1
+fi
+printf '%s\n' "${codec_source/"$codec_anchor"/"$codec_retyped"}" \
+  >"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
+printf '\npub(crate) struct S85Kind;\nimpl S85Kind { pub(crate) fn as_str(&self) -> &'"'"'static str { "" } }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\npub(crate) fn s85_fields() -> Vec<crate::search::S85Kind> { Vec::new() }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+printf '%s\n' 'module-cycle search fusion all' 'inherent search S85Kind::as_str' \
+  'edge fusion s85_fields search S85Kind type all' \
+  'edge graph_expand::codec check_closed fusion s85_fields callable all' \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure retyped-receiver-forbidden \
+  'forbidden dependency graph_expand::codec -> search via untyped receiver source_item=check_closed method=as_str' \
+  "$GATE" --root "$fixture"
+cp "$fixture/codec.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+printf 'inherent search S85Kind::as_str\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure forbidden-receiver-name-collision \
+  'forbidden dependency graph_expand::codec -> search via untyped receiver source_item=response_closed method=as_str' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+# Design review cycle 3, D-25: an associated-type projection resolves
+# through the impl's `type` binding like a `type` alias.
+printf '\npub(crate) trait S85Tr { type Out; }\npub(crate) struct S85H;\nimpl S85Tr for S85H { type Out = crate::reader_pool::ReaderRequest; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+printf '\nfn slice85_projection(_: <crate::fusion::S85H as crate::fusion::S85Tr>::Out) {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure associated-type-projection 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+
+# Design review cycle 3, D-26: the default developer build
+# (`pip install -e`, pytest: default-embedder + default-reranker) is an
+# evaluated consumer profile, so a cycle split across its two ML features
+# fails even when a negated literal excludes all-features.
+printf '\n#[cfg(all(feature = "default-embedder", not(feature = "embed-cuda")))]\npub(crate) fn slice85_dev_a() { crate::telemetry::slice85_dev_b(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\n#[cfg(feature = "default-reranker")]\npub(crate) fn slice85_dev_b() { crate::search::slice85_dev_a(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
+expect_failure python-dev-split-cycle 'unapproved governed cycle search <-> telemetry' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/telemetry.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
 
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \

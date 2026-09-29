@@ -201,8 +201,72 @@ admit-type errors EngineError::GraphExpansion graph_expand::types GraphExpansion
 
 local-macro identity caller_identity_newtype 7294cc907f93c51b
 
-# Reviewed: each counted call's receiver is a String, str, serde_json value,
-# IdSpaceKind or projection-generation field, never a governed-type receiver.
+# Reviewed: proptest! bodies in reported test modules. Their strategies and
+# property bodies are test-only and name no governed item; any change to a
+# body changes its fingerprint and fails until re-reviewed.
+unparsed-macro actuation::tests <module> proptest ddd003ceb259de46
+unparsed-macro evidence::tests <module> proptest 174c5b885c19479e
+unparsed-macro frozen_read::tests <module> proptest 8077e5a8a7846daf
+unparsed-macro pagination::tests <module> proptest b18a9c1d1a2ce7f9
+unparsed-macro root::tests <module> proptest ea8d95990855291e
+
+# Each entry counts the untyped dot calls in one source item whose method
+# name is also a governed inherent method of another module. An entry does
+# not assert that the counted receivers lie outside the crate.
+external-receiver actuation Engine::actuate_new as_str 3
+external-receiver actuation apply_lifecycle as_str 1
+external-receiver actuation collect_source_refs as_str 9
+external-receiver actuation encode_edge as_str 3
+external-receiver actuation encode_node as_str 3
+external-receiver actuation encode_operation as_str 4
+external-receiver actuation enrich_affected_refs as_str 1
+external-receiver actuation expected_affected_revisions as_str 3
+external-receiver actuation load_receipt as_str 3
+external-receiver actuation missing_dependency_field as_str 1
+external-receiver actuation simulate_request as_str 2
+external-receiver actuation store_receipt as_str 1
+external-receiver actuation validate_source_refs as_str 2
+external-receiver consolidation Engine::apply_consolidate_verdicts as_str 3
+external-receiver data_plane_integrity active_projection_findings as_str 2
+external-receiver data_plane_integrity body_residue_finding as_str 1
+external-receiver data_plane_integrity dependency_findings as_str 2
+external-receiver data_plane_integrity mutation_readiness_findings as_str 1
+external-receiver dependency DependencyProspectiveState::from_prepared_writes as_str 11
+external-receiver dependency DependencyProspectiveState::record_registration as_str 3
+external-receiver dependency Engine::dependencies_for_source as_str 2
+external-receiver dependency Engine::dependency_for_derived as_str 3
+external-receiver dependency apply_validated_source_dependency as_str 2
+external-receiver dependency validate_dependency_chain as_str 11
+external-receiver dependency validate_source_dependency_registration as_str 3
+external-receiver dependency_closure Engine::read_dependency_closure as_str 1
+external-receiver dependency_closure admit_soft_closure as_str 1
+external-receiver dependency_closure apply_soft_effects as_str 1
+external-receiver dependency_closure complete_physical_closures as_str 1
+external-receiver dependency_closure mark_physical_incomplete as_str 1
+external-receiver dependency_closure measure_physical_closures as_str 2
+external-receiver dependency_closure record_physical_closure as_str 1
+external-receiver dependency_closure validate_closure_state_on_open as_str 1
+external-receiver dependency_closure validate_physical_zero as_str 1
+external-receiver dependency_trace decode_dependency_trace_result_v1 as_str 10
+external-receiver dependency_trace encode_dependency_trace_result_v1 as_str 2
+external-receiver dependency_trace execute as_str 1
+external-receiver dependency_trace lifecycle as_str 1
+external-receiver dependency_trace root_chain_role as_str 1
+external-receiver dependency_trace source_link_valid as_str 1
+external-receiver dependency_trace visible_artifact as_str 1
+external-receiver erasure Engine::finish_physical_dependency_closures as_str 1
+external-receiver erasure Engine::purge_inner as_str 1
+external-receiver erasure Engine::redact_telemetry_stable_ids path 3
+external-receiver erasure redact_jsonl_line as_str 1
+external-receiver errors EngineError::fmt as_str 5
+external-receiver evidence build_search_result as_str 1
+external-receiver evidence encode_resolved_graph_evidence_v1 as_str 6
+external-receiver evidence load_stored as_str 1
+external-receiver evidence materialize_graph_evidence_batch as_str 4
+external-receiver evidence resolve_generation as_str 1
+external-receiver evidence resolve_graph_evidence as_str 3
+external-receiver evidence::tests graph_expansion_hashes_each_shared_source_once path 1
+external-receiver evidence::tests graph_expansion_hashes_each_shared_source_once set 1
 external-receiver filter Filter::lower_for_read_list as_str 1
 external-receiver filter Predicate::json_path_compare as_str 1
 external-receiver filter Predicate::json_path_eq as_str 1
@@ -211,6 +275,10 @@ external-receiver filter edge_fts_hit_passes_filter as_str 1
 external-receiver filter hit_attributes_pass_filter as_str 2
 external-receiver filter text_hit_passes_filter as_str 2
 external-receiver frozen_read projection_serving_encoding as_str 2
+external-receiver frozen_read::tests assert_normative_fixture as_str 9
+external-receiver frozen_read::tests equal_count_terminal_mutations_on_copied_databases_do_not_share_authority path 2
+external-receiver frozen_read::tests normative_v2_fixture_pins_projection_generation_binding as_str 3
+external-receiver frozen_read::tests schema33_serving_binding_is_compact_and_branch_sensitive path 1
 external-receiver graph_expand::codec check_closed as_str 1
 external-receiver graph_expand::codec decode_graph_expand_request_v1 as_str 8
 external-receiver graph_expand::codec decode_graph_expand_result_v1 as_str 2
@@ -221,9 +289,82 @@ external-receiver graph_expand::codec read_context_wire as_str 2
 external-receiver graph_expand::codec response_closed as_str 1
 external-receiver graph_expand::execution encode_graph_evidence_request as_str 1
 external-receiver graph_expand::execution read_graph_expand_in_tx as_str 1
+external-receiver ingest Engine::run_extract_session as_str 15
+external-receiver projection_commit commit_projection_outcomes as_str 1
+external-receiver projection_generation bootstrap as_str 2
+external-receiver projection_generation bootstrap_is_fresh as_str 1
+external-receiver projection_generation current_generation as_str 1
+external-receiver projection_generation dense_member_kind_at as_str 1
+external-receiver projection_generation member_completion as_str 3
+external-receiver projection_generation mint_id_from_candidates as_str 1
+external-receiver projection_generation transition as_str 2
+external-receiver projection_generation::tests generation_mint_retries_collisions_without_reusing_history as_str 1
+external-receiver projection_registry apply_projection_config as_str 2
+external-receiver projection_registry describe_projection_delta as_str 1
+external-receiver projection_registry roles_to_storage as_str 1
+external-receiver projection_worker first_pending_projection_member_in_range as_str 1
+external-receiver projection_worker next_pending_projection_jobs as_str 1
+external-receiver projection_worker pending_projection_members_in_range as_str 1
+external-receiver projection_worker projection_dispatcher_loop register 2
+external-receiver projection_worker projection_worker_loop register 2
+external-receiver projection_worker report_projection_commit_failure dispatch 1
+external-receiver provider ProviderSession::handshake as_str 4
+external-receiver provider ProviderSession::request as_str 2
+external-receiver rerank ce_rerank as_str 1
+external-receiver root Engine::actual_checkpoint_observation_for_test name 1
+external-receiver root Engine::wal_attribution_checkpoint_records_for_test name 1
+external-receiver root parse_gpu_allocation_witness_opt_in as_str 1
+external-receiver root run_requested_gpu_allocation_witness as_str 1
+external-receiver root::tests caller_device_resolution_reaches_open_report_once path 1
+external-receiver root::tests current_opener_holds_lock_before_admission_classification path 1
+external-receiver root::tests custom_canonical_trigger_forces_row_trigger_fallback path 1
+external-receiver root::tests custom_internal_trigger_targets_force_row_trigger_fallback path 1
+external-receiver root::tests custom_projection_trigger_forces_row_trigger_fallback path 1
+external-receiver root::tests governed_node_batch_advances_visibility_once path 1
+external-receiver root::tests guard_row_owned_registry as_str 2
+external-receiver root::tests guard_row_owned_registry path 1
+external-receiver root::tests loader_device_resolution_reaches_open_report_once path 1
+external-receiver root::tests projection_batches_coalesce_visibility_invalidation path 1
+external-receiver root::tests projection_runtime_startup_invalid_path_is_fallible_and_cleans_up path 1
+external-receiver root::tests projection_runtime_startup_returns_exact_live_roles_immediately snapshot 1
+external-receiver root::tests projection_transaction_pause_drop_releases_worker_after_ready path 1
+external-receiver root::tests projection_transaction_pause_ready_timeout_cancels_before_worker_arrival path 1
+external-receiver root::tests statement_reuse_recovers_after_concurrent_schema_change path 1
+external-receiver root::tests statement_reuse_recovers_after_concurrent_schema_change reprepare_count 1
+external-receiver root::tests statement_reuse_recovers_after_concurrent_schema_change was_reused 1
+external-receiver root::tests statement_reuse_refreshes_alternating_bindings was_reused 1
+external-receiver root::tests statement_reuse_releases_rows_and_recovers_after_error was_reused 1
+external-receiver root::tests statement_reuse_reprepares_after_schema_change reprepare_count 1
+external-receiver root::tests statement_reuse_reprepares_after_schema_change was_reused 1
+external-receiver root::tests visibility_exhaustion_rolls_back_and_restores_triggers path 1
+external-receiver root::tests wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts path 1
+external-receiver root::tests wal_attribution_close_boundary_fresh_open_is_clean path 1
+external-receiver root::tests wal_attribution_close_boundary_neighbors_is_clean path 1
+external-receiver root::tests wal_attribution_close_boundary_raw_checkpoint_is_clean path 1
+external-receiver root::tests wal_attribution_close_boundary_read_get_is_clean path 1
+external-receiver root::tests wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation path 1
+external-receiver root::tests wal_attribution_native_state_inventory_requires_all_managed_roles_idle path 1
+external-receiver root::tests wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded path 1
+external-receiver root::tests wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic path 1
+external-receiver root::tests wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded path 1
+external-receiver root::tests wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded release 1
+external-receiver root::tests wal_attribution_reader_completion_pause_is_scoped_to_its_engine path 2
+external-receiver root::tests wal_attribution_reader_handoff_is_idle_before_materialized_reply path 1
+external-receiver root::tests wal_attribution_reader_handoff_pause_is_scoped_to_its_engine path 2
+external-receiver root::tests wal_attribution_reader_snapshot_pause_is_scoped_to_its_engine path 2
+external-receiver root::tests wal_attribution_registers_all_owned_roles_idle_at_open path 1
+external-receiver root::tests wal_attribution_retained_materialized_result_is_idle_at_checkpoint path 1
+external-receiver root::tests write_advances_cursor path 1
+external-receiver root::tests write_batch_prepares_visibility_triggered_statements_once path 1
 external-receiver search bfs_graph_arm_candidates as_str 3
 external-receiver search bm25f_search_inner as_str 1
 external-receiver search read_search_in_tx as_str 4
+external-receiver write_commit apply_batch_in_transaction as_str 5
+external-receiver write_commit canonical_body_hash set 1
+external-receiver write_commit register_artifact_identity as_str 17
+external-receiver write_commit runtime_revision_id as_str 2
+external-receiver write_validation validate_write as_str 2
+external-receiver write_validation value_contains_external_ref as_str 1
 
 inherent filter Filter::lower_for_read_list
 inherent filter Filter::lower_for_read_list_for_test
@@ -594,15 +735,11 @@ edge frozen_read::tests <module> frozen_read projection_serving_encoding import 
 edge frozen_read::tests <module> frozen_read validate_snapshot import test
 edge frozen_read::tests assert_normative_fixture filter SearchFilter::default callable test
 edge frozen_read::tests assert_normative_fixture frozen_read ReadContextV1::new callable test
-edge frozen_read::tests assert_normative_fixture frozen_read ReadContextV1::unwrap callable test
-edge frozen_read::tests context_encoding_is_independent_of_attribute_order filter SearchFilter::clone callable test
 edge frozen_read::tests context_encoding_is_independent_of_attribute_order filter SearchFilter::default callable test
 edge frozen_read::tests context_encoding_is_independent_of_attribute_order frozen_read ReadContextV1::new callable test
-edge frozen_read::tests context_encoding_is_independent_of_attribute_order frozen_read ReadContextV1::unwrap callable test
 edge frozen_read::tests equal_count_terminal_mutations_on_copied_databases_do_not_share_authority filter SearchFilter::default callable test
 edge frozen_read::tests equal_count_terminal_mutations_on_copied_databases_do_not_share_authority frozen_read FrozenReadErrorReason::StateDrifted type test
 edge frozen_read::tests equal_count_terminal_mutations_on_copied_databases_do_not_share_authority frozen_read ReadContextV1::new callable test
-edge frozen_read::tests equal_count_terminal_mutations_on_copied_databases_do_not_share_authority frozen_read ReadContextV1::unwrap callable test
 edge frozen_read::tests equal_count_terminal_mutations_on_copied_databases_do_not_share_authority root close engine-method test
 edge frozen_read::tests equal_count_terminal_mutations_on_copied_databases_do_not_share_authority root execute_for_test engine-method test
 edge frozen_read::tests normative_v2_fixture_pins_projection_generation_binding root DEFAULT_EMBEDDER_DIMENSION type test
@@ -612,7 +749,6 @@ edge frozen_read::tests normative_v2_fixture_pins_projection_generation_binding 
 edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation filter SearchFilter::default callable test
 edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation frozen_read FrozenReadErrorReason::StateDrifted type test
 edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation frozen_read ReadContextV1::new callable test
-edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation frozen_read ReadContextV1::unwrap callable test
 edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation root DEFAULT_EMBEDDER_DIMENSION type test
 edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation root DEFAULT_EMBEDDER_NAME type test
 edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation root DEFAULT_EMBEDDER_REVISION type test
@@ -703,7 +839,6 @@ edge graph_api Engine::graph_expand_inner graph_expand::execution GraphExpandRea
 edge graph_api Engine::graph_expand_inner graph_expand::execution graph_error callable all
 edge graph_api Engine::graph_expand_inner graph_expand::execution validate_semantics callable all
 edge graph_api Engine::graph_expand_inner graph_expand::types GraphExpandRequestV1 type all
-edge graph_api Engine::graph_expand_inner graph_expand::types GraphExpandRequestV1::clone callable all
 edge graph_api Engine::graph_expand_inner graph_expand::types GraphExpandResultV1 type all
 edge graph_api Engine::graph_expand_inner graph_expand::types GraphExpansionErrorReasonV1::GraphContextInvalid type all
 edge graph_api Engine::graph_expand_inner graph_expand::types GraphExpansionErrorReasonV1::UnsupportedSchemaVersion type all
@@ -797,7 +932,6 @@ edge graph_api Engine::seed_graph_expand_rss_fixture_for_test errors EngineError
 edge graph_api Engine::seed_graph_expand_rss_fixture_for_test errors EngineError::Closing type hooks
 edge graph_api Engine::seed_graph_expand_rss_fixture_for_test errors EngineError::Storage type hooks
 edge graph_api Engine::seed_graph_expand_rss_fixture_for_test identity SourceId import hooks
-edge graph_api Engine::seed_graph_expand_rss_fixture_for_test identity SourceId::map_err callable hooks
 edge graph_api Engine::seed_graph_expand_rss_fixture_for_test identity SourceId::new callable hooks
 edge graph_api Engine::seed_graph_expand_rss_fixture_for_test record_lifecycle InitialState import hooks
 edge graph_api Engine::seed_graph_expand_rss_fixture_for_test record_lifecycle InitialState::Active type hooks
@@ -1069,7 +1203,6 @@ edge graph_expand::execution explain_graph_expand_incident_query errors EngineEr
 edge graph_expand::execution explain_graph_expand_incident_query errors EngineError::Storage type all
 edge graph_expand::execution graph_error errors EngineError type all
 edge graph_expand::execution graph_error graph_expand::types GraphExpansionErrorReasonV1 type all
-edge graph_expand::execution graph_error graph_expand::types GraphExpansionErrorV1::into callable all
 edge graph_expand::execution graph_error graph_expand::types GraphExpansionErrorV1::new callable all
 edge graph_expand::execution graph_expand_incident_query graph_expand::types TraversalDirection type all
 edge graph_expand::execution graph_expand_incident_sql graph_expand::types TraversalDirection type all
@@ -1198,7 +1331,6 @@ edge graph_expand::graph_evidence_request_tests graph_request_commitment_input_p
 edge graph_expand::graph_evidence_request_tests graph_request_commitment_input_preserves_explicit_seed_order graph_expand::types GraphSeedV1::Explicit type test
 edge graph_expand::graph_evidence_request_tests request filter SearchFilter::default callable test
 edge graph_expand::graph_evidence_request_tests request frozen_read ReadContextV1::new callable test
-edge graph_expand::graph_evidence_request_tests request frozen_read ReadContextV1::unwrap callable test
 edge graph_expand::graph_evidence_request_tests request graph_expand::types GraphExpandRequestV1 type test
 edge graph_expand::graph_evidence_request_tests request graph_expand::types GraphReadContextV1::Frozen type test
 edge graph_expand::graph_evidence_request_tests request graph_expand::types GraphSeedV1::Explicit type test
@@ -1507,7 +1639,6 @@ edge read read_operational_state_page_in_tx test_hooks frozen_after_validation_h
 edge read read_operational_state_page_in_tx wal_attribution WalAttributionCollector type all
 edge read validate_operational_collection errors EngineError type all
 edge read validate_operational_collection errors EngineError::Storage type all
-edge read validate_operational_collection pagination PageError::into callable all
 edge read validate_operational_collection pagination PageError::new callable all
 edge read validate_operational_collection pagination PageErrorReason::CollectionFormatUnsupported type all
 edge read validate_operational_collection pagination PageErrorReason::CollectionKindMismatch type all
@@ -1515,7 +1646,6 @@ edge read validate_operational_collection pagination PageErrorReason::Collection
 edge read validate_operational_context errors EngineError type all
 edge read validate_operational_context filter SearchFilter::is_unfiltered callable all
 edge read validate_operational_context frozen_read FrozenReadContextV1 type all
-edge read validate_operational_context pagination PageError::into callable all
 edge read validate_operational_context pagination PageError::new callable all
 edge read validate_operational_context pagination PageErrorReason::ContextNotApplicable type all
 edge read_api <module> errors EngineError import all
@@ -1537,9 +1667,7 @@ edge read_api <module> temporal ReadView import all
 edge read_api Engine::read_canonical_page errors EngineError type all
 edge read_api Engine::read_canonical_page errors EngineError::Closing type all
 edge read_api Engine::read_canonical_page frozen_read FrozenReadContextV1 type all
-edge read_api Engine::read_canonical_page frozen_read FrozenReadContextV1::clone callable all
 edge read_api Engine::read_canonical_page pagination PageRequestV1 type all
-edge read_api Engine::read_canonical_page pagination PageRequestV1::clone callable all
 edge read_api Engine::read_canonical_page pagination PageV1 type all
 edge read_api Engine::read_canonical_page pagination validate_request callable all
 edge read_api Engine::read_canonical_page read NodeRecord type all
@@ -1549,7 +1677,6 @@ edge read_api Engine::read_canonical_page root ensure_open engine-method all
 edge read_api Engine::read_canonical_page_baseline_for_test errors EngineError type hooks
 edge read_api Engine::read_canonical_page_baseline_for_test errors EngineError::Closing type hooks
 edge read_api Engine::read_canonical_page_baseline_for_test frozen_read FrozenReadContextV1 type hooks
-edge read_api Engine::read_canonical_page_baseline_for_test frozen_read FrozenReadContextV1::clone callable hooks
 edge read_api Engine::read_canonical_page_baseline_for_test read NodeRecord type hooks
 edge read_api Engine::read_canonical_page_baseline_for_test reader_pool ReaderRequest::canonical_page_baseline callable hooks
 edge read_api Engine::read_canonical_page_baseline_for_test reader_pool reader_pool field-access hooks
@@ -1606,9 +1733,7 @@ edge read_api Engine::read_operational_state root ensure_open engine-method all
 edge read_api Engine::read_operational_state_page errors EngineError type all
 edge read_api Engine::read_operational_state_page errors EngineError::Closing type all
 edge read_api Engine::read_operational_state_page frozen_read FrozenReadContextV1 type all
-edge read_api Engine::read_operational_state_page frozen_read FrozenReadContextV1::clone callable all
 edge read_api Engine::read_operational_state_page pagination PageRequestV1 type all
-edge read_api Engine::read_operational_state_page pagination PageRequestV1::clone callable all
 edge read_api Engine::read_operational_state_page pagination PageV1 type all
 edge read_api Engine::read_operational_state_page pagination validate_request callable all
 edge read_api Engine::read_operational_state_page read OperationalStateRecordV1 type all
@@ -3007,7 +3132,6 @@ edge root configure_runtime_locked root RuntimeState::Failed callable all
 edge root configure_runtime_locked root RuntimeState::Failed type all
 edge root configure_runtime_locked root RuntimeState::Unconfigured type all
 edge root data_plane_inspection_error data_plane_integrity DataPlaneIntegrityErrorReasonV1 type operator
-edge root data_plane_inspection_error data_plane_integrity DataPlaneIntegrityErrorV1::into callable operator
 edge root data_plane_inspection_error data_plane_integrity DataPlaneIntegrityErrorV1::new callable operator
 edge root data_plane_inspection_error errors EngineError type operator
 edge root effective_runtime_configuration root RuntimeConfiguration type all
@@ -3727,7 +3851,6 @@ edge search_api Engine::freeze_read_context errors EngineError type all
 edge search_api Engine::freeze_read_context errors EngineError::Closing type all
 edge search_api Engine::freeze_read_context errors EngineError::Storage type all
 edge search_api Engine::freeze_read_context frozen_read FrozenReadContextV1 type all
-edge search_api Engine::freeze_read_context frozen_read FrozenReadError::into callable all
 edge search_api Engine::freeze_read_context frozen_read FrozenReadErrorReason::StateUnavailable type all
 edge search_api Engine::freeze_read_context frozen_read ReadContextV1 type all
 edge search_api Engine::freeze_read_context frozen_read mint callable all
@@ -3739,7 +3862,6 @@ edge search_api Engine::resolve_evidence errors EngineError::Closing type all
 edge search_api Engine::resolve_evidence errors EngineError::Evidence callable all
 edge search_api Engine::resolve_evidence errors EngineError::Storage type all
 edge search_api Engine::resolve_evidence evidence EvidenceErrorReasonV1::UnsupportedSchemaVersion type all
-edge search_api Engine::resolve_evidence evidence EvidenceErrorV1::into callable all
 edge search_api Engine::resolve_evidence evidence EvidenceErrorV1::new callable all
 edge search_api Engine::resolve_evidence evidence EvidenceErrorV1::unavailable callable all
 edge search_api Engine::resolve_evidence evidence EvidenceResolveRequestV1 type all
@@ -3759,7 +3881,6 @@ edge search_api Engine::resolve_graph_evidence evidence EvidenceArtifactClassV1:
 edge search_api Engine::resolve_graph_evidence evidence EvidenceArtifactLifecycleV1::Edge type all
 edge search_api Engine::resolve_graph_evidence evidence EvidenceArtifactLifecycleV1::Node type all
 edge search_api Engine::resolve_graph_evidence evidence EvidenceErrorReasonV1::UnsupportedSchemaVersion type all
-edge search_api Engine::resolve_graph_evidence evidence EvidenceErrorV1::into callable all
 edge search_api Engine::resolve_graph_evidence evidence EvidenceErrorV1::new callable all
 edge search_api Engine::resolve_graph_evidence evidence EvidenceErrorV1::unavailable callable all
 edge search_api Engine::resolve_graph_evidence evidence GraphEvidenceArtifactV1::Edge type all
@@ -3769,14 +3890,10 @@ edge search_api Engine::resolve_graph_evidence evidence ResolvedGraphEvidenceV1 
 edge search_api Engine::resolve_graph_evidence evidence resolve_graph_evidence callable all
 edge search_api Engine::resolve_graph_evidence frozen_read authenticate callable all
 edge search_api Engine::resolve_graph_evidence frozen_read validate_snapshot callable all
-edge search_api Engine::resolve_graph_evidence identity ArtifactRevisionId::map_err callable all
 edge search_api Engine::resolve_graph_evidence identity ArtifactRevisionId::new callable all
-edge search_api Engine::resolve_graph_evidence identity CanonicalHash::map_err callable all
 edge search_api Engine::resolve_graph_evidence identity CanonicalHash::sha256 callable all
-edge search_api Engine::resolve_graph_evidence identity SourceRevisionId::map_err callable all
 edge search_api Engine::resolve_graph_evidence identity SourceRevisionId::new callable all
 edge search_api Engine::resolve_graph_evidence record_lifecycle LifecycleState::from_str_opt callable all
-edge search_api Engine::resolve_graph_evidence record_lifecycle LifecycleState::ok_or_else callable all
 edge search_api Engine::resolve_graph_evidence root connection field-access all
 edge search_api Engine::resolve_graph_evidence root ensure_open engine-method all
 edge search_api Engine::resolve_graph_evidence root graph_evidence_before_resolve_return_hook field-access all
@@ -3829,8 +3946,6 @@ edge search_api Engine::search_filtered errors EngineError type all
 edge search_api Engine::search_filtered filter SearchFilter type all
 edge search_api Engine::search_filtered search_types SearchResult type all
 edge search_api Engine::search_filtered_with_limit errors EngineError type all
-edge search_api Engine::search_filtered_with_limit filter Filter::and_then callable all
-edge search_api Engine::search_filtered_with_limit filter Filter::map callable all
 edge search_api Engine::search_filtered_with_limit filter Filter::to_search_filter callable all
 edge search_api Engine::search_filtered_with_limit filter Filter::try_from callable all
 edge search_api Engine::search_filtered_with_limit filter SearchFilter type all
@@ -4027,7 +4142,6 @@ edge search_api Engine::search_with_evidence errors EngineError::Storage type al
 edge search_api Engine::search_with_evidence errors EngineError::VectorEquivalenceMismatch type all
 edge search_api Engine::search_with_evidence errors EngineError::WriteValidation type all
 edge search_api Engine::search_with_evidence evidence EvidenceErrorReasonV1::UnsupportedSchemaVersion type all
-edge search_api Engine::search_with_evidence evidence EvidenceErrorV1::into callable all
 edge search_api Engine::search_with_evidence evidence EvidenceErrorV1::new callable all
 edge search_api Engine::search_with_evidence evidence EvidenceErrorV1::unavailable callable all
 edge search_api Engine::search_with_evidence evidence EvidenceSearchRequestV1 type all

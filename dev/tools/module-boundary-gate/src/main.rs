@@ -8,6 +8,29 @@ use fathomdb_module_boundary_gate::{
     analyze_source, analyze_source_in, Analysis, ConfigSet, ConfigSpace, EdgeKind, InherentMethod,
 };
 
+/// `(module, item, method, receiver expression)` of untyped dot calls.
+type ReceiverKey = (String, String, String, String);
+
+/// A reviewed receiver exception: the exact call count and the receiver's
+/// type, outside the crate (`external-receiver`) or an in-crate type whose
+/// method becomes a typed edge (`typed-receiver`).
+#[derive(Debug)]
+struct ReceiverEntry {
+    count: usize,
+    typed: bool,
+    ty: String,
+}
+
+impl ReceiverEntry {
+    fn directive(&self) -> &'static str {
+        if self.typed {
+            "typed-receiver"
+        } else {
+            "external-receiver"
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 struct Policy {
     classified: BTreeMap<String, String>,
@@ -18,7 +41,7 @@ struct Policy {
     allowed_cycles: BTreeSet<(String, String)>,
     reported_cycles: BTreeSet<(String, String)>,
     admissions: BTreeSet<(String, String, String, String)>,
-    external_receivers: BTreeMap<(String, String, String), usize>,
+    receivers: BTreeMap<ReceiverKey, ReceiverEntry>,
     allowed_local_macros: BTreeSet<(String, String, String)>,
     allowed_unparsed_macros: BTreeSet<(String, String, String, String)>,
     inherent_methods: BTreeSet<(String, String)>,
@@ -325,18 +348,33 @@ fn parse_policy(path: &Path) -> Result<Policy, Vec<String>> {
             ["report-cycle", left, right] => {
                 policy.reported_cycles.insert(sorted_pair(left, right));
             }
-            ["external-receiver", module, item, method, count] => match count.parse::<usize>() {
-                Ok(count) if count > 0 => {
-                    policy.external_receivers.insert(
-                        ((*module).to_string(), (*item).to_string(), (*method).to_string()),
-                        count,
-                    );
+            [kind @ ("external-receiver" | "typed-receiver"), module, item, method, count, receiver, ty] => {
+                match count.parse::<usize>() {
+                    Ok(count) if count > 0 => {
+                        let key = (
+                            (*module).to_string(),
+                            (*item).to_string(),
+                            (*method).to_string(),
+                            (*receiver).to_string(),
+                        );
+                        let entry = ReceiverEntry {
+                            count,
+                            typed: *kind == "typed-receiver",
+                            ty: (*ty).to_string(),
+                        };
+                        if policy.receivers.insert(key, entry).is_some() {
+                            errors.push(format!(
+                                "policy:{} duplicates receiver entry {module} {item} {method} {receiver}",
+                                index + 1
+                            ));
+                        }
+                    }
+                    _ => errors.push(format!(
+                        "policy:{} {kind} count must be a positive integer",
+                        index + 1
+                    )),
                 }
-                _ => errors.push(format!(
-                    "policy:{} external-receiver count must be a positive integer",
-                    index + 1
-                )),
-            },
+            }
             ["admit-type", source, source_item, target, target_item] => {
                 policy.admissions.insert((
                     (*source).to_string(),
@@ -580,8 +618,8 @@ fn evaluate(
     let mut actual_unparsed_macros = BTreeSet::new();
     // Unresolved dot calls whose name is only a governed inherent method of
     // another module, counted per source item for reviewed exceptions.
-    let mut unresolved_receivers = BTreeMap::<(String, String, String), usize>::new();
-    let mut unresolved_origins = BTreeMap::<(String, String, String), String>::new();
+    let mut unresolved_receivers = BTreeMap::<ReceiverKey, usize>::new();
+    let mut unresolved_origins = BTreeMap::<ReceiverKey, Vec<String>>::new();
     // Every graph is kept as `(from, to) -> configurations`.
     let mut item_graph = MaskedGraph::new();
     let mut module_dependencies = MaskedGraph::new();
@@ -750,26 +788,35 @@ fn evaluate(
                         } else {
                             governed_engine_methods.contains(method)
                         };
+                        let mut reviewed_type = None;
                         if !governed_name && cross_boundary_inherent {
-                            *unresolved_receivers
-                                .entry((
-                                    source_module.clone(),
-                                    edge.source_item.clone(),
-                                    method.to_string(),
-                                ))
-                                .or_default() += 1;
-                            unresolved_origins
-                                .entry((
-                                    source_module.clone(),
-                                    edge.source_item.clone(),
-                                    method.to_string(),
-                                ))
-                                .or_insert_with(|| {
-                                    format!(
-                                        "{}:{}:{}",
-                                        relative(source_root, &info.file),
-                                        edge.location.line,
-                                        edge.location.column
+                            let key = (
+                                source_module.clone(),
+                                edge.source_item.clone(),
+                                method.to_string(),
+                                edge.receiver.clone().unwrap_or_else(|| "_".to_string()),
+                            );
+                            *unresolved_receivers.entry(key.clone()).or_default() += 1;
+                            unresolved_origins.entry(key.clone()).or_default().push(format!(
+                                "{}:{}:{}",
+                                relative(source_root, &info.file),
+                                edge.location.line,
+                                edge.location.column
+                            ));
+                            // A reviewed in-crate receiver type is a typed
+                            // call like any other.
+                            reviewed_type = policy
+                                .receivers
+                                .get(&key)
+                                .filter(|entry| entry.typed)
+                                .and_then(|entry| resolve_type(&entry.ty, modules))
+                                .map(|target| {
+                                    chase_reexports(
+                                        ResolvedTarget {
+                                            module: target.module,
+                                            item: format!("{}::{method}", target.item),
+                                        },
+                                        modules,
                                     )
                                 });
                         } else if governed_name {
@@ -783,7 +830,9 @@ fn evaluate(
                                 receiver_type.unwrap_or("<unknown>")
                             ));
                         }
-                        if governed {
+                        if let Some(reviewed) = reviewed_type {
+                            targets = reviewed;
+                        } else if governed {
                             for node in crate_inherent.get(method).into_iter().flatten() {
                                 item_graph.add(
                                     &graph_node(&source_module, &edge.source_item),
@@ -907,21 +956,48 @@ fn evaluate(
     }
 
     for (key, count) in &unresolved_receivers {
-        if policy.external_receivers.get(key) != Some(count) {
+        if policy.receivers.get(key).map(|entry| entry.count) != Some(*count) {
             errors.push(format!(
                 "unresolved governed method receiver at {} source={} source_item={} method={} \
-                 calls={count}; the name is a governed inherent method of another module, so use \
-                 an owner-qualified call, a syntactically typed receiver, or a reviewed \
-                 external-receiver entry with this exact call count",
-                unresolved_origins[key], key.0, key.1, key.2
+                 calls={count} receiver={}; the name is a governed inherent method of another \
+                 module, so use an owner-qualified call, a syntactically typed receiver, or a \
+                 reviewed external-receiver/typed-receiver entry naming this receiver, its type \
+                 and this exact call count",
+                unresolved_origins[key].join(","),
+                key.0,
+                key.1,
+                key.2,
+                key.3
             ));
         }
     }
-    for (key, count) in &policy.external_receivers {
+    for (key, entry) in &policy.receivers {
+        let (module, item, method, receiver) = key;
         if !unresolved_receivers.contains_key(key) {
             errors.push(format!(
-                "stale external-receiver {} {} {} {count}: no such unresolved call",
-                key.0, key.1, key.2
+                "stale {} {module} {item} {method} {} {receiver} {}: no such unresolved call",
+                entry.directive(),
+                entry.count,
+                entry.ty
+            ));
+        }
+        let owner = entry.ty.rsplit("::").next().unwrap_or(&entry.ty);
+        let resolved = resolve_type(&entry.ty, modules);
+        if entry.typed {
+            if resolved.is_none() || !impl_methods.contains(&(owner.to_string(), method.clone())) {
+                errors.push(format!(
+                    "typed-receiver {module} {item} {method} names {}, which has no method \
+                     {method} (or is not an in-crate type)",
+                    entry.ty
+                ));
+            }
+        } else if resolved.is_some()
+            || (!entry.ty.contains("::") && declared_owners.contains_key(&entry.ty))
+        {
+            errors.push(format!(
+                "external-receiver {module} {item} {method} names the in-crate type {}; record it \
+                 as a typed-receiver",
+                entry.ty
             ));
         }
     }
@@ -994,8 +1070,19 @@ fn evaluate(
         for (module, name, fingerprint) in &actual_local_macros {
             println!("local-macro\t{module}\t{name}\t{fingerprint}");
         }
-        for ((module, item, method), count) in &unresolved_receivers {
-            println!("external-receiver\t{module}\t{item}\t{method}\t{count}");
+        for (key, count) in &unresolved_receivers {
+            let (module, item, method, receiver) = key;
+            match policy.receivers.get(key) {
+                Some(entry) => println!(
+                    "{}\t{module}\t{item}\t{method}\t{count}\t{receiver}\t{}",
+                    entry.directive(),
+                    entry.ty
+                ),
+                None => println!(
+                    "unreviewed-receiver\t{module}\t{item}\t{method}\t{count}\t{receiver}\t{}",
+                    unresolved_origins[key].join(",")
+                ),
+            }
         }
         for (module, item, name, fingerprint) in &actual_unparsed_macros {
             println!("unparsed-macro\t{module}\t{item}\t{name}\t{fingerprint}");
@@ -1902,6 +1989,15 @@ fn qualify_glob_namespace(module: &str, namespace: &str) -> String {
         return if parent == "root" { rest.to_string() } else { format!("{parent}::{rest}") };
     }
     namespace.to_string()
+}
+
+/// A crate-relative type path (`module::Type`, or `Type` for a root item).
+fn resolve_type(ty: &str, modules: &BTreeMap<String, ModuleInfo>) -> Option<ResolvedTarget> {
+    resolve_path(ty, modules).filter(|target| target.item != "<module>").or_else(|| {
+        (!ty.contains("::")
+            && modules.get("root").is_some_and(|root| root.analysis.declared_items.contains(ty)))
+        .then(|| ResolvedTarget { module: "root".to_string(), item: ty.to_string() })
+    })
 }
 
 fn resolve_path(target: &str, modules: &BTreeMap<String, ModuleInfo>) -> Option<ResolvedTarget> {

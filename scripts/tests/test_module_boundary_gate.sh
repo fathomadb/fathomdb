@@ -325,6 +325,11 @@ printf '\nfn slice85_struct_pattern_probe(value: usize) { let crate::reader_pool
 expect_failure capital-struct-pattern 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
 cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
 
+printf '\nfn slice85_let_type_probe() { let _probe: Option<crate::reader_pool::ReaderRequest> = None; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+expect_failure let-type-annotation 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

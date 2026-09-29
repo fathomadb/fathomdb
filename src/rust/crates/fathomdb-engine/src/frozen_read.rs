@@ -219,14 +219,14 @@ fn mint_inner(
     let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
     tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))
         .map_err(|_| EngineError::Storage)?;
-    super::validate_filter_attributes_on_snapshot(&tx, &resolved.eligibility).map_err(|error| {
-        match error {
-            super::SnapshotFilterError::InvalidFilter(reason) => {
+    crate::filter::validate_filter_attributes_on_snapshot(&tx, &resolved.eligibility).map_err(
+        |error| match error {
+            crate::filter::SnapshotFilterError::InvalidFilter(reason) => {
                 EngineError::InvalidFilter { reason }
             }
-            super::SnapshotFilterError::Sqlite(_) => EngineError::Storage,
-        }
-    })?;
+            crate::filter::SnapshotFilterError::Sqlite(_) => EngineError::Storage,
+        },
+    )?;
     #[cfg(feature = "test-hooks")]
     let snapshot_validation_ns = snapshot_started.elapsed().as_nanos();
     #[cfg(not(feature = "test-hooks"))]

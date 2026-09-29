@@ -1376,6 +1376,127 @@ t13_extern_mutant root-alias-unresolved \
 t13_extern_mutant extern-crate-self-path '' s85_me::search::prepare_search_statement \
   'unsupported extern crate declaration s85_me at lib.rs:'
 
+# Test review cycle 4, T-16 (AC27-85B/C/D): every in-crate path resolves
+# through the crate's namespaces, not through an enumerated list of alias
+# forms. Chained re-exports through nested inline modules, crate-root globs
+# of inline and file modules, `self::`-anchored crate-root re-exports and
+# crate-root module aliases all reach the bridge item, so the forbidden
+# graph_expand <-> search item cycle cannot be laundered through any of them
+# even after a FULL regeneration of every regenerable inventory (edge,
+# inherent, module-cycle, module-scc, and a `reported` line for each new
+# module). The module-level bridges keep the SCC-join diagnostic after an
+# edge-only regeneration. Every mutant compiles as written.
+compiled_src="$fixture/src/rust/crates/fathomdb-engine/src"
+# t16_admit KINDS: regenerates the KINDS inventories (an ERE alternation)
+# from the gate's own --report of the mutated fixture, and classifies every
+# new module `reported`.
+t16_admit() {
+  local kinds="$1" classes inventory
+  cp "$fixture/module-boundary-policy.clean" "$policy_file"
+  classes="$("$GATE" --root "$fixture" 2>&1 |
+    sed -n 's/^FAIL module-boundary: module classification missing \(.*\)$/reported \1/p' || true)"
+  printf '%s\n' "$classes" >>"$policy_file"
+  inventory="$("$GATE" --root "$fixture" --report 2>/dev/null |
+    grep -E "^($kinds)"$'\t' | tr '\t' ' ' || true)"
+  { grep -vE "^($kinds) " "$policy_file"; printf '%s\n' "$inventory"; } >"$fixture/t16-policy"
+  mv "$fixture/t16-policy" "$policy_file"
+}
+# t16_mutant LABEL BRIDGE ADMIT ROOT_CODE CALL [FILE CODE]...: @BRIDGE@ in
+# ROOT_CODE and each CODE is the bridge function; FILE is appended to (or
+# created) under the engine source root.
+t16_mutant() {
+  local label="$1" bridge="$2" admit="$3" root_code="$4" call="$5" expected
+  shift 5
+  local body='let _ = crate::search::prepare_search_statement(c, "");'
+  expected="$t11_joins"
+  if [ "$bridge" = item-cycle ]; then
+    body='crate::search::s85_ret(c);'
+    expected="$t11_forbidden"
+    printf '\npub(crate) fn s85_ret(c: &rusqlite::Connection) { crate::graph_expand::s85_g(c); }\n' \
+      >>"$compiled_src/search.rs"
+  fi
+  local function="pub(crate) fn s85_bridge(c: &rusqlite::Connection) { $body }"
+  printf '\n%s\n' "${root_code//@BRIDGE@/"$function"}" >>"$engine_root"
+  local touched=(lib.rs search.rs graph_expand/mod.rs)
+  while [ "$#" -ge 2 ]; do
+    printf '\n%s\n' "${2//@BRIDGE@/"$function"}" >>"$compiled_src/$1"
+    touched+=("$1")
+    shift 2
+  done
+  printf '\npub(crate) fn s85_g(c: &rusqlite::Connection) { %s(c); }\n' "$call" >>"$graph_expand_file"
+  t16_admit "$admit"
+  expect_failure "$label" "$expected" "$GATE" --root "$fixture"
+  local restored
+  for restored in "${touched[@]}"; do
+    if [ -f "$REPO_ROOT/src/rust/crates/fathomdb-engine/src/$restored" ]; then
+      cp "$REPO_ROOT/src/rust/crates/fathomdb-engine/src/$restored" "$compiled_src/$restored"
+    else
+      rm "$compiled_src/$restored"
+    fi
+  done
+  cp "$fixture/module-boundary-policy.clean" "$policy_file"
+}
+t16_full='edge|inherent|module-cycle|module-scc'
+t16_edges='edge|inherent'
+t16_chain='mod s85_a { pub(crate) mod inner { @BRIDGE@ } pub(crate) use inner::s85_bridge; }'
+t16_nested='mod s85_a { pub(crate) mod inner { @BRIDGE@ } }'
+# Control: the T-13 form under the same full regeneration.
+t16_mutant root-reexport-inline-item-cycle-regenerated item-cycle "$t16_full" \
+  $'mod s85_a { @BRIDGE@ }\npub(crate) use s85_a::s85_bridge;' crate::s85_bridge
+# C1: root -> inline re-export -> nested inline module.
+t16_mutant root-chained-reexport-item-cycle item-cycle "$t16_full" \
+  "$t16_chain"$'\npub(crate) use s85_a::s85_bridge;' crate::s85_bridge
+t16_mutant root-chained-reexport-module-scc plain "$t16_edges" \
+  "$t16_chain"$'\npub(crate) use s85_a::s85_bridge;' crate::s85_bridge
+# C3: the inner re-export is a glob and the root one is `self::`-anchored.
+t16_mutant root-chained-glob-reexport-item-cycle item-cycle "$t16_full" \
+  $'mod s85_a { pub(crate) mod inner { @BRIDGE@ } pub(crate) use self::inner::*; }\npub(crate) use self::s85_a::s85_bridge;' \
+  crate::s85_bridge
+# C4: the inline re-export named directly.
+t16_mutant inline-reexport-item-cycle item-cycle "$t16_full" "$t16_chain" crate::s85_a::s85_bridge
+# D, D2: crate-root globs of an inline module and of a nested inline module.
+t16_mutant root-glob-inline-item-cycle item-cycle "$t16_full" \
+  $'mod s85_a { @BRIDGE@ }\n#[allow(unused_imports)]\npub(crate) use self::s85_a::*;' crate::s85_bridge
+t16_mutant root-glob-inline-module-scc plain "$t16_edges" \
+  $'mod s85_a { @BRIDGE@ }\n#[allow(unused_imports)]\npub(crate) use self::s85_a::*;' crate::s85_bridge
+t16_mutant root-glob-nested-inline-item-cycle item-cycle "$t16_full" \
+  "$t16_nested"$'\n#[allow(unused_imports)]\npub(crate) use self::s85_a::inner::*;' crate::s85_bridge
+# Df: a crate-root glob of an inline module of a file module.
+t16_mutant root-glob-file-inline-item-cycle item-cycle "$t16_full" \
+  $'#[allow(unused_imports)]\npub(crate) use self::fusion::s85_inner::*;' crate::s85_bridge \
+  fusion.rs 'pub(crate) mod s85_inner { @BRIDGE@ }'
+# Dg2: a crate-root glob of a new file module.
+t16_mutant root-glob-file-item-cycle item-cycle "$t16_full" \
+  $'mod s85_file;\n#[allow(unused_imports)]\npub(crate) use s85_file::*;' crate::s85_bridge \
+  s85_file.rs '@BRIDGE@'
+t16_mutant root-glob-file-module-scc plain "$t16_edges" \
+  $'mod s85_file;\n#[allow(unused_imports)]\npub(crate) use s85_file::*;' crate::s85_bridge \
+  s85_file.rs '@BRIDGE@'
+# E4, Ef, E6: `self::`-anchored crate-root re-exports of a file-module item.
+t16_mutant root-self-reexport-item-cycle item-cycle "$t16_full" \
+  'pub(crate) use self::fusion::s85_bridge;' crate::s85_bridge fusion.rs '@BRIDGE@'
+t16_mutant root-self-rename-item-cycle item-cycle "$t16_full" \
+  'pub(crate) use self::fusion::s85_bridge as s85_other;' crate::s85_other fusion.rs '@BRIDGE@'
+t16_mutant root-self-group-rename-item-cycle item-cycle "$t16_full" \
+  'pub(crate) use self::fusion::{s85_bridge as s85_other};' crate::s85_other fusion.rs '@BRIDGE@'
+# F, Ff: crate-root module aliases of an inline and of a file module.
+t16_mutant root-inline-module-alias-item-cycle item-cycle "$t16_full" \
+  "$t16_nested"$'\npub(crate) use s85_a as s85_alias;' crate::s85_alias::inner::s85_bridge
+t16_mutant root-file-module-alias-item-cycle item-cycle "$t16_full" \
+  'pub(crate) use fusion as s85_alias;' crate::s85_alias::s85_bridge fusion.rs '@BRIDGE@'
+# The rule itself: an in-crate path the gate cannot resolve to a declared
+# item or module fails closed instead of reading as another crate's.
+printf '\npub(crate) fn s85_g() { crate::s85_missing::s85_bridge(); }\n' >>"$graph_expand_file"
+expect_failure unresolved-in-crate-path \
+  'unresolved in-crate path crate::s85_missing::s85_bridge at graph_expand/mod.rs:' \
+  "$GATE" --root "$fixture"
+cp "$fixture/graph-expand.rs.clean" "$graph_expand_file"
+printf '\npub(crate) fn s85_g() { crate::fusion::s85_missing(); }\n' >>"$graph_expand_file"
+expect_failure unresolved-in-crate-item \
+  'unresolved in-crate path crate::fusion::s85_missing at graph_expand/mod.rs:' \
+  "$GATE" --root "$fixture"
+cp "$fixture/graph-expand.rs.clean" "$graph_expand_file"
+
 # Test review cycle 2, T-9 (AC27-85E): compiled negative fixtures. Each family
 # the AC names gets at least one mutant that also passes `cargo check -p
 # fathomdb-engine --lib --profile test --features test-hooks,operator`, by adding

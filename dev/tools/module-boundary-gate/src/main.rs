@@ -710,7 +710,7 @@ fn evaluate(
         }
         for edge in &info.analysis.edges {
             let source_module = scoped_module(module, &edge.source_scope);
-            let resolved = edge_targets(
+            let (mut targets, unresolved) = edge_targets(
                 module,
                 edge,
                 modules,
@@ -719,24 +719,20 @@ fn evaluate(
                 &policy.field_owners,
                 &method_owners,
             );
-            let mut targets = match resolved {
-                Ok(targets) => targets,
-                Err(reason) => {
-                    errors.push(format!(
-                        "unresolved in-crate path {} at {}:{}:{} source={source_module} \
+            for reason in unresolved {
+                errors.push(format!(
+                    "unresolved in-crate path {} at {}:{}:{} source={source_module} \
                          source_item={} kind={}: {reason}; every in-crate path must resolve to a \
                          declared item or module, so the gate fails closed rather than read it as \
                          another crate's",
-                        edge.target,
-                        relative(source_root, &info.file),
-                        edge.location.line,
-                        edge.location.column,
-                        edge.source_item,
-                        edge.kind.as_str()
-                    ));
-                    BTreeSet::new()
-                }
-            };
+                    edge.target,
+                    relative(source_root, &info.file),
+                    edge.location.line,
+                    edge.location.column,
+                    edge.source_item,
+                    edge.kind.as_str()
+                ));
+            }
             // A `use` that names nothing in the crate must name a declared
             // dependency; otherwise it hides a path from the resolver.
             if matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport) && targets.is_empty() {
@@ -1770,7 +1766,10 @@ fn reject_unparsed_macros(
 /// Resolves an edge's target through the crate's namespaces, then follows
 /// `type` aliases to what they name. Every resolved destination must be a
 /// declared item (or, for a `use`, a module or its glob); an in-crate path
-/// that names nothing declared is an error, never another crate's path.
+/// that names nothing declared is an error, never another crate's path. The
+/// errors come back with the targets, which for an unresolved path are its
+/// nearest in-crate namespace and the unresolved rest, so every other
+/// diagnostic (forbidden dependencies, cycles) still sees the edge.
 fn edge_targets(
     file_module: &str,
     edge: &fathomdb_module_boundary_gate::Edge,
@@ -1779,27 +1778,29 @@ fn edge_targets(
     engine_fields: &BTreeSet<String>,
     field_owners: &BTreeMap<String, String>,
     method_owners: &MethodOwners,
-) -> Result<BTreeSet<ResolvedTarget>, String> {
-    let targets = direct_edge_targets(
+) -> (BTreeSet<ResolvedTarget>, Vec<String>) {
+    let (targets, mut errors) = direct_edge_targets(
         file_module,
         edge,
         namespaces,
         engine_fields,
         field_owners,
         method_owners,
-    )?;
+    );
     if matches!(edge.kind, EdgeKind::FieldAccess | EdgeKind::EngineMethod) {
-        return Ok(targets);
+        return (targets, errors);
     }
     let targets = targets
         .into_iter()
         .flat_map(|target| chase_reexports(target, modules, namespaces))
         .map(|target| inline_owner(target, modules))
         .collect::<BTreeSet<_>>();
-    for target in &targets {
-        namespaces.check_declared(target, &edge.kind)?;
+    if errors.is_empty() {
+        errors.extend(
+            targets.iter().filter_map(|target| namespaces.check_declared(target, &edge.kind).err()),
+        );
     }
-    Ok(targets)
+    (targets, errors)
 }
 
 /// The inline modules of a file module, by scope-qualified name.
@@ -1888,7 +1889,7 @@ fn chase_step(
     let node = scoped_module(&current.module, &scope);
     let resolve = |path: &str| match namespaces.resolve(&node, path, Want::Item) {
         Resolution::InCrate(target) => Some(namespaces.file_form(target)),
-        Resolution::External | Resolution::Unresolved(_) => None,
+        Resolution::External | Resolution::Unresolved(..) => None,
     };
     let alias_key = if scope.is_empty() { head.to_string() } else { format!("{scope}::{head}") };
     if let Some(binding) = rest
@@ -1922,9 +1923,9 @@ fn direct_edge_targets(
     engine_fields: &BTreeSet<String>,
     field_owners: &BTreeMap<String, String>,
     method_owners: &MethodOwners,
-) -> Result<BTreeSet<ResolvedTarget>, String> {
+) -> (BTreeSet<ResolvedTarget>, Vec<String>) {
     if edge.kind == EdgeKind::FieldAccess {
-        return Ok(if engine_fields.contains(&edge.target) {
+        let targets = if engine_fields.contains(&edge.target) {
             field_owners
                 .get(&edge.target)
                 .map(|owner| ResolvedTarget { module: owner.clone(), item: edge.target.clone() })
@@ -1932,19 +1933,21 @@ fn direct_edge_targets(
                 .collect()
         } else {
             BTreeSet::new()
-        });
+        };
+        return (targets, Vec::new());
     }
     if edge.kind == EdgeKind::EngineMethod {
-        return Ok(method_owners
+        let targets = method_owners
             .get(&edge.target)
             .into_iter()
             .flat_map(BTreeMap::keys)
             .map(|owner| ResolvedTarget { module: owner.clone(), item: edge.target.clone() })
-            .collect());
+            .collect();
+        return (targets, Vec::new());
     }
     if let Some(rest) = edge.target.strip_prefix(".<") {
         let Some((method, receiver_type)) = rest.split_once(">:") else {
-            return Ok(BTreeSet::new());
+            return (BTreeSet::new(), Vec::new());
         };
         let mut typed = edge.clone();
         typed.target = format!("{receiver_type}::{method}");
@@ -1959,27 +1962,32 @@ fn direct_edge_targets(
     }
     let node = scoped_module(file_module, &edge.target_scope);
     let use_edge = matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport);
-    if let Some(prefix) = edge.target.strip_suffix("::*").filter(|_| use_edge) {
-        return match namespaces.resolve(&node, prefix, Want::Module) {
+    let resolution = match edge.target.strip_suffix("::*").filter(|_| use_edge) {
+        Some(prefix) => match namespaces.resolve(&node, prefix, Want::Module) {
             Resolution::InCrate(target) if target.item == "<module>" => {
-                Ok(BTreeSet::from([ResolvedTarget {
-                    module: target.module,
-                    item: "*".to_string(),
-                }]))
+                Resolution::InCrate(ResolvedTarget { module: target.module, item: "*".to_string() })
             }
-            Resolution::InCrate(target) => Err(format!(
-                "glob import of the in-crate item {}#{}; import its names explicitly",
-                target.module, target.item
-            )),
-            Resolution::External => Ok(BTreeSet::new()),
-            Resolution::Unresolved(reason) => Err(reason),
-        };
-    }
-    let want = if use_edge { Want::Module } else { Want::Item };
-    match namespaces.resolve(&node, &edge.target, want) {
-        Resolution::InCrate(target) => Ok(BTreeSet::from([namespaces.file_form(target)])),
-        Resolution::External => Ok(BTreeSet::new()),
-        Resolution::Unresolved(reason) => Err(reason),
+            Resolution::InCrate(target) => Resolution::Unresolved(
+                format!(
+                    "glob import of the in-crate item {}#{}; import its names explicitly",
+                    target.module, target.item
+                ),
+                vec![target],
+            ),
+            other => other,
+        },
+        None => namespaces.resolve(
+            &node,
+            &edge.target,
+            if use_edge { Want::Module } else { Want::Item },
+        ),
+    };
+    match resolution {
+        Resolution::InCrate(target) => (BTreeSet::from([namespaces.file_form(target)]), Vec::new()),
+        Resolution::External => (BTreeSet::new(), Vec::new()),
+        Resolution::Unresolved(reason, nearest) => {
+            (nearest.into_iter().map(|target| namespaces.file_form(target)).collect(), vec![reason])
+        }
     }
 }
 
@@ -2030,8 +2038,10 @@ enum Resolution {
     InCrate(ResolvedTarget),
     /// Names nothing in this crate: another crate, the prelude or a local.
     External,
-    /// An in-crate path that names nothing declared.
-    Unresolved(String),
+    /// An in-crate path that names nothing declared: why, and the nearest
+    /// in-crate destinations (the deepest namespace reached, with the
+    /// unresolved rest as its item) so other diagnostics still see the edge.
+    Unresolved(String, Vec<ResolvedTarget>),
 }
 
 /// One namespace: a file module or an inline module in one.
@@ -2146,9 +2156,10 @@ impl Namespaces {
             while index < segments.len() && matches!(segments[index], "self" | "super") {
                 if segments[index] == "super" {
                     if current == "root" {
-                        return Resolution::Unresolved(format!(
-                            "{path} climbs above the crate root"
-                        ));
+                        return Resolution::Unresolved(
+                            format!("{path} climbs above the crate root"),
+                            Vec::new(),
+                        );
                     }
                     current =
                         current.rsplit_once("::").map_or("root", |(parent, _)| parent).to_string();
@@ -2178,9 +2189,13 @@ impl Namespaces {
                     return Resolution::External
                 }
                 None => {
-                    return Resolution::Unresolved(format!(
-                        "{segment} is not declared in {current}"
-                    ))
+                    return Resolution::Unresolved(
+                        format!("{segment} is not declared in {current}"),
+                        vec![ResolvedTarget {
+                            module: current,
+                            item: segments[position..].join("::"),
+                        }],
+                    )
                 }
                 Some(Resolution::InCrate(target)) if target.item == "<module>" => {
                     if last {
@@ -2269,15 +2284,24 @@ impl Namespaces {
                 // Another crate's glob may supply any name; a glob of an
                 // in-crate item fails on its own edge.
                 Resolution::InCrate(_) | Resolution::External => outside = true,
-                Resolution::Unresolved(reason) => {
-                    found.insert(Resolution::Unresolved(reason));
+                unresolved @ Resolution::Unresolved(..) => {
+                    found.insert(unresolved);
                 }
             }
         }
         if found.len() > 1 {
-            return Some(Resolution::Unresolved(format!(
-                "{name} is ambiguous among the glob imports of {node}"
-            )));
+            let candidates = found
+                .into_iter()
+                .flat_map(|resolution| match resolution {
+                    Resolution::InCrate(target) => vec![target],
+                    Resolution::Unresolved(_, nearest) => nearest,
+                    Resolution::External => Vec::new(),
+                })
+                .collect();
+            return Some(Resolution::Unresolved(
+                format!("{name} is ambiguous among the glob imports of {node}"),
+                candidates,
+            ));
         }
         found.into_iter().next().or_else(|| outside.then_some(Resolution::External))
     }
@@ -2617,11 +2641,11 @@ mod tests {
             "super::missing",
         ] {
             assert!(
-                matches!(resolve("search", path), Resolution::Unresolved(_)),
+                matches!(resolve("search", path), Resolution::Unresolved(..)),
                 "{path} must fail closed"
             );
         }
-        assert!(matches!(resolve("root", "super::fused"), Resolution::Unresolved(_)));
+        assert!(matches!(resolve("root", "super::fused"), Resolution::Unresolved(..)));
         // Another crate, the prelude, or a local binding named like a module.
         for path in ["rusqlite::Connection", "Some", "fusion"] {
             assert_eq!(resolve("search", path), Resolution::External, "{path}");

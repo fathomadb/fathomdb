@@ -7,9 +7,9 @@ use syn::parse::{ParseStream, Parser};
 use syn::visit::{self, Visit};
 use syn::{
     Attribute, Block, Expr, ExprCall, ExprField, ExprMethodCall, ExprPath, ExprStruct, FnArg,
-    ImplItem, ImplItemFn, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod, ItemStruct, ItemTrait,
-    ItemType, ItemUse, Local, Macro, Member, Meta, Pat, PatStruct, PatTupleStruct, Type, TypePath,
-    Visibility,
+    ImplItem, ImplItemFn, ItemEnum, ItemExternCrate, ItemFn, ItemImpl, ItemMacro, ItemMod,
+    ItemStruct, ItemTrait, ItemType, ItemUse, Local, Macro, Member, Meta, Pat, PatStruct,
+    PatTupleStruct, Type, TypePath, Visibility,
 };
 
 pub mod config;
@@ -146,6 +146,10 @@ pub struct Analysis {
     /// `inner::Alias`).
     pub type_aliases: BTreeMap<String, TypeAlias>,
     pub unsupported_cfg: BTreeSet<String>,
+    /// `extern crate` declarations by the name they bind. One can rename
+    /// this crate (`extern crate self as x`) or another out of path
+    /// resolution, so the gate fails closed on every one.
+    pub extern_crates: BTreeMap<String, Location>,
     pub macros: BTreeSet<MacroUse>,
     /// Macro invocations whose token body is not an expression list, a
     /// `matches!`-style `expr, pattern` body, or a statement list. Their
@@ -903,6 +907,11 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
             self.module_depth -= 1;
         }
         self.configurations = previous;
+    }
+
+    fn visit_item_extern_crate(&mut self, item: &'ast ItemExternCrate) {
+        let name = item.rename.as_ref().map_or(&item.ident, |(_, rename)| rename);
+        self.analysis.extern_crates.insert(name.to_string(), name.span().into());
     }
 
     fn visit_item_use(&mut self, item: &'ast ItemUse) {
@@ -2175,6 +2184,16 @@ mod tests {
         assert_eq!(
             analysis.unsupported_cfg,
             BTreeSet::from(["feature = \"slice85-unknown\"".to_string()])
+        );
+    }
+
+    #[test]
+    fn extern_crate_declarations_are_recorded_by_bound_name() {
+        let analysis = analyze("extern crate self as renamed; fn f() { extern crate alloc; }")
+            .expect("fixture parses");
+        assert_eq!(
+            analysis.extern_crates.keys().cloned().collect::<BTreeSet<_>>(),
+            BTreeSet::from(["alloc".to_string(), "renamed".to_string()])
         );
     }
 

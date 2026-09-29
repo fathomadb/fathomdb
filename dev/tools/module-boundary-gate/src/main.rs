@@ -113,7 +113,9 @@ fn run() -> Result<(), Vec<String>> {
     let mut policy_errors = space.profile_errors.clone();
     policy_errors.extend(normalize_policy_configurations(&mut policy, &space));
     let modules = discover_modules(&source_root, &space)?;
-    let mut result = evaluate(&source_root, &modules, &policy, &space, report_only);
+    let external_crates = manifest_crate_names(&manifest);
+    let mut result =
+        evaluate(&source_root, &modules, &policy, &space, &external_crates, report_only);
     if !policy_errors.is_empty() {
         let mut errors = policy_errors;
         errors.extend(result.err().unwrap_or_default());
@@ -514,6 +516,7 @@ fn evaluate(
     modules: &BTreeMap<String, ModuleInfo>,
     policy: &Policy,
     space: &ConfigSpace,
+    external_crates: &BTreeSet<String>,
     report_only: bool,
 ) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
@@ -613,6 +616,24 @@ fn evaluate(
     }
 
     let root_aliases = root.map(|module| &module.analysis.import_aliases);
+    // A crate-root alias that resolves to no in-crate item and names no
+    // declared dependency would end every path through it on the alias
+    // itself, severing the item and module graphs.
+    for (name, target) in root_aliases.into_iter().flatten() {
+        let first = target.split("::").next().unwrap_or(target);
+        if external_crates.contains(first)
+            || qualify_alias("root", target, modules)
+                .and_then(|path| resolve_crate_path(&path, modules))
+                .is_some()
+            || root.is_some_and(|root| root.analysis.declared_items.contains(first))
+        {
+            continue;
+        }
+        errors.push(format!(
+            "unresolved crate-root alias {name} -> {target}; a crate-root `use` must name an \
+             in-crate item or a declared dependency"
+        ));
+    }
     let mut merged_edges: BTreeMap<EdgeKey, (ConfigSet, (String, usize, usize, String))> =
         BTreeMap::new();
     let mut actual_local_macros = BTreeSet::new();
@@ -677,6 +698,15 @@ fn evaluate(
             errors.push(format!(
                 "unsupported cfg predicate in {}: {predicate}",
                 relative(source_root, &info.file)
+            ));
+        }
+        for (name, location) in &info.analysis.extern_crates {
+            errors.push(format!(
+                "unsupported extern crate declaration {name} at {}:{}:{}; it can rename this \
+                 crate or another out of the gate's path resolution",
+                relative(source_root, &info.file),
+                location.line,
+                location.column
             ));
         }
         for edge in &info.analysis.edges {
@@ -1842,7 +1872,7 @@ fn chase_step(
         |path: String| rest.as_ref().map_or_else(|| path.clone(), |rest| format!("{path}::{rest}"));
     if let Some(alias) = aliases.and_then(|aliases| aliases.get(head)) {
         let next = qualify_alias(&scoped_module, alias, modules)
-            .and_then(|path| resolve_path(&with_rest(path), modules));
+            .and_then(|path| resolve_crate_path(&with_rest(path), modules));
         return (next.is_none(), next.into_iter().collect());
     }
     let alias_key = if scope.is_empty() { head.to_string() } else { format!("{scope}::{head}") };
@@ -1963,7 +1993,20 @@ fn qualify_alias(
     }
     let first = rest.split("::").next().unwrap_or(rest);
     let child = if base == "root" { first.to_string() } else { format!("{base}::{first}") };
-    modules.contains_key(&child).then_some(joined)
+    (modules.contains_key(&child) || declares_inline_module(&base, first, modules))
+        .then_some(joined)
+}
+
+fn declares_inline_module(
+    module: &str,
+    name: &str,
+    modules: &BTreeMap<String, ModuleInfo>,
+) -> bool {
+    modules.get(module).is_some_and(|info| {
+        info.analysis.modules.iter().any(|declaration| {
+            declaration.inline && declaration.scope.is_empty() && declaration.name == name
+        })
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2027,13 +2070,7 @@ fn direct_edge_targets(
     let first = target.split("::").next().unwrap_or(target);
     // No file module prefixes a path into an inline module of lib.rs; it is
     // a root path whose inline segments `inline_owner` moves into the module.
-    if crate_qualified
-        && modules.get("root").is_some_and(|root| {
-            root.analysis.modules.iter().any(|declaration| {
-                declaration.inline && declaration.scope.is_empty() && declaration.name == first
-            })
-        })
-    {
+    if crate_qualified && declares_inline_module("root", first, modules) {
         return BTreeSet::from([ResolvedTarget {
             module: "root".to_string(),
             item: target.to_string(),
@@ -2041,7 +2078,7 @@ fn direct_edge_targets(
     }
     if let Some(root_target) = root_aliases.and_then(|aliases| aliases.get(first)) {
         let root_target = root_target.strip_prefix("crate::").unwrap_or(root_target);
-        if let Some(owner) = resolve_path(root_target, modules) {
+        if let Some(owner) = resolve_crate_path(root_target, modules) {
             return BTreeSet::from([owner]);
         }
     }
@@ -2077,7 +2114,7 @@ fn direct_edge_targets(
                     {
                         let root_target =
                             root_target.strip_prefix("crate::").unwrap_or(root_target);
-                        if let Some(owner) = resolve_path(root_target, modules) {
+                        if let Some(owner) = resolve_crate_path(root_target, modules) {
                             candidates.insert(owner);
                         }
                     } else if modules
@@ -2177,6 +2214,20 @@ fn resolve_type(ty: &str, modules: &BTreeMap<String, ModuleInfo>) -> Option<Reso
         (!ty.contains("::")
             && modules.get("root").is_some_and(|root| root.analysis.declared_items.contains(ty)))
         .then(|| ResolvedTarget { module: "root".to_string(), item: ty.to_string() })
+    })
+}
+
+/// Resolves a crate-relative path like `resolve_path`, and also a path into
+/// an inline module of lib.rs, which no file module prefixes: it stays a root
+/// path whose inline segments `inline_owner` moves into the module.
+fn resolve_crate_path(
+    target: &str,
+    modules: &BTreeMap<String, ModuleInfo>,
+) -> Option<ResolvedTarget> {
+    resolve_path(target, modules).or_else(|| {
+        let first = target.split("::").next().unwrap_or(target);
+        declares_inline_module("root", first, modules)
+            .then(|| ResolvedTarget { module: "root".to_string(), item: target.to_string() })
     })
 }
 
@@ -2315,6 +2366,50 @@ fn strongly_connected(
     components
 }
 
+/// The crate names a path in the engine may start with to leave the crate:
+/// the standard library crates and every dependency the manifest declares,
+/// in any dependency table.
+fn manifest_crate_names(manifest: &str) -> BTreeSet<String> {
+    let mut names = ["std", "core", "alloc", "proc_macro", "test"]
+        .map(String::from)
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+    let mut in_dependencies = false;
+    // Open `{`/`[` of a multi-line value, whose lines carry no crate key.
+    let mut depth = 0_i32;
+    for line in manifest.lines().map(str::trim) {
+        if depth == 0 {
+            if let Some(header) = line.strip_prefix('[') {
+                let header = header.trim_start_matches('[').trim_end_matches(']');
+                in_dependencies = header.ends_with("dependencies");
+                if let Some((_, name)) =
+                    header.rsplit_once('.').filter(|(parent, _)| parent.ends_with("dependencies"))
+                {
+                    names.insert(name.trim_matches('"').replace('-', "_"));
+                }
+                continue;
+            }
+            if in_dependencies && !line.is_empty() && !line.starts_with('#') {
+                let key = line.split(['=', '.']).next().unwrap_or(line).trim().trim_matches('"');
+                if !key.is_empty() {
+                    names.insert(key.replace('-', "_"));
+                }
+            }
+        }
+        let value = line.split_once('=').map_or(line, |(_, value)| value);
+        let value = if depth == 0 { value } else { line };
+        for character in value.chars() {
+            match character {
+                '{' | '[' => depth += 1,
+                '}' | ']' => depth -= 1,
+                _ => {}
+            }
+        }
+        depth = depth.max(0);
+    }
+    names
+}
+
 fn relative(root: &Path, file: &Path) -> String {
     file.strip_prefix(root).unwrap_or(file).display().to_string()
 }
@@ -2339,6 +2434,24 @@ mod tests {
         fs::remove_file(path).expect("remove policy fixture");
         assert!(errors.iter().any(|error| error.contains("duplicates Engine field path")));
         assert!(errors.iter().any(|error| error.contains("duplicates owner assertion Item")));
+    }
+
+    #[test]
+    fn manifest_crate_names_cover_every_dependency_table() {
+        let names = manifest_crate_names(
+            "[package]\nname = \"fathomdb-engine\"\n[dependencies]\nfathomdb-schema.workspace = true\n\
+             rusqlite = { version = \"0.40\",\n    features = [\"bundled\"] }\n[features]\nslice = []\n\
+             [target.'cfg(unix)'.dependencies]\nlibc = \"0.2\"\n[dev-dependencies]\ntempfile = \"3\"\n\
+             [dependencies.sha2]\nversion = \"0.11\"\n",
+        );
+        for name in
+            ["std", "core", "alloc", "fathomdb_schema", "rusqlite", "libc", "tempfile", "sha2"]
+        {
+            assert!(names.contains(name), "{name} missing from {names:?}");
+        }
+        for name in ["fathomdb_engine", "slice", "version", "name", "features"] {
+            assert!(!names.contains(name), "{name} is not a dependency: {names:?}");
+        }
     }
 
     #[test]

@@ -554,7 +554,7 @@ fn evaluate(
             }
             if governed
                 && matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport | EdgeKind::Type)
-                && root_reexport_indirection(&edge.target, root_aliases)
+                && root_reexport_indirection(&source_module, &edge.target, root_aliases)
             {
                 errors.push(format!(
                     "governed root re-export indirection at {}:{}:{} item={}; import the semantic owner",
@@ -941,10 +941,13 @@ fn direct_reader_request_variant(target: &str) -> bool {
 }
 
 fn root_reexport_indirection(
+    module: &str,
     target: &str,
     root_aliases: Option<&BTreeMap<String, String>>,
 ) -> bool {
-    let Some(rest) = target.strip_prefix("crate::") else {
+    // `super::X` from a top-level module names the root just as `crate::X`.
+    let relative = qualify_relative(module, target);
+    let Some(rest) = target.strip_prefix("crate::").or(relative.as_deref()) else {
         return false;
     };
     let first = rest.split("::").next().unwrap_or(rest);
@@ -1289,68 +1292,153 @@ fn edge_targets(
     if matches!(edge.kind, EdgeKind::FieldAccess | EdgeKind::EngineMethod) {
         return targets;
     }
-    targets.into_iter().map(|target| chase_reexports(target, modules)).collect()
+    targets.into_iter().flat_map(|target| chase_reexports(target, modules)).collect()
 }
 
 /// Follows `use` aliases (at any visibility, since descendants may name a
-/// parent's private import) and single-candidate glob re-exports from the
-/// module a path resolved to, until the path reaches its defining module.
-/// Chains that leave the crate stop at the last in-crate hop.
+/// parent's private import), `use` aliases inside inline modules, `type`
+/// aliases and single-candidate glob re-exports from the module a path
+/// resolved to, until the path reaches its defining module. A `use` alias is
+/// replaced by what it names; a `type` alias is kept and every in-crate path
+/// its definition names is added. Chains that leave the crate stop at the
+/// last in-crate hop.
 fn chase_reexports(
     start: ResolvedTarget,
     modules: &BTreeMap<String, ModuleInfo>,
-) -> ResolvedTarget {
-    let mut current = start;
+) -> BTreeSet<ResolvedTarget> {
+    let mut results = BTreeSet::new();
+    let mut pending = vec![start.clone()];
     let mut seen = BTreeSet::new();
-    while seen.insert(current.clone()) {
-        if current.item == "<module>" {
-            break;
+    while let Some(current) = pending.pop() {
+        if !seen.insert(current.clone()) {
+            continue;
         }
-        let (head, rest) = current
-            .item
-            .split_once("::")
-            .map_or((current.item.as_str(), None), |(head, rest)| (head, Some(rest)));
-        let Some(info) = modules.get(&current.module) else { break };
-        let next = if let Some(alias) = info.analysis.import_aliases.get(head) {
-            qualify_alias(&current.module, alias, modules)
-        } else if info.analysis.declared_items.contains(head) {
-            None
-        } else {
-            let candidates = info
-                .analysis
-                .edges
-                .iter()
-                .filter(|edge| {
-                    matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport)
-                        && edge.source_scope.is_empty()
-                        && edge.target.ends_with("::*")
-                })
-                .filter_map(|glob| {
-                    let namespace = qualify_glob_namespace(
-                        &current.module,
-                        glob.target.trim_end_matches("::*"),
-                    );
-                    modules
-                        .get(&namespace)
-                        .filter(|owner| {
-                            owner.analysis.declared_items.contains(head)
-                                || owner.analysis.import_aliases.contains_key(head)
-                        })
-                        .map(|_| format!("{namespace}::{head}"))
-                })
-                .collect::<BTreeSet<_>>();
-            if candidates.len() == 1 {
-                candidates.into_iter().next()
-            } else {
-                None
-            }
-        };
-        let Some(path) = next else { break };
-        let full = rest.map_or_else(|| path.clone(), |rest| format!("{path}::{rest}"));
-        let Some(resolved) = resolve_path(&full, modules) else { break };
-        current = resolved;
+        let (keep, next) = chase_step(&current, modules);
+        if keep || next.is_empty() {
+            results.insert(current);
+        }
+        pending.extend(next);
     }
-    current
+    if results.is_empty() {
+        results.insert(start);
+    }
+    results
+}
+
+/// One resolution hop: whether `current` itself stays a target, and the
+/// targets it leads to.
+fn chase_step(
+    current: &ResolvedTarget,
+    modules: &BTreeMap<String, ModuleInfo>,
+) -> (bool, Vec<ResolvedTarget>) {
+    if current.item == "<module>" {
+        return (true, Vec::new());
+    }
+    let Some(info) = modules.get(&current.module) else { return (true, Vec::new()) };
+    let segments = current.item.split("::").collect::<Vec<_>>();
+    let inline_scopes = info
+        .analysis
+        .modules
+        .iter()
+        .filter(|declaration| declaration.inline)
+        .map(|declaration| {
+            if declaration.scope.is_empty() {
+                declaration.name.clone()
+            } else {
+                format!("{}::{}", declaration.scope, declaration.name)
+            }
+        })
+        .collect::<BTreeSet<_>>();
+    let depth = (0..segments.len())
+        .rev()
+        .find(|end| *end == 0 || inline_scopes.contains(&segments[..*end].join("::")))
+        .unwrap_or(0);
+    let scope = segments[..depth].join("::");
+    let head = segments[depth];
+    let rest = (depth + 1 < segments.len()).then(|| segments[depth + 1..].join("::"));
+    let scoped_module = scoped_module(&current.module, &scope);
+    let aliases = if scope.is_empty() {
+        Some(&info.analysis.import_aliases)
+    } else {
+        info.analysis.scoped_aliases.get(&scope)
+    };
+    let with_rest =
+        |path: String| rest.as_ref().map_or_else(|| path.clone(), |rest| format!("{path}::{rest}"));
+    if let Some(alias) = aliases.and_then(|aliases| aliases.get(head)) {
+        let next = qualify_alias(&scoped_module, alias, modules)
+            .and_then(|path| resolve_path(&with_rest(path), modules));
+        return (next.is_none(), next.into_iter().collect());
+    }
+    let alias_key = if scope.is_empty() { head.to_string() } else { format!("{scope}::{head}") };
+    if let Some(alias) = info.analysis.type_aliases.get(&alias_key) {
+        let qualify = |path: &str| qualify_in_scope(&current.module, &scope, info, path, modules);
+        let mut next = Vec::new();
+        if let Some(primary) = &alias.primary {
+            next.extend(qualify(primary).and_then(|path| resolve_path(&with_rest(path), modules)));
+        }
+        for path in alias.mentioned.iter().filter(|path| Some(*path) != alias.primary.as_ref()) {
+            next.extend(qualify(path).and_then(|path| resolve_path(&path, modules)));
+        }
+        return (true, next);
+    }
+    if info.analysis.declared_items.contains(head) {
+        return (true, Vec::new());
+    }
+    let candidates = info
+        .analysis
+        .edges
+        .iter()
+        .filter(|edge| {
+            matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport)
+                && edge.source_scope == scope
+                && edge.target.ends_with("::*")
+        })
+        .filter_map(|glob| {
+            let namespace =
+                qualify_glob_namespace(&scoped_module, glob.target.trim_end_matches("::*"));
+            modules
+                .get(&namespace)
+                .filter(|owner| {
+                    owner.analysis.declared_items.contains(head)
+                        || owner.analysis.import_aliases.contains_key(head)
+                })
+                .map(|_| format!("{namespace}::{head}"))
+        })
+        .collect::<BTreeSet<_>>();
+    if candidates.len() != 1 {
+        return (true, Vec::new());
+    }
+    let next =
+        candidates.into_iter().next().and_then(|path| resolve_path(&with_rest(path), modules));
+    (next.is_none(), next.into_iter().collect())
+}
+
+/// Qualifies a path written in a `type` definition inside `module` (and its
+/// inline `scope`) to a crate-relative path, or `None` for another crate.
+fn qualify_in_scope(
+    module: &str,
+    scope: &str,
+    info: &ModuleInfo,
+    path: &str,
+    modules: &BTreeMap<String, ModuleInfo>,
+) -> Option<String> {
+    let scoped = scoped_module(module, scope);
+    let (head, rest) =
+        path.split_once("::").map_or((path, None), |(head, rest)| (head, Some(rest)));
+    if matches!(head, "crate" | "self" | "super") {
+        return qualify_alias(&scoped, path, modules);
+    }
+    let alias = if scope.is_empty() { None } else { info.analysis.scoped_aliases.get(scope) }
+        .and_then(|aliases| aliases.get(head))
+        .or_else(|| info.analysis.import_aliases.get(head));
+    if let Some(alias) = alias {
+        let full = rest.map_or_else(|| alias.clone(), |rest| format!("{alias}::{rest}"));
+        return qualify_alias(&scoped, &full, modules);
+    }
+    if info.analysis.declared_items.contains(head) {
+        return Some(if scoped == "root" { path.to_string() } else { format!("{scoped}::{path}") });
+    }
+    qualify_alias(&scoped, path, modules)
 }
 
 /// Qualifies a `use` path written inside `module` to a crate-relative path
@@ -1432,12 +1520,15 @@ fn direct_edge_targets(
             method_owners,
         );
     }
+    let relative = qualify_relative(module, &edge.target);
     let mut target = edge.target.as_str();
-    let crate_qualified = target.starts_with("crate::");
+    let crate_qualified = target.starts_with("crate::") || relative.is_some();
     if let Some(rest) = target.strip_prefix("crate::") {
         target = rest;
-    } else if let Some(qualified) = qualify_relative(module, target) {
-        return resolve_path(&qualified, modules).into_iter().collect();
+    } else if let Some(qualified) = &relative {
+        // A relative path that reaches the crate root resolves like
+        // `crate::`: through root re-exports and root items.
+        target = qualified;
     }
     if let Some(owner) = resolve_path(target, modules) {
         return BTreeSet::from([owner]);

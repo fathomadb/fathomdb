@@ -90,6 +90,16 @@ pub struct InherentMethod {
     pub location: Location,
 }
 
+/// The paths a `type` alias's definition names, as written.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct TypeAlias {
+    /// The aliased path itself when the definition is a plain path.
+    pub primary: Option<String>,
+    /// Every type and trait path in the definition, generic parameters of
+    /// the alias excluded.
+    pub mentioned: BTreeSet<String>,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Analysis {
     pub modules: BTreeSet<ModuleDecl>,
@@ -102,6 +112,12 @@ pub struct Analysis {
     pub declared_items: BTreeSet<String>,
     pub local_functions: BTreeMap<String, Location>,
     pub import_aliases: BTreeMap<String, String>,
+    /// `use` aliases declared inside inline modules, keyed by the inline
+    /// scope (`tests`, `outer::inner`).
+    pub scoped_aliases: BTreeMap<String, BTreeMap<String, String>>,
+    /// `type` aliases keyed by scope-qualified name (`Alias`,
+    /// `inner::Alias`).
+    pub type_aliases: BTreeMap<String, TypeAlias>,
     pub unsupported_cfg: BTreeSet<String>,
     pub macros: BTreeSet<MacroUse>,
     /// Macro invocations whose token body is not an expression list, a
@@ -442,9 +458,13 @@ impl<'s> Analyzer<'s> {
     }
 
     fn resolve_aliases(&mut self) {
-        let aliases = self.analysis.import_aliases.clone();
+        let top_level = &self.analysis.import_aliases;
         let mut resolved = BTreeSet::new();
         for edge in &self.analysis.edges {
+            // An inline module sees its own imports first; the file's
+            // top-level imports approximate its usual `use super::*`.
+            let scoped = self.analysis.scoped_aliases.get(&edge.source_scope);
+            let aliases = AliasScope { scoped, top_level };
             if let Some((method, ty)) = edge.target.split_once(">:") {
                 let (head, rest) =
                     ty.split_once("::").map_or((ty, None), |(head, rest)| (head, Some(rest)));
@@ -478,6 +498,17 @@ impl<'s> Analyzer<'s> {
             }
         }
         self.analysis.edges = resolved;
+    }
+}
+
+struct AliasScope<'a> {
+    scoped: Option<&'a BTreeMap<String, String>>,
+    top_level: &'a BTreeMap<String, String>,
+}
+
+impl AliasScope<'_> {
+    fn get(&self, name: &str) -> Option<&String> {
+        self.scoped.and_then(|aliases| aliases.get(name)).or_else(|| self.top_level.get(name))
     }
 }
 
@@ -598,11 +629,10 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         } else {
             EdgeKind::Import
         };
-        let mut nested_aliases = BTreeMap::new();
         let aliases = if self.module_depth == 0 {
             &mut self.analysis.import_aliases
         } else {
-            &mut nested_aliases
+            self.analysis.scoped_aliases.entry(self.module_stack.join("::")).or_default()
         };
         let mut use_edges = BTreeSet::new();
         collect_use_tree(
@@ -708,6 +738,33 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
     fn visit_item_type(&mut self, item: &'ast ItemType) {
         let previous = self.enter_attrs(&item.attrs);
         self.declared(item.ident.to_string());
+        let generics = item
+            .generics
+            .params
+            .iter()
+            .filter_map(|parameter| match parameter {
+                syn::GenericParam::Type(parameter) => Some(parameter.ident.to_string()),
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>();
+        let mut collector = PathCollector::default();
+        collector.visit_type(&item.ty);
+        let scope = self.module_stack.join("::");
+        let key = if scope.is_empty() {
+            item.ident.to_string()
+        } else {
+            format!("{scope}::{}", item.ident)
+        };
+        let named = |path: &String| {
+            !generics.contains(path.split("::").next().unwrap_or(path)) && path != "Self"
+        };
+        self.analysis.type_aliases.insert(
+            key,
+            TypeAlias {
+                primary: plain_type_path(&item.ty).filter(named),
+                mentioned: collector.paths.into_iter().filter(named).collect(),
+            },
+        );
         self.item_stack.push(item.ident.to_string());
         visit::visit_item_type(self, item);
         self.item_stack.pop();
@@ -941,6 +998,61 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
             }
         }
         visit::visit_expr_path(self, expression);
+    }
+}
+
+/// Collects the type and trait paths a type names, as written.
+#[derive(Default)]
+struct PathCollector {
+    paths: BTreeSet<String>,
+}
+
+impl<'ast> Visit<'ast> for PathCollector {
+    fn visit_type_path(&mut self, ty: &'ast TypePath) {
+        let segments =
+            ty.path.segments.iter().map(|segment| segment.ident.to_string()).collect::<Vec<_>>();
+        match &ty.qself {
+            Some(qself) if qself.position > 0 => {
+                self.paths.insert(segments[..qself.position].join("::"));
+            }
+            Some(_) => {}
+            None => {
+                self.paths.insert(segments.join("::"));
+            }
+        }
+        visit::visit_type_path(self, ty);
+    }
+
+    fn visit_trait_bound(&mut self, bound: &'ast syn::TraitBound) {
+        self.paths.insert(
+            bound
+                .path
+                .segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::"),
+        );
+        visit::visit_trait_bound(self, bound);
+    }
+}
+
+/// The path of a type written as a plain path (through references,
+/// parentheses and groups), generic arguments dropped.
+fn plain_type_path(ty: &Type) -> Option<String> {
+    match ty {
+        Type::Reference(reference) => plain_type_path(&reference.elem),
+        Type::Paren(paren) => plain_type_path(&paren.elem),
+        Type::Group(group) => plain_type_path(&group.elem),
+        Type::Path(path) if path.qself.is_none() => Some(
+            path.path
+                .segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::"),
+        ),
+        _ => None,
     }
 }
 

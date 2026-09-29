@@ -730,9 +730,12 @@ impl<'s> Analyzer<'s> {
                 .target
                 .split_once("::")
                 .map_or((edge.target.as_str(), None), |(head, rest)| (head, Some(rest)));
-            if self.analysis.local_functions.contains_key(first) {
+            // An inline module's own import names what it imports even when
+            // the file also defines a function of that name elsewhere.
+            let scoped_alias = scoped.and_then(|aliases| aliases.get(first));
+            if scoped_alias.is_none() && self.analysis.local_functions.contains_key(first) {
                 resolved.insert(edge.clone());
-            } else if let Some(owner) = aliases.get(first) {
+            } else if let Some(owner) = scoped_alias.or_else(|| aliases.get(first)) {
                 let target = tail.map_or_else(|| owner.clone(), |rest| format!("{owner}::{rest}"));
                 resolved.insert(Edge {
                     kind: edge.kind.clone(),

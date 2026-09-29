@@ -1127,6 +1127,15 @@ mod tests {
     }
 
     #[test]
+    fn local_macro_definition_identity_changes_with_its_body() {
+        let clean = analyze_source("macro_rules! m { () => {{ 1usize }}; }")
+            .expect("clean fixture parses");
+        let changed = analyze_source("macro_rules! m { () => {{ 2usize }}; }")
+            .expect("changed fixture parses");
+        assert_ne!(clean.macros, changed.macros);
+    }
+
+    #[test]
     fn root_glob_shadowing_expires_at_the_end_of_its_lexical_block() {
         let analysis = analyze_source(
             "use super::*; fn scope_escape() { \

@@ -53,6 +53,7 @@ fi
 mkdir -p "$fixture/src/rust/crates/fathomdb-engine" "$fixture/dev/tools"
 cp -R "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" "$fixture/src/rust/crates/fathomdb-engine/"
 cp "$REPO_ROOT/dev/tools/module-boundary-policy.txt" "$fixture/dev/tools/"
+cp "$fixture/dev/tools/module-boundary-policy.txt" "$fixture/module-boundary-policy.clean"
 
 expect_failure() {
   local label="$1" expected="$2"
@@ -187,6 +188,19 @@ printf '\nmacro_rules! slice85_admitted_hidden_boundary { () => {{ let _ = crate
 expect_failure admitted-local-macro 'unreviewed local macro definition source=errors' \
   "$GATE" --root "$fixture"
 cp "$fixture/errors.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/errors.rs"
+
+cp "$fixture/src/rust/crates/fathomdb-engine/src/identity.rs" "$fixture/identity.rs.clean"
+sed -i '/^                let value = value.into();$/a\                let _ = crate::reader_pool::ReaderRequest::Shutdown;' \
+  "$fixture/src/rust/crates/fathomdb-engine/src/identity.rs"
+expect_failure allowlisted-macro-body 'local macro definition fingerprint mismatch source=identity' \
+  "$GATE" --root "$fixture"
+cp "$fixture/identity.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/identity.rs"
+
+printf 'local-macro errors slice85_missing deadbeef\n' \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure stale-local-macro 'stale local macro policy source=errors macro=slice85_missing' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
 
 printf '\n#[cfg(feature = "slice85-unknown")] use crate::reader_pool::ReaderRequest;\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"

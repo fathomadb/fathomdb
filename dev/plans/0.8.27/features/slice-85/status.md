@@ -79,7 +79,9 @@ extracted for reachability but not frozen. It extracts dependencies:
   Trait` and supertrait lists;
 - from string literals in serde derive helper attributes: `serialize_with`,
   `deserialize_with`, `with`, `skip_serializing_if`, `default`, `getter`
-  and `crate` as paths; `from`, `try_from`, `into` and `remote` as types;
+  and `crate` as expression paths, including qualified-self
+  (`<T as Trait>::f`, `<T>::f`); `from`, `try_from`, `into` and `remote` as
+  types;
   `bound` (and `bound(serialize = …, deserialize = …)`) as `where`
   predicates. These are read on containers, fields and variants, and inside
   `cfg_attr`, whose condition narrows their configurations;
@@ -115,9 +117,14 @@ item-specific policy entry admits it:
 - a frozen-scope edge active in no configuration;
 - an unparsed macro body in any module (the five reviewed `proptest!`
   bodies are admitted);
-- `include!` (also as `std::include!` or `core::include!`) in any module,
-  with no exception: the included source is never parsed.
-  `include_str!` and `include_bytes!` are data;
+- in any module, with no exception, a serde path-key value that is not an
+  expression path;
+- in any module, with no exception, a macro invocation whose last path
+  segment is `include` (`include!`, `std::include!`, `core::include!`,
+  `std::prelude::v1::include!`, …) and any `use` that imports an item
+  named `include`, renamed or not, alone or in a group: the included source
+  is never parsed, and a renamed import would hide the builtin.
+  `include_str!` and `include_bytes!` are data, also when renamed;
 - an untyped dot call in any module whose name is a governed inherent method
   of another module. The 233 receiver entries name the receiver expression
   and its type: 128 `external-receiver` entries on types outside the crate,
@@ -138,12 +145,13 @@ The grammar remains syntactic. Examples of what it does not see:
 
 Warm runtime and peak RSS of `scripts/check-module-boundaries.sh` with a
 cached binary (host: 24-core x86_64, `/usr/bin/time -v`, three runs after
-FIX-3): 2.13 s / 42,740 KB, 2.12 s / 42,800 KB, 2.14 s / 42,900 KB (FIX-2:
-2.03–2.05 s / 40.4–40.7 MB; FIX-1: 1.64–1.67 s / 34.8–35.1 MB). The gate reads only the engine sources, its
+FIX-4): 2.11 s / 43,728 KB, 2.13 s / 43,428 KB, 2.12 s / 43,044 KB (FIX-3:
+2.12–2.14 s / 42.7–42.9 MB; FIX-2: 2.03–2.05 s / 40.4–40.7 MB; FIX-1:
+1.64–1.67 s / 34.8–35.1 MB). The gate reads only the engine sources, its
 manifest and the policy; it performs no whole-workspace indexing. The gate
-crate has 29 library and 2 binary unit tests, and
-`scripts/tests/test_module_boundary_gate.sh` runs 152 production mutation
-assertions (147 negative, 5 positive).
+crate has 30 library and 2 binary unit tests, and
+`scripts/tests/test_module_boundary_gate.sh` runs 159 production mutation
+assertions (153 negative, 6 positive).
 
 ## Acceptance
 

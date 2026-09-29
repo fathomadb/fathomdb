@@ -262,3 +262,46 @@ item-level, governed-module or module-level cycle in any of the 248
 configurations. The edge inventory stays at 3829 lines, and 13 of them gain
 `profile:python-dev`. `inherent` 82, `module-cycle` 6 and `module-scc` 34
 are unchanged. No engine source changed in FIX-3.
+
+## FIX-4 (design review cycle 4)
+
+Design review cycle 4 of the FIX-3 head `06a3f712` found two bypasses of
+the D-23 fixes (D-28 and D-29, both P2). FIX-4 ran on branch
+`slice-85-fix` from that head and touched only the gate, its mutation
+script and these records. The RED commit was run against the unchanged
+gate with the same scratch harness as FIX-2 and FIX-3 (`expect_*` print
+instead of exiting). All six new negative mutants passed the gate, so all
+six were RED. The new positive control and every pre-existing mutant
+stayed GREEN. The new lib unit test failed. GREEN is the unmodified
+`bash scripts/tests/test_module_boundary_gate.sh` (exit 0), plus
+`scripts/check-module-boundaries.sh` and the gate crate's `cargo test`.
+
+No mutant was removed and no asserted diagnostic was weakened.
+
+| Finding | RED (commit: failing mutants) | GREEN (fix commit) |
+| --- | --- | --- |
+| D-28 renamed or re-pathed `include!` | `51d5b3fd`: `renamed-include-import` (`use core::include as s85_inc; s85_inc!(…)`), `grouped-include-import` (`use std::{include as s85_inc};`), `prelude-path-include` (`std::prelude::v1::include!(…)` in an expression). Each is in graph_expand::codec, with an `.inc` file naming `crate::search::…`, and each passed the gate against the unmodified policy. Control `renamed-include-str-is-data` passed before and after. | `be4890c3` |
+| D-29 serde qualified-self path | `51d5b3fd`: `serde-qualified-self-trait` (`serialize_with = "<crate::search::S85K as crate::search::S85T>::ser"` in graph_expand::codec), `serde-qualified-self-inherent` (`skip_serializing_if = "<crate::search::S85K>::s85skip"`, with its inherent line), `serde-unparsable-path` (`serialize_with = "crate::search::"`) gate passed; unit test `serde_qualified_self_string_paths_are_edges` failed | `be4890c3` |
+
+What each fix does:
+
+- **D-28.** A macro invocation fails as `unreviewed include …` when the last
+  segment of its path is `include`, whatever the prefix. A `use` leaf
+  (simple, renamed or grouped, private or re-export) that imports an item
+  named `include` fails as `unreviewed include import …`, in every module.
+  No exception directive exists. The name match also covers a hypothetical
+  in-crate item named `include`; the engine has none. `include_str!` and
+  `include_bytes!` stay data, also when imported under another name.
+- **D-29.** The serde path keys (`serialize_with`, `deserialize_with`,
+  `with`, `skip_serializing_if`, `default`, `getter`, `crate`) are parsed as
+  `syn::ExprPath`, which is how serde_derive parses them. With a qualified
+  self, the self type is visited as a type and the trait path goes through
+  `record_qualified_self_path`, which gives the same edges as a
+  qualified-self call in code. A value that is not an expression path fails
+  as `unparsable serde path …`.
+
+Surfaced by the fix: no new edge, cycle or forbidden dependency. The
+`--report` inventories are set-identical to the frozen policy (`edge` 3829,
+`inherent` 82, `module-cycle` 6, `module-scc` 34, `external-receiver` 128,
+`typed-receiver` 105, `unparsed-macro` 5), so the policy was not
+regenerated. No engine source changed in FIX-4.

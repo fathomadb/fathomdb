@@ -63,6 +63,12 @@ pub struct Edge {
     pub source_item: String,
     pub location: Location,
     pub configurations: ConfigSet,
+    /// For a dot call, the receiver expression's tokens with whitespace
+    /// removed; it identifies the call site of a reviewed exception.
+    pub receiver: Option<String>,
+    /// For a dot call whose receiver was typed by `let x = Type::f(..)`,
+    /// the associated function `f`; the type holds only if `f` returns it.
+    pub constructor: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -87,6 +93,8 @@ pub struct ModuleDecl {
 pub struct InherentMethod {
     pub owner: String,
     pub method: String,
+    /// Inline module scope of the `impl` block (empty at file level).
+    pub scope: String,
     pub location: Location,
 }
 
@@ -109,6 +117,12 @@ pub struct Analysis {
     /// Engine method name to the configurations in which this file defines it.
     pub engine_methods: BTreeMap<String, ConfigSet>,
     pub inherent_methods: BTreeSet<InherentMethod>,
+    /// Every method of every `impl` block (inherent or trait, any
+    /// visibility), keyed by the implementing type's last identifier.
+    pub impl_methods: BTreeSet<(String, String)>,
+    /// Associated functions whose declared return type is `Self` or the
+    /// implementing type itself: the only calls `let x = Type::f(..)` types.
+    pub constructors: BTreeSet<(String, String)>,
     pub declared_items: BTreeSet<String>,
     pub local_functions: BTreeMap<String, Location>,
     pub import_aliases: BTreeMap<String, String>,
@@ -156,6 +170,9 @@ struct Analyzer<'s> {
     struct_fields: BTreeMap<(String, String), String>,
     /// Module scopes that have already imported through `super::`.
     super_import_scopes: BTreeSet<String>,
+    /// Generic type parameters in scope; a binding typed by one has no
+    /// syntactic owner.
+    generic_scopes: Vec<BTreeSet<String>>,
 }
 
 impl<'s> Analyzer<'s> {
@@ -173,7 +190,28 @@ impl<'s> Analyzer<'s> {
             receiver_types: Vec::new(),
             struct_fields: BTreeMap::new(),
             super_import_scopes: BTreeSet::new(),
+            generic_scopes: Vec::new(),
         }
+    }
+
+    fn push_generics(&mut self, generics: &syn::Generics) {
+        self.generic_scopes.push(
+            generics
+                .params
+                .iter()
+                .filter_map(|parameter| match parameter {
+                    syn::GenericParam::Type(parameter) => Some(parameter.ident.to_string()),
+                    _ => None,
+                })
+                .collect(),
+        );
+    }
+
+    /// A receiver type is usable only when it names a concrete type, not a
+    /// generic parameter in scope.
+    fn concrete_type(&self, ty: String) -> Option<String> {
+        let head = ty.split("::").next().unwrap_or(&ty).split("=>").next().unwrap_or(&ty);
+        (!self.generic_scopes.iter().any(|scope| scope.contains(head))).then_some(ty)
     }
 
     fn edge(&mut self, kind: EdgeKind, target: impl Into<String>, span: Span) {
@@ -184,6 +222,8 @@ impl<'s> Analyzer<'s> {
             source_item: self.item_stack.last().cloned().unwrap_or_else(|| "<module>".to_string()),
             location: span.into(),
             configurations: self.configurations,
+            receiver: None,
+            constructor: None,
         });
     }
 
@@ -215,8 +255,11 @@ impl<'s> Analyzer<'s> {
         // Typed parameters are recorded when their patterns are visited.
         let mut types = BTreeMap::new();
         if inputs.iter().any(|input| matches!(input, FnArg::Receiver(_))) {
-            if let Some(owner) = self_type.filter(|owner| *owner != "Engine") {
-                types.insert("self".to_string(), owner.to_string());
+            if let Some(owner) = self_type
+                .filter(|owner| *owner != "Engine")
+                .and_then(|owner| self.concrete_type(owner.to_string()))
+            {
+                types.insert("self".to_string(), owner);
             }
         }
         self.push_scope(function_bindings(inputs), types);
@@ -492,6 +535,8 @@ impl<'s> Analyzer<'s> {
                     source_item: edge.source_item.clone(),
                     location: edge.location,
                     configurations: edge.configurations,
+                    receiver: edge.receiver.clone(),
+                    constructor: edge.constructor.clone(),
                 });
             } else {
                 resolved.insert(edge.clone());
@@ -552,9 +597,8 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         }
         self.visit_pat(&local.pat);
         if let (Pat::Ident(binding), Some(init)) = (&local.pat, &local.init) {
-            if let (Some(ty), Some(types)) =
-                (constructed_type(&init.expr), self.receiver_types.last_mut())
-            {
+            let constructed = constructed_type(&init.expr).and_then(|ty| self.concrete_type(ty));
+            if let (Some(ty), Some(types)) = (constructed, self.receiver_types.last_mut()) {
                 types.insert(binding.ident.to_string(), ty);
             }
         }
@@ -573,9 +617,10 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
 
     fn visit_pat_type(&mut self, pattern: &'ast syn::PatType) {
         visit::visit_pat_type(self, pattern);
-        if let (Pat::Ident(binding), Some(ty)) =
-            (pattern.pat.as_ref(), type_path_string(&pattern.ty))
-        {
+        if let (Pat::Ident(binding), Some(ty)) = (
+            pattern.pat.as_ref(),
+            type_path_string(&pattern.ty).and_then(|ty| self.concrete_type(ty)),
+        ) {
             if let Some(types) = self.receiver_types.last_mut() {
                 types.insert(binding.ident.to_string(), ty);
             }
@@ -719,7 +764,13 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         let previous = self.enter_attrs(&item.attrs);
         self.declared(item.ident.to_string());
         self.item_stack.push(item.ident.to_string());
+        self.push_generics(&item.generics);
+        // `Self` in a trait body is the implementing type, never concrete.
+        if let Some(scope) = self.generic_scopes.last_mut() {
+            scope.insert("Self".to_string());
+        }
         visit::visit_item_trait(self, item);
+        self.generic_scopes.pop();
         self.item_stack.pop();
         self.configurations = previous;
     }
@@ -728,9 +779,11 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         let previous = self.enter_attrs(&item.attrs);
         let owner = self.item_stack.last().cloned().unwrap_or_default();
         self.item_stack.push(format!("{owner}::{}", item.sig.ident));
+        self.push_generics(&item.sig.generics);
         self.enter_function(&item.sig.inputs, None);
         visit::visit_trait_item_fn(self, item);
         self.pop_scope();
+        self.generic_scopes.pop();
         self.item_stack.pop();
         self.configurations = previous;
     }
@@ -777,9 +830,11 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         self.declared(name.clone());
         self.analysis.local_functions.insert(name.clone(), item.sig.ident.span().into());
         self.item_stack.push(name);
+        self.push_generics(&item.sig.generics);
         self.enter_function(&item.sig.inputs, None);
         visit::visit_item_fn(self, item);
         self.pop_scope();
+        self.generic_scopes.pop();
         self.item_stack.pop();
         self.configurations = previous;
     }
@@ -809,6 +864,7 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
                             self.analysis.inherent_methods.insert(InherentMethod {
                                 owner: owner.clone(),
                                 method: method.sig.ident.to_string(),
+                                scope: self.module_stack.join("::"),
                                 location: method.sig.ident.span().into(),
                             });
                         }
@@ -820,9 +876,20 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
             self.record_trait_path(trait_path);
         }
         if let Some(owner) = &owner {
+            for member in &item.items {
+                if let ImplItem::Fn(method) = member {
+                    let name = method.sig.ident.to_string();
+                    self.analysis.impl_methods.insert((owner.clone(), name.clone()));
+                    if returns_owner(&method.sig.output, owner) {
+                        self.analysis.constructors.insert((owner.clone(), name));
+                    }
+                }
+            }
             self.impl_owners.push(owner.clone());
         }
+        self.push_generics(&item.generics);
         visit::visit_item_impl(self, item);
+        self.generic_scopes.pop();
         if owner.is_some() {
             self.impl_owners.pop();
         }
@@ -833,9 +900,11 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         let previous = self.enter_attrs(&item.attrs);
         let owner = self.impl_owners.last().cloned().unwrap_or_else(|| "<impl>".to_string());
         self.item_stack.push(format!("{owner}::{}", item.sig.ident));
+        self.push_generics(&item.sig.generics);
         self.enter_function(&item.sig.inputs, Some(owner.as_str()));
         visit::visit_impl_item_fn(self, item);
         self.pop_scope();
+        self.generic_scopes.pop();
         self.item_stack.pop();
         self.configurations = previous;
     }
@@ -942,12 +1011,36 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
                     self.receiver_types.last().and_then(|types| types.get(&ident)).cloned()
                 })
                 .or_else(|| self.field_receiver_type(&expression.receiver))
-                .or_else(|| constructed_type(&expression.receiver));
+                .or_else(|| constructed_type(&expression.receiver))
+                .and_then(|ty| self.concrete_type(ty));
+            let (receiver_type, constructor) = match receiver_type {
+                Some(ty) => match ty.split_once("=>") {
+                    Some((ty, constructor)) => {
+                        (Some(ty.to_string()), Some(constructor.to_string()))
+                    }
+                    None => (Some(ty), None),
+                },
+                None => (None, None),
+            };
             let target = match receiver_type {
                 Some(ty) => format!(".<{}>:{ty}", expression.method),
                 None => format!(".<{}>", expression.method),
             };
-            self.edge(EdgeKind::Callable, target, expression.method.span());
+            let receiver = receiver_text(&expression.receiver);
+            self.analysis.edges.insert(Edge {
+                kind: EdgeKind::Callable,
+                target,
+                source_scope: self.module_stack.join("::"),
+                source_item: self
+                    .item_stack
+                    .last()
+                    .cloned()
+                    .unwrap_or_else(|| "<module>".to_string()),
+                location: expression.method.span().into(),
+                configurations: self.configurations,
+                receiver: Some(receiver),
+                constructor,
+            });
         }
         visit::visit_expr_method_call(self, expression);
     }
@@ -1207,8 +1300,15 @@ fn collect_struct_fields(items: &[syn::Item], fields: &mut BTreeMap<(String, Str
     for item in items {
         match item {
             syn::Item::Struct(structure) => {
+                let generics = structure
+                    .generics
+                    .type_params()
+                    .map(|parameter| parameter.ident.to_string())
+                    .collect::<BTreeSet<_>>();
                 for field in &structure.fields {
-                    if let (Some(name), Some(ty)) = (&field.ident, type_path_string(&field.ty)) {
+                    let ty = type_path_string(&field.ty)
+                        .filter(|ty| !generics.contains(ty.split("::").next().unwrap_or(ty)));
+                    if let (Some(name), Some(ty)) = (&field.ident, ty) {
                         fields.insert((structure.ident.to_string(), name.to_string()), ty);
                     }
                 }
@@ -1275,8 +1375,11 @@ fn constructed_type(expression: &Expr) -> Option<String> {
             if matches!(owner_name.as_str(), "Arc" | "Rc" | "Box") {
                 return call.args.first().and_then(constructed_type);
             }
+            // The call types the binding only if `last` is a constructor
+            // of `owner`; that is checked against the owner's declared
+            // return type once every module is parsed.
             (!capitalised(last) && capitalised(owner_name) && owner_name != "Self")
-                .then(|| owner.join("::"))
+                .then(|| format!("{}=>{last}", owner.join("::")))
         }
         Expr::Struct(structure) if structure.qself.is_none() => {
             let segments = structure
@@ -1290,6 +1393,54 @@ fn constructed_type(expression: &Expr) -> Option<String> {
         Expr::Reference(reference) => constructed_type(&reference.expr),
         Expr::Paren(paren) => constructed_type(&paren.expr),
         _ => None,
+    }
+}
+
+/// `-> Self` or `-> Owner` (generic arguments ignored).
+fn returns_owner(output: &syn::ReturnType, owner: &str) -> bool {
+    let syn::ReturnType::Type(_, ty) = output else { return false };
+    let Type::Path(path) = ty.as_ref() else { return false };
+    path.qself.is_none()
+        && path
+            .path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "Self" || segment.ident == owner)
+}
+
+/// A canonical spelling of a receiver expression: bindings, paths, field
+/// and index chains, calls, method calls, references, dereferences, `?`
+/// and macro names; any other expression form is `_`.
+fn receiver_text(expression: &Expr) -> String {
+    let path = |path: &syn::Path| {
+        path.segments.iter().map(|segment| segment.ident.to_string()).collect::<Vec<_>>().join("::")
+    };
+    match expression {
+        Expr::Path(expression) => path(&expression.path),
+        Expr::Field(field) => {
+            let member = match &field.member {
+                Member::Named(name) => name.to_string(),
+                Member::Unnamed(index) => index.index.to_string(),
+            };
+            format!("{}.{member}", receiver_text(&field.base))
+        }
+        Expr::MethodCall(call) => format!("{}.{}()", receiver_text(&call.receiver), call.method),
+        Expr::Call(call) => format!("{}()", receiver_text(&call.func)),
+        Expr::Index(index) => format!("{}[]", receiver_text(&index.expr)),
+        Expr::Reference(reference) => format!("&{}", receiver_text(&reference.expr)),
+        Expr::Unary(unary) => {
+            let operator = match unary.op {
+                syn::UnOp::Deref(_) => "*",
+                syn::UnOp::Not(_) => "!",
+                _ => "-",
+            };
+            format!("{operator}{}", receiver_text(&unary.expr))
+        }
+        Expr::Paren(paren) => receiver_text(&paren.expr),
+        Expr::Try(expression) => format!("{}?", receiver_text(&expression.expr)),
+        Expr::Macro(expression) => format!("{}!", path(&expression.mac.path)),
+        Expr::Lit(_) => "<literal>".to_string(),
+        _ => "_".to_string(),
     }
 }
 
@@ -1377,6 +1528,8 @@ fn collect_use_tree(
                 source_item: use_source_item(source_item, &kind, &binding),
                 location: name.ident.span().into(),
                 configurations,
+                receiver: None,
+                constructor: None,
             });
         }
         syn::UseTree::Rename(rename) => {
@@ -1393,6 +1546,8 @@ fn collect_use_tree(
                 source_item: use_source_item(source_item, &kind, &rename.rename.to_string()),
                 location: rename.ident.span().into(),
                 configurations,
+                receiver: None,
+                constructor: None,
             });
         }
         syn::UseTree::Glob(glob) => {
@@ -1407,6 +1562,8 @@ fn collect_use_tree(
                 source_item: use_source_item(source_item, &kind, "*"),
                 location,
                 configurations,
+                receiver: None,
+                constructor: None,
             });
         }
         syn::UseTree::Group(group) => {

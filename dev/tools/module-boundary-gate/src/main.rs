@@ -494,6 +494,32 @@ fn evaluate(
     // metadata and join none of them.
     let mut governed_graph = MaskedGraph::new();
     let mut module_graph = MaskedGraph::new();
+    let impl_methods = modules
+        .values()
+        .flat_map(|info| info.analysis.impl_methods.iter().cloned())
+        .collect::<BTreeSet<_>>();
+    let constructors = modules
+        .values()
+        .flat_map(|info| info.analysis.constructors.iter().cloned())
+        .collect::<BTreeSet<_>>();
+    // Every externally visible inherent method crate-wide, by name: the
+    // item-graph over-approximation of an untyped governed dot call.
+    let mut crate_inherent = BTreeMap::<String, BTreeSet<String>>::new();
+    for (module, info) in modules {
+        for method in &info.analysis.inherent_methods {
+            crate_inherent.entry(method.method.clone()).or_default().insert(graph_node(
+                &scoped_module(module, &method.scope),
+                &format!("{}::{}", method.owner, method.method),
+            ));
+        }
+    }
+    let governed_engine_methods = method_owners
+        .iter()
+        .filter(|(_, owners)| {
+            owners.keys().any(|owner| classification(policy, owner) == Some("governed"))
+        })
+        .map(|(method, _)| method.clone())
+        .collect::<BTreeSet<_>>();
     let inherent_owners = actual_inherent.iter().fold(
         BTreeMap::<String, BTreeSet<String>>::new(),
         |mut owners, (module, method)| {
@@ -577,7 +603,7 @@ fn evaluate(
                     edge.target
                 ));
             }
-            let targets = edge_targets(
+            let mut targets = edge_targets(
                 &source_module,
                 edge,
                 modules,
@@ -586,72 +612,110 @@ fn evaluate(
                 &policy.field_owners,
                 &method_owners,
             );
-            if governed && edge.kind == EdgeKind::Callable {
+            if edge.kind == EdgeKind::Callable {
                 if let Some(rest) = edge.target.strip_prefix(".<") {
                     let (method, receiver_type) = rest
                         .split_once(">:")
                         .map_or((rest.trim_end_matches('>'), None), |(method, ty)| {
                             (method, Some(ty))
                         });
-                    let cross_boundary_inherent = inherent_owners
-                        .get(method)
-                        .is_some_and(|owners| owners.iter().any(|owner| owner != &source_module));
-                    // A typed receiver whose type is not an in-crate item is
-                    // an external type; its methods are never governed.
-                    let governed_name = governed_callable_names.contains(method);
-                    if receiver_type.is_none() && !governed_name && cross_boundary_inherent {
-                        *unresolved_receivers
-                            .entry((
-                                source_module.clone(),
-                                edge.source_item.clone(),
-                                method.to_string(),
-                            ))
-                            .or_default() += 1;
-                        unresolved_origins
-                            .entry((
-                                source_module.clone(),
-                                edge.source_item.clone(),
-                                method.to_string(),
-                            ))
-                            .or_insert_with(|| {
-                                format!(
-                                    "{}:{}:{}",
-                                    relative(source_root, &info.file),
-                                    edge.location.line,
-                                    edge.location.column
-                                )
+                    // A syntactic receiver type holds only when its
+                    // constructor returns it and, for an in-crate type, the
+                    // type has the method; otherwise the call is untyped. A
+                    // type outside the crate keeps its (never governed)
+                    // methods.
+                    let typed = receiver_type.is_some_and(|ty| {
+                        let owner = ty.rsplit("::").next().unwrap_or(ty);
+                        if targets.is_empty() {
+                            // Outside the crate; a trait's associated
+                            // function names no concrete type.
+                            return edge.constructor.is_none()
+                                || !CONSTRUCTOR_TRAITS.contains(&owner);
+                        }
+                        let constructed = edge.constructor.as_ref().is_none_or(|constructor| {
+                            DERIVED_CONSTRUCTORS.contains(&constructor.as_str())
+                                || constructors.contains(&(owner.to_string(), constructor.clone()))
+                        });
+                        constructed
+                            && impl_methods.contains(&(owner.to_string(), method.to_string()))
+                    });
+                    if !typed {
+                        targets.clear();
+                        let cross_boundary_inherent =
+                            inherent_owners.get(method).is_some_and(|owners| {
+                                owners.iter().any(|owner| owner != &source_module)
                             });
-                    } else if receiver_type.is_none() && governed_name {
-                        errors.push(format!(
-                            "unresolved governed method receiver at {}:{}:{} source={} source_item={} method={method} receiver_type={}; use an owner-qualified call or a syntactically typed receiver",
-                            relative(source_root, &info.file),
-                            edge.location.line,
-                            edge.location.column,
-                            source_module,
-                            edge.source_item,
-                            receiver_type.unwrap_or("<unknown>")
-                        ));
+                        let governed_name = if governed {
+                            governed_callable_names.contains(method)
+                        } else {
+                            governed_engine_methods.contains(method)
+                        };
+                        if !governed_name && cross_boundary_inherent {
+                            *unresolved_receivers
+                                .entry((
+                                    source_module.clone(),
+                                    edge.source_item.clone(),
+                                    method.to_string(),
+                                ))
+                                .or_default() += 1;
+                            unresolved_origins
+                                .entry((
+                                    source_module.clone(),
+                                    edge.source_item.clone(),
+                                    method.to_string(),
+                                ))
+                                .or_insert_with(|| {
+                                    format!(
+                                        "{}:{}:{}",
+                                        relative(source_root, &info.file),
+                                        edge.location.line,
+                                        edge.location.column
+                                    )
+                                });
+                        } else if governed_name {
+                            errors.push(format!(
+                                "unresolved governed method receiver at {}:{}:{} source={} source_item={} method={method} receiver_type={}; use an owner-qualified call or a syntactically typed receiver",
+                                relative(source_root, &info.file),
+                                edge.location.line,
+                                edge.location.column,
+                                source_module,
+                                edge.source_item,
+                                receiver_type.unwrap_or("<unknown>")
+                            ));
+                        }
+                        if governed {
+                            for node in crate_inherent.get(method).into_iter().flatten() {
+                                item_graph.add(
+                                    &graph_node(&source_module, &edge.source_item),
+                                    node,
+                                    edge.configurations,
+                                );
+                            }
+                        }
                     }
-                } else if !edge.target.contains("::")
-                    && info.analysis.local_functions.contains_key(&edge.target)
-                    && declared_owners.get(&edge.target).is_some_and(|owners| {
-                        owners.iter().any(|owner| {
-                            owner != module
-                                && policy.classified.get(owner).map(String::as_str)
-                                    == Some("governed")
-                        })
-                    })
-                {
-                    errors.push(format!(
-                        "local function shadows governed callable at {}:{}:{} source={} source_item={} function={}",
-                        relative(source_root, &info.file),
-                        edge.location.line,
-                        edge.location.column,
-                        source_module,
-                        edge.source_item,
-                        edge.target
-                    ));
                 }
+            }
+            if governed
+                && edge.kind == EdgeKind::Callable
+                && !edge.target.starts_with(".<")
+                && !edge.target.contains("::")
+                && info.analysis.local_functions.contains_key(&edge.target)
+                && declared_owners.get(&edge.target).is_some_and(|owners| {
+                    owners.iter().any(|owner| {
+                        owner != module
+                            && policy.classified.get(owner).map(String::as_str) == Some("governed")
+                    })
+                })
+            {
+                errors.push(format!(
+                    "local function shadows governed callable at {}:{}:{} source={} source_item={} function={}",
+                    relative(source_root, &info.file),
+                    edge.location.line,
+                    edge.location.column,
+                    source_module,
+                    edge.source_item,
+                    edge.target
+                ));
             }
             for target in targets {
                 let nonroot_local = target.module == source_module && source_module != "root";
@@ -776,15 +840,8 @@ fn evaluate(
     for (module, name, _) in policy.allowed_local_macros.difference(&actual_local_macros) {
         errors.push(format!("stale local macro policy source={module} macro={name}"));
     }
-    let governed_unparsed = actual_unparsed_macros
-        .iter()
-        .filter(|(governed, ..)| *governed)
-        .map(|(_, module, item, name, fingerprint)| {
-            (module.clone(), item.clone(), name.clone(), fingerprint.clone())
-        })
-        .collect::<BTreeSet<_>>();
     for (module, item, name, fingerprint) in
-        policy.allowed_unparsed_macros.difference(&governed_unparsed)
+        policy.allowed_unparsed_macros.difference(&actual_unparsed_macros)
     {
         errors.push(format!(
             "stale unparsed macro policy source={module} item={item} macro={name} fingerprint={fingerprint}"
@@ -834,9 +891,8 @@ fn evaluate(
         for ((module, item, method), count) in &unresolved_receivers {
             println!("external-receiver\t{module}\t{item}\t{method}\t{count}");
         }
-        for (governed, module, item, name, fingerprint) in &actual_unparsed_macros {
-            let label = if *governed { "unparsed-macro" } else { "reported-unparsed-macro" };
-            println!("{label}\t{module}\t{item}\t{name}\t{fingerprint}");
+        for (module, item, name, fingerprint) in &actual_unparsed_macros {
+            println!("unparsed-macro\t{module}\t{item}\t{name}\t{fingerprint}");
         }
         for ((source, target), configurations) in &module_graph.edges {
             println!(
@@ -953,6 +1009,15 @@ fn root_reexport_indirection(
     let first = rest.split("::").next().unwrap_or(rest);
     root_aliases.is_some_and(|aliases| aliases.contains_key(first))
 }
+
+/// Associated functions that return `Self` through a derivable trait, so
+/// `Type::f(..)` has type `Type` without a visible `impl` returning it.
+const DERIVED_CONSTRUCTORS: [&str; 2] = ["default", "clone"];
+
+/// Traits whose associated functions (`Default::default()`, `From::from`)
+/// return a type the call does not name.
+const CONSTRUCTOR_TRAITS: [&str; 7] =
+    ["Default", "From", "TryFrom", "FromStr", "FromIterator", "Clone", "Into"];
 
 /// Engine method name to each defining module and its active configurations.
 type MethodOwners = BTreeMap<String, BTreeMap<String, ConfigSet>>;
@@ -1228,7 +1293,7 @@ fn reject_relevant_macros(
     }
 }
 
-type UnparsedMacro = (bool, String, String, String, String);
+type UnparsedMacro = (String, String, String, String);
 
 fn reject_unparsed_macros(
     physical_module: &str,
@@ -1240,18 +1305,13 @@ fn reject_unparsed_macros(
 ) {
     for usage in &info.analysis.unparsed_macros {
         let module = scoped_module(physical_module, &usage.source_scope);
-        let governed = policy.classified.get(&module).map(String::as_str) == Some("governed");
         let fingerprint = usage.fingerprint.clone().expect("unparsed macro fingerprint");
         actual_unparsed_macros.insert((
-            governed,
             module.clone(),
             usage.source_item.clone(),
             usage.target.clone(),
             fingerprint.clone(),
         ));
-        if !governed {
-            continue;
-        }
         let key = (module.clone(), usage.source_item.clone(), usage.target.clone(), fingerprint);
         if policy.allowed_unparsed_macros.contains(&key) {
             continue;

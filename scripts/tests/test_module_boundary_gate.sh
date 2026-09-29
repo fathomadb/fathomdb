@@ -1527,6 +1527,56 @@ path_attribute_mutant cfg-attr-path-attribute \
 path_attribute_mutant inline-path-attribute \
   $'mod s85_decoy;\nmod s85_outer {\n    #[path = "../s85_evil.rs"]\n    mod s85_decoy;\n}'
 
+# A `use` binding is scoped like the compiler scopes it: a block-local `use`
+# binds only inside its block, and a `cfg`-gated binding only in its own
+# configurations. Neither may leak into, or be overridden by, a same-named
+# binding elsewhere, so the forbidden graph_expand <-> search item cycle
+# survives a full regeneration. Every mutant compiles as written.
+# scoped_binding_mutant LABEL EXPECTED GRAPH_EXPAND_CODE
+scoped_binding_mutant() {
+  local label="$1" expected="$2" code="$3"
+  printf '\nmod s85_a {\n    pub(crate) fn s85_bridge(c: &rusqlite::Connection) { crate::search::s85_ret(c); }\n}\n' \
+    >>"$engine_root"
+  printf '\npub(crate) fn s85_benign(c: &rusqlite::Connection) { let _ = c; }\n' >>"$compiled_src/fusion.rs"
+  printf '\npub(crate) fn s85_ret(c: &rusqlite::Connection) { crate::graph_expand::s85_g(c); }\n' \
+    >>"$compiled_src/search.rs"
+  printf '\n%s\n' "$code" >>"$graph_expand_file"
+  t16_admit "$t16_full"
+  expect_failure "$label" "$expected" "$GATE" --root "$fixture"
+  cp "$fixture/lib.rs.clean" "$engine_root"
+  cp "$fixture/fusion.rs.clean" "$compiled_src/fusion.rs"
+  cp "$fixture/search.rs.clean" "$compiled_src/search.rs"
+  cp "$fixture/graph-expand.rs.clean" "$graph_expand_file"
+  cp "$fixture/module-boundary-policy.clean" "$policy_file"
+}
+scoped_binding_mutant function-local-use "$t11_forbidden" \
+  'pub(crate) fn s85_g(c: &rusqlite::Connection) { use crate::s85_a::s85_bridge as s85_h; s85_h(c); }
+#[allow(dead_code)]
+fn s85_z(c: &rusqlite::Connection) { use crate::fusion::s85_benign as s85_h; s85_h(c); }'
+scoped_binding_mutant nested-block-use "$t11_forbidden" \
+  'pub(crate) fn s85_g(c: &rusqlite::Connection) {
+    use crate::s85_a::s85_bridge as s85_h;
+    s85_h(c);
+    { use crate::fusion::s85_benign as s85_h; s85_h(c); }
+}'
+scoped_binding_mutant function-local-shadows-module-use "$t11_forbidden" \
+  'pub(crate) fn s85_g(c: &rusqlite::Connection) { use crate::s85_a::s85_bridge as s85_h; s85_h(c); }
+#[allow(unused_imports)]
+use crate::fusion::s85_benign as s85_h;'
+scoped_binding_mutant cfg-disjoint-use "$t11_forbidden" \
+  '#[cfg(not(test))]
+use crate::s85_a::s85_bridge as s85_h;
+#[cfg(test)]
+use crate::fusion::s85_benign as s85_h;
+pub(crate) fn s85_g(c: &rusqlite::Connection) { s85_h(c); }'
+scoped_binding_mutant cfg-disjoint-use-configurations \
+  "$t11_forbidden configurations=!test in SCC" \
+  '#[cfg(test)]
+use crate::fusion::s85_benign as s85_h;
+#[cfg(not(test))]
+use crate::s85_a::s85_bridge as s85_h;
+pub(crate) fn s85_g(c: &rusqlite::Connection) { s85_h(c); }'
+
 # Test review cycle 2, T-9 (AC27-85E): compiled negative fixtures. Each family
 # the AC names gets at least one mutant that also passes `cargo check -p
 # fathomdb-engine --lib --profile test --features test-hooks,operator`, by adding

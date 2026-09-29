@@ -22,15 +22,17 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Mutex;
 
 /// Maximum number of evaluated configurations.
-pub const MAX_CONFIGURATIONS: usize = 256;
+pub const MAX_CONFIGURATIONS: usize = 128 * WORDS;
+
+const WORDS: usize = 4;
 
 /// A set of evaluated configurations, as a bit mask over [`ConfigSpace`].
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct ConfigSet(pub [u128; 2]);
+pub struct ConfigSet(pub [u128; WORDS]);
 
 impl ConfigSet {
     pub fn is_empty(self) -> bool {
-        self.0 == [0, 0]
+        self.0 == [0; WORDS]
     }
 
     pub fn contains(self, index: usize) -> bool {
@@ -42,19 +44,19 @@ impl ConfigSet {
     }
 
     pub fn intersect(self, other: Self) -> Self {
-        Self([self.0[0] & other.0[0], self.0[1] & other.0[1]])
+        Self(std::array::from_fn(|word| self.0[word] & other.0[word]))
     }
 
     pub fn union(self, other: Self) -> Self {
-        Self([self.0[0] | other.0[0], self.0[1] | other.0[1]])
+        Self(std::array::from_fn(|word| self.0[word] | other.0[word]))
     }
 
     pub fn difference(self, other: Self) -> Self {
-        Self([self.0[0] & !other.0[0], self.0[1] & !other.0[1]])
+        Self(std::array::from_fn(|word| self.0[word] & !other.0[word]))
     }
 
     pub fn len(self) -> u32 {
-        self.0[0].count_ones() + self.0[1].count_ones()
+        self.0.iter().map(|word| word.count_ones()).sum()
     }
 
     pub fn is_subset(self, other: Self) -> bool {
@@ -92,6 +94,8 @@ pub struct ConfigSpace {
     pub cross: Vec<String>,
     /// Reviewed consumer profiles: name and the features it enables.
     pub consumer_profiles: Vec<(String, Vec<String>)>,
+    /// Profiles dropped because they name a feature the manifest lacks.
+    pub profile_errors: Vec<String>,
     pub configurations: Vec<Configuration>,
     expressions: Mutex<HashMap<ConfigSet, String>>,
     /// Members of each boolean variable's `[false, true]` literal.
@@ -123,6 +127,10 @@ impl ConfigSpace {
     ) -> Result<Self, Vec<String>> {
         let table = parse_features_table(manifest)?;
         let mut errors = Vec::new();
+        // A profile naming a feature the manifest lacks is reported and
+        // dropped, so the rest of the space (and every cfg diagnostic that
+        // needs it) is still evaluated.
+        let mut undeclared = Vec::new();
         for feature in cross {
             if !axes.iter().any(|(axis, _)| axis == feature) {
                 errors.push(format!(
@@ -146,7 +154,7 @@ impl ConfigSpace {
             }
             for feature in features {
                 if !table.contains_key(feature) {
-                    errors.push(format!(
+                    undeclared.push(format!(
                         "configuration-profile {name} feature {feature} is not declared in the \
                          engine manifest [features] table"
                     ));
@@ -176,8 +184,14 @@ impl ConfigSpace {
             }
         }
         if !errors.is_empty() {
+            errors.extend(undeclared);
             return Err(errors);
         }
+        let consumer_profiles = consumer_profiles
+            .iter()
+            .filter(|(_, features)| features.iter().all(|feature| table.contains_key(feature)))
+            .cloned()
+            .collect::<Vec<_>>();
         let closure = |seed: &mut BTreeSet<String>| {
             let mut pending = seed.iter().cloned().collect::<Vec<_>>();
             while let Some(feature) = pending.pop() {
@@ -286,7 +300,8 @@ impl ConfigSpace {
             axes: axes.to_vec(),
             profiles,
             cross: cross.to_vec(),
-            consumer_profiles: consumer_profiles.to_vec(),
+            consumer_profiles,
+            profile_errors: undeclared,
             configurations,
             expressions: Mutex::new(HashMap::new()),
             literal_members: Vec::new(),
@@ -763,6 +778,8 @@ name = "y"
             let set = ConfigSet([
                 u128::from(state) | (u128::from(state.rotate_left(17)) << 64),
                 u128::from(state.rotate_left(29)),
+                u128::from(state.rotate_left(41)) << 32,
+                u128::from(state.rotate_left(53)),
             ])
             .intersect(space.all());
             let expression = space.expression(set);

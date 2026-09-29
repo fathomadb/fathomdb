@@ -110,7 +110,8 @@ fn run() -> Result<(), Vec<String>> {
         &policy.configuration_cross,
         &policy.configuration_profiles,
     )?;
-    let policy_errors = normalize_policy_configurations(&mut policy, &space);
+    let mut policy_errors = space.profile_errors.clone();
+    policy_errors.extend(normalize_policy_configurations(&mut policy, &space));
     let modules = discover_modules(&source_root, &space)?;
     let mut result = evaluate(&source_root, &modules, &policy, &space, report_only);
     if !policy_errors.is_empty() {

@@ -2425,4 +2425,29 @@ mod tests {
             .iter()
             .any(|edge| edge.target == "crate::b::H::Out" && edge.kind == EdgeKind::Type));
     }
+
+    #[test]
+    fn serde_qualified_self_string_paths_are_edges() {
+        let analysis = analyze(
+            r#"#[derive(Serialize)]
+            struct S {
+                #[serde(serialize_with = "<crate::a::K as crate::b::T>::ser")]
+                a: u8,
+                #[serde(skip_serializing_if = "<crate::c::Owner>::skip")]
+                b: u8,
+            }"#,
+        )
+        .expect("fixture parses");
+        for (target, kind) in [
+            ("crate::a::K", EdgeKind::Type),
+            ("crate::b::T::ser", EdgeKind::Callable),
+            ("crate::c::Owner", EdgeKind::Type),
+        ] {
+            assert!(
+                analysis.edges.iter().any(|edge| edge.target == target && edge.kind == kind),
+                "missing {target}: {:?}",
+                analysis.edges.iter().map(|edge| &edge.target).collect::<Vec<_>>()
+            );
+        }
+    }
 }

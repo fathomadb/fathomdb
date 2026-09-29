@@ -983,6 +983,65 @@ expect_failure governed-std-include 'unreviewed include source=search item=s85_s
   "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
+# Design review cycle 4, D-28: `include!` is the builtin whatever it is
+# called. A macro path ending in `include` (any prelude path) and a `use`
+# that imports `include` (renamed or not) are both rejected, so a renamed
+# or re-pathed include cannot splice an unparsed forbidden reference into a
+# governed module. `include_str!`/`include_bytes!` stay data.
+codec_file="$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
+codec_inc="$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/s85g.inc"
+printf '#[allow(dead_code)] pub(crate) fn s85_g() { let _ = crate::search::retain_complete_rank_boundary_candidates; }\n' \
+  >"$codec_inc"
+printf '\nuse core::include as s85_inc;\ns85_inc!("s85g.inc");\n' >>"$codec_file"
+expect_failure renamed-include-import \
+  'unreviewed include import source=graph_expand::codec item=<module> path=core::include' \
+  "$GATE" --root "$fixture"
+cp "$fixture/codec.rs.clean" "$codec_file"
+printf '\nuse std::{include as s85_inc};\ns85_inc!("s85g.inc");\n' >>"$codec_file"
+expect_failure grouped-include-import \
+  'unreviewed include import source=graph_expand::codec item=<module> path=std::include' \
+  "$GATE" --root "$fixture"
+cp "$fixture/codec.rs.clean" "$codec_file"
+printf '{ let _ = crate::search::retain_complete_rank_boundary_candidates; 0 }\n' >"$codec_inc"
+printf '\npub(crate) fn s85_g() -> usize { std::prelude::v1::include!("s85g.inc") }\n' >>"$codec_file"
+expect_failure prelude-path-include \
+  'unreviewed include source=graph_expand::codec item=s85_g macro=std::prelude::v1::include' \
+  "$GATE" --root "$fixture"
+cp "$fixture/codec.rs.clean" "$codec_file"
+printf '\nuse core::include_str as s85_data;\npub(crate) const S85_DATA: &str = s85_data!("s85g.inc");\n' \
+  >>"$codec_file"
+expect_success renamed-include-str-is-data "$GATE" --root "$fixture"
+cp "$fixture/codec.rs.clean" "$codec_file"
+rm "$codec_inc"
+
+# Design review cycle 4, D-29: serde parses its function keys as expression
+# paths, so a qualified-self string path is a real call through the trait
+# (or the self type) and a value that is no path at all fails closed.
+printf '\n#[derive(serde::Serialize)]\npub(crate) struct S85Q { #[serde(serialize_with = "<crate::search::S85K as crate::search::S85T>::ser")] a: u8 }\n' \
+  >>"$codec_file"
+printf '\npub(crate) struct S85K;\npub(crate) trait S85T { fn ser<S: serde::Serializer>(v: &u8, s: S) -> Result<S::Ok, S::Error> { s.serialize_u8(*v) } }\nimpl S85T for S85K {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure serde-qualified-self-trait 'forbidden dependency graph_expand::codec -> search' \
+  "$GATE" --root "$fixture"
+cp "$fixture/codec.rs.clean" "$codec_file"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\n#[derive(serde::Serialize)]\npub(crate) struct S85Q { #[serde(skip_serializing_if = "<crate::search::S85K>::s85skip")] a: u8 }\n' \
+  >>"$codec_file"
+printf '\npub(crate) struct S85K;\nimpl S85K { pub(crate) fn s85skip(_: &u8) -> bool { false } }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf 'inherent search S85K::s85skip\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure serde-qualified-self-inherent 'forbidden dependency graph_expand::codec -> search' \
+  "$GATE" --root "$fixture"
+cp "$fixture/codec.rs.clean" "$codec_file"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+printf '\n#[derive(serde::Serialize)]\npub(crate) struct S85Q { #[serde(serialize_with = "crate::search::")] a: u8 }\n' \
+  >>"$codec_file"
+expect_failure serde-unparsable-path \
+  'unparsable serde path source=graph_expand::codec item=S85Q key=serialize_with value=crate::search::' \
+  "$GATE" --root "$fixture"
+cp "$fixture/codec.rs.clean" "$codec_file"
+
 # Design review cycle 3, D-24: forbid-dependency applies to the item-graph
 # over-approximation of an untyped (or externally reviewed) dot call, so a
 # reviewed receiver re-typed under the same spelling cannot reach a

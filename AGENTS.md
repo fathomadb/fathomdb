@@ -42,11 +42,16 @@ Use the typed dev-loop verbs (Phase 2). Each emits **concise output on pass, str
 | lint      | `./scripts/agent-lint.sh`      | module boundaries + clippy + rustfmt + migration policy + ruff + actionlint + md + lychee |
 | typecheck | `./scripts/agent-typecheck.sh` | cargo check + pyright + tsc --noEmit                              |
 | test      | `./scripts/agent-test.sh`      | cargo test + pytest                                               |
-| verify    | `./scripts/agent-verify.sh`    | lint → typecheck → test (short-circuits on first fail)            |
+| verify    | `./scripts/agent-verify.sh`    | full gate by default; `--scope=markdown` runs the Markdown gate   |
 
 Markdown lint covers **every `**/*.md`** except the ignore list in `.markdownlint-cli2.jsonc` (build output, `dev/archive/`, `dev/plans/runs/`, `dev/plans/prompts/`, `dev/experiments/`, `.claude/`, `docs/`). `docs/` is linted separately by `scripts/agent-lint-docs.sh`. `scripts/agent-lint-md.sh` also runs the plans/design/findings/anchor linters and `scripts/check-release-state-views.sh`. Auto-fix: **`npm run format:md` only** — it wraps `markdownlint-cli2 --fix` in the CommonMark-AST neutrality guard (`dev/tools/md_neutrality_guard.py`). ⛔ **Never run `prettier` on markdown, and never run `markdownlint-cli2 --fix` unguarded** — both are documented corruptors (prettier rewrites `*` → `_`; raw `--fix` mangles `#`-prefixed prose and schemeless hosts). See `dev/tools/md-fix-corruption-ledger.md`.
 
-Run `./scripts/agent-verify.sh` after every meaningful edit. Do not ship a PR with verify failing. AC-036 uses `strace` and therefore needs a ptrace-capable executor; if a sandbox denies `PTRACE_TRACEME`, rerun the unchanged strict gate unconfined rather than disabling it.
+- After each meaningful edit, run the narrowest authoritative gate for that edit:
+  - if the edit changes only Markdown files, run `./scripts/agent-verify.sh --scope=markdown` (the canonical wrapper around `scripts/agent-lint-md.sh`);
+  - if the edit changes source, tests, scripts, configuration, manifests, workflows, generated state, or any mixture of Markdown and non-Markdown files, run the full `./scripts/agent-verify.sh`;
+  - before PR handoff, merge, release, or any full-green claim, run the full `./scripts/agent-verify.sh` regardless of the edit type. Do not ship a PR with verify failing.
+- The Markdown scope deliberately skips broad lint, typecheck, security, and test gates; it is evidence for a Markdown-only edit, not a full-worktree green claim.
+- AC-036 in the full verifier uses `strace` and therefore needs a ptrace-capable executor; if a sandbox denies `PTRACE_TRACEME`, rerun the unchanged strict gate unconfined rather than disabling it.
 
 The broader CI gate is `./scripts/check.sh` (adds mkdocs build); the agent-loop gate is `scripts/agent-verify.sh`. Long-run test variants (e.g. AC-021 60 s window, AC-059b ~1000-iteration cursor-race fixture) are exercised only via `scripts/check.sh` with `AGENT_LONG=1`; `scripts/agent-verify.sh` skips them for runtime budget.
 

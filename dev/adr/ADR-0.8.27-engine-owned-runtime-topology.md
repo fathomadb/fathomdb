@@ -46,12 +46,20 @@ Do not add Tokio to `fathomdb-engine`, move projection commits to the primary
 connection, create a dedicated writer OS thread, or make a binding executor an
 engine configuration consumer.
 
-All engine-owned calls to `Embedder::embed` or `embed_batch`—open-time vector
+All production engine-owned calls to `Embedder::embed` or `embed_batch`—open-time vector
 equivalence, projection, ordinary and frozen search, and direct
 `Engine::embed_text`—must run on the embed-dispatch executor. A projection
 worker, binding worker or public caller never invokes the provider directly.
 Provider construction, warmup, identity, reranking and standalone SDK embed
 utilities are outside this dispatch deadline.
+
+The default-compiled, `#[doc(hidden)]` `Engine::write_vector_for_test` seam is
+an explicit temporary exception until Slice 140 removes it from default public
+builds. It may continue to invoke the provider directly and therefore must not
+be used as evidence for dispatch coverage, deadlines, queue bounds, lock order,
+or performance. Slice 90 tests those properties through production paths and
+private test controls instead. This exception records current public truth; it
+does not permit another production or test-only bypass.
 
 Projection workers retain worker-owned SQLite connections and commit under
 `commit_gate`. Embed workers own no SQLite connection. Embedding happens before
@@ -61,7 +69,8 @@ the projection worker acquires `commit_gate`.
 
 Configuration resolves and validates once, before filesystem mutation,
 database admission, provider warmup, connection creation or thread creation.
-It is immutable after open. Rust owns one public `EngineConfig`, one
+The open-time snapshot is immutable after open except that the existing
+`set_slow_threshold_ms` control changes the effective slow threshold. Rust owns one public `EngineConfig`, one
 `Engine::open_with_choice_and_config` member of the existing `EmbedderChoice`
 open family, and one private `ResolvedRuntimeConfiguration`. Existing open
 methods delegate with defaults.
@@ -72,7 +81,7 @@ methods delegate with defaults.
 | `embedder_pool_size` | Integer `1..=64`, default `1`; `N > 1` explicitly permits at most N simultaneous calls to the shared provider. | Exact embed worker count and provider-call ceiling. With a provider the waiting queue is `4 * N`; without a provider no embed worker or request queue is allocated. |
 | `embedder_call_timeout_ms` | Integer `1..=u32::MAX`, default `30_000` ms. | One absolute queue-plus-service deadline per provider invocation, including one fixed deadline for a batch. |
 | `provenance_row_cap` | Integer `0..=2^53-1`, default `1_000_000`; zero retains the existing disable-retention meaning. | Existing provenance-retention consumer only. |
-| `slow_threshold_ms` | Integer `0..=2^53-1`, default `100`; zero retains existing zero-threshold behavior. | Existing operation/SQLite-profile slow-event consumer only. |
+| `slow_threshold_ms` | Integer `0..=2^53-1`, default `100`; zero retains existing zero-threshold behavior; the existing setter may replace the effective value after open. | Existing operation/SQLite-profile slow-event consumer only. |
 
 With scheduler count S and an attached provider with embed count E, steady
 engine ownership is `1 + S + 8 + E` threads and `1 + 1 + S + 8` SQLite
@@ -87,6 +96,12 @@ for the three strictly positive controls. TypeScript rejects non-finite,
 fractional, unsafe, negative and out-of-range numbers, and rejects zero only
 for those three controls. NAPI performs checked conversion. All bindings use
 the engine defaults and validation rather than reproducing them.
+
+Python and TypeScript expose the requested open-time snapshot, not a live
+effective-value view. The slow-threshold setter does not rewrite that snapshot.
+Python's frozen value object and TypeScript's cloned, frozen, readonly object
+must reject caller alias mutation; effective behavior after the setter is
+proved through slow-event output.
 
 ## Admission, deadlines and outcomes
 

@@ -71,6 +71,7 @@ run_capped check-track-runner "$SCRIPT_DIR/check-track-runner.sh" --quiet
 # nothing checking the copies agreed; one reconciliation commit touched 7 files.)
 # Pure bash + python3, and python3 absent is a hard failure, not a skip (TC-37).
 run_capped check-release-state-views "$SCRIPT_DIR/check-release-state-views.sh" --quiet
+run_capped check-runtime-checkpoints "$SCRIPT_DIR/check-runtime-checkpoints.py"
 run_capped check-traceability-contracts "$SCRIPT_DIR/check-traceability-contracts.py" --root .
 run_capped check-architecture-authority "$SCRIPT_DIR/check-architecture-authority.py"
 run_capped check-design-lifecycle "$SCRIPT_DIR/check-design-lifecycle.py"

@@ -7,15 +7,15 @@ target_release: 0.8.27
 # Slice 90 runtime and root closure design
 
 This is prospective design, not implementation authority or a verification
-receipt. Slice 85 must close first; Slice 90 remains uncommissioned. This
-record and the master plan own the complete Slice 90 obligation. Slice 100
+receipt. Slice 85 is complete at `7a2f9bf9` with closeout `8cd3389d`; Slice 90
+remains uncommissioned. This record and the master plan own the complete Slice
+90 obligation. Slice 100
 cannot start with any requirement below incomplete. No Slice 91 is allocated:
 runtime implementation and verification can precede structural moves inside
 Slice 90. `D27-runtime-topology` is ruled as Option B by HITL decision
-`seq-293`. AC27-90B remains blocked on independent approval, formal
-codification, implementation, and verification of the successor contract
-below; the ruling does not by itself amend an accepted ADR or commission
-production work.
+`seq-293`, and `seq-295` accepted and formally codified the successor contract
+in `ADR-0.8.27-engine-owned-runtime-topology.md`. AC27-90B remains blocked on
+implementation and verification; neither ruling commissions production work.
 
 ## Evidence and scope
 
@@ -165,10 +165,17 @@ Rust currently has per-field atomics/constants, not one resolved option API.
 | Knob | Accepted/design default | Current consumer and width | Correction/proof obligation |
 | --- | --- | --- | --- |
 | `scheduler_runtime_threads` | Scheduler ADR: two dedicated Tokio orchestration workers | No engine consumer or Tokio runtime; dispatcher plus two OS projection workers use `usize` constants. NAPI's Tokio `spawn_blocking` is a separate binding handoff, not this executor. | Requires the architecture decision below; never wire this to the reader pool, NAPI pool or merely rename projection workers. Prove selected orchestration capacity and bounded backlog under the accepted final contract. |
-| `embedder_pool_size` | Scheduler/embedder ADRs: `num_cpus::get()` dedicated dispatch slots | No configured pool. Projection worker count is two, healthy projection embeds serialize through one mutex, and each watchdog invocation spawns an OS thread. Query/direct embeds and open-time vector-equivalence probes invoke the provider outside that guard. | New engine-owned dispatch capacity for every production inference path, including first-open/reopen equivalence probes; prove selected bound, independent-engine isolation, hung-slot accounting and no calls on host runtime threads. The current serialization guard cannot make a claimed N-slot pool effective. |
-| `embedder_call_timeout_ms` | Embedder ADR: 30,000 ms for every embed call | `ProjectionRuntimeShared::embed_timeout_ms: AtomicU64`, default30,000; projection batch watchdog multiplies by batch length. `search.rs`, `search_api.rs`, `embedding::embed_text`, vector-equivalence probes, and root test vector writes call directly without it. | Route all production inference through the accepted deadline contract; specify admission, queue/service, batch, open-probe and per-operation outcome semantics before RED tests. Preserve hybrid sparse fallback, degraded-open behavior, direct-call errors and projection retry/terminal precedence unless an approved delta explicitly changes one. |
+| `embedder_pool_size` | Scheduler/embedder ADRs: `num_cpus::get()` dedicated dispatch slots | No configured pool. Projection worker count is two, healthy projection embeds serialize through one mutex, and each watchdog invocation spawns an OS thread. Query/direct embeds and open-time vector-equivalence probes invoke the provider outside that guard. | New engine-owned dispatch capacity for every production inference path, including first-open/reopen equivalence probes; prove selected bound, independent-engine isolation, hung-slot accounting and no calls on host runtime threads. The current serialization guard cannot make a claimed N-slot pool effective. The default-compiled `write_vector_for_test` seam is the accepted temporary Slice 140 exception and supplies no dispatch evidence. |
+| `embedder_call_timeout_ms` | Embedder ADR: 30,000 ms for every embed call | `ProjectionRuntimeShared::embed_timeout_ms: AtomicU64`, default30,000; projection batch watchdog multiplies by batch length. `search.rs`, `search_api.rs`, `embedding::embed_text`, vector-equivalence probes, and root test vector writes call directly without it. | Route all production inference through the accepted deadline contract; specify admission, queue/service, batch, open-probe and per-operation outcome semantics before RED tests. Preserve hybrid sparse fallback, degraded-open behavior, direct-call errors and projection retry/terminal precedence unless an approved delta explicitly changes one. `write_vector_for_test` remains outside the proof and may not be used in performance, timeout, or lock-order oracles. |
 | `provenance_row_cap` | Existing engine default1,000,000 rows | `Engine::provenance_row_cap: AtomicU64`, used by `write`/`actuation` → `write_commit::enforce_provenance_retention`; zero currently disables retention. It is not consumed by the reader/provenance reporting pool. | Forward open-time value and prove actual retention after real write/actuation commits, including zero and independent engines; do not prove it by echoing config. |
 | `slow_threshold_ms` | Existing engine default100 ms | Shared `Arc<AtomicU64>` read by `detect_slow` and SQLite profile callback; public setter works after open (PyO3 `u64`, NAPI `u32`), but open config is ignored. | Set before connection/profile setup; prove both operation and statement slow signals plus subsequent setter behavior, retaining strict elapsed>threshold semantics. |
+
+The exposed `EngineConfig` value is an immutable requested-open snapshot, not
+a live effective-value view. The existing slow-threshold setter changes only
+the effective atomic and does not rewrite that snapshot. Python retains its
+frozen dataclass; TypeScript clones and freezes the input object, exposes
+readonly fields, and proves mutations of both the caller object and returned
+snapshot cannot falsify the reported open request.
 
 The reader pool is eight dedicated OS threads (`READER_POOL_SIZE`) and is not
 an exposed scheduler or embedder control. Projection dispatcher/worker
@@ -449,7 +456,10 @@ exact SQLite connections, the embed waiting capacity of
 either capacity is mislabeled as the other, if an unconfigured host pool is
 counted, or if shutdown leaves an engine-owned worker or connection behind.
 
-At the default, run the existing AC-011a/b write-throughput, AC-017
+At the default, run AC-011a/b through the exact release-mode selectors in
+`scripts/run-ac011-write-throughput.sh` on the named tier-1 host; the harness
+owns the five-second warm-up, 60-second measurement, 1 KiB/100 KiB payloads
+and unchanged 1,000/100 commits-per-second thresholds. Also run AC-017
 projection-freshness (p99 at most 5 seconds), AC-018 projection-drain (100
 deterministic vectors within 2 seconds), AC-029 projection-stall write-tolerance
 (at most 1.5 times baseline), AC-072 vector-retrieval latency, AC-073
@@ -457,6 +467,14 @@ real-corpus mixed-retrieval tail, AC-076 text/hybrid-query latency and
 AC-081a/b/c sequential/eight-reader progress gates. The exact existing scripts,
 datasets, thresholds and feature routes are inventoried and cited before the
 first run; Slice 90 does not weaken or reinterpret them to make D27 pass.
+
+The immutable workload and decision rule are
+`d27-runtime-qualification-protocol.json`. It freezes the entry engine SHA,
+runner, generated corpus identity, seeds, operation ratios, concurrency,
+warm-up, duration, repetitions, starvation window, metrics, environment
+invalidators and median/MAD comparison formula before runtime behavior changes.
+The entry run records the generated corpus and raw-output hashes; checkpoint
+and final runs must match the protocol and corpus hashes exactly.
 
 Add a D27-specific mixed workload with concurrent canonical writes, dense
 projection, foreground hybrid queries and direct embeds. Run both contention
@@ -470,12 +488,21 @@ shutdown and batch-fallback conditions. The receipt also proves that
 `provenance_row_cap` and `slow_threshold_ms` have their accepted zero/default/
 nondefault consuming effects without changing unrelated runtime capacity.
 
+Before 2a or any other semantic runtime edit, land the measurement-only D27
+harness, independently review its conformance to the frozen protocol, and run
+it against engine candidate `7a2f9bf90783f545603516502bac0016d4b93a14` in
+an exact-source checkout. Bind the harness, protocol, binary, corpus, raw output
+and environment hashes in the entry receipt. A harness that cannot execute on
+that source blocks runtime implementation rather than falling back to a
+post-change baseline.
+
 The durable qualification receipt names the exact stage-2 candidate, optimized
 build and features, hardware/software, dataset/workload, warm-up, repetitions,
 raw or reproducible outputs, entry candidate and comparison method. A miss at
-the default blocks the runtime checkpoint. Before the post-change run, freeze a
-noise-aware decision rule from existing thresholds and entry measurements; the
-D27 workload must show progress in both contention directions within the
+the default blocks the runtime checkpoint. The already-frozen noise-aware rule
+may only substitute the measured entry center/MAD values; it may not change its
+formula after the entry run. The D27 workload must show progress in both
+contention directions within the
 contractual queue and resource bounds. Optimize within the accepted safety
 contract and repeat the identical matrix; if the remedy changes a default,
 capacity partition or executor shape, stop and formally revise or succeed the
@@ -490,7 +517,11 @@ the candidate-bound result, commands and artifact hashes to
 1. Capture the exact entry baseline, inventory and reviewed owner map. Reuse
    Slice 85 receipts only when source/artifact/features genuinely match.
    Freeze focused route counts, public/hidden captures and configuration
-   expectations; identify source scrapers before moving their inputs.
+   expectations; identify source scrapers before moving their inputs. Before
+   2a, land and independently review the measurement-only D27 harness against
+   `d27-runtime-qualification-protocol.json`, then execute it against exact
+   engine source `7a2f9bf9` and bind the entry binary/protocol/corpus/raw-output
+   hashes. This is a prerequisite, not part of 2k.
 2. Implement the accepted runtime successor after Slice 85 closes and Slice 90
    receives its explicit execution ruling, as the following ordered RED/GREEN
    sub-batches. Each is separately buildable, separately reviewed
@@ -537,10 +568,13 @@ the candidate-bound result, commands and artifact hashes to
        configuration, fault, resource and performance receipts.
    Do not mix structural movement into these diffs. **Runtime checkpoint:**
    after 2l, obtain independent code review and independent read-only
-   verification at the exact candidate and record it as
-   `runtime_checkpoint_sha` in the Slice 90 release-state ladder entry with
-   both review receipts plus the candidate-bound performance receipt. Stage 3
-   may not start until that binding exists. The checkpoint is the
+   verification at the exact candidate and populate the structured
+   `runtime_checkpoint` object in the Slice 90 release-state ladder entry. It
+   records the candidate and binding SHAs plus each performance/review receipt's
+   path, SHA-256, PASS status and candidate SHA. The always-on
+   `scripts/check-runtime-checkpoints.py` gate verifies those bindings. Stage 3
+   may not start until the checkpoint is PASS and its binding SHA precedes the
+   recorded first stage-3 commit. The checkpoint is the
    candidate-bound verification boundary that makes a separate runtime slice
    unnecessary; it is not optional and cannot be replaced by the final Slice
    90 closeout review.
@@ -618,9 +652,9 @@ it does not treat newly moved owners as invisible out-of-scope endpoints.
 | R27-90F | Shared runtime field decisions are closed. | AC27-90F: the four named search-control fields remain one value each on the shared runtime allocation; exact defaults, atomics, lifetime and test controls are characterized and unchanged. Storage and consumer ownership are both recorded; there is no remaining relocation decision. |
 | R27-90G | Surfaces and platform coverage remain truthful. | AC27-90G: immutable Slice 30 comparison reports only individually reviewed config deltas; mechanical comparisons against the post-correction candidate are equal. Hidden surface is additive only unless an existing accepted contract explicitly requires a reviewed change. Rust root paths, Python stubs, Node declarations, feature gates and qualified tests remain accounted for. All required matrix routes, including non-Linux compilation, have candidate-bound receipts; an unavailable executor blocks closeout. |
 | R27-90H | Structural enforcement survives runtime moves. | AC27-90H: the bounded Slice 85 gate and negative fixtures pass; root-item paths and touched new owners are classified, source scrapers retain their oracles, and none of the four forbidden cycles or a new governed return path is introduced. No whole-crate normalization or automatic exception growth occurs. |
-| R27-90I | Completion is independently demonstrated before bindings decompose. | AC27-90I: the stage-2 runtime checkpoint is bound in release state as `runtime_checkpoint_sha` with its candidate-bound runtime-performance receipt plus independent code-review and read-only verification receipts before any stage-3 move commit; independent code review and read-only verification pass at the final candidate, repository-required gates and installed-artifact receipts pass, and the owner/requirement inventory has zero open Slice 90 items. Only then can release state mark Slice 90 complete and unblock Slice 100. Slice 150 still owns exact-final-candidate AC-037; historical security receipts are not reused as current claims. |
+| R27-90I | Completion is independently demonstrated before bindings decompose. | AC27-90I: the stage-2 runtime checkpoint is a structured PASS object in release state whose candidate and binding SHAs plus performance, independent-code-review and independent-read-only-verification receipt paths, SHA-256 digests, PASS states and candidate SHAs pass `scripts/check-runtime-checkpoints.py`; its binding commit is an ancestor of the recorded first stage-3 commit. Independent code review and read-only verification also pass at the final candidate, repository-required gates and installed-artifact receipts pass, and the owner/requirement inventory has zero open Slice 90 items. Only then can release state mark Slice 90 complete and unblock Slice 100. Slice 150 still owns exact-final-candidate AC-037; historical security receipts are not reused as current claims. |
 | R27-90J | Batch embed fallback cannot reacquire its own serialization guard or executor permit. | AC27-90J: a bounded RED test, run with `FATHOMDB_PROJECTION_BATCH` enabled, reproduces the `embed_projection_batch` returned-error/timeout fallback (the `Err(_) => return per_job()` arm) while the batch guard is held; breaker-open fast failure is tested separately. GREEN proves every per-job fallback occurs only after the guard/permit is dropped; the restoration mutant fails under a subprocess/cancellation-safe bound rather than hanging Drop, and the approved executor transition retains the same lock-order guarantee. |
-| R27-90K | Accepted runtime settings are compatible with the codebase and the default meets the project's performance contract. | AC27-90K: the exact stage-2 candidate has a durable qualification receipt for the `2/1`, `1/1`, `2/2`, `4/4`, `64/64` and `2/no-provider` matrix, plus a property test of checked capacity derivation over every pair in `1..=64`. Every valid case proves consuming effect, bounds, cleanup and fault behavior; the ceiling case proves exact resource inventory rather than throughput. At default `2/1`, AC-011a/b, AC-017, AC-018, AC-029, AC-072, AC-073, AC-076 and AC-081a/b/c pass unchanged, and the D27 mixed workload passes a pre-registered entry-comparison decision rule while reporting the required throughput, latency, queue/backlog, concurrency, resource, close and bidirectional-starvation metrics. Rust and installed Python/Node cover omission, explicit zero, minimum, maximum, invalid, overflow, wrong-type and language-safe-number rules. The exact final Slice 90 candidate repeats the default gates, mixed workload and resource/cleanup inventory; any post-checkpoint semantic runtime/configuration edit triggers the full matrix again. A default miss blocks the checkpoint or closeout and cannot be assigned to Slices 114, 115 or 135. |
+| R27-90K | Accepted runtime settings are compatible with the codebase and the default meets the project's performance contract. | AC27-90K: before semantic runtime work, the measurement-only D27 harness is reviewed and run against exact engine candidate `7a2f9bf9` under `d27-runtime-qualification-protocol.json`, binding protocol/corpus/binary/raw-output hashes and entry center/MAD values. The exact stage-2 candidate then has a durable qualification receipt for the `2/1`, `1/1`, `2/2`, `4/4`, `64/64` and `2/no-provider` matrix, plus a property test of checked capacity derivation over every pair in `1..=64`. Every valid case proves consuming effect, bounds, cleanup and fault behavior; the ceiling case proves exact resource inventory rather than throughput. At default `2/1`, the exact AC-011a/b release selectors, AC-017, AC-018, AC-029, AC-072, AC-073, AC-076 and AC-081a/b/c pass unchanged, and the D27 workload passes the frozen median/MAD rule while reporting the required throughput, latency, queue/backlog, concurrency, resource, close and bidirectional-starvation metrics. Rust and installed Python/Node cover omission, explicit zero, minimum, maximum, invalid, overflow, wrong-type and language-safe-number rules. The exact final Slice 90 candidate repeats the default gates, mixed workload and resource/cleanup inventory; any post-checkpoint semantic runtime/configuration edit triggers the full matrix again. A default miss blocks the checkpoint or closeout and cannot be assigned to Slices 114, 115 or 135. |
 
 If any acceptance remains unmet, Slice 90 remains incomplete. A revision of
 the ladder requires an explicit reviewed dependency/verification reason; batch

@@ -143,6 +143,12 @@ member carrying the engine-owned knobs from `design/engine.md` in camelCase:
 - `embedderCallTimeoutMs`
 - `slowThresholdMs`
 
+`engine.config` is a cloned, frozen, readonly snapshot of the requested
+open-time values. Mutating the caller's original object after `Engine.open`
+does not change it, and callers cannot mutate the returned snapshot. The
+snapshot is not a live effective-value view: `engine.setSlowThresholdMs`
+changes runtime behavior without rewriting `engine.config.slowThresholdMs`.
+
 If TypeScript exposes ThreadsafeFunction handoff-pool sizing, that option is a
 TS binding-runtime option beside `engineConfig`, not a canonical engine config
 field and not a Python parity obligation.

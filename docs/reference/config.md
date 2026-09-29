@@ -81,6 +81,12 @@ const engine = await Engine.open("./mydb.fdb", {
 });
 ```
 
+`engine.config` is a frozen snapshot of the values requested at open. Changing
+the object originally passed to `Engine.open` does not change the snapshot, and
+the snapshot itself is readonly. It reports the open request rather than live
+effective state, so a later `setSlowThresholdMs` call changes profiling behavior
+without rewriting `engine.config.slowThresholdMs`.
+
 `EngineOpenOptions` may carry a TS-binding-specific
 ThreadsafeFunction handoff-pool sizing option **beside** `engineConfig`.
 That option is a TS-runtime concern, not a canonical engine config
@@ -98,7 +104,8 @@ exists.
 
 Only `slow_threshold_ms` / `slowThresholdMs` is mutable post-open via
 `engine.set_slow_threshold_ms` / `engine.setSlowThresholdMs`. All
-other knobs are open-time only.
+other knobs are open-time only. The setter changes the effective threshold,
+not the requested-open configuration snapshot.
 
 ## See also
 

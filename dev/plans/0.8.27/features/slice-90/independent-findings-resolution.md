@@ -14,9 +14,10 @@ target_release: 0.8.27
 
 Reviewed exact clean candidate above on `release/0.8.27`. This record is
 author review and remediation of independent findings, not independent
-approval. No production source changed. Slices 85/90 remain PLANNED and
-uncommissioned; the original verbatim recommendation and historical reviews
-are unchanged.
+approval. No production source changed. The review-time state had Slices 85/90
+PLANNED and uncommissioned; the original verbatim recommendation and historical
+reviews below are retained as chronology. Current state is recorded in the
+post-review disposition.
 
 ## Findings and disposition
 
@@ -286,14 +287,14 @@ instruction; this section is that remediation record, not a third review.
 | ID | Finding | Remediation |
 | --- | --- | --- |
 | P2-1 | Successor-ADR acceptance (ceilings, default-one concurrency, `4×N` queue, `EngineConfig`/configured-open delta, typed error, Number-safe caps, `Scheduler` drain outcome) was an open HITL decision not registered in `decisions.unruled`; the board's generated count read ONE. | Added unruled `D27-successor-adr-acceptance` to `release-state-0.8.27.json`; regenerated the board count (TWO); listed the decision on the board, in the master plan's Slice 90 section, in the design's ruled-direction section and in the scaffold's remaining-approvals section. |
-| P2-2 | Stage 2 bundled executor construction, four call-path migrations, the two-phase close and lifecycle into one sub-batch with no release-state-bound verification boundary before stage 3. | Enumerated stage 2 as ordered sub-batches 2a–2k in the design; added `runtime_checkpoint_sha`, `runtime_checkpoint_requires` and `runtime_checkpoint_gate` to the Slice 90 ladder entry; AC27-90I now requires the bound checkpoint with its own independent code-review and read-only verification receipts before any stage-3 move. This is the candidate-bound boundary that makes Slice 91 unnecessary. |
+| P2-2 | Stage 2 bundled executor construction, four call-path migrations, the two-phase close and lifecycle into one sub-batch with no release-state-bound verification boundary before stage 3. | Enumerated stage 2 as ordered sub-batches 2a–2k in the design. The original prose-only checkpoint fields were later superseded by the structured `runtime_checkpoint` object and `scripts/check-runtime-checkpoints.py`, which bind candidate/binding SHAs, hashed PASS receipts and the first stage-3 commit. AC27-90I requires that checkpoint before any stage-3 move. This is the candidate-bound boundary that makes Slice 91 unnecessary. |
 | P3-1 | The reliability-posture change carried by default-one embed concurrency (one hung call stalls all dense work in the session) was accepted in the scaffold but not stated plainly for the acceptance package. | Stated it explicitly in the design's ruled-direction section, the scaffold's remaining-approvals section and the decision title. |
 | P3-2 | R27-90J said "likely" and did not name the reachability condition or the exact arm. | Design, scaffold, master plan and AC27-90J now name the `FATHOMDB_PROJECTION_BATCH` opt-in, the line-575 arm at `ab8f43be`, and state the defect is confirmed by reading. |
 | P3-3 | Design cited `459d528f` as the reviewed baseline while its substrate table cited `ab8f43be`. | Design now cites `ab8f43be` with the note that engine source is identical between the two. |
 
-No production source, accepted ADR or Steward ledger entry changed. Slice 91
-remains unnecessary. Slices 85 and 90 remain PLANNED and uncommissioned;
-`D27-successor-adr-acceptance` is unruled and blocks Slice 90 commissioning.
+The preceding paragraph records the review-time state: no production source or
+accepted ADR changed, Slice 91 remained unnecessary, Slices 85/90 were PLANNED,
+and `D27-successor-adr-acceptance` was still unruled.
 
 ## Post-review HITL disposition
 
@@ -301,5 +302,6 @@ The paragraph above is the review-time state. The repository owner subsequently
 approved `D27-successor-adr-acceptance` at `seq-295` on 2026-09-28. The accepted
 authority is
 [`ADR-0.8.27-engine-owned-runtime-topology`](../../../../adr/ADR-0.8.27-engine-owned-runtime-topology.md).
-This closes the D27 successor-design block but does not commission Slice 90;
-Slice 85 completion and an explicit Slice 90 execution ruling remain required.
+This closes the D27 successor-design block but does not commission Slice 90.
+Slice 85 subsequently completed at `7a2f9bf9` with closeout `8cd3389d`; only an
+explicit Slice 90 execution ruling plus its entry/checkpoint work remain.

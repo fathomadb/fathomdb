@@ -8,6 +8,12 @@ use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
 const PERF_SAMPLES: usize = 1_000;
+const AC011_WARMUP: Duration = Duration::from_secs(5);
+const AC011_MEASUREMENT: Duration = Duration::from_secs(60);
+const AC011_1KB_PAYLOAD_BYTES: usize = 1_024;
+const AC011_100KB_PAYLOAD_BYTES: usize = 100 * 1_024;
+const AC011_1KB_MIN_COMMITS_PER_SECOND: f64 = 1_000.0;
+const AC011_100KB_MIN_COMMITS_PER_SECOND: f64 = 100.0;
 const AC020_THREADS: usize = 8;
 const AC020_ROUNDS_PER_THREAD: usize = 50;
 const AC081_SEQUENTIAL_WARNING: Duration = Duration::from_millis(200);
@@ -120,6 +126,79 @@ fn unit_vector(dimension: usize) -> Vector {
 
 fn long_run_enabled() -> bool {
     std::env::var_os("AGENT_LONG").is_some()
+}
+
+fn tier1_write_throughput_enabled() -> bool {
+    long_run_enabled() && std::env::var_os("FATHOMDB_TIER1_WRITE_PERF").is_some()
+}
+
+#[test]
+fn ac_011_protocol_matches_accepted_parameters() {
+    assert_eq!(AC011_WARMUP, Duration::from_secs(5));
+    assert_eq!(AC011_MEASUREMENT, Duration::from_secs(60));
+    assert_eq!(AC011_1KB_PAYLOAD_BYTES, 1_024);
+    assert_eq!(AC011_100KB_PAYLOAD_BYTES, 100 * 1_024);
+    assert_eq!(AC011_1KB_MIN_COMMITS_PER_SECOND, 1_000.0);
+    assert_eq!(AC011_100KB_MIN_COMMITS_PER_SECOND, 100.0);
+}
+
+fn write_throughput_sample(payload_bytes: usize, minimum_commits_per_second: f64, ac: &str) {
+    if !tier1_write_throughput_enabled() {
+        return;
+    }
+
+    let (_dir, path) = fixture_path(&format!("{ac}_write_throughput"));
+    let opened = Engine::open(&path).expect("open write-throughput fixture");
+    let write = PreparedWrite::Node {
+        kind: "throughput".to_string(),
+        body: "x".repeat(payload_bytes),
+        source_id: fathomdb_engine::SourceId::new("test:ac011").expect("test source id"),
+        logical_id: None,
+        state: fathomdb_engine::InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    };
+
+    let warmup_deadline = Instant::now() + AC011_WARMUP;
+    while Instant::now() < warmup_deadline {
+        opened.engine.write(std::slice::from_ref(&write)).expect("warmup commit");
+    }
+
+    let started = Instant::now();
+    let deadline = started + AC011_MEASUREMENT;
+    let mut commits = 0_u64;
+    while Instant::now() < deadline {
+        opened.engine.write(std::slice::from_ref(&write)).expect("measured commit");
+        commits += 1;
+    }
+    let elapsed = started.elapsed();
+    let commits_per_second = commits as f64 / elapsed.as_secs_f64();
+    eprintln!(
+        "AC011_NUMBERS ac={ac} payload_bytes={payload_bytes} warmup_ms={} measurement_ms={} \
+         commits={commits} commits_per_second={commits_per_second:.3} minimum={minimum_commits_per_second:.3}",
+        AC011_WARMUP.as_millis(),
+        elapsed.as_millis(),
+    );
+    assert!(
+        commits_per_second >= minimum_commits_per_second,
+        "{ac} failed: {commits_per_second:.3} commits/sec < {minimum_commits_per_second:.3} \
+         commits/sec over {elapsed:?} with {payload_bytes}-byte payloads"
+    );
+}
+
+#[test]
+fn ac_011a_write_throughput_1kb() {
+    write_throughput_sample(AC011_1KB_PAYLOAD_BYTES, AC011_1KB_MIN_COMMITS_PER_SECOND, "AC-011a");
+}
+
+#[test]
+fn ac_011b_write_throughput_100kb() {
+    write_throughput_sample(
+        AC011_100KB_PAYLOAD_BYTES,
+        AC011_100KB_MIN_COMMITS_PER_SECOND,
+        "AC-011b",
+    );
 }
 
 fn ac013_scale_treatment(value: Option<&str>) -> Option<&str> {

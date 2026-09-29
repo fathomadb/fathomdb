@@ -283,13 +283,14 @@ test("admin.configure is exported beside Engine", async () => {
 });
 
 test("Engine.open accepts engineConfig with camelCase knobs", async () => {
-  const cfg: EngineConfig = {
+  const mutableConfig = {
     embedderPoolSize: 2,
     schedulerRuntimeThreads: 4,
     provenanceRowCap: 1024,
     embedderCallTimeoutMs: 30_000,
     slowThresholdMs: 250,
   };
+  const cfg: EngineConfig = mutableConfig;
   const engine = await Engine.open(freshDbPath(), { engineConfig: cfg });
   try {
     assert.equal(engine.config.embedderPoolSize, 2);
@@ -297,6 +298,21 @@ test("Engine.open accepts engineConfig with camelCase knobs", async () => {
     assert.equal(engine.config.provenanceRowCap, 1024);
     assert.equal(engine.config.embedderCallTimeoutMs, 30_000);
     assert.equal(engine.config.slowThresholdMs, 250);
+
+    mutableConfig.slowThresholdMs = 999;
+    assert.equal(
+      engine.config.slowThresholdMs,
+      250,
+      "Engine.config must be an open-time snapshot, not an alias of the caller's object",
+    );
+    assert.equal(Object.isFrozen(engine.config), true);
+    assert.throws(
+      () => {
+        (engine.config as { slowThresholdMs: number }).slowThresholdMs = 500;
+      },
+      TypeError,
+      "the returned configuration snapshot must reject mutation",
+    );
   } finally {
     await engine.close();
   }

@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "release": "0.8.27",
+  "slice": 90,
+  "entry_engine_candidate_sha": "7a2f9bf90783f545603516502bac0016d4b93a14",
+  "runner": {
+    "host": "windchill3",
+    "operating_system": "Linux x86_64",
+    "minimum_online_cpus": 8,
+    "minimum_memory_gib": 16,
+    "database_storage": "local NVMe",
+    "cpu_governor": "performance",
+    "competing_process_policy": "no build, test, evaluation, model-serving, or database workload during a repetition",
+    "build": "cargo test --release",
+    "features": ["test-hooks"]
+  },
+  "fixture": {
+    "generator": "d27_runtime_qualification_v1",
+    "seed": "0xd02790c0ffee0001",
+    "initial_canonical_nodes": 10000,
+    "body_bytes": 512,
+    "vocabulary_size": 1024,
+    "vector_dimension": 384,
+    "provider_service_time_ms": 2,
+    "provider_result": "deterministic unit-normalized vector derived from FNV-1a(input, seed)",
+    "corpus_identity": "the entry run records sha256 over newline-delimited canonical generated records; every checkpoint/final run must match that sha256 byte-for-byte"
+  },
+  "execution": {
+    "warmup_seconds": 10,
+    "measurement_seconds": 60,
+    "repetitions": 3,
+    "repetition_order": [
+      "entry_projection_heavy_1",
+      "entry_foreground_heavy_1",
+      "entry_projection_heavy_2",
+      "entry_foreground_heavy_2",
+      "entry_projection_heavy_3",
+      "entry_foreground_heavy_3"
+    ],
+    "checkpoint_and_final_order": "identical to entry with entry_ replaced by candidate_",
+    "operation_epoch_size": 10,
+    "projection_heavy_epoch": {
+      "canonical_writes": 4,
+      "foreground_hybrid_queries": 4,
+      "direct_embeds": 2
+    },
+    "foreground_heavy_epoch": {
+      "canonical_writes": 1,
+      "foreground_hybrid_queries": 7,
+      "direct_embeds": 2
+    },
+    "client_concurrency": {
+      "canonical_writes": 1,
+      "foreground_hybrid_queries": 4,
+      "direct_embeds": 1
+    },
+    "stop_rule": "after 60 seconds, stop admission at the next completed 10-operation epoch and drain accepted work"
+  },
+  "metrics": {
+    "throughput_rates_per_second": [
+      "canonical_commits",
+      "projection_completions",
+      "foreground_hybrid_queries",
+      "direct_embeds"
+    ],
+    "latency_percentiles": [50, 95, 99],
+    "latency_classes": ["canonical_commit", "projection_freshness", "foreground_hybrid_query", "direct_embed", "embed_queue_wait", "close"],
+    "counts": ["admitted", "completed", "timed_out", "overloaded", "provider_error", "invalid_vector", "panic"],
+    "high_water": ["projection_rows_active_plus_queued", "embed_requests_waiting", "durable_projection_backlog"],
+    "inventory": ["provider_concurrency", "engine_threads", "sqlite_connections", "residual_workers_after_close"],
+    "environment": ["binary_sha256", "protocol_sha256", "corpus_sha256", "rustc", "kernel", "cpu_model", "online_cpus", "cpu_governor", "memory_available", "load_average", "competing_processes", "database_device"]
+  },
+  "starvation_rule": {
+    "window_seconds": 5,
+    "rule": "while a class has admitted unfinished work, every non-overlapping five-second window must contain at least one completion for canonical writes, projections, foreground queries, and direct embeds; both workload directions must pass"
+  },
+  "comparison_rule": {
+    "center": "median of three repetitions",
+    "noise": "entry_MAD = median(abs(entry_repetition_value - entry_median)) across the three entry repetitions",
+    "evaluation_scope": "evaluate each named throughput rate and each named latency class/percentile independently within projection_heavy and foreground_heavy; no metric or direction may offset another",
+    "throughput_floor": "for each throughput rate and direction: candidate_median >= entry_median - max(0.10 * entry_median, 3 * entry_MAD)",
+    "latency_ceiling": "for each latency class, percentile, and direction: candidate_median <= entry_median + max(0.15 * entry_median, 3 * entry_MAD)",
+    "precision": "derive rates and latency values from raw monotonic nanoseconds as binary64 values; do not round before evaluating a comparison",
+    "hard_requirements": [
+      "all pre-existing acceptance thresholds pass unchanged",
+      "the starvation rule passes in both directions",
+      "queue and projection admission never exceed the accepted configuration-derived bounds",
+      "thread and SQLite inventories equal the accepted configuration-derived counts",
+      "close leaves zero engine-owned residual workers except a contractually reported hung provider call with no database ownership"
+    ],
+    "invalid_environment": "any runner mismatch, corpus/protocol hash mismatch, non-performance governor, competing workload, swap-in/out during a repetition, or missing raw metric invalidates that repetition rather than counting as pass or fail"
+  },
+  "required_receipt_fields": [
+    "source_sha",
+    "binary_sha256",
+    "protocol_sha256",
+    "corpus_sha256",
+    "raw_output_sha256",
+    "runner_inventory",
+    "environment_start",
+    "environment_end",
+    "per_repetition_metrics",
+    "aggregate_metrics",
+    "decision_rule_evaluation",
+    "status"
+  ]
+}

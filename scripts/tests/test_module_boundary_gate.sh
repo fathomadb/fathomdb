@@ -1318,6 +1318,64 @@ t11_bridge_mutant inline-file-item-cycle telemetry crate::telemetry::s85_a::s85_
   'edge telemetry::s85_a s85_bridge search s85_ret callable all' \
   'edge search s85_ret graph_expand s85_g callable all'
 
+# Test review cycle 3, T-13 (AC27-85B/D): a crate-root `use` re-export of an
+# item in a lib.rs inline module (`pub(crate) use s85_a::s85_bridge;`, called
+# as `crate::s85_bridge`) resolves to that inline module, so the forbidden
+# graph_expand <-> search cycle cannot terminate on the re-export node. A
+# crate-root alias that names neither an in-crate item nor a declared
+# dependency, and any `extern crate` (which can rename this crate out of the
+# gate's view), fail closed. Every mutant here compiles as written.
+t13_reexport_mutant() {
+  local label="$1" bridge="$2" expected="$3"
+  shift 3
+  local body='let _ = crate::search::prepare_search_statement(c, "");'
+  if [ "$bridge" = item-cycle ]; then
+    body='crate::search::s85_ret(c);'
+    printf '\npub(crate) fn s85_ret(c: &rusqlite::Connection) { crate::graph_expand::s85_g(c); }\n' \
+      >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+  fi
+  printf '\nmod s85_a {\n    pub(crate) fn s85_bridge(c: &rusqlite::Connection) {\n        %s\n    }\n}\npub(crate) use s85_a::s85_bridge;\n' \
+    "$body" >>"$engine_root"
+  printf '\npub(crate) fn s85_g(c: &rusqlite::Connection) { crate::s85_bridge(c); }\n' \
+    >>"$graph_expand_file"
+  printf '%s\n' "$@" >>"$policy_file"
+  expect_failure "$label" "$expected" "$GATE" --root "$fixture"
+  cp "$fixture/lib.rs.clean" "$engine_root"
+  cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+  cp "$fixture/graph-expand.rs.clean" "$graph_expand_file"
+  cp "$fixture/module-boundary-policy.clean" "$policy_file"
+}
+# Admits every edge the unfixed gate extracted (ending on the re-export node)
+# and the edge into root::s85_a the fixed gate extracts.
+t13_reexport_edges=(
+  'reported root::s85_a'
+  'edge graph_expand s85_g root s85_bridge callable all'
+  'edge root <module>::s85_bridge root::s85_a s85_bridge reexport all'
+  'edge graph_expand s85_g root::s85_a s85_bridge callable all'
+)
+t13_reexport_mutant root-reexport-inline-module-scc plain "$t11_joins" "${t13_reexport_edges[@]}" \
+  'edge root::s85_a s85_bridge search prepare_search_statement callable all'
+t13_reexport_mutant root-reexport-inline-item-cycle item-cycle "$t11_forbidden" \
+  "${t13_reexport_edges[@]}" 'module-scc graph_expand all' 'module-scc root::s85_a all' \
+  'edge root::s85_a s85_bridge search s85_ret callable all' \
+  'edge search s85_ret graph_expand s85_g callable all'
+# `extern crate self` renames this crate; the unfixed gate reads both forms as
+# another crate and passes them against the frozen policy.
+t13_extern_mutant() {
+  local label="$1" root_items="$2" call="$3" expected="$4"
+  printf '\nextern crate self as s85_me;\n%s' "$root_items" >>"$engine_root"
+  printf '\npub(crate) fn s85_g(c: &rusqlite::Connection) { let _ = %s(c, ""); }\n' "$call" \
+    >>"$graph_expand_file"
+  expect_failure "$label" "$expected" "$GATE" --root "$fixture"
+  cp "$fixture/lib.rs.clean" "$engine_root"
+  cp "$fixture/graph-expand.rs.clean" "$graph_expand_file"
+}
+t13_extern_mutant root-alias-unresolved \
+  $'pub(crate) use s85_me::search::prepare_search_statement as s85_prep;\n' crate::s85_prep \
+  'unresolved crate-root alias s85_prep -> s85_me::search::prepare_search_statement'
+t13_extern_mutant extern-crate-self-path '' s85_me::search::prepare_search_statement \
+  'unsupported extern crate declaration s85_me at lib.rs:'
+
 # Test review cycle 2, T-9 (AC27-85E): compiled negative fixtures. Each family
 # the AC names gets at least one mutant that also passes `cargo check -p
 # fathomdb-engine --lib --profile test --features test-hooks,operator`, by adding

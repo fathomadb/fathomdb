@@ -346,3 +346,45 @@ for the orchestrator to rebind.
 
 Counts after test FIX-1: 31 library and 2 binary gate unit tests; 175
 mutation assertions (169 negative, 6 positive); edge inventory 3855 lines.
+
+## Test review FIX-2
+
+Test review cycle 2 of the test FIX-1 head `809b0e9f` returned FAIL with
+findings T-9..T-12. Test FIX-2 ran on branch `slice-85-fix` from that head.
+RED was shown with the same scratch harness as before (`expect_*` print
+instead of exiting), run against the unfixed gate or wrapper. GREEN is the
+unmodified `bash scripts/tests/test_module_boundary_gate.sh` (exit 0, 218
+assertions), `scripts/check-module-boundaries.sh`, the gate crate's
+`cargo test` and the feature-gated engine test runs. No mutant was removed
+and no asserted diagnostic was weakened.
+
+| Finding | RED | GREEN | What changed |
+| --- | --- | --- | --- |
+| T-10 (P1) `slice60_fix1_wire` red under `test-hooks` | At `809b0e9f`: `missing required FIX-1 seam measure_graph_expand_for_test` (3 passed, 1 failed) | `71bd7a39` | The seam test scraped only `graph_expand/*.rs`, but `d243ff45` moved four `Engine` test seams into `graph_api.rs`. The scrape now also includes `graph_api.rs`; every needle is kept. The orchestrator signed off on this test-file edit. |
+| T-12 (P3) stale-binary guard false positive | `9a2b6c92`: with a fake cargo that does not relink an existing binary, a `Cargo.toml` touch made the wrapper rebuild on every run (5 builds, expected 4) | `7d36ef53` | The wrapper touches the binary after a successful build. A real `touch` of the gate's `Cargo.toml` and `Cargo.lock` no longer trips the mutation suite's guard. The source-change rebuild arms are unchanged. |
+| T-11 (P2) paths into inline modules dropped | `8a8605af`, `52a2f471`: of 7 compiling bridge mutants, the three root path forms (`crate::`, `super::`, `use crate::`) passed the gate after admitting the one edge it extracted; the regenerated and item-cycle forms missed their diagnostics | `8754d588`, regenerated in `044b7626` | A `crate::`/`super::` path whose first segment is an inline module of `lib.rs` now resolves to `root::<m>`, and every resolved target whose leading item segments name an inline module moves onto that module. The reviewer's bridge now fails as `module graph_expand joins a governed module-level SCC`; bridges that also return to the calling `graph_expand` item fail as `forbidden cycle graph_expand <-> search graph=item` with every edge and module-scc line admitted. Regeneration relabels 17 edges into `test_hooks`' inline hook modules; no other inventory line changed. |
+| T-9 (P2) AC27-85E fixtures not compiled | n/a (test-only; the gate already caught every form) | `733d047e` | 36 `compiled-*` mutants add the stub items they name. With the 7 T-11 bridges, all 43 new mutants pass `cargo check -p fathomdb-engine --lib --profile test --features test-hooks,operator`: 155 of 218 gate runs compile, and every AC27-85E family has one. `status.md` lists them. |
+
+The test-hooks flake
+`slice15e_prekn_filterable::undeclared_after_concurrent_drop_is_typed_invalidfilter_not_storage_race`
+predates the slice. It is already recorded in the todos ledger (seq 102); the
+test FIX-1 implementer record wrongly said it was unrecorded. It passed in the
+serial feature-gated run below.
+
+Feature-gated engine runs (serial, `--test-threads=1`, one feature set at a
+time; `scripts/test-feature-complete.sh` itself needs CUDA and model assets):
+`test-hooks` (`--lib --tests`) 177 binaries, 1170 passed, 0 failed;
+`operator` (`--lib --tests`) 182 binaries, 1110 passed, 0 failed;
+`operator,test-hooks` 161 passed; `migration-test-hooks,operator,test-hooks`
+2 passed; `migration-test-hooks` 82 passed; `tc5-benchmark` `tc5_vector_stage`
+3 passed. Under `tc5-benchmark` the lib test
+`reader_request_envelope_stays_bounded_as_search_capabilities_grow` fails
+(`actual=144 bytes`, bound 128). The `ReaderRequest` enum and
+`tc5_benchmark.rs` are unchanged since baseline `4c75bfec` apart from one
+`SyncSender` error parameter, so the failure predates the slice. The
+feature-complete gate runs this test under default features only, where it
+passes. The ML and GPU sets (`default-embedder`, `default-reranker`,
+`slice72-*`) were not run here.
+
+Counts after test FIX-2: 31 library and 2 binary gate unit tests; 218
+mutation assertions (212 negative, 6 positive); edge inventory 3855 lines.

@@ -21,7 +21,7 @@ blast-radius verification, not a full repository regression run.
 | --- | --- |
 | Production boundary gate | PASS: 71 classified modules, 18 governed, 16 configurations |
 | Boundary unit/mutation suite | PASS: 17 library tests, 2 binary tests, all cache/grammar/configuration/cycle/root/macro production mutants |
-| Engine checks | Default all-targets, release tests, `test-hooks`, and `tc5-benchmark` PASS |
+| Engine checks | Default all-targets, release tests, `test-hooks`, and `tc5-benchmark` PASS (corrected below) |
 | Reader pool | 7/7 |
 | Graph traversal | 18/18 |
 | Frozen read | 5/5 |
@@ -30,6 +30,15 @@ blast-radius verification, not a full repository regression run.
 | Request-envelope and narrow-filter-error tests | 2/2 |
 | Windows WAL source/CI fixture | 317/317 |
 | Actionlint miniature-runner fixture | PASS |
+
+> **Correction (test review cycle 2, T-10).** The `test-hooks` PASS above was
+> false at `7a2f9bf9`: that candidate contains `d243ff45`, which moved four
+> test seams into `graph_api.rs`, and
+> `slice60_fix1_wire::real_database_high_bound_rss_dependency_erasure_and_projection_matrix_have_owned_test_seams`
+> (`required-features = ["test-hooks"]`) failed there because it scraped only
+> `graph_expand/*.rs`. The check that passed was a build, check or subset, not
+> every `test-hooks` target. Test FIX-2 points the scrape at `graph_api.rs`
+> as well; see `tdd-chronology.md`, "Test review FIX-2".
 
 The verifier found no requirement, design, implementation, or testing blocker.
 `git diff --check` and worktree cleanliness passed.

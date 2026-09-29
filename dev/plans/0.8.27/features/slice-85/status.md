@@ -29,8 +29,13 @@ review cycle 4)". An adversarial test review of the FIX-4 head (`8385ddca`)
 then found untested policy-inventory diagnostics, a stale-binary defect in the
 gate wrappers under `CARGO_TARGET_DIR`, and weaker fixture and assertion
 evidence (T-1..T-8); test FIX-1 remediates them, recorded under "Test review
-FIX-1". The release-state candidate is rebound only after these reviews. The
-sections below describe the gate after test FIX-1.
+FIX-1". Test review cycle 2 of the test FIX-1 head (`809b0e9f`) found a
+feature-gated source-scraping test the slice left red, paths into inline
+modules that the gate dropped, AC27-85E fixtures that did not compile, and a
+false positive in the stale-binary guard (T-9..T-12); test FIX-2 remediates
+them, recorded under "Test review FIX-2". The release-state candidate is
+rebound only after these reviews. The sections below describe the gate after
+test FIX-2.
 
 `code-review.md` and `review-verification.md` describe the original
 candidate `7a2f9bf9` only; the FIX cycles above supersede their counts.
@@ -158,31 +163,60 @@ The grammar remains syntactic. Examples of what it does not see:
 
 Warm runtime and peak RSS of `scripts/check-module-boundaries.sh` with a
 cached binary (host: 24-core x86_64, `/usr/bin/time -v`, three runs after
-test FIX-1): 2.12 s / 44,032 KB, 2.11 s / 43,532 KB, 2.12 s / 43,708 KB
-(FIX-4: 2.11–2.13 s / 43.0–43.7 MB; FIX-3: 2.12–2.14 s / 42.7–42.9 MB;
+test FIX-2): 2.14 s / 43,192 KB, 2.14 s / 43,620 KB, 2.14 s / 43,548 KB
+(test FIX-1: 2.11–2.12 s / 43.5–44.0 MB; FIX-4: 2.11–2.13 s / 43.0–43.7 MB; FIX-3: 2.12–2.14 s / 42.7–42.9 MB;
 FIX-2: 2.03–2.05 s / 40.4–40.7 MB; FIX-1: 1.64–1.67 s / 34.8–35.1 MB).
 The wrapper and the mutation suite build the gate into
 `dev/tools/module-boundary-gate/target` whatever `CARGO_TARGET_DIR` says, so
-the binary they run is always the one built from the current source. The gate reads only the engine sources, its
+the binary they run is always the one built from the current source; after a
+build the wrapper marks the binary fresh, so a manifest or lockfile edit that
+cargo does not relink for is not judged stale again. The gate reads only the engine sources, its
 manifest and the policy; it performs no whole-workspace indexing. The gate
 crate has 31 library and 2 binary unit tests, and
-`scripts/tests/test_module_boundary_gate.sh` runs 175 production mutation
-assertions (169 negative, 6 positive) in about 6.3 minutes.
+`scripts/tests/test_module_boundary_gate.sh` runs 218 production mutation
+assertions (212 negative, 6 positive) in about 7.8 minutes.
 
-The mutation fixtures are syntactic, not all compiled. A compile check of
+Every fixture family has a compiled negative fixture. A compile check of
 every mutant (`cargo check -p fathomdb-engine --lib --profile test
---features test-hooks,operator`) after test FIX-1: 112 of the 175 gate runs
-compile and 63 do not. Most of the 63 name placeholder items that do not
-exist (`slice85_probe`, `S85Trait`, `slice85_make`, …). A few are invalid on
+--features test-hooks,operator`) after test FIX-2: 155 of the 218 gate runs
+compile and 63 do not. Test FIX-2 added 43 mutants and all 43 compile: 36
+`compiled-*` siblings (T-9) and the 7 inline-module bridges (T-11). The
+`compiled-*` mutants add the stub items they name, so each AC27-85E family
+has at least one compiling fixture:
+
+- local free-function shadow: `compiled-shadow` (a block-local item);
+- unresolved-alias rejection: `compiled-untyped-receiver`,
+  `compiled-generic-parameter-receiver`;
+- duplicate names: `compiled-overlapping-engine-method-twins`. It compiles in
+  the checked feature set, which lacks `tc5-benchmark`; the gate rejects the
+  overlap that a `tc5-benchmark` build would also reject;
+- missing maps: `compiled-engine-field-missing` (the field is initialised);
+- trait references: `compiled-generic-bound`, `-where-bound`,
+  `-impl-trait-header`, `-impl-trait-argument`, `-dyn-trait-reference`,
+  `-boxed-dyn-trait`, `-supertrait`, `-qself-trait-call`, `-qself-trait-type`;
+- relative and generic paths: `compiled-self-super-chain`,
+  `compiled-const-generic-turbofish`;
+- capitalised paths: `compiled-capital-const`, `-variant`, `-constructor`,
+  `-unit`, `-tuple-pattern`, `-struct-pattern` (with the existing compiling
+  `capital-struct-literal`), and `compiled-type-kind`;
+- macros: `compiled-macro`, `-macro-vec-repeat`, `-macro-params`,
+  `-macro-assert-matches`, `-macro-assert-matches-capital`,
+  `-macro-matches-guard`, `-macro-format`, `-macro-write`,
+  `-macro-statements`, `-macro-unparsed` (with the existing compiling
+  `macro-control` and `macro-vec`);
+- descendant forbids and item cycles: `compiled-codec-search-api`,
+  `compiled-local-helper-cycle`, `compiled-forbidden-submodule-cycle`.
+
+Every other family already had a compiling mutant in the test review
+census; for example, `forbidden-receiver-name-collision` covers external
+same-name calls. The 63 non-compiling mutants
+stay as syntactic evidence. Most name placeholder items that do not exist
+(`slice85_probe`, `S85Trait`, `slice85_make`, …). A few are invalid on
 purpose: `shadow` and `overlapping-engine-method-twins` are name
 collisions, the two manifest mutants remove a feature, `engine-field-missing`
 leaves the new field out of the constructor, `serde-unparsable-path` is
 rejected by serde_derive, and no dependency provides the non-serde derive
-that `attribute-string-path` uses. Each mutant has the same syntax shape as a
-compiling form, so a gate that dropped edges to missing items would fail it
-rather than pass it. The ten non-compiling mutants the test review sampled
-compile now, except the last two. AC27-85E's "compiled fixtures" is
-therefore met only by the compiling subset; the rest is syntactic evidence.
+that `attribute-string-path` uses.
 
 ## Acceptance
 
@@ -208,16 +242,25 @@ therefore met only by the compiling subset; the rest is syntactic evidence.
   still requires the `test-hooks` feature and so runs only in the opt-in
   `FATHOMDB_FEATURE_COMPLETE=1` gate. That gating predates the slice and is
   unchanged.
-- **AC27-85C/D/E:** exact policy, whole-crate extraction, item and
+- **AC27-85C/D/E:** exact policy, whole-crate extraction (including paths
+  into inline modules of `lib.rs` and other files, T-11), item and
   governed-module SCCs, the frozen module-level cycle inventory,
   source-derived inventories, 248 configurations, cache behavior, negative
   grammar fixtures, macro-body extraction and fingerprinting, and production
-  mutants pass.
+  mutants pass. Every AC27-85E family has at least one compiled negative
+  fixture (155 of 218 gate runs compile; the list is above); the 63
+  non-compiling mutants are additional syntactic evidence.
 - **AC27-85F:** exact pre-move commissioning evidence is retained. On the
   reviewed candidate, focused runtime/build checks pass, public surface is
   exactly equal, hidden structure and release probe are equal with one
   additive test across 13 inventory rows, and the candidate-bound native
-  receipt passes.
+  receipt passes. The `test-hooks` source-scraping test
+  `slice60_fix1_wire` was red at that candidate (see the correction in
+  `review-verification.md`); test FIX-2 points it at `graph_api.rs`, and every
+  non-ML feature-gated engine target passes serially after test FIX-2. One
+  lib test fails only when the lib is built with `tc5-benchmark`, and that
+  failure predates the slice (runs in `tdd-chronology.md`, "Test review
+  FIX-2").
 - **AC27-85G:** no AC-037 qualification is claimed; Slice 150 still owns the
   exact-final-candidate live run.
 

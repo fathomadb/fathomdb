@@ -161,7 +161,7 @@ expect_failure graph-search-cycle 'forbidden dependency graph_expand -> search' 
 cp "$fixture/graph-expand.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
 
 cp "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs" "$fixture/fusion.rs.clean"
-printf '\npub(crate) fn slice85_reported_reverse() { let _ = crate::reader_pool::ReaderRequest::shutdown(); }\n' \
+printf '\npub(crate) fn slice85_reported_reverse() { let _ = crate::reader_pool::ReaderRequest::crossed_boundary_since(0, todo!(), todo!()); }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
 expect_failure reported-return 'unexpected boundary edge source=fusion' "$GATE" --root "$fixture"
 cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
@@ -176,7 +176,7 @@ cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusi
 cp "$fixture/reader-pool.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/reader_pool.rs"
 
 cp "$fixture/src/rust/crates/fathomdb-engine/src/lib.rs" "$fixture/lib.rs.clean"
-printf '\nfn slice85_root_return() { let _ = reader_pool::ReaderRequest::shutdown(); }\n' \
+printf '\nfn slice85_root_return() { let _ = reader_pool::ReaderRequest::crossed_boundary_since(0, todo!(), todo!()); }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/lib.rs"
 printf '\nfn slice85_calls_root() { crate::slice85_root_return(); }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
@@ -299,12 +299,12 @@ cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-p
 # Design review cycle 1, D-1: dependencies written inside std macro bodies are
 # extracted with the same rules as ordinary expressions (P19/P20/P21).
 cp "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/traversal.rs" "$fixture/traversal.rs.clean"
-printf '\nfn slice85_macro_control() { let _ = crate::reader_pool::ReaderRequest::shutdown(); }\n' \
+printf '\nfn slice85_macro_control() { let _ = crate::reader_pool::ReaderRequest::crossed_boundary_since(0, todo!(), todo!()); }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
 expect_failure macro-control 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
 cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
 
-printf '\nfn slice85_macro_hidden() { let _ = vec![crate::reader_pool::ReaderRequest::shutdown()]; }\n' \
+printf '\nfn slice85_macro_hidden() { let _ = vec![crate::reader_pool::ReaderRequest::crossed_boundary_since(0, todo!(), todo!())]; }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
 expect_failure macro-vec 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
 cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
@@ -378,7 +378,7 @@ printf '\nfn slice85_unit_probe() { let _ = crate::reader_pool::S85Unit; }\n' \
 expect_failure capital-unit 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
-printf '\nfn slice85_struct_literal_probe() { let _ = crate::reader_pool::S85Struct { value: 1 }; }\n' \
+printf '\nfn slice85_struct_literal_probe() { let _ = crate::reader_pool::CacheStatusReply { worker_idx: 0, snapshot_label: String::new(), cache_hit: 0, cache_miss: 0, cache_used_bytes: 0 }; }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 expect_failure capital-struct-literal 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
@@ -690,7 +690,7 @@ d14_read_mutant() {
   cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
 }
 d14_read_mutant qself-type-call \
-  'fn slice85_qself_type() { let _ = <crate::reader_pool::ReaderRequest as Default>::default(); }'
+  'fn slice85_qself_type() { let _ = <crate::reader_pool::CacheStatusReply as Clone>::clone(todo!()); }'
 d14_read_mutant qself-trait-call \
   'fn slice85_qself_trait(x: u8) { let _ = <u8 as crate::reader_pool::S85Trait>::go(x); }'
 d14_read_mutant qself-trait-reference \
@@ -751,7 +751,7 @@ printf '\nfn slice85_inline_launder(_: &crate::fusion::s85inner::L) {}\n' \
 expect_failure inline-module-reexport-laundering 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
-printf '\nfn slice85_inline_launder() { let _ = crate::fusion::s85inner::L::shutdown(); }\n' \
+printf '\nfn slice85_inline_launder() { let _ = crate::fusion::s85inner::L::crossed_boundary_since(0, todo!(), todo!()); }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 expect_failure inline-module-reexport-call 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
@@ -898,7 +898,7 @@ cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-p
 # Design review cycle 2, D-20: cfg on statements, lets, match arms and
 # expressions, and the cfg of the `mod` item declaring a file, are evaluated;
 # an unknown feature there fails closed.
-printf '\nfn slice85_stmt_unknown() { #[cfg(feature = "slice85-no-such-feature")] crate::fusion::fuse_rrf(); }\n' \
+printf '\nfn slice85_stmt_unknown() { #[cfg(feature = "slice85-no-such-feature")] crate::fusion::fuse_rrf(Vec::new(), Vec::new()); }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 expect_failure statement-unknown-feature 'unsupported cfg predicate in search.rs: feature = "slice85-no-such-feature"' \
   "$GATE" --root "$fixture"
@@ -912,11 +912,11 @@ d20_label_mutant() {
   cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 }
 d20_label_mutant statement-cfg slice85_stmt_cfg \
-  'fn slice85_stmt_cfg() { #[cfg(feature = "operator")] crate::fusion::fuse_rrf(); }'
+  'fn slice85_stmt_cfg() { #[cfg(feature = "operator")] crate::fusion::fuse_rrf(Vec::new(), Vec::new()); }'
 d20_label_mutant let-cfg slice85_let_cfg \
   'fn slice85_let_cfg() { #[cfg(feature = "operator")] let _ = crate::fusion::fuse_rrf; }'
 d20_label_mutant arm-cfg slice85_arm_cfg \
-  'fn slice85_arm_cfg(x: u8) { match x { #[cfg(feature = "operator")] 1 => crate::fusion::fuse_rrf(), _ => {} } }'
+  'fn slice85_arm_cfg(x: u8) { match x { #[cfg(feature = "operator")] 1 => { crate::fusion::fuse_rrf(Vec::new(), Vec::new()); } _ => {} } }'
 
 cp "$fixture/src/rust/crates/fathomdb-engine/src/data_plane_integrity.rs" "$fixture/data-plane-integrity.rs.clean"
 printf '\npub(crate) fn slice85_dpi() { let _ = crate::search::prepare_search_statement; }\n' \
@@ -932,6 +932,8 @@ cp "$fixture/data-plane-integrity.rs.clean" "$fixture/src/rust/crates/fathomdb-e
 # external; a reviewed in-crate receiver type becomes a real typed edge.
 sed -i '0,/\[compiled\.match_expression\.as_str()\],/s//[slice85_reason().as_str()],/' \
   "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\nfn slice85_reason() -> String { String::new() }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 expect_failure receiver-swap \
   'source=search source_item=read_search_in_tx method=as_str calls=1 receiver=slice85_reason()' \
   "$GATE" --root "$fixture"
@@ -967,7 +969,7 @@ cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/sear
 # source the gate never parses, in any module.
 printf '\n#[derive(serde::Serialize)]\npub(crate) struct S85D { #[serde(serialize_with = "crate::search::s85_ser")] a: u8 }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
-printf '\npub(crate) fn s85_ser() {}\n' >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\npub(crate) fn s85_ser<S: serde::Serializer>(v: &u8, s: S) -> Result<S::Ok, S::Error> { s.serialize_u8(*v) }\n' >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 expect_failure serde-serialize-with-codec-search 'forbidden dependency graph_expand::codec -> search' \
   "$GATE" --root "$fixture"
 cp "$fixture/codec.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
@@ -990,21 +992,27 @@ d23_serde_mutant serde-with-module \
 d23_serde_mutant serde-getter \
   '#[derive(serde::Serialize)] #[serde(remote = "S85Remote")] struct S85RemoteDef { #[serde(getter = "crate::reader_pool::s85_get")] a: u8 }'
 d23_serde_mutant serde-remote-type \
-  '#[derive(serde::Serialize)] #[serde(remote = "crate::reader_pool::ReaderRequest")] enum S85RemoteDef { Shutdown }'
+  '#[derive(serde::Serialize)] #[serde(remote = "crate::reader_pool::CacheStatusReply")] struct S85RemoteDef { worker_idx: usize, snapshot_label: String, cache_hit: i32, cache_miss: i32, cache_used_bytes: i32 }'
 d23_serde_mutant serde-from-type \
   '#[derive(serde::Deserialize)] #[serde(from = "crate::reader_pool::ReaderRequest")] struct S85From { a: u8 }'
 d23_serde_mutant serde-try-from-type \
   '#[derive(serde::Deserialize)] #[serde(try_from = "Vec<crate::reader_pool::ReaderRequest>")] struct S85TryFrom { a: u8 }'
 d23_serde_mutant serde-into-type \
   '#[derive(Clone, serde::Serialize)] #[serde(into = "crate::reader_pool::ReaderRequest")] struct S85Into { a: u8 }'
+printf '\npub(crate) trait S85Trait: serde::Serialize {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/reader_pool.rs"
 d23_serde_mutant serde-bound \
   '#[derive(serde::Serialize)] #[serde(bound = "T: crate::reader_pool::S85Trait")] struct S85Bound<T> { a: T }'
 d23_serde_mutant serde-bound-serialize \
   '#[derive(serde::Serialize)] #[serde(bound(serialize = "T: crate::reader_pool::S85Trait"))] struct S85Bound<T> { a: T }'
+cp "$fixture/reader-pool.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/reader_pool.rs"
 d23_serde_mutant serde-variant-with \
   '#[derive(serde::Serialize)] enum S85Variant { #[serde(serialize_with = "crate::reader_pool::s85_ser")] A(u8) }'
 d23_serde_mutant serde-cfg-attr \
   '#[derive(serde::Serialize)] struct S85CfgAttr { #[cfg_attr(test, serde(serialize_with = "crate::reader_pool::s85_ser"))] a: u8 }'
+# Intentionally not compilable: no engine dependency provides a non-serde
+# derive with a string-path attribute, so this fixture pins the syntactic
+# rule only (schemars is not a dependency).
 d23_serde_mutant attribute-string-path \
   '#[derive(schemars::JsonSchema)] struct S85Schema { #[schemars(with = "crate::reader_pool::ReaderRequest")] a: u8 }'
 
@@ -1026,10 +1034,13 @@ cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/sear
 cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
 cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
 
+printf '{ let _ = crate::reader_pool::ReaderRequest::crossed_boundary_since; 0 }\n' \
+  >"$fixture/src/rust/crates/fathomdb-engine/src/s85.inc"
 printf '\npub(crate) fn s85_std_include() -> u8 { std::include!("s85.inc") }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 expect_failure governed-std-include 'unreviewed include source=search item=s85_std_include macro=std::include' \
   "$GATE" --root "$fixture"
+rm "$fixture/src/rust/crates/fathomdb-engine/src/s85.inc"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
 # Design review cycle 4, D-28: `include!` is the builtin whatever it is
@@ -1084,6 +1095,8 @@ expect_failure serde-qualified-self-inherent 'forbidden dependency graph_expand:
 cp "$fixture/codec.rs.clean" "$codec_file"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+# Intentionally not compilable: serde_derive itself rejects this value; the
+# fixture pins the gate's fail-closed backstop for an unparsable path.
 printf '\n#[derive(serde::Serialize)]\npub(crate) struct S85Q { #[serde(serialize_with = "crate::search::")] a: u8 }\n' \
   >>"$codec_file"
 expect_failure serde-unparsable-path \

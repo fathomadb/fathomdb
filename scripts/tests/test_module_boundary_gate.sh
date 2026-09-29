@@ -670,6 +670,40 @@ printf '\nfn slice85_generic_control<T: std::fmt::Debug>(_: T) { let _ = Vec::<u
 expect_success generic-control "$GATE" --root "$fixture"
 cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
 
+# Design review cycle 2, D-15: type aliases (generic or not) and re-exports
+# inside inline modules resolve to the defining owner, so neither launders a
+# forbidden dependency through a reported module.
+printf '\npub(crate) type S85AliasLaundered = crate::reader_pool::ReaderRequest;\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+printf '\nfn slice85_alias_launder(_: &crate::fusion::S85AliasLaundered) {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure type-alias-laundering 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+
+printf '\npub(crate) type S85GenericLaundered<T> = Result<T, crate::reader_pool::ReaderRequest>;\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+printf '\nfn slice85_generic_alias_launder(_: crate::fusion::S85GenericLaundered<u8>) {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure generic-type-alias-laundering 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+
+printf '\npub(crate) mod s85inner { pub(crate) use crate::reader_pool::ReaderRequest as L; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+printf 'reported fusion::s85inner\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+printf '\nfn slice85_inline_launder(_: &crate::fusion::s85inner::L) {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure inline-module-reexport-laundering 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\nfn slice85_inline_launder() { let _ = crate::fusion::s85inner::L::shutdown(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure inline-module-reexport-call 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

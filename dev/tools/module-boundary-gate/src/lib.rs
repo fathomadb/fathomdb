@@ -1097,6 +1097,20 @@ mod tests {
     }
 
     #[test]
+    fn local_macro_definitions_keep_their_declared_name() {
+        let analysis = analyze_source(
+            "macro_rules! hidden_boundary { () => {{ \
+                 let _ = crate::reader_pool::ReaderRequest::Shutdown; \
+             }}; }",
+        )
+        .expect("fixture parses");
+        assert!(analysis
+            .macros
+            .iter()
+            .any(|usage| usage.target == "macro_rules::hidden_boundary"));
+    }
+
+    #[test]
     fn root_glob_shadowing_expires_at_the_end_of_its_lexical_block() {
         let analysis = analyze_source(
             "use super::*; fn scope_escape() { \

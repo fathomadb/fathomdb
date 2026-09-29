@@ -43,20 +43,33 @@ printf 'fn main() {}\n' >"$cache_fixture/dev/tools/module-boundary-gate/src/main
 fake_cargo="$fixture/fake-cargo"
 cat >"$fake_cargo" <<'FAKE_CARGO'
 #!/usr/bin/env bash
+# Honours --target-dir, then CARGO_TARGET_DIR, like cargo; the built gate
+# prints which build produced it.
 set -euo pipefail
 printf 'build\n' >>"${FAKE_CARGO_LOG:?}"
-tool_dir="$(dirname "${@: -1}")"
-mkdir -p "$tool_dir/target/debug"
-cat >"$tool_dir/target/debug/fathomdb-module-boundary-gate" <<'FAKE_GATE'
-#!/usr/bin/env bash
-exit 0
-FAKE_GATE
-chmod +x "$tool_dir/target/debug/fathomdb-module-boundary-gate"
+build_number="$(wc -l <"$FAKE_CARGO_LOG")"
+manifest=""
+target_dir=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --manifest-path) manifest="$2"; shift 2 ;;
+    --target-dir) target_dir="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+tool_dir="$(dirname "${manifest:?}")"
+target_dir="${target_dir:-${CARGO_TARGET_DIR:-$tool_dir/target}}"
+mkdir -p "$target_dir/debug"
+printf '#!/usr/bin/env bash\nprintf "fake-gate-build-%s\\n"\n' "$build_number" \
+  >"$target_dir/debug/fathomdb-module-boundary-gate"
+chmod +x "$target_dir/debug/fathomdb-module-boundary-gate"
 FAKE_CARGO
 chmod +x "$fake_cargo" "$cache_fixture/scripts/check-module-boundaries.sh"
 export FAKE_CARGO_LOG="$fixture/cargo.log"
-FATHOMDB_MODULE_BOUNDARY_CARGO="$fake_cargo" "$cache_fixture/scripts/check-module-boundaries.sh"
-FATHOMDB_MODULE_BOUNDARY_CARGO="$fake_cargo" "$cache_fixture/scripts/check-module-boundaries.sh"
+env -u CARGO_TARGET_DIR FATHOMDB_MODULE_BOUNDARY_CARGO="$fake_cargo" \
+  "$cache_fixture/scripts/check-module-boundaries.sh" >/dev/null
+env -u CARGO_TARGET_DIR FATHOMDB_MODULE_BOUNDARY_CARGO="$fake_cargo" \
+  "$cache_fixture/scripts/check-module-boundaries.sh" >/dev/null
 build_count="$(wc -l <"$FAKE_CARGO_LOG")"
 if [ "$build_count" -ne 1 ]; then
   printf 'fresh module-boundary binary was rebuilt\n' >&2
@@ -64,10 +77,21 @@ if [ "$build_count" -ne 1 ]; then
 fi
 sleep 1
 touch "$cache_fixture/dev/tools/module-boundary-gate/src/main.rs"
-FATHOMDB_MODULE_BOUNDARY_CARGO="$fake_cargo" "$cache_fixture/scripts/check-module-boundaries.sh"
+env -u CARGO_TARGET_DIR FATHOMDB_MODULE_BOUNDARY_CARGO="$fake_cargo" \
+  "$cache_fixture/scripts/check-module-boundaries.sh" >/dev/null
 build_count="$(wc -l <"$FAKE_CARGO_LOG")"
 if [ "$build_count" -ne 2 ]; then
   printf 'stale module-boundary binary was not rebuilt\n' >&2
+  exit 1
+fi
+# Test review cycle 1, T-2: a CARGO_TARGET_DIR in the environment must not
+# split the build from the exec; the rebuilt binary is the one that runs.
+sleep 1
+touch "$cache_fixture/dev/tools/module-boundary-gate/src/main.rs"
+cache_output="$(CARGO_TARGET_DIR="$fixture/elsewhere-target" \
+  FATHOMDB_MODULE_BOUNDARY_CARGO="$fake_cargo" "$cache_fixture/scripts/check-module-boundaries.sh")"
+if [ "$cache_output" != 'fake-gate-build-3' ]; then
+  printf 'module-boundary wrapper ran a stale binary under CARGO_TARGET_DIR: %s\n' "$cache_output" >&2
   exit 1
 fi
 

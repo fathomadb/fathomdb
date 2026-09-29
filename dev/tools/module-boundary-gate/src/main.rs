@@ -764,7 +764,7 @@ fn evaluate(
             }
             if edge.configurations.is_empty() {
                 if frozen_scope(policy, &source_module)
-                    || targets.iter().any(|target| frozen_scope(policy, &target.module))
+                    || targets.keys().any(|target| frozen_scope(policy, &target.module))
                 {
                     errors.push(format!(
                         "edge has no evaluated configuration source={source_module} source_item={} \
@@ -810,7 +810,7 @@ fn evaluate(
                 && module != "reader_pool"
                 && edge.kind == EdgeKind::Callable
                 && (direct_reader_request_variant(&edge.target)
-                    || targets.iter().any(|target| direct_reader_request_variant(&target.item)))
+                    || targets.keys().any(|target| direct_reader_request_variant(&target.item)))
             {
                 errors.push(format!(
                     "direct ReaderRequest variant construction outside reader_pool at {}:{}:{} item={}",
@@ -888,11 +888,14 @@ fn evaluate(
                                             module: target.module,
                                             item: format!("{}::{method}", target.item),
                                         },
+                                        edge.configurations,
                                         modules,
                                         &namespaces,
                                     )
                                     .into_iter()
-                                    .map(|target| inline_owner(target, modules))
+                                    .map(|(target, configurations)| {
+                                        (inline_owner(target, modules), configurations)
+                                    })
                                     .collect()
                                 });
                         } else if governed_name {
@@ -979,15 +982,17 @@ fn evaluate(
                     edge.target
                 ));
             }
-            for target in targets {
+            for (target, target_configurations) in targets {
                 let nonroot_local = target.module == source_module && source_module != "root";
                 let configurations = if edge.kind == EdgeKind::EngineMethod {
                     method_owners
                         .get(&edge.target)
                         .and_then(|owners| owners.get(&target.module))
-                        .map_or(edge.configurations, |owner| edge.configurations.intersect(*owner))
+                        .map_or(target_configurations, |owner| {
+                            target_configurations.intersect(*owner)
+                        })
                 } else {
-                    edge.configurations
+                    target_configurations
                 };
                 let admitted = edge.kind == EdgeKind::Type
                     && policy.admissions.contains(&(
@@ -1786,7 +1791,9 @@ fn reject_unparsed_macros(
 /// that names nothing declared is an error, never another crate's path. The
 /// errors come back with the targets, which for an unresolved path are its
 /// nearest in-crate namespace and the unresolved rest, so every other
-/// diagnostic (forbidden dependencies, cycles) still sees the edge.
+/// diagnostic (forbidden dependencies, cycles) still sees the edge. Each
+/// target carries the configurations, within the edge's, in which the path
+/// resolves to it.
 fn edge_targets(
     file_module: &str,
     edge: &fathomdb_module_boundary_gate::Edge,
@@ -1795,7 +1802,7 @@ fn edge_targets(
     engine_fields: &BTreeSet<String>,
     field_owners: &BTreeMap<String, String>,
     method_owners: &MethodOwners,
-) -> (BTreeSet<ResolvedTarget>, Vec<String>) {
+) -> (Targets, Vec<String>) {
     let (targets, mut errors) = direct_edge_targets(
         file_module,
         edge,
@@ -1807,17 +1814,27 @@ fn edge_targets(
     if matches!(edge.kind, EdgeKind::FieldAccess | EdgeKind::EngineMethod) {
         return (targets, errors);
     }
-    let targets = targets
-        .into_iter()
-        .flat_map(|target| chase_reexports(target, modules, namespaces))
-        .map(|target| inline_owner(target, modules))
-        .collect::<BTreeSet<_>>();
+    let mut chased = Targets::new();
+    for (target, configurations) in targets {
+        for (target, configurations) in chase_reexports(target, configurations, modules, namespaces)
+        {
+            add_target(&mut chased, inline_owner(target, modules), configurations);
+        }
+    }
     if errors.is_empty() {
         errors.extend(
-            targets.iter().filter_map(|target| namespaces.check_declared(target, &edge.kind).err()),
+            chased.keys().filter_map(|target| namespaces.check_declared(target, &edge.kind).err()),
         );
     }
-    (targets, errors)
+    (chased, errors)
+}
+
+/// Resolved destinations of one edge, each with its configurations.
+type Targets = BTreeMap<ResolvedTarget, ConfigSet>;
+
+fn add_target(targets: &mut Targets, target: ResolvedTarget, configurations: ConfigSet) {
+    let entry = targets.entry(target).or_default();
+    *entry = entry.union(configurations);
 }
 
 /// The inline modules of a file module, by scope-qualified name.
@@ -1868,18 +1885,19 @@ fn inline_owner(target: ResolvedTarget, modules: &BTreeMap<String, ModuleInfo>) 
 /// namespace resolver already followed them to the declaring module.
 fn chase_reexports(
     start: ResolvedTarget,
+    configurations: ConfigSet,
     modules: &BTreeMap<String, ModuleInfo>,
     namespaces: &Namespaces,
-) -> BTreeSet<ResolvedTarget> {
-    let mut results = BTreeSet::new();
-    let mut pending = vec![start];
+) -> Targets {
+    let mut results = Targets::new();
+    let mut pending = vec![(start, configurations)];
     let mut seen = BTreeSet::new();
-    while let Some(current) = pending.pop() {
-        if !seen.insert(current.clone()) {
+    while let Some((current, configurations)) = pending.pop() {
+        if !seen.insert((current.clone(), configurations)) {
             continue;
         }
-        pending.extend(chase_step(&current, modules, namespaces));
-        results.insert(current);
+        pending.extend(chase_step(&current, configurations, modules, namespaces));
+        add_target(&mut results, current, configurations);
     }
     results
 }
@@ -1887,9 +1905,10 @@ fn chase_reexports(
 /// The in-crate paths a `type` alias at `current` names.
 fn chase_step(
     current: &ResolvedTarget,
+    configurations: ConfigSet,
     modules: &BTreeMap<String, ModuleInfo>,
     namespaces: &Namespaces,
-) -> Vec<ResolvedTarget> {
+) -> Vec<(ResolvedTarget, ConfigSet)> {
     if current.item == "<module>" {
         return Vec::new();
     }
@@ -1904,9 +1923,15 @@ fn chase_step(
     let head = segments[depth];
     let rest = (depth + 1 < segments.len()).then(|| segments[depth + 1..].join("::"));
     let node = scoped_module(&current.module, &scope);
-    let resolve = |path: &str| match namespaces.resolve(&node, path, Want::Item) {
-        Resolution::InCrate(target) => Some(namespaces.file_form(target)),
-        Resolution::External | Resolution::Unresolved(..) => None,
+    let resolve = |path: &str| {
+        namespaces
+            .resolve_masked(&node, path, Want::Item, configurations)
+            .into_iter()
+            .filter_map(|(resolution, configurations)| match resolution {
+                Resolution::InCrate(target) => Some((namespaces.file_form(target), configurations)),
+                Resolution::External | Resolution::Unresolved(..) => None,
+            })
+            .collect::<Vec<_>>()
     };
     let alias_key = if scope.is_empty() { head.to_string() } else { format!("{scope}::{head}") };
     if let Some(binding) = rest
@@ -1917,7 +1942,7 @@ fn chase_step(
             .mentioned
             .iter()
             .chain(&binding.primary)
-            .filter_map(|path| resolve(path))
+            .flat_map(|path| resolve(path))
             .collect();
     }
     let Some(alias) = info.analysis.type_aliases.get(&alias_key) else { return Vec::new() };
@@ -1940,16 +1965,21 @@ fn direct_edge_targets(
     engine_fields: &BTreeSet<String>,
     field_owners: &BTreeMap<String, String>,
     method_owners: &MethodOwners,
-) -> (BTreeSet<ResolvedTarget>, Vec<String>) {
+) -> (Targets, Vec<String>) {
     if edge.kind == EdgeKind::FieldAccess {
         let targets = if engine_fields.contains(&edge.target) {
             field_owners
                 .get(&edge.target)
-                .map(|owner| ResolvedTarget { module: owner.clone(), item: edge.target.clone() })
+                .map(|owner| {
+                    (
+                        ResolvedTarget { module: owner.clone(), item: edge.target.clone() },
+                        edge.configurations,
+                    )
+                })
                 .into_iter()
                 .collect()
         } else {
-            BTreeSet::new()
+            Targets::new()
         };
         return (targets, Vec::new());
     }
@@ -1958,13 +1988,18 @@ fn direct_edge_targets(
             .get(&edge.target)
             .into_iter()
             .flat_map(BTreeMap::keys)
-            .map(|owner| ResolvedTarget { module: owner.clone(), item: edge.target.clone() })
+            .map(|owner| {
+                (
+                    ResolvedTarget { module: owner.clone(), item: edge.target.clone() },
+                    edge.configurations,
+                )
+            })
             .collect();
         return (targets, Vec::new());
     }
     if let Some(rest) = edge.target.strip_prefix(".<") {
         let Some((method, receiver_type)) = rest.split_once(">:") else {
-            return (BTreeSet::new(), Vec::new());
+            return (Targets::new(), Vec::new());
         };
         let mut typed = edge.clone();
         typed.target = format!("{receiver_type}::{method}");
@@ -1979,33 +2014,60 @@ fn direct_edge_targets(
     }
     let node = scoped_module(file_module, &edge.target_scope);
     let use_edge = matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport);
-    let resolution = match edge.target.strip_suffix("::*").filter(|_| use_edge) {
-        Some(prefix) => match namespaces.resolve(&node, prefix, Want::Module) {
-            Resolution::InCrate(target) if target.item == "<module>" => {
-                Resolution::InCrate(ResolvedTarget { module: target.module, item: "*".to_string() })
-            }
-            Resolution::InCrate(target) => Resolution::Unresolved(
-                format!(
-                    "glob import of the in-crate item {}#{}; import its names explicitly",
-                    target.module, target.item
-                ),
-                vec![target],
-            ),
-            other => other,
-        },
-        None => namespaces.resolve(
+    // An edge active in no configuration still resolves, so the frozen-scope
+    // check can see where it points.
+    let mask = if edge.configurations.is_empty() { namespaces.all } else { edge.configurations };
+    let forks = match edge.target.strip_suffix("::*").filter(|_| use_edge) {
+        Some(prefix) => namespaces
+            .resolve_masked(&node, prefix, Want::Module, mask)
+            .into_iter()
+            .map(|(resolution, configurations)| {
+                let resolution = match resolution {
+                    Resolution::InCrate(target) if target.item == "<module>" => {
+                        Resolution::InCrate(ResolvedTarget {
+                            module: target.module,
+                            item: "*".to_string(),
+                        })
+                    }
+                    Resolution::InCrate(target) => Resolution::Unresolved(
+                        format!(
+                            "glob import of the in-crate item {}#{}; import its names explicitly",
+                            target.module, target.item
+                        ),
+                        vec![target],
+                    ),
+                    other => other,
+                };
+                (resolution, configurations)
+            })
+            .collect::<Forks>(),
+        None => namespaces.resolve_masked(
             &node,
             &edge.target,
             if use_edge { Want::Module } else { Want::Item },
+            mask,
         ),
     };
-    match resolution {
-        Resolution::InCrate(target) => (BTreeSet::from([namespaces.file_form(target)]), Vec::new()),
-        Resolution::External => (BTreeSet::new(), Vec::new()),
-        Resolution::Unresolved(reason, nearest) => {
-            (nearest.into_iter().map(|target| namespaces.file_form(target)).collect(), vec![reason])
+    let mut targets = Targets::new();
+    let mut errors = Vec::new();
+    for (resolution, configurations) in forks {
+        let configurations = configurations.intersect(edge.configurations);
+        match resolution {
+            Resolution::InCrate(target) => {
+                add_target(&mut targets, namespaces.file_form(target), configurations);
+            }
+            Resolution::External => {}
+            Resolution::Unresolved(reason, nearest) => {
+                for target in nearest {
+                    add_target(&mut targets, namespaces.file_form(target), configurations);
+                }
+                if !errors.contains(&reason) {
+                    errors.push(reason);
+                }
+            }
         }
     }
+    (targets, errors)
 }
 
 /// Resolves any chain of leading `self::`/`super::` segments against
@@ -2061,26 +2123,59 @@ enum Resolution {
     Unresolved(String, Vec<ResolvedTarget>),
 }
 
-/// One namespace: a file module or an inline module in one.
+/// One namespace: a file module, an inline module in one, or a block that
+/// declares a `use`.
 struct Namespace {
     file: String,
     scope: String,
     children: BTreeMap<String, String>,
     items: BTreeSet<String>,
-    bindings: BTreeMap<String, String>,
+    /// `use` bindings by name: every target with the configurations its
+    /// bindings exist in, so cfg-disjoint bindings of one name all resolve.
+    bindings: BTreeMap<String, Vec<(String, ConfigSet)>>,
     /// Glob imports: the namespace path as written (without `::*`) and the
     /// node of the scope it is written in.
     globs: Vec<(String, String)>,
+    /// For a block: the enclosing scope, which supplies every name the block
+    /// does not bind.
+    parent: Option<String>,
+    /// The module `self::` and `super::` are relative to: the node itself,
+    /// or a block's inline module.
+    module: String,
+}
+
+/// The resolutions of one path, each with the configurations it holds in.
+type Forks = Vec<(Resolution, ConfigSet)>;
+
+fn covered(forks: &Forks) -> ConfigSet {
+    forks.iter().fold(ConfigSet::default(), |set, (_, configurations)| set.union(*configurations))
+}
+
+/// The `use` bindings of one scope of a file, merged by name and target.
+fn scope_bindings(info: &ModuleInfo, scope: &str) -> BTreeMap<String, Vec<(String, ConfigSet)>> {
+    let mut merged = BTreeMap::<String, BTreeMap<String, ConfigSet>>::new();
+    for binding in info.analysis.bindings.iter().filter(|binding| binding.scope == scope) {
+        let entry = merged
+            .entry(binding.name.clone())
+            .or_default()
+            .entry(binding.target.clone())
+            .or_default();
+        *entry = entry.union(binding.configurations);
+    }
+    merged.into_iter().map(|(name, targets)| (name, targets.into_iter().collect())).collect()
 }
 
 /// Rust 2018 path resolution over the crate's namespaces: `crate`, `self`
 /// and `super` anchors; child modules, declared items, `use` bindings (at any
-/// visibility, since descendants see private imports) and glob imports,
-/// chased to the declaring namespace. A path whose first segment names
-/// nothing in its namespace is another crate's, the prelude's or a local's;
-/// once a path is in the crate, every further segment must resolve.
+/// visibility, since descendants see private imports, and per configuration)
+/// and glob imports, chased to the declaring namespace; a block's `use`
+/// bindings shadow its enclosing scope's. A path whose first segment names
+/// nothing in its scope is another crate's, the prelude's or a local's; once
+/// a path is in the crate, every further segment must resolve.
 struct Namespaces {
     spaces: BTreeMap<String, Namespace>,
+    /// Every evaluated configuration.
+    all: ConfigSet,
 }
 
 impl Namespaces {
@@ -2097,27 +2192,33 @@ impl Namespaces {
                     .filter(|(item_scope, _)| *item_scope == scope)
                     .map(|(_, name)| name.clone())
                     .collect();
-                // A later binding of a name overrides an earlier one.
-                let mut bindings = BTreeMap::new();
-                let mut in_scope = info
-                    .analysis
-                    .bindings
-                    .iter()
-                    .filter(|binding| binding.scope == scope)
-                    .collect::<Vec<_>>();
-                in_scope.sort_by_key(|binding| binding.location);
-                for binding in in_scope {
-                    bindings.insert(binding.name.clone(), binding.target.clone());
-                }
+                let node = scoped_module(file, &scope);
                 spaces.insert(
-                    scoped_module(file, &scope),
+                    node.clone(),
                     Namespace {
                         file: file.clone(),
+                        bindings: scope_bindings(info, &scope),
                         scope,
                         children: BTreeMap::new(),
                         items,
-                        bindings,
                         globs: Vec::new(),
+                        parent: None,
+                        module: node,
+                    },
+                );
+            }
+            for (scope, block) in &info.analysis.block_scopes {
+                spaces.insert(
+                    scoped_module(file, scope),
+                    Namespace {
+                        file: file.clone(),
+                        scope: scope.clone(),
+                        children: BTreeMap::new(),
+                        items: BTreeSet::new(),
+                        bindings: scope_bindings(info, scope),
+                        globs: Vec::new(),
+                        parent: Some(scoped_module(file, &block.parent)),
+                        module: scoped_module(file, &block.module),
                     },
                 );
             }
@@ -2149,16 +2250,45 @@ impl Namespaces {
                     continue;
                 }
                 let written = scoped_module(file, &edge.target_scope);
-                if let Some(space) = spaces.get_mut(&scoped_module(file, &edge.source_scope)) {
-                    space.globs.push((prefix.to_string(), written));
+                if let Some(space) = spaces.get_mut(&written) {
+                    space.globs.push((prefix.to_string(), written.clone()));
                 }
             }
         }
-        Self { spaces }
+        let all = modules
+            .values()
+            .fold(ConfigSet::default(), |set, info| set.union(info.analysis.configurations));
+        Self { spaces, all }
     }
 
+    /// The resolution of `path` in every configuration; paths whose
+    /// resolution differs by configuration fail closed here, so callers
+    /// that need each configuration use [`Self::resolve_masked`].
     fn resolve(&self, node: &str, path: &str, want: Want) -> Resolution {
-        self.resolve_in(node, path, want, &mut BTreeSet::new())
+        let forks = self.resolve_masked(node, path, want, self.all);
+        let distinct = forks.into_iter().map(|(resolution, _)| resolution).collect::<BTreeSet<_>>();
+        if distinct.len() == 1 {
+            return distinct.into_iter().next().expect("one resolution");
+        }
+        let nearest = distinct
+            .into_iter()
+            .flat_map(|resolution| match resolution {
+                Resolution::InCrate(target) => vec![target],
+                Resolution::Unresolved(_, nearest) => nearest,
+                Resolution::External => Vec::new(),
+            })
+            .collect();
+        Resolution::Unresolved(format!("{path} resolves differently by configuration"), nearest)
+    }
+
+    /// The resolutions of `path` written in `node`, one per set of the
+    /// `mask` configurations that resolve it alike.
+    fn resolve_masked(&self, node: &str, path: &str, want: Want, mask: ConfigSet) -> Forks {
+        self.resolve_in(node, path, want, mask, &mut BTreeSet::new())
+    }
+
+    fn module_of(&self, node: &str) -> String {
+        self.spaces.get(node).map_or_else(|| node.to_string(), |space| space.module.clone())
     }
 
     fn resolve_in(
@@ -2166,8 +2296,9 @@ impl Namespaces {
         node: &str,
         path: &str,
         want: Want,
+        mask: ConfigSet,
         visiting: &mut BTreeSet<(String, String)>,
-    ) -> Resolution {
+    ) -> Forks {
         let segments = path.split("::").collect::<Vec<_>>();
         let mut current = node.to_string();
         let mut index = 0;
@@ -2176,14 +2307,18 @@ impl Namespaces {
             current = "root".to_string();
             index = 1;
             anchored = true;
-        } else {
+        } else if matches!(segments[0], "self" | "super") {
+            current = self.module_of(node);
             while index < segments.len() && matches!(segments[index], "self" | "super") {
                 if segments[index] == "super" {
                     if current == "root" {
-                        return Resolution::Unresolved(
-                            format!("{path} climbs above the crate root"),
-                            Vec::new(),
-                        );
+                        return vec![(
+                            Resolution::Unresolved(
+                                format!("{path} climbs above the crate root"),
+                                Vec::new(),
+                            ),
+                            mask,
+                        )];
                     }
                     current =
                         current.rsplit_once("::").map_or("root", |(parent, _)| parent).to_string();
@@ -2193,67 +2328,101 @@ impl Namespaces {
             }
         }
         if index == segments.len() {
-            return Resolution::InCrate(ResolvedTarget {
-                module: current,
-                item: "<module>".to_string(),
-            });
+            return vec![(
+                Resolution::InCrate(ResolvedTarget {
+                    module: current,
+                    item: "<module>".to_string(),
+                }),
+                mask,
+            )];
         }
-        for position in index..segments.len() {
-            let segment = segments[position];
-            let last = position + 1 == segments.len();
-            let wanted = if last { want } else { Want::Module };
-            match self.lookup(&current, segment, wanted, visiting) {
-                None if !anchored && position == index => return Resolution::External,
-                // A module named in value position is no item reference: the
-                // value is a local binding of the same name.
-                None if last
-                    && want == Want::Item
-                    && self.lookup(&current, segment, Want::Module, visiting).is_some() =>
-                {
-                    return Resolution::External
-                }
-                None => {
-                    return Resolution::Unresolved(
-                        format!("{segment} is not declared in {current}"),
-                        vec![ResolvedTarget {
-                            module: current,
-                            item: segments[position..].join("::"),
-                        }],
-                    )
-                }
-                Some(Resolution::InCrate(target)) if target.item == "<module>" => {
-                    if last {
-                        return Resolution::InCrate(target);
-                    }
-                    current = target.module;
-                }
-                Some(Resolution::InCrate(target)) => {
-                    let rest = segments[position + 1..].join("::");
-                    return Resolution::InCrate(ResolvedTarget {
-                        module: target.module,
-                        item: if rest.is_empty() {
-                            target.item
-                        } else {
-                            format!("{}::{rest}", target.item)
-                        },
-                    });
-                }
-                Some(other) => return other,
-            }
-        }
-        unreachable!("a path has at least one segment")
+        let path = PathWalk { segments: &segments, first: index, anchored, want };
+        self.walk(&path, &current, index, mask, visiting)
     }
 
-    /// What `name` denotes in `node`: its own module or item first, then a
-    /// `use` binding, then the glob imports (which must agree).
+    fn walk(
+        &self,
+        path: &PathWalk<'_>,
+        current: &str,
+        position: usize,
+        mask: ConfigSet,
+        visiting: &mut BTreeSet<(String, String)>,
+    ) -> Forks {
+        let segment = path.segments[position];
+        let last = position + 1 == path.segments.len();
+        let wanted = if last { path.want } else { Want::Module };
+        let found = self.lookup(current, segment, wanted, mask, visiting);
+        let mut forks = Forks::new();
+        let missing = mask.difference(covered(&found));
+        if !missing.is_empty() {
+            let resolution = if !path.anchored && position == path.first {
+                Resolution::External
+            } else if last
+                && path.want == Want::Item
+                && !self.lookup(current, segment, Want::Module, missing, visiting).is_empty()
+            {
+                // A module named in value position is no item reference: the
+                // value is a local binding of the same name.
+                Resolution::External
+            } else {
+                Resolution::Unresolved(
+                    format!("{segment} is not declared in {current}"),
+                    vec![ResolvedTarget {
+                        module: current.to_string(),
+                        item: path.segments[position..].join("::"),
+                    }],
+                )
+            };
+            forks.push((resolution, missing));
+        }
+        for (resolution, configurations) in found {
+            match resolution {
+                Resolution::InCrate(target) if target.item == "<module>" => {
+                    if last {
+                        forks.push((Resolution::InCrate(target), configurations));
+                    } else {
+                        forks.extend(self.walk(
+                            path,
+                            &target.module,
+                            position + 1,
+                            configurations,
+                            visiting,
+                        ));
+                    }
+                }
+                Resolution::InCrate(target) => {
+                    let rest = path.segments[position + 1..].join("::");
+                    forks.push((
+                        Resolution::InCrate(ResolvedTarget {
+                            module: target.module,
+                            item: if rest.is_empty() {
+                                target.item
+                            } else {
+                                format!("{}::{rest}", target.item)
+                            },
+                        }),
+                        configurations,
+                    ));
+                }
+                other => forks.push((other, configurations)),
+            }
+        }
+        forks
+    }
+
+    /// What `name` denotes in `node` under `mask`: its own module or item
+    /// first, then its `use` bindings, then the glob imports (which must
+    /// agree), and for a block the enclosing scope. Configurations in which
+    /// nothing supplies the name are absent from the result.
     fn lookup(
         &self,
         node: &str,
         name: &str,
         want: Want,
+        mask: ConfigSet,
         visiting: &mut BTreeSet<(String, String)>,
-    ) -> Option<Resolution> {
-        let space = self.spaces.get(node)?;
+    ) -> Forks {
+        let Some(space) = self.spaces.get(node) else { return Forks::new() };
         let module = space.children.get(name).map(|child| {
             Resolution::InCrate(ResolvedTarget {
                 module: child.clone(),
@@ -2269,16 +2438,22 @@ impl Namespaces {
             Want::Module => module.or(item),
             Want::Item => item,
         };
-        if declared.is_some() {
-            return declared;
+        if let Some(declared) = declared {
+            return vec![(declared, mask)];
         }
         let key = (node.to_string(), name.to_string());
         if !visiting.insert(key.clone()) {
-            return None;
+            return Forks::new();
         }
-        let imported = self.lookup_imported(space, node, name, want, visiting);
+        let mut forks = self.lookup_imported(space, node, name, want, mask, visiting);
         visiting.remove(&key);
-        imported
+        if let Some(parent) = &space.parent {
+            let rest = mask.difference(covered(&forks));
+            if !rest.is_empty() {
+                forks.extend(self.lookup(parent, name, want, rest, visiting));
+            }
+        }
+        forks
     }
 
     fn lookup_imported(
@@ -2287,47 +2462,82 @@ impl Namespaces {
         node: &str,
         name: &str,
         want: Want,
+        mask: ConfigSet,
         visiting: &mut BTreeSet<(String, String)>,
-    ) -> Option<Resolution> {
-        if let Some(target) = space.bindings.get(name) {
-            return Some(self.resolve_in(node, target, want, visiting));
+    ) -> Forks {
+        let mut forks = Forks::new();
+        let mut unbound = mask;
+        for (target, configurations) in space.bindings.get(name).into_iter().flatten() {
+            let bound = mask.intersect(*configurations);
+            if bound.is_empty() {
+                continue;
+            }
+            unbound = unbound.difference(bound);
+            forks.extend(self.resolve_in(node, target, want, bound, visiting));
         }
-        let mut found = BTreeSet::new();
-        let mut outside = false;
+        if unbound.is_empty() || space.globs.is_empty() {
+            return forks;
+        }
+        let mut found = BTreeMap::<Resolution, ConfigSet>::new();
+        let mut outside = ConfigSet::default();
         for (prefix, written) in &space.globs {
-            match self.resolve_in(written, prefix, Want::Module, visiting) {
-                Resolution::InCrate(glob) if glob.item == "<module>" => {
-                    match self.lookup(&glob.module, name, want, visiting) {
-                        Some(Resolution::External) => outside = true,
-                        Some(resolution) => {
-                            found.insert(resolution);
+            for (glob, configurations) in
+                self.resolve_in(written, prefix, Want::Module, unbound, visiting)
+            {
+                match glob {
+                    Resolution::InCrate(glob) if glob.item == "<module>" => {
+                        for (resolution, configurations) in
+                            self.lookup(&glob.module, name, want, configurations, visiting)
+                        {
+                            if resolution == Resolution::External {
+                                outside = outside.union(configurations);
+                            } else {
+                                let entry = found.entry(resolution).or_default();
+                                *entry = entry.union(configurations);
+                            }
                         }
-                        None => {}
                     }
-                }
-                // Another crate's glob may supply any name; a glob of an
-                // in-crate item fails on its own edge.
-                Resolution::InCrate(_) | Resolution::External => outside = true,
-                unresolved @ Resolution::Unresolved(..) => {
-                    found.insert(unresolved);
+                    // Another crate's glob may supply any name; a glob of an
+                    // in-crate item fails on its own edge.
+                    Resolution::InCrate(_) | Resolution::External => {
+                        outside = outside.union(configurations);
+                    }
+                    unresolved @ Resolution::Unresolved(..) => {
+                        let entry = found.entry(unresolved).or_default();
+                        *entry = entry.union(configurations);
+                    }
                 }
             }
         }
-        if found.len() > 1 {
-            let candidates = found
-                .into_iter()
+        let candidates = found.iter().collect::<Vec<_>>();
+        let ambiguous = candidates.iter().enumerate().any(|(index, (_, left))| {
+            candidates[index + 1..].iter().any(|(_, right)| !left.intersect(**right).is_empty())
+        });
+        let supplied = found.values().fold(ConfigSet::default(), |set, value| set.union(*value));
+        if ambiguous {
+            let nearest = found
+                .into_keys()
                 .flat_map(|resolution| match resolution {
                     Resolution::InCrate(target) => vec![target],
                     Resolution::Unresolved(_, nearest) => nearest,
                     Resolution::External => Vec::new(),
                 })
                 .collect();
-            return Some(Resolution::Unresolved(
-                format!("{name} is ambiguous among the glob imports of {node}"),
-                candidates,
+            forks.push((
+                Resolution::Unresolved(
+                    format!("{name} is ambiguous among the glob imports of {node}"),
+                    nearest,
+                ),
+                supplied,
             ));
+        } else {
+            forks.extend(found);
         }
-        found.into_iter().next().or_else(|| outside.then_some(Resolution::External))
+        let external = outside.difference(supplied);
+        if !external.is_empty() {
+            forks.push((Resolution::External, external));
+        }
+        forks
     }
 
     /// A resolved namespace item in the file-module form the `type`-alias
@@ -2347,9 +2557,14 @@ impl Namespaces {
         }
     }
 
-    /// The `use` bindings of `node`, by bound name.
+    /// The `use` bindings of `node`: every bound name and target.
     fn bindings_of(&self, node: &str) -> impl Iterator<Item = (&String, &String)> {
-        self.spaces.get(node).into_iter().flat_map(|space| space.bindings.iter())
+        self.spaces.get(node).into_iter().flat_map(|space| {
+            space
+                .bindings
+                .iter()
+                .flat_map(|(name, targets)| targets.iter().map(move |(target, _)| (name, target)))
+        })
     }
 
     /// Whether `node` itself binds `name` with a `use`.
@@ -2361,9 +2576,11 @@ impl Namespaces {
     /// declared item's own name for an in-crate type; otherwise the last
     /// segment of the path once its head is expanded through `use` bindings.
     fn receiver_owner(&self, node: &str, ty: &str) -> String {
-        if let Resolution::InCrate(target) = self.resolve(node, ty, Want::Item) {
-            if target.item != "<module>" {
-                return target.item.rsplit("::").next().unwrap_or(&target.item).to_string();
+        for (resolution, _) in self.resolve_masked(node, ty, Want::Item, self.all) {
+            if let Resolution::InCrate(target) = resolution {
+                if target.item != "<module>" {
+                    return target.item.rsplit("::").next().unwrap_or(&target.item).to_string();
+                }
             }
         }
         let mut path = ty.to_string();
@@ -2383,8 +2600,9 @@ impl Namespaces {
         path.rsplit("::").next().unwrap_or(&path).to_string()
     }
 
-    /// The `use` binding that supplies `name` in `node`, directly or through
-    /// its glob imports: the node it is written in and its target.
+    /// The `use` binding that supplies `name` in `node`, directly, through
+    /// its glob imports or from an enclosing scope: the node it is written
+    /// in and its target.
     fn binding_for(
         &self,
         node: &str,
@@ -2395,17 +2613,21 @@ impl Namespaces {
             return None;
         }
         let space = self.spaces.get(node)?;
-        if let Some(target) = space.bindings.get(name) {
+        if let Some((target, _)) = space.bindings.get(name).and_then(|targets| targets.first()) {
             return Some((node.to_string(), target.clone()));
         }
-        space.globs.iter().find_map(|(prefix, written)| {
-            match self.resolve(written, prefix, Want::Module) {
+        space
+            .globs
+            .iter()
+            .find_map(|(prefix, written)| match self.resolve(written, prefix, Want::Module) {
                 Resolution::InCrate(glob) if glob.item == "<module>" => {
                     self.binding_for(&glob.module, name, seen)
                 }
                 _ => None,
-            }
-        })
+            })
+            .or_else(|| {
+                space.parent.as_ref().and_then(|parent| self.binding_for(parent, name, seen))
+            })
     }
 
     /// Whether the crate root names `name` only through a `use` binding or a
@@ -2420,7 +2642,7 @@ impl Namespaces {
     /// Whether `name` is bound in `node` at all: declared, imported or
     /// glob-imported from anywhere, in any namespace.
     fn binds(&self, node: &str, name: &str) -> bool {
-        self.lookup(node, name, Want::Module, &mut BTreeSet::new()).is_some()
+        !self.lookup(node, name, Want::Module, self.all, &mut BTreeSet::new()).is_empty()
     }
 
     /// A destination must be a declared item of its namespace; only a `use`
@@ -2444,6 +2666,15 @@ impl Namespaces {
             Err(format!("{} does not declare {head}", target.module))
         }
     }
+}
+
+/// The fixed part of one path resolution.
+struct PathWalk<'a> {
+    segments: &'a [&'a str],
+    /// The first segment after the anchors.
+    first: usize,
+    anchored: bool,
+    want: Want,
 }
 
 /// A directed graph whose edges carry the configurations they are active in.

@@ -2541,6 +2541,7 @@ edge root Engine::open_with_migrations root DatabaseAdmission::TestMigrations ty
 edge root Engine::open_with_migrations root DatabaseOpenPlan type all
 edge root Engine::open_with_migrations root LoaderInfo type all
 edge root Engine::open_with_migrations root ManagedConnectionRegistry::default callable all
+edge root Engine::open_with_migrations root ManagedConnectionRegistry::register callable all
 edge root Engine::open_with_migrations root OpenedEngine type all
 edge root Engine::open_with_migrations root ProfileContext type all
 edge root Engine::open_with_migrations root acquire_lock_without_metadata_mutation callable all

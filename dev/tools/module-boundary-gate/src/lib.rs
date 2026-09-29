@@ -1108,10 +1108,14 @@ fn constructed_type(expression: &Expr) -> Option<String> {
                 .map(|segment| segment.ident.to_string())
                 .collect::<Vec<_>>();
             let (last, owner) = segments.split_last()?;
-            (!owner.is_empty()
-                && !capitalised(last)
-                && owner.last().is_some_and(|name| capitalised(name) && name != "Self"))
-            .then(|| owner.join("::"))
+            let owner_name = owner.last()?;
+            // Smart-pointer constructors type the binding as their pointee
+            // when it is itself constructed, and as unknown otherwise.
+            if matches!(owner_name.as_str(), "Arc" | "Rc" | "Box") {
+                return call.args.first().and_then(constructed_type);
+            }
+            (!capitalised(last) && capitalised(owner_name) && owner_name != "Self")
+                .then(|| owner.join("::"))
         }
         Expr::Struct(structure) if structure.qself.is_none() => {
             let segments = structure

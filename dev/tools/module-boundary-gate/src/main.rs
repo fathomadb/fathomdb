@@ -38,6 +38,9 @@ struct Policy {
     owners: BTreeMap<String, String>,
     forbidden_dependencies: BTreeSet<(String, String)>,
     forbidden_cycles: BTreeSet<(String, String)>,
+    /// Every forbid line as written: its line number, directive and
+    /// operands.
+    forbid_lines: Vec<(usize, String, String, String)>,
     allowed_cycles: BTreeSet<(String, String)>,
     reported_cycles: BTreeSet<(String, String)>,
     admissions: BTreeSet<(String, String, String, String)>,
@@ -113,6 +116,7 @@ fn run() -> Result<(), Vec<String>> {
     let mut policy_errors = space.profile_errors.clone();
     policy_errors.extend(normalize_policy_configurations(&mut policy, &space));
     let modules = discover_modules(&source_root, &space)?;
+    policy_errors.extend(enforce_required_forbids(&mut policy, &module_inventory(&modules)));
     let external_crates = manifest_crate_names(&manifest);
     let mut result =
         evaluate(&source_root, &modules, &policy, &space, &external_crates, report_only);
@@ -348,12 +352,24 @@ fn parse_policy(path: &Path) -> Result<Policy, Vec<String>> {
                     errors.push(format!("policy:{} duplicates owner assertion {item}", index + 1));
                 }
             }
-            ["forbid-dependency", source, target] => {
+            [directive @ "forbid-dependency", source, target] => {
+                policy.forbid_lines.push((
+                    index + 1,
+                    (*directive).to_string(),
+                    (*source).to_string(),
+                    (*target).to_string(),
+                ));
                 policy
                     .forbidden_dependencies
                     .insert(((*source).to_string(), (*target).to_string()));
             }
-            ["forbid-cycle", left, right] => {
+            [directive @ "forbid-cycle", left, right] => {
+                policy.forbid_lines.push((
+                    index + 1,
+                    (*directive).to_string(),
+                    (*left).to_string(),
+                    (*right).to_string(),
+                ));
                 policy.forbidden_cycles.insert(sorted_pair(left, right));
             }
             ["allow-cycle", left, right] => {
@@ -511,6 +527,81 @@ fn normalize_policy_configurations(policy: &mut Policy, space: &ConfigSpace) -> 
         }
     }
     policy.module_sccs = sccs;
+    errors
+}
+
+/// Cycles the release plan's boundary acceptance (AC27-85B/C) forbids
+/// outright: none may be retained, excepted or allowlisted, so the gate
+/// holds them itself rather than trusting the policy file to keep them.
+const REQUIRED_FORBIDDEN_CYCLES: [(&str, &str); 5] = [
+    ("graph_expand", "reader_pool"),
+    ("graph_expand", "search"),
+    ("graph_expand", "search_api"),
+    ("read", "reader_pool"),
+    ("reader_pool", "search"),
+];
+
+/// Dependency directions the same acceptance forbids outright.
+const REQUIRED_FORBIDDEN_DEPENDENCIES: [(&str, &str); 8] = [
+    ("filter", "search"),
+    ("frozen_read", "search"),
+    ("graph_expand", "reader_pool"),
+    ("graph_expand", "search"),
+    ("graph_expand", "search_api"),
+    ("read", "reader_pool"),
+    ("read", "search"),
+    ("search", "reader_pool"),
+];
+
+/// Fails a policy that drops a required forbid, downgrades one to an
+/// allow-cycle or report-cycle, or names a module that does not exist in a
+/// forbid line (a typo would silently disable it). The required forbids
+/// are then enforced whatever the policy says.
+fn enforce_required_forbids(policy: &mut Policy, modules: &BTreeSet<String>) -> Vec<String> {
+    let mut errors = Vec::new();
+    for (line, directive, left, right) in &policy.forbid_lines {
+        for operand in [left, right] {
+            if !modules.contains(operand) {
+                errors.push(format!(
+                    "policy:{line} {directive} {left} {right} names no module {operand}"
+                ));
+            }
+        }
+    }
+    for (left, right) in REQUIRED_FORBIDDEN_CYCLES {
+        let pair = sorted_pair(left, right);
+        if !policy.forbidden_cycles.contains(&pair) {
+            errors.push(format!(
+                "required forbid-cycle {left} {right} is missing from the policy; the gate holds \
+                 this cycle forbidden, so the policy cannot drop or downgrade it"
+            ));
+        }
+        for (label, pairs) in
+            [("allow-cycle", &policy.allowed_cycles), ("report-cycle", &policy.reported_cycles)]
+        {
+            // A pair of descendants names the same cycle.
+            let overlaps = |directive: &str, module: &str| {
+                covers(directive, module) || covers(module, directive)
+            };
+            for (first, second) in pairs.iter().filter(|(first, second)| {
+                (overlaps(first, left) && overlaps(second, right))
+                    || (overlaps(first, right) && overlaps(second, left))
+            }) {
+                errors.push(format!("{label} {first} {second} names a required forbidden cycle"));
+            }
+        }
+        policy.forbidden_cycles.insert(pair);
+    }
+    for (source, target) in REQUIRED_FORBIDDEN_DEPENDENCIES {
+        let pair = (source.to_string(), target.to_string());
+        if !policy.forbidden_dependencies.contains(&pair) {
+            errors.push(format!(
+                "required forbid-dependency {source} {target} is missing from the policy; the \
+                 gate holds this direction forbidden, so the policy cannot drop it"
+            ));
+        }
+        policy.forbidden_dependencies.insert(pair);
+    }
     errors
 }
 

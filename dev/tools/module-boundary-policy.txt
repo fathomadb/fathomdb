@@ -6,6 +6,13 @@
 # local-macro, unparsed-macro, external-receiver and typed-receiver
 # exceptions. Loosening any of them needs a reviewed plan change; every
 # allowance and exception is stale-checked and fails when unused.
+# Shrink-only is a review rule, not a mechanical one, except for the
+# required forbids the gate itself holds: the forbid-cycle pairs
+# graph_expand/search, read/reader_pool, graph_expand/reader_pool,
+# graph_expand/search_api and search/reader_pool, and the eight
+# forbid-dependency lines below. The gate fails a policy that drops one or
+# names a required cycle in an allow-cycle or report-cycle, and every
+# forbid operand must name a discovered module.
 #
 # Classifications: `governed` modules are enforced; `admitted` modules are
 # contract dependencies that hold at least one allow-cycle or admit-type

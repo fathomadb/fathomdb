@@ -23,6 +23,8 @@ struct Policy {
     allowed_unparsed_macros: BTreeSet<(String, String, String, String)>,
     inherent_methods: BTreeSet<(String, String)>,
     expected_edges: BTreeSet<(String, String, String, String, String, String)>,
+    module_cycles: BTreeSet<(String, String, String)>,
+    module_sccs: BTreeSet<(String, String)>,
     configuration_features: Vec<(String, String)>,
     configuration_cross: Vec<String>,
     configuration_profiles: Vec<(String, Vec<String>)>,
@@ -349,6 +351,16 @@ fn parse_policy(path: &Path) -> Result<Policy, Vec<String>> {
                     ));
                 }
             }
+            ["module-cycle", governed, other, configurations] => {
+                policy.module_cycles.insert((
+                    (*governed).to_string(),
+                    (*other).to_string(),
+                    (*configurations).to_string(),
+                ));
+            }
+            ["module-scc", module, configurations] => {
+                policy.module_sccs.insert(((*module).to_string(), (*configurations).to_string()));
+            }
             _ => errors.push(format!("policy:{} has invalid directive {line:?}", index + 1)),
         }
     }
@@ -389,6 +401,32 @@ fn normalize_policy_configurations(policy: &mut Policy, space: &ConfigSpace) -> 
         }
     }
     policy.expected_edges = normalized;
+    let mut cycles = BTreeSet::new();
+    for (governed, other, configurations) in &policy.module_cycles {
+        match space.parse_expression(configurations) {
+            Ok(set) => {
+                cycles.insert((governed.clone(), other.clone(), space.expression(set)));
+            }
+            Err(error) => errors.push(format!(
+                "policy module-cycle {governed} {other} has an invalid configuration expression \
+                 {configurations:?}: {error}"
+            )),
+        }
+    }
+    policy.module_cycles = cycles;
+    let mut sccs = BTreeSet::new();
+    for (module, configurations) in &policy.module_sccs {
+        match space.parse_expression(configurations) {
+            Ok(set) => {
+                sccs.insert((module.clone(), space.expression(set)));
+            }
+            Err(error) => errors.push(format!(
+                "policy module-scc {module} has an invalid configuration expression \
+                 {configurations:?}: {error}"
+            )),
+        }
+    }
+    policy.module_sccs = sccs;
     errors
 }
 
@@ -904,6 +942,8 @@ fn evaluate(
     }
     cycle_findings.report_errors(policy, space, &mut errors);
 
+    let (module_cycles, module_sccs) = module_cycle_inventory(policy, &module_graph, space);
+
     if report_only {
         for module in &discovered {
             println!("module\t{module}");
@@ -938,13 +978,19 @@ fn evaluate(
         // granularity merges unrelated items (for example every payload of
         // the central error enum), so these are inventory for item-level
         // review, not boundary verdicts.
+        for (governed, other, configurations) in &module_cycles {
+            println!("module-cycle\t{governed}\t{other}\t{configurations}");
+        }
+        for (module, configurations) in &module_sccs {
+            println!("module-scc\t{module}\t{configurations}");
+        }
         let mut module_components = BTreeMap::<BTreeSet<String>, ConfigSet>::new();
         for (index, component) in module_graph.components_by_configuration() {
             module_components.entry(component).or_default().insert(index);
         }
         for (component, configurations) in &module_components {
             println!(
-                "module-scc\t{}\t{}",
+                "module-scc-members\t{}\t{}",
                 space.expression(*configurations),
                 component.iter().cloned().collect::<Vec<_>>().join(",")
             );
@@ -1006,6 +1052,25 @@ fn evaluate(
                 "stale boundary edge source={} source_item={} destination={} target_item={} kind={} configurations={}",
                 stale.0, stale.1, stale.2, stale.3, stale.4, stale.5
             ));
+        }
+        for (governed, other, configurations) in module_cycles.difference(&policy.module_cycles) {
+            errors.push(format!(
+                "unreviewed module-level cycle {governed} <-> {other} configurations={configurations}; \
+                 each depends on the other at module level, so review the pair and record a \
+                 module-cycle line"
+            ));
+        }
+        for (governed, other, configurations) in policy.module_cycles.difference(&module_cycles) {
+            errors.push(format!("stale module-cycle {governed} {other} {configurations}"));
+        }
+        for (module, configurations) in module_sccs.difference(&policy.module_sccs) {
+            errors.push(format!(
+                "module {module} joins a governed module-level SCC configurations={configurations}; \
+                 review the new module-level cycle and record a module-scc line"
+            ));
+        }
+        for (module, configurations) in policy.module_sccs.difference(&module_sccs) {
+            errors.push(format!("stale module-scc {module} {configurations}"));
         }
     }
 
@@ -1260,6 +1325,53 @@ impl CycleFindings {
             }
         }
     }
+}
+
+/// The frozen module-level cycle inventory: every direct 2-cycle of the
+/// module dependency graph with a governed member, and every module (root
+/// items collapsed to `root`) inside a module-level SCC that contains a
+/// governed module, each with the configurations it holds in.
+type ModuleCycles = BTreeSet<(String, String, String)>;
+type ModuleSccs = BTreeSet<(String, String)>;
+
+fn module_cycle_inventory(
+    policy: &Policy,
+    module_graph: &MaskedGraph,
+    space: &ConfigSpace,
+) -> (ModuleCycles, ModuleSccs) {
+    let governed = |node: &str| classification(policy, &node_module(node)) == Some("governed");
+    let token = |node: &str| node.replacen('#', "::", 1);
+    let mut cycles = BTreeMap::<(String, String), ConfigSet>::new();
+    for ((from, to), configurations) in &module_graph.edges {
+        let Some(back) = module_graph.edges.get(&(to.clone(), from.clone())) else { continue };
+        let both = configurations.intersect(*back);
+        if both.is_empty() || !(governed(from) || governed(to)) {
+            continue;
+        }
+        // Governed member first; two governed members in name order.
+        let (first, second) =
+            if governed(from) && (!governed(to) || from < to) { (from, to) } else { (to, from) };
+        cycles
+            .entry((token(first), token(second)))
+            .and_modify(|set| *set = set.union(both))
+            .or_insert(both);
+    }
+    let mut members = BTreeMap::<String, ConfigSet>::new();
+    for (index, component) in module_graph.components_by_configuration() {
+        if !component.iter().any(|node| governed(node)) {
+            continue;
+        }
+        for node in &component {
+            members.entry(node_module(node)).or_default().insert(index);
+        }
+    }
+    (
+        cycles
+            .into_iter()
+            .map(|((first, second), set)| (first, second, space.expression(set)))
+            .collect(),
+        members.into_iter().map(|(module, set)| (module, space.expression(set))).collect(),
+    )
 }
 
 fn graph_node(module: &str, item: &str) -> String {

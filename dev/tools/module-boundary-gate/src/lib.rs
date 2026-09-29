@@ -274,6 +274,27 @@ impl<'s> Analyzer<'s> {
         }
     }
 
+    /// A trait named in a bound, `impl` header, `dyn`/`impl Trait` or
+    /// supertrait list is a contract (type) dependency on its owner.
+    fn record_trait_path(&mut self, path: &syn::Path) {
+        let Some(first) = path.segments.first() else { return };
+        let target =
+            path.segments.iter().map(|segment| segment.ident.to_string()).collect::<Vec<_>>();
+        self.edge(EdgeKind::Type, target.join("::"), first.ident.span());
+    }
+
+    /// `<T as Trait>::item`: the trait path and the item named through it.
+    /// The self type `T` is visited separately as a type.
+    fn record_qualified_self_path(&mut self, qself: &syn::QSelf, path: &syn::Path, kind: EdgeKind) {
+        if qself.position == 0 {
+            return;
+        }
+        let Some(first) = path.segments.first() else { return };
+        let target =
+            path.segments.iter().map(|segment| segment.ident.to_string()).collect::<Vec<_>>();
+        self.edge(kind, target.join("::"), first.ident.span());
+    }
+
     fn record_unparsed_macro(&mut self, mac: &Macro, span: Span) {
         self.analysis.unparsed_macros.insert(MacroUse {
             target: mac
@@ -738,6 +759,9 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
                 }
             }
         }
+        if let Some((_, trait_path, _)) = &item.trait_ {
+            self.record_trait_path(trait_path);
+        }
         if let Some(owner) = &owner {
             self.impl_owners.push(owner.clone());
         }
@@ -801,7 +825,9 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
     }
 
     fn visit_type_path(&mut self, ty: &'ast TypePath) {
-        if ty.qself.is_none() {
+        if let Some(qself) = &ty.qself {
+            self.record_qualified_self_path(qself, &ty.path, EdgeKind::Type);
+        } else {
             let target = ty
                 .path
                 .segments
@@ -814,6 +840,11 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
             }
         }
         visit::visit_type_path(self, ty);
+    }
+
+    fn visit_trait_bound(&mut self, bound: &'ast syn::TraitBound) {
+        self.record_trait_path(&bound.path);
+        visit::visit_trait_bound(self, bound);
     }
 
     fn visit_expr_field(&mut self, expression: &'ast ExprField) {
@@ -866,8 +897,16 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
 
     fn visit_expr_call(&mut self, expression: &'ast ExprCall) {
         if let Expr::Path(path) = expression.func.as_ref() {
-            if path.qself.is_none() {
-                self.record_callable_path(&path.path);
+            match &path.qself {
+                Some(qself) => {
+                    self.visit_type(&qself.ty);
+                    self.record_qualified_self_path(qself, &path.path, EdgeKind::Callable);
+                }
+                None => self.record_callable_path(&path.path),
+            }
+            // Turbofish and const-generic arguments name owners too.
+            for segment in &path.path.segments {
+                self.visit_path_arguments(&segment.arguments);
             }
         } else {
             self.visit_expr(&expression.func);
@@ -878,7 +917,9 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
     }
 
     fn visit_expr_path(&mut self, expression: &'ast ExprPath) {
-        if expression.qself.is_none() {
+        if let Some(qself) = &expression.qself {
+            self.record_qualified_self_path(qself, &expression.path, EdgeKind::Callable);
+        } else {
             let segments = expression
                 .path
                 .segments

@@ -1436,14 +1436,7 @@ fn direct_edge_targets(
     let crate_qualified = target.starts_with("crate::");
     if let Some(rest) = target.strip_prefix("crate::") {
         target = rest;
-    } else if let Some(rest) = target.strip_prefix("super::") {
-        let parent = module.rsplit_once("::").map_or("root", |(parent, _)| parent);
-        let qualified =
-            if parent == "root" { rest.to_string() } else { format!("{parent}::{rest}") };
-        return resolve_path(&qualified, modules).into_iter().collect();
-    } else if let Some(rest) = target.strip_prefix("self::") {
-        let qualified =
-            if module == "root" { rest.to_string() } else { format!("{module}::{rest}") };
+    } else if let Some(qualified) = qualify_relative(module, target) {
         return resolve_path(&qualified, modules).into_iter().collect();
     }
     if let Some(owner) = resolve_path(target, modules) {
@@ -1537,6 +1530,26 @@ fn direct_edge_targets(
         }
     }
     BTreeSet::new()
+}
+
+/// Resolves any chain of leading `self::`/`super::` segments against
+/// `module`; `None` when the path does not start with one.
+fn qualify_relative(module: &str, target: &str) -> Option<String> {
+    let mut base = module.to_string();
+    let mut rest = target;
+    let mut relative = false;
+    loop {
+        if let Some(tail) = rest.strip_prefix("super::") {
+            base = base.rsplit_once("::").map_or("root", |(parent, _)| parent).to_string();
+            rest = tail;
+        } else if let Some(tail) = rest.strip_prefix("self::") {
+            rest = tail;
+        } else {
+            break;
+        }
+        relative = true;
+    }
+    relative.then(|| if base == "root" { rest.to_string() } else { format!("{base}::{rest}") })
 }
 
 fn qualify_glob_namespace(module: &str, namespace: &str) -> String {

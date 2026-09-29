@@ -12,24 +12,9 @@ use syn::{
     Visibility,
 };
 
-pub const CONFIGURATIONS: [&str; 16] = [
-    "default-linux",
-    "default-nonlinux",
-    "hooks-linux",
-    "hooks-nonlinux",
-    "tc5-linux",
-    "tc5-nonlinux",
-    "hooks-tc5-linux",
-    "hooks-tc5-nonlinux",
-    "test-linux",
-    "test-nonlinux",
-    "test-hooks-linux",
-    "test-hooks-nonlinux",
-    "test-tc5-linux",
-    "test-tc5-nonlinux",
-    "test-hooks-tc5-linux",
-    "test-hooks-tc5-nonlinux",
-];
+pub mod config;
+
+pub use config::{ConfigSet, ConfigSpace};
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum EdgeKind {
@@ -77,7 +62,7 @@ pub struct Edge {
     pub source_scope: String,
     pub source_item: String,
     pub location: Location,
-    pub configurations: BTreeSet<String>,
+    pub configurations: ConfigSet,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -124,41 +109,43 @@ pub struct Analysis {
     pub unparsed_macros: BTreeSet<MacroUse>,
 }
 
-pub fn analyze_source(source: &str) -> Result<Analysis, syn::Error> {
+/// Parses one engine source file and extracts its edges, evaluating every
+/// `cfg`/`cfg_attr` in each configuration of `space`.
+pub fn analyze_source(source: &str, space: &ConfigSpace) -> Result<Analysis, syn::Error> {
     let file = syn::parse_file(source)?;
-    let mut visitor = Analyzer::default();
+    let mut visitor = Analyzer::new(space);
     visitor.visit_file(&file);
     visitor.resolve_aliases();
     Ok(visitor.analysis)
 }
 
-struct Analyzer {
+struct Analyzer<'s> {
+    space: &'s ConfigSpace,
     analysis: Analysis,
     engine_aliases: BTreeSet<String>,
     impl_owners: Vec<String>,
-    configurations: BTreeSet<String>,
+    configurations: ConfigSet,
     module_depth: usize,
     module_stack: Vec<String>,
     item_stack: Vec<String>,
     binding_stack: Vec<BTreeSet<String>>,
 }
 
-impl Default for Analyzer {
-    fn default() -> Self {
+impl<'s> Analyzer<'s> {
+    fn new(space: &'s ConfigSpace) -> Self {
         Self {
+            space,
             analysis: Analysis::default(),
             engine_aliases: BTreeSet::from(["engine".to_string()]),
             impl_owners: Vec::new(),
-            configurations: CONFIGURATIONS.into_iter().map(str::to_string).collect(),
+            configurations: space.all(),
             module_depth: 0,
             module_stack: Vec::new(),
             item_stack: Vec::new(),
             binding_stack: Vec::new(),
         }
     }
-}
 
-impl Analyzer {
     fn edge(&mut self, kind: EdgeKind, target: impl Into<String>, span: Span) {
         self.analysis.edges.insert(Edge {
             kind,
@@ -166,7 +153,7 @@ impl Analyzer {
             source_scope: self.module_stack.join("::"),
             source_item: self.item_stack.last().cloned().unwrap_or_else(|| "<module>".to_string()),
             location: span.into(),
-            configurations: self.configurations.clone(),
+            configurations: self.configurations,
         });
     }
 
@@ -309,15 +296,30 @@ impl Analyzer {
         false
     }
 
-    fn enter_attrs(&mut self, attrs: &[Attribute]) -> BTreeSet<String> {
-        let previous = self.configurations.clone();
+    fn filter_configurations(&mut self, mut keep: impl FnMut(usize) -> Option<bool>) -> bool {
+        let mut unsupported = false;
+        let mut kept = ConfigSet::default();
+        for index in self.configurations.indices() {
+            match keep(index) {
+                Some(true) => kept.insert(index),
+                Some(false) => {}
+                None => unsupported = true,
+            }
+        }
+        self.configurations = kept;
+        unsupported
+    }
+
+    fn enter_attrs(&mut self, attrs: &[Attribute]) -> ConfigSet {
+        let previous = self.configurations;
+        let space = self.space;
         for attr in attrs {
             if attr.path().is_ident("cfg_attr") {
                 let Meta::List(list) = &attr.meta else {
                     self.analysis
                         .unsupported_cfg
                         .insert("malformed cfg_attr attribute".to_string());
-                    self.configurations.clear();
+                    self.configurations = ConfigSet::default();
                     continue;
                 };
                 let compact = list
@@ -328,30 +330,19 @@ impl Analyzer {
                     .collect::<String>();
                 let Some((condition, nested)) = split_cfg_attr(&compact) else {
                     self.analysis.unsupported_cfg.insert(compact);
-                    self.configurations.clear();
+                    self.configurations = ConfigSet::default();
                     continue;
                 };
                 if let Some(predicate) =
                     nested.strip_prefix("cfg(").and_then(|value| value.strip_suffix(')'))
                 {
-                    let mut unsupported = false;
-                    self.configurations = self
-                        .configurations
-                        .iter()
-                        .filter(|configuration| {
-                            let active = evaluate_cfg(condition, configuration);
-                            let nested_active = evaluate_cfg(predicate, configuration);
-                            match (active, nested_active) {
-                                (Some(false), _) => true,
-                                (Some(true), Some(value)) => value,
-                                _ => {
-                                    unsupported = true;
-                                    false
-                                }
-                            }
-                        })
-                        .cloned()
-                        .collect();
+                    let unsupported = self.filter_configurations(|index| {
+                        match (space.evaluate(condition, index), space.evaluate(predicate, index)) {
+                            (Some(false), _) => Some(true),
+                            (Some(true), Some(value)) => Some(value),
+                            _ => None,
+                        }
+                    });
                     if unsupported {
                         self.analysis.unsupported_cfg.insert(compact);
                     }
@@ -363,23 +354,11 @@ impl Analyzer {
             }
             let Meta::List(list) = &attr.meta else {
                 self.analysis.unsupported_cfg.insert("malformed cfg attribute".to_string());
-                self.configurations.clear();
+                self.configurations = ConfigSet::default();
                 continue;
             };
             let predicate = list.tokens.to_string();
-            let mut unsupported = false;
-            self.configurations = self
-                .configurations
-                .iter()
-                .filter(|configuration| match evaluate_cfg(&predicate, configuration) {
-                    Some(active) => active,
-                    None => {
-                        unsupported = true;
-                        false
-                    }
-                })
-                .cloned()
-                .collect();
+            let unsupported = self.filter_configurations(|index| space.evaluate(&predicate, index));
             if unsupported {
                 self.analysis.unsupported_cfg.insert(predicate);
             }
@@ -405,60 +384,13 @@ impl Analyzer {
                     source_scope: edge.source_scope.clone(),
                     source_item: edge.source_item.clone(),
                     location: edge.location,
-                    configurations: edge.configurations.clone(),
+                    configurations: edge.configurations,
                 });
             } else {
                 resolved.insert(edge.clone());
             }
         }
         self.analysis.edges = resolved;
-    }
-}
-
-fn evaluate_cfg(predicate: &str, configuration: &str) -> Option<bool> {
-    let predicate = predicate.chars().filter(|ch| !ch.is_whitespace()).collect::<String>();
-    evaluate_cfg_compact(&predicate, configuration)
-}
-
-fn evaluate_cfg_compact(predicate: &str, configuration: &str) -> Option<bool> {
-    if let Some(inner) = predicate.strip_prefix("any(").and_then(|value| value.strip_suffix(')')) {
-        return split_cfg_arguments(inner)
-            .into_iter()
-            .map(|argument| evaluate_cfg_compact(argument, configuration))
-            .try_fold(false, |active, value| value.map(|value| active || value));
-    }
-    if let Some(inner) = predicate.strip_prefix("all(").and_then(|value| value.strip_suffix(')')) {
-        return split_cfg_arguments(inner)
-            .into_iter()
-            .map(|argument| evaluate_cfg_compact(argument, configuration))
-            .try_fold(true, |active, value| value.map(|value| active && value));
-    }
-    if let Some(inner) = predicate.strip_prefix("not(").and_then(|value| value.strip_suffix(')')) {
-        return evaluate_cfg_compact(inner, configuration).map(|active| !active);
-    }
-    match predicate {
-        "test" => Some(configuration.starts_with("test-")),
-        "debug_assertions" => Some(true),
-        "unix" | "target_os=\"linux\"" => Some(configuration.ends_with("-linux")),
-        "windows" | "target_os=\"windows\"" => Some(configuration.ends_with("-nonlinux")),
-        _ => predicate
-            .strip_prefix("feature=\"")
-            .and_then(|value| value.strip_suffix('"'))
-            .and_then(|feature| match feature {
-                "test-hooks" => Some(configuration.contains("hooks")),
-                "tc5-benchmark" => Some(configuration.contains("tc5")),
-                "default-embedder"
-                | "default-reranker"
-                | "embed-cuda"
-                | "embed-metal"
-                | "migration-test-hooks"
-                | "operator"
-                | "rerank-cuda"
-                | "rerank-metal"
-                | "slice72-gpu-tests"
-                | "slice72-test-hooks" => Some(false),
-                _ => return None,
-            }),
     }
 }
 
@@ -475,26 +407,7 @@ fn split_cfg_attr(source: &str) -> Option<(&str, &str)> {
     None
 }
 
-fn split_cfg_arguments(source: &str) -> Vec<&str> {
-    let mut depth = 0usize;
-    let mut start = 0usize;
-    let mut arguments = Vec::new();
-    for (index, ch) in source.char_indices() {
-        match ch {
-            '(' => depth += 1,
-            ')' => depth = depth.saturating_sub(1),
-            ',' if depth == 0 => {
-                arguments.push(&source[start..index]);
-                start = index + 1;
-            }
-            _ => {}
-        }
-    }
-    arguments.push(&source[start..]);
-    arguments
-}
-
-impl<'ast> Visit<'ast> for Analyzer {
+impl<'ast> Visit<'ast> for Analyzer<'_> {
     fn visit_block(&mut self, block: &'ast syn::Block) {
         let inherited = self.binding_stack.last().cloned().unwrap_or_default();
         self.binding_stack.push(inherited);
@@ -568,7 +481,7 @@ impl<'ast> Visit<'ast> for Analyzer {
             &mut self.analysis.edges,
             &mut self.analysis.globs,
             aliases,
-            &self.configurations,
+            self.configurations,
             &self.module_stack.join("::"),
             self.item_stack.last().map_or("<module>", String::as_str),
         );
@@ -979,7 +892,7 @@ fn collect_use_tree(
     edges: &mut BTreeSet<Edge>,
     globs: &mut BTreeSet<Location>,
     aliases: &mut BTreeMap<String, String>,
-    configurations: &BTreeSet<String>,
+    configurations: ConfigSet,
     source_scope: &str,
     source_item: &str,
 ) {
@@ -1015,7 +928,7 @@ fn collect_use_tree(
                 source_scope: source_scope.to_string(),
                 source_item: use_source_item(source_item, &kind, &binding),
                 location: name.ident.span().into(),
-                configurations: configurations.clone(),
+                configurations,
             });
         }
         syn::UseTree::Rename(rename) => {
@@ -1031,7 +944,7 @@ fn collect_use_tree(
                 source_scope: source_scope.to_string(),
                 source_item: use_source_item(source_item, &kind, &rename.rename.to_string()),
                 location: rename.ident.span().into(),
-                configurations: configurations.clone(),
+                configurations,
             });
         }
         syn::UseTree::Glob(glob) => {
@@ -1045,7 +958,7 @@ fn collect_use_tree(
                 source_scope: source_scope.to_string(),
                 source_item: use_source_item(source_item, &kind, "*"),
                 location,
-                configurations: configurations.clone(),
+                configurations,
             });
         }
         syn::UseTree::Group(group) => {
@@ -1078,6 +991,35 @@ fn use_source_item(source_item: &str, kind: &EdgeKind, binding: &str) -> String 
 mod tests {
     use super::*;
 
+    const MANIFEST: &str = "[features]\ndefault = []\ntest-hooks = []\ntc5-benchmark = []\n\
+                            operator = []\ndefault-reranker = []\n";
+
+    fn space() -> ConfigSpace {
+        ConfigSpace::from_manifest(
+            MANIFEST,
+            &[
+                ("test-hooks".to_string(), "hooks".to_string()),
+                ("tc5-benchmark".to_string(), "tc5".to_string()),
+                ("operator".to_string(), "operator".to_string()),
+            ],
+        )
+        .expect("fixture configuration space")
+    }
+
+    fn analyze(source: &str) -> Result<Analysis, syn::Error> {
+        analyze_source(source, &space())
+    }
+
+    fn feature_set(space: &ConfigSpace, feature: &str) -> ConfigSet {
+        let mut set = ConfigSet::default();
+        for (index, configuration) in space.configurations.iter().enumerate() {
+            if configuration.features.contains(feature) {
+                set.insert(index);
+            }
+        }
+        set
+    }
+
     #[test]
     fn extracts_modules_imports_fields_methods_and_callable_references() {
         let source = r#"
@@ -1094,7 +1036,7 @@ mod tests {
                 fn helper(&self) {}
             }
         "#;
-        let analysis = analyze_source(source).expect("fixture parses");
+        let analysis = analyze(source).expect("fixture parses");
         assert!(analysis.modules.iter().any(|module| module.name == "child"));
         assert_eq!(analysis.globs.len(), 1);
         assert_eq!(
@@ -1132,8 +1074,8 @@ mod tests {
                 load();
             }
         "#;
-        let one = analyze_source(one_line).expect("one-line fixture");
-        let multi = analyze_source(multi_line).expect("multi-line fixture");
+        let one = analyze(one_line).expect("one-line fixture");
+        let multi = analyze(multi_line).expect("multi-line fixture");
         let stable = |analysis: &Analysis| {
             analysis
                 .edges
@@ -1147,7 +1089,7 @@ mod tests {
 
     #[test]
     fn records_non_call_field_accesses_and_alias_receivers() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             "fn f(engine: &Engine) { let e = &engine; let _ = e.reader_pool; engine.search(); }",
         )
         .expect("fixture parses");
@@ -1157,7 +1099,7 @@ mod tests {
 
     #[test]
     fn externally_visible_inherent_methods_are_owner_qualified() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             "struct Work; impl Work { pub(crate) fn new() -> Self { Self } fn hidden() {} }",
         )
         .expect("fixture parses");
@@ -1170,7 +1112,7 @@ mod tests {
 
     #[test]
     fn typed_and_dereferenced_engine_aliases_are_capabilities() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             "fn f(engine: &Engine) { let typed: &Engine = engine; let alias = &typed; \
              let _ = (*alias).reader_pool; alias.search(); }",
         )
@@ -1187,7 +1129,7 @@ mod tests {
 
     #[test]
     fn unknown_field_receivers_remain_conservative_candidates() {
-        let analysis = analyze_source("fn f(unknown: &Unknown) { let _ = unknown.reader_pool; }")
+        let analysis = analyze("fn f(unknown: &Unknown) { let _ = unknown.reader_pool; }")
             .expect("fixture parses");
         assert!(analysis
             .edges
@@ -1197,7 +1139,7 @@ mod tests {
 
     #[test]
     fn self_calls_are_engine_methods_only_inside_engine_impls() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             "struct Engine; struct Other; \
              impl Engine { fn a(&self) { Self::b(self); } fn b(&self) {} } \
              impl Other { fn a(&self) { Self::b(self); } fn b(&self) {} }",
@@ -1213,7 +1155,7 @@ mod tests {
 
     #[test]
     fn nested_modules_and_single_segment_callable_references_are_recorded() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             "mod outer { mod nested; } fn root_helper() {} \
              fn caller() { let deferred = root_helper; deferred(); }",
         )
@@ -1228,7 +1170,7 @@ mod tests {
 
     #[test]
     fn cfg_edges_are_kept_in_their_compiler_configuration() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             "#[cfg(feature = \"test-hooks\")] use crate::test_hooks::seam; \
              #[cfg(any(test, feature = \"test-hooks\"))] fn f() { seam(); } \
              #[cfg(feature = \"tc5-benchmark\")] fn b() { crate::tc5_benchmark::run(); }",
@@ -1239,35 +1181,21 @@ mod tests {
             .iter()
             .find(|edge| edge.target.ends_with("test_hooks::seam"))
             .expect("test hook edge");
-        assert_eq!(
-            seam.configurations,
-            CONFIGURATIONS
-                .into_iter()
-                .filter(|configuration| configuration.contains("hooks"))
-                .map(str::to_string)
-                .collect()
-        );
+        let space = space();
+        assert_eq!(seam.configurations, feature_set(&space, "test-hooks"));
         let tc5 = analysis
             .edges
             .iter()
             .find(|edge| edge.target == "crate::tc5_benchmark::run")
             .expect("tc5 edge");
-        assert_eq!(
-            tc5.configurations,
-            CONFIGURATIONS
-                .into_iter()
-                .filter(|configuration| configuration.contains("tc5"))
-                .map(str::to_string)
-                .collect()
-        );
+        assert_eq!(tc5.configurations, feature_set(&space, "tc5-benchmark"));
     }
 
     #[test]
     fn unknown_features_are_rejected_instead_of_erasing_edges() {
-        let analysis = analyze_source(
-            "#[cfg(feature = \"slice85-unknown\")] use crate::reader_pool::ReaderRequest;",
-        )
-        .expect("fixture parses");
+        let analysis =
+            analyze("#[cfg(feature = \"slice85-unknown\")] use crate::reader_pool::ReaderRequest;")
+                .expect("fixture parses");
         assert_eq!(
             analysis.unsupported_cfg,
             BTreeSet::from(["feature = \"slice85-unknown\"".to_string()])
@@ -1276,10 +1204,9 @@ mod tests {
 
     #[test]
     fn root_glob_bare_callable_references_are_recorded() {
-        let analysis = analyze_source(
-            "use super::*; fn hidden_exec() { let _ = encode_graph_expand_result_v1; }",
-        )
-        .expect("fixture parses");
+        let analysis =
+            analyze("use super::*; fn hidden_exec() { let _ = encode_graph_expand_result_v1; }")
+                .expect("fixture parses");
         assert!(analysis.edges.iter().any(|edge| {
             edge.kind == EdgeKind::Callable
                 && edge.source_item == "hidden_exec"
@@ -1289,7 +1216,7 @@ mod tests {
 
     #[test]
     fn root_glob_candidates_respect_parameter_and_local_shadowing() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             "use super::*; \
              fn parameter(encode_graph_expand_result_v1: usize) { \
                  let _ = encode_graph_expand_result_v1; \
@@ -1307,7 +1234,7 @@ mod tests {
 
     #[test]
     fn fully_qualified_internal_type_paths_are_recorded() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             "fn hidden_type(_: crate::reader_pool::ReaderRequest) -> \
              crate::search::SearchReaderWork { todo!() }",
         )
@@ -1321,7 +1248,7 @@ mod tests {
 
     #[test]
     fn local_macro_definitions_keep_their_declared_name() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             "macro_rules! hidden_boundary { () => {{ \
                  let _ = crate::reader_pool::ReaderRequest::Shutdown; \
              }}; }",
@@ -1333,15 +1260,15 @@ mod tests {
     #[test]
     fn local_macro_definition_identity_changes_with_its_body() {
         let clean =
-            analyze_source("macro_rules! m { () => {{ 1usize }}; }").expect("clean fixture parses");
-        let changed = analyze_source("macro_rules! m { () => {{ 2usize }}; }")
-            .expect("changed fixture parses");
+            analyze("macro_rules! m { () => {{ 1usize }}; }").expect("clean fixture parses");
+        let changed =
+            analyze("macro_rules! m { () => {{ 2usize }}; }").expect("changed fixture parses");
         assert_ne!(clean.macros, changed.macros);
     }
 
     #[test]
     fn root_glob_shadowing_expires_at_the_end_of_its_lexical_block() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             "use super::*; fn scope_escape() { \
                  { \
                      let encode_graph_expand_result_v1 = 1usize; \
@@ -1367,7 +1294,7 @@ mod tests {
 
     #[test]
     fn source_items_inline_scopes_cfg_attr_and_macros_are_preserved() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             r#"
             mod tests {
                 #[cfg_attr(target_os = "linux", cfg(feature = "test-hooks"))]
@@ -1383,8 +1310,10 @@ mod tests {
             .expect("call edge");
         assert_eq!(call.source_scope, "tests");
         assert_eq!(call.source_item, "helper");
-        assert!(call.configurations.iter().all(|configuration| {
-            !configuration.ends_with("-linux") || configuration.contains("hooks")
+        let space = space();
+        assert!(call.configurations.indices().all(|index| {
+            let configuration = &space.configurations[index];
+            !configuration.linux || configuration.features.contains("test-hooks")
         }));
         assert!(
             analysis.macros.iter().any(|usage| {
@@ -1399,7 +1328,7 @@ mod tests {
 
     #[test]
     fn std_macro_bodies_are_extracted_like_expressions() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             "fn f(value: usize, out: &mut String) { \
                  let _ = vec![crate::a::one()]; \
                  let _ = vec![crate::a::two(); 2]; \
@@ -1421,8 +1350,7 @@ mod tests {
 
     #[test]
     fn unparsable_macro_bodies_are_recorded_with_identity() {
-        let analysis =
-            analyze_source("fn f() { opaque!(=> crate::a::hidden); }").expect("fixture parses");
+        let analysis = analyze("fn f() { opaque!(=> crate::a::hidden); }").expect("fixture parses");
         let usage = analysis.unparsed_macros.iter().next().expect("unparsed macro recorded");
         assert_eq!(usage.target, "opaque");
         assert_eq!(usage.source_item, "f");
@@ -1431,7 +1359,7 @@ mod tests {
 
     #[test]
     fn capitalised_qualified_paths_are_edges() {
-        let analysis = analyze_source(
+        let analysis = analyze(
             "fn f(v: usize) { let _ = crate::a::CONST; let _ = crate::a::E::V; \
              let _ = crate::a::Ctor(1); let _ = crate::a::S { x: 1 }; \
              let _: Option<crate::a::T> = None; if let crate::a::P(_) = v {} \

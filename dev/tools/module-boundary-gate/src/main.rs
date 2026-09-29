@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use fathomdb_module_boundary_gate::{
-    analyze_source, Analysis, EdgeKind, InherentMethod, CONFIGURATIONS,
+    analyze_source, Analysis, ConfigSpace, EdgeKind, InherentMethod,
 };
 
 #[derive(Debug, Default)]
@@ -20,6 +20,7 @@ struct Policy {
     allowed_unparsed_macros: BTreeSet<(String, String, String, String)>,
     inherent_methods: BTreeSet<(String, String)>,
     expected_edges: BTreeSet<(String, String, String, String, String, String)>,
+    configuration_features: Vec<(String, String)>,
 }
 
 struct ModuleInfo {
@@ -68,23 +69,41 @@ fn run() -> Result<(), Vec<String>> {
         policy_path = root.join(policy_path);
     }
     let source_root = root.join("src/rust/crates/fathomdb-engine/src");
-    let modules = discover_modules(&source_root)?;
-    let policy = parse_policy(&policy_path)?;
-    let result = evaluate(&source_root, &modules, &policy, report_only);
+    let manifest_path = root.join("src/rust/crates/fathomdb-engine/Cargo.toml");
+    let mut policy = parse_policy(&policy_path)?;
+    let manifest = fs::read_to_string(&manifest_path).map_err(|error| {
+        vec![format!("cannot read engine manifest {}: {error}", manifest_path.display())]
+    })?;
+    let space = ConfigSpace::from_manifest(&manifest, &policy.configuration_features)?;
+    let policy_errors = normalize_policy_configurations(&mut policy, &space);
+    let modules = discover_modules(&source_root, &space)?;
+    let mut result = evaluate(&source_root, &modules, &policy, &space, report_only);
+    if !policy_errors.is_empty() {
+        let mut errors = policy_errors;
+        errors.extend(result.err().unwrap_or_default());
+        result = Err(errors);
+    }
     if report_only {
         return result;
     }
     result?;
     println!(
-        "ok    module-boundary: {} modules, {} governed, configurations={}",
+        "ok    module-boundary: {} modules, {} governed, configurations={} (test x linux x \
+         debug_assertions x {{{} combinations of {}; {} single-feature closures; all-features}})",
         module_inventory(&modules).len(),
         policy.classified.values().filter(|kind| kind.as_str() == "governed").count(),
-        CONFIGURATIONS.join(",")
+        space.len(),
+        1usize << space.axes.len(),
+        space.axes.iter().map(|(feature, _)| feature.as_str()).collect::<Vec<_>>().join(", "),
+        space.profiles.len().saturating_sub(2)
     );
     Ok(())
 }
 
-fn discover_modules(source_root: &Path) -> Result<BTreeMap<String, ModuleInfo>, Vec<String>> {
+fn discover_modules(
+    source_root: &Path,
+    space: &ConfigSpace,
+) -> Result<BTreeMap<String, ModuleInfo>, Vec<String>> {
     let mut files = Vec::new();
     collect_rust_files(source_root, &mut files)
         .map_err(|error| vec![format!("cannot enumerate {}: {error}", source_root.display())])?;
@@ -101,7 +120,7 @@ fn discover_modules(source_root: &Path) -> Result<BTreeMap<String, ModuleInfo>, 
                 continue;
             }
         };
-        match analyze_source(&source) {
+        match analyze_source(&source, space) {
             Ok(analysis) => {
                 if modules.insert(module.clone(), ModuleInfo { file, analysis }).is_some() {
                     errors.push(format!("duplicate module path {module}"));
@@ -203,6 +222,9 @@ fn parse_policy(path: &Path) -> Result<Policy, Vec<String>> {
         let fields = line.split_whitespace().collect::<Vec<_>>();
         match fields.as_slice() {
             ["version", "1"] => {}
+            ["configuration-feature", feature, label] => {
+                policy.configuration_features.push(((*feature).to_string(), (*label).to_string()));
+            }
             [kind @ ("governed" | "admitted" | "reported"), module] => {
                 if policy.classified.insert((*module).to_string(), (*kind).to_string()).is_some() {
                     errors.push(format!(
@@ -287,6 +309,33 @@ fn parse_policy(path: &Path) -> Result<Policy, Vec<String>> {
     }
 }
 
+/// Rewrites every expected edge's configuration expression to its canonical
+/// form so that equivalent spellings compare equal.
+fn normalize_policy_configurations(policy: &mut Policy, space: &ConfigSpace) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut normalized = BTreeSet::new();
+    for (source, source_item, target, target_item, kind, configurations) in &policy.expected_edges {
+        match space.parse_expression(configurations) {
+            Ok(set) => {
+                normalized.insert((
+                    source.clone(),
+                    source_item.clone(),
+                    target.clone(),
+                    target_item.clone(),
+                    kind.clone(),
+                    space.expression(set),
+                ));
+            }
+            Err(error) => errors.push(format!(
+                "policy edge {source} {source_item} {target} {target_item} {kind} has an invalid \
+                 configuration expression {configurations:?}: {error}"
+            )),
+        }
+    }
+    policy.expected_edges = normalized;
+    errors
+}
+
 fn sorted_pair(left: &str, right: &str) -> (String, String) {
     if left <= right {
         (left.to_string(), right.to_string())
@@ -299,6 +348,7 @@ fn evaluate(
     source_root: &Path,
     modules: &BTreeMap<String, ModuleInfo>,
     policy: &Policy,
+    space: &ConfigSpace,
     report_only: bool,
 ) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
@@ -393,14 +443,10 @@ fn evaluate(
         (String, String, String, String, String, String),
         (String, usize, usize, String),
     > = BTreeMap::new();
-    let mut adjacency_by_configuration = CONFIGURATIONS
-        .into_iter()
-        .map(|configuration| (configuration.to_string(), BTreeMap::new()))
-        .collect::<BTreeMap<String, BTreeMap<String, BTreeSet<String>>>>();
-    let mut dependencies_by_configuration = CONFIGURATIONS
-        .into_iter()
-        .map(|configuration| (configuration.to_string(), BTreeMap::new()))
-        .collect::<BTreeMap<String, BTreeMap<String, BTreeSet<String>>>>();
+    let mut adjacency_by_configuration =
+        vec![BTreeMap::<String, BTreeSet<String>>::new(); space.len()];
+    let mut dependencies_by_configuration =
+        vec![BTreeMap::<String, BTreeSet<String>>::new(); space.len()];
     for (module, info) in modules {
         for predicate in &info.analysis.unsupported_cfg {
             errors.push(format!(
@@ -409,10 +455,34 @@ fn evaluate(
             ));
         }
         for edge in &info.analysis.edges {
+            let source_module = scoped_module(module, &edge.source_scope);
             if edge.configurations.is_empty() {
+                let targets = edge_targets(
+                    &source_module,
+                    edge,
+                    modules,
+                    root_aliases,
+                    &engine_fields,
+                    &policy.field_owners,
+                    &method_owners,
+                );
+                if frozen_scope(policy, &source_module)
+                    || targets.iter().any(|target| frozen_scope(policy, &target.module))
+                {
+                    errors.push(format!(
+                        "edge has no evaluated configuration source={source_module} source_item={} \
+                         syntax={} kind={} at {}:{}:{}; every edge in the frozen scope must be \
+                         active in at least one evaluated configuration",
+                        edge.source_item,
+                        edge.target,
+                        edge.kind.as_str(),
+                        relative(source_root, &info.file),
+                        edge.location.line,
+                        edge.location.column
+                    ));
+                }
                 continue;
             }
-            let source_module = scoped_module(module, &edge.source_scope);
             let governed =
                 policy.classified.get(&source_module).map(String::as_str) == Some("governed");
             if governed {
@@ -498,10 +568,8 @@ fn evaluate(
             );
             for target in targets {
                 let nonroot_local = target.module == source_module && source_module != "root";
-                for configuration in &edge.configurations {
-                    dependencies_by_configuration
-                        .get_mut(configuration)
-                        .expect("known configuration")
+                for configuration in edge.configurations.indices() {
+                    dependencies_by_configuration[configuration]
                         .entry(source_module.clone())
                         .or_default()
                         .insert(target.module.clone());
@@ -509,9 +577,7 @@ fn evaluate(
                         edge.kind,
                         EdgeKind::Callable | EdgeKind::FieldAccess | EdgeKind::EngineMethod
                     ) {
-                        adjacency_by_configuration
-                            .get_mut(configuration)
-                            .expect("known configuration")
+                        adjacency_by_configuration[configuration]
                             .entry(graph_node(&source_module, &edge.source_item))
                             .or_default()
                             .insert(graph_node(&target.module, &target.item));
@@ -527,7 +593,7 @@ fn evaluate(
                         target.module,
                         target.item,
                         edge.kind.as_str().to_string(),
-                        edge.configurations.iter().cloned().collect::<Vec<_>>().join(","),
+                        space.expression(edge.configurations),
                     );
                     actual_edges.insert(record.clone());
                     edge_origins.entry(record).or_insert_with(|| {
@@ -578,9 +644,9 @@ fn evaluate(
         ));
     }
 
-    for (configuration, adjacency) in &adjacency_by_configuration {
-        let dependencies =
-            dependencies_by_configuration.get(configuration).expect("known configuration");
+    for (index, adjacency) in adjacency_by_configuration.iter().enumerate() {
+        let configuration = &space.configurations[index].label;
+        let dependencies = &dependencies_by_configuration[index];
         for (source, target) in &policy.forbidden_dependencies {
             if dependencies.get(source).is_some_and(|targets| targets.contains(target)) {
                 errors.push(format!(
@@ -647,7 +713,8 @@ fn evaluate(
             let label = if *governed { "unparsed-macro" } else { "reported-unparsed-macro" };
             println!("{label}\t{module}\t{item}\t{name}\t{fingerprint}");
         }
-        for (label, adjacency) in &adjacency_by_configuration {
+        for (index, adjacency) in adjacency_by_configuration.iter().enumerate() {
+            let label = &space.configurations[index].label;
             let edge_count = adjacency.values().map(BTreeSet::len).sum::<usize>();
             println!("configuration\t{label}\texecutable_edges={edge_count}");
         }

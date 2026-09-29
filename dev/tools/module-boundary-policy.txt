@@ -2513,6 +2513,7 @@ edge root Engine::open_with_choice root default_embedder_identity callable all
 edge root Engine::open_with_choice root open_default_embedder engine-method all
 edge root Engine::open_with_choice root open_with_embedder_and_subscriber engine-method all
 edge root Engine::open_with_embedder_and_subscriber errors EngineOpenError type all
+edge root Engine::open_with_embedder_and_subscriber lifecycle Subscriber type all
 edge root Engine::open_with_embedder_and_subscriber root DatabaseAdmission::CurrentOnly type all
 edge root Engine::open_with_embedder_and_subscriber root LoaderInfo type all
 edge root Engine::open_with_embedder_and_subscriber root OpenedEngine type all
@@ -2530,6 +2531,7 @@ edge root Engine::open_with_migrations errors EngineOpenError::RerankerDevicePol
 edge root Engine::open_with_migrations errors EngineOpenError::RuntimeConfiguration type all
 edge root Engine::open_with_migrations frozen_read load_visibility_generation callable all
 edge root Engine::open_with_migrations lifecycle Counters::new callable all
+edge root Engine::open_with_migrations lifecycle Subscriber type all
 edge root Engine::open_with_migrations lifecycle SubscriberRegistry::new callable all
 edge root Engine::open_with_migrations projection_registry boot_graft_declared_vector_backfill callable all
 edge root Engine::open_with_migrations projection_registry vector_projection_declared callable all
@@ -2567,6 +2569,7 @@ edge root Engine::open_with_migrations_for_test root OpenedEngine type profile:a
 edge root Engine::open_with_migrations_for_test root default_embedder_identity callable profile:all-features|profile:migration-test-hooks
 edge root Engine::open_with_migrations_for_test root open_with_migrations engine-method profile:all-features|profile:migration-test-hooks
 edge root Engine::open_with_subscriber_for_test errors EngineOpenError type all
+edge root Engine::open_with_subscriber_for_test lifecycle Subscriber type all
 edge root Engine::open_with_subscriber_for_test root OpenedEngine type all
 edge root Engine::open_with_subscriber_for_test root default_embedder_identity callable all
 edge root Engine::open_with_subscriber_for_test root open_with_embedder_and_subscriber engine-method all
@@ -2740,6 +2743,7 @@ edge root Engine::slice45_page_query_plans_for_test root managed_connections fie
 edge root Engine::slice45_page_query_plans_for_test root open_managed_connection callable hooks
 edge root Engine::slice45_page_query_plans_for_test root path field-access hooks
 edge root Engine::slice45_page_query_plans_for_test temporal ReadView::default callable hooks
+edge root Engine::subscribe lifecycle Subscriber type all
 edge root Engine::subscribe lifecycle Subscription type all
 edge root Engine::subscribe root subscribers field-access all
 edge root Engine::take_actual_checkpoint_observations_for_test root actual_checkpoint_observations field-access hooks|test
@@ -2982,6 +2986,7 @@ edge root emit_open_error_event lifecycle Event type all
 edge root emit_open_error_event lifecycle EventCategory::Corruption type all
 edge root emit_open_error_event lifecycle EventSource::SqliteInternal type all
 edge root emit_open_error_event lifecycle Phase::Failed type all
+edge root emit_open_error_event lifecycle Subscriber type all
 edge root emit_open_error_event root sqlite_extended_code_name_from_int callable all
 edge root gpu_allocation_witness_refusal errors EngineOpenError type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
 edge root gpu_allocation_witness_refusal errors EngineOpenError::Embedder callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
@@ -3790,6 +3795,7 @@ edge search_api Engine::search_inner_with_frozen_binding_and_expansion projectio
 edge search_api Engine::search_inner_with_frozen_binding_and_expansion projection_generation ProjectionRuntimeStateV1::Refused type all
 edge search_api Engine::search_inner_with_frozen_binding_and_expansion projection_generation ProjectionRuntimeStateV1::Usable type all
 edge search_api Engine::search_inner_with_frozen_binding_and_expansion reader_pool ReaderRequest::search callable all
+edge search_api Engine::search_inner_with_frozen_binding_and_expansion reader_pool ReaderResponse type all
 edge search_api Engine::search_inner_with_frozen_binding_and_expansion reader_pool reader_pool field-access all
 edge search_api Engine::search_inner_with_frozen_binding_and_expansion root connection field-access all
 edge search_api Engine::search_inner_with_frozen_binding_and_expansion root dense_disabled field-access all
@@ -3902,6 +3908,7 @@ edge search_api Engine::search_text_only_view_with_limit errors EngineError::Sto
 edge search_api Engine::search_text_only_view_with_limit errors EngineError::VectorEquivalenceMismatch type all
 edge search_api Engine::search_text_only_view_with_limit errors EngineError::WriteValidation type all
 edge search_api Engine::search_text_only_view_with_limit reader_pool ReaderRequest::search callable all
+edge search_api Engine::search_text_only_view_with_limit reader_pool ReaderResponse type all
 edge search_api Engine::search_text_only_view_with_limit reader_pool reader_pool field-access all
 edge search_api Engine::search_text_only_view_with_limit root emit_sqlite_internal_error engine-method all
 edge search_api Engine::search_text_only_view_with_limit root ensure_open engine-method all
@@ -3947,6 +3954,7 @@ edge search_api Engine::search_with_evidence frozen_read authenticate callable a
 edge search_api Engine::search_with_evidence projection_generation ProjectionRuntimeStateV1::Absent type all
 edge search_api Engine::search_with_evidence projection_generation ProjectionRuntimeStateV1::Refused type all
 edge search_api Engine::search_with_evidence projection_generation ProjectionRuntimeStateV1::Usable type all
+edge search_api Engine::search_with_evidence reader_pool EvidenceReaderResponse type all
 edge search_api Engine::search_with_evidence reader_pool ReaderRequest::search_evidence callable all
 edge search_api Engine::search_with_evidence reader_pool reader_pool field-access all
 edge search_api Engine::search_with_evidence root connection field-access all

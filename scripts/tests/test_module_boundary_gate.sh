@@ -596,6 +596,12 @@ expect_failure arc-receiver-cycle 'unapproved governed cycle search <-> telemetr
   "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
+printf '\npub(crate) fn slice85_out() { let sink = std::sync::Arc::new(crate::telemetry::TelemetrySink::slice85_make()); sink.slice85_recv(); }\npub(crate) fn slice85_ret() { slice85_out(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure arc-constructed-receiver-cycle 'unapproved governed cycle search <-> telemetry graph=item' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
 printf '\npub(crate) fn slice85_untyped() { let sink = slice85_make(); sink.slice85_recv(); }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 expect_failure untyped-receiver 'source=search source_item=slice85_untyped method=slice85_recv' \

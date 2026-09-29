@@ -457,6 +457,141 @@ expect_failure overlapping-engine-method-twins \
 cp "$fixture/graph-api.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_api.rs"
 cp "$fixture/read-api.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read_api.rs"
 
+# Design review cycle 1, D-4: every SCC with a governed member must be
+# accounted for pair by pair; allow-cycle, report-cycle, admit-type and the
+# admitted classification each have falsifiable semantics (P7/P8/P9).
+cp "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/execution.rs" "$fixture/execution.rs.clean"
+cp "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs" "$fixture/codec.rs.clean"
+cp "$fixture/src/rust/crates/fathomdb-engine/src/filter.rs" "$fixture/filter.rs.clean"
+printf '\npub(crate) fn slice85_r1() { crate::fusion::slice85_r2(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\npub(crate) fn slice85_r2() { crate::search::slice85_r1(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+expect_failure governed-reported-cycle 'unapproved governed cycle fusion <-> search graph=item' \
+  "$GATE" --root "$fixture"
+if ! "$GATE" --root "$fixture" --report 2>/dev/null | grep -Fq "$(printf 'scc\titem\tall\tfusion,search\t')"; then
+  printf 'module-boundary report does not list the fusion/search SCC\n' >&2
+  exit 1
+fi
+printf 'edge search slice85_r1 fusion slice85_r2 callable all\nedge fusion slice85_r2 search slice85_r1 callable all\n' \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+cp "$fixture/dev/tools/module-boundary-policy.txt" "$fixture/policy-with-cycle-edges"
+printf 'report-cycle fusion search\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_success reported-cycle-accounted "$GATE" --root "$fixture"
+cp "$fixture/policy-with-cycle-edges" "$fixture/dev/tools/module-boundary-policy.txt"
+printf 'allow-cycle fusion search\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure allow-cycle-needs-admitted \
+  'allow-cycle fusion search must join a governed module with a governed or admitted module' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+
+printf '\npub(crate) fn slice85_a1() { crate::errors::slice85_a2(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\npub(crate) fn slice85_a2() { crate::search::slice85_a1(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/errors.rs"
+printf 'edge search slice85_a1 errors slice85_a2 callable all\nedge errors slice85_a2 search slice85_a1 callable all\n' \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure admitted-cycle-unallowed 'unapproved governed cycle errors <-> search graph=item' \
+  "$GATE" --root "$fixture"
+printf 'allow-cycle errors search\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_success admitted-cycle-allowed "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/errors.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/errors.rs"
+
+printf 'allow-cycle errors search\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure stale-allow-cycle 'stale allow-cycle errors search' "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+printf 'report-cycle frozen_read projection_generation\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure stale-report-cycle 'stale report-cycle frozen_read projection_generation' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+sed -i 's/^admitted errors$/reported errors/' "$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure admitted-relabelled 'admit-type source errors is not an admitted module' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+sed -i 's/^reported fusion$/admitted fusion/' "$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure admitted-without-entry 'admitted module fusion has no allow-cycle or admit-type entry' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+sed -i 's/^admitted root$/reported root/' "$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure root-not-admitted 'module root must be classified admitted' "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+printf 'admit-type errors EngineError::Slice85 graph_expand::types Slice85Missing\n' \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure stale-admission 'stale admit-type errors EngineError::Slice85 graph_expand::types Slice85Missing' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+printf '\npub(crate) fn slice85_exec_back() { crate::graph_expand::execution::slice85_forward(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/errors.rs"
+printf '\npub(crate) fn slice85_forward() { crate::errors::slice85_exec_back(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/execution.rs"
+expect_failure admission-hides-no-execution \
+  'unapproved governed cycle errors <-> graph_expand::execution graph=item' "$GATE" --root "$fixture"
+cp "$fixture/errors.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/errors.rs"
+cp "$fixture/execution.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/execution.rs"
+
+printf '\npub(crate) fn slice85_codec_out() { crate::search::slice85_codec_in(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
+printf '\npub(crate) fn slice85_codec_in() { crate::graph_expand::codec::slice85_codec_out(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure forbidden-submodule-cycle 'forbidden cycle graph_expand <-> search graph=item' \
+  "$GATE" --root "$fixture"
+cp "$fixture/codec.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/codec.rs"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+# Design review cycle 1, D-5: type edges and typed receiver calls take part
+# in cycle detection; an unresolvable receiver of a governed cross-boundary
+# inherent method fails (P5/P6).
+printf '\npub(crate) fn slice85_t1(_: &crate::telemetry::TelemetrySink) {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/filter.rs"
+printf '\npub(crate) fn slice85_t2(_: &crate::filter::Filter) {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
+expect_failure type-only-governed-cycle 'unapproved governed cycle filter <-> telemetry graph=governed-module' \
+  "$GATE" --root "$fixture"
+cp "$fixture/filter.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/filter.rs"
+cp "$fixture/telemetry.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
+
+printf '\nimpl TelemetrySink {\n    pub(crate) fn slice85_recv(&self) { slice85_in(); }\n}\nfn slice85_in() { crate::search::slice85_ret(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
+printf '\npub(crate) fn slice85_out(sink: &crate::telemetry::TelemetrySink) { sink.slice85_recv(); }\npub(crate) fn slice85_ret() { slice85_out(todo!()); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure typed-receiver-cycle 'unapproved governed cycle search <-> telemetry graph=item' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\npub(crate) fn slice85_out(sink: std::sync::Arc<crate::telemetry::TelemetrySink>) { sink.slice85_recv(); }\npub(crate) fn slice85_ret() { slice85_out(todo!()); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure arc-receiver-cycle 'unapproved governed cycle search <-> telemetry graph=item' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\npub(crate) fn slice85_untyped() { let sink = slice85_make(); sink.slice85_recv(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure untyped-receiver 'source=search source_item=slice85_untyped method=slice85_recv' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/telemetry.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
+
+printf '\npub(crate) fn slice85_new_as_str(value: &Slice85Unknown) -> usize { value.name.as_str().len() }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure unreviewed-same-name-receiver 'source=search source_item=slice85_new_as_str method=as_str calls=1' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf 'external-receiver search slice85_missing as_str 1\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure stale-external-receiver 'stale external-receiver search slice85_missing as_str 1' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

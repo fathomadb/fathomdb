@@ -1177,6 +1177,21 @@ expect_failure stale-inherent 'stale governed inherent method search Slice85Ghos
   "$GATE" --root "$fixture"
 cp "$fixture/module-boundary-policy.clean" "$policy_file"
 
+# Test review cycle 1, T-8 (AC27-85B): read, filter and frozen-read code does
+# not depend on search::SearchReaderError, or on anything else in search.
+# A forbid-dependency line pins it, so a policy regeneration cannot admit it.
+t8_search_error_mutant() {
+  local label="$1" module="$2" file="$3"
+  cp "$fixture/src/rust/crates/fathomdb-engine/src/$file" "$fixture/t8.rs.clean"
+  printf '\npub(crate) fn slice85_search_error(_: &crate::search::SearchReaderError) {}\n' \
+    >>"$fixture/src/rust/crates/fathomdb-engine/src/$file"
+  expect_failure "$label" "forbidden dependency $module -> search configuration=" "$GATE" --root "$fixture"
+  cp "$fixture/t8.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/$file"
+}
+t8_search_error_mutant read-search-error read read.rs
+t8_search_error_mutant filter-search-error filter filter.rs
+t8_search_error_mutant frozen-read-search-error frozen_read frozen_read.rs
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

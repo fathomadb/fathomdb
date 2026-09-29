@@ -497,6 +497,8 @@ if ! grep -Fq "$(printf 'scc\titem\tall\tfusion,search\t')" <<<"$report"; then
 fi
 printf 'edge search slice85_r1 fusion slice85_r2 callable all\nedge fusion slice85_r2 search slice85_r1 callable all\n' \
   >>"$fixture/dev/tools/module-boundary-policy.txt"
+# The reviewed module-level 2-cycle inventory line (design review cycle 2, D-19).
+printf 'module-cycle search fusion all\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
 cp "$fixture/dev/tools/module-boundary-policy.txt" "$fixture/policy-with-cycle-edges"
 printf 'report-cycle fusion search\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
 expect_success reported-cycle-accounted "$GATE" --root "$fixture"
@@ -515,6 +517,7 @@ printf '\npub(crate) fn slice85_a2() { crate::search::slice85_a1(); }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/errors.rs"
 printf 'edge search slice85_a1 errors slice85_a2 callable all\nedge errors slice85_a2 search slice85_a1 callable all\n' \
   >>"$fixture/dev/tools/module-boundary-policy.txt"
+printf 'module-cycle search errors all\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
 expect_failure admitted-cycle-unallowed 'unapproved governed cycle errors <-> search graph=item' \
   "$GATE" --root "$fixture"
 printf 'allow-cycle errors search\n' >>"$fixture/dev/tools/module-boundary-policy.txt"

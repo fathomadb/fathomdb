@@ -2,12 +2,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use proc_macro2::Span;
+use proc_macro2::{Delimiter, Group, Span, TokenStream, TokenTree};
+use syn::parse::{ParseStream, Parser};
 use syn::visit::{self, Visit};
 use syn::{
-    Attribute, Expr, ExprCall, ExprField, ExprMethodCall, ExprPath, FnArg, ImplItem, ImplItemFn,
-    ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod, ItemStruct, ItemTrait, ItemType, ItemUse,
-    Local, Macro, Member, Meta, Pat, Type, TypePath, Visibility,
+    Attribute, Block, Expr, ExprCall, ExprField, ExprMethodCall, ExprPath, ExprStruct, FnArg,
+    ImplItem, ImplItemFn, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod, ItemStruct, ItemTrait,
+    ItemType, ItemUse, Local, Macro, Member, Meta, Pat, PatStruct, PatTupleStruct, Type, TypePath,
+    Visibility,
 };
 
 pub const CONFIGURATIONS: [&str; 16] = [
@@ -111,6 +113,10 @@ pub struct Analysis {
     pub import_aliases: BTreeMap<String, String>,
     pub unsupported_cfg: BTreeSet<String>,
     pub macros: BTreeSet<MacroUse>,
+    /// Macro invocations whose token body is not an expression list, a
+    /// `matches!`-style `expr, pattern` body, or a statement list. Their
+    /// dependencies are invisible, so governed modules fail closed on them.
+    pub unparsed_macros: BTreeSet<MacroUse>,
 }
 
 pub fn analyze_source(source: &str) -> Result<Analysis, syn::Error> {
@@ -190,11 +196,25 @@ impl Analyzer {
     }
 
     fn record_callable_path(&mut self, path: &syn::Path) {
+        self.record_path(path, true);
+    }
+
+    /// Records an expression-position path. Capitalised final segments
+    /// (constants, statics, enum variants, unit/tuple-struct constructors,
+    /// struct literals and patterns) are dependencies too: in call position
+    /// they are callable edges, otherwise type edges.
+    fn record_path(&mut self, path: &syn::Path, call_position: bool) {
         let segments =
             path.segments.iter().map(|segment| segment.ident.to_string()).collect::<Vec<_>>();
         let Some(last) = segments.last() else { return };
         let reader_request_variant = segments.windows(2).any(|pair| pair[0] == "ReaderRequest");
-        if last.chars().next().is_some_and(char::is_uppercase) && !reader_request_variant {
+        let capitalised = last.chars().next().is_some_and(char::is_uppercase);
+        if capitalised && !reader_request_variant {
+            if segments.len() < 2 || segments.first().is_some_and(|segment| segment == "Self") {
+                return;
+            }
+            let kind = if call_position { EdgeKind::Callable } else { EdgeKind::TypeOrComposition };
+            self.edge(kind, segments.join("::"), path.segments[0].ident.span());
             return;
         }
         if segments.first().is_some_and(|segment| segment == "Engine")
@@ -205,6 +225,83 @@ impl Analyzer {
         } else {
             self.edge(EdgeKind::Callable, segments.join("::"), path.segments[0].ident.span());
         }
+    }
+
+    fn record_unparsed_macro(&mut self, mac: &Macro, span: Span) {
+        self.analysis.unparsed_macros.insert(MacroUse {
+            target: mac
+                .path
+                .segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::"),
+            fingerprint: Some(stable_token_fingerprint(&mac.tokens.to_string())),
+            source_scope: self.module_stack.join("::"),
+            source_item: self.item_stack.last().cloned().unwrap_or_else(|| "<module>".to_string()),
+            location: span.into(),
+        });
+    }
+
+    /// Visits a macro body with the ordinary extractors. Returns `false` when
+    /// the body is not one of the supported token grammars.
+    fn visit_macro_body(&mut self, mac: &Macro) -> bool {
+        if mac.tokens.is_empty() {
+            return true;
+        }
+        let name = mac.path.segments.last().map(|segment| segment.ident.to_string());
+        if matches!(name.as_deref(), Some("matches" | "assert_matches" | "debug_assert_matches")) {
+            if let Ok((expression, pattern, guard, trailing)) =
+                parse_matches_body.parse2(mac.tokens.clone())
+            {
+                self.visit_expr(&expression);
+                self.visit_pat(&pattern);
+                for expression in guard.iter().chain(&trailing) {
+                    self.visit_expr(expression);
+                }
+                return true;
+            }
+        }
+        if name.as_deref() == Some("json") {
+            let mut values = Vec::new();
+            if (|input: ParseStream<'_>| parse_json_value(input, &mut values))
+                .parse2(mac.tokens.clone())
+                .is_ok()
+            {
+                for value in &values {
+                    self.visit_expr(value);
+                }
+                return true;
+            }
+        }
+        let bracketed =
+            TokenStream::from(TokenTree::Group(Group::new(Delimiter::Bracket, mac.tokens.clone())));
+        if let Ok(expression) = syn::parse2::<Expr>(bracketed) {
+            match expression {
+                Expr::Array(array) => {
+                    for element in &array.elems {
+                        self.visit_expr(element);
+                    }
+                    return true;
+                }
+                Expr::Repeat(repeat) => {
+                    self.visit_expr(&repeat.expr);
+                    self.visit_expr(&repeat.len);
+                    return true;
+                }
+                _ => {}
+            }
+        }
+        if let Ok(statements) = Block::parse_within.parse2(mac.tokens.clone()) {
+            let inherited = self.binding_stack.last().cloned().unwrap_or_default();
+            self.binding_stack.push(inherited);
+            for statement in &statements {
+                self.visit_stmt(statement);
+            }
+            self.binding_stack.pop();
+            return true;
+        }
+        false
     }
 
     fn enter_attrs(&mut self, attrs: &[Attribute]) -> BTreeSet<String> {
@@ -418,6 +515,7 @@ impl<'ast> Visit<'ast> for Analyzer {
                 self.visit_expr(diverge);
             }
         }
+        self.visit_pat(&local.pat);
         if let Some(bindings) = self.binding_stack.last_mut() {
             collect_pattern_bindings(&local.pat, bindings);
         }
@@ -561,8 +659,32 @@ impl<'ast> Visit<'ast> for Analyzer {
     fn visit_macro(&mut self, mac: &'ast Macro) {
         if let Some(segment) = mac.path.segments.first() {
             self.record_macro(&mac.path, segment.ident.span());
+            if !self.visit_macro_body(mac) {
+                self.record_unparsed_macro(mac, segment.ident.span());
+            }
         }
         visit::visit_macro(self, mac);
+    }
+
+    fn visit_expr_struct(&mut self, expression: &'ast ExprStruct) {
+        if expression.qself.is_none() {
+            self.record_path(&expression.path, false);
+        }
+        visit::visit_expr_struct(self, expression);
+    }
+
+    fn visit_pat_struct(&mut self, pattern: &'ast PatStruct) {
+        if pattern.qself.is_none() {
+            self.record_path(&pattern.path, false);
+        }
+        visit::visit_pat_struct(self, pattern);
+    }
+
+    fn visit_pat_tuple_struct(&mut self, pattern: &'ast PatTupleStruct) {
+        if pattern.qself.is_none() {
+            self.record_path(&pattern.path, false);
+        }
+        visit::visit_pat_tuple_struct(self, pattern);
     }
 
     fn visit_item_macro(&mut self, item: &'ast ItemMacro) {
@@ -666,11 +788,68 @@ impl<'ast> Visit<'ast> for Analyzer {
                             .is_some_and(|bindings| bindings.contains(name)))
                 });
             if callable_reference {
-                self.record_callable_path(&expression.path);
+                self.record_path(&expression.path, false);
             }
         }
         visit::visit_expr_path(self, expression);
     }
+}
+
+/// `serde_json::json!` grammar: objects and arrays of Rust expressions.
+fn parse_json_value(input: ParseStream<'_>, values: &mut Vec<Expr>) -> syn::Result<()> {
+    if input.peek(syn::token::Brace) {
+        let content;
+        syn::braced!(content in input);
+        while !content.is_empty() {
+            values.push(content.parse::<Expr>()?);
+            content.parse::<syn::Token![:]>()?;
+            parse_json_value(&content, values)?;
+            if content.is_empty() {
+                break;
+            }
+            content.parse::<syn::Token![,]>()?;
+        }
+    } else if input.peek(syn::token::Bracket) {
+        let content;
+        syn::bracketed!(content in input);
+        while !content.is_empty() {
+            parse_json_value(&content, values)?;
+            if content.is_empty() {
+                break;
+            }
+            content.parse::<syn::Token![,]>()?;
+        }
+    } else {
+        values.push(input.parse::<Expr>()?);
+    }
+    Ok(())
+}
+
+type MatchesBody = (Expr, Pat, Option<Expr>, Vec<Expr>);
+
+fn parse_matches_body(input: ParseStream<'_>) -> syn::Result<MatchesBody> {
+    let expression: Expr = input.parse()?;
+    input.parse::<syn::Token![,]>()?;
+    let pattern = Pat::parse_multi_with_leading_vert(input)?;
+    let guard = if input.peek(syn::Token![if]) {
+        input.parse::<syn::Token![if]>()?;
+        Some(input.parse::<Expr>()?)
+    } else {
+        None
+    };
+    let mut trailing = Vec::new();
+    if input.peek(syn::Token![,]) {
+        input.parse::<syn::Token![,]>()?;
+        // assert_matches! accepts trailing format arguments.
+        while !input.is_empty() {
+            trailing.push(input.parse::<Expr>()?);
+            if input.is_empty() {
+                break;
+            }
+            input.parse::<syn::Token![,]>()?;
+        }
+    }
+    Ok((expression, pattern, guard, trailing))
 }
 
 fn stable_token_fingerprint(source: &str) -> String {
@@ -1204,5 +1383,62 @@ mod tests {
             "{:?}",
             analysis.macros
         );
+    }
+
+    #[test]
+    fn std_macro_bodies_are_extracted_like_expressions() {
+        let analysis = analyze_source(
+            "fn f(value: usize, out: &mut String) { \
+                 let _ = vec![crate::a::one()]; \
+                 let _ = vec![crate::a::two(); 2]; \
+                 let _ = format!(\"{}\", crate::a::three()); \
+                 let _ = write!(out, \"{}\", crate::a::four()); \
+                 assert!(matches!(value, x if x == crate::a::five())); \
+                 let _ = serde_json::json!({\"k\": crate::a::six(), \"l\": [crate::a::seven()]}); \
+             }",
+        )
+        .expect("fixture parses");
+        for name in ["one", "two", "three", "four", "five", "six", "seven"] {
+            assert!(
+                analysis.edges.iter().any(|edge| edge.target == format!("crate::a::{name}")),
+                "missing {name}"
+            );
+        }
+        assert!(analysis.unparsed_macros.is_empty(), "{:?}", analysis.unparsed_macros);
+    }
+
+    #[test]
+    fn unparsable_macro_bodies_are_recorded_with_identity() {
+        let analysis =
+            analyze_source("fn f() { opaque!(=> crate::a::hidden); }").expect("fixture parses");
+        let usage = analysis.unparsed_macros.iter().next().expect("unparsed macro recorded");
+        assert_eq!(usage.target, "opaque");
+        assert_eq!(usage.source_item, "f");
+        assert!(usage.fingerprint.is_some());
+    }
+
+    #[test]
+    fn capitalised_qualified_paths_are_edges() {
+        let analysis = analyze_source(
+            "fn f(v: usize) { let _ = crate::a::CONST; let _ = crate::a::E::V; \
+             let _ = crate::a::Ctor(1); let _ = crate::a::S { x: 1 }; \
+             let _: Option<crate::a::T> = None; if let crate::a::P(_) = v {} \
+             let _ = Self::Variant; }",
+        )
+        .expect("fixture parses");
+        for (target, kind) in [
+            ("crate::a::CONST", EdgeKind::TypeOrComposition),
+            ("crate::a::E::V", EdgeKind::TypeOrComposition),
+            ("crate::a::Ctor", EdgeKind::Callable),
+            ("crate::a::S", EdgeKind::TypeOrComposition),
+            ("crate::a::T", EdgeKind::TypeOrComposition),
+            ("crate::a::P", EdgeKind::TypeOrComposition),
+        ] {
+            assert!(
+                analysis.edges.iter().any(|edge| edge.target == target && edge.kind == kind),
+                "missing {target}"
+            );
+        }
+        assert!(!analysis.edges.iter().any(|edge| edge.target.starts_with("Self::")));
     }
 }

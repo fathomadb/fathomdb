@@ -17,6 +17,7 @@ struct Policy {
     forbidden_cycles: BTreeSet<(String, String)>,
     allowed_cycles: BTreeSet<(String, String)>,
     allowed_local_macros: BTreeSet<(String, String, String)>,
+    allowed_unparsed_macros: BTreeSet<(String, String, String, String)>,
     inherent_methods: BTreeSet<(String, String)>,
     expected_edges: BTreeSet<(String, String, String, String, String, String)>,
 }
@@ -239,6 +240,14 @@ fn parse_policy(path: &Path) -> Result<Policy, Vec<String>> {
                     (*fingerprint).to_string(),
                 ));
             }
+            ["unparsed-macro", module, item, name, fingerprint] => {
+                policy.allowed_unparsed_macros.insert((
+                    (*module).to_string(),
+                    (*item).to_string(),
+                    (*name).to_string(),
+                    (*fingerprint).to_string(),
+                ));
+            }
             ["inherent", module, method] => {
                 if !policy.inherent_methods.insert(((*module).to_string(), (*method).to_string())) {
                     errors.push(format!(
@@ -379,6 +388,7 @@ fn evaluate(
     let root_aliases = root.map(|module| &module.analysis.import_aliases);
     let mut actual_edges = BTreeSet::new();
     let mut actual_local_macros = BTreeSet::new();
+    let mut actual_unparsed_macros = BTreeSet::new();
     let mut edge_origins: BTreeMap<
         (String, String, String, String, String, String),
         (String, usize, usize, String),
@@ -540,10 +550,32 @@ fn evaluate(
             &mut actual_local_macros,
             &mut errors,
         );
+        reject_unparsed_macros(
+            module,
+            info,
+            policy,
+            source_root,
+            &mut actual_unparsed_macros,
+            &mut errors,
+        );
     }
 
     for (module, name, _) in policy.allowed_local_macros.difference(&actual_local_macros) {
         errors.push(format!("stale local macro policy source={module} macro={name}"));
+    }
+    let governed_unparsed = actual_unparsed_macros
+        .iter()
+        .filter(|(governed, ..)| *governed)
+        .map(|(_, module, item, name, fingerprint)| {
+            (module.clone(), item.clone(), name.clone(), fingerprint.clone())
+        })
+        .collect::<BTreeSet<_>>();
+    for (module, item, name, fingerprint) in
+        policy.allowed_unparsed_macros.difference(&governed_unparsed)
+    {
+        errors.push(format!(
+            "stale unparsed macro policy source={module} item={item} macro={name} fingerprint={fingerprint}"
+        ));
     }
 
     for (configuration, adjacency) in &adjacency_by_configuration {
@@ -610,6 +642,10 @@ fn evaluate(
         }
         for (module, name, fingerprint) in &actual_local_macros {
             println!("local-macro\t{module}\t{name}\t{fingerprint}");
+        }
+        for (governed, module, item, name, fingerprint) in &actual_unparsed_macros {
+            let label = if *governed { "unparsed-macro" } else { "reported-unparsed-macro" };
+            println!("{label}\t{module}\t{item}\t{name}\t{fingerprint}");
         }
         for (label, adjacency) in &adjacency_by_configuration {
             let edge_count = adjacency.values().map(BTreeSet::len).sum::<usize>();
@@ -736,6 +772,48 @@ fn reject_relevant_macros(
                 usage.location.column
             ));
         }
+    }
+}
+
+type UnparsedMacro = (bool, String, String, String, String);
+
+fn reject_unparsed_macros(
+    physical_module: &str,
+    info: &ModuleInfo,
+    policy: &Policy,
+    source_root: &Path,
+    actual_unparsed_macros: &mut BTreeSet<UnparsedMacro>,
+    errors: &mut Vec<String>,
+) {
+    for usage in &info.analysis.unparsed_macros {
+        let module = scoped_module(physical_module, &usage.source_scope);
+        let governed = policy.classified.get(&module).map(String::as_str) == Some("governed");
+        let fingerprint = usage.fingerprint.clone().expect("unparsed macro fingerprint");
+        actual_unparsed_macros.insert((
+            governed,
+            module.clone(),
+            usage.source_item.clone(),
+            usage.target.clone(),
+            fingerprint.clone(),
+        ));
+        if !governed {
+            continue;
+        }
+        let key = (module.clone(), usage.source_item.clone(), usage.target.clone(), fingerprint);
+        if policy.allowed_unparsed_macros.contains(&key) {
+            continue;
+        }
+        errors.push(format!(
+            "unparsed macro body source={module} item={} macro={} at {}:{}:{} fingerprint={}; \
+             its dependencies are invisible, so rewrite it as parseable Rust or record a \
+             reviewed unparsed-macro exception",
+            usage.source_item,
+            usage.target,
+            relative(source_root, &info.file),
+            usage.location.line,
+            usage.location.column,
+            key.3
+        ));
     }
 }
 

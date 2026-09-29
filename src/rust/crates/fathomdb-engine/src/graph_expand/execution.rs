@@ -723,10 +723,10 @@ pub(crate) fn read_graph_expand_in_tx(
     };
     validate_filter_attributes_on_snapshot(&tx, &context.eligibility).map_err(
         |error| match error {
-            crate::SnapshotFilterError::InvalidFilter(_) => {
+            crate::filter::SnapshotFilterError::InvalidFilter(_) => {
                 graph_error(GraphExpansionErrorReasonV1::GraphContextInvalid, "/context")
             }
-            crate::SnapshotFilterError::Sqlite(_) => EngineError::Storage,
+            crate::filter::SnapshotFilterError::Sqlite(_) => EngineError::Storage,
         },
     )?;
     let view = context.view.freeze();
@@ -975,7 +975,7 @@ pub(crate) fn read_graph_expand_in_tx(
         let edge_cursors =
             selected.iter().map(|item| item.terminal_edge_cursor).collect::<Vec<_>>();
         if selected.is_empty() {
-            Some(crate::GraphEvidenceSidecarV1 { schema_version: 1, entries: Vec::new() })
+            Some(crate::evidence::GraphEvidenceSidecarV1 { schema_version: 1, entries: Vec::new() })
         } else {
             let preflight = crate::evidence::preflight_graph_evidence(
                 &tx,
@@ -985,10 +985,11 @@ pub(crate) fn read_graph_expand_in_tx(
             )
             .map_err(|error| match error {
                 EngineError::Evidence(error)
-                    if error.reason == crate::EvidenceErrorReasonV1::EvidenceUnavailable =>
+                    if error.reason
+                        == crate::evidence::EvidenceErrorReasonV1::EvidenceUnavailable =>
                 {
                     EngineError::Evidence(crate::EvidenceErrorV1::new(
-                        crate::EvidenceErrorReasonV1::EvidenceUnavailable,
+                        crate::evidence::EvidenceErrorReasonV1::EvidenceUnavailable,
                         "/evidence",
                     ))
                 }
@@ -1029,7 +1030,7 @@ pub(crate) fn read_graph_expand_in_tx(
                         1,
                         &disclosure,
                     )?;
-                entries.push(crate::GraphEvidenceSidecarEntryV1 {
+                entries.push(crate::evidence::GraphEvidenceSidecarEntryV1 {
                     schema_version: 1,
                     target_index: u32::try_from(index).map_err(|_| EngineError::Storage)?,
                     target_artifact_revision_id: target_revision,
@@ -1038,7 +1039,7 @@ pub(crate) fn read_graph_expand_in_tx(
                     terminal_edge_evidence_ref: edge_reference,
                 });
             }
-            Some(crate::GraphEvidenceSidecarV1 { schema_version: 1, entries })
+            Some(crate::evidence::GraphEvidenceSidecarV1 { schema_version: 1, entries })
         }
     } else {
         None

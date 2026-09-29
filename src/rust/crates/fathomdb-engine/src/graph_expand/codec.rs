@@ -1538,7 +1538,7 @@ pub fn decode_graph_expand_result_v1(
                         )
                     })
                 };
-                entries.push(crate::GraphEvidenceSidecarEntryV1 {
+                entries.push(crate::evidence::GraphEvidenceSidecarEntryV1 {
                     schema_version: 1,
                     target_index: response_u32(
                         response_required(object, "targetIndex", &format!("{base}/targetIndex"))?,
@@ -1550,7 +1550,7 @@ pub fn decode_graph_expand_result_v1(
                     terminal_edge_evidence_ref: reference("terminalEdgeEvidenceRef")?,
                 });
             }
-            Some(crate::GraphEvidenceSidecarV1 { schema_version: 1, entries })
+            Some(crate::evidence::GraphEvidenceSidecarV1 { schema_version: 1, entries })
         }
     };
     let result = GraphExpandResultV1 {

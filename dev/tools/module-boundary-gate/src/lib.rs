@@ -920,6 +920,31 @@ mod tests {
     }
 
     #[test]
+    fn unknown_features_are_rejected_instead_of_erasing_edges() {
+        let analysis = analyze_source(
+            "#[cfg(feature = \"slice85-unknown\")] use crate::reader_pool::ReaderRequest;",
+        )
+        .expect("fixture parses");
+        assert_eq!(
+            analysis.unsupported_cfg,
+            BTreeSet::from(["feature = \"slice85-unknown\"".to_string()])
+        );
+    }
+
+    #[test]
+    fn root_glob_bare_callable_references_are_recorded() {
+        let analysis = analyze_source(
+            "use super::*; fn hidden_exec() { let _ = encode_graph_expand_result_v1; }",
+        )
+        .expect("fixture parses");
+        assert!(analysis.edges.iter().any(|edge| {
+            edge.kind == EdgeKind::Callable
+                && edge.source_item == "hidden_exec"
+                && edge.target == "encode_graph_expand_result_v1"
+        }));
+    }
+
+    #[test]
     fn source_items_inline_scopes_cfg_attr_and_macros_are_preserved() {
         let analysis = analyze_source(
             r#"

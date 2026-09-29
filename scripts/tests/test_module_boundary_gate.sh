@@ -158,6 +158,38 @@ expect_failure request-variant 'direct ReaderRequest variant construction outsid
   "$GATE" --root "$fixture"
 cp "$fixture/read-api.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read_api.rs"
 
+cp "$fixture/src/rust/crates/fathomdb-engine/src/errors.rs" "$fixture/errors.rs.clean"
+printf '\nfn slice85_hidden_exec() { let _ = encode_graph_expand_result_v1; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/errors.rs"
+expect_failure root-glob-callable 'unexpected boundary edge source=errors' \
+  "$GATE" --root "$fixture"
+cp "$fixture/errors.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/errors.rs"
+
+printf '\n#[cfg(feature = "slice85-unknown")] use crate::reader_pool::ReaderRequest;\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure unknown-feature 'unsupported cfg predicate' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\npub use search_types::GraphFrontierStats as Slice85LeakedStats;\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/lib.rs"
+expect_failure root-contract 'unexpected boundary edge source=root' "$GATE" --root "$fixture"
+cp "$fixture/lib.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/lib.rs"
+
+cp "$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs" "$fixture/telemetry.rs.clean"
+all_configs='default-linux,default-nonlinux,hooks-linux,hooks-nonlinux,hooks-tc5-linux,hooks-tc5-nonlinux,tc5-linux,tc5-nonlinux,test-hooks-linux,test-hooks-nonlinux,test-hooks-tc5-linux,test-hooks-tc5-nonlinux,test-linux,test-nonlinux,test-tc5-linux,test-tc5-nonlinux'
+printf '\npub(crate) fn slice85_cycle_out() { crate::telemetry::slice85_cycle_in(); }\nfn slice85_cycle_return() { slice85_cycle_out(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\npub(crate) fn slice85_cycle_in() { crate::search::slice85_cycle_return(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
+printf 'edge search slice85_cycle_out telemetry slice85_cycle_in callable %s\n' "$all_configs" \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+printf 'edge telemetry slice85_cycle_in search slice85_cycle_return callable %s\n' "$all_configs" \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure local-helper-cycle 'unapproved governed cycle search <-> telemetry' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/telemetry.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

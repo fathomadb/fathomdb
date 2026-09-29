@@ -626,12 +626,11 @@ fn evaluate(
         }
     }
 
-    let root_aliases = root.map(|module| &module.analysis.import_aliases);
     let namespaces = Namespaces::new(modules);
     // A crate-root alias that resolves to no in-crate item and names no
     // declared dependency would end every path through it on the alias
     // itself, severing the item and module graphs.
-    for (name, target) in root_aliases.into_iter().flatten() {
+    for (name, target) in namespaces.bindings_of("root") {
         let first = target.split("::").next().unwrap_or(target);
         if external_crates.contains(first)
             || matches!(namespaces.resolve("root", target, Want::Module), Resolution::InCrate(_))
@@ -810,7 +809,8 @@ fn evaluate(
             if governed
                 && module != "reader_pool"
                 && edge.kind == EdgeKind::Callable
-                && direct_reader_request_variant(&edge.target)
+                && (direct_reader_request_variant(&edge.target)
+                    || targets.iter().any(|target| direct_reader_request_variant(&target.item)))
             {
                 errors.push(format!(
                     "direct ReaderRequest variant construction outside reader_pool at {}:{}:{} item={}",
@@ -833,7 +833,9 @@ fn evaluate(
                     // type outside the crate keeps its (never governed)
                     // methods.
                     let typed = receiver_type.is_some_and(|ty| {
-                        let owner = ty.rsplit("::").next().unwrap_or(ty);
+                        let owner = namespaces
+                            .receiver_owner(&scoped_module(module, &edge.target_scope), ty);
+                        let owner = owner.as_str();
                         if targets.is_empty() {
                             // Outside the crate; a trait's associated
                             // function names no concrete type.
@@ -956,6 +958,10 @@ fn evaluate(
                 && !edge.target.starts_with(".<")
                 && !edge.target.contains("::")
                 && info.analysis.local_functions.contains_key(&edge.target)
+                // An inline module's own `use` of the name wins over the
+                // file's function of that name.
+                && (edge.source_scope.is_empty()
+                    || !namespaces.has_binding(&source_module, &edge.target))
                 && declared_owners.get(&edge.target).is_some_and(|owners| {
                     owners.iter().any(|owner| {
                         owner != module
@@ -2091,11 +2097,18 @@ impl Namespaces {
                     .filter(|(item_scope, _)| *item_scope == scope)
                     .map(|(_, name)| name.clone())
                     .collect();
-                let bindings = if scope.is_empty() {
-                    info.analysis.import_aliases.clone()
-                } else {
-                    info.analysis.scoped_aliases.get(&scope).cloned().unwrap_or_default()
-                };
+                // A later binding of a name overrides an earlier one.
+                let mut bindings = BTreeMap::new();
+                let mut in_scope = info
+                    .analysis
+                    .bindings
+                    .iter()
+                    .filter(|binding| binding.scope == scope)
+                    .collect::<Vec<_>>();
+                in_scope.sort_by_key(|binding| binding.location);
+                for binding in in_scope {
+                    bindings.insert(binding.name.clone(), binding.target.clone());
+                }
                 spaces.insert(
                     scoped_module(file, &scope),
                     Namespace {
@@ -2332,6 +2345,67 @@ impl Namespaces {
                 format!("{}::{}", space.scope, target.item)
             },
         }
+    }
+
+    /// The `use` bindings of `node`, by bound name.
+    fn bindings_of(&self, node: &str) -> impl Iterator<Item = (&String, &String)> {
+        self.spaces.get(node).into_iter().flat_map(|space| space.bindings.iter())
+    }
+
+    /// Whether `node` itself binds `name` with a `use`.
+    fn has_binding(&self, node: &str, name: &str) -> bool {
+        self.spaces.get(node).is_some_and(|space| space.bindings.contains_key(name))
+    }
+
+    /// The type name a receiver type path written in `node` denotes: the
+    /// declared item's own name for an in-crate type; otherwise the last
+    /// segment of the path once its head is expanded through `use` bindings.
+    fn receiver_owner(&self, node: &str, ty: &str) -> String {
+        if let Resolution::InCrate(target) = self.resolve(node, ty, Want::Item) {
+            if target.item != "<module>" {
+                return target.item.rsplit("::").next().unwrap_or(&target.item).to_string();
+            }
+        }
+        let mut path = ty.to_string();
+        let mut node = node.to_string();
+        let mut seen = BTreeSet::new();
+        loop {
+            let head = path.split("::").next().unwrap_or(&path).to_string();
+            let Some((binding_node, target)) = self.binding_for(&node, &head, &mut seen) else {
+                break;
+            };
+            path = match path.split_once("::") {
+                Some((_, rest)) => format!("{target}::{rest}"),
+                None => target,
+            };
+            node = binding_node;
+        }
+        path.rsplit("::").next().unwrap_or(&path).to_string()
+    }
+
+    /// The `use` binding that supplies `name` in `node`, directly or through
+    /// its glob imports: the node it is written in and its target.
+    fn binding_for(
+        &self,
+        node: &str,
+        name: &str,
+        seen: &mut BTreeSet<(String, String)>,
+    ) -> Option<(String, String)> {
+        if !seen.insert((node.to_string(), name.to_string())) {
+            return None;
+        }
+        let space = self.spaces.get(node)?;
+        if let Some(target) = space.bindings.get(name) {
+            return Some((node.to_string(), target.clone()));
+        }
+        space.globs.iter().find_map(|(prefix, written)| {
+            match self.resolve(written, prefix, Want::Module) {
+                Resolution::InCrate(glob) if glob.item == "<module>" => {
+                    self.binding_for(&glob.module, name, seen)
+                }
+                _ => None,
+            }
+        })
     }
 
     /// Whether the crate root names `name` only through a `use` binding or a
@@ -2634,6 +2708,32 @@ mod tests {
         assert_eq!(resolve("child", "Status::Busy"), found("wal", "Status::Busy"));
         assert_eq!(resolve("child", "walk"), found("wal", "walk"));
         assert_eq!(resolve("child", "super::fusion::fused"), found("fusion", "fused"));
+    }
+
+    #[test]
+    fn written_paths_resolve_through_the_bindings_of_their_scope() {
+        let modules = crate_of(&[
+            (
+                "root",
+                "mod fusion; mod reader_pool; mod search;\n\
+                 use crate::{filter::validate, reader_pool as pool};\n\
+                 use crate::search::run;\n\
+                 fn helper() {}\n\
+                 mod inner { use super::*; use crate::reader_pool::helper; \
+                 pub(crate) use crate::fusion::fused as local; }\n",
+            ),
+            ("fusion", "pub(crate) fn fused() {}"),
+            ("reader_pool", "pub(crate) fn dispatch() {} pub(crate) fn helper() {}"),
+            ("search", "pub(crate) fn run() {}"),
+        ]);
+        let namespaces = Namespaces::new(&modules);
+        let resolve = |node: &str, path: &str| namespaces.resolve(node, path, Want::Item);
+        assert_eq!(resolve("root", "pool::dispatch"), found("reader_pool", "dispatch"));
+        // An inline module's own import wins over the file's function.
+        assert_eq!(resolve("root::inner", "helper"), found("reader_pool", "helper"));
+        // A file-level import reaches the inline module through its glob.
+        assert_eq!(resolve("root::inner", "run"), found("search", "run"));
+        assert_eq!(resolve("root::inner", "local"), found("fusion", "fused"));
     }
 
     #[test]

@@ -60,9 +60,8 @@ pub struct Edge {
     pub kind: EdgeKind,
     pub target: String,
     pub source_scope: String,
-    /// The inline scope in which `target` is written: the source scope,
-    /// except for a path substituted from a file-level `use` alias, which is
-    /// written at file level.
+    /// The lexical scope in which `target` is written, where the resolver
+    /// starts looking its first segment up.
     pub target_scope: String,
     pub source_item: String,
     pub location: Location,
@@ -73,6 +72,18 @@ pub struct Edge {
     /// For a dot call whose receiver was typed by `let x = Type::f(..)`,
     /// the associated function `f`; the type holds only if `f` returns it.
     pub constructor: Option<String>,
+}
+
+/// A `use` binding as written: `name` bound to the path `target` in the
+/// inline scope `scope` (empty at file level). The namespace resolver is the
+/// only consumer; edge targets are never rewritten through bindings.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct UseBinding {
+    pub scope: String,
+    pub name: String,
+    pub target: String,
+    pub location: Location,
+    pub configurations: ConfigSet,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -145,10 +156,8 @@ pub struct Analysis {
     /// checked against the scope that actually declares it.
     pub scoped_items: BTreeSet<(String, String)>,
     pub local_functions: BTreeMap<String, Location>,
-    pub import_aliases: BTreeMap<String, String>,
-    /// `use` aliases declared inside inline modules, keyed by the inline
-    /// scope (`tests`, `outer::inner`).
-    pub scoped_aliases: BTreeMap<String, BTreeMap<String, String>>,
+    /// Every `use` binding of the file, in every scope.
+    pub bindings: BTreeSet<UseBinding>,
     /// `type` aliases keyed by scope-qualified name (`Alias`,
     /// `inner::Alias`).
     pub type_aliases: BTreeMap<String, TypeAlias>,
@@ -191,7 +200,6 @@ pub fn analyze_source_in(
     collect_struct_fields(&file.items, &mut visitor.struct_fields);
     visitor.visit_file(&file);
     visitor.resolve_generated_types();
-    visitor.resolve_aliases();
     Ok(visitor.analysis)
 }
 
@@ -724,79 +732,6 @@ impl<'s> Analyzer<'s> {
             _ => {}
         }
     }
-
-    fn resolve_aliases(&mut self) {
-        let top_level = &self.analysis.import_aliases;
-        let mut resolved = BTreeSet::new();
-        for edge in &self.analysis.edges {
-            // A field or Engine method name is no path: an import of the same
-            // name does not rename it.
-            if matches!(edge.kind, EdgeKind::FieldAccess | EdgeKind::EngineMethod) {
-                resolved.insert(edge.clone());
-                continue;
-            }
-            // An inline module sees its own imports first; the file's
-            // top-level imports approximate its usual `use super::*`.
-            let scoped = self.analysis.scoped_aliases.get(&edge.source_scope);
-            let aliases = AliasScope { scoped, top_level };
-            if let Some((method, ty)) = edge.target.split_once(">:") {
-                let (head, rest) =
-                    ty.split_once("::").map_or((ty, None), |(head, rest)| (head, Some(rest)));
-                let mut resolved_edge = edge.clone();
-                if let Some(owner) = aliases.get(head) {
-                    let qualified =
-                        rest.map_or_else(|| owner.clone(), |rest| format!("{owner}::{rest}"));
-                    resolved_edge.target = format!("{method}>:{qualified}");
-                    if scoped.and_then(|aliases| aliases.get(head)).is_none() {
-                        resolved_edge.target_scope = String::new();
-                    }
-                }
-                resolved.insert(resolved_edge);
-                continue;
-            }
-            let (first, tail) = edge
-                .target
-                .split_once("::")
-                .map_or((edge.target.as_str(), None), |(head, rest)| (head, Some(rest)));
-            // An inline module's own import names what it imports even when
-            // the file also defines a function of that name elsewhere.
-            let scoped_alias = scoped.and_then(|aliases| aliases.get(first));
-            if scoped_alias.is_none() && self.analysis.local_functions.contains_key(first) {
-                resolved.insert(edge.clone());
-            } else if let Some(owner) = scoped_alias.or_else(|| aliases.get(first)) {
-                let target = tail.map_or_else(|| owner.clone(), |rest| format!("{owner}::{rest}"));
-                resolved.insert(Edge {
-                    kind: edge.kind.clone(),
-                    target,
-                    source_scope: edge.source_scope.clone(),
-                    target_scope: if scoped_alias.is_some() {
-                        edge.source_scope.clone()
-                    } else {
-                        String::new()
-                    },
-                    source_item: edge.source_item.clone(),
-                    location: edge.location,
-                    configurations: edge.configurations,
-                    receiver: edge.receiver.clone(),
-                    constructor: edge.constructor.clone(),
-                });
-            } else {
-                resolved.insert(edge.clone());
-            }
-        }
-        self.analysis.edges = resolved;
-    }
-}
-
-struct AliasScope<'a> {
-    scoped: Option<&'a BTreeMap<String, String>>,
-    top_level: &'a BTreeMap<String, String>,
-}
-
-impl AliasScope<'_> {
-    fn get(&self, name: &str) -> Option<&String> {
-        self.scoped.and_then(|aliases| aliases.get(name)).or_else(|| self.top_level.get(name))
-    }
 }
 
 fn split_top_level_commas(tokens: TokenStream) -> Vec<TokenStream> {
@@ -971,11 +906,6 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         } else {
             EdgeKind::Import
         };
-        let aliases = if self.module_depth == 0 {
-            &mut self.analysis.import_aliases
-        } else {
-            self.analysis.scoped_aliases.entry(self.module_stack.join("::")).or_default()
-        };
         let mut use_edges = BTreeSet::new();
         collect_use_tree(
             &item.tree,
@@ -983,7 +913,7 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
             kind,
             &mut use_edges,
             &mut self.analysis.globs,
-            aliases,
+            &mut self.analysis.bindings,
             self.configurations,
             &self.module_stack.join("::"),
             self.item_stack.last().map_or("<module>", String::as_str),
@@ -1400,7 +1330,11 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
             let callable_reference = segments.len() >= 2
                 || segments.first().is_some_and(|name| {
                     self.analysis.local_functions.contains_key(name)
-                        || self.analysis.import_aliases.contains_key(name)
+                        || self
+                            .analysis
+                            .bindings
+                            .iter()
+                            .any(|binding| binding.scope.is_empty() && binding.name == *name)
                         || (self.super_import_scopes.contains(&self.module_stack.join("::"))
                             && !self
                                 .binding_stack
@@ -1910,7 +1844,7 @@ fn collect_use_tree(
     kind: EdgeKind,
     edges: &mut BTreeSet<Edge>,
     globs: &mut BTreeSet<Location>,
-    aliases: &mut BTreeMap<String, String>,
+    bindings: &mut BTreeSet<UseBinding>,
     configurations: ConfigSet,
     source_scope: &str,
     source_item: &str,
@@ -1924,7 +1858,7 @@ fn collect_use_tree(
                 kind.clone(),
                 edges,
                 globs,
-                aliases,
+                bindings,
                 configurations,
                 source_scope,
                 source_item,
@@ -1940,7 +1874,13 @@ fn collect_use_tree(
                 name.ident.to_string()
             };
             let target = target.join("::");
-            aliases.insert(binding.clone(), target.clone());
+            bindings.insert(UseBinding {
+                scope: source_scope.to_string(),
+                name: binding.clone(),
+                target: target.clone(),
+                location: name.ident.span().into(),
+                configurations,
+            });
             edges.insert(Edge {
                 kind: kind.clone(),
                 target,
@@ -1959,7 +1899,13 @@ fn collect_use_tree(
                 target.push(rename.ident.to_string());
             }
             let target = target.join("::");
-            aliases.insert(rename.rename.to_string(), target.clone());
+            bindings.insert(UseBinding {
+                scope: source_scope.to_string(),
+                name: rename.rename.to_string(),
+                target: target.clone(),
+                location: rename.ident.span().into(),
+                configurations,
+            });
             edges.insert(Edge {
                 kind: kind.clone(),
                 target,
@@ -1997,7 +1943,7 @@ fn collect_use_tree(
                     kind.clone(),
                     edges,
                     globs,
-                    aliases,
+                    bindings,
                     configurations,
                     source_scope,
                     source_item,
@@ -2083,9 +2029,15 @@ mod tests {
             .edges
             .iter()
             .any(|edge| edge.kind == EdgeKind::EngineMethod && edge.target == "helper"));
-        assert!(analysis.edges.iter().any(|edge| {
-            edge.kind == EdgeKind::Callable && edge.target == "crate::reader_pool::dispatch"
-        }));
+        // Edge targets stay as written; the namespace resolver expands
+        // `pool` through the recorded binding.
+        assert!(analysis
+            .edges
+            .iter()
+            .any(|edge| edge.kind == EdgeKind::Callable && edge.target == "pool::dispatch"));
+        assert!(analysis.bindings.iter().any(|binding| binding.scope.is_empty()
+            && binding.name == "pool"
+            && binding.target == "crate::reader_pool"));
     }
 
     #[test]
@@ -2112,7 +2064,16 @@ mod tests {
                 .collect::<BTreeSet<_>>()
         };
         assert_eq!(stable(&one), stable(&multi));
-        assert_eq!(one.import_aliases, multi.import_aliases);
+        let bindings = |analysis: &Analysis| {
+            analysis
+                .bindings
+                .iter()
+                .map(|binding| {
+                    (binding.scope.clone(), binding.name.clone(), binding.target.clone())
+                })
+                .collect::<BTreeSet<_>>()
+        };
+        assert_eq!(bindings(&one), bindings(&multi));
     }
 
     #[test]
@@ -2134,10 +2095,14 @@ mod tests {
         assert!(
             analysis.edges.iter().any(|edge| edge.kind == EdgeKind::Callable
                 && edge.source_item == "call"
-                && edge.target == "crate::reader_pool::helper"),
+                && edge.target == "helper"
+                && edge.target_scope == "inner"),
             "{:?}",
             analysis.edges
         );
+        assert!(analysis.bindings.iter().any(|binding| binding.scope == "inner"
+            && binding.name == "helper"
+            && binding.target == "crate::reader_pool::helper"));
     }
 
     #[test]
@@ -2264,8 +2229,10 @@ mod tests {
                 .unwrap_or_else(|| panic!("edge {target}: {:?}", analysis.edges))
                 .clone()
         };
-        assert_eq!(call("crate::search::run").target_scope, "");
-        assert_eq!(call("crate::fusion::fused").target_scope, "inner");
+        // Both are written in `inner`; the resolver finds `run` through its
+        // `use super::*` and `local` through its own binding.
+        assert_eq!(call("run").target_scope, "inner");
+        assert_eq!(call("local").target_scope, "inner");
     }
 
     #[test]

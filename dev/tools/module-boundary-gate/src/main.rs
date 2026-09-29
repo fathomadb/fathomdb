@@ -479,25 +479,23 @@ fn evaluate(
             );
             for target in targets {
                 let nonroot_local = target.module == source_module && source_module != "root";
-                if edge.kind != EdgeKind::TypeOrComposition {
-                    for configuration in &edge.configurations {
-                        dependencies_by_configuration
+                for configuration in &edge.configurations {
+                    dependencies_by_configuration
+                        .get_mut(configuration)
+                        .expect("known configuration")
+                        .entry(source_module.clone())
+                        .or_default()
+                        .insert(target.module.clone());
+                    if matches!(
+                        edge.kind,
+                        EdgeKind::Callable | EdgeKind::FieldAccess | EdgeKind::EngineMethod
+                    ) {
+                        adjacency_by_configuration
                             .get_mut(configuration)
                             .expect("known configuration")
-                            .entry(source_module.clone())
+                            .entry(graph_node(&source_module, &edge.source_item))
                             .or_default()
-                            .insert(target.module.clone());
-                        if matches!(
-                            edge.kind,
-                            EdgeKind::Callable | EdgeKind::FieldAccess | EdgeKind::EngineMethod
-                        ) {
-                            adjacency_by_configuration
-                                .get_mut(configuration)
-                                .expect("known configuration")
-                                .entry(graph_node(&source_module, &edge.source_item))
-                                .or_default()
-                                .insert(graph_node(&target.module, &target.item));
-                        }
+                            .insert(graph_node(&target.module, &target.item));
                     }
                 }
                 if nonroot_local {
@@ -672,6 +670,7 @@ fn reject_relevant_macros(
         let module = scoped_module(physical_module, &usage.source_scope);
         let governed = policy.classified.get(&module).map(String::as_str) == Some("governed");
         let internal = usage.target == "include"
+            || usage.target == "macro_rules"
             || usage.target.starts_with("crate::")
             || usage.target.starts_with("super::")
             || usage.target.starts_with("self::");

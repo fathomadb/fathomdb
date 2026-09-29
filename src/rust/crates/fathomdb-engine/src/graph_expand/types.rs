@@ -178,7 +178,7 @@ pub struct GraphExpandResultV1 {
     pub work_units: u64,
     pub degradation_codes: Vec<GraphExpansionDegradationCodeV1>,
     pub explanation: Option<GraphExpansionExplanationV1>,
-    pub evidence: Option<crate::GraphEvidenceSidecarV1>,
+    pub evidence: Option<crate::evidence::GraphEvidenceSidecarV1>,
 }
 
 /// Closed graph-expansion refusal reason.

@@ -7,7 +7,7 @@ use syn::visit::{self, Visit};
 use syn::{
     Attribute, Expr, ExprCall, ExprField, ExprMethodCall, ExprPath, FnArg, ImplItem, ImplItemFn,
     ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait, ItemType, ItemUse, Local, Macro,
-    Member, Meta, Pat, Type, Visibility,
+    Member, Meta, Pat, Type, TypePath, Visibility,
 };
 
 pub const CONFIGURATIONS: [&str; 16] = [
@@ -380,6 +380,13 @@ fn split_cfg_arguments(source: &str) -> Vec<&str> {
 }
 
 impl<'ast> Visit<'ast> for Analyzer {
+    fn visit_block(&mut self, block: &'ast syn::Block) {
+        let inherited = self.binding_stack.last().cloned().unwrap_or_default();
+        self.binding_stack.push(inherited);
+        visit::visit_block(self, block);
+        self.binding_stack.pop();
+    }
+
     fn visit_local(&mut self, local: &'ast Local) {
         if let (Some(binding), Some(init)) = (pattern_ident(&local.pat), &local.init) {
             if expression_base_ident(&init.expr)
@@ -539,12 +546,26 @@ impl<'ast> Visit<'ast> for Analyzer {
     }
 
     fn visit_macro(&mut self, mac: &'ast Macro) {
-        if !mac.path.is_ident("macro_rules") {
-            if let Some(segment) = mac.path.segments.first() {
-                self.record_macro(&mac.path, segment.ident.span());
-            }
+        if let Some(segment) = mac.path.segments.first() {
+            self.record_macro(&mac.path, segment.ident.span());
         }
         visit::visit_macro(self, mac);
+    }
+
+    fn visit_type_path(&mut self, ty: &'ast TypePath) {
+        if ty.qself.is_none() {
+            let target = ty
+                .path
+                .segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::");
+            if let Some(first) = ty.path.segments.first() {
+                self.edge(EdgeKind::TypeOrComposition, target, first.ident.span());
+            }
+        }
+        visit::visit_type_path(self, ty);
     }
 
     fn visit_expr_field(&mut self, expression: &'ast ExprField) {

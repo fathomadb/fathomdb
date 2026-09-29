@@ -824,6 +824,9 @@ fn evaluate(
                                         },
                                         modules,
                                     )
+                                    .into_iter()
+                                    .map(|target| inline_owner(target, modules))
+                                    .collect()
                                 });
                         } else if governed_name {
                             errors.push(format!(
@@ -1732,7 +1735,52 @@ fn edge_targets(
     if matches!(edge.kind, EdgeKind::FieldAccess | EdgeKind::EngineMethod) {
         return targets;
     }
-    targets.into_iter().flat_map(|target| chase_reexports(target, modules)).collect()
+    targets
+        .into_iter()
+        .flat_map(|target| chase_reexports(target, modules))
+        .map(|target| inline_owner(target, modules))
+        .collect()
+}
+
+/// The inline modules of a file module, by scope-qualified name.
+fn inline_scopes(info: &ModuleInfo) -> BTreeSet<String> {
+    info.analysis
+        .modules
+        .iter()
+        .filter(|declaration| declaration.inline)
+        .map(|declaration| {
+            if declaration.scope.is_empty() {
+                declaration.name.clone()
+            } else {
+                format!("{}::{}", declaration.scope, declaration.name)
+            }
+        })
+        .collect()
+}
+
+/// Moves the leading inline-module segments of a resolved item into its
+/// module, so an edge into an inline module lands on the same node as the
+/// edges out of it (`root::m`, `fusion::m`) rather than on its file module.
+fn inline_owner(target: ResolvedTarget, modules: &BTreeMap<String, ModuleInfo>) -> ResolvedTarget {
+    if target.item == "<module>" {
+        return target;
+    }
+    let Some(info) = modules.get(&target.module) else { return target };
+    let scopes = inline_scopes(info);
+    let segments = target.item.split("::").collect::<Vec<_>>();
+    let Some(depth) =
+        (1..=segments.len()).rev().find(|end| scopes.contains(&segments[..*end].join("::")))
+    else {
+        return target;
+    };
+    ResolvedTarget {
+        module: scoped_module(&target.module, &segments[..depth].join("::")),
+        item: if depth == segments.len() {
+            "<module>".to_string()
+        } else {
+            segments[depth..].join("::")
+        },
+    }
 }
 
 /// Follows `use` aliases (at any visibility, since descendants may name a
@@ -1776,19 +1824,7 @@ fn chase_step(
     }
     let Some(info) = modules.get(&current.module) else { return (true, Vec::new()) };
     let segments = current.item.split("::").collect::<Vec<_>>();
-    let inline_scopes = info
-        .analysis
-        .modules
-        .iter()
-        .filter(|declaration| declaration.inline)
-        .map(|declaration| {
-            if declaration.scope.is_empty() {
-                declaration.name.clone()
-            } else {
-                format!("{}::{}", declaration.scope, declaration.name)
-            }
-        })
-        .collect::<BTreeSet<_>>();
+    let inline_scopes = inline_scopes(info);
     let depth = (0..segments.len())
         .rev()
         .find(|end| *end == 0 || inline_scopes.contains(&segments[..*end].join("::")))
@@ -1989,6 +2025,20 @@ fn direct_edge_targets(
         return BTreeSet::from([owner]);
     }
     let first = target.split("::").next().unwrap_or(target);
+    // No file module prefixes a path into an inline module of lib.rs; it is
+    // a root path whose inline segments `inline_owner` moves into the module.
+    if crate_qualified
+        && modules.get("root").is_some_and(|root| {
+            root.analysis.modules.iter().any(|declaration| {
+                declaration.inline && declaration.scope.is_empty() && declaration.name == first
+            })
+        })
+    {
+        return BTreeSet::from([ResolvedTarget {
+            module: "root".to_string(),
+            item: target.to_string(),
+        }]);
+    }
     if let Some(root_target) = root_aliases.and_then(|aliases| aliases.get(first)) {
         let root_target = root_target.strip_prefix("crate::").unwrap_or(root_target);
         if let Some(owner) = resolve_path(root_target, modules) {

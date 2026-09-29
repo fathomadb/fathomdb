@@ -19,9 +19,11 @@ FIX-1 remediates every finding RED-then-GREEN on branch `slice-85-fix`; the
 per-finding chronology is in `tdd-chronology.md` under "FIX-1 (design review
 cycle 1)". Design review cycle 2 of the FIX-1 head (`51f2a9a3`) found
 residual gate gaps (D-14..D-22); FIX-2 remediates them on the same branch,
-recorded under "FIX-2 (design review cycle 2)". The release-state candidate
-is rebound only after FIX-2 review. The sections below describe the FIX-2
-gate.
+recorded under "FIX-2 (design review cycle 2)". Design review cycle 3 of the
+FIX-2 head (`abcb29b2`) found two macro-hidden edge families and three
+smaller gaps (D-23..D-27); FIX-3 remediates them, recorded under "FIX-3
+(design review cycle 3)". The release-state candidate is rebound only after
+FIX-3 review. The sections below describe the FIX-3 gate.
 
 ## Complete on the release branch
 
@@ -48,16 +50,20 @@ classifies all 71 physical/inline modules and governs 18 boundary modules.
 Configurations: the feature set is read from the engine `Cargo.toml`
 `[features]` table. The reviewed axis features `test-hooks`,
 `tc5-benchmark` and `operator` are enumerated in all combinations. Every
-other declared feature gets a single-feature-closure profile, and the
-reviewed `gpu-product` consumer profile enables `embed-cuda` and
-`rerank-cuda`; each of these is crossed with `operator` on and off. An
-all-features profile enables every closure. Each profile point is crossed
-with test/non-test, Linux/non-Linux and debug/release, giving 232 evaluated
-configurations (144 after FIX-1, 16 before). Feature sets outside this
-enumeration are not evaluated as such: for example `test-hooks` or
-`tc5-benchmark` together with an ML feature, or two ML features that no
-consumer profile combines. Only all-features combines them, with every other
-feature also on.
+other declared feature gets a single-feature-closure profile. Two reviewed
+consumer profiles combine features: `gpu-product` enables `embed-cuda` and
+`rerank-cuda`, and `python-dev` enables `default-embedder` and
+`default-reranker` (the default `pip install -e` and pytest build from
+`src/python/pyproject.toml`). Each of these profiles is crossed with
+`operator` on and off. An all-features profile enables every closure. Each
+profile point is crossed with test/non-test, Linux/non-Linux and
+debug/release, giving 248 evaluated configurations (232 after FIX-2, 144
+after FIX-1, 16 before) out of a limit of 512. Feature sets outside this
+enumeration are not evaluated as such. Examples are `test-hooks` or
+`tc5-benchmark` together with an ML feature (the N-API debug build
+`test-hooks,default-embedder`, the private `tc5-benchmark-cuda` build), and
+two ML features that no consumer profile combines. Only all-features combines
+them, with every other feature also on.
 
 The gate freezes item-level callable, type, re-export, field, Engine-method,
 inherent-owner, root re-export and macro-definition identities for every edge
@@ -70,19 +76,32 @@ extracted for reachability but not frozen. It extracts dependencies:
   (`<T as Trait>::f`);
 - from struct literals and type positions;
 - from trait paths in bounds, `where` clauses, `impl` headers, `dyn`/`impl
-  Trait` and supertrait lists.
+  Trait` and supertrait lists;
+- from string literals in serde derive helper attributes: `serialize_with`,
+  `deserialize_with`, `with`, `skip_serializing_if`, `default`, `getter`
+  and `crate` as paths; `from`, `try_from`, `into` and `remote` as types;
+  `bound` (and `bound(serialize = …, deserialize = …)`) as `where`
+  predicates. These are read on containers, fields and variants, and inside
+  `cfg_attr`, whose condition narrows their configurations;
+- from any other attribute string literal that is a multi-segment path.
 
 It resolves `self::`/`super::` chains (through the crate root like `crate::`).
 It resolves `use` re-exports, including those inside inline modules, to the
 defining owner. A `type` alias keeps its own edge and adds one to every
-in-crate path its definition names.
+in-crate path its definition names. An associated-type projection
+`<Owner as Trait>::Name` names the impl's `type Name = …` binding, which is
+chased the same way.
 
 Dot-call receivers are typed syntactically. A constructor types its binding
 only when it is declared to return that type, and an in-crate receiver type
 is used only when it has the method. Cycles are checked in a whole-crate item
 graph and a governed-module graph, and every SCC with a governed member must
 account for each governed pair. An untyped dot call in a governed module
-also has an item-graph edge to every same-named visible inherent method.
+also has an item-graph edge to every same-named visible inherent method. In
+any module, an untyped dot call (including one admitted by an
+`external-receiver` entry) whose same-named inherent methods include one in
+a module the source is forbidden to depend on fails as a forbidden
+dependency.
 Module-level 2-cycles and SCC membership that touch the governed set are a
 frozen, regenerable inventory (6 `module-cycle` pairs, 34 `module-scc`
 members). `forbid-dependency` covers descendant modules.
@@ -96,6 +115,9 @@ item-specific policy entry admits it:
 - a frozen-scope edge active in no configuration;
 - an unparsed macro body in any module (the five reviewed `proptest!`
   bodies are admitted);
+- `include!` (also as `std::include!` or `core::include!`) in any module,
+  with no exception: the included source is never parsed.
+  `include_str!` and `include_bytes!` are data;
 - an untyped dot call in any module whose name is a governed inherent method
   of another module. The 233 receiver entries name the receiver expression
   and its type: 128 `external-receiver` entries on types outside the crate,
@@ -107,16 +129,21 @@ The grammar remains syntactic. Examples of what it does not see:
 - a receiver whose type comes from type inference (such receivers are
   handled by the exception rule above, not typed);
 - methods a trait provides by default or derives;
-- attributes on generic parameters, function parameters and pattern fields.
+- `cfg` attributes on generic parameters, function parameters and pattern
+  fields;
+- a string path in a non-serde attribute when it is a single segment or has
+  generic arguments;
+- an associated constant or function reached through `<Owner as
+  Trait>::item` in expression position, which resolves to the trait path.
 
 Warm runtime and peak RSS of `scripts/check-module-boundaries.sh` with a
 cached binary (host: 24-core x86_64, `/usr/bin/time -v`, three runs after
-FIX-2): 2.03 s / 40,404 KB, 2.05 s / 40,688 KB, 2.03 s / 40,660 KB (FIX-1:
-1.64–1.67 s / 34.8–35.1 MB). The gate reads only the engine sources, its
+FIX-3): 2.13 s / 42,740 KB, 2.12 s / 42,800 KB, 2.14 s / 42,900 KB (FIX-2:
+2.03–2.05 s / 40.4–40.7 MB; FIX-1: 1.64–1.67 s / 34.8–35.1 MB). The gate reads only the engine sources, its
 manifest and the policy; it performs no whole-workspace indexing. The gate
-crate has 27 library and 2 binary unit tests, and
-`scripts/tests/test_module_boundary_gate.sh` runs 130 production mutation
-assertions (125 negative, 5 positive).
+crate has 29 library and 2 binary unit tests, and
+`scripts/tests/test_module_boundary_gate.sh` runs 152 production mutation
+assertions (147 negative, 5 positive).
 
 ## Acceptance
 
@@ -137,7 +164,7 @@ assertions (125 negative, 5 positive).
   prohibited and mutation-tested.
 - **AC27-85C/D/E:** exact policy, whole-crate extraction, item and
   governed-module SCCs, the frozen module-level cycle inventory,
-  source-derived inventories, 232 configurations, cache behavior, negative
+  source-derived inventories, 248 configurations, cache behavior, negative
   grammar fixtures, macro-body extraction and fingerprinting, and production
   mutants pass.
 - **AC27-85F:** exact pre-move commissioning evidence is retained. On the

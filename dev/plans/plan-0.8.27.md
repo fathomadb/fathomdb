@@ -883,7 +883,10 @@ Slice 85.
   when the type has the method. Each exception names the receiver
   expression and its type: `external-receiver` for a type outside the
   crate, `typed-receiver` for an in-crate type, whose calls become typed
-  edges.
+  edges. FIX-3 clarification: an untyped call, including one an
+  `external-receiver` entry admits, whose same-named inherent methods
+  include one in a module the source is forbidden to depend on fails as a
+  forbidden dependency.
 - **Configurations.** The feature set is read from the engine manifest. The
   reviewed axis features are `test-hooks`, `tc5-benchmark`, and `operator`.
   Every other feature gets a single-feature-closure profile, plus one
@@ -894,7 +897,14 @@ Slice 85.
   (`embed-cuda`, `rerank-cuda`) are each also crossed with `operator`,
   which the CLI enables together with any ML feature, giving 232
   configurations; `cfg` on statements, expressions and match arms and the
-  declaring `mod` item's `cfg` are evaluated too.
+  declaring `mod` item's `cfg` are evaluated too. FIX-3 clarification: a
+  reviewed `python-dev` consumer profile (`default-embedder`,
+  `default-reranker`, the default `pip install -e` and pytest build) is
+  crossed with `operator` too, giving 248 configurations. Feature sets that
+  combine `test-hooks` or `tc5-benchmark` with an ML feature (for example
+  the N-API debug build `test-hooks,default-embedder` and the private
+  `tc5-benchmark-cuda` build), or two ML features outside a consumer
+  profile, are not evaluated as such; only all-features combines them.
 - **Inventory scope.** Classifications, forbids, cycle directives,
   admissions and exceptions are shrink-only. The `inherent` and `edge`
   inventories are regenerated from `--report` and reviewed. They cover edges

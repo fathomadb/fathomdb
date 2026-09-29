@@ -187,3 +187,78 @@ Newly visible inventory: `frozen_read ↔ errors` and `read ↔ temporal` join
 the four previously named module-level 2-cycles. None is an item-level or
 governed-module cycle. No forbidden dependency or item-level cycle surfaced
 in any of the 232 configurations.
+
+## FIX-3 (design review cycle 3)
+
+Design review cycle 3 of the FIX-2 head `abcb29b2` found two macro-hidden
+edge families (D-23, P2) and three smaller gaps and record nits
+(D-24..D-27, P3). FIX-3 ran on branch `slice-85-fix` from that head. The
+RED commit was run against the unchanged gate with the same scratch harness
+as FIX-2 (`expect_*` print instead of exiting). All 22 new mutants were
+reported RED: 20 passed the gate, and 2 (`associated-type-projection`,
+`python-dev-split-cycle`) missed their diagnostics. Every pre-existing
+mutant stayed GREEN. The two new lib unit tests failed. GREEN is the
+unmodified `bash scripts/tests/test_module_boundary_gate.sh` (exit 0), plus
+`scripts/check-module-boundaries.sh` and the gate crate's `cargo test`.
+
+No mutant was removed and no asserted diagnostic was weakened. One label
+changed: the D-21 block's second `typed-receiver-missing-method` is now
+`typed-receiver-type-without-method`, with the same input and assertion,
+so failure messages are unambiguous.
+
+| Finding | RED (commit: failing mutants) | GREEN (fix + policy commits) |
+| --- | --- | --- |
+| D-23a serde helper string paths | `548de06f`: `serde-serialize-with-codec-search` (graph_expand::codec → search), `serde-deserialize-with`, `serde-skip-serializing-if`, `serde-default-path`, `serde-with-module`, `serde-getter`, `serde-remote-type`, `serde-from-type`, `serde-try-from-type`, `serde-into-type`, `serde-bound`, `serde-bound-serialize`, `serde-variant-with`, `serde-cfg-attr`, `attribute-string-path` gate passed; unit test `serde_helper_string_paths_are_edges` failed | `e14c05bf` (no new edge in the engine) |
+| D-23b `include!` in any module | `548de06f`: `reported-include-item`, `reported-include-expression` (fusion, with the search → fusion edge line), `governed-std-include` gate passed | `e14c05bf` |
+| D-24 forbids on receiver over-approximation | `548de06f`: `retyped-receiver-forbidden` (the reviewer's re-typed `check_closed` receiver, with its regenerated lines), `forbidden-receiver-name-collision` gate passed | `e14c05bf` (no current call reaches a forbidden module) |
+| D-25 associated-type projections | `548de06f`: `associated-type-projection` missed `forbidden dependency search -> reader_pool`; unit test `associated_type_bindings_are_aliases_and_projections_name_them` failed | `e14c05bf` |
+| D-26 default developer build | `548de06f`: `python-dev-split-cycle` missed `unapproved governed cycle search <-> telemetry` | `e14c05bf` (policy line) + `3d1dd028` (13 edges relabelled; 232 → 248 configurations) + `6d9e836f` |
+| D-27 records | n/a (label rename in `548de06f`) | status.md, plan clarification, board row and this section in the closeout commit |
+
+What each fix does:
+
+- **D-23a.** Every attribute is read for string paths. For serde, the path
+  keys are `serialize_with`, `deserialize_with`, `with`,
+  `skip_serializing_if`, `default`, `getter` and `crate`, recorded as
+  callable edges. `from`, `try_from`, `into` and `remote` are types.
+  `bound` and `bound(serialize/deserialize)` are `where` predicates. Other
+  keys such as `rename` and `tag` are ignored. Any other attribute's string
+  literal that is a multi-segment path is a callable edge. A `cfg_attr`
+  narrows the wrapped attribute's configurations, and an unknown feature in
+  its condition fails closed. Edges come from the annotated item. The
+  engine's two serde path values (`is_false`, `Option::is_none`) add no
+  frozen edge.
+- **D-23b.** `include!`, `std::include!` and `core::include!` fail in every
+  module with `unreviewed include …`. No exception directive exists.
+- **D-24.** An untyped dot call, including one an `external-receiver` entry
+  admits, over-approximates to every same-named inherent method. When one
+  of those methods lives in a module the source is forbidden to depend on,
+  the call fails as `forbidden dependency <source> -> <target> via untyped
+  receiver …`. This applies in every module that a forbid line covers.
+- **D-25.** `impl Trait for Owner { type Name = P; }` is recorded like a
+  `type` alias keyed `Owner::Name`. A projection `<Owner as Trait>::Name`
+  in type position adds an edge to `Owner::Name`, and resolution chases the
+  binding to every in-crate path it names.
+- **D-26.** `configuration-profile python-dev
+  default-embedder,default-reranker` (from `src/python/pyproject.toml`)
+  gives 248 configurations. The N-API debug build
+  (`test-hooks,default-embedder`) stays unevaluated as such: `test-hooks`
+  is an axis, and consumer profiles name non-axis features.
+
+Two existing mutants went red after `e14c05bf` and were fixed in `6d9e836f`
+without changing them:
+
+- `manifest-derived-feature` adds a manifest feature, which gives 264
+  configurations and exceeded the 256 limit. `ConfigSet` widens to 512.
+  The expression round-trip unit test's random sets now fill all four
+  words; its assertion is unchanged.
+- `manifest-feature-removed` deletes `default-reranker`, which invalidated
+  the new profile. Construction then stopped before the unsupported-cfg
+  diagnostic. A profile that names an undeclared feature is now reported
+  and dropped, and the rest of the space is still evaluated.
+
+Surfaced by the regeneration: no new edge, no forbidden dependency, and no
+item-level, governed-module or module-level cycle in any of the 248
+configurations. The edge inventory stays at 3829 lines, and 13 of them gain
+`profile:python-dev`. `inherent` 82, `module-cycle` 6 and `module-scc` 34
+are unchanged. No engine source changed in FIX-3.

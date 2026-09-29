@@ -3334,6 +3334,7 @@ edge root Engine::write_canonical_row_with_kind_for_test root ensure_open engine
 edge root Engine::write_canonical_row_with_kind_for_test root next_cursor field-access all
 edge root Engine::write_canonical_row_with_kind_for_test root project_canonical_node_row callable all
 edge root Engine::write_canonical_row_with_kind_for_test root projection_runtime field-access all
+edge root Engine::write_canonical_row_with_kind_for_test root usable_dense_runtime engine-method all
 edge root Engine::write_canonical_row_with_kind_for_test write WriteReceipt type all
 edge root Engine::write_canonical_row_with_kind_for_test write enrol_and_unstrand engine-method all
 edge root Engine::write_canonical_row_with_kind_for_test write vector_kind_needs_enrolment engine-method all

@@ -185,6 +185,32 @@ printf '\nuse crate::search::SearchReaderWork;\n' >>"$fixture/src/rust/crates/fa
 expect_failure graph-search-cycle 'forbidden dependency graph_expand -> search' "$GATE" --root "$fixture"
 cp "$fixture/graph-expand.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
 
+# The required forbids are built into the gate: the policy can neither drop
+# nor downgrade them, and every forbid line must name real modules.
+floor_policy="$fixture/dev/tools/module-boundary-policy.txt"
+sed -i '/^forbid-/d' "$floor_policy"
+expect_failure forbid-lines-deleted \
+  'required forbid-cycle graph_expand search is missing from the policy' "$GATE" --root "$fixture"
+expect_failure forbid-lines-deleted \
+  'required forbid-dependency frozen_read search is missing from the policy' "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$floor_policy"
+sed -i 's/^forbid-cycle search graph_expand$/allow-cycle search graph_expand/' "$floor_policy"
+expect_failure forbid-cycle-allowed 'allow-cycle graph_expand search names a required forbidden cycle' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$floor_policy"
+sed -i 's/^forbid-cycle read reader_pool$/report-cycle read reader_pool/' "$floor_policy"
+expect_failure forbid-cycle-reported 'report-cycle read reader_pool names a required forbidden cycle' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$floor_policy"
+printf 'forbid-dependency graph_expnd search\n' >>"$floor_policy"
+expect_failure forbid-dependency-typo 'forbid-dependency graph_expnd search names no module graph_expnd' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$floor_policy"
+printf 'forbid-cycle search graph_expnd\n' >>"$floor_policy"
+expect_failure forbid-cycle-typo 'forbid-cycle search graph_expnd names no module graph_expnd' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$floor_policy"
+
 cp "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs" "$fixture/fusion.rs.clean"
 printf '\npub(crate) fn slice85_reported_reverse() { let _ = crate::reader_pool::ReaderRequest::crossed_boundary_since(0, todo!(), todo!()); }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
@@ -1496,6 +1522,20 @@ expect_failure unresolved-in-crate-item \
   'unresolved in-crate path crate::fusion::s85_missing at graph_expand/mod.rs:' \
   "$GATE" --root "$fixture"
 cp "$fixture/graph-expand.rs.clean" "$graph_expand_file"
+
+# Swapping a required forbid-cycle for an allow-cycle fails even when the
+# cycle is real and every regenerable inventory is regenerated.
+printf '\npub(crate) fn s85_ret(c: &rusqlite::Connection) { crate::graph_expand::s85_g(c); }\n' \
+  >>"$compiled_src/search.rs"
+printf '\npub(crate) fn s85_g(c: &rusqlite::Connection) { crate::search::s85_ret(c); }\n' \
+  >>"$graph_expand_file"
+t16_admit "$t16_full"
+sed -i 's/^forbid-cycle search graph_expand$/allow-cycle search graph_expand/' "$policy_file"
+expect_failure forbid-cycle-allowed-regenerated \
+  'required forbid-cycle graph_expand search is missing from the policy' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$compiled_src/search.rs"
+cp "$fixture/graph-expand.rs.clean" "$graph_expand_file"
+cp "$fixture/module-boundary-policy.clean" "$policy_file"
 
 # `#[path]` on a `mod` item makes the compiler build a file the gate never
 # analyses, so the analysed decoy could hide the compiled module's edges. It

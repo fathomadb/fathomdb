@@ -162,7 +162,7 @@ fixtures changed their inputs only:
 | D-19 module-level cycles | `2254b572`: `module-two-cycle`, `module-scc-join` gate passed; `stale-module-cycle`, `stale-module-scc` missed their diagnostics; `7399a6f7` adds the inventory line to two positive fixtures | `f20b5e7a` + `ce706334` (6 `module-cycle`, 34 `module-scc`) |
 | D-20 statement and parent-mod cfg | `12a01934`: `statement-unknown-feature`, `statement-cfg`, `let-cfg`, `arm-cfg`, `parent-mod-cfg` missed their diagnostics; unit test `statement_expression_and_inner_cfg_are_evaluated` failed | `f3b9c436` + `7d93f304` (relabelling only, 3806 edges before and after) |
 | D-21 receiver identity | `c93a26b3`: `receiver-swap` (the reviewer's same-count swap in `search::read_search_in_tx`) gate passed; `in-crate-listed-external`, `typed-receiver-edge`, `typed-receiver-missing-method` missed their diagnostics | `921e9b61` + `f7a76d29` (233 entries: 128 external, 105 typed; 25 new typed edges) |
-| D-22 records | n/a (record) | this closeout commit |
+| D-22 records | n/a (record) | `5d14fe62` and this closeout commit |
 
 The receiver entries were classified from compiler output. In a scratch copy
 of the engine, each counted call's method was renamed at its exact span.
@@ -176,9 +176,12 @@ Engine change demanded by the stronger gate, behaviour-identical: in
 `frozen_read.rs` `mint_inner`, `super::validate_filter_attributes_on_snapshot`
 and `super::SnapshotFilterError::{InvalidFilter, Sqlite}` reached the
 `filter` items through their crate-root re-exports. They now name
-`crate::filter::…`, with the same items and match arms. Once `super::` paths
-that climb to the root resolve, a governed module using one is root
-re-export indirection.
+`crate::filter::…`, with the same items and match arms (`3f183b37`). Once
+`super::` paths that climb to the root resolve, a governed module using one
+is root re-export indirection. That left the crate-private root re-exports of
+those two items unused, which `-D warnings` rejects, so `af7f1e7d` drops
+them from `lib.rs`'s `pub(crate) use filter::{…}` (no public or hidden
+surface change) and `822dd06c` removes their two stale `reexport` edges.
 
 Newly visible inventory: `frozen_read ↔ errors` and `read ↔ temporal` join
 the four previously named module-level 2-cycles. None is an item-level or

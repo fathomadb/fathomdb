@@ -4,6 +4,7 @@ status: COMPLETE
 target_release: 0.8.27
 implemented_on: 2026-09-28
 reviewed_candidate: 7a2f9bf90783f545603516502bac0016d4b93a14
+closeout_commit: 8cd3389dadba89925d51440b83d05044e87d2090
 authoritative_binding: PASS
 ---
 

@@ -202,6 +202,54 @@ forbid-cycle graph_expand search_api
 forbid-cycle search reader_pool
 admit-type errors EngineError::GraphExpansion graph_expand::types GraphExpansionErrorV1
 
+# Module-level cycle inventory (regenerable-with-review). `module-cycle
+# <governed> <other> <configurations>` records each direct module-level
+# 2-cycle with a governed member; `module-scc <module> <configurations>`
+# records each module (root items collapsed to root) inside a module-level
+# SCC that contains a governed module. Neither is an item-level cycle (those
+# fail above); a new pair or member, or a stale one, fails until the
+# inventory is regenerated and the diff reviewed.
+module-cycle frozen_read errors all
+module-cycle frozen_read projection_generation all
+module-cycle graph_expand::types evidence all
+module-cycle read temporal all
+module-cycle search dependency_closure all
+module-cycle search evidence all
+module-scc actuation all
+module-scc data_plane_integrity operator
+module-scc dependency all
+module-scc dependency_closure all
+module-scc dependency_trace all
+module-scc embedding all
+module-scc errors all
+module-scc evidence all
+module-scc filter all
+module-scc frozen_read all
+module-scc fusion all
+module-scc graph_expand::traversal all
+module-scc graph_expand::types all
+module-scc identity all
+module-scc mean all
+module-scc pagination all
+module-scc projection_commit all
+module-scc projection_generation all
+module-scc projection_registry all
+module-scc projection_runtime all
+module-scc projection_worker all
+module-scc provenance all
+module-scc read all
+module-scc record_lifecycle all
+module-scc rerank all
+module-scc root all
+module-scc search all
+module-scc search_types all
+module-scc structural_state all
+module-scc temporal all
+module-scc vector_storage all
+module-scc write all
+module-scc write_commit all
+module-scc write_validation all
+
 local-macro identity caller_identity_newtype 7294cc907f93c51b
 
 # Reviewed: proptest! bodies in reported test modules. Their strategies and

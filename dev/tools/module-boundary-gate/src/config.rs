@@ -1,13 +1,22 @@
 //! Compiler configuration space derived from the engine manifest.
 //!
 //! Every evaluated configuration is a point over boolean `test`, reviewed
-//! axis-feature, `linux` and `debug` variables plus one `profile` variable.
-//! The axis features (named by the policy) are enumerated in every
-//! combination under profile `base`. Every other `[features]` entry gets its
-//! own profile, enabling exactly that feature's closure, and profile
-//! `all-features` enables the closure of every declared feature. Each
-//! profile is crossed with test/non-test, Linux/non-Linux and
-//! debug/release, so no feature closure a build can select is unevaluated.
+//! axis-feature, `linux` and `debug` variables plus one `profile` variable:
+//!
+//! - profile `base` enumerates the axis features (named by the policy) in
+//!   every combination, with no other feature;
+//! - every other `[features]` entry gets its own profile enabling exactly
+//!   that feature's closure, and every reviewed consumer profile (a named
+//!   feature list from the policy) enables the closure of its list; each of
+//!   these profiles is crossed with every combination of the policy's
+//!   `configuration-cross` axis features, all other axes off;
+//! - profile `all-features` enables the closure of every declared feature.
+//!
+//! Each point is crossed with test/non-test, Linux/non-Linux and
+//! debug/release. A feature set outside this enumeration (for example two
+//! non-axis features that no consumer profile combines, or a non-cross axis
+//! together with a non-axis feature) is not evaluated; only the all-features
+//! profile contains it.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Mutex;
@@ -77,8 +86,12 @@ pub struct ConfigSpace {
     /// `(feature, label)` pairs in policy order.
     pub axes: Vec<(String, String)>,
     /// Profile values in configuration order: `base`, one per non-axis
-    /// feature, then `all-features`.
+    /// feature, one per consumer profile, then `all-features`.
     pub profiles: Vec<String>,
+    /// Axis features crossed with every single-feature and consumer profile.
+    pub cross: Vec<String>,
+    /// Reviewed consumer profiles: name and the features it enables.
+    pub consumer_profiles: Vec<(String, Vec<String>)>,
     pub configurations: Vec<Configuration>,
     expressions: Mutex<HashMap<ConfigSet, String>>,
     /// Members of each boolean variable's `[false, true]` literal.
@@ -92,10 +105,60 @@ const BASE: &str = "base";
 
 impl ConfigSpace {
     /// Builds the space from the engine `Cargo.toml` text and the policy's
-    /// `configuration-feature <feature> <label>` axes.
+    /// `configuration-feature <feature> <label>` axes, with no crossed axes
+    /// and no consumer profiles.
     pub fn from_manifest(manifest: &str, axes: &[(String, String)]) -> Result<Self, Vec<String>> {
+        Self::from_manifest_with(manifest, axes, &[], &[])
+    }
+
+    /// Builds the space from the engine `Cargo.toml` text, the policy's
+    /// axes, the axes crossed with every non-base profile
+    /// (`configuration-cross <feature>`) and the reviewed consumer profiles
+    /// (`configuration-profile <name> <feature>[,<feature>..]`).
+    pub fn from_manifest_with(
+        manifest: &str,
+        axes: &[(String, String)],
+        cross: &[String],
+        consumer_profiles: &[(String, Vec<String>)],
+    ) -> Result<Self, Vec<String>> {
         let table = parse_features_table(manifest)?;
         let mut errors = Vec::new();
+        for feature in cross {
+            if !axes.iter().any(|(axis, _)| axis == feature) {
+                errors.push(format!(
+                    "configuration-cross {feature} is not a configuration-feature axis"
+                ));
+            }
+        }
+        for (name, features) in consumer_profiles {
+            if table.contains_key(name)
+                || matches!(name.as_str(), "base" | "all-features")
+                || name.contains(['&', '|', '!', ',', ':'])
+                || consumer_profiles.iter().filter(|(other, _)| other == name).count() > 1
+            {
+                errors.push(format!(
+                    "configuration-profile {name} collides with a feature, a reserved profile or \
+                     another profile"
+                ));
+            }
+            if features.is_empty() {
+                errors.push(format!("configuration-profile {name} names no feature"));
+            }
+            for feature in features {
+                if !table.contains_key(feature) {
+                    errors.push(format!(
+                        "configuration-profile {name} feature {feature} is not declared in the \
+                         engine manifest [features] table"
+                    ));
+                }
+                if axes.iter().any(|(axis, _)| axis == feature) {
+                    errors.push(format!(
+                        "configuration-profile {name} feature {feature} is an axis; profiles \
+                         name non-axis features"
+                    ));
+                }
+            }
+        }
         let mut labels = BTreeSet::new();
         for (feature, label) in axes {
             if !table.contains_key(feature) {
@@ -136,11 +199,35 @@ impl ConfigSpace {
                 })
                 .cloned(),
         );
+        profiles.extend(consumer_profiles.iter().map(|(name, _)| name.clone()));
         profiles.push(ALL_FEATURES.to_string());
+        let cross_indices = axes
+            .iter()
+            .enumerate()
+            .filter(|(_, (feature, _))| cross.contains(feature))
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
         let mut configurations = Vec::new();
         for test in [false, true] {
             for profile in &profiles {
-                let masks = if profile == BASE { 0..(1usize << axes.len()) } else { 0..1 };
+                // Axis masks: every combination under base; every
+                // combination of the crossed axes under the other profiles
+                // except all-features.
+                let masks = if profile == BASE {
+                    (0..(1usize << axes.len())).collect::<Vec<_>>()
+                } else if profile == ALL_FEATURES {
+                    vec![0]
+                } else {
+                    (0..(1usize << cross_indices.len()))
+                        .map(|combination| {
+                            cross_indices
+                                .iter()
+                                .enumerate()
+                                .filter(|(bit, _)| combination & (1 << bit) != 0)
+                                .fold(0usize, |mask, (_, axis)| mask | (1 << axis))
+                        })
+                        .collect()
+                };
                 for mask in masks {
                     for linux in [true, false] {
                         for debug_assertions in [true, false] {
@@ -149,17 +236,21 @@ impl ConfigSpace {
                             if test {
                                 parts.push("test".to_string());
                             }
-                            if profile == BASE {
-                                for (index, (feature, label)) in axes.iter().enumerate() {
-                                    if mask & (1 << index) != 0 {
-                                        features.insert(feature.clone());
-                                        parts.push(label.clone());
-                                    }
+                            for (index, (feature, label)) in axes.iter().enumerate() {
+                                if mask & (1 << index) != 0 {
+                                    features.insert(feature.clone());
+                                    parts.push(label.clone());
                                 }
-                            } else if profile == ALL_FEATURES {
+                            }
+                            if profile == ALL_FEATURES {
                                 features.extend(table.keys().cloned());
                                 parts.push(ALL_FEATURES.to_string());
-                            } else {
+                            } else if let Some((_, enabled)) =
+                                consumer_profiles.iter().find(|(name, _)| name == profile)
+                            {
+                                features.extend(enabled.iter().cloned());
+                                parts.push(format!("profile-{profile}"));
+                            } else if profile != BASE {
                                 features.insert(profile.clone());
                                 parts.push(format!("feature-{profile}"));
                             }
@@ -194,6 +285,8 @@ impl ConfigSpace {
             known_features: table.keys().cloned().collect(),
             axes: axes.to_vec(),
             profiles,
+            cross: cross.to_vec(),
+            consumer_profiles: consumer_profiles.to_vec(),
             configurations,
             expressions: Mutex::new(HashMap::new()),
             literal_members: Vec::new(),
@@ -613,6 +706,42 @@ name = "y"
             .count();
         assert_eq!(extra, 16);
         assert_eq!(space.evaluate("feature = \"undeclared\"", 0), None);
+    }
+
+    #[test]
+    fn consumer_profiles_and_crossed_axes_are_evaluated() {
+        let space = ConfigSpace::from_manifest_with(
+            MANIFEST,
+            &axes(),
+            &["operator".to_string()],
+            &[("both".to_string(), vec!["extra".to_string(), "test-hooks".to_string()])],
+        );
+        assert!(space.is_err(), "an axis inside a consumer profile is rejected");
+        let space = ConfigSpace::from_manifest_with(
+            MANIFEST,
+            &[("test-hooks".to_string(), "hooks".to_string())],
+            &["test-hooks".to_string()],
+            &[("product".to_string(), vec!["extra".to_string()])],
+        )
+        .expect("space");
+        // base: 2 axis combinations; `extra`, `operator`, `tc5-benchmark`
+        // single-feature profiles and the `product` profile, each x 2
+        // hooks combinations; all-features; each x test x linux x debug.
+        assert_eq!(space.len(), (2 + 4 * 2 + 1) * 8);
+        let labels = space.labels(space.all());
+        for label in ["hooks-feature-extra-linux", "profile-product-nonlinux-release"] {
+            assert!(labels.contains(&label), "missing {label}");
+        }
+        let joint = (0..space.len())
+            .filter(|index| {
+                space.evaluate("all(feature = \"extra\", feature = \"test-hooks\", not(feature = \"tc5-benchmark\"))", *index)
+                    == Some(true)
+            })
+            .count();
+        assert_eq!(joint, 16, "extra and product profiles crossed with hooks");
+        let error = ConfigSpace::from_manifest_with(MANIFEST, &axes(), &["extra".to_string()], &[])
+            .expect_err("cross must name an axis");
+        assert!(error[0].contains("configuration-cross extra is not a configuration-feature axis"));
     }
 
     #[test]

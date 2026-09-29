@@ -24,6 +24,8 @@ struct Policy {
     inherent_methods: BTreeSet<(String, String)>,
     expected_edges: BTreeSet<(String, String, String, String, String, String)>,
     configuration_features: Vec<(String, String)>,
+    configuration_cross: Vec<String>,
+    configuration_profiles: Vec<(String, Vec<String>)>,
 }
 
 struct ModuleInfo {
@@ -77,7 +79,12 @@ fn run() -> Result<(), Vec<String>> {
     let manifest = fs::read_to_string(&manifest_path).map_err(|error| {
         vec![format!("cannot read engine manifest {}: {error}", manifest_path.display())]
     })?;
-    let space = ConfigSpace::from_manifest(&manifest, &policy.configuration_features)?;
+    let space = ConfigSpace::from_manifest_with(
+        &manifest,
+        &policy.configuration_features,
+        &policy.configuration_cross,
+        &policy.configuration_profiles,
+    )?;
     let policy_errors = normalize_policy_configurations(&mut policy, &space);
     let modules = discover_modules(&source_root, &space)?;
     let mut result = evaluate(&source_root, &modules, &policy, &space, report_only);
@@ -92,13 +99,23 @@ fn run() -> Result<(), Vec<String>> {
     result?;
     println!(
         "ok    module-boundary: {} modules, {} governed, configurations={} (test x linux x \
-         debug_assertions x {{{} combinations of {}; {} single-feature closures; all-features}})",
+         debug_assertions x {{{} combinations of {}; {} single-feature closures and {} consumer \
+         profiles ({}), each x {} combinations of {}; all-features}})",
         module_inventory(&modules).len(),
         policy.classified.values().filter(|kind| kind.as_str() == "governed").count(),
         space.len(),
         1usize << space.axes.len(),
         space.axes.iter().map(|(feature, _)| feature.as_str()).collect::<Vec<_>>().join(", "),
-        space.profiles.len().saturating_sub(2)
+        space.profiles.len().saturating_sub(2 + space.consumer_profiles.len()),
+        space.consumer_profiles.len(),
+        space
+            .consumer_profiles
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>()
+            .join(", "),
+        1usize << space.cross.len(),
+        if space.cross.is_empty() { "none".to_string() } else { space.cross.join(", ") }
     );
     Ok(())
 }
@@ -227,6 +244,19 @@ fn parse_policy(path: &Path) -> Result<Policy, Vec<String>> {
             ["version", "1"] => {}
             ["configuration-feature", feature, label] => {
                 policy.configuration_features.push(((*feature).to_string(), (*label).to_string()));
+            }
+            ["configuration-cross", feature] => {
+                policy.configuration_cross.push((*feature).to_string());
+            }
+            ["configuration-profile", name, features] => {
+                policy.configuration_profiles.push((
+                    (*name).to_string(),
+                    features
+                        .split(',')
+                        .filter(|feature| !feature.is_empty())
+                        .map(str::to_string)
+                        .collect(),
+                ));
             }
             [kind @ ("governed" | "admitted" | "reported"), module] => {
                 if policy.classified.insert((*module).to_string(), (*kind).to_string()).is_some() {

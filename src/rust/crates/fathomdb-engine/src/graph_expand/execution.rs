@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Display, Formatter};
 #[cfg(feature = "test-hooks")]
 use std::sync::atomic::Ordering as AtomicOrdering;
 #[cfg(feature = "test-hooks")]
@@ -96,43 +95,6 @@ fn observe_retained_graph_state(
         .candidate_targets
         .fetch_max(u64::try_from(candidate_targets).unwrap_or(u64::MAX), AtomicOrdering::Relaxed);
 }
-
-impl GraphExpansionErrorReasonV1 {
-    /// Stable lower-snake-case wire spelling.
-    #[must_use]
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::UnsupportedSchemaVersion => "unsupported_schema_version",
-            Self::UnknownField => "unknown_field",
-            Self::GraphSeedInvalid => "graph_seed_invalid",
-            Self::GraphDirectionInvalid => "graph_direction_invalid",
-            Self::GraphEdgeKindsInvalid => "graph_edge_kinds_invalid",
-            Self::GraphTargetKindsInvalid => "graph_target_kinds_invalid",
-            Self::GraphContextInvalid => "graph_context_invalid",
-            Self::GraphDepthInvalid => "graph_depth_invalid",
-            Self::GraphResultLimitInvalid => "graph_result_limit_invalid",
-            Self::GraphWorkLimitInvalid => "graph_work_limit_invalid",
-            Self::GraphSeedUnavailable => "graph_seed_unavailable",
-            Self::GraphExpansionBoundExceeded => "graph_expansion_bound_exceeded",
-            Self::GraphProjectionUnavailable => "graph_projection_unavailable",
-            Self::GraphCorrupt => "graph_corrupt",
-        }
-    }
-}
-
-impl GraphExpansionErrorV1 {
-    pub(super) fn new(reason: GraphExpansionErrorReasonV1, field_path: impl Into<String>) -> Self {
-        Self { schema_version: SCHEMA_VERSION, reason, field_path: field_path.into() }
-    }
-}
-
-impl Display for GraphExpansionErrorV1 {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{} at {}", self.reason.as_str(), self.field_path)
-    }
-}
-
-impl std::error::Error for GraphExpansionErrorV1 {}
 
 #[cfg(feature = "test-hooks")]
 #[derive(Clone, Copy, Eq, PartialEq)]

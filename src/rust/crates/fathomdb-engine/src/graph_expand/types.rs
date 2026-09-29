@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use crate::frozen_read::{FrozenReadContextV1, ReadContextV1};
 use crate::identity::IdSpace;
 use crate::search_types::{StructuralDependencyStateV1, StructuralLifecycleStateV1};
@@ -207,6 +209,43 @@ pub struct GraphExpansionErrorV1 {
     pub reason: GraphExpansionErrorReasonV1,
     pub field_path: String,
 }
+
+impl GraphExpansionErrorReasonV1 {
+    /// Stable lower-snake-case wire spelling.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::UnsupportedSchemaVersion => "unsupported_schema_version",
+            Self::UnknownField => "unknown_field",
+            Self::GraphSeedInvalid => "graph_seed_invalid",
+            Self::GraphDirectionInvalid => "graph_direction_invalid",
+            Self::GraphEdgeKindsInvalid => "graph_edge_kinds_invalid",
+            Self::GraphTargetKindsInvalid => "graph_target_kinds_invalid",
+            Self::GraphContextInvalid => "graph_context_invalid",
+            Self::GraphDepthInvalid => "graph_depth_invalid",
+            Self::GraphResultLimitInvalid => "graph_result_limit_invalid",
+            Self::GraphWorkLimitInvalid => "graph_work_limit_invalid",
+            Self::GraphSeedUnavailable => "graph_seed_unavailable",
+            Self::GraphExpansionBoundExceeded => "graph_expansion_bound_exceeded",
+            Self::GraphProjectionUnavailable => "graph_projection_unavailable",
+            Self::GraphCorrupt => "graph_corrupt",
+        }
+    }
+}
+
+impl GraphExpansionErrorV1 {
+    pub(super) fn new(reason: GraphExpansionErrorReasonV1, field_path: impl Into<String>) -> Self {
+        Self { schema_version: SCHEMA_VERSION, reason, field_path: field_path.into() }
+    }
+}
+
+impl Display for GraphExpansionErrorV1 {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{} at {}", self.reason.as_str(), self.field_path)
+    }
+}
+
+impl std::error::Error for GraphExpansionErrorV1 {}
 
 /// Compose graph-expansion degradation codes from the three contract axes.
 #[doc(hidden)]

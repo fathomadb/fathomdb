@@ -202,10 +202,7 @@ admit-type errors EngineError::GraphExpansion graph_expand::types GraphExpansion
 local-macro identity caller_identity_newtype 7294cc907f93c51b
 
 # Reviewed: each counted call's receiver is a String, str, serde_json value,
-# IdSpaceKind or projection-generation field, never a governed-type receiver,
-# except graph_expand::execution GraphExpansionErrorV1::fmt, whose
-# `self.reason` is GraphExpansionErrorReasonV1 declared in
-# graph_expand::types (a cross-file struct field the gate cannot type).
+# IdSpaceKind or projection-generation field, never a governed-type receiver.
 external-receiver filter Filter::lower_for_read_list as_str 1
 external-receiver filter Predicate::json_path_compare as_str 1
 external-receiver filter Predicate::json_path_eq as_str 1
@@ -222,7 +219,6 @@ external-receiver graph_expand::codec encode_graph_expand_result_v1 as_str 4
 external-receiver graph_expand::codec parse_read_context as_str 3
 external-receiver graph_expand::codec read_context_wire as_str 2
 external-receiver graph_expand::codec response_closed as_str 1
-external-receiver graph_expand::execution GraphExpansionErrorV1::fmt as_str 1
 external-receiver graph_expand::execution encode_graph_evidence_request as_str 1
 external-receiver graph_expand::execution read_graph_expand_in_tx as_str 1
 external-receiver search bfs_graph_arm_candidates as_str 3
@@ -251,8 +247,8 @@ inherent graph_expand::execution GraphExpandRendezvousForTest::after_pin
 inherent graph_expand::execution GraphExpandRendezvousForTest::before_pin
 inherent graph_expand::execution GraphExpandRendezvousForTest::release
 inherent graph_expand::execution GraphExpandRendezvousForTest::wait_until_entered
-inherent graph_expand::execution GraphExpansionErrorReasonV1::as_str
-inherent graph_expand::execution GraphExpansionErrorV1::new
+inherent graph_expand::types GraphExpansionErrorReasonV1::as_str
+inherent graph_expand::types GraphExpansionErrorV1::new
 inherent reader_pool ReaderRequest::canonical_page
 inherent reader_pool ReaderRequest::canonical_page_baseline
 inherent reader_pool ReaderRequest::crossed_boundary_since
@@ -1003,9 +999,7 @@ edge graph_expand::execution <module> frozen_read <module> import all
 edge graph_expand::execution <module> graph_expand::types GraphExpandRequestV1 import all
 edge graph_expand::execution <module> graph_expand::types GraphExpandResultV1 import all
 edge graph_expand::execution <module> graph_expand::types GraphExpansionErrorReasonV1 import all
-edge graph_expand::execution <module> graph_expand::types GraphExpansionErrorReasonV1 type all
 edge graph_expand::execution <module> graph_expand::types GraphExpansionErrorV1 import all
-edge graph_expand::execution <module> graph_expand::types GraphExpansionErrorV1 type all
 edge graph_expand::execution <module> graph_expand::types GraphExpansionExplanationV1 import all
 edge graph_expand::execution <module> graph_expand::types GraphOriginV1 import all
 edge graph_expand::execution <module> graph_expand::types GraphProjectionOriginV1 import all
@@ -1048,7 +1042,6 @@ edge graph_expand::execution GraphExpandProjectionStateForTest::projection_legac
 edge graph_expand::execution GraphExpandProjectionStateForTest::projection_legacy_unverified_degraded graph_expand::types GraphProjectionReadinessV1::Degraded type hooks
 edge graph_expand::execution GraphExpandProjectionStateForTest::rebuild_deferred graph_expand::types GraphProjectionOriginV1::Rebuild type hooks
 edge graph_expand::execution GraphExpandProjectionStateForTest::rebuild_deferred graph_expand::types GraphProjectionReadinessV1::Deferred type hooks
-edge graph_expand::execution GraphExpansionErrorV1::new graph_expand::types GraphExpansionErrorReasonV1 type all
 edge graph_expand::execution direction_and_next graph_expand::types TraversalDirection type all
 edge graph_expand::execution encode_graph_evidence_request frozen_read encode_string callable all
 edge graph_expand::execution encode_graph_evidence_request frozen_read encode_u32 callable all

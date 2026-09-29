@@ -438,6 +438,25 @@ expect_failure undeclared-axis 'configuration feature slice85-undeclared is not 
   "$GATE" --root "$fixture"
 cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
 
+# Design review cycle 1, D-10: mutually exclusive cfg twins of an Engine
+# method may live in different owners (P14); overlapping ones still fail.
+cp "$fixture/src/rust/crates/fathomdb-engine/src/read_api.rs" "$fixture/read-api.rs.clean"
+cp "$fixture/src/rust/crates/fathomdb-engine/src/graph_api.rs" "$fixture/graph-api.rs.clean"
+printf '\n#[cfg(target_os = "linux")]\nimpl Engine {\n    pub(crate) fn slice85_platform(&self) {}\n}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/read_api.rs"
+printf '\n#[cfg(not(target_os = "linux"))]\nimpl Engine {\n    pub(crate) fn slice85_platform(&self) {}\n}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_api.rs"
+expect_success exclusive-engine-method-twins "$GATE" --root "$fixture"
+cp "$fixture/graph-api.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_api.rs"
+
+printf '\n#[cfg(feature = "test-hooks")]\nimpl Engine {\n    pub(crate) fn slice85_platform(&self) {}\n}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_api.rs"
+expect_failure overlapping-engine-method-twins \
+  'Engine method slice85_platform has multiple defining modules in configuration hooks-linux' \
+  "$GATE" --root "$fixture"
+cp "$fixture/graph-api.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_api.rs"
+cp "$fixture/read-api.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read_api.rs"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

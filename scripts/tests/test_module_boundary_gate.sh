@@ -469,7 +469,8 @@ printf '\npub(crate) fn slice85_r2() { crate::search::slice85_r1(); }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
 expect_failure governed-reported-cycle 'unapproved governed cycle fusion <-> search graph=item' \
   "$GATE" --root "$fixture"
-if ! "$GATE" --root "$fixture" --report 2>/dev/null | grep -Fq "$(printf 'scc\titem\tall\tfusion,search\t')"; then
+report="$("$GATE" --root "$fixture" --report 2>/dev/null || true)"
+if ! grep -Fq "$(printf 'scc\titem\tall\tfusion,search\t')" <<<"$report"; then
   printf 'module-boundary report does not list the fusion/search SCC\n' >&2
   exit 1
 fi

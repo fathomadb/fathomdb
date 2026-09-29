@@ -844,6 +844,37 @@ printf 'module-scc lifecycle all\n' >>"$fixture/dev/tools/module-boundary-policy
 expect_failure stale-module-scc 'stale module-scc lifecycle all' "$GATE" --root "$fixture"
 cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
 
+# Design review cycle 2, D-20: cfg on statements, lets, match arms and
+# expressions, and the cfg of the `mod` item declaring a file, are evaluated;
+# an unknown feature there fails closed.
+printf '\nfn slice85_stmt_unknown() { #[cfg(feature = "slice85-no-such-feature")] crate::fusion::fuse_rrf(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure statement-unknown-feature 'unsupported cfg predicate in search.rs: feature = "slice85-no-such-feature"' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+d20_label_mutant() {
+  local label="$1" item="$2" body="$3"
+  printf '\n%s\n' "$body" >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+  expect_failure "$label" "source_item=$item destination=fusion target_item=fuse_rrf syntax=crate::fusion::fuse_rrf kind=callable configurations=operator at search.rs:" \
+    "$GATE" --root "$fixture"
+  cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+}
+d20_label_mutant statement-cfg slice85_stmt_cfg \
+  'fn slice85_stmt_cfg() { #[cfg(feature = "operator")] crate::fusion::fuse_rrf(); }'
+d20_label_mutant let-cfg slice85_let_cfg \
+  'fn slice85_let_cfg() { #[cfg(feature = "operator")] let _ = crate::fusion::fuse_rrf; }'
+d20_label_mutant arm-cfg slice85_arm_cfg \
+  'fn slice85_arm_cfg(x: u8) { match x { #[cfg(feature = "operator")] 1 => crate::fusion::fuse_rrf(), _ => {} } }'
+
+cp "$fixture/src/rust/crates/fathomdb-engine/src/data_plane_integrity.rs" "$fixture/data-plane-integrity.rs.clean"
+printf '\npub(crate) fn slice85_dpi() { let _ = crate::search::prepare_search_statement; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/data_plane_integrity.rs"
+expect_failure parent-mod-cfg \
+  'syntax=crate::search::prepare_search_statement kind=callable configurations=operator at data_plane_integrity.rs:' \
+  "$GATE" --root "$fixture"
+cp "$fixture/data-plane-integrity.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/data_plane_integrity.rs"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

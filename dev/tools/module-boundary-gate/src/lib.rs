@@ -2012,4 +2012,29 @@ mod tests {
             assert!(targets.contains(expected), "missing {expected}: {targets:?}");
         }
     }
+
+    #[test]
+    fn statement_expression_and_inner_cfg_are_evaluated() {
+        let space = space();
+        let analysis = analyze("#![cfg(feature = \"operator\")]\nfn f() { crate::a::one(); }")
+            .expect("parses");
+        let one = analysis.edges.iter().find(|edge| edge.target == "crate::a::one").expect("edge");
+        assert_eq!(one.configurations, feature_set(&space, "operator"));
+        let analysis = analyze(
+            "fn g(x: u8) { #[cfg(feature = \"operator\")] crate::a::two(); \
+             #[cfg(feature = \"operator\")] let _ = crate::a::three; \
+             match x { #[cfg(feature = \"operator\")] 1 => crate::a::four(), _ => {} } \
+             #[cfg(feature = \"slice85-unknown\")] crate::a::five(); }",
+        )
+        .expect("parses");
+        for name in ["two", "three", "four"] {
+            let edge = analysis
+                .edges
+                .iter()
+                .find(|edge| edge.target == format!("crate::a::{name}"))
+                .expect("edge");
+            assert_eq!(edge.configurations, feature_set(&space, "operator"), "{name}");
+        }
+        assert!(analysis.unsupported_cfg.contains("feature = \"slice85-unknown\""));
+    }
 }

@@ -713,6 +713,62 @@ expect_failure super-root-reexport 'forbidden dependency read -> reader_pool' "$
 expect_failure super-root-indirection 'governed root re-export indirection at read.rs:' "$GATE" --root "$fixture"
 cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
 
+# Design review cycle 2, D-16: a non-governed module cannot hide an edge into
+# the governed set behind an unparsed macro body or an untyped receiver; a
+# governed untyped call over-approximates to every same-named inherent method
+# in the item graph; and a receiver is typed only when its constructor
+# returns its type and the method exists on it.
+printf '\npub(crate) fn slice85_a() { crate::fusion::slice85_b(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\npub(crate) fn slice85_b() { slice85_opaque!(=> crate::search::slice85_a()); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+printf 'edge search slice85_a fusion slice85_b callable all\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure reported-unparsed-macro 'unparsed macro body source=fusion item=slice85_b macro=slice85_opaque' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+printf '\npub(crate) struct S85Gov;\nimpl S85Gov {\n    pub(crate) fn slice85_gov_method(&self) { crate::fusion::slice85_b(); }\n}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\npub(crate) fn slice85_b() { let g = slice85_make(); g.slice85_gov_method(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+printf 'inherent search S85Gov::slice85_gov_method\nedge search S85Gov::slice85_gov_method fusion slice85_b callable all\n' \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure reported-untyped-receiver 'source=fusion source_item=slice85_b method=slice85_gov_method' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+printf '\npub(crate) fn slice85_go() { let f = slice85_make(); f.slice85_fusion_method(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf '\npub(crate) struct S85F;\nimpl S85F {\n    pub(crate) fn slice85_fusion_method(&self) { crate::search::slice85_go(); }\n}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+printf 'edge fusion S85F::slice85_fusion_method search slice85_go callable all\n' \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure untyped-receiver-cycle 'unapproved governed cycle fusion <-> search graph=item' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+d16_receiver_mutant() {
+  local label="$1" item="$2" body="$3"
+  printf '\n%s\n' "$body" >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+  expect_failure "$label" "source=read source_item=$item method=cache_status_per_worker" \
+    "$GATE" --root "$fixture"
+  cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+}
+d16_receiver_mutant mistyped-local-constructor slice85_ctor \
+  'struct S85B; fn slice85_ctor() { let p = S85B::open(); p.cache_status_per_worker(); }'
+d16_receiver_mutant mistyped-foreign-constructor slice85_ctor_foreign \
+  'fn slice85_ctor_foreign() { let p = crate::fusion::S85Builder::build(); p.cache_status_per_worker(); }'
+d16_receiver_mutant typed-receiver-missing-method slice85_typed_missing \
+  'fn slice85_typed_missing(p: &crate::fusion::S85Holder) { p.cache_status_per_worker(); }'
+d16_receiver_mutant generic-parameter-receiver slice85_generic_receiver \
+  'fn slice85_generic_receiver<T>(p: T) { p.cache_status_per_worker(); }'
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

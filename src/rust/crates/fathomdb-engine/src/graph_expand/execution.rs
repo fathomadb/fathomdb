@@ -66,10 +66,24 @@ fn observe_current_rss_peak(test_controls: &GraphExpandReaderControlsForTest) {
 #[cfg(feature = "test-hooks")]
 #[derive(Default)]
 pub(crate) struct GraphExpandRetentionCountersForTest {
-    pub(crate) retained_edge_batch_rows: AtomicU64,
-    pub(crate) frontier_states: AtomicU64,
-    pub(crate) visited_states: AtomicU64,
-    pub(crate) candidate_targets: AtomicU64,
+    retained_edge_batch_rows: AtomicU64,
+    frontier_states: AtomicU64,
+    visited_states: AtomicU64,
+    candidate_targets: AtomicU64,
+}
+
+#[cfg(feature = "test-hooks")]
+impl GraphExpandRetentionCountersForTest {
+    /// Relaxed loads of `(retained_edge_batch_rows, frontier_states,
+    /// visited_states, candidate_targets)`, in that order.
+    pub(crate) fn load_relaxed(&self) -> (u64, u64, u64, u64) {
+        (
+            self.retained_edge_batch_rows.load(AtomicOrdering::Relaxed),
+            self.frontier_states.load(AtomicOrdering::Relaxed),
+            self.visited_states.load(AtomicOrdering::Relaxed),
+            self.candidate_targets.load(AtomicOrdering::Relaxed),
+        )
+    }
 }
 
 #[cfg(feature = "test-hooks")]

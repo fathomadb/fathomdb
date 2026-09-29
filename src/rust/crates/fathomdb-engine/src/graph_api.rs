@@ -268,18 +268,16 @@ impl Engine {
             }
             opened.engine.close()?;
             let _ = std::fs::remove_dir_all(root);
+            let (retained_edge_batch_rows, frontier_states, visited_states, candidate_targets) =
+                GraphExpandRetentionCountersForTest::load_relaxed(&retention_counters);
             Ok(GraphExpandIsolatedProcessRssSampleForTest {
                 process_id: std::process::id(),
                 peak_rss_delta_bytes: peak.saturating_sub(baseline),
                 work_units: result.work_units,
-                retained_edge_batch_rows: retention_counters
-                    .retained_edge_batch_rows
-                    .load(AtomicOrdering::Relaxed),
-                frontier_states: retention_counters.frontier_states.load(AtomicOrdering::Relaxed),
-                visited_states: retention_counters.visited_states.load(AtomicOrdering::Relaxed),
-                candidate_targets: retention_counters
-                    .candidate_targets
-                    .load(AtomicOrdering::Relaxed),
+                retained_edge_batch_rows,
+                frontier_states,
+                visited_states,
+                candidate_targets,
             })
         }
     }

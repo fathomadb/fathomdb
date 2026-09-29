@@ -704,6 +704,15 @@ cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/sear
 cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusion.rs"
 cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
 
+# A relative path that climbs to the crate root resolves like `crate::`:
+# through root re-exports to the owner, and a governed module may not use it
+# as root re-export indirection.
+printf '\nfn slice85_super_root(_: &super::CacheStatusReply) {}\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+expect_failure super-root-reexport 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
+expect_failure super-root-indirection 'governed root re-export indirection at read.rs:' "$GATE" --root "$fixture"
+cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \
   "$GATE" --root "$fixture"

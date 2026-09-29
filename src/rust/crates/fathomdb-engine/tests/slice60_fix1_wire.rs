@@ -13,6 +13,8 @@ const GRAPH_EXPAND_SOURCE: &str = concat!(
     include_str!("../src/graph_expand/execution.rs"),
     include_str!("../src/graph_expand/traversal.rs"),
     include_str!("../src/graph_expand/types.rs"),
+    // graph_api.rs owns the Engine-level graph_expand test seams.
+    include_str!("../src/graph_api.rs"),
 );
 
 fn request() -> GraphExpandRequestV1 {

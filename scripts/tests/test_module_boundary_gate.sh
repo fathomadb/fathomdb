@@ -1248,46 +1248,74 @@ t8_search_error_mutant frozen-read-search-error frozen_read frozen_read.rs
 
 # Test review cycle 2, T-11 (AC27-85B/D): a path into an inline module declared
 # in lib.rs or another file (`crate::m::f`, `super::m::f`, `use crate::m::f`)
-# resolves to that inline module, so a forbidden Slice 80 cycle cannot be
-# laundered through one, even after the edge inventory is regenerated. The
-# bridge compiles as written.
+# resolves to that inline module, so a forbidden Slice 80 direction cannot be
+# laundered through one, even after the edge inventory is regenerated. Every
+# bridge compiles as written. The reviewer's bridge closes graph_expand ->
+# root::s85_a -> search at module level; the item-cycle bridges also return
+# from search to the calling graph_expand item.
 graph_expand_file="$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
 t11_bridge_mutant() {
-  local label="$1" host="$2" call="$3" import="$4"
-  shift 4
+  local label="$1" host="$2" call="$3" import="$4" bridge="$5" expected="$6"
+  shift 6
+  local body='let _ = crate::search::prepare_search_statement(c, "");'
+  if [ "$bridge" = item-cycle ]; then
+    body='crate::search::s85_ret(c);'
+    printf '\npub(crate) fn s85_ret(c: &rusqlite::Connection) { crate::graph_expand::s85_g(c); }\n' \
+      >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+  elif [ "$host" = root ]; then
+    body='let _ = prepare_search_statement(c, "");'
+  fi
   if [ "$host" = root ]; then
-    printf '\nmod s85_a {\n    use super::*;\n    pub(crate) fn s85_bridge(c: &rusqlite::Connection) {\n        let _ = prepare_search_statement(c, "");\n    }\n}\n' \
-      >>"$engine_root"
+    printf '\nmod s85_a {\n    use super::*;\n    pub(crate) fn s85_bridge(c: &rusqlite::Connection) {\n        %s\n    }\n}\n' \
+      "$body" >>"$engine_root"
   else
-    printf '\nmod s85_a {\n    pub(crate) fn s85_bridge(c: &rusqlite::Connection) {\n        let _ = crate::search::prepare_search_statement(c, "");\n    }\n}\n' \
-      >>"$fixture/src/rust/crates/fathomdb-engine/src/$host.rs"
+    printf '\nmod s85_a {\n    pub(crate) fn s85_bridge(c: &rusqlite::Connection) {\n        %s\n    }\n}\n' \
+      "$body" >>"$fixture/src/rust/crates/fathomdb-engine/src/$host.rs"
   fi
   printf '\n%spub(crate) fn s85_g(c: &rusqlite::Connection) { %s(c); }\n' "$import" "$call" \
     >>"$graph_expand_file"
   printf '%s\n' "$@" >>"$policy_file"
-  expect_failure "$label" 'forbidden cycle graph_expand <-> search' "$GATE" --root "$fixture"
+  expect_failure "$label" "$expected" "$GATE" --root "$fixture"
   cp "$fixture/lib.rs.clean" "$engine_root"
+  cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
   cp "$fixture/telemetry.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
   cp "$fixture/graph-expand.rs.clean" "$graph_expand_file"
   cp "$fixture/module-boundary-policy.clean" "$policy_file"
 }
 t11_root_admission='edge root::s85_a s85_bridge search prepare_search_statement callable all'
-# The reviewer's regeneration: the only edge the unfixed gate extracted.
-t11_bridge_mutant inline-root-crate-path root crate::s85_a::s85_bridge '' \
+t11_joins='module graph_expand joins a governed module-level SCC configurations=all'
+# The reviewer's regeneration admits the only edge the unfixed gate extracted.
+t11_bridge_mutant inline-root-crate-path root crate::s85_a::s85_bridge '' plain "$t11_joins" \
   'reported root::s85_a' "$t11_root_admission"
-t11_bridge_mutant inline-root-super-path root super::s85_a::s85_bridge '' \
+t11_bridge_mutant inline-root-super-path root super::s85_a::s85_bridge '' plain "$t11_joins" \
   'reported root::s85_a' "$t11_root_admission"
-t11_bridge_mutant inline-root-use-import root s85_bridge $'use crate::s85_a::s85_bridge;\n' \
-  'reported root::s85_a' "$t11_root_admission"
-# A full regeneration, which also admits the graph_expand -> root::s85_a edge.
-t11_bridge_mutant inline-root-regenerated root crate::s85_a::s85_bridge '' \
+t11_bridge_mutant inline-root-use-import root s85_bridge $'use crate::s85_a::s85_bridge;\n' plain \
+  "$t11_joins" 'reported root::s85_a' "$t11_root_admission"
+# A full edge regeneration also admits graph_expand -> root::s85_a.
+t11_bridge_mutant inline-root-regenerated root crate::s85_a::s85_bridge '' plain "$t11_joins" \
   'reported root::s85_a' "$t11_root_admission" \
   'edge graph_expand s85_g root::s85_a s85_bridge callable all'
-# The same bridge in an inline module of a file module.
-t11_bridge_mutant inline-file-regenerated telemetry crate::telemetry::s85_a::s85_bridge '' \
-  'reported telemetry::s85_a' \
-  'edge telemetry::s85_a s85_bridge search prepare_search_statement callable all' \
-  'edge graph_expand s85_g telemetry::s85_a s85_bridge callable all'
+# Item cycles fail as the forbidden cycle even when every edge and module-level
+# SCC member is admitted.
+t11_forbidden='forbidden cycle graph_expand <-> search graph=item'
+t11_bridge_mutant inline-root-item-cycle root crate::s85_a::s85_bridge '' item-cycle "$t11_forbidden" \
+  'reported root::s85_a' 'module-scc graph_expand all' 'module-scc root::s85_a all' \
+  'edge graph_expand s85_g root::s85_a s85_bridge callable all' \
+  'edge root::s85_a s85_bridge search s85_ret callable all' \
+  'edge search s85_ret graph_expand s85_g callable all'
+t11_bridge_mutant inline-root-use-item-cycle root s85_bridge $'use crate::s85_a::s85_bridge;\n' \
+  item-cycle "$t11_forbidden" \
+  'reported root::s85_a' 'module-scc graph_expand all' 'module-scc root::s85_a all' \
+  'edge graph_expand <module> root::s85_a s85_bridge import all' \
+  'edge graph_expand s85_g root::s85_a s85_bridge callable all' \
+  'edge root::s85_a s85_bridge search s85_ret callable all' \
+  'edge search s85_ret graph_expand s85_g callable all'
+t11_bridge_mutant inline-file-item-cycle telemetry crate::telemetry::s85_a::s85_bridge '' item-cycle \
+  "$t11_forbidden" \
+  'reported telemetry::s85_a' 'module-scc graph_expand all' 'module-scc telemetry::s85_a all' \
+  'edge graph_expand s85_g telemetry::s85_a s85_bridge callable all' \
+  'edge telemetry::s85_a s85_bridge search s85_ret callable all' \
+  'edge search s85_ret graph_expand s85_g callable all'
 
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \

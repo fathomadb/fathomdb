@@ -37,8 +37,13 @@ them, recorded under "Test review FIX-2". Test review cycle 3 of the test
 FIX-2 head (`4cf78446`) found that a crate-root re-export of an item in a
 `lib.rs` inline module still ended paths on the re-export node, plus two
 record defects (T-13..T-15); test FIX-3 remediates them, recorded under "Test
-review FIX-3". The release-state candidate is rebound only after these
-reviews. The sections below describe the gate after test FIX-3.
+review FIX-3". Test review cycle 4 of the test FIX-3 head (`20468e48`) found
+that chained, glob, `self::`-anchored and module-alias crate-root paths still
+severed or dropped the forbidden item cycle (T-16); test FIX-4 replaces the
+enumerated alias handling with one namespace resolver that fails closed,
+recorded under "Test review FIX-4". The release-state candidate is rebound
+only after these reviews. The sections below describe the gate after test
+FIX-4.
 
 `code-review.md` and `review-verification.md` describe the original
 candidate `7a2f9bf9` only; the FIX cycles above supersede their counts.
@@ -105,11 +110,17 @@ extracted for reachability but not frozen. It extracts dependencies:
   `cfg_attr`, whose condition narrows their configurations;
 - from any other attribute string literal that is a multi-segment path.
 
-It resolves `self::`/`super::` chains (through the crate root like `crate::`).
-It resolves `use` re-exports, including those inside inline modules, to the
-defining owner. A bare call in an inline module resolves through that
-module's own imports before any same-named function elsewhere in the file. A `type` alias keeps its own edge and adds one to every
-in-crate path its definition names. An associated-type projection
+Every path is resolved by one Rust 2018 namespace resolver over every file
+and inline module of the crate (test FIX-4, T-16). It follows `crate`,
+`self` and `super` anchors, child modules, items declared in that exact
+scope, `use` bindings at any visibility, and glob imports. Each written
+target is resolved in the scope that declares it. So root and inline-module
+re-exports, chained re-exports, root globs of inline and file modules,
+`self::`-anchored re-exports and module aliases all end on the declaring
+item. A path whose first segment names nothing in its scope is another
+crate's, the prelude's or a local binding's. A module named in value
+position is a local binding. A `type` alias keeps its own edge and adds one
+to every in-crate path its definition names. An associated-type projection
 `<Owner as Trait>::Name` names the impl's `type Name = …` binding, which is
 chased the same way.
 
@@ -124,8 +135,9 @@ any module, an untyped dot call (including one admitted by an
 a module the source is forbidden to depend on fails as a forbidden
 dependency.
 Module-level 2-cycles and SCC membership that touch the governed set are a
-frozen, regenerable inventory (6 `module-cycle` pairs, 34 `module-scc`
-members). `forbid-dependency` covers descendant modules. `read`, `filter`
+frozen, regenerable inventory (6 `module-cycle` pairs, 36 `module-scc`
+members; test FIX-4 added `graph_expand` and `graph_expand::execution` under
+`test`, see "Test review FIX-4" in the chronology). `forbid-dependency` covers descendant modules. `read`, `filter`
 and `frozen_read` are forbidden to depend on `search` (and so on
 `SearchReaderError`), like `graph_expand`.
 
@@ -154,6 +166,18 @@ item-specific policy entry admits it:
   the engine manifest declares (or `std`, `core`, `alloc`, `proc_macro`,
   `test`). A crate-root re-export of an item in a `lib.rs` inline module
   resolves to that inline module (T-13);
+- with no exception, an unresolved in-crate path (test FIX-4, T-16). This is
+  a `crate::`/`self::`/`super::` path, or a bare path whose first segment is
+  bound in the crate, that does not reach a declared item or module. The
+  diagnostic is `unresolved in-crate path … at file:line:col`, and the edge
+  still reaches the nearest in-crate namespace, so other diagnostics fire
+  too. The same rule fails a destination that is not a declared item of its
+  namespace: a module named in value or type position through an import, a
+  glob of an in-crate item such as an enum, or a name that two glob imports
+  supply differently. It also fails a `use`, in any module, whose head names
+  neither an in-crate binding nor a declared dependency;
+- in a governed module, an import through a name the crate root only
+  re-exports, including one it imports by glob;
 - an untyped dot call in any module whose name is a governed inherent method
   of another module. The 233 receiver entries name the receiver expression
   and its type: 128 `external-receiver` entries on types outside the crate,
@@ -174,8 +198,8 @@ The grammar remains syntactic. Examples of what it does not see:
 
 Warm runtime and peak RSS of `scripts/check-module-boundaries.sh` with a
 cached binary (host: 24-core x86_64, `/usr/bin/time -v`, three runs after
-test FIX-3): 2.33 s / 42,860 KB, 2.34 s / 42,624 KB, 2.26 s / 42,568 KB
-(test FIX-2: 2.14 s / 43.2–43.6 MB; test FIX-1: 2.11–2.12 s / 43.5–44.0 MB; FIX-4: 2.11–2.13 s / 43.0–43.7 MB; FIX-3: 2.12–2.14 s / 42.7–42.9 MB;
+test FIX-4): 1.98 s / 47,772 KB, 1.98 s / 48,020 KB, 1.98 s / 47,688 KB
+(test FIX-3: 2.26–2.34 s / 42.6–42.9 MB; test FIX-2: 2.14 s / 43.2–43.6 MB; test FIX-1: 2.11–2.12 s / 43.5–44.0 MB; FIX-4: 2.11–2.13 s / 43.0–43.7 MB; FIX-3: 2.12–2.14 s / 42.7–42.9 MB;
 FIX-2: 2.03–2.05 s / 40.4–40.7 MB; FIX-1: 1.64–1.67 s / 34.8–35.1 MB).
 The wrapper and the mutation suite build the gate into
 `dev/tools/module-boundary-gate/target` whatever `CARGO_TARGET_DIR` says, so
@@ -183,17 +207,20 @@ the binary they run is always the one built from the current source; after a
 build the wrapper marks the binary fresh, so a manifest or lockfile edit that
 cargo does not relink for is not judged stale again. The gate reads only the engine sources, its
 manifest and the policy; it performs no whole-workspace indexing. The gate
-crate has 32 library and 3 binary unit tests, and
-`scripts/tests/test_module_boundary_gate.sh` runs 222 production mutation
-assertions (216 negative, 6 positive) in about 8.3 minutes.
+crate has 33 library and 5 binary unit tests, and
+`scripts/tests/test_module_boundary_gate.sh` runs 240 production mutation
+assertions (234 negative, 6 positive) in about 9.2 minutes.
 
 Every fixture family has a compiled negative fixture. A compile check of
 every mutant (`cargo check -p fathomdb-engine --lib --profile test
---features test-hooks,operator`) after test FIX-3: 159 of the 222 gate runs
-compile and 63 do not. Test FIX-2 added 43 mutants and all 43 compile: 36
+--features test-hooks,operator`) after test FIX-4: 175 of the 240 gate runs
+compile and 65 do not. Test FIX-2 added 43 mutants and all 43 compile: 36
 `compiled-*` siblings (T-9) and the 7 inline-module bridges (T-11). Test
 FIX-3 added 4 and all 4 compile: the crate-root re-export and `extern crate
-self` forms (T-13). The
+self` forms (T-13). Test FIX-4 added 18. The 16 item-cycle and module-level
+namespace mutants all compile, and each runs after a full regeneration of
+every regenerable inventory. The 2 unresolved-path mutants are syntactic
+(T-16). The
 `compiled-*` mutants add the stub items they name, so each AC27-85E family
 has at least one compiling fixture:
 
@@ -223,13 +250,62 @@ has at least one compiling fixture:
 Every other family already had a compiling mutant in the test review
 census; for example, `forbidden-receiver-name-collision` covers external
 same-name calls. The 63 non-compiling mutants
-stay as syntactic evidence. Most name placeholder items that do not exist
+stay as syntactic evidence, with the 2 T-16 unresolved-path mutants, which
+name a missing module and a missing item on purpose. Most name placeholder
+items that do not exist
 (`slice85_probe`, `S85Trait`, `slice85_make`, …). A few are invalid on
 purpose: `shadow` and `overlapping-engine-method-twins` are name
 collisions, the two manifest mutants remove a feature, `engine-field-missing`
 leaves the new field out of the constructor, `serde-unparsable-path` is
 rejected by serde_derive, and no dependency provides the non-serde derive
 that `attribute-string-path` uses.
+
+## Residual test risk
+
+These items are still open after test FIX-4, following the cycle 4 test
+review's residual list:
+
+1. **T-16, bounded but not proven complete.** The namespace resolver
+   replaces the enumerated alias forms, and an in-crate path it cannot
+   resolve now fails closed. It is still a hand-written, syntactic model of
+   Rust name resolution, and these limits remain:
+   - it does not expand macros, so an item or module that a macro generates
+     is invisible. An anchored path to one fails closed, but a bare name is
+     read as another crate's;
+   - a name that is missing from an in-crate namespace holding another
+     crate's glob (only `proptest::prelude::*` in test modules today) is read
+     as that crate's;
+   - privacy is ignored and only the module/item namespace split is
+     modelled, so resolution over-approximates. An over-approximation can
+     only add edges or fail closed.
+2. **Non-compiling mutants.** 65 of the 240 gate runs do not compile (the 63
+   from cycle 4 plus the 2 T-16 unresolved-path mutants). They prove the
+   parser's behaviour, not that a real edit would be caught. Each AC27-85E
+   family still has at least one compiling fixture.
+3. **`compiled-overlapping-engine-method-twins`** compiles only because the
+   checked feature set lacks `tc5-benchmark`.
+4. **Gate-crate clippy debt.** `cargo clippy` on the gate crate, which is
+   outside the workspace and not run by `agent-lint`, still reports four
+   pre-existing lints: `nonminimal_bool`, `too_many_arguments` on
+   `collect_use_tree`, `type_complexity` on `merged_edges` and
+   `collapsible_if`. Test FIX-4 added none.
+5. **The process-global test-hooks flake** (ledger seq 102) was not
+   re-verified.
+6. **The `tc5-benchmark` envelope test** still fails under `--features
+   tc5-benchmark`. It is pre-existing and ungated (seq 263,
+   `TC-3bda074d-71f4-4f06-a15f-a1b17bafb2b0`).
+7. **The hand-rolled manifest parser** now also backs the `use` rule in every
+   module:
+   - a missed dependency name fails closed;
+   - an extra name would exempt a `use` whose head matches it.
+8. **Rerank's `inner` shorthand.** In the cycle 4 probe, adding an inline
+   `mod inner` made the gate attribute rerank's `inner` shorthand to
+   `root inner`. The namespace resolver no longer does this. Test FIX-4
+   repeated the probe with both a nested inline `inner` and a root `mod
+   inner`, and the gate passed with only the three new classifications
+   added.
+9. **ML and GPU runtime tests** were not run (they need model assets or
+   CUDA). Only compilation was checked.
 
 ## Acceptance
 
@@ -257,12 +333,14 @@ that `attribute-string-path` uses.
   unchanged.
 - **AC27-85C/D/E:** exact policy, whole-crate extraction (including paths
   into inline modules of `lib.rs` and other files, T-11, and crate-root
-  re-exports of `lib.rs` inline-module items, T-13), item and
+  re-exports of `lib.rs` inline-module items, T-13, and every chained, glob,
+  `self::`-anchored and module-alias form through the namespace resolver,
+  T-16), item and
   governed-module SCCs, the frozen module-level cycle inventory,
   source-derived inventories, 248 configurations, cache behavior, negative
   grammar fixtures, macro-body extraction and fingerprinting, and production
   mutants pass. Every AC27-85E family has at least one compiled negative
-  fixture (159 of 222 gate runs compile; the list is above); the 63
+  fixture (175 of 240 gate runs compile; the list is above); the 65
   non-compiling mutants are additional syntactic evidence.
 - **AC27-85F:** exact pre-move commissioning evidence is retained. On the
   reviewed candidate, focused runtime/build checks pass, public surface is
@@ -277,9 +355,9 @@ that `attribute-string-path` uses.
   bytes`, bound 128) at both the commissioned baseline `4c75bfec` and the
   test FIX-2 head `4cf78446`, so Slice 85 did not cause it. No gate runs that
   configuration: the feature-complete gate runs the test under default
-  features only, where it passes. The orchestrator is writing a todos-ledger
-  entry for it (runs in `tdd-chronology.md`, "Test review FIX-2" and "Test
-  review FIX-3").
+  features only, where it passes. It is tracked in the todos ledger as seq
+  263, `TC-3bda074d-71f4-4f06-a15f-a1b17bafb2b0` (runs in
+  `tdd-chronology.md`, "Test review FIX-2" and "Test review FIX-3").
 - **AC27-85G:** no AC-037 qualification is claimed; Slice 150 still owns the
   exact-final-candidate live run.
 

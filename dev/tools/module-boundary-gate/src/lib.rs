@@ -96,7 +96,8 @@ pub struct Analysis {
     pub edges: BTreeSet<Edge>,
     pub globs: BTreeSet<Location>,
     pub engine_fields: BTreeSet<String>,
-    pub engine_methods: BTreeSet<String>,
+    /// Engine method name to the configurations in which this file defines it.
+    pub engine_methods: BTreeMap<String, ConfigSet>,
     pub inherent_methods: BTreeSet<InherentMethod>,
     pub declared_items: BTreeSet<String>,
     pub local_functions: BTreeMap<String, Location>,
@@ -535,7 +536,15 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         if owner.as_deref() == Some("Engine") {
             for member in &item.items {
                 if let ImplItem::Fn(method) = member {
-                    self.analysis.engine_methods.insert(method.sig.ident.to_string());
+                    let impl_configurations = self.enter_attrs(&method.attrs);
+                    let active = self.configurations;
+                    self.configurations = impl_configurations;
+                    let entry = self
+                        .analysis
+                        .engine_methods
+                        .entry(method.sig.ident.to_string())
+                        .or_default();
+                    *entry = entry.union(active);
                 }
             }
         } else if item.trait_.is_none() {
@@ -1044,7 +1053,7 @@ mod tests {
             BTreeSet::from(["ignored".to_string(), "reader_pool".to_string()])
         );
         assert_eq!(
-            analysis.engine_methods,
+            analysis.engine_methods.keys().cloned().collect::<BTreeSet<_>>(),
             BTreeSet::from(["helper".to_string(), "search".to_string()])
         );
         assert!(analysis

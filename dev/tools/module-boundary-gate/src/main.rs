@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use fathomdb_module_boundary_gate::{
-    analyze_source, Analysis, ConfigSpace, EdgeKind, InherentMethod,
+    analyze_source, Analysis, ConfigSet, ConfigSpace, EdgeKind, InherentMethod,
 };
 
 #[derive(Debug, Default)]
@@ -372,19 +372,31 @@ fn evaluate(
         errors.push(format!("Engine field map stale {stale}"));
     }
 
-    let mut method_owners: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut method_owners: MethodOwners = BTreeMap::new();
     for (module, info) in modules {
-        for method in &info.analysis.engine_methods {
-            method_owners.entry(method.clone()).or_default().insert(module.clone());
+        for (method, configurations) in &info.analysis.engine_methods {
+            let entry =
+                method_owners.entry(method.clone()).or_default().entry(module.clone()).or_default();
+            *entry = entry.union(*configurations);
         }
     }
     if method_owners.is_empty() {
         errors.push("source-derived Engine method map is empty".to_string());
     }
     for (method, owners) in &method_owners {
-        if owners.len() > 1 {
-            errors
-                .push(format!("Engine method {method} has multiple defining modules: {owners:?}"));
+        let owners = owners.iter().collect::<Vec<_>>();
+        for (left_index, (left, left_configurations)) in owners.iter().enumerate() {
+            for (right, right_configurations) in owners.iter().skip(left_index + 1) {
+                let overlap = left_configurations.intersect(**right_configurations);
+                if let Some(first) = overlap.indices().next() {
+                    errors.push(format!(
+                        "Engine method {method} has multiple defining modules in configuration \
+                         {}: {left}, {right} (overlap {})",
+                        space.configurations[first].label,
+                        space.expression(overlap)
+                    ));
+                }
+            }
         }
     }
 
@@ -436,13 +448,10 @@ fn evaluate(
     }
 
     let root_aliases = root.map(|module| &module.analysis.import_aliases);
-    let mut actual_edges = BTreeSet::new();
+    let mut merged_edges: BTreeMap<EdgeKey, (ConfigSet, (String, usize, usize, String))> =
+        BTreeMap::new();
     let mut actual_local_macros = BTreeSet::new();
     let mut actual_unparsed_macros = BTreeSet::new();
-    let mut edge_origins: BTreeMap<
-        (String, String, String, String, String, String),
-        (String, usize, usize, String),
-    > = BTreeMap::new();
     let mut adjacency_by_configuration =
         vec![BTreeMap::<String, BTreeSet<String>>::new(); space.len()];
     let mut dependencies_by_configuration =
@@ -568,7 +577,15 @@ fn evaluate(
             );
             for target in targets {
                 let nonroot_local = target.module == source_module && source_module != "root";
-                for configuration in edge.configurations.indices() {
+                let configurations = if edge.kind == EdgeKind::EngineMethod {
+                    method_owners
+                        .get(&edge.target)
+                        .and_then(|owners| owners.get(&target.module))
+                        .map_or(edge.configurations, |owner| edge.configurations.intersect(*owner))
+                } else {
+                    edge.configurations
+                };
+                for configuration in configurations.indices() {
                     dependencies_by_configuration[configuration]
                         .entry(source_module.clone())
                         .or_default()
@@ -586,24 +603,29 @@ fn evaluate(
                 if nonroot_local {
                     continue;
                 }
-                if frozen_scope(policy, &source_module) || frozen_scope(policy, &target.module) {
-                    let record = (
+                if !configurations.is_empty()
+                    && (frozen_scope(policy, &source_module)
+                        || frozen_scope(policy, &target.module))
+                {
+                    let key = (
                         source_module.clone(),
                         edge.source_item.clone(),
                         target.module,
                         target.item,
                         edge.kind.as_str().to_string(),
-                        space.expression(edge.configurations),
                     );
-                    actual_edges.insert(record.clone());
-                    edge_origins.entry(record).or_insert_with(|| {
+                    let merged = merged_edges.entry(key).or_insert_with(|| {
                         (
-                            relative(source_root, &info.file),
-                            edge.location.line,
-                            edge.location.column,
-                            edge.target.clone(),
+                            ConfigSet::default(),
+                            (
+                                relative(source_root, &info.file),
+                                edge.location.line,
+                                edge.location.column,
+                                edge.target.clone(),
+                            ),
                         )
                     });
+                    merged.0 = merged.0.union(configurations);
                 }
             }
         }
@@ -624,6 +646,16 @@ fn evaluate(
             &mut actual_unparsed_macros,
             &mut errors,
         );
+    }
+
+    let mut actual_edges = BTreeSet::new();
+    let mut edge_origins = BTreeMap::new();
+    for ((source, source_item, target, target_item, kind), (configurations, origin)) in merged_edges
+    {
+        let record =
+            (source, source_item, target, target_item, kind, space.expression(configurations));
+        actual_edges.insert(record.clone());
+        edge_origins.insert(record, origin);
     }
 
     for (module, name, _) in policy.allowed_local_macros.difference(&actual_local_macros) {
@@ -793,6 +825,11 @@ fn root_reexport_indirection(
     root_aliases.is_some_and(|aliases| aliases.contains_key(first))
 }
 
+/// Engine method name to each defining module and its active configurations.
+type MethodOwners = BTreeMap<String, BTreeMap<String, ConfigSet>>;
+
+type EdgeKey = (String, String, String, String, String);
+
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct ResolvedTarget {
     module: String,
@@ -914,7 +951,7 @@ fn edge_targets(
     root_aliases: Option<&BTreeMap<String, String>>,
     engine_fields: &BTreeSet<String>,
     field_owners: &BTreeMap<String, String>,
-    method_owners: &BTreeMap<String, BTreeSet<String>>,
+    method_owners: &MethodOwners,
 ) -> BTreeSet<ResolvedTarget> {
     let targets = direct_edge_targets(
         module,
@@ -1034,7 +1071,7 @@ fn direct_edge_targets(
     root_aliases: Option<&BTreeMap<String, String>>,
     engine_fields: &BTreeSet<String>,
     field_owners: &BTreeMap<String, String>,
-    method_owners: &BTreeMap<String, BTreeSet<String>>,
+    method_owners: &MethodOwners,
 ) -> BTreeSet<ResolvedTarget> {
     if edge.kind == EdgeKind::FieldAccess {
         return if engine_fields.contains(&edge.target) {
@@ -1051,7 +1088,7 @@ fn direct_edge_targets(
         return method_owners
             .get(&edge.target)
             .into_iter()
-            .flatten()
+            .flat_map(BTreeMap::keys)
             .map(|owner| ResolvedTarget { module: owner.clone(), item: edge.target.clone() })
             .collect();
     }

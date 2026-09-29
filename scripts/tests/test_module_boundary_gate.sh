@@ -1497,6 +1497,36 @@ expect_failure unresolved-in-crate-item \
   "$GATE" --root "$fixture"
 cp "$fixture/graph-expand.rs.clean" "$graph_expand_file"
 
+# `#[path]` on a `mod` item makes the compiler build a file the gate never
+# analyses, so the analysed decoy could hide the compiled module's edges. It
+# is rejected on any `mod` item, bare or inside `cfg_attr`, even after a full
+# regeneration. The bare and `cfg_attr` forms compile as written; the inline
+# form pins the syntactic rule only.
+path_attribute_mutant() {
+  local label="$1" declaration="$2"
+  printf '\n%s\n' "$declaration" >>"$engine_root"
+  printf 'pub(crate) fn s85_bridge(c: &rusqlite::Connection) { let _ = c; }\n' \
+    >"$compiled_src/s85_decoy.rs"
+  printf 'pub(crate) fn s85_bridge(c: &rusqlite::Connection) { crate::search::s85_ret(c); }\n' \
+    >"$fixture/src/rust/crates/fathomdb-engine/s85_evil.rs"
+  printf '\npub(crate) fn s85_g(c: &rusqlite::Connection) { crate::s85_decoy::s85_bridge(c); }\n' \
+    >>"$graph_expand_file"
+  printf '\npub(crate) fn s85_ret(c: &rusqlite::Connection) { crate::graph_expand::s85_g(c); }\n' \
+    >>"$compiled_src/search.rs"
+  t16_admit "$t16_full"
+  expect_failure "$label" 'unsupported #[path] on mod s85_decoy at lib.rs:' "$GATE" --root "$fixture"
+  rm "$compiled_src/s85_decoy.rs" "$fixture/src/rust/crates/fathomdb-engine/s85_evil.rs"
+  cp "$fixture/lib.rs.clean" "$engine_root"
+  cp "$fixture/search.rs.clean" "$compiled_src/search.rs"
+  cp "$fixture/graph-expand.rs.clean" "$graph_expand_file"
+  cp "$fixture/module-boundary-policy.clean" "$policy_file"
+}
+path_attribute_mutant path-attribute $'#[path = "../s85_evil.rs"]\nmod s85_decoy;'
+path_attribute_mutant cfg-attr-path-attribute \
+  $'#[cfg_attr(target_os = "linux", path = "../s85_evil.rs")]\nmod s85_decoy;'
+path_attribute_mutant inline-path-attribute \
+  $'mod s85_decoy;\nmod s85_outer {\n    #[path = "../s85_evil.rs"]\n    mod s85_decoy;\n}'
+
 # Test review cycle 2, T-9 (AC27-85E): compiled negative fixtures. Each family
 # the AC names gets at least one mutant that also passes `cargo check -p
 # fathomdb-engine --lib --profile test --features test-hooks,operator`, by adding

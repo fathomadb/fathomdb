@@ -362,7 +362,7 @@ and no asserted diagnostic was weakened.
 | --- | --- | --- | --- |
 | T-10 (P1) `slice60_fix1_wire` red under `test-hooks` | At `809b0e9f`: `missing required FIX-1 seam measure_graph_expand_for_test` (3 passed, 1 failed) | `71bd7a39` | The seam test scraped only `graph_expand/*.rs`, but `d243ff45` moved four `Engine` test seams into `graph_api.rs`. The scrape now also includes `graph_api.rs`; every needle is kept. The orchestrator signed off on this test-file edit. |
 | T-12 (P3) stale-binary guard false positive | `9a2b6c92`: with a fake cargo that does not relink an existing binary, a `Cargo.toml` touch made the wrapper rebuild on every run (5 builds, expected 4) | `7d36ef53` | The wrapper touches the binary after a successful build. A real `touch` of the gate's `Cargo.toml` and `Cargo.lock` no longer trips the mutation suite's guard. The source-change rebuild arms are unchanged. |
-| T-11 (P2) paths into inline modules dropped | `8a8605af`, `52a2f471`: of 7 compiling bridge mutants, the three root path forms (`crate::`, `super::`, `use crate::`) passed the gate after admitting the one edge it extracted; the regenerated and item-cycle forms missed their diagnostics | `8754d588`, regenerated in `044b7626` | A `crate::`/`super::` path whose first segment is an inline module of `lib.rs` now resolves to `root::<m>`, and every resolved target whose leading item segments name an inline module moves onto that module. The reviewer's bridge now fails as `module graph_expand joins a governed module-level SCC`; bridges that also return to the calling `graph_expand` item fail as `forbidden cycle graph_expand <-> search graph=item` with every edge and module-scc line admitted. Regeneration relabels 17 edges into `test_hooks`' inline hook modules; no other inventory line changed. |
+| T-11 (P2) paths into inline modules dropped | `8a8605af`, `52a2f471`: of 7 compiling bridge mutants, the three root path forms (`crate::`, `super::`, `use crate::`) passed the gate after admitting the one edge it extracted; the regenerated and item-cycle forms missed their diagnostics | `8754d588`, regenerated in `044b7626` | A `crate::`/`super::` path whose first segment is an inline module of `lib.rs` now resolves to `root::<m>`, and every resolved target whose leading item segments name an inline module moves onto that module. The reviewer's bridge now fails as `module graph_expand joins a governed module-level SCC` with the frozen policy or after an edge-only regeneration. A full regeneration that also adds its `module-scc` and `module-cycle` lines admits it: the policy header (`dev/tools/module-boundary-policy.txt`, lines 32-34) lists those as regenerable-with-review inventories, not shrink-only ones, and `forbid-cycle` is enforced only on the item and governed-module graphs. That is the documented module-level design; the new lines show in the reviewed regeneration diff. Bridges that also return to the calling `graph_expand` item fail as `forbidden cycle graph_expand <-> search graph=item` with every edge and module-scc line admitted. Regeneration relabels 17 edges into `test_hooks`' inline hook modules; no other inventory line changed. |
 | T-9 (P2) AC27-85E fixtures not compiled | n/a (test-only; the gate already caught every form) | `733d047e` | 36 `compiled-*` mutants add the stub items they name. With the 7 T-11 bridges, all 43 new mutants pass `cargo check -p fathomdb-engine --lib --profile test --features test-hooks,operator`: 155 of 218 gate runs compile, and every AC27-85E family has one. `status.md` lists them. |
 
 The test-hooks flake
@@ -388,3 +388,40 @@ passes. The ML and GPU sets (`default-embedder`, `default-reranker`,
 
 Counts after test FIX-2: 31 library and 2 binary gate unit tests; 218
 mutation assertions (212 negative, 6 positive); edge inventory 3855 lines.
+
+## Test review FIX-3
+
+Test review cycle 3 of the test FIX-2 head `4cf78446` returned FAIL with
+findings T-13..T-15. Test FIX-3 ran on branch `slice-85-fix` from that head.
+RED was shown with a scratch harness that runs each new mutant against the
+unfixed gate binary (`expect_*` print instead of exiting). GREEN is the
+unmodified `bash scripts/tests/test_module_boundary_gate.sh` (exit 0, 222
+assertions), `scripts/check-module-boundaries.sh` and the gate crate's
+`cargo test`. No mutant was removed and no asserted diagnostic was weakened.
+No engine source changed.
+
+| Finding | RED | GREEN | What changed |
+| --- | --- | --- | --- |
+| T-13 (P2) crate-root re-export of a `lib.rs` inline-module item | `674b41be`: four compiling mutants. `root-reexport-inline-item-cycle` and `root-reexport-inline-module-scc` (`pub(crate) use s85_a::s85_bridge;` at the root, called as `crate::s85_bridge` from `graph_expand`) missed `forbidden cycle graph_expand <-> search graph=item` and the module-level SCC diagnostic: the path ended on the re-export node. `root-alias-unresolved` (`extern crate self as s85_me;` plus a root alias through it) and `extern-crate-self-path` (`s85_me::search::prepare_search_statement` called directly from `graph_expand`) passed the frozen policy outright | `bbbd16cb` | Crate-root alias targets use the inline-module rule: a path whose first segment is a top-level inline module of `lib.rs` resolves to the root and moves into `root::<m>`, both in edge resolution and when a re-export chain is followed. A crate-root alias that names neither an in-crate item nor a dependency declared in the engine manifest (or `std`/`core`/`alloc`/`proc_macro`/`test`) is an error, and so is every `extern crate` declaration, since `extern crate self` renames this crate so that its paths read as another crate's. The engine declares no `extern crate` and every current root alias resolves, so the `--report` inventory is byte-identical to the unfixed gate's and the policy is unchanged. |
+| T-14 (P3) T-11 regeneration claim overstated | n/a (records) | this commit | The "Test review FIX-2" T-11 row above now states that the reviewer's bridge fails with the frozen policy or after an edge-only regeneration and passes after a full regeneration including its `module-scc`/`module-cycle` lines, which are regenerable with review. The FIX-2 implementer record's "shrink-only" wording was wrong; it lived only in that scratch record. `status.md` already called the inventory "frozen, regenerable". |
+| T-15 (P3) `tc5-benchmark` envelope failure tracked only here | n/a (records) | this commit | See below. |
+
+The two `extern crate` forms are a sibling of T-13 found while writing its
+fail-closed rule, not a reviewer finding. The direct form is a compiling
+forbidden `graph_expand -> search` dependency that the FIX-2 gate passed with
+no policy change at all.
+
+`reader_request_envelope_stays_bounded_as_search_capabilities_grow` fails
+when the engine lib is built with `--features tc5-benchmark`
+(`actual=144 bytes`, bound 128). It fails at the commissioned baseline
+`4c75bfec` (measured by test review cycle 3) and at `4cf78446` (measured by
+test review cycle 3 and again here; test FIX-3 changes no engine source), so
+Slice 85 did not cause it. No gate runs that configuration:
+`scripts/test-feature-complete.sh` runs each test once, under the smallest
+feature set that has it, which is the default set here, where it passes. The
+orchestrator is writing a todos-ledger entry for it; this chronology is not
+its tracker.
+
+Counts after test FIX-3: 32 library and 3 binary gate unit tests; 222
+mutation assertions (216 negative, 6 positive), of which 159 gate runs
+compile (the 4 new mutants all compile); edge inventory 3855 lines.

@@ -33,9 +33,12 @@ FIX-1". Test review cycle 2 of the test FIX-1 head (`809b0e9f`) found a
 feature-gated source-scraping test the slice left red, paths into inline
 modules that the gate dropped, AC27-85E fixtures that did not compile, and a
 false positive in the stale-binary guard (T-9..T-12); test FIX-2 remediates
-them, recorded under "Test review FIX-2". The release-state candidate is
-rebound only after these reviews. The sections below describe the gate after
-test FIX-2.
+them, recorded under "Test review FIX-2". Test review cycle 3 of the test
+FIX-2 head (`4cf78446`) found that a crate-root re-export of an item in a
+`lib.rs` inline module still ended paths on the re-export node, plus two
+record defects (T-13..T-15); test FIX-3 remediates them, recorded under "Test
+review FIX-3". The release-state candidate is rebound only after these
+reviews. The sections below describe the gate after test FIX-3.
 
 `code-review.md` and `review-verification.md` describe the original
 candidate `7a2f9bf9` only; the FIX cycles above supersede their counts.
@@ -143,6 +146,14 @@ item-specific policy entry admits it:
   named `include`, renamed or not, alone or in a group: the included source
   is never parsed, and a renamed import would hide the builtin.
   `include_str!` and `include_bytes!` are data, also when renamed;
+- in any module, with no exception, an `extern crate` declaration:
+  `extern crate self as x` renames this crate so that its paths read as
+  another crate's;
+- with no exception, a crate-root `use` whose target is neither an in-crate
+  item (a file module, a `lib.rs` inline module or a root item) nor a crate
+  the engine manifest declares (or `std`, `core`, `alloc`, `proc_macro`,
+  `test`). A crate-root re-export of an item in a `lib.rs` inline module
+  resolves to that inline module (T-13);
 - an untyped dot call in any module whose name is a governed inherent method
   of another module. The 233 receiver entries name the receiver expression
   and its type: 128 `external-receiver` entries on types outside the crate,
@@ -163,8 +174,8 @@ The grammar remains syntactic. Examples of what it does not see:
 
 Warm runtime and peak RSS of `scripts/check-module-boundaries.sh` with a
 cached binary (host: 24-core x86_64, `/usr/bin/time -v`, three runs after
-test FIX-2): 2.14 s / 43,192 KB, 2.14 s / 43,620 KB, 2.14 s / 43,548 KB
-(test FIX-1: 2.11–2.12 s / 43.5–44.0 MB; FIX-4: 2.11–2.13 s / 43.0–43.7 MB; FIX-3: 2.12–2.14 s / 42.7–42.9 MB;
+test FIX-3): 2.33 s / 42,860 KB, 2.34 s / 42,624 KB, 2.26 s / 42,568 KB
+(test FIX-2: 2.14 s / 43.2–43.6 MB; test FIX-1: 2.11–2.12 s / 43.5–44.0 MB; FIX-4: 2.11–2.13 s / 43.0–43.7 MB; FIX-3: 2.12–2.14 s / 42.7–42.9 MB;
 FIX-2: 2.03–2.05 s / 40.4–40.7 MB; FIX-1: 1.64–1.67 s / 34.8–35.1 MB).
 The wrapper and the mutation suite build the gate into
 `dev/tools/module-boundary-gate/target` whatever `CARGO_TARGET_DIR` says, so
@@ -172,15 +183,17 @@ the binary they run is always the one built from the current source; after a
 build the wrapper marks the binary fresh, so a manifest or lockfile edit that
 cargo does not relink for is not judged stale again. The gate reads only the engine sources, its
 manifest and the policy; it performs no whole-workspace indexing. The gate
-crate has 31 library and 2 binary unit tests, and
-`scripts/tests/test_module_boundary_gate.sh` runs 218 production mutation
-assertions (212 negative, 6 positive) in about 7.8 minutes.
+crate has 32 library and 3 binary unit tests, and
+`scripts/tests/test_module_boundary_gate.sh` runs 222 production mutation
+assertions (216 negative, 6 positive) in about 8.3 minutes.
 
 Every fixture family has a compiled negative fixture. A compile check of
 every mutant (`cargo check -p fathomdb-engine --lib --profile test
---features test-hooks,operator`) after test FIX-2: 155 of the 218 gate runs
+--features test-hooks,operator`) after test FIX-3: 159 of the 222 gate runs
 compile and 63 do not. Test FIX-2 added 43 mutants and all 43 compile: 36
-`compiled-*` siblings (T-9) and the 7 inline-module bridges (T-11). The
+`compiled-*` siblings (T-9) and the 7 inline-module bridges (T-11). Test
+FIX-3 added 4 and all 4 compile: the crate-root re-export and `extern crate
+self` forms (T-13). The
 `compiled-*` mutants add the stub items they name, so each AC27-85E family
 has at least one compiling fixture:
 
@@ -243,12 +256,13 @@ that `attribute-string-path` uses.
   `FATHOMDB_FEATURE_COMPLETE=1` gate. That gating predates the slice and is
   unchanged.
 - **AC27-85C/D/E:** exact policy, whole-crate extraction (including paths
-  into inline modules of `lib.rs` and other files, T-11), item and
+  into inline modules of `lib.rs` and other files, T-11, and crate-root
+  re-exports of `lib.rs` inline-module items, T-13), item and
   governed-module SCCs, the frozen module-level cycle inventory,
   source-derived inventories, 248 configurations, cache behavior, negative
   grammar fixtures, macro-body extraction and fingerprinting, and production
   mutants pass. Every AC27-85E family has at least one compiled negative
-  fixture (155 of 218 gate runs compile; the list is above); the 63
+  fixture (159 of 222 gate runs compile; the list is above); the 63
   non-compiling mutants are additional syntactic evidence.
 - **AC27-85F:** exact pre-move commissioning evidence is retained. On the
   reviewed candidate, focused runtime/build checks pass, public surface is
@@ -258,9 +272,14 @@ that `attribute-string-path` uses.
   `slice60_fix1_wire` was red at that candidate (see the correction in
   `review-verification.md`); test FIX-2 points it at `graph_api.rs`, and every
   non-ML feature-gated engine target passes serially after test FIX-2. One
-  lib test fails only when the lib is built with `tc5-benchmark`, and that
-  failure predates the slice (runs in `tdd-chronology.md`, "Test review
-  FIX-2").
+  lib test, `reader_request_envelope_stays_bounded_as_search_capabilities_grow`,
+  fails when the lib is built with `--features tc5-benchmark` (`actual=144
+  bytes`, bound 128) at both the commissioned baseline `4c75bfec` and the
+  test FIX-2 head `4cf78446`, so Slice 85 did not cause it. No gate runs that
+  configuration: the feature-complete gate runs the test under default
+  features only, where it passes. The orchestrator is writing a todos-ledger
+  entry for it (runs in `tdd-chronology.md`, "Test review FIX-2" and "Test
+  review FIX-3").
 - **AC27-85G:** no AC-037 qualification is claimed; Slice 150 still owns the
   exact-final-candidate live run.
 

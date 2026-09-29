@@ -60,6 +60,10 @@ pub struct Edge {
     pub kind: EdgeKind,
     pub target: String,
     pub source_scope: String,
+    /// The inline scope in which `target` is written: the source scope,
+    /// except for a path substituted from a file-level `use` alias, which is
+    /// written at file level.
+    pub target_scope: String,
     pub source_item: String,
     pub location: Location,
     pub configurations: ConfigSet,
@@ -137,6 +141,9 @@ pub struct Analysis {
     /// implementing type itself: the only calls `let x = Type::f(..)` types.
     pub constructors: BTreeSet<(String, String)>,
     pub declared_items: BTreeSet<String>,
+    /// `(inline scope, name)` of every declared item, so a path can be
+    /// checked against the scope that actually declares it.
+    pub scoped_items: BTreeSet<(String, String)>,
     pub local_functions: BTreeMap<String, Location>,
     pub import_aliases: BTreeMap<String, String>,
     /// `use` aliases declared inside inline modules, keyed by the inline
@@ -209,7 +216,7 @@ struct Analyzer<'s> {
     /// `fn` names defined in each local `macro_rules!` body.
     local_macro_fns: BTreeMap<String, BTreeSet<String>>,
     /// Item-position invocations of a macro: `(macro, first identifier)`.
-    item_macro_invocations: Vec<(String, String)>,
+    item_macro_invocations: Vec<(String, String, String)>,
 }
 
 impl<'s> Analyzer<'s> {
@@ -237,8 +244,9 @@ impl<'s> Analyzer<'s> {
     /// `macro_rules!` (its first identifier argument) is declared here and
     /// has the `fn`s the macro body defines.
     fn resolve_generated_types(&mut self) {
-        for (name, ty) in std::mem::take(&mut self.item_macro_invocations) {
+        for (name, ty, scope) in std::mem::take(&mut self.item_macro_invocations) {
             let Some(functions) = self.local_macro_fns.get(&name) else { continue };
+            self.analysis.scoped_items.insert((scope, ty.clone()));
             self.analysis.declared_items.insert(ty.clone());
             for function in functions {
                 self.analysis.impl_methods.insert((ty.clone(), function.clone()));
@@ -271,6 +279,7 @@ impl<'s> Analyzer<'s> {
             kind,
             target: target.into(),
             source_scope: self.module_stack.join("::"),
+            target_scope: self.module_stack.join("::"),
             source_item: self.item_stack.last().cloned().unwrap_or_else(|| "<module>".to_string()),
             location: span.into(),
             configurations: self.configurations,
@@ -280,7 +289,9 @@ impl<'s> Analyzer<'s> {
     }
 
     fn declared(&mut self, name: impl Into<String>) {
-        self.analysis.declared_items.insert(name.into());
+        let name = name.into();
+        self.analysis.scoped_items.insert((self.module_stack.join("::"), name.clone()));
+        self.analysis.declared_items.insert(name);
     }
 
     fn push_scope(&mut self, bindings: BTreeSet<String>, types: BTreeMap<String, String>) {
@@ -726,6 +737,9 @@ impl<'s> Analyzer<'s> {
                     let qualified =
                         rest.map_or_else(|| owner.clone(), |rest| format!("{owner}::{rest}"));
                     resolved_edge.target = format!("{method}>:{qualified}");
+                    if scoped.and_then(|aliases| aliases.get(head)).is_none() {
+                        resolved_edge.target_scope = String::new();
+                    }
                 }
                 resolved.insert(resolved_edge);
                 continue;
@@ -745,6 +759,11 @@ impl<'s> Analyzer<'s> {
                     kind: edge.kind.clone(),
                     target,
                     source_scope: edge.source_scope.clone(),
+                    target_scope: if scoped_alias.is_some() {
+                        edge.source_scope.clone()
+                    } else {
+                        String::new()
+                    },
                     source_item: edge.source_item.clone(),
                     location: edge.location,
                     configurations: edge.configurations,
@@ -896,7 +915,8 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
             location: item.ident.span().into(),
             configurations: self.configurations,
         });
-        self.declared(item.ident.to_string());
+        // A module is a namespace, not an item: `scoped_items` excludes it.
+        self.analysis.declared_items.insert(item.ident.to_string());
         if item.content.is_some() {
             self.module_depth += 1;
             self.module_stack.push(item.ident.to_string());
@@ -1205,7 +1225,11 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         if let (Some(name), Some(TokenTree::Ident(first))) =
             (item.mac.path.get_ident(), item.mac.tokens.clone().into_iter().next())
         {
-            self.item_macro_invocations.push((name.to_string(), first.to_string()));
+            self.item_macro_invocations.push((
+                name.to_string(),
+                first.to_string(),
+                self.module_stack.join("::"),
+            ));
         }
         visit::visit_item_macro(self, item);
     }
@@ -1297,6 +1321,7 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
                 kind: EdgeKind::Callable,
                 target,
                 source_scope: self.module_stack.join("::"),
+                target_scope: self.module_stack.join("::"),
                 source_item: self
                     .item_stack
                     .last()
@@ -1890,6 +1915,7 @@ fn collect_use_tree(
                 kind: kind.clone(),
                 target,
                 source_scope: source_scope.to_string(),
+                target_scope: source_scope.to_string(),
                 source_item: use_source_item(source_item, &kind, &binding),
                 location: name.ident.span().into(),
                 configurations,
@@ -1908,6 +1934,7 @@ fn collect_use_tree(
                 kind: kind.clone(),
                 target,
                 source_scope: source_scope.to_string(),
+                target_scope: source_scope.to_string(),
                 source_item: use_source_item(source_item, &kind, &rename.rename.to_string()),
                 location: rename.ident.span().into(),
                 configurations,
@@ -1924,6 +1951,7 @@ fn collect_use_tree(
                 kind: kind.clone(),
                 target: target.join("::"),
                 source_scope: source_scope.to_string(),
+                target_scope: source_scope.to_string(),
                 source_item: use_source_item(source_item, &kind, "*"),
                 location,
                 configurations,
@@ -2185,6 +2213,29 @@ mod tests {
             analysis.unsupported_cfg,
             BTreeSet::from(["feature = \"slice85-unknown\"".to_string()])
         );
+    }
+
+    #[test]
+    fn items_are_scoped_and_file_level_alias_targets_keep_their_scope() {
+        let analysis = analyze(
+            "use crate::search::run;\nfn top() {}\nmod inner {\n    use super::*;\n    \
+             pub(crate) use crate::fusion::fused as local;\n    struct Nested;\n    \
+             fn call() { run(); local(); }\n}\n",
+        )
+        .expect("fixture parses");
+        assert!(analysis.scoped_items.contains(&(String::new(), "top".to_string())));
+        assert!(analysis.scoped_items.contains(&("inner".to_string(), "Nested".to_string())));
+        assert!(!analysis.scoped_items.iter().any(|(_, name)| name == "inner"));
+        let call = |target: &str| {
+            analysis
+                .edges
+                .iter()
+                .find(|edge| edge.source_item == "call" && edge.target == target)
+                .unwrap_or_else(|| panic!("edge {target}: {:?}", analysis.edges))
+                .clone()
+        };
+        assert_eq!(call("crate::search::run").target_scope, "");
+        assert_eq!(call("crate::fusion::fused").target_scope, "inner");
     }
 
     #[test]

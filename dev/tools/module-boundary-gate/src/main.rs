@@ -616,15 +616,14 @@ fn evaluate(
     }
 
     let root_aliases = root.map(|module| &module.analysis.import_aliases);
+    let namespaces = Namespaces::new(modules);
     // A crate-root alias that resolves to no in-crate item and names no
     // declared dependency would end every path through it on the alias
     // itself, severing the item and module graphs.
     for (name, target) in root_aliases.into_iter().flatten() {
         let first = target.split("::").next().unwrap_or(target);
         if external_crates.contains(first)
-            || qualify_alias("root", target, modules)
-                .and_then(|path| resolve_crate_path(&path, modules))
-                .is_some()
+            || matches!(namespaces.resolve("root", target, Want::Module), Resolution::InCrate(_))
             || root.is_some_and(|root| root.analysis.declared_items.contains(first))
         {
             continue;
@@ -711,16 +710,53 @@ fn evaluate(
         }
         for edge in &info.analysis.edges {
             let source_module = scoped_module(module, &edge.source_scope);
+            let resolved = edge_targets(
+                module,
+                edge,
+                modules,
+                &namespaces,
+                &engine_fields,
+                &policy.field_owners,
+                &method_owners,
+            );
+            let mut targets = match resolved {
+                Ok(targets) => targets,
+                Err(reason) => {
+                    errors.push(format!(
+                        "unresolved in-crate path {} at {}:{}:{} source={source_module} \
+                         source_item={} kind={}: {reason}; every in-crate path must resolve to a \
+                         declared item or module, so the gate fails closed rather than read it as \
+                         another crate's",
+                        edge.target,
+                        relative(source_root, &info.file),
+                        edge.location.line,
+                        edge.location.column,
+                        edge.source_item,
+                        edge.kind.as_str()
+                    ));
+                    BTreeSet::new()
+                }
+            };
+            // A `use` that names nothing in the crate must name a declared
+            // dependency; otherwise it hides a path from the resolver.
+            if matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport) && targets.is_empty() {
+                let head = edge.target.split("::").next().unwrap_or(&edge.target);
+                let written = scoped_module(module, &edge.target_scope);
+                if !matches!(head, "crate" | "self" | "super")
+                    && !external_crates.contains(head)
+                    && !namespaces.binds(&written, head)
+                {
+                    errors.push(format!(
+                        "unresolved in-crate path {} at {}:{}:{} source={source_module}: a `use` \
+                         must name an in-crate item or module or a declared dependency",
+                        edge.target,
+                        relative(source_root, &info.file),
+                        edge.location.line,
+                        edge.location.column
+                    ));
+                }
+            }
             if edge.configurations.is_empty() {
-                let targets = edge_targets(
-                    &source_module,
-                    edge,
-                    modules,
-                    root_aliases,
-                    &engine_fields,
-                    &policy.field_owners,
-                    &method_owners,
-                );
                 if frozen_scope(policy, &source_module)
                     || targets.iter().any(|target| frozen_scope(policy, &target.module))
                 {
@@ -754,7 +790,7 @@ fn evaluate(
             }
             if governed
                 && matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport | EdgeKind::Type)
-                && root_reexport_indirection(&source_module, &edge.target, root_aliases)
+                && root_reexport_indirection(&source_module, &edge.target, &namespaces)
             {
                 errors.push(format!(
                     "governed root re-export indirection at {}:{}:{} item={}; import the semantic owner",
@@ -777,15 +813,6 @@ fn evaluate(
                     edge.target
                 ));
             }
-            let mut targets = edge_targets(
-                &source_module,
-                edge,
-                modules,
-                root_aliases,
-                &engine_fields,
-                &policy.field_owners,
-                &method_owners,
-            );
             if edge.kind == EdgeKind::Callable {
                 if let Some(rest) = edge.target.strip_prefix(".<") {
                     let (method, receiver_type) = rest
@@ -845,7 +872,7 @@ fn evaluate(
                                 .receivers
                                 .get(&key)
                                 .filter(|entry| entry.typed)
-                                .and_then(|entry| resolve_type(&entry.ty, modules))
+                                .and_then(|entry| resolve_type(&entry.ty, &namespaces))
                                 .map(|target| {
                                     chase_reexports(
                                         ResolvedTarget {
@@ -853,6 +880,7 @@ fn evaluate(
                                             item: format!("{}::{method}", target.item),
                                         },
                                         modules,
+                                        &namespaces,
                                     )
                                     .into_iter()
                                     .map(|target| inline_owner(target, modules))
@@ -1056,7 +1084,7 @@ fn evaluate(
             ));
         }
         let owner = entry.ty.rsplit("::").next().unwrap_or(&entry.ty);
-        let resolved = resolve_type(&entry.ty, modules);
+        let resolved = resolve_type(&entry.ty, &namespaces);
         if entry.typed {
             if resolved.is_none() || !impl_methods.contains(&(owner.to_string(), method.clone())) {
                 errors.push(format!(
@@ -1293,18 +1321,14 @@ fn direct_reader_request_variant(target: &str) -> bool {
     })
 }
 
-fn root_reexport_indirection(
-    module: &str,
-    target: &str,
-    root_aliases: Option<&BTreeMap<String, String>>,
-) -> bool {
+fn root_reexport_indirection(module: &str, target: &str, namespaces: &Namespaces) -> bool {
     // `super::X` from a top-level module names the root just as `crate::X`.
     let relative = qualify_relative(module, target);
     let Some(rest) = target.strip_prefix("crate::").or(relative.as_deref()) else {
         return false;
     };
     let first = rest.split("::").next().unwrap_or(rest);
-    root_aliases.is_some_and(|aliases| aliases.contains_key(first))
+    namespaces.imported_at_root(first)
 }
 
 /// Associated functions that return `Self` through a derivable trait, so
@@ -1743,33 +1767,39 @@ fn reject_unparsed_macros(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Resolves an edge's target through the crate's namespaces, then follows
+/// `type` aliases to what they name. Every resolved destination must be a
+/// declared item (or, for a `use`, a module or its glob); an in-crate path
+/// that names nothing declared is an error, never another crate's path.
 fn edge_targets(
-    module: &str,
+    file_module: &str,
     edge: &fathomdb_module_boundary_gate::Edge,
     modules: &BTreeMap<String, ModuleInfo>,
-    root_aliases: Option<&BTreeMap<String, String>>,
+    namespaces: &Namespaces,
     engine_fields: &BTreeSet<String>,
     field_owners: &BTreeMap<String, String>,
     method_owners: &MethodOwners,
-) -> BTreeSet<ResolvedTarget> {
+) -> Result<BTreeSet<ResolvedTarget>, String> {
     let targets = direct_edge_targets(
-        module,
+        file_module,
         edge,
-        modules,
-        root_aliases,
+        namespaces,
         engine_fields,
         field_owners,
         method_owners,
-    );
+    )?;
     if matches!(edge.kind, EdgeKind::FieldAccess | EdgeKind::EngineMethod) {
-        return targets;
+        return Ok(targets);
     }
-    targets
+    let targets = targets
         .into_iter()
-        .flat_map(|target| chase_reexports(target, modules))
+        .flat_map(|target| chase_reexports(target, modules, namespaces))
         .map(|target| inline_owner(target, modules))
-        .collect()
+        .collect::<BTreeSet<_>>();
+    for target in &targets {
+        namespaces.check_declared(target, &edge.kind)?;
+    }
+    Ok(targets)
 }
 
 /// The inline modules of a file module, by scope-qualified name.
@@ -1813,46 +1843,39 @@ fn inline_owner(target: ResolvedTarget, modules: &BTreeMap<String, ModuleInfo>) 
     }
 }
 
-/// Follows `use` aliases (at any visibility, since descendants may name a
-/// parent's private import), `use` aliases inside inline modules, `type`
-/// aliases and single-candidate glob re-exports from the module a path
-/// resolved to, until the path reaches its defining module. A `use` alias is
-/// replaced by what it names; a `type` alias is kept and every in-crate path
-/// its definition names is added. Chains that leave the crate stop at the
-/// last in-crate hop.
+/// Follows `type` aliases (and associated-type bindings `impl Trait for
+/// Owner { type Name = P; }`) from a resolved item: the alias is kept and
+/// every in-crate path its definition names is added, resolved in the
+/// alias's own namespace. `use` re-exports need no chasing here: the
+/// namespace resolver already followed them to the declaring module.
 fn chase_reexports(
     start: ResolvedTarget,
     modules: &BTreeMap<String, ModuleInfo>,
+    namespaces: &Namespaces,
 ) -> BTreeSet<ResolvedTarget> {
     let mut results = BTreeSet::new();
-    let mut pending = vec![start.clone()];
+    let mut pending = vec![start];
     let mut seen = BTreeSet::new();
     while let Some(current) = pending.pop() {
         if !seen.insert(current.clone()) {
             continue;
         }
-        let (keep, next) = chase_step(&current, modules);
-        if keep || next.is_empty() {
-            results.insert(current);
-        }
-        pending.extend(next);
-    }
-    if results.is_empty() {
-        results.insert(start);
+        pending.extend(chase_step(&current, modules, namespaces));
+        results.insert(current);
     }
     results
 }
 
-/// One resolution hop: whether `current` itself stays a target, and the
-/// targets it leads to.
+/// The in-crate paths a `type` alias at `current` names.
 fn chase_step(
     current: &ResolvedTarget,
     modules: &BTreeMap<String, ModuleInfo>,
-) -> (bool, Vec<ResolvedTarget>) {
+    namespaces: &Namespaces,
+) -> Vec<ResolvedTarget> {
     if current.item == "<module>" {
-        return (true, Vec::new());
+        return Vec::new();
     }
-    let Some(info) = modules.get(&current.module) else { return (true, Vec::new()) };
+    let Some(info) = modules.get(&current.module) else { return Vec::new() };
     let segments = current.item.split("::").collect::<Vec<_>>();
     let inline_scopes = inline_scopes(info);
     let depth = (0..segments.len())
@@ -1862,165 +1885,46 @@ fn chase_step(
     let scope = segments[..depth].join("::");
     let head = segments[depth];
     let rest = (depth + 1 < segments.len()).then(|| segments[depth + 1..].join("::"));
-    let scoped_module = scoped_module(&current.module, &scope);
-    let aliases = if scope.is_empty() {
-        Some(&info.analysis.import_aliases)
-    } else {
-        info.analysis.scoped_aliases.get(&scope)
+    let node = scoped_module(&current.module, &scope);
+    let resolve = |path: &str| match namespaces.resolve(&node, path, Want::Item) {
+        Resolution::InCrate(target) => Some(namespaces.file_form(target)),
+        Resolution::External | Resolution::Unresolved(_) => None,
     };
-    let with_rest =
-        |path: String| rest.as_ref().map_or_else(|| path.clone(), |rest| format!("{path}::{rest}"));
-    if let Some(alias) = aliases.and_then(|aliases| aliases.get(head)) {
-        let next = qualify_alias(&scoped_module, alias, modules)
-            .and_then(|path| resolve_crate_path(&with_rest(path), modules));
-        return (next.is_none(), next.into_iter().collect());
-    }
     let alias_key = if scope.is_empty() { head.to_string() } else { format!("{scope}::{head}") };
-    // `Owner::Name` names an associated-type binding `impl Trait for Owner
-    // { type Name = P; }`: kept, and every in-crate path it names is added.
     if let Some(binding) = rest
         .as_ref()
         .and_then(|rest| info.analysis.type_aliases.get(&format!("{alias_key}::{rest}")))
     {
-        let qualify = |path: &str| qualify_in_scope(&current.module, &scope, info, path, modules);
-        let next = binding
+        return binding
             .mentioned
             .iter()
             .chain(&binding.primary)
-            .filter_map(|path| qualify(path).and_then(|path| resolve_path(&path, modules)))
+            .filter_map(|path| resolve(path))
             .collect();
-        return (true, next);
     }
-    if let Some(alias) = info.analysis.type_aliases.get(&alias_key) {
-        let qualify = |path: &str| qualify_in_scope(&current.module, &scope, info, path, modules);
-        let mut next = Vec::new();
-        if let Some(primary) = &alias.primary {
-            next.extend(qualify(primary).and_then(|path| resolve_path(&with_rest(path), modules)));
-        }
-        for path in alias.mentioned.iter().filter(|path| Some(*path) != alias.primary.as_ref()) {
-            next.extend(qualify(path).and_then(|path| resolve_path(&path, modules)));
-        }
-        return (true, next);
+    let Some(alias) = info.analysis.type_aliases.get(&alias_key) else { return Vec::new() };
+    let mut next = Vec::new();
+    if let Some(primary) = &alias.primary {
+        let path =
+            rest.as_ref().map_or_else(|| primary.clone(), |rest| format!("{primary}::{rest}"));
+        next.extend(resolve(&path));
     }
-    if info.analysis.declared_items.contains(head) {
-        return (true, Vec::new());
+    for path in alias.mentioned.iter().filter(|path| Some(*path) != alias.primary.as_ref()) {
+        next.extend(resolve(path));
     }
-    let candidates = info
-        .analysis
-        .edges
-        .iter()
-        .filter(|edge| {
-            matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport)
-                && edge.source_scope == scope
-                && edge.target.ends_with("::*")
-        })
-        .filter_map(|glob| {
-            let namespace =
-                qualify_glob_namespace(&scoped_module, glob.target.trim_end_matches("::*"));
-            modules
-                .get(&namespace)
-                .filter(|owner| {
-                    owner.analysis.declared_items.contains(head)
-                        || owner.analysis.import_aliases.contains_key(head)
-                })
-                .map(|_| format!("{namespace}::{head}"))
-        })
-        .collect::<BTreeSet<_>>();
-    if candidates.len() != 1 {
-        return (true, Vec::new());
-    }
-    let next =
-        candidates.into_iter().next().and_then(|path| resolve_path(&with_rest(path), modules));
-    (next.is_none(), next.into_iter().collect())
+    next
 }
 
-/// Qualifies a path written in a `type` definition inside `module` (and its
-/// inline `scope`) to a crate-relative path, or `None` for another crate.
-fn qualify_in_scope(
-    module: &str,
-    scope: &str,
-    info: &ModuleInfo,
-    path: &str,
-    modules: &BTreeMap<String, ModuleInfo>,
-) -> Option<String> {
-    let scoped = scoped_module(module, scope);
-    let (head, rest) =
-        path.split_once("::").map_or((path, None), |(head, rest)| (head, Some(rest)));
-    if matches!(head, "crate" | "self" | "super") {
-        return qualify_alias(&scoped, path, modules);
-    }
-    let alias = if scope.is_empty() { None } else { info.analysis.scoped_aliases.get(scope) }
-        .and_then(|aliases| aliases.get(head))
-        .or_else(|| info.analysis.import_aliases.get(head));
-    if let Some(alias) = alias {
-        let full = rest.map_or_else(|| alias.clone(), |rest| format!("{alias}::{rest}"));
-        return qualify_alias(&scoped, &full, modules);
-    }
-    if info.analysis.declared_items.contains(head) {
-        return Some(if scoped == "root" { path.to_string() } else { format!("{scoped}::{path}") });
-    }
-    qualify_alias(&scoped, path, modules)
-}
-
-/// Qualifies a `use` path written inside `module` to a crate-relative path
-/// (without `crate::`), or `None` when it names another crate.
-fn qualify_alias(
-    module: &str,
-    alias: &str,
-    modules: &BTreeMap<String, ModuleInfo>,
-) -> Option<String> {
-    if let Some(rest) = alias.strip_prefix("crate::") {
-        return Some(rest.to_string());
-    }
-    let mut base = module.to_string();
-    let mut rest = alias;
-    let mut relative = false;
-    loop {
-        if let Some(tail) = rest.strip_prefix("super::") {
-            base = base.rsplit_once("::").map_or("root", |(parent, _)| parent).to_string();
-            rest = tail;
-            relative = true;
-        } else if let Some(tail) = rest.strip_prefix("self::") {
-            rest = tail;
-            relative = true;
-        } else {
-            break;
-        }
-    }
-    let joined = if base == "root" { rest.to_string() } else { format!("{base}::{rest}") };
-    if relative {
-        return Some(joined);
-    }
-    let first = rest.split("::").next().unwrap_or(rest);
-    let child = if base == "root" { first.to_string() } else { format!("{base}::{first}") };
-    (modules.contains_key(&child) || declares_inline_module(&base, first, modules))
-        .then_some(joined)
-}
-
-fn declares_inline_module(
-    module: &str,
-    name: &str,
-    modules: &BTreeMap<String, ModuleInfo>,
-) -> bool {
-    modules.get(module).is_some_and(|info| {
-        info.analysis.modules.iter().any(|declaration| {
-            declaration.inline && declaration.scope.is_empty() && declaration.name == name
-        })
-    })
-}
-
-#[allow(clippy::too_many_arguments)]
 fn direct_edge_targets(
-    module: &str,
+    file_module: &str,
     edge: &fathomdb_module_boundary_gate::Edge,
-    modules: &BTreeMap<String, ModuleInfo>,
-    root_aliases: Option<&BTreeMap<String, String>>,
+    namespaces: &Namespaces,
     engine_fields: &BTreeSet<String>,
     field_owners: &BTreeMap<String, String>,
     method_owners: &MethodOwners,
-) -> BTreeSet<ResolvedTarget> {
+) -> Result<BTreeSet<ResolvedTarget>, String> {
     if edge.kind == EdgeKind::FieldAccess {
-        return if engine_fields.contains(&edge.target) {
+        return Ok(if engine_fields.contains(&edge.target) {
             field_owners
                 .get(&edge.target)
                 .map(|owner| ResolvedTarget { module: owner.clone(), item: edge.target.clone() })
@@ -2028,141 +1932,55 @@ fn direct_edge_targets(
                 .collect()
         } else {
             BTreeSet::new()
-        };
+        });
     }
     if edge.kind == EdgeKind::EngineMethod {
-        return method_owners
+        return Ok(method_owners
             .get(&edge.target)
             .into_iter()
             .flat_map(BTreeMap::keys)
             .map(|owner| ResolvedTarget { module: owner.clone(), item: edge.target.clone() })
-            .collect();
+            .collect());
     }
     if let Some(rest) = edge.target.strip_prefix(".<") {
         let Some((method, receiver_type)) = rest.split_once(">:") else {
-            return BTreeSet::new();
+            return Ok(BTreeSet::new());
         };
         let mut typed = edge.clone();
         typed.target = format!("{receiver_type}::{method}");
         return direct_edge_targets(
-            module,
+            file_module,
             &typed,
-            modules,
-            root_aliases,
+            namespaces,
             engine_fields,
             field_owners,
             method_owners,
         );
     }
-    let relative = qualify_relative(module, &edge.target);
-    let mut target = edge.target.as_str();
-    let crate_qualified = target.starts_with("crate::") || relative.is_some();
-    if let Some(rest) = target.strip_prefix("crate::") {
-        target = rest;
-    } else if let Some(qualified) = &relative {
-        // A relative path that reaches the crate root resolves like
-        // `crate::`: through root re-exports and root items.
-        target = qualified;
-    }
-    if let Some(owner) = resolve_path(target, modules) {
-        return BTreeSet::from([owner]);
-    }
-    let first = target.split("::").next().unwrap_or(target);
-    // No file module prefixes a path into an inline module of lib.rs; it is
-    // a root path whose inline segments `inline_owner` moves into the module.
-    if crate_qualified && declares_inline_module("root", first, modules) {
-        return BTreeSet::from([ResolvedTarget {
-            module: "root".to_string(),
-            item: target.to_string(),
-        }]);
-    }
-    if let Some(root_target) = root_aliases.and_then(|aliases| aliases.get(first)) {
-        let root_target = root_target.strip_prefix("crate::").unwrap_or(root_target);
-        if let Some(owner) = resolve_crate_path(root_target, modules) {
-            return BTreeSet::from([owner]);
-        }
-    }
-    if edge.kind == EdgeKind::Callable && !target.contains("::") {
-        let physical = modules
-            .keys()
-            .filter(|candidate| {
-                module == candidate.as_str() || module.starts_with(&format!("{candidate}::"))
-            })
-            .max_by_key(|candidate| candidate.len())
-            .map_or(module, String::as_str);
-        if !crate_qualified
-            && modules
-                .get(physical)
-                .is_some_and(|info| info.analysis.local_functions.contains_key(target))
-        {
-            return BTreeSet::from([ResolvedTarget {
-                module: module.to_string(),
-                item: target.to_string(),
-            }]);
-        }
-        let mut candidates = BTreeSet::new();
-        if let Some(info) = modules.get(physical) {
-            for glob in info.analysis.edges.iter().filter(|candidate| {
-                candidate.kind == EdgeKind::Import
-                    && candidate.target.ends_with("::*")
-                    && candidate.source_scope == edge.source_scope
-            }) {
-                let namespace = glob.target.trim_end_matches("::*");
-                let namespace = qualify_glob_namespace(module, namespace);
-                if namespace == "root" {
-                    if let Some(root_target) = root_aliases.and_then(|aliases| aliases.get(target))
-                    {
-                        let root_target =
-                            root_target.strip_prefix("crate::").unwrap_or(root_target);
-                        if let Some(owner) = resolve_crate_path(root_target, modules) {
-                            candidates.insert(owner);
-                        }
-                    } else if modules
-                        .get("root")
-                        .is_some_and(|root| root.analysis.declared_items.contains(target))
-                    {
-                        candidates.insert(ResolvedTarget {
-                            module: "root".to_string(),
-                            item: target.to_string(),
-                        });
-                    }
-                } else if let Some(owner) = modules.get(&namespace) {
-                    if owner.analysis.declared_items.contains(target) {
-                        candidates
-                            .insert(ResolvedTarget { module: namespace, item: target.to_string() });
-                    }
-                }
+    let node = scoped_module(file_module, &edge.target_scope);
+    let use_edge = matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport);
+    if let Some(prefix) = edge.target.strip_suffix("::*").filter(|_| use_edge) {
+        return match namespaces.resolve(&node, prefix, Want::Module) {
+            Resolution::InCrate(target) if target.item == "<module>" => {
+                Ok(BTreeSet::from([ResolvedTarget {
+                    module: target.module,
+                    item: "*".to_string(),
+                }]))
             }
-        }
-        if !candidates.is_empty() {
-            return candidates;
-        }
+            Resolution::InCrate(target) => Err(format!(
+                "glob import of the in-crate item {}#{}; import its names explicitly",
+                target.module, target.item
+            )),
+            Resolution::External => Ok(BTreeSet::new()),
+            Resolution::Unresolved(reason) => Err(reason),
+        };
     }
-    if modules.get("root").is_some_and(|root| root.analysis.declared_items.contains(target)) {
-        return BTreeSet::from([ResolvedTarget {
-            module: "root".to_string(),
-            item: target.to_string(),
-        }]);
+    let want = if use_edge { Want::Module } else { Want::Item };
+    match namespaces.resolve(&node, &edge.target, want) {
+        Resolution::InCrate(target) => Ok(BTreeSet::from([namespaces.file_form(target)])),
+        Resolution::External => Ok(BTreeSet::new()),
+        Resolution::Unresolved(reason) => Err(reason),
     }
-    if !crate_qualified && target.contains("::") {
-        let head = target.split("::").next().unwrap_or(target);
-        let physical = modules
-            .keys()
-            .filter(|candidate| {
-                module == candidate.as_str() || module.starts_with(&format!("{candidate}::"))
-            })
-            .max_by_key(|candidate| candidate.len());
-        if physical
-            .and_then(|physical| modules.get(physical))
-            .is_some_and(|info| info.analysis.declared_items.contains(head))
-        {
-            return BTreeSet::from([ResolvedTarget {
-                module: module.to_string(),
-                item: target.to_string(),
-            }]);
-        }
-    }
-    BTreeSet::new()
 }
 
 /// Resolves any chain of leading `self::`/`super::` segments against
@@ -2185,68 +2003,338 @@ fn qualify_relative(module: &str, target: &str) -> Option<String> {
     relative.then(|| if base == "root" { rest.to_string() } else { format!("{base}::{rest}") })
 }
 
-fn qualify_glob_namespace(module: &str, namespace: &str) -> String {
-    if namespace == "crate" {
-        return "root".to_string();
+/// A crate-relative type path (`module::Type`, or `Type` for a root item,
+/// through any re-export), in file form.
+fn resolve_type(ty: &str, namespaces: &Namespaces) -> Option<ResolvedTarget> {
+    match namespaces.resolve("root", ty, Want::Item) {
+        Resolution::InCrate(target) if target.item != "<module>" => {
+            Some(namespaces.file_form(target))
+        }
+        _ => None,
     }
-    if let Some(rest) = namespace.strip_prefix("crate::") {
-        return rest.to_string();
-    }
-    if namespace == "self" {
-        return module.to_string();
-    }
-    if let Some(rest) = namespace.strip_prefix("self::") {
-        return if module == "root" { rest.to_string() } else { format!("{module}::{rest}") };
-    }
-    if namespace == "super" {
-        return module.rsplit_once("::").map_or("root", |(parent, _)| parent).to_string();
-    }
-    if let Some(rest) = namespace.strip_prefix("super::") {
-        let parent = module.rsplit_once("::").map_or("root", |(parent, _)| parent);
-        return if parent == "root" { rest.to_string() } else { format!("{parent}::{rest}") };
-    }
-    namespace.to_string()
 }
 
-/// A crate-relative type path (`module::Type`, or `Type` for a root item).
-fn resolve_type(ty: &str, modules: &BTreeMap<String, ModuleInfo>) -> Option<ResolvedTarget> {
-    resolve_path(ty, modules).filter(|target| target.item != "<module>").or_else(|| {
-        (!ty.contains("::")
-            && modules.get("root").is_some_and(|root| root.analysis.declared_items.contains(ty)))
-        .then(|| ResolvedTarget { module: "root".to_string(), item: ty.to_string() })
-    })
+/// Which namespace a path's last segment prefers when a scope declares both
+/// a module and an item of that name.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Want {
+    Module,
+    Item,
 }
 
-/// Resolves a crate-relative path like `resolve_path`, and also a path into
-/// an inline module of lib.rs, which no file module prefixes: it stays a root
-/// path whose inline segments `inline_owner` moves into the module.
-fn resolve_crate_path(
-    target: &str,
-    modules: &BTreeMap<String, ModuleInfo>,
-) -> Option<ResolvedTarget> {
-    resolve_path(target, modules).or_else(|| {
-        let first = target.split("::").next().unwrap_or(target);
-        declares_inline_module("root", first, modules)
-            .then(|| ResolvedTarget { module: "root".to_string(), item: target.to_string() })
-    })
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum Resolution {
+    /// A declared item of the namespace `module` (a namespace node such as
+    /// `search`, `root::m` or `fusion::m`), `item` naming it and any
+    /// associated segments; `<module>` for the namespace itself.
+    InCrate(ResolvedTarget),
+    /// Names nothing in this crate: another crate, the prelude or a local.
+    External,
+    /// An in-crate path that names nothing declared.
+    Unresolved(String),
 }
 
-fn resolve_path(target: &str, modules: &BTreeMap<String, ModuleInfo>) -> Option<ResolvedTarget> {
-    let module = longest_module_prefix(target, modules)?;
-    let item = target
-        .strip_prefix(&module)
-        .and_then(|rest| rest.strip_prefix("::"))
-        .unwrap_or("<module>")
-        .to_string();
-    Some(ResolvedTarget { module, item })
+/// One namespace: a file module or an inline module in one.
+struct Namespace {
+    file: String,
+    scope: String,
+    children: BTreeMap<String, String>,
+    items: BTreeSet<String>,
+    bindings: BTreeMap<String, String>,
+    /// Glob imports: the namespace path as written (without `::*`) and the
+    /// node of the scope it is written in.
+    globs: Vec<(String, String)>,
 }
 
-fn longest_module_prefix(target: &str, modules: &BTreeMap<String, ModuleInfo>) -> Option<String> {
-    let segments = target.split("::").collect::<Vec<_>>();
-    (1..=segments.len())
-        .rev()
-        .map(|end| segments[..end].join("::"))
-        .find(|candidate| modules.contains_key(candidate))
+/// Rust 2018 path resolution over the crate's namespaces: `crate`, `self`
+/// and `super` anchors; child modules, declared items, `use` bindings (at any
+/// visibility, since descendants see private imports) and glob imports,
+/// chased to the declaring namespace. A path whose first segment names
+/// nothing in its namespace is another crate's, the prelude's or a local's;
+/// once a path is in the crate, every further segment must resolve.
+struct Namespaces {
+    spaces: BTreeMap<String, Namespace>,
+}
+
+impl Namespaces {
+    fn new(modules: &BTreeMap<String, ModuleInfo>) -> Self {
+        let mut spaces = BTreeMap::new();
+        for (file, info) in modules {
+            let mut scopes = inline_scopes(info);
+            scopes.insert(String::new());
+            for scope in scopes {
+                let items = info
+                    .analysis
+                    .scoped_items
+                    .iter()
+                    .filter(|(item_scope, _)| *item_scope == scope)
+                    .map(|(_, name)| name.clone())
+                    .collect();
+                let bindings = if scope.is_empty() {
+                    info.analysis.import_aliases.clone()
+                } else {
+                    info.analysis.scoped_aliases.get(&scope).cloned().unwrap_or_default()
+                };
+                spaces.insert(
+                    scoped_module(file, &scope),
+                    Namespace {
+                        file: file.clone(),
+                        scope,
+                        children: BTreeMap::new(),
+                        items,
+                        bindings,
+                        globs: Vec::new(),
+                    },
+                );
+            }
+        }
+        for (file, info) in modules {
+            for declaration in &info.analysis.modules {
+                let inner = if declaration.scope.is_empty() {
+                    declaration.name.clone()
+                } else {
+                    format!("{}::{}", declaration.scope, declaration.name)
+                };
+                let child = if declaration.inline {
+                    scoped_module(file, &inner)
+                } else if file == "root" {
+                    declaration.name.clone()
+                } else {
+                    format!("{file}::{}", declaration.name)
+                };
+                if !spaces.contains_key(&child) {
+                    continue;
+                }
+                if let Some(parent) = spaces.get_mut(&scoped_module(file, &declaration.scope)) {
+                    parent.children.insert(declaration.name.clone(), child);
+                }
+            }
+            for edge in &info.analysis.edges {
+                let Some(prefix) = edge.target.strip_suffix("::*") else { continue };
+                if !matches!(edge.kind, EdgeKind::Import | EdgeKind::Reexport) {
+                    continue;
+                }
+                let written = scoped_module(file, &edge.target_scope);
+                if let Some(space) = spaces.get_mut(&scoped_module(file, &edge.source_scope)) {
+                    space.globs.push((prefix.to_string(), written));
+                }
+            }
+        }
+        Self { spaces }
+    }
+
+    fn resolve(&self, node: &str, path: &str, want: Want) -> Resolution {
+        self.resolve_in(node, path, want, &mut BTreeSet::new())
+    }
+
+    fn resolve_in(
+        &self,
+        node: &str,
+        path: &str,
+        want: Want,
+        visiting: &mut BTreeSet<(String, String)>,
+    ) -> Resolution {
+        let segments = path.split("::").collect::<Vec<_>>();
+        let mut current = node.to_string();
+        let mut index = 0;
+        let mut anchored = false;
+        if segments[0] == "crate" {
+            current = "root".to_string();
+            index = 1;
+            anchored = true;
+        } else {
+            while index < segments.len() && matches!(segments[index], "self" | "super") {
+                if segments[index] == "super" {
+                    if current == "root" {
+                        return Resolution::Unresolved(format!(
+                            "{path} climbs above the crate root"
+                        ));
+                    }
+                    current =
+                        current.rsplit_once("::").map_or("root", |(parent, _)| parent).to_string();
+                }
+                index += 1;
+                anchored = true;
+            }
+        }
+        if index == segments.len() {
+            return Resolution::InCrate(ResolvedTarget {
+                module: current,
+                item: "<module>".to_string(),
+            });
+        }
+        for position in index..segments.len() {
+            let segment = segments[position];
+            let last = position + 1 == segments.len();
+            let wanted = if last { want } else { Want::Module };
+            match self.lookup(&current, segment, wanted, visiting) {
+                None if !anchored && position == index => return Resolution::External,
+                // A module named in value position is no item reference: the
+                // value is a local binding of the same name.
+                None if last
+                    && want == Want::Item
+                    && self.lookup(&current, segment, Want::Module, visiting).is_some() =>
+                {
+                    return Resolution::External
+                }
+                None => {
+                    return Resolution::Unresolved(format!(
+                        "{segment} is not declared in {current}"
+                    ))
+                }
+                Some(Resolution::InCrate(target)) if target.item == "<module>" => {
+                    if last {
+                        return Resolution::InCrate(target);
+                    }
+                    current = target.module;
+                }
+                Some(Resolution::InCrate(target)) => {
+                    let rest = segments[position + 1..].join("::");
+                    return Resolution::InCrate(ResolvedTarget {
+                        module: target.module,
+                        item: if rest.is_empty() {
+                            target.item
+                        } else {
+                            format!("{}::{rest}", target.item)
+                        },
+                    });
+                }
+                Some(other) => return other,
+            }
+        }
+        unreachable!("a path has at least one segment")
+    }
+
+    /// What `name` denotes in `node`: its own module or item first, then a
+    /// `use` binding, then the glob imports (which must agree).
+    fn lookup(
+        &self,
+        node: &str,
+        name: &str,
+        want: Want,
+        visiting: &mut BTreeSet<(String, String)>,
+    ) -> Option<Resolution> {
+        let space = self.spaces.get(node)?;
+        let module = space.children.get(name).map(|child| {
+            Resolution::InCrate(ResolvedTarget {
+                module: child.clone(),
+                item: "<module>".to_string(),
+            })
+        });
+        let item = space.items.contains(name).then(|| {
+            Resolution::InCrate(ResolvedTarget { module: node.to_string(), item: name.to_string() })
+        });
+        // A module lives in the type namespace only: a value or type path
+        // never ends on one.
+        let declared = match want {
+            Want::Module => module.or(item),
+            Want::Item => item,
+        };
+        if declared.is_some() {
+            return declared;
+        }
+        let key = (node.to_string(), name.to_string());
+        if !visiting.insert(key.clone()) {
+            return None;
+        }
+        let imported = self.lookup_imported(space, node, name, want, visiting);
+        visiting.remove(&key);
+        imported
+    }
+
+    fn lookup_imported(
+        &self,
+        space: &Namespace,
+        node: &str,
+        name: &str,
+        want: Want,
+        visiting: &mut BTreeSet<(String, String)>,
+    ) -> Option<Resolution> {
+        if let Some(target) = space.bindings.get(name) {
+            return Some(self.resolve_in(node, target, want, visiting));
+        }
+        let mut found = BTreeSet::new();
+        let mut outside = false;
+        for (prefix, written) in &space.globs {
+            match self.resolve_in(written, prefix, Want::Module, visiting) {
+                Resolution::InCrate(glob) if glob.item == "<module>" => {
+                    match self.lookup(&glob.module, name, want, visiting) {
+                        Some(Resolution::External) => outside = true,
+                        Some(resolution) => {
+                            found.insert(resolution);
+                        }
+                        None => {}
+                    }
+                }
+                // Another crate's glob may supply any name; a glob of an
+                // in-crate item fails on its own edge.
+                Resolution::InCrate(_) | Resolution::External => outside = true,
+                Resolution::Unresolved(reason) => {
+                    found.insert(Resolution::Unresolved(reason));
+                }
+            }
+        }
+        if found.len() > 1 {
+            return Some(Resolution::Unresolved(format!(
+                "{name} is ambiguous among the glob imports of {node}"
+            )));
+        }
+        found.into_iter().next().or_else(|| outside.then_some(Resolution::External))
+    }
+
+    /// A resolved namespace item in the file-module form the `type`-alias
+    /// chase and `inline_owner` take: `(file, scope::item)`.
+    fn file_form(&self, target: ResolvedTarget) -> ResolvedTarget {
+        let Some(space) = self.spaces.get(&target.module) else { return target };
+        if space.scope.is_empty() {
+            return target;
+        }
+        ResolvedTarget {
+            module: space.file.clone(),
+            item: if target.item == "<module>" {
+                space.scope.clone()
+            } else {
+                format!("{}::{}", space.scope, target.item)
+            },
+        }
+    }
+
+    /// Whether the crate root names `name` only through a `use` binding or a
+    /// glob import (a re-export), not by declaring it.
+    fn imported_at_root(&self, name: &str) -> bool {
+        self.spaces
+            .get("root")
+            .is_some_and(|root| !root.items.contains(name) && !root.children.contains_key(name))
+            && self.binds("root", name)
+    }
+
+    /// Whether `name` is bound in `node` at all: declared, imported or
+    /// glob-imported from anywhere, in any namespace.
+    fn binds(&self, node: &str, name: &str) -> bool {
+        self.lookup(node, name, Want::Module, &mut BTreeSet::new()).is_some()
+    }
+
+    /// A destination must be a declared item of its namespace; only a `use`
+    /// may name a module or glob-import one.
+    fn check_declared(&self, target: &ResolvedTarget, kind: &EdgeKind) -> Result<(), String> {
+        let Some(space) = self.spaces.get(&target.module) else {
+            return Err(format!("{} is not a module of the crate", target.module));
+        };
+        let use_edge = matches!(kind, EdgeKind::Import | EdgeKind::Reexport);
+        if target.item == "<module>" || target.item == "*" {
+            return if use_edge {
+                Ok(())
+            } else {
+                Err(format!("{} is a module, not an item", target.module))
+            };
+        }
+        let head = target.item.split("::").next().unwrap_or(&target.item);
+        if space.items.contains(head) {
+            Ok(())
+        } else {
+            Err(format!("{} does not declare {head}", target.module))
+        }
+    }
 }
 
 /// A directed graph whose edges carry the configurations they are active in.
@@ -2452,6 +2540,106 @@ mod tests {
         for name in ["fathomdb_engine", "slice", "version", "name", "features"] {
             assert!(!names.contains(name), "{name} is not a dependency: {names:?}");
         }
+    }
+
+    fn crate_of(files: &[(&str, &str)]) -> BTreeMap<String, ModuleInfo> {
+        let space = ConfigSpace::from_manifest("[features]\ndefault = []\n", &[])
+            .expect("empty configuration space");
+        files
+            .iter()
+            .map(|(module, source)| {
+                let analysis = analyze_source(source, &space).expect("fixture parses");
+                ((*module).to_string(), ModuleInfo { file: PathBuf::from(module), analysis })
+            })
+            .collect()
+    }
+
+    fn found(module: &str, item: &str) -> Resolution {
+        Resolution::InCrate(ResolvedTarget { module: module.to_string(), item: item.to_string() })
+    }
+
+    #[test]
+    fn namespace_resolution_chases_every_reexport_form_to_the_declaring_scope() {
+        let modules = crate_of(&[
+            (
+                "root",
+                "mod fusion; mod file; mod wal;\n\
+                 mod a { pub(crate) mod inner { pub(crate) fn bridge() {} } \
+                 pub(crate) use inner::bridge; pub(crate) use self::inner::*; }\n\
+                 pub(crate) use a::bridge as chained;\n\
+                 pub(crate) use self::a::inner::*;\n\
+                 pub(crate) use file::*;\n\
+                 pub(crate) use self::fusion::fused as renamed;\n\
+                 pub(crate) use self::fusion::{fused as grouped};\n\
+                 pub(crate) use fusion as alias;\n\
+                 use wal::*;\n",
+            ),
+            (
+                "fusion",
+                "pub(crate) fn fused() {} pub(crate) mod nested { pub(crate) fn deep() {} }",
+            ),
+            ("file", "pub(crate) fn filed() {}"),
+            ("wal", "pub(crate) enum Status { Busy } pub(crate) fn walk() {}"),
+            ("child", "use super::*; fn caller() { let _ = Status::Busy; walk(); }"),
+        ]);
+        let namespaces = Namespaces::new(&modules);
+        let resolve = |node: &str, path: &str| namespaces.resolve(node, path, Want::Item);
+        assert_eq!(resolve("root", "crate::chained"), found("root::a::inner", "bridge"));
+        assert_eq!(resolve("root", "crate::a::bridge"), found("root::a::inner", "bridge"));
+        assert_eq!(resolve("root", "crate::bridge"), found("root::a::inner", "bridge"));
+        assert_eq!(resolve("search", "crate::filed"), found("file", "filed"));
+        assert_eq!(resolve("search", "crate::renamed"), found("fusion", "fused"));
+        assert_eq!(resolve("search", "crate::grouped"), found("fusion", "fused"));
+        assert_eq!(resolve("search", "crate::alias::fused"), found("fusion", "fused"));
+        assert_eq!(
+            resolve("search", "crate::alias::nested::deep"),
+            found("fusion::nested", "deep")
+        );
+        assert_eq!(resolve("root", "Status::Busy"), found("wal", "Status::Busy"));
+        assert_eq!(resolve("child", "Status::Busy"), found("wal", "Status::Busy"));
+        assert_eq!(resolve("child", "walk"), found("wal", "walk"));
+        assert_eq!(resolve("child", "super::fusion::fused"), found("fusion", "fused"));
+    }
+
+    #[test]
+    fn unresolved_in_crate_paths_fail_closed_and_other_names_stay_external() {
+        let modules = crate_of(&[
+            ("root", "mod fusion; mod search; pub(crate) use fusion as alias;"),
+            ("fusion", "pub(crate) fn fused() {}"),
+            ("search", "fn caller(fusion: u8) { let _ = fusion; }"),
+        ]);
+        let namespaces = Namespaces::new(&modules);
+        let resolve = |node: &str, path: &str| namespaces.resolve(node, path, Want::Item);
+        for path in [
+            "crate::missing::f",
+            "crate::fusion::missing",
+            "crate::alias::missing",
+            "super::missing",
+        ] {
+            assert!(
+                matches!(resolve("search", path), Resolution::Unresolved(_)),
+                "{path} must fail closed"
+            );
+        }
+        assert!(matches!(resolve("root", "super::fused"), Resolution::Unresolved(_)));
+        // Another crate, the prelude, or a local binding named like a module.
+        for path in ["rusqlite::Connection", "Some", "fusion"] {
+            assert_eq!(resolve("search", path), Resolution::External, "{path}");
+        }
+        assert_eq!(resolve("root", "fusion"), Resolution::External, "a module is no value");
+        assert_eq!(
+            namespaces.check_declared(
+                &ResolvedTarget { module: "fusion".to_string(), item: "<module>".to_string() },
+                &EdgeKind::Callable
+            ),
+            Err("fusion is a module, not an item".to_string())
+        );
+        assert!(namespaces
+            .check_declared(
+                &ResolvedTarget { module: "root".to_string(), item: "fused".to_string() },
+                &EdgeKind::Callable
+            )
+            .is_err());
     }
 
     #[test]

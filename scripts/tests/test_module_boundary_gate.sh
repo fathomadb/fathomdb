@@ -67,6 +67,10 @@ while [ "$#" -gt 0 ]; do
 done
 tool_dir="$(dirname "${manifest:?}")"
 target_dir="${target_dir:-${CARGO_TARGET_DIR:-$tool_dir/target}}"
+# FAKE_CARGO_NOOP models cargo judging an existing binary fresh: no relink.
+if [ -n "${FAKE_CARGO_NOOP:-}" ] && [ -x "$target_dir/debug/fathomdb-module-boundary-gate" ]; then
+  exit 0
+fi
 mkdir -p "$target_dir/debug"
 printf '#!/usr/bin/env bash\nprintf "fake-gate-build-%s\\n"\n' "$build_number" \
   >"$target_dir/debug/fathomdb-module-boundary-gate"
@@ -100,6 +104,26 @@ cache_output="$(CARGO_TARGET_DIR="$fixture/elsewhere-target" \
   FATHOMDB_MODULE_BOUNDARY_CARGO="$fake_cargo" "$cache_fixture/scripts/check-module-boundaries.sh")"
 if [ "$cache_output" != 'fake-gate-build-3' ]; then
   printf 'module-boundary wrapper ran a stale binary under CARGO_TARGET_DIR: %s\n' "$cache_output" >&2
+  exit 1
+fi
+# Test review cycle 2, T-12: a manifest or lockfile edit that cargo does not
+# relink for must not leave the binary looking stale; one no-op build settles
+# it, so the next run neither rebuilds nor trips the stale-binary guard.
+sleep 1
+touch "$cache_fixture/dev/tools/module-boundary-gate/Cargo.toml"
+for _ in 1 2; do
+  env -u CARGO_TARGET_DIR FAKE_CARGO_NOOP=1 FATHOMDB_MODULE_BOUNDARY_CARGO="$fake_cargo" \
+    "$cache_fixture/scripts/check-module-boundaries.sh" >/dev/null
+done
+build_count="$(wc -l <"$FAKE_CARGO_LOG")"
+if [ "$build_count" -ne 4 ]; then
+  printf 'manifest-only edit kept the module-boundary binary stale: %s builds\n' "$build_count" >&2
+  exit 1
+fi
+if [ -n "$(find "$cache_fixture/dev/tools/module-boundary-gate/Cargo.toml" \
+  "$cache_fixture/dev/tools/module-boundary-gate/Cargo.lock" \
+  -newer "$cache_fixture/dev/tools/module-boundary-gate/target/debug/fathomdb-module-boundary-gate")" ]; then
+  printf 'manifest-only edit left the module-boundary binary older than its manifest\n' >&2
   exit 1
 fi
 

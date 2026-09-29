@@ -226,6 +226,89 @@ expect_failure local-helper-cycle 'unapproved governed cycle search <-> telemetr
   "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 cp "$fixture/telemetry.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+# Design review cycle 1, D-1: dependencies written inside std macro bodies are
+# extracted with the same rules as ordinary expressions (P19/P20/P21).
+cp "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/traversal.rs" "$fixture/traversal.rs.clean"
+printf '\nfn slice85_macro_control() { let _ = crate::reader_pool::ReaderRequest::shutdown(); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+expect_failure macro-control 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+
+printf '\nfn slice85_macro_hidden() { let _ = vec![crate::reader_pool::ReaderRequest::shutdown()]; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+expect_failure macro-vec 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+
+printf '\nfn slice85_macro_repeat() { let _ = vec![crate::reader_pool::slice85_probe(); 2]; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+expect_failure macro-vec-repeat 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+
+printf '\nfn slice85_macro_params() { let _ = rusqlite::params![crate::reader_pool::slice85_probe()]; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+expect_failure macro-params 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+
+printf '\nfn slice85_macro_matches() { assert!(matches!(crate::search_api::slice85_probe(), 1)); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
+expect_failure macro-assert-matches 'forbidden dependency graph_expand -> search_api' "$GATE" --root "$fixture"
+cp "$fixture/graph-expand.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
+
+printf '\nfn slice85_macro_matches_capital() { assert!(matches!(crate::search_api::S85(), 1)); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
+expect_failure macro-assert-matches-capital 'forbidden dependency graph_expand -> search_api' "$GATE" --root "$fixture"
+cp "$fixture/graph-expand.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
+
+printf '\nfn slice85_macro_pattern(value: usize) -> bool { matches!(value, x if x == crate::search::slice85_probe()) }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
+expect_failure macro-matches-guard 'forbidden dependency graph_expand -> search' "$GATE" --root "$fixture"
+cp "$fixture/graph-expand.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/mod.rs"
+
+printf '\nfn slice85_macro_format() -> String { format!("{}", crate::reader_pool::slice85_probe()) }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure macro-format 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\nfn slice85_macro_write(f: &mut String) { let _ = write!(f, "{}", crate::search::slice85_probe()); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/traversal.rs"
+expect_failure macro-write 'forbidden dependency graph_expand::traversal -> search' "$GATE" --root "$fixture"
+cp "$fixture/traversal.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/graph_expand/traversal.rs"
+
+printf '\nfn slice85_macro_block() { slice85_block_macro! { let _ = crate::reader_pool::slice85_probe(); } }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure macro-statements 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\nfn slice85_macro_opaque() { slice85_opaque!(=> crate::reader_pool::slice85_probe); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure macro-unparsed 'unparsed macro body source=search item=slice85_macro_opaque macro=slice85_opaque at search.rs:' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+# Design review cycle 1, D-2: module-qualified paths whose last segment is
+# capitalised (constants, statics, variants, tuple/unit constructors) are edges
+# (P1/P15/P16).
+printf '\nfn slice85_const_probe() -> usize { crate::reader_pool::S85_PROBE_CONST }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure capital-const 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\nfn slice85_variant_probe() { let _ = crate::reader_pool::S85Enum::A; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure capital-variant 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\nfn slice85_constructor_probe() { let _ = crate::reader_pool::S85Carrier(1); }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+expect_failure capital-constructor 'forbidden dependency read -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/read.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/read.rs"
+
+printf '\nfn slice85_unit_probe() { let _ = crate::reader_pool::S85Unit; }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure capital-unit 'forbidden dependency search -> reader_pool' "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \

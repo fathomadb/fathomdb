@@ -52,6 +52,7 @@ fi
 
 mkdir -p "$fixture/src/rust/crates/fathomdb-engine" "$fixture/dev/tools"
 cp -R "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" "$fixture/src/rust/crates/fathomdb-engine/"
+cp "$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml" "$fixture/src/rust/crates/fathomdb-engine/"
 cp "$REPO_ROOT/dev/tools/module-boundary-policy.txt" "$fixture/dev/tools/"
 cp "$fixture/dev/tools/module-boundary-policy.txt" "$fixture/module-boundary-policy.clean"
 
@@ -137,7 +138,7 @@ cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/sear
 
 printf '\n#[cfg(test)] use crate::reader_pool::ReaderRequest as Slice85TestOnlyRequest;\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
-expect_failure test-configuration 'configurations=test-hooks-linux,test-hooks-nonlinux' \
+expect_failure test-configuration 'kind=import configurations=test at search.rs:' \
   "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
@@ -223,7 +224,7 @@ expect_failure root-contract 'unexpected boundary edge source=root' "$GATE" --ro
 cp "$fixture/lib.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/lib.rs"
 
 cp "$fixture/src/rust/crates/fathomdb-engine/src/telemetry.rs" "$fixture/telemetry.rs.clean"
-all_configs='default-linux,default-nonlinux,hooks-linux,hooks-nonlinux,hooks-tc5-linux,hooks-tc5-nonlinux,tc5-linux,tc5-nonlinux,test-hooks-linux,test-hooks-nonlinux,test-hooks-tc5-linux,test-hooks-tc5-nonlinux,test-linux,test-nonlinux,test-tc5-linux,test-tc5-nonlinux'
+all_configs='all'
 printf '\npub(crate) fn slice85_cycle_out() { crate::telemetry::slice85_cycle_in(); }\nfn slice85_cycle_return() { slice85_cycle_out(); }\n' \
   >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 printf '\npub(crate) fn slice85_cycle_in() { crate::search::slice85_cycle_return(); }\n' \
@@ -384,6 +385,51 @@ cp "$fixture/fusion.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/fusi
 printf 'edge fusion slice85_reported_only rerank rerank_passages callable all\n' \
   >>"$fixture/dev/tools/module-boundary-policy.txt"
 expect_failure out-of-scope-edge-line 'policy edge outside the frozen scope source=fusion' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+# Design review cycle 1, D-6: configurations come from the engine manifest's
+# feature table plus operator and debug_assertions axes and an all-features
+# closure; nothing a shipped build compiles is invisible (P3/P4).
+cp "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml" "$fixture/Cargo.toml.clean"
+printf '\n#[cfg(feature = "operator")] use crate::reader_pool::ReaderRequest as Slice85OperatorRequest;\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure operator-configuration 'forbidden dependency search -> reader_pool configuration=operator-linux' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\n#[cfg(not(debug_assertions))] use crate::reader_pool::ReaderRequest as Slice85ReleaseRequest;\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure release-configuration 'forbidden dependency search -> reader_pool configuration=default-linux-release' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\n#[cfg(feature = "default-reranker")] use crate::reader_pool::ReaderRequest as Slice85RerankRequest;\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure all-features-configuration 'forbidden dependency search -> reader_pool configuration=all-features-linux' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\nslice85-manifest-only = []\n' >>"$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
+printf '\n#[cfg(feature = "slice85-manifest-only")] use crate::reader_pool::ReaderRequest as Slice85ManifestRequest;\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure manifest-derived-feature 'forbidden dependency search -> reader_pool configuration=all-features-linux' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+cp "$fixture/Cargo.toml.clean" "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
+
+sed -i '/^operator = \[\]$/d' "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
+expect_failure manifest-feature-removed 'unsupported cfg predicate' "$GATE" --root "$fixture"
+cp "$fixture/Cargo.toml.clean" "$fixture/src/rust/crates/fathomdb-engine/Cargo.toml"
+
+printf '\n#[cfg(all(test, not(test)))] use crate::fusion::fuse_rrf as slice85_never_compiled;\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure empty-configuration 'edge has no evaluated configuration source=search' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf 'configuration-feature slice85-undeclared\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure undeclared-axis 'configuration feature slice85-undeclared is not declared' \
   "$GATE" --root "$fixture"
 cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
 

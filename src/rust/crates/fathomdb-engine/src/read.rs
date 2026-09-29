@@ -237,7 +237,7 @@ pub(crate) fn read_list_in_tx(
     for (i, pred) in predicates.iter().enumerate() {
         let param_idx = i + 2; // ?1 is kind
         sql.push_str(" AND ");
-        sql.push_str(&pred.to_sql_clause(param_idx));
+        sql.push_str(&Predicate::to_sql_clause(pred, param_idx));
     }
     sql.push_str(&format!(" LIMIT {limit}"));
 
@@ -248,7 +248,7 @@ pub(crate) fn read_list_in_tx(
     let mut params: Vec<rusqlite::types::Value> = Vec::with_capacity(2 + predicates.len());
     params.push(rusqlite::types::Value::Text(kind.to_string()));
     for pred in predicates {
-        params.push(pred.bind_value());
+        params.push(Predicate::bind_value(pred));
     }
     // Lands at index `now_idx` (= predicates.len() + 2), matching `?{now_idx}`
     // emitted by `ReadView::validity_sql`. Omitted entirely when the view
@@ -515,7 +515,7 @@ fn validate_operational_context(frozen: &FrozenReadContextV1) -> Result<(), Engi
     if view.include_superseded
         || view.include_inactive
         || view.include_out_of_window
-        || !frozen.context.eligibility.is_unfiltered()
+        || !SearchFilter::is_unfiltered(&frozen.context.eligibility)
     {
         return Err(
             pagination::PageError::new(PageErrorReason::ContextNotApplicable, "/context").into()

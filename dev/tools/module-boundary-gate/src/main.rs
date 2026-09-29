@@ -16,6 +16,9 @@ struct Policy {
     forbidden_dependencies: BTreeSet<(String, String)>,
     forbidden_cycles: BTreeSet<(String, String)>,
     allowed_cycles: BTreeSet<(String, String)>,
+    reported_cycles: BTreeSet<(String, String)>,
+    admissions: BTreeSet<(String, String, String, String)>,
+    external_receivers: BTreeMap<(String, String, String), usize>,
     allowed_local_macros: BTreeSet<(String, String, String)>,
     allowed_unparsed_macros: BTreeSet<(String, String, String, String)>,
     inherent_methods: BTreeSet<(String, String)>,
@@ -255,6 +258,29 @@ fn parse_policy(path: &Path) -> Result<Policy, Vec<String>> {
             ["allow-cycle", left, right] => {
                 policy.allowed_cycles.insert(sorted_pair(left, right));
             }
+            ["report-cycle", left, right] => {
+                policy.reported_cycles.insert(sorted_pair(left, right));
+            }
+            ["external-receiver", module, item, method, count] => match count.parse::<usize>() {
+                Ok(count) if count > 0 => {
+                    policy.external_receivers.insert(
+                        ((*module).to_string(), (*item).to_string(), (*method).to_string()),
+                        count,
+                    );
+                }
+                _ => errors.push(format!(
+                    "policy:{} external-receiver count must be a positive integer",
+                    index + 1
+                )),
+            },
+            ["admit-type", source, source_item, target, target_item] => {
+                policy.admissions.insert((
+                    (*source).to_string(),
+                    (*source_item).to_string(),
+                    (*target).to_string(),
+                    (*target_item).to_string(),
+                ));
+            }
             ["local-macro", module, name, fingerprint] => {
                 policy.allowed_local_macros.insert((
                     (*module).to_string(),
@@ -452,10 +478,33 @@ fn evaluate(
         BTreeMap::new();
     let mut actual_local_macros = BTreeSet::new();
     let mut actual_unparsed_macros = BTreeSet::new();
+    // Unresolved dot calls whose name is only a governed inherent method of
+    // another module, counted per source item for reviewed exceptions.
+    let mut unresolved_receivers = BTreeMap::<(String, String, String), usize>::new();
+    let mut unresolved_origins = BTreeMap::<(String, String, String), String>::new();
     let mut adjacency_by_configuration =
         vec![BTreeMap::<String, BTreeSet<String>>::new(); space.len()];
     let mut dependencies_by_configuration =
         vec![BTreeMap::<String, BTreeSet<String>>::new(); space.len()];
+    // Three graphs per configuration. `item`: the whole-crate item graph of
+    // executable (callable, field, Engine-method, typed-receiver) and type
+    // references. `governed-module`: module-level, induced on the governed
+    // set, over every non-composition kind. `module`: the whole-crate
+    // module-level graph (root split into items), reported only. Re-exports,
+    // the Engine storage layout and admitted type-only edges are composition
+    // metadata and join none of them.
+    let mut governed_graph_by_configuration =
+        vec![BTreeMap::<String, BTreeSet<String>>::new(); space.len()];
+    let mut module_graph_by_configuration =
+        vec![BTreeMap::<String, BTreeSet<String>>::new(); space.len()];
+    let inherent_owners = actual_inherent.iter().fold(
+        BTreeMap::<String, BTreeSet<String>>::new(),
+        |mut owners, (module, method)| {
+            let name = method.rsplit_once("::").map_or(method.as_str(), |(_, name)| name);
+            owners.entry(name.to_string()).or_default().insert(module.clone());
+            owners
+        },
+    );
     for (module, info) in modules {
         for predicate in &info.analysis.unsupported_cfg {
             errors.push(format!(
@@ -531,18 +580,59 @@ fn evaluate(
                     edge.target
                 ));
             }
+            let targets = edge_targets(
+                &source_module,
+                edge,
+                modules,
+                root_aliases,
+                &engine_fields,
+                &policy.field_owners,
+                &method_owners,
+            );
             if governed && edge.kind == EdgeKind::Callable {
-                if let Some(method) =
-                    edge.target.strip_prefix(".<").and_then(|value| value.strip_suffix('>'))
-                {
-                    if governed_callable_names.contains(method) {
+                if let Some(rest) = edge.target.strip_prefix(".<") {
+                    let (method, receiver_type) = rest
+                        .split_once(">:")
+                        .map_or((rest.trim_end_matches('>'), None), |(method, ty)| {
+                            (method, Some(ty))
+                        });
+                    let cross_boundary_inherent = inherent_owners
+                        .get(method)
+                        .is_some_and(|owners| owners.iter().any(|owner| owner != &source_module));
+                    // A typed receiver whose type is not an in-crate item is
+                    // an external type; its methods are never governed.
+                    let governed_name = governed_callable_names.contains(method);
+                    if receiver_type.is_none() && !governed_name && cross_boundary_inherent {
+                        *unresolved_receivers
+                            .entry((
+                                source_module.clone(),
+                                edge.source_item.clone(),
+                                method.to_string(),
+                            ))
+                            .or_default() += 1;
+                        unresolved_origins
+                            .entry((
+                                source_module.clone(),
+                                edge.source_item.clone(),
+                                method.to_string(),
+                            ))
+                            .or_insert_with(|| {
+                                format!(
+                                    "{}:{}:{}",
+                                    relative(source_root, &info.file),
+                                    edge.location.line,
+                                    edge.location.column
+                                )
+                            });
+                    } else if receiver_type.is_none() && governed_name {
                         errors.push(format!(
-                            "unresolved governed method receiver at {}:{}:{} source={} source_item={} method={method}",
+                            "unresolved governed method receiver at {}:{}:{} source={} source_item={} method={method} receiver_type={}; use an owner-qualified call or a syntactically typed receiver",
                             relative(source_root, &info.file),
                             edge.location.line,
                             edge.location.column,
                             source_module,
-                            edge.source_item
+                            edge.source_item,
+                            receiver_type.unwrap_or("<unknown>")
                         ));
                     }
                 } else if !edge.target.contains("::")
@@ -566,15 +656,6 @@ fn evaluate(
                     ));
                 }
             }
-            let targets = edge_targets(
-                &source_module,
-                edge,
-                modules,
-                root_aliases,
-                &engine_fields,
-                &policy.field_owners,
-                &method_owners,
-            );
             for target in targets {
                 let nonroot_local = target.module == source_module && source_module != "root";
                 let configurations = if edge.kind == EdgeKind::EngineMethod {
@@ -585,15 +666,41 @@ fn evaluate(
                 } else {
                     edge.configurations
                 };
+                let admitted = edge.kind == EdgeKind::Type
+                    && policy.admissions.contains(&(
+                        source_module.clone(),
+                        edge.source_item.clone(),
+                        target.module.clone(),
+                        target.item.clone(),
+                    ));
+                let engine_layout = source_module == "root" && edge.source_item == "Engine";
+                let dependency_source = dependency_node(&source_module, &edge.source_item);
+                let dependency_target = dependency_node(&target.module, &target.item);
+                let composition = edge.kind == EdgeKind::Reexport || admitted || engine_layout;
+                let item_edge = !composition && edge.kind != EdgeKind::Import;
+                let governed_edge = !composition
+                    && governed
+                    && target.module != source_module
+                    && classification(policy, &target.module) == Some("governed");
+                let module_edge = !composition && dependency_source != dependency_target;
                 for configuration in configurations.indices() {
                     dependencies_by_configuration[configuration]
                         .entry(source_module.clone())
                         .or_default()
                         .insert(target.module.clone());
-                    if matches!(
-                        edge.kind,
-                        EdgeKind::Callable | EdgeKind::FieldAccess | EdgeKind::EngineMethod
-                    ) {
+                    if governed_edge {
+                        governed_graph_by_configuration[configuration]
+                            .entry(source_module.clone())
+                            .or_default()
+                            .insert(target.module.clone());
+                    }
+                    if module_edge {
+                        module_graph_by_configuration[configuration]
+                            .entry(dependency_source.clone())
+                            .or_default()
+                            .insert(dependency_target.clone());
+                    }
+                    if item_edge {
                         adjacency_by_configuration[configuration]
                             .entry(graph_node(&source_module, &edge.source_item))
                             .or_default()
@@ -648,6 +755,27 @@ fn evaluate(
         );
     }
 
+    for (key, count) in &unresolved_receivers {
+        if policy.external_receivers.get(key) != Some(count) {
+            errors.push(format!(
+                "unresolved governed method receiver at {} source={} source_item={} method={} \
+                 calls={count}; the name is a governed inherent method of another module, so use \
+                 an owner-qualified call, a syntactically typed receiver, or a reviewed \
+                 external-receiver entry with this exact call count",
+                unresolved_origins[key], key.0, key.1, key.2
+            ));
+        }
+    }
+    for (key, count) in &policy.external_receivers {
+        if !unresolved_receivers.contains_key(key) {
+            errors.push(format!(
+                "stale external-receiver {} {} {} {count}: no such unresolved call",
+                key.0, key.1, key.2
+            ));
+        }
+    }
+
+    let merged_edge_kinds = merged_edges.keys().cloned().collect::<BTreeSet<_>>();
     let mut actual_edges = BTreeSet::new();
     let mut edge_origins = BTreeMap::new();
     for ((source, source_item, target, target_item, kind), (configurations, origin)) in merged_edges
@@ -676,7 +804,10 @@ fn evaluate(
         ));
     }
 
-    for (index, adjacency) in adjacency_by_configuration.iter().enumerate() {
+    validate_cycle_policy(policy, &merged_edge_kinds, &mut errors);
+
+    let mut cycle_findings = CycleFindings::default();
+    for index in 0..space.len() {
         let configuration = &space.configurations[index].label;
         let dependencies = &dependencies_by_configuration[index];
         for (source, target) in &policy.forbidden_dependencies {
@@ -686,42 +817,23 @@ fn evaluate(
                 ));
             }
         }
-        let graph_nodes =
-            adjacency.keys().chain(adjacency.values().flatten()).cloned().collect::<BTreeSet<_>>();
-        for component in strongly_connected(adjacency, &graph_nodes) {
-            if component.len() < 2 {
-                continue;
-            }
-            let component_modules =
-                component.iter().map(|node| node_module(node)).collect::<BTreeSet<_>>();
-            for (left, right) in &policy.forbidden_cycles {
-                if component_modules.contains(left) && component_modules.contains(right) {
-                    errors.push(format!(
-                        "forbidden cycle {left} <-> {right} configuration={configuration} in SCC {:?}",
-                        component
-                    ));
-                }
-            }
-            let governed = component_modules
-                .iter()
-                .filter(|module| {
-                    policy.classified.get(*module).map(String::as_str) == Some("governed")
-                })
+        for (graph, adjacency) in [
+            ("item", &adjacency_by_configuration[index]),
+            ("governed-module", &governed_graph_by_configuration[index]),
+        ] {
+            let graph_nodes = adjacency
+                .keys()
+                .chain(adjacency.values().flatten())
                 .cloned()
-                .collect::<Vec<_>>();
-            for left_index in 0..governed.len() {
-                for right in governed.iter().skip(left_index + 1) {
-                    let pair = sorted_pair(&governed[left_index], right);
-                    if !policy.allowed_cycles.contains(&pair) {
-                        errors.push(format!(
-                            "unapproved governed cycle {} <-> {} configuration={} in SCC {:?}",
-                            pair.0, pair.1, configuration, component
-                        ));
-                    }
+                .collect::<BTreeSet<_>>();
+            for component in strongly_connected(adjacency, &graph_nodes) {
+                if component.len() >= 2 {
+                    cycle_findings.record(policy, graph, index, component);
                 }
             }
         }
     }
+    cycle_findings.report_errors(policy, space, &mut errors);
 
     if report_only {
         for module in &discovered {
@@ -741,9 +853,62 @@ fn evaluate(
         for (module, name, fingerprint) in &actual_local_macros {
             println!("local-macro\t{module}\t{name}\t{fingerprint}");
         }
+        for ((module, item, method), count) in &unresolved_receivers {
+            println!("external-receiver\t{module}\t{item}\t{method}\t{count}");
+        }
         for (governed, module, item, name, fingerprint) in &actual_unparsed_macros {
             let label = if *governed { "unparsed-macro" } else { "reported-unparsed-macro" };
             println!("{label}\t{module}\t{item}\t{name}\t{fingerprint}");
+        }
+        let mut dependency_rows = BTreeMap::<(String, String), ConfigSet>::new();
+        for (index, adjacency) in module_graph_by_configuration.iter().enumerate() {
+            for (source, targets) in adjacency {
+                for target in targets {
+                    dependency_rows
+                        .entry((source.clone(), target.clone()))
+                        .or_default()
+                        .insert(index);
+                }
+            }
+        }
+        for ((source, target), configurations) in &dependency_rows {
+            println!(
+                "module-dependency\t{source}\t{target}\t{}",
+                space.expression(*configurations)
+            );
+        }
+        // Whole-crate module-level SCCs are reported, not enforced: module
+        // granularity merges unrelated items (for example every payload of
+        // the central error enum), so these are inventory for item-level
+        // review, not boundary verdicts.
+        let mut module_components = BTreeMap::<BTreeSet<String>, ConfigSet>::new();
+        for (index, adjacency) in module_graph_by_configuration.iter().enumerate() {
+            let nodes = adjacency
+                .keys()
+                .chain(adjacency.values().flatten())
+                .cloned()
+                .collect::<BTreeSet<_>>();
+            for component in strongly_connected(adjacency, &nodes) {
+                if component.len() >= 2 {
+                    module_components.entry(component).or_default().insert(index);
+                }
+            }
+        }
+        for (component, configurations) in &module_components {
+            println!(
+                "module-scc\t{}\t{}",
+                space.expression(*configurations),
+                component.iter().cloned().collect::<Vec<_>>().join(",")
+            );
+        }
+        for ((graph, component), configurations) in &cycle_findings.components {
+            let modules = component.iter().map(|node| node_module(node)).collect::<BTreeSet<_>>();
+            println!(
+                "scc\t{graph}\t{}\t{}\t{}",
+                space.expression(*configurations),
+                modules.into_iter().collect::<Vec<_>>().join(","),
+                component.iter().cloned().collect::<Vec<_>>().join(",")
+            );
         }
         for (index, adjacency) in adjacency_by_configuration.iter().enumerate() {
             let label = &space.configurations[index].label;
@@ -834,6 +999,204 @@ type EdgeKey = (String, String, String, String, String);
 struct ResolvedTarget {
     module: String,
     item: String,
+}
+
+/// Dependency-graph node: a module, except that the crate root is split into
+/// its items so that unrelated root helpers do not form paths.
+fn dependency_node(module: &str, item: &str) -> String {
+    if module == "root" {
+        graph_node(module, item)
+    } else {
+        module.to_string()
+    }
+}
+
+fn classification<'p>(policy: &'p Policy, module: &str) -> Option<&'p str> {
+    policy.classified.get(module).map(String::as_str)
+}
+
+/// Checks the reviewed cycle and admission directives against the
+/// classifications and the extracted edges.
+fn validate_cycle_policy(
+    policy: &Policy,
+    merged_edge_kinds: &BTreeSet<EdgeKey>,
+    errors: &mut Vec<String>,
+) {
+    if classification(policy, "root") != Some("admitted") {
+        errors.push(
+            "module root must be classified admitted: it is the composition root whose \
+             contracts are admitted item by item"
+                .to_string(),
+        );
+    }
+    for (left, right) in &policy.allowed_cycles {
+        let kinds = [classification(policy, left), classification(policy, right)];
+        let joins_governed = kinds.contains(&Some("governed"));
+        let bounded = kinds.iter().all(|kind| matches!(kind, Some("governed" | "admitted")));
+        if !joins_governed || !bounded {
+            errors.push(format!(
+                "allow-cycle {left} {right} must join a governed module with a governed or \
+                 admitted module (found {:?} / {:?})",
+                kinds[0], kinds[1]
+            ));
+        }
+        if policy.forbidden_cycles.contains(&(left.clone(), right.clone())) {
+            errors.push(format!("allow-cycle {left} {right} names a forbidden cycle"));
+        }
+    }
+    for (left, right) in &policy.reported_cycles {
+        let mut kinds = [classification(policy, left), classification(policy, right)];
+        kinds.sort();
+        if kinds != [Some("governed"), Some("reported")] {
+            errors.push(format!(
+                "report-cycle {left} {right} must join a governed module with a reported module"
+            ));
+        }
+        if policy.forbidden_cycles.contains(&(left.clone(), right.clone()))
+            || policy.allowed_cycles.contains(&(left.clone(), right.clone()))
+        {
+            errors.push(format!("report-cycle {left} {right} is also forbidden or allowed"));
+        }
+    }
+    for (source, source_item, target, target_item) in &policy.admissions {
+        if classification(policy, source) != Some("admitted") {
+            errors.push(format!(
+                "admit-type source {source} is not an admitted module ({source_item} -> \
+                 {target}::{target_item})"
+            ));
+        }
+        if classification(policy, target) != Some("governed") {
+            errors.push(format!(
+                "admit-type target {target} is not a governed module ({source}::{source_item} -> \
+                 {target_item})"
+            ));
+        }
+        let key = (
+            source.clone(),
+            source_item.clone(),
+            target.clone(),
+            target_item.clone(),
+            EdgeKind::Type.as_str().to_string(),
+        );
+        if !merged_edge_kinds.contains(&key) {
+            errors.push(format!(
+                "stale admit-type {source} {source_item} {target} {target_item}: no such type edge"
+            ));
+        }
+    }
+    for (module, kind) in &policy.classified {
+        if kind != "admitted" || module == "root" {
+            continue;
+        }
+        let named =
+            policy.allowed_cycles.iter().any(|(left, right)| left == module || right == module)
+                || policy.admissions.iter().any(|(source, ..)| source == module);
+        if !named {
+            errors.push(format!(
+                "admitted module {module} has no allow-cycle or admit-type entry; classify it \
+                 reported"
+            ));
+        }
+    }
+}
+
+/// A cycle directive names modules; it also covers their descendants, so
+/// `graph_expand` covers `graph_expand::traversal`.
+fn covers(directive: &str, module: &str) -> bool {
+    module == directive || module.starts_with(&format!("{directive}::"))
+}
+
+fn matching_pairs<'p>(
+    directives: &'p BTreeSet<(String, String)>,
+    left: &'p str,
+    right: &'p str,
+) -> impl Iterator<Item = &'p (String, String)> + 'p {
+    directives.iter().filter(move |(first, second)| {
+        (covers(first, left) && covers(second, right))
+            || (covers(first, right) && covers(second, left))
+    })
+}
+
+/// SCCs of both graphs across configurations, and the module pairs they join.
+#[derive(Default)]
+struct CycleFindings {
+    components: BTreeMap<(&'static str, BTreeSet<String>), ConfigSet>,
+    pairs: BTreeMap<(String, String), ConfigSet>,
+    unapproved: BTreeMap<(String, String, &'static str), (ConfigSet, BTreeSet<String>)>,
+    forbidden: BTreeMap<(String, String, &'static str), (ConfigSet, BTreeSet<String>)>,
+}
+
+impl CycleFindings {
+    fn record(
+        &mut self,
+        policy: &Policy,
+        graph: &'static str,
+        configuration: usize,
+        component: BTreeSet<String>,
+    ) {
+        let modules = component.iter().map(|node| node_module(node)).collect::<BTreeSet<_>>();
+        for governed in
+            modules.iter().filter(|module| classification(policy, module) == Some("governed"))
+        {
+            for other in modules.iter().filter(|other| *other != governed) {
+                let pair = sorted_pair(governed, other);
+                let mut accounted = false;
+                for directive in matching_pairs(&policy.forbidden_cycles, governed, other) {
+                    let entry = self
+                        .forbidden
+                        .entry((directive.0.clone(), directive.1.clone(), graph))
+                        .or_insert_with(|| (ConfigSet::default(), component.clone()));
+                    entry.0.insert(configuration);
+                    accounted = true;
+                }
+                for directive in matching_pairs(&policy.allowed_cycles, governed, other)
+                    .chain(matching_pairs(&policy.reported_cycles, governed, other))
+                {
+                    self.pairs.entry(directive.clone()).or_default().insert(configuration);
+                    accounted = true;
+                }
+                if !accounted {
+                    let entry = self
+                        .unapproved
+                        .entry((pair.0, pair.1, graph))
+                        .or_insert_with(|| (ConfigSet::default(), component.clone()));
+                    entry.0.insert(configuration);
+                }
+            }
+        }
+        self.components.entry((graph, component)).or_default().insert(configuration);
+    }
+
+    fn report_errors(&self, policy: &Policy, space: &ConfigSpace, errors: &mut Vec<String>) {
+        for ((left, right, graph), (configurations, component)) in &self.forbidden {
+            errors.push(format!(
+                "forbidden cycle {left} <-> {right} graph={graph} configurations={} in SCC {:?}",
+                space.expression(*configurations),
+                component
+            ));
+        }
+        for ((left, right, graph), (configurations, component)) in &self.unapproved {
+            errors.push(format!(
+                "unapproved governed cycle {left} <-> {right} graph={graph} configurations={} in \
+                 SCC {:?}; the pair needs a reviewed allow-cycle (governed/admitted) or \
+                 report-cycle (reported) entry",
+                space.expression(*configurations),
+                component
+            ));
+        }
+        for (label, pairs) in
+            [("allow-cycle", &policy.allowed_cycles), ("report-cycle", &policy.reported_cycles)]
+        {
+            for (left, right) in pairs {
+                if !self.pairs.contains_key(&(left.clone(), right.clone())) {
+                    errors.push(format!(
+                        "stale {label} {left} {right}: no evaluated configuration has a cycle \
+                         joining this pair"
+                    ));
+                }
+            }
+        }
+    }
 }
 
 fn graph_node(module: &str, item: &str) -> String {
@@ -1092,6 +1455,22 @@ fn direct_edge_targets(
             .map(|owner| ResolvedTarget { module: owner.clone(), item: edge.target.clone() })
             .collect();
     }
+    if let Some(rest) = edge.target.strip_prefix(".<") {
+        let Some((method, receiver_type)) = rest.split_once(">:") else {
+            return BTreeSet::new();
+        };
+        let mut typed = edge.clone();
+        typed.target = format!("{receiver_type}::{method}");
+        return direct_edge_targets(
+            module,
+            &typed,
+            modules,
+            root_aliases,
+            engine_fields,
+            field_owners,
+            method_owners,
+        );
+    }
     let mut target = edge.target.as_str();
     let crate_qualified = target.starts_with("crate::");
     if let Some(rest) = target.strip_prefix("crate::") {
@@ -1177,6 +1556,24 @@ fn direct_edge_targets(
             module: "root".to_string(),
             item: target.to_string(),
         }]);
+    }
+    if !crate_qualified && target.contains("::") {
+        let head = target.split("::").next().unwrap_or(target);
+        let physical = modules
+            .keys()
+            .filter(|candidate| {
+                module == candidate.as_str() || module.starts_with(&format!("{candidate}::"))
+            })
+            .max_by_key(|candidate| candidate.len());
+        if physical
+            .and_then(|physical| modules.get(physical))
+            .is_some_and(|info| info.analysis.declared_items.contains(head))
+        {
+            return BTreeSet::from([ResolvedTarget {
+                module: module.to_string(),
+                item: target.to_string(),
+            }]);
+        }
     }
     BTreeSet::new()
 }

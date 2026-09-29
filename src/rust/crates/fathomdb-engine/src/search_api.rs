@@ -818,7 +818,7 @@ impl Engine {
                 // then restore them on its `SearchFilter` output.
                 sf.attributes.clear();
                 Filter::try_from(&sf).and_then(|filter| {
-                    filter.to_search_filter().map(|mut lo| {
+                    Filter::to_search_filter(&filter).map(|mut lo| {
                         lo.attributes = attributes;
                         lo
                     })

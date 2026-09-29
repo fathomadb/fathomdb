@@ -1,8 +1,31 @@
 # FathomDB engine module-boundary policy.
 #
 # Shrink-only reviewed inputs: module classifications, field/owner maps,
-# forbid-dependency, forbid-cycle and allow-cycle lines, and the local-macro
-# exceptions. Loosening any of them needs a reviewed plan change.
+# forbid-dependency, forbid-cycle, allow-cycle, report-cycle and admit-type
+# lines, and the local-macro, unparsed-macro and external-receiver
+# exceptions. Loosening any of them needs a reviewed plan change; every
+# allowance and exception is stale-checked and fails when unused.
+#
+# Classifications: `governed` modules are enforced; `admitted` modules are
+# contract dependencies that hold at least one allow-cycle or admit-type
+# entry (root is always admitted: its items are separate nodes); `reported`
+# modules are extracted and reported only.
+#
+# Cycles (checked in every configuration): the `item` graph is the whole
+# crate at item granularity (callable, field, Engine-method, typed-receiver
+# and type references; root items are separate nodes); the
+# `governed-module` graph is module-level over every non-composition edge
+# between governed modules. Every SCC with a governed member must account
+# for each (governed, other) module pair: forbid-cycle pairs always fail;
+# allow-cycle joins a governed module with a governed or admitted one;
+# report-cycle acknowledges a governed/reported pair. Cycle directives cover
+# descendant modules. Re-exports, the Engine storage layout and admit-type
+# edges (`admit-type <source> <item> <target> <item>`, an admitted
+# module's type-only reference to a governed item) are composition metadata
+# and join no graph. Whole-crate module-level SCCs are printed by --report as
+# inventory only. `external-receiver <module> <item> <method> <calls>`
+# records a reviewed count of unresolved dot calls whose name is also a
+# governed inherent method of another module.
 #
 # Regenerable-with-review inventories: the `inherent` and `edge` lines. They
 # are regenerated from `fathomdb-module-boundary-gate --report` and the diff
@@ -33,12 +56,12 @@ reported actuation::tests
 reported consolidation
 reported data_plane_integrity
 reported dependency
-admitted dependency_closure
+reported dependency_closure
 reported dependency_trace
 reported embedding
 reported erasure
 admitted errors
-admitted evidence
+reported evidence
 reported evidence::tests
 governed filter
 reported filter::slice85_boundary_tests
@@ -174,11 +197,37 @@ forbid-cycle read reader_pool
 forbid-cycle graph_expand reader_pool
 forbid-cycle graph_expand search_api
 forbid-cycle search reader_pool
-allow-cycle search dependency_closure
-allow-cycle search evidence
-allow-cycle graph_expand evidence
+admit-type errors EngineError::GraphExpansion graph_expand::types GraphExpansionErrorV1
 
 local-macro identity caller_identity_newtype 7294cc907f93c51b
+
+# Reviewed: each counted call's receiver is a String, str, serde_json value,
+# IdSpaceKind or projection-generation field, never a governed-type receiver,
+# except graph_expand::execution GraphExpansionErrorV1::fmt, whose
+# `self.reason` is GraphExpansionErrorReasonV1 declared in
+# graph_expand::types (a cross-file struct field the gate cannot type).
+external-receiver filter Filter::lower_for_read_list as_str 1
+external-receiver filter Predicate::json_path_compare as_str 1
+external-receiver filter Predicate::json_path_eq as_str 1
+external-receiver filter Predicate::path as_str 2
+external-receiver filter edge_fts_hit_passes_filter as_str 1
+external-receiver filter hit_attributes_pass_filter as_str 2
+external-receiver filter text_hit_passes_filter as_str 2
+external-receiver frozen_read projection_serving_encoding as_str 2
+external-receiver graph_expand::codec check_closed as_str 1
+external-receiver graph_expand::codec decode_graph_expand_request_v1 as_str 8
+external-receiver graph_expand::codec decode_graph_expand_result_v1 as_str 2
+external-receiver graph_expand::codec encode_graph_expand_request_v1 as_str 1
+external-receiver graph_expand::codec encode_graph_expand_result_v1 as_str 4
+external-receiver graph_expand::codec parse_read_context as_str 3
+external-receiver graph_expand::codec read_context_wire as_str 2
+external-receiver graph_expand::codec response_closed as_str 1
+external-receiver graph_expand::execution GraphExpansionErrorV1::fmt as_str 1
+external-receiver graph_expand::execution encode_graph_evidence_request as_str 1
+external-receiver graph_expand::execution read_graph_expand_in_tx as_str 1
+external-receiver search bfs_graph_arm_candidates as_str 3
+external-receiver search bm25f_search_inner as_str 1
+external-receiver search read_search_in_tx as_str 4
 
 inherent filter Filter::lower_for_read_list
 inherent filter Filter::lower_for_read_list_for_test
@@ -309,9 +358,9 @@ edge dependency_trace <module> filter edge_fts_hit_passes_filter import all
 edge dependency_trace <module> filter text_hit_passes_filter import all
 edge dependency_trace <module> frozen_read <module> import all
 edge dependency_trace <module> frozen_read FrozenReadContextV1 import all
-edge dependency_trace <module> frozen_read FrozenReadContextV1 type all
 edge dependency_trace <module> frozen_read ReadContextV1 import all
 edge dependency_trace <module> root load_next_cursor import all
+edge dependency_trace DependencyTraceRequestV1 frozen_read FrozenReadContextV1 type all
 edge dependency_trace DependencyTraceRequestV1::new frozen_read FrozenReadContextV1 type all
 edge dependency_trace execute frozen_read authenticate callable all
 edge dependency_trace execute frozen_read validate_snapshot callable all
@@ -359,20 +408,25 @@ edge erasure Engine::redact_telemetry_stable_ids telemetry telemetry field-acces
 edge erasure Engine::redact_telemetry_stable_ids telemetry telemetry_enabled field-access all
 edge errors <module> frozen_read FrozenReadError type all
 edge errors <module> graph_expand::types GraphExpansionErrorV1 type all
-edge errors <module> root EmbedderRequired type all
-edge errors <module> root RuntimeConfigurationError type all
+edge errors EngineError::EmbedderRequired root EmbedderRequired type all
+edge errors EngineError::FrozenRead frozen_read FrozenReadError type all
+edge errors EngineError::GraphExpansion graph_expand::types GraphExpansionErrorV1 type all
 edge errors EngineError::from frozen_read FrozenReadError type all
 edge errors EngineError::from graph_expand::types GraphExpansionErrorV1 type all
+edge errors EngineOpenError::RuntimeConfiguration root RuntimeConfigurationError type all
 edge evidence <module> frozen_read <module> import all
 edge evidence <module> frozen_read FrozenReadContextV1 import all
-edge evidence <module> frozen_read FrozenReadContextV1 type all
-edge evidence <module> graph_expand::types TraversalDirection type all
-edge evidence <module> search CapturedGraphOrigin type all
 edge evidence <module> search_types SearchResult import all
-edge evidence <module> search_types SearchResult type all
 edge evidence <module> search_types SoftFallbackBranch import all
 edge evidence EvidenceArmV1::from_branch search_types SoftFallbackBranch type all
 edge evidence EvidenceArtifactClassV1::from_hit_branch search_types SoftFallbackBranch type all
+edge evidence EvidenceResolveRequestV1 frozen_read FrozenReadContextV1 type all
+edge evidence EvidenceSearchRequestV1 frozen_read FrozenReadContextV1 type all
+edge evidence EvidenceSearchResultV1 search_types SearchResult type all
+edge evidence GraphEvidenceDisclosure graph_expand::types TraversalDirection type all
+edge evidence GraphEvidenceResolveRequestV1 frozen_read FrozenReadContextV1 type all
+edge evidence GraphEvidenceSelector graph_expand::types TraversalDirection type all
+edge evidence Payload search CapturedGraphOrigin type all
 edge evidence authorize_graph_evidence frozen_read FrozenReadContextV1 type all
 edge evidence build_search_result frozen_read FrozenReadContextV1 type all
 edge evidence build_search_result frozen_read page_cursor_material callable all
@@ -468,11 +522,9 @@ edge filter::slice85_boundary_tests snapshot_filter_error_is_narrow_and_preserve
 edge frozen_read <module> dependency load_dependency_generation import all
 edge frozen_read <module> errors EngineError import all
 edge frozen_read <module> filter SearchFilter import all
-edge frozen_read <module> filter SearchFilter type all
 edge frozen_read <module> projection_commit load_projection_cursor import all
 edge frozen_read <module> root load_next_cursor import all
 edge frozen_read <module> temporal ReadView import all
-edge frozen_read <module> temporal ReadView type all
 edge frozen_read <module> temporal current_epoch_seconds import all
 edge frozen_read Cursor::array32 errors EngineError type all
 edge frozen_read Cursor::i64 errors EngineError type all
@@ -480,6 +532,8 @@ edge frozen_read Cursor::string errors EngineError type all
 edge frozen_read Cursor::take errors EngineError type all
 edge frozen_read Cursor::u32 errors EngineError type all
 edge frozen_read Cursor::u64 errors EngineError type all
+edge frozen_read ReadContextV1 filter SearchFilter type all
+edge frozen_read ReadContextV1 temporal ReadView type all
 edge frozen_read ReadContextV1::new errors EngineError type all
 edge frozen_read ReadContextV1::new filter SearchFilter type all
 edge frozen_read ReadContextV1::new temporal ReadView type all
@@ -536,6 +590,7 @@ edge frozen_read::tests <module> frozen_read projection_serving_encoding import 
 edge frozen_read::tests <module> frozen_read validate_snapshot import test
 edge frozen_read::tests assert_normative_fixture filter SearchFilter::default callable test
 edge frozen_read::tests assert_normative_fixture frozen_read ReadContextV1 callable test
+edge frozen_read::tests context_encoding_is_independent_of_attribute_order filter SearchFilter::clone callable test
 edge frozen_read::tests context_encoding_is_independent_of_attribute_order filter SearchFilter::default callable test
 edge frozen_read::tests context_encoding_is_independent_of_attribute_order frozen_read ReadContextV1 callable test
 edge frozen_read::tests equal_count_terminal_mutations_on_copied_databases_do_not_share_authority filter SearchFilter::default callable test
@@ -543,12 +598,19 @@ edge frozen_read::tests equal_count_terminal_mutations_on_copied_databases_do_no
 edge frozen_read::tests equal_count_terminal_mutations_on_copied_databases_do_not_share_authority frozen_read ReadContextV1 callable test
 edge frozen_read::tests equal_count_terminal_mutations_on_copied_databases_do_not_share_authority root close engine-method test
 edge frozen_read::tests equal_count_terminal_mutations_on_copied_databases_do_not_share_authority root execute_for_test engine-method test
+edge frozen_read::tests normative_v2_fixture_pins_projection_generation_binding root DEFAULT_EMBEDDER_DIMENSION type test
+edge frozen_read::tests normative_v2_fixture_pins_projection_generation_binding root DEFAULT_EMBEDDER_NAME type test
+edge frozen_read::tests normative_v2_fixture_pins_projection_generation_binding root DEFAULT_EMBEDDER_REVISION type test
 edge frozen_read::tests normative_v2_fixture_pins_projection_generation_binding root register_sqlite_vec_extension callable test
 edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation filter SearchFilter::default callable test
 edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation frozen_read FrozenReadErrorReason type test
 edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation frozen_read ReadContextV1 callable test
+edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation root DEFAULT_EMBEDDER_DIMENSION type test
+edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation root DEFAULT_EMBEDDER_NAME type test
+edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation root DEFAULT_EMBEDDER_REVISION type test
 edge frozen_read::tests schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation root register_sqlite_vec_extension callable test
 edge frozen_read::tests schema33_serving_binding_is_compact_and_branch_sensitive root close engine-method test
+edge fusion Entry search_types SearchHit type all
 edge fusion apply_importance_reweight search_types SearchHit type all
 edge fusion apply_recency_reweight search_types SearchHit type all
 edge fusion build_importance_confidence_maps search_types SearchHit type all
@@ -633,6 +695,7 @@ edge graph_api Engine::graph_expand_inner graph_expand::execution GraphExpandRea
 edge graph_api Engine::graph_expand_inner graph_expand::execution graph_error callable all
 edge graph_api Engine::graph_expand_inner graph_expand::execution validate_semantics callable all
 edge graph_api Engine::graph_expand_inner graph_expand::types GraphExpandRequestV1 type all
+edge graph_api Engine::graph_expand_inner graph_expand::types GraphExpandRequestV1::clone callable all
 edge graph_api Engine::graph_expand_inner graph_expand::types GraphExpandResultV1 type all
 edge graph_api Engine::graph_expand_inner graph_expand::types GraphExpansionErrorReasonV1::GraphContextInvalid type all
 edge graph_api Engine::graph_expand_inner graph_expand::types GraphExpansionErrorReasonV1::UnsupportedSchemaVersion type all
@@ -725,6 +788,7 @@ edge graph_api Engine::seed_graph_expand_rss_fixture_for_test errors EngineError
 edge graph_api Engine::seed_graph_expand_rss_fixture_for_test errors EngineError::Closing type hooks
 edge graph_api Engine::seed_graph_expand_rss_fixture_for_test errors EngineError::Storage type hooks
 edge graph_api Engine::seed_graph_expand_rss_fixture_for_test identity SourceId import hooks
+edge graph_api Engine::seed_graph_expand_rss_fixture_for_test identity SourceId::map_err callable hooks
 edge graph_api Engine::seed_graph_expand_rss_fixture_for_test identity SourceId::new callable hooks
 edge graph_api Engine::seed_graph_expand_rss_fixture_for_test record_lifecycle InitialState import hooks
 edge graph_api Engine::seed_graph_expand_rss_fixture_for_test record_lifecycle InitialState::Active type hooks
@@ -945,35 +1009,35 @@ edge graph_expand::execution <module> graph_expand::types GraphExpansionErrorV1 
 edge graph_expand::execution <module> graph_expand::types GraphExpansionExplanationV1 import all
 edge graph_expand::execution <module> graph_expand::types GraphOriginV1 import all
 edge graph_expand::execution <module> graph_expand::types GraphProjectionOriginV1 import all
-edge graph_expand::execution <module> graph_expand::types GraphProjectionOriginV1 type all
 edge graph_expand::execution <module> graph_expand::types GraphProjectionReadinessV1 import all
-edge graph_expand::execution <module> graph_expand::types GraphProjectionReadinessV1 type all
 edge graph_expand::execution <module> graph_expand::types GraphReadContextV1 import all
 edge graph_expand::execution <module> graph_expand::types GraphReadModeV1 import all
 edge graph_expand::execution <module> graph_expand::types GraphSeedSourceV1 import all
 edge graph_expand::execution <module> graph_expand::types GraphSeedV1 import all
 edge graph_expand::execution <module> graph_expand::types GraphTargetExplanationV1 import all
 edge graph_expand::execution <module> graph_expand::types GraphTargetV1 import all
-edge graph_expand::execution <module> graph_expand::types GraphTargetV1 type all
 edge graph_expand::execution <module> graph_expand::types ResolvedGraphSeedV1 import all
 edge graph_expand::execution <module> graph_expand::types SCHEMA_VERSION import all
 edge graph_expand::execution <module> graph_expand::types TraversalDirection import all
-edge graph_expand::execution <module> graph_expand::types TraversalDirection type all
 edge graph_expand::execution <module> graph_expand::types graph_expansion_degradation_codes import all
 edge graph_expand::execution <module> identity IdSpaceKind import all
 edge graph_expand::execution <module> projection_generation <module> import all
 edge graph_expand::execution <module> projection_generation ProjectionGenerationOriginV1 import all
-edge graph_expand::execution <module> projection_generation ProjectionGenerationOriginV1 type all
 edge graph_expand::execution <module> projection_generation ProjectionReadinessV1 import all
-edge graph_expand::execution <module> projection_generation ProjectionReadinessV1 type all
 edge graph_expand::execution <module> projection_generation ProjectionRuntimeStateV1 import all
 edge graph_expand::execution <module> reader_transaction begin_attributed_reader_tx import all
 edge graph_expand::execution <module> search_types StructuralLifecycleStateV1 import all
 edge graph_expand::execution <module> structural_state structural_dependency_state import all
 edge graph_expand::execution <module> temporal FrozenView import all
 edge graph_expand::execution <module> wal_attribution WalAttributionCollector import all
+edge graph_expand::execution EdgeRow graph_expand::types TraversalDirection type all
+edge graph_expand::execution GraphCandidate graph_expand::types GraphTargetV1 type all
+edge graph_expand::execution GraphExpandProjectionGenerationForTest projection_generation ProjectionGenerationOriginV1 type hooks
+edge graph_expand::execution GraphExpandProjectionGenerationForTest projection_generation ProjectionReadinessV1 type hooks
 edge graph_expand::execution GraphExpandProjectionGenerationForTest::new projection_generation ProjectionGenerationOriginV1 type hooks
 edge graph_expand::execution GraphExpandProjectionGenerationForTest::new projection_generation ProjectionReadinessV1 type hooks
+edge graph_expand::execution GraphExpandProjectionStateForTest graph_expand::types GraphProjectionOriginV1 type hooks
+edge graph_expand::execution GraphExpandProjectionStateForTest graph_expand::types GraphProjectionReadinessV1 type hooks
 edge graph_expand::execution GraphExpandProjectionStateForTest::configuration_blocked graph_expand::types GraphProjectionOriginV1::Configuration type hooks
 edge graph_expand::execution GraphExpandProjectionStateForTest::configuration_blocked graph_expand::types GraphProjectionReadinessV1::Blocked type hooks
 edge graph_expand::execution GraphExpandProjectionStateForTest::configuration_processing graph_expand::types GraphProjectionOriginV1::Configuration type hooks
@@ -999,6 +1063,7 @@ edge graph_expand::execution explain_graph_expand_incident_query errors EngineEr
 edge graph_expand::execution explain_graph_expand_incident_query errors EngineError::Storage type all
 edge graph_expand::execution graph_error errors EngineError type all
 edge graph_expand::execution graph_error graph_expand::types GraphExpansionErrorReasonV1 type all
+edge graph_expand::execution graph_error graph_expand::types GraphExpansionErrorV1::into callable all
 edge graph_expand::execution graph_error graph_expand::types GraphExpansionErrorV1::new callable all
 edge graph_expand::execution graph_expand_incident_query graph_expand::types TraversalDirection type all
 edge graph_expand::execution graph_expand_incident_sql graph_expand::types TraversalDirection type all
@@ -1015,6 +1080,8 @@ edge graph_expand::execution load_node errors EngineError::Storage type all
 edge graph_expand::execution load_node filter SearchFilter type all
 edge graph_expand::execution load_node filter append_node_eligibility_sql callable all
 edge graph_expand::execution load_node temporal FrozenView type all
+edge graph_expand::execution load_node temporal FrozenView::node_sql callable all
+edge graph_expand::execution load_node temporal FrozenView::now_param callable all
 edge graph_expand::execution map_projection_origin graph_expand::types GraphProjectionOriginV1 type all
 edge graph_expand::execution map_projection_origin graph_expand::types GraphProjectionOriginV1::Configuration type all
 edge graph_expand::execution map_projection_origin graph_expand::types GraphProjectionOriginV1::Fresh type all
@@ -1096,6 +1163,8 @@ edge graph_expand::execution resolve_seeds graph_expand::types GraphSeedV1::Expl
 edge graph_expand::execution resolve_seeds graph_expand::types GraphSeedV1::Query type all
 edge graph_expand::execution resolve_seeds graph_expand::types ResolvedGraphSeedV1 type all
 edge graph_expand::execution resolve_seeds temporal FrozenView type all
+edge graph_expand::execution resolve_seeds temporal FrozenView::node_sql callable all
+edge graph_expand::execution resolve_seeds temporal FrozenView::now_param callable all
 edge graph_expand::execution validate_kind_list errors EngineError type all
 edge graph_expand::execution validate_kind_list graph_expand::types GraphExpansionErrorReasonV1 type all
 edge graph_expand::execution validate_semantics errors EngineError type all
@@ -1128,13 +1197,10 @@ edge graph_expand::traversal <module> filter append_node_eligibility_sql import 
 edge graph_expand::traversal <module> filter validate_filter_attributes_on_snapshot import all
 edge graph_expand::traversal <module> frozen_read <module> import all
 edge graph_expand::traversal <module> frozen_read FrozenReadError import all
-edge graph_expand::traversal <module> frozen_read FrozenReadError type all
 edge graph_expand::traversal <module> graph_expand::types TraversalDirection import all
 edge graph_expand::traversal <module> read NodeRecord import all
-edge graph_expand::traversal <module> read NodeRecord type all
 edge graph_expand::traversal <module> reader_transaction begin_attributed_reader_tx import all
 edge graph_expand::traversal <module> search_types SearchHit import all
-edge graph_expand::traversal <module> search_types SearchHit type all
 edge graph_expand::traversal <module> search_types SoftFallbackBranch import all
 edge graph_expand::traversal <module> tc5_benchmark <module> import tc5
 edge graph_expand::traversal <module> temporal BoundaryCrossing import all
@@ -1142,33 +1208,42 @@ edge graph_expand::traversal <module> temporal FrozenView import all
 edge graph_expand::traversal <module> temporal ReadView import all
 edge graph_expand::traversal <module> temporal edge_validity_sql_for_view import all
 edge graph_expand::traversal <module> wal_attribution WalAttributionCollector import all
+edge graph_expand::traversal SearchExpandHandlerError::FrozenRead frozen_read FrozenReadError type all
 edge graph_expand::traversal SearchExpandHandlerError::from filter SnapshotFilterError type all
 edge graph_expand::traversal SearchExpandHandlerError::from filter SnapshotFilterError::InvalidFilter type all
 edge graph_expand::traversal SearchExpandHandlerError::from filter SnapshotFilterError::Sqlite type all
+edge graph_expand::traversal SearchExpandResult read NodeRecord type all
+edge graph_expand::traversal SearchExpandResult search_types SearchHit type all
 edge graph_expand::traversal build_bfs_sql graph_expand::types TraversalDirection type all
 edge graph_expand::traversal build_bfs_sql graph_expand::types TraversalDirection::Both type all
 edge graph_expand::traversal build_bfs_sql graph_expand::types TraversalDirection::Incoming type all
 edge graph_expand::traversal build_bfs_sql graph_expand::types TraversalDirection::Outgoing type all
 edge graph_expand::traversal build_bfs_sql temporal ReadView type all
+edge graph_expand::traversal build_bfs_sql temporal ReadView::node_sql callable all
 edge graph_expand::traversal build_bfs_sql temporal edge_validity_sql_for_view callable all
 edge graph_expand::traversal build_bfs_with_depth_sql filter SearchFilter type all
 edge graph_expand::traversal build_bfs_with_depth_sql filter append_node_eligibility_sql callable all
 edge graph_expand::traversal build_bfs_with_depth_sql temporal FrozenView type all
+edge graph_expand::traversal build_bfs_with_depth_sql temporal FrozenView::node_sql callable all
 edge graph_expand::traversal build_bfs_with_depth_sql temporal edge_validity_sql_for_view callable all
 edge graph_expand::traversal crossed_boundary_since_in_tx dependency_closure read_eligibility_sql callable all
 edge graph_expand::traversal crossed_boundary_since_in_tx reader_transaction begin_attributed_reader_tx callable all
 edge graph_expand::traversal crossed_boundary_since_in_tx temporal BoundaryCrossing type all
 edge graph_expand::traversal crossed_boundary_since_in_tx temporal ReadView type all
+edge graph_expand::traversal crossed_boundary_since_in_tx temporal ReadView::existence_sql callable all
+edge graph_expand::traversal crossed_boundary_since_in_tx temporal ReadView::now_param callable all
 edge graph_expand::traversal crossed_boundary_since_in_tx wal_attribution WalAttributionCollector type all
 edge graph_expand::traversal explain_graph_neighbors_in_tx graph_expand::types TraversalDirection type all
 edge graph_expand::traversal explain_graph_neighbors_in_tx reader_transaction begin_attributed_reader_tx callable all
 edge graph_expand::traversal explain_graph_neighbors_in_tx temporal ReadView::default callable all
+edge graph_expand::traversal explain_graph_neighbors_in_tx temporal ReadView::freeze callable all
 edge graph_expand::traversal explain_graph_neighbors_in_tx wal_attribution WalAttributionCollector type all
 edge graph_expand::traversal graph_neighbors_in_tx graph_expand::types TraversalDirection type all
 edge graph_expand::traversal graph_neighbors_in_tx read NodeRecord type all
 edge graph_expand::traversal graph_neighbors_in_tx reader_transaction begin_attributed_reader_tx callable all
 edge graph_expand::traversal graph_neighbors_in_tx tc5_benchmark record_graph_route callable all
 edge graph_expand::traversal graph_neighbors_in_tx temporal ReadView type all
+edge graph_expand::traversal graph_neighbors_in_tx temporal ReadView::freeze callable all
 edge graph_expand::traversal graph_neighbors_in_tx wal_attribution WalAttributionCollector type all
 edge graph_expand::traversal search_expand_in_tx filter SearchFilter type all
 edge graph_expand::traversal search_expand_in_tx filter validate_filter_attributes_on_snapshot callable all
@@ -1177,24 +1252,28 @@ edge graph_expand::traversal search_expand_in_tx frozen_read validate_snapshot c
 edge graph_expand::traversal search_expand_in_tx reader_transaction begin_attributed_reader_tx callable all
 edge graph_expand::traversal search_expand_in_tx search_types SearchHit type all
 edge graph_expand::traversal search_expand_in_tx temporal ReadView type all
+edge graph_expand::traversal search_expand_in_tx temporal ReadView::freeze callable all
 edge graph_expand::traversal search_expand_in_tx wal_attribution WalAttributionCollector type all
 edge graph_expand::traversal search_expand_on_snapshot filter SearchFilter type all
 edge graph_expand::traversal search_expand_on_snapshot read NodeRecord type all
 edge graph_expand::traversal search_expand_on_snapshot search_types SearchHit type all
 edge graph_expand::traversal search_expand_on_snapshot search_types SoftFallbackBranch::TextEdge type all
 edge graph_expand::traversal search_expand_on_snapshot temporal FrozenView type all
+edge graph_expand::traversal search_expand_on_snapshot temporal FrozenView::edge_now callable all
+edge graph_expand::traversal search_expand_on_snapshot temporal FrozenView::node_sql callable all
+edge graph_expand::traversal search_expand_on_snapshot temporal FrozenView::now_param callable all
 edge graph_expand::traversal search_expand_on_snapshot temporal edge_validity_sql_for_view callable all
-edge graph_expand::types <module> evidence GraphEvidenceSidecarV1 type all
 edge graph_expand::types <module> frozen_read FrozenReadContextV1 import all
-edge graph_expand::types <module> frozen_read FrozenReadContextV1 type all
 edge graph_expand::types <module> frozen_read ReadContextV1 import all
-edge graph_expand::types <module> frozen_read ReadContextV1 type all
 edge graph_expand::types <module> identity IdSpace import all
-edge graph_expand::types <module> identity IdSpace type all
 edge graph_expand::types <module> search_types StructuralDependencyStateV1 import all
-edge graph_expand::types <module> search_types StructuralDependencyStateV1 type all
 edge graph_expand::types <module> search_types StructuralLifecycleStateV1 import all
-edge graph_expand::types <module> search_types StructuralLifecycleStateV1 type all
+edge graph_expand::types GraphExpandResultV1 evidence GraphEvidenceSidecarV1 type all
+edge graph_expand::types GraphReadContextV1::Current frozen_read ReadContextV1 type all
+edge graph_expand::types GraphReadContextV1::Frozen frozen_read FrozenReadContextV1 type all
+edge graph_expand::types GraphSeedV1::Explicit identity IdSpace type all
+edge graph_expand::types GraphTargetExplanationV1 search_types StructuralDependencyStateV1 type all
+edge graph_expand::types GraphTargetExplanationV1 search_types StructuralLifecycleStateV1 type all
 edge ingest <module> root Engine type all
 edge ingest Engine::run_extract_session read_api read_get_many engine-method all
 edge ingest Engine::run_extract_session root connection field-access all
@@ -1267,7 +1346,6 @@ edge projection_rebuild Engine::run_rebuild root RebuildReport type operator
 edge projection_rebuild Engine::run_rebuild root drain engine-method operator
 edge projection_rebuild Engine::run_rebuild root projection_runtime field-access operator
 edge projection_registry <module> root Engine type all
-edge projection_registry <module> root ProjectionRole type all
 edge projection_registry Engine::configure_projections root ProjectionDelta type all
 edge projection_registry Engine::configure_projections root ProjectionSpec type all
 edge projection_registry Engine::configure_projections root connection field-access all
@@ -1281,6 +1359,7 @@ edge projection_registry Engine::read_projections root ProjectionSpec type all
 edge projection_registry Engine::read_projections root connection field-access all
 edge projection_registry Engine::read_projections root ensure_open engine-method all
 edge projection_registry Engine::read_projections root usable_dense_runtime engine-method all
+edge projection_registry StoredProjection root ProjectionRole type all
 edge projection_registry StoredProjection::from_spec root ProjectionSpec type all
 edge projection_registry StoredProjection::to_spec root ProjectionSpec type all
 edge projection_registry apply_projection_config root ProjectionDelta type all
@@ -1288,12 +1367,12 @@ edge projection_registry apply_projection_config root ProjectionSpec type all
 edge projection_registry load_projection_registry root ProjectionRole type all
 edge projection_registry parse_roles_json root ProjectionRole type all
 edge projection_registry roles_to_storage root ProjectionRole type all
-edge projection_runtime <module> root ManagedConnectionRegistry type all
-edge projection_runtime <module> root RuntimeConnectionInventoryRequest type all
-edge projection_runtime <module> root RuntimeNativeStateRequest type all
 edge projection_runtime ProjectionRuntime::new root ManagedConnectionRegistry type all
 edge projection_runtime ProjectionRuntime::new_for_test root ManagedConnectionRegistry type test
 edge projection_runtime ProjectionRuntime::new_with_startup_control root ManagedConnectionRegistry type all
+edge projection_runtime ProjectionRuntimeShared root ManagedConnectionRegistry type hooks|test
+edge projection_runtime ProjectionRuntimeShared root RuntimeConnectionInventoryRequest type hooks|test
+edge projection_runtime ProjectionRuntimeShared root RuntimeNativeStateRequest type hooks|test
 edge projection_worker database_has_pending_projection_work root ManagedConnectionRegistry type all
 edge projection_worker database_has_pending_projection_work root open_runtime_connection callable all
 edge projection_worker projection_dispatcher_loop root managed_connections field-access all
@@ -1330,12 +1409,15 @@ edge read <module> reader_transaction begin_attributed_reader_tx import all
 edge read <module> temporal ReadView import all
 edge read <module> test_hooks frozen_after_validation_hook import all
 edge read <module> wal_attribution WalAttributionCollector import all
+edge read PageReaderError::Engine errors EngineError type all
 edge read PageReaderError::from errors EngineError type all
 edge read PageReaderError::from errors EngineError::FrozenRead callable all
 edge read PageReaderError::from frozen_read FrozenReadError type all
 edge read canonical_page_query filter SearchFilter type all
 edge read canonical_page_query filter append_node_eligibility_sql callable all
 edge read canonical_page_query temporal ReadView type all
+edge read canonical_page_query temporal ReadView::node_sql callable all
+edge read canonical_page_query temporal ReadView::now_param callable all
 edge read page_filter_error errors EngineError::InvalidFilter type all
 edge read page_filter_error filter SnapshotFilterError type all
 edge read page_filter_error filter SnapshotFilterError::InvalidFilter type all
@@ -1364,10 +1446,16 @@ edge read read_collection_in_tx reader_transaction begin_attributed_reader_tx ca
 edge read read_collection_in_tx wal_attribution WalAttributionCollector type all
 edge read read_get_by_id_in_tx reader_transaction begin_attributed_reader_tx callable all
 edge read read_get_by_id_in_tx temporal ReadView type all
+edge read read_get_by_id_in_tx temporal ReadView::node_sql callable all
+edge read read_get_by_id_in_tx temporal ReadView::now_param callable all
 edge read read_get_by_id_in_tx wal_attribution WalAttributionCollector type all
 edge read read_list_in_tx filter Predicate type all
+edge read read_list_in_tx filter Predicate::bind_value callable all
+edge read read_list_in_tx filter Predicate::to_sql_clause callable all
 edge read read_list_in_tx reader_transaction begin_attributed_reader_tx callable all
 edge read read_list_in_tx temporal ReadView type all
+edge read read_list_in_tx temporal ReadView::node_sql callable all
+edge read read_list_in_tx temporal ReadView::now_param callable all
 edge read read_list_in_tx wal_attribution WalAttributionCollector type all
 edge read read_operational_state_in_tx frozen_read FrozenReadContextV1 type all
 edge read read_operational_state_in_tx frozen_read authenticate callable all
@@ -1390,12 +1478,15 @@ edge read read_operational_state_page_in_tx test_hooks frozen_after_validation_h
 edge read read_operational_state_page_in_tx wal_attribution WalAttributionCollector type all
 edge read validate_operational_collection errors EngineError type all
 edge read validate_operational_collection errors EngineError::Storage type all
+edge read validate_operational_collection pagination PageError::into callable all
 edge read validate_operational_collection pagination PageError::new callable all
 edge read validate_operational_collection pagination PageErrorReason::CollectionFormatUnsupported type all
 edge read validate_operational_collection pagination PageErrorReason::CollectionKindMismatch type all
 edge read validate_operational_collection pagination PageErrorReason::CollectionNotFound type all
 edge read validate_operational_context errors EngineError type all
+edge read validate_operational_context filter SearchFilter::is_unfiltered callable all
 edge read validate_operational_context frozen_read FrozenReadContextV1 type all
+edge read validate_operational_context pagination PageError::into callable all
 edge read validate_operational_context pagination PageError::new callable all
 edge read validate_operational_context pagination PageErrorReason::ContextNotApplicable type all
 edge read_api <module> errors EngineError import all
@@ -1417,7 +1508,9 @@ edge read_api <module> temporal ReadView import all
 edge read_api Engine::read_canonical_page errors EngineError type all
 edge read_api Engine::read_canonical_page errors EngineError::Closing type all
 edge read_api Engine::read_canonical_page frozen_read FrozenReadContextV1 type all
+edge read_api Engine::read_canonical_page frozen_read FrozenReadContextV1::clone callable all
 edge read_api Engine::read_canonical_page pagination PageRequestV1 type all
+edge read_api Engine::read_canonical_page pagination PageRequestV1::clone callable all
 edge read_api Engine::read_canonical_page pagination PageV1 type all
 edge read_api Engine::read_canonical_page pagination validate_request callable all
 edge read_api Engine::read_canonical_page read NodeRecord type all
@@ -1427,6 +1520,7 @@ edge read_api Engine::read_canonical_page root ensure_open engine-method all
 edge read_api Engine::read_canonical_page_baseline_for_test errors EngineError type hooks
 edge read_api Engine::read_canonical_page_baseline_for_test errors EngineError::Closing type hooks
 edge read_api Engine::read_canonical_page_baseline_for_test frozen_read FrozenReadContextV1 type hooks
+edge read_api Engine::read_canonical_page_baseline_for_test frozen_read FrozenReadContextV1::clone callable hooks
 edge read_api Engine::read_canonical_page_baseline_for_test read NodeRecord type hooks
 edge read_api Engine::read_canonical_page_baseline_for_test reader_pool ReaderRequest::canonical_page_baseline callable hooks
 edge read_api Engine::read_canonical_page_baseline_for_test reader_pool reader_pool field-access hooks
@@ -1467,6 +1561,7 @@ edge read_api Engine::read_list root ensure_open engine-method all
 edge read_api Engine::read_list temporal ReadView type all
 edge read_api Engine::read_list_filter errors EngineError type all
 edge read_api Engine::read_list_filter filter Filter type all
+edge read_api Engine::read_list_filter filter Filter::lower_for_read_list callable all
 edge read_api Engine::read_list_filter read NodeRecord type all
 edge read_api Engine::read_list_filter root ensure_open engine-method all
 edge read_api Engine::read_list_filter temporal ReadView type all
@@ -1482,7 +1577,9 @@ edge read_api Engine::read_operational_state root ensure_open engine-method all
 edge read_api Engine::read_operational_state_page errors EngineError type all
 edge read_api Engine::read_operational_state_page errors EngineError::Closing type all
 edge read_api Engine::read_operational_state_page frozen_read FrozenReadContextV1 type all
+edge read_api Engine::read_operational_state_page frozen_read FrozenReadContextV1::clone callable all
 edge read_api Engine::read_operational_state_page pagination PageRequestV1 type all
+edge read_api Engine::read_operational_state_page pagination PageRequestV1::clone callable all
 edge read_api Engine::read_operational_state_page pagination PageV1 type all
 edge read_api Engine::read_operational_state_page pagination validate_request callable all
 edge read_api Engine::read_operational_state_page read OperationalStateRecordV1 type all
@@ -1496,48 +1593,28 @@ edge read_api Engine::receive_page_result read PageReaderError::Engine type all
 edge read_api Engine::receive_page_result read PageReaderError::Sqlite type all
 edge read_api Engine::receive_page_result root emit_sqlite_internal_error engine-method all
 edge reader_pool <module> errors EngineError import all
-edge reader_pool <module> errors EngineError type all
 edge reader_pool <module> evidence <module> import all
 edge reader_pool <module> evidence EvidenceSearchResultV1 import all
-edge reader_pool <module> evidence EvidenceSearchResultV1 type all
-edge reader_pool <module> evidence GraphEvidenceAuthority type all
 edge reader_pool <module> filter Predicate import all
-edge reader_pool <module> filter Predicate type all
 edge reader_pool <module> filter SearchFilter import all
-edge reader_pool <module> filter SearchFilter type all
 edge reader_pool <module> frozen_read <module> import all
-edge reader_pool <module> frozen_read FrozenReadBinding type all
 edge reader_pool <module> frozen_read FrozenReadContextV1 import all
-edge reader_pool <module> frozen_read FrozenReadContextV1 type all
 edge reader_pool <module> graph_expand <module> import all
-edge reader_pool <module> graph_expand::execution GraphExpandReaderControlsForTest type all
-edge reader_pool <module> graph_expand::traversal SearchExpandHandlerError type all
 edge reader_pool <module> graph_expand::traversal SearchExpandResult import all
-edge reader_pool <module> graph_expand::traversal SearchExpandResult type all
 edge reader_pool <module> graph_expand::traversal crossed_boundary_since_in_tx import all
 edge reader_pool <module> graph_expand::traversal explain_graph_neighbors_in_tx import all
 edge reader_pool <module> graph_expand::traversal graph_neighbors_in_tx import all
 edge reader_pool <module> graph_expand::traversal search_expand_in_tx import all
 edge reader_pool <module> graph_expand::types GraphExpandRequestV1 import all
-edge reader_pool <module> graph_expand::types GraphExpandRequestV1 type all
 edge reader_pool <module> graph_expand::types GraphExpandResultV1 import all
-edge reader_pool <module> graph_expand::types GraphExpandResultV1 type all
 edge reader_pool <module> graph_expand::types TraversalDirection import all
-edge reader_pool <module> graph_expand::types TraversalDirection type all
 edge reader_pool <module> pagination PageRequestV1 import all
-edge reader_pool <module> pagination PageRequestV1 type all
 edge reader_pool <module> pagination PageV1 import all
-edge reader_pool <module> pagination PageV1 type all
 edge reader_pool <module> projection_generation ProjectionRuntimeStateV1 import all
-edge reader_pool <module> projection_generation ProjectionRuntimeStateV1 type all
 edge reader_pool <module> read NodeRecord import all
-edge reader_pool <module> read NodeRecord type all
 edge reader_pool <module> read OpStoreRow import all
-edge reader_pool <module> read OpStoreRow type all
 edge reader_pool <module> read OperationalStateRecordV1 import all
-edge reader_pool <module> read OperationalStateRecordV1 type all
 edge reader_pool <module> read PageReaderError import all
-edge reader_pool <module> read PageReaderError type all
 edge reader_pool <module> read read_canonical_page_baseline_in_tx import hooks
 edge reader_pool <module> read read_canonical_page_in_tx import all
 edge reader_pool <module> read read_collection_in_tx import all
@@ -1550,36 +1627,75 @@ edge reader_pool <module> root uninstall_profile_callback import all
 edge reader_pool <module> search EvidenceCapture import all
 edge reader_pool <module> search NoEvidenceCapture import all
 edge reader_pool <module> search ProjectedTextReaderResponse import all
-edge reader_pool <module> search ProjectedTextReaderResponse type all
 edge reader_pool <module> search SearchReaderError import all
-edge reader_pool <module> search SearchReaderError type all
 edge reader_pool <module> search SearchReaderWork import all
-edge reader_pool <module> search SearchReaderWork type all
 edge reader_pool <module> search read_projected_text_in_tx import all
 edge reader_pool <module> search read_search_work_in_tx import all
 edge reader_pool <module> search_types Explanation import all
-edge reader_pool <module> search_types Explanation type all
 edge reader_pool <module> search_types GraphFrontierStats import all
-edge reader_pool <module> search_types GraphFrontierStats type all
 edge reader_pool <module> search_types SearchHit import all
-edge reader_pool <module> search_types SearchHit type all
 edge reader_pool <module> search_types SoftFallback import all
-edge reader_pool <module> search_types SoftFallback type all
 edge reader_pool <module> tc5_benchmark <module> import tc5
-edge reader_pool <module> tc5_benchmark VectorStageError type all
-edge reader_pool <module> tc5_benchmark VectorStageRequest type all
-edge reader_pool <module> tc5_benchmark VectorStageResult type all
 edge reader_pool <module> temporal BoundaryCrossing import all
-edge reader_pool <module> temporal BoundaryCrossing type all
 edge reader_pool <module> temporal ReadView import all
-edge reader_pool <module> temporal ReadView type all
 edge reader_pool <module> wal_attribution NativeConnectionStateFact import hooks|test
-edge reader_pool <module> wal_attribution NativeConnectionStateFact type all
 edge reader_pool <module> wal_attribution NativeStateReply import hooks|test
 edge reader_pool <module> wal_attribution WalAttributionCollector import all
 edge reader_pool <module> wal_attribution WalAttributionRole import all
 edge reader_pool <module> wal_attribution native_connection_state_for_test import hooks|test
 edge reader_pool <module> wal_attribution unavailable_native_connection_state_for_test import hooks|test
+edge reader_pool CanonicalPageBaselineReaderRequest frozen_read FrozenReadContextV1 type hooks
+edge reader_pool CanonicalPageBaselineReaderRequest read NodeRecord type hooks
+edge reader_pool CanonicalPageBaselineReaderRequest read PageReaderError type hooks
+edge reader_pool CanonicalPageReaderRequest frozen_read FrozenReadContextV1 type all
+edge reader_pool CanonicalPageReaderRequest pagination PageRequestV1 type all
+edge reader_pool CanonicalPageReaderRequest pagination PageV1 type all
+edge reader_pool CanonicalPageReaderRequest read NodeRecord type all
+edge reader_pool CanonicalPageReaderRequest read PageReaderError type all
+edge reader_pool EvidenceReaderResponse evidence EvidenceSearchResultV1 type all
+edge reader_pool EvidenceReaderResponse search SearchReaderError type all
+edge reader_pool EvidenceSearchReaderRequest frozen_read FrozenReadContextV1 type all
+edge reader_pool EvidenceSearchReaderRequest search SearchReaderWork type all
+edge reader_pool GraphExpandReaderRequest errors EngineError type all
+edge reader_pool GraphExpandReaderRequest evidence GraphEvidenceAuthority type all
+edge reader_pool GraphExpandReaderRequest frozen_read FrozenReadBinding type all
+edge reader_pool GraphExpandReaderRequest graph_expand::execution GraphExpandReaderControlsForTest type hooks
+edge reader_pool GraphExpandReaderRequest graph_expand::types GraphExpandRequestV1 type all
+edge reader_pool GraphExpandReaderRequest graph_expand::types GraphExpandResultV1 type all
+edge reader_pool GraphExpandReaderRequest projection_generation ProjectionRuntimeStateV1 type all
+edge reader_pool OperationalStatePageReaderRequest frozen_read FrozenReadContextV1 type all
+edge reader_pool OperationalStatePageReaderRequest pagination PageRequestV1 type all
+edge reader_pool OperationalStatePageReaderRequest pagination PageV1 type all
+edge reader_pool OperationalStatePageReaderRequest read OperationalStateRecordV1 type all
+edge reader_pool OperationalStatePageReaderRequest read PageReaderError type all
+edge reader_pool OperationalStateReaderRequest frozen_read FrozenReadContextV1 type all
+edge reader_pool OperationalStateReaderRequest read OperationalStateRecordV1 type all
+edge reader_pool OperationalStateReaderRequest read PageReaderError type all
+edge reader_pool ReaderRequest::CrossedBoundarySince temporal BoundaryCrossing type all
+edge reader_pool ReaderRequest::CrossedBoundarySince temporal ReadView type all
+edge reader_pool ReaderRequest::ExplainGraphNeighbors graph_expand::types TraversalDirection type all
+edge reader_pool ReaderRequest::GetById read NodeRecord type all
+edge reader_pool ReaderRequest::GetById temporal ReadView type all
+edge reader_pool ReaderRequest::GraphNeighbors graph_expand::types TraversalDirection type all
+edge reader_pool ReaderRequest::GraphNeighbors read NodeRecord type all
+edge reader_pool ReaderRequest::GraphNeighbors temporal ReadView type all
+edge reader_pool ReaderRequest::ReadCollection read OpStoreRow type all
+edge reader_pool ReaderRequest::ReadList filter Predicate type all
+edge reader_pool ReaderRequest::ReadList read NodeRecord type all
+edge reader_pool ReaderRequest::ReadList temporal ReadView type all
+edge reader_pool ReaderRequest::SearchExpand filter SearchFilter type all
+edge reader_pool ReaderRequest::SearchExpand frozen_read FrozenReadBinding type all
+edge reader_pool ReaderRequest::SearchExpand graph_expand::traversal SearchExpandHandlerError type all
+edge reader_pool ReaderRequest::SearchExpand graph_expand::traversal SearchExpandResult type all
+edge reader_pool ReaderRequest::SearchExpand search_types SearchHit type all
+edge reader_pool ReaderRequest::SearchExpand temporal ReadView type all
+edge reader_pool ReaderRequest::SearchProjectedText filter SearchFilter type all
+edge reader_pool ReaderRequest::SearchProjectedText search ProjectedTextReaderResponse type all
+edge reader_pool ReaderRequest::SearchProjectedText temporal ReadView type all
+edge reader_pool ReaderRequest::VectorStage tc5_benchmark VectorStageError type tc5
+edge reader_pool ReaderRequest::VectorStage tc5_benchmark VectorStageRequest type tc5
+edge reader_pool ReaderRequest::VectorStage tc5_benchmark VectorStageResult type tc5
+edge reader_pool ReaderRequest::WalNativeStateInventory wal_attribution NativeConnectionStateFact type hooks|test
 edge reader_pool ReaderRequest::canonical_page frozen_read FrozenReadContextV1 type all
 edge reader_pool ReaderRequest::canonical_page pagination PageRequestV1 type all
 edge reader_pool ReaderRequest::canonical_page pagination PageV1 type all
@@ -1630,6 +1746,12 @@ edge reader_pool ReaderRequest::search_expand temporal ReadView type all
 edge reader_pool ReaderRequest::vector_stage tc5_benchmark VectorStageError type tc5
 edge reader_pool ReaderRequest::vector_stage tc5_benchmark VectorStageRequest type tc5
 edge reader_pool ReaderRequest::vector_stage tc5_benchmark VectorStageResult type tc5
+edge reader_pool ReaderResponse graph_expand::traversal SearchExpandResult type all
+edge reader_pool ReaderResponse search SearchReaderError type all
+edge reader_pool ReaderResponse search_types Explanation type all
+edge reader_pool ReaderResponse search_types GraphFrontierStats type all
+edge reader_pool ReaderResponse search_types SearchHit type all
+edge reader_pool ReaderResponse search_types SoftFallback type all
 edge reader_pool ReaderWorkerPool::new root ManagedConnectionRegistry type all
 edge reader_pool ReaderWorkerPool::new wal_attribution WalAttributionCollector type all
 edge reader_pool ReaderWorkerPool::wal_native_state_inventory_for_test wal_attribution NativeConnectionStateFact type hooks|test
@@ -1637,7 +1759,11 @@ edge reader_pool ReaderWorkerPool::wal_native_state_inventory_for_test wal_attri
 edge reader_pool ReaderWorkerPool::wal_native_state_inventory_for_test wal_attribution NativeStateReply::Timeout type hooks|test
 edge reader_pool ReaderWorkerPool::wal_native_state_inventory_for_test wal_attribution WalAttributionRole::ReaderWorker type hooks|test
 edge reader_pool ReaderWorkerPool::wal_native_state_inventory_for_test wal_attribution unavailable_native_connection_state_for_test callable hooks|test
+edge reader_pool SearchReaderRequest search SearchReaderWork type all
 edge reader_pool finish_reader_request wal_attribution WalAttributionCollector type all
+edge reader_pool finish_reader_request wal_attribution WalAttributionCollector::fire_reader_completion_pause callable all
+edge reader_pool finish_reader_request wal_attribution WalAttributionCollector::fire_reader_handoff_pause callable all
+edge reader_pool finish_reader_request wal_attribution WalAttributionCollector::set callable all
 edge reader_pool finish_reader_request wal_attribution WalAttributionRole::ReaderWorker type all
 edge reader_pool reader_worker_loop graph_expand::execution count_graph_expand_sql_statement callable all
 edge reader_pool reader_worker_loop graph_expand::execution read_graph_expand_in_tx callable all
@@ -1660,11 +1786,15 @@ edge reader_pool reader_worker_loop search read_search_work_in_tx callable all
 edge reader_pool reader_worker_loop tc5_benchmark read_vector_stage_in_tx callable all
 edge reader_pool reader_worker_loop tc5_benchmark record_search_route callable all
 edge reader_pool reader_worker_loop wal_attribution WalAttributionCollector type all
+edge reader_pool reader_worker_loop wal_attribution WalAttributionCollector::register callable all
+edge reader_pool reader_worker_loop wal_attribution WalAttributionCollector::set callable all
 edge reader_pool reader_worker_loop wal_attribution WalAttributionRole::ReaderWorker type all
 edge reader_pool reader_worker_loop wal_attribution native_connection_state_for_test callable all
 edge reader_transaction <module> wal_attribution WalAttributionCollector import all
 edge reader_transaction <module> wal_attribution WalAttributionRole import all
 edge reader_transaction begin_attributed_reader_tx wal_attribution WalAttributionCollector type all
+edge reader_transaction begin_attributed_reader_tx wal_attribution WalAttributionCollector::fire_reader_snapshot_pause callable all
+edge reader_transaction begin_attributed_reader_tx wal_attribution WalAttributionCollector::set callable all
 edge reader_transaction begin_attributed_reader_tx wal_attribution WalAttributionRole::ReaderWorker type all
 edge record_lifecycle <module> root Engine type all
 edge record_lifecycle Engine::transition root connection field-access all
@@ -1684,9 +1814,6 @@ edge rerank try_rerank_fused search_types SearchHit type all
 edge root <module> embedding embed_batch_with_watchdog import all
 edge root <module> embedding embed_with_watchdog import all
 edge root <module> embedding map_runtime_embedder_error import all
-edge root <module> errors CorruptionLocator type all
-edge root <module> lifecycle Counters type all
-edge root <module> lifecycle SubscriberRegistry type all
 edge root <module> mean MeanAccumulator import all
 edge root <module> mean identity_requires_mean_centering import all
 edge root <module> mean read_pinned_mean_vec import all
@@ -1700,8 +1827,6 @@ edge root <module> projection_commit load_projection_cursor import all
 edge root <module> projection_commit record_projection_terminal import all
 edge root <module> projection_commit store_projection_cursor import all
 edge root <module> projection_commit terminal_state_for_cursor import all
-edge root <module> projection_generation CachedMutationProjectionStatus type all
-edge root <module> projection_generation CachedProjectionGenerationStatus type all
 edge root <module> projection_generation derive_dense_readiness import all
 edge root <module> projection_registry ProjectionClass import all
 edge root <module> projection_registry ProjectionPass import all
@@ -1727,7 +1852,6 @@ edge root <module> projection_registry vector_attr_insert_fragments import all
 edge root <module> projection_registry vector_projection_declared import all
 edge root <module> projection_runtime ProjectionJob import all
 edge root <module> projection_runtime ProjectionRuntime import all
-edge root <module> projection_runtime ProjectionRuntime type all
 edge root <module> projection_runtime ProjectionRuntimeShared import all
 edge root <module> projection_runtime ProjectionRuntimeStartupFaultForTest import test
 edge root <module> projection_runtime ProjectionRuntimeStartupMessage import all
@@ -1739,46 +1863,22 @@ edge root <module> projection_worker database_has_pending_projection_work import
 edge root <module> projection_worker pending_embedding_work import all
 edge root <module> projection_worker projection_dispatcher_loop import all
 edge root <module> projection_worker projection_worker_loop import all
-edge root <module> reader_pool ReaderWorkerPool type all
-edge root <module> root AdmissionLockedHookForTest type all
-edge root <module> root DatabaseAdmission type all
 edge root <module> root DenseReadiness type all
-edge root <module> root EmbedderRequired type all
 edge root <module> root EmbeddingOperation type all
 edge root <module> root EmbeddingReadinessState type all
 edge root <module> root Engine type all
-edge root <module> root Finding type all
-edge root <module> root ManagedConnectionCategory type all
-edge root <module> root ManagedConnectionRegistration type all
-edge root <module> root ManagedConnectionRegistry type all
-edge root <module> root OpenReport type all
+edge root <module> root ManagedConnectionRegistration type hooks|test
+edge root <module> root ManagedConnectionRegistry type hooks|test
 edge root <module> root OpenedEngine type all
-edge root <module> root OrphanProvenanceSource type all
 edge root <module> root PendingDatabaseLock type all
-edge root <module> root ProfileContext type all
-edge root <module> root ProjectionFts type all
 edge root <module> root ProjectionRole type all
-edge root <module> root ProjectionRuntimeStatusEntry type all
 edge root <module> root ProjectionRuntimeUnavailabilityReason type all
 edge root <module> root ProjectionStatusDenseReadiness type all
-edge root <module> root ProjectionVector type all
-edge root <module> root RebuildKind type all
 edge root <module> root RowKind type all
-edge root <module> root RuntimeConfiguration type all
 edge root <module> root RuntimeConfigurationError type all
 edge root <module> root RuntimeProbeConnection type test
-edge root <module> root RuntimeProbeLifecycle type all
-edge root <module> root RuntimeProbeRegistration type all
-edge root <module> root RuntimeSqliteMode type all
-edge root <module> root RuntimeState type all
-edge root <module> root SchemaObject type all
-edge root <module> root Section type all
+edge root <module> root RuntimeProbeRegistration type test
 edge root <module> root ShmSnapshot type all
-edge root <module> root TableRowCount type all
-edge root <module> root TraceEvent type all
-edge root <module> root TruncateWalStatus type all
-edge root <module> root VerifyEmbedderStatus type all
-edge root <module> telemetry TelemetrySink type all
 edge root <module> vector_equivalence run_vector_equivalence_probe import all
 edge root <module> vector_equivalence usable_dense_runtime import all
 edge root <module> vector_storage VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES import all
@@ -2067,6 +2167,31 @@ edge root <module>::validate_filter_attributes_on_snapshot filter validate_filte
 edge root <module>::validate_persisted_dependency_row dependency validate_persisted_dependency_row reexport all
 edge root <module>::validate_source_dependency_registration dependency validate_source_dependency_registration reexport all
 edge root <module>::validate_write write_validation validate_write reexport all
+edge root ADMISSION_LOCKED_HOOK_FOR_TEST root AdmissionLockedHookForTest type test
+edge root CanonicalNodeRow root RowKind type all
+edge root DatabaseOpenPlan root DatabaseAdmission type all
+edge root DenseReadiness::as_str root DenseReadiness::Embedding type all
+edge root DenseReadiness::as_str root DenseReadiness::Ready type all
+edge root DenseReadiness::as_str root DenseReadiness::Unavailable type all
+edge root DenseReadiness::from_str_opt root DenseReadiness::Embedding type all
+edge root DenseReadiness::from_str_opt root DenseReadiness::Ready type all
+edge root DenseReadiness::from_str_opt root DenseReadiness::Unavailable type all
+edge root DumpRowCountsReport root TableRowCount type all
+edge root DumpSchemaReport root SchemaObject type all
+edge root EmbedderRequired root EmbeddingOperation type all
+edge root EmbedderRequired root EmbeddingReadinessState type all
+edge root EmbeddingReadiness root EmbedderRequired type all
+edge root EmbeddingReadiness root EmbeddingReadinessState type all
+edge root Engine lifecycle Counters type all
+edge root Engine lifecycle SubscriberRegistry type all
+edge root Engine projection_generation CachedMutationProjectionStatus type all
+edge root Engine projection_generation CachedProjectionGenerationStatus type all
+edge root Engine projection_runtime ProjectionRuntime type all
+edge root Engine reader_pool ReaderWorkerPool type all
+edge root Engine root ManagedConnectionRegistration type hooks|test
+edge root Engine root ManagedConnectionRegistry type hooks|test
+edge root Engine root ProfileContext type all
+edge root Engine telemetry TelemetrySink type all
 edge root Engine::_graph_frontier_stats_for_test errors EngineError type all
 edge root Engine::_graph_frontier_stats_for_test search_api search_inner_with_stats engine-method all
 edge root Engine::_graph_frontier_stats_for_test search_types GraphFrontierStats type all
@@ -2108,6 +2233,7 @@ edge root Engine::canonical_rows_with_row_kind_for_test errors EngineError type 
 edge root Engine::canonical_rows_with_row_kind_for_test errors EngineError::Closing type all
 edge root Engine::canonical_rows_with_row_kind_for_test errors EngineError::Storage type all
 edge root Engine::canonical_rows_with_row_kind_for_test root RowKind type all
+edge root Engine::canonical_rows_with_row_kind_for_test root RowKind::as_str callable all
 edge root Engine::canonical_rows_with_row_kind_for_test root connection field-access all
 edge root Engine::canonical_rows_with_row_kind_for_test root ensure_open engine-method all
 edge root Engine::check_data_plane_integrity data_plane_integrity DataPlaneIntegrityRequestV1 type operator
@@ -2308,6 +2434,8 @@ edge root Engine::measure_slice45_mint_stages_for_test root ensure_open engine-m
 edge root Engine::measure_slice45_mint_stages_for_test root read_visibility_generation field-access hooks
 edge root Engine::native_raw_wal_checkpoint_for_test errors EngineError type hooks
 edge root Engine::native_raw_wal_checkpoint_for_test errors EngineError::Storage type hooks
+edge root Engine::native_raw_wal_checkpoint_for_test root ManagedConnectionCategory::RuntimeProbe type hooks
+edge root Engine::native_raw_wal_checkpoint_for_test root ManagedConnectionRegistry::default callable hooks
 edge root Engine::native_raw_wal_checkpoint_for_test root open_managed_connection callable hooks
 edge root Engine::native_state_inventory_for_test reader_pool reader_pool field-access hooks|test
 edge root Engine::native_state_inventory_for_test root connection field-access hooks|test
@@ -2356,6 +2484,8 @@ edge root Engine::open_locked mean recover_mean_vec_pin callable all
 edge root Engine::open_locked projection_generation bootstrap callable all
 edge root Engine::open_locked projection_registry reconcile_inert_vector_enrolments_on_boot callable all
 edge root Engine::open_locked projection_registry rederive_projections_on_boot callable all
+edge root Engine::open_locked root ManagedConnectionCategory::ReaderWorker type all
+edge root Engine::open_locked root ManagedConnectionCategory::Writer type all
 edge root Engine::open_locked root ManagedConnectionRegistry type all
 edge root Engine::open_locked root OpenReport type all
 edge root Engine::open_locked root apply_perf_experiment_reader_pragmas callable all
@@ -2379,11 +2509,16 @@ edge root Engine::open_locked vector_storage ensure_vector_partition callable al
 edge root Engine::open_locked vector_storage reconcile_vector_attr_columns callable all
 edge root Engine::open_with_choice errors EngineOpenError type all
 edge root Engine::open_with_choice root EmbedderChoice type all
+edge root Engine::open_with_choice root EmbedderChoice::Caller type all
+edge root Engine::open_with_choice root EmbedderChoice::CallerWithDeviceResolution type all
+edge root Engine::open_with_choice root EmbedderChoice::Default type all
+edge root Engine::open_with_choice root EmbedderChoice::None type all
 edge root Engine::open_with_choice root OpenedEngine type all
 edge root Engine::open_with_choice root default_embedder_identity callable all
 edge root Engine::open_with_choice root open_default_embedder engine-method all
 edge root Engine::open_with_choice root open_with_embedder_and_subscriber engine-method all
 edge root Engine::open_with_embedder_and_subscriber errors EngineOpenError type all
+edge root Engine::open_with_embedder_and_subscriber root DatabaseAdmission::CurrentOnly type all
 edge root Engine::open_with_embedder_and_subscriber root LoaderInfo type all
 edge root Engine::open_with_embedder_and_subscriber root OpenedEngine type all
 edge root Engine::open_with_embedder_and_subscriber root open_with_migrations engine-method all
@@ -2406,8 +2541,11 @@ edge root Engine::open_with_migrations projection_registry vector_projection_dec
 edge root Engine::open_with_migrations projection_runtime ProjectionRuntime::new callable all
 edge root Engine::open_with_migrations projection_worker database_has_pending_projection_work callable all
 edge root Engine::open_with_migrations reader_pool ReaderWorkerPool::new callable all
+edge root Engine::open_with_migrations root DatabaseAdmission::CurrentOnly type all
+edge root Engine::open_with_migrations root DatabaseAdmission::TestMigrations type all
 edge root Engine::open_with_migrations root DatabaseOpenPlan type all
 edge root Engine::open_with_migrations root LoaderInfo type all
+edge root Engine::open_with_migrations root ManagedConnectionRegistry::default callable all
 edge root Engine::open_with_migrations root OpenedEngine type all
 edge root Engine::open_with_migrations root ProfileContext type all
 edge root Engine::open_with_migrations root acquire_lock_without_metadata_mutation callable all
@@ -2428,6 +2566,7 @@ edge root Engine::open_with_migrations root subscribers field-access all
 edge root Engine::open_with_migrations vector_equivalence run_vector_equivalence_probe callable all
 edge root Engine::open_with_migrations vector_equivalence usable_dense_runtime callable all
 edge root Engine::open_with_migrations_for_test errors EngineOpenError type profile:all-features|profile:migration-test-hooks
+edge root Engine::open_with_migrations_for_test root DatabaseAdmission::TestMigrations type profile:all-features|profile:migration-test-hooks
 edge root Engine::open_with_migrations_for_test root OpenedEngine type profile:all-features|profile:migration-test-hooks
 edge root Engine::open_with_migrations_for_test root default_embedder_identity callable profile:all-features|profile:migration-test-hooks
 edge root Engine::open_with_migrations_for_test root open_with_migrations engine-method profile:all-features|profile:migration-test-hooks
@@ -2489,6 +2628,7 @@ edge root Engine::publish_projection_success_for_test errors EngineError::Storag
 edge root Engine::publish_projection_success_for_test projection_commit commit_projection_outcomes callable hooks
 edge root Engine::publish_projection_success_for_test projection_generation ProjectionGenerationId type hooks
 edge root Engine::publish_projection_success_for_test projection_worker ProjectionOutcome::Success type hooks
+edge root Engine::publish_projection_success_for_test root ManagedConnectionCategory::ProjectionWorker type hooks
 edge root Engine::publish_projection_success_for_test root ensure_open engine-method hooks
 edge root Engine::publish_projection_success_for_test root managed_connections field-access hooks
 edge root Engine::publish_projection_success_for_test root open_runtime_connection callable hooks
@@ -2537,6 +2677,7 @@ edge root Engine::run_one_thread_poison_for_test write PreparedWrite::Node type 
 edge root Engine::run_one_thread_poison_for_test write write engine-method debug
 edge root Engine::runtime_secure_delete_enabled_for_test errors EngineError type all
 edge root Engine::runtime_secure_delete_enabled_for_test errors EngineError::Storage type all
+edge root Engine::runtime_secure_delete_enabled_for_test root ManagedConnectionCategory::RuntimeProbe type all
 edge root Engine::runtime_secure_delete_enabled_for_test root ensure_open engine-method all
 edge root Engine::runtime_secure_delete_enabled_for_test root managed_connections field-access all
 edge root Engine::runtime_secure_delete_enabled_for_test root open_runtime_connection callable all
@@ -2597,6 +2738,7 @@ edge root Engine::slice45_page_query_plans_for_test errors EngineError type hook
 edge root Engine::slice45_page_query_plans_for_test errors EngineError::Storage type hooks
 edge root Engine::slice45_page_query_plans_for_test filter SearchFilter::default callable hooks
 edge root Engine::slice45_page_query_plans_for_test read canonical_page_query callable hooks
+edge root Engine::slice45_page_query_plans_for_test root ManagedConnectionCategory::RuntimeProbe type hooks
 edge root Engine::slice45_page_query_plans_for_test root ensure_open engine-method hooks
 edge root Engine::slice45_page_query_plans_for_test root managed_connections field-access hooks
 edge root Engine::slice45_page_query_plans_for_test root open_managed_connection callable hooks
@@ -2645,6 +2787,10 @@ edge root Engine::verify_embedder errors EngineError type operator
 edge root Engine::verify_embedder errors EngineError::Closing type operator
 edge root Engine::verify_embedder errors EngineError::Storage type operator
 edge root Engine::verify_embedder root VerifyEmbedderReport type operator
+edge root Engine::verify_embedder root VerifyEmbedderStatus::BothMismatch type operator
+edge root Engine::verify_embedder root VerifyEmbedderStatus::DimensionMismatch type operator
+edge root Engine::verify_embedder root VerifyEmbedderStatus::IdentityMismatch type operator
+edge root Engine::verify_embedder root VerifyEmbedderStatus::Match type operator
 edge root Engine::verify_embedder root connection field-access operator
 edge root Engine::verify_embedder root ensure_open engine-method operator
 edge root Engine::verify_embedder vector_storage load_default_profile callable operator
@@ -2656,14 +2802,18 @@ edge root Engine::wal_checkpoint_truncate_once errors EngineError type all
 edge root Engine::wal_checkpoint_truncate_once errors EngineError::Closing type all
 edge root Engine::wal_checkpoint_truncate_once errors EngineError::Storage type all
 edge root Engine::wal_checkpoint_truncate_once root TruncateWalReport type all
+edge root Engine::wal_checkpoint_truncate_once root TruncateWalStatus::Busy type all
+edge root Engine::wal_checkpoint_truncate_once root TruncateWalStatus::Done type all
 edge root Engine::wal_checkpoint_truncate_once root connection field-access all
 edge root Engine::write_canonical_row_with_kind_for_test errors EngineError type all
 edge root Engine::write_canonical_row_with_kind_for_test errors EngineError::Closing type all
 edge root Engine::write_canonical_row_with_kind_for_test errors EngineError::Storage type all
+edge root Engine::write_canonical_row_with_kind_for_test identity SourceId::as_str callable all
 edge root Engine::write_canonical_row_with_kind_for_test identity SourceId::engine_derived callable all
 edge root Engine::write_canonical_row_with_kind_for_test projection_commit advance_projection_cursor callable all
 edge root Engine::write_canonical_row_with_kind_for_test projection_registry ProjectionPass::Write type all
 edge root Engine::write_canonical_row_with_kind_for_test root RowKind type all
+edge root Engine::write_canonical_row_with_kind_for_test root RowKind::as_str callable all
 edge root Engine::write_canonical_row_with_kind_for_test root connection field-access all
 edge root Engine::write_canonical_row_with_kind_for_test root ensure_open engine-method all
 edge root Engine::write_canonical_row_with_kind_for_test root next_cursor field-access all
@@ -2704,21 +2854,67 @@ edge root Engine::write_vector_for_test vector_storage ensure_vector_partition c
 edge root Engine::write_vector_for_test vector_storage kind_is_vector_indexed callable all
 edge root Engine::write_vector_for_test vector_storage resolve_source_type callable all
 edge root Engine::write_vector_for_test write WriteReceipt type all
+edge root Finding errors CorruptionLocator type all
+edge root IntegrityReport root Section type all
+edge root ManagedConnectionRegistration root ManagedConnectionRegistry type hooks|test
+edge root ManagedConnectionRegistry root ManagedConnectionCategory type hooks|test
+edge root ManagedConnectionRegistry root RuntimeProbeLifecycle type test
+edge root ManagedConnectionRegistry::creation_counts root ManagedConnectionCategory::ProjectionDispatcher type hooks|test
+edge root ManagedConnectionRegistry::creation_counts root ManagedConnectionCategory::ProjectionWorker type hooks|test
+edge root ManagedConnectionRegistry::creation_counts root ManagedConnectionCategory::ReaderWorker type hooks|test
+edge root ManagedConnectionRegistry::creation_counts root ManagedConnectionCategory::RuntimeProbe type hooks|test
+edge root ManagedConnectionRegistry::creation_counts root ManagedConnectionCategory::Writer type hooks|test
 edge root ManagedConnectionRegistry::record_open root ManagedConnectionCategory type hooks|test
 edge root ManagedConnectionRegistry::register root ManagedConnectionRegistration type hooks|test
 edge root ManagedConnectionRegistry::register_runtime_probe root RuntimeProbeRegistration type test
+edge root OpenedEngine root Engine type all
+edge root OpenedEngine root OpenReport type all
 edge root OpenedEngine::runtime_configuration root RuntimeConfiguration type all
 edge root OpenedEngine::runtime_configuration root effective_runtime_configuration callable all
+edge root OrphanProvenanceReport root OrphanProvenanceSource type all
 edge root PendingDatabaseLock::initialize errors EngineOpenError type all
 edge root PendingDatabaseLock::initialize errors EngineOpenError::Io type all
+edge root ProfileContext lifecycle SubscriberRegistry type all
+edge root ProjectionRole::as_str root ProjectionRole::Filterable type all
+edge root ProjectionRole::as_str root ProjectionRole::Rankable type all
+edge root ProjectionRole::as_str root ProjectionRole::Searchable type all
+edge root ProjectionRole::from_str_opt root ProjectionRole::Filterable type all
+edge root ProjectionRole::from_str_opt root ProjectionRole::Rankable type all
+edge root ProjectionRole::from_str_opt root ProjectionRole::Searchable type all
+edge root ProjectionRuntimeStatus root ProjectionRuntimeStatusEntry type all
+edge root ProjectionRuntimeStatus root ProjectionRuntimeUnavailabilityReason type all
+edge root ProjectionRuntimeStatusEntry root ProjectionStatusDenseReadiness type all
+edge root ProjectionSpec root ProjectionFts type all
+edge root ProjectionSpec root ProjectionRole type all
+edge root ProjectionSpec root ProjectionVector type all
+edge root ProjectionVector root DenseReadiness type all
+edge root RebuildReport root RebuildKind type all
+edge root RowKind::as_str root RowKind::Coverage type all
+edge root RowKind::as_str root RowKind::Graph type all
+edge root RowKind::as_str root RowKind::Leaf type all
+edge root RuntimeConfiguration root RuntimeSqliteMode type all
+edge root RuntimeConfigurationError::Conflict root RuntimeSqliteMode type all
+edge root RuntimeProbeConnection root RuntimeProbeRegistration type test
 edge root RuntimeProbeConnection::close_and_acknowledge root RuntimeProbeLifecycle type test
+edge root RuntimeProbeConnection::close_and_acknowledge root RuntimeProbeRegistration::acknowledge_actual_drop callable test
+edge root RuntimeProbeConnection::open root ManagedConnectionCategory::RuntimeProbe type test
 edge root RuntimeProbeConnection::open root ManagedConnectionRegistry type test
+edge root RuntimeProbeConnection::open root ManagedConnectionRegistry::register_runtime_probe callable test
 edge root RuntimeProbeConnection::open root open_managed_connection callable test
+edge root RuntimeProbeRegistration root ManagedConnectionRegistry type test
 edge root RuntimeProbeRegistration::acknowledge_actual_drop root RuntimeProbeLifecycle type test
+edge root RuntimeState::Configured root RuntimeConfiguration type all
+edge root RuntimeState::Failed root RuntimeConfigurationError type all
+edge root SQLITE_RUNTIME_STATE root RuntimeState type all
+edge root SQLITE_RUNTIME_STATE root RuntimeState::Unconfigured type all
+edge root Section::Findings root Finding type all
 edge root ShmSnapshot::capture errors EngineOpenError type all
 edge root ShmSnapshot::capture errors EngineOpenError::Io type all
 edge root ShmSnapshot::restore errors EngineOpenError type all
 edge root ShmSnapshot::restore errors EngineOpenError::Io type all
+edge root TraceReport root TraceEvent type all
+edge root TruncateWalReport root TruncateWalStatus type all
+edge root VerifyEmbedderReport root VerifyEmbedderStatus type all
 edge root acquire_lock_without_metadata_mutation errors EngineOpenError type all
 edge root acquire_lock_without_metadata_mutation errors EngineOpenError::DatabaseLocked type all
 edge root acquire_lock_without_metadata_mutation errors EngineOpenError::Io type all
@@ -2728,6 +2924,7 @@ edge root acquire_lock_without_metadata_mutation root read_holder_pid callable a
 edge root admit_current_database errors EngineOpenError type all
 edge root admit_current_database errors EngineOpenError::IncompatibleSchemaVersion type all
 edge root admit_current_database errors EngineOpenError::Io type all
+edge root admit_current_database root ShmSnapshot::capture callable all
 edge root admit_current_database root read_effective_schema_version callable all
 edge root canonical_database_path errors EngineOpenError type all
 edge root canonical_database_path errors EngineOpenError::Io type all
@@ -2745,6 +2942,9 @@ edge root check_embedder_profile errors OpenStage::EmbedderIdentity type all
 edge root classify_wal_sidecar errors EngineOpenError type all
 edge root classify_wal_sidecar errors EngineOpenError::Io type all
 edge root classify_wal_sidecar root WalSidecarHeader type all
+edge root classify_wal_sidecar root WalSidecarHeader::AbsentOrShort type all
+edge root classify_wal_sidecar root WalSidecarHeader::Malformed type all
+edge root classify_wal_sidecar root WalSidecarHeader::Valid type all
 edge root collect_integrity_check_findings errors CorruptionLocator::OpaqueSqliteError type operator
 edge root collect_integrity_check_findings root Finding type operator
 edge root configure_runtime root RuntimeConfiguration type all
@@ -2756,12 +2956,29 @@ edge root configure_runtime_for_open root RuntimeConfigurationError type all
 edge root configure_runtime_for_open root configure_runtime_locked callable all
 edge root configure_runtime_locked root RuntimeConfiguration type all
 edge root configure_runtime_locked root RuntimeConfigurationError type all
+edge root configure_runtime_locked root RuntimeConfigurationError::Conflict type all
+edge root configure_runtime_locked root RuntimeConfigurationError::SqliteFailure type all
+edge root configure_runtime_locked root RuntimeConfigurationError::TooLate type all
 edge root configure_runtime_locked root RuntimeSqliteMode type all
+edge root configure_runtime_locked root RuntimeSqliteMode::Diagnostics type all
+edge root configure_runtime_locked root RuntimeSqliteMode::Performance type all
+edge root configure_runtime_locked root RuntimeState::Configured callable all
+edge root configure_runtime_locked root RuntimeState::Configured type all
+edge root configure_runtime_locked root RuntimeState::Failed callable all
+edge root configure_runtime_locked root RuntimeState::Failed type all
+edge root configure_runtime_locked root RuntimeState::Unconfigured type all
 edge root data_plane_inspection_error data_plane_integrity DataPlaneIntegrityErrorReasonV1 type operator
+edge root data_plane_inspection_error data_plane_integrity DataPlaneIntegrityErrorV1::into callable operator
 edge root data_plane_inspection_error data_plane_integrity DataPlaneIntegrityErrorV1::new callable operator
 edge root data_plane_inspection_error errors EngineError type operator
 edge root effective_runtime_configuration root RuntimeConfiguration type all
+edge root effective_runtime_configuration root RuntimeState::Configured type all
+edge root effective_runtime_configuration root RuntimeState::Failed type all
+edge root effective_runtime_configuration root RuntimeState::Unconfigured type all
 edge root embedder_required_for root EmbedderRequired type all
+edge root embedder_required_for root EmbeddingOperation::GraphEdgeBodyProjection type all
+edge root embedder_required_for root EmbeddingOperation::VectorProjection type all
+edge root embedder_required_for root EmbeddingReadinessState::Blocked type all
 edge root emit_open_error_event errors CorruptionLocator::OpaqueSqliteError type all
 edge root emit_open_error_event errors EngineOpenError type all
 edge root emit_open_error_event errors EngineOpenError::Corruption type all
@@ -2776,6 +2993,9 @@ edge root hex_encode root hex_nibble callable all
 edge root immutable_sqlite_uri root sqlite_uri callable operator
 edge root index_targets_for_row_kind root IndexTargetSet type all
 edge root index_targets_for_row_kind root RowKind type all
+edge root index_targets_for_row_kind root RowKind::Coverage type all
+edge root index_targets_for_row_kind root RowKind::Graph type all
+edge root index_targets_for_row_kind root RowKind::Leaf type all
 edge root inspect_data_plane_integrity data_plane_integrity DataPlaneIntegrityErrorReasonV1::DatabaseSchemaMismatch type operator
 edge root inspect_data_plane_integrity data_plane_integrity DataPlaneIntegrityErrorReasonV1::InspectionLockMissing type operator
 edge root inspect_data_plane_integrity data_plane_integrity DataPlaneIntegrityErrorReasonV1::InspectionNotQuiescent type operator
@@ -2810,6 +3030,8 @@ edge root locator_from_rusqlite_error errors CorruptionLocator::OpaqueSqliteErro
 edge root lock_path root lock_path callable all
 edge root logical_section errors CorruptionLocator::MigrationStep type operator
 edge root logical_section root Section type operator
+edge root logical_section root Section::Clean type operator
+edge root logical_section root Section::Findings callable operator
 edge root logical_section root locator_from_rusqlite_error callable operator
 edge root map_migration_error errors EngineOpenError type all
 edge root map_migration_error errors EngineOpenError::IncompatibleSchemaVersion type all
@@ -2832,11 +3054,14 @@ edge root map_open_sqlite_error errors OpenStage::SchemaProbe type all
 edge root map_open_sqlite_error errors OpenStage::WalReplay type all
 edge root open_managed_connection root ManagedConnectionCategory type all
 edge root open_managed_connection root ManagedConnectionRegistry type all
+edge root open_managed_connection root ManagedConnectionRegistry::record_open callable all
 edge root open_runtime_connection root ManagedConnectionCategory type all
 edge root open_runtime_connection root ManagedConnectionRegistry type all
 edge root open_runtime_connection root open_managed_connection callable all
 edge root order_canonical_first root SchemaObject type operator
 edge root physical_section root Section type operator
+edge root physical_section root Section::Clean type operator
+edge root physical_section root Section::Findings callable operator
 edge root physical_section root collect_integrity_check_findings callable operator
 edge root physical_section root locator_from_rusqlite_error callable operator
 edge root probe_database_header errors EngineOpenError type all
@@ -2850,6 +3075,7 @@ edge root probe_wal_sidecar errors CorruptionLocator::FileOffset type all
 edge root probe_wal_sidecar errors EngineOpenError type all
 edge root probe_wal_sidecar errors EngineOpenError::Corruption callable all
 edge root probe_wal_sidecar errors OpenStage::WalReplay type all
+edge root probe_wal_sidecar root WalSidecarHeader::Malformed type all
 edge root probe_wal_sidecar root classify_wal_sidecar callable all
 edge root profile_callback_trampoline lifecycle ProfileRecord type all
 edge root profile_callback_trampoline lifecycle SlowStatement type all
@@ -2860,8 +3086,13 @@ edge root profile_callback_trampoline root subscribers field-access all
 edge root profile_callback_trampoline search record_slice71_profile_statement_for_test callable all
 edge root project_canonical_edge_row projection_commit record_projection_terminal callable all
 edge root project_canonical_edge_row projection_registry ProjectionPass type all
+edge root project_canonical_edge_row projection_registry ProjectionPass::writes_fts callable all
+edge root project_canonical_edge_row projection_registry ProjectionPass::writes_vector_state callable all
 edge root project_canonical_node_row projection_commit record_projection_terminal callable all
 edge root project_canonical_node_row projection_registry ProjectionPass type all
+edge root project_canonical_node_row projection_registry ProjectionPass::writes_attributes callable all
+edge root project_canonical_node_row projection_registry ProjectionPass::writes_fts callable all
+edge root project_canonical_node_row projection_registry ProjectionPass::writes_vector_state callable all
 edge root project_canonical_node_row projection_registry project_node_attributes callable all
 edge root project_canonical_node_row root RowKind type all
 edge root project_canonical_node_row root index_targets_for_row_kind callable all
@@ -2895,6 +3126,9 @@ edge root recover_truncate_wal errors OpenStage::HeaderProbe type operator
 edge root recover_truncate_wal errors OpenStage::SchemaProbe type operator
 edge root recover_truncate_wal errors OpenStage::WalReplay type operator
 edge root recover_truncate_wal root TruncateWalReport type operator
+edge root recover_truncate_wal root TruncateWalStatus::Busy type operator
+edge root recover_truncate_wal root TruncateWalStatus::Done type operator
+edge root recover_truncate_wal root WalSidecarHeader::Malformed type operator
 edge root recover_truncate_wal root acquire_lock_without_metadata_mutation callable operator
 edge root recover_truncate_wal root canonical_database_path callable operator
 edge root recover_truncate_wal root classify_wal_sidecar callable operator
@@ -2933,15 +3167,23 @@ edge root restore_registered_derived_projections projection_commit store_project
 edge root restore_registered_derived_projections projection_generation corruption_error callable all
 edge root restore_registered_derived_projections projection_registry ProjectionPass::FtsOnly type all
 edge root restore_registered_derived_projections projection_registry vector_projection_declared callable all
+edge root restore_registered_derived_projections root RowKind::Coverage type all
+edge root restore_registered_derived_projections root RowKind::Graph type all
+edge root restore_registered_derived_projections root RowKind::Leaf type all
 edge root restore_registered_derived_projections root project_canonical_node_row callable all
 edge root restore_registered_derived_projections vector_storage kind_is_vector_committable callable all
 edge root restore_registered_derived_projections vector_storage resolve_source_type callable all
 edge root row_kind_from_column root RowKind type all
+edge root row_kind_from_column root RowKind::Coverage type all
+edge root row_kind_from_column root RowKind::Graph type all
+edge root row_kind_from_column root RowKind::Leaf type all
 edge root run_admission_locked_hook_for_test root path field-access test
 edge root run_requested_gpu_allocation_witness errors EngineOpenError type profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
 edge root run_requested_gpu_allocation_witness root gpu_allocation_witness_refusal callable profile:all-features|profile:default-embedder|profile:embed-cuda|profile:embed-metal|profile:slice72-gpu-tests
 edge root semantic_section errors CorruptionLocator::OpaqueSqliteError type operator
 edge root semantic_section root Section type operator
+edge root semantic_section root Section::Clean type operator
+edge root semantic_section root Section::Findings callable operator
 edge root semantic_section root locator_from_rusqlite_error callable operator
 edge root semantic_section vector_storage load_default_profile callable operator
 edge root slice35_ranked_eligibility_sql_for_test filter SearchFilter type all
@@ -2961,6 +3203,7 @@ edge root validate_effective_recovery_schema errors EngineOpenError type operato
 edge root validate_effective_recovery_schema errors EngineOpenError::IncompatibleSchemaVersion type operator
 edge root validate_effective_recovery_schema errors OpenStage::SchemaProbe type operator
 edge root validate_effective_recovery_schema errors OpenStage::WalReplay type operator
+edge root validate_effective_recovery_schema root ShmSnapshot::capture callable operator
 edge root validate_effective_recovery_schema root map_open_sqlite_error callable operator
 edge root validate_effective_recovery_schema root probe_database_header callable operator
 edge root validate_effective_recovery_schema root probe_open_integrity callable operator
@@ -3128,12 +3371,10 @@ edge root::tests write_batch_prepares_visibility_triggered_statements_once root 
 edge root::tests write_batch_prepares_visibility_triggered_statements_once root open engine-method test
 edge search <module> dependency_closure <module> import all
 edge search <module> errors EngineError import all
-edge search <module> errors EngineError type all
 edge search <module> evidence <module> import all
 edge search <module> evidence EvidenceSearchResultV1 import all
 edge search <module> evidence EvidenceSearchResultV1 type all
 edge search <module> filter SearchFilter import all
-edge search <module> filter SearchFilter type all
 edge search <module> filter SnapshotFilterError import all
 edge search <module> filter SnapshotFilterError type all
 edge search <module> filter append_edge_eligibility_sql import all
@@ -3146,11 +3387,8 @@ edge search <module> filter property_fts_rank_sql import all
 edge search <module> filter validate_filter_attributes_on_snapshot import all
 edge search <module> filter vector_filter_values import all
 edge search <module> frozen_read <module> import all
-edge search <module> frozen_read FrozenReadBinding type all
 edge search <module> frozen_read FrozenReadContextV1 import all
-edge search <module> frozen_read FrozenReadContextV1 type all
 edge search <module> frozen_read FrozenReadError import all
-edge search <module> frozen_read FrozenReadError type all
 edge search <module> frozen_read FrozenReadErrorReason import all
 edge search <module> fusion apply_importance_reweight import all
 edge search <module> fusion apply_recency_reweight import all
@@ -3172,10 +3410,10 @@ edge search <module> projection_generation <module> import all
 edge search <module> projection_generation ProjectionGenerationOriginV1 import all
 edge search <module> projection_generation ProjectionReadinessV1 import all
 edge search <module> projection_generation ProjectionRuntimeStateV1 import all
-edge search <module> projection_generation ProjectionRuntimeStateV1 type all
 edge search <module> projection_registry load_projection_registry import all
 edge search <module> reader_transaction begin_attributed_reader_tx import all
 edge search <module> rerank try_rerank_fused import all
+edge search <module> root PROJECTION_CURSOR_KEY import all
 edge search <module> root load_next_cursor import all
 edge search <module> search_types Bm25fQueryPlan import all
 edge search <module> search_types Explanation import all
@@ -3188,7 +3426,6 @@ edge search <module> search_types QueryTrace import all
 edge search <module> search_types SearchHit import all
 edge search <module> search_types SearchHit type all
 edge search <module> search_types SearchResult import all
-edge search <module> search_types SearchResult type all
 edge search <module> search_types SoftFallback import all
 edge search <module> search_types SoftFallback type all
 edge search <module> search_types SoftFallbackBranch import all
@@ -3203,13 +3440,13 @@ edge search <module> structural_state structural_dependency_state import all
 edge search <module> tc5_benchmark <module> import tc5
 edge search <module> temporal FrozenView import all
 edge search <module> temporal ReadView import all
-edge search <module> temporal ReadView type all
 edge search <module> temporal current_epoch_seconds import all
 edge search <module> temporal edge_validity_sql_for_view import all
 edge search <module> test_hooks evidence_linearization_hooks import all
 edge search <module> test_hooks frozen_after_validation_hook import all
 edge search <module> test_hooks reader_search_hook import all
 edge search <module> wal_attribution WalAttributionCollector import all
+edge search EvidenceCapture frozen_read FrozenReadContextV1 type all
 edge search EvidenceCapture::finish evidence build_search_result callable all
 edge search EvidenceCapture::finish graph_expand::traversal SearchExpandResult type all
 edge search EvidenceCapture::finish search_types Explanation type all
@@ -3223,6 +3460,14 @@ edge search NoEvidenceCapture::finish search_types Explanation type all
 edge search NoEvidenceCapture::finish search_types GraphFrontierStats type all
 edge search NoEvidenceCapture::finish search_types SearchHit type all
 edge search NoEvidenceCapture::finish search_types SoftFallback type all
+edge search ProjectedTextReaderResponse search_types SearchResult type all
+edge search SearchOriginCapture::finish graph_expand::traversal SearchExpandResult type all
+edge search SearchOriginCapture::finish search_types Explanation type all
+edge search SearchOriginCapture::finish search_types GraphFrontierStats type all
+edge search SearchOriginCapture::finish search_types SearchHit type all
+edge search SearchOriginCapture::finish search_types SoftFallback type all
+edge search SearchReaderError::Evidence errors EngineError type all
+edge search SearchReaderError::FrozenRead frozen_read FrozenReadError type all
 edge search SearchReaderError::from filter SnapshotFilterError type all
 edge search SearchReaderError::from filter SnapshotFilterError::InvalidFilter type all
 edge search SearchReaderError::from filter SnapshotFilterError::Sqlite type all
@@ -3230,6 +3475,10 @@ edge search SearchReaderError::from graph_expand::traversal SearchExpandHandlerE
 edge search SearchReaderError::from graph_expand::traversal SearchExpandHandlerError::FrozenRead type all
 edge search SearchReaderError::from graph_expand::traversal SearchExpandHandlerError::InvalidFilter type all
 edge search SearchReaderError::from graph_expand::traversal SearchExpandHandlerError::Sqlite type all
+edge search SearchReaderWork filter SearchFilter type all
+edge search SearchReaderWork frozen_read FrozenReadBinding type all
+edge search SearchReaderWork projection_generation ProjectionRuntimeStateV1 type all
+edge search SearchReaderWork temporal ReadView type all
 edge search SearchReaderWork::evidence filter SearchFilter type all
 edge search SearchReaderWork::evidence frozen_read FrozenReadBinding type all
 edge search SearchReaderWork::evidence projection_generation ProjectionRuntimeStateV1 type all
@@ -3249,6 +3498,10 @@ edge search bfs_graph_arm_candidates search_types GraphFrontierStats::default ca
 edge search bfs_graph_arm_candidates search_types SearchHit type all
 edge search bfs_graph_arm_candidates search_types SoftFallbackBranch::GraphArm type all
 edge search bfs_graph_arm_candidates temporal FrozenView type all
+edge search bfs_graph_arm_candidates temporal FrozenView::edge_now callable all
+edge search bfs_graph_arm_candidates temporal FrozenView::node_sql callable all
+edge search bfs_graph_arm_candidates temporal FrozenView::now_param callable all
+edge search bfs_graph_arm_candidates temporal FrozenView::validity_sql callable all
 edge search bfs_graph_arm_candidates temporal edge_validity_sql_for_view callable all
 edge search bm25f_score_doc search_types Bm25fQueryPlan type all
 edge search bm25f_search_inner dependency_closure read_eligibility_sql callable all
@@ -3268,6 +3521,7 @@ edge search read_projected_text_in_tx projection_registry load_projection_regist
 edge search read_projected_text_in_tx reader_transaction begin_attributed_reader_tx callable all
 edge search read_projected_text_in_tx search_types SoftFallbackBranch::Text type all
 edge search read_projected_text_in_tx temporal ReadView type all
+edge search read_projected_text_in_tx temporal ReadView::freeze callable all
 edge search read_projected_text_in_tx wal_attribution WalAttributionCollector type all
 edge search read_search_in_tx dependency_closure all_nodes_directly_eligible callable all
 edge search read_search_in_tx dependency_closure has_source_dependencies callable all
@@ -3327,6 +3581,7 @@ edge search read_search_in_tx search_types validate_search_result_limit callable
 edge search read_search_in_tx structural_state structural_dependency_state callable all
 edge search read_search_in_tx tc5_benchmark record_fts_route callable all
 edge search read_search_in_tx temporal ReadView type all
+edge search read_search_in_tx temporal ReadView::freeze callable all
 edge search read_search_in_tx temporal edge_validity_sql_for_view callable all
 edge search read_search_in_tx test_hooks frozen_after_validation_hook::fire callable all
 edge search read_search_in_tx test_hooks reader_search_hook::fire callable all
@@ -3399,6 +3654,7 @@ edge search_api Engine::freeze_read_context errors EngineError type all
 edge search_api Engine::freeze_read_context errors EngineError::Closing type all
 edge search_api Engine::freeze_read_context errors EngineError::Storage type all
 edge search_api Engine::freeze_read_context frozen_read FrozenReadContextV1 type all
+edge search_api Engine::freeze_read_context frozen_read FrozenReadError::into callable all
 edge search_api Engine::freeze_read_context frozen_read FrozenReadErrorReason::StateUnavailable type all
 edge search_api Engine::freeze_read_context frozen_read ReadContextV1 type all
 edge search_api Engine::freeze_read_context frozen_read mint callable all
@@ -3410,6 +3666,7 @@ edge search_api Engine::resolve_evidence errors EngineError::Closing type all
 edge search_api Engine::resolve_evidence errors EngineError::Evidence callable all
 edge search_api Engine::resolve_evidence errors EngineError::Storage type all
 edge search_api Engine::resolve_evidence evidence EvidenceErrorReasonV1::UnsupportedSchemaVersion type all
+edge search_api Engine::resolve_evidence evidence EvidenceErrorV1::into callable all
 edge search_api Engine::resolve_evidence evidence EvidenceErrorV1::new callable all
 edge search_api Engine::resolve_evidence evidence EvidenceErrorV1::unavailable callable all
 edge search_api Engine::resolve_evidence evidence EvidenceResolveRequestV1 type all
@@ -3429,6 +3686,7 @@ edge search_api Engine::resolve_graph_evidence evidence EvidenceArtifactClassV1:
 edge search_api Engine::resolve_graph_evidence evidence EvidenceArtifactLifecycleV1::Edge type all
 edge search_api Engine::resolve_graph_evidence evidence EvidenceArtifactLifecycleV1::Node type all
 edge search_api Engine::resolve_graph_evidence evidence EvidenceErrorReasonV1::UnsupportedSchemaVersion type all
+edge search_api Engine::resolve_graph_evidence evidence EvidenceErrorV1::into callable all
 edge search_api Engine::resolve_graph_evidence evidence EvidenceErrorV1::new callable all
 edge search_api Engine::resolve_graph_evidence evidence EvidenceErrorV1::unavailable callable all
 edge search_api Engine::resolve_graph_evidence evidence GraphEvidenceArtifactV1::Edge type all
@@ -3438,10 +3696,14 @@ edge search_api Engine::resolve_graph_evidence evidence ResolvedGraphEvidenceV1 
 edge search_api Engine::resolve_graph_evidence evidence resolve_graph_evidence callable all
 edge search_api Engine::resolve_graph_evidence frozen_read authenticate callable all
 edge search_api Engine::resolve_graph_evidence frozen_read validate_snapshot callable all
+edge search_api Engine::resolve_graph_evidence identity ArtifactRevisionId::map_err callable all
 edge search_api Engine::resolve_graph_evidence identity ArtifactRevisionId::new callable all
+edge search_api Engine::resolve_graph_evidence identity CanonicalHash::map_err callable all
 edge search_api Engine::resolve_graph_evidence identity CanonicalHash::sha256 callable all
+edge search_api Engine::resolve_graph_evidence identity SourceRevisionId::map_err callable all
 edge search_api Engine::resolve_graph_evidence identity SourceRevisionId::new callable all
 edge search_api Engine::resolve_graph_evidence record_lifecycle LifecycleState::from_str_opt callable all
+edge search_api Engine::resolve_graph_evidence record_lifecycle LifecycleState::ok_or_else callable all
 edge search_api Engine::resolve_graph_evidence root connection field-access all
 edge search_api Engine::resolve_graph_evidence root ensure_open engine-method all
 edge search_api Engine::resolve_graph_evidence root graph_evidence_before_resolve_return_hook field-access all
@@ -3488,11 +3750,15 @@ edge search_api Engine::search_filter filter Filter type all
 edge search_api Engine::search_filter search_types SearchResult type all
 edge search_api Engine::search_filter_with_limit errors EngineError type all
 edge search_api Engine::search_filter_with_limit filter Filter type all
+edge search_api Engine::search_filter_with_limit filter Filter::to_search_filter callable all
 edge search_api Engine::search_filter_with_limit search_types SearchResult type all
 edge search_api Engine::search_filtered errors EngineError type all
 edge search_api Engine::search_filtered filter SearchFilter type all
 edge search_api Engine::search_filtered search_types SearchResult type all
 edge search_api Engine::search_filtered_with_limit errors EngineError type all
+edge search_api Engine::search_filtered_with_limit filter Filter::and_then callable all
+edge search_api Engine::search_filtered_with_limit filter Filter::map callable all
+edge search_api Engine::search_filtered_with_limit filter Filter::to_search_filter callable all
 edge search_api Engine::search_filtered_with_limit filter Filter::try_from callable all
 edge search_api Engine::search_filtered_with_limit filter SearchFilter type all
 edge search_api Engine::search_filtered_with_limit search_types SearchResult type all
@@ -3593,6 +3859,7 @@ edge search_api Engine::search_projected_text_with_limit search SearchReaderErro
 edge search_api Engine::search_projected_text_with_limit search_types SearchResult type all
 edge search_api Engine::search_projected_text_with_limit search_types validate_search_result_limit callable all
 edge search_api Engine::search_projected_text_with_limit temporal ReadView type all
+edge search_api Engine::search_projected_text_with_limit temporal ReadView::reject_existence_relaxation_on_search callable all
 edge search_api Engine::search_reranked errors EngineError type all
 edge search_api Engine::search_reranked filter SearchFilter type all
 edge search_api Engine::search_reranked search_types SearchResult type all
@@ -3618,6 +3885,7 @@ edge search_api Engine::search_reranked_with_explain root emit_event engine-meth
 edge search_api Engine::search_reranked_with_explain search_types SearchResult type all
 edge search_api Engine::search_reranked_with_explain telemetry finalize_search_observability engine-method all
 edge search_api Engine::search_reranked_with_explain temporal ReadView type all
+edge search_api Engine::search_reranked_with_explain temporal ReadView::reject_existence_relaxation_on_search callable all
 edge search_api Engine::search_reranked_with_limit errors EngineError type all
 edge search_api Engine::search_reranked_with_limit filter SearchFilter type all
 edge search_api Engine::search_reranked_with_limit search_types SearchResult type all
@@ -3654,6 +3922,7 @@ edge search_api Engine::search_text_only_view_with_limit search SearchReaderWork
 edge search_api Engine::search_text_only_view_with_limit search_types SearchResult type all
 edge search_api Engine::search_text_only_view_with_limit search_types validate_search_result_limit callable all
 edge search_api Engine::search_text_only_view_with_limit temporal ReadView type all
+edge search_api Engine::search_text_only_view_with_limit temporal ReadView::reject_existence_relaxation_on_search callable all
 edge search_api Engine::search_text_only_with_limit errors EngineError type all
 edge search_api Engine::search_text_only_with_limit search_types SearchResult type all
 edge search_api Engine::search_text_only_with_limit temporal ReadView::default callable all
@@ -3673,6 +3942,7 @@ edge search_api Engine::search_with_evidence errors EngineError::Storage type al
 edge search_api Engine::search_with_evidence errors EngineError::VectorEquivalenceMismatch type all
 edge search_api Engine::search_with_evidence errors EngineError::WriteValidation type all
 edge search_api Engine::search_with_evidence evidence EvidenceErrorReasonV1::UnsupportedSchemaVersion type all
+edge search_api Engine::search_with_evidence evidence EvidenceErrorV1::into callable all
 edge search_api Engine::search_with_evidence evidence EvidenceErrorV1::new callable all
 edge search_api Engine::search_with_evidence evidence EvidenceErrorV1::unavailable callable all
 edge search_api Engine::search_with_evidence evidence EvidenceSearchRequestV1 type all
@@ -3724,7 +3994,7 @@ edge search_api Engine::validate_frozen_read_context_for_binding root ensure_ope
 edge search_api Engine::vector_equivalence_refusal_count root vector_equivalence_refusals field-access all
 edge search_types <module> errors EngineError import all
 edge search_types <module> identity IdSpace import all
-edge search_types <module> identity IdSpace type all
+edge search_types SearchHit identity IdSpace type all
 edge search_types validate_search_result_limit errors EngineError type all
 edge search_types validate_search_result_limit errors EngineError::InvalidArgument type all
 edge structural_state <module> dependency_trace <module> import all
@@ -3757,13 +4027,13 @@ edge telemetry branch_str search_types SoftFallbackBranch::GraphArm type all
 edge telemetry branch_str search_types SoftFallbackBranch::Text type all
 edge telemetry branch_str search_types SoftFallbackBranch::TextEdge type all
 edge telemetry branch_str search_types SoftFallbackBranch::Vector type all
-edge temporal <module> read NodeRecord type all
+edge temporal BoundaryCrossing read NodeRecord type all
 edge test_hooks <module> root Engine type hooks
 edge test_hooks Engine::arm_erasure_before_primary_lock_hook_for_test root erasure_before_primary_lock_hook field-access hooks
 edge test_hooks Engine::arm_graph_evidence_before_resolve_return_hook_for_test root graph_evidence_before_resolve_return_hook field-access hooks
 edge wal_attribution <module> root TruncateWalReport import all
-edge wal_attribution <module> root TruncateWalReport type all
 edge wal_attribution <module> root TruncateWalStatus import all
+edge wal_attribution ActualCheckpointObservation root TruncateWalReport type hooks|test
 edge wal_attribution WalAttributionCollector::checkpoint_event root TruncateWalReport type all
 edge write <module> root Engine type all
 edge write Engine::batch_vector_kinds_needing_enrolment root usable_dense_runtime engine-method all

@@ -115,6 +115,7 @@ pub struct Analysis {
 pub fn analyze_source(source: &str, space: &ConfigSpace) -> Result<Analysis, syn::Error> {
     let file = syn::parse_file(source)?;
     let mut visitor = Analyzer::new(space);
+    collect_struct_fields(&file.items, &mut visitor.struct_fields);
     visitor.visit_file(&file);
     visitor.resolve_aliases();
     Ok(visitor.analysis)
@@ -130,6 +131,13 @@ struct Analyzer<'s> {
     module_stack: Vec<String>,
     item_stack: Vec<String>,
     binding_stack: Vec<BTreeSet<String>>,
+    /// Lexically scoped `binding -> type path` for syntactically typed
+    /// receivers (typed parameters, `self` in a non-Engine impl, typed lets,
+    /// and `let x = Type::ctor(..)` / `Type { .. }` initialisers).
+    receiver_types: Vec<BTreeMap<String, String>>,
+    /// Named-field types of structs declared in this file, for receivers of
+    /// the form `binding.field` where the binding's type is such a struct.
+    struct_fields: BTreeMap<(String, String), String>,
 }
 
 impl<'s> Analyzer<'s> {
@@ -144,6 +152,8 @@ impl<'s> Analyzer<'s> {
             module_stack: Vec::new(),
             item_stack: Vec::new(),
             binding_stack: Vec::new(),
+            receiver_types: Vec::new(),
+            struct_fields: BTreeMap::new(),
         }
     }
 
@@ -160,6 +170,47 @@ impl<'s> Analyzer<'s> {
 
     fn declared(&mut self, name: impl Into<String>) {
         self.analysis.declared_items.insert(name.into());
+    }
+
+    fn push_scope(&mut self, bindings: BTreeSet<String>, types: BTreeMap<String, String>) {
+        self.binding_stack.push(bindings);
+        self.receiver_types.push(types);
+    }
+
+    fn push_inherited_scope(&mut self) {
+        let bindings = self.binding_stack.last().cloned().unwrap_or_default();
+        let types = self.receiver_types.last().cloned().unwrap_or_default();
+        self.push_scope(bindings, types);
+    }
+
+    fn pop_scope(&mut self) {
+        self.binding_stack.pop();
+        self.receiver_types.pop();
+    }
+
+    fn enter_function(
+        &mut self,
+        inputs: &syn::punctuated::Punctuated<FnArg, syn::token::Comma>,
+        self_type: Option<&str>,
+    ) {
+        // Typed parameters are recorded when their patterns are visited.
+        let mut types = BTreeMap::new();
+        if inputs.iter().any(|input| matches!(input, FnArg::Receiver(_))) {
+            if let Some(owner) = self_type.filter(|owner| *owner != "Engine") {
+                types.insert("self".to_string(), owner.to_string());
+            }
+        }
+        self.push_scope(function_bindings(inputs), types);
+    }
+
+    /// `binding.field` where `binding` has a known type declared in this file.
+    fn field_receiver_type(&self, receiver: &Expr) -> Option<String> {
+        let Expr::Field(field) = receiver else { return None };
+        let Member::Named(member) = &field.member else { return None };
+        let base = direct_receiver_ident(&field.base)?;
+        let base_type = self.receiver_types.last()?.get(&base)?;
+        let owner = base_type.rsplit("::").next()?;
+        self.struct_fields.get(&(owner.to_string(), member.to_string())).cloned()
     }
 
     fn record_macro(&mut self, path: &syn::Path, span: Span) {
@@ -286,12 +337,11 @@ impl<'s> Analyzer<'s> {
             }
         }
         if let Ok(statements) = Block::parse_within.parse2(mac.tokens.clone()) {
-            let inherited = self.binding_stack.last().cloned().unwrap_or_default();
-            self.binding_stack.push(inherited);
+            self.push_inherited_scope();
             for statement in &statements {
                 self.visit_stmt(statement);
             }
-            self.binding_stack.pop();
+            self.pop_scope();
             return true;
         }
         false
@@ -371,6 +421,18 @@ impl<'s> Analyzer<'s> {
         let aliases = self.analysis.import_aliases.clone();
         let mut resolved = BTreeSet::new();
         for edge in &self.analysis.edges {
+            if let Some((method, ty)) = edge.target.split_once(">:") {
+                let (head, rest) =
+                    ty.split_once("::").map_or((ty, None), |(head, rest)| (head, Some(rest)));
+                let mut resolved_edge = edge.clone();
+                if let Some(owner) = aliases.get(head) {
+                    let qualified =
+                        rest.map_or_else(|| owner.clone(), |rest| format!("{owner}::{rest}"));
+                    resolved_edge.target = format!("{method}>:{qualified}");
+                }
+                resolved.insert(resolved_edge);
+                continue;
+            }
             let (first, tail) = edge
                 .target
                 .split_once("::")
@@ -410,10 +472,9 @@ fn split_cfg_attr(source: &str) -> Option<(&str, &str)> {
 
 impl<'ast> Visit<'ast> for Analyzer<'_> {
     fn visit_block(&mut self, block: &'ast syn::Block) {
-        let inherited = self.binding_stack.last().cloned().unwrap_or_default();
-        self.binding_stack.push(inherited);
+        self.push_inherited_scope();
         visit::visit_block(self, block);
-        self.binding_stack.pop();
+        self.pop_scope();
     }
 
     fn visit_local(&mut self, local: &'ast Local) {
@@ -435,9 +496,53 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
             }
         }
         self.visit_pat(&local.pat);
+        if let (Pat::Ident(binding), Some(init)) = (&local.pat, &local.init) {
+            if let (Some(ty), Some(types)) =
+                (constructed_type(&init.expr), self.receiver_types.last_mut())
+            {
+                types.insert(binding.ident.to_string(), ty);
+            }
+        }
         if let Some(bindings) = self.binding_stack.last_mut() {
             collect_pattern_bindings(&local.pat, bindings);
         }
+    }
+
+    fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
+        // Any rebinding forgets a receiver type; forgetting is conservative.
+        if let Some(types) = self.receiver_types.last_mut() {
+            types.remove(&pattern.ident.to_string());
+        }
+        visit::visit_pat_ident(self, pattern);
+    }
+
+    fn visit_pat_type(&mut self, pattern: &'ast syn::PatType) {
+        visit::visit_pat_type(self, pattern);
+        if let (Pat::Ident(binding), Some(ty)) =
+            (pattern.pat.as_ref(), type_path_string(&pattern.ty))
+        {
+            if let Some(types) = self.receiver_types.last_mut() {
+                types.insert(binding.ident.to_string(), ty);
+            }
+        }
+    }
+
+    fn visit_expr_closure(&mut self, closure: &'ast syn::ExprClosure) {
+        self.push_inherited_scope();
+        visit::visit_expr_closure(self, closure);
+        self.pop_scope();
+    }
+
+    fn visit_arm(&mut self, arm: &'ast syn::Arm) {
+        self.push_inherited_scope();
+        visit::visit_arm(self, arm);
+        self.pop_scope();
+    }
+
+    fn visit_expr_for_loop(&mut self, expression: &'ast syn::ExprForLoop) {
+        self.push_inherited_scope();
+        visit::visit_expr_for_loop(self, expression);
+        self.pop_scope();
     }
 
     fn visit_item_mod(&mut self, item: &'ast ItemMod) {
@@ -491,7 +596,9 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
     }
 
     fn visit_item_struct(&mut self, item: &'ast ItemStruct) {
+        let previous = self.enter_attrs(&item.attrs);
         self.declared(item.ident.to_string());
+        self.item_stack.push(item.ident.to_string());
         if item.ident == "Engine" {
             for field in &item.fields {
                 if let Some(ident) = &field.ident {
@@ -500,21 +607,79 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
             }
         }
         visit::visit_item_struct(self, item);
+        self.item_stack.pop();
+        self.configurations = previous;
+    }
+
+    fn visit_field(&mut self, field: &'ast syn::Field) {
+        let previous = self.enter_attrs(&field.attrs);
+        visit::visit_field(self, field);
+        self.configurations = previous;
     }
 
     fn visit_item_enum(&mut self, item: &'ast ItemEnum) {
         self.declared(item.ident.to_string());
+        let previous = self.enter_attrs(&item.attrs);
+        self.item_stack.push(item.ident.to_string());
         visit::visit_item_enum(self, item);
+        self.item_stack.pop();
+        self.configurations = previous;
+    }
+
+    fn visit_variant(&mut self, variant: &'ast syn::Variant) {
+        let previous = self.enter_attrs(&variant.attrs);
+        let owner = self.item_stack.last().cloned().unwrap_or_default();
+        self.item_stack.push(format!("{owner}::{}", variant.ident));
+        visit::visit_variant(self, variant);
+        self.item_stack.pop();
+        self.configurations = previous;
+    }
+
+    fn visit_item_const(&mut self, item: &'ast syn::ItemConst) {
+        let previous = self.enter_attrs(&item.attrs);
+        self.declared(item.ident.to_string());
+        self.item_stack.push(item.ident.to_string());
+        visit::visit_item_const(self, item);
+        self.item_stack.pop();
+        self.configurations = previous;
+    }
+
+    fn visit_item_static(&mut self, item: &'ast syn::ItemStatic) {
+        let previous = self.enter_attrs(&item.attrs);
+        self.declared(item.ident.to_string());
+        self.item_stack.push(item.ident.to_string());
+        visit::visit_item_static(self, item);
+        self.item_stack.pop();
+        self.configurations = previous;
     }
 
     fn visit_item_trait(&mut self, item: &'ast ItemTrait) {
+        let previous = self.enter_attrs(&item.attrs);
         self.declared(item.ident.to_string());
+        self.item_stack.push(item.ident.to_string());
         visit::visit_item_trait(self, item);
+        self.item_stack.pop();
+        self.configurations = previous;
+    }
+
+    fn visit_trait_item_fn(&mut self, item: &'ast syn::TraitItemFn) {
+        let previous = self.enter_attrs(&item.attrs);
+        let owner = self.item_stack.last().cloned().unwrap_or_default();
+        self.item_stack.push(format!("{owner}::{}", item.sig.ident));
+        self.enter_function(&item.sig.inputs, None);
+        visit::visit_trait_item_fn(self, item);
+        self.pop_scope();
+        self.item_stack.pop();
+        self.configurations = previous;
     }
 
     fn visit_item_type(&mut self, item: &'ast ItemType) {
+        let previous = self.enter_attrs(&item.attrs);
         self.declared(item.ident.to_string());
+        self.item_stack.push(item.ident.to_string());
         visit::visit_item_type(self, item);
+        self.item_stack.pop();
+        self.configurations = previous;
     }
 
     fn visit_item_fn(&mut self, item: &'ast ItemFn) {
@@ -523,9 +688,9 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         self.declared(name.clone());
         self.analysis.local_functions.insert(name.clone(), item.sig.ident.span().into());
         self.item_stack.push(name);
-        self.binding_stack.push(function_bindings(&item.sig.inputs));
+        self.enter_function(&item.sig.inputs, None);
         visit::visit_item_fn(self, item);
-        self.binding_stack.pop();
+        self.pop_scope();
         self.item_stack.pop();
         self.configurations = previous;
     }
@@ -574,11 +739,11 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
 
     fn visit_impl_item_fn(&mut self, item: &'ast ImplItemFn) {
         let previous = self.enter_attrs(&item.attrs);
-        let owner = self.impl_owners.last().map_or("<impl>", String::as_str);
+        let owner = self.impl_owners.last().cloned().unwrap_or_else(|| "<impl>".to_string());
         self.item_stack.push(format!("{owner}::{}", item.sig.ident));
-        self.binding_stack.push(function_bindings(&item.sig.inputs));
+        self.enter_function(&item.sig.inputs, Some(owner.as_str()));
         visit::visit_impl_item_fn(self, item);
-        self.binding_stack.pop();
+        self.pop_scope();
         self.item_stack.pop();
         self.configurations = previous;
     }
@@ -671,11 +836,19 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
                 expression.method.span(),
             );
         } else {
-            self.edge(
-                EdgeKind::Callable,
-                format!(".<{}>", expression.method),
-                expression.method.span(),
-            );
+            // `.<method>` is an unresolved receiver; `.<method>:Type` carries
+            // the receiver's syntactic type for owner resolution.
+            let receiver_type = direct_receiver_ident(&expression.receiver)
+                .and_then(|ident| {
+                    self.receiver_types.last().and_then(|types| types.get(&ident)).cloned()
+                })
+                .or_else(|| self.field_receiver_type(&expression.receiver))
+                .or_else(|| constructed_type(&expression.receiver));
+            let target = match receiver_type {
+                Some(ty) => format!(".<{}>:{ty}", expression.method),
+                None => format!(".<{}>", expression.method),
+            };
+            self.edge(EdgeKind::Callable, target, expression.method.span());
         }
         visit::visit_expr_method_call(self, expression);
     }
@@ -866,6 +1039,107 @@ fn type_is_engine(ty: &Type) -> bool {
         Type::Reference(reference) => type_is_engine(&reference.elem),
         Type::Paren(paren) => type_is_engine(&paren.elem),
         _ => false,
+    }
+}
+
+fn collect_struct_fields(items: &[syn::Item], fields: &mut BTreeMap<(String, String), String>) {
+    for item in items {
+        match item {
+            syn::Item::Struct(structure) => {
+                for field in &structure.fields {
+                    if let (Some(name), Some(ty)) = (&field.ident, type_path_string(&field.ty)) {
+                        fields.insert((structure.ident.to_string(), name.to_string()), ty);
+                    }
+                }
+            }
+            syn::Item::Mod(module) => {
+                if let Some((_, items)) = &module.content {
+                    collect_struct_fields(items, fields);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// The path of a syntactically named type, looking through references,
+/// parentheses and groups; generic arguments are not part of the identity.
+fn type_path_string(ty: &Type) -> Option<String> {
+    match ty {
+        Type::Reference(reference) => type_path_string(&reference.elem),
+        Type::Paren(paren) => type_path_string(&paren.elem),
+        Type::Group(group) => type_path_string(&group.elem),
+        Type::Path(path) if path.qself.is_none() => {
+            // Smart pointers auto-deref to their pointee for method calls.
+            let last = path.path.segments.last()?;
+            if matches!(last.ident.to_string().as_str(), "Arc" | "Rc" | "Box") {
+                if let syn::PathArguments::AngleBracketed(arguments) = &last.arguments {
+                    if let [syn::GenericArgument::Type(inner)] =
+                        arguments.args.iter().collect::<Vec<_>>().as_slice()
+                    {
+                        return type_path_string(inner);
+                    }
+                }
+                return None;
+            }
+            Some(
+                path.path
+                    .segments
+                    .iter()
+                    .map(|segment| segment.ident.to_string())
+                    .collect::<Vec<_>>()
+                    .join("::"),
+            )
+        }
+        _ => None,
+    }
+}
+
+/// `Type::constructor(..)`, `Type { .. }` and `&`/paren forms of them.
+fn constructed_type(expression: &Expr) -> Option<String> {
+    let capitalised = |name: &str| name.chars().next().is_some_and(char::is_uppercase);
+    match expression {
+        Expr::Call(call) => {
+            let Expr::Path(path) = call.func.as_ref() else { return None };
+            let segments = path
+                .path
+                .segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>();
+            let (last, owner) = segments.split_last()?;
+            (!owner.is_empty()
+                && !capitalised(last)
+                && owner.last().is_some_and(|name| capitalised(name) && name != "Self"))
+            .then(|| owner.join("::"))
+        }
+        Expr::Struct(structure) if structure.qself.is_none() => {
+            let segments = structure
+                .path
+                .segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>();
+            segments.last().is_some_and(|name| name != "Self").then(|| segments.join("::"))
+        }
+        Expr::Reference(reference) => constructed_type(&reference.expr),
+        Expr::Paren(paren) => constructed_type(&paren.expr),
+        _ => None,
+    }
+}
+
+/// A receiver that is a binding itself (not a field or call result).
+fn direct_receiver_ident(expression: &Expr) -> Option<String> {
+    match expression {
+        Expr::Path(path) if path.qself.is_none() && path.path.segments.len() == 1 => {
+            path.path.segments.first().map(|segment| segment.ident.to_string())
+        }
+        Expr::Paren(paren) => direct_receiver_ident(&paren.expr),
+        Expr::Reference(reference) => direct_receiver_ident(&reference.expr),
+        Expr::Unary(unary) if matches!(unary.op, syn::UnOp::Deref(_)) => {
+            direct_receiver_ident(&unary.expr)
+        }
+        _ => None,
     }
 }
 
@@ -1389,5 +1663,31 @@ mod tests {
             );
         }
         assert!(!analysis.edges.iter().any(|edge| edge.target.starts_with("Self::")));
+    }
+
+    #[test]
+    fn receivers_carry_their_syntactic_type() {
+        let analysis = analyze(
+            "struct Holder { inner: crate::a::Inner } \
+             fn f(sink: &crate::a::Sink, shared: std::sync::Arc<crate::a::Shared>, h: Holder) { \
+                 sink.one(); shared.two(); h.inner.three(); \
+                 let built = crate::a::Built::new(); built.four(); \
+                 let sink = unknown(); sink.five(); \
+                 let _ = |sink: crate::a::Other| sink.six(); \
+             }",
+        )
+        .expect("fixture parses");
+        let targets =
+            analysis.edges.iter().map(|edge| edge.target.as_str()).collect::<BTreeSet<_>>();
+        for expected in [
+            ".<one>:crate::a::Sink",
+            ".<two>:crate::a::Shared",
+            ".<three>:crate::a::Inner",
+            ".<four>:crate::a::Built",
+            ".<five>",
+            ".<six>:crate::a::Other",
+        ] {
+            assert!(targets.contains(expected), "missing {expected}: {targets:?}");
+        }
     }
 }

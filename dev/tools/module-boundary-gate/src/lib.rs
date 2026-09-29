@@ -1062,6 +1062,46 @@ mod tests {
     }
 
     #[test]
+    fn fully_qualified_internal_type_paths_are_recorded() {
+        let analysis = analyze_source(
+            "fn hidden_type(_: crate::reader_pool::ReaderRequest) -> \
+             crate::search::SearchReaderWork { todo!() }",
+        )
+        .expect("fixture parses");
+        assert!(analysis.edges.iter().any(|edge| {
+            edge.kind == EdgeKind::TypeOrComposition
+                && edge.source_item == "hidden_type"
+                && edge.target == "crate::reader_pool::ReaderRequest"
+        }));
+    }
+
+    #[test]
+    fn root_glob_shadowing_expires_at_the_end_of_its_lexical_block() {
+        let analysis = analyze_source(
+            "use super::*; fn scope_escape() { \
+                 { \
+                     let encode_graph_expand_result_v1 = 1usize; \
+                     let _ = encode_graph_expand_result_v1; \
+                 } \
+                 let _ = encode_graph_expand_result_v1; \
+             }",
+        )
+        .expect("fixture parses");
+        assert_eq!(
+            analysis
+                .edges
+                .iter()
+                .filter(|edge| {
+                    edge.kind == EdgeKind::Callable
+                        && edge.source_item == "scope_escape"
+                        && edge.target == "encode_graph_expand_result_v1"
+                })
+                .count(),
+            1
+        );
+    }
+
+    #[test]
     fn source_items_inline_scopes_cfg_attr_and_macros_are_preserved() {
         let analysis = analyze_source(
             r#"

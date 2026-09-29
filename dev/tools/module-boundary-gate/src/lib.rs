@@ -729,6 +729,12 @@ impl<'s> Analyzer<'s> {
         let top_level = &self.analysis.import_aliases;
         let mut resolved = BTreeSet::new();
         for edge in &self.analysis.edges {
+            // A field or Engine method name is no path: an import of the same
+            // name does not rename it.
+            if matches!(edge.kind, EdgeKind::FieldAccess | EdgeKind::EngineMethod) {
+                resolved.insert(edge.clone());
+                continue;
+            }
             // An inline module sees its own imports first; the file's
             // top-level imports approximate its usual `use super::*`.
             let scoped = self.analysis.scoped_aliases.get(&edge.source_scope);

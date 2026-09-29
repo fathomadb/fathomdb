@@ -618,7 +618,9 @@ expect_failure unreviewed-same-name-receiver 'source=search source_item=slice85_
   "$GATE" --root "$fixture"
 cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
-printf 'external-receiver search slice85_missing as_str 1\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
+# The entry names its receiver expression and type (design review cycle 2,
+# D-21); the stale diagnostic asserted below is unchanged.
+printf 'external-receiver search slice85_missing as_str 1 value String\n' >>"$fixture/dev/tools/module-boundary-policy.txt"
 expect_failure stale-external-receiver 'stale external-receiver search slice85_missing as_str 1' \
   "$GATE" --root "$fixture"
 cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
@@ -874,6 +876,41 @@ expect_failure parent-mod-cfg \
   'syntax=crate::search::prepare_search_statement kind=callable configurations=operator at data_plane_integrity.rs:' \
   "$GATE" --root "$fixture"
 cp "$fixture/data-plane-integrity.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/data_plane_integrity.rs"
+
+# Design review cycle 2, D-21: receiver exceptions are keyed by the receiver
+# expression and name its type. Swapping a reviewed receiver for another
+# with the same call count fails; an in-crate type cannot be declared
+# external; a reviewed in-crate receiver type becomes a real typed edge.
+sed -i '0,/\[compiled\.match_expression\.as_str()\],/s//[slice85_reason().as_str()],/' \
+  "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+expect_failure receiver-swap \
+  'source=search source_item=read_search_in_tx method=as_str calls=1 receiver=slice85_reason()' \
+  "$GATE" --root "$fixture"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+
+printf '\npub(crate) fn slice85_recv_kind() -> usize { slice85_make().as_str().len() }\n' \
+  >>"$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
+printf 'external-receiver search slice85_recv_kind as_str 1 slice85_make() FrozenReadErrorReason\n' \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure in-crate-listed-external \
+  'external-receiver search slice85_recv_kind as_str names the in-crate type FrozenReadErrorReason' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+printf 'typed-receiver search slice85_recv_kind as_str 1 slice85_make() frozen_read::FrozenReadErrorReason\n' \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure typed-receiver-edge \
+  'source=search source_item=slice85_recv_kind destination=frozen_read target_item=FrozenReadErrorReason::as_str' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+
+printf 'typed-receiver search slice85_recv_kind as_str 1 slice85_make() frozen_read::ReadContextV1\n' \
+  >>"$fixture/dev/tools/module-boundary-policy.txt"
+expect_failure typed-receiver-missing-method \
+  'typed-receiver search slice85_recv_kind as_str names frozen_read::ReadContextV1, which has no method as_str' \
+  "$GATE" --root "$fixture"
+cp "$fixture/module-boundary-policy.clean" "$fixture/dev/tools/module-boundary-policy.txt"
+cp "$fixture/search.rs.clean" "$fixture/src/rust/crates/fathomdb-engine/src/search.rs"
 
 printf 'fn stray() {}\n' >"$fixture/src/rust/crates/fathomdb-engine/src/stray.rs"
 expect_failure undeclared-module 'Rust source file is not declared from lib.rs stray' \

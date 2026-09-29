@@ -973,8 +973,10 @@ mod slice85_boundary_tests {
         // A connection without the registry table declares no projection, so
         // the validator itself must raise the narrow InvalidFilter with its reason.
         let conn = rusqlite::Connection::open_in_memory().expect("in-memory connection");
-        let mut filter = SearchFilter::default();
-        filter.attributes = vec![("slice85_undeclared".to_string(), "x".to_string())];
+        let filter = SearchFilter {
+            attributes: vec![("slice85_undeclared".to_string(), "x".to_string())],
+            ..SearchFilter::default()
+        };
         match validate_filter_attributes_on_snapshot(&conn, &filter) {
             Err(SnapshotFilterError::InvalidFilter(reason)) => assert_eq!(
                 reason,

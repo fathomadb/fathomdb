@@ -2378,7 +2378,6 @@ edge root <module>::SearchExpandResult graph_expand::traversal SearchExpandResul
 edge root <module>::SearchFilter filter SearchFilter reexport all
 edge root <module>::SearchHit search_types SearchHit reexport all
 edge root <module>::SearchResult search_types SearchResult reexport all
-edge root <module>::SnapshotFilterError filter SnapshotFilterError reexport all
 edge root <module>::SoftFallback search_types SoftFallback reexport all
 edge root <module>::SoftFallbackBranch search_types SoftFallbackBranch reexport all
 edge root <module>::SourceDependencyRegistrationV1 dependency SourceDependencyRegistrationV1 reexport all
@@ -2477,7 +2476,6 @@ edge root <module>::try_rerank_fused rerank try_rerank_fused reexport all
 edge root <module>::valid_caller_identity identity valid_caller_identity reexport all
 edge root <module>::validate_batch write_validation validate_batch reexport all
 edge root <module>::validate_dependency_chain dependency validate_dependency_chain reexport all
-edge root <module>::validate_filter_attributes_on_snapshot filter validate_filter_attributes_on_snapshot reexport all
 edge root <module>::validate_persisted_dependency_row dependency validate_persisted_dependency_row reexport all
 edge root <module>::validate_source_dependency_registration dependency validate_source_dependency_registration reexport all
 edge root <module>::validate_write write_validation validate_write reexport all

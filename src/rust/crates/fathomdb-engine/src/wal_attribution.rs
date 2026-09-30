@@ -255,6 +255,7 @@ pub(super) struct WalAttributionCollector {
     pub(super) roles: Mutex<BTreeMap<(WalAttributionRole, usize), WalAttributionRoleState>>,
     pub(super) checkpoints: Mutex<Vec<WalCheckpointRecord>>,
     pub(super) checkpoint_active: AtomicBool,
+    pub(super) reader_search_hook: crate::test_hooks::reader_search_hook::ReaderSearchHook,
     #[cfg(any(test, feature = "test-hooks"))]
     pub(super) reader_snapshot_pause: Mutex<Option<ReaderSnapshotPause>>,
     #[cfg(test)]
@@ -298,6 +299,7 @@ impl WalAttributionCollector {
             roles: Mutex::new(BTreeMap::new()),
             checkpoints: Mutex::new(Vec::new()),
             checkpoint_active: AtomicBool::new(false),
+            reader_search_hook: crate::test_hooks::reader_search_hook::ReaderSearchHook::default(),
             #[cfg(any(test, feature = "test-hooks"))]
             reader_snapshot_pause: Mutex::new(None),
             #[cfg(test)]

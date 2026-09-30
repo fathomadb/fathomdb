@@ -275,7 +275,7 @@ pub use test_hooks::{
 pub use test_hooks::{
     arm_evidence_before_resolve_return_hook_for_test, arm_evidence_before_sidecar_hook_for_test,
     arm_frozen_after_validation_hook_for_test, arm_page_after_validation_hook_for_test,
-    arm_reader_search_hook_for_test, clear_reader_search_hook_for_test,
+    arm_reader_search_hook_for_test, ReaderSearchPauseForTest,
 };
 #[cfg(debug_assertions)]
 pub use test_hooks::{ProjectionWorkerPauseReadyError, ProjectionWorkerTransactionPauseForTest};
@@ -719,7 +719,7 @@ pub struct Engine {
     /// `Vec<ProfileContext>` could reallocate and invalidate that
     /// pointer.
     #[allow(clippy::vec_box)]
-    profile_contexts: Mutex<Vec<Box<ProfileContext>>>,
+    profile_contexts: Mutex<ProfileContexts>,
     /// Pack 6.G G.1 — `sqlite3_db_config(LOOKASIDE)` rc per reader
     /// worker, captured at open time before any PRAGMA / prepare ran
     /// on the connection. Read only by the debug-only test accessor
@@ -964,6 +964,68 @@ struct ProfileContext {
     subscribers: Arc<lifecycle::SubscriberRegistry>,
     profiling_enabled: Arc<AtomicBool>,
     slow_threshold_ms: Arc<AtomicU64>,
+    #[cfg(test)]
+    callback_uninstalled: AtomicBool,
+}
+
+#[cfg(not(test))]
+type ProfileContexts = Vec<Box<ProfileContext>>;
+
+#[cfg(test)]
+struct ProfileContexts {
+    // SQLite stores these allocation addresses; moving a context would invalidate userdata.
+    #[allow(clippy::vec_box)]
+    contexts: Vec<Box<ProfileContext>>,
+    observer: Option<Arc<ProfileReleaseObserver>>,
+}
+
+#[cfg(test)]
+impl From<Vec<Box<ProfileContext>>> for ProfileContexts {
+    fn from(contexts: Vec<Box<ProfileContext>>) -> Self {
+        Self { contexts, observer: None }
+    }
+}
+
+#[cfg(test)]
+struct ProfileReleaseObserver {
+    registry: Arc<ManagedConnectionRegistry>,
+    live_workers: Arc<AtomicUsize>,
+    releases: Mutex<Vec<ProfileReleaseFact>>,
+    // Custody preserves the original SQLite userdata even in an early-release mutant.
+    #[allow(clippy::vec_box)]
+    custody: Mutex<Vec<Box<ProfileContext>>>,
+}
+
+#[cfg(test)]
+struct ProfileReleaseFact {
+    callback_uninstalled: bool,
+    live_connections: BTreeSet<(WalAttributionRole, usize)>,
+    live_workers: usize,
+}
+
+#[cfg(test)]
+impl ProfileContexts {
+    fn clear(&mut self) {
+        if let Some(observer) = &self.observer {
+            for context in self.contexts.drain(..) {
+                observer.releases.lock().unwrap().push(ProfileReleaseFact {
+                    callback_uninstalled: context.callback_uninstalled.load(Ordering::SeqCst),
+                    live_connections: observer.registry.live.lock().unwrap().clone(),
+                    live_workers: observer.live_workers.load(Ordering::SeqCst),
+                });
+                observer.custody.lock().unwrap().push(context);
+            }
+        } else {
+            self.contexts.clear();
+        }
+    }
+}
+
+#[cfg(test)]
+impl Drop for ProfileContexts {
+    fn drop(&mut self) {
+        self.clear();
+    }
 }
 
 use wal_attribution::*;
@@ -2935,6 +2997,8 @@ impl Engine {
                     );
                 }
 
+                #[cfg(test)]
+                let profile_contexts = ProfileContexts::from(profile_contexts);
                 let opened = OpenedEngine {
                     engine: Self {
                         path: canonical_path.clone(),
@@ -7672,6 +7736,8 @@ fn install_profile_callback(
         subscribers: Arc::clone(subscribers),
         profiling_enabled: Arc::clone(profiling_enabled),
         slow_threshold_ms: Arc::clone(slow_threshold_ms),
+        #[cfg(test)]
+        callback_uninstalled: AtomicBool::new(false),
     });
     let ctx_ptr: *mut ProfileContext = &mut *ctx;
 
@@ -7703,7 +7769,15 @@ fn uninstall_profile_callback(connection: &Connection) {
     // SAFETY: passing `None` as the callback unregisters the previous
     // callback; SQLite documents this as legal and idempotent.
     unsafe {
-        rusqlite::ffi::sqlite3_profile(connection.handle(), None, std::ptr::null_mut());
+        let previous =
+            rusqlite::ffi::sqlite3_profile(connection.handle(), None, std::ptr::null_mut());
+        #[cfg(test)]
+        if !previous.is_null() {
+            // The connection holds our stable context, retained until teardown completes.
+            (*previous.cast::<ProfileContext>()).callback_uninstalled.store(true, Ordering::SeqCst);
+        }
+        #[cfg(not(test))]
+        let _ = previous;
     }
 }
 
@@ -8060,6 +8134,101 @@ mod tests {
         assert!(statement.was_reused());
         assert_eq!(statement.query_row([1_i64], |row| row.get::<_, String>(0)).unwrap(), "before");
         assert!(statement.reprepare_count() >= 1);
+    }
+
+    #[test]
+    fn reader_search_pause_is_engine_owned() {
+        use super::arm_reader_search_hook_for_test;
+        use std::time::Duration;
+        let directory = tempfile::TempDir::new().unwrap();
+        let intended = Engine::open(directory.path().join("intended.sqlite")).unwrap().engine;
+        let unrelated = Engine::open(directory.path().join("unrelated.sqlite")).unwrap().engine;
+        let pause = arm_reader_search_hook_for_test(&intended);
+        unrelated.search("needle").unwrap();
+        assert!(
+            pause.wait_ready(Duration::ZERO).is_err(),
+            "unrelated engine consumed the intended pause"
+        );
+        // A readiness timeout cancels even while its guard remains alive.
+        intended.search("needle").unwrap();
+        assert!(pause.wait_ready(Duration::ZERO).is_err(), "cancelled pause was consumed");
+        let timed_out = pause;
+        let pause = arm_reader_search_hook_for_test(&intended);
+        drop(timed_out); // stale custody must not disarm the replacement pause.
+        std::thread::scope(|scope| {
+            let search = scope.spawn(|| intended.search("needle"));
+            pause.wait_ready(Duration::from_secs(15)).unwrap();
+            pause.release();
+            search.join().unwrap().unwrap();
+        });
+        drop(pause);
+        // Cancellation before arrival must disarm the seam without parking a worker.
+        drop(arm_reader_search_hook_for_test(&intended));
+        intended.search("needle").unwrap();
+        // Cancellation after arrival must release before a scoped join, including unwind.
+        let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            std::thread::scope(|scope| {
+                let pause = arm_reader_search_hook_for_test(&intended);
+                let search = scope.spawn(|| intended.search("needle"));
+                pause.wait_ready(Duration::from_secs(15)).unwrap();
+                let _search = search;
+                panic!("controlled pause-owner unwind");
+            });
+        }));
+        assert!(unwind.is_err());
+        intended.search("needle").unwrap();
+    }
+
+    #[test]
+    fn profile_context_release_follows_callback_and_connection_teardown() {
+        use super::{Mutex, ProfileReleaseObserver};
+        use fathomdb_schema::SQLITE_SUFFIX;
+        for explicit_close in [true, false] {
+            let directory = tempfile::TempDir::new().unwrap();
+            let opened =
+                Engine::open(directory.path().join(format!("profile-lifetime{SQLITE_SUFFIX}")))
+                    .unwrap();
+            let engine = opened.engine;
+            for _ in 0..READER_POOL_SIZE {
+                engine.search("profile-lifetime").unwrap();
+            }
+            let observer = Arc::new(ProfileReleaseObserver {
+                registry: Arc::clone(&engine.managed_connections),
+                live_workers: engine.reader_pool.live_workers_for_test(),
+                releases: Mutex::new(Vec::new()),
+                custody: Mutex::new(Vec::new()),
+            });
+            {
+                let mut contexts = engine.profile_contexts.lock().unwrap();
+                assert_eq!(contexts.contexts.len(), 9, "primary and eight readers");
+                assert!(contexts
+                    .contexts
+                    .iter()
+                    .all(|context| !context.callback_uninstalled.load(Ordering::SeqCst)));
+                contexts.observer = Some(Arc::clone(&observer));
+            }
+            assert!(observer.registry.exact_live());
+            if explicit_close {
+                engine.close().unwrap();
+            }
+            drop(engine);
+            let releases = observer.releases.lock().unwrap();
+            assert_eq!(releases.len(), 9);
+            for fact in releases.iter() {
+                assert!(
+                    fact.callback_uninstalled,
+                    "profile callback still installed at context release"
+                );
+                assert!(
+                    fact.live_connections.is_empty(),
+                    "managed connections still live: {:?}",
+                    fact.live_connections
+                );
+                assert_eq!(fact.live_workers, 0, "reader workers still live at context release");
+            }
+            assert!(observer.registry.live.lock().unwrap().is_empty());
+            assert_eq!(observer.live_workers.load(Ordering::SeqCst), 0);
+        }
     }
 
     #[test]

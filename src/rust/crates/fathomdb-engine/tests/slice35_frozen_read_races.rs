@@ -1,5 +1,6 @@
-use std::sync::{Arc, Barrier};
+use std::sync::Arc;
 use std::thread;
+use std::time::Duration;
 
 use fathomdb_engine::{
     arm_reader_search_hook_for_test, Engine, EngineError, FrozenReadErrorReason, InitialState,
@@ -129,22 +130,15 @@ fn mutation_committed_before_snapshot_pin_causes_drift_without_results() {
     let engine = Arc::new(opened.engine);
     engine.write(&[node("root", "needle", None)]).unwrap();
     let frozen = engine.freeze_read_context(&strict_context()).unwrap();
-    let ready = Arc::new(Barrier::new(2));
-    let release = Arc::new(Barrier::new(2));
-    let hook_ready = Arc::clone(&ready);
-    let hook_release = Arc::clone(&release);
-    arm_reader_search_hook_for_test(Box::new(move || {
-        hook_ready.wait();
-        hook_release.wait();
-    }));
+    let pause = arm_reader_search_hook_for_test(&engine);
 
     let worker = {
         let engine = Arc::clone(&engine);
         thread::spawn(move || engine.search_frozen("needle", &frozen, 0, false, 0.3, 0, false, 10))
     };
-    ready.wait();
+    pause.wait_ready(Duration::from_secs(15)).unwrap();
     engine.write(&[node("later", "needle later", None)]).unwrap();
-    release.wait();
+    pause.release();
 
     assert!(matches!(
         worker.join().unwrap(),

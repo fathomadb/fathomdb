@@ -1052,10 +1052,8 @@ fn undeclared_filter_attribute_is_typed_rejection_on_both_arms() {
 
 #[test]
 fn undeclared_after_concurrent_drop_is_typed_invalidfilter_not_storage_race() {
-    use fathomdb_engine::{
-        arm_reader_search_hook_for_test, clear_reader_search_hook_for_test, EngineError,
-    };
-    use std::sync::mpsc;
+    use fathomdb_engine::{arm_reader_search_hook_for_test, EngineError};
+    use std::time::Duration;
 
     let (_dir, path) = fixture("s15e_fix3_toctou");
     let opened = open(&path);
@@ -1073,18 +1071,9 @@ fn undeclared_after_concurrent_drop_is_typed_invalidfilter_not_storage_race() {
         .expect("write");
     engine.drain(10_000).expect("drain");
 
-    // Rendezvous channels: `reached` fires when the reader parks at the hook (before
-    // its snapshot is pinned); `go` releases it after the concurrent drop commits.
-    let (reached_tx, reached_rx) = mpsc::channel::<()>();
-    let (go_tx, go_rx) = mpsc::channel::<()>();
-    // `Sender::send` / `Receiver::recv` take `&self`, so an `Fn` closure can drive
-    // both by shared reference — no need to move them out of the closure.
-    arm_reader_search_hook_for_test(Box::new(move || {
-        reached_tx.send(()).ok();
-        go_rx.recv().ok();
-    }));
-
     let result = std::thread::scope(|s| {
+        // Local custody releases/disarms the pause before scope joins on unwind.
+        let pause = arm_reader_search_hook_for_test(engine);
         let search = s.spawn(|| {
             let mut f = SearchFilter::default();
             f.attributes = vec![("priority".to_string(), "high".to_string())];
@@ -1093,19 +1082,17 @@ fn undeclared_after_concurrent_drop_is_typed_invalidfilter_not_storage_race() {
 
         // Wait for the reader to park (pre-dispatch validation has already passed on
         // the writer connection, and the reader has NOT yet pinned its snapshot).
-        reached_rx.recv().expect("reader must reach the pre-snapshot hook");
+        pause.wait_ready(Duration::from_secs(15)).expect("reader must reach the pre-snapshot hook");
         // The race: DROP `priority` on the writer connection NOW — this removes the
         // `attr_<hex>` vec0 column that the in-flight search's filter still names.
         engine
             .configure_projections(&[], &["priority".to_string()])
             .expect("concurrent DROP of the filterable projection");
         // Release the parked reader; it now pins a snapshot that includes the drop.
-        go_tx.send(()).expect("release the parked reader");
+        pause.release();
 
         search.join().expect("search thread joined")
     });
-
-    clear_reader_search_hook_for_test();
 
     match result {
         Err(EngineError::InvalidFilter { reason }) => assert!(

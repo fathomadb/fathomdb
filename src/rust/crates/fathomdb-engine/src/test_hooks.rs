@@ -416,66 +416,129 @@ impl Drop for ProjectionWorkerTransactionPauseForTest {
     }
 }
 
-/// 0.8.20 keystone closeout fix-3 — a test-only rendezvous hook fired at the TOP
-/// of [`read_search_in_tx`], BEFORE the reader opens its deferred transaction.
-///
-/// It exists ONLY to make the validate/execute TOCTOU race deterministic: a test
-/// arms a closure that parks the reader worker here (after the caller-side search
-/// setup, before the reader pins its snapshot), performs a concurrent
-/// `configure_projections` DROP of a `filterable` attribute on the writer
-/// connection, then releases the reader. The reader then pins a snapshot that
-/// INCLUDES the drop — exactly the window that used to yield an opaque `no such
-/// column` `Storage` error and now yields a typed `InvalidFilter`. Kept OFF the
-/// governed surface (`_for_test`), mirroring the sanctioned
-/// `set_vector_stage_only_for_test` seam pattern. Disarmed by default: a single
-/// `Relaxed` atomic load per search (same class as the four hot-path atomics
-/// already read here), fires at most once (the closure is `take`n), and is a
-/// no-op in production because nothing ever arms it.
+/// Engine-owned, one-shot pause before the reader pins its deferred snapshot.
 pub(crate) mod reader_search_hook {
+    use crate::wal_attribution::WalAttributionCollector;
+    use crate::Engine;
     use std::sync::atomic::{AtomicBool, Ordering};
-    use std::sync::Mutex;
+    use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
+    use std::sync::{Arc, Mutex, Weak};
+    use std::time::Duration;
 
-    static ARMED: AtomicBool = AtomicBool::new(false);
-    #[allow(clippy::type_complexity)]
-    static HOOK: Mutex<Option<Box<dyn Fn() + Send>>> = Mutex::new(None);
+    const TIMEOUT: Duration = Duration::from_secs(15);
 
-    pub(crate) fn arm(hook: Box<dyn Fn() + Send>) {
-        *HOOK.lock().expect("reader-search hook mutex") = Some(hook);
-        ARMED.store(true, Ordering::SeqCst);
+    #[derive(Default)]
+    pub(crate) struct ReaderSearchHook {
+        armed: AtomicBool,
+        pause: Mutex<Option<Arc<Pause>>>,
     }
 
-    pub(crate) fn clear() {
-        ARMED.store(false, Ordering::SeqCst);
-        *HOOK.lock().expect("reader-search hook mutex") = None;
+    struct Pause {
+        ready: SyncSender<()>,
+        release: Mutex<Receiver<()>>,
     }
 
-    /// Fire the armed hook exactly ONCE, then disarm. Cheap early-out when
-    /// disarmed (the production and common-test path).
-    pub(crate) fn fire() {
-        if !ARMED.load(Ordering::SeqCst) {
+    /// A one-shot reader-search pause tied to one Engine.
+    ///
+    /// Readiness and worker release waits are bounded by fifteen seconds. Dropping
+    /// the guard releases a parked reader and disarms an unconsumed pause, including
+    /// during panic unwinding. It never affects another Engine's search.
+    pub struct ReaderSearchPauseForTest {
+        ready: Receiver<()>,
+        release: Sender<()>,
+        pause: Arc<Pause>,
+        collector: Weak<WalAttributionCollector>,
+    }
+
+    impl ReaderSearchPauseForTest {
+        /// Wait for the reader to reach the pre-snapshot seam, up to `timeout`
+        /// (clamped to fifteen seconds). Timeout or disconnection cancels the pause
+        /// and returns an error, even while the guard remains alive.
+        pub fn wait_ready(&self, timeout: Duration) -> Result<(), RecvTimeoutError> {
+            let result = self.ready.recv_timeout(timeout.min(TIMEOUT));
+            if result.is_err() {
+                self.cancel();
+            }
+            result
+        }
+
+        /// Release the parked reader. Repeated release is harmless.
+        pub fn release(&self) {
+            let _ = self.release.send(());
+        }
+
+        fn cancel(&self) {
+            self.release();
+            if let Some(collector) = self.collector.upgrade() {
+                let hook = &collector.reader_search_hook;
+                let mut slot = hook.pause.lock().expect("reader-search hook mutex");
+                if slot.as_ref().is_some_and(|pause| Arc::ptr_eq(pause, &self.pause)) {
+                    slot.take();
+                    hook.armed.store(false, Ordering::Release);
+                }
+            }
+        }
+    }
+
+    impl Drop for ReaderSearchPauseForTest {
+        fn drop(&mut self) {
+            self.cancel();
+        }
+    }
+
+    pub(crate) fn arm(engine: &Engine) -> ReaderSearchPauseForTest {
+        let (ready_tx, ready_rx) = mpsc::sync_channel(1);
+        let (release_tx, release_rx) = mpsc::channel();
+        let pause = Arc::new(Pause { ready: ready_tx, release: Mutex::new(release_rx) });
+        let hook = &engine.wal_attribution.reader_search_hook;
+        let mut slot = hook.pause.lock().expect("reader-search hook mutex");
+        if slot.is_some() {
+            drop(slot);
+            panic!("reader-search pause already armed for this Engine");
+        }
+        *slot = Some(Arc::clone(&pause));
+        hook.armed.store(true, Ordering::Release);
+        ReaderSearchPauseForTest {
+            ready: ready_rx,
+            release: release_tx,
+            pause,
+            collector: Arc::downgrade(&engine.wal_attribution),
+        }
+    }
+
+    pub(crate) fn fire(collector: &WalAttributionCollector) {
+        let hook = &collector.reader_search_hook;
+        if !hook.armed.load(Ordering::Acquire) {
             return;
         }
-        // Disarm first so a re-entrant / second reader never re-fires.
-        ARMED.store(false, Ordering::SeqCst);
-        let hook = HOOK.lock().expect("reader-search hook mutex").take();
-        if let Some(hook) = hook {
-            hook();
+        let pause = {
+            let mut slot = hook.pause.lock().expect("reader-search hook mutex");
+            let pause = slot.take();
+            hook.armed.store(false, Ordering::Release);
+            pause
+        };
+        if let Some(pause) = pause {
+            if pause.ready.send(()).is_ok() {
+                let _ = pause
+                    .release
+                    .lock()
+                    .expect("reader-search release mutex")
+                    .recv_timeout(TIMEOUT);
+            }
         }
     }
 }
 
-/// 0.8.20 keystone closeout fix-3 — arm the [`reader_search_hook`] (test-only).
-/// See that module's docs. `#[doc(hidden)]`, `_for_test`; never re-exported from
-/// the `fathomdb` facade.
-#[doc(hidden)]
-pub fn arm_reader_search_hook_for_test(hook: Box<dyn Fn() + Send>) {
-    reader_search_hook::arm(hook);
-}
+pub use reader_search_hook::ReaderSearchPauseForTest;
 
-/// 0.8.20 keystone closeout fix-3 — disarm the [`reader_search_hook`] (test-only).
+/// Arm a one-shot pre-snapshot reader-search pause for `engine`.
+///
+/// Retain the returned guard through the concurrent mutation and call `release`
+/// afterward. Guard destruction also releases/disarms the pause. Panics if this
+/// Engine already has an unconsumed pause; another Engine's pause is independent.
 #[doc(hidden)]
-pub fn clear_reader_search_hook_for_test() {
-    reader_search_hook::clear();
+pub fn arm_reader_search_hook_for_test(engine: &crate::Engine) -> ReaderSearchPauseForTest {
+    reader_search_hook::arm(engine)
 }
 
 /// Slice 35 — one-shot test rendezvous after a frozen reader has authenticated

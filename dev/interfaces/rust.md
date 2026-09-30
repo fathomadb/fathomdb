@@ -1256,3 +1256,16 @@ start-inclusive, end-exclusive target, terminal-edge, and source validity.
 Mutation after context mint is a frozen snapshot drift error before evidence
 hydration. For authenticated state, missing provenance is distinguished from an
 unavailable linked source only after global target-and-edge authorization.
+
+### Reader-search pause seam (internal tests)
+
+`fathomdb_engine::arm_reader_search_hook_for_test(&Engine)` returns a
+`ReaderSearchPauseForTest` guard for that Engine's next reader search before
+its snapshot is pinned. This replaces the process-global closure and clear
+functions. It remains a hidden test seam and is not exported by the SDK facade.
+`wait_ready(Duration)` cancels on timeout/disconnection and clamps readiness waits
+to fifteen seconds; the worker release wait has the same upper bound. `release()`
+is idempotent, and guard destruction releases a parked reader and disarms an
+unconsumed pause on normal return or unwind. Keep the guard local to any scoped
+thread closure so cleanup runs before scoped joins on failure. Another Engine
+cannot consume or disarm this pause. Arming twice before consumption panics.

@@ -1353,7 +1353,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // BEFORE the deferred snapshot is pinned, so a test can commit a concurrent
     // `configure_projections` DROP in the exact race window. Disarmed (no-op) in
     // production and on every non-race test.
-    reader_search_hook::fire();
+    reader_search_hook::fire(attribution);
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(expected) = frozen_binding {
         let generation =

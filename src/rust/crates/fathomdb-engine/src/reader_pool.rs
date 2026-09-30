@@ -83,7 +83,7 @@ pub(crate) enum ReaderRequest {
     /// Benchmark-only direct vector pipeline. This is intentionally separate
     /// from `Search`: it has no text, fusion, graph, or CE fields.
     VectorStage {
-        request: tc5_benchmark::VectorStageRequest,
+        request: Box<tc5_benchmark::VectorStageRequest>,
         respond:
             SyncSender<Result<tc5_benchmark::VectorStageResult, tc5_benchmark::VectorStageError>>,
     },
@@ -261,7 +261,7 @@ impl ReaderRequest {
             Result<tc5_benchmark::VectorStageResult, tc5_benchmark::VectorStageError>,
         >,
     ) -> Self {
-        Self::VectorStage { request, respond }
+        Self::VectorStage { request: Box::new(request), respond }
     }
 
     pub(crate) fn projected_text(
@@ -524,7 +524,7 @@ fn reader_worker_loop(
             ReaderRequest::Shutdown => break,
             #[cfg(feature = "tc5-benchmark")]
             ReaderRequest::VectorStage { request, respond } => {
-                let result = tc5_benchmark::read_vector_stage_in_tx(&mut connection, request);
+                let result = tc5_benchmark::read_vector_stage_in_tx(&mut connection, *request);
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
@@ -974,6 +974,11 @@ impl ReaderWorkerPool {
     #[cfg(debug_assertions)]
     pub(crate) fn live_count(&self) -> usize {
         self.live_workers.load(Ordering::SeqCst)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn live_workers_for_test(&self) -> Arc<AtomicUsize> {
+        Arc::clone(&self.live_workers)
     }
 
     #[cfg(debug_assertions)]

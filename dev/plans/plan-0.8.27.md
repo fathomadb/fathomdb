@@ -689,228 +689,75 @@ Governed modules:
   default. An owner trait is permitted only where receiver-based polymorphism
   provides a real benefit, never only to make the gate see an edge; on
   read/search hot paths it uses static dispatch;
-- permit cross-module inherent methods only from a committed, reviewed list
-  of owner-qualified constructors and true receiver operations (for example
-  `EvidenceCapture::new`, `FrozenQueryRuntime::new`, and the pool request
-  factories); and
+- keep carrier construction and fields owner-private, with typed pool factories
+  and narrow owner-qualified constructors; derive method ownership from source
+  rather than freezing an inherent-declaration census; and
 - fail on macro-hidden boundaries unless an item-specific review records and
   tests the expansion boundary.
 
 #### Gate semantics
 
-The gate discovers the complete crate module inventory from source, then
-enforces a bounded ownership policy. It does not infer that every discovered
-module is Slice 85 work.
+The recovery contract supersedes the accumulated FIX-1/2/3 gate amendments.
+The engine ownership and AC27-85A/B/F/G obligations remain. Execution is governed
+by the committed [Slice 85 recovery plan](../../plan-slice-85-recovery.md).
 
-Extraction is whole-crate, enforcement is scoped. Extract edges from every
-discovered module, including admitted and report-only modules, before
-computing reachability. Follow outgoing and incoming executable root-item
-references to a fixed point, including helper-to-helper chains through
-non-governed modules. Never stop at the first out-of-scope endpoint. A
-governed → outside → governed path must be visible even when neither outside
-module is otherwise subject to import normalization. Unknown relevant edges
-remain conservative candidates and block a claimed absence of a return path.
-
-- **Module inventory and classification.** Recursively discover every inline
-  and out-of-line `mod` declaration from `lib.rs`, including all declared
-  `graph_expand` submodules, with source locations and `cfg` conditions. A
-  committed classification accounts for every discovered module as governed,
-  an admitted contract/external dependency, or out-of-scope but reported.
-  Missing, duplicate, and stale classifications fail. The initial governed
-  seed is `read`, `read_api`, `search`, `search_api`, `search_types`,
-  `reader_pool`, `graph_api`, `graph_expand` and each of its declared
-  submodules, `filter`, `frozen_read`, `reader_transaction`,
-  `wal_attribution`, `structural_state`, and `telemetry`, plus the specific
-  `dependency_closure` and `evidence` boundary edges named in the inherited
-  allowlist and every root executable item reached from or calling that seed.
-  The classification contains only modules actually discovered at that
-  candidate; each planned module enters it in the same batch that declares its
-  file. The report-only phase may not expand the seed automatically: any other
-  new endpoint needs an item-specific contract admission or a reviewed plan
-  change.
-- **`Engine` field set.** Derive the complete `Engine` struct field inventory.
-  Every discovered field has exactly one committed owner or named reviewed
-  out-of-scope exemption; relevance is never inferred by omitting a field.
-- **`Engine` method set.** Derive every method and defining module from every
-  `impl Engine` block, including overlapping `cfg` forms. This map is
-  source-authoritative and has no duplicate hand-kept manifest. Empty maps and
-  multiple definitions active in the same checked configuration fail;
-  mutually exclusive platform/feature definitions remain separate entries.
-- **Cross-module inherent methods.** Derive every inherent method on a governed
-  type whose visibility exceeds its owner module. The declarations must equal
-  a reviewed owner-qualified list; stale and unlisted entries fail. `Engine`
-  methods use the separate source-derived rule above.
-- **Root contracts and exclusions.** A reviewed item list admits only the root
-  contracts and narrowly justified contract edges needed by the governed
-  boundary. Stale entries fail. Expected boundary edges are reviewed policy;
-  the tool never rewrites them from a failing candidate.
-
-The gate reports composition edges, contract/type references, ordinary owner
-dependencies, `Engine`-field capability accesses, and callable references as
-different edge kinds. Ordinary governed type-owner dependencies participate in
-SCC calculation unless an item-specific contract admission says otherwise.
-Admissions are limited to named type-only relationships, never a callable,
-field access, or any edge needed to recreate one of the four forbidden cycles.
-The initial named admission is the payload reference
-`errors::EngineError::GraphExpansion → graph_expand::types::GraphExpansionErrorV1`:
-classify `errors` as an admitted contract dependency, not a governed module or
-an unexamined external leaf. Resolve the graph facade re-export to `types`.
-Only that data reference is omitted from SCC edges; constructors, conversions,
-Display/Error impl bodies and other executable references remain extracted.
-Colocate the graph error's inherent/trait impls currently in `execution` with
-its `types` definition; no admission can hide an execution dependency.
-An added executable `errors → graph_expand::execution` edge must fail if it
-creates a governed return path. The admission is stale-checked by item and
-edge kind, not a blanket exemption for the errors module.
-Re-export facades resolve to the defining item; their composition links must
-not manufacture execution edges between graph submodules. Every admitted or
-out-of-scope endpoint is reported. A path that leaves the governed set and
-returns is reported as an unresolved boundary path and blocks closeout until
-its intervening items are analysed or a reviewed type-only admission proves
-there is no executable return path. This requires focused item inspection,
-not import normalization of the intervening subsystem.
-
-**Crate-root semantics.** `lib.rs` is the composition root, but root is not one
-aggregate executable node:
-
-- `mod` declarations, public re-exports, and `Engine` storage layout are
-  composition metadata and do not participate in SCCs;
-- each admitted root contract is an item identity, reported separately from
-  executable dependencies; and
-- each root free function or root-defined method body is its own executable
-  item node. Calls and callable references to it participate in SCCs, so a
-  real cycle through a root helper fails without inventing paths between
-  unrelated root functions.
-
-The enforced source grammar is deliberately smaller than Rust's semantic
-model:
-
-- grouped, aliased, and re-exported imports and module-qualified paths resolve
-  to their defining owner; globs fail in governed modules. Outside that set,
-  conservatively expand a glob to every cfg-visible candidate item in its
-  imported namespace for name lookup, preserving edge kinds and re-export
-  origins. Report the glob import itself, but derive possible executable
-  edges from actual names/paths used in bodies, not a fabricated call to
-  every unused imported function. Ambiguous
-  glob uses retain all candidate edges; unresolved namespaces or macro-hidden
-  edges on a possible governed return path block closeout, never disappear.
-  Unrelated outside ambiguity is reported without forcing its cleanup;
-- every governed `Engine` field access is an edge, including non-call access,
-  references, dereferences, simple aliases, and closure/thread capture. An
-  unresolved matching field name is a conservative edge and its diagnostic is
-  labelled as such;
-- `self.m(...)`, `Self::m(...)`, `Engine::m(self, ...)`, typed `Engine`
-  bindings, and simple reference/dereference/parenthesized aliases resolve
-  through the source-derived method map with lexical shadowing respected;
-- callable references such as `let f = Engine::search_inner` and
-  `let f = root_helper` create the edge when the item is referenced, even if
-  invocation occurs later; and
-- a governed module may not define an unlisted local free function whose name
-  shadows a governed owner-qualified callable. The gate resolves declarations
-  before calls, reports both locations, and requires an owner-qualified call
-  or a reviewed local adapter name; this catches wrappers such as the current
-  graph-local `validate_filter_attributes_on_snapshot` instead of attributing
-  them silently to `filter`; and
-- an unresolved dot call whose name belongs to a governed cross-boundary
-  method fails with a request for an owner-qualified call or a syntactically
-  resolvable receiver. External same-name methods are never silently assigned
-  to a governed owner.
-
-The gate therefore emits an exact graph **under the enforced source grammar**,
-not an exact Rust semantic call graph. Configuration inputs are explicit
-compiler-reported target cfg values and Cargo feature closures, not guessed
-Rust type information. Evaluate `cfg`/`cfg_attr` against each recorded input;
-unsupported predicates, generated source, and unresolved includes fail with a
-named resolution requirement. Compute separately labelled default,
-`test-hooks`, `tc5-benchmark`, and test-build graphs, including applicable
-feature combinations and the Linux/non-Linux arms. A union report does not
-replace these results. Production call sites in test builds are still checked;
-test bodies have a separately reported test policy preserving existing test
-identities rather than forcing domain ownership on the harness.
-
-Within the governed boundary, the allowlist is shrink-only. None of the four
-Slice 80 cycles is eligible for retention, exception, or allowlisting. Only
-the three inherited boundary cycles are initial narrow candidates:
-`search` ↔ `dependency_closure`, `search` ↔ `evidence`, and
-`graph_expand` ↔ `evidence`. Other whole-crate cycles remain visible in the
-inventory report but are not silently added to this allowlist or pulled into
-Slice 85.
-
-**FIX-1 amendment (design review cycle 1).** The enforced semantics are:
-
-- **Cycle graphs.** Every evaluated configuration is checked in two graphs.
-  The *item* graph spans the whole crate at item granularity (callable,
-  field, `Engine`-method, typed-receiver and type references; each root item
-  is its own node). The *governed-module* graph is module-level over every
-  non-composition edge between two governed modules, so a type-only governed
-  cycle fails. Every SCC with a governed member must account for each
-  (governed, other) module pair: `forbid-cycle` always fails;
-  `allow-cycle` joins a governed module with a governed or admitted one;
-  `report-cycle` acknowledges a governed/reported pair. Cycle directives
-  cover descendant modules. Re-exports, the `Engine` storage layout, and
-  admitted type-only edges join neither graph.
-- **Whole-crate module-level SCCs are reported, not enforced.** At module
-  granularity the governed set sits inside one large SCC, mediated by the
-  central `errors::EngineError`, whose variants carry payload types owned by
-  about a dozen modules, and by unrelated items that happen to share a
-  reported module (for example `graph_expand::traversal → dependency_closure
-  → search`, which is no item-level path). No item-level or governed-module
-  cycle exists, so enforcing module granularity across the whole crate would
-  need either an allowlist far beyond the three named candidates or a
-  source-level change to the error enum, both outside Slice 85. A path that
-  leaves the governed set and returns is judged on the item graph. FIX-2
-  clarification: the module-level cycles that touch the governed set are a
-  frozen, regenerable-with-review inventory (`module-cycle` pairs for each
-  direct 2-cycle with a governed member, `module-scc` members of each
-  module-level SCC containing a governed module), so a new one is a
-  reviewed policy diff rather than a silent `--report` row; they remain
-  inventory, not boundary verdicts.
-- **Allowlist.** No named candidate forms an item-level or governed-module
-  cycle, so all three `allow-cycle` lines were stale and are removed; the
-  allowlist is empty and every allowance is stale-checked. `admitted` means
-  a module that holds at least one `allow-cycle` or `admit-type` entry (the
-  crate root is always admitted). `dependency_closure` and `evidence` are
-  therefore reported. `errors` stays admitted through the named
-  `EngineError::GraphExpansion → graph_expand::types::GraphExpansionErrorV1`
-  payload admission.
-- **Receivers.** Dot calls carry their receiver's syntactic type (typed
-  parameters and lets, constructors, `Arc`/`Rc`/`Box`, `self`, and same-file
-  struct fields). An untyped call whose name is another module's governed
-  inherent method fails unless a reviewed `external-receiver` entry records
-  its exact call count. FIX-2 clarification: this applies in every module,
-  not only governed ones; a constructor types its binding only when it is
-  declared to return that type, and an in-crate receiver type is used only
-  when the type has the method. Each exception names the receiver
-  expression and its type: `external-receiver` for a type outside the
-  crate, `typed-receiver` for an in-crate type, whose calls become typed
-  edges. FIX-3 clarification: an untyped call, including one an
-  `external-receiver` entry admits, whose same-named inherent methods
-  include one in a module the source is forbidden to depend on fails as a
-  forbidden dependency.
-- **Configurations.** The feature set is read from the engine manifest. The
-  reviewed axis features are `test-hooks`, `tc5-benchmark`, and `operator`.
-  Every other feature gets a single-feature-closure profile, plus one
-  all-features profile. Each profile is crossed with test, Linux, and
-  `debug_assertions`, giving 144 configurations. A frozen-scope edge that
-  is active in no configuration fails. FIX-2 clarification: the
-  single-feature profiles and a reviewed `gpu-product` consumer profile
-  (`embed-cuda`, `rerank-cuda`) are each also crossed with `operator`,
-  which the CLI enables together with any ML feature, giving 232
-  configurations; `cfg` on statements, expressions and match arms and the
-  declaring `mod` item's `cfg` are evaluated too. FIX-3 clarification: a
-  reviewed `python-dev` consumer profile (`default-embedder`,
-  `default-reranker`, the default `pip install -e` and pytest build) is
-  crossed with `operator` too, giving 248 configurations. Feature sets that
-  combine `test-hooks` or `tc5-benchmark` with an ML feature (for example
-  the N-API debug build `test-hooks,default-embedder` and the private
-  `tc5-benchmark-cuda` build), or two ML features outside a consumer
-  profile, are not evaluated as such; only all-features combines them.
-- **Inventory scope.** Classifications, forbids, cycle directives,
-  admissions and exceptions are shrink-only. The `inherent` and `edge`
-  inventories are regenerated from `--report` and reviewed. They cover edges
-  with a governed or root endpoint. FIX-2 clarification: `forbid-dependency`
-  covers descendant modules like the cycle directives, and the
-  `module-cycle`/`module-scc` inventory is regenerable-with-review as well.
+- **Discovery and ownership.** Discover all declared inline/out-of-line modules
+  from `lib.rs`, including relevant cfg conditions. Every module has exactly
+  one governed/admitted/reported classification; missing, duplicate and stale
+  entries fail. Every Engine field has an owner or named exemption. Derive the
+  nonempty Engine method map from source, including cfg-exclusive definitions;
+  overlapping definitions fail. Keep root-contract checks and field/factory
+  construction protections. Do not freeze ordinary edges or inherent methods.
+- **Two graphs.** The governed-module graph checks import/type dependencies and
+  forbidden direction and type-only cycles. The whole-crate item graph follows
+  explicit calls, callable references and recognized Engine field/method routes
+  through distinct executable items, including root helpers and reported or
+  admitted modules, to a fixed point. Imports do not fabricate calls to unused
+  items. Root declarations, storage composition and re-exports are metadata,
+  not one aggregate executable node. Unrelated helpers cannot create a path.
+- **Admissions and forbids.** Descendant-aware forbidden dependencies and
+  cycles include all four former Slice 80 cycles plus search/reader-pool.
+  The allowlist is empty; no automatic exception growth is allowed. Preserve
+  the exact named type-only admission
+  `errors::EngineError::GraphExpansion → graph_expand::types::GraphExpansionErrorV1`
+  and independently validate its live source item, payload and edge kind.
+  It never admits executable paths through errors or graph implementation.
+  Whole-crate module SCCs are not acceptance freezes.
+- **Supported grammar.** Resolve direct qualified paths, relative anchors,
+  ordinary grouped imports, simple aliases, current engine-used re-exports,
+  simple lexical block imports, and existing root-helper forms through one
+  compact owner-resolution path. Retain Engine-specific receiver/alias
+  recognition, field accesses, callable references, macro-body extraction,
+  capitalized paths and ordinary type/struct/pattern references. Existing
+  outside globs receive conservative treatment of actual referenced names;
+  governed globs fail. Preserve benign external same-name calls. This syntactic
+  tool does not prove arbitrary inferred receiver calls or general Rust
+  namespace semantics; delete the manual receiver exceptions and inference.
+- **Fail closed within the contract.** Classify actual source forms before
+  reducing resolution. Unsupported indirection that can affect boundary paths
+  fails with a source location; it cannot silently remove an edge. Retain cheap
+  guards for relevant unparsed macros and source splicing (`include!`,
+  `extern crate`, `#[path]`). New hypothetical laundering forms do not justify
+  expanding the supported grammar or restoring a namespace resolver.
+- **Configurations.** Read known features and feature closure from the engine
+  manifest. Keep a compact documented table covering actual conditional
+  boundary/helper edges, including test-hooks, tc5-benchmark, operator,
+  test/non-test, Linux/non-Linux and debug/release. Other features multiply
+  graphs only when an actual relevant edge requires their inclusion. Scan cfg
+  before filtering on modules, declarations, statements and expressions;
+  reject unknown relevant predicates and relevant items/edges active in none
+  of the reviewed configurations independently of retired inventories. Retain
+  per-edge masks and simple configuration labels; remove consumer profiles,
+  automatic ML cross-products, oversized capacity and expression minimization.
+- **Diagnostics and qualification.** Preserve source/item endpoints, edge kinds,
+  configuration labels and locations for architectural violations. Normal lint
+  runs the cached production checker; the existing fast/default-all registration
+  runs gate unit tests, compact wrapper regressions and cheap engine assertions.
+  A separate explicit production qualification suite covers roughly 30–45
+  independent mechanisms when the gate changes and at exact-candidate closeout.
+  It is registered in neither fast, heavy nor all. Architectural representatives
+  compile under their actual feature/test cfg; parser-only rejection cases are
+  labelled honestly. Retired inventories have no regeneration workflow.
 
 #### Why not rust-analyzer SCIP
 
@@ -931,65 +778,19 @@ The tooling is also absent by default.
 
 #### Implementation order
 
-Once commissioned, Slice 85 runs in ordered batches. Each move batch contains
-one semantic ownership cluster and runs the working graph report plus its
-focused behavior tests.
+The original carrier/facade ownership batches are implemented; their RED/GREEN
+history remains in the slice chronology. Recover forward from `slice-85-fix`.
+First reconcile the reduced contract, retire passive freezes, then atomically
+retire receiver/resolver machinery and its fixtures. Trim and separate cheap
+coverage from explicit production qualification, and complete the two small
+privacy/import cleanups. Then perform the recovery plan's bounded remaining
+engine review, teardown witness, request-budget disposition, affected-hook
+isolation, and feature qualification. New fixes require at least 4/5 value and
+failing coverage first; existing public behavior and test oracles stay intact.
 
-1. Capture the exact baseline required by R27-85F.
-2. Build the gate in four independently reviewable RED/GREEN sub-batches:
-   source discovery/classification; imports and item-level root graph; Engine
-   fields/methods and callable references; inherent-method policy plus negative
-   fixtures. The first sub-batch creates the standalone tool crate, lockfile,
-   lint hook, dependency/license coverage and cache-staleness test. Run it
-   report-only against production.
-3. Move one lower owner per batch: `structural_state`, then
-   `wal_attribution`, then its consumer `reader_transaction`.
-4. Characterize and separate the narrow handler errors first, preserving exact
-   mappings and precedence; then add search constructors; then move one pool
-   request family per batch.
-5. Move one facade family per batch: read, then graph, then search expansion,
-   eliminating the four prohibited cycles.
-6. Switch the production gate from report-only to enforcement, and perform
-   closeout verification.
-
-Import normalization is explicit work inside stages 3–5: each moved owner
-lands with explicit imports, and stage 5 includes separate batches for every
-remaining governed file (`read`, `search`, `search_api`, `search_types`,
-`reader_pool`, `filter`, `frozen_read`, `telemetry`, and every `graph_expand`
-file). Remove all `use super::*` and other globs, including their test imports
-unless the separately declared test policy admits that exact harness import.
-Use one module per batch, normally 300–1,200 mechanical changed lines; split
-larger modules by import/owner cluster without mixing behavior changes.
-Run compile, focused tests and the report after each batch; stage 6 requires
-zero unapproved governed globs. The `dependency_closure`/`evidence` inherited
-edges and `errors` payload admission govern named edges, not their entire
-modules: those modules retain report-only/conservative extraction outside the
-named edges and need no blanket `use super::*` rewrite in Slice 85.
-
-AC27-85D additionally requires whole-crate edge extraction and fixed-point
-root reach as specified above. AC27-85E additionally requires a two-helper
-root chain, a return path through two report-only modules (one glob-only),
-and a path through an admitted module, each with the tested edge as the sole
-reverse edge. It also requires a local free-function shadow fixture whose only
-reverse edge passes through the shadowing wrapper. Positive fixtures retain an
-unrelated outside glob and the named `EngineError` payload admission; negative
-mutants add executable graph calls behind that admission, ambiguous-glob
-return paths, and an unlisted shadowing adapter. No fixture may pass merely
-because its intermediate module is outside the governed seed.
-
-The gate follows characterization-first TDD; carrier and facade moves follow
-mechanical RED/GREEN compile cycles. Gate and error batches target roughly
-300–600 non-mechanical changed lines and split above 800 unless a specific
-cohesion reason is recorded. Pure moves may be larger, but each contains one
-ownership cluster and no behavior change. The narrow error work is not called
-a verbatim move; its RED tests cover every existing mapping and refusal order.
-Resolve report-only edges before freezing the enforcement policy. A named
-inherited cycle allowance authorizes only its reviewed directed edges, not an
-entire SCC or a new path through an allowed module. Unknown paths and unlisted
-edges fail. Normal lint uses the cached gate binary and fast fixtures; record
-warm runtime/RSS and keep the gate free of whole-workspace indexing and
-production mutation runs. Independent code review and independent read-only
-verification bind the closeout to the exact candidate, as for prior slices.
+End with one independently reviewed exact candidate and consolidated receipt.
+Release rebinding and landing require a separate instruction. Historical
+receipts do not prove a later candidate; Slice 150 still owns live AC-037.
 
 #### Requirements and acceptance
 
@@ -997,9 +798,9 @@ verification bind the closeout to the exact candidate, as for prior slices.
 | --- | --- | --- |
 | R27-85A | Every root-kept carrier receives durable non-root semantic ownership without field widening, rooted-contract drift, or invented leaf ownership. | AC27-85A: `ReaderWorkerPool`, `SearchReaderWork`, every reader request/response carrier, `FrozenQueryRuntime`, reader errors/constants, `WalAttributionCollector`, every `Reader*Pause` alias and related attribution helper, `TelemetrySink`, `EvidenceCapture`, and `begin_attributed_reader_tx` each move to a named non-root semantic owner. `PageReaderError` is read-owned; projected text uses the direct search result; filter validation and graph search expansion use characterized narrow errors rather than `SearchReaderError`. Handler modules never depend on `reader_pool`, and every proposed shared leaf has its transitive dependencies verified. Effective visibility is not widened (`pub(super)` within a top-level module is enumerated and reviewed) and every rooted public/re-export path is exact. Any item retained at root has an item-specific design-review exception proving durable ownership and the stronger invariant that moving it would violate. |
 | R27-85B | Facades and handler results do not create reverse handler dependencies. | AC27-85B: all four Slice 80 cycles—`search` ↔ `graph_expand`, `read` ↔ `reader_pool`, `graph_expand` ↔ `reader_pool`, and `graph_expand` ↔ `search_api`—are absent from every applicable governed configuration graph; no `search` ↔ `reader_pool` or other new governed cycle appears; and graph/read/filter/frozen-read code does not depend on `search::SearchReaderError`. |
-| R27-85C | Remaining governed dependencies are explicit and minimal without expanding Slice 85 into whole-crate normalization. | AC27-85C: source discovery classifies every crate module, while a committed policy file frozen after report-only accounts for every expected item-level edge in the reviewed read/search/graph boundary under the enforced source grammar; prose examples are non-authoritative. Composition, contract, ordinary owner, capability, and callable-reference edges remain distinguishable. Root executable items participate individually in SCCs; admitted root contracts do not invent executable paths. None of the four Slice 80 cycles is eligible for retention, an exception, or an allowlist. Only `search` ↔ `dependency_closure`, `search` ↔ `evidence`, and `graph_expand` ↔ `evidence` are initial candidates for the narrow, shrink-only boundary allowlist. Other crate cycles are reported without automatic scope expansion. An edge absent from the frozen policy fails with source, destination, item identities, edge kind, configuration, and location. |
-| R27-85D | Dependency direction is enforced by a normal-lint AST gate over explicit ownership; Rust privacy enforces field and construction boundaries. | AC27-85D: normal `agent-lint` runs the locked standalone `dev/tools/module-boundary-gate` crate with the specified minimal parser features and a tested stale-cache rebuild rule. The source-derived module inventory has a complete reviewed classification; the source-derived Engine field inventory has an exact owner/exemption map; the Engine method map is derived only from source and is nonempty and cfg-consistent; externally visible inherent methods equal their reviewed owner-qualified list; and root contracts/exclusions are exact and stale-safe. The gate extracts whole-crate edges, records field access and callable references as well as calls, follows item-level executable root reach to a fixed point, rejects governed globs and conservatively handles outside globs, rejects unresolvable relevant receivers, external-name ambiguity, root-re-export indirection, and unreviewed relevant macros, and emits separately labelled default, test-hooks, tc5-benchmark, and cfg(test) graphs plus SCC diagnostics. |
-| R27-85E | The structural gate is non-vacuous across its enforced source grammar. | AC27-85E: compiled fixtures cover grouped/aliased/re-exported imports, glob rejection, same-line/multiline parity; direct, non-call, dereferenced, typed-binding, simple-alias, closure-captured, and conservative-unknown-base Engine fields; `self`/`Self`/`Engine` method calls, typed bindings, simple aliases, callable references, unresolved-alias rejection, and a local free-function shadow; listed qualified constructors/receiver operations, unlisted declarations, duplicate names, external same-name calls, and stale list entries; admitted root contracts, composition-only root metadata, a sole reverse edge through one executable root helper, a transitive leave-and-return path, and unrelated root helpers; nested and cfg-gated modules plus missing/stale/empty classifications and maps. Each edge family has a compiled negative fixture whose tested edge is the only reverse edge. Independent production mutants exercise each extractor and the four former cycles, fail with the exact edge/policy diagnostic, and restore the source exactly. Fast fixtures run in normal lint; production mutation qualification runs when the gate changes and at closeout. |
+| R27-85C | Remaining governed dependencies are explicit and minimal without whole-crate normalization. | AC27-85C: source discovery classifies every declared module; ownership checks and descendant-aware prohibitions enforce the reviewed read/search/graph boundary under the bounded grammar above. Distinct executable root items and explicit transitive helper paths participate in the item graph; governed import/type dependencies participate in the module graph. The exact named error-payload type admission remains live and type-only. The allowlist is empty; none of the four former cycles or search/reader-pool can be admitted. Frozen ordinary-edge, module-cycle/SCC and inherent inventories and receiver exception lists are absent. |
+| R27-85D | Normal lint enforces the bounded structural contract; Rust privacy protects fields and construction. | AC27-85D: normal agent-lint runs the locked standalone gate with the existing minimal parser/dependency/license/cache contract. Module classifications, field owners/exemptions and root contracts are complete and stale-safe; Engine methods are source-derived, nonempty and cfg-consistent. The two graphs, source locations, supported explicit paths, Engine routes, macro/capitalized/type extraction and transitive root reach remain non-vacuous. Unsupported relevant syntax/cfg and relevant zero-configuration edges fail independently of inventories. A compact manifest-validated configuration table covers actual boundary distinctions, without consumer-profile enumeration or general receiver inference. |
+| R27-85E | Structural coverage is non-vacuous and proportionate. | AC27-85E: the cheap suite retains its fast/default-all registration and existing CI path, covering unit tests, wrapper freshness and private-field/colocation/carrier protections. Explicit production qualification outside fast/heavy/all keeps one representative per independent mechanism: forbidden directions/cycles and descendants, supported imports/aliases, Engine field/method/callable routes, macro/capitalized/type paths, root chains and reported/admitted return paths, cfg and stale/unsupported inputs. Benign controls remain legal. Retained architectural negatives compile under active features/test cfg and fail for the named architectural diagnostic; parser-only guards are labelled. Fixtures operate on copies and restore exactly; no duplicate compiling siblings or frozen inventory assertions remain. |
 | R27-85F | The boundary change preserves behavior and surfaces from a verified exact baseline. | AC27-85F: before any move, a capable host with the required free space, native module, and GPU tooling must pass exact-baseline `agent-verify`, the candidate-bound native receipt, and official public and hidden captures. After the move, focused read/search/graph/evidence/reader/WAL routes, applicable feature builds, source-scraping gates, exact public surface, additive-only hidden surface, and runtime receipts match that baseline except for reviewed structural inventory additions. The request envelope remains within its size bound; transaction lifetime, attribution finish order, pool-before-profile-context drop order, worker-zero WAL pinning, cfg gates, and qualified test identities are unchanged. |
 | R27-85G | Security evidence is not overstated. | AC27-85G: Slice 85 makes no current-HEAD or final-candidate AC-037 claim. The `66e27983` and `24813b8e` runs remain historical or diagnostic only; Slice 150 alone owns exact-final-candidate live qualification. |
 
@@ -1159,9 +960,11 @@ Consumed from Slice 85 after its boundaries are settled:
   without merging them back into search or moving them for facade convenience;
 - the facade/handler separation that removes all four Slice 80 cycles; and
 - the normal-lint dependency-direction gate: complete source inventory,
-  bounded governed read/search/graph policy, exact graph under its enforced
-  source grammar, item-level root executable nodes, reviewed contract and
-  out-of-scope classifications, and the narrow three-cycle boundary allowlist.
+  bounded governed read/search/graph policy and supported explicit grammar,
+  distinct root executable items with transitive helper reach, reviewed
+  contract/reported classifications, named type-only admission and an empty
+  cycle allowlist. Ordinary inferred receiver dependencies are outside its
+  proof; there is no frozen whole-crate edge census.
   None of the four Slice 80 cycles is eligible for retention or exception.
 
 Slice 90 must consume those boundaries, not redesign them while extracting the

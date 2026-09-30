@@ -605,8 +605,10 @@ coverage, stage-specific projection outcomes, frozen-snapshot authority,
 database quiescence, bounded embed-runtime drain, documentation, and
 slow-threshold open initialization. A config echo, worker-count rename,
 proposed ADR or forwarder without an executor is a failing result. AC27-90H consumes Slice 85's
-whole-crate extraction, transitive root reach and named type-only admission;
-it does not treat newly moved owners as invisible out-of-scope endpoints.
+bounded explicit-path extraction, transitive root reach and named type-only
+admission under the recovered source grammar and relevant configuration table.
+It does not consume a frozen edge census or arbitrary receiver inference, and
+does not treat newly moved owners as invisible out-of-scope endpoints.
 
 | ID | Requirement | Falsifiable acceptance |
 | --- | --- | --- |

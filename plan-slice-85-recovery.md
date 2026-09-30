@@ -1,11 +1,11 @@
 ---
 title: Slice 85 recovery plan
-status: PROPOSED
+status: IN_PROGRESS
 target_release: 0.8.27
 date: 2026-09-29
 branch: slice-85-fix
 starting_sha: df1ffd000e1ff734e6b7068597388ac7d56e2b5c
-execution_status: not started
+execution_status: in progress
 reviewed_on: 2026-09-29
 ---
 
@@ -22,10 +22,10 @@ benefit is at least 4/5: protected correctness, an unsafe-lifetime regression
 oracle, or reliable acceptance evidence. Cosmetic preferences and speculative
 language coverage do not meet that threshold.
 
-The present request authorizes reviewing and revising this plan only. None of
-the removals, requirement changes in other files, test changes, release-state
-changes, or implementation steps below has been performed. Execution requires
-a subsequent instruction.
+The owner authorized implementation of this plan on 2026-09-29. Work starts
+from the committed plan at `c64fad7b6`; the removal and remaining-engine phases
+are authorized. Landing, release rebinding, pushes, tags and publication remain
+outside this instruction. The final receipt records completed work and limits.
 
 ## Starting point
 

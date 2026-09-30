@@ -66,12 +66,6 @@ pub struct Edge {
     pub source_item: String,
     pub location: Location,
     pub configurations: ConfigSet,
-    /// For a dot call, the receiver expression's tokens with whitespace
-    /// removed; it identifies the call site of a reviewed exception.
-    pub receiver: Option<String>,
-    /// For a dot call whose receiver was typed by `let x = Type::f(..)`,
-    /// the associated function `f`; the type holds only if `f` returns it.
-    pub constructor: Option<String>,
 }
 
 /// A `use` binding as written: `name` bound to the path `target` in the
@@ -105,8 +99,7 @@ pub struct MacroUse {
     pub location: Location,
 }
 
-/// A serde function-key string value (`serialize_with`, `with`, ...) that
-/// is not an expression path, so the call it names is unknown.
+/// Unsupported owner-bearing attribute indirection.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct UnparsedSerdePath {
     pub key: String,
@@ -127,25 +120,6 @@ pub struct ModuleDecl {
     pub configurations: ConfigSet,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct InherentMethod {
-    pub owner: String,
-    pub method: String,
-    /// Inline module scope of the `impl` block (empty at file level).
-    pub scope: String,
-    pub location: Location,
-}
-
-/// The paths a `type` alias's definition names, as written.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct TypeAlias {
-    /// The aliased path itself when the definition is a plain path.
-    pub primary: Option<String>,
-    /// Every type and trait path in the definition, generic parameters of
-    /// the alias excluded.
-    pub mentioned: BTreeSet<String>,
-}
-
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Analysis {
     /// The configurations the file was analysed in: those in which its
@@ -157,13 +131,6 @@ pub struct Analysis {
     pub engine_fields: BTreeSet<String>,
     /// Engine method name to the configurations in which this file defines it.
     pub engine_methods: BTreeMap<String, ConfigSet>,
-    pub inherent_methods: BTreeSet<InherentMethod>,
-    /// Every method of every `impl` block (inherent or trait, any
-    /// visibility), keyed by the implementing type's last identifier.
-    pub impl_methods: BTreeSet<(String, String)>,
-    /// Associated functions whose declared return type is `Self` or the
-    /// implementing type itself: the only calls `let x = Type::f(..)` types.
-    pub constructors: BTreeSet<(String, String)>,
     pub declared_items: BTreeSet<String>,
     /// `(inline scope, name)` of every declared item, so a path can be
     /// checked against the scope that actually declares it.
@@ -174,9 +141,6 @@ pub struct Analysis {
     /// Block scopes that declare a `use`, keyed by scope name (the enclosing
     /// scope followed by `{line:column}` of the block's brace).
     pub block_scopes: BTreeMap<String, BlockScope>,
-    /// `type` aliases keyed by scope-qualified name (`Alias`,
-    /// `inner::Alias`).
-    pub type_aliases: BTreeMap<String, TypeAlias>,
     pub unsupported_cfg: BTreeSet<String>,
     /// `mod` items carrying `#[path]` (bare or inside `cfg_attr`), by name.
     /// The compiler then builds a file other than the one the gate maps the
@@ -191,8 +155,7 @@ pub struct Analysis {
     /// `matches!`-style `expr, pattern` body, or a statement list. Their
     /// dependencies are invisible, so governed modules fail closed on them.
     pub unparsed_macros: BTreeSet<MacroUse>,
-    /// Serde function-key values that are not expression paths; the gate
-    /// fails closed on them.
+    /// Owner-bearing attribute paths outside the supported grammar.
     pub unparsed_serde_paths: BTreeSet<UnparsedSerdePath>,
 }
 
@@ -214,7 +177,6 @@ pub fn analyze_source_in(
     visitor.configurations = configurations;
     visitor.analysis.configurations = configurations;
     visitor.enter_attrs(&file.attrs);
-    collect_struct_fields(&file.items, &mut visitor.struct_fields);
     visitor.visit_file(&file);
     visitor.resolve_generated_types();
     Ok(visitor.analysis)
@@ -224,26 +186,16 @@ struct Analyzer<'s> {
     space: &'s ConfigSpace,
     analysis: Analysis,
     engine_aliases: BTreeSet<String>,
+    alias_scopes: Vec<BTreeSet<String>>,
     impl_owners: Vec<String>,
     configurations: ConfigSet,
     module_depth: usize,
     module_stack: Vec<String>,
     item_stack: Vec<String>,
     binding_stack: Vec<BTreeSet<String>>,
-    /// Lexically scoped `binding -> type path` for syntactically typed
-    /// receivers (typed parameters, `self` in a non-Engine impl, typed lets,
-    /// and `let x = Type::ctor(..)` / `Type { .. }` initialisers).
-    receiver_types: Vec<BTreeMap<String, String>>,
-    /// Named-field types of structs declared in this file, for receivers of
-    /// the form `binding.field` where the binding's type is such a struct.
-    struct_fields: BTreeMap<(String, String), String>,
     /// Module scopes that have already imported through `super::`.
     super_import_scopes: BTreeSet<String>,
-    /// Generic type parameters in scope; a binding typed by one has no
-    /// syntactic owner.
-    generic_scopes: Vec<BTreeSet<String>>,
-    /// `fn` names defined in each local `macro_rules!` body.
-    local_macro_fns: BTreeMap<String, BTreeSet<String>>,
+    local_macros: BTreeSet<String>,
     /// Item-position invocations of a macro: `(macro, first identifier)`.
     item_macro_invocations: Vec<(String, String, String)>,
     /// Enclosing inline-module and `use`-declaring block scopes, innermost
@@ -258,18 +210,16 @@ impl<'s> Analyzer<'s> {
         Self {
             space,
             analysis: Analysis::default(),
-            engine_aliases: BTreeSet::from(["engine".to_string()]),
+            engine_aliases: BTreeSet::new(),
+            alias_scopes: Vec::new(),
             impl_owners: Vec::new(),
             configurations: space.all(),
             module_depth: 0,
             module_stack: Vec::new(),
             item_stack: Vec::new(),
             binding_stack: Vec::new(),
-            receiver_types: Vec::new(),
-            struct_fields: BTreeMap::new(),
             super_import_scopes: BTreeSet::new(),
-            generic_scopes: Vec::new(),
-            local_macro_fns: BTreeMap::new(),
+            local_macros: BTreeSet::new(),
             item_macro_invocations: Vec::new(),
             lexical_scopes: Vec::new(),
             block_names: Vec::new(),
@@ -285,33 +235,12 @@ impl<'s> Analyzer<'s> {
     /// has the `fn`s the macro body defines.
     fn resolve_generated_types(&mut self) {
         for (name, ty, scope) in std::mem::take(&mut self.item_macro_invocations) {
-            let Some(functions) = self.local_macro_fns.get(&name) else { continue };
+            if !self.local_macros.contains(&name) {
+                continue;
+            }
             self.analysis.scoped_items.insert((scope, ty.clone()));
             self.analysis.declared_items.insert(ty.clone());
-            for function in functions {
-                self.analysis.impl_methods.insert((ty.clone(), function.clone()));
-            }
         }
-    }
-
-    fn push_generics(&mut self, generics: &syn::Generics) {
-        self.generic_scopes.push(
-            generics
-                .params
-                .iter()
-                .filter_map(|parameter| match parameter {
-                    syn::GenericParam::Type(parameter) => Some(parameter.ident.to_string()),
-                    _ => None,
-                })
-                .collect(),
-        );
-    }
-
-    /// A receiver type is usable only when it names a concrete type, not a
-    /// generic parameter in scope.
-    fn concrete_type(&self, ty: String) -> Option<String> {
-        let head = ty.split("::").next().unwrap_or(&ty).split("=>").next().unwrap_or(&ty);
-        (!self.generic_scopes.iter().any(|scope| scope.contains(head))).then_some(ty)
     }
 
     fn edge(&mut self, kind: EdgeKind, target: impl Into<String>, span: Span) {
@@ -323,8 +252,6 @@ impl<'s> Analyzer<'s> {
             source_item: self.item_stack.last().cloned().unwrap_or_else(|| "<module>".to_string()),
             location: span.into(),
             configurations: self.configurations,
-            receiver: None,
-            constructor: None,
         });
     }
 
@@ -334,48 +261,30 @@ impl<'s> Analyzer<'s> {
         self.analysis.declared_items.insert(name);
     }
 
-    fn push_scope(&mut self, bindings: BTreeSet<String>, types: BTreeMap<String, String>) {
-        self.binding_stack.push(bindings);
-        self.receiver_types.push(types);
-    }
-
     fn push_inherited_scope(&mut self) {
-        let bindings = self.binding_stack.last().cloned().unwrap_or_default();
-        let types = self.receiver_types.last().cloned().unwrap_or_default();
-        self.push_scope(bindings, types);
+        self.alias_scopes.push(self.engine_aliases.clone());
+        self.binding_stack.push(self.binding_stack.last().cloned().unwrap_or_default());
     }
-
     fn pop_scope(&mut self) {
+        self.engine_aliases = self.alias_scopes.pop().unwrap_or_default();
         self.binding_stack.pop();
-        self.receiver_types.pop();
     }
-
     fn enter_function(
         &mut self,
         inputs: &syn::punctuated::Punctuated<FnArg, syn::token::Comma>,
-        self_type: Option<&str>,
+        _self_type: Option<&str>,
     ) {
-        // Typed parameters are recorded when their patterns are visited.
-        let mut types = BTreeMap::new();
-        if inputs.iter().any(|input| matches!(input, FnArg::Receiver(_))) {
-            if let Some(owner) = self_type
-                .filter(|owner| *owner != "Engine")
-                .and_then(|owner| self.concrete_type(owner.to_string()))
-            {
-                types.insert("self".to_string(), owner);
+        self.alias_scopes.push(std::mem::take(&mut self.engine_aliases));
+        for input in inputs {
+            if let FnArg::Typed(typed) = input {
+                if type_is_engine(&typed.ty) {
+                    if let Some(binding) = pattern_ident(&typed.pat) {
+                        self.engine_aliases.insert(binding.ident.to_string());
+                    }
+                }
             }
         }
-        self.push_scope(function_bindings(inputs), types);
-    }
-
-    /// `binding.field` where `binding` has a known type declared in this file.
-    fn field_receiver_type(&self, receiver: &Expr) -> Option<String> {
-        let Expr::Field(field) = receiver else { return None };
-        let Member::Named(member) = &field.member else { return None };
-        let base = direct_receiver_ident(&field.base)?;
-        let base_type = self.receiver_types.last()?.get(&base)?;
-        let owner = base_type.rsplit("::").next()?;
-        self.struct_fields.get(&(owner.to_string(), member.to_string())).cloned()
+        self.binding_stack.push(function_bindings(inputs));
     }
 
     fn record_macro(&mut self, path: &syn::Path, span: Span) {
@@ -540,6 +449,8 @@ impl<'s> Analyzer<'s> {
                 || pattern_type(&local.pat).is_some_and(type_is_engine)
             {
                 self.engine_aliases.insert(binding.ident.to_string());
+            } else {
+                self.engine_aliases.remove(&binding.ident.to_string());
             }
         }
         for attribute in &local.attrs {
@@ -552,12 +463,6 @@ impl<'s> Analyzer<'s> {
             }
         }
         self.visit_pat(&local.pat);
-        if let (Pat::Ident(binding), Some(init)) = (&local.pat, &local.init) {
-            let constructed = constructed_type(&init.expr).and_then(|ty| self.concrete_type(ty));
-            if let (Some(ty), Some(types)) = (constructed, self.receiver_types.last_mut()) {
-                types.insert(binding.ident.to_string(), ty);
-            }
-        }
         if let Some(bindings) = self.binding_stack.last_mut() {
             collect_pattern_bindings(&local.pat, bindings);
         }
@@ -566,9 +471,10 @@ impl<'s> Analyzer<'s> {
     fn filter_configurations(&mut self, mut keep: impl FnMut(usize) -> Option<bool>) -> bool {
         let mut unsupported = false;
         let mut kept = ConfigSet::default();
-        for index in self.configurations.indices() {
+        for index in self.space.all().indices() {
             match keep(index) {
-                Some(true) => kept.insert(index),
+                Some(true) if self.configurations.contains(index) => kept.insert(index),
+                Some(true) => {}
                 Some(false) => {}
                 None => unsupported = true,
             }
@@ -632,134 +538,6 @@ impl<'s> Analyzer<'s> {
         }
         previous
     }
-
-    /// Derive helper attributes can name code in string literals, which the
-    /// derive expands into real references: serde's function, module and
-    /// type keys (and `bound` predicates) become edges, as does any other
-    /// attribute string that is a multi-segment path. A `cfg_attr` narrows
-    /// the configurations of the attributes it wraps.
-    fn record_attribute_paths(&mut self, meta: &Meta) {
-        let Meta::List(list) = meta else { return };
-        if list.path.is_ident("doc") || list.path.is_ident("cfg") {
-            return;
-        }
-        if list.path.is_ident("cfg_attr") {
-            let mut entries = split_top_level_commas(list.tokens.clone()).into_iter();
-            let Some(condition) = entries.next() else { return };
-            let condition = condition.to_string();
-            let previous = self.configurations;
-            let space = self.space;
-            if self.filter_configurations(|index| space.evaluate(&condition, index)) {
-                self.analysis.unsupported_cfg.insert(condition);
-            }
-            for entry in entries {
-                if let Ok(nested) = syn::parse2::<Meta>(entry) {
-                    self.record_attribute_paths(&nested);
-                }
-            }
-            self.configurations = previous;
-            return;
-        }
-        if list.path.is_ident("serde") {
-            self.record_serde_paths(list.tokens.clone());
-            return;
-        }
-        for literal in string_literals(list.tokens.clone()) {
-            if let Ok(path) = syn::parse_str::<syn::Path>(&literal.value()) {
-                if path.segments.len() >= 2
-                    && path.segments.iter().all(|segment| segment.arguments.is_none())
-                {
-                    self.record_path(&path, true);
-                }
-            }
-        }
-    }
-
-    fn record_serde_paths(&mut self, tokens: TokenStream) {
-        for entry in split_top_level_commas(tokens) {
-            let entry = entry.into_iter().collect::<Vec<_>>();
-            let Some(TokenTree::Ident(key)) = entry.first() else { continue };
-            let key = key.to_string();
-            match (key.as_str(), &entry[1..]) {
-                ("bound", [TokenTree::Group(group)]) => {
-                    for nested in split_top_level_commas(group.stream()) {
-                        let nested = nested.into_iter().collect::<Vec<_>>();
-                        if let [TokenTree::Ident(_), TokenTree::Punct(eq), TokenTree::Literal(lit)] =
-                            nested.as_slice()
-                        {
-                            if eq.as_char() == '=' {
-                                self.record_serde_value("bound", lit);
-                            }
-                        }
-                    }
-                }
-                (_, [TokenTree::Punct(eq), TokenTree::Literal(lit)]) if eq.as_char() == '=' => {
-                    self.record_serde_value(&key, lit);
-                }
-                _ => {}
-            }
-        }
-    }
-
-    fn record_serde_value(&mut self, key: &str, literal: &proc_macro2::Literal) {
-        let Ok(value) = syn::parse2::<syn::LitStr>(TokenTree::Literal(literal.clone()).into())
-        else {
-            return;
-        };
-        match key {
-            "serialize_with"
-            | "deserialize_with"
-            | "with"
-            | "skip_serializing_if"
-            | "default"
-            | "getter"
-            | "crate" => {
-                // serde_derive parses these as expression paths, which admit a
-                // qualified self (`<T as Trait>::f`, `<T>::f`).
-                let Ok(path) = value.parse::<ExprPath>() else {
-                    self.analysis.unparsed_serde_paths.insert(UnparsedSerdePath {
-                        key: key.to_string(),
-                        value: value.value(),
-                        source_scope: self.module_stack.join("::"),
-                        source_item: self
-                            .item_stack
-                            .last()
-                            .cloned()
-                            .unwrap_or_else(|| "<module>".to_string()),
-                        location: literal.span().into(),
-                    });
-                    return;
-                };
-                match &path.qself {
-                    Some(qself) => {
-                        self.visit_type(&qself.ty);
-                        self.record_qualified_self_path(qself, &path.path, EdgeKind::Callable);
-                    }
-                    None => self.record_path(&path.path, true),
-                }
-                for segment in &path.path.segments {
-                    self.visit_path_arguments(&segment.arguments);
-                }
-            }
-            "from" | "try_from" | "into" | "remote" => {
-                if let Ok(ty) = value.parse::<Type>() {
-                    self.visit_type(&ty);
-                }
-            }
-            "bound" => {
-                let parser = syn::punctuated::Punctuated::<
-                    syn::WherePredicate,
-                    syn::Token![,],
-                >::parse_terminated;
-                if let Ok(predicates) = value.parse_with(parser) {
-                    for predicate in &predicates {
-                        self.visit_where_predicate(predicate);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
 }
 
 fn split_top_level_commas(tokens: TokenStream) -> Vec<TokenStream> {
@@ -772,22 +550,6 @@ fn split_top_level_commas(tokens: TokenStream) -> Vec<TokenStream> {
     }
     entries.retain(|entry| !entry.is_empty());
     entries
-}
-
-fn string_literals(tokens: TokenStream) -> Vec<syn::LitStr> {
-    let mut literals = Vec::new();
-    for token in tokens {
-        match token {
-            TokenTree::Group(group) => literals.extend(string_literals(group.stream())),
-            TokenTree::Literal(literal) => {
-                if let Ok(value) = syn::parse2::<syn::LitStr>(TokenTree::Literal(literal).into()) {
-                    literals.push(value);
-                }
-            }
-            _ => {}
-        }
-    }
-    literals
 }
 
 /// `path = ".."` itself, or a `cfg_attr` that applies one under any condition.
@@ -820,7 +582,38 @@ fn split_cfg_attr(source: &str) -> Option<(&str, &str)> {
 
 impl<'ast> Visit<'ast> for Analyzer<'_> {
     fn visit_attribute(&mut self, attr: &'ast Attribute) {
-        self.record_attribute_paths(&attr.meta);
+        if attr.path().is_ident("serde") {
+            let Meta::List(list) = &attr.meta else { return };
+            let text = list.tokens.to_string();
+            if [
+                "serialize_with",
+                "deserialize_with",
+                "with =",
+                "getter",
+                "remote",
+                "from =",
+                "try_from",
+                "into =",
+                "bound =",
+                "crate =",
+                "skip_serializing_if",
+            ]
+            .iter()
+            .any(|key| text.contains(key))
+                && (text.contains("crate::")
+                    || text.contains("super::")
+                    || text.contains("self::")
+                    || text.contains("<"))
+            {
+                self.analysis.unparsed_serde_paths.insert(UnparsedSerdePath {
+                    key: "owner-bearing attribute".to_string(),
+                    value: text,
+                    source_scope: self.module_stack.join("::"),
+                    source_item: self.item_stack.last().cloned().unwrap_or_default(),
+                    location: attr.path().segments[0].ident.span().into(),
+                });
+            }
+        }
         visit::visit_attribute(self, attr);
     }
 
@@ -902,26 +695,6 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         visit::visit_field_value(self, field);
         self.configurations = previous;
     }
-    fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
-        // Any rebinding forgets a receiver type; forgetting is conservative.
-        if let Some(types) = self.receiver_types.last_mut() {
-            types.remove(&pattern.ident.to_string());
-        }
-        visit::visit_pat_ident(self, pattern);
-    }
-
-    fn visit_pat_type(&mut self, pattern: &'ast syn::PatType) {
-        visit::visit_pat_type(self, pattern);
-        if let (Pat::Ident(binding), Some(ty)) = (
-            pattern.pat.as_ref(),
-            type_path_string(&pattern.ty).and_then(|ty| self.concrete_type(ty)),
-        ) {
-            if let Some(types) = self.receiver_types.last_mut() {
-                types.insert(binding.ident.to_string(), ty);
-            }
-        }
-    }
-
     fn visit_expr_closure(&mut self, closure: &'ast syn::ExprClosure) {
         self.push_inherited_scope();
         visit::visit_expr_closure(self, closure);
@@ -1072,13 +845,7 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         let previous = self.enter_attrs(&item.attrs);
         self.declared(item.ident.to_string());
         self.item_stack.push(item.ident.to_string());
-        self.push_generics(&item.generics);
-        // `Self` in a trait body is the implementing type, never concrete.
-        if let Some(scope) = self.generic_scopes.last_mut() {
-            scope.insert("Self".to_string());
-        }
         visit::visit_item_trait(self, item);
-        self.generic_scopes.pop();
         self.item_stack.pop();
         self.configurations = previous;
     }
@@ -1087,11 +854,9 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         let previous = self.enter_attrs(&item.attrs);
         let owner = self.item_stack.last().cloned().unwrap_or_default();
         self.item_stack.push(format!("{owner}::{}", item.sig.ident));
-        self.push_generics(&item.sig.generics);
         self.enter_function(&item.sig.inputs, None);
         visit::visit_trait_item_fn(self, item);
         self.pop_scope();
-        self.generic_scopes.pop();
         self.item_stack.pop();
         self.configurations = previous;
     }
@@ -1099,13 +864,6 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
     fn visit_item_type(&mut self, item: &'ast ItemType) {
         let previous = self.enter_attrs(&item.attrs);
         self.declared(item.ident.to_string());
-        let scope = self.module_stack.join("::");
-        let key = if scope.is_empty() {
-            item.ident.to_string()
-        } else {
-            format!("{scope}::{}", item.ident)
-        };
-        self.analysis.type_aliases.insert(key, type_alias(&item.ty, &item.generics));
         self.item_stack.push(item.ident.to_string());
         visit::visit_item_type(self, item);
         self.item_stack.pop();
@@ -1118,11 +876,9 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         self.declared(name.clone());
         self.analysis.local_functions.insert(name.clone(), item.sig.ident.span().into());
         self.item_stack.push(name);
-        self.push_generics(&item.sig.generics);
         self.enter_function(&item.sig.inputs, None);
         visit::visit_item_fn(self, item);
         self.pop_scope();
-        self.generic_scopes.pop();
         self.item_stack.pop();
         self.configurations = previous;
     }
@@ -1144,55 +900,14 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
                     *entry = entry.union(active);
                 }
             }
-        } else if item.trait_.is_none() {
-            if let Some(owner) = &owner {
-                for member in &item.items {
-                    if let ImplItem::Fn(method) = member {
-                        if visibility_exceeds_module(&method.vis) {
-                            self.analysis.inherent_methods.insert(InherentMethod {
-                                owner: owner.clone(),
-                                method: method.sig.ident.to_string(),
-                                scope: self.module_stack.join("::"),
-                                location: method.sig.ident.span().into(),
-                            });
-                        }
-                    }
-                }
-            }
         }
         if let Some((_, trait_path, _)) = &item.trait_ {
             self.record_trait_path(trait_path);
         }
-        if let (Some(owner), Some(_)) = (&owner, &item.trait_) {
-            // `impl Trait for Owner { type Name = P; }` is chased like a
-            // `type` alias when a projection `<Owner as Trait>::Name` names it.
-            let scope = self.module_stack.join("::");
-            for member in &item.items {
-                if let ImplItem::Type(binding) = member {
-                    let key = if scope.is_empty() {
-                        format!("{owner}::{}", binding.ident)
-                    } else {
-                        format!("{scope}::{owner}::{}", binding.ident)
-                    };
-                    self.analysis.type_aliases.insert(key, type_alias(&binding.ty, &item.generics));
-                }
-            }
-        }
         if let Some(owner) = &owner {
-            for member in &item.items {
-                if let ImplItem::Fn(method) = member {
-                    let name = method.sig.ident.to_string();
-                    self.analysis.impl_methods.insert((owner.clone(), name.clone()));
-                    if returns_owner(&method.sig.output, owner) {
-                        self.analysis.constructors.insert((owner.clone(), name));
-                    }
-                }
-            }
             self.impl_owners.push(owner.clone());
         }
-        self.push_generics(&item.generics);
         visit::visit_item_impl(self, item);
-        self.generic_scopes.pop();
         if owner.is_some() {
             self.impl_owners.pop();
         }
@@ -1203,11 +918,9 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         let previous = self.enter_attrs(&item.attrs);
         let owner = self.impl_owners.last().cloned().unwrap_or_else(|| "<impl>".to_string());
         self.item_stack.push(format!("{owner}::{}", item.sig.ident));
-        self.push_generics(&item.sig.generics);
         self.enter_function(&item.sig.inputs, Some(owner.as_str()));
         visit::visit_impl_item_fn(self, item);
         self.pop_scope();
-        self.generic_scopes.pop();
         self.item_stack.pop();
         self.configurations = previous;
     }
@@ -1247,19 +960,7 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
         if item.mac.path.is_ident("macro_rules") {
             if let Some(name) = &item.ident {
                 self.record_local_macro(item);
-                let tokens = flatten_tokens(item.mac.tokens.clone());
-                let functions = tokens
-                    .windows(2)
-                    .filter_map(|pair| match pair {
-                        [TokenTree::Ident(keyword), TokenTree::Ident(function)]
-                            if keyword == "fn" =>
-                        {
-                            Some(function.to_string())
-                        }
-                        _ => None,
-                    })
-                    .collect();
-                self.local_macro_fns.insert(name.to_string(), functions);
+                self.local_macros.insert(name.to_string());
             }
             return;
         }
@@ -1278,12 +979,6 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
     fn visit_type_path(&mut self, ty: &'ast TypePath) {
         if let Some(qself) = &ty.qself {
             self.record_qualified_self_path(qself, &ty.path, EdgeKind::Type);
-            // `<Owner as Trait>::Name` names the impl's `type Name` binding.
-            if let Some(projection) = projection_path(qself, &ty.path)
-                .filter(|path| self.concrete_type(path.clone()).is_some())
-            {
-                self.edge(EdgeKind::Type, projection, ty.path.segments[0].ident.span());
-            }
         } else {
             let target = ty
                 .path
@@ -1310,7 +1005,7 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
             return;
         };
         if expression_base_ident(&expression.base).as_deref() == Some("self")
-            && !self.impl_owners.last().is_some_and(|owner| owner == "Engine")
+            && self.impl_owners.last().is_none_or(|owner| owner != "Engine")
         {
             visit::visit_expr_field(self, expression);
             return;
@@ -1334,45 +1029,6 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
                 expression.method.to_string(),
                 expression.method.span(),
             );
-        } else {
-            // `.<method>` is an unresolved receiver; `.<method>:Type` carries
-            // the receiver's syntactic type for owner resolution.
-            let receiver_type = direct_receiver_ident(&expression.receiver)
-                .and_then(|ident| {
-                    self.receiver_types.last().and_then(|types| types.get(&ident)).cloned()
-                })
-                .or_else(|| self.field_receiver_type(&expression.receiver))
-                .or_else(|| constructed_type(&expression.receiver))
-                .and_then(|ty| self.concrete_type(ty));
-            let (receiver_type, constructor) = match receiver_type {
-                Some(ty) => match ty.split_once("=>") {
-                    Some((ty, constructor)) => {
-                        (Some(ty.to_string()), Some(constructor.to_string()))
-                    }
-                    None => (Some(ty), None),
-                },
-                None => (None, None),
-            };
-            let target = match receiver_type {
-                Some(ty) => format!(".<{}>:{ty}", expression.method),
-                None => format!(".<{}>", expression.method),
-            };
-            let receiver = receiver_text(&expression.receiver);
-            self.analysis.edges.insert(Edge {
-                kind: EdgeKind::Callable,
-                target,
-                source_scope: self.module_stack.join("::"),
-                target_scope: self.lexical_scope(),
-                source_item: self
-                    .item_stack
-                    .last()
-                    .cloned()
-                    .unwrap_or_else(|| "<module>".to_string()),
-                location: expression.method.span().into(),
-                configurations: self.configurations,
-                receiver: Some(receiver),
-                constructor,
-            });
         }
         visit::visit_expr_method_call(self, expression);
     }
@@ -1428,100 +1084,6 @@ impl<'ast> Visit<'ast> for Analyzer<'_> {
             }
         }
         visit::visit_expr_path(self, expression);
-    }
-}
-
-/// Collects the type and trait paths a type names, as written.
-#[derive(Default)]
-struct PathCollector {
-    paths: BTreeSet<String>,
-}
-
-impl<'ast> Visit<'ast> for PathCollector {
-    fn visit_type_path(&mut self, ty: &'ast TypePath) {
-        let segments =
-            ty.path.segments.iter().map(|segment| segment.ident.to_string()).collect::<Vec<_>>();
-        match &ty.qself {
-            Some(qself) if qself.position > 0 => {
-                self.paths.insert(segments[..qself.position].join("::"));
-                self.paths.extend(projection_path(qself, &ty.path));
-            }
-            Some(_) => {}
-            None => {
-                self.paths.insert(segments.join("::"));
-            }
-        }
-        visit::visit_type_path(self, ty);
-    }
-
-    fn visit_trait_bound(&mut self, bound: &'ast syn::TraitBound) {
-        self.paths.insert(
-            bound
-                .path
-                .segments
-                .iter()
-                .map(|segment| segment.ident.to_string())
-                .collect::<Vec<_>>()
-                .join("::"),
-        );
-        visit::visit_trait_bound(self, bound);
-    }
-}
-
-/// The paths a `type` alias or associated-type binding names, generic
-/// parameters of `generics` and `Self` excluded.
-fn type_alias(ty: &Type, generics: &syn::Generics) -> TypeAlias {
-    let generics = generics
-        .params
-        .iter()
-        .filter_map(|parameter| match parameter {
-            syn::GenericParam::Type(parameter) => Some(parameter.ident.to_string()),
-            _ => None,
-        })
-        .collect::<BTreeSet<_>>();
-    let mut collector = PathCollector::default();
-    collector.visit_type(ty);
-    let named = |path: &String| {
-        !generics.contains(path.split("::").next().unwrap_or(path)) && path != "Self"
-    };
-    TypeAlias {
-        primary: plain_type_path(ty).filter(named),
-        mentioned: collector.paths.into_iter().filter(named).collect(),
-    }
-}
-
-/// `<Owner as Trait>::Name` as `Owner::Name` when `Owner` is a plain path.
-fn projection_path(qself: &syn::QSelf, path: &syn::Path) -> Option<String> {
-    if qself.position == 0 || qself.position >= path.segments.len() {
-        return None;
-    }
-    let owner = plain_type_path(&qself.ty).filter(|owner| owner != "Self")?;
-    let item = path
-        .segments
-        .iter()
-        .skip(qself.position)
-        .map(|segment| segment.ident.to_string())
-        .collect::<Vec<_>>()
-        .join("::");
-    Some(format!("{owner}::{item}"))
-}
-
-/// The path of a type written as a plain path (through references,
-/// parentheses and groups), generic arguments dropped.
-fn plain_type_path(ty: &Type) -> Option<String> {
-    match ty {
-        Type::Reference(reference) => plain_type_path(&reference.elem),
-        Type::Paren(paren) => plain_type_path(&paren.elem),
-        Type::Group(group) => plain_type_path(&group.elem),
-        Type::Path(path) if path.qself.is_none() => Some(
-            path.path
-                .segments
-                .iter()
-                .map(|segment| segment.ident.to_string())
-                .collect::<Vec<_>>()
-                .join("::"),
-        ),
-        _ => None,
     }
 }
 
@@ -1672,108 +1234,6 @@ fn type_is_engine(ty: &Type) -> bool {
     }
 }
 
-fn collect_struct_fields(items: &[syn::Item], fields: &mut BTreeMap<(String, String), String>) {
-    for item in items {
-        match item {
-            syn::Item::Struct(structure) => {
-                let generics = structure
-                    .generics
-                    .type_params()
-                    .map(|parameter| parameter.ident.to_string())
-                    .collect::<BTreeSet<_>>();
-                for field in &structure.fields {
-                    let ty = type_path_string(&field.ty)
-                        .filter(|ty| !generics.contains(ty.split("::").next().unwrap_or(ty)));
-                    if let (Some(name), Some(ty)) = (&field.ident, ty) {
-                        fields.insert((structure.ident.to_string(), name.to_string()), ty);
-                    }
-                }
-            }
-            syn::Item::Mod(module) => {
-                if let Some((_, items)) = &module.content {
-                    collect_struct_fields(items, fields);
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
-/// The path of a syntactically named type, looking through references,
-/// parentheses and groups; generic arguments are not part of the identity.
-fn type_path_string(ty: &Type) -> Option<String> {
-    match ty {
-        Type::Reference(reference) => type_path_string(&reference.elem),
-        Type::Paren(paren) => type_path_string(&paren.elem),
-        Type::Group(group) => type_path_string(&group.elem),
-        Type::Path(path) if path.qself.is_none() => {
-            // Smart pointers auto-deref to their pointee for method calls.
-            let last = path.path.segments.last()?;
-            if matches!(last.ident.to_string().as_str(), "Arc" | "Rc" | "Box") {
-                if let syn::PathArguments::AngleBracketed(arguments) = &last.arguments {
-                    if let [syn::GenericArgument::Type(inner)] =
-                        arguments.args.iter().collect::<Vec<_>>().as_slice()
-                    {
-                        return type_path_string(inner);
-                    }
-                }
-                return None;
-            }
-            Some(
-                path.path
-                    .segments
-                    .iter()
-                    .map(|segment| segment.ident.to_string())
-                    .collect::<Vec<_>>()
-                    .join("::"),
-            )
-        }
-        _ => None,
-    }
-}
-
-/// `Type::constructor(..)`, `Type { .. }` and `&`/paren forms of them.
-fn constructed_type(expression: &Expr) -> Option<String> {
-    let capitalised = |name: &str| name.chars().next().is_some_and(char::is_uppercase);
-    match expression {
-        Expr::Call(call) => {
-            let Expr::Path(path) = call.func.as_ref() else { return None };
-            let segments = path
-                .path
-                .segments
-                .iter()
-                .map(|segment| segment.ident.to_string())
-                .collect::<Vec<_>>();
-            let (last, owner) = segments.split_last()?;
-            let owner_name = owner.last()?;
-            // Smart-pointer constructors type the binding as their pointee
-            // when it is itself constructed, and as unknown otherwise.
-            if matches!(owner_name.as_str(), "Arc" | "Rc" | "Box") {
-                return call.args.first().and_then(constructed_type);
-            }
-            // The call types the binding only if `last` is a constructor
-            // of `owner`; that is checked against the owner's declared
-            // return type once every module is parsed.
-            (!capitalised(last) && capitalised(owner_name) && owner_name != "Self")
-                .then(|| format!("{}=>{last}", owner.join("::")))
-        }
-        Expr::Struct(structure) if structure.qself.is_none() => {
-            let segments = structure
-                .path
-                .segments
-                .iter()
-                .map(|segment| segment.ident.to_string())
-                .collect::<Vec<_>>();
-            segments.last().is_some_and(|name| name != "Self").then(|| segments.join("::"))
-        }
-        Expr::Reference(reference) => constructed_type(&reference.expr),
-        Expr::Paren(paren) => constructed_type(&paren.expr),
-        _ => None,
-    }
-}
-
-/// The outer attributes of an expression (`#[cfg]` on a statement
-/// expression lands here).
 fn expression_attrs(expression: &Expr) -> &[Attribute] {
     match expression {
         Expr::Array(e) => &e.attrs,
@@ -1820,81 +1280,6 @@ fn expression_attrs(expression: &Expr) -> &[Attribute] {
 }
 
 /// Every token of a stream, groups flattened.
-fn flatten_tokens(stream: TokenStream) -> Vec<TokenTree> {
-    let mut tokens = Vec::new();
-    for token in stream {
-        if let TokenTree::Group(group) = &token {
-            tokens.extend(flatten_tokens(group.stream()));
-        } else {
-            tokens.push(token);
-        }
-    }
-    tokens
-}
-
-/// `-> Self` or `-> Owner` (generic arguments ignored).
-fn returns_owner(output: &syn::ReturnType, owner: &str) -> bool {
-    let syn::ReturnType::Type(_, ty) = output else { return false };
-    let Type::Path(path) = ty.as_ref() else { return false };
-    path.qself.is_none()
-        && path
-            .path
-            .segments
-            .last()
-            .is_some_and(|segment| segment.ident == "Self" || segment.ident == owner)
-}
-
-/// A canonical spelling of a receiver expression: bindings, paths, field
-/// and index chains, calls, method calls, references, dereferences, `?`
-/// and macro names; any other expression form is `_`.
-fn receiver_text(expression: &Expr) -> String {
-    let path = |path: &syn::Path| {
-        path.segments.iter().map(|segment| segment.ident.to_string()).collect::<Vec<_>>().join("::")
-    };
-    match expression {
-        Expr::Path(expression) => path(&expression.path),
-        Expr::Field(field) => {
-            let member = match &field.member {
-                Member::Named(name) => name.to_string(),
-                Member::Unnamed(index) => index.index.to_string(),
-            };
-            format!("{}.{member}", receiver_text(&field.base))
-        }
-        Expr::MethodCall(call) => format!("{}.{}()", receiver_text(&call.receiver), call.method),
-        Expr::Call(call) => format!("{}()", receiver_text(&call.func)),
-        Expr::Index(index) => format!("{}[]", receiver_text(&index.expr)),
-        Expr::Reference(reference) => format!("&{}", receiver_text(&reference.expr)),
-        Expr::Unary(unary) => {
-            let operator = match unary.op {
-                syn::UnOp::Deref(_) => "*",
-                syn::UnOp::Not(_) => "!",
-                _ => "-",
-            };
-            format!("{operator}{}", receiver_text(&unary.expr))
-        }
-        Expr::Paren(paren) => receiver_text(&paren.expr),
-        Expr::Try(expression) => format!("{}?", receiver_text(&expression.expr)),
-        Expr::Macro(expression) => format!("{}!", path(&expression.mac.path)),
-        Expr::Lit(_) => "<literal>".to_string(),
-        _ => "_".to_string(),
-    }
-}
-
-/// A receiver that is a binding itself (not a field or call result).
-fn direct_receiver_ident(expression: &Expr) -> Option<String> {
-    match expression {
-        Expr::Path(path) if path.qself.is_none() && path.path.segments.len() == 1 => {
-            path.path.segments.first().map(|segment| segment.ident.to_string())
-        }
-        Expr::Paren(paren) => direct_receiver_ident(&paren.expr),
-        Expr::Reference(reference) => direct_receiver_ident(&reference.expr),
-        Expr::Unary(unary) if matches!(unary.op, syn::UnOp::Deref(_)) => {
-            direct_receiver_ident(&unary.expr)
-        }
-        _ => None,
-    }
-}
-
 fn visibility_exceeds_module(visibility: &Visibility) -> bool {
     !matches!(visibility, Visibility::Inherited)
 }
@@ -1995,8 +1380,6 @@ impl UseCollector<'_> {
             source_item: use_source_item(self.source_item, &self.kind, binding),
             location,
             configurations: self.configurations,
-            receiver: None,
-            constructor: None,
         });
     }
 }
@@ -2061,6 +1444,26 @@ mod tests {
             }
         }
         set
+    }
+
+    #[test]
+    fn engine_parameters_are_typed_and_aliases_expire_with_their_scope() {
+        let analysis = analyze("fn f(db: &Engine) { { let alias = db; alias.search(); } } fn g(alias: String) { alias.search(); }").unwrap();
+        assert!(analysis.edges.iter().any(|edge| edge.kind == EdgeKind::EngineMethod
+            && edge.source_item == "f"
+            && edge.target == "search"));
+        assert!(!analysis
+            .edges
+            .iter()
+            .any(|edge| edge.kind == EdgeKind::EngineMethod && edge.source_item == "g"));
+    }
+
+    #[test]
+    fn external_receivers_do_not_manufacture_inferred_edges() {
+        let analysis =
+            analyze(r#"fn f(connection: rusqlite::Connection) { connection.execute("", []); }"#)
+                .unwrap();
+        assert!(!analysis.edges.iter().any(|edge| edge.target.starts_with(".<")));
     }
 
     #[test]
@@ -2172,19 +1575,6 @@ mod tests {
         assert!(analysis.bindings.iter().any(|binding| binding.scope == "inner"
             && binding.name == "helper"
             && binding.target == "crate::reader_pool::helper"));
-    }
-
-    #[test]
-    fn externally_visible_inherent_methods_are_owner_qualified() {
-        let analysis = analyze(
-            "struct Work; impl Work { pub(crate) fn new() -> Self { Self } fn hidden() {} }",
-        )
-        .expect("fixture parses");
-        assert!(analysis
-            .inherent_methods
-            .iter()
-            .any(|method| method.owner == "Work" && method.method == "new"));
-        assert!(!analysis.inherent_methods.iter().any(|method| method.method == "hidden"));
     }
 
     #[test]
@@ -2495,32 +1885,6 @@ mod tests {
     }
 
     #[test]
-    fn receivers_carry_their_syntactic_type() {
-        let analysis = analyze(
-            "struct Holder { inner: crate::a::Inner } \
-             fn f(sink: &crate::a::Sink, shared: std::sync::Arc<crate::a::Shared>, h: Holder) { \
-                 sink.one(); shared.two(); h.inner.three(); \
-                 let built = crate::a::Built::new(); built.four(); \
-                 let sink = unknown(); sink.five(); \
-                 let _ = |sink: crate::a::Other| sink.six(); \
-             }",
-        )
-        .expect("fixture parses");
-        let targets =
-            analysis.edges.iter().map(|edge| edge.target.as_str()).collect::<BTreeSet<_>>();
-        for expected in [
-            ".<one>:crate::a::Sink",
-            ".<two>:crate::a::Shared",
-            ".<three>:crate::a::Inner",
-            ".<four>:crate::a::Built",
-            ".<five>",
-            ".<six>:crate::a::Other",
-        ] {
-            assert!(targets.contains(expected), "missing {expected}: {targets:?}");
-        }
-    }
-
-    #[test]
     fn statement_expression_and_inner_cfg_are_evaluated() {
         let space = space();
         let analysis = analyze("#![cfg(feature = \"operator\")]\nfn f() { crate::a::one(); }")
@@ -2543,99 +1907,5 @@ mod tests {
             assert_eq!(edge.configurations, feature_set(&space, "operator"), "{name}");
         }
         assert!(analysis.unsupported_cfg.contains("feature = \"slice85-unknown\""));
-    }
-
-    #[test]
-    fn serde_helper_string_paths_are_edges() {
-        let space = space();
-        let analysis = analyze(
-            r#"#[derive(Serialize, Deserialize)]
-            #[serde(from = "crate::a::From", into = "Vec<crate::a::Into>", bound(serialize = "T: crate::a::Bound"))]
-            #[serde(rename_all = "snake_case", tag = "kind::tag")]
-            struct S<T> {
-                #[serde(serialize_with = "crate::a::ser", skip_serializing_if = "is_false")]
-                a: u8,
-                #[serde(with = "crate::a::codec", rename(serialize = "not::a_path"))]
-                b: T,
-                #[cfg_attr(feature = "operator", serde(default = "crate::a::default"))]
-                c: u8,
-                #[other(path = "crate::a::other")]
-                d: u8,
-            }"#,
-        )
-        .expect("fixture parses");
-        for (target, kind) in [
-            ("crate::a::From", EdgeKind::Type),
-            ("crate::a::Into", EdgeKind::Type),
-            ("crate::a::Bound", EdgeKind::Type),
-            ("crate::a::ser", EdgeKind::Callable),
-            ("is_false", EdgeKind::Callable),
-            ("crate::a::codec", EdgeKind::Callable),
-            ("crate::a::default", EdgeKind::Callable),
-            ("crate::a::other", EdgeKind::Callable),
-        ] {
-            assert!(
-                analysis.edges.iter().any(|edge| edge.target == target && edge.kind == kind),
-                "missing {target}: {:?}",
-                analysis.edges.iter().map(|edge| &edge.target).collect::<Vec<_>>()
-            );
-        }
-        for absent in ["snake_case", "kind::tag", "not::a_path"] {
-            assert!(!analysis.edges.iter().any(|edge| edge.target == absent), "{absent}");
-        }
-        let default = analysis
-            .edges
-            .iter()
-            .find(|edge| edge.target == "crate::a::default")
-            .expect("cfg_attr serde edge");
-        assert_eq!(default.configurations, feature_set(&space, "operator"));
-        let unknown = analyze(
-            r#"struct S { #[cfg_attr(feature = "slice85-unknown", serde(with = "crate::a::m"))] a: u8 }"#,
-        )
-        .expect("parses");
-        assert!(unknown.unsupported_cfg.contains("feature = \"slice85-unknown\""));
-    }
-
-    #[test]
-    fn associated_type_bindings_are_aliases_and_projections_name_them() {
-        let analysis = analyze(
-            "pub(crate) struct H; impl crate::t::Tr for H { type Out = crate::a::Target; } \
-             mod inner { impl super::Tr for super::G<u8> { type Out = Vec<crate::a::Other>; } } \
-             fn f(_: <crate::b::H as crate::b::Tr>::Out) {}",
-        )
-        .expect("fixture parses");
-        let alias = analysis.type_aliases.get("H::Out").expect("H::Out binding");
-        assert_eq!(alias.primary.as_deref(), Some("crate::a::Target"));
-        let inner = analysis.type_aliases.get("inner::G::Out").expect("scoped binding");
-        assert!(inner.mentioned.contains("crate::a::Other"));
-        assert!(analysis
-            .edges
-            .iter()
-            .any(|edge| edge.target == "crate::b::H::Out" && edge.kind == EdgeKind::Type));
-    }
-
-    #[test]
-    fn serde_qualified_self_string_paths_are_edges() {
-        let analysis = analyze(
-            r#"#[derive(Serialize)]
-            struct S {
-                #[serde(serialize_with = "<crate::a::K as crate::b::T>::ser")]
-                a: u8,
-                #[serde(skip_serializing_if = "<crate::c::Owner>::skip")]
-                b: u8,
-            }"#,
-        )
-        .expect("fixture parses");
-        for (target, kind) in [
-            ("crate::a::K", EdgeKind::Type),
-            ("crate::b::T::ser", EdgeKind::Callable),
-            ("crate::c::Owner", EdgeKind::Type),
-        ] {
-            assert!(
-                analysis.edges.iter().any(|edge| edge.target == target && edge.kind == kind),
-                "missing {target}: {:?}",
-                analysis.edges.iter().map(|edge| &edge.target).collect::<Vec<_>>()
-            );
-        }
     }
 }

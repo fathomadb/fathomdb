@@ -1,6 +1,6 @@
 mod codec;
 pub(crate) mod execution;
-pub(crate) mod traversal;
+mod traversal;
 mod types;
 
 pub use codec::{
@@ -32,19 +32,14 @@ pub use types::{
 };
 
 #[cfg(test)]
-use execution::encode_graph_evidence_request;
-
-#[cfg(test)]
 mod graph_evidence_request_tests {
     use crate::filter::SearchFilter;
     use crate::frozen_read::{FrozenReadContextV1, ReadContextV1};
     use crate::identity::IdSpace;
     use crate::temporal::ReadView;
 
-    use super::{
-        encode_graph_evidence_request, GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1,
-        TraversalDirection,
-    };
+    use super::execution::encode_graph_evidence_request;
+    use super::{GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1, TraversalDirection};
 
     fn request(token: &str) -> GraphExpandRequestV1 {
         let context = ReadContextV1::new(

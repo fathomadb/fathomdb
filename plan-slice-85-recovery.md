@@ -471,8 +471,10 @@ ownership and unbounded-wait defects below are independent source evidence.
 
 ### 7. Verify and record the exact reduced candidate
 
-- After meaningful implementation edits, run the repository's required
-  `scripts/agent-verify.sh` in lint/typecheck/test order. Preserve diagnostics;
+- Use focused checks for individual findings and their actual blast radius,
+  following the owner's execution direction. Run `scripts/agent-verify.sh`
+  once on the combined implementation in lint/typecheck/test order; repeat
+  broader checks only when subsequent changes warrant them. Preserve diagnostics;
   distinguish environmental blockers and pre-existing failures from passes.
 - Run direct standalone gate checks and the trimmed mutation qualification.
   Validate its compiling representatives using their applicable configurations.

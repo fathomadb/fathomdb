@@ -18,6 +18,11 @@ cases = []
 def case(name, diagnostic, *edits, kind="compiled"):
     cases.append((name, diagnostic, edits, kind))
 
+case("engine-method-root-helper-cycle", "forbidden cycle reader_pool <-> search graph=item",
+     ("lib.rs", "impl Engine { pub(crate) fn recovery_method_bridge(&self) { crate::reader_pool::recovery_method_back(self); } }"),
+     ("search.rs", "pub(crate) fn recovery_method_out(engine: &crate::Engine) { engine.recovery_method_bridge(); }"),
+     ("reader_pool.rs", "pub(crate) fn recovery_method_back(engine: &crate::Engine) { crate::search::recovery_method_out(engine); }"))
+
 # Every mandatory dependency direction; a referenced carrier compiles, while
 # importing the module tests direction without manufacturing arbitrary calls.
 for index, (owner, target) in enumerate([

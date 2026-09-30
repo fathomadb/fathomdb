@@ -1254,7 +1254,10 @@ fn edge_targets(
                 .flat_map(|owners| owners.iter())
                 .map(|(owner, mask)| {
                     (
-                        ResolvedTarget { module: owner.clone(), item: edge.target.clone() },
+                        ResolvedTarget {
+                            module: owner.clone(),
+                            item: format!("Engine::{}", edge.target),
+                        },
                         edge.configurations.intersect(*mask),
                     )
                 })

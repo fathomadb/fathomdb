@@ -9,7 +9,7 @@
   },
   "comment-scripts": "0.8.9.1: Prettier is removed from the root toolchain and must not return to the Markdown path (lint:md-format / format:md): its non-configurable *->_ emphasis reflow corrupts fragile markdown (see dev/tools/md-fix-corruption-ledger.md). markdownlint-cli2 --fix via the AST-guarded scripts/md-safe-fix.sh is the safe fixer.",
   "devDependencies": {
-    "markdownlint-cli2": "^0.23.2"
+    "markdownlint-cli2": "^0.23.3"
   },
   "comment-security": "0.8.24 Slice 7: markdownlint-cli2@0.23.2 resolves the audited js-yaml@5.2.2 path, while its markdown-it@14.3.0 resolution carries linkify-it@5.0.2. The offline pin-rot gate prevents a future override from becoming an untracked security exception; advisory provenance is scripts/pinned-override-rot.json."
 }

@@ -6,6 +6,9 @@ updated_on: 2026-09-29
 release_bound_candidate: 7a2f9bf90783f545603516502bac0016d4b93a14
 release_closeout_commit: 8cd3389dadba89925d51440b83d05044e87d2090
 recovery_branch: slice-85-fix
+recovery_source_candidate: 294af94b5b0e9076ccb35956a3863ef12c5599af
+implementation_status: COMPLETE
+qualification_status: BLOCKED
 ---
 
 # Slice 85 recovery status
@@ -16,7 +19,9 @@ ownership, narrow errors and removal of the four inherited cycles, while
 retiring the gate's inventories, general resolver and excessive mutation work.
 
 Current work and qualification live once in [recovery-receipt.md](recovery-receipt.md).
-Phase A is integrated; Phase B and exact-candidate qualification are in progress.
+Phase A and Phase B are integrated. The bounded independent review is closed;
+source checks are recorded against `294af94b5`. Official public/hidden capture
+and GPU evidence remain blocked by host disk capacity and NVML mismatch.
 No release-state binding or generated release view is changed by recovery.
 
 ## Retained engine deliverable

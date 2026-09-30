@@ -5,7 +5,7 @@ target_release: 0.8.27
 date: 2026-09-29
 branch: slice-85-fix
 starting_sha: df1ffd000e1ff734e6b7068597388ac7d56e2b5c
-execution_status: in progress
+execution_status: implementation complete; official qualification blocked
 reviewed_on: 2026-09-29
 ---
 
@@ -25,7 +25,10 @@ language coverage do not meet that threshold.
 The owner authorized implementation of this plan on 2026-09-29. Work starts
 from the committed plan at `c64fad7b6`; the removal and remaining-engine phases
 are authorized. Landing, release rebinding, pushes, tags and publication remain
-outside this instruction. The final receipt records completed work and limits.
+outside this instruction. Implementation and bounded independent review are
+complete at source candidate `294af94b5`; official qualification remains blocked.
+The [recovery receipt](dev/plans/0.8.27/features/slice-85/recovery-receipt.md)
+records completed work, exact-candidate checks and the remaining evidence limits.
 
 ## Starting point
 

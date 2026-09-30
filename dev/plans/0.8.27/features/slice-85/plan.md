@@ -22,6 +22,10 @@ The original implementation baseline is `8b2a9edaf`; the accepted release state
 still binds `7a2f9bf9`. Neither historical receipt qualifies the recovered head.
 The similarly named 0.8.25 Slice 85 manifest checker/tests are outside scope.
 
+Implementation and bounded independent review are complete at `294af94b5`.
+The [recovery receipt](recovery-receipt.md) records checks and official
+qualification blockers; acceptance and landing remain pending.
+
 ## Recovery sequence
 
 1. Reconcile design consumers; preserve module classifications, field ownership,

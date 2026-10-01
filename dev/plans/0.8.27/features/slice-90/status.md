@@ -8,7 +8,7 @@ target_release: 0.8.27
 
 Requirements, acceptance criteria, design and TDD batches are reconciled in
 the [plan](plan.md). Independent design review passed after the recorded
-corrections. Runtime Batches 2a–2d are merged and reviewed; the runtime checkpoint
+corrections. Runtime Batches 2a–2e are merged and reviewed; the runtime checkpoint
 and final Slice 90 verification are not yet claimed.
 
 The frozen operational source entry was `release/0.8.27` at `e689000d4` or a
@@ -155,8 +155,27 @@ focused test target at this boundary. It is not yet declared or called by the
 production engine; projection, foreground and open-time routing remain for
 later batches, so this is no claim of effective engine-owned dispatch.
 
-Next: integrate dispatch into projection and other provider paths, then finish
-the later runtime batches on windchill3 while settling the D27 swap policy.
+Projection dispatch Batch 2e was merged at `340b22517` from clean corrected
+commit `b9fefcc17`. RED `2ccd40de2` reproduced the old detached-watchdog
+behavior: `drain` returned while a provider call still occupied capacity.
+GREEN `7f721c8e5` routed projection batch and per-row calls through the fixed
+dispatcher, removed detached projection watchdog/circuit state, and adapted
+the PR-9 oracles to retained slots, durable pending work and recovery. Sol
+review found that a condition-variable wake could shorten provider-failure
+retry backoff and that an existing hidden timeout test API had been removed
+from default Rust builds. RED `8c159f43b` reproduced both; corrected GREEN
+`b9fefcc17` keeps one absolute retry deadline across wakeups, permits prompt
+close cancellation, restores the default-build symbol, and removes stale PR-9
+comments. Sol re-review and independent Terra verification passed at that
+exact commit. On the merged release source, 25 focused parent tests passed,
+with two intentionally ignored bounded-child entrypoints, and default engine
+`cargo check` passed. Phase 2.7 still owns the truthful incomplete-close
+result and shared provider-drain deadline; the current close/reopen witness
+proves projection-wait cancellation and durable recovery only.
+
+Next: route foreground and open-time provider calls through dispatch, then
+complete two-phase close and binding forwarding on windchill3 while settling
+the D27 swap policy.
 Collect a valid historical
 entry under the ruled protocol before the candidate-bound checkpoint and
 structural Phase 3. Report the remaining GPU and Slice 85 recovery evidence

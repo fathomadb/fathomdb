@@ -91,7 +91,7 @@ fn operation(
         "canonical_write" => engine
             .write(&[prepared(body.to_string(), format!("d27-live-{sequence}"))])
             .map(|receipt| Some(receipt.cursor)),
-        "foreground_hybrid_query" => engine.search("d27 document").map(|_| None),
+        "foreground_hybrid_query" => engine.search("001 002").map(|_| None),
         "direct_embed" => engine.embed_text("d27 direct embed").map(|_| None),
         _ => panic!("unknown operation class"),
     };

@@ -122,6 +122,17 @@ class RawLinkageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "entry artifacts"):
             verifier.validate_entry_for_candidate({"phase": "entry", "status": "PASS"}, PROTOCOL, ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json", None)
 
+    def test_candidate_cannot_use_unlinked_queue_numbers(self):
+        raw = copy.deepcopy(self.raw[0])
+        raw["configuration_observation"] = {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 1}
+        raw["projection_admission_high_water"] = 4
+        raw["embed_requests_waiting_high_water"] = 0
+        raw["embed_queue_wait_ns"] = [0]
+        raw["engine_thread_inventory"] = 12
+        raw["connection_inventory"] = "Ok(\"creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0\")"
+        with self.assertRaisesRegex(ValueError, "dispatch trace"):
+            runner.summarize_raw(raw, "candidate")
+
     def test_protocol_declares_historical_sqlite_inventory_unavailable(self):
         self.assertIn("sqlite_connections", PROTOCOL["metrics"]["historical_unavailable"])
 

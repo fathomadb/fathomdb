@@ -47,7 +47,7 @@ class D27ReceiptTests(unittest.TestCase):
                     },
                     "counts": {name: 1 for name in self.protocol["metrics"]["counts"]},
                     "high_water": {"projection_rows_active_plus_queued": 2, "durable_projection_backlog": 2},
-                    "inventory": {"provider_concurrency": 1, "engine_threads": 3, "sqlite_connections": 6, "residual_workers_after_close": 0},
+                    "inventory": {"provider_concurrency": 1, "engine_threads": 3, "residual_workers_after_close": 0},
                     "starvation_pass": True,
                     "environment_valid": True,
                 })
@@ -124,6 +124,7 @@ class D27ReceiptTests(unittest.TestCase):
             for repetition in repetitions:
                 repetition["high_water"]["embed_requests_waiting"] = 0
                 repetition["latency_ms"]["embed_queue_wait"] = {"50": 1.0, "95": 1.0, "99": 1.0}
+                repetition["inventory"]["sqlite_connections"] = 12
         candidate["per_repetition_metrics"]["foreground_heavy"][0]["throughput"]["canonical_commits"] = 80.0
         candidate["per_repetition_metrics"]["foreground_heavy"][1]["throughput"]["canonical_commits"] = 80.0
         candidate["per_repetition_metrics"]["foreground_heavy"][2]["throughput"]["canonical_commits"] = 80.0

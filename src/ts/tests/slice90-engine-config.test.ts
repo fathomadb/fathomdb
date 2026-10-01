@@ -115,6 +115,25 @@ test("native configured open changes the owned projection worker inventory", asy
   }
 });
 
+test("native configured open retains all five forwarded requested values", async () => {
+  const requested = {
+    schedulerRuntimeThreads: 4,
+    embedderPoolSize: 3,
+    embedderCallTimeoutMs: 12_345,
+    provenanceRowCap: Number.MAX_SAFE_INTEGER,
+    slowThresholdMs: 456,
+  };
+  const engine = await native.Engine.open(freshDbPath(), { engineConfig: requested });
+  try {
+    const inspect = engine as typeof engine & {
+      requestedEngineConfigForTest?: () => EngineConfig;
+    };
+    assert.deepEqual(inspect.requestedEngineConfigForTest?.(), requested);
+  } finally {
+    await engine.close();
+  }
+});
+
 test("native number boundary accepts safe integer caps and rejects invalid values", async () => {
   const accepted = await native.Engine.open(freshDbPath(), {
     engineConfig: {

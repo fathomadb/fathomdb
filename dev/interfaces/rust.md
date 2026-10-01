@@ -39,6 +39,28 @@ calls fail, and changing mode requires restart. No path calls
 `sqlite3_shutdown()` to force the choice. The API is not a database connection
 permission or file-access boundary.
 
+## Per-engine configuration (0.8.27 Slice 90)
+
+`Engine::open_with_choice_and_config(path, choice, config)` accepts a public
+`EngineConfig` whose five fields are optional `u64` requested values. Omission
+selects the default. `Engine::config()` returns the unchanged requested-open
+snapshot; `set_slow_threshold_ms` changes the effective threshold without
+rewriting that snapshot. The older open methods select default settings.
+
+| Field | Accepted inclusive range | Default |
+| --- | --- | --- |
+| `scheduler_runtime_threads` | `1..=64` | `2` |
+| `embedder_pool_size` | `1..=64` | `1` |
+| `embedder_call_timeout_ms` | `1..=u32::MAX` | `30_000` ms |
+| `provenance_row_cap` | `0..=2^53-1` | `1_000_000` rows |
+| `slow_threshold_ms` | `0..=2^53-1` | `100` ms |
+
+Zero disables provenance retention and remains accepted for the slow threshold.
+Validation precedes filesystem, lock, provider and SQLite work. Invalid values
+and native-width capacity overflow return
+`EngineOpenError::EngineConfiguration(EngineConfigurationError)`; process-wide
+SQLite mode failures retain `EngineOpenError::RuntimeConfiguration`.
+
 ## TC-5 benchmark-only boundary (Slice 70)
 
 `fathomdb-tc5-benchmark` is a non-published workspace executable, available

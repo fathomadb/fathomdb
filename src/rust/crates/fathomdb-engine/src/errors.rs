@@ -68,6 +68,8 @@ pub struct RecoveryHint {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EngineOpenError {
     RuntimeConfiguration(RuntimeConfigurationError),
+    /// Invalid per-engine settings, distinct from process-wide SQLite setup.
+    EngineConfiguration(EngineConfigurationError),
     DatabaseLocked {
         holder_pid: Option<u32>,
     },
@@ -104,6 +106,7 @@ impl Display for EngineOpenError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::RuntimeConfiguration(error) => error.fmt(f),
+            Self::EngineConfiguration(error) => error.fmt(f),
             Self::DatabaseLocked { holder_pid } => match holder_pid {
                 Some(pid) => write!(f, "database is locked by process {pid}"),
                 None => write!(f, "database is locked by another engine instance"),

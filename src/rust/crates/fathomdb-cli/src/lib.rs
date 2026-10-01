@@ -1514,6 +1514,7 @@ fn engine_error_code(err: &EngineError) -> &'static str {
 fn engine_open_error_code(err: &EngineOpenError) -> &'static str {
     match err {
         EngineOpenError::RuntimeConfiguration(_) => "RuntimeConfigurationError",
+        EngineOpenError::EngineConfiguration(_) => "EngineConfigurationError",
         EngineOpenError::DatabaseLocked { .. } => "DatabaseLockedError",
         EngineOpenError::Corruption(detail) => detail.recovery_hint.code,
         EngineOpenError::IncompatibleSchemaVersion { .. } => "IncompatibleSchemaVersionError",

@@ -29,6 +29,14 @@ fn requested_configuration_is_retained_without_setter_mutation() {
 }
 
 #[test]
+fn legacy_open_keeps_omitted_requested_values() {
+    let dir = TempDir::new().unwrap();
+    let opened = Engine::open(database_path(&dir, "default")).expect("default open");
+    assert_eq!(opened.engine.config(), &EngineConfig::default());
+    opened.engine.close().unwrap();
+}
+
+#[test]
 fn invalid_configuration_precedes_path_and_lock_side_effects() {
     let dir = TempDir::new().unwrap();
     let path = database_path(&dir, "missing-parent");
@@ -38,6 +46,14 @@ fn invalid_configuration_precedes_path_and_lock_side_effects() {
         .expect_err("invalid configuration");
     assert!(matches!(error, EngineOpenError::EngineConfiguration(_)));
     assert!(!path.parent().unwrap().exists(), "validation created the database parent");
+
+    let held_path = database_path(&dir, "held");
+    let held = Engine::open(&held_path).expect("hold lock");
+    let invalid = EngineConfig { embedder_call_timeout_ms: Some(0), ..EngineConfig::default() };
+    let error = Engine::open_with_choice_and_config(&held_path, EmbedderChoice::Default, invalid)
+        .expect_err("invalid configuration must precede lock and embedder policy");
+    assert!(matches!(error, EngineOpenError::EngineConfiguration(_)));
+    held.engine.close().unwrap();
 }
 
 #[test]

@@ -771,7 +771,7 @@ impl Drop for OpenEmbedDispatchGuard {
     fn drop(&mut self) {
         if let Some(dispatch) = self.0.take() {
             dispatch.close();
-            let _ = dispatch.join_until(Instant::now() + Duration::from_secs(30));
+            let _ = dispatch.join_after_quiescence();
         }
     }
 }
@@ -4228,7 +4228,7 @@ impl Engine {
         if let Ok(mut lock) = self.lock.lock() {
             lock.take();
         }
-        if self.embed_dispatch.join_until(Instant::now() + Duration::from_secs(30)) {
+        if self.embed_dispatch.join_after_quiescence() {
             Ok(())
         } else {
             Err(EngineError::Scheduler)

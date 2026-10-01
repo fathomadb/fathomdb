@@ -282,6 +282,7 @@ pub(crate) struct EmbedDispatcher {
     handles: Mutex<Vec<JoinHandle<()>>>,
     drain_deadline: Mutex<Option<Instant>>,
     #[cfg(test)]
+    #[allow(dead_code)] // Standalone core tests include this module without engine lifecycle.
     drain_budget_ms: AtomicU64,
 }
 
@@ -389,8 +390,18 @@ impl EmbedDispatcher {
     }
 
     #[cfg(test)]
+    #[allow(dead_code)] // Standalone core tests include this module without engine lifecycle.
     pub(crate) fn set_drain_budget_ms_for_test(&self, budget_ms: u64) {
         self.drain_budget_ms.store(budget_ms, Ordering::Relaxed);
+    }
+
+    #[allow(dead_code)] // Standalone core tests include this module without engine lifecycle.
+    pub(crate) fn join_after_quiescence(&self) -> bool {
+        #[cfg(test)]
+        let budget = Duration::from_millis(self.drain_budget_ms.load(Ordering::Relaxed));
+        #[cfg(not(test))]
+        let budget = Duration::from_secs(30);
+        self.join_until(Instant::now() + budget)
     }
 
     #[allow(dead_code)] // Standalone core tests include this module without calling the engine test seam.

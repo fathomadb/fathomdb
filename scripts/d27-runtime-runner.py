@@ -12,6 +12,7 @@ import platform
 import re
 import socket
 import subprocess
+import sys
 import threading
 
 
@@ -103,7 +104,12 @@ def build_manifest(source: Path, directory: Path) -> Path:
 
 def build_binary(manifest: Path, output: Path) -> Path:
     env = dict(os.environ, CARGO_TARGET_DIR=str(output / "target"))
-    result = command(["cargo", "test", "--release", "--features", "test-hooks", "--no-run", "--message-format=json", "--manifest-path", str(manifest)], capture_output=True, env=env)
+    try:
+        result = command(["cargo", "test", "--release", "--features", "test-hooks", "--no-run", "--message-format=json", "--manifest-path", str(manifest)], capture_output=True, env=env)
+    except subprocess.CalledProcessError as error:
+        if error.stderr:
+            sys.stderr.write(error.stderr)
+        raise
     paths = [Path(message["executable"]) for line in result.stdout.splitlines() if (message := json.loads(line)).get("target", {}).get("name") == "d27_runtime_workload" and message.get("executable")]
     if len(paths) != 1:
         raise ValueError(f"expected one D27 test binary, found {len(paths)}")
@@ -157,6 +163,35 @@ def runner_inventory() -> dict:
         "features": ["test-hooks"],
         "rustc": command(["rustc", "--version"], capture_output=True).stdout.strip(),
     }
+
+
+def environment_invalidators(raw: dict) -> list[str]:
+    """Name each observed reason that makes a repetition non-comparable."""
+    before = raw.get("environment_start", {})
+    after = raw.get("environment_end", {})
+    samples = raw.get("environment_samples")
+    reasons = []
+    if not isinstance(samples, list) or not samples:
+        reasons.append("environment samples missing")
+        samples = []
+    for label, observation in [("before", before), *[(f"sample[{index}]", sample) for index, sample in enumerate(samples)], ("after", after)]:
+        governor = observation.get("cpu_governor")
+        if governor != "performance":
+            reasons.append(f"{label} cpu governor={governor!r}; expected performance")
+        competitors = observation.get("competing_processes")
+        if competitors != []:
+            if isinstance(competitors, list) and competitors:
+                for process in competitors:
+                    reasons.append(f"{label} competing process {process.get('name')} pid={process.get('pid')}")
+            else:
+                reasons.append(f"{label} competing processes unavailable")
+        for key in ("swap_pages_in", "swap_pages_out"):
+            if observation.get(key) != before.get(key):
+                reasons.append(f"{label} {key} changed from {before.get(key)!r} to {observation.get(key)!r}")
+        device = observation.get("database_device")
+        if device != before.get("database_device") or not str(device).startswith("/dev/nvme"):
+            reasons.append(f"{label} database_device={device!r}; expected local NVMe {before.get('database_device')!r}")
+    return reasons
 
 
 def run_repetition(binary: Path, env: dict[str, str]) -> list[dict]:
@@ -289,22 +324,11 @@ def check_raw_observations(raw: dict, phase: str) -> None:
     """Prove the raw stream has the claimed work and projection completions."""
     if raw.get("smoke"):
         raise ValueError("smoke run cannot qualify")
-    before = raw.get("environment_start", {})
-    after = raw.get("environment_end", {})
-    actual_environment_valid = (
-        before.get("cpu_governor") == after.get("cpu_governor") == "performance"
-        and before.get("competing_processes") == after.get("competing_processes") == []
-        and all(before.get(key) == after.get(key) for key in ("swap_pages_in", "swap_pages_out", "database_device"))
-        and str(before.get("database_device", "")).startswith("/dev/nvme")
-    )
-    if raw.get("environment_valid") is not True or not actual_environment_valid:
-        raise ValueError("invalid repetition environment")
-    samples = raw.get("environment_samples")
-    if not isinstance(samples, list) or not samples:
-        raise ValueError("environment samples missing")
-    for sample in samples:
-        if sample.get("cpu_governor") != "performance" or sample.get("competing_processes") != [] or any(sample.get(key) != before.get(key) for key in ("swap_pages_in", "swap_pages_out", "database_device")):
-            raise ValueError("invalid repetition environment sample")
+    reasons = environment_invalidators(raw)
+    if reasons:
+        raise ValueError("invalid repetition environment: " + "; ".join(reasons))
+    if raw.get("environment_valid") is not True:
+        raise ValueError("environment_valid flag disagrees with observations")
     actual = {
         "canonical_writes": sum(op["class"] == "canonical_write" for op in raw["operations"]),
         "foreground_hybrid_queries": sum(op["class"] == "foreground_hybrid_query" for op in raw["operations"]),
@@ -454,14 +478,31 @@ def main() -> int:
         samples = run_repetition(binary, env)
         after = environment()
         raw = json.loads(path.read_text())
-        validate_raw_contract(raw, protocol, direction, repetition)
         raw["environment_start"] = before
         raw["environment_end"] = after
         raw["environment_samples"] = samples
-        raw["environment_valid"] = before["cpu_governor"] == after["cpu_governor"] == protocol["runner"]["cpu_governor"] and not before["competing_processes"] and not after["competing_processes"] and all(before[key] == after[key] for key in ("swap_pages_in", "swap_pages_out"))
+        reasons = environment_invalidators(raw)
+        raw["environment_valid"] = not reasons
+        attempt = output / f"{name}.attempt.json"
+        attempt.write_text(json.dumps(raw, indent=2, sort_keys=True) + "\n")
         all_raw.append(raw)
-        metrics[direction].append(summarize_raw(raw, args.phase))
-    raw_output.write_text("".join(json.dumps(item, sort_keys=True, separators=(",", ":")) + "\n" for item in all_raw))
+        raw_output.write_text("".join(json.dumps(item, sort_keys=True, separators=(",", ":")) + "\n" for item in all_raw))
+        try:
+            validate_raw_contract(raw, protocol, direction, repetition)
+            metrics[direction].append(summarize_raw(raw, args.phase))
+        except Exception as error:
+            invalidation = {
+                "status": "INVALID_ENVIRONMENT" if reasons else "INVALID_REPETITION",
+                "source_sha": source_sha,
+                "protocol_sha256": sha256(PROTOCOL),
+                "binary_sha256": sha256(binary),
+                "attempt_sha256": sha256(attempt),
+                "raw_output_sha256": sha256(raw_output),
+                "reasons": reasons or [str(error)],
+                "error": str(error),
+            }
+            (output / f"{name}.invalidation.json").write_text(json.dumps(invalidation, indent=2, sort_keys=True) + "\n")
+            raise
     end_environment = environment()
     receipt = {
         "phase": args.phase, "source_sha": source_sha, "binary_sha256": sha256(binary),

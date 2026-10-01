@@ -86,6 +86,17 @@ and `8f89eec40d20792894d3464fb10678c3f43d756505a6fbbaf185db966cff6f12`.
 It is not a valid D27 baseline. HITL later ruled a reviewed bounded-swap
 protocol at `seq-297`; this old attempt remains invalid under its own hash.
 
+The reviewed bounded-swap D27 harness correction was merged at `27e0089e7`
+from clean GREEN `70bcfa426` after test-only RED `8562afb1e`. The current
+protocol SHA-256 is `489a5a765615bbda82f7e3b585a868e481121def0fb38fa4e9bd416632f5efb0`.
+It permits at most 128 combined host swap pages across each entire workload
+child, rejects missing/negative/reset counters at every sample, and binds both
+deltas to raw per-repetition metrics. The global six-repetition zero-swap
+check was removed. Independent `gpt-6-sol` high code review and Terra
+verification passed at the exact GREEN SHA; the merged release source passed
+38 focused D27 tests. No bounded-protocol historical or candidate measurement
+has been run yet; the prior invalid attempts retain their old hashes.
+
 The local NVIDIA kernel module is 580.173.02 while NVML is 580.178.04.
 Per HITL `seq-296`, this mismatch cannot be resolved for Slice 90: proceed
 with needed GPU tests on windchill3 as installed and record their outcomes.

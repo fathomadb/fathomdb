@@ -669,6 +669,7 @@ pub struct Engine {
     #[cfg(feature = "test-hooks")]
     erasure_before_primary_lock_hook: Mutex<Option<Box<dyn Fn() + Send>>>,
     closed: AtomicBool,
+    close_lock: Mutex<()>,
     lock: Mutex<Option<File>>,
     connection: Mutex<Option<Connection>>,
     reader_pool: ReaderWorkerPool,
@@ -3089,6 +3090,7 @@ impl Engine {
                         #[cfg(feature = "test-hooks")]
                         erasure_before_primary_lock_hook: Mutex::new(None),
                         closed: AtomicBool::new(false),
+                        close_lock: Mutex::new(()),
                         lock: Mutex::new(Some(lock)),
                         connection: Mutex::new(Some(connection)),
                         reader_pool: ReaderWorkerPool::new(
@@ -4192,8 +4194,14 @@ impl Engine {
             .collect()
     }
 
+    /// Stop admission, quiesce all SQLite owners, then drain provider workers.
+    /// Active database work can extend the total duration; the provider drain
+    /// uses one 30-second deadline shared by concurrent and repeated calls.
+    /// Returns [`EngineError::Scheduler`] while a provider worker remains.
     pub fn close(&self) -> Result<(), EngineError> {
         self.closed.store(true, Ordering::SeqCst);
+        self.embed_dispatch.close();
+        let _close_guard = self.close_lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         self.projection_runtime.stop();
         // Uninstall profile callbacks before dropping the connections so
         // SQLite cannot fire one last callback against a profile context
@@ -4220,7 +4228,11 @@ impl Engine {
         if let Ok(mut lock) = self.lock.lock() {
             lock.take();
         }
-        Ok(())
+        if self.embed_dispatch.join_until(Instant::now() + Duration::from_secs(30)) {
+            Ok(())
+        } else {
+            Err(EngineError::Scheduler)
+        }
     }
 
     /// Block until in-flight writes drain or `timeout_ms` elapses.

@@ -221,6 +221,13 @@ Rust exposes:
 - `Engine::search_text_only_with_limit(query, limit) -> Result<SearchResult, EngineError>`
 - `Engine::close(...) -> Result<(), EngineError>`
 
+`close` stops admission, waits for active database work and releases every
+SQLite owner before beginning a shared 30-second embed-worker drain. It returns
+`EngineError::Scheduler` if a provider call survives that deadline; worker
+accounting remains live, and a later `close` succeeds after the provider exits.
+Concurrent or repeated calls and Drop do not renew the drain deadline. Active
+database work can extend total close time beyond 30 seconds.
+
 ### Direct text-only result-prefix contract (0.8.22 Slice 23)
 
 `search_text_only` and its explicit-limit/read-view forms do not embed, use

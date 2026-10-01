@@ -77,6 +77,15 @@ binding source, and the allocated Slice 100 pre-entry plan.
    on windchill3 as installed while the swap rule is settled. No invalid
    attempt becomes a PASS receipt, and the runtime checkpoint and structural
    Phase 3 remain gated by qualifying D27 evidence.
+9. **Installed binding evidence exposed a proof allocation gap.** The Python
+   candidate forwards all five settings and its isolated installed wheel passes
+   30 cases, but the draft asked that installed Python directly observe custom
+   provider concurrency/timeout and lifecycle slow events. Existing public
+   Python and Node opens accept no caller provider, and their subscriber
+   adapters deliver no lifecycle events. The reviewed proof allocation now
+   requires deterministic consuming-effect witnesses at the Rust owner and
+   installed native forwarding plus all effects the bindings actually expose.
+   It does not create a test-only public binding adapter for duplicate evidence.
 
 ## Evaluation and scope decision
 

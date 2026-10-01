@@ -198,8 +198,12 @@ TypeScript/NAPI cases:
 - prove NAPI's host Tokio pool does not change when either engine-owned capacity
   changes.
 
-Wrapper surface tests may assert the snapshot, but every field also needs an
-installed-artifact test proving its real consuming effect.
+Wrapper surface tests may assert the snapshot, but the Rust engine owner must
+prove all five real consuming effects. Installed Python and Node must prove
+native forwarding for all five and each directly observable effect (including
+scheduler inventory and provenance retention). Their receipts map provider,
+timeout, and slow-event effects to the owner-level tests and state the existing
+public binding observation limits.
 
 ## Batch 4: embed dispatcher core
 
@@ -391,12 +395,21 @@ For both Python and Node, run:
 - omitted/default configuration;
 - every valid minimum and maximum;
 - every invalid/overflow/wrong-type case;
-- positive controls for scheduler capacity, provider concurrency, timeout,
-  provenance retention, and slow-event threshold;
+- installed positive controls for scheduler inventory and provenance retention,
+  plus exact native configured-open forwarding of all five settings;
 - independent simultaneous engines;
 - open/close/reopen and failed-open cleanup;
 - snapshot immutability and slow-threshold setter behavior;
 - generated stub/declaration and runtime-export comparisons.
+
+Prove provider concurrency, timeout, and slow-operation/SQLite-statement event
+effects with deterministic caller providers and a lifecycle subscriber at the
+Rust engine boundary. Existing Python/Node public opens expose neither a
+caller provider nor delivered subscriber events. Do not add a test-only binding
+adapter solely for duplicate effect witnesses. The installed receipts must map
+each setting to its native forwarding check, owner-level consuming-effect test,
+and any installed binding-level observable effect, stating the observation
+limits explicitly.
 
 The installed tests must record candidate SHA, artifact SHA-256, platform,
 architecture, language/runtime version, feature set, and exact command. A local

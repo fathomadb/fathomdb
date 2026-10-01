@@ -433,6 +433,22 @@ Slice 30 baseline plus reviewed deltas. They do not reimplement forwarding or
 repeat a completed configuration correction. A missing or failing handoff
 receipt blocks Slice 90 exit rather than becoming binding-decomposition debt.
 
+The five settings' consuming effects are proved at the engine owner, with
+caller-supplied providers and an attached Rust lifecycle subscriber where those
+are needed for deterministic capacity, timeout, and slow-event witnesses.
+Installed Python and Node consumers must independently prove all five requested
+values reach their freshly built native configured-open path, reject invalid
+values before a database is created, and exercise every effect their existing
+public bindings expose (including worker inventory where a test feature
+already exposes it, and provenance retention). The Python and Node subscriber
+adapters presently accept calls without delivering lifecycle events, and their
+public opens do not take a caller provider. Do not add a new binding test-only
+provider or event adapter solely to duplicate the engine-owner effect tests;
+record the exact cross-layer evidence mapping and these observation limits in
+the installed-artifact receipt. This does not relax any engine consuming-effect
+test, native forwarding check, public config contract, or binding behavior
+already exposed by the current API.
+
 At baseline the native subscriber methods accept arguments but do not deliver
 events, and NAPI's executor differs from the older accepted async ADR's named
 mechanism. These are separate binding-contract questions, not engine-config

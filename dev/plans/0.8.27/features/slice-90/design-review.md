@@ -41,3 +41,22 @@ current uses and exact retained cfg/public identities for `EDGE_FACT_KIND`,
 public-capture evidence. This review approves those item-specific
 dispositions only; it does not turn the pending hidden-surface, historical
 D27 or Slice 85 recovery qualifications into PASS.
+
+## Binding effect-evidence allocation amendment
+
+An installed Python wheel passed forwarding and observable scheduler/provenance
+tests, but independent code review found that the original change plans also
+required installed Python to observe custom-provider capacity/timeout and
+lifecycle slow signals. Existing public Python/Node opens accept no caller
+provider, and their subscriber adapters deliver no such events. The design and
+change plans now require deterministic Rust engine-owner consuming-effect tests
+for all five settings, installed native forwarding for all five, installed
+effects exposed by each binding, and a cross-layer receipt mapping. Rust
+open-time slow operation and SQLite-statement signal tests remain required.
+
+The subsequent independent `gpt-6-sol` high design review first returned FAIL
+because two old clauses still demanded every effect from installed bindings.
+After those clauses were corrected, the narrow read-only re-review returned
+**PASS**. This resolves the proof allocation only; it does not approve the
+Python or Node implementation, declare the missing Rust slow-signal tests
+passed, or waive candidate-bound installed artifacts.

@@ -367,11 +367,14 @@ Changes:
 - Update the EARP catalog: all five fields now have real consuming open paths;
   `slow_threshold_ms` is no longer supported only through the post-open setter.
 
-Tests must prove actual effects, not just `engine.config`: worker and provider
-capacity, timeout, provenance pruning including zero, open-time slow operation
-and SQLite statement signals, setter-after-open behavior, invalid types and
-bounds, mixed-input rejection, and independent engines. Repeat the tests from
-an installed candidate wheel.
+Tests must prove actual effects, not just `engine.config`: worker inventory and
+provenance pruning including zero through an installed candidate wheel; provider
+capacity, timeout, and open-time slow operation and SQLite statement signals
+through the configured Rust engine with a caller provider/subscriber. The wheel
+must also prove all five values reach the candidate native configured-open path,
+along with setter-after-open behavior, invalid types and bounds, mixed-input
+rejection, and independent engines. Record the cross-layer evidence mapping and
+the existing Python public observation limits; see the design's binding handoff.
 
 ### 2.9 Forward Node/TypeScript configuration
 
@@ -394,10 +397,13 @@ Changes:
 - Do not treat NAPI's Tokio host pool as either engine-owned configured
   executor.
 
-Extend the surface tests with boundary and consuming-effect cases, caller-object
-mutation, returned-snapshot mutation, omission, and independent engines. Run
-the same cases against the installed native package and compare generated
-declarations with the approved surface delta.
+Extend the surface tests with boundary, native-forwarding and directly
+observable consuming-effect cases, caller-object mutation, returned-snapshot
+mutation, omission, and independent engines. Repeat those cases against the
+installed native package and compare generated declarations with the approved
+surface delta. Map provider/timeout/slow-event effects to the deterministic
+Rust engine-owner tests in the installed receipt; do not imply that the current
+public Node open/subscriber API can observe them directly.
 
 ### 2.10 Documentation and runtime qualification
 

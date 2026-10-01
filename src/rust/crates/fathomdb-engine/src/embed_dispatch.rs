@@ -281,6 +281,8 @@ pub(crate) struct EmbedDispatcher {
     shared: Option<Arc<Shared>>,
     handles: Mutex<Vec<JoinHandle<()>>>,
     drain_deadline: Mutex<Option<Instant>>,
+    #[cfg(test)]
+    drain_budget_ms: AtomicU64,
 }
 
 impl EmbedDispatcher {
@@ -294,6 +296,8 @@ impl EmbedDispatcher {
                 shared: None,
                 handles: Mutex::new(Vec::new()),
                 drain_deadline: Mutex::new(None),
+                #[cfg(test)]
+                drain_budget_ms: AtomicU64::new(30_000),
             });
         };
         if !(1..=64).contains(&pool_size) || timeout.is_zero() {
@@ -344,6 +348,8 @@ impl EmbedDispatcher {
             shared: Some(shared),
             handles: Mutex::new(handles),
             drain_deadline: Mutex::new(None),
+            #[cfg(test)]
+            drain_budget_ms: AtomicU64::new(30_000),
         })
     }
 
@@ -380,6 +386,11 @@ impl EmbedDispatcher {
         if let Some(shared) = &self.shared {
             stop(shared);
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_drain_budget_ms_for_test(&self, budget_ms: u64) {
+        self.drain_budget_ms.store(budget_ms, Ordering::Relaxed);
     }
 
     #[allow(dead_code)] // Standalone core tests include this module without calling the engine test seam.

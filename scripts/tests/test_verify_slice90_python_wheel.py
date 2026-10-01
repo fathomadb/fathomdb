@@ -1,11 +1,16 @@
 """The wheel proof must refuse a checkout with unrelated tracked changes."""
 
 from pathlib import Path
+import runpy
 import shutil
 import subprocess
+import sys
+
+import pytest
 
 
 PROOF_SCRIPT = Path(__file__).resolve().parents[1] / "verify-slice90-python-wheel.sh"
+FEATURE_HELPER = Path(__file__).resolve().parents[1] / "slice90_wheel_features.py"
 
 
 def test_unrelated_tracked_change_is_rejected_before_build(tmp_path: Path) -> None:
@@ -42,3 +47,17 @@ def test_unrelated_tracked_change_is_rejected_before_build(tmp_path: Path) -> No
     )
     assert result.returncode == 1
     assert "checkout has uncommitted tracked files" in result.stderr
+
+
+def test_features_parse_without_tomllib_or_tomli(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        '[tool.maturin]\nfeatures = ["pyo3/extension-module", "default-embedder"]\n',
+        encoding="utf-8",
+    )
+    read_features = runpy.run_path(str(FEATURE_HELPER))["read_maturin_features"]
+    monkeypatch.setitem(sys.modules, "tomllib", None)
+    monkeypatch.setitem(sys.modules, "tomli", None)
+    assert read_features(pyproject) == ("pyo3/extension-module", "default-embedder")

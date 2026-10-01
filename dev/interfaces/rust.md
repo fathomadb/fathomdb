@@ -65,6 +65,16 @@ by AC-074; its positive-allowlist/parity pin **landed at reserved-gap Slice 27**
 (see § Governed-surface contract below). Rust keeps the facade shape below
 unless a successor ADR expands it.
 
+### Temporary default-compiled test seam
+
+`Engine::write_vector_for_test` is a `#[doc(hidden)]` public method that remains
+default-compiled through Slice 90 and is scheduled for removal from default
+builds by Slice 140. It is not a production vector-write contract and is the
+sole explicit exception to the Slice 90 embed-dispatch rule: it may call the
+provider directly and must not supply deadline, queue-bound, lock-order, or
+performance evidence. Production open, projection, search, frozen-search, and
+direct-embed paths have no such exception.
+
 ## Governed-surface contract (AC-074, Q5 = BIND-RUST — landed Slice 27; method-level + feature-gated by Slice 27 fix-1)
 
 This file **owns** the governed Rust-facade surface. The `fathomdb` facade is a

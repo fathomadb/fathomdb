@@ -29,7 +29,7 @@ separate, bounded, engine-owned synchronous executors:
 2. an embed-dispatch executor whose worker count and maximum simultaneous
    provider calls are controlled by `embedder_pool_size`.
 
-All engine-owned embedding paths—open-time vector-equivalence probes,
+All production engine-owned embedding paths—open-time vector-equivalence probes,
 projection, ordinary and frozen search/query, and direct `Engine::embed_text`—
 submit to the embed-dispatch executor and observe one dispatch/deadline
 contract. Model construction, warmup, and `Embedder::identity` remain separate
@@ -41,6 +41,12 @@ the enclosing batch deadline; they do not create nested dispatch requests. The
 caller-facing Rust/Python API remains synchronous. Bindings may move a complete
 synchronous engine call off their event-loop thread, but neither a binding
 pool nor a projection worker may invoke the embedder directly.
+
+The default-compiled, `#[doc(hidden)]` `Engine::write_vector_for_test` method is
+the sole temporary exception through Slice 90. Slice 140 removes it from
+default public builds. It may not be used as deadline, dispatch, queue-bound,
+lock-order, or performance evidence, and the exception does not extend to any
+production path or another test seam.
 
 Projection workers retain their own SQLite connections and serialize their
 write commits through `commit_gate`. The primary caller writer remains the
@@ -278,6 +284,12 @@ validation constructor. Installed-artifact tests must accept both zero-valued
 existing controls and prove their disabling/zero-threshold behavior. Validation
 finishes before filesystem mutation, database admission, model warmup,
 connection creation, or thread creation.
+
+The public configuration value is a requested-open snapshot. It is immutable
+after open even though the existing slow-threshold setter changes the effective
+atomic; the setter does not rewrite the snapshot. Python retains a frozen value
+object. TypeScript must clone and freeze the caller input, expose readonly
+fields, and test mutation of both the original object and returned snapshot.
 
 ### Configuration seam
 
@@ -554,7 +566,8 @@ production mutant. At minimum:
     case proves that configured embed capacity allocates no idle embed workers
     or requests when no provider is attached.
 
-    On the default, run the existing AC-011a/b write-throughput, AC-017
+    On the default, run AC-011a/b through
+    `scripts/run-ac011-write-throughput.sh`, then AC-017
     projection-freshness, AC-018 projection-drain, AC-029 projection-stall
     write-tolerance, AC-072 vector-retrieval, AC-073 real-corpus retrieval-tail,
     AC-076 text/hybrid-query and AC-081a/b/c reader-progress gates. Add one
@@ -566,11 +579,17 @@ production mutant. At minimum:
     residual workers; and starvation in both foreground-to-projection and
     projection-to-foreground directions.
 
+    The frozen workload and oracle are
+    `d27-runtime-qualification-protocol.json`. Before semantic runtime work,
+    land and independently review the measurement-only harness, then run it
+    against exact engine candidate `7a2f9bf9`. Bind the protocol, binary,
+    generated-corpus and raw-output hashes plus entry center/MAD values.
+
     Capture exact candidate, features, optimized build, hardware/software,
     dataset/workload, warm-up, repetitions, raw or reproducible output and an
-    entry-candidate comparison. Before the post-change run, freeze a
-    noise-aware decision rule from the existing gate thresholds and entry
-    measurements; the new mixed workload must show progress in both directions
+    entry-candidate comparison. The protocol freezes the median/MAD formula
+    before the entry run; later runs may substitute only the recorded entry
+    values. The new mixed workload must show progress in both directions
     without exceeding contractual queues or resource counts. A default
     regression, starvation result or missed project gate blocks the runtime
     checkpoint: optimize within the accepted contract and repeat the identical

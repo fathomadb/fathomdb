@@ -884,9 +884,11 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     reviewed dependency requires a ladder change. The qualification boundary
     is the stage-2 runtime checkpoint: the design enumerates stage 2 as
     ordered sub-batches 2a–2l, and the Slice 90 release-state ladder entry
-    binds `runtime_checkpoint_sha` with independent code-review, read-only
-    verification and runtime-performance receipts before any stage-3
-    mechanical move.
+    binds a structured `runtime_checkpoint` object with candidate/binding SHAs
+    and hashed independent code-review, read-only-verification and
+    runtime-performance receipts. `scripts/check-runtime-checkpoints.py`
+    rejects a stage-3 start without a PASS checkpoint whose binding commit
+    precedes the recorded first stage-3 commit.
   - **Configuration documentation action:** in the functional configuration
     batch, update the accepted successor and decision index, internal engine/
     scheduler/embedder/bindings designs, Rust/Python/TypeScript interfaces,
@@ -905,8 +907,16 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     default carries release performance promises; the ceiling run is an exact
     inventory/cleanup test, not a throughput target. Add a pure property test
     over every `1..=64` scheduler/embed pair and a `2/no-provider` runtime case
-    that allocates no idle embed capacity. At default, run the
-    existing AC-011a/b, AC-017, AC-018, AC-029, AC-072, AC-073, AC-076 and
+    that allocates no idle embed capacity. Before semantic runtime work, land
+    and independently review the measurement-only D27 harness, then run it
+    against exact engine candidate `7a2f9bf9` under the immutable
+    `features/slice-90/d27-runtime-qualification-protocol.json`. That protocol
+    freezes the runner, generated-corpus identity, seeds, operation mixes,
+    concurrency, duration, repetitions, starvation rule, metric schema,
+    environment invalidators and median/MAD comparison formula. Bind the
+    entry harness/protocol/binary/corpus/raw-output hashes. At default, run
+    AC-011a/b through `scripts/run-ac011-write-throughput.sh` plus AC-017,
+    AC-018, AC-029, AC-072, AC-073, AC-076 and
     AC-081a/b/c gates unchanged, plus a D27 mixed workload combining canonical
     writes, dense projection, foreground hybrid queries and direct embeds.
     Record throughput; p50/p95/p99 projection and query latency; queue wait,
@@ -914,8 +924,8 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     thread/SQLite-connection inventory; close latency/residual workers; and
     starvation in both directions. Bind the exact candidate, optimized build,
     features, hardware/software, workload/dataset, warm-up, repetitions and raw
-    or reproducible output. Freeze a noise-aware decision rule from existing
-    thresholds and entry measurements before the post-change run. A default
+    or reproducible output. The formula is frozen before the entry run; only
+    its measured entry centers and MAD values may be substituted later. A default
     miss, starvation result or resource-bound violation blocks Slice 90:
     optimize within the accepted contract or formally revise/succeed the ADR.
     Do not defer first proof to Slices 114, 115 or 135; allocate Slice 91 only

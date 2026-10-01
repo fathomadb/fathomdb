@@ -159,6 +159,12 @@ public knob requires all supported bindings in the same slice. Configuration
 does not select a legacy schema, enable automatic recovery, supply vector
 identity strings, or expose raw SQL.
 
+The exposed configuration value is the immutable requested-open snapshot, not
+a live effective-value view. The existing slow-threshold control may change
+the effective threshold after open without rewriting that snapshot. Bindings
+must prevent caller alias mutation; TypeScript therefore clones and freezes
+the supplied object and exposes readonly fields.
+
 ## Close path
 
 `Engine.close` is explicit, idempotent, and bounded. Its order is:

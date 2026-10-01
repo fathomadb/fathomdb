@@ -95,9 +95,15 @@ reused across suites:
 
 ## Current Perf Attribution
 
-- `src/rust/crates/fathomdb-engine/tests/perf_gates.rs` currently binds
-  AC-017 and AC-018 with active runtime measurements that run under
-  `scripts/agent-verify.sh`.
+- `src/rust/crates/fathomdb-engine/tests/perf_gates.rs` binds AC-011a/b,
+  AC-017 and AC-018. AC-017/018 run under `scripts/agent-verify.sh`.
+  AC-011a/b use their exact five-second warm-up and 60-second measurement only
+  when `AGENT_LONG=1` and `FATHOMDB_TIER1_WRITE_PERF=1`; the canonical entry is
+  `scripts/run-ac011-write-throughput.sh`, which requires Linux x86_64, at least
+  eight online CPUs, at least 15 GiB visible RAM, the exact `windchill3` host,
+  and a temporary directory resolved to a local `/dev/nvme*` device. It runs
+  the two exact optimized, serial selectors separately and emits
+  `AC011_NUMBERS`.
 - AC-012 / AC-013 / AC-019 protocol-complete fixture harnesses landed
   in Pack D (Phase 9) at `tests/perf_gates.rs`. All three are
   `long_run_enabled()`-gated (early-return without `AGENT_LONG=1`) and

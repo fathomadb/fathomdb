@@ -165,11 +165,11 @@ export async function rerank(
 }
 
 export interface EngineConfig {
-  embedderPoolSize?: number;
-  schedulerRuntimeThreads?: number;
-  provenanceRowCap?: number;
-  embedderCallTimeoutMs?: number;
-  slowThresholdMs?: number;
+  readonly embedderPoolSize?: number;
+  readonly schedulerRuntimeThreads?: number;
+  readonly provenanceRowCap?: number;
+  readonly embedderCallTimeoutMs?: number;
+  readonly slowThresholdMs?: number;
 }
 
 export interface EngineOpenOptions {
@@ -2562,8 +2562,11 @@ export class Engine {
 
   static async open(path: string, options: EngineOpenOptions = {}): Promise<Engine> {
     validateFfiString(path);
-    const inner = await intercept(() => native.Engine.open(path, options));
-    return new Engine(inner, options.engineConfig ?? {});
+    const config = Object.freeze({ ...(options.engineConfig ?? {}) });
+    const nativeOptions =
+      options.engineConfig === undefined ? options : { ...options, engineConfig: config };
+    const inner = await intercept(() => native.Engine.open(path, nativeOptions));
+    return new Engine(inner, config);
   }
 
   /**

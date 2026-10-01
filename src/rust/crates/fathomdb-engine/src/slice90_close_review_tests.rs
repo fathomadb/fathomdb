@@ -1,4 +1,7 @@
-use super::{EmbedderChoice, Engine, EngineConfig, EngineError};
+use super::{
+    acquire_lock_without_metadata_mutation, install_post_probe_startup_fault_for_test,
+    EmbedderChoice, Engine, EngineConfig, EngineError, EngineOpenError, READER_POOL_SIZE,
+};
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -7,6 +10,83 @@ use tempfile::TempDir;
 struct HeldProvider {
     entered: mpsc::Sender<()>,
     release: Mutex<mpsc::Receiver<()>>,
+}
+
+struct FixedProvider;
+
+impl Embedder for FixedProvider {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("slice90-drain-clock", "r1", 2)
+    }
+
+    fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
+        Ok(vec![1.0, 0.0])
+    }
+}
+
+#[test]
+fn failed_startup_after_timed_out_probe_preserves_error_and_cleans_sqlite_profiles() {
+    let dir = TempDir::new().expect("temp db");
+    let path = dir.path().join("post-probe.sqlite");
+    let initial = Engine::open_with_choice_and_config(
+        &path,
+        EmbedderChoice::Caller(Arc::new(FixedProvider)),
+        EngineConfig::default(),
+    )
+    .expect("first open");
+    initial.engine.configure_vector_kind_for_test("doc").expect("enrol vector kind");
+    initial.engine.close().expect("close first session");
+
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let provider = Arc::new(HeldProvider { entered: entered_tx, release: Mutex::new(release_rx) });
+    let (observed_tx, observed_rx) = mpsc::channel();
+    install_post_probe_startup_fault_for_test(path.clone(), observed_tx);
+    let release_thread = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(300));
+        release_tx.send(()).expect("release probe provider if still held");
+    });
+    let result = Engine::open_with_choice_and_config(
+        &path,
+        EmbedderChoice::Caller(provider),
+        EngineConfig { embedder_call_timeout_ms: Some(50), ..EngineConfig::default() },
+    );
+    let error = match result {
+        Ok(opened) => {
+            opened.engine.close().expect("close unexpected open");
+            panic!("injected post-probe failure was ignored")
+        }
+        Err(error) => error,
+    };
+    entered_rx.recv_timeout(Duration::from_secs(2)).expect("probe called provider");
+    let observation = observed_rx.recv_timeout(Duration::from_secs(2)).expect("fault observation");
+    let retained_at_return = observation.accounting.snapshot().live_workers;
+    let owners_at_return = observation.registry.live.lock().expect("registry").len();
+    let releases = observation.profile_releases.releases.lock().expect("profile facts");
+    let released_profiles = releases.len();
+    let profiles_safe = releases.iter().all(|fact| {
+        fact.callback_uninstalled && fact.live_connections.is_empty() && fact.live_workers == 0
+    });
+    drop(releases);
+    let admission = acquire_lock_without_metadata_mutation(&path);
+    let admission_released = admission.is_ok();
+    drop(admission);
+    release_thread.join().expect("release thread");
+    let started = Instant::now();
+    while observation.accounting.snapshot().live_workers != 0 {
+        assert!(started.elapsed() < Duration::from_secs(2), "provider worker did not exit");
+        std::thread::yield_now();
+    }
+
+    assert!(
+        matches!(error, EngineOpenError::Io { message } if message == "injected post-probe startup failure")
+    );
+    assert_eq!(observation.profiles_at_fault, READER_POOL_SIZE + 1);
+    assert_eq!(released_profiles, READER_POOL_SIZE + 1);
+    assert!(profiles_safe, "profile contexts released before SQLite callback owners");
+    assert_eq!(owners_at_return, 0, "all managed SQLite owners must exit");
+    assert_eq!(retained_at_return, 1, "timed-out provider remains counted after failed open");
+    assert!(admission_released, "failed open must release admission lock");
 }
 
 impl Embedder for HeldProvider {

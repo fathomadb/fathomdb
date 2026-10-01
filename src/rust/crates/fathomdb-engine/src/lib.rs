@@ -1211,6 +1211,43 @@ struct AdmissionLockedHookForTest {
 static ADMISSION_LOCKED_HOOK_FOR_TEST: Mutex<Option<AdmissionLockedHookForTest>> = Mutex::new(None);
 
 #[cfg(test)]
+struct PostProbeStartupFaultForTest {
+    path: PathBuf,
+    observed: std::sync::mpsc::Sender<PostProbeStartupObservationForTest>,
+}
+
+#[cfg(test)]
+struct PostProbeStartupObservationForTest {
+    accounting: embed_dispatch::DispatchAccounting,
+    registry: Arc<ManagedConnectionRegistry>,
+    profiles_at_fault: usize,
+    profile_releases: Arc<ProfileReleaseObserver>,
+}
+
+#[cfg(test)]
+static POST_PROBE_STARTUP_FAULT_FOR_TEST: Mutex<Option<PostProbeStartupFaultForTest>> =
+    Mutex::new(None);
+
+#[cfg(test)]
+fn install_post_probe_startup_fault_for_test(
+    path: PathBuf,
+    observed: std::sync::mpsc::Sender<PostProbeStartupObservationForTest>,
+) {
+    *POST_PROBE_STARTUP_FAULT_FOR_TEST.lock().expect("startup fault hook lock") =
+        Some(PostProbeStartupFaultForTest { path, observed });
+}
+
+#[cfg(test)]
+fn take_post_probe_startup_fault_for_test(path: &Path) -> Option<PostProbeStartupFaultForTest> {
+    let mut hook = POST_PROBE_STARTUP_FAULT_FOR_TEST.lock().expect("startup fault hook lock");
+    if hook.as_ref().is_some_and(|candidate| candidate.path == path) {
+        hook.take()
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
 fn install_admission_locked_hook_for_test(path: PathBuf, rendezvous: Arc<Barrier>) {
     *ADMISSION_LOCKED_HOOK_FOR_TEST.lock().expect("admission hook lock") =
         Some(AdmissionLockedHookForTest { path, rendezvous });
@@ -3048,6 +3085,35 @@ impl Engine {
                     #[cfg(any(test, feature = "test-hooks"))]
                     Arc::clone(&managed_connections),
                 )?;
+
+                #[cfg(test)]
+                if let Some(fault) = take_post_probe_startup_fault_for_test(&canonical_path) {
+                    embed_dispatch.set_drain_budget_ms_for_test(40);
+                    let profile_releases = Arc::new(ProfileReleaseObserver {
+                        registry: Arc::clone(&managed_connections),
+                        live_workers: Arc::new(AtomicUsize::new(0)),
+                        releases: Mutex::new(Vec::new()),
+                        custody: Mutex::new(Vec::new()),
+                    });
+                    fault
+                        .observed
+                        .send(PostProbeStartupObservationForTest {
+                            accounting: embed_dispatch.accounting().expect("provider accounting"),
+                            registry: Arc::clone(&managed_connections),
+                            profiles_at_fault: profile_contexts.len(),
+                            profile_releases,
+                        })
+                        .expect("report injected startup fault");
+                    embed_dispatch.close();
+                    projection_runtime.stop();
+                    drop(readers);
+                    drop(connection);
+                    drop(writer_connection_registration);
+                    drop(lock);
+                    return Err(EngineOpenError::Io {
+                        message: "injected post-probe startup failure".to_owned(),
+                    });
+                }
 
                 install_profile_callback(
                     &connection,

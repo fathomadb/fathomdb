@@ -498,6 +498,13 @@ entry-versus-candidate median/MAD comparison. Dispatch queue, deadline,
 capacity, resource and cleanup metrics are mandatory candidate-only
 correctness evidence; the entry receipt marks them unavailable rather than
 fabricating zeros or failing for their historical absence.
+The historical engine's strict test-only connection-inventory hook returns
+`Err(Storage)` even immediately after open in the standalone D27 runner. Its
+`sqlite_connections` value is explicitly unavailable at entry, and the error
+is retained in raw output. The observer's SQLite connection is external to the
+engine and excluded from candidate engine-owned counts. Candidate qualification
+requires an exact engine-owned connection inventory from a successful hook;
+neither a configured-count inference nor the observer connection can fill it.
 
 Add a D27-specific mixed workload with concurrent canonical writes, dense
 projection, foreground hybrid queries and direct embeds. Run both contention

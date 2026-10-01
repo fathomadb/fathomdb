@@ -69,7 +69,7 @@
     "counts": ["admitted", "completed", "timed_out", "overloaded", "provider_error", "invalid_vector", "panic"],
     "high_water": ["projection_rows_active_plus_queued", "embed_requests_waiting", "durable_projection_backlog"],
     "inventory": ["provider_concurrency", "engine_threads", "sqlite_connections", "residual_workers_after_close"],
-    "historical_unavailable": ["embed_queue_wait", "embed_requests_waiting", "fixed_embed_workers", "embed_dispatch_admission", "embed_dispatch_deadline", "embed_dispatch_cancellation"],
+    "historical_unavailable": ["embed_queue_wait", "embed_requests_waiting", "fixed_embed_workers", "embed_dispatch_admission", "embed_dispatch_deadline", "embed_dispatch_cancellation", "sqlite_connections"],
     "environment": ["binary_sha256", "protocol_sha256", "corpus_sha256", "rustc", "kernel", "cpu_model", "online_cpus", "cpu_governor", "memory_available", "load_average", "competing_processes", "database_device"]
   },
   "starvation_rule": {

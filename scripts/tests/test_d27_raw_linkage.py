@@ -1,6 +1,7 @@
 """Reject a PASS receipt whose claimed metrics diverge from its raw observations."""
 
 import copy
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -47,7 +48,7 @@ def synthetic_raw(direction, repetition):
         "environment_valid": True,
         "environment_start": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1"},
         "environment_end": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1"},
-        "environment_samples": [],
+        "environment_samples": [{"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1"}],
     }
 
 
@@ -97,6 +98,13 @@ class RawLinkageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "environment"):
             verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
 
+    def test_missing_midrun_samples_are_rejected(self):
+        changed = copy.deepcopy(self.raw)
+        changed[0]["environment_samples"] = []
+        self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
+        with self.assertRaisesRegex(ValueError, "environment samples"):
+            verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
+
     def test_each_epoch_is_checked_from_sequence_numbers(self):
         changed = copy.deepcopy(self.raw)
         changed[0]["operations"][1]["sequence"] = 10
@@ -135,6 +143,54 @@ class RawLinkageTests(unittest.TestCase):
 
     def test_protocol_declares_historical_sqlite_inventory_unavailable(self):
         self.assertIn("sqlite_connections", PROTOCOL["metrics"]["historical_unavailable"])
+
+    def test_tampered_entry_aggregate_cannot_be_used_by_candidate(self):
+        artifacts = {}
+        for name in ("runner", "binary", "corpus"):
+            artifact = Path(self.temp.name) / name
+            artifact.write_bytes(name.encode())
+            artifacts[name] = artifact
+        artifacts["raw"] = self.raw_path
+        receipt = copy.deepcopy(self.receipt)
+        receipt.update({
+            "source_sha": PROTOCOL["entry_engine_candidate_sha"],
+            "runner_sha256": hashlib.sha256(artifacts["runner"].read_bytes()).hexdigest(),
+            "binary_sha256": hashlib.sha256(artifacts["binary"].read_bytes()).hexdigest(),
+            "corpus_sha256": hashlib.sha256(artifacts["corpus"].read_bytes()).hexdigest(),
+            "raw_output_sha256": hashlib.sha256(self.raw_path.read_bytes()).hexdigest(),
+            "protocol_sha256": hashlib.sha256((ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json").read_bytes()).hexdigest(),
+            "runner_inventory": {"host": "windchill3", "operating_system": "Linux x86_64", "database_storage": "local NVMe", "build": "cargo test --release", "features": ["test-hooks"], "online_cpus": 8, "memory_gib": 16},
+            "environment_start": self.raw[0]["environment_start"],
+            "environment_end": self.raw[-1]["environment_end"],
+            "historical_unavailable": PROTOCOL["metrics"]["historical_unavailable"],
+            "status": "PASS",
+        })
+        protocol_path = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
+        validated = verifier.validate_receipt(receipt, PROTOCOL, protocol_path, artifacts)
+        receipt["aggregate_metrics"] = validated["aggregate_metrics"]
+        verifier.validate_entry_for_candidate(receipt, PROTOCOL, protocol_path, artifacts)
+        receipt["aggregate_metrics"]["projection_heavy"]["throughput"]["canonical_commits"]["median"] += 1
+        with self.assertRaisesRegex(ValueError, "entry aggregate"):
+            verifier.validate_entry_for_candidate(receipt, PROTOCOL, protocol_path, artifacts)
+
+    def test_candidate_dispatch_trace_is_derived_and_linked(self):
+        raw = copy.deepcopy(self.raw[0])
+        raw["configuration_observation"] = {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 1}
+        raw["projection_admission_observation"] = {"source": "engine", "active_plus_queued_high_water": 4}
+        raw["engine_thread_inventory"] = 12
+        raw["connection_inventory"] = "Ok(\"creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0\")"
+        events = []
+        for index, operation in enumerate(raw["operations"]):
+            owner = {"projection_cursors": [operation["cursor"]]} if operation["class"] == "canonical_write" else {"operation_sequence": operation["sequence"]}
+            start = 2_100_000 + index * 100_000
+            events.append({"source": "engine", "request_id": index, "owner": owner, "admitted_ns": start, "started_ns": start + 10_000, "terminal_ns": start + 80_000, "outcome": "completed"})
+        raw["embed_dispatch_events"] = events
+        summary = runner.summarize_raw(raw, "candidate")
+        self.assertEqual(summary["high_water"]["embed_requests_waiting"], 1)
+        self.assertEqual(summary["latency_ms"]["embed_queue_wait"]["50"], 0.01)
+        raw["embed_dispatch_events"][0]["owner"] = {"operation_sequence": 999}
+        with self.assertRaisesRegex(ValueError, "dispatch trace"):
+            runner.summarize_raw(raw, "candidate")
 
 
 if __name__ == "__main__":

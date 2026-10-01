@@ -78,6 +78,17 @@ def verify_raw_linkage(receipt: dict, protocol: dict, raw_path: Path) -> None:
         require(by_direction[direction] == expected, f"raw metric mismatch: {direction}")
 
 
+def validate_entry_for_candidate(entry: dict, protocol: dict, protocol_path: Path, artifacts: dict[str, Path] | None) -> dict:
+    """Revalidate the historical entry from its original hashed artifacts."""
+    require(artifacts is not None and set(artifacts) == {"runner", "binary", "corpus", "raw"} and all(isinstance(path, Path) for path in artifacts.values()), "entry artifacts are required")
+    require(isinstance(entry, dict), "entry receipt is required")
+    require(entry.get("phase") == "entry", "candidate comparison needs an entry receipt")
+    verify_raw_linkage(entry, protocol, artifacts["raw"])
+    validated = validate_receipt(entry, protocol, protocol_path, artifacts)
+    require(entry.get("aggregate_metrics") == validated["aggregate_metrics"], "entry aggregate differs from raw recomputation")
+    return validated
+
+
 def validate_receipt(
     receipt: dict,
     protocol: dict,
@@ -152,7 +163,8 @@ def validate_receipt(
                 else:
                     number(run.get("high_water", {}).get(high_water), f"{label} {high_water}")
             for inventory in metrics["inventory"]:
-                if phase == "entry" and inventory == "sqlite_connections" and inventory not in run.get("inventory", {}):
+                if phase == "entry" and inventory == "sqlite_connections":
+                    require(inventory not in run.get("inventory", {}), f"{label} historical unavailable sqlite_connections imputed")
                     continue
                 number(run.get("inventory", {}).get(inventory), f"{label} {inventory}")
             if phase == "candidate":
@@ -193,6 +205,8 @@ def main() -> int:
     for name in ("runner", "binary", "corpus", "raw"):
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--entry", type=Path)
+    for name in ("runner", "binary", "corpus", "raw"):
+        parser.add_argument(f"--entry-{name}", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     artifacts = {name: getattr(args, name) for name in ("runner", "binary", "corpus", "raw")}
@@ -200,6 +214,9 @@ def main() -> int:
     input_receipt = json.loads(args.receipt.read_text())
     protocol = json.loads(args.protocol.read_text())
     verify_raw_linkage(input_receipt, protocol, args.raw)
+    if input_receipt.get("phase") == "candidate":
+        entry_artifacts = {name: getattr(args, f"entry_{name}") for name in ("runner", "binary", "corpus", "raw")}
+        entry = validate_entry_for_candidate(entry, protocol, args.protocol, entry_artifacts)
     result = validate_receipt(input_receipt, protocol, args.protocol, artifacts, entry)
     encoded = json.dumps(result, indent=2, sort_keys=True) + "\n"
     if args.output:

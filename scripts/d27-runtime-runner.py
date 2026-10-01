@@ -12,6 +12,7 @@ import platform
 import re
 import socket
 import subprocess
+import threading
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -158,6 +159,35 @@ def runner_inventory() -> dict:
     }
 
 
+def run_repetition(binary: Path, env: dict[str, str]) -> list[dict]:
+    """Sample invalidators throughout the measured child process."""
+    stop = threading.Event()
+    samples = []
+    errors = []
+
+    def observe() -> None:
+        while not stop.is_set():
+            try:
+                samples.append(environment())
+            except Exception as error:
+                errors.append(error)
+                stop.set()
+            stop.wait(0.1)
+
+    observer = threading.Thread(target=observe, name="d27-environment-observer")
+    observer.start()
+    try:
+        command([str(binary), "--ignored", "--exact", "d27_runtime_qualification", "--nocapture"], env=env)
+    finally:
+        stop.set()
+        observer.join()
+    if errors:
+        raise RuntimeError("environment monitor failed") from errors[0]
+    if not samples:
+        raise ValueError("environment monitor recorded no samples")
+    return samples
+
+
 def percentile(values: list[float], rank: int) -> float:
     if not values:
         raise ValueError("missing applicable raw metric")
@@ -180,11 +210,79 @@ def starvation_from_raw(raw: dict, window_seconds: int = 5) -> bool:
         for index in range(windows):
             start = index * window_seconds * 1_000_000_000
             end = start + window_seconds * 1_000_000_000
-            pending_throughout = any(admitted <= start and completed > end for admitted, completed in intervals)
+            pending_in_window = any(admitted < end and completed > start for admitted, completed in intervals)
             progress = any(start < completed <= end for _, completed in intervals)
-            if pending_throughout and not progress:
+            if pending_in_window and not progress:
                 return False
     return True
+
+
+def interval_peak(intervals: list[tuple[int, int]]) -> int:
+    events = []
+    for start, end in intervals:
+        if end < start:
+            raise ValueError("dispatch trace has reversed interval")
+        if end > start:
+            events.extend(((start, 1), (end, -1)))
+    active = 0
+    peak = 0
+    for _, delta in sorted(events, key=lambda event: (event[0], event[1])):
+        active += delta
+        peak = max(peak, active)
+    return peak
+
+
+def dispatch_from_raw(raw: dict, embed_workers: int) -> dict:
+    """Derive candidate queue and provider facts from engine request events."""
+    events = raw.get("embed_dispatch_events")
+    if not isinstance(events, list) or not events:
+        raise ValueError("candidate dispatch trace missing")
+    operations = {op["sequence"]: op for op in raw["operations"]}
+    write_cursors = {op["cursor"] for op in raw["operations"] if op["class"] == "canonical_write" and op["outcome"] == "completed"}
+    covered_foreground = set()
+    covered_projection = set()
+    ids = set()
+    waits = []
+    queued_intervals = []
+    running_intervals = []
+    for event in events:
+        request_id = event.get("request_id")
+        if event.get("source") != "engine" or not isinstance(request_id, int) or request_id in ids:
+            raise ValueError("dispatch trace request identity/source invalid")
+        ids.add(request_id)
+        admitted = event.get("admitted_ns")
+        started = event.get("started_ns")
+        terminal = event.get("terminal_ns")
+        if not isinstance(admitted, int) or not isinstance(terminal, int) or admitted < 0 or terminal < admitted or (started is not None and (not isinstance(started, int) or not admitted <= started <= terminal)):
+            raise ValueError("dispatch trace timestamp invalid")
+        owner = event.get("owner", {})
+        if "operation_sequence" in owner and "projection_cursors" not in owner:
+            sequence = owner["operation_sequence"]
+            if sequence not in operations or operations[sequence]["class"] not in ("foreground_hybrid_query", "direct_embed"):
+                raise ValueError("dispatch trace foreground owner invalid")
+            covered_foreground.add(sequence)
+        elif "projection_cursors" in owner and "operation_sequence" not in owner:
+            cursors = owner["projection_cursors"]
+            if not isinstance(cursors, list) or not cursors or not set(cursors).issubset(write_cursors):
+                raise ValueError("dispatch trace projection owner invalid")
+            covered_projection.update(cursors)
+        else:
+            raise ValueError("dispatch trace owner missing")
+        queue_exit = started if started is not None else terminal
+        waits.append(queue_exit - admitted)
+        queued_intervals.append((admitted, queue_exit))
+        if started is not None:
+            running_intervals.append((started, terminal))
+    required_foreground = {sequence for sequence, op in operations.items() if op["class"] in ("foreground_hybrid_query", "direct_embed")}
+    if covered_foreground != required_foreground or covered_projection != write_cursors:
+        raise ValueError("dispatch trace does not cover every measured request")
+    waiting_peak = interval_peak(queued_intervals)
+    provider_peak = interval_peak(running_intervals)
+    if waiting_peak > 4 * embed_workers or provider_peak > embed_workers:
+        raise ValueError("dispatch trace capacity bound exceeded")
+    if raw.get("provider_peak_concurrency") != provider_peak:
+        raise ValueError("dispatch trace provider concurrency mismatch")
+    return {"queue_wait_ns": waits, "waiting_peak": waiting_peak, "provider_peak": provider_peak}
 
 
 def check_raw_observations(raw: dict, phase: str) -> None:
@@ -201,6 +299,12 @@ def check_raw_observations(raw: dict, phase: str) -> None:
     )
     if raw.get("environment_valid") is not True or not actual_environment_valid:
         raise ValueError("invalid repetition environment")
+    samples = raw.get("environment_samples")
+    if not isinstance(samples, list) or not samples:
+        raise ValueError("environment samples missing")
+    for sample in samples:
+        if sample.get("cpu_governor") != "performance" or sample.get("competing_processes") != [] or any(sample.get(key) != before.get(key) for key in ("swap_pages_in", "swap_pages_out", "database_device")):
+            raise ValueError("invalid repetition environment sample")
     actual = {
         "canonical_writes": sum(op["class"] == "canonical_write" for op in raw["operations"]),
         "foreground_hybrid_queries": sum(op["class"] == "foreground_hybrid_query" for op in raw["operations"]),
@@ -208,6 +312,16 @@ def check_raw_observations(raw: dict, phase: str) -> None:
     }
     if actual != raw["operation_counts"]:
         raise ValueError("operation counts diverge from raw observations")
+    ordered = sorted(raw["operations"], key=lambda operation: operation.get("sequence", -1))
+    if not ordered or len(ordered) % 10 or any(operation.get("sequence") != ordered[0]["sequence"] + index for index, operation in enumerate(ordered)) or ordered[0]["sequence"] % 10:
+        raise ValueError("epoch sequence gap or duplicate")
+    for epoch_start in range(0, len(ordered), 10):
+        epoch = ordered[epoch_start:epoch_start + 10]
+        writes = 4 if raw["direction"] == "projection_heavy" else 1
+        queries = 4 if raw["direction"] == "projection_heavy" else 7
+        expected_classes = ["canonical_write"] * writes + ["foreground_hybrid_query"] * queries + ["direct_embed"] * 2
+        if [operation["class"] for operation in epoch] != expected_classes:
+            raise ValueError("epoch operation ratio or class order mismatch")
     for operation in raw["operations"]:
         if not 0 <= operation["admitted_ns"] <= operation["completed_ns"]:
             raise ValueError("nonmonotonic operation timestamps")
@@ -223,17 +337,26 @@ def check_raw_observations(raw: dict, phase: str) -> None:
         raise ValueError("close did not succeed")
     if raw["residual_workers_after_close"] != 0:
         raise ValueError("residual workers after close")
+    if phase == "entry" and raw.get("connection_inventory") != "Err(Storage)":
+        raise ValueError("historical SQLite inventory must retain observed Err(Storage)")
     if phase == "candidate":
-        scheduler = raw.get("scheduler_runtime_threads", 2)
-        embed_workers = raw.get("embedder_pool_size", 1)
-        if raw["projection_admission_high_water"] > scheduler * 64:
+        observed = raw.get("configuration_observation")
+        if not isinstance(observed, dict) or observed.get("source") != "engine":
+            raise ValueError("candidate configuration observation missing")
+        scheduler = observed.get("scheduler_runtime_threads")
+        embed_workers = observed.get("embedder_pool_size")
+        if not isinstance(scheduler, int) or not 1 <= scheduler <= 64 or not isinstance(embed_workers, int) or not 1 <= embed_workers <= 64:
+            raise ValueError("candidate configuration observation invalid")
+        dispatch = dispatch_from_raw(raw, embed_workers)
+        projection = raw.get("projection_admission_observation")
+        if not isinstance(projection, dict) or projection.get("source") != "engine" or not isinstance(projection.get("active_plus_queued_high_water"), int):
+            raise ValueError("projection admission observation missing")
+        if projection["active_plus_queued_high_water"] > scheduler * 64:
             raise ValueError("projection admission bound exceeded")
-        if raw["embed_requests_waiting_high_water"] > 4 * embed_workers:
-            raise ValueError("embed queue bound exceeded")
         if raw["engine_thread_inventory"] != 1 + scheduler + 8 + embed_workers:
             raise ValueError("engine thread inventory mismatch")
-        if raw["provider_peak_concurrency"] > embed_workers:
-            raise ValueError("provider concurrency bound exceeded")
+        if raw.get("embed_requests_waiting_high_water") is not None and raw["embed_requests_waiting_high_water"] != dispatch["waiting_peak"]:
+            raise ValueError("embed queue observation differs from dispatch trace")
 
 
 def summarize_raw(raw: dict, phase: str) -> dict:
@@ -260,7 +383,7 @@ def summarize_raw(raw: dict, phase: str) -> dict:
         counts[bucket] += 1
     throughput = {
         "canonical_commits": len(successful["canonical_write"]) / duration,
-        "projection_completions": len(raw["projection_completions"]) / duration,
+        "projection_completions": sum(item["observed_ns"] <= raw["measurement_elapsed_ns"] for item in raw["projection_completions"]) / duration,
         "foreground_hybrid_queries": len(successful["foreground_hybrid_query"]) / duration,
         "direct_embeds": len(successful["direct_embed"]) / duration,
     }
@@ -270,7 +393,8 @@ def summarize_raw(raw: dict, phase: str) -> dict:
     names = {"canonical_commit": "canonical_write", "projection_freshness": "projection_freshness", "foreground_hybrid_query": "foreground_hybrid_query", "direct_embed": "direct_embed", "close": "close"}
     latency = {name: {str(rank): percentile(latency_ns[key], rank) for rank in (50, 95, 99)} for name, key in names.items()}
     if phase == "candidate":
-        latency["embed_queue_wait"] = {str(rank): percentile(raw["embed_queue_wait_ns"], rank) / 1e6 for rank in (50, 95, 99)}
+        dispatch = dispatch_from_raw(raw, raw["configuration_observation"]["embedder_pool_size"])
+        latency["embed_queue_wait"] = {str(rank): percentile(dispatch["queue_wait_ns"], rank) / 1e6 for rank in (50, 95, 99)}
     high_water = {"durable_projection_backlog": raw["projection_backlog_high_water"]}
     inventory = {"provider_concurrency": raw["provider_peak_concurrency"], "engine_threads": raw["engine_thread_inventory"], "residual_workers_after_close": raw["residual_workers_after_close"]}
     if phase == "candidate":
@@ -278,11 +402,11 @@ def summarize_raw(raw: dict, phase: str) -> dict:
         if not conn_match:
             raise ValueError("missing SQLite inventory")
         connections = sum(int(value) for value in conn_match.groups())
-        if connections != 1 + 1 + raw.get("scheduler_runtime_threads", 2) + 8:
+        if connections != 1 + 1 + raw["configuration_observation"]["scheduler_runtime_threads"] + 8:
             raise ValueError("SQLite connection inventory mismatch")
         inventory["sqlite_connections"] = connections
-        high_water["projection_rows_active_plus_queued"] = raw["projection_admission_high_water"]
-        high_water["embed_requests_waiting"] = raw["embed_requests_waiting_high_water"]
+        high_water["projection_rows_active_plus_queued"] = raw["projection_admission_observation"]["active_plus_queued_high_water"]
+        high_water["embed_requests_waiting"] = dispatch["waiting_peak"]
     return {
         "throughput": throughput,
         "latency_ms": latency,
@@ -300,6 +424,8 @@ def main() -> int:
     parser.add_argument("--phase", choices=("entry", "candidate"), required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--entry", type=Path, help="validated entry receipt for candidate comparison")
+    for name in ("runner", "binary", "corpus", "raw"):
+        parser.add_argument(f"--entry-{name}", type=Path)
     args = parser.parse_args()
     protocol = json.loads(PROTOCOL.read_text())
     source = args.source.resolve()
@@ -325,12 +451,13 @@ def main() -> int:
         before = environment()
         path = output / f"{name}.raw.json"
         env = dict(os.environ, D27_DIRECTION=direction, D27_REPETITION=str(repetition), D27_RAW_OUTPUT=str(path), D27_CORPUS=str(corpus))
-        command([str(binary), "--ignored", "--exact", "d27_runtime_qualification", "--nocapture"], env=env)
+        samples = run_repetition(binary, env)
         after = environment()
         raw = json.loads(path.read_text())
         validate_raw_contract(raw, protocol, direction, repetition)
         raw["environment_start"] = before
         raw["environment_end"] = after
+        raw["environment_samples"] = samples
         raw["environment_valid"] = before["cpu_governor"] == after["cpu_governor"] == protocol["runner"]["cpu_governor"] and not before["competing_processes"] and not after["competing_processes"] and all(before[key] == after[key] for key in ("swap_pages_in", "swap_pages_out"))
         all_raw.append(raw)
         metrics[direction].append(summarize_raw(raw, args.phase))
@@ -352,6 +479,9 @@ def main() -> int:
     spec.loader.exec_module(verifier)
     entry = json.loads(args.entry.read_text()) if args.entry else None
     verifier.verify_raw_linkage(receipt, protocol, raw_output)
+    if args.phase == "candidate":
+        entry_artifacts = {name: getattr(args, f"entry_{name}") for name in ("runner", "binary", "corpus", "raw")}
+        entry = verifier.validate_entry_for_candidate(entry, protocol, PROTOCOL, entry_artifacts)
     receipt = verifier.validate_receipt(receipt, protocol, PROTOCOL, {"runner": runner_bundle, "binary": binary, "corpus": corpus, "raw": raw_output}, entry)
     (output / "receipt.json").write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
     print(output / "receipt.json")

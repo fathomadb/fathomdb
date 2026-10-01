@@ -145,3 +145,18 @@ does not relax the swap invalidator; the prior invalid historical attempt was
 made under the previous protocol hash and is preserved as historical evidence,
 not revalidated as a receipt under this amended protocol. A new valid entry is
 blocked while host swap activity continues.
+
+### Bounded process-view proof before the next D27 entry
+
+PID 1 identity and `hidepid=0` alone do not prove that a procfs mounted from a
+nested PID namespace covers host processes. For every environment sample,
+record the runner's `os.getpid()`, the numeric target of `/proc/self`, and
+whether `ps -eo` includes that exact PID. Require all three to agree alongside
+the existing initial host namespace and PID 1 checks. A missing or unparsable
+`/proc/self` target fails closed. First add a RED fixture with a host self
+namespace, blank PID 1 namespace link, `systemd` PID 1, `hidepid=0`, but a
+`ps` list that lacks the runner's actual PID; it must be rejected at preflight
+and from retained raw observations. Then implement the narrow GREEN rule,
+verify the actual unsandboxed host preflight without building or running the
+workload, and obtain independent design and code re-review. Do not change
+swap, competitor, workload or median/MAD rules.

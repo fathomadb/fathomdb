@@ -128,3 +128,13 @@ The hidden capture is blocked by a host NVML driver/library mismatch:
 kernel module 580.173.02 versus library 580.178.04. The missing hidden and
 qualified-test comparisons, plus a valid D27 historical entry, remain
 explicit preconditions for the corresponding source moves and runtime edit.
+
+The D27 runner must execute in the host PID namespace. In the default sandbox,
+`ps` sees PID 1 as `codex` while `/proc/vmstat` reports host-wide swap; that
+process view cannot establish the protocol's no-competing-workload condition.
+The initial host namespace on `windchill3` is `pid:[4026531836]` with PID 1
+`systemd`; the runner and verifier now fail closed on a different namespace.
+Use a qualified host-execution context for the historical and candidate runs,
+and retain its process observations with the raw output. This does not relax
+the swap invalidator; the historical entry remains blocked while host swap
+activity continues.

@@ -136,7 +136,7 @@ impl ReplyState {
         true
     }
 
-    fn start(&self, now: Instant) -> bool {
+    fn start(&self) -> bool {
         #[cfg(test)]
         let pause = self.start_pause.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).take();
         #[cfg(test)]
@@ -146,6 +146,7 @@ impl ReplyState {
         }
         let started = {
             let mut value = self.value.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            let now = Instant::now();
             if !matches!(value.phase, ReplyPhase::Queued) {
                 false
             } else if now >= self.deadline {
@@ -485,7 +486,7 @@ fn worker_loop(shared: Arc<Shared>) {
                     break None;
                 }
                 if let Some(request) = state.waiting.pop_front() {
-                    if request.reply.start(Instant::now()) {
+                    if request.reply.start() {
                         state.active.push(Arc::clone(&request.reply));
                         break Some(request);
                     }

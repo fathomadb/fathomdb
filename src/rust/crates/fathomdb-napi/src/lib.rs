@@ -5037,6 +5037,25 @@ fn translate_admin_schema(item: &JsonValue) -> Result<PreparedWrite> {
 #[napi]
 impl Engine {
     #[napi]
+    pub fn requested_engine_config_for_test(&self) -> Result<EngineConfig> {
+        let engine = Arc::clone(&self.inner);
+        call_engine_sync(move || {
+            let requested = engine.config();
+            Ok(EngineConfig {
+                embedder_pool_size: requested.embedder_pool_size.map(|value| value as f64),
+                scheduler_runtime_threads: requested
+                    .scheduler_runtime_threads
+                    .map(|value| value as f64),
+                provenance_row_cap: requested.provenance_row_cap.map(|value| value as f64),
+                embedder_call_timeout_ms: requested
+                    .embedder_call_timeout_ms
+                    .map(|value| value as f64),
+                slow_threshold_ms: requested.slow_threshold_ms.map(|value| value as f64),
+            })
+        })
+    }
+
+    #[napi]
     pub async fn binding_connection_inventory_for_test(&self) -> Result<String> {
         let engine = Arc::clone(&self.inner);
         call_engine(move || engine.binding_connection_inventory_for_test()).await

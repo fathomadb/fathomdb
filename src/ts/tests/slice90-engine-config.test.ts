@@ -125,10 +125,7 @@ test("native configured open retains all five forwarded requested values", async
   };
   const engine = await native.Engine.open(freshDbPath(), { engineConfig: requested });
   try {
-    const inspect = engine as typeof engine & {
-      requestedEngineConfigForTest?: () => EngineConfig;
-    };
-    assert.deepEqual(inspect.requestedEngineConfigForTest?.(), requested);
+    assert.deepEqual(engine.requestedEngineConfigForTest?.(), requested);
   } finally {
     await engine.close();
   }

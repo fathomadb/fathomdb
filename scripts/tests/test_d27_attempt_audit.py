@@ -73,6 +73,14 @@ class AttemptAuditTests(unittest.TestCase):
                     runner.main()
                 run.assert_not_called()
 
+    def test_effective_procfs_overmount_restriction_is_observed(self):
+        mountinfo = (
+            "29 33 0:26 / /proc rw - proc proc rw\n"
+            "7061 6789 0:361 / /proc rw - proc proc rw,hidepid=2\n"
+        )
+        with mock.patch.object(runner.Path, "read_text", return_value=mountinfo):
+            self.assertEqual(runner.procfs_hidepid(), "2")
+
     def test_first_failed_repetition_is_persisted_before_validation_aborts(self):
         protocol = json.loads(runner.PROTOCOL.read_text())
         with tempfile.TemporaryDirectory() as directory:

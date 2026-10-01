@@ -21,6 +21,7 @@ PROTOCOL = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-
 WORKLOAD = ROOT / "scripts/d27_runtime_workload.rs"
 VERIFIER = ROOT / "scripts/d27-runtime-qualification.py"
 HOST_PID_NAMESPACE = "pid:[4026531836]"
+HOST_PID_ONE_COMM = "systemd"
 
 
 def sha256(path: Path) -> str:
@@ -125,6 +126,18 @@ def memory_gib() -> float:
     return int(match.group(1)) * 1024 / (1024**3)
 
 
+def procfs_hidepid() -> str:
+    """Report the effective /proc mount's process-visibility restriction."""
+    effective = None
+    for line in Path("/proc/self/mountinfo").read_text().splitlines():
+        mount, separator, filesystem = line.partition(" - ")
+        mount_fields = mount.split()
+        fs_fields = filesystem.split()
+        if separator and len(mount_fields) > 4 and mount_fields[4] == "/proc" and len(fs_fields) > 2 and fs_fields[0] == "proc":
+            effective = next((option.split("=", 1)[1] for option in fs_fields[2].split(",") if option.startswith("hidepid=")), "0")
+    return effective if effective is not None else "unavailable"
+
+
 def environment() -> dict:
     """Capture environmental invalidators adjacent to each repetition."""
     governor = Path("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor").read_text().strip()
@@ -133,14 +146,27 @@ def environment() -> dict:
     processes = command(["ps", "-eo", "pid=,comm="], capture_output=True).stdout.splitlines()
     device = command(["df", "-P", "/tmp"], capture_output=True).stdout.splitlines()[-1].split()[0]
     competing = []
+    ps_pid_one_comm = None
     for line in processes:
         pid, name = line.strip().split(maxsplit=1)
+        if int(pid) == 1:
+            ps_pid_one_comm = name
         if int(pid) != os.getpid() and re.search(r"^(cargo|rustc|pytest|maturin|ollama|vllm|postgres|sqlite3)$", name):
             competing.append({"pid": int(pid), "name": name})
+    try:
+        pid_one_namespace = os.readlink("/proc/1/ns/pid")
+        pid_one_comm = Path("/proc/1/comm").read_text().strip()
+    except OSError:
+        pid_one_namespace = None
+        pid_one_comm = None
     return {
         "cpu_governor": governor,
         "competing_processes": competing,
         "pid_namespace": os.readlink("/proc/self/ns/pid"),
+        "pid_one_namespace": pid_one_namespace,
+        "pid_one_comm": pid_one_comm,
+        "ps_pid_one_comm": ps_pid_one_comm,
+        "procfs_hidepid": procfs_hidepid(),
         "swap_pages_in": swap["pswpin"],
         "swap_pages_out": swap["pswpout"],
         "kernel": platform.release(),
@@ -167,6 +193,19 @@ def runner_inventory() -> dict:
     }
 
 
+def process_view_invalidators(observation: dict, label: str) -> list[str]:
+    """Require the host namespace and an unrestricted host /proc view."""
+    namespace = observation.get("pid_namespace")
+    reasons = []
+    if namespace != HOST_PID_NAMESPACE:
+        reasons.append(f"{label} pid namespace={namespace!r}; expected host {HOST_PID_NAMESPACE}")
+    observed = (observation.get("pid_one_namespace"), observation.get("pid_one_comm"), observation.get("ps_pid_one_comm"), observation.get("procfs_hidepid"))
+    expected = (HOST_PID_NAMESPACE, HOST_PID_ONE_COMM, HOST_PID_ONE_COMM, "0")
+    if observed != expected:
+        reasons.append(f"{label} process view={observed!r}; expected unrestricted host {expected!r}")
+    return reasons
+
+
 def environment_invalidators(raw: dict) -> list[str]:
     """Name each observed reason that makes a repetition non-comparable."""
     before = raw.get("environment_start", {})
@@ -177,9 +216,7 @@ def environment_invalidators(raw: dict) -> list[str]:
         reasons.append("environment samples missing")
         samples = []
     for label, observation in [("before", before), *[(f"sample[{index}]", sample) for index, sample in enumerate(samples)], ("after", after)]:
-        namespace = observation.get("pid_namespace")
-        if namespace != HOST_PID_NAMESPACE:
-            reasons.append(f"{label} pid namespace={namespace!r}; expected host {HOST_PID_NAMESPACE}")
+        reasons.extend(process_view_invalidators(observation, label))
         governor = observation.get("cpu_governor")
         if governor != "performance":
             reasons.append(f"{label} cpu governor={governor!r}; expected performance")
@@ -461,11 +498,11 @@ def main() -> int:
     source_sha = git_sha(source)
     if args.phase == "entry" and source_sha != protocol["entry_engine_candidate_sha"]:
         raise ValueError("wrong entry candidate")
-    if protocol["runner"]["host_pid_namespace"] != HOST_PID_NAMESPACE:
-        raise ValueError("D27 host pid namespace protocol mismatch")
+    if (protocol["runner"]["host_pid_namespace"], protocol["runner"]["host_pid_one_comm"]) != (HOST_PID_NAMESPACE, HOST_PID_ONE_COMM):
+        raise ValueError("D27 host process view protocol mismatch")
     initial_environment = environment()
-    if initial_environment["pid_namespace"] != HOST_PID_NAMESPACE:
-        raise ValueError(f"runner pid namespace={initial_environment['pid_namespace']!r}; expected host {HOST_PID_NAMESPACE}; run in host process namespace")
+    if reasons := process_view_invalidators(initial_environment, "runner"):
+        raise ValueError("; ".join(reasons) + "; run with unrestricted host /proc")
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=True)
     corpus = output / "corpus.jsonl"

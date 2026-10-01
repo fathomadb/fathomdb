@@ -13,14 +13,18 @@ if [[ "$actual_commit" != "$1" ]]; then
   echo "candidate checkout is $actual_commit, expected $1" >&2
   exit 1
 fi
-source_status="$(git -C "$repo_dir" status --porcelain -- src/python/fathomdb/engine.py src/rust/crates/fathomdb-py/src/lib.rs)"
-if [[ -n "$source_status" ]]; then
-  echo "candidate Python or PyO3 source is not committed" >&2
+checkout_status="$(git -C "$repo_dir" status --porcelain)"
+if [[ -n "$checkout_status" ]]; then
+  echo "checkout has uncommitted tracked files or untracked files" >&2
   exit 1
 fi
 
 proof_dir="$(mktemp -d /tmp/slice90-python-wheel.XXXXXX)"
 mkdir -p "$proof_dir/wheel"
+build_command="cd $repo_dir/src/python && maturin build --offline --interpreter python3 --out $proof_dir/wheel"
+test_command="cd $proof_dir && env -u PYTHONPATH $proof_dir/consumer/bin/python -I -m pytest -q $proof_dir/test_slice90_engine_config.py"
+rustc_version="$(rustc --version)"
+maturin_version="$(maturin --version)"
 (
   cd "$repo_dir/src/python"
   maturin build --offline --interpreter python3 --out "$proof_dir/wheel"
@@ -35,17 +39,23 @@ python3 -m venv --system-site-packages "$proof_dir/consumer"
 "$proof_dir/consumer/bin/python" -I -m pip install --no-index --no-deps "$wheel_path"
 cp "$repo_dir/src/python/tests/test_slice90_engine_config.py" "$proof_dir/test_slice90_engine_config.py"
 
-env -u PYTHONPATH "$proof_dir/consumer/bin/python" -I - "$repo_dir" "$wheel_path" "$proof_dir" "$actual_commit" <<'PY' | tee "$proof_dir/provenance.txt"
+env -u PYTHONPATH "$proof_dir/consumer/bin/python" -I - "$repo_dir" "$wheel_path" "$proof_dir" "$actual_commit" "$build_command" "$test_command" "$rustc_version" "$maturin_version" <<'PY' | tee "$proof_dir/provenance.txt"
 import hashlib
 import inspect
 import pathlib
+import platform
 import sys
+import tomllib
 import zipfile
 
 repo = pathlib.Path(sys.argv[1])
 wheel = pathlib.Path(sys.argv[2])
 proof = pathlib.Path(sys.argv[3])
 commit = sys.argv[4]
+build_command = sys.argv[5]
+test_command = sys.argv[6]
+rustc_version = sys.argv[7]
+maturin_version = sys.argv[8]
 import fathomdb
 import fathomdb._fathomdb as native
 from fathomdb import engine as wrapper
@@ -72,6 +82,20 @@ if "config" not in inspect.signature(native.Engine.open).parameters:
     raise SystemExit("native Engine.open lacks the configured-open parameter")
 
 print(f"candidate_commit={commit}")
+print("checkout_status=clean")
+print(f"platform={platform.system()}")
+print(f"architecture={platform.machine()}")
+print(f"platform_detail={platform.platform()}")
+print(f"python_executable={sys.executable}")
+print(f"python_runtime={sys.version.replace(chr(10), ' ')}")
+print(f"rustc_version={rustc_version}")
+print(f"maturin_version={maturin_version}")
+with (repo / "src/python/pyproject.toml").open("rb") as config_file:
+    features = tomllib.load(config_file)["tool"]["maturin"]["features"]
+print(f"build_features={','.join(features)}")
+print(f"build_command={build_command}")
+print(f"test_command={test_command}")
+print("test_plan=all cases in copied src/python/tests/test_slice90_engine_config.py against isolated installed wheel")
 print(f"wheel_path={wheel}")
 print(f"wheel_sha256={sha256(wheel.read_bytes())}")
 print(f"source_engine_sha256={sha256(source_engine)}")
@@ -88,4 +112,6 @@ PY
   env -u PYTHONPATH "$proof_dir/consumer/bin/python" -I -m pytest -q \
     "$proof_dir/test_slice90_engine_config.py" | tee "$proof_dir/pytest.txt"
 )
+test_result="$(tail -n 1 "$proof_dir/pytest.txt")"
+printf 'test_result=%s\n' "$test_result" | tee -a "$proof_dir/provenance.txt"
 echo "proof_dir=$proof_dir"

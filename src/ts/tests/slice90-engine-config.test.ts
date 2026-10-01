@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
 
 import { Engine, type EngineConfig } from "../src/index.js";
+import { native } from "../src/binding.js";
 import { freshDbPath } from "./helpers.js";
 
 const limits = [
@@ -73,4 +75,63 @@ test("configuration is per engine and the requested snapshot stays immutable", a
   } finally {
     await Promise.all([first.close(), second.close(), omitted.close()]);
   }
+});
+
+test("native configured open changes the owned projection worker inventory", async () => {
+  for (const count of [1, 4, 64]) {
+    const engine = await native.Engine.open(freshDbPath(), {
+      engineConfig: { schedulerRuntimeThreads: count, embedderPoolSize: count },
+    });
+    try {
+      const inventory = await engine.bindingConnectionInventoryForTest?.();
+      assert.match(inventory ?? "", new RegExp(`workers=${count}-autocommit`));
+      assert.match(inventory ?? "", new RegExp(`workers:${count},probes:0`));
+    } finally {
+      await engine.close();
+    }
+  }
+});
+
+test("native number boundary accepts safe integer caps and rejects invalid values", async () => {
+  const accepted = await native.Engine.open(freshDbPath(), {
+    engineConfig: {
+      provenanceRowCap: Number.MAX_SAFE_INTEGER,
+      slowThresholdMs: Number.MAX_SAFE_INTEGER,
+    },
+  });
+  await accepted.close();
+  for (const value of [Number.MAX_SAFE_INTEGER + 1, -1, 1.5, Infinity, true, "1"]) {
+    const path = freshDbPath();
+    await assert.rejects(Promise.resolve().then(() => native.Engine.open(path, {
+      engineConfig: { provenanceRowCap: value as number },
+    })));
+    assert.equal(existsSync(path), false);
+  }
+});
+
+test("provenance zero disables pruning while a positive cap consumes rows", async () => {
+  const counts: number[] = [];
+  for (const cap of [1, 0]) {
+    const path = freshDbPath();
+    const engine = await Engine.open(path, { engineConfig: { provenanceRowCap: cap } });
+    try {
+      await engine.write([{ adminSchema: { name: "config-retention", kind: "append_only_log",
+        schemaJson: '{"type":"object"}', retentionJson: "{}" } }]);
+      for (let index = 0; index < 30; index++) {
+        await engine.write([{ opStore: { collection: "config-retention",
+          recordKey: `record-${index}`, body: `{"value":${index}}` } }]);
+      }
+    } finally {
+      await engine.close();
+    }
+    const db = new DatabaseSync(path, { readOnly: true });
+    try {
+      counts.push((db.prepare("SELECT COUNT(*) AS count FROM operational_mutations").get() as
+        { count: number }).count);
+    } finally {
+      db.close();
+    }
+  }
+  assert.ok(counts[0] <= 2, `positive cap should prune: ${counts[0]}`);
+  assert.ok(counts[1] >= 30, `zero cap should retain: ${counts[1]}`);
 });

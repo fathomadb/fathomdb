@@ -7,6 +7,7 @@
     "host": "windchill3",
     "host_pid_namespace": "pid:[4026531836]",
     "host_pid_one_comm": "systemd",
+    "pid_one_namespace_link_policy": "the PID 1 namespace link may be blank when host procfs returns no target, but a nonblank link must match host_pid_namespace; self host namespace, PID 1 /proc and ps identity, and unrestricted procfs are all mandatory",
     "operating_system": "Linux x86_64",
     "minimum_online_cpus": 8,
     "minimum_memory_gib": 16,

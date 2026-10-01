@@ -133,8 +133,11 @@ The D27 runner must execute in the host PID namespace. In the default sandbox,
 `ps` sees PID 1 as `codex` while `/proc/vmstat` reports host-wide swap; that
 process view cannot establish the protocol's no-competing-workload condition.
 The initial host namespace on `windchill3` is `pid:[4026531836]` with PID 1
-`systemd`. Every sample now records both PID namespace identities, PID 1's
-`/proc` and `ps` names, and the effective procfs `hidepid` setting. The runner
+`systemd`. Every sample now records both PID namespace observations, PID 1's
+`/proc` and `ps` names, and the effective procfs `hidepid` setting. On this
+host `/proc/1/ns/pid` can return a blank target even when the runner itself
+is in the initial host namespace; blank is accepted only with the exact PID 1
+identity and unrestricted `ps`/procfs evidence. A nonblank mismatch is invalid. The runner
 and verifier fail closed if those observations do not establish an unrestricted
 host process view. Use a qualified host-execution context for historical and
 candidate runs, and retain its process observations with the raw output. This

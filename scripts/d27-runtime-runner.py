@@ -199,10 +199,11 @@ def process_view_invalidators(observation: dict, label: str) -> list[str]:
     reasons = []
     if namespace != HOST_PID_NAMESPACE:
         reasons.append(f"{label} pid namespace={namespace!r}; expected host {HOST_PID_NAMESPACE}")
-    observed = (observation.get("pid_one_namespace"), observation.get("pid_one_comm"), observation.get("ps_pid_one_comm"), observation.get("procfs_hidepid"))
-    expected = (HOST_PID_NAMESPACE, HOST_PID_ONE_COMM, HOST_PID_ONE_COMM, "0")
-    if observed != expected:
-        reasons.append(f"{label} process view={observed!r}; expected unrestricted host {expected!r}")
+    pid_one_namespace = observation.get("pid_one_namespace")
+    observed = (observation.get("pid_one_comm"), observation.get("ps_pid_one_comm"), observation.get("procfs_hidepid"))
+    expected = (HOST_PID_ONE_COMM, HOST_PID_ONE_COMM, "0")
+    if pid_one_namespace not in ("", HOST_PID_NAMESPACE) or observed != expected:
+        reasons.append(f"{label} process view={(pid_one_namespace, *observed)!r}; expected unrestricted host PID1 identity and {expected!r}")
     return reasons
 
 

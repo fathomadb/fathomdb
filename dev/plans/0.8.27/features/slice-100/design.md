@@ -100,15 +100,34 @@ precedence (including frozen authentication before dynamic controls) and prove
 invalid writes leave the real database unchanged.
 
 At this baseline `attach_logging_subscriber` accepts and discards its logger
-and heartbeat arguments. Do not claim callback delivery/lifetime coverage
-from that no-op. Before its batch, trace the current accepted observability
-contract and record an explicit disposition: prove an already accepted
-non-delivering contract, or complete a separately reviewed fix-to-contract or
-accepted successor and its implementation/tests within Slice 100. An old
-"later slice" comment, new deferral, or merely proposed ADR cannot close this
-entry. Any actual callback implementation needs ownership/reentrancy, logging
-failure, detach/reattach and shutdown-lifetime tests. This is a scoped contract
-reconciliation, not authorization for a general subscription redesign.
+and heartbeat arguments. This violates the delivery contract in the Python
+interface and bindings design; the existing surface test proves only call
+acceptance. A non-delivering interpretation cannot close this entry. Before
+extraction, deliver a separately tested fix to the accepted contract, or an
+accepted successor with its implementation and tests within Slice 100. An old
+"later slice" comment, new deferral, or merely proposed ADR cannot close it.
+
+The subscriber correction requires a code-grounded design review at the
+post-Slice-90 entry candidate before RED/GREEN. The present engine offers
+`Engine::subscribe` with a drop-detached `Subscription` and synchronous
+`Subscriber` callbacks, but it emits no `Heartbeat` events and its `Event`
+has no operation identity. The correction design must pin:
+
+- ownership of the Python logger and RAII subscription, replacement on a
+  second attachment, and close/drop detachment without use-after-free;
+- event/profile/slow-statement mapping to `logging.LogRecord` with the stable
+  `fathomdb` payload, Python attachment, callback error policy and reentrancy
+  that cannot hold engine registry locks across Python code;
+- the observed blocking operations and an operation-scoped heartbeat cadence,
+  or a reviewed engine event-identity/cadence change, including overlap,
+  terminal ordering, cancellation and shutdown; and
+- the meaning, default and validation of `heartbeat_interval_ms`, including
+  `None`, zero and overflow, plus deterministic delivery/lifetime tests.
+
+The correction cannot hide in a mechanical move. Any public event-shape or
+contract change needs an accepted ADR or interface/design update in the same
+change. This is scoped to the existing subscriber surface, not a general
+callback API.
 
 ## Artifacts and surface oracles
 
@@ -135,12 +154,14 @@ editable from the release worktree. Do not copy an ad-hoc `.so` into a package.
 
 Record candidate SHA, Rust/Python/maturin versions, target, features, wheel
 hash, native module provenance, commands/exits and test counts. Freeze the
-supported platform matrix from release/CI contracts at entry: abi3 floor and
-supported interpreter endpoints, Linux plus applicable Windows/macOS builds,
-default-embedder on/off, test-hooks, and supported CUDA/Metal/reranker routes
-separately. Do not use incompatible all-features builds or call an unavailable
-route a pass; required missing evidence blocks closeout. Reuse prior receipts
-only when candidate/source/artifact/feature identity genuinely matches.
+Slice 100 affected-route matrix from release/CI contracts at entry: abi3 floor,
+default-embedder on/off, test-hooks, applicable Windows/macOS compilation,
+and accelerator/reranker routes whose native code or cfg this slice changes.
+Build and install fresh wheels for the consumer paths exercised here. Slice
+150 owns the broader final-release platform matrix. Do not use incompatible
+all-features builds or call an unavailable affected route a pass; required
+missing evidence blocks closeout. Reuse prior receipts only when
+candidate/source/artifact/feature identity genuinely matches.
 
 ## Batches and exit
 

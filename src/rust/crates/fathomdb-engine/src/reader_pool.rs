@@ -917,6 +917,10 @@ fn read_cache_status(
 }
 
 impl ReaderWorkerPool {
+    #[cfg(test)]
+    pub(crate) fn shutdown_started_for_test(&self) -> bool {
+        self.shutdown.load(Ordering::SeqCst)
+    }
     pub(crate) fn new(
         connections: Vec<Connection>,
         wal_attribution: Arc<WalAttributionCollector>,

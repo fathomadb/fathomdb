@@ -34,6 +34,10 @@ class AttemptAuditTests(unittest.TestCase):
             ("swap_pages_in", 1, "swap_pages_in"),
             ("swap_pages_out", 1, "swap_pages_out"),
             ("pid_namespace", "pid:[4026534361]", "pid namespace"),
+            ("pid_one_namespace", "pid:[4026534361]", "process view"),
+            ("pid_one_comm", "codex", "process view"),
+            ("ps_pid_one_comm", None, "process view"),
+            ("procfs_hidepid", "2", "process view"),
         )
         for key, value, expected in cases:
             raw = copy.deepcopy(self.raw)
@@ -52,6 +56,20 @@ class AttemptAuditTests(unittest.TestCase):
             argv = ["d27-runtime-runner.py", "--source", directory, "--phase", "entry", "--output-dir", directory]
             with mock.patch.object(sys, "argv", argv), mock.patch.object(runner, "git_sha", return_value=protocol["entry_engine_candidate_sha"]), mock.patch.object(runner, "build_binary", return_value=binary), mock.patch.object(runner, "environment", return_value=snapshot), mock.patch.object(runner, "run_repetition") as run:
                 with self.assertRaisesRegex(ValueError, "pid namespace"):
+                    runner.main()
+                run.assert_not_called()
+
+    def test_host_namespace_with_restricted_procfs_cannot_start(self):
+        protocol = json.loads(runner.PROTOCOL.read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            binary = output / "binary"
+            binary.write_bytes(b"test binary")
+            snapshot = copy.deepcopy(self.raw["environment_start"])
+            snapshot["ps_pid_one_comm"] = None
+            argv = ["d27-runtime-runner.py", "--source", directory, "--phase", "entry", "--output-dir", directory]
+            with mock.patch.object(sys, "argv", argv), mock.patch.object(runner, "git_sha", return_value=protocol["entry_engine_candidate_sha"]), mock.patch.object(runner, "build_binary", return_value=binary), mock.patch.object(runner, "environment", return_value=snapshot), mock.patch.object(runner, "run_repetition") as run:
+                with self.assertRaisesRegex(ValueError, "process view"):
                     runner.main()
                 run.assert_not_called()
 

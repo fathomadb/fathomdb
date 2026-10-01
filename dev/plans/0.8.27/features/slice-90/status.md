@@ -67,6 +67,21 @@ and `25a63acedb087045e08f072f94b57aee96f8e49cdacf5518fcd8376d10120888`.
 This proves exact-source execution of the current harness, not a qualifying
 historical entry.
 
+HITL then ruled that the six-day sleeping pytest observation invalidated that
+attempt and asked for a fresh strict run. After explicit authorization, the
+identified stuck memex pytest process and ten additional memex pytest processes
+whose identities and unchanged CPU times were verified were stopped with
+SIGTERM. The fresh unchanged-protocol run against `7a2f9bf9` completed its
+first 91.57-second repetition with no competing process at start or end, but
+`pswpin` rose from 597770 to 597778 and `pswpout` from 2924726 to 2924742.
+The strict runner exited 1 with `INVALID_ENVIRONMENT` for swap movement only.
+Its attempt, raw, and invalidation files under
+`/tmp/fathomdb-s90-d27-currenthost-fresh` have SHA-256 values
+`674b5386b39a3a9862b8880ffaf06befae8cf6ab6f915d1fa6c03e81294ad13c`,
+`06249c5ba7510cd5fb3bf9fe40705a04b5cfdf04851c239656d38306f4f8dfd4`,
+and `8f89eec40d20792894d3464fb10678c3f43d756505a6fbbaf185db966cff6f12`.
+It is not a valid D27 baseline; the swap policy remains unsettled.
+
 The local NVIDIA kernel module is 580.173.02 while NVML is 580.178.04.
 Per HITL `seq-296`, this mismatch cannot be resolved for Slice 90: proceed
 with needed GPU tests on windchill3 as installed and record their outcomes.

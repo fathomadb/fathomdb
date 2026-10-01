@@ -30,7 +30,7 @@ def synthetic_raw(direction, repetition):
     cursor = 10_001
     for name, count in (("canonical_write", ratio["canonical_writes"]), ("foreground_hybrid_query", ratio["foreground_hybrid_queries"]), ("direct_embed", ratio["direct_embeds"])):
         for _ in range(count):
-            record = {"class": name, "admitted_ns": 1_000_000, "completed_ns": 2_000_000, "outcome": "completed", "cursor": cursor if name == "canonical_write" else None}
+            record = {"class": name, "sequence": len(operations), "admitted_ns": 1_000_000, "completed_ns": 2_000_000, "outcome": "completed", "cursor": cursor if name == "canonical_write" else None}
             operations.append(record)
             if name == "canonical_write":
                 projection.append({"cursor": cursor, "committed_ns": 2_000_000, "observed_ns": 3_000_000})
@@ -47,6 +47,7 @@ def synthetic_raw(direction, repetition):
         "environment_valid": True,
         "environment_start": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1"},
         "environment_end": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1"},
+        "environment_samples": [],
     }
 
 
@@ -86,6 +87,43 @@ class RawLinkageTests(unittest.TestCase):
         self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
         with self.assertRaisesRegex(ValueError, "environment"):
             verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
+
+    def test_middle_of_repetition_competing_workload_is_rejected(self):
+        changed = copy.deepcopy(self.raw)
+        sample = copy.deepcopy(changed[0]["environment_start"])
+        sample["competing_processes"] = [{"pid": 123, "name": "cargo"}]
+        changed[0]["environment_samples"] = [sample]
+        self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
+        with self.assertRaisesRegex(ValueError, "environment"):
+            verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
+
+    def test_each_epoch_is_checked_from_sequence_numbers(self):
+        changed = copy.deepcopy(self.raw)
+        changed[0]["operations"][1]["sequence"] = 10
+        self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
+        with self.assertRaisesRegex(ValueError, "epoch"):
+            verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
+
+    def test_projection_throughput_stops_at_admission_boundary(self):
+        raw = copy.deepcopy(self.raw[0])
+        raw["projection_completions"][0]["observed_ns"] = 61_000_000_000
+        summary = runner.summarize_raw(raw, "entry")
+        self.assertEqual(summary["throughput"]["projection_completions"], 3 / 60)
+        self.assertEqual(len(raw["projection_completions"]), 4)
+
+    def test_any_pending_work_without_progress_fails_starvation_window(self):
+        raw = {"measurement_elapsed_ns": 10_000_000_000, "operations": [{"class": "canonical_write", "admitted_ns": 1_000_000_000, "completed_ns": 6_000_000_000}], "projection_completions": []}
+        self.assertFalse(runner.starvation_from_raw(raw))
+
+    def test_candidate_requires_observed_configuration_and_entry_artifacts(self):
+        raw = copy.deepcopy(self.raw[0])
+        with self.assertRaisesRegex(ValueError, "configuration observation"):
+            runner.summarize_raw(raw, "candidate")
+        with self.assertRaisesRegex(ValueError, "entry artifacts"):
+            verifier.validate_entry_for_candidate({"phase": "entry", "status": "PASS"}, PROTOCOL, ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json", None)
+
+    def test_protocol_declares_historical_sqlite_inventory_unavailable(self):
+        self.assertIn("sqlite_connections", PROTOCOL["metrics"]["historical_unavailable"])
 
 
 if __name__ == "__main__":

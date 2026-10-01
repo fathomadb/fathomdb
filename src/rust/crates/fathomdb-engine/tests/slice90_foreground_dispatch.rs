@@ -246,7 +246,7 @@ fn ordinary_search_uses_sparse_fallback_after_started_provider_timeout() {
 }
 
 #[test]
-fn ordinary_and_frozen_search_keep_sparse_fallback_on_provider_error_or_panic() {
+fn ordinary_and_frozen_search_keep_sparse_fallback_on_provider_error() {
     let directory = tempfile::tempdir().expect("test directory");
     let database = directory.path().join("search-failure.sqlite");
     let engine = Engine::open_with_choice_and_config(
@@ -259,26 +259,66 @@ fn ordinary_and_frozen_search_keep_sparse_fallback_on_provider_error_or_panic() 
     engine.configure_vector_kind_for_test("note").expect("vector kind");
     let errored =
         engine.write(&[document("provider error appears here")]).expect("write error row");
-    let panicked =
-        engine.write(&[document("provider panic appears here")]).expect("write panic row");
     engine.drain(2_000).expect("project rows");
     let context =
         ReadContextV1::new(ReadView::default(), SearchFilter::default()).expect("context");
     let frozen = engine.freeze_read_context(&context).expect("freeze");
 
-    for (query, expected) in
-        [("provider error", errored.cursor), ("provider panic", panicked.cursor)]
-    {
-        let ordinary = engine.search(query).expect("ordinary sparse fallback");
-        assert!(ordinary.results.iter().any(|hit| hit.write_cursor == expected));
-        let reader = engine
-            .search_frozen(query, &frozen, 0, false, 0.3, 0, false, 10)
-            .expect("frozen sparse fallback");
-        assert!(reader.results.iter().any(|hit| hit.write_cursor == expected));
-    }
+    let ordinary = engine.search("provider error").expect("ordinary sparse fallback");
+    assert!(ordinary.results.iter().any(|hit| hit.write_cursor == errored.cursor));
+    let reader = engine
+        .search_frozen("provider error", &frozen, 0, false, 0.3, 0, false, 10)
+        .expect("frozen sparse fallback");
+    assert!(reader.results.iter().any(|hit| hit.write_cursor == errored.cursor));
     assert_eq!(
         engine.embed_text("healthy after search failure").expect("worker reused"),
         vec![1.0; 8]
+    );
+    engine.close().expect("close");
+}
+
+#[test]
+fn ordinary_search_provider_panic_reaches_caller_boundary() {
+    let directory = tempfile::tempdir().expect("test directory");
+    let database = directory.path().join("ordinary-panic.sqlite");
+    let engine = Engine::open_with_choice_and_config(
+        database,
+        EmbedderChoice::Caller(Arc::new(FallibleEmbedder)),
+        EngineConfig::default(),
+    )
+    .expect("open")
+    .engine;
+    engine.configure_vector_kind_for_test("note").expect("vector kind");
+    engine.write(&[document("provider panic appears here")]).expect("write sparse row");
+    engine.drain(2_000).expect("project row");
+    let outcome = catch_unwind(AssertUnwindSafe(|| engine.search("provider panic")));
+    assert!(outcome.is_err(), "timely panic must cross the ordinary caller boundary");
+    engine.close().expect("close");
+}
+
+#[test]
+fn frozen_search_provider_panic_unwinds_reader_owner_boundary() {
+    let directory = tempfile::tempdir().expect("test directory");
+    let database = directory.path().join("frozen-panic.sqlite");
+    let engine = Engine::open_with_choice_and_config(
+        database,
+        EmbedderChoice::Caller(Arc::new(FallibleEmbedder)),
+        EngineConfig::default(),
+    )
+    .expect("open")
+    .engine;
+    engine.configure_vector_kind_for_test("note").expect("vector kind");
+    engine.write(&[document("provider panic appears here")]).expect("write sparse row");
+    engine.drain(2_000).expect("project row");
+    let context =
+        ReadContextV1::new(ReadView::default(), SearchFilter::default()).expect("context");
+    let frozen = engine.freeze_read_context(&context).expect("freeze");
+    assert!(
+        matches!(
+            engine.search_frozen("provider panic", &frozen, 0, false, 0.3, 0, false, 10),
+            Err(EngineError::Storage)
+        ),
+        "reader-owner panic must disconnect its response rather than return sparse results"
     );
     engine.close().expect("close");
 }

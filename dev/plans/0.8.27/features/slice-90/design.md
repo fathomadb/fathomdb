@@ -6,9 +6,13 @@ target_release: 0.8.27
 
 # Slice 90 runtime and root closure design
 
-This is prospective design, not implementation authority or a verification
-receipt. Slice 85 is complete at `7a2f9bf9` with closeout `8cd3389d`; Slice 90
-remains uncommissioned. This record and the master plan own the complete Slice
+This is prospective design, not a verification receipt. Release state binds
+Slice 85 at `7a2f9bf9` with closeout `8cd3389d`, but the current
+`release/0.8.27` source at `e689000d4` also contains the later Slice 85
+recovery commits through `294af94b5`. Recovery qualification and release-state
+rebinding remain open. Slice 90's source inventory uses the current source;
+`7a2f9bf9` remains the distinct historical D27 performance reference. This
+record and the master plan own the complete Slice
 90 obligation. Slice 100
 cannot start with any requirement below incomplete. No Slice 91 is allocated:
 runtime implementation and verification can precede structural moves inside
@@ -19,9 +23,11 @@ implementation and verification; neither ruling commissions production work.
 
 ## Evidence and scope
 
-Reviewed baseline: `ab8f43be2c9ceaa9ad19b23b23f40e9d2c484513` (the substrate
-table below is bound to the same commit; engine source is identical to the
-earlier `459d528f` review base). The current
+Historical design review baseline: `ab8f43be2c9ceaa9ad19b23b23f40e9d2c484513`
+(the substrate table below is bound to the same commit; engine source is
+identical to the earlier `459d528f` review base). The operational Slice 90
+entry inventory must instead use current release source at `e689000d4` or
+its direct descendant before the first production edit. The current
 engine root still owns open/admission, runtime configuration, connection
 helpers, WAL and operator facades, index projectors, runtime carriers, and
 test seams. `projection_runtime.rs` owns the shared runtime allocation and
@@ -137,8 +143,8 @@ the respective limit/off/off/off defaults, atomic orderings, and exact test
 seams. Any future change of this disposition needs a reviewed plan amendment,
 not a pending decision left at Slice 90 closeout.
 
-Before the first production edit, derive an exact inventory at the Slice 85
-exit SHA of every root item, Engine method/field, relevant runtime constant,
+Before the first production edit, derive an exact inventory at the current
+release-source SHA of every root item, Engine method/field, relevant runtime constant,
 and named handoff item. Confirm each final owner above or already settled
 Slice 85 ownership; inventory is not authority to assign a different owner.
 Any newly discovered unallocated item blocks movement until a prospective
@@ -317,6 +323,17 @@ separate outcome transported to existing caller panic boundaries; they neither
 become retryable embed errors nor silently trigger sparse fallback. Late
 panics are discarded and fixed dispatch workers remain reusable.
 
+For direct `Engine::embed_text`, map admission full and queued expiration to
+`EngineError::Overloaded` (`OverloadedError` in Python and TypeScript), because
+the provider has not started. Map a started provider timeout or provider error
+to `EngineError::Embedder` (`EmbedderError` in both bindings). Map close
+cancellation to `EngineError::Closing` (`ClosingError` in both bindings).
+Successful completion or a provider error that wins the request-state race
+before close retains its result; close wins only while the request is pending.
+The configured-embedder check and existing validation errors keep their
+earlier precedence. Timely panics use the existing panic boundary rather than
+any of these error variants.
+
 Shutdown is explicitly two-phase. Database quiescence first stops new
 public and embed admission, cancels queued/running-result waiters, wakes
 projection retry/capacity waits, safely drains active database work and
@@ -475,6 +492,12 @@ warm-up, duration, repetitions, starvation window, metrics, environment
 invalidators and median/MAD comparison formula before runtime behavior changes.
 The entry run records the generated corpus and raw-output hashes; checkpoint
 and final runs must match the protocol and corpus hashes exactly.
+The historical entry has no embed-dispatch queue or fixed embed-worker set.
+Only operation throughput and latency measured by both versions enter the
+entry-versus-candidate median/MAD comparison. Dispatch queue, deadline,
+capacity, resource and cleanup metrics are mandatory candidate-only
+correctness evidence; the entry receipt marks them unavailable rather than
+fabricating zeros or failing for their historical absence.
 
 Add a D27-specific mixed workload with concurrent canonical writes, dense
 projection, foreground hybrid queries and direct embeds. Run both contention
@@ -494,7 +517,10 @@ it against engine candidate `7a2f9bf90783f545603516502bac0016d4b93a14` in
 an exact-source checkout. Bind the harness, protocol, binary, corpus, raw output
 and environment hashes in the entry receipt. A harness that cannot execute on
 that source blocks runtime implementation rather than falling back to a
-post-change baseline.
+post-change baseline. Separately inventory and characterize the recovered
+Slice 85 source in the current release branch; the historical performance
+reference is not its ownership or scanner baseline. Missing recovery
+qualification cannot be described as a Slice 90 entry PASS.
 
 The durable qualification receipt names the exact stage-2 candidate, optimized
 build and features, hardware/software, dataset/workload, warm-up, repetitions,

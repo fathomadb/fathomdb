@@ -10,12 +10,13 @@ This document translates the accepted Slice 90 design and
 `ADR-0.8.27-engine-owned-runtime-topology.md` into an implementation sequence.
 It is a planning artifact only: no production change is implemented here.
 
-The plan was derived from the current Slice 90 worktree at
-`b4e90afe7292fccbbe41fb98e6ba95c3fbcf00bd`. The immutable runtime entry
-measurement remains bound to `7a2f9bf90783f545603516502bac0016d4b93a14`, as
-required by the design. Existing uncommitted Slice 90 planning, gate, and
-qualification corrections are inputs to this plan and are not reclassified as
-runtime implementation.
+The draft was derived at `b4e90afe7292fccbbe41fb98e6ba95c3fbcf00bd`.
+Current release source at `e689000d4` includes later Slice 85 recovery code
+through `294af94b5`; its exact owner and scanner inventory is the operational
+Slice 90 entry. The immutable D27 performance reference remains historical
+`7a2f9bf90783f545603516502bac0016d4b93a14`. Recovery qualification is
+still open and cannot be inferred from source ancestry. The reconciled
+[Slice 90 plan](plan.md) enumerates changes since this draft.
 
 ## Outcome and boundaries
 
@@ -66,7 +67,7 @@ new abstraction hierarchy.
 | Structural ownership | The engine root still owns open, runtime configuration, connections, lifecycle, WAL, operator, projectors, and many domain carriers | Move bodies to the exact owners in the Slice 90 design; retain root paths through re-exports where public contracts require them. |
 
 The first implementation batch must expand this table into a machine-readable
-or otherwise mechanically checked symbol inventory at the Slice 85 exit. It
+or otherwise mechanically checked symbol inventory at current release source. It
 must cover every root item, `Engine` method and field, cfg-gated twin, static,
 runtime constant, test carrier, caller, and approved destination. An item not
 allocated by the accepted design stops the move and requires a design amendment;
@@ -76,8 +77,9 @@ it is not assigned opportunistically during extraction.
 
 ### 1.1 Complete the source and scanner inventories
 
-- Capture public, hidden, test, feature, and qualified-test surfaces before
-  semantic edits.
+- Capture public, hidden, test, feature, and qualified-test surfaces of current
+  release source before semantic edits, identifying missing Slice 85 recovery
+  qualification without substituting the historical candidate's receipts.
 - Record exact call sites for every production `Embedder::embed` and
   `embed_batch`. The current list includes projection batch/per-job work,
   ordinary and frozen search, `Engine::embed_text`, and vector-equivalence
@@ -105,7 +107,9 @@ fails.
   operation ratios, warm-up, duration, repetitions, environment invalidators,
   metrics, and median/MAD rule.
 - Run it in an exact-source checkout of `7a2f9bf9` and retain hashes for the
-  protocol, runner, binary, corpus, environment, and raw output.
+  protocol, runner, binary, corpus, environment, and raw output. Historical
+  dispatch-only metrics are explicitly unavailable; compare only shared
+  operation metrics and require dispatch/resource correctness at the candidate.
 - Treat inability to execute this entry measurement as a blocker. Do not use a
   post-change measurement as the baseline.
 
@@ -284,9 +288,12 @@ Required translations:
   failure;
 - frozen search keeps its existing reader transaction while waiting and while
   producing sparse fallback; it must not reacquire a newer snapshot;
-- direct `embed_text` maps saturation to `EngineError::Overloaded`, close to
-  `EngineError::Closing`, and a started provider failure to
-  `EngineError::Embedder`;
+- direct `embed_text` maps queue full and queued expiry to
+  `EngineError::Overloaded`, close cancellation to `EngineError::Closing`, and
+  started provider failure or timeout to `EngineError::Embedder`; the bindings
+  retain the corresponding `OverloadedError`, `ClosingError` and
+  `EmbedderError` classes. A completion that linearizes before close retains
+  its result; close wins only while pending;
 - vector-equivalence failure or timeout retains degraded-open behavior and
   existing baseline/cache mutation rules.
 

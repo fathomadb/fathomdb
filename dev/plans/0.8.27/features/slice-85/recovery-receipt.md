@@ -25,9 +25,10 @@ qualified implementer head `3f6ecb7e1` exactly. The clean temporary implementer
 worktree was removed after integration; its branch and receipts are retained.
 
 Release authority remains unchanged: Slice 85's bound candidate is
-`7a2f9bf90783f545603516502bac0016d4b93a14`. Recovery has not landed, rebound
-release state, pushed, tagged, or published. Historical evidence qualifies its
-recorded candidates, not recovery HEAD.
+`7a2f9bf90783f545603516502bac0016d4b93a14`. Recovery commits are now
+ancestors of `release/0.8.27`, but release state has not been rebound, pushed,
+tagged, or published. Historical evidence qualifies its recorded candidates,
+not the recovered source.
 
 ## Removal result
 
@@ -186,8 +187,10 @@ Candidate-bound native receipt:
 
 Exact-source official public capture exited 2 before producing an inventory:
 `surface-comparator: cache/scratch filesystem requires at least 100000000000 free bytes`.
-This host cannot satisfy its 100 GB floor. Evidence is
-`/tmp/fathomdb-s85-recovery-public-capture.log`.
+At that attempt the host did not satisfy the 100 GB floor. Evidence is
+`/tmp/fathomdb-s85-recovery-public-capture.log`. On 2026-09-30 the current
+release worktree had 127 GB available; the public capture is now runnable but
+has not been repeated, so no comparison PASS is claimed.
 
 Official hidden capture also exited 2 without an inventory. Its unchanged CUDA
 preflight was repeated unconfined to distinguish sandbox restrictions from host
@@ -206,4 +209,5 @@ Implementation is complete and reviewed; acceptance remains blocked on these
 named captures/comparisons and applicable moved GPU-route evidence on a capable
 executor. The original combined-run failure and two skipped suites remain
 explicit above. Release authority stays unchanged; recovery is not declared
-settled for Slice 90, and no landing, rebinding or publication occurred.
+settled for Slice 90. Source ancestry does not supply missing qualification or
+release-state rebinding.

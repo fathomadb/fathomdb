@@ -11,9 +11,11 @@ translates the accepted Slice 90 design and runtime ADR into new tests, planned
 oracle changes, fixtures, qualification runs, and structural regression gates.
 It does not implement or edit tests.
 
-The plan was prepared against the Slice 90 worktree at
-`b4e90afe7292fccbbe41fb98e6ba95c3fbcf00bd`. Entry performance evidence remains
+The draft was prepared at `b4e90afe7292fccbbe41fb98e6ba95c3fbcf00bd`.
+The operational source entry is current `release/0.8.27` at `e689000d4`,
+including Slice 85 recovery code. Historical D27 performance evidence remains
 bound to exact engine candidate `7a2f9bf90783f545603516502bac0016d4b93a14`.
+The reconciled [Slice 90 plan](plan.md) distinguishes these baselines.
 
 ## Test strategy
 
@@ -109,7 +111,9 @@ Before semantic runtime edits:
 - Add a positive fixture with a complete synthetic receipt so the verifier does
   not pass only by rejecting malformed inputs.
 - Run the measurement-only harness against `7a2f9bf9` and bind protocol, runner,
-  corpus, binary, environment, and raw-output hashes.
+  corpus, binary, environment, and raw-output hashes. Historical dispatch-only
+  queue and fixed-worker metrics are unavailable, never fabricated as zero;
+  candidate dispatch/resource metrics remain mandatory correctness evidence.
 - Preserve raw measurements. A summarized PASS without reproducible or retained
   raw output is not an entry oracle.
 
@@ -292,8 +296,12 @@ more than the configured pool.
 
 For `Engine::embed_text`, test success, overload, queued expiry, started
 provider error, started timeout, panic, close cancellation, and recovery. Assert
-the exact public mappings: overload, closing, and embedder error remain
-distinguishable.
+the exact public mappings: queue full and queued expiry produce
+`EngineError::Overloaded`/binding `OverloadedError`; started provider error and
+timeout produce `EngineError::Embedder`/binding `EmbedderError`; close while
+pending produces `EngineError::Closing`/binding `ClosingError`. A result
+linearized before close remains that result, and configured-embedder/refusal
+validation retains its earlier precedence.
 
 ### Ordinary and frozen hybrid search
 
@@ -484,8 +492,9 @@ owners and strengthen structural guards before changing their inputs.
 
 - Run each existing domain's focused tests immediately after its types/helpers
   move.
-- Update the Slice 85 boundary classification and add a negative fixture for
-  every newly declared module edge.
+- Update the recovered Slice 85 boundary classification. Add negative fixtures
+  for each distinct enforced boundary rule or new forbidden return path;
+  do not rebuild a frozen edge census.
 - Retarget C1, Slice 35 mutation coverage, `slice60_fix1_wire`, hidden/public
   surface, removal detection, plan anchors, and any root-specific scanner.
 - Require a mutant proving each retargeted scanner still detects the behavior

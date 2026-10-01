@@ -14,15 +14,19 @@ qualification_status: BLOCKED
 # Slice 85 recovery status
 
 The owner authorized bounded recovery under the repository-root
-`plan-slice-85-recovery.md`. The unlanded recovery branch preserves engine
+`plan-slice-85-recovery.md`. The recovery commits are ancestors of the current
+`release/0.8.27` branch, while release state still binds the earlier reviewed
+candidate. The recovery work preserves engine
 ownership, narrow errors and removal of the four inherited cycles, while
 retiring the gate's inventories, general resolver and excessive mutation work.
 
 Current work and qualification live once in [recovery-receipt.md](recovery-receipt.md).
 Phase A and Phase B are integrated. The bounded independent review is closed;
 source checks are recorded against `294af94b5`. Official public/hidden capture
-and GPU evidence remain blocked by host disk capacity and NVML mismatch.
-No release-state binding or generated release view is changed by recovery.
+and GPU evidence remain outstanding. The public capture was blocked by disk
+capacity at its recorded attempt; current free space clears that preflight.
+The hidden capture and GPU routes remain blocked by the NVML mismatch.
+No release-state binding or generated release view was changed by recovery.
 
 ## Retained engine deliverable
 
@@ -51,6 +55,6 @@ the full pre-recovery status and chronology remain at `df1ffd000` in Git.
 The eight review cycles and interrupted tail did not advance release authority.
 Their counts and old surface/native receipts do not qualify the recovery head.
 
-Implementation completion, evidence limitations and landing readiness must be
-read from the recovery receipt. Landing/rebinding requires a separate owner
-instruction; no recovery status declares Slice 90's prerequisites settled.
+Implementation completion and evidence limitations must be read from the
+recovery receipt. Rebinding requires a separate owner instruction and missing
+qualification; ancestry alone does not qualify the recovery for Slice 90.

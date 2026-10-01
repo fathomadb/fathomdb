@@ -1,0 +1,125 @@
+---
+title: FathomDB 0.8.27 Slice 90 — reconciled execution plan
+status: PLANNED
+target_release: 0.8.27
+---
+
+# Slice 90 reconciled execution plan
+
+This plan approves the bounded runtime and root-closure scope in the accepted
+[design](design.md) and [runtime ADR](../../../../adr/ADR-0.8.27-engine-owned-runtime-topology.md),
+subject to the entry evidence below. The [code](slice-90-code-change-plan.md)
+and [test](slice-90-test-change-plan.md) change plans specify the RED/GREEN
+batches. Slice 90 is incomplete until all R27-90A–K and its candidate-bound
+runtime checkpoint pass. No publication is part of this slice.
+
+## Changes since the draft was written
+
+The code and test drafts were prepared at `b4e90afe7` and finalized at
+`38e375226`. I compared those commits with `release/0.8.27` at `e689000d4`,
+the release-state ladder, Slice 85 recovery records, current engine and
+binding source, and the allocated Slice 100 pre-entry plan.
+
+1. **Slice 85 source advanced.** Recovery commits through `294af94b5` are
+   ancestors of the current release branch, although Slice 85 status described
+   them as unlanded. They reduce the module-boundary gate, replace its frozen
+   edge census with a bounded explicit-path contract, adjust Engine/read/graph
+   test seams, and add callback and filter-error coverage. The Slice 90 owner
+   and scanner inventory must start from current source, not historical
+   `7a2f9bf9`. Recovery records are corrected for ancestry, but no missing
+   qualification is called a PASS.
+2. **Release authority did not advance with source.** Release state still binds
+   Slice 85 to `7a2f9bf9`; the recovery receipt lacks official public/hidden
+   comparison and moved GPU-route evidence. The current host reports 127 GB
+   free, enough for the public comparator's 100 GB preflight, but `nvidia-smi`
+   exits 9, so GPU-dependent evidence needs a capable executor. Source ancestry
+   cannot replace the missing receipts or silently rebind release state.
+3. **The D27 historical entry cannot report new executor metrics.** The frozen
+   protocol asked the old source for an embed queue and fixed embed-worker
+   inventory it does not have. The protocol now compares only shared operation
+   throughput and latency; candidate-only queue, deadline, bound, resource and
+   cleanup metrics remain mandatory. Historical absence is recorded as
+   unavailable, never zero. The historical `7a2f9bf9` entry SHA and the
+   median/MAD comparison formula remain unchanged.
+4. **Direct-call outcomes needed a decision.** The draft named saturation,
+   started failure and close but omitted queued expiration and started timeout
+   mappings. The design now maps queue full/queued expiration to `Overloaded`,
+   started error/timeout to `Embedder`, and pending close cancellation to
+   `Closing`, with request-state completion precedence. RED tests pin each.
+5. **Related allocations remain distinct.** Slice 85 owns its recovery
+   qualification and boundary policy. Slice 90 owns engine open/configuration,
+   two executors, all production inference routes, shutdown, WAL/operator/
+   projector/root closure and the installed binding config seam. Slice 100's
+   new pre-entry plan remains blocked on Slice 90 and owns PyO3 decomposition;
+   Slice 110 owns NAPI decomposition. Slices 114/115/135 may characterize an
+   already qualified runtime; Slice 150 owns final AC-037. No draft item is
+   promoted into Slice 90 merely because it appears nearby.
+6. **Tooling changed.** The release preflight now finds its own directory
+   before switching checkouts. It passes `--expect-closed 85` on current
+   release state. The checkpoint checker already exists; it must bind the
+   exact runtime candidate before structural moves.
+
+## Evaluation and scope decision
+
+Keep the accepted five-setting behavior, engine-owned bounded executors,
+universal production inference dispatch, operation-specific outcomes, safe
+shutdown and complete named root ownership. These are approved by the runtime
+ADR and cannot be reduced to forwarding or a partial extraction. Keep the
+stage-2 checkpoint before structural moves, with exact candidate review and
+verification. Amend the draft's stale source baseline, impossible historical
+metrics and incomplete direct-call mapping as above. Apply the recovered gate
+as it exists; do not recreate its retired edge census. Use focused affected
+tests and boundary/surface checks per move; reserve expensive official capture,
+installed artifacts and full qualification for the checkpoint and final
+candidate. The suggested batch sizes are review aids, not a fixed commit count.
+
+## Requirements and acceptance
+
+The design's R27-90A–K and AC27-90A–K remain the complete acceptance set.
+The corrections make these parts falsifiable:
+
+- **Entry and ownership (A, C, E, F, H):** enumerate every current release
+  root item, field, method, cfg arm and named handoff; assign its reviewed owner
+  or exact retained-root reason. Record the inherited recovery delta and run
+  the reduced boundary gate on each relevant move. A historical inventory or
+  an unclassified residual fails.
+- **Runtime (B, D, J):** all five settings have effective Rust and installed
+  Python/Node behavior; production embed calls use the engine dispatcher;
+  queue full/expiry, started failure/timeout, panic and close yield their
+  specified outcomes. RED tests precede each change, including the batch
+  fallback deadlock and restoration mutant. No database mock stands in for
+  projection, read, WAL or shutdown tests.
+- **Qualification (G, I, K):** the historical performance entry records only
+  comparable metrics; the corrected candidate supplies all new dispatch and
+  resource evidence. The exact stage-2 checkpoint has PASS performance, Sol
+  code review and independent verification receipts before the first
+  structural commit. Final candidate repeats affected default performance,
+  installed-surface and resource checks. Recovery qualification gaps remain
+  visible until measured; an unavailable GPU or official capture cannot be
+  recorded as PASS.
+
+## Execution and reviews
+
+1. Freeze current-source owner/scanner inventories and historical D27 entry
+   evidence in separate worktrees. Reconcile the inherited Slice 85 recovery
+   evidence. Review the measurement-only runner before any semantic edit.
+2. Follow code-plan batches 2a–2l. For each behavior change, stage a failing
+   test, record RED, implement the narrow GREEN fix, then run affected tests
+   and lint. Keep the test oracle fixed during its corresponding fix. Establish
+   the exact runtime checkpoint and obtain independent `gpt-6-sol` high code
+   review plus independent verification before moving bodies.
+3. Follow the design's owner map through structural batches. Characterize
+   behavior before moving it, preserve public re-exports and cfg identities,
+   check affected scanner/boundary routes, and compare to the post-correction
+   surface. Review any newly discovered unallocated item before moving it.
+4. At the final candidate, run the required affected feature/platform matrix,
+   installed binding checks, default D27 and release performance checks,
+   repository verification, independent `gpt-6-sol` high code review and
+   Terra verification. Record exact candidate, commands, outcomes and limits
+   in `status.md`; only then advance release state, merge into
+   `release/0.8.27`, and remove a task-created worktree and branch.
+
+The first independent `gpt-6.1-sol` high design review found the three gaps
+corrected above. Its verdict was FAIL on the draft. A second independent
+`gpt-6-sol` high review must assess this amended design and plan before
+implementation; findings receive focused corrections and re-review.

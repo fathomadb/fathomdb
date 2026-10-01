@@ -64,10 +64,12 @@
       "direct_embeds"
     ],
     "latency_percentiles": [50, 95, 99],
-    "latency_classes": ["canonical_commit", "projection_freshness", "foreground_hybrid_query", "direct_embed", "embed_queue_wait", "close"],
+    "latency_classes": ["canonical_commit", "projection_freshness", "foreground_hybrid_query", "direct_embed", "close"],
+    "candidate_only_latency_classes": ["embed_queue_wait"],
     "counts": ["admitted", "completed", "timed_out", "overloaded", "provider_error", "invalid_vector", "panic"],
     "high_water": ["projection_rows_active_plus_queued", "embed_requests_waiting", "durable_projection_backlog"],
     "inventory": ["provider_concurrency", "engine_threads", "sqlite_connections", "residual_workers_after_close"],
+    "historical_unavailable": ["embed_queue_wait", "embed_requests_waiting", "fixed_embed_workers", "embed_dispatch_admission", "embed_dispatch_deadline", "embed_dispatch_cancellation"],
     "environment": ["binary_sha256", "protocol_sha256", "corpus_sha256", "rustc", "kernel", "cpu_model", "online_cpus", "cpu_governor", "memory_available", "load_average", "competing_processes", "database_device"]
   },
   "starvation_rule": {
@@ -77,7 +79,7 @@
   "comparison_rule": {
     "center": "median of three repetitions",
     "noise": "entry_MAD = median(abs(entry_repetition_value - entry_median)) across the three entry repetitions",
-    "evaluation_scope": "evaluate each named throughput rate and each named latency class/percentile independently within projection_heavy and foreground_heavy; no metric or direction may offset another",
+    "evaluation_scope": "compare each named throughput rate and each shared latency class/percentile independently within projection_heavy and foreground_heavy; candidate-only dispatch and resource metrics are mandatory correctness evidence, never entry comparisons; no metric or direction may offset another",
     "throughput_floor": "for each throughput rate and direction: candidate_median >= entry_median - max(0.10 * entry_median, 3 * entry_MAD)",
     "latency_ceiling": "for each latency class, percentile, and direction: candidate_median <= entry_median + max(0.15 * entry_median, 3 * entry_MAD)",
     "precision": "derive rates and latency values from raw monotonic nanoseconds as binary64 values; do not round before evaluating a comparison",
@@ -88,7 +90,7 @@
       "thread and SQLite inventories equal the accepted configuration-derived counts",
       "close leaves zero engine-owned residual workers except a contractually reported hung provider call with no database ownership"
     ],
-    "invalid_environment": "any runner mismatch, corpus/protocol hash mismatch, non-performance governor, competing workload, swap-in/out during a repetition, or missing raw metric invalidates that repetition rather than counting as pass or fail"
+    "invalid_environment": "any runner mismatch, corpus/protocol hash mismatch, non-performance governor, competing workload, swap-in/out during a repetition, or missing applicable raw metric invalidates that repetition rather than counting as pass or fail; historical_unavailable metrics are explicitly unavailable at entry, never imputed as zero"
   },
   "required_receipt_fields": [
     "source_sha",

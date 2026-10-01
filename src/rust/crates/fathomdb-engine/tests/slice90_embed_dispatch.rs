@@ -214,6 +214,34 @@ fn started_timeout_keeps_slot_occupied_then_discards_late_result() {
 }
 
 #[test]
+fn completion_after_deadline_is_late_even_before_first_wait() {
+    let (provider, entered_calls) = RendezvousEmbedder::new();
+    let dispatcher = EmbedDispatcher::new(Some(provider), 1, Duration::from_millis(100)).unwrap();
+    let reply = dispatcher.submit_text("late".to_owned()).unwrap();
+    let call = entered(&entered_calls);
+    let (_never_send, elapsed) = mpsc::channel::<()>();
+    assert!(
+        elapsed
+            .recv_timeout(
+                reply.deadline().saturating_duration_since(Instant::now())
+                    + Duration::from_millis(20)
+            )
+            .is_err(),
+        "test must cross the original request deadline without polling the reply"
+    );
+    call.release();
+    let started = Instant::now();
+    while dispatcher.snapshot().active != 0 {
+        assert!(started.elapsed() < Duration::from_secs(2), "provider completion must settle");
+        std::thread::yield_now();
+    }
+    assert!(matches!(reply.wait(), Err(DispatchError::StartedTimeout)));
+    dispatcher.close();
+    join(&dispatcher);
+    assert_eq!(dispatcher.snapshot().late_results, 1);
+}
+
+#[test]
 fn batch_uses_one_deadline_instead_of_row_count_times_timeout() {
     let (provider, entered_calls) = RendezvousEmbedder::new();
     let dispatcher =
@@ -277,6 +305,37 @@ fn late_panic_is_discarded_and_retained_worker_accounting_survives_front_end_dro
         std::thread::yield_now();
     }
     assert_eq!(accounting.snapshot().late_panics, 1);
+}
+
+#[test]
+fn worker_drain_uses_one_absolute_budget_across_four_retained_slots() {
+    let (provider, entered_calls) = RendezvousEmbedder::new();
+    let dispatcher =
+        Arc::new(EmbedDispatcher::new(Some(provider), 4, Duration::from_secs(2)).unwrap());
+    let replies: Vec<_> =
+        (0..4).map(|index| dispatcher.submit_text(format!("held-{index}")).unwrap()).collect();
+    let calls: Vec<_> = (0..4).map(|_| entered(&entered_calls)).collect();
+    dispatcher.close();
+    for reply in replies {
+        assert!(matches!(reply.wait(), Err(DispatchError::Closing)));
+    }
+
+    let (finished, received) = mpsc::channel();
+    let draining = Arc::clone(&dispatcher);
+    std::thread::spawn(move || {
+        finished
+            .send(draining.join_until(Instant::now() + Duration::from_millis(100)))
+            .expect("report bounded drain");
+    });
+    assert_eq!(
+        received.recv_timeout(Duration::from_millis(250)).expect("one shared drain budget"),
+        false
+    );
+    assert_eq!(dispatcher.snapshot().live_workers, 4);
+    for call in calls {
+        call.release();
+    }
+    join(&dispatcher);
 }
 
 #[test]

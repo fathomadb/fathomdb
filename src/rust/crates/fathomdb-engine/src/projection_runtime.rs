@@ -784,7 +784,6 @@ impl ProjectionRuntime {
             Some(acknowledged);
     }
 
-    #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn set_embed_timeout_ms_for_test(&self, timeout_ms: u64) {
         self.shared.embed_dispatch.set_timeout_ms_for_test(timeout_ms);
     }

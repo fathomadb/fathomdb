@@ -382,8 +382,7 @@ impl EmbedDispatcher {
         }
     }
 
-    #[cfg(any(test, feature = "test-hooks"))]
-    #[allow(dead_code)] // Standalone core tests include this module without the engine test hook.
+    #[allow(dead_code)] // Standalone core tests include this module without calling the engine test seam.
     pub(crate) fn set_timeout_ms_for_test(&self, timeout_ms: u64) {
         if let Some(shared) = &self.shared {
             shared.timeout_ms.store(timeout_ms, Ordering::Relaxed);

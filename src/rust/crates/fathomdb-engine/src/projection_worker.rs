@@ -517,18 +517,25 @@ fn projection_batch_enabled() -> bool {
 }
 
 fn wait_for_projection_retry(shared: &ProjectionRuntimeShared, delay: Duration) -> bool {
-    let state = match shared.state.lock() {
+    let deadline = Instant::now() + delay;
+    let mut state = match shared.state.lock() {
         Ok(state) => state,
         Err(_) => return false,
     };
-    if state.stopping {
-        return false;
+    loop {
+        if state.stopping {
+            return false;
+        }
+        let now = Instant::now();
+        if now >= deadline {
+            return true;
+        }
+        state = match shared.state_cvar.wait_timeout(state, deadline.saturating_duration_since(now))
+        {
+            Ok((state, _)) => state,
+            Err(_) => return false,
+        };
     }
-    let state = match shared.state_cvar.wait_timeout(state, delay) {
-        Ok((state, _)) => state,
-        Err(_) => return false,
-    };
-    !state.stopping
 }
 
 fn embed_projection_batch(

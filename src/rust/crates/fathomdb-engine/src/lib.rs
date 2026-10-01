@@ -4602,7 +4602,6 @@ impl Engine {
 
     /// Set the provider dispatch deadline for projection tests; production
     /// requests use the validated engine-open configuration.
-    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_embed_timeout_ms_for_test(&self, timeout_ms: u64) {
         self.projection_runtime.set_embed_timeout_ms_for_test(timeout_ms);

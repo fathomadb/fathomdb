@@ -97,7 +97,6 @@ fn timed_out_provider_keeps_slot_and_later_work_durable_until_return() {
     .expect("open");
     let engine = opened.engine;
     engine.configure_vector_kind_for_test("doc").expect("vector kind");
-    #[cfg(feature = "test-hooks")]
     engine.set_embed_timeout_ms_for_test(80);
     engine.set_projection_retry_delays_for_test(&[10, 10]);
     let first = engine.write(&[node("first parked")]).expect("first write");
@@ -204,4 +203,44 @@ fn provider_retry_delay_uses_one_absolute_deadline_during_wake_storm() {
     engine.drain(2_000).expect("successful retry drains");
     assert!(engine.has_vector_for_cursor_for_test(receipt.cursor).expect("vector"));
     assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
+}
+
+#[test]
+fn close_interrupts_long_provider_retry_wait_and_preserves_pending_row() {
+    let directory = TempDir::new().expect("test directory");
+    let database = directory.path().join("retry-close.fathomdb.sqlite");
+    let (first_failed, first_rx) = mpsc::channel();
+    let (retry_started, retry_rx) = mpsc::channel();
+    let provider =
+        Arc::new(FailOnceTimed { calls: AtomicUsize::new(0), first_failed, retry_started });
+    let opened = Engine::open_with_choice_and_config(
+        &database,
+        EmbedderChoice::Caller(provider.clone()),
+        EngineConfig::default(),
+    )
+    .expect("open");
+    let engine = opened.engine;
+    engine.configure_vector_kind_for_test("doc").expect("vector kind");
+    engine.set_projection_retry_delays_for_test(&[5_000]);
+    let receipt = engine.write(&[node("retry survives close")]).expect("write");
+    first_rx.recv_timeout(Duration::from_secs(2)).expect("first provider failure");
+    assert!(matches!(engine.drain(80), Err(EngineError::Scheduler)));
+
+    let started = Instant::now();
+    engine.close().expect("current close cancels retry wait");
+    assert!(started.elapsed() < Duration::from_secs(1), "close must wake retry wait promptly");
+    assert!(retry_rx.try_recv().is_err(), "retry may not start after close");
+
+    let reopened = Engine::open_with_choice_and_config(
+        &database,
+        EmbedderChoice::Caller(provider.clone()),
+        EngineConfig::default(),
+    )
+    .expect("reopen");
+    reopened.engine.drain(2_000).expect("pending row recovers");
+    assert!(reopened.engine.has_vector_for_cursor_for_test(receipt.cursor).expect("vector"));
+    assert_eq!(
+        reopened.engine.projection_failure_count_for_test(receipt.cursor).expect("failures"),
+        0
+    );
 }

@@ -64,6 +64,75 @@ class RawLinkageTests(unittest.TestCase):
     def test_valid_raw_matches_receipt_without_rounding(self):
         verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
 
+    def test_swap_deltas_are_raw_linked_and_forged_receipt_values_fail(self):
+        changed = copy.deepcopy(self.raw)
+        changed[0]["environment_samples"][0]["swap_pages_in"] = 30
+        changed[0]["environment_end"]["swap_pages_in"] = 70
+        changed[0]["environment_end"]["swap_pages_out"] = 58
+        self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
+        receipt = copy.deepcopy(self.receipt)
+        receipt["per_repetition_metrics"]["projection_heavy"][0]["swap_pages_in_delta"] = 70
+        receipt["per_repetition_metrics"]["projection_heavy"][0]["swap_pages_out_delta"] = 58
+        verifier.verify_raw_linkage(receipt, PROTOCOL, self.raw_path)
+        receipt["per_repetition_metrics"]["projection_heavy"][0]["swap_pages_in_delta"] = 69
+        with self.assertRaisesRegex(ValueError, "raw metric mismatch"):
+            verifier.verify_raw_linkage(receipt, PROTOCOL, self.raw_path)
+
+    def test_complete_entry_and_candidate_accept_bounded_swap_with_aggregate_movement(self):
+        protocol_path = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
+        artifacts = {}
+        for name in ("runner", "binary", "corpus"):
+            path = Path(self.temp.name) / name
+            path.write_bytes(name.encode())
+            artifacts[name] = path
+        artifacts["raw"] = self.raw_path
+
+        def receipt_for(phase, raw, source_sha):
+            for index, item in enumerate(raw):
+                start = 1000 + index * 128
+                for boundary, incoming, outgoing in (("environment_start", 0, 0), ("environment_end", 64, 64)):
+                    item[boundary]["swap_pages_in"] = start + incoming
+                    item[boundary]["swap_pages_out"] = start + outgoing
+                item["environment_samples"][0]["swap_pages_in"] = start + 32
+                item["environment_samples"][0]["swap_pages_out"] = start + 32
+            self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in raw))
+            return {
+                "phase": phase, "source_sha": source_sha,
+                "runner_sha256": hashlib.sha256(artifacts["runner"].read_bytes()).hexdigest(),
+                "binary_sha256": hashlib.sha256(artifacts["binary"].read_bytes()).hexdigest(),
+                "corpus_sha256": hashlib.sha256(artifacts["corpus"].read_bytes()).hexdigest(),
+                "raw_output_sha256": hashlib.sha256(self.raw_path.read_bytes()).hexdigest(),
+                "protocol_sha256": hashlib.sha256(protocol_path.read_bytes()).hexdigest(),
+                "runner_inventory": {"host": "windchill3", "operating_system": "Linux x86_64", "database_storage": "local NVMe", "build": "cargo test --release", "features": ["test-hooks"], "online_cpus": 8, "memory_gib": 16},
+                "environment_start": raw[0]["environment_start"],
+                "environment_end": raw[-1]["environment_end"],
+                "per_repetition_metrics": {direction: [runner.summarize_raw(item, phase) for item in raw if item["direction"] == direction] for direction in ("projection_heavy", "foreground_heavy")},
+                "historical_unavailable": PROTOCOL["metrics"]["historical_unavailable"] if phase == "entry" else [],
+                "status": "PASS",
+            }
+
+        entry_raw = copy.deepcopy(self.raw)
+        entry = receipt_for("entry", entry_raw, PROTOCOL["entry_engine_candidate_sha"])
+        verifier.verify_raw_linkage(entry, PROTOCOL, self.raw_path)
+        entry = verifier.validate_receipt(entry, PROTOCOL, protocol_path, artifacts)
+        self.assertNotEqual(entry["environment_start"]["swap_pages_in"], entry["environment_end"]["swap_pages_in"])
+
+        candidate_raw = copy.deepcopy(self.raw)
+        for item in candidate_raw:
+            item["configuration_observation"] = {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 1}
+            item["projection_admission_observation"] = {"source": "engine", "active_plus_queued_high_water": 4}
+            item["engine_thread_inventory"] = 12
+            item["connection_inventory"] = 'Ok("creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0")'
+            item["embed_dispatch_events"] = []
+            for index, operation in enumerate(item["operations"]):
+                owner = {"projection_cursors": [operation["cursor"]]} if operation["class"] == "canonical_write" else {"operation_sequence": operation["sequence"]}
+                start = 2_100_000 + index * 100_000
+                item["embed_dispatch_events"].append({"source": "engine", "request_id": index, "owner": owner, "admitted_ns": start, "started_ns": start + 10_000, "terminal_ns": start + 80_000, "outcome": "completed"})
+        candidate = receipt_for("candidate", candidate_raw, "1" * 40)
+        verifier.verify_raw_linkage(candidate, PROTOCOL, self.raw_path)
+        candidate = verifier.validate_receipt(candidate, PROTOCOL, protocol_path, artifacts, entry)
+        self.assertEqual(candidate["status"], "PASS")
+
     def test_fabricated_throughput_is_rejected(self):
         changed = copy.deepcopy(self.receipt)
         changed["per_repetition_metrics"]["projection_heavy"][0]["throughput"]["canonical_commits"] += 1

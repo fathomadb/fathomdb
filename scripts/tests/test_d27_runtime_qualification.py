@@ -50,6 +50,8 @@ class D27ReceiptTests(unittest.TestCase):
                     "inventory": {"provider_concurrency": 1, "engine_threads": 3, "residual_workers_after_close": 0},
                     "starvation_pass": True,
                     "environment_valid": True,
+                    "swap_pages_in_delta": 0,
+                    "swap_pages_out_delta": 0,
                 })
         return {
             "source_sha": self.protocol["entry_engine_candidate_sha"],

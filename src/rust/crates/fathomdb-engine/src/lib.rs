@@ -8034,6 +8034,9 @@ mod slice20_fix1_tests;
 mod slice90_close_tests;
 
 #[cfg(test)]
+mod slice90_concurrent_close_tests;
+
+#[cfg(test)]
 mod tests {
     use super::reader_pool::ReaderRequest;
     use super::vector_storage::KIND_TO_SOURCE_TYPE_CASE_SQL;

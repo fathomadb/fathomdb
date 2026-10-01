@@ -269,7 +269,15 @@ fn timely_error_and_panic_transport_leave_fixed_worker_reusable() {
 
     let panic = dispatcher.submit_text("panic".to_owned()).unwrap();
     entered(&entered_calls).release();
-    assert!(matches!(panic.wait(), Err(DispatchError::Panic(_))));
+    match panic.wait() {
+        Err(DispatchError::Panic(payload)) => {
+            assert!(
+                payload.is::<&str>() || payload.is::<String>(),
+                "panic payload must be preserved"
+            );
+        }
+        other => panic!("expected transported provider panic, got {other:?}"),
+    }
 
     for invalid in ["short", "nan"] {
         let malformed = dispatcher.submit_text(invalid.to_owned()).unwrap();
@@ -334,6 +342,13 @@ fn worker_drain_uses_one_absolute_budget_across_four_retained_slots() {
     assert_eq!(dispatcher.snapshot().live_workers, 4);
     for call in calls {
         call.release();
+    }
+    // The first absolute budget is spent. A second join must not wait under
+    // a renewed deadline; success is valid only after the workers have exited.
+    let started = Instant::now();
+    while dispatcher.snapshot().live_workers != 0 {
+        assert!(started.elapsed() < Duration::from_secs(2), "released workers must exit");
+        std::thread::yield_now();
     }
     join(&dispatcher);
 }

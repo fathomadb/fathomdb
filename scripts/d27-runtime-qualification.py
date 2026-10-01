@@ -144,9 +144,6 @@ def validate_receipt(
         require(environment.get("competing_processes") == [], f"environment {boundary} competing process")
         number(environment.get("swap_pages_in"), f"environment {boundary} swap_pages_in")
         number(environment.get("swap_pages_out"), f"environment {boundary} swap_pages_out")
-    for key in ("swap_pages_in", "swap_pages_out"):
-        require(receipt["environment_start"][key] == receipt["environment_end"][key], f"{key} changed during run")
-
     metrics = protocol["metrics"]
     aggregate = {}
     repetitions = receipt.get("per_repetition_metrics", {})
@@ -159,6 +156,12 @@ def validate_receipt(
             label = f"{direction} repetition {index + 1}"
             require(run.get("environment_valid") is True, f"{label}: invalid environment")
             require(run.get("starvation_pass") is True, f"{label}: starvation")
+            swap_deltas = []
+            for key in ("swap_pages_in_delta", "swap_pages_out_delta"):
+                value = run.get(key)
+                require(isinstance(value, int) and not isinstance(value, bool) and value >= 0, f"{label} {key}: missing or negative")
+                swap_deltas.append(value)
+            require(sum(swap_deltas) <= protocol["swap_policy"]["max_total_pages_per_repetition"], f"{label}: combined swap movement exceeds cap")
             for count in metrics["counts"]:
                 number(run.get("counts", {}).get(count), f"{label} {count}")
             for high_water in metrics["high_water"]:

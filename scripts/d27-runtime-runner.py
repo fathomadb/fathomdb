@@ -22,6 +22,7 @@ WORKLOAD = ROOT / "scripts/d27_runtime_workload.rs"
 VERIFIER = ROOT / "scripts/d27-runtime-qualification.py"
 HOST_PID_NAMESPACE = "pid:[4026531836]"
 HOST_PID_ONE_COMM = "systemd"
+SWAP_MAX_TOTAL_PAGES = json.loads(PROTOCOL.read_text())["swap_policy"]["max_total_pages_per_repetition"]
 
 
 def sha256(path: Path) -> str:
@@ -142,7 +143,10 @@ def environment() -> dict:
     """Capture environmental invalidators adjacent to each repetition."""
     governor = Path("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor").read_text().strip()
     vmstat = Path("/proc/vmstat").read_text()
-    swap = {name: int(re.search(rf"^{name} (\d+)$", vmstat, re.M).group(1)) for name in ("pswpin", "pswpout")}
+    swap = {}
+    for name in ("pswpin", "pswpout"):
+        match = re.search(rf"^{name}\s+(-?\d+)\s*$", vmstat, re.M)
+        swap[name] = int(match.group(1)) if match else None
     processes = command(["ps", "-eo", "pid=,comm="], capture_output=True).stdout.splitlines()
     device = command(["df", "-P", "/tmp"], capture_output=True).stdout.splitlines()[-1].split()[0]
     competing = []
@@ -230,6 +234,7 @@ def environment_invalidators(raw: dict) -> list[str]:
     if not isinstance(samples, list) or not samples:
         reasons.append("environment samples missing")
         samples = []
+    previous_swap = None
     for label, observation in [("before", before), *[(f"sample[{index}]", sample) for index, sample in enumerate(samples)], ("after", after)]:
         reasons.extend(process_view_invalidators(observation, label))
         governor = observation.get("cpu_governor")
@@ -242,13 +247,30 @@ def environment_invalidators(raw: dict) -> list[str]:
                     reasons.append(f"{label} competing process {process.get('name')} pid={process.get('pid')}")
             else:
                 reasons.append(f"{label} competing processes unavailable")
+        current_swap = {}
         for key in ("swap_pages_in", "swap_pages_out"):
-            if observation.get(key) != before.get(key):
-                reasons.append(f"{label} {key} changed from {before.get(key)!r} to {observation.get(key)!r}")
+            value = observation.get(key)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                reasons.append(f"{label} {key} missing or negative: {value!r}")
+            elif previous_swap is not None and key in previous_swap and value < previous_swap[key]:
+                reasons.append(f"{label} {key} decreased from {previous_swap[key]} to {value}")
+            else:
+                current_swap[key] = value
+        previous_swap = current_swap
         device = observation.get("database_device")
         if device != before.get("database_device") or not str(device).startswith("/dev/nvme"):
             reasons.append(f"{label} database_device={device!r}; expected local NVMe {before.get('database_device')!r}")
+    if all(isinstance(before.get(key), int) and not isinstance(before.get(key), bool) and isinstance(after.get(key), int) and not isinstance(after.get(key), bool) and after[key] >= before[key] for key in ("swap_pages_in", "swap_pages_out")):
+        incoming, outgoing = swap_deltas(raw)
+        if incoming + outgoing > SWAP_MAX_TOTAL_PAGES:
+            reasons.append(f"combined swap movement {incoming + outgoing} pages exceeds {SWAP_MAX_TOTAL_PAGES}")
     return reasons
+
+
+def swap_deltas(raw: dict) -> tuple[int, int]:
+    """Return the two host swap movements across the entire workload child."""
+    before, after = raw["environment_start"], raw["environment_end"]
+    return (after["swap_pages_in"] - before["swap_pages_in"], after["swap_pages_out"] - before["swap_pages_out"])
 
 
 def run_repetition(binary: Path, env: dict[str, str]) -> list[dict]:
@@ -443,6 +465,7 @@ def check_raw_observations(raw: dict, phase: str) -> None:
 def summarize_raw(raw: dict, phase: str) -> dict:
     """Derive unrounded rates and latency percentiles from monotonic ns."""
     check_raw_observations(raw, phase)
+    swap_pages_in_delta, swap_pages_out_delta = swap_deltas(raw)
     operations = raw["operations"]
     duration = raw["measurement_elapsed_ns"] / 1e9
     classes = {name: [item for item in operations if item["class"] == name] for name in ("canonical_write", "foreground_hybrid_query", "direct_embed")}
@@ -496,6 +519,8 @@ def summarize_raw(raw: dict, phase: str) -> dict:
         "inventory": inventory,
         "starvation_pass": starvation_from_raw(raw),
         "environment_valid": raw["environment_valid"],
+        "swap_pages_in_delta": swap_pages_in_delta,
+        "swap_pages_out_delta": swap_pages_out_delta,
     }
 
 

@@ -99,21 +99,14 @@ pub(super) fn native_state_fact_text(fact: &NativeConnectionStateFact) -> String
 }
 
 #[cfg(any(test, feature = "test-hooks"))]
-pub(super) fn native_state_expected_roles() -> BTreeSet<(WalAttributionRole, usize)> {
-    BTreeSet::from([
-        (WalAttributionRole::Writer, 0),
-        (WalAttributionRole::ReaderWorker, 0),
-        (WalAttributionRole::ReaderWorker, 1),
-        (WalAttributionRole::ReaderWorker, 2),
-        (WalAttributionRole::ReaderWorker, 3),
-        (WalAttributionRole::ReaderWorker, 4),
-        (WalAttributionRole::ReaderWorker, 5),
-        (WalAttributionRole::ReaderWorker, 6),
-        (WalAttributionRole::ReaderWorker, 7),
-        (WalAttributionRole::ProjectionDispatcher, 0),
-        (WalAttributionRole::ProjectionWorker, 0),
-        (WalAttributionRole::ProjectionWorker, 1),
-    ])
+pub(super) fn native_state_expected_roles(
+    worker_count: usize,
+) -> BTreeSet<(WalAttributionRole, usize)> {
+    std::iter::once((WalAttributionRole::Writer, 0))
+        .chain((0..crate::READER_POOL_SIZE).map(|index| (WalAttributionRole::ReaderWorker, index)))
+        .chain(std::iter::once((WalAttributionRole::ProjectionDispatcher, 0)))
+        .chain((0..worker_count).map(|index| (WalAttributionRole::ProjectionWorker, index)))
+        .collect()
 }
 
 #[cfg(any(test, feature = "test-hooks"))]

@@ -620,7 +620,7 @@ assert_contains "$serial_incident_body" \
   "installed Python serial expects no cfg(test)-only runtime probes"
 binding_inventory_body="$(function_body "$ENGINE_SOURCE" "binding_connection_inventory_for_test")"
 assert_contains "$binding_inventory_body" \
-  'creation != (1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 0)' \
+  'creation != (1, READER_POOL_SIZE, 1, worker_count, 0)' \
   "installed binding inventory rejects cfg(test)-only runtime probes"
 assert_contains "$serial_incident_body" \
   'test_hooks._arm_actual_checkpoint_observation_for_test()' \
@@ -757,7 +757,7 @@ PY
   fi
 
   BINDING_ENGINE_PROBES_MUTATED="$TMPROOT/lib-with-binding-probes-two.rs"
-  sed '/pub fn binding_connection_inventory_for_test/,/^    pub fn / s/PROJECTION_WORKERS, 0/PROJECTION_WORKERS, 2/' \
+  sed '/pub fn binding_connection_inventory_for_test/,/^    pub fn / s/worker_count, 0/worker_count, 2/' \
     "$ENGINE_SOURCE" >"$BINDING_ENGINE_PROBES_MUTATED"
   set +e
   binding_engine_probes_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$BINDING_ENGINE_PROBES_MUTATED" bash "$0" 2>&1)"

@@ -153,7 +153,7 @@ pub(crate) fn projection_dispatcher_loop(
             while !state.stopping
                 && (!state.pending_scan
                     || state.frozen
-                    || state.active_jobs + state.queued_jobs >= PROJECTION_INFLIGHT_LIMIT)
+                    || state.active_jobs + state.queued_jobs >= shared.admission_capacity)
             {
                 #[cfg(any(test, feature = "test-hooks"))]
                 report_runtime_connection_inventory_for_test(
@@ -171,7 +171,7 @@ pub(crate) fn projection_dispatcher_loop(
                 );
                 let can_arm_temporal_scan = !state.frozen
                     && !state.pending_scan
-                    && state.active_jobs + state.queued_jobs < PROJECTION_INFLIGHT_LIMIT;
+                    && state.active_jobs + state.queued_jobs < shared.admission_capacity;
                 if can_arm_temporal_scan {
                     if let Some(boundary) = state.next_temporal_scan_epoch_s {
                         let now = current_epoch_seconds();
@@ -214,9 +214,9 @@ pub(crate) fn projection_dispatcher_loop(
                 Ok(state) => state,
                 Err(_) => return,
             };
-            PROJECTION_INFLIGHT_LIMIT.saturating_sub(state.active_jobs + state.queued_jobs)
+            shared.admission_capacity.saturating_sub(state.active_jobs + state.queued_jobs)
         };
-        let fetch_cap = budget.clamp(1, PROJECTION_SCAN_FETCH);
+        let fetch_cap = budget.clamp(1, shared.admission_capacity);
         // A session without a configured runtime dispatches no embedding jobs.
         // Its pending rows stay recoverable for a later configured session; see
         // `next_pending_projection_jobs` for the Slice-30 no-dispatch boundary.

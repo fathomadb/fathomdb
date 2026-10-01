@@ -562,6 +562,7 @@ fn is_erasure_bookkeeping_collection(collection: &str) -> bool {
         || ERASURE_AUDIT_COLLECTIONS.contains(&collection)
 }
 const PROJECTION_CURSOR_KEY: &str = "projection_cursor";
+#[cfg(test)]
 const PROJECTION_WORKERS: usize = 2;
 /// PR-9 — ADR-0.6.0-embedder-protocol **Invariant 5** default per-`embed()`
 /// watchdog deadline. Every projection-path embed runs under this timeout;
@@ -578,13 +579,6 @@ const DEFAULT_EMBED_TIMEOUT_MS: u64 = 30_000;
 /// at roughly this count.
 const DEFAULT_EMBED_CIRCUIT_THRESHOLD: u64 = 8;
 const PROJECTION_COMMIT_BATCH: usize = 64;
-// Each worker should be able to grab a full commit batch while another
-// worker has the same waiting in the queue. Below this, the dispatcher
-// throttles below the workers' commit-batch capacity.
-const PROJECTION_INFLIGHT_LIMIT: usize = PROJECTION_WORKERS * PROJECTION_COMMIT_BATCH;
-// SQL fetch cap inside the dispatcher: enough to fill the in-flight
-// budget in a single scan so we don't pay one SQL roundtrip per job.
-const PROJECTION_SCAN_FETCH: usize = PROJECTION_INFLIGHT_LIMIT;
 const PROJECTION_TEMPORAL_WAKE_POLL: Duration = Duration::from_secs(1);
 const DEFAULT_PROJECTION_RETRY_DELAYS_MS: [u64; 3] = [1_000, 4_000, 16_000];
 
@@ -837,21 +831,8 @@ impl ManagedConnectionRegistry {
         ManagedConnectionRegistration { registry: Arc::clone(self), role, index }
     }
 
-    fn exact_live(&self) -> bool {
-        let expected = BTreeSet::from([
-            (WalAttributionRole::Writer, 0),
-            (WalAttributionRole::ProjectionDispatcher, 0),
-            (WalAttributionRole::ProjectionWorker, 0),
-            (WalAttributionRole::ProjectionWorker, 1),
-            (WalAttributionRole::ReaderWorker, 0),
-            (WalAttributionRole::ReaderWorker, 1),
-            (WalAttributionRole::ReaderWorker, 2),
-            (WalAttributionRole::ReaderWorker, 3),
-            (WalAttributionRole::ReaderWorker, 4),
-            (WalAttributionRole::ReaderWorker, 5),
-            (WalAttributionRole::ReaderWorker, 6),
-            (WalAttributionRole::ReaderWorker, 7),
-        ]);
+    fn exact_live(&self, worker_count: usize) -> bool {
+        let expected = native_state_expected_roles(worker_count);
         self.live.lock().map(|live| *live == expected).unwrap_or(false)
     }
 
@@ -3041,6 +3022,7 @@ impl Engine {
                     report.embedder_mean_vec_pinned,
                     Arc::clone(&subscribers),
                     Arc::clone(&wal_attribution),
+                    resolved_config,
                     #[cfg(any(test, feature = "test-hooks"))]
                     Arc::clone(&managed_connections),
                 )?;
@@ -3640,7 +3622,8 @@ impl Engine {
         &self,
         expected_runtime_probes: usize,
     ) -> String {
-        let registry_complete = self.managed_connections.exact_live();
+        let worker_count = self.projection_runtime.shared.worker_count;
+        let registry_complete = self.managed_connections.exact_live(worker_count);
         let creation = self.managed_connections.creation_counts();
         let writer_autocommit = self
             .connection
@@ -3653,11 +3636,7 @@ impl Engine {
         let reader_autocommit =
             readers.len() == READER_POOL_SIZE && readers.iter().all(|value| *value);
         let runtime_autocommit = runtime.as_ref().is_ok_and(|entries| {
-            let expected = BTreeSet::from([
-                (WalAttributionRole::ProjectionDispatcher, 0),
-                (WalAttributionRole::ProjectionWorker, 0),
-                (WalAttributionRole::ProjectionWorker, 1),
-            ]);
+            let expected = projection_runtime::projection_wal_roles(worker_count);
             entries.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>()
                 == expected
                 && entries.iter().all(|(_, _, autocommit)| *autocommit)
@@ -3675,7 +3654,7 @@ impl Engine {
                 .iter()
                 .filter(|(role, _, _)| *role == WalAttributionRole::ProjectionWorker)
                 .count()
-                == PROJECTION_WORKERS
+                == worker_count
                 && entries
                     .iter()
                     .filter(|(role, _, _)| *role == WalAttributionRole::ProjectionWorker)
@@ -3688,17 +3667,17 @@ impl Engine {
             },
         );
         let complete = registry_complete
-            && creation
-                == Some((1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, expected_runtime_probes))
+            && creation == Some((1, READER_POOL_SIZE, 1, worker_count, expected_runtime_probes))
             && writer_autocommit
             && reader_autocommit
             && runtime_autocommit;
         format!(
-            "roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer={};readers={};dispatcher={};workers={};registry={};creation={};complete={}",
+            "roles=writer:0,readers:0-7,dispatcher:0,workers:0-{};writer={};readers={};dispatcher={};workers={};registry={};creation={};complete={}",
+            worker_count - 1,
             if writer_autocommit { "autocommit" } else { "not_autocommit" },
             if reader_autocommit { "autocommit" } else { "not_autocommit" },
             if dispatcher_autocommit { "autocommit" } else { "not_autocommit" },
-            if workers_autocommit { "2-autocommit" } else { "not_autocommit" },
+            if workers_autocommit { format!("{worker_count}-autocommit") } else { "not_autocommit".to_string() },
             if registry_complete { "complete" } else { "incomplete" },
             creation_text,
             u8::from(complete),
@@ -3806,7 +3785,8 @@ impl Engine {
 
     #[cfg(any(test, feature = "test-hooks"))]
     fn native_state_inventory_for_test(&self) -> NativeStateInventory {
-        let mut facts = Vec::with_capacity(1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS);
+        let worker_count = self.projection_runtime.shared.worker_count;
+        let mut facts = Vec::with_capacity(1 + READER_POOL_SIZE + 1 + worker_count);
         let writer = match self.connection.lock() {
             Ok(connection) => connection.as_ref().map_or_else(
                 || {
@@ -3831,30 +3811,25 @@ impl Engine {
         match self.projection_runtime.report_runtime_native_state_inventory_for_test() {
             Ok(runtime) => facts.extend(runtime),
             Err(reason) => {
-                facts.extend([
-                    unavailable_native_connection_state_for_test(
-                        WalAttributionRole::ProjectionDispatcher,
-                        0,
-                        NativeStateReply::Error(reason),
-                    ),
-                    unavailable_native_connection_state_for_test(
-                        WalAttributionRole::ProjectionWorker,
-                        0,
-                        NativeStateReply::Error(reason),
-                    ),
+                facts.push(unavailable_native_connection_state_for_test(
+                    WalAttributionRole::ProjectionDispatcher,
+                    0,
+                    NativeStateReply::Error(reason),
+                ));
+                facts.extend((0..worker_count).map(|index| {
                     unavailable_native_connection_state_for_test(
                         WalAttributionRole::ProjectionWorker,
-                        1,
+                        index,
                         NativeStateReply::Error(reason),
-                    ),
-                ]);
+                    )
+                }));
             }
         }
         facts.sort_by_key(|fact| (fact.role, fact.index));
-        let expected = native_state_expected_roles();
+        let expected = native_state_expected_roles(worker_count);
         let actual = facts.iter().map(|fact| (fact.role, fact.index)).collect::<BTreeSet<_>>();
         let unique = facts.len() == actual.len();
-        let managed = self.managed_connections.exact_live();
+        let managed = self.managed_connections.exact_live(worker_count);
         let received_and_idle = facts.iter().all(|fact| {
             matches!(fact.reply, NativeStateReply::Received)
                 && fact.autocommit == Some(true)
@@ -3895,14 +3870,15 @@ impl Engine {
     pub fn binding_connection_inventory_for_test(&self) -> Result<String, EngineError> {
         self.ensure_open()?;
         let deadline = Instant::now() + Duration::from_secs(2);
-        while !self.managed_connections.exact_live() && Instant::now() < deadline {
+        let worker_count = self.projection_runtime.shared.worker_count;
+        while !self.managed_connections.exact_live(worker_count) && Instant::now() < deadline {
             thread::sleep(Duration::from_millis(5));
         }
-        if !self.managed_connections.exact_live() {
+        if !self.managed_connections.exact_live(worker_count) {
             return Err(EngineError::Storage);
         }
         let creation = self.managed_connections.creation_counts().ok_or(EngineError::Storage)?;
-        if creation != (1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 0) {
+        if creation != (1, READER_POOL_SIZE, 1, worker_count, 0) {
             return Err(EngineError::Storage);
         }
         let writer_autocommit = self
@@ -3922,11 +3898,7 @@ impl Engine {
             .projection_runtime
             .report_runtime_connection_inventory_for_test()
             .map_err(|_| EngineError::Storage)?;
-        let expected = BTreeSet::from([
-            (WalAttributionRole::ProjectionDispatcher, 0),
-            (WalAttributionRole::ProjectionWorker, 0),
-            (WalAttributionRole::ProjectionWorker, 1),
-        ]);
+        let expected = projection_runtime::projection_wal_roles(worker_count);
         let actual =
             runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
         if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
@@ -3939,7 +3911,8 @@ impl Engine {
             return Err(EngineError::Storage);
         }
         Ok(format!(
-            "roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
+            "roles=writer:0,readers:0-7,dispatcher:0,workers:0-{};writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers={worker_count}-autocommit;creation=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
+            worker_count - 1,
             creation.0, creation.1, creation.2, creation.3, creation.4,
         ))
     }
@@ -8060,8 +8033,8 @@ mod tests {
     use std::collections::BTreeSet;
     use std::path::Path;
     use std::process::Command;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::{mpsc, Arc, Barrier};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::{mpsc, Arc, Barrier, Condvar, Mutex};
     use std::thread;
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
@@ -8275,7 +8248,7 @@ mod tests {
                     .all(|context| !context.callback_uninstalled.load(Ordering::SeqCst)));
                 contexts.observer = Some(Arc::clone(&observer));
             }
-            assert!(observer.registry.exact_live());
+            assert!(observer.registry.exact_live(PROJECTION_WORKERS));
             if explicit_close {
                 engine.close().unwrap();
             }
@@ -8450,9 +8423,115 @@ mod tests {
                 opened.engine.managed_connections.creation_counts(),
                 Some((1, READER_POOL_SIZE, 1, count as usize, 0)),
             );
+            let native = opened.engine.native_state_inventory_for_test();
+            assert!(native.complete, "{count} workers: {native:?}");
+            assert_eq!(native.facts.len(), 1 + READER_POOL_SIZE + 1 + count as usize);
+            let binding =
+                opened.engine.binding_connection_inventory_for_test().expect("binding inventory");
+            assert!(binding.contains(&format!("workers:{count}")));
+            assert_eq!(
+                opened.engine.projection_runtime.shared.admission_capacity,
+                count as usize * 64
+            );
             opened.engine.close().expect("close all projection owners");
             assert!(opened.engine.managed_connections.live.lock().expect("registry").is_empty());
         }
+    }
+
+    #[derive(Debug)]
+    struct ProjectionAdmissionGate {
+        open: Mutex<bool>,
+        entered: AtomicBool,
+        cvar: Condvar,
+    }
+
+    #[derive(Debug)]
+    struct ProjectionAdmissionEmbedder(Arc<ProjectionAdmissionGate>);
+
+    impl Embedder for ProjectionAdmissionEmbedder {
+        fn identity(&self) -> EmbedderIdentity {
+            EmbedderIdentity::new("projection-admission", "r1", 8)
+        }
+
+        fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
+            let mut open = self.0.open.lock().expect("admission gate");
+            self.0.entered.store(true, Ordering::SeqCst);
+            self.0.cvar.notify_all();
+            while !*open {
+                open = self.0.cvar.wait(open).expect("admission gate");
+            }
+            Ok(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        }
+    }
+
+    struct ReleaseProjectionAdmissionGate(Arc<ProjectionAdmissionGate>);
+
+    impl Drop for ReleaseProjectionAdmissionGate {
+        fn drop(&mut self) {
+            let mut open = self.0.open.lock().expect("admission gate");
+            *open = true;
+            self.0.cvar.notify_all();
+        }
+    }
+
+    #[test]
+    fn configured_projection_admission_stops_at_exact_row_capacity() {
+        let dir = TempDir::new().expect("temp dir");
+        let gate = Arc::new(ProjectionAdmissionGate {
+            open: Mutex::new(true),
+            entered: AtomicBool::new(false),
+            cvar: Condvar::new(),
+        });
+        let opened = Engine::open_with_choice_and_config(
+            dir.path().join("projection-admission.sqlite"),
+            EmbedderChoice::Caller(Arc::new(ProjectionAdmissionEmbedder(Arc::clone(&gate)))),
+            EngineConfig { scheduler_runtime_threads: Some(1), ..EngineConfig::default() },
+        )
+        .expect("configured open");
+        opened.engine.configure_vector_kind_for_test("doc").expect("vector kind");
+        *gate.open.lock().expect("admission gate") = false;
+        gate.entered.store(false, Ordering::SeqCst);
+        let release = ReleaseProjectionAdmissionGate(Arc::clone(&gate));
+        let writes = (0..65)
+            .map(|index| PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: format!("projection admission {index}"),
+                source_id: SourceId::new("projection-admission-source").expect("source"),
+                logical_id: Some(format!("admission-{index}")),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect::<Vec<_>>();
+        opened.engine.write(&writes).expect("write pending rows");
+        let started = Instant::now();
+        let mut entered = gate.open.lock().expect("admission gate");
+        while !gate.entered.load(Ordering::SeqCst) {
+            let (next, timed) = gate.cvar.wait_timeout(entered, Duration::from_secs(5)).unwrap();
+            entered = next;
+            assert!(!timed.timed_out(), "provider was never called");
+        }
+        drop(entered);
+        let mut state = opened.engine.projection_runtime.shared.state.lock().unwrap();
+        while state.active_jobs + state.queued_jobs < 64 {
+            let (next, timed) = opened
+                .engine
+                .projection_runtime
+                .shared
+                .state_cvar
+                .wait_timeout(state, Duration::from_secs(5))
+                .unwrap();
+            state = next;
+            assert!(!timed.timed_out(), "dispatcher did not fill admission");
+        }
+        assert_eq!(state.active_jobs + state.queued_jobs, 64);
+        assert_eq!(state.in_flight.len(), 64);
+        drop(state);
+        assert!(started.elapsed() < Duration::from_secs(10));
+        drop(release);
+        opened.engine.drain(30_000).expect("all 65 rows project after release");
+        opened.engine.close().expect("close");
     }
 
     fn initialized_projection_runtime_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
@@ -8471,6 +8550,24 @@ mod tests {
         Arc<ManagedConnectionRegistry>,
         Arc<WalAttributionCollector>,
     ) {
+        start_projection_runtime_with_count_for_test(
+            path,
+            PROJECTION_WORKERS as u64,
+            timeout,
+            fault,
+        )
+    }
+
+    fn start_projection_runtime_with_count_for_test(
+        path: std::path::PathBuf,
+        worker_count: u64,
+        timeout: Duration,
+        fault: Option<ProjectionRuntimeStartupFaultForTest>,
+    ) -> (
+        Result<ProjectionRuntime, EngineOpenError>,
+        Arc<ManagedConnectionRegistry>,
+        Arc<WalAttributionCollector>,
+    ) {
         let managed_connections = Arc::new(ManagedConnectionRegistry::default());
         let wal_attribution = Arc::new(WalAttributionCollector::new());
         let result = ProjectionRuntime::new_for_test(
@@ -8480,11 +8577,74 @@ mod tests {
             false,
             Arc::new(super::lifecycle::SubscriberRegistry::new()),
             Arc::clone(&wal_attribution),
+            super::ResolvedRuntimeConfiguration::resolve(&EngineConfig {
+                scheduler_runtime_threads: Some(worker_count),
+                ..EngineConfig::default()
+            })
+            .unwrap(),
             Arc::clone(&managed_connections),
             timeout,
             fault,
         );
         (result, managed_connections, wal_attribution)
+    }
+
+    #[test]
+    fn configured_projection_startup_faults_join_every_partial_owner() {
+        let faults = [
+            ProjectionRuntimeStartupFaultForTest::SetupFailure(
+                ProjectionRuntimeStartupRole::Dispatcher(0),
+            ),
+            ProjectionRuntimeStartupFaultForTest::SetupFailure(
+                ProjectionRuntimeStartupRole::Worker(0),
+            ),
+            ProjectionRuntimeStartupFaultForTest::MissingReport(
+                ProjectionRuntimeStartupRole::Worker(1),
+            ),
+            ProjectionRuntimeStartupFaultForTest::SetupFailure(
+                ProjectionRuntimeStartupRole::Worker(2),
+            ),
+            ProjectionRuntimeStartupFaultForTest::ExitAfterReport(
+                ProjectionRuntimeStartupRole::Worker(3),
+            ),
+        ];
+        for (index, fault) in faults.into_iter().enumerate() {
+            let dir = TempDir::new().expect("temp dir");
+            let path = initialized_projection_runtime_path(
+                &dir,
+                &format!("configured-runtime-fault-{index}.sqlite"),
+            );
+            let (result, registry, _) = start_projection_runtime_with_count_for_test(
+                path,
+                4,
+                Duration::from_millis(250),
+                Some(fault),
+            );
+            assert!(matches!(result, Err(EngineOpenError::Io { .. })), "{fault:?}");
+            assert!(registry.live.lock().expect("managed registry").is_empty(), "{fault:?}");
+        }
+    }
+
+    #[test]
+    fn configured_projection_workers_are_isolated_between_open_engines() {
+        let dir = TempDir::new().expect("temp dir");
+        let open = |name, count| {
+            Engine::open_with_choice_and_config(
+                dir.path().join(name),
+                EmbedderChoice::None,
+                EngineConfig { scheduler_runtime_threads: Some(count), ..EngineConfig::default() },
+            )
+            .expect("configured engine")
+        };
+        let one = open("one.sqlite", 1);
+        let four = open("four.sqlite", 4);
+        assert_eq!(one.engine.projection_runtime.shared.worker_count, 1);
+        assert_eq!(four.engine.projection_runtime.shared.worker_count, 4);
+        assert_eq!(one.engine.managed_connections.creation_counts().unwrap().3, 1);
+        assert_eq!(four.engine.managed_connections.creation_counts().unwrap().3, 4);
+        one.engine.close().expect("close one");
+        assert_eq!(four.engine.managed_connections.creation_counts().unwrap().3, 4);
+        four.engine.close().expect("close four");
     }
 
     #[test]
@@ -8888,7 +9048,7 @@ mod tests {
             snapshot = opened.engine.wal_attribution_snapshot();
         }
         if snapshot.roles.len() != 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS
-            || !opened.engine.managed_connections.exact_live()
+            || !opened.engine.managed_connections.exact_live(PROJECTION_WORKERS)
         {
             return Err("registry_mismatch");
         }
@@ -9690,7 +9850,7 @@ mod tests {
             snapshot = opened.engine.wal_attribution_snapshot();
         }
         if snapshot.roles.len() != 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS
-            || !opened.engine.managed_connections.exact_live()
+            || !opened.engine.managed_connections.exact_live(PROJECTION_WORKERS)
         {
             return Err("registry_mismatch");
         }

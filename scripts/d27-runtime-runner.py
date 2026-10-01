@@ -147,11 +147,15 @@ def environment() -> dict:
     device = command(["df", "-P", "/tmp"], capture_output=True).stdout.splitlines()[-1].split()[0]
     competing = []
     ps_pid_one_comm = None
+    runner_pid = os.getpid()
+    ps_self_pid = None
     for line in processes:
         pid, name = line.strip().split(maxsplit=1)
         if int(pid) == 1:
             ps_pid_one_comm = name
-        if int(pid) != os.getpid() and re.search(r"^(cargo|rustc|pytest|maturin|ollama|vllm|postgres|sqlite3)$", name):
+        if int(pid) == runner_pid:
+            ps_self_pid = runner_pid
+        if int(pid) != runner_pid and re.search(r"^(cargo|rustc|pytest|maturin|ollama|vllm|postgres|sqlite3)$", name):
             competing.append({"pid": int(pid), "name": name})
     try:
         pid_one_namespace = os.readlink("/proc/1/ns/pid")
@@ -159,6 +163,10 @@ def environment() -> dict:
     except OSError:
         pid_one_namespace = None
         pid_one_comm = None
+    try:
+        proc_self_pid = int(os.readlink("/proc/self"))
+    except (OSError, ValueError):
+        proc_self_pid = None
     return {
         "cpu_governor": governor,
         "competing_processes": competing,
@@ -167,6 +175,9 @@ def environment() -> dict:
         "pid_one_comm": pid_one_comm,
         "ps_pid_one_comm": ps_pid_one_comm,
         "procfs_hidepid": procfs_hidepid(),
+        "runner_pid": runner_pid,
+        "proc_self_pid": proc_self_pid,
+        "ps_self_pid": ps_self_pid,
         "swap_pages_in": swap["pswpin"],
         "swap_pages_out": swap["pswpout"],
         "kernel": platform.release(),
@@ -204,6 +215,9 @@ def process_view_invalidators(observation: dict, label: str) -> list[str]:
     expected = (HOST_PID_ONE_COMM, HOST_PID_ONE_COMM, "0")
     if pid_one_namespace not in ("", HOST_PID_NAMESPACE) or observed != expected:
         reasons.append(f"{label} process view={(pid_one_namespace, *observed)!r}; expected unrestricted host PID1 identity and {expected!r}")
+    runner_pid = observation.get("runner_pid")
+    if not isinstance(runner_pid, int) or isinstance(runner_pid, bool) or runner_pid <= 1 or observation.get("proc_self_pid") != runner_pid or observation.get("ps_self_pid") != runner_pid:
+        reasons.append(f"{label} process view runner pid={runner_pid!r}, /proc/self={observation.get('proc_self_pid')!r}, ps={observation.get('ps_self_pid')!r}; expected same host PID")
     return reasons
 
 

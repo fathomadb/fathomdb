@@ -138,6 +138,8 @@ def validate_receipt(
         pid_one_namespace = environment.get("pid_one_namespace")
         process_view = (environment.get("pid_one_comm"), environment.get("ps_pid_one_comm"), environment.get("procfs_hidepid"))
         require(pid_one_namespace in ("", expected["host_pid_namespace"]) and process_view == (expected["host_pid_one_comm"], expected["host_pid_one_comm"], "0"), f"environment {boundary} process view mismatch")
+        runner_pid = environment.get("runner_pid")
+        require(isinstance(runner_pid, int) and not isinstance(runner_pid, bool) and runner_pid > 1 and environment.get("proc_self_pid") == runner_pid and environment.get("ps_self_pid") == runner_pid, f"environment {boundary} process view runner PID mismatch")
         require(environment.get("cpu_governor") == expected["cpu_governor"], f"environment {boundary} governor mismatch")
         require(environment.get("competing_processes") == [], f"environment {boundary} competing process")
         number(environment.get("swap_pages_in"), f"environment {boundary} swap_pages_in")

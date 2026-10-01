@@ -677,6 +677,7 @@ pub struct Engine {
     profiling_enabled: Arc<AtomicBool>,
     slow_threshold_ms: Arc<AtomicU64>,
     runtime_embedder: Option<Arc<dyn Embedder>>,
+    embed_dispatch: Arc<EmbedDispatcher>,
     runtime_embedder_identity: EmbedderIdentity,
     projection_runtime: ProjectionRuntime,
     /// Slice 65 — private, opt-in owner attribution for WAL checkpoint
@@ -756,6 +757,23 @@ pub struct Engine {
 }
 
 const PROJECTION_RUNTIME_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
+
+struct OpenEmbedDispatchGuard(Option<Arc<EmbedDispatcher>>);
+
+impl OpenEmbedDispatchGuard {
+    fn disarm(&mut self) {
+        self.0.take();
+    }
+}
+
+impl Drop for OpenEmbedDispatchGuard {
+    fn drop(&mut self) {
+        if let Some(dispatch) = self.0.take() {
+            dispatch.close();
+            let _ = dispatch.join_until(Instant::now() + Duration::from_secs(30));
+        }
+    }
+}
 
 /// Test-only live-connection audit. Each long-lived Engine connection acquires
 /// one registration after its actual SQLite handle exists and drops it when the
@@ -2900,6 +2918,16 @@ impl Engine {
             }
             error
         };
+        let embed_dispatch = Arc::new(
+            EmbedDispatcher::new(
+                runtime_embedder.clone(),
+                resolved_config.embedder_pool_size,
+                Duration::from_millis(resolved_config.embedder_call_timeout_ms),
+            )
+            .map_err(|error| EngineOpenError::Io { message: error.to_string() })
+            .map_err(&report_preopen_error)?,
+        );
+        let mut embed_dispatch_guard = OpenEmbedDispatchGuard(Some(Arc::clone(&embed_dispatch)));
         let pending_lock = acquire_lock_without_metadata_mutation(&canonical_path)
             .map_err(&report_preopen_error)?;
         configure_runtime_for_open()
@@ -2968,7 +2996,7 @@ impl Engine {
                     })?;
                 let veq = run_vector_equivalence_probe(
                     &connection,
-                    runtime_embedder.as_deref(),
+                    runtime_embedder.as_ref().map(|_| embed_dispatch.as_ref()),
                     &embedder_identity,
                     report.embedder_mean_vec_pinned,
                     prospective_dense_arm,
@@ -3010,6 +3038,7 @@ impl Engine {
                 let projection_runtime = ProjectionRuntime::new(
                     canonical_path.clone(),
                     scheduler_embedder,
+                    Arc::clone(&embed_dispatch),
                     embedder_identity.clone(),
                     report.embedder_mean_vec_pinned,
                     Arc::clone(&subscribers),
@@ -3073,6 +3102,7 @@ impl Engine {
                         profiling_enabled,
                         slow_threshold_ms,
                         runtime_embedder,
+                        embed_dispatch,
                         runtime_embedder_identity: embedder_identity,
                         projection_runtime,
                         wal_attribution,
@@ -3119,6 +3149,7 @@ impl Engine {
                 {
                     opened.engine.projection_runtime.notify_new_work();
                 }
+                embed_dispatch_guard.disarm();
                 Ok(opened)
             }
             Err(err) => {

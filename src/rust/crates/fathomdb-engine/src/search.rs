@@ -163,7 +163,7 @@ impl SearchReaderWork {
 }
 
 pub(crate) struct FrozenQueryRuntime {
-    embedder: Option<Arc<dyn Embedder>>,
+    embed_dispatch: Arc<EmbedDispatcher>,
     embedder_identity: EmbedderIdentity,
     dense_disabled_reason: Option<String>,
     observed_generation: Arc<AtomicU64>,
@@ -171,12 +171,12 @@ pub(crate) struct FrozenQueryRuntime {
 
 impl FrozenQueryRuntime {
     pub(crate) fn new(
-        embedder: Option<Arc<dyn Embedder>>,
+        embed_dispatch: Arc<EmbedDispatcher>,
         embedder_identity: EmbedderIdentity,
         dense_disabled_reason: Option<String>,
         observed_generation: Arc<AtomicU64>,
     ) -> Self {
-        Self { embedder, embedder_identity, dense_disabled_reason, observed_generation }
+        Self { embed_dispatch, embedder_identity, dense_disabled_reason, observed_generation }
     }
 }
 
@@ -1411,8 +1411,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             return Err(SearchReaderError::WriteValidation);
         }
         owned_compiled = compile_text_query(raw_query);
-        let raw_vector =
-            runtime.embedder.as_ref().and_then(|embedder| embedder.embed(raw_query).ok());
+        let raw_vector = dispatch_embed_vector(&runtime.embed_dispatch, raw_query).ok();
         owned_query_vector_bin = match raw_vector.as_ref() {
             Some(vector) if identity_requires_mean_centering(&runtime.embedder_identity) => {
                 let pinned = read_pinned_mean_vec(&tx, runtime.embedder_identity.dimension)
@@ -2416,6 +2415,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     Ok(output)
 }
 use crate::dependency_closure;
+use crate::embed_dispatch::EmbedDispatcher;
+use crate::embedding::dispatch_embed_vector;
 use crate::errors::EngineError;
 use crate::evidence::{self, EvidenceSearchResultV1};
 use crate::filter::{
@@ -2456,7 +2457,7 @@ use crate::test_hooks::{
 use crate::wal_attribution::WalAttributionCollector;
 use crate::{load_next_cursor, PROJECTION_CURSOR_KEY};
 use fathomdb_embedder::RerankerDevicePolicyError;
-use fathomdb_embedder_api::{Embedder, EmbedderIdentity};
+use fathomdb_embedder_api::EmbedderIdentity;
 use fathomdb_query::compile_text_query;
 use rusqlite::{params, CachedStatement, Connection, OptionalExtension, Statement};
 use std::collections::{BTreeSet, HashMap, VecDeque};

@@ -33,12 +33,27 @@ class AttemptAuditTests(unittest.TestCase):
             ("competing_processes", [{"pid": 123, "name": "cargo"}], "cargo.*123"),
             ("swap_pages_in", 1, "swap_pages_in"),
             ("swap_pages_out", 1, "swap_pages_out"),
+            ("pid_namespace", "pid:[4026534361]", "pid namespace"),
         )
         for key, value, expected in cases:
             raw = copy.deepcopy(self.raw)
             raw["environment_samples"][0][key] = value
             with self.subTest(key=key), self.assertRaisesRegex(ValueError, expected):
                 runner.check_raw_observations(raw, "entry")
+
+    def test_namespaced_process_view_cannot_start_a_repetition(self):
+        protocol = json.loads(runner.PROTOCOL.read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            binary = output / "binary"
+            binary.write_bytes(b"test binary")
+            snapshot = copy.deepcopy(self.raw["environment_start"])
+            snapshot["pid_namespace"] = "pid:[4026534361]"
+            argv = ["d27-runtime-runner.py", "--source", directory, "--phase", "entry", "--output-dir", directory]
+            with mock.patch.object(sys, "argv", argv), mock.patch.object(runner, "git_sha", return_value=protocol["entry_engine_candidate_sha"]), mock.patch.object(runner, "build_binary", return_value=binary), mock.patch.object(runner, "environment", return_value=snapshot), mock.patch.object(runner, "run_repetition") as run:
+                with self.assertRaisesRegex(ValueError, "pid namespace"):
+                    runner.main()
+                run.assert_not_called()
 
     def test_first_failed_repetition_is_persisted_before_validation_aborts(self):
         protocol = json.loads(runner.PROTOCOL.read_text())

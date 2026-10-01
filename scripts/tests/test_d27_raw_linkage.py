@@ -46,9 +46,9 @@ def synthetic_raw(direction, repetition):
         "close_start_ns": 60_010_000_000, "close_end_ns": 60_020_000_000,
         "close_result": "Ok(())", "smoke": False,
         "environment_valid": True,
-        "environment_start": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1"},
-        "environment_end": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1"},
-        "environment_samples": [{"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1"}],
+        "environment_start": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1", "pid_namespace": "pid:[4026531836]"},
+        "environment_end": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1", "pid_namespace": "pid:[4026531836]"},
+        "environment_samples": [{"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1", "pid_namespace": "pid:[4026531836]"}],
     }
 
 
@@ -96,6 +96,13 @@ class RawLinkageTests(unittest.TestCase):
         changed[0]["environment_samples"] = [sample]
         self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
         with self.assertRaisesRegex(ValueError, "environment"):
+            verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
+
+    def test_namespace_local_monitor_cannot_validate_raw_or_receipt(self):
+        changed = copy.deepcopy(self.raw)
+        changed[0]["environment_samples"][0]["pid_namespace"] = "pid:[4026534361]"
+        self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
+        with self.assertRaisesRegex(ValueError, "pid namespace"):
             verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
 
     def test_missing_midrun_samples_are_rejected(self):

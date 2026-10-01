@@ -2589,9 +2589,13 @@ export class Engine {
 
   static async open(path: string, options: EngineOpenOptions = {}): Promise<Engine> {
     validateFfiString(path);
-    const config = snapshotEngineConfig(options.engineConfig);
-    const nativeOptions =
-      options.engineConfig === undefined ? options : { ...options, engineConfig: config };
+    // Read caller-owned accessors once so native open receives the validated snapshot.
+    const requestedConfig = options.engineConfig;
+    const config = snapshotEngineConfig(requestedConfig);
+    const useDefaultEmbedder = options.useDefaultEmbedder;
+    const nativeOptions = requestedConfig === undefined
+      ? { useDefaultEmbedder }
+      : { useDefaultEmbedder, engineConfig: config };
     const inner = await intercept(() => native.Engine.open(path, nativeOptions));
     return new Engine(inner, config);
   }

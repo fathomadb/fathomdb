@@ -81,6 +81,11 @@ class AttemptAuditTests(unittest.TestCase):
         with mock.patch.object(runner.Path, "read_text", return_value=mountinfo):
             self.assertEqual(runner.procfs_hidepid(), "2")
 
+    def test_host_process_view_accepts_unavailable_pid_one_namespace_link(self):
+        snapshot = copy.deepcopy(self.raw["environment_start"])
+        snapshot["pid_one_namespace"] = ""
+        self.assertEqual(runner.process_view_invalidators(snapshot, "host"), [])
+
     def test_first_failed_repetition_is_persisted_before_validation_aborts(self):
         protocol = json.loads(runner.PROTOCOL.read_text())
         with tempfile.TemporaryDirectory() as directory:

@@ -112,6 +112,15 @@ class RawLinkageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "process view"):
             verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
 
+    def test_blank_pid_one_namespace_link_with_full_host_view_can_validate(self):
+        changed = copy.deepcopy(self.raw)
+        for item in changed:
+            item["environment_start"]["pid_one_namespace"] = ""
+            item["environment_end"]["pid_one_namespace"] = ""
+            item["environment_samples"][0]["pid_one_namespace"] = ""
+        self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
+        verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
+
     def test_missing_midrun_samples_are_rejected(self):
         changed = copy.deepcopy(self.raw)
         changed[0]["environment_samples"] = []

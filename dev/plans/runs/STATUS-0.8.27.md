@@ -45,8 +45,10 @@ numeric, default, API, error, shutdown and supersession specifics in
 `ADR-0.8.27-engine-owned-runtime-topology.md`. Slice 90 retains the synchronous
 projection/commit ownership model and must implement and verify that successor
 before AC27-90B passes. Its stage-2 runtime checkpoint must be bound in release state
-(`runtime_checkpoint_sha` with independent code-review and read-only
-verification receipts) before mechanical runtime moves start. See the
+(the structured `runtime_checkpoint` object with candidate/binding SHAs and
+hashed performance, code-review and read-only-verification receipts) before
+mechanical runtime moves start. The always-on checkpoint gate enforces that
+binding and stage-3 ancestry. See the
 [code-grounded resolution](../0.8.27/features/slice-90/independent-findings-resolution.md).
 
 ## Completed release-branch ladder
@@ -204,17 +206,16 @@ grant/revert evidence.
 
 - This release starts at schema 34 and currently proposes no schema migration.
 - Publication is unauthorized.
-- Slices 30, 40, 50, 60, 70, and 80 were directly authorized by the repository
-  owner and are complete. Slice 85 was commissioned by `seq-294` after its
-  independent design review passed and its exact-candidate AC27-85F entry
-  receipts passed at `4c75bfec`; later slices require separate commission. The
+- Slices 30, 40, 50, 60, 70, 80, and 85 are complete. Slice 85 was commissioned
+  by `seq-294` after its independent design review passed and its exact-candidate
+  AC27-85F entry receipts passed at `4c75bfec`; it completed at `7a2f9bf9` with
+  closeout `8cd3389d`. Later slices require separate commission. The
   Slice 85 design was corrected on 2026-09-27 after a
   code-grounded review (handler-result ownership, `Engine`-method and
   field-alias edges, crate-root semantics, ordered batches), then aligned with
   the release's established bounded-decomposition method: narrower handler
   errors, item-level root nodes, complete inventory with scoped enforcement,
-  and no whole-crate or line-count-driven ownership expansion. Implementation
-  has not started.
+  and no whole-crate or line-count-driven ownership expansion.
 - The prospective [Slice 90 design](../0.8.27/features/slice-90/design.md)
   assigns all runtime/projector/operator handoffs, requires closure of the configuration
   gap through separately tested behavior work, and requires zero outstanding
@@ -222,10 +223,11 @@ grant/revert evidence.
   shared search-control fields have explicit retained-owner dispositions.
   Slice 90 remains PLANNED. No Slice 91 is allocated; ordered reviewed batches
   provide the needed boundaries within Slice 90. The independent findings
-  correction makes AC27-90B visibly gated by the ruled Option B successor:
-  accepted pools are absent, so forwarding alone cannot close this gap, and
-  independent design approval plus formal ADR codification precede production
-  commissioning.
+  correction makes AC27-90B visibly gated by the ruled and codified Option B
+  successor: accepted pools are absent, so forwarding alone cannot close this
+  gap. `seq-295` and the accepted successor ADR close the design-approval
+  prerequisite; an explicit Slice 90 execution ruling and entry/checkpoint
+  work remain.
 - Prospective [Slice 100](../0.8.27/features/slice-100/design.md) and
   [Slice 110](../0.8.27/features/slice-110/design.md) designs now require exact
   native ownership/registration inventories, contract disposition, installed

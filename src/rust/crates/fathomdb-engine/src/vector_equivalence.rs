@@ -26,18 +26,16 @@ pub(crate) fn usable_dense_runtime(embedder: Option<&dyn Embedder>, dense_disabl
     embedder.is_some() && !dense_disabled
 }
 
-/// 0.8.18 Slice 5 — embed one probe under panic isolation. The probe runs at
-/// open time on the writer connection BEFORE the projection workers spawn, so a
-/// caller-supplied embedder that PANICS (or returns an error / a wrong-dimension
-/// vector) must never wedge `Engine::open`. A panic/error/shape-mismatch yields
-/// `None`; the CALLERS then fail-SAFE (fix-1 DEFECT #1) — a `None` at population
+/// 0.8.18 Slice 5 — embed one probe through the engine's bounded dispatcher.
+/// The probe runs at open time on the writer connection before projection workers
+/// spawn. A caller-supplied embedder that panics, errors, times out, or returns
+/// a wrong-dimension vector yields `None`; the callers then fail-safe — a `None` at population
 /// or check time means the vector arm cannot be established/verified, so dense is
 /// REFUSED (`dense_disabled=true`), never silently served. `Engine::open` still
 /// succeeds (no wedge; ADR-0.6.0 Invariant-5 posture, mirrored open-side).
-fn probe_embed(embedder: &dyn Embedder, text: &str, dimension: usize) -> Option<Vec<f32>> {
-    let embedded = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| embedder.embed(text)));
-    match embedded {
-        Ok(Ok(vector)) if vector.len() == dimension => Some(vector),
+fn probe_embed(embedder: &EmbedDispatcher, text: &str, dimension: usize) -> Option<Vec<f32>> {
+    match embedder.submit_text(text.to_owned()).and_then(EmbedReply::wait) {
+        Ok(EmbedOutput::One(vector)) if vector.len() == dimension => Some(vector),
         _ => None,
     }
 }
@@ -79,7 +77,7 @@ fn probe_embed(embedder: &dyn Embedder, text: &str, dimension: usize) -> Option<
 /// never silent").
 pub(crate) fn run_vector_equivalence_probe(
     connection: &Connection,
-    embedder: Option<&dyn Embedder>,
+    embedder: Option<&EmbedDispatcher>,
     identity: &EmbedderIdentity,
     mean_pinned: bool,
     prospective_dense_arm: bool,
@@ -147,7 +145,7 @@ pub(crate) fn run_vector_equivalence_probe(
 /// (`dense_disabled=true`); `Ok(())` ⇒ dense served. Fail-SAFE throughout.
 fn probe_populate_or_check(
     connection: &Connection,
-    embedder: &dyn Embedder,
+    embedder: &EmbedDispatcher,
     identity: &EmbedderIdentity,
     mean_pinned: bool,
     prospective_preflight: bool,
@@ -211,7 +209,7 @@ fn probe_populate_or_check(
 /// This collection is deliberately side-effect free so a prospective dense arm can
 /// be refused without changing the workspace it was merely considering joining.
 fn collect_probe_baseline(
-    embedder: &dyn Embedder,
+    embedder: &EmbedDispatcher,
     identity: &EmbedderIdentity,
     probes: &[&str],
 ) -> Result<Vec<StoredProbeRow>, String> {
@@ -435,7 +433,7 @@ fn clear_probe_verification(connection: &Connection) {
 /// rejection must remain globally mutation-free.
 fn probe_check_against_baseline(
     connection: &Connection,
-    embedder: &dyn Embedder,
+    embedder: &EmbedDispatcher,
     identity: &EmbedderIdentity,
     mean_pinned: bool,
     probes: &[&str],
@@ -504,7 +502,7 @@ fn load_stored_probe_baseline(connection: &Connection) -> Result<Vec<StoredProbe
 /// `dev/design/0.8.20-tc68-equivalence-probe-fingerprint-cache.md`.
 fn probe_check_stored_baseline(
     connection: &Connection,
-    embedder: &dyn Embedder,
+    embedder: &EmbedDispatcher,
     identity: &EmbedderIdentity,
     mean_pinned: bool,
     probes: &[&str],

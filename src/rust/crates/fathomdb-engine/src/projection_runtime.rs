@@ -221,6 +221,7 @@ impl ProjectionRuntime {
     pub(crate) fn new(
         path: PathBuf,
         embedder: Option<Arc<dyn Embedder>>,
+        embed_dispatch: Arc<EmbedDispatcher>,
         embedder_identity: EmbedderIdentity,
         mean_already_pinned: bool,
         subscribers: Arc<lifecycle::SubscriberRegistry>,
@@ -233,6 +234,7 @@ impl ProjectionRuntime {
         Self::new_with_startup_control(
             path,
             embedder,
+            embed_dispatch,
             embedder_identity,
             mean_already_pinned,
             subscribers,
@@ -260,9 +262,18 @@ impl ProjectionRuntime {
         startup_timeout: Duration,
         startup_fault: Option<ProjectionRuntimeStartupFaultForTest>,
     ) -> Result<Self, EngineOpenError> {
+        let embed_dispatch = Arc::new(
+            EmbedDispatcher::new(
+                embedder.clone(),
+                config.embedder_pool_size,
+                Duration::from_millis(config.embedder_call_timeout_ms),
+            )
+            .map_err(|error| EngineOpenError::Io { message: error.to_string() })?,
+        );
         Self::new_with_startup_control(
             path,
             embedder,
+            embed_dispatch,
             embedder_identity,
             mean_already_pinned,
             subscribers,
@@ -278,6 +289,7 @@ impl ProjectionRuntime {
     fn new_with_startup_control(
         path: PathBuf,
         embedder: Option<Arc<dyn Embedder>>,
+        embed_dispatch: Arc<EmbedDispatcher>,
         embedder_identity: EmbedderIdentity,
         mean_already_pinned: bool,
         subscribers: Arc<lifecycle::SubscriberRegistry>,
@@ -301,14 +313,6 @@ impl ProjectionRuntime {
         } else {
             None
         };
-        let embed_dispatch = Arc::new(
-            EmbedDispatcher::new(
-                embedder.clone(),
-                config.embedder_pool_size,
-                Duration::from_millis(config.embedder_call_timeout_ms),
-            )
-            .map_err(|error| EngineOpenError::Io { message: error.to_string() })?,
-        );
         let shared = Arc::new(ProjectionRuntimeShared {
             path,
             worker_count: config.scheduler_runtime_threads,

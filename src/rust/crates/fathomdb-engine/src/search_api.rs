@@ -150,7 +150,7 @@ impl Engine {
             request.context.context.view,
             binding,
             FrozenQueryRuntime::new(
-                self.runtime_embedder.clone(),
+                Arc::clone(&self.embed_dispatch),
                 self.runtime_embedder_identity.clone(),
                 dense_disabled_reason,
                 Arc::clone(&self.read_visibility_generation),
@@ -540,7 +540,11 @@ impl Engine {
         // mean_vec must be pinned. NoopEmbedder collapses to
         // `query_vector_bin == query_vector` until EU-5b.
         let raw_query_vector = (!is_frozen)
-            .then(|| self.runtime_embedder.as_ref().and_then(|embedder| embedder.embed(query).ok()))
+            .then(|| match dispatch_embed_vector(&self.embed_dispatch, query) {
+                Ok(vector) => Some(vector),
+                Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
+                Err(_) => None,
+            })
             .flatten();
         let query_vector_bin = match raw_query_vector.as_ref() {
             Some(vector) if identity_requires_mean_centering(&self.runtime_embedder_identity) => {
@@ -560,7 +564,7 @@ impl Engine {
         let query_vector = raw_query_vector.and_then(|vector| serde_json::to_string(&vector).ok());
         let frozen_query_runtime = is_frozen.then(|| {
             Box::new(FrozenQueryRuntime::new(
-                self.runtime_embedder.clone(),
+                Arc::clone(&self.embed_dispatch),
                 self.runtime_embedder_identity.clone(),
                 dense_disabled_reason,
                 Arc::clone(&self.read_visibility_generation),
@@ -1344,6 +1348,8 @@ impl Engine {
         }
     }
 }
+use crate::embed_dispatch::DispatchError;
+use crate::embedding::dispatch_embed_vector;
 use crate::errors::EngineError;
 use crate::evidence::{
     self, EvidenceArtifactClassV1, EvidenceArtifactLifecycleV1, EvidenceErrorReasonV1,

@@ -53,12 +53,16 @@ available RAM but nearly full swap; the frozen protocol invalidates swap
 movement. Do not relax that rule or start semantic runtime changes before a
 valid six-repetition historical entry.
 
-The local NVIDIA kernel module is 580.173.02 while NVML is 580.178.04;
-`nvidia-smi` fails even outside the sandbox. A working host GPU and quiet
-windchill3 process/swap state are external prerequisites for the remaining
-hidden-surface, Slice 85 recovery and Slice 90 performance evidence.
+The local NVIDIA kernel module is 580.173.02 while NVML is 580.178.04.
+Per HITL `seq-296`, this mismatch cannot be resolved for Slice 90: proceed
+with needed GPU tests on windchill3 as installed and record their outcomes.
+The strict `scripts/test-feature-complete.sh` gate exited 2 because its
+`nvidia-smi` query exited 18. The official `hidden_surface.py capture` of
+`f5bc7ca5d` also exited 2 at the same CUDA preflight. Neither produced a
+GPU or hidden-surface PASS. No driver repair is a prerequisite to continuing
+available Slice 90 work.
 
-Next: repair the host GPU driver/library mismatch and stop host swap activity;
-run the new protocol's historical D27 entry on unrestricted host `/proc`,
-complete the inherited Slice 85 qualification, then begin staged RED/GREEN
-runtime work and the candidate-bound checkpoint. Slice 90 remains IN_PROGRESS.
+Next: settle the D27 swap policy for the current windchill3 host, collect a
+historical entry under the ruled protocol, continue staged RED/GREEN runtime
+work and the candidate-bound checkpoint, and report the remaining GPU and
+Slice 85 recovery evidence as its actual result. Slice 90 remains IN_PROGRESS.

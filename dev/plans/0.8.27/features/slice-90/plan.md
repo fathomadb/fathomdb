@@ -31,9 +31,12 @@ binding source, and the allocated Slice 100 pre-entry plan.
 2. **Release authority did not advance with source.** Release state still binds
    Slice 85 to `7a2f9bf9`; the recovery receipt lacks official public/hidden
    comparison and moved GPU-route evidence. The current host reports 127 GB
-   free, enough for the public comparator's 100 GB preflight, but `nvidia-smi`
-   exits 9, so GPU-dependent evidence needs a capable executor. Source ancestry
-   cannot replace the missing receipts or silently rebind release state.
+   free, enough for the public comparator's 100 GB preflight. The NVIDIA kernel
+   module and NVML library mismatch, so GPU-dependent evidence is unavailable
+   on the installed host. HITL `seq-296` directs execution of needed GPU tests
+   on windchill3 as installed and recording their actual outcomes; it does not
+   turn a failed preflight into PASS. Source ancestry cannot replace the missing
+   receipts or silently rebind release state.
 3. **The D27 historical entry cannot report new executor metrics.** The frozen
    protocol asked the old source for an embed queue and fixed embed-worker
    inventory it does not have. The protocol now compares only shared operation
@@ -58,6 +61,14 @@ binding source, and the allocated Slice 100 pre-entry plan.
    before switching checkouts. It passes `--expect-closed 85` on current
    release state. The checkpoint checker already exists; it must bind the
    exact runtime candidate before structural moves.
+7. **Current-host qualification was attempted.** The reviewed D27 harness
+   built and ran against exact historical source, but two first repetitions
+   were invalidated by host swap-in. The strict feature-complete gate and
+   official hidden-surface capture both exited 2 at the installed NVIDIA
+   driver/NVML mismatch. HITL `seq-296` removes driver repair as a prerequisite
+   to doing available work; these observations remain failed or unavailable
+   evidence, not qualification receipts. The D27 swap policy needs a separate
+   explicit disposition before its historical entry can qualify.
 
 ## Evaluation and scope decision
 

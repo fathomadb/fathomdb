@@ -8,7 +8,7 @@ target_release: 0.8.27
 
 Requirements, acceptance criteria, design and TDD batches are reconciled in
 the [plan](plan.md). Independent design review passed after the recorded
-corrections. Runtime Batches 2a and 2b are merged and reviewed; the runtime checkpoint
+corrections. Runtime Batches 2a, 2b and 2d are merged and reviewed; the runtime checkpoint
 and final Slice 90 verification are not yet claimed.
 
 The frozen operational source entry was `release/0.8.27` at `e689000d4` or a
@@ -123,6 +123,21 @@ suites: 6 parent tests passed, with 2 intentionally ignored bounded-child
 entrypoints. The scheduler count, embedder pool size, and deadline remain
 validated/stored inputs until later batches make their runtime effects
 observable; this batch does not claim AC27-90B complete.
+
+Dynamic projection Batch 2d was merged at `60462c998` from clean GREEN
+commit `330721c5c`, after RED `ff0135276` demonstrated that a requested
+single worker still started two. The runtime now uses the resolved worker
+count for worker-owned connections, startup, inventory, pause/stop and join,
+and checked `N × 64` projection-row admission. Focused tests pass at 1, 2,
+4 and 64 workers for native/live inventory, at N=1 for actual row saturation,
+and for partial startup cleanup and independent engines. The Windows WAL
+attribution source guard's dynamic-count assertion and negative mutation pass
+317/317 cases. Independent `gpt-6-sol` high code review and Terra verification
+passed at `330721c5c`. After merge, the release branch reran both earlier
+Slice 90 integration suites (6 parent tests, 2 ignored bounded children) and
+all four configured-projection unit tests. The later qualification matrix
+still must exercise nondefault consuming/bounds behavior; this batch is not
+AC27-90B completion.
 
 Next: continue Batch 2c embed dispatch RED/GREEN and the later runtime batches
 on windchill3 while settling the D27 swap policy. Collect a valid historical

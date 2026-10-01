@@ -1,7 +1,8 @@
 //! PR-9 diagnostic micro-benchmark (NOT a gate; opt-in via AGENT_LONG).
 //!
-//! Isolates two questions the PR-9 pre-flight raised:
-//!   1. Does the watchdog's spawn-a-thread-per-embed add material overhead vs
+//! Retains two historical PR-9 comparisons. The current dispatcher uses a
+//! fixed worker pool rather than the per-call thread measured here:
+//!   1. Does spawning a thread per embed add material overhead vs
 //!      a direct `embed()` call? (Hypothesis under test: per-call std::thread
 //!      spawn is perf-neutral because candle's matmul fans out onto a single
 //!      process-wide rayon pool regardless of the caller thread.)
@@ -26,9 +27,8 @@ use std::time::{Duration, Instant};
 use fathomdb_embedder::CandleBgeEmbedder;
 use fathomdb_embedder_api::Embedder;
 
-/// Mirror of `embed_with_watchdog` in lib.rs: spawn a thread per embed, wait
-/// on a channel with a timeout. Used to measure the spawn overhead in
-/// isolation against a direct call.
+/// Historical PR-9 per-call thread comparator, retained as a diagnostic.
+/// Production inference now uses the fixed provider dispatcher.
 fn watchdog_embed(embedder: &Arc<dyn Embedder>, body: &str, timeout: Duration) -> Vec<f32> {
     let (tx, rx) = mpsc::channel();
     let e = Arc::clone(embedder);

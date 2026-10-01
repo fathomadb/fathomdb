@@ -1,29 +1,15 @@
-//! PR-9 item 1 — sustained real-corpus seed through the production
-//! projection path (now engine-serialized).
+//! Sustained real-corpus seed through the production projection provider pool.
 //!
-//! `PROJECTION_WORKERS = 2` workers drive the real `CandleBgeEmbedder`. The
-//! PR-9 pre-flight established that letting the two workers call the shared
-//! `BertModel::forward` *concurrently* does not wedge or corrupt. PR-9 still
-//! serializes the embed engine-side (`lib.rs::run_projection_job`'s
-//! `embed_serialize` guard, commit/IO stays parallel) — for SAFETY with
-//! arbitrary caller-supplied embedders, not throughput (candle fans every
-//! forward onto one process-wide rayon pool, so serialization is
-//! throughput-neutral on the candle default). The fast mechanism test for
-//! that guard is `pr9_embed_serialization.rs`.
+//! The default engine configuration runs two projection workers and one fixed
+//! provider worker. Earlier PR-9 measurement established that concurrent
+//! Candle forwards do not corrupt results; the Slice 90 default keeps one
+//! provider slot and makes higher concurrency an explicit engine setting.
 //!
-//! This test is the end-to-end *guard + measurement*: it seeds ≥10K real
-//! docs through the serialized production path and asserts:
-//!   * `drain` returns (the serialized seed completes in bounded time),
-//!   * every seeded row produced a vector (no drops),
-//!   * the projection reaches `UpToDate`, and
-//!   * stored vectors are finite + unit-norm, with a direct spot-check that
-//!     the first rows' stored vectors equal a single-threaded re-embed.
-//!
-//! It also logs the serialized embed rate (`PR9_PROGRESS` / `PR9_DRAINED`)
-//! for the record. NOTE: run in `--release`; in a debug build a 512-token
-//! candle forward is ~14x slower (PR-9 micro-benchmark), so a 10K seed of
-//! long corpus docs takes hours in debug. Lower `PR9_SEED_N` for a quick
-//! debug end-to-end.
+//! This opt-in end-to-end test seeds at least 10K real docs, checks bounded
+//! drain, full vector coverage, finite unit-norm vectors, and a direct
+//! single-threaded re-embed spot-check. It logs the measured embed rate.
+//! Run in release mode for the long corpus seed; debug Candle forwards are
+//! much slower. Lower `PR9_SEED_N` for a quick debug check.
 //!
 //! Opt-in (real candle weights, slow ~45 min at 10K): requires the
 //! `default-embedder` feature AND `AGENT_LONG=1`:
@@ -52,7 +38,7 @@ use corpus_subset::load_subset_or_skip;
 
 const DEFAULT_SEED_N: usize = 10_000;
 const WRITE_BATCH: usize = 256;
-// Generous ceiling so the (real, serialized) seed completes rather than
+// Generous ceiling so the real default-pool seed completes rather than
 // being cut off: release embeds are ~14ms short / ~960ms for a 512-token doc
 // (PR-9 micro-benchmark), so a 10K corpus-mix seed is well under this. A
 // genuine wedge would surface as drain RETURNING Err, not as a timeout.
@@ -70,7 +56,7 @@ fn cosine(a: &[f32], b: &[f32]) -> f32 {
 }
 
 #[test]
-fn sustained_seed_serialized_path_completes_and_is_correct() {
+fn sustained_seed_default_pool_completes_and_is_correct() {
     if std::env::var_os("AGENT_LONG").is_none() {
         eprintln!("[skip] AGENT_LONG not set; PR-9 sustained-seed measurement is opt-in");
         return;
@@ -87,7 +73,7 @@ fn sustained_seed_serialized_path_completes_and_is_correct() {
     };
 
     // Build the ≥N-body haystack by cycling the real corpus (duplicates are
-    // fine: they still drive the full serialized embed→commit pipeline and let
+    // fine: they still drive the full provider-pool embed→commit pipeline and let
     // us spot-check determinism).
     let target_n = env_usize("PR9_SEED_N", DEFAULT_SEED_N);
     let real_bodies: Vec<String> =
@@ -97,9 +83,8 @@ fn sustained_seed_serialized_path_completes_and_is_correct() {
         (0..target_n).map(|i| real_bodies[i % real_bodies.len()].clone()).collect();
     eprintln!("PR9_SETUP target_n={target_n} real_docs={} (cycled to fill)", real_bodies.len());
 
-    // Bare CandleBgeEmbedder — NO harness-side SerializedBge wrapper: embed
-    // serialization is now the engine's job (`embed_serialize`), so this
-    // exercises the real production path. Reused below as the single-threaded
+    // Bare CandleBgeEmbedder with the engine's default one-slot provider pool.
+    // Reused below as the single-threaded
     // ground-truth encoder for the determinism spot-check.
     let embedder: Arc<dyn Embedder> =
         Arc::new(CandleBgeEmbedder::new().expect("construct real bge embedder"));
@@ -116,8 +101,8 @@ fn sustained_seed_serialized_path_completes_and_is_correct() {
     engine.configure_vector_kind_for_test("doc").expect("configure vector kind");
 
     // Write the whole haystack WITHOUT draining between batches so the
-    // projection workers stay fed throughout (embeds run one at a time behind
-    // embed_serialize) — a single end-of-seed drain proves the pool reaches
+    // projection workers stay fed throughout (the configured provider pool
+    // governs inference concurrency) — a single end-of-seed drain proves it reaches
     // idle.
     let started = Instant::now();
     let mut written = 0usize;
@@ -178,7 +163,7 @@ fn sustained_seed_serialized_path_completes_and_is_correct() {
     eprintln!("PR9_DRAINED ok={} drain_s={}", drained.is_ok(), drain_started.elapsed().as_secs());
     assert!(
         drained.is_ok(),
-        "serialized seed must complete drain in bounded time; got {drained:?}"
+        "default-pool seed must complete drain in bounded time; got {drained:?}"
     );
 
     // Completion: the projection must reach UpToDate and every row vectorized.

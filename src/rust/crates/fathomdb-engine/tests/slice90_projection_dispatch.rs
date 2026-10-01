@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::ProjectionStatus;
-use fathomdb_engine::{Engine, PreparedWrite, SourceId};
+use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, PreparedWrite, SourceId};
 use fathomdb_schema::SQLITE_SUFFIX;
 
 const DIMENSION: u32 = 8;
@@ -60,7 +60,7 @@ impl Embedder for ParkedBatchEmbedder {
     }
 
     fn embed_batch(&self, inputs: &[&str]) -> Result<Vec<Vector>, EmbedderError> {
-        assert!(inputs.len() >= 2, "the breaker must follow a real batch call");
+        assert!(inputs.len() >= 2, "the retained slot must follow a real batch call");
         self.batch_calls.fetch_add(1, Ordering::SeqCst);
         std::fs::write(&self.marker, b"batch-started").expect("record entered batch call");
         let started = Instant::now();
@@ -126,12 +126,12 @@ fn batch_failure_releases_permit_before_per_row_fallback() {
 }
 
 #[test]
-fn breaker_open_fast_failure_is_bounded_separately() {
+fn timed_out_batch_retains_slot_without_fallback_reacquire() {
     let directory = tempfile::tempdir().expect("test directory");
     let marker = directory.path().join("batch-started.marker");
-    let database = directory.path().join(format!("batch-breaker{SQLITE_SUFFIX}"));
+    let database = directory.path().join(format!("batch-retained{SQLITE_SUFFIX}"));
     let mut child = Command::new(std::env::current_exe().expect("test executable"))
-        .args(["--exact", "breaker_open_child", "--ignored", "--nocapture"])
+        .args(["--exact", "retained_batch_child", "--ignored", "--nocapture"])
         .env("FATHOMDB_PROJECTION_BATCH", "1")
         .env("FATHOMDB_SLICE90_BATCH_DB", &database)
         .env("FATHOMDB_SLICE90_BATCH_MARKER", &marker)
@@ -153,13 +153,13 @@ fn breaker_open_fast_failure_is_bounded_separately() {
                 b"batch-started",
                 "timeout is relevant only if the batch provider was entered"
             );
-            panic!("breaker-open handling failed to drain within seven seconds");
+            panic!("timed-out batch recovery failed to drain within seven seconds");
         }
         thread::sleep(Duration::from_millis(10));
     };
 
     assert_eq!(std::fs::read(&marker).expect("batch started marker"), b"batch-started");
-    assert!(status.success(), "breaker-open handling must finish without a fallback deadlock");
+    assert!(status.success(), "batch slot retention must recover without a fallback deadlock");
 }
 
 #[test]
@@ -203,7 +203,7 @@ fn batch_failure_child() {
 
 #[test]
 #[ignore = "run only in the bounded parent subprocess"]
-fn breaker_open_child() {
+fn retained_batch_child() {
     let database = std::env::var_os("FATHOMDB_SLICE90_BATCH_DB").expect("database path");
     let marker = std::env::var_os("FATHOMDB_SLICE90_BATCH_MARKER").expect("marker path");
     let park = Arc::new(AtomicBool::new(true));
@@ -213,29 +213,30 @@ fn breaker_open_child() {
         batch_calls: AtomicUsize::new(0),
         individual_calls: AtomicUsize::new(0),
     });
-    let opened = Engine::open_with_embedder_for_test(database, embedder.clone()).expect("open");
+    let opened = Engine::open_with_choice_and_config(
+        database,
+        EmbedderChoice::Caller(embedder.clone()),
+        EngineConfig { embedder_call_timeout_ms: Some(50), ..EngineConfig::default() },
+    )
+    .expect("open");
     let engine = opened.engine;
     engine.configure_vector_kind_for_test("doc").expect("vector kind");
-    engine.set_embed_timeout_ms_for_test(50);
-    engine.set_embed_circuit_threshold_for_test(1);
     engine.set_projection_retry_delays_for_test(&[]);
     engine.set_projection_scheduler_frozen_for_test(true);
     let rows: Vec<_> = (0..16).map(node).collect();
     engine.write(&rows).expect("write rows");
     engine.set_projection_scheduler_frozen_for_test(false);
-    let drained = engine.drain(3_000);
-    let breaker_open = engine.embed_circuit_open_for_test();
+    let drained = engine.drain(200);
     let batch_calls = embedder.batch_calls.load(Ordering::SeqCst);
     let individual_calls = embedder.individual_calls.load(Ordering::SeqCst);
-    let status = engine.projection_status_for_test("doc").expect("projection status");
+    assert!(matches!(drained, Err(fathomdb_engine::EngineError::Scheduler)));
+    assert_eq!(batch_calls, 1, "a timed-out batch still occupies the only provider slot");
+    assert_eq!(individual_calls, 0, "fallback cannot start before slot release");
     park.store(false, Ordering::SeqCst);
-
-    drained.expect("timed-out batch and breaker-open fallback must drain");
-    assert!(breaker_open, "a timed-out live batch must open the breaker at threshold one");
-    assert!(batch_calls > 0, "the provider batch timeout must be reached");
-    assert!(
-        individual_calls < rows.len(),
-        "breaker-open fast failure must not invoke the provider for every row"
+    engine.drain(3_000).expect("fallback must recover after batch returns");
+    assert_eq!(
+        engine.projection_status_for_test("doc").expect("projection status"),
+        ProjectionStatus::UpToDate
     );
-    assert_eq!(status, ProjectionStatus::Failed, "breaker-open projection is terminal");
+    assert!(embedder.individual_calls.load(Ordering::SeqCst) > 0);
 }

@@ -1,22 +1,4 @@
-//! PR-9 item 1 — engine-side embed serialization.
-//!
-//! The projection pool runs `PROJECTION_WORKERS` (2) workers. PR-9 serializes
-//! the embed *call* engine-side so the shared `Arc<dyn Embedder>` is invoked
-//! by at most one worker at a time, while commit/IO stays parallel.
-//!
-//! Rationale is SAFETY, not throughput: the engine accepts arbitrary
-//! caller-supplied embedders (pyo3 / napi bridges) that are `Sync` only by
-//! contract and may not be truly concurrency-safe; serializing engine-side
-//! makes the projection robust to them. (Throughput is ~neutral — candle
-//! fans every forward onto one process-wide rayon pool, so concurrent
-//! forwards share it rather than getting 2x; the PR-9 pre-flight also
-//! confirmed concurrent CandleBge embeds neither wedge nor corrupt.)
-//!
-//! This test proves serialization mechanically with a fast mock embedder
-//! that records the maximum number of `embed()` calls in flight at once.
-//!
-//! RED (no guard): two workers embed concurrently → max in flight == 2.
-//! GREEN (guard):  embeds run one at a time   → max in flight == 1.
+//! The configured provider pool bounds projection inference concurrency.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -79,12 +61,9 @@ fn fixture_path(name: &str) -> (TempDir, std::path::PathBuf) {
     (dir, path)
 }
 
-/// Item 1: the production projection path must embed one-at-a-time. With two
-/// projection workers and a deliberately-slow embed, an unserialized engine
-/// would show two concurrent `embed()` calls; the engine-side guard pins the
-/// peak at exactly one.
+/// The default provider pool has one slot even with two projection workers.
 #[test]
-fn embeds_are_serialized_engine_side() {
+fn default_provider_pool_has_one_active_slot() {
     let (_dir, path) = fixture_path("pr9_serialize");
     let max_in_flight = Arc::new(AtomicUsize::new(0));
     let embedder =

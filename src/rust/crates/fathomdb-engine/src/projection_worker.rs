@@ -484,9 +484,9 @@ pub(crate) enum ProjectionOutcome {
     /// session that DOES have an embedder picks it up through the ordinary
     /// scheduler — no graft path and no recovery machinery.
     ///
-    /// The only producer is the absent-embedder check at the top of
-    /// [`run_projection_job`]. That condition cannot change within a session, so
-    /// this can never become a retry loop for a genuinely-failing row.
+    /// The absent-embedder check, dispatch capacity waits interrupted by close,
+    /// and dispatch cancellation all leave this same durable pending state.
+    /// Provider failures and started timeouts instead use the retry budget.
     ///
     /// It carries NO cursor, deliberately: the other two variants carry one
     /// because they identify the row they are about to WRITE, and this variant
@@ -506,22 +506,9 @@ fn run_projection_jobs(
     commit_projection_outcomes(connection, &outcomes, shared, worker_idx)
 }
 
-/// Embed a whole commit-batch in ONE `embed_batch` call (amortizes per-call
-/// overhead; saturates the GPU — minutes -> seconds on a full-corpus embed). The
-/// batched path is the fast HAPPY path only; on ANY anomaly — no embedder, breaker
-/// open, single job, batch timeout/failure, row-count or per-row dimension mismatch
-/// — it falls back to the proven per-job [`run_projection_job`], which carries the
-/// full retry + circuit-breaker + failure-isolation semantics. So batching can only
-/// make the common case faster, never change correctness. A panic inside the batch
-/// embed resume-unwinds exactly like the per-embed watchdog, so the worker's
-/// batch-level `catch_unwind` records `ProjectionPanic` as before.
-///
-/// Batching is **opt-in** via `FATHOMDB_PROJECTION_BATCH=1` (`true`/`on` accepted).
-/// It reshapes the PR-9 per-embed watchdog/breaker accounting into per-batch, so the
-/// conservative DEFAULT keeps the proven per-job path — leaving every PR-9 safety
-/// test (watchdog, serialization, circuit breaker) behaving exactly as before. The
-/// eval GPU-embed run sets the env to get the batched-forward speedup (minutes ->
-/// seconds), where the per-job fallback below still backs every error case.
+/// The optional batch fast path uses the same fixed provider slot and single
+/// absolute deadline as per-row projection. A failed batch falls back to the
+/// row retry policy after the dispatch reply is released.
 fn projection_batch_enabled() -> bool {
     matches!(
         std::env::var("FATHOMDB_PROJECTION_BATCH").ok().as_deref(),
@@ -529,74 +516,69 @@ fn projection_batch_enabled() -> bool {
     )
 }
 
+fn wait_for_projection_retry(shared: &ProjectionRuntimeShared, delay: Duration) -> bool {
+    let deadline = Instant::now() + delay;
+    let mut state = match shared.state.lock() {
+        Ok(state) => state,
+        Err(_) => return false,
+    };
+    loop {
+        if state.stopping {
+            return false;
+        }
+        let now = Instant::now();
+        if now >= deadline {
+            return true;
+        }
+        state = match shared.state_cvar.wait_timeout(state, deadline.saturating_duration_since(now))
+        {
+            Ok((state, _)) => state,
+            Err(_) => return false,
+        };
+    }
+}
+
 fn embed_projection_batch(
     shared: &ProjectionRuntimeShared,
     jobs: &[ProjectionJob],
 ) -> Vec<ProjectionOutcome> {
     let per_job = || jobs.iter().map(|job| run_projection_job(shared, job)).collect();
-
-    let Some(embedder) = shared.embedder.as_ref() else {
-        return per_job();
-    };
-    if jobs.len() < 2
-        || shared.embed_circuit_open.load(Ordering::Relaxed)
-        || !projection_batch_enabled()
-    {
+    if shared.embedder.is_none() || jobs.len() < 2 || !projection_batch_enabled() {
         return per_job();
     }
-
     let bodies: Vec<String> = jobs.iter().map(|job| job.body.clone()).collect();
-    let embed_timeout = Duration::from_millis(shared.embed_timeout_ms.load(Ordering::Relaxed));
-    // Each row keeps its single-embed budget worst-case (batch <= COMMIT_BATCH=64).
-    let batch_timeout = embed_timeout.saturating_mul(jobs.len() as u32);
-
-    let vectors = {
-        // PR-9 — serialize the embedder call (ONE batched call at a time) and make
-        // the breaker decision with the guard held (race-free vs other workers),
-        // mirroring `run_projection_job`. The batch thread counts as one live embed.
-        let _embed_permit =
-            shared.embed_serialize.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        let threshold = shared.embed_circuit_threshold.load(Ordering::Relaxed);
-        if shared.embed_circuit_open.load(Ordering::Relaxed)
-            || (threshold != 0 && shared.live_embed_threads.load(Ordering::Relaxed) >= threshold)
-        {
-            shared.embed_circuit_open.store(true, Ordering::Relaxed);
-            None
-        } else {
-            // Timeout / failed / disconnected -> the per-job path retries each
-            // row and engages the breaker exactly as before.
-            embed_batch_with_watchdog(embedder, &bodies, batch_timeout, &shared.live_embed_threads)
-                .ok()
+    let vectors = loop {
+        let result = shared.embed_dispatch.submit_batch(bodies.clone()).and_then(EmbedReply::wait);
+        match result {
+            Ok(EmbedOutput::Batch(vectors)) => break vectors,
+            Err(DispatchError::Saturated | DispatchError::QueuedExpired) => {
+                if !wait_for_projection_retry(shared, Duration::from_millis(25)) {
+                    return jobs.iter().map(|_| ProjectionOutcome::Deferred).collect();
+                }
+            }
+            Err(DispatchError::Closing | DispatchError::Cancelled) => {
+                return jobs.iter().map(|_| ProjectionOutcome::Deferred).collect();
+            }
+            Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
+            _ => return per_job(),
         }
     };
-    let Some(vectors) = vectors else {
-        return per_job();
-    };
-
     if vectors.len() != jobs.len() {
         return per_job();
     }
-    let mut outcomes = Vec::with_capacity(jobs.len());
-    for (job, vector) in jobs.iter().zip(vectors) {
-        if u32::try_from(vector.len()).unwrap_or(u32::MAX) != shared.embedder_identity.dimension {
-            // A row came back wrong-dim: fall back per-job for the whole batch
-            // (rare; keeps the dimension-mismatch failure path identical).
-            return per_job();
-        }
-        // Mirror run_projection_job's post-embed step exactly: persisted f32 BLOB is
-        // un-centered; centering for the binary column is finalized in
-        // commit_projection_outcomes (so bin_blob == blob here).
-        let blob = encode_vector_blob(&vector);
-        let bin_blob = blob.clone();
-        outcomes.push(ProjectionOutcome::Success {
-            cursor: job.cursor,
-            kind: job.kind.clone(),
-            blob,
-            bin_blob,
-            generation_id: job.generation_id.clone(),
-        });
-    }
-    outcomes
+    jobs.iter()
+        .zip(vectors)
+        .map(|(job, vector)| {
+            let blob = encode_vector_blob(&vector);
+            ProjectionOutcome::Success {
+                cursor: job.cursor,
+                kind: job.kind.clone(),
+                bin_blob: blob.clone(),
+                blob,
+                generation_id: job.generation_id.clone(),
+            }
+        })
+        .collect()
 }
 
 /// EU-5f — record every job in a panicked batch as a terminal projection
@@ -695,109 +677,63 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
     if shared.embedder.is_none() && job.kind != EDGE_FACT_KIND {
         return ProjectionOutcome::Deferred;
     }
-    // PR-9 — embed circuit breaker (see `embed_circuit_open`). Once abandoned
-    // (timed-out) embed threads have piled up to the threshold the embedder is
-    // treated as broken; fail subsequent jobs fast WITHOUT attempting an embed,
-    // so a wedged embedder cannot keep leaking abandoned watchdog threads. This
-    // entry check is the fast path; the latch decision itself is made under the
-    // embed guard below (race-free against other workers).
-    if shared.embed_circuit_open.load(Ordering::Relaxed) {
-        return ProjectionOutcome::Failure {
-            cursor: job.cursor,
-            failure_code: "EmbedderError",
-            generation_id: job.generation_id.clone(),
-        };
-    }
     let delays = shared.retry_delays_ms.lock().map(|delays| delays.clone()).unwrap_or_default();
+    let mut spent_attempts = 0_usize;
+    let mut retry_delay_due = false;
     let mut last_code = "EmbedderError";
-    for (attempt, delay_ms) in std::iter::once(0_u64).chain(delays.iter().copied()).enumerate() {
-        if attempt > 0 {
-            if shared.state.lock().map(|state| state.stopping).unwrap_or(true) {
-                return ProjectionOutcome::Failure {
-                    cursor: job.cursor,
-                    failure_code: last_code,
-                    generation_id: job.generation_id.clone(),
-                };
+    loop {
+        if retry_delay_due {
+            if !wait_for_projection_retry(shared, Duration::from_millis(delays[spent_attempts - 1]))
+            {
+                return ProjectionOutcome::Deferred;
             }
-            thread::sleep(Duration::from_millis(delay_ms));
+            retry_delay_due = false;
         }
-        // PR-9 — re-check the breaker on every attempt, not just at entry:
-        // another worker (or an earlier attempt of this job) may have latched
-        // it while we were sleeping between retries. Bail before spawning yet
-        // another timeout-bound watchdog thread, so the abandoned-thread leak
-        // stays bounded even on the multi-retry path.
-        if shared.embed_circuit_open.load(Ordering::Relaxed) {
-            return ProjectionOutcome::Failure {
-                cursor: job.cursor,
-                failure_code: last_code,
-                generation_id: job.generation_id.clone(),
-            };
+        if shared.state.lock().map(|state| state.stopping).unwrap_or(true) {
+            return ProjectionOutcome::Deferred;
         }
-        // PR-9 / ADR-0.6.0 Invariant 5 — every embed runs under the per-call
-        // watchdog deadline so a hung embed surfaces Timeout instead of
-        // parking this worker forever.
-        let embed_timeout = Duration::from_millis(shared.embed_timeout_ms.load(Ordering::Relaxed));
-        let vector = match shared.embedder.as_ref() {
-            Some(embedder) => {
-                // PR-9 — serialize the embed call engine-side (see
-                // `embed_serialize`): the shared embedder is invoked one call
-                // at a time, for SAFETY with arbitrary caller-supplied
-                // embedders (throughput is ~neutral on the candle default).
-                // The guard is held across the watchdog call and released
-                // here, so commit/IO below stays parallel and a timed-out
-                // embed frees it. The guard owns no data; a panic-resumed
-                // embed poisons it, so we recover the inner guard rather than
-                // wedge the whole pool.
-                let _embed_permit =
-                    shared.embed_serialize.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-                // PR-9 — breaker decision, made WITH the guard held so it is
-                // race-free against other workers: if abandoned embed threads
-                // from earlier timeouts have piled up to the threshold, latch
-                // the breaker and fail fast WITHOUT spawning another one. The
-                // live count is checked here (also covers a breaker latched by
-                // another worker while we were queued on the lock), bounding
-                // the abandoned-thread leak to ~threshold regardless of whether
-                // the embedder hangs always or only intermittently.
-                let threshold = shared.embed_circuit_threshold.load(Ordering::Relaxed);
-                if shared.embed_circuit_open.load(Ordering::Relaxed)
-                    || (threshold != 0
-                        && shared.live_embed_threads.load(Ordering::Relaxed) >= threshold)
-                {
-                    shared.embed_circuit_open.store(true, Ordering::Relaxed);
-                    return ProjectionOutcome::Failure {
-                        cursor: job.cursor,
-                        failure_code: last_code,
-                        generation_id: job.generation_id.clone(),
-                    };
+        let result = shared.embed_dispatch.submit_text(job.body.clone()).and_then(EmbedReply::wait);
+        let vector = match result {
+            Ok(EmbedOutput::One(vector)) => vector,
+            Err(DispatchError::Saturated | DispatchError::QueuedExpired) => {
+                if !wait_for_projection_retry(shared, Duration::from_millis(25)) {
+                    return ProjectionOutcome::Deferred;
                 }
-                match embed_with_watchdog(
-                    embedder,
-                    &job.body,
-                    embed_timeout,
-                    &shared.live_embed_threads,
-                ) {
-                    Ok(vector) => vector,
-                    Err(RuntimeEmbedderError::Timeout) => {
-                        // The embed thread is now abandoned (still counted in
-                        // live_embed_threads until it returns); the breaker
-                        // check above caps how many can accumulate.
-                        last_code = "EmbedderError";
-                        continue;
-                    }
-                    Err(RuntimeEmbedderError::Failed { .. }) => {
-                        last_code = "EmbedderError";
-                        continue;
-                    }
-                }
-            }
-            None => {
-                last_code = "EmbedderNotConfiguredError";
                 continue;
             }
+            Err(DispatchError::Closing | DispatchError::Cancelled) => {
+                return ProjectionOutcome::Deferred;
+            }
+            Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
+            Err(DispatchError::NotConfigured) => {
+                last_code = "EmbedderNotConfiguredError";
+                Vec::new()
+            }
+            Err(DispatchError::InvalidOutput) => {
+                last_code = "EmbedderDimensionMismatchError";
+                Vec::new()
+            }
+            Err(DispatchError::StartedTimeout | DispatchError::Provider(_)) => {
+                last_code = "EmbedderError";
+                Vec::new()
+            }
+            Ok(EmbedOutput::Batch(_)) => unreachable!("single embedding returned a batch"),
         };
-
+        if vector.is_empty() {
+            if spent_attempts >= delays.len() {
+                break;
+            }
+            spent_attempts += 1;
+            retry_delay_due = true;
+            continue;
+        }
         if u32::try_from(vector.len()).unwrap_or(u32::MAX) != shared.embedder_identity.dimension {
             last_code = "EmbedderDimensionMismatchError";
+            if spent_attempts >= delays.len() {
+                break;
+            }
+            spent_attempts += 1;
+            retry_delay_due = true;
             continue;
         }
 

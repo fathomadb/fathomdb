@@ -4,6 +4,7 @@ use std::any::Any;
 use std::collections::VecDeque;
 use std::io;
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(test)]
 use std::sync::mpsc;
 use std::sync::{Arc, Condvar, Mutex};
@@ -257,7 +258,7 @@ struct Shared {
     provider: Arc<dyn Embedder>,
     dimension: usize,
     queue_capacity: usize,
-    timeout: Duration,
+    timeout_ms: AtomicU64,
     state: Mutex<QueueState>,
     changed: Condvar,
 }
@@ -306,7 +307,7 @@ impl EmbedDispatcher {
             provider,
             dimension,
             queue_capacity,
-            timeout,
+            timeout_ms: AtomicU64::new(timeout.as_millis() as u64),
             state: Mutex::new(QueueState {
                 waiting: VecDeque::with_capacity(queue_capacity),
                 active: Vec::with_capacity(pool_size),
@@ -358,7 +359,8 @@ impl EmbedDispatcher {
         let Some(shared) = &self.shared else {
             return Err(DispatchError::NotConfigured);
         };
-        let deadline = Instant::now() + shared.timeout;
+        let deadline =
+            Instant::now() + Duration::from_millis(shared.timeout_ms.load(Ordering::Relaxed));
         let reply = Arc::new(ReplyState::new(deadline));
         let mut state = shared.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         if state.closing {
@@ -377,6 +379,13 @@ impl EmbedDispatcher {
     pub(crate) fn close(&self) {
         if let Some(shared) = &self.shared {
             stop(shared);
+        }
+    }
+
+    #[allow(dead_code)] // Standalone core tests include this module without calling the engine test seam.
+    pub(crate) fn set_timeout_ms_for_test(&self, timeout_ms: u64) {
+        if let Some(shared) = &self.shared {
+            shared.timeout_ms.store(timeout_ms, Ordering::Relaxed);
         }
     }
 

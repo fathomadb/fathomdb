@@ -8,7 +8,7 @@ target_release: 0.8.27
 
 Requirements, acceptance criteria, design and TDD batches are reconciled in
 the [plan](plan.md). Independent design review passed after the recorded
-corrections. Runtime Batch 2a is merged and reviewed; the runtime checkpoint
+corrections. Runtime Batches 2a and 2b are merged and reviewed; the runtime checkpoint
 and final Slice 90 verification are not yet claimed.
 
 The operational source entry is current `release/0.8.27` at `e689000d4` or a
@@ -107,7 +107,22 @@ formatting, and crate clippy at that same commit. This is AC27-90J's
 returned-error path; the later embed-dispatch transition must preserve the
 no-reacquire invariant.
 
-Next: continue Batch 2b configuration RED/GREEN and the later runtime batches
+Rust configuration Batch 2b was merged at `2fff6755a` from clean GREEN
+commit `14c708040`, after RED `4b59cc847`. The public `EngineConfig`,
+per-engine configuration error, resolved capacities, and configured-open seam
+validate the five accepted ranges before open side effects and retain the
+requested snapshot separately from effective slow-threshold state. The
+`64 × 64` capacity property and four focused integration tests pass. Minimal
+exhaustive CLI, PyO3, and NAPI error mappings keep those crates compiling;
+the Rust interface documents the new public surface. Independent
+`gpt-6-sol` high code review and Terra verification passed at `14c708040`.
+The merged release branch reran both Batch 2a and 2b focused integration
+suites: 6 parent tests passed, with 2 intentionally ignored bounded-child
+entrypoints. The scheduler count, embedder pool size, and deadline remain
+validated/stored inputs until later batches make their runtime effects
+observable; this batch does not claim AC27-90B complete.
+
+Next: continue Batch 2c embed dispatch RED/GREEN and the later runtime batches
 on windchill3 while settling the D27 swap policy. Collect a valid historical
 entry under the ruled protocol before the candidate-bound checkpoint and
 structural Phase 3. Report the remaining GPU and Slice 85 recovery evidence

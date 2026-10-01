@@ -80,6 +80,7 @@ mod reader_pool;
 mod reader_transaction;
 mod record_lifecycle;
 mod rerank;
+mod runtime_configuration;
 mod search;
 mod search_api;
 mod search_types;
@@ -237,6 +238,8 @@ pub use record_lifecycle::{InitialState, LifecycleState};
 pub use rerank::rerank_passages;
 #[doc(hidden)]
 pub use rerank::{rerank_fused, try_rerank_fused};
+use runtime_configuration::ResolvedRuntimeConfiguration;
+pub use runtime_configuration::{EngineConfig, EngineConfigurationError};
 #[cfg(test)]
 pub(crate) use search::retain_complete_rank_boundary_candidates;
 #[cfg(feature = "test-hooks")]
@@ -660,6 +663,9 @@ fn process_peak_rss_bytes() -> u64 {
 
 pub struct Engine {
     path: PathBuf,
+    requested_config: EngineConfig,
+    #[allow(dead_code)]
+    resolved_config: ResolvedRuntimeConfiguration,
     next_cursor: AtomicU64,
     read_visibility_generation: Arc<AtomicU64>,
     projection_generation_status_cache:
@@ -2601,6 +2607,12 @@ impl Drop for Engine {
 }
 
 impl Engine {
+    /// Return the immutable settings requested at open. Omitted fields remain
+    /// `None`; this does not reflect later effective-value setter calls.
+    pub fn config(&self) -> &EngineConfig {
+        &self.requested_config
+    }
+
     #[cfg(feature = "test-hooks")]
     #[doc(hidden)]
     pub fn explain_graph_evidence_preflights_for_test(&self) -> Result<Vec<String>, EngineError> {
@@ -2640,22 +2652,35 @@ impl Engine {
         path: impl Into<PathBuf>,
         choice: EmbedderChoice,
     ) -> Result<OpenedEngine, EngineOpenError> {
+        Self::open_with_choice_and_config(path, choice, EngineConfig::default())
+    }
+
+    /// Open with an embedder choice and per-engine settings. Invalid settings
+    /// fail before path, lock, provider, or SQLite side effects.
+    pub fn open_with_choice_and_config(
+        path: impl Into<PathBuf>,
+        choice: EmbedderChoice,
+        config: EngineConfig,
+    ) -> Result<OpenedEngine, EngineOpenError> {
+        ResolvedRuntimeConfiguration::resolve(&config)
+            .map_err(EngineOpenError::EngineConfiguration)?;
         match choice {
-            EmbedderChoice::Default => Self::open_default_embedder(path),
+            EmbedderChoice::Default => Self::open_default_embedder(path, config),
             EmbedderChoice::Caller(embedder) => {
                 let identity = embedder.identity();
-                Self::open_with_embedder_and_subscriber(
+                Self::open_with_embedder_and_subscriber_config(
                     path,
                     identity,
                     Some(embedder),
                     None,
                     None,
                     &mut |_| {},
+                    config,
                 )
             }
             EmbedderChoice::CallerWithDeviceResolution { embedder, device_resolution } => {
                 let identity = embedder.identity();
-                Self::open_with_embedder_and_subscriber(
+                Self::open_with_embedder_and_subscriber_config(
                     path,
                     identity,
                     Some(embedder),
@@ -2669,15 +2694,17 @@ impl Engine {
                     }),
                     None,
                     &mut |_| {},
+                    config,
                 )
             }
-            EmbedderChoice::None => Self::open_with_embedder_and_subscriber(
+            EmbedderChoice::None => Self::open_with_embedder_and_subscriber_config(
                 path,
                 default_embedder_identity(),
                 None,
                 None,
                 None,
                 &mut |_| {},
+                config,
             ),
         }
     }
@@ -2687,7 +2714,10 @@ impl Engine {
     /// workspace with it. Without the `default-embedder` feature, fails
     /// with a typed `Embedder` error rather than touching the network.
     #[cfg(feature = "default-embedder")]
-    fn open_default_embedder(path: impl Into<PathBuf>) -> Result<OpenedEngine, EngineOpenError> {
+    fn open_default_embedder(
+        path: impl Into<PathBuf>,
+        config: EngineConfig,
+    ) -> Result<OpenedEngine, EngineOpenError> {
         use std::time::Instant as DownloadInstant;
         let device_resolution = fathomdb_embedder::resolve_default_embedder_device_from_env()
             .map_err(EngineOpenError::EmbedDevicePolicy)?;
@@ -2722,18 +2752,22 @@ impl Engine {
         let identity = embedder.identity();
         let loader_info =
             LoaderInfo { download_ms, events, device_resolution, gpu_allocation_witness };
-        Self::open_with_embedder_and_subscriber(
+        Self::open_with_embedder_and_subscriber_config(
             path,
             identity,
             Some(embedder),
             Some(loader_info),
             None,
             &mut |_| {},
+            config,
         )
     }
 
     #[cfg(not(feature = "default-embedder"))]
-    fn open_default_embedder(_path: impl Into<PathBuf>) -> Result<OpenedEngine, EngineOpenError> {
+    fn open_default_embedder(
+        _path: impl Into<PathBuf>,
+        _config: EngineConfig,
+    ) -> Result<OpenedEngine, EngineOpenError> {
         Err(EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
             message: "EmbedderChoice::Default requires the `default-embedder` Cargo feature"
                 .to_string(),
@@ -2763,7 +2797,11 @@ impl Engine {
     ) -> Result<OpenedEngine, EngineOpenError> {
         Self::open_with_migrations(
             path,
-            DatabaseOpenPlan { migrations, admission: DatabaseAdmission::TestMigrations },
+            DatabaseOpenPlan {
+                migrations,
+                admission: DatabaseAdmission::TestMigrations,
+                config: EngineConfig::default(),
+            },
             default_embedder_identity(),
             None,
             None,
@@ -2825,9 +2863,33 @@ impl Engine {
         initial_subscriber: Option<Arc<dyn lifecycle::Subscriber>>,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
     ) -> Result<OpenedEngine, EngineOpenError> {
+        Self::open_with_embedder_and_subscriber_config(
+            path,
+            embedder_identity,
+            runtime_embedder,
+            loader_info,
+            initial_subscriber,
+            emit_migration_event,
+            EngineConfig::default(),
+        )
+    }
+
+    fn open_with_embedder_and_subscriber_config(
+        path: impl Into<PathBuf>,
+        embedder_identity: EmbedderIdentity,
+        runtime_embedder: Option<Arc<dyn Embedder>>,
+        loader_info: Option<LoaderInfo>,
+        initial_subscriber: Option<Arc<dyn lifecycle::Subscriber>>,
+        emit_migration_event: &mut impl FnMut(&MigrationStepReport),
+        config: EngineConfig,
+    ) -> Result<OpenedEngine, EngineOpenError> {
         Self::open_with_migrations(
             path,
-            DatabaseOpenPlan { migrations: MIGRATIONS, admission: DatabaseAdmission::CurrentOnly },
+            DatabaseOpenPlan {
+                migrations: MIGRATIONS,
+                admission: DatabaseAdmission::CurrentOnly,
+                config,
+            },
             embedder_identity,
             runtime_embedder,
             loader_info,
@@ -2845,6 +2907,9 @@ impl Engine {
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         initial_subscriber: Option<Arc<dyn lifecycle::Subscriber>>,
     ) -> Result<OpenedEngine, EngineOpenError> {
+        let resolved_config = ResolvedRuntimeConfiguration::resolve(&plan.config)
+            .map_err(EngineOpenError::EngineConfiguration)?;
+        let config = plan.config.clone();
         // Resolve at open rather than piggybacking on embedding selection. This
         // probes no model/cache/database and makes an invalid or forced CUDA
         // policy visible to every SDK before a query could silently fall back.
@@ -2960,7 +3025,7 @@ impl Engine {
                     })?;
                 let subscribers = Arc::new(lifecycle::SubscriberRegistry::new());
                 let profiling_enabled = Arc::new(AtomicBool::new(false));
-                let slow_threshold_ms = Arc::new(AtomicU64::new(DEFAULT_SLOW_THRESHOLD_MS));
+                let slow_threshold_ms = Arc::new(AtomicU64::new(resolved_config.slow_threshold_ms));
                 let wal_attribution = Arc::new(WalAttributionCollector::new());
                 wal_attribution.register(WalAttributionRole::Writer, 0);
                 #[cfg(any(test, feature = "test-hooks"))]
@@ -3002,6 +3067,8 @@ impl Engine {
                 let opened = OpenedEngine {
                     engine: Self {
                         path: canonical_path.clone(),
+                        requested_config: config,
+                        resolved_config,
                         next_cursor: AtomicU64::new(next_cursor),
                         read_visibility_generation: Arc::new(AtomicU64::new(
                             read_visibility_generation,
@@ -3045,7 +3112,7 @@ impl Engine {
                         actual_checkpoint_observations: Mutex::new(None),
                         #[cfg(any(test, feature = "test-hooks"))]
                         binding_native_state_observations: Mutex::new(None),
-                        provenance_row_cap: AtomicU64::new(DEFAULT_PROVENANCE_ROW_CAP),
+                        provenance_row_cap: AtomicU64::new(resolved_config.provenance_row_cap),
                         profile_contexts: Mutex::new(profile_contexts),
                         reader_lookaside_rcs,
                         telemetry: Mutex::new(None),
@@ -6690,6 +6757,7 @@ enum DatabaseAdmission {
 struct DatabaseOpenPlan {
     migrations: &'static [fathomdb_schema::Migration],
     admission: DatabaseAdmission,
+    config: EngineConfig,
 }
 
 struct ShmSnapshot {

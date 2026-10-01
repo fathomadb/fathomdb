@@ -534,6 +534,9 @@ fn open_stage_str(stage: OpenStage) -> &'static str {
 fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
     match err {
         EngineOpenError::RuntimeConfiguration(error) => runtime_configuration_error_to_py(error),
+        EngineOpenError::EngineConfiguration(error) => {
+            InvalidArgumentError::new_err(error.to_string())
+        }
         EngineOpenError::DatabaseLocked { holder_pid } => {
             let exc = DatabaseLockedError::new_err(match holder_pid {
                 Some(pid) => format!("database is locked by process {pid}"),

@@ -490,6 +490,9 @@ fn reranker_device_policy_error_to_napi(
 fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
     match err {
         EngineOpenError::RuntimeConfiguration(error) => runtime_configuration_error_to_napi(error),
+        EngineOpenError::EngineConfiguration(error) => {
+            typed_error(CODE_INVALID_ARGUMENT, error.to_string(), JsonValue::Null)
+        }
         EngineOpenError::DatabaseLocked { holder_pid } => typed_error(
             CODE_DATABASE_LOCKED,
             match holder_pid {

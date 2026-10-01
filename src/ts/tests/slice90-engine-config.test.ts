@@ -77,6 +77,29 @@ test("configuration is per engine and the requested snapshot stays immutable", a
   }
 });
 
+test("Engine.open reads a changing engineConfig accessor once and forwards that snapshot", async () => {
+  for (const later of [undefined, { schedulerRuntimeThreads: 65 }]) {
+    let reads = 0;
+    const requested = { schedulerRuntimeThreads: 1 };
+    const options = new Proxy({ engineConfig: requested, useDefaultEmbedder: false }, {
+      get(target, key, receiver) {
+        if (key === "engineConfig") {
+          reads++;
+          return reads === 1 ? requested : later;
+        }
+        return Reflect.get(target, key, receiver);
+      },
+    });
+    const engine = await Engine.open(freshDbPath(), options);
+    try {
+      assert.equal(reads, 1, "a changing accessor must not replace the validated request");
+      assert.equal(engine.config.schedulerRuntimeThreads, 1);
+    } finally {
+      await engine.close();
+    }
+  }
+});
+
 test("native configured open changes the owned projection worker inventory", async () => {
   for (const count of [1, 4, 64]) {
     const engine = await native.Engine.open(freshDbPath(), {

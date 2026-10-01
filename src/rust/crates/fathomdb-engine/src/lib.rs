@@ -3086,35 +3086,6 @@ impl Engine {
                     Arc::clone(&managed_connections),
                 )?;
 
-                #[cfg(test)]
-                if let Some(fault) = take_post_probe_startup_fault_for_test(&canonical_path) {
-                    embed_dispatch.set_drain_budget_ms_for_test(40);
-                    let profile_releases = Arc::new(ProfileReleaseObserver {
-                        registry: Arc::clone(&managed_connections),
-                        live_workers: Arc::new(AtomicUsize::new(0)),
-                        releases: Mutex::new(Vec::new()),
-                        custody: Mutex::new(Vec::new()),
-                    });
-                    fault
-                        .observed
-                        .send(PostProbeStartupObservationForTest {
-                            accounting: embed_dispatch.accounting().expect("provider accounting"),
-                            registry: Arc::clone(&managed_connections),
-                            profiles_at_fault: profile_contexts.len(),
-                            profile_releases,
-                        })
-                        .expect("report injected startup fault");
-                    embed_dispatch.close();
-                    projection_runtime.stop();
-                    drop(readers);
-                    drop(connection);
-                    drop(writer_connection_registration);
-                    drop(lock);
-                    return Err(EngineOpenError::Io {
-                        message: "injected post-probe startup failure".to_owned(),
-                    });
-                }
-
                 install_profile_callback(
                     &connection,
                     &subscribers,
@@ -3130,6 +3101,45 @@ impl Engine {
                         &slow_threshold_ms,
                         &mut profile_contexts,
                     );
+                }
+
+                #[cfg(test)]
+                if let Some(fault) = take_post_probe_startup_fault_for_test(&canonical_path) {
+                    embed_dispatch.set_drain_budget_ms_for_test(40);
+                    let profile_releases = Arc::new(ProfileReleaseObserver {
+                        registry: Arc::clone(&managed_connections),
+                        live_workers: Arc::new(AtomicUsize::new(0)),
+                        releases: Mutex::new(Vec::new()),
+                        custody: Mutex::new(Vec::new()),
+                    });
+                    fault
+                        .observed
+                        .send(PostProbeStartupObservationForTest {
+                            accounting: embed_dispatch.accounting().expect("provider accounting"),
+                            registry: Arc::clone(&managed_connections),
+                            profiles_at_fault: profile_contexts.len(),
+                            profile_releases: Arc::clone(&profile_releases),
+                        })
+                        .expect("report injected startup fault");
+                    embed_dispatch.close();
+                    projection_runtime.stop();
+                    for reader in &readers {
+                        uninstall_profile_callback(reader);
+                    }
+                    drop(readers);
+                    uninstall_profile_callback(&connection);
+                    drop(connection);
+                    drop(writer_connection_registration);
+                    let mut profile_contexts = ProfileContexts {
+                        contexts: profile_contexts,
+                        observer: Some(profile_releases),
+                    };
+                    profile_contexts.clear();
+                    drop(profile_contexts);
+                    drop(lock);
+                    return Err(EngineOpenError::Io {
+                        message: "injected post-probe startup failure".to_owned(),
+                    });
                 }
 
                 #[cfg(test)]

@@ -131,6 +131,14 @@ engine-owned knobs from `design/engine.md` in snake_case:
 The keyword form and `EngineConfig` object form are equivalent. Python
 executor usage remains caller-owned and is not an engine config field.
 
+The frozen `EngineConfig` records requested open values. `Engine.open` rejects
+booleans and non-integers before native open, rejects out-of-range integers
+without narrowing, and forwards all five values. Scheduler and embedder counts
+are `1..=64`; embed deadlines are `1..=2^32-1` ms; provenance caps and slow
+thresholds are `0..=2^53-1`. Zero remains valid for the latter two. Omitted
+values select the Rust defaults. The slow-threshold setter changes effective
+behavior without changing `engine.config`.
+
 ## Engine-attached instrumentation / control
 
 These are public instance methods, not extra top-level SDK verbs:

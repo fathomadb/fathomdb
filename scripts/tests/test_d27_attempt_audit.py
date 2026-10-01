@@ -31,8 +31,6 @@ class AttemptAuditTests(unittest.TestCase):
         cases = (
             ("cpu_governor", "powersave", "governor"),
             ("competing_processes", [{"pid": 123, "name": "cargo"}], "cargo.*123"),
-            ("swap_pages_in", 1, "swap_pages_in"),
-            ("swap_pages_out", 1, "swap_pages_out"),
             ("pid_namespace", "pid:[4026534361]", "pid namespace"),
             ("pid_one_namespace", "pid:[4026534361]", "process view"),
             ("pid_one_comm", "codex", "process view"),
@@ -46,6 +44,39 @@ class AttemptAuditTests(unittest.TestCase):
             raw["environment_samples"][0][key] = value
             with self.subTest(key=key), self.assertRaisesRegex(ValueError, expected):
                 runner.check_raw_observations(raw, "entry")
+
+    def test_combined_swap_cap_includes_both_counters_and_every_sample(self):
+        for phase in ("entry", "candidate"):
+            for incoming, outgoing in ((128, 0), (64, 64), (0, 128)):
+                raw = copy.deepcopy(self.raw)
+                raw["environment_samples"][0]["swap_pages_in"] = incoming // 2
+                raw["environment_samples"][0]["swap_pages_out"] = outgoing // 2
+                raw["environment_end"]["swap_pages_in"] = incoming
+                raw["environment_end"]["swap_pages_out"] = outgoing
+                with self.subTest(phase=phase, incoming=incoming, outgoing=outgoing):
+                    self.assertEqual(runner.environment_invalidators(raw), [])
+            raw = copy.deepcopy(self.raw)
+            raw["environment_samples"][0]["swap_pages_in"] = 65
+            raw["environment_samples"][0]["swap_pages_out"] = 64
+            raw["environment_end"]["swap_pages_in"] = 65
+            raw["environment_end"]["swap_pages_out"] = 64
+            with self.subTest(phase=phase, case="over cap"):
+                self.assertRegex("; ".join(runner.environment_invalidators(raw)), "swap.*129")
+
+    def test_missing_negative_or_reset_swap_counter_invalidates_any_sample(self):
+        for boundary in ("environment_start", "environment_samples", "environment_end"):
+            for key, value in (("swap_pages_in", None), ("swap_pages_out", -1)):
+                raw = copy.deepcopy(self.raw)
+                observation = raw[boundary][0] if boundary == "environment_samples" else raw[boundary]
+                observation[key] = value
+                with self.subTest(boundary=boundary, key=key):
+                    self.assertRegex("; ".join(runner.environment_invalidators(raw)), key)
+        raw = copy.deepcopy(self.raw)
+        raw["environment_samples"] = [copy.deepcopy(raw["environment_start"]) for _ in range(2)]
+        raw["environment_samples"][0]["swap_pages_in"] = 5
+        raw["environment_samples"][1]["swap_pages_in"] = 4
+        raw["environment_end"]["swap_pages_in"] = 5
+        self.assertRegex("; ".join(runner.environment_invalidators(raw)), "swap_pages_in.*decreased")
 
     def test_namespaced_process_view_cannot_start_a_repetition(self):
         protocol = json.loads(runner.PROTOCOL.read_text())

@@ -561,19 +561,16 @@ fn embed_projection_batch(
             || (threshold != 0 && shared.live_embed_threads.load(Ordering::Relaxed) >= threshold)
         {
             shared.embed_circuit_open.store(true, Ordering::Relaxed);
-            return per_job();
+            None
+        } else {
+            // Timeout / failed / disconnected -> the per-job path retries each
+            // row and engages the breaker exactly as before.
+            embed_batch_with_watchdog(embedder, &bodies, batch_timeout, &shared.live_embed_threads)
+                .ok()
         }
-        match embed_batch_with_watchdog(
-            embedder,
-            &bodies,
-            batch_timeout,
-            &shared.live_embed_threads,
-        ) {
-            Ok(vectors) => vectors,
-            // Timeout / failed / disconnected -> the per-job path retries each row
-            // and engages the breaker exactly as before.
-            Err(_) => return per_job(),
-        }
+    };
+    let Some(vectors) = vectors else {
+        return per_job();
     };
 
     if vectors.len() != jobs.len() {

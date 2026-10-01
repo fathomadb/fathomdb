@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
+import inspect
 from pathlib import Path
 import sqlite3
 from typing import Any, cast
@@ -195,6 +196,27 @@ def test_installed_open_forms_are_exclusive_and_equivalent(tmp_path: Path) -> No
     finally:
         configured.close()
         keywords.close()
+
+
+def test_installed_all_five_values_reach_native_open(tmp_path: Path) -> None:
+    assert "config" in inspect.signature(engine_module._NativeEngine.open).parameters
+    requested = EngineConfig(
+        embedder_pool_size=3,
+        scheduler_runtime_threads=4,
+        provenance_row_cap=0,
+        embedder_call_timeout_ms=2_000,
+        slow_threshold_ms=0,
+    )
+    task_dir = Path("/proc/self/task")
+    before = len(list(task_dir.iterdir())) if task_dir.is_dir() else None
+    opened = Engine.open(str(tmp_path / "all-five.sqlite"), config=requested)
+    try:
+        assert opened.config is requested
+        assert (tmp_path / "all-five.sqlite").exists()
+        if before is not None:
+            assert len(list(task_dir.iterdir())) == before + 9 + 4
+    finally:
+        opened.close()
 
 
 @pytest.mark.parametrize(

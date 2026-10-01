@@ -10,12 +10,36 @@ use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, EngineError, Prepare
 use tempfile::TempDir;
 
 const DIMENSION: u32 = 8;
+const _: fn(&Engine, u64) = Engine::set_embed_timeout_ms_for_test;
 
 #[derive(Debug)]
 struct FirstCallParked {
     calls: AtomicUsize,
     entered: mpsc::Sender<()>,
     release: Mutex<mpsc::Receiver<()>>,
+}
+
+#[derive(Debug)]
+struct FailOnceTimed {
+    calls: AtomicUsize,
+    first_failed: mpsc::Sender<Instant>,
+    retry_started: mpsc::Sender<Instant>,
+}
+
+impl Embedder for FailOnceTimed {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("fail-once-timed", "rev-a", DIMENSION)
+    }
+
+    fn embed(&self, _input: &str) -> Result<Vector, EmbedderError> {
+        let now = Instant::now();
+        if self.calls.fetch_add(1, Ordering::SeqCst) == 0 {
+            self.first_failed.send(now).expect("report first failure");
+            return Err(EmbedderError::Failed { message: "first call fails".to_owned() });
+        }
+        self.retry_started.send(now).expect("report retry entry");
+        Ok(vec![2.0; DIMENSION as usize])
+    }
 }
 
 impl Embedder for FirstCallParked {
@@ -142,4 +166,42 @@ fn projection_wait_cancels_on_close_and_reopen_recovers_pending_row() {
         reopened.engine.projection_failure_count_for_test(receipt.cursor).expect("failures"),
         0
     );
+}
+
+#[test]
+fn provider_retry_delay_uses_one_absolute_deadline_during_wake_storm() {
+    let directory = TempDir::new().expect("test directory");
+    let database = directory.path().join("retry-wake-storm.fathomdb.sqlite");
+    let (first_failed, first_rx) = mpsc::channel();
+    let (retry_started, retry_rx) = mpsc::channel();
+    let provider =
+        Arc::new(FailOnceTimed { calls: AtomicUsize::new(0), first_failed, retry_started });
+    let opened = Engine::open_with_choice_and_config(
+        &database,
+        EmbedderChoice::Caller(provider.clone()),
+        EngineConfig { embedder_call_timeout_ms: Some(1_000), ..EngineConfig::default() },
+    )
+    .expect("open");
+    let engine = opened.engine;
+    engine.configure_vector_kind_for_test("doc").expect("vector kind");
+    engine.set_projection_retry_delays_for_test(&[300]);
+    let receipt = engine.write(&[node("retry delay survives wakeups")]).expect("write");
+    let first = first_rx.recv_timeout(Duration::from_secs(2)).expect("first provider failure");
+
+    // Every freeze call notifies the same runtime condition variable used by
+    // projection retry waits. The short pauses only pace the wake storm; the
+    // provider timestamps are the deadline oracle.
+    for _ in 0..30 {
+        engine.set_projection_scheduler_frozen_for_test(true);
+        std::thread::sleep(Duration::from_millis(3));
+    }
+    let retry = retry_rx.recv_timeout(Duration::from_secs(2)).expect("retry provider entry");
+    assert!(
+        retry.duration_since(first) >= Duration::from_millis(280),
+        "runtime notifications must not shorten the 300ms provider retry delay"
+    );
+    engine.set_projection_scheduler_frozen_for_test(false);
+    engine.drain(2_000).expect("successful retry drains");
+    assert!(engine.has_vector_for_cursor_for_test(receipt.cursor).expect("vector"));
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
 }

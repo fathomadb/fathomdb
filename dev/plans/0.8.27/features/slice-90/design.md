@@ -117,6 +117,10 @@ private imports use the semantic owner. A change requires design review.
 | `MeanRecomputeReport` | `mean`; existing recomputation result contract. |
 | `table_exists` | `open`; admission-only legacy-shape probe. |
 | `read_schema_objects`, `order_canonical_first` | `operator`; schema inspection/export helpers. |
+| `EDGE_FACT_KIND` | `embedding`; this is the embedding-readiness kind discriminator in `embedder_required_for`, also read by `projection_worker` when deciding whether an absent provider can skip an edge fact. Keep one literal and let the worker import it from the owner. Its value and branches do not change. |
+| `MEAN_VEC_PIN_THRESHOLD` | `mean`; the public constant is the compute-once mean threshold consumed by open recovery, test vector writes and `projection_commit`. Keep its value, re-export the same root path, and import the single owner constant at its consumers. |
+| `Engine::execute_for_test` | Retain at root through Slice 90 as a Slice 140 test seam already allocated by Slice 80. It takes arbitrary SQL on the Engine writer handle and reports through the root `detect_slow`/lifecycle path; forcing it into a production domain would give that domain an unrelated test-only writer capability. Its `any(test, debug_assertions, test-hooks)` gate, public doc-hidden path and qualified test identity stay exact. Callers include lifecycle observability, fault-injection, integrity and dependency fixtures. |
+| `Engine::run_one_thread_poison_for_test` | Retain at root through Slice 90 as a Slice 140 test seam already allocated by Slice 80. This debug-only composite fixture deliberately invokes public write and search paths, inspects projection status and dispatches a lifecycle stress-failure event. No single production owner owns that cross-domain fixture. Keep its `debug_assertions` gate, public doc-hidden path and qualified test identity exact. |
 
 All root constants already consumed by an extracted domain follow that
 specific domain: `DEFAULT_VECTOR_PROFILE`/`DEFAULT_VECTOR_PARTITION` to
@@ -498,6 +502,13 @@ entry-versus-candidate median/MAD comparison. Dispatch queue, deadline,
 capacity, resource and cleanup metrics are mandatory candidate-only
 correctness evidence; the entry receipt marks them unavailable rather than
 fabricating zeros or failing for their historical absence.
+The historical engine's strict test-only connection-inventory hook returns
+`Err(Storage)` even immediately after open in the standalone D27 runner. Its
+`sqlite_connections` value is explicitly unavailable at entry, and the error
+is retained in raw output. The observer's SQLite connection is external to the
+engine and excluded from candidate engine-owned counts. Candidate qualification
+requires an exact engine-owned connection inventory from a successful hook;
+neither a configured-count inference nor the observer connection can fill it.
 
 Add a D27-specific mixed workload with concurrent canonical writes, dense
 projection, foreground hybrid queries and direct embeds. Run both contention

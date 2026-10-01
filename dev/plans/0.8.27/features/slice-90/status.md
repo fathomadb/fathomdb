@@ -11,9 +11,11 @@ the [plan](plan.md). Independent design review passed after the recorded
 corrections. Runtime Batches 2a and 2b are merged and reviewed; the runtime checkpoint
 and final Slice 90 verification are not yet claimed.
 
-The operational source entry is current `release/0.8.27` at `e689000d4` or a
-documentation-only descendant. Historical `7a2f9bf9` remains the D27
-performance reference. Slice 85 recovery code is already in release ancestry,
+The frozen operational source entry was `release/0.8.27` at `e689000d4` or a
+documentation-only descendant before Phase 2 semantic edits. The release
+branch now includes the reviewed Batches 2a and 2b. Historical `7a2f9bf9`
+remains the D27 performance reference. Slice 85 recovery code is already in
+release ancestry,
 but its official public/hidden comparison and GPU evidence are outstanding and
 release state still binds the earlier Slice 85 candidate. The local public
 capture now has enough disk to rerun; the local NVIDIA driver is unavailable.

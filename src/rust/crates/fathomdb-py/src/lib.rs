@@ -5542,6 +5542,31 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn engine_config_from_py_preserves_each_requested_field_and_omission() {
+        Python::initialize();
+        Python::attach(|py| {
+            assert_eq!(engine_config_from_py(None).unwrap(), RustEngineConfig::default());
+
+            let requested = PyDict::new(py);
+            requested.set_item("scheduler_runtime_threads", 4).unwrap();
+            requested.set_item("embedder_pool_size", 3).unwrap();
+            requested.set_item("embedder_call_timeout_ms", 2_001).unwrap();
+            requested.set_item("provenance_row_cap", 0).unwrap();
+            requested.set_item("slow_threshold_ms", 7).unwrap();
+            assert_eq!(
+                engine_config_from_py(Some(&requested)).unwrap(),
+                RustEngineConfig {
+                    scheduler_runtime_threads: Some(4),
+                    embedder_pool_size: Some(3),
+                    embedder_call_timeout_ms: Some(2_001),
+                    provenance_row_cap: Some(0),
+                    slow_threshold_ms: Some(7),
+                }
+            );
+        });
+    }
+
     fn rewrite_schema_header(path: &std::path::Path, version: u32) {
         let mut bytes = std::fs::read(path).unwrap();
         bytes[60..64].copy_from_slice(&version.to_be_bytes());

@@ -5,7 +5,9 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-if [ "$(uname -s)" != "Linux" ] || [ "$(uname -m)" != "x86_64" ]; then
+runner_os="$(uname -s)"
+runner_arch="$(uname -m)"
+if [ "$runner_os" != "Linux" ] || [ "$runner_arch" != "x86_64" ]; then
   echo "FAIL AC-011 runner: requires Linux x86_64" >&2
   exit 2
 fi
@@ -38,8 +40,11 @@ case "$storage_source" in
     ;;
 esac
 
-echo "AC011_RUNNER host=$runner_host cpu_count=$cpu_count memory_kib=$memory_kib storage=$storage_source arch=$(uname -m) kernel=$(uname -r)"
-echo "AC011_RUNNER rustc=$(rustc --version) cargo=$(cargo --version)"
+runner_kernel="$(uname -r)"
+rustc_version="$(rustc --version)"
+cargo_version="$(cargo --version)"
+echo "AC011_RUNNER host=$runner_host cpu_count=$cpu_count memory_kib=$memory_kib storage=$storage_source arch=$runner_arch kernel=$runner_kernel"
+echo "AC011_RUNNER rustc=$rustc_version cargo=$cargo_version"
 
 export AGENT_LONG=1
 export FATHOMDB_TIER1_WRITE_PERF=1

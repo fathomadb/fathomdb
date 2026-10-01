@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Full scope runs lint -> typecheck -> security -> test in latency order and
+# Full scope preflights checkout-local developer tools, then runs lint ->
+# typecheck -> security -> test in latency order and
 # short-circuits on first failure. Markdown scope delegates to agent-lint-md.sh.
 # This is the agent-loop gate. The broader CI gate is scripts/check.sh.
 set -euo pipefail
@@ -83,6 +84,28 @@ if [ "$verify_scope" = "markdown" ]; then
     printf 'ok verify scope=markdown %ss\n' "$((end - start))"
   fi
   exit 0
+fi
+
+verify_preflight() {
+  local tool_output
+  if [ ! -x .venv/bin/python ]; then
+    printf 'FAIL verify preflight: checkout-owned .venv/bin/python is missing; prepare this checkout before full verification.\n' >&2
+    return 1
+  fi
+  if ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
+    printf 'FAIL verify preflight: checkout-owned .venv/bin/python cannot run pip.\n' >&2
+    return 1
+  fi
+  if ! tool_output="$(bash "$SCRIPT_DIR/tests/test_dev_environment_tools.sh" 2>&1)"; then
+    printf '%s\n' "$tool_output" >&2
+    return 1
+  fi
+}
+
+if ! verify_preflight; then
+  end=$(date +%s)
+  printf 'FAIL verify at step=preflight (%ss elapsed)\n' "$((end - start))" >&2
+  exit 1
 fi
 
 run_step() {

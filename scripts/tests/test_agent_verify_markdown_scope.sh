@@ -75,14 +75,48 @@ fi
 
 : >"$VERIFY_SCOPE_LOG"
 set +e
+MISSING_VENV_OUT="$(cd "$FIXTURE" && bash scripts/agent-verify.sh 2>&1)"
+MISSING_VENV_RC=$?
+set -e
+MISSING_VENV_CALLS="$(cat "$VERIFY_SCOPE_LOG" 2>/dev/null || true)"
+if [ "$MISSING_VENV_RC" -eq 1 ] \
+  && grep -qF 'checkout-owned .venv/bin/python' <<<"$MISSING_VENV_OUT" \
+  && [ -z "$MISSING_VENV_CALLS" ]; then
+  pass "full verification rejects a missing checkout-owned Python before any gate"
+else
+  fail "missing checkout Python must fail before gates: rc=$MISSING_VENV_RC calls=$MISSING_VENV_CALLS out=$MISSING_VENV_OUT"
+fi
+
+mkdir -p "$FIXTURE/.venv/bin" "$FIXTURE/scripts/tests"
+printf '#!/usr/bin/env bash\nexit 0\n' >"$FIXTURE/.venv/bin/python"
+chmod +x "$FIXTURE/.venv/bin/python"
+make_stub tests/test_dev_environment_tools.sh environment
+
+: >"$VERIFY_SCOPE_LOG"
+set +e
 DEFAULT_OUT="$(cd "$FIXTURE" && bash scripts/agent-verify.sh 2>&1)"
 DEFAULT_RC=$?
 set -e
 DEFAULT_CALLS="$(cat "$VERIFY_SCOPE_LOG" 2>/dev/null || true)"
-if [ "$DEFAULT_RC" -eq 0 ] && [ "$DEFAULT_CALLS" = $'lint\ntypecheck\nsecurity\ntest' ]; then
-  pass "default verification remains the full lint/typecheck/security/test gate"
+if [ "$DEFAULT_RC" -eq 0 ] && [ "$DEFAULT_CALLS" = $'environment\nlint\ntypecheck\nsecurity\ntest' ]; then
+  pass "default verification preflights its environment, then runs every full gate"
 else
   fail "default verification contract changed: rc=$DEFAULT_RC calls=$DEFAULT_CALLS out=$DEFAULT_OUT"
+fi
+
+printf '#!/usr/bin/env bash\nexit 7\n' >"$FIXTURE/scripts/tests/test_dev_environment_tools.sh"
+: >"$VERIFY_SCOPE_LOG"
+set +e
+MISSING_TOOLS_OUT="$(cd "$FIXTURE" && bash scripts/agent-verify.sh 2>&1)"
+MISSING_TOOLS_RC=$?
+set -e
+MISSING_TOOLS_CALLS="$(cat "$VERIFY_SCOPE_LOG" 2>/dev/null || true)"
+if [ "$MISSING_TOOLS_RC" -eq 1 ] \
+  && grep -qF 'FAIL verify at step=preflight' <<<"$MISSING_TOOLS_OUT" \
+  && [ -z "$MISSING_TOOLS_CALLS" ]; then
+  pass "full verification rejects missing pinned tools before any gate"
+else
+  fail "missing pinned tools must fail before gates: rc=$MISSING_TOOLS_RC calls=$MISSING_TOOLS_CALLS out=$MISSING_TOOLS_OUT"
 fi
 
 set +e

@@ -52,6 +52,7 @@ Markdown lint covers **every `**/*.md`** except the ignore list in `.markdownlin
   - before PR handoff, merge, release, or any full-green claim, run the full `./scripts/agent-verify.sh` regardless of the edit type. Do not ship a PR with verify failing.
 - The Markdown scope deliberately skips broad lint, typecheck, security, and test gates; it is evidence for a Markdown-only edit, not a full-worktree green claim.
 - AC-036 in the full verifier uses `strace` and therefore needs a ptrace-capable executor; if a sandbox denies `PTRACE_TRACEME`, rerun the unchanged strict gate unconfined rather than disabling it.
+- Full verification preflights a checkout-owned `.venv` with pip and pinned developer tools. Run it from the target checkout; never borrow another checkout's virtual environment. If a worktree lacks its own setup, report the preflight failure rather than running later tests under system Python.
 
 The broader CI gate is `./scripts/check.sh` (adds mkdocs build); the agent-loop gate is `scripts/agent-verify.sh`. Long-run test variants (e.g. AC-021 60 s window, AC-059b ~1000-iteration cursor-race fixture) are exercised only via `scripts/check.sh` with `AGENT_LONG=1`; `scripts/agent-verify.sh` skips them for runtime budget.
 

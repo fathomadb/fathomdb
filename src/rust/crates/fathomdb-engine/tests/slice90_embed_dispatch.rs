@@ -87,6 +87,9 @@ impl Embedder for RendezvousEmbedder {
     fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vector>, EmbedderError> {
         let first = texts.first().copied().expect("nonempty test batch");
         let vector = self.invoke(first)?;
+        if first == "short-batch" {
+            return Ok(vec![vector]);
+        }
         Ok(vec![vector; texts.len()])
     }
 }
@@ -260,6 +263,49 @@ fn batch_uses_one_deadline_instead_of_row_count_times_timeout() {
 }
 
 #[test]
+fn batch_row_count_mismatch_is_invalid_output_and_worker_recovers() {
+    let (provider, entered_calls) = RendezvousEmbedder::new();
+    let dispatcher = EmbedDispatcher::new(Some(provider), 1, Duration::from_secs(2)).unwrap();
+    let malformed = dispatcher.submit_batch(vec!["short-batch".to_owned(); 3]).unwrap();
+    entered(&entered_calls).release();
+    assert!(matches!(malformed.wait(), Err(DispatchError::InvalidOutput)));
+
+    let healthy = dispatcher.submit_batch(vec!["healthy".to_owned(); 3]).unwrap();
+    entered(&entered_calls).release();
+    match healthy.wait() {
+        Ok(EmbedOutput::Batch(vectors)) => assert_eq!(vectors.len(), 3),
+        other => panic!("expected complete batch result after invalid output, got {other:?}"),
+    }
+    dispatcher.close();
+    join(&dispatcher);
+}
+
+#[test]
+fn service_keeps_only_the_budget_left_after_queue_wait() {
+    let (provider, entered_calls) = RendezvousEmbedder::new();
+    let dispatcher = EmbedDispatcher::new(Some(provider), 1, Duration::from_millis(600)).unwrap();
+    let first = dispatcher.submit_text("first".to_owned()).unwrap();
+    let first_call = entered(&entered_calls);
+    let second = dispatcher.submit_text("second".to_owned()).unwrap();
+    let deadline = second.deadline();
+    let (_never_send, elapsed) = mpsc::channel::<()>();
+    assert!(elapsed.recv_timeout(Duration::from_millis(350)).is_err());
+    first_call.release();
+    let second_call = entered(&entered_calls);
+    let (finished, received) = mpsc::channel();
+    std::thread::spawn(move || finished.send(second.wait()).expect("report queued result"));
+    assert!(matches!(
+        received.recv_timeout(Duration::from_millis(400)).expect("remaining deadline budget"),
+        Err(DispatchError::StartedTimeout)
+    ));
+    assert!(Instant::now() >= deadline, "service must not receive a renewed request deadline");
+    second_call.release();
+    assert!(matches!(first.wait(), Ok(EmbedOutput::One(_))));
+    dispatcher.close();
+    join(&dispatcher);
+}
+
+#[test]
 fn timely_error_and_panic_transport_leave_fixed_worker_reusable() {
     let (provider, entered_calls) = RendezvousEmbedder::new();
     let dispatcher = EmbedDispatcher::new(Some(provider), 1, Duration::from_secs(2)).unwrap();
@@ -335,10 +381,7 @@ fn worker_drain_uses_one_absolute_budget_across_four_retained_slots() {
             .send(draining.join_until(Instant::now() + Duration::from_millis(100)))
             .expect("report bounded drain");
     });
-    assert_eq!(
-        received.recv_timeout(Duration::from_millis(250)).expect("one shared drain budget"),
-        false
-    );
+    assert!(!received.recv_timeout(Duration::from_millis(250)).expect("one shared drain budget"));
     assert_eq!(dispatcher.snapshot().live_workers, 4);
     for call in calls {
         call.release();

@@ -1,6 +1,11 @@
+//! Fixed, engine-owned provider dispatch. This module owns no database state.
+
 use std::any::Any;
+use std::collections::VecDeque;
 use std::io;
-use std::sync::Arc;
+use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, Vector};
@@ -50,62 +55,422 @@ pub(crate) struct DispatchSnapshot {
 }
 
 #[derive(Clone)]
-pub(crate) struct DispatchAccounting;
+pub(crate) struct DispatchAccounting {
+    shared: Arc<Shared>,
+}
 
 impl DispatchAccounting {
     pub(crate) fn snapshot(&self) -> DispatchSnapshot {
-        unimplemented!()
+        self.shared.snapshot()
     }
 }
 
-pub(crate) struct EmbedReply;
+enum RequestBody {
+    One(String),
+    Batch(Vec<String>),
+}
+
+struct Request {
+    body: RequestBody,
+    reply: Arc<ReplyState>,
+}
+
+enum ReplyPhase {
+    Queued,
+    Started,
+    Finished,
+}
+
+struct ReplyValue {
+    phase: ReplyPhase,
+    outcome: Option<Result<EmbedOutput, DispatchError>>,
+}
+
+struct ReplyState {
+    deadline: Instant,
+    value: Mutex<ReplyValue>,
+    ready: Condvar,
+}
+
+impl ReplyState {
+    fn new(deadline: Instant) -> Self {
+        Self {
+            deadline,
+            value: Mutex::new(ReplyValue { phase: ReplyPhase::Queued, outcome: None }),
+            ready: Condvar::new(),
+        }
+    }
+
+    fn resolve(&self, outcome: Result<EmbedOutput, DispatchError>) -> bool {
+        let mut value = self.value.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if matches!(value.phase, ReplyPhase::Finished) {
+            return false;
+        }
+        if Instant::now() >= self.deadline {
+            let error = if matches!(value.phase, ReplyPhase::Queued) {
+                DispatchError::QueuedExpired
+            } else {
+                DispatchError::StartedTimeout
+            };
+            value.phase = ReplyPhase::Finished;
+            value.outcome = Some(Err(error));
+            self.ready.notify_all();
+            return false;
+        }
+        value.phase = ReplyPhase::Finished;
+        value.outcome = Some(outcome);
+        self.ready.notify_all();
+        true
+    }
+
+    fn start(&self, now: Instant) -> bool {
+        let mut value = self.value.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if !matches!(value.phase, ReplyPhase::Queued) {
+            return false;
+        }
+        if now >= self.deadline {
+            value.phase = ReplyPhase::Finished;
+            value.outcome = Some(Err(DispatchError::QueuedExpired));
+            self.ready.notify_all();
+            return false;
+        }
+        value.phase = ReplyPhase::Started;
+        true
+    }
+
+    fn expired_or_finished(&self, now: Instant) -> bool {
+        let mut value = self.value.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if matches!(value.phase, ReplyPhase::Finished) {
+            return true;
+        }
+        if now >= self.deadline && matches!(value.phase, ReplyPhase::Queued) {
+            value.phase = ReplyPhase::Finished;
+            value.outcome = Some(Err(DispatchError::QueuedExpired));
+            self.ready.notify_all();
+            return true;
+        }
+        false
+    }
+
+    fn wait(&self) -> Result<EmbedOutput, DispatchError> {
+        let mut value = self.value.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        loop {
+            if let Some(outcome) = value.outcome.take() {
+                return outcome;
+            }
+            let now = Instant::now();
+            if now >= self.deadline && !matches!(value.phase, ReplyPhase::Finished) {
+                let error = if matches!(value.phase, ReplyPhase::Queued) {
+                    DispatchError::QueuedExpired
+                } else {
+                    DispatchError::StartedTimeout
+                };
+                value.phase = ReplyPhase::Finished;
+                self.ready.notify_all();
+                return Err(error);
+            }
+            let remaining = self.deadline.saturating_duration_since(now);
+            value = self
+                .ready
+                .wait_timeout(value, remaining)
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .0;
+        }
+    }
+}
+
+pub(crate) struct EmbedReply {
+    reply: Arc<ReplyState>,
+}
 
 impl EmbedReply {
     pub(crate) fn deadline(&self) -> Instant {
-        unimplemented!()
+        self.reply.deadline
     }
 
     pub(crate) fn wait(self) -> Result<EmbedOutput, DispatchError> {
-        unimplemented!()
+        self.reply.wait()
     }
 
     pub(crate) fn cancel(&self) {
-        unimplemented!()
+        self.reply.resolve(Err(DispatchError::Cancelled));
     }
 }
 
-pub(crate) struct EmbedDispatcher;
+impl Drop for EmbedReply {
+    fn drop(&mut self) {
+        self.cancel();
+    }
+}
+
+struct QueueState {
+    waiting: VecDeque<Request>,
+    active: Vec<Arc<ReplyState>>,
+    closing: bool,
+    live_workers: usize,
+    late_results: usize,
+    late_panics: usize,
+}
+
+struct Shared {
+    provider: Arc<dyn Embedder>,
+    dimension: usize,
+    queue_capacity: usize,
+    timeout: Duration,
+    state: Mutex<QueueState>,
+    changed: Condvar,
+}
+
+impl Shared {
+    fn snapshot(&self) -> DispatchSnapshot {
+        let state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        DispatchSnapshot {
+            queue_capacity: self.queue_capacity,
+            queued: state.waiting.len(),
+            active: state.active.len(),
+            live_workers: state.live_workers,
+            late_results: state.late_results,
+            late_panics: state.late_panics,
+        }
+    }
+}
+
+pub(crate) struct EmbedDispatcher {
+    shared: Option<Arc<Shared>>,
+    handles: Mutex<Vec<JoinHandle<()>>>,
+    drain_deadline: Mutex<Option<Instant>>,
+}
 
 impl EmbedDispatcher {
     pub(crate) fn new(
-        _provider: Option<Arc<dyn Embedder>>,
-        _pool_size: usize,
-        _timeout: Duration,
+        provider: Option<Arc<dyn Embedder>>,
+        pool_size: usize,
+        timeout: Duration,
     ) -> io::Result<Self> {
-        unimplemented!()
+        let Some(provider) = provider else {
+            return Ok(Self {
+                shared: None,
+                handles: Mutex::new(Vec::new()),
+                drain_deadline: Mutex::new(None),
+            });
+        };
+        if !(1..=64).contains(&pool_size) || timeout.is_zero() {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid embed pool settings"));
+        }
+        let queue_capacity = pool_size
+            .checked_mul(4)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "embed queue overflow"))?;
+        let dimension = provider.identity().dimension as usize;
+        let shared = Arc::new(Shared {
+            provider,
+            dimension,
+            queue_capacity,
+            timeout,
+            state: Mutex::new(QueueState {
+                waiting: VecDeque::with_capacity(queue_capacity),
+                active: Vec::with_capacity(pool_size),
+                closing: false,
+                live_workers: 0,
+                late_results: 0,
+                late_panics: 0,
+            }),
+            changed: Condvar::new(),
+        });
+        let mut handles = Vec::with_capacity(pool_size);
+        for index in 0..pool_size {
+            let worker_shared = Arc::clone(&shared);
+            match thread::Builder::new()
+                .name(format!("fathomdb-embed-{index}"))
+                .spawn(move || worker_loop(worker_shared))
+            {
+                Ok(handle) => handles.push(handle),
+                Err(error) => {
+                    stop(&shared);
+                    for handle in handles {
+                        let _ = handle.join();
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        let mut state = shared.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        while state.live_workers != pool_size {
+            state = shared.changed.wait(state).unwrap_or_else(|poisoned| poisoned.into_inner());
+        }
+        drop(state);
+        Ok(Self {
+            shared: Some(shared),
+            handles: Mutex::new(handles),
+            drain_deadline: Mutex::new(None),
+        })
     }
 
-    pub(crate) fn submit_text(&self, _text: String) -> Result<EmbedReply, DispatchError> {
-        unimplemented!()
+    pub(crate) fn submit_text(&self, text: String) -> Result<EmbedReply, DispatchError> {
+        self.submit(RequestBody::One(text))
     }
 
-    pub(crate) fn submit_batch(&self, _texts: Vec<String>) -> Result<EmbedReply, DispatchError> {
-        unimplemented!()
+    pub(crate) fn submit_batch(&self, texts: Vec<String>) -> Result<EmbedReply, DispatchError> {
+        self.submit(RequestBody::Batch(texts))
+    }
+
+    fn submit(&self, body: RequestBody) -> Result<EmbedReply, DispatchError> {
+        let Some(shared) = &self.shared else {
+            return Err(DispatchError::NotConfigured);
+        };
+        let deadline = Instant::now() + shared.timeout;
+        let reply = Arc::new(ReplyState::new(deadline));
+        let mut state = shared.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if state.closing {
+            return Err(DispatchError::Closing);
+        }
+        let now = Instant::now();
+        state.waiting.retain(|request| !request.reply.expired_or_finished(now));
+        if state.waiting.len() == shared.queue_capacity {
+            return Err(DispatchError::Saturated);
+        }
+        state.waiting.push_back(Request { body, reply: Arc::clone(&reply) });
+        shared.changed.notify_one();
+        Ok(EmbedReply { reply })
     }
 
     pub(crate) fn close(&self) {
-        unimplemented!()
+        if let Some(shared) = &self.shared {
+            stop(shared);
+        }
     }
 
-    pub(crate) fn join_until(&self, _deadline: Instant) -> bool {
-        unimplemented!()
+    pub(crate) fn join_until(&self, deadline: Instant) -> bool {
+        let Some(shared) = &self.shared else {
+            return true;
+        };
+        let deadline = {
+            let mut first =
+                self.drain_deadline.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            *first.get_or_insert(deadline)
+        };
+        let mut state = shared.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        while state.live_workers != 0 {
+            let now = Instant::now();
+            if now >= deadline {
+                return false;
+            }
+            state = shared
+                .changed
+                .wait_timeout(state, deadline.saturating_duration_since(now))
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .0;
+        }
+        drop(state);
+        let mut handles = self.handles.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        for handle in handles.drain(..) {
+            let _ = handle.join();
+        }
+        true
     }
 
     pub(crate) fn snapshot(&self) -> DispatchSnapshot {
-        unimplemented!()
+        self.shared.as_ref().map_or_else(DispatchSnapshot::default, |shared| shared.snapshot())
     }
 
     pub(crate) fn accounting(&self) -> Option<DispatchAccounting> {
-        unimplemented!()
+        self.shared.as_ref().map(|shared| DispatchAccounting { shared: Arc::clone(shared) })
     }
+}
+
+impl Drop for EmbedDispatcher {
+    fn drop(&mut self) {
+        self.close();
+    }
+}
+
+fn stop(shared: &Shared) {
+    let mut state = shared.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if state.closing {
+        return;
+    }
+    state.closing = true;
+    for request in state.waiting.drain(..) {
+        request.reply.resolve(Err(DispatchError::Closing));
+    }
+    for reply in &state.active {
+        reply.resolve(Err(DispatchError::Closing));
+    }
+    shared.changed.notify_all();
+}
+
+fn valid(vector: &Vector, dimension: usize) -> bool {
+    vector.len() == dimension && vector.iter().all(|value| value.is_finite())
+}
+
+fn invoke(shared: &Shared, body: RequestBody) -> Result<EmbedOutput, DispatchError> {
+    let expected_rows = match &body {
+        RequestBody::One(_) => None,
+        RequestBody::Batch(texts) => Some(texts.len()),
+    };
+    let outcome = catch_unwind(AssertUnwindSafe(|| match body {
+        RequestBody::One(text) => shared.provider.embed(&text).map(EmbedOutput::One),
+        RequestBody::Batch(texts) => {
+            let inputs: Vec<&str> = texts.iter().map(String::as_str).collect();
+            shared.provider.embed_batch(&inputs).map(EmbedOutput::Batch)
+        }
+    }));
+    match outcome {
+        Err(payload) => Err(DispatchError::Panic(payload)),
+        Ok(Err(error)) => Err(DispatchError::Provider(error)),
+        Ok(Ok(EmbedOutput::One(vector))) if valid(&vector, shared.dimension) => {
+            Ok(EmbedOutput::One(vector))
+        }
+        Ok(Ok(EmbedOutput::Batch(vectors)))
+            if Some(vectors.len()) == expected_rows
+                && !vectors.is_empty()
+                && vectors.iter().all(|vector| valid(vector, shared.dimension)) =>
+        {
+            Ok(EmbedOutput::Batch(vectors))
+        }
+        Ok(Ok(_)) => Err(DispatchError::InvalidOutput),
+    }
+}
+
+fn worker_loop(shared: Arc<Shared>) {
+    {
+        let mut state = shared.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.live_workers += 1;
+        shared.changed.notify_all();
+    }
+    loop {
+        let request = {
+            let mut state = shared.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            loop {
+                if state.closing {
+                    break None;
+                }
+                if let Some(request) = state.waiting.pop_front() {
+                    if request.reply.start(Instant::now()) {
+                        state.active.push(Arc::clone(&request.reply));
+                        break Some(request);
+                    }
+                    continue;
+                }
+                state = shared.changed.wait(state).unwrap_or_else(|poisoned| poisoned.into_inner());
+            }
+        };
+        let Some(request) = request else {
+            break;
+        };
+        let result = invoke(&shared, request.body);
+        let is_panic = matches!(result, Err(DispatchError::Panic(_)));
+        let mut state = shared.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.active.retain(|reply| !Arc::ptr_eq(reply, &request.reply));
+        if !request.reply.resolve(result) {
+            if is_panic {
+                state.late_panics += 1;
+            } else {
+                state.late_results += 1;
+            }
+        }
+        shared.changed.notify_all();
+    }
+    let mut state = shared.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    state.live_workers -= 1;
+    shared.changed.notify_all();
 }

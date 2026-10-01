@@ -219,9 +219,8 @@ tests in default and test-hooks builds. The focused full candidate also passed
 checks. Two-phase close remains Batch 2g and is underway in an isolated
 worktree; this merge does not claim the runtime checkpoint.
 
-Next: independently review and merge two-phase close and binding forwarding;
-review and implement the HITL `seq-297` D27 bounded-swap protocol on windchill3.
-Collect a valid historical
-entry under the ruled protocol before the candidate-bound checkpoint and
-structural Phase 3. Report the remaining GPU and Slice 85 recovery evidence
-as its actual result. Slice 90 remains IN_PROGRESS.
+Next: correct and independently review two-phase close, review and merge both
+binding-forwarding batches, then finish runtime qualification against the now
+valid historical D27 entry. The candidate-bound checkpoint and structural
+Phase 3 remain pending. Report the remaining GPU and Slice 85 recovery
+evidence as its actual result. Slice 90 remains IN_PROGRESS.

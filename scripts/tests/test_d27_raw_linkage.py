@@ -45,6 +45,8 @@ def synthetic_raw(direction, repetition):
         "close_start_ns": 60_010_000_000, "close_end_ns": 60_020_000_000,
         "close_result": "Ok(())", "smoke": False,
         "environment_valid": True,
+        "environment_start": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1"},
+        "environment_end": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1"},
     }
 
 
@@ -76,6 +78,13 @@ class RawLinkageTests(unittest.TestCase):
         changed[0]["projection_completions"].pop()
         self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
         with self.assertRaisesRegex(ValueError, "projection"):
+            verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
+
+    def test_forged_environment_valid_flag_is_rejected(self):
+        changed = copy.deepcopy(self.raw)
+        changed[0]["environment_end"]["cpu_governor"] = "powersave"
+        self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
+        with self.assertRaisesRegex(ValueError, "environment"):
             verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
 
 

@@ -134,6 +134,7 @@ def validate_receipt(
     require(number(runner.get("memory_gib"), "runner memory_gib") >= expected["minimum_memory_gib"], "runner memory_gib below minimum")
     for boundary in ("start", "end"):
         environment = receipt.get(f"environment_{boundary}", {})
+        require(environment.get("pid_namespace") == expected["host_pid_namespace"], f"environment {boundary} pid namespace mismatch")
         require(environment.get("cpu_governor") == expected["cpu_governor"], f"environment {boundary} governor mismatch")
         require(environment.get("competing_processes") == [], f"environment {boundary} competing process")
         number(environment.get("swap_pages_in"), f"environment {boundary} swap_pages_in")

@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
 WORKLOAD = ROOT / "scripts/d27_runtime_workload.rs"
 VERIFIER = ROOT / "scripts/d27-runtime-qualification.py"
+HOST_PID_NAMESPACE = "pid:[4026531836]"
 
 
 def sha256(path: Path) -> str:
@@ -139,6 +140,7 @@ def environment() -> dict:
     return {
         "cpu_governor": governor,
         "competing_processes": competing,
+        "pid_namespace": os.readlink("/proc/self/ns/pid"),
         "swap_pages_in": swap["pswpin"],
         "swap_pages_out": swap["pswpout"],
         "kernel": platform.release(),
@@ -175,6 +177,9 @@ def environment_invalidators(raw: dict) -> list[str]:
         reasons.append("environment samples missing")
         samples = []
     for label, observation in [("before", before), *[(f"sample[{index}]", sample) for index, sample in enumerate(samples)], ("after", after)]:
+        namespace = observation.get("pid_namespace")
+        if namespace != HOST_PID_NAMESPACE:
+            reasons.append(f"{label} pid namespace={namespace!r}; expected host {HOST_PID_NAMESPACE}")
         governor = observation.get("cpu_governor")
         if governor != "performance":
             reasons.append(f"{label} cpu governor={governor!r}; expected performance")
@@ -456,6 +461,11 @@ def main() -> int:
     source_sha = git_sha(source)
     if args.phase == "entry" and source_sha != protocol["entry_engine_candidate_sha"]:
         raise ValueError("wrong entry candidate")
+    if protocol["runner"]["host_pid_namespace"] != HOST_PID_NAMESPACE:
+        raise ValueError("D27 host pid namespace protocol mismatch")
+    initial_environment = environment()
+    if initial_environment["pid_namespace"] != HOST_PID_NAMESPACE:
+        raise ValueError(f"runner pid namespace={initial_environment['pid_namespace']!r}; expected host {HOST_PID_NAMESPACE}; run in host process namespace")
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=True)
     corpus = output / "corpus.jsonl"
@@ -468,7 +478,7 @@ def main() -> int:
     raw_output = output / "raw-output.jsonl"
     metrics = {"projection_heavy": [], "foreground_heavy": []}
     all_raw = []
-    start_environment = environment()
+    start_environment = initial_environment
     for name in repetition_order(protocol, args.phase):
         direction, repetition = re.fullmatch(r"(?:entry|candidate)_(projection_heavy|foreground_heavy)_(\d)", name).groups()
         repetition = int(repetition)

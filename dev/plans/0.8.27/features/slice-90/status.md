@@ -8,7 +8,7 @@ target_release: 0.8.27
 
 Requirements, acceptance criteria, design and TDD batches are reconciled in
 the [plan](plan.md). Independent design review passed after the recorded
-corrections. Runtime Batches 2a–2e are merged and reviewed; the runtime checkpoint
+corrections. Runtime Batches 2a–2f are merged and reviewed; the runtime checkpoint
 and final Slice 90 verification are not yet claimed.
 
 The frozen operational source entry was `release/0.8.27` at `e689000d4` or a
@@ -173,8 +173,22 @@ with two intentionally ignored bounded-child entrypoints, and default engine
 result and shared provider-drain deadline; the current close/reopen witness
 proves projection-wait cancellation and durable recovery only.
 
-Next: route foreground and open-time provider calls through dispatch, then
-complete two-phase close and binding forwarding on windchill3 while settling
+Foreground/open-time dispatch Batch 2f was merged at `5d93cd556` from clean
+corrected commit `e933dd4a7`. Test-only RED `e9ab011b2` reproduced an
+unbounded direct-call deadline and blocked vector-equivalence probe; GREEN
+`9a4e14f94` routed direct, ordinary/frozen search, and open-time provider calls
+through the same engine dispatcher. Independent Sol review found that two
+search boundaries converted provider panics into sparse fallback. Corrective
+RED `4a2469368` pinned the ordinary caller unwind and frozen reader-owner
+`Storage` boundary; GREEN `e933dd4a7` preserves those panic outcomes while
+nonpanic dispatch failures retain sparse fallback. Narrow Sol re-review and
+Terra verification passed at the clean final commit, including 9/9 foreground
+tests in default and test-hooks builds. The focused full candidate also passed
+43/43 targeted tests, selected-feature check, Clippy, formatting, and diff
+checks. Two-phase close remains Batch 2g and is underway in an isolated
+worktree; this merge does not claim the runtime checkpoint.
+
+Next: complete two-phase close and binding forwarding on windchill3 while settling
 the D27 swap policy.
 Collect a valid historical
 entry under the ruled protocol before the candidate-bound checkpoint and

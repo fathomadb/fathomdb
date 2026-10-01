@@ -47,14 +47,20 @@ per-engine settings. The 37 storage fields include `ProjectionRuntimeShared`
 controls only by reference; the four shared search controls remain physically
 in `projection_runtime` as the design directs.
 
-Two live root constants are not individually allocated by the current design:
-`EDGE_FACT_KIND` (read by `embedding` and `projection_worker`) and
-`MEAN_VEC_PIN_THRESHOLD` (read by open/mean/vector write and
-`projection_commit`). They must receive item-specific reviewed dispositions
-before their movement. The census also exposes test-only method bodies such as
-`execute_for_test` and `run_one_thread_poison_for_test`; these need a precise
-Slice 140 retention or semantic-owner decision before extraction. This record
-does not silently assign those items.
+The [design](design.md) now proposes item-specific dispositions for the four
+previously unallocated census items. `EDGE_FACT_KIND` belongs to `embedding`:
+its consumers are the readiness classifier at `lib.rs:2304` and the
+absent-provider projection branch at `projection_worker.rs:698`.
+`MEAN_VEC_PIN_THRESHOLD` belongs to `mean`, with the same public root re-export;
+its consumers are open recovery at `lib.rs:3314`, the test vector write at
+`lib.rs:4966`, and projection commit at `projection_commit.rs:206`.
+`Engine::execute_for_test` remains a Slice 140 root test seam because it is a
+general writer-SQL and slow-event fixture used across lifecycle, write,
+integrity and dependency tests. `Engine::run_one_thread_poison_for_test`
+remains a Slice 140 root test seam because it composes write, search,
+projection-state and lifecycle event behavior in one debug-only fixture.
+Their source cfgs and hidden public paths remain exact. These four decisions
+require the independent prospective design review before movement.
 
 ## Inherited Slice 85 recovery delta
 
@@ -115,9 +121,10 @@ The scanner retarget checklist before moving a named body is:
 | Slice 35/source mutation suites and `slice60_fix1_wire` tests | Named source/test seams in engine and bindings. | Search and retarget each exact pattern at its move; require negative fixture. |
 | `scripts/lint-plan-anchors.sh` | Source symbol/path anchors in plans. | Run after documentation and source moves; preserve valid source anchors. |
 
-Current feature and qualified-test surface capture is still pending. The
-official public comparator requires its 100 GB scratch floor; the Slice 85
-hidden capture is blocked by the host NVML driver/library mismatch. Neither
-has a current-source PASS receipt. This inventory and the missing D27 valid
-historical entry are explicit preconditions, not an excuse to start runtime
-semantic edits.
+The current public source capture passed 13 rows at release commit
+`77b019c39` (`/tmp/fathomdb-s90-entry-public.json`, SHA-256
+`0af7b505ab18a52984dc2cf45151d6f413822df0ffce06d9357466d7032bbaa1`).
+The hidden capture is blocked by a host NVML driver/library mismatch:
+kernel module 580.173.02 versus library 580.178.04. The missing hidden and
+qualified-test comparisons, plus a valid D27 historical entry, remain
+explicit preconditions for the corresponding source moves and runtime edit.

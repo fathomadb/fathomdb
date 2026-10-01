@@ -29,3 +29,15 @@ The approved scope is the reconciled [plan](plan.md),
 [test change plan](slice-90-test-change-plan.md), and
 [D27 protocol](d27-runtime-qualification-protocol.json). Review approval is
 for the plan only; it is not an implementation or qualification receipt.
+
+## Current-source inventory amendment
+
+A subsequent independent `gpt-6-sol` high read-only review returned **PASS**
+on the prospective four-item amendment to the design and
+[current-source inventory](current-source-inventory.md). It verified the
+current uses and exact retained cfg/public identities for `EDGE_FACT_KIND`,
+`MEAN_VEC_PIN_THRESHOLD`, `Engine::execute_for_test`, and
+`Engine::run_one_thread_poison_for_test`, along with the corrected 13-row
+public-capture evidence. This review approves those item-specific
+dispositions only; it does not turn the pending hidden-surface, historical
+D27 or Slice 85 recovery qualifications into PASS.

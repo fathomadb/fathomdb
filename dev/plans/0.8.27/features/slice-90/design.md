@@ -117,6 +117,10 @@ private imports use the semantic owner. A change requires design review.
 | `MeanRecomputeReport` | `mean`; existing recomputation result contract. |
 | `table_exists` | `open`; admission-only legacy-shape probe. |
 | `read_schema_objects`, `order_canonical_first` | `operator`; schema inspection/export helpers. |
+| `EDGE_FACT_KIND` | `embedding`; this is the embedding-readiness kind discriminator in `embedder_required_for`, also read by `projection_worker` when deciding whether an absent provider can skip an edge fact. Keep one literal and let the worker import it from the owner. Its value and branches do not change. |
+| `MEAN_VEC_PIN_THRESHOLD` | `mean`; the public constant is the compute-once mean threshold consumed by open recovery, test vector writes and `projection_commit`. Keep its value, re-export the same root path, and import the single owner constant at its consumers. |
+| `Engine::execute_for_test` | Retain at root through Slice 90 as a Slice 140 test seam already allocated by Slice 80. It takes arbitrary SQL on the Engine writer handle and reports through the root `detect_slow`/lifecycle path; forcing it into a production domain would give that domain an unrelated test-only writer capability. Its `any(test, debug_assertions, test-hooks)` gate, public doc-hidden path and qualified test identity stay exact. Callers include lifecycle observability, fault-injection, integrity and dependency fixtures. |
+| `Engine::run_one_thread_poison_for_test` | Retain at root through Slice 90 as a Slice 140 test seam already allocated by Slice 80. This debug-only composite fixture deliberately invokes public write and search paths, inspects projection status and dispatches a lifecycle stress-failure event. No single production owner owns that cross-domain fixture. Keep its `debug_assertions` gate, public doc-hidden path and qualified test identity exact. |
 
 All root constants already consumed by an extracted domain follow that
 specific domain: `DEFAULT_VECTOR_PROFILE`/`DEFAULT_VECTOR_PARTITION` to

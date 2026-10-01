@@ -3123,20 +3123,10 @@ impl Engine {
                         .expect("report injected startup fault");
                     embed_dispatch.close();
                     projection_runtime.stop();
-                    for reader in &readers {
-                        uninstall_profile_callback(reader);
-                    }
-                    drop(readers);
-                    uninstall_profile_callback(&connection);
-                    drop(connection);
-                    drop(writer_connection_registration);
-                    let mut profile_contexts = ProfileContexts {
+                    let _retained_contexts = ProfileContexts {
                         contexts: profile_contexts,
                         observer: Some(profile_releases),
                     };
-                    profile_contexts.clear();
-                    drop(profile_contexts);
-                    drop(lock);
                     return Err(EngineOpenError::Io {
                         message: "injected post-probe startup failure".to_owned(),
                     });

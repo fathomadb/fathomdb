@@ -25,8 +25,10 @@ captured at that commit: 13 rows passed, with the capture saved at
 The official hidden capture stopped at CUDA preflight because `nvidia-smi`
 exited 9; no hidden PASS is claimed.
 
-The measurement-only D27 harness is complete through reviewed implementation
-commit `177a50ac2` in the Slice 90 worktree. RED/GREEN commits and 34 focused
+The measurement-only D27 harness was merged into `release/0.8.27` at
+`8a7ad580f` from reviewed implementation commit `177a50ac2`. The temporary
+implementation and historical-entry worktrees and implementation branch were
+removed after merging. RED/GREEN commits and 34 focused
 tests cover the frozen workload, raw-to-receipt linkage, invalid attempts and
 host process visibility. Sol code review and independent Terra verification
 passed at that exact commit; Terra also passed Ruff, Markdown lint, whitespace

@@ -46,9 +46,9 @@ def synthetic_raw(direction, repetition):
         "close_start_ns": 60_010_000_000, "close_end_ns": 60_020_000_000,
         "close_result": "Ok(())", "smoke": False,
         "environment_valid": True,
-        "environment_start": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1", "pid_namespace": "pid:[4026531836]", "pid_one_namespace": "pid:[4026531836]", "pid_one_comm": "systemd", "ps_pid_one_comm": "systemd", "procfs_hidepid": "0"},
-        "environment_end": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1", "pid_namespace": "pid:[4026531836]", "pid_one_namespace": "pid:[4026531836]", "pid_one_comm": "systemd", "ps_pid_one_comm": "systemd", "procfs_hidepid": "0"},
-        "environment_samples": [{"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1", "pid_namespace": "pid:[4026531836]", "pid_one_namespace": "pid:[4026531836]", "pid_one_comm": "systemd", "ps_pid_one_comm": "systemd", "procfs_hidepid": "0"}],
+        "environment_start": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1", "pid_namespace": "pid:[4026531836]", "pid_one_namespace": "pid:[4026531836]", "pid_one_comm": "systemd", "ps_pid_one_comm": "systemd", "procfs_hidepid": "0", "runner_pid": 4242, "proc_self_pid": 4242, "ps_self_pid": 4242},
+        "environment_end": {"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1", "pid_namespace": "pid:[4026531836]", "pid_one_namespace": "pid:[4026531836]", "pid_one_comm": "systemd", "ps_pid_one_comm": "systemd", "procfs_hidepid": "0", "runner_pid": 4242, "proc_self_pid": 4242, "ps_self_pid": 4242},
+        "environment_samples": [{"cpu_governor": "performance", "competing_processes": [], "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme1n1p1", "pid_namespace": "pid:[4026531836]", "pid_one_namespace": "pid:[4026531836]", "pid_one_comm": "systemd", "ps_pid_one_comm": "systemd", "procfs_hidepid": "0", "runner_pid": 4242, "proc_self_pid": 4242, "ps_self_pid": 4242}],
     }
 
 
@@ -120,6 +120,14 @@ class RawLinkageTests(unittest.TestCase):
             item["environment_samples"][0]["pid_one_namespace"] = ""
         self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
         verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
+
+    def test_nested_procfs_missing_runner_host_pid_cannot_validate(self):
+        changed = copy.deepcopy(self.raw)
+        changed[0]["environment_samples"][0]["pid_one_namespace"] = ""
+        changed[0]["environment_samples"][0]["ps_self_pid"] = None
+        self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
+        with self.assertRaisesRegex(ValueError, "process view"):
+            verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
 
     def test_missing_midrun_samples_are_rejected(self):
         changed = copy.deepcopy(self.raw)

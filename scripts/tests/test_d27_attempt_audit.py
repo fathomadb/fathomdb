@@ -38,6 +38,8 @@ class AttemptAuditTests(unittest.TestCase):
             ("pid_one_comm", "codex", "process view"),
             ("ps_pid_one_comm", None, "process view"),
             ("procfs_hidepid", "2", "process view"),
+            ("ps_self_pid", None, "process view"),
+            ("proc_self_pid", None, "process view"),
         )
         for key, value, expected in cases:
             raw = copy.deepcopy(self.raw)
@@ -85,6 +87,19 @@ class AttemptAuditTests(unittest.TestCase):
         snapshot = copy.deepcopy(self.raw["environment_start"])
         snapshot["pid_one_namespace"] = ""
         self.assertEqual(runner.process_view_invalidators(snapshot, "host"), [])
+
+    def test_nested_procfs_without_runner_host_pid_cannot_start(self):
+        protocol = json.loads(runner.PROTOCOL.read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot = copy.deepcopy(self.raw["environment_start"])
+            snapshot["pid_one_namespace"] = ""
+            snapshot["ps_self_pid"] = None
+            argv = ["d27-runtime-runner.py", "--source", directory, "--phase", "entry", "--output-dir", directory]
+            with mock.patch.object(sys, "argv", argv), mock.patch.object(runner, "git_sha", return_value=protocol["entry_engine_candidate_sha"]), mock.patch.object(runner, "environment", return_value=snapshot), mock.patch.object(runner, "build_binary") as build, mock.patch.object(runner, "run_repetition") as run:
+                with self.assertRaisesRegex(ValueError, "process view"):
+                    runner.main()
+                build.assert_not_called()
+                run.assert_not_called()
 
     def test_first_failed_repetition_is_persisted_before_validation_aborts(self):
         protocol = json.loads(runner.PROTOCOL.read_text())

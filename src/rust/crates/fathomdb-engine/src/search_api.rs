@@ -539,8 +539,13 @@ impl Engine {
         // mirrors the write path: identity must be MC-required AND a
         // mean_vec must be pinned. NoopEmbedder collapses to
         // `query_vector_bin == query_vector` until EU-5b.
-        let raw_query_vector =
-            (!is_frozen).then(|| dispatch_embed_vector(&self.embed_dispatch, query).ok()).flatten();
+        let raw_query_vector = (!is_frozen)
+            .then(|| match dispatch_embed_vector(&self.embed_dispatch, query) {
+                Ok(vector) => Some(vector),
+                Err(DispatchError::Panic(payload)) => std::panic::resume_unwind(payload),
+                Err(_) => None,
+            })
+            .flatten();
         let query_vector_bin = match raw_query_vector.as_ref() {
             Some(vector) if identity_requires_mean_centering(&self.runtime_embedder_identity) => {
                 let pinned = {
@@ -1343,6 +1348,7 @@ impl Engine {
         }
     }
 }
+use crate::embed_dispatch::DispatchError;
 use crate::embedding::dispatch_embed_vector;
 use crate::errors::EngineError;
 use crate::evidence::{

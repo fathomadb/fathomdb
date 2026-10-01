@@ -94,8 +94,22 @@ child, rejects missing/negative/reset counters at every sample, and binds both
 deltas to raw per-repetition metrics. The global six-repetition zero-swap
 check was removed. Independent `gpt-6-sol` high code review and Terra
 verification passed at the exact GREEN SHA; the merged release source passed
-38 focused D27 tests. No bounded-protocol historical or candidate measurement
-has been run yet; the prior invalid attempts retain their old hashes.
+38 focused D27 tests. The prior invalid attempts retain their old hashes.
+
+A fresh six-repetition historical entry on windchill3 against unchanged source
+`7a2f9bf90783f545603516502bac0016d4b93a14` passed the reviewed protocol.
+The receipt is `/tmp/fathomdb-s90-d27-bounded-entry-20261001/receipt.json`
+(SHA-256 `43c3c3480e1d6e83ee2a4228446436ca3fff41d2601ff7540a955525a103fdbd`).
+It binds protocol SHA-256 `489a5a765615bbda82f7e3b585a868e481121def0fb38fa4e9bd416632f5efb0`,
+runner bundle `d0e8765ad7afad80e27a506156f16be4707b7ed5ebe045641ec5284867f46e90`,
+historical binary `b658501f6020c22d92c3e53ec91d888bb7383720929f4adc6e7635d5f0518361`,
+corpus `a4eeb2a7c714d0d450e7ecd41bf7bb45a83f97c30d3adc513629eeca836a685d`,
+and raw output `32966c5c5154c980f6cda1b727a978066b77a34d726e4de227fbf7cc7d66442f`.
+Every repetition passed environment validation; the foreground-heavy swap
+in/out deltas were (1, 0), (9, 0), (0, 0) pages and projection-heavy deltas
+were (0, 0), (6, 0), (2, 0). The standalone verifier reproduced the receipt
+byte for byte. This qualifies the historical reference only. Candidate
+measurement and the runtime checkpoint remain pending.
 
 The local NVIDIA kernel module is 580.173.02 while NVML is 580.178.04.
 Per HITL `seq-296`, this mismatch cannot be resolved for Slice 90: proceed

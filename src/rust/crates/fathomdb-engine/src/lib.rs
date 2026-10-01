@@ -8044,7 +8044,7 @@ mod tests {
         install_admission_locked_hook_for_test, legacy_revision_id,
         native_connection_state_for_test, prepare_search_statement, resolve_source_type,
         retain_complete_rank_boundary_candidates, DeviceResolution, EmbedderChoice, Engine,
-        EngineError, EngineOpenError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
+        EngineConfig, EngineError, EngineOpenError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
         ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, ProjectionRuntime,
         ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole, RuntimeProbeConnection,
         SearchHit, SoftFallbackBranch, SourceId, WalAttributionCollector, WalAttributionRole,
@@ -8418,6 +8418,41 @@ mod tests {
 
         let inventory = opened.engine.native_state_inventory_for_test();
         assert!(inventory.complete, "runtime roles must be immediately queryable: {inventory:?}");
+    }
+
+    #[test]
+    fn configured_projection_workers_own_exact_connections_and_close_cleanly() {
+        let dir = TempDir::new().expect("temp dir");
+        for count in [1_u64, 2, 4, 64] {
+            let path = dir.path().join(format!("projection-{count}.sqlite"));
+            let opened = Engine::open_with_choice_and_config(
+                path,
+                EmbedderChoice::None,
+                EngineConfig { scheduler_runtime_threads: Some(count), ..EngineConfig::default() },
+            )
+            .expect("configured open");
+            let runtime = opened
+                .engine
+                .projection_runtime
+                .report_runtime_connection_inventory_for_test()
+                .expect("runtime inventory");
+            assert_eq!(runtime.len(), count as usize + 1);
+            assert_eq!(
+                runtime.iter().filter(|(role, _, auto)| *role == WalAttributionRole::ProjectionWorker && *auto).count(),
+                count as usize,
+            );
+            let snapshot = opened.engine.wal_attribution_snapshot();
+            assert_eq!(
+                snapshot.roles.iter().filter(|role| role.role == "projection_worker").count(),
+                count as usize
+            );
+            assert_eq!(
+                opened.engine.managed_connections.creation_counts(),
+                Some((1, READER_POOL_SIZE, 1, count as usize, 0)),
+            );
+            opened.engine.close().expect("close all projection owners");
+            assert!(opened.engine.managed_connections.live.lock().expect("registry").is_empty());
+        }
     }
 
     fn initialized_projection_runtime_path(dir: &TempDir, name: &str) -> std::path::PathBuf {

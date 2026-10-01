@@ -61,14 +61,22 @@ binding source, and the allocated Slice 100 pre-entry plan.
    before switching checkouts. It passes `--expect-closed 85` on current
    release state. The checkpoint checker already exists; it must bind the
    exact runtime candidate before structural moves.
-7. **Current-host qualification was attempted.** The reviewed D27 harness
-   built and ran against exact historical source, but two first repetitions
-   were invalidated by host swap-in. The strict feature-complete gate and
+7. **Current-host qualification was attempted.** The current reviewed D27
+   harness built and ran against exact historical source; its first repetition
+   was invalidated by host swap-in and a sleeping host pytest process. Two
+   earlier attempts used the old protocol hash and were also swap-invalid.
+   The strict feature-complete gate and
    official hidden-surface capture both exited 2 at the installed NVIDIA
    driver/NVML mismatch. HITL `seq-296` removes driver repair as a prerequisite
    to doing available work; these observations remain failed or unavailable
    evidence, not qualification receipts. The D27 swap policy needs a separate
    explicit disposition before its historical entry can qualify.
+8. **HITL directed current-host continuation.** The reviewed harness executed
+   on the exact historical source; its environment-invalid attempt establishes
+   no baseline. Phase 2 RED/GREEN runtime implementation may proceed
+   on windchill3 as installed while the swap rule is settled. No invalid
+   attempt becomes a PASS receipt, and the runtime checkpoint and structural
+   Phase 3 remain gated by qualifying D27 evidence.
 
 ## Evaluation and scope decision
 
@@ -113,7 +121,8 @@ The corrections make these parts falsifiable:
 
 1. Freeze current-source owner/scanner inventories and historical D27 entry
    evidence in separate worktrees. Reconcile the inherited Slice 85 recovery
-   evidence. Review the measurement-only runner before any semantic edit.
+   evidence. Review and execute the measurement-only runner on exact historical
+   source before any semantic edit; preserve invalid attempts as diagnostics.
 2. Follow code-plan batches 2a–2l. For each behavior change, stage a failing
    test, record RED, implement the narrow GREEN fix, then run affected tests
    and lint. Keep the test oracle fixed during its corresponding fix. Establish

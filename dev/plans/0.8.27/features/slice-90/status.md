@@ -50,8 +50,22 @@ respectively. These are invalid-attempt audit artifacts, not an entry receipt
 or performance PASS. They predate the reviewed process-visibility protocol
 amendment and cannot be promoted under its new hash. The host has ample
 available RAM but nearly full swap; the frozen protocol invalidates swap
-movement. Do not relax that rule or start semantic runtime changes before a
-valid six-repetition historical entry.
+movement. These attempts remain nonqualifying. Phase 2 RED/GREEN work may
+proceed under the 2026-10-01 current-host HITL direction, while the runtime
+checkpoint and structural Phase 3 still require a valid historical entry.
+
+The current reviewed harness then built and executed against the same exact
+historical source with protocol SHA-256 `6a9ec1e3eff134c418ea84f659d4f1424cf75773be3d12fe3e1b45524a793de9`.
+Its first 91.51-second repetition completed, but strict validation exited 1:
+`pswpin` rose from 595891 to 595896, and the host process view saw a pytest
+process that has been sleeping for six days (PID 2356747). The retained
+attempt/raw/invalidation files under
+`/tmp/fathomdb-s90-d27-current-harness-entry` have SHA-256 values
+`3d42c5c90f968521fa899ae91f91485759acb3dddc412581020c539609051cc2`,
+`6a9c337c5c0dc5b18966fcfae34ba783934c5c55c15f30bcd06da1fb4840c8d8`,
+and `25a63acedb087045e08f072f94b57aee96f8e49cdacf5518fcd8376d10120888`.
+This proves exact-source execution of the current harness, not a qualifying
+historical entry.
 
 The local NVIDIA kernel module is 580.173.02 while NVML is 580.178.04.
 Per HITL `seq-296`, this mismatch cannot be resolved for Slice 90: proceed
@@ -62,7 +76,8 @@ The strict `scripts/test-feature-complete.sh` gate exited 2 because its
 GPU or hidden-surface PASS. No driver repair is a prerequisite to continuing
 available Slice 90 work.
 
-Next: settle the D27 swap policy for the current windchill3 host, collect a
-historical entry under the ruled protocol, continue staged RED/GREEN runtime
-work and the candidate-bound checkpoint, and report the remaining GPU and
-Slice 85 recovery evidence as its actual result. Slice 90 remains IN_PROGRESS.
+Next: continue staged RED/GREEN runtime work on windchill3 while settling the
+D27 swap policy. Collect a valid historical entry under the ruled protocol
+before the candidate-bound checkpoint and structural Phase 3. Report the
+remaining GPU and Slice 85 recovery evidence as its actual result. Slice 90
+remains IN_PROGRESS.

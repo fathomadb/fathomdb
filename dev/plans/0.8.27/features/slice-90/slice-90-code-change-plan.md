@@ -110,8 +110,13 @@ fails.
   protocol, runner, binary, corpus, environment, and raw output. Historical
   dispatch-only metrics are explicitly unavailable; compare only shared
   operation metrics and require dispatch/resource correctness at the candidate.
-- Treat inability to execute this entry measurement as a blocker. Do not use a
-  post-change measurement as the baseline.
+- Treat inability to execute on the exact historical source as a blocker. The
+  reviewed harness executed there, but its swap-invalid attempts provide no
+  qualifying baseline. Under the 2026-10-01 current-host HITL direction,
+  Phase 2 RED/GREEN work may proceed while the swap policy is settled; a valid
+  historical entry and candidate comparison remain required before the runtime
+  checkpoint or structural Phase 3. Never use a post-change measurement as
+  the baseline.
 
 ## Phase 2: runtime correction
 

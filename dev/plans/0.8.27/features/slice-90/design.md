@@ -525,13 +525,28 @@ nondefault consuming effects without changing unrelated runtime capacity.
 Before 2a or any other semantic runtime edit, land the measurement-only D27
 harness, independently review its conformance to the frozen protocol, and run
 it against engine candidate `7a2f9bf90783f545603516502bac0016d4b93a14` in
-an exact-source checkout. Bind the harness, protocol, binary, corpus, raw output
-and environment hashes in the entry receipt. A harness that cannot execute on
-that source blocks runtime implementation rather than falling back to a
-post-change baseline. Separately inventory and characterize the recovered
-Slice 85 source in the current release branch; the historical performance
+an exact-source checkout. Before Phase 2, retain the harness, protocol,
+binary, corpus, raw-output and environment hashes in either a valid entry
+receipt or an explicitly invalid attempt record. The qualifying entry receipt
+is required before the runtime checkpoint and structural Phase 3. A harness
+that cannot execute on that source blocks runtime implementation rather than
+falling back to a post-change baseline. Separately inventory and characterize
+the recovered Slice 85 source in the current release branch; the historical performance
 reference is not its ownership or scanner baseline. Missing recovery
 qualification cannot be described as a Slice 90 entry PASS.
+
+The 2026-10-01 HITL direction to use windchill3 as currently installed permits
+Phase 2 RED/GREEN runtime implementation after the reviewed harness has built
+and executed on the exact historical source, even if the run is environment
+invalid. The current reviewed harness did so and its first repetition was
+invalidated by host swap-in and a long-lived host pytest process. The two
+earlier invalid attempts used an older protocol hash; none provides qualifying
+entry center/MAD. This is a sequencing exception only: the
+historical source remains fixed, invalid attempts are not promoted to PASS,
+and the candidate-bound runtime checkpoint and Phase 3 remain blocked until
+the D27 swap policy is explicitly settled and valid entry/candidate evidence
+exists. HITL `seq-296` separately directs GPU tests on the installed host;
+their driver-preflight failures remain failed evidence, not PASS.
 
 The durable qualification receipt names the exact stage-2 candidate, optimized
 build and features, hardware/software, dataset/workload, warm-up, repetitions,
@@ -693,7 +708,7 @@ does not treat newly moved owners as invisible out-of-scope endpoints.
 | R27-90H | Structural enforcement survives runtime moves. | AC27-90H: the bounded Slice 85 gate and negative fixtures pass; root-item paths and touched new owners are classified, source scrapers retain their oracles, and none of the four forbidden cycles or a new governed return path is introduced. No whole-crate normalization or automatic exception growth occurs. |
 | R27-90I | Completion is independently demonstrated before bindings decompose. | AC27-90I: the stage-2 runtime checkpoint is a structured PASS object in release state whose candidate and binding SHAs plus performance, independent-code-review and independent-read-only-verification receipt paths, SHA-256 digests, PASS states and candidate SHAs pass `scripts/check-runtime-checkpoints.py`; its binding commit is an ancestor of the recorded first stage-3 commit. Independent code review and read-only verification also pass at the final candidate, repository-required gates and installed-artifact receipts pass, and the owner/requirement inventory has zero open Slice 90 items. Only then can release state mark Slice 90 complete and unblock Slice 100. Slice 150 still owns exact-final-candidate AC-037; historical security receipts are not reused as current claims. |
 | R27-90J | Batch embed fallback cannot reacquire its own serialization guard or executor permit. | AC27-90J: a bounded RED test, run with `FATHOMDB_PROJECTION_BATCH` enabled, reproduces the `embed_projection_batch` returned-error/timeout fallback (the `Err(_) => return per_job()` arm) while the batch guard is held; breaker-open fast failure is tested separately. GREEN proves every per-job fallback occurs only after the guard/permit is dropped; the restoration mutant fails under a subprocess/cancellation-safe bound rather than hanging Drop, and the approved executor transition retains the same lock-order guarantee. |
-| R27-90K | Accepted runtime settings are compatible with the codebase and the default meets the project's performance contract. | AC27-90K: before semantic runtime work, the measurement-only D27 harness is reviewed and run against exact engine candidate `7a2f9bf9` under `d27-runtime-qualification-protocol.json`, binding protocol/corpus/binary/raw-output hashes and entry center/MAD values. The exact stage-2 candidate then has a durable qualification receipt for the `2/1`, `1/1`, `2/2`, `4/4`, `64/64` and `2/no-provider` matrix, plus a property test of checked capacity derivation over every pair in `1..=64`. Every valid case proves consuming effect, bounds, cleanup and fault behavior; the ceiling case proves exact resource inventory rather than throughput. At default `2/1`, the exact AC-011a/b release selectors, AC-017, AC-018, AC-029, AC-072, AC-073, AC-076 and AC-081a/b/c pass unchanged, and the D27 workload passes the frozen median/MAD rule while reporting the required throughput, latency, queue/backlog, concurrency, resource, close and bidirectional-starvation metrics. Rust and installed Python/Node cover omission, explicit zero, minimum, maximum, invalid, overflow, wrong-type and language-safe-number rules. The exact final Slice 90 candidate repeats the default gates, mixed workload and resource/cleanup inventory; any post-checkpoint semantic runtime/configuration edit triggers the full matrix again. A default miss blocks the checkpoint or closeout and cannot be assigned to Slices 114, 115 or 135. |
+| R27-90K | Accepted runtime settings are compatible with the codebase and the default meets the project's performance contract. | AC27-90K: before semantic runtime work, the measurement-only D27 harness is reviewed and executed against exact engine candidate `7a2f9bf9` under `d27-runtime-qualification-protocol.json`, retaining protocol/corpus/binary/raw-output hashes and any invalidation. Before the runtime checkpoint and structural Phase 3, a valid six-repetition entry binds those hashes and entry center/MAD values. The exact stage-2 candidate then has a durable qualification receipt for the `2/1`, `1/1`, `2/2`, `4/4`, `64/64` and `2/no-provider` matrix, plus a property test of checked capacity derivation over every pair in `1..=64`. Every valid case proves consuming effect, bounds, cleanup and fault behavior; the ceiling case proves exact resource inventory rather than throughput. At default `2/1`, the exact AC-011a/b release selectors, AC-017, AC-018, AC-029, AC-072, AC-073, AC-076 and AC-081a/b/c pass unchanged, and the D27 workload passes the frozen median/MAD rule while reporting the required throughput, latency, queue/backlog, concurrency, resource, close and bidirectional-starvation metrics. Rust and installed Python/Node cover omission, explicit zero, minimum, maximum, invalid, overflow, wrong-type and language-safe-number rules. The exact final Slice 90 candidate repeats the default gates, mixed workload and resource/cleanup inventory; any post-checkpoint semantic runtime/configuration edit triggers the full matrix again. A default miss blocks the checkpoint or closeout and cannot be assigned to Slices 114, 115 or 135. |
 
 If any acceptance remains unmet, Slice 90 remains incomplete. A revision of
 the ladder requires an explicit reviewed dependency/verification reason; batch

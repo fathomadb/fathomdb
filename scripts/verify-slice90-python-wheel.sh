@@ -21,10 +21,22 @@ fi
 
 proof_dir="$(mktemp -d /tmp/slice90-python-wheel.XXXXXX)"
 mkdir -p "$proof_dir/wheel"
+pyo3_unit_command="cd $repo_dir/src/rust && CARGO_NET_OFFLINE=true cargo test -p fathomdb-py --lib tests::engine_config_from_py_preserves_each_requested_field_and_omission -- --exact"
 build_command="cd $repo_dir/src/python && maturin build --offline --interpreter python3 --out $proof_dir/wheel"
 test_command="cd $proof_dir && env -u PYTHONPATH $proof_dir/consumer/bin/python -I -m pytest -q $proof_dir/test_slice90_engine_config.py"
 rustc_version="$(rustc --version)"
 maturin_version="$(maturin --version)"
+(
+  cd "$repo_dir/src/rust"
+  CARGO_NET_OFFLINE=true cargo test -p fathomdb-py --lib \
+    tests::engine_config_from_py_preserves_each_requested_field_and_omission \
+    -- --exact | tee "$proof_dir/pyo3-unit.txt"
+)
+pyo3_unit_result="$(awk '/^test result:/{line=$0} END{print line}' "$proof_dir/pyo3-unit.txt")"
+if [[ "$pyo3_unit_result" != "test result: ok. 1 passed;"* ]]; then
+  echo "PyO3 all-field oracle did not run exactly once" >&2
+  exit 1
+fi
 (
   cd "$repo_dir/src/python"
   maturin build --offline --interpreter python3 --out "$proof_dir/wheel"
@@ -39,23 +51,25 @@ python3 -m venv --system-site-packages "$proof_dir/consumer"
 "$proof_dir/consumer/bin/python" -I -m pip install --no-index --no-deps "$wheel_path"
 cp "$repo_dir/src/python/tests/test_slice90_engine_config.py" "$proof_dir/test_slice90_engine_config.py"
 
-env -u PYTHONPATH "$proof_dir/consumer/bin/python" -I - "$repo_dir" "$wheel_path" "$proof_dir" "$actual_commit" "$build_command" "$test_command" "$rustc_version" "$maturin_version" <<'PY' | tee "$proof_dir/provenance.txt"
+env -u PYTHONPATH "$proof_dir/consumer/bin/python" -I - "$repo_dir" "$wheel_path" "$proof_dir" "$actual_commit" "$pyo3_unit_command" "$pyo3_unit_result" "$build_command" "$test_command" "$rustc_version" "$maturin_version" <<'PY' | tee "$proof_dir/provenance.txt"
 import hashlib
 import inspect
 import pathlib
 import platform
+import runpy
 import sys
-import tomllib
 import zipfile
 
 repo = pathlib.Path(sys.argv[1])
 wheel = pathlib.Path(sys.argv[2])
 proof = pathlib.Path(sys.argv[3])
 commit = sys.argv[4]
-build_command = sys.argv[5]
-test_command = sys.argv[6]
-rustc_version = sys.argv[7]
-maturin_version = sys.argv[8]
+pyo3_unit_command = sys.argv[5]
+pyo3_unit_result = sys.argv[6]
+build_command = sys.argv[7]
+test_command = sys.argv[8]
+rustc_version = sys.argv[9]
+maturin_version = sys.argv[10]
 import fathomdb
 import fathomdb._fathomdb as native
 from fathomdb import engine as wrapper
@@ -90,13 +104,17 @@ print(f"python_executable={sys.executable}")
 print(f"python_runtime={sys.version.replace(chr(10), ' ')}")
 print(f"rustc_version={rustc_version}")
 print(f"maturin_version={maturin_version}")
-with (repo / "src/python/pyproject.toml").open("rb") as config_file:
-    features = tomllib.load(config_file)["tool"]["maturin"]["features"]
+feature_reader = runpy.run_path(str(repo / "scripts/slice90_wheel_features.py"))[
+    "read_maturin_features"
+]
+features = feature_reader(repo / "src/python/pyproject.toml")
 print(f"build_features={','.join(features)}")
+print(f"pyo3_unit_command={pyo3_unit_command}")
+print(f"pyo3_unit_result={pyo3_unit_result}")
 print(f"build_command={build_command}")
 print(f"test_command={test_command}")
 print("test_plan=all cases in copied src/python/tests/test_slice90_engine_config.py against isolated installed wheel")
-print("proof_all_five_native_forwarding=test_installed_all_five_values_reach_native_open; wheel/source byte identity; native configured-open signature")
+print("proof_all_five_native_forwarding=PyO3 engine_config_from_py all-field/default unit oracle; test_installed_all_five_values_reach_native_open; wheel/source byte identity; native configured-open signature")
 print("proof_scheduler_effect=test_installed_scheduler_worker_inventory; test_installed_independent_scheduler_inventories")
 print("proof_provenance_effect=test_installed_provenance_cap_and_explicit_zero")
 print("proof_validation_snapshot=test_native_open_validates_before_filesystem; test_installed_open_forms_are_exclusive_and_equivalent; test_installed_slow_setter_preserves_requested_snapshot")

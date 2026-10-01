@@ -5547,6 +5547,10 @@ mod tests {
         Python::initialize();
         Python::attach(|py| {
             assert_eq!(engine_config_from_py(None).unwrap(), RustEngineConfig::default());
+            assert_eq!(
+                engine_config_from_py(Some(&PyDict::new(py))).unwrap(),
+                RustEngineConfig::default()
+            );
 
             let requested = PyDict::new(py);
             requested.set_item("scheduler_runtime_threads", 4).unwrap();

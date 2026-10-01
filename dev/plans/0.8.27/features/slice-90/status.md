@@ -8,7 +8,7 @@ target_release: 0.8.27
 
 Requirements, acceptance criteria, design and TDD batches are reconciled in
 the [plan](plan.md). Independent design review passed after the recorded
-corrections. Runtime Batches 2a, 2b and 2d are merged and reviewed; the runtime checkpoint
+corrections. Runtime Batches 2a–2d are merged and reviewed; the runtime checkpoint
 and final Slice 90 verification are not yet claimed.
 
 The frozen operational source entry was `release/0.8.27` at `e689000d4` or a
@@ -139,8 +139,25 @@ all four configured-projection unit tests. The later qualification matrix
 still must exercise nondefault consuming/bounds behavior; this batch is not
 AC27-90B completion.
 
-Next: continue Batch 2c embed dispatch RED/GREEN and the later runtime batches
-on windchill3 while settling the D27 swap policy. Collect a valid historical
+Bounded embed-dispatch core Batch 2c was merged at `26b9e9747` from clean
+GREEN commit `c1b8a5d58`. Its first RED `de1cb5222` pinned the fixed worker,
+bounded queue, deadline, cancellation and accounting outcomes. Additional RED
+`3a1654f20` covered late completion, and `442a25356` deterministically
+reproduced a stale pre-lock timestamp that could start expired queued work.
+GREEN samples time under the reply-state lock. An invalid test expectation
+about renewing a spent join deadline was corrected separately at
+`794215217`, preserving the one-absolute-budget rule. Independent
+`gpt-6-sol` high code review passed after the handoff-race correction, and
+Terra verification passed 14/14 focused tests, test-target clippy, library
+clippy, formatting and diff hygiene at `c1b8a5d58`; the merged release branch
+also passed the 14 tests. The module is deliberately compiled only by the
+focused test target at this boundary. It is not yet declared or called by the
+production engine; projection, foreground and open-time routing remain for
+later batches, so this is no claim of effective engine-owned dispatch.
+
+Next: integrate dispatch into projection and other provider paths, then finish
+the later runtime batches on windchill3 while settling the D27 swap policy.
+Collect a valid historical
 entry under the ruled protocol before the candidate-bound checkpoint and
 structural Phase 3. Report the remaining GPU and Slice 85 recovery evidence
 as its actual result. Slice 90 remains IN_PROGRESS.

@@ -61,6 +61,11 @@ and native-width capacity overflow return
 `EngineOpenError::EngineConfiguration(EngineConfigurationError)`; process-wide
 SQLite mode failures retain `EngineOpenError::RuntimeConfiguration`.
 
+`scheduler_runtime_threads` starts exactly that many projection workers and
+worker-owned SQLite connections. Projection admission and each dispatcher scan
+are bounded by `scheduler_runtime_threads * PROJECTION_COMMIT_BATCH`, where the
+commit batch is 64 rows.
+
 ## TC-5 benchmark-only boundary (Slice 70)
 
 `fathomdb-tc5-benchmark` is a non-published workspace executable, available

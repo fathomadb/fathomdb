@@ -21,6 +21,8 @@ pub(crate) struct ProjectionRuntimeState {
 
 pub(crate) struct ProjectionRuntimeShared {
     pub(crate) path: PathBuf,
+    pub(crate) worker_count: usize,
+    pub(crate) admission_capacity: usize,
     pub(crate) embedder: Option<Arc<dyn Embedder>>,
     pub(crate) embedder_identity: EmbedderIdentity,
     /// Host-owned lifecycle diagnostics for worker failures, which occur on
@@ -47,7 +49,7 @@ pub(crate) struct ProjectionRuntimeShared {
     /// path in `run_projection_job`.
     pub(crate) embed_timeout_ms: AtomicU64,
     /// PR-9 — engine-side embed serialization guard. The pool runs
-    /// `PROJECTION_WORKERS` workers; this guard ensures the shared
+    /// configured projection workers; this guard ensures the shared
     /// `Arc<dyn Embedder>` is invoked by at most one worker at a time.
     ///
     /// Rationale is SAFETY, not throughput. The engine accepts arbitrary
@@ -118,7 +120,7 @@ pub(crate) struct ProjectionRuntimeShared {
     /// drain seam is `Engine::drain_mean_centering_events_for_test`.
     pub(crate) pending_events: Mutex<Vec<EmbedderEvent>>,
     /// EU-5f — serializes the body of `commit_projection_outcomes` across
-    /// the `PROJECTION_WORKERS` worker connections. Each worker commits on
+    /// the configured projection worker connections. Each worker commits on
     /// its own connection; holding this gate for the whole commit makes the
     /// commit transactions totally ordered, which is what makes the at-pin
     /// re-quantize pass provably complete (every row is wholly before or
@@ -268,7 +270,21 @@ fn missing_projection_runtime_roles(
     expected.difference(observed).map(|role| role.label()).collect::<Vec<_>>().join(",")
 }
 
+fn projection_startup_roles(worker_count: usize) -> BTreeSet<ProjectionRuntimeStartupRole> {
+    std::iter::once(ProjectionRuntimeStartupRole::Dispatcher(0))
+        .chain((0..worker_count).map(ProjectionRuntimeStartupRole::Worker))
+        .collect()
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+pub(crate) fn projection_wal_roles(worker_count: usize) -> BTreeSet<(WalAttributionRole, usize)> {
+    std::iter::once((WalAttributionRole::ProjectionDispatcher, 0))
+        .chain((0..worker_count).map(|index| (WalAttributionRole::ProjectionWorker, index)))
+        .collect()
+}
+
 impl ProjectionRuntime {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         path: PathBuf,
         embedder: Option<Arc<dyn Embedder>>,
@@ -276,6 +292,7 @@ impl ProjectionRuntime {
         mean_already_pinned: bool,
         subscribers: Arc<lifecycle::SubscriberRegistry>,
         wal_attribution: Arc<WalAttributionCollector>,
+        config: ResolvedRuntimeConfiguration,
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
             ManagedConnectionRegistry,
         >,
@@ -287,6 +304,7 @@ impl ProjectionRuntime {
             mean_already_pinned,
             subscribers,
             wal_attribution,
+            config,
             #[cfg(any(test, feature = "test-hooks"))]
             managed_connections,
             PROJECTION_RUNTIME_STARTUP_TIMEOUT,
@@ -304,6 +322,7 @@ impl ProjectionRuntime {
         mean_already_pinned: bool,
         subscribers: Arc<lifecycle::SubscriberRegistry>,
         wal_attribution: Arc<WalAttributionCollector>,
+        config: ResolvedRuntimeConfiguration,
         managed_connections: Arc<ManagedConnectionRegistry>,
         startup_timeout: Duration,
         startup_fault: Option<ProjectionRuntimeStartupFaultForTest>,
@@ -315,6 +334,7 @@ impl ProjectionRuntime {
             mean_already_pinned,
             subscribers,
             wal_attribution,
+            config,
             managed_connections,
             startup_timeout,
             startup_fault,
@@ -329,6 +349,7 @@ impl ProjectionRuntime {
         mean_already_pinned: bool,
         subscribers: Arc<lifecycle::SubscriberRegistry>,
         wal_attribution: Arc<WalAttributionCollector>,
+        config: ResolvedRuntimeConfiguration,
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
             ManagedConnectionRegistry,
         >,
@@ -349,6 +370,8 @@ impl ProjectionRuntime {
         };
         let shared = Arc::new(ProjectionRuntimeShared {
             path,
+            worker_count: config.scheduler_runtime_threads,
+            admission_capacity: config.projection_admission_capacity,
             embedder,
             embedder_identity,
             subscribers,
@@ -415,8 +438,8 @@ impl ProjectionRuntime {
                 message: "could not start projection dispatcher".to_string(),
             })?;
 
-        let mut workers = Vec::with_capacity(PROJECTION_WORKERS);
-        for worker_idx in 0..PROJECTION_WORKERS {
+        let mut workers = Vec::with_capacity(shared.worker_count);
+        for worker_idx in 0..shared.worker_count {
             let (worker_service_send, worker_service_receive) = mpsc::channel();
             service_requests
                 .insert(ProjectionRuntimeStartupRole::Worker(worker_idx), worker_service_send);
@@ -470,11 +493,7 @@ impl ProjectionRuntime {
         service_requests: BTreeMap<ProjectionRuntimeStartupRole, mpsc::Sender<()>>,
         timeout: Duration,
     ) -> Result<(), EngineOpenError> {
-        let expected = BTreeSet::from([
-            ProjectionRuntimeStartupRole::Dispatcher(0),
-            ProjectionRuntimeStartupRole::Worker(0),
-            ProjectionRuntimeStartupRole::Worker(1),
-        ]);
+        let expected = projection_startup_roles(self.shared.worker_count);
         let mut observed = BTreeSet::new();
         let deadline = Instant::now() + timeout;
 
@@ -602,12 +621,9 @@ impl ProjectionRuntime {
     pub(crate) fn report_runtime_connection_inventory_for_test(
         &self,
     ) -> Result<Vec<(WalAttributionRole, usize, bool)>, &'static str> {
-        let pending = BTreeSet::from([
-            (WalAttributionRole::ProjectionDispatcher, 0),
-            (WalAttributionRole::ProjectionWorker, 0),
-            (WalAttributionRole::ProjectionWorker, 1),
-        ]);
-        let (respond, received) = mpsc::sync_channel(pending.len());
+        let pending = projection_wal_roles(self.shared.worker_count);
+        let expected_count = pending.len();
+        let (respond, received) = mpsc::sync_channel(expected_count);
         let mut request =
             self.shared.runtime_inventory_request.lock().map_err(|_| "request_lock")?;
         if request.is_some() {
@@ -618,8 +634,8 @@ impl ProjectionRuntime {
         self.shared.state_cvar.notify_all();
         self.shared.queue_cvar.notify_all();
 
-        let mut facts = Vec::with_capacity(1 + PROJECTION_WORKERS);
-        for _ in 0..(1 + PROJECTION_WORKERS) {
+        let mut facts = Vec::with_capacity(expected_count);
+        for _ in 0..expected_count {
             facts.push(
                 received
                     .recv_timeout(Duration::from_secs(2))
@@ -633,12 +649,9 @@ impl ProjectionRuntime {
     pub(crate) fn report_runtime_native_state_inventory_for_test(
         &self,
     ) -> Result<Vec<NativeConnectionStateFact>, &'static str> {
-        let pending = BTreeSet::from([
-            (WalAttributionRole::ProjectionDispatcher, 0),
-            (WalAttributionRole::ProjectionWorker, 0),
-            (WalAttributionRole::ProjectionWorker, 1),
-        ]);
-        let (respond, received) = mpsc::sync_channel(pending.len());
+        let pending = projection_wal_roles(self.shared.worker_count);
+        let expected_count = pending.len();
+        let (respond, received) = mpsc::sync_channel(expected_count);
         let mut request =
             self.shared.runtime_native_state_request.lock().map_err(|_| "native_request_lock")?;
         if request.is_some() {
@@ -650,8 +663,8 @@ impl ProjectionRuntime {
         self.shared.queue_cvar.notify_all();
 
         let result = (|| {
-            let mut facts = Vec::with_capacity(1 + PROJECTION_WORKERS);
-            for _ in 0..(1 + PROJECTION_WORKERS) {
+            let mut facts = Vec::with_capacity(expected_count);
+            for _ in 0..expected_count {
                 facts.push(
                     received
                         .recv_timeout(Duration::from_millis(250))

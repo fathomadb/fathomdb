@@ -51,6 +51,10 @@ mod data_plane_integrity;
 mod dependency;
 mod dependency_closure;
 mod dependency_trace;
+// Foreground routing and bounded close join consume the remaining core seams
+// in the next integration batches.
+#[allow(dead_code)]
+mod embed_dispatch;
 mod embedding;
 mod erasure;
 mod errors;
@@ -135,7 +139,8 @@ pub use dependency_trace::{
 pub use dependency_trace::{
     decode_dependency_trace_root_for_test, encode_dependency_trace_root_for_test,
 };
-use embedding::{embed_batch_with_watchdog, embed_with_watchdog, map_runtime_embedder_error};
+use embed_dispatch::{DispatchError, EmbedDispatcher, EmbedOutput, EmbedReply};
+use embedding::map_runtime_embedder_error;
 pub use erasure::{ExciseRecordReport, ExciseReport};
 pub use errors::{
     CorruptionDetail, CorruptionKind, CorruptionLocator, EngineError, EngineOpenError, OpenStage,
@@ -564,20 +569,7 @@ fn is_erasure_bookkeeping_collection(collection: &str) -> bool {
 const PROJECTION_CURSOR_KEY: &str = "projection_cursor";
 #[cfg(test)]
 const PROJECTION_WORKERS: usize = 2;
-/// PR-9 — ADR-0.6.0-embedder-protocol **Invariant 5** default per-`embed()`
-/// watchdog deadline. Every projection-path embed runs under this timeout;
-/// a hung embed surfaces `RuntimeEmbedderError::Timeout` (engaging the
-/// existing retry/failure path) rather than parking a worker forever. The
-/// EU-5f `catch_unwind` only catches *panics*; this catches *hangs*.
 const DEFAULT_EMBED_TIMEOUT_MS: u64 = 30_000;
-/// PR-9 — embed circuit-breaker threshold: the maximum number of watchdog
-/// embed threads allowed alive at once before the breaker latches and
-/// projection jobs fail fast (see `embed_circuit_open` / `live_embed_threads`).
-/// Healthy serialized operation keeps the live count at 0–1, so reaching this
-/// many concurrently-alive embed threads means timed-out embeds are piling up
-/// (a hung/wedged embedder); the breaker then caps the abandoned-thread leak
-/// at roughly this count.
-const DEFAULT_EMBED_CIRCUIT_THRESHOLD: u64 = 8;
 const PROJECTION_COMMIT_BATCH: usize = 64;
 const PROJECTION_TEMPORAL_WAKE_POLL: Duration = Duration::from_secs(1);
 const DEFAULT_PROJECTION_RETRY_DELAYS_MS: [u64; 3] = [1_000, 4_000, 16_000];
@@ -4608,24 +4600,12 @@ impl Engine {
         self.projection_runtime.set_retry_delays_for_test(delays_ms);
     }
 
-    /// PR-9 — lower the ADR-0.6.0 Invariant 5 per-`embed()` watchdog deadline
-    /// for tests (production default is `DEFAULT_EMBED_TIMEOUT_MS` = 30s).
+    /// Set the provider dispatch deadline for projection tests; production
+    /// requests use the validated engine-open configuration.
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn set_embed_timeout_ms_for_test(&self, timeout_ms: u64) {
         self.projection_runtime.set_embed_timeout_ms_for_test(timeout_ms);
-    }
-
-    /// PR-9 — lower the embed circuit-breaker threshold for tests (production
-    /// default `DEFAULT_EMBED_CIRCUIT_THRESHOLD`); 0 disables the breaker.
-    #[doc(hidden)]
-    pub fn set_embed_circuit_threshold_for_test(&self, threshold: u64) {
-        self.projection_runtime.set_embed_circuit_threshold_for_test(threshold);
-    }
-
-    /// PR-9 — whether the embed circuit breaker has latched open.
-    #[doc(hidden)]
-    pub fn embed_circuit_open_for_test(&self) -> bool {
-        self.projection_runtime.embed_circuit_open_for_test()
     }
 
     #[doc(hidden)]

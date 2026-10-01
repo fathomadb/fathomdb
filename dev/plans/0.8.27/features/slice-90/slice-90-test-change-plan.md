@@ -417,6 +417,15 @@ source import or workspace-linked native library is a failure, not evidence.
 
 ## Batch 9: performance and resource qualification
 
+Before rerunning D27, independently review the HITL `seq-297` amendment.
+RED/GREEN tests pin 128-page combined swap movement as valid, 129 pages as
+invalid, missing or decreasing counters at any sample as invalid, and exact
+raw-to-receipt deltas. Complete entry and candidate receipts with in-bound
+nonzero per-child movement must validate, replacing the old six-repetition
+global zero-swap check. The same rule applies to entry and candidate. Other
+host invalidators remain strict. Old invalid attempts remain tied to their old
+protocol hashes and cannot qualify retroactively.
+
 Run the frozen D27 matrix:
 
 | Cell | Purpose |

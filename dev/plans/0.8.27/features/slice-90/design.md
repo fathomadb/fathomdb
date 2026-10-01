@@ -560,9 +560,23 @@ earlier invalid attempts used an older protocol hash; none provides qualifying
 entry center/MAD. This is a sequencing exception only: the
 historical source remains fixed, invalid attempts are not promoted to PASS,
 and the candidate-bound runtime checkpoint and Phase 3 remain blocked until
-the D27 swap policy is explicitly settled and valid entry/candidate evidence
-exists. HITL `seq-296` separately directs GPU tests on the installed host;
-their driver-preflight failures remain failed evidence, not PASS.
+valid entry/candidate evidence exists. HITL `seq-297` permits a reviewed
+bounded-swap rule applied identically to historical and candidate repetitions.
+The amended protocol caps combined host `pswpin`/`pswpout` movement at 128
+pages per entire workload child repetition, requires each counter to be present and
+monotonic at every sample, and retains both deltas in raw-linked metrics.
+The bound starts immediately before the child and ends immediately after it,
+including seed/setup, warmup, measurement, drain and close. Compilation and
+corpus generation outside the child are excluded. The cap is small relative to
+the fresh 91.57-second invalid child attempt, which moved 8 pages in and 16
+pages out; a separate 20-second idle sample moved 16 pages in. It accommodates
+observed host background movement without accepting an unbounded swap episode.
+Other invalidators and
+the frozen median/MAD comparison are unchanged. The amended protocol, runner
+and verifier require independent review before any fresh entry or candidate
+run; old invalid attempts keep their original protocol hash and cannot be
+promoted. HITL `seq-298` authorizes the newly installed GPU driver version,
+but GPU PASS still requires a successful gate on the running host module.
 
 The durable qualification receipt names the exact stage-2 candidate, optimized
 build and features, hardware/software, dataset/workload, warm-up, repetitions,

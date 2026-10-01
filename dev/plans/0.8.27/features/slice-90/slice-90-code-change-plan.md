@@ -112,8 +112,15 @@ fails.
   operation metrics and require dispatch/resource correctness at the candidate.
 - Treat inability to execute on the exact historical source as a blocker. The
   reviewed harness executed there, but its swap-invalid attempts provide no
-  qualifying baseline. Under the 2026-10-01 current-host HITL direction,
-  Phase 2 RED/GREEN work may proceed while the swap policy is settled; a valid
+  qualifying baseline. Under the 2026-10-01 HITL rulings, amend the runner and
+  verifier to enforce the reviewed 128-page combined per-repetition swap cap,
+  sample monotonicity and raw-linked deltas for both phases. RED tests must
+  distinguish 128 from 129 pages, reject counter resets and forged receipt
+  deltas, and preserve the other environment invalidators. A complete entry
+  and candidate receipt with nonzero in-bound movement must validate; replace
+  the verifier's six-repetition global zero-swap check with per-child raw-linked
+  validation. Phase 2 RED/GREEN
+  work may proceed while this protocol correction is reviewed; a valid
   historical entry and candidate comparison remain required before the runtime
   checkpoint or structural Phase 3. Never use a post-change measurement as
   the baseline.

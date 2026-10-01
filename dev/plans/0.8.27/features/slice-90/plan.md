@@ -86,6 +86,14 @@ binding source, and the allocated Slice 100 pre-entry plan.
    requires deterministic consuming-effect witnesses at the Rust owner and
    installed native forwarding plus all effects the bindings actually expose.
    It does not create a test-only public binding adapter for duplicate evidence.
+10. **HITL settled D27 swap and updated GPU policy.** `seq-297` authorizes one
+    reviewed bounded-swap rule applied identically to historical and candidate
+    entire child repetition. The design caps combined movement at 128 pages, checks every
+    sample for counter validity, and retains raw-linked deltas; earlier
+    invalid attempts are not reused. `seq-298` supersedes the prior GPU-driver
+    ruling: the newly installed version is authorized, but the loaded kernel
+    module and NVML still differ at the latest unsandboxed check. A successful
+    GPU gate is required before claiming that route passed.
 
 ## Evaluation and scope decision
 

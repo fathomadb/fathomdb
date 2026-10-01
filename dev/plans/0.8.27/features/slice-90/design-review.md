@@ -60,3 +60,16 @@ After those clauses were corrected, the narrow read-only re-review returned
 **PASS**. This resolves the proof allocation only; it does not approve the
 Python or Node implementation, declare the missing Rust slow-signal tests
 passed, or waive candidate-bound installed artifacts.
+
+## D27 bounded-swap amendment
+
+HITL `seq-297` authorized one reviewed bounded-swap rule for historical and
+candidate runs. A subsequent independent `gpt-6-sol` high design review first
+returned FAIL because the cap's time boundary was ambiguous and the verifier's
+global zero-swap check would reject complete in-bound receipts. The design and
+change plans now define the entire child interval, including seed, warmup,
+measurement, drain and close, and require full entry/candidate raw-linked
+receipt tests that replace the global check. Narrow read-only re-review
+returned **PASS**. The cap is 128 combined pages per child, with monotonic
+counter samples. Old invalid attempts are not promoted. This is design
+approval; runner implementation and fresh D27 qualification remain pending.

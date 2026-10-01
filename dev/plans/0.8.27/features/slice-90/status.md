@@ -18,7 +18,8 @@ remains the D27 performance reference. Slice 85 recovery code is already in
 release ancestry,
 but its official public/hidden comparison and GPU evidence are outstanding and
 release state still binds the earlier Slice 85 candidate. The local public
-capture now has enough disk to rerun; the local NVIDIA driver is unavailable.
+capture now has enough disk to rerun; GPU preflight remains unqualified pending
+the newly installed driver becoming the running kernel module.
 
 The reviewed plan is committed at `77b019c39`. The public source surface was
 captured at that commit: 13 rows passed, with the capture saved at
@@ -82,7 +83,8 @@ Its attempt, raw, and invalidation files under
 `674b5386b39a3a9862b8880ffaf06befae8cf6ab6f915d1fa6c03e81294ad13c`,
 `06249c5ba7510cd5fb3bf9fe40705a04b5cfdf04851c239656d38306f4f8dfd4`,
 and `8f89eec40d20792894d3464fb10678c3f43d756505a6fbbaf185db966cff6f12`.
-It is not a valid D27 baseline; the swap policy remains unsettled.
+It is not a valid D27 baseline. HITL later ruled a reviewed bounded-swap
+protocol at `seq-297`; this old attempt remains invalid under its own hash.
 
 The local NVIDIA kernel module is 580.173.02 while NVML is 580.178.04.
 Per HITL `seq-296`, this mismatch cannot be resolved for Slice 90: proceed
@@ -90,8 +92,12 @@ with needed GPU tests on windchill3 as installed and record their outcomes.
 The strict `scripts/test-feature-complete.sh` gate exited 2 because its
 `nvidia-smi` query exited 18. The official `hidden_surface.py capture` of
 `f5bc7ca5d` also exited 2 at the same CUDA preflight. Neither produced a
-GPU or hidden-surface PASS. No driver repair is a prerequisite to continuing
-available Slice 90 work.
+GPU or hidden-surface PASS. That ruling was superseded at `seq-298`: the newly
+installed driver version is authorized, but the unsandboxed 2026-10-01 check
+still found loaded kernel module 580.173.02, installed module 580.178.04 and
+NVML 580.178. `nvidia-smi` exited 18. Desktop processes currently hold the GPU
+devices, so a module reload is not safe during this session. GPU gates must be
+rerun after the running module changes; no PASS is claimed.
 
 Runtime Batch 2a was merged at `559deb531` from clean implementation commit
 `50b485873`. Its RED commit `9294cf73f` reproduced the returned-error
@@ -188,8 +194,8 @@ tests in default and test-hooks builds. The focused full candidate also passed
 checks. Two-phase close remains Batch 2g and is underway in an isolated
 worktree; this merge does not claim the runtime checkpoint.
 
-Next: complete two-phase close and binding forwarding on windchill3 while settling
-the D27 swap policy.
+Next: independently review and merge two-phase close and binding forwarding;
+review and implement the HITL `seq-297` D27 bounded-swap protocol on windchill3.
 Collect a valid historical
 entry under the ruled protocol before the candidate-bound checkpoint and
 structural Phase 3. Report the remaining GPU and Slice 85 recovery evidence

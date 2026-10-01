@@ -177,10 +177,22 @@ fn batch_failure_child() {
     engine.configure_vector_kind_for_test("doc").expect("vector kind");
     engine.set_projection_scheduler_frozen_for_test(true);
     let rows: Vec<_> = (0..16).map(node).collect();
-    engine.write(&rows).expect("write rows");
+    let receipt = engine.write(&rows).expect("write rows");
     engine.set_projection_scheduler_frozen_for_test(false);
     engine.drain(2_000).expect("fallback must drain after batch provider failure");
 
+    assert_eq!(
+        engine.projection_status_for_test("doc").expect("projection status"),
+        ProjectionStatus::UpToDate,
+        "batch failure must recover through successful per-row projection"
+    );
+    assert_eq!(receipt.row_cursors.len(), rows.len(), "every input row has a cursor");
+    for cursor in receipt.row_cursors {
+        assert!(
+            engine.has_vector_for_cursor_for_test(cursor).expect("stored vector"),
+            "per-row fallback must store a vector for cursor {cursor}"
+        );
+    }
     assert!(embedder.batch_calls.load(Ordering::SeqCst) > 0, "batch failure must be reached");
     assert_eq!(
         embedder.individual_calls.load(Ordering::SeqCst),

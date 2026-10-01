@@ -8,8 +8,8 @@ target_release: 0.8.27
 
 Requirements, acceptance criteria, design and TDD batches are reconciled in
 the [plan](plan.md). Independent design review passed after the recorded
-corrections. No runtime implementation, checkpoint, code review or final
-verification is yet claimed.
+corrections. Runtime Batch 2a is merged and reviewed; the runtime checkpoint
+and final Slice 90 verification are not yet claimed.
 
 The operational source entry is current `release/0.8.27` at `e689000d4` or a
 documentation-only descendant. Historical `7a2f9bf9` remains the D27
@@ -91,8 +91,24 @@ The strict `scripts/test-feature-complete.sh` gate exited 2 because its
 GPU or hidden-surface PASS. No driver repair is a prerequisite to continuing
 available Slice 90 work.
 
-Next: continue staged RED/GREEN runtime work on windchill3 while settling the
-D27 swap policy. Collect a valid historical entry under the ruled protocol
-before the candidate-bound checkpoint and structural Phase 3. Report the
-remaining GPU and Slice 85 recovery evidence as its actual result. Slice 90
-remains IN_PROGRESS.
+Runtime Batch 2a was merged at `559deb531` from clean implementation commit
+`50b485873`. Its RED commit `9294cf73f` reproduced the returned-error
+batch fallback deadlock in a bounded child after the provider error marker;
+GREEN `703d09385` releases the serialization guard before per-row fallback.
+The corrected test requires `UpToDate` and a stored vector for every written
+row. The breaker-open fast-failure characterization was added with GREEN,
+separately from the primary RED defect witness. An isolated restoration mutant
+reintroducing the under-guard fallback fails within the seven-second child
+bound and cannot contaminate the candidate Cargo target. Independent
+`gpt-6-sol` high code review passed at `50b485873` after correcting a
+drain-only test oracle. Independent Terra verification passed the two focused
+parent tests, the restoration mutant, PR-9 serialization and watchdog tests,
+formatting, and crate clippy at that same commit. This is AC27-90J's
+returned-error path; the later embed-dispatch transition must preserve the
+no-reacquire invariant.
+
+Next: continue Batch 2b configuration RED/GREEN and the later runtime batches
+on windchill3 while settling the D27 swap policy. Collect a valid historical
+entry under the ruled protocol before the candidate-bound checkpoint and
+structural Phase 3. Report the remaining GPU and Slice 85 recovery evidence
+as its actual result. Slice 90 remains IN_PROGRESS.

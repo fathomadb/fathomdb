@@ -60,7 +60,7 @@ def main() -> None:
 
         environment = os.environ.copy()
         environment["CARGO_NET_OFFLINE"] = "true"
-        environment["CARGO_TARGET_DIR"] = str(ROOT / "target")
+        environment["CARGO_TARGET_DIR"] = str(checkout / "target")
         command = [
             "cargo",
             "test",

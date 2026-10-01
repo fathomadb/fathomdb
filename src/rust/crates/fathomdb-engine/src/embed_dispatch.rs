@@ -4,6 +4,8 @@ use std::any::Any;
 use std::collections::VecDeque;
 use std::io;
 use std::panic::{catch_unwind, AssertUnwindSafe};
+#[cfg(test)]
+use std::sync::mpsc;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -90,6 +92,15 @@ struct ReplyState {
     deadline: Instant,
     value: Mutex<ReplyValue>,
     ready: Condvar,
+    #[cfg(test)]
+    start_pause: Mutex<Option<StartPause>>,
+}
+
+#[cfg(test)]
+struct StartPause {
+    reached: mpsc::Sender<()>,
+    resume: mpsc::Receiver<()>,
+    completed: mpsc::Sender<()>,
 }
 
 impl ReplyState {
@@ -98,6 +109,8 @@ impl ReplyState {
             deadline,
             value: Mutex::new(ReplyValue { phase: ReplyPhase::Queued, outcome: None }),
             ready: Condvar::new(),
+            #[cfg(test)]
+            start_pause: Mutex::new(None),
         }
     }
 
@@ -124,18 +137,32 @@ impl ReplyState {
     }
 
     fn start(&self, now: Instant) -> bool {
-        let mut value = self.value.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        if !matches!(value.phase, ReplyPhase::Queued) {
-            return false;
+        #[cfg(test)]
+        let pause = self.start_pause.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).take();
+        #[cfg(test)]
+        if let Some(gate) = &pause {
+            gate.reached.send(()).expect("report pre-lock start handoff");
+            gate.resume.recv_timeout(Duration::from_secs(2)).expect("release start handoff");
         }
-        if now >= self.deadline {
-            value.phase = ReplyPhase::Finished;
-            value.outcome = Some(Err(DispatchError::QueuedExpired));
-            self.ready.notify_all();
-            return false;
+        let started = {
+            let mut value = self.value.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            if !matches!(value.phase, ReplyPhase::Queued) {
+                false
+            } else if now >= self.deadline {
+                value.phase = ReplyPhase::Finished;
+                value.outcome = Some(Err(DispatchError::QueuedExpired));
+                self.ready.notify_all();
+                false
+            } else {
+                value.phase = ReplyPhase::Started;
+                true
+            }
+        };
+        #[cfg(test)]
+        if let Some(gate) = pause {
+            gate.completed.send(()).expect("report completed start handoff");
         }
-        value.phase = ReplyPhase::Started;
-        true
+        started
     }
 
     fn expired_or_finished(&self, now: Instant) -> bool {
@@ -194,6 +221,19 @@ impl EmbedReply {
 
     pub(crate) fn cancel(&self) {
         self.reply.resolve(Err(DispatchError::Cancelled));
+    }
+
+    #[cfg(test)]
+    pub(crate) fn pause_before_start_for_test(
+        &self,
+    ) -> (mpsc::Receiver<()>, mpsc::Sender<()>, mpsc::Receiver<()>) {
+        let (reached, reached_reply) = mpsc::channel();
+        let (resume, resume_reply) = mpsc::channel();
+        let (completed, completed_reply) = mpsc::channel();
+        let gate = StartPause { reached, resume: resume_reply, completed };
+        *self.reply.start_pause.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) =
+            Some(gate);
+        (reached_reply, resume, completed_reply)
     }
 }
 

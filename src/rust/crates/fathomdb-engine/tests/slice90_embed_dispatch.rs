@@ -174,6 +174,48 @@ fn queued_deadline_expires_without_invoking_provider() {
 }
 
 #[test]
+fn queued_request_expiring_during_start_lock_handoff_never_enters_provider() {
+    let (provider, entered_calls) = RendezvousEmbedder::new();
+    let dispatcher =
+        EmbedDispatcher::new(Some(provider.clone()), 1, Duration::from_millis(200)).unwrap();
+    let first = dispatcher.submit_text("first".to_owned()).unwrap();
+    let first_call = entered(&entered_calls);
+    let queued = dispatcher.submit_text("queued".to_owned()).unwrap();
+    let deadline = queued.deadline();
+    let (reached, resume, completed) = queued.pause_before_start_for_test();
+
+    first_call.release();
+    reached.recv_timeout(Duration::from_secs(2)).expect("worker captured pre-lock time");
+    let (_never_send, elapsed) = mpsc::channel::<()>();
+    assert!(
+        elapsed
+            .recv_timeout(
+                deadline.saturating_duration_since(Instant::now()) + Duration::from_millis(20)
+            )
+            .is_err(),
+        "request must expire before the worker can acquire its reply lock"
+    );
+    resume.send(()).expect("release worker handoff");
+    completed.recv_timeout(Duration::from_secs(2)).expect("worker settles start decision");
+
+    let outcome = queued.wait();
+    let unexpected = entered_calls.recv_timeout(Duration::from_millis(100)).ok();
+    let provider_called = unexpected.is_some();
+    if let Some(call) = unexpected {
+        call.release();
+    }
+    dispatcher.close();
+    join(&dispatcher);
+    drop(first);
+    assert!(
+        matches!(&outcome, Err(DispatchError::QueuedExpired)),
+        "outcome={outcome:?}, provider_called={provider_called}"
+    );
+    assert!(!provider_called, "expired queued work must never call the provider");
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+}
+
+#[test]
 fn explicit_queued_cancellation_does_not_invoke_provider_or_renew_deadline() {
     let (provider, entered_calls) = RendezvousEmbedder::new();
     let dispatcher =

@@ -131,6 +131,19 @@ fn connection_inventory(engine: &Engine) -> String {
     }
 }
 
+fn assert_live_connections(engine: &Engine, scheduler: u64) {
+    let expected = format!("live=writer:1,readers:8,dispatcher:1,workers:{scheduler},probes:0");
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        if let Ok(actual) = engine.d27_connection_inventory_for_test() {
+            assert_eq!(actual, expected);
+            return;
+        }
+        assert!(Instant::now() < deadline, "live SQLite roles did not become complete");
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+
 fn database_descriptors(path: &Path) -> usize {
     std::fs::read_dir("/proc/self/fd")
         .expect("descriptor inventory")
@@ -190,6 +203,7 @@ fn configured_engine_matrix_has_exact_live_resources_and_reopen_cleanup() {
         let engine = Arc::new(opened.engine);
         assert_eq!(engine.config(), &config);
         await_threads(&expected_threads(&baseline, scheduler as usize, pool as usize));
+        assert_live_connections(&engine, scheduler);
 
         if pool <= 4 {
             let mut callers = Vec::new();
@@ -244,6 +258,7 @@ fn configured_engine_matrix_has_exact_live_resources_and_reopen_cleanup() {
             Engine::open_with_choice_and_config(&path, EmbedderChoice::Caller(embedder), config)
                 .expect("configured reopen");
         await_threads(&expected_threads(&baseline, scheduler as usize, pool as usize));
+        assert_live_connections(&reopened.engine, scheduler);
         reopened.engine.close().expect("reopen close");
         await_threads(&baseline);
         await_database_descriptors(&path, 0);
@@ -266,6 +281,7 @@ fn no_provider_allocates_no_embed_workers_and_reopens_cleanly() {
             Engine::open_with_choice_and_config(&path, EmbedderChoice::None, config.clone())
                 .expect("no-provider open");
         await_threads(&expected_threads(&baseline, 2, 0));
+        assert_live_connections(&opened.engine, 2);
         await_database_descriptors(&path, 1 + 8 + 1 + 2);
         assert!(matches!(
             opened.engine.embed_text("absent"),

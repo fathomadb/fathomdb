@@ -53,7 +53,7 @@ AC073_EXECUTION = SLICE90_EVIDENCE / "ac073-execution.json"
 AC073_EU7 = SLICE90_EVIDENCE / "ac073-eu7.json"
 AC073_LOG = SLICE90_EVIDENCE / "ac073-run.log"
 AC073_COMMAND = (
-    "env CARGO_TARGET_DIR={bundle} AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
+    "env CARGO_TARGET_DIR={bundle}/target AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
     "EU7_LATENCY_SAMPLES=1000 EU7_STRESS_PER_THREAD=250 "
     "FATHOMDB_EU7_OUTPUT={bundle}/eu7.json cargo test --release "
     "-p fathomdb-engine --features operator,embed-cuda --test eu7_real_corpus_ac "

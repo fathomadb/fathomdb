@@ -216,7 +216,11 @@ fn retained_batch_child() {
     let opened = Engine::open_with_choice_and_config(
         database,
         EmbedderChoice::Caller(embedder.clone()),
-        EngineConfig { embedder_call_timeout_ms: Some(50), ..EngineConfig::default() },
+        EngineConfig {
+            embedder_pool_size: Some(1),
+            embedder_call_timeout_ms: Some(50),
+            ..EngineConfig::default()
+        },
     )
     .expect("open");
     let engine = opened.engine;

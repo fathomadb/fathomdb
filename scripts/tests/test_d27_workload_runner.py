@@ -10,6 +10,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "d27-runtime-runner.py"
 PROTOCOL = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
+PROTOCOL_V2 = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol-v2.json"
 spec = importlib.util.spec_from_file_location("d27_runtime_runner", SCRIPT)
 runner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
@@ -31,6 +32,11 @@ class D27RunnerTests(unittest.TestCase):
             self.assertEqual(len({row["logical_id"] for row in rows}), 10_000)
             self.assertTrue(all(len(row["body"].encode()) == 512 for row in rows))
             self.assertEqual(len({word for row in rows for word in row["body"].split()}), 1024)
+
+    def test_v2_runner_bundle_contains_exact_selected_protocol_bytes(self):
+        bundled = runner.runner_bundle_bytes(PROTOCOL_V2)
+        self.assertIn(b"\n--PROTOCOL--\n" + PROTOCOL_V2.read_bytes(), bundled)
+        self.assertNotIn(b"\n--PROTOCOL--\n" + PROTOCOL.read_bytes(), bundled)
 
     def test_order_and_ratios_are_not_silently_changed(self):
         expected = self.protocol["execution"]["repetition_order"]

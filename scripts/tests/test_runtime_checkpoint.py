@@ -20,9 +20,9 @@ MATRIX_CELLS = ("2/1", "2/5", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
 PROTOCOL = json.loads((REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json").read_text())
 RELEASE_SELECTORS = ("AC-011a", "AC-011b", "AC-017", "AC-018", "AC-029", "AC-072", "AC-073", "AC-076", "AC-081a", "AC-081b", "AC-081c")
 AC073_COMMAND = (
-    "env AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
+    "env CARGO_TARGET_DIR={bundle} AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
     "EU7_LATENCY_SAMPLES=1000 EU7_STRESS_PER_THREAD=250 "
-    "FATHOMDB_EU7_OUTPUT=<run-dir>/eu7.json cargo test --release "
+    "FATHOMDB_EU7_OUTPUT={bundle}/eu7.json cargo test --release "
     "-p fathomdb-engine --features operator,embed-cuda --test eu7_real_corpus_ac "
     "eu7_real_corpus_ac_validation -- --exact --ignored --nocapture --test-threads=1"
 )
@@ -289,7 +289,7 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         binary = bundle / binary_relative
         binary.parent.mkdir(parents=True)
         binary.write_bytes(b"frozen EU7 candidate test binary")
-        executed_binary = self.root / binary_relative
+        executed_binary = binary
         eu7_path.write_text(json.dumps({
             "config": {"n_values_requested": [7667], "real_corpus_docs": 18472},
             "ac_019_real_dev_box": [{"n": 7667, "padded_with_synthetic_distractors": False,
@@ -318,7 +318,7 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
             "post_source_sha": candidate,
             "pre_clean": True,
             "post_clean": True,
-            "command": AC073_COMMAND,
+            "command": AC073_COMMAND.format(bundle=bundle),
             "selector_exit": 101,
             "bundle_dir": str(bundle),
             "binary_relative_path": binary_relative.as_posix(),
@@ -442,6 +442,28 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         result = self.run_gate()
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("AC-073 execution", result.stdout)
+
+    def test_ac073_stress_rejects_distinct_executed_binary(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        receipt_path, _, log_path = self.write_ac073_stress_receipt(checkpoint)
+        manifest_path = self.root / EVIDENCE_DIR / "ac073-execution.json"
+        manifest = json.loads(manifest_path.read_text())
+        sealed = Path(manifest["executed_binary_path"])
+        alternate = self.root / manifest["binary_relative_path"]
+        alternate.parent.mkdir(parents=True)
+        alternate.write_bytes(b"different test executable")
+        manifest["executed_binary_path"] = str(alternate)
+        log_path.write_text(log_path.read_text().replace(str(sealed), str(alternate)))
+        manifest["raw_log_sha256"] = hashlib.sha256(log_path.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest))
+        receipt = json.loads(receipt_path.read_text())
+        receipt["raw_log_sha256"] = manifest["raw_log_sha256"]
+        receipt["execution_manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        receipt_path.write_text(json.dumps(receipt))
+        self.rebind_ac073(checkpoint, receipt_path)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("executed test executable path differs", result.stdout)
 
     def test_ac073_stress_exception_does_not_apply_to_ac072(self) -> None:
         checkpoint = self.pass_checkpoint()

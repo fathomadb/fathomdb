@@ -102,6 +102,27 @@ binding source, and the allocated Slice 100 pre-entry plan.
     bounded-swap protocol in six repetitions, but the reboot cleared its
     `/tmp` raw bundle. Rerun the entry into persistent storage before the
     candidate comparison.
+12. **Host `/proc` link access required a narrow qualification correction.**
+    An unsandboxed host run still received `EACCES` on `/proc/1/ns/pid` after
+    reboot, although the host PID namespace, systemd PID 1, `hidepid=0` and
+    runner PID corroboration were available. The independently reviewed
+    protocol accepts only `EACCES`/`EPERM` on that link as a blank sentinel;
+    other link failures and unreadable PID 1 identity remain invalid. The
+    test-first runner correction passed independent code review and Terra
+    verification. A new six-repetition historical entry on exact `7a2f9bf9`
+    passed under the new shared protocol hash; its complete raw bundle and
+    byte-for-byte reverified receipt are in persistent Slice 90 evidence.
+13. **Binding and GPU implementation evidence advanced.** Two-phase close and
+    Python/Node five-setting forwarding have merged after independent reviews.
+    Installed Python 3.12 and Node 25 consumers passed; an off-PATH system
+    Python 3.10.20 consumed the installed `cp310` abi3 wheel and opened/closed
+    a real engine. The first strict post-reboot GPU gate exercised its CUDA
+    routes with 350 passes and zero test failures, but failed its skip
+    allowlist after a PR-9 test rename. The stale name was corrected; only a
+    completed final strict run and official surface captures can qualify GPU.
+    The remaining runtime docs still contain stale executor and error claims;
+    update them against the accepted ADR and actual implementation before the
+    runtime checkpoint.
 
 ## Evaluation and scope decision
 

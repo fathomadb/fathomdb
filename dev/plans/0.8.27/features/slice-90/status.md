@@ -8,18 +8,20 @@ target_release: 0.8.27
 
 Requirements, acceptance criteria, design and TDD batches are reconciled in
 the [plan](plan.md). Independent design review passed after the recorded
-corrections. Runtime Batches 2a–2f are merged and reviewed; the runtime checkpoint
+corrections. Runtime Batches 2a–2f, two-phase close, and Python/Node forwarding
+are merged and independently reviewed; the runtime checkpoint
 and final Slice 90 verification are not yet claimed.
 
 The frozen operational source entry was `release/0.8.27` at `e689000d4` or a
-documentation-only descendant before Phase 2 semantic edits. The release
-branch now includes the reviewed Batches 2a and 2b. Historical `7a2f9bf9`
+documentation-only descendant before Phase 2 semantic edits. Historical `7a2f9bf9`
 remains the D27 performance reference. Slice 85 recovery code is already in
 release ancestry,
 but its official public/hidden comparison and GPU evidence are outstanding and
 release state still binds the earlier Slice 85 candidate. The local public
 capture now has enough disk to rerun. After the host reboot, GPU preflight
-reports the authorized running driver version; the full GPU gates are running.
+reports the authorized running driver version. The first strict GPU feature
+gate reached the CUDA tests but did not pass because of a stale allowlist name;
+that name is corrected, and the final strict gate remains pending.
 
 The reviewed plan is committed at `77b019c39`. The public source surface was
 captured at that commit: 13 rows passed, with the capture saved at
@@ -110,9 +112,8 @@ in/out deltas were (1, 0), (9, 0), (0, 0) pages and projection-heavy deltas
 were (0, 0), (6, 0), (2, 0). The standalone verifier reproduced the receipt
 byte for byte. The subsequent host reboot cleared `/tmp`, including that
 receipt and its raw artifacts. The recorded hashes preserve the audit trail,
-but a fresh historical run with retained raw output is required before the
-candidate comparison. Candidate measurement and the runtime checkpoint remain
-pending.
+but the lost bundle is not used for the candidate comparison. A fresh
+historical run and retained bundle are recorded below.
 
 The local NVIDIA kernel module is 580.173.02 while NVML is 580.178.04.
 Per HITL `seq-296`, this mismatch cannot be resolved for Slice 90: proceed
@@ -222,11 +223,61 @@ nonpanic dispatch failures retain sparse fallback. Narrow Sol re-review and
 Terra verification passed at the clean final commit, including 9/9 foreground
 tests in default and test-hooks builds. The focused full candidate also passed
 43/43 targeted tests, selected-feature check, Clippy, formatting, and diff
-checks. Two-phase close remains Batch 2g and is underway in an isolated
-worktree; this merge does not claim the runtime checkpoint.
+checks. Two-phase close remained Batch 2g at this boundary; this merge did
+not claim the runtime checkpoint.
 
-Next: correct and independently review two-phase close, review and merge both
-binding-forwarding batches, then rerun the historical D27 entry into persistent
-storage and finish runtime qualification. The candidate-bound checkpoint and structural
-Phase 3 remain pending. Report the remaining GPU and Slice 85 recovery
-evidence as its actual result. Slice 90 remains IN_PROGRESS.
+Two-phase close was merged at `f8af83635` after independent Sol code review
+and Terra verification. On the merged source, eight focused `slice90_` library
+tests and 14 embed-dispatch tests passed. Python forwarding was merged at
+`93db9fd67` after independent review and installed wheel verification. The
+wheel passed the exact native five-setting oracle and 31 Python 3.12 consumer
+cases. The system's off-PATH Python 3.10.20 also parsed the installed `cp310`
+abi3 wheel's config and opened and closed a real engine. Its receipt is under
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/python-wheel-ae7a47abb`.
+Node forwarding was merged at `5b3aa844b` after independent review; an
+installed Node 25 production package and witness package passed under
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/node-6e88d84aa6-node25`.
+Neither installed binding exposes a caller provider and lifecycle subscriber,
+so deterministic provider/slow-event consuming effects remain Rust-owner
+qualification, with native forwarding checked in the installed artifacts.
+
+The first post-reboot strict GPU feature gate ran 21 sets: 350 passed, zero
+failed, and eight were ignored out of 358 planned. It exited 1 only because
+the PR-9 opt-in test was renamed while the skip allowlist retained its former
+name. The corrected allowlist landed at `72037f7f2`; a focused plan audit and
+static coverage check passed. The retained first-run summary is
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/gpu-feature-gate-first/summary.json`
+(SHA-256 `381bd2d6acb7415dc48ff2e5b1ba1b74b5e57a131c99ccaf834f8787d139cfce`).
+The final strict GPU gate and official public/hidden surface captures remain
+pending; the first run is not a GPU PASS receipt.
+
+On windchill3, the host denied the read-only `/proc/1/ns/pid` link with
+`EACCES` even outside the sandbox. The reviewed protocol amendment at
+`325b024b3` permits only `EACCES`/`EPERM` on that link to yield a blank
+sentinel while retaining the host namespace, systemd PID 1, unrestricted
+`/proc`, runner PID corroboration, process competitor, and swap checks. A
+test-first fix, RED `d8751b16d` and GREEN `327078a67`, passed independent
+Sol code review, Terra verification, and 40 merged focused tests; it was
+merged at `204fa402c`. Real-host preflight showed `pid:[4026531836]`,
+systemd PID 1, `hidepid=0`, matching runner PIDs and no competitors.
+
+The fresh six-repetition historical entry on unchanged
+`7a2f9bf90783f545603516502bac0016d4b93a14` is PASS under protocol
+SHA-256 `b835f79a426a038e3528a9cf820177876451a02c3defad7aa0c545ebf642441b`.
+Its persistent receipt is
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-entry-post-reboot/receipt.json`
+(SHA-256 `74c5ee0b43188dd2f2af138eb84dd67aa281034017693e095c82327c6dadc129`).
+It binds runner bundle `812c03254b5e18b6fbf2a35f6d1a968a6fc26cda7dc4db40d5c08c3c2436b6ca`,
+binary `b658501f6020c22d92c3e53ec91d888bb7383720929f4adc6e7635d5f0518361`,
+corpus `a4eeb2a7c714d0d450e7ecd41bf7bb45a83f97c30d3adc513629eeca836a685d`,
+and raw output `e8b9eb210f01400f6bd887c5ee35fd4934924bdaedcbcdf22ab341ba1b060f39`.
+The standalone verifier reproduced the receipt byte for byte. The previous
+`/tmp` result remains historical audit only. The D27 implementation worktree
+and branch were removed after merge.
+
+Next: finish runtime contract docs and owner-level consuming-effect tests;
+run the D27 configuration matrix, candidate comparison, named release
+performance selectors, installed binding checks, and exact stage-2 checkpoint.
+Structural Phase 3 remains blocked on that checkpoint. Then complete the
+root-owner moves, final verification, GPU and Slice 85 recovery evidence, and
+candidate-bound closeout. Slice 90 remains IN_PROGRESS.

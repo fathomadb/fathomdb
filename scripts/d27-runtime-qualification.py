@@ -129,6 +129,10 @@ def validate_receipt(
     ):
         require(receipt.get(field) == sha256(artifacts[name]), f"{field}: sha256 mismatch")
     require(receipt.get("protocol_sha256") == sha256(protocol_path), "protocol_sha256: sha256 mismatch")
+    if version == 2:
+        embedded_protocol = b"\n--PROTOCOL--\n" + protocol_path.read_bytes()
+        require(artifacts["runner"].read_bytes().endswith(embedded_protocol),
+                "runner bundle embedded protocol mismatch")
 
     phase = receipt.get("phase")
     require(phase in ("entry", "candidate"), "phase must be entry or candidate")

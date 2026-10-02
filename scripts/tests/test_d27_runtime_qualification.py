@@ -99,8 +99,19 @@ class D27ReceiptTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "combined swap movement exceeds cap"):
             self.validate(receipt)
         receipt["protocol_sha256"] = digest(PROTOCOL_V2.read_bytes())
+        self.artifacts["runner"].write_bytes(b"runner\n--PROTOCOL--\n" + PROTOCOL_V2.read_bytes())
+        receipt["runner_sha256"] = digest(self.artifacts["runner"].read_bytes())
         validated = d27.validate_receipt(receipt, successor, PROTOCOL_V2, self.artifacts)
         self.assertEqual(validated["status"], "PASS")
+
+    def test_v2_rejects_rehashed_bundle_with_wrong_embedded_protocol(self):
+        successor = json.loads(PROTOCOL_V2.read_text())
+        receipt = copy.deepcopy(self.receipt)
+        receipt["protocol_sha256"] = digest(PROTOCOL_V2.read_bytes())
+        self.artifacts["runner"].write_bytes(b"runner\n--PROTOCOL--\n" + PROTOCOL.read_bytes())
+        receipt["runner_sha256"] = digest(self.artifacts["runner"].read_bytes())
+        with self.assertRaisesRegex(ValueError, "runner bundle.*protocol"):
+            d27.validate_receipt(receipt, successor, PROTOCOL_V2, self.artifacts)
 
     def test_wrong_candidate_and_modified_protocol_are_rejected(self):
         receipt = copy.deepcopy(self.receipt)

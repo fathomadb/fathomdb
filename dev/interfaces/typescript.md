@@ -149,9 +149,23 @@ does not change it, and callers cannot mutate the returned snapshot. The
 snapshot is not a live effective-value view: `engine.setSlowThresholdMs`
 changes runtime behavior without rewriting `engine.config.slowThresholdMs`.
 
-If TypeScript exposes ThreadsafeFunction handoff-pool sizing, that option is a
-TS binding-runtime option beside `engineConfig`, not a canonical engine config
-field and not a Python parity obligation.
+NAPI hands blocking calls to Tokio `spawn_blocking`. That binding handoff is
+separate from both configured engine executors; there is no handoff-pool
+sizing field in `engineConfig` or `EngineOpenOptions`.
+
+`Engine.open` checks the cloned config before native work. Non-number values
+raise `TypeError`; non-finite, fractional, unsafe, negative or out-of-range
+numbers raise `RangeError`. Omission selects the Rust default; zero is accepted
+only for `provenanceRowCap` and `slowThresholdMs`. NAPI checks numeric
+conversion and Rust makes the final range/capacity check, mapped to
+`InvalidArgumentError`. Production projection, search (including frozen
+reads), direct embedding and open-time equivalence probes share the engine
+embed dispatcher and its queue-plus-service deadline. Direct embedding maps
+full/expired queue to `OverloadedError`, started failure/timeout to
+`EmbedderError`, and close cancellation to `ClosingError`. Hybrid search keeps
+same-snapshot sparse fallback; projection capacity waits keep rows pending
+without spending a provider retry. Explicit close may reject with
+`SchedulerError` while a provider worker remains after the drain budget.
 
 ## Engine-attached instrumentation / control
 
@@ -929,15 +943,12 @@ installed `.node` binaries. They are exposed only when the binding is
 built via `npm run build:native:debug` (the script the vitest suite
 uses). End-user callers should not rely on these symbols.
 
-### Custom embedder implementations (deferred to 0.8.x)
+### Engine embedder selection
 
-Supplying a custom TypeScript `Embedder` implementation requires a
-napi-rs callback bridge subject to ADR-0.6.0-embedder-protocol
-Invariant 3 (no host-side log emission during `embed()`). That bridge
-is a multi-slice campaign deferred to 0.8.x. In 0.7.1 the binding
-surface is binary: `useDefaultEmbedder: true` (engine's bge-small) or
-omitted/`false` (no embedder; vector writes reject with
-`EmbedderNotConfiguredError`).
+`useDefaultEmbedder: true` selects the pinned bge-small provider;
+omitted/`false` selects no provider. The TypeScript engine API does not accept
+a custom embedder implementation. Standalone CLS embedding is a separate
+module-level utility, outside engine dispatch.
 
 ## `view` on `search` / `searchTextOnly` (0.8.20 Slice 15b fix-2)
 

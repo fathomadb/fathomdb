@@ -66,6 +66,21 @@ worker-owned SQLite connections. Projection admission and each dispatcher scan
 are bounded by `scheduler_runtime_threads * PROJECTION_COMMIT_BATCH`, where the
 commit batch is 64 rows.
 
+With a provider, `embedder_pool_size` starts that many fixed dispatch workers
+and permits `4 * workers` waiting requests; without a provider it starts none.
+Projection, ordinary and frozen search, direct `embed_text`, and open-time
+vector-equivalence probes use the engine dispatcher. Each invocation (including
+a batch) has one absolute queue-plus-service deadline. Full admission and
+queued expiry map to `EngineError::Overloaded` for direct `embed_text`; a
+started failure/timeout maps to `EngineError::Embedder`. Hybrid search retains
+same-snapshot sparse fallback. Projection capacity waits leave durable work
+pending without spending or resetting a provider-failure retry; started
+failures/timeouts use the fixed 1/4/16-second ladder and may terminalize.
+Close cancels pending replies; if a provider worker remains after the shared
+30-second post-quiescence drain budget, explicit close returns
+`EngineError::Scheduler` until that worker exits. A timely provider panic keeps
+the operation's existing panic boundary; a late result/panic is discarded.
+
 ## TC-5 benchmark-only boundary (Slice 70)
 
 `fathomdb-tc5-benchmark` is a non-published workspace executable, available

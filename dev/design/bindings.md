@@ -94,15 +94,15 @@ Each binding owns the dispatch model for its language. The protocol that connect
 | Binding    | Dispatch model                                                                   | Engine call shape                                                                                                                                                                                                                                                                              | Owning ADR                                                                |
 | ---------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | Python     | Sync surface (Path 1)                                                            | Direct PyO3 call into Rust; engine is sync; Python `asyncio` users wrap with `run_in_executor` (documented pattern, not first-party API).                                                                                                                                                      | ADR-0.6.0-python-api-shape; ADR-0.6.0-async-surface (Path 1 + Invariants) |
-| TypeScript | Promise surface (Path 2)                                                         | napi-rs `ThreadsafeFunction` + TS binding-owned Rust handoff pool sized `num_cpus::get()`. Decoupled from libuv's `fs/dns/crypto` thread pool. TS may expose adapter-specific sizing control, but that control is owned by the TS binding runtime rather than the canonical engine-config set. | ADR-0.6.0-typescript-api-shape; ADR-0.6.0-async-surface (Path 2)          |
+| TypeScript | Promise surface (Path 2) | NAPI moves blocking engine calls to Tokio `spawn_blocking`; the TypeScript wrapper returns Promises. This binding handoff is separate from the engine-owned projection and embed executors. | ADR-0.6.0-typescript-api-shape; ADR-0.8.27-engine-owned-runtime-topology |
 | CLI        | Sync subcommand entry; binary returns process exit code per ADR-0.6.0-cli-scope. | Direct sync call into Rust; same engine as SDK.                                                                                                                                                                                                                                                | ADR-0.6.0-cli-scope                                                       |
 
 Async invariants A–D from ADR-0.6.0-async-surface manifest in every binding. The invariants themselves are owned by that ADR; this file commits only the _binding-side_ assertion that no binding exposes an escape hatch:
 
 - **Invariant A (scheduler post-commit).** Cite ADR-async-surface § Decision. Bindings expose no escape hatch: bindings do not introduce additional locking around `write`, do not pre-dispatch scheduler work from the caller thread, and do not provide a "skip-scheduler" path.
 - **Invariant B (engine-owned embedder thread).** Cite ADR-async-surface § Decision. Bindings expose no escape hatch: embedder calls always run on the engine-owned embedder pool, never on the binding's caller thread (Python GIL-holder, TS libuv worker, CLI main thread).
-- **Invariant C (embedder-protocol no-reentrancy).** Cite ADR-async-surface + ADR-embedder-protocol. Bindings document this constraint in their `Embedder` impl docs; tests verify a buggy user-supplied embedder cannot deadlock the engine. Bindings expose no escape hatch (no "reentrant embedder" config flag).
-- **Invariant D (eager model warmup + per-call timeout).** Cite ADR-async-surface § Decision (eager warmup at `Engine.open`; per-call timeout default 30s). Bindings expose no escape hatch: no cold-load path, no per-call-timeout override that disables the watchdog. Reporting of model-load duration is part of `Engine.open`'s structured result, the shape of which is owned by `design/engine.md`.
+- **Invariant C (embedder-protocol no-reentrancy).** The Rust provider trait forbids re-entering the same engine. Python and TypeScript currently offer default-or-none engine embedder selection, not custom provider injection or a reentrancy flag.
+- **Invariant D (eager model warmup + per-call deadline).** Model warmup remains synchronous during `Engine.open`. Production inference uses the engine's configured absolute queue-plus-service deadline (default 30s); bindings offer no bypass. `OpenReport` records warmup duration as specified by `design/engine.md`.
 
 ## 3. Error-mapping protocol
 
@@ -138,7 +138,7 @@ This file does NOT enumerate the variant→class matrix; that authority lives in
 | Engine → caller: errors                                                                    | Per § 3.                                                                                                                                                                                                                                                                                                                            | ADR-0.6.0-error-taxonomy                                          |
 
 JSON-Schema validation behavior (AC-060b) is invariant across bindings:
-validation fires save-time, pre-commit, on the writer thread; failure surfaces
+validation fires save-time, pre-commit, on the primary writer path; failure surfaces
 as `SchemaValidationError`; no open-time re-validation; bindings do _not_ run
 their own pre-engine validation pass (single source of truth).
 
@@ -148,7 +148,7 @@ Per ADR-0.6.0-vector-identity-embedder-owned + ADR-0.6.0-embedder-protocol, vect
 
 - A DB written by Python with embedder identity `E` and re-opened by TypeScript MUST resolve the same `EmbedderIdentity`. Bindings do not pin or override identity at open.
 - Identity-mismatch surfaces uniformly as `EmbedderIdentityMismatch` (per § 3 mapping). Bindings do not auto-rebuild on mismatch (consistent with ADR-0.6.0-corruption-open-behavior's no-auto-recover posture for open failures).
-- A user-supplied embedder (Python or TS impl) declares its `EmbedderIdentity` per ADR-0.6.0-embedder-protocol Invariants 1–4. Binding-side bindings do _not_ synthesize identity from binding metadata; identity is the embedder's responsibility.
+- A Rust caller-supplied embedder declares its `EmbedderIdentity` per ADR-0.6.0-embedder-protocol. Python and TypeScript currently select the pinned default embedder or none; neither injects a custom engine provider. Bindings do _not_ synthesize identity from binding metadata.
 - REQ-047 (embedder version-skew detection) is satisfied at link/resolution time by the semver-pinned `fathomdb-embedder-api` trait crate (architecture.md § 1) plus the embedder-owned `EmbedderIdentity` carried in stored vectors. Bindings do NOT perform runtime version-skew checks; they consume the typed mismatch error surfaced by the engine.
 
 ## 6. SDK symmetry, CLI boundary, and config classes
@@ -175,10 +175,8 @@ Examples:
   across SDK bindings.
 - Python `run_in_executor` usage — caller-side runtime pattern, not an engine
   knob.
-- TypeScript `ThreadsafeFunction` pool sizing — TS binding runtime mechanic per
-  ADR-0.6.0-async-surface. A TS binding may surface it near `Engine.open`, but
-  it is not part of the canonical engine-config set and does not create a
-  Python-parity obligation.
+- NAPI's Tokio `spawn_blocking` handoff — a binding implementation detail,
+  separate from the five canonical engine settings.
 
 CLI inherits engine defaults unless `interfaces/cli.md` explicitly grants a
 flag. That inheritance posture does not weaken the SDK symmetry rule because
@@ -271,7 +269,7 @@ This is a _non-presence_ claim, not a per-binding signature, and is therefore ow
 | Write validation failure (JSON Schema)  | `SchemaValidationError` per § 3                                                                                    | Surfaces save-time, pre-commit (AC-060b); engine state is unchanged after rejection. Bindings do NOT pre-validate.                                                                                                                                                                                                          |
 | Engine.close while writes in flight     | `ClosingError` per § 3 (variant per ADR-0.6.0-error-taxonomy § Consequences)                                       | Bindings surface as a typed close-race error; `Engine.close` itself is required (REQ-020a; AC-022a) and bindings do not auto-retry.                                                                                                                                                                                         |
 | Backpressure exhaustion / overload      | `OverloadedError` per § 3 (variant per ADR-0.6.0-error-taxonomy + ADR-0.6.0-projection-model layer-4 backpressure) | Bindings surface as a typed overload error; do NOT auto-retry; caller decides retry policy.                                                                                                                                                                                                                                 |
-| User-supplied embedder buggy / blocking | Engine watchdog enforces per-call timeout per Invariant D (default 30 s); surfaces as `EmbedderError`.             | Bindings document Invariant B + C constraints in their `Embedder` impl docs; tests verify a buggy embedder cannot deadlock the engine.                                                                                                                                                                                      |
+| Provider call blocks or fails | The engine enforces one queue-plus-service deadline (default 30 s); a started failure/timeout follows the operation's error or fallback rule. | Python and TypeScript currently expose default-or-none engine embedder selection, not a custom callback bridge. |
 
 ## 12. Boundaries with `interfaces/*.md`
 

@@ -90,7 +90,7 @@ impl Embedder for FirstCallHeld {
             self.release
                 .lock()
                 .expect("release lock")
-                .recv_timeout(Duration::from_secs(2))
+                .recv_timeout(Duration::from_secs(10))
                 .expect("release provider");
         }
         Ok(vec![1.0; 8])
@@ -206,13 +206,41 @@ fn close_cancels_started_direct_embed_waiter() {
         .engine,
     );
     let pending_engine = Arc::clone(&engine);
-    let pending = thread::spawn(move || pending_engine.embed_text("started before close"));
+    let (pending_tx, pending_rx) = mpsc::channel();
+    let pending = thread::spawn(move || {
+        pending_tx.send(pending_engine.embed_text("started before close")).expect("report waiter");
+    });
     entered_rx.recv_timeout(Duration::from_secs(1)).expect("provider entered");
+    let (closed_tx, closed_rx) = mpsc::channel();
+    let closing = Arc::clone(&engine);
+    let close_thread = thread::spawn(move || {
+        closed_tx.send(closing.close()).expect("report close");
+    });
     let started = Instant::now();
-    engine.close().expect("current close cancels waiter");
-    assert!(matches!(pending.join().expect("join pending"), Err(EngineError::Closing)));
-    assert!(started.elapsed() < Duration::from_secs(1), "close must wake direct waiter");
+    let close_started = loop {
+        if matches!(engine.drain(0), Err(EngineError::Closing)) {
+            break true;
+        }
+        if started.elapsed() >= Duration::from_secs(2) {
+            break false;
+        }
+        thread::yield_now();
+    };
+    let waiter = pending_rx.recv_timeout(Duration::from_secs(1));
+    let waiter_elapsed = started.elapsed();
+    let close_while_held = closed_rx.recv_timeout(Duration::from_millis(100));
     release.send(()).expect("release provider");
+    let close_result = closed_rx.recv_timeout(Duration::from_secs(2)).expect("close after release");
+    pending.join().expect("join pending");
+    close_thread.join().expect("join close");
+    assert!(close_started, "close did not stop admission while provider was held");
+    assert!(matches!(waiter, Ok(Err(EngineError::Closing))), "waiter={waiter:?}");
+    assert!(waiter_elapsed < Duration::from_secs(1), "close must wake direct waiter");
+    assert!(
+        matches!(close_while_held, Err(mpsc::RecvTimeoutError::Timeout)),
+        "close may not claim completion while provider is held: {close_while_held:?}"
+    );
+    assert!(close_result.is_ok(), "close after provider release: {close_result:?}");
 }
 
 #[test]

@@ -24,6 +24,13 @@ CHECKPOINT_KEYS = {
 }
 RECEIPT_KEYS = {"path", "status", "candidate_sha", "sha256"}
 RECEIPT_NAMES = {"performance", "code_review", "verification"}
+SLICE90_EVIDENCE = Path("dev/plans/0.8.27/features/slice-90")
+SLICE90_RECEIPTS = {
+    "performance": SLICE90_EVIDENCE / "runtime-performance-qualification.md",
+    "code_review": SLICE90_EVIDENCE / "code-review.md",
+    "verification": SLICE90_EVIDENCE / "review-verification.md",
+}
+MATRIX_CELLS = ("2/1", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
 
 
 class Validation:
@@ -69,6 +76,85 @@ class Validation:
             return None
         return resolved
 
+    def committed_bytes(self, sha: str, relative: str) -> bytes | None:
+        result = subprocess.run(
+            ["git", "-C", str(self.root), "show", f"{sha}:{relative}"],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        return result.stdout if result.returncode == 0 else None
+
+    def validate_performance(self, location: str, path: Path, candidate_sha: str) -> None:
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeError as error:
+            self.fail(location, f"performance receipt is not UTF-8: {error}")
+            return
+        sections: dict[str, list[str]] = {}
+        heading = ""
+        for line in content.splitlines():
+            if line.startswith("## "):
+                heading = line[3:].strip()
+                sections[heading] = []
+            elif heading:
+                sections[heading].append(line)
+
+        matrix = sections.get("Configuration matrix", [])
+        passed_cells = {
+            columns[0]
+            for line in matrix
+            if line.startswith("|")
+            and len(columns := [part.strip() for part in line.strip("|").split("|")]) >= 2
+            and columns[1] == "PASS"
+        }
+        for cell in MATRIX_CELLS:
+            if cell not in passed_cells:
+                self.fail(location, f"missing matrix cell: {cell}")
+
+        d27 = sections.get("D27 candidate qualification")
+        if d27 is None:
+            self.fail(location, "missing D27 candidate qualification")
+            return
+        expected = SLICE90_EVIDENCE / "d27-candidate-receipt.json"
+        rows = [
+            [part.strip() for part in line.strip("|").split("|")]
+            for line in d27
+            if line.startswith("|")
+        ]
+        matches = [row for row in rows if len(row) >= 3 and row[0] == expected.as_posix() and row[2] == "PASS"]
+        if len(matches) != 1:
+            self.fail(location, "D27 candidate qualification requires one PASS receipt row")
+            return
+        artifact = self.root / expected
+        if not artifact.is_file():
+            self.fail(location, "D27 candidate receipt file does not exist")
+            return
+        if matches[0][1] != hashlib.sha256(artifact.read_bytes()).hexdigest():
+            self.fail(location, "D27 candidate receipt sha256 mismatch")
+            return
+        try:
+            receipt = json.loads(artifact.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            self.fail(location, f"cannot parse D27 candidate receipt: {error}")
+            return
+        protocol_path = self.root / SLICE90_EVIDENCE / "d27-runtime-qualification-protocol.json"
+        if not protocol_path.is_file():
+            protocol_path = Path(__file__).resolve().parents[1] / SLICE90_EVIDENCE / "d27-runtime-qualification-protocol.json"
+        expected_protocol = hashlib.sha256(protocol_path.read_bytes()).hexdigest()
+        if (
+            not isinstance(receipt, dict)
+            or receipt.get("phase") != "candidate"
+            or receipt.get("source_sha") != candidate_sha
+            or receipt.get("status") != "PASS"
+            or receipt.get("protocol_sha256") != expected_protocol
+            or not isinstance(receipt.get("decision_rule_evaluation"), dict)
+            or receipt["decision_rule_evaluation"].get("status") != "PASS"
+            or not isinstance(receipt.get("aggregate_metrics"), dict)
+            or not {"projection_heavy", "foreground_heavy"} <= set(receipt["aggregate_metrics"])
+        ):
+            self.fail(location, "D27 candidate qualification is not PASS for checkpoint candidate and protocol")
+
     def validate_receipt(
         self,
         location: str,
@@ -87,6 +173,9 @@ class Validation:
 
         receipt_location = f"{location}.{name}"
         path = self.safe_path(receipt_location, receipt["path"])
+        is_slice90 = location.startswith("dev/plans/release-state-0.8.27.json slice 90 runtime_checkpoint")
+        if is_slice90 and receipt["path"] != SLICE90_RECEIPTS[name].as_posix():
+            self.fail(receipt_location, "receipt path outside declared Slice 90 evidence set")
         if checkpoint_status == "PENDING":
             if receipt["status"] != "PENDING":
                 self.fail(receipt_location, "pending checkpoint requires receipt status PENDING")
@@ -116,6 +205,8 @@ class Validation:
                 receipt_location,
                 f"{name} receipt sha256 mismatch: state={digest!r} actual={actual!r}",
             )
+        if name == "performance" and isinstance(candidate_sha, str) and is_slice90:
+            self.validate_performance(receipt_location, path, candidate_sha)
 
     def validate_checkpoint(self, state_path: Path, entry: dict[str, Any]) -> None:
         checkpoint = entry["runtime_checkpoint"]
@@ -169,6 +260,22 @@ class Validation:
                     self.fail(location, f"{field} does not resolve to a commit: {sha}")
             if checkpoint_commits_exist and not self.is_ancestor(candidate_sha, binding_sha):
                 self.fail(location, "checkpoint candidate must be an ancestor of its binding commit")
+            if checkpoint_commits_exist and isinstance(receipts, dict):
+                for name in sorted(RECEIPT_NAMES & set(receipts)):
+                    receipt = receipts[name]
+                    if not isinstance(receipt, dict) or not isinstance(receipt.get("path"), str):
+                        continue
+                    path = self.safe_path(f"{location}.{name}", receipt["path"])
+                    if path is None or not path.is_file():
+                        continue
+                    bound = self.committed_bytes(binding_sha, receipt["path"])
+                    if bound != path.read_bytes():
+                        self.fail(location, f"{name} receipt differs from checkpoint binding commit")
+                if location.startswith("dev/plans/release-state-0.8.27.json slice 90 runtime_checkpoint"):
+                    d27_relative = (SLICE90_EVIDENCE / "d27-candidate-receipt.json").as_posix()
+                    d27_path = self.root / d27_relative
+                    if d27_path.is_file() and self.committed_bytes(binding_sha, d27_relative) != d27_path.read_bytes():
+                        self.fail(location, "D27 candidate receipt differs from checkpoint binding commit")
 
         if stage3_sha is None:
             return

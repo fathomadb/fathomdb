@@ -22,6 +22,30 @@ This file owns dispatch onto the engine-owned embedder pool, eager warmup,
 per-call timeout handling, and the runtime mechanics behind
 `EmbedderIdentityMismatch`.
 
+## Engine dispatch (0.8.27)
+
+[`ADR-0.8.27-engine-owned-runtime-topology`](../adr/ADR-0.8.27-engine-owned-runtime-topology.md)
+supersedes the older CPU-count pool default and direct-call descriptions.
+Each engine with a provider starts exactly `embedder_pool_size` fixed workers
+(default one, accepted `1..=64`) and a separate waiting queue of `4 * workers`.
+No provider means no embed workers or request queue. More than one worker
+permits concurrent calls on the shared provider; it does not serialize them.
+Projection, ordinary and frozen search, direct `Engine::embed_text`, and
+open-time vector-equivalence inference all use this dispatcher. The
+default-compiled `write_vector_for_test` seam is the sole temporary exception
+and supplies no deadline or capacity evidence.
+
+Each admitted call receives one absolute monotonic deadline before enqueue
+(default 30,000 ms, accepted `1..=u32::MAX`). Queue wait and provider service
+share it; a batch has one fixed deadline, not a timeout multiplied by its
+length. Saturation and queued expiry never start the provider. A started call
+may continue after its caller times out; its late result or panic is discarded
+while its worker slot remains occupied. Close cancels queued/result waiters,
+then drains provider-only workers against one 30-second budget after database
+quiescence. An unfinished worker retains no SQLite ownership, but explicit
+close reports `Scheduler` until it exits. See [`scheduler.md`](scheduler.md)
+for durable projection capacity waits and retry accounting.
+
 The 0.7.1 EMBEDDER-UNDEFER campaign extends this document with:
 
 - §0 — mean-centering sub-design (forward-cited from EU-0 outcome,
@@ -37,7 +61,7 @@ nothing in this design extends that surface beyond what the ADR's
 
 ## `embedder_pool_size` rationale
 
-`embedder_pool_size` remains an engine-level knob in 0.6.0 because embedded
+`embedder_pool_size` remains an engine-level knob because embedded
 deployments are not uniform. Some hosts run FathomDB beside latency-sensitive
 application work and need to cap embedder parallelism; others run heavier local
 models or dedicated ingest jobs and need to tune concurrency around actual CPU
@@ -210,12 +234,12 @@ recorded here, not a re-statement of an earlier number.
 
 ### §0.4 Apply rule
 
-**Write path.** In `run_projection_job`
-(`fathomdb-engine/src/lib.rs:2507`), immediately before the `sign_quantize`
-step:
+**Write path.** The projection worker receives an un-centered vector from the
+engine dispatcher (single or batch request), then applies the following
+transformation before `sign_quantize`:
 
 ```rust
-let f32_vec = embedder.embed(text)?;          // unit-norm, un-centered
+let f32_vec = dispatched_vector;              // unit-norm, un-centered
 let bits = if let Some(mean) = pinned_mean {  // SELECT mean_vec FROM ...
     sign_quantize(&subtract(&f32_vec, &mean))
 } else {
@@ -224,12 +248,11 @@ let bits = if let Some(mean) = pinned_mean {  // SELECT mean_vec FROM ...
 // f32_vec (un-centered) is the BLOB written for f32 rerank.
 ```
 
-**Query path.** Synchronously on the caller thread
-(`fathomdb-engine/src/lib.rs:1469`), the query vector is embedded once
-and then sign-quantized with the same conditional:
+**Query path.** The ordinary or frozen search path receives its query vector
+from the same engine dispatcher, then applies the same conditional:
 
 ```rust
-let q = embedder.embed(query_text)?;
+let q = dispatched_query_vector;
 let q_bits = if let Some(mean) = pinned_mean {
     sign_quantize(&subtract(&q, &mean))
 } else {

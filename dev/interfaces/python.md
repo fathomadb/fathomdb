@@ -143,6 +143,20 @@ thresholds are `0..=2^53-1`. Zero remains valid for the latter two. Omitted
 values select the Rust defaults. The slow-threshold setter changes effective
 behavior without changing `engine.config`.
 
+Early validation raises `TypeError` for booleans/non-integers and `ValueError`
+for out-of-range integers; Rust makes the final range/capacity check, mapped
+to `InvalidArgumentError`. Omission selects the Rust default and explicit
+zero remains valid for provenance retention and slow signals. Production
+projection, ordinary/frozen search, direct embedding and open-time equivalence
+probes use the engine embed dispatcher and one queue-plus-service deadline per
+call or batch. Direct embedding maps full/expired queue to `OverloadedError`,
+started failure/timeout to `EmbedderError`, and close cancellation to
+`ClosingError`. Hybrid search preserves same-snapshot sparse fallback;
+projection capacity waits leave durable work pending without a provider retry.
+Explicit close may raise `SchedulerError` until an unfinished provider exits.
+Engine open selects the pinned default embedder or none; it does not inject a
+custom Python provider. The module-level CLS utility is separate.
+
 ## Engine-attached instrumentation / control
 
 These are public instance methods, not extra top-level SDK verbs:
@@ -888,14 +902,12 @@ binding is rebuilt with `--features test-hooks` (the
 `src/python/tests/conftest.py` session fixture does this for the
 pytest suite). End-user callers should not rely on these symbols.
 
-### Custom embedder implementations (deferred to 0.8.x)
+### Engine embedder selection
 
-Supplying a custom Python `Embedder` implementation requires a PyO3
-callback bridge subject to ADR-0.6.0-embedder-protocol Invariant 3 (no
-`pyo3-log` emission during `embed()`). That bridge is a multi-slice
-campaign deferred to 0.8.x. In 0.7.1 the binding surface is binary:
-`use_default_embedder=True` (engine's bge-small) or `False` (no embedder;
-vector writes fail with `EmbedderNotConfiguredError`).
+`use_default_embedder=True` selects the pinned bge-small provider;
+`False` selects no provider. The Python engine API does not accept a custom
+embedder implementation. Standalone CLS embedding is a separate module-level
+utility, outside engine dispatch.
 
 ## `view=` on `search` / `search_text_only` (0.8.20 Slice 15b fix-2)
 

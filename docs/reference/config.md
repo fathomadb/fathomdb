@@ -43,9 +43,15 @@ cross-binding symmetry pinned by `dev/design/bindings.md` § 6.
 `None` (Python) or an omitted TypeScript field selects the listed default.
 Python rejects booleans as integer settings; TypeScript requires finite safe
 integers. Invalid values fail before database files, locks, workers, or provider
-calls are started. A full embedder queue or an expired queued request reports
-`Overloaded`; a started provider failure or timeout reports an embedder error.
-Closing cancels pending requests. The requested configuration is frozen at open
+calls are started. Rust owns the effective defaults and final validation;
+Python and TypeScript also check malformed or out-of-range input before native
+open. The deadline starts before enqueue, covers queue wait and provider
+service, and stays fixed for a batch. A full queue or queued expiry reports
+`Overloaded` for direct embedding and leaves projection work pending; a
+started provider failure or timeout consumes a projection retry. Hybrid search
+may fall back to sparse results. Closing cancels pending requests, and a
+provider still running after the shared 30-second post-quiescence drain budget
+causes `SchedulerError` on explicit close. The requested configuration is frozen at open
 and does not change when the slow threshold setter changes the effective value.
 
 ## Python — two equivalent forms
@@ -91,10 +97,8 @@ the snapshot itself is readonly. It reports the open request rather than live
 effective state, so a later `setSlowThresholdMs` call changes profiling behavior
 without rewriting `engine.config.slowThresholdMs`.
 
-`EngineOpenOptions` may carry a TS-binding-specific
-ThreadsafeFunction handoff-pool sizing option **beside** `engineConfig`.
-That option is a TS-runtime concern, not a canonical engine config
-field, and has no Python counterpart by design.
+NAPI uses a separate Tokio `spawn_blocking` handoff for blocking engine calls.
+There is no binding handoff-pool sizing option in `EngineOpenOptions`.
 
 ## Non-fields
 

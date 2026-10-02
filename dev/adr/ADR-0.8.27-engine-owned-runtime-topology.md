@@ -94,8 +94,10 @@ combination. TypeScript retains one `engineConfig` object. Omission remains
 distinct from explicit zero. Python rejects booleans, negative values and zero
 for the three strictly positive controls. TypeScript rejects non-finite,
 fractional, unsafe, negative and out-of-range numbers, and rejects zero only
-for those three controls. NAPI performs checked conversion. All bindings use
-the engine defaults and validation rather than reproducing them.
+for those three controls. NAPI performs checked conversion. Rust owns the
+effective defaults and final validation; wrappers may reject malformed or
+out-of-range input before native open while preserving omission, explicit
+zero and every value in the accepted ranges without narrowing.
 
 Python and TypeScript expose the requested open-time snapshot, not a live
 effective-value view. The slow-threshold setter does not rewrite that snapshot.

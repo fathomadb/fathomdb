@@ -159,6 +159,26 @@ public knob requires all supported bindings in the same slice. Configuration
 does not select a legacy schema, enable automatic recovery, supply vector
 identity strings, or expose raw SQL.
 
+The five open-time settings resolve and validate before filesystem, lock,
+provider, SQLite or worker work. Rust owns the effective defaults and final
+range/capacity checks; the SDKs may reject malformed input earlier without
+changing the accepted values. `EngineOpenError::EngineConfiguration` reports
+invalid values or native-width derived-capacity overflow. Process-wide SQLite
+mode failures remain `EngineOpenError::RuntimeConfiguration`.
+
+| Setting | Accepted values; default | Consuming effect |
+| --- | --- | --- |
+| `scheduler_runtime_threads` | `1..=64`; `2` | Exact projection worker and worker-owned connection count; active plus queued projection rows and each scan are bounded by `64 * workers`. |
+| `embedder_pool_size` | `1..=64`; `1` | Exact provider worker count and simultaneous-call ceiling; waiting queue holds `4 * workers`. Without a provider there is no embed worker or queue. |
+| `embedder_call_timeout_ms` | `1..=u32::MAX`; `30_000` ms | One absolute queue-plus-service deadline per call or batch across all production inference routes. |
+| `provenance_row_cap` | `0..=2^53-1`; `1_000_000` rows | Bounds retained provenance after write and actuation commits; zero disables retention. |
+| `slow_threshold_ms` | `0..=2^53-1`; `100` ms | Operation and SQLite-statement slow signals when elapsed time is strictly greater than the threshold. Zero accepts every positive duration. |
+
+The reader pool remains eight dedicated workers and is not controlled by
+either executor setting. The primary writer and projection `commit_gate`
+ownership remain as described above. Embed admission and route outcomes are
+owned by [`embedder.md`](embedder.md) and [`errors.md`](errors.md).
+
 The exposed configuration value is the immutable requested-open snapshot, not
 a live effective-value view. The existing slow-threshold control may change
 the effective threshold after open without rewriting that snapshot. Bindings

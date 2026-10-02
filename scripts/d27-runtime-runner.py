@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import hashlib
 import json
 import os
@@ -163,9 +164,11 @@ def environment() -> dict:
             competing.append({"pid": int(pid), "name": name})
     try:
         pid_one_namespace = os.readlink("/proc/1/ns/pid")
+    except OSError as error:
+        pid_one_namespace = "" if error.errno in (errno.EACCES, errno.EPERM) else None
+    try:
         pid_one_comm = Path("/proc/1/comm").read_text().strip()
     except OSError:
-        pid_one_namespace = None
         pid_one_comm = None
     try:
         proc_self_pid = int(os.readlink("/proc/self"))

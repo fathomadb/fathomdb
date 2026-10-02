@@ -2,6 +2,7 @@
 
 import contextlib
 import copy
+import errno
 import importlib.util
 import io
 import json
@@ -118,6 +119,67 @@ class AttemptAuditTests(unittest.TestCase):
         snapshot = copy.deepcopy(self.raw["environment_start"])
         snapshot["pid_one_namespace"] = ""
         self.assertEqual(runner.process_view_invalidators(snapshot, "host"), [])
+
+    def observed_host_environment(self, link_error=None, comm_error=None):
+        pid = 4242
+        reads = {
+            "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor": "performance\n",
+            "/proc/vmstat": "pswpin 0\npswpout 0\n",
+            "/proc/1/comm": "systemd\n",
+            "/proc/self/mountinfo": "29 33 0:26 / /proc rw - proc proc rw\n",
+            "/proc/cpuinfo": "model name : test CPU\n",
+            "/proc/meminfo": "MemAvailable: 1048576 kB\n",
+        }
+        read_paths = []
+
+        def read_text(path, *args, **kwargs):
+            name = str(path)
+            read_paths.append(name)
+            if name == "/proc/1/comm" and comm_error is not None:
+                raise OSError(comm_error, "PID 1 name unavailable", name)
+            return reads[name]
+
+        def readlink(path):
+            if path == "/proc/1/ns/pid" and link_error is not None:
+                raise OSError(link_error, "PID 1 link unavailable", path)
+            return {"/proc/1/ns/pid": runner.HOST_PID_NAMESPACE, "/proc/self/ns/pid": runner.HOST_PID_NAMESPACE, "/proc/self": str(pid)}[path]
+
+        def command(args, **kwargs):
+            output = "1 systemd\n4242 python3\n" if args[0] == "ps" else "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/nvme0n1 1 0 1 0% /tmp\n"
+            return subprocess.CompletedProcess(args, 0, stdout=output)
+
+        with mock.patch.object(runner.Path, "read_text", read_text), mock.patch.object(runner.os, "readlink", side_effect=readlink), mock.patch.object(runner.os, "getpid", return_value=pid), mock.patch.object(runner, "command", side_effect=command):
+            observation = runner.environment()
+        return observation, read_paths
+
+    def test_permission_denied_pid_one_link_retains_independent_host_proof(self):
+        for error in (errno.EACCES, errno.EPERM):
+            with self.subTest(error=error):
+                observation, read_paths = self.observed_host_environment(link_error=error)
+                self.assertIn("/proc/1/comm", read_paths)
+                self.assertEqual(observation["pid_one_namespace"], "")
+                self.assertEqual(observation["pid_one_comm"], "systemd")
+                self.assertEqual(observation["ps_pid_one_comm"], "systemd")
+                self.assertEqual(observation["procfs_hidepid"], "0")
+                self.assertEqual(observation["runner_pid"], observation["proc_self_pid"])
+                self.assertEqual(observation["runner_pid"], observation["ps_self_pid"])
+                self.assertEqual(runner.process_view_invalidators(observation, "host"), [])
+                raw = copy.deepcopy(self.raw)
+                for boundary in ("environment_start", "environment_end"):
+                    raw[boundary] = copy.deepcopy(observation)
+                raw["environment_samples"] = [copy.deepcopy(observation)]
+                self.assertEqual(runner.environment_invalidators(raw), [])
+
+    def test_other_pid_one_link_errors_and_unreadable_name_fail_closed(self):
+        for error in (errno.ENOENT, errno.EIO):
+            with self.subTest(link_error=error):
+                observation, read_paths = self.observed_host_environment(link_error=error)
+                self.assertIn("/proc/1/comm", read_paths)
+                self.assertEqual(observation["pid_one_comm"], "systemd")
+                self.assertRegex("; ".join(runner.process_view_invalidators(observation, "host")), "process view")
+        observation, _ = self.observed_host_environment(link_error=errno.EACCES, comm_error=errno.EACCES)
+        self.assertIsNone(observation["pid_one_comm"])
+        self.assertRegex("; ".join(runner.process_view_invalidators(observation, "host")), "process view")
 
     def test_nested_procfs_without_runner_host_pid_cannot_start(self):
         protocol = json.loads(runner.PROTOCOL.read_text())

@@ -432,9 +432,41 @@ owner has been asked to choose the adjudication approach.
 
 The exact `2e94aaf4f` source passed the full unconfined `agent-verify` gate:
 lint, typecheck, strict security with zero violations/blockers/downgrades,
-and 130/130 registered test suites. Its stage-2 configuration matrix,
-official AC-081 and named selectors, installed Python/Node packages,
-candidate-bound review, and Terra verification are in progress. Structural
-Phase 3 has not begun. The final GPU and official public/hidden surface
+and 130/130 registered test suites. Its default `2/5`, explicit `1/1`,
+`2/2`, `4/4`, `64/64`, and no-provider real-engine matrix passed, as did the
+4,096-pair checked-capacity property. The explicit `2/1` test was added
+test-first on an isolated branch; it passed on the merged tree with exact
+managed SQLite roles, provider use, close/reopen and cleanup. Independent
+`gpt-6-sol` high review passed that correction. The merged engine source
+remains byte-identical to the measured `2e94aaf4f` engine source.
+
+On clean `2e94aaf4f`, AC-011a/b passed at 1,239.384 and 297.223 commits/s;
+AC-017, AC-018 (64 ms drain), AC-029, official three-run AC-072 (p50
+70/69/70 ms, p99 76/77/76 ms), AC-076 (p50 1 ms, p99 2 ms), official seven-run
+AC-081a/b and AC-081c all passed. The installed Python wheel passed 31/31
+isolated Python 3.12 cases and a real open/close on off-PATH Python 3.10.20.
+Installed Node 25 production and witness consumers passed. Exact logs and
+hashes are under
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/stage2-gates-2e94aaf4f`,
+`python-wheel-2e94aaf4f`, and `node-installed-2e94aaf4f`.
+
+The sealed exact-source CUDA EU7 run measured AC-073 mixed-tail stress p99
+493 ms within its same-run 513 ms bound on 7,667 real documents, with no
+padding. The unchanged combined selector exited 101 solely on AC-075
+vector-stage recall 0.773 (CI high 0.799 below 0.90), retained as
+`superseded-by-tc5`; it is not reported as a combined PASS. The exact run
+log, EU7 JSON, execution manifest and stress receipt are committed here, and
+the tightened checkpoint validator accepts their source, binary, command,
+output path and byte bindings. Initial missing CUDA toolkit path setup
+stopped before test execution; its failed build logs are retained externally.
+
+Independent Sol high review found and test-first corrections closed two
+receipt proof gaps: D27 v2 now binds the entire runner/workload/verifier
+bundle to exact Git source, and AC-073 binds the logged output to the sealed
+bundle file and retained JSON. The reviewed fix passed 48 focused Python
+tests; the historical v1 entry and candidate raw data remain unchanged.
+Candidate-bound receipt assembly, final broad verification, Terra verification
+and the D27 conflict disposition remain. The runtime checkpoint is PENDING;
+structural Phase 3 has not begun. Final GPU and official public/hidden surface
 captures and Slice 85 recovery comparison remain after the checkpoint.
 Slice 90 remains IN_PROGRESS.

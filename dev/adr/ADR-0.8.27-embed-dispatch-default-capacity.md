@@ -13,8 +13,8 @@ status: proposed (HITL selection rule seq-299; conflicting valid D27 campaigns p
 at `seq-299`: test higher default embed worker counts and choose the lowest
 count that passes D27, AC-081, and named release performance gates. The
 five-worker candidate passed AC-081, but two valid D27 campaigns on the exact
-source conflict. This ADR remains proposed until that conflict is resolved,
-the remaining selectors pass, and the selected source is recorded below.
+source conflict. This ADR remains proposed until that conflict is resolved
+and the selected source is recorded below.
 
 ## Context
 
@@ -113,7 +113,16 @@ as `superseded-by-tc5`. The exact named-selector report is
 The combined selector is not reported as PASS. A reviewed checkpoint receipt
 must bind the AC-073 stress evidence and the retained AC-075 outcome.
 
-Exact-source named selectors, installed-binding parity, independent code
-review, Terra verification, and D27 conflict disposition remain before
-acceptance and the runtime checkpoint. No structural Phase 3 source move may
-begin before that checkpoint passes.
+The later exact `2e94aaf4f` source passed the unchanged AC-011a/b, AC-017,
+AC-018, AC-029, AC-072, AC-076 and official seven-run AC-081a/b plus AC-081c.
+Its installed Python wheel passed 31 isolated Python 3.12 tests and a real
+Python 3.10.20 open/close; installed Node 25 production and witness consumers
+passed. Its sealed CUDA EU7 run measured AC-073 stress p99 493 ms under its
+same-run 513 ms bound. The combined selector exited 101 on the retained
+AC-075 recall failure (0.773, CI high 0.799 below 0.90). The stress receipt
+and exact execution manifest are retained in the Slice 90 plan directory;
+the combined selector is not claimed as PASS.
+
+Independent code review, Terra verification, and D27 conflict disposition
+remain before acceptance and the runtime checkpoint. No structural Phase 3
+source move may begin before that checkpoint passes.

@@ -75,8 +75,11 @@ fn release(provider: &HeldEmbedder) {
 fn engine_threads() -> BTreeMap<&'static str, usize> {
     let mut counts = BTreeMap::from([("embed", 0), ("projection", 0), ("reader", 0)]);
     for task in std::fs::read_dir("/proc/self/task").expect("task inventory") {
-        let name =
-            std::fs::read_to_string(task.expect("task").path().join("comm")).expect("thread name");
+        let name = match std::fs::read_to_string(task.expect("task").path().join("comm")) {
+            Ok(name) => name,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => panic!("thread name: {error}"),
+        };
         let role = if name.starts_with("fathomdb-embed") {
             Some("embed")
         } else if name.starts_with("fathomdb-projec") {

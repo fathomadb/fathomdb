@@ -315,7 +315,8 @@ is optional.
 
 ### Properties
 
-- `engine.config` (`EngineConfig`) — resolved config.
+- `engine.config` (`EngineConfig`) — readonly requested configuration captured
+  at open; omitted fields remain omitted even when the engine uses defaults.
 
 ## 0.8.25 data-plane additions
 

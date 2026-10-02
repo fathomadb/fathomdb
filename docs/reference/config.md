@@ -23,7 +23,7 @@ permission or file-access boundary.
 
 ## Engine configuration
 
-Engine-owned runtime knobs (0.8.20). The same five knobs are exposed by
+Engine-owned runtime knobs (0.8.27). The same five knobs are exposed by
 every binding in idiomatic spelling (Python snake_case, TS camelCase,
 Rust snake_case).
 
@@ -32,17 +32,21 @@ cross-binding symmetry pinned by `dev/design/bindings.md` § 6.
 
 ## Knob matrix
 
-| Knob                          | Python                     | TypeScript                | Type             | Notes                                                                |
-| ----------------------------- | -------------------------- | ------------------------- | ---------------- | -------------------------------------------------------------------- |
-| Embedder pool size            | `embedder_pool_size`       | `embedderPoolSize`        | `int \| None`    | Max concurrent embedder calls. `None` = engine default.              |
-| Scheduler runtime threads     | `scheduler_runtime_threads`| `schedulerRuntimeThreads` | `int \| None`    | Threads in the scheduler runtime. `None` = engine default.           |
-| Provenance row cap            | `provenance_row_cap`       | `provenanceRowCap`        | `int \| None`    | Max provenance rows retained.                                        |
-| Embedder call timeout (ms)    | `embedder_call_timeout_ms` | `embedderCallTimeoutMs`   | `int \| None`    | Per-call timeout for embedder invocations.                           |
-| Slow query threshold (ms)     | `slow_threshold_ms`        | `slowThresholdMs`         | `int \| None`    | Profiling event emission threshold. Mutable via `set_slow_threshold_ms`. |
+| Knob | Python | TypeScript | Range | Default | Runtime effect |
+| --- | --- | --- | --- | --- | --- |
+| Projection workers | `scheduler_runtime_threads` | `schedulerRuntimeThreads` | `1..=64` | `2` | Starts that many projection workers and worker-owned SQLite connections; projection admission is `64 × workers`. |
+| Embedder workers | `embedder_pool_size` | `embedderPoolSize` | `1..=64` | `1` | Bounds simultaneous provider calls; the waiting queue holds `4 × workers`. With no provider, no embedder worker or queue starts. |
+| Embedder deadline | `embedder_call_timeout_ms` | `embedderCallTimeoutMs` | `1..=4,294,967,295` ms | `30,000` ms | One deadline covers queue wait plus provider service on production embedding paths. |
+| Provenance retention | `provenance_row_cap` | `provenanceRowCap` | `0..=2^53-1` rows | `1,000,000` rows | Bounds retained provenance rows; `0` disables retention. |
+| Slow event threshold | `slow_threshold_ms` | `slowThresholdMs` | `0..=2^53-1` ms | `100` ms | Governs operation and SQLite-statement slow signals; `0` accepts every positive duration. |
 
-`None` (Python) / `undefined` (TS) → engine default. Defaults are
-internal-tunable; callers should not depend on specific numeric
-defaults.
+`None` (Python) or an omitted TypeScript field selects the listed default.
+Python rejects booleans as integer settings; TypeScript requires finite safe
+integers. Invalid values fail before database files, locks, workers, or provider
+calls are started. A full embedder queue or an expired queued request reports
+`Overloaded`; a started provider failure or timeout reports an embedder error.
+Closing cancels pending requests. The requested configuration is frozen at open
+and does not change when the slow threshold setter changes the effective value.
 
 ## Python — two equivalent forms
 

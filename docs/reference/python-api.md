@@ -305,7 +305,8 @@ mapped to `logging.LogRecord` with the stable `fathomdb` payload.
 ### Properties
 
 - `engine.path` (`str`) — DB path supplied to `open`.
-- `engine.config` (`EngineConfig`) — resolved config.
+- `engine.config` (`EngineConfig`) — requested configuration captured at open;
+  omitted fields remain omitted even when the engine uses their defaults.
 
 ## 0.8.25 data-plane additions
 

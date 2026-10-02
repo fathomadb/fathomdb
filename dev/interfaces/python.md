@@ -130,6 +130,10 @@ engine-owned knobs from `design/engine.md` in snake_case:
 
 The keyword form and `EngineConfig` object form are equivalent. Python
 executor usage remains caller-owned and is not an engine config field.
+`engine.config` returns the requested-open snapshot, including omitted fields;
+`set_slow_threshold_ms` changes the effective threshold without rewriting that
+snapshot. The engine resolves defaults and rejects invalid values before
+filesystem, lock, provider or SQLite work.
 
 ## Engine-attached instrumentation / control
 

@@ -20,7 +20,7 @@ MATRIX_CELLS = ("2/1", "2/5", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
 PROTOCOL = json.loads((REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json").read_text())
 RELEASE_SELECTORS = ("AC-011a", "AC-011b", "AC-017", "AC-018", "AC-029", "AC-072", "AC-073", "AC-076", "AC-081a", "AC-081b", "AC-081c")
 AC073_COMMAND = (
-    "env CARGO_TARGET_DIR={bundle} AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
+    "env CARGO_TARGET_DIR={bundle}/target AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
     "EU7_LATENCY_SAMPLES=1000 EU7_STRESS_PER_THREAD=250 "
     "FATHOMDB_EU7_OUTPUT={bundle}/eu7.json cargo test --release "
     "-p fathomdb-engine --features operator,embed-cuda --test eu7_real_corpus_ac "
@@ -425,6 +425,24 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         result = self.run_gate()
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("AC-073 execution", result.stdout)
+
+    def test_ac073_stress_rejects_cargo_target_that_cannot_produce_sealed_binary(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        receipt_path, _, _ = self.write_ac073_stress_receipt(checkpoint)
+        manifest_path = self.root / EVIDENCE_DIR / "ac073-execution.json"
+        manifest = json.loads(manifest_path.read_text())
+        bundle = manifest["bundle_dir"]
+        manifest["command"] = manifest["command"].replace(
+            f"CARGO_TARGET_DIR={bundle}/target", f"CARGO_TARGET_DIR={bundle}"
+        )
+        manifest_path.write_text(json.dumps(manifest))
+        receipt = json.loads(receipt_path.read_text())
+        receipt["execution_manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        receipt_path.write_text(json.dumps(receipt))
+        self.rebind_ac073(checkpoint, receipt_path)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("candidate command binding mismatch", result.stdout)
 
     def test_ac073_stress_rejects_binary_path_not_in_raw_log(self) -> None:
         checkpoint = self.pass_checkpoint()

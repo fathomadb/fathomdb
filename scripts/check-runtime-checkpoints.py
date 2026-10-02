@@ -541,19 +541,21 @@ class Validation:
                 name = columns[0]
                 if name in seen:
                     self.fail(location, f"duplicate {label}: {name}")
+                if name == "AC-073" and (
+                    len(columns) != 5 or not columns[4].startswith("stress receipt=")
+                ):
+                    self.fail(location, "AC-073 stress receipt required")
+                    continue
                 if (
                     len(columns) != 5
                     or columns[1] != "PASS"
                     or columns[2] != candidate_sha
                     or MATRIX_COMMAND_RE.search(columns[3]) is None
-                    or (
-                        not (name == "AC-073" and columns[4].startswith("stress receipt="))
-                        and MATRIX_RESULT_RE.search(columns[4]) is None
-                    )
+                    or (name != "AC-073" and MATRIX_RESULT_RE.search(columns[4]) is None)
                 ):
                     self.fail(location, f"incomplete candidate-bound {label}: {name}")
                     continue
-                if name == "AC-073" and columns[4].startswith("stress receipt="):
+                if name == "AC-073":
                     if not self.validate_ac073_stress(location, columns[4], candidate_sha):
                         continue
                 seen.add(name)

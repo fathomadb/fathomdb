@@ -93,6 +93,19 @@ class RawLinkageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "raw metric mismatch"):
             verifier.verify_raw_linkage(receipt, PROTOCOL, self.raw_path)
 
+    def test_v2_report_only_swap_still_rejects_forged_delta(self):
+        protocol = json.loads((ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol-v2.json").read_text())
+        changed = copy.deepcopy(self.raw)
+        changed[0]["environment_samples"][0]["swap_pages_in"] = 65
+        changed[0]["environment_end"]["swap_pages_in"] = 129
+        self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
+        receipt = copy.deepcopy(self.receipt)
+        receipt["per_repetition_metrics"]["projection_heavy"][0]["swap_pages_in_delta"] = 129
+        verifier.verify_raw_linkage(receipt, protocol, self.raw_path)
+        receipt["per_repetition_metrics"]["projection_heavy"][0]["swap_pages_in_delta"] = 128
+        with self.assertRaisesRegex(ValueError, "raw metric mismatch"):
+            verifier.verify_raw_linkage(receipt, protocol, self.raw_path)
+
     def test_complete_entry_and_candidate_accept_bounded_swap_with_aggregate_movement(self):
         protocol_path = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
         artifacts = {}

@@ -64,6 +64,23 @@ class AttemptAuditTests(unittest.TestCase):
             with self.subTest(phase=phase, case="over cap"):
                 self.assertRegex("; ".join(runner.environment_invalidators(raw)), "swap.*129")
 
+    def test_v2_reports_129_host_swap_pages_without_invalidating(self):
+        protocol = json.loads((ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol-v2.json").read_text())
+        raw = copy.deepcopy(self.raw)
+        raw["environment_samples"][0]["swap_pages_in"] = 65
+        raw["environment_samples"][0]["swap_pages_out"] = 64
+        raw["environment_end"]["swap_pages_in"] = 65
+        raw["environment_end"]["swap_pages_out"] = 64
+        self.assertEqual(runner.environment_invalidators(raw, protocol), [])
+        self.assertEqual(runner.summarize_raw(raw, "entry", protocol)["swap_pages_in_delta"], 65)
+        self.assertEqual(runner.summarize_raw(raw, "entry", protocol)["swap_pages_out_delta"], 64)
+        raw["environment_samples"][0]["swap_pages_in"] = None
+        self.assertRegex("; ".join(runner.environment_invalidators(raw, protocol)), "swap_pages_in")
+        raw["environment_samples"] = [copy.deepcopy(raw["environment_start"]) for _ in range(2)]
+        raw["environment_samples"][0]["swap_pages_in"] = 66
+        raw["environment_samples"][1]["swap_pages_in"] = 65
+        self.assertRegex("; ".join(runner.environment_invalidators(raw, protocol)), "decreased")
+
     def test_missing_negative_or_reset_swap_counter_invalidates_any_sample(self):
         for boundary in ("environment_start", "environment_samples", "environment_end"):
             for key, value in (("swap_pages_in", None), ("swap_pages_out", -1)):

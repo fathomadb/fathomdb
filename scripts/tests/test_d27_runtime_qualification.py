@@ -12,6 +12,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "d27-runtime-qualification.py"
 PROTOCOL = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
+PROTOCOL_V2 = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol-v2.json"
 spec = importlib.util.spec_from_file_location("d27_runtime_qualification", SCRIPT)
 d27 = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(d27)
@@ -78,6 +79,28 @@ class D27ReceiptTests(unittest.TestCase):
         result = self.validate()
         self.assertEqual(result["status"], "PASS")
         self.assertEqual(result["aggregate_metrics"]["projection_heavy"]["throughput"]["canonical_commits"], {"median": 100.0, "mad": 0.0})
+
+    def test_v2_accepts_reported_129_swap_pages_while_v1_retains_cap(self):
+        successor = json.loads(PROTOCOL_V2.read_text())
+        self.assertEqual(successor["schema_version"], 2)
+        self.assertEqual(successor["swap_policy"]["mode"], "report_only")
+        stable = copy.deepcopy(self.protocol)
+        changed = copy.deepcopy(successor)
+        for value in (stable, changed):
+            value.pop("schema_version")
+            value.pop("swap_policy")
+            value["comparison_rule"].pop("invalid_environment")
+        self.assertEqual(changed, stable, "v2 can change only the host-wide swap rule")
+        receipt = copy.deepcopy(self.receipt)
+        for repetitions in receipt["per_repetition_metrics"].values():
+            for repetition in repetitions:
+                repetition["swap_pages_in_delta"] = 65
+                repetition["swap_pages_out_delta"] = 64
+        with self.assertRaisesRegex(ValueError, "combined swap movement exceeds cap"):
+            self.validate(receipt)
+        receipt["protocol_sha256"] = digest(PROTOCOL_V2.read_bytes())
+        validated = d27.validate_receipt(receipt, successor, PROTOCOL_V2, self.artifacts)
+        self.assertEqual(validated["status"], "PASS")
 
     def test_wrong_candidate_and_modified_protocol_are_rejected(self):
         receipt = copy.deepcopy(self.receipt)

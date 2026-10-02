@@ -17,7 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 GATE = REPO_ROOT / "scripts" / "check-runtime-checkpoints.py"
 EVIDENCE_DIR = Path("dev/plans/0.8.27/features/slice-90")
 MATRIX_CELLS = ("2/1", "2/5", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
-PROTOCOL = json.loads((REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json").read_text())
+PROTOCOL = json.loads((REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol-v2.json").read_text())
 RELEASE_SELECTORS = ("AC-011a", "AC-011b", "AC-017", "AC-018", "AC-029", "AC-072", "AC-073", "AC-076", "AC-081a", "AC-081b", "AC-081c")
 AC073_COMMAND = (
     "env CARGO_TARGET_DIR={bundle}/target AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
@@ -152,7 +152,7 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         return raw
 
     def write_d27_bundles(self, candidate: str) -> tuple[str, str, str]:
-        protocol_path = REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json"
+        protocol_path = REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol-v2.json"
         protocol_hash = hashlib.sha256(protocol_path.read_bytes()).hexdigest()
         entry_receipt = None
         paths = {}

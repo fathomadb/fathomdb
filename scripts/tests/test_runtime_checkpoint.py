@@ -365,6 +365,22 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         self.assertIn("missing named selector: AC-072", result.stdout)
         self.assertIn("missing installed binding: Node", result.stdout)
 
+    def test_stage3_marker_must_name_first_engine_source_commit(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        source = self.root / "src/rust/crates/fathomdb-engine/src"
+        source.mkdir(parents=True)
+        for name in ("open.rs", "connection_runtime.rs"):
+            (source / name).write_text("// structural move\n")
+            subprocess.run(["git", "-C", str(self.root), "add", "src"], check=True)
+            subprocess.run(["git", "-C", str(self.root), "commit", "-qm", f"move {name}"], check=True)
+        checkpoint["stage3_start_sha"] = subprocess.run(
+            ["git", "-C", str(self.root), "rev-parse", "HEAD"], check=True, text=True, capture_output=True
+        ).stdout.strip()
+        self.write_state(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("stage3_start_sha must identify first engine source change", result.stdout)
+
     def _commit_rebound(self, checkpoint: dict[str, object]) -> None:
         subprocess.run(["git", "-C", str(self.root), "add", "dev/plans/0.8.27/features/slice-90"], check=True)
         subprocess.run(["git", "-C", str(self.root), "commit", "-qm", "rebind receipts"], check=True)

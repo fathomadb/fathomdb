@@ -1,5 +1,57 @@
 use super::*;
 
+#[cfg(any(test, feature = "test-hooks"))]
+fn report_runtime_connection_inventory_for_test(
+    shared: &ProjectionRuntimeShared,
+    connection: &Connection,
+    role: WalAttributionRole,
+    index: usize,
+) {
+    let respond = {
+        let Ok(mut request_slot) = shared.runtime_inventory_request.lock() else {
+            return;
+        };
+        let Some(request) = request_slot.as_mut() else {
+            return;
+        };
+        if !request.pending.remove(&(role, index)) {
+            return;
+        }
+        let respond = request.respond.clone();
+        if request.pending.is_empty() {
+            *request_slot = None;
+        }
+        respond
+    };
+    let _ = respond.send((role, index, connection.is_autocommit()));
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn report_runtime_native_state_inventory_for_test(
+    shared: &ProjectionRuntimeShared,
+    connection: &Connection,
+    role: WalAttributionRole,
+    index: usize,
+) {
+    let respond = {
+        let Ok(mut request_slot) = shared.runtime_native_state_request.lock() else {
+            return;
+        };
+        let Some(request) = request_slot.as_mut() else {
+            return;
+        };
+        if !request.pending.remove(&(role, index)) {
+            return;
+        }
+        let respond = request.respond.clone();
+        if request.pending.is_empty() {
+            *request_slot = None;
+        }
+        respond
+    };
+    let _ = respond.send(native_connection_state_for_test(connection, role, index));
+}
+
 fn report_projection_runtime_startup_failure(
     startup: &mpsc::Sender<ProjectionRuntimeStartupMessage>,
     role: ProjectionRuntimeStartupRole,

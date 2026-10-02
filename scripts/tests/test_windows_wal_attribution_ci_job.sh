@@ -15,6 +15,7 @@ WAL_ATTRIBUTION_SOURCE="${WAL_ATTRIBUTION_SOURCE:-$REPO_ROOT/src/rust/crates/fat
 READER_POOL_SOURCE="${READER_POOL_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/reader_pool.rs}"
 # `impl ProjectionRuntime` (runtime inventory replies) lives in its own module.
 RUNTIME_SOURCE="${RUNTIME_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/projection_runtime.rs}"
+PROJECTION_WORKER_SOURCE="${PROJECTION_WORKER_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/projection_worker.rs}"
 ERASURE_SOURCE="${ERASURE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/erasure.rs}"
 PY_SOURCE="${PY_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-py/src/lib.rs}"
 PY_CONTROL="${PY_CONTROL:-$REPO_ROOT/src/python/tests/test_slice65_wal_attribution_installed.py}"
@@ -294,7 +295,7 @@ for marker in \
   'fn wal_attribution_close_boundary_read_get_is_clean' \
   'fn wal_attribution_close_boundary_neighbors_is_clean' \
   'unclassified_external'; do
-  assert_contains "$(<"$SOURCE_TEST") $(<"$ENGINE_SOURCE") $(<"$WAL_RUNTIME_SOURCE") $(<"$READER_POOL_SOURCE")" "$marker" "source retains $marker"
+  assert_contains "$(<"$SOURCE_TEST") $(<"$ENGINE_SOURCE") $(<"$WAL_RUNTIME_SOURCE") $(<"$READER_POOL_SOURCE") $(<"$PROJECTION_WORKER_SOURCE")" "$marker" "source retains $marker"
 done
 assert_contains "$(<"$PY_SOURCE")" \
   '_arm_next_reader_snapshot_pause_for_test' \
@@ -341,6 +342,16 @@ assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
 assert_absent "$(<"$ENGINE_SOURCE")" \
   'struct RuntimeConnectionInventoryRequest' \
   "root no longer defines the WAL runtime inventory carrier"
+assert_contains "$(<"$PROJECTION_WORKER_SOURCE")" \
+  'fn report_runtime_connection_inventory_for_test(' \
+  'fn report_runtime_native_state_inventory_for_test(' \
+  "projection worker owns both connection-thread inventory reply arms"
+assert_absent "$(<"$ENGINE_SOURCE")" \
+  'fn report_runtime_connection_inventory_for_test(' \
+  "root no longer defines the projection connection inventory reply arm"
+assert_absent "$(<"$ENGINE_SOURCE")" \
+  'fn report_runtime_native_state_inventory_for_test(' \
+  "root no longer defines the projection native-state inventory reply arm"
 assert_contains "$(<"$WAL_ATTRIBUTION_SOURCE")" \
   'NativeTransactionState' \
   'native_connection_state_for_test' \
@@ -1175,6 +1186,23 @@ PY
     pass "mutation proves old-root decoy cannot replace the WAL inventory owner"
   else
     fail "mutation accepted missing WAL inventory owner with old-root decoy: $wal_request_owner_out"
+  fi
+
+  WORKER_ARMS_MISSING_OWNER="$TMPROOT/projection-worker-without-inventory-arms.rs"
+  WORKER_ARMS_OLD_ROOT_DECOY="$TMPROOT/lib-with-inventory-arm-decoy.rs"
+  sed 's/fn report_runtime_connection_inventory_for_test(/fn removed_runtime_connection_inventory_for_test(/' \
+    "$PROJECTION_WORKER_SOURCE" >"$WORKER_ARMS_MISSING_OWNER"
+  cp "$ENGINE_SOURCE" "$WORKER_ARMS_OLD_ROOT_DECOY"
+  printf '\nfn report_runtime_connection_inventory_for_test() {}\n' >>"$WORKER_ARMS_OLD_ROOT_DECOY"
+  set +e
+  worker_arms_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$WORKER_ARMS_OLD_ROOT_DECOY" PROJECTION_WORKER_SOURCE="$WORKER_ARMS_MISSING_OWNER" bash "$0" 2>&1)"
+  worker_arms_owner_rc=$?
+  set -e
+  if [ "$worker_arms_owner_rc" -ne 0 ] \
+    && grep -Fq 'projection worker owns both connection-thread inventory reply arms (missing: fn report_runtime_connection_inventory_for_test(' <<<"$worker_arms_owner_out"; then
+    pass "mutation proves old-root decoy cannot replace the projection worker inventory arm"
+  else
+    fail "mutation accepted missing projection worker inventory arm with old-root decoy: $worker_arms_owner_out"
   fi
 
   IDENTITY_MUTATED="$TMPROOT/ci-without-wheel-identity.yml"

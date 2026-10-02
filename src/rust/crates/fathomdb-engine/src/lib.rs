@@ -481,15 +481,6 @@ const DEPENDENCY_GENERATION_KEY: &str = "_fathomdb_dependency_generation";
 const SOURCE_DEPENDENCY_SCHEMA_VERSION: u32 = 28;
 const DEPENDENCY_LOOKUP_LIMIT: usize = 100;
 const DEFAULT_PROVENANCE_ROW_CAP: u64 = 1_000_000;
-/// 0.8.20 Slice 5b (R-20-E5) — how many times an erasure verb re-tries
-/// `PRAGMA wal_checkpoint(TRUNCATE)` before refusing with
-/// [`EngineError::ErasureIncomplete`]. Deliberately small: a concurrent reader
-/// pinning a WAL snapshot can hold it for an unbounded time, and an erasure verb
-/// must fail loudly rather than block a caller indefinitely.
-const ERASURE_WAL_TRUNCATE_ATTEMPTS: u32 = 5;
-/// 0.8.20 Slice 5b (R-20-E5) — pause between WAL-truncation attempts
-/// (~100 ms total budget across [`ERASURE_WAL_TRUNCATE_ATTEMPTS`]).
-const ERASURE_WAL_TRUNCATE_BACKOFF_MS: u64 = 25;
 /// 0.8.20 Slice 5b (R-20-E6) — the sentinel that replaces an erased
 /// `result_stable_ids` element in the telemetry sink. Positional alignment with
 /// the parallel `result_ids` array is preserved, so a redacted sink stays
@@ -4018,58 +4009,6 @@ fn record_writer_pragma_witness_for_test(connection: &Connection) {
     if let Ok(observation) = observation {
         append_json_witness_for_test("FATHOMDB_WRITER_PRAGMA_WITNESS_FOR_TEST", &observation);
     }
-}
-
-#[cfg(any(test, feature = "test-hooks"))]
-fn report_runtime_connection_inventory_for_test(
-    shared: &ProjectionRuntimeShared,
-    connection: &Connection,
-    role: WalAttributionRole,
-    index: usize,
-) {
-    let respond = {
-        let Ok(mut request_slot) = shared.runtime_inventory_request.lock() else {
-            return;
-        };
-        let Some(request) = request_slot.as_mut() else {
-            return;
-        };
-        if !request.pending.remove(&(role, index)) {
-            return;
-        }
-        let respond = request.respond.clone();
-        if request.pending.is_empty() {
-            *request_slot = None;
-        }
-        respond
-    };
-    let _ = respond.send((role, index, connection.is_autocommit()));
-}
-
-#[cfg(any(test, feature = "test-hooks"))]
-fn report_runtime_native_state_inventory_for_test(
-    shared: &ProjectionRuntimeShared,
-    connection: &Connection,
-    role: WalAttributionRole,
-    index: usize,
-) {
-    let respond = {
-        let Ok(mut request_slot) = shared.runtime_native_state_request.lock() else {
-            return;
-        };
-        let Some(request) = request_slot.as_mut() else {
-            return;
-        };
-        if !request.pending.remove(&(role, index)) {
-            return;
-        }
-        let respond = request.respond.clone();
-        if request.pending.is_empty() {
-            *request_slot = None;
-        }
-        respond
-    };
-    let _ = respond.send(native_connection_state_for_test(connection, role, index));
 }
 
 struct CanonicalNodeRow {

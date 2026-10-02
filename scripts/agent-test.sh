@@ -181,6 +181,7 @@ run_tier_suite fast test-slice90-open-embedder-owner python3 scripts/tests/test_
 run_tier_suite fast test-slice90-open-cleanup-owner python3 scripts/tests/test_slice90_open_cleanup_owner.py
 run_tier_suite fast test-slice90-runtime-lifecycle-owner python3 scripts/tests/test_slice90_runtime_lifecycle_owner.py
 run_tier_suite fast test-slice90-wal-runtime-owner python3 scripts/tests/test_slice90_wal_runtime_owner.py
+run_tier_suite fast test-slice90-wal-inventory-arms-owner python3 scripts/tests/test_slice90_wal_inventory_arms_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

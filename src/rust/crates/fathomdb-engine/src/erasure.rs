@@ -1,4 +1,5 @@
 use super::*;
+use crate::wal_runtime::{ERASURE_WAL_TRUNCATE_ATTEMPTS, ERASURE_WAL_TRUNCATE_BACKOFF_MS};
 
 /// Phase 9 Pack B excise report (AC-028a/b/c). Counts are post-excise
 /// totals; `projections_invalidated` reports the shadow-row invalidation

@@ -142,19 +142,36 @@ fn projection_wait_cancels_on_close_and_reopen_recovers_pending_row() {
         config.clone(),
     )
     .expect("open");
-    let engine = opened.engine;
+    let engine = Arc::new(opened.engine);
     engine.configure_vector_kind_for_test("doc").expect("vector kind");
     let receipt = engine.write(&[node("pending across close")]).expect("write");
     entered_rx.recv_timeout(Duration::from_secs(2)).expect("provider entered");
 
-    // Phase 2.7 will add truthful incomplete-close provider-drain reporting.
+    let (closed, closed_rx) = mpsc::channel();
+    let closing = Arc::clone(&engine);
+    let close_thread = std::thread::spawn(move || {
+        closed.send(closing.close()).expect("report close");
+    });
     let started = Instant::now();
-    engine.close().expect("current close cancels projection waiter");
-    assert!(
-        started.elapsed() < Duration::from_secs(1),
-        "projection waiter cancellation must not await provider deadline"
-    );
+    let close_started = loop {
+        if matches!(engine.drain(0), Err(EngineError::Closing)) {
+            break true;
+        }
+        if started.elapsed() >= Duration::from_secs(2) {
+            break false;
+        }
+        std::thread::yield_now();
+    };
+    let held_result = closed_rx.recv_timeout(Duration::from_millis(200));
     release.send(()).expect("release old provider call");
+    let close_result = closed_rx.recv_timeout(Duration::from_secs(2)).expect("close after release");
+    close_thread.join().expect("close thread");
+    assert!(close_started, "close did not stop admission while the provider was held");
+    assert!(
+        matches!(held_result, Err(mpsc::RecvTimeoutError::Timeout)),
+        "close may not claim completion while the provider is held: {held_result:?}"
+    );
+    assert!(close_result.is_ok(), "close after provider release: {close_result:?}");
 
     let reopened =
         Engine::open_with_choice_and_config(&database, EmbedderChoice::Caller(provider), config)

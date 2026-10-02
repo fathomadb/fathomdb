@@ -15,6 +15,8 @@ impl EvidenceCapture {
 /// Capability payload kept behind one pointer so adding optional search state
 /// cannot inflate every request crossing the bounded reader channel.
 pub(crate) struct SearchReaderWork {
+    #[cfg(feature = "test-hooks")]
+    pub(crate) d27_owner: Option<crate::embed_dispatch::d27_observation::Owner>,
     compiled: Option<fathomdb_query::CompiledQuery>,
     query_vector: Option<String>,
     query_vector_bin: Option<String>,
@@ -63,6 +65,8 @@ impl SearchReaderWork {
         expand_depth: Option<u32>,
     ) -> Self {
         Self {
+            #[cfg(feature = "test-hooks")]
+            d27_owner: crate::embed_dispatch::d27_observation::current_owner(),
             compiled,
             query_vector,
             query_vector_bin,
@@ -137,6 +141,8 @@ impl SearchReaderWork {
         view: ReadView,
     ) -> Self {
         Self {
+            #[cfg(feature = "test-hooks")]
+            d27_owner: crate::embed_dispatch::d27_observation::current_owner(),
             compiled: Some(compiled),
             query_vector: None,
             query_vector_bin: None,

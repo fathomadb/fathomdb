@@ -139,6 +139,8 @@ pub use dependency_trace::{
 pub use dependency_trace::{
     decode_dependency_trace_root_for_test, encode_dependency_trace_root_for_test,
 };
+#[cfg(feature = "test-hooks")]
+pub use embed_dispatch::d27_observation::D27Observation;
 use embed_dispatch::{DispatchError, EmbedDispatcher, EmbedOutput, EmbedReply};
 use embedding::map_runtime_embedder_error;
 pub use erasure::{ExciseRecordReport, ExciseReport};
@@ -2820,6 +2822,53 @@ impl Engine {
             self.runtime_embedder.as_deref(),
             self.dense_disabled.load(Ordering::Acquire),
         )
+    }
+
+    /// Start the private D27 collector after the warm-up drain.
+    #[cfg(feature = "test-hooks")]
+    pub fn begin_d27_observation_for_test(&self, origin: Instant) {
+        self.embed_dispatch.begin_d27_observation(origin);
+    }
+
+    /// Run one measured foreground operation under its engine dispatch owner.
+    #[cfg(feature = "test-hooks")]
+    pub fn with_d27_foreground_owner_for_test<R>(
+        &self,
+        sequence: usize,
+        work: impl FnOnce() -> R,
+    ) -> R {
+        embed_dispatch::d27_observation::with_owner(
+            Some(embed_dispatch::d27_observation::Owner::Foreground {
+                operation_sequence: sequence,
+            }),
+            work,
+        )
+    }
+
+    /// Snapshot the engine-owned D27 records after measured projection drain.
+    #[cfg(feature = "test-hooks")]
+    pub fn d27_observation_for_test(&self) -> Option<D27Observation> {
+        self.embed_dispatch.d27_observation(
+            self.resolved_config.scheduler_runtime_threads,
+            self.resolved_config.embedder_pool_size,
+        )
+    }
+
+    /// Read the exact live engine-owned SQLite handle inventory without opening a probe.
+    #[cfg(feature = "test-hooks")]
+    pub fn d27_connection_inventory_for_test(&self) -> Result<String, EngineError> {
+        self.ensure_open()?;
+        let workers = self.resolved_config.scheduler_runtime_threads;
+        if !self.managed_connections.exact_live(workers) {
+            return Err(EngineError::Storage);
+        }
+        let live = self.managed_connections.live.lock().map_err(|_| EngineError::Storage)?;
+        let count = |role| live.iter().filter(|(member, _)| *member == role).count();
+        let writer = count(WalAttributionRole::Writer);
+        let readers = count(WalAttributionRole::ReaderWorker);
+        let dispatcher = count(WalAttributionRole::ProjectionDispatcher);
+        let workers = count(WalAttributionRole::ProjectionWorker);
+        Ok(format!("live=writer:{writer},readers:{readers},dispatcher:{dispatcher},workers:{workers},probes:0"))
     }
 
     pub fn open(path: impl Into<PathBuf>) -> Result<OpenedEngine, EngineOpenError> {

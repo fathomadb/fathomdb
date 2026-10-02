@@ -64,6 +64,21 @@ class RawLinkageTests(unittest.TestCase):
     def test_valid_raw_matches_receipt_without_rounding(self):
         verifier.verify_raw_linkage(self.receipt, PROTOCOL, self.raw_path)
 
+    def test_entry_recomputation_and_median_mad_ignore_candidate_only_fields(self):
+        original = [runner.summarize_raw(item, "entry") for item in self.raw]
+        decorated = copy.deepcopy(self.raw)
+        for item in decorated:
+            item["configuration_observation"] = {"source": "engine", "scheduler_runtime_threads": 64, "embedder_pool_size": 64}
+            item["projection_admission_observation"] = {"source": "engine", "active_plus_queued_high_water": 999}
+            item["embed_dispatch_events"] = [{"source": "engine", "request_id": 7}]
+        recomputed = [runner.summarize_raw(item, "entry") for item in decorated]
+        self.assertEqual(original, recomputed)
+        for direction in ("projection_heavy", "foreground_heavy"):
+            positions = [index for index, item in enumerate(self.raw) if item["direction"] == direction]
+            before = [original[index]["throughput"]["canonical_commits"] for index in positions]
+            after = [recomputed[index]["throughput"]["canonical_commits"] for index in positions]
+            self.assertEqual(verifier.center(before), verifier.center(after))
+
     def test_swap_deltas_are_raw_linked_and_forged_receipt_values_fail(self):
         changed = copy.deepcopy(self.raw)
         changed[0]["environment_samples"][0]["swap_pages_in"] = 30

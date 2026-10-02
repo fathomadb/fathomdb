@@ -1,7 +1,7 @@
 //! Standalone D27 workload test, compiled against a selected engine checkout.
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{Engine, InitialState, PreparedWrite, SourceId};
+use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, InitialState, PreparedWrite, SourceId};
 use fathomdb_schema::SQLITE_SUFFIX;
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -87,14 +87,14 @@ fn operation(
     pending: Option<&Mutex<Vec<(u64, u128)>>>,
 ) -> Value {
     let start_ns = monotonic_ns(origin);
-    let result = match class {
+    let result = engine.with_d27_foreground_owner_for_test(sequence, || match class {
         "canonical_write" => engine
             .write(&[prepared(body.to_string(), format!("d27-live-{sequence}"))])
             .map(|receipt| Some(receipt.cursor)),
         "foreground_hybrid_query" => engine.search("001 002").map(|_| None),
         "direct_embed" => engine.embed_text("d27 direct embed").map(|_| None),
         _ => panic!("unknown operation class"),
-    };
+    });
     let end_ns = monotonic_ns(origin);
     match result {
         Ok(cursor) => {
@@ -222,9 +222,12 @@ fn d27_runtime_qualification() {
     let database = directory.path().join(format!("d27{SQLITE_SUFFIX}"));
     let threads_before_open = thread_count();
     let provider = Arc::new(DeterministicEmbedder::new());
-    let opened = Engine::open_with_embedder_for_test(&database, provider.clone()).expect("open");
+    let opened = Engine::open_with_choice_and_config(
+        &database,
+        EmbedderChoice::Caller(provider.clone()),
+        EngineConfig { scheduler_runtime_threads: Some(2), embedder_pool_size: Some(1), ..EngineConfig::default() },
+    ).expect("open");
     let engine = Arc::new(opened.engine);
-    let inventory = format!("{:?}", engine.binding_connection_inventory_for_test());
     engine.configure_vector_kind_for_test("doc").expect("vector kind");
     let seed_records = if smoke { &records[..100] } else { &records[..] };
     for chunk in seed_records.chunks(128) {
@@ -249,7 +252,10 @@ fn d27_runtime_qualification() {
         epoch(&engine, &direction, &mut sequence, warmup_start, "d27 warmup document", None);
     }
     engine.drain(120_000).expect("warmup drain");
+    let inventory = engine.d27_connection_inventory_for_test().expect("engine SQLite inventory");
     let origin = Instant::now();
+    provider.peak.store(0, Ordering::SeqCst);
+    engine.begin_d27_observation_for_test(origin);
     let pending = Mutex::new(Vec::new());
     let stop_observer = AtomicBool::new(false);
     let observer = thread::scope(|scope| {
@@ -279,6 +285,7 @@ fn d27_runtime_qualification() {
         (projection_completions, projection_backlog_high_water),
     ) = observer;
     let engine_thread_inventory = thread_count() - threads_before_open;
+    let observation = engine.d27_observation_for_test().expect("engine D27 observation");
     let close_start_ns = monotonic_ns(origin);
     let close_result = engine.close();
     let close_end_ns = monotonic_ns(origin);
@@ -302,6 +309,9 @@ fn d27_runtime_qualification() {
         "projection_backlog_high_water": projection_backlog_high_water,
         "projection_drain_end_ns": drain_end_ns,
         "provider_peak_concurrency": provider.peak.load(Ordering::SeqCst),
+        "configuration_observation": observation.configuration_observation,
+        "projection_admission_observation": observation.projection_admission_observation,
+        "embed_dispatch_events": observation.embed_dispatch_events,
         "connection_inventory": inventory,
         "engine_thread_inventory": engine_thread_inventory,
         "residual_workers_after_close": residual_workers_after_close,

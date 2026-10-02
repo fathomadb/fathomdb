@@ -27,7 +27,7 @@ per-call timeout handling, and the runtime mechanics behind
 [`ADR-0.8.27-engine-owned-runtime-topology`](../adr/ADR-0.8.27-engine-owned-runtime-topology.md)
 supersedes the older CPU-count pool default and direct-call descriptions.
 Each engine with a provider starts exactly `embedder_pool_size` fixed workers
-(default one, accepted `1..=64`) and a separate waiting queue of `4 * workers`.
+(default five, accepted `1..=64`) and a separate waiting queue of `4 * workers`.
 No provider means no embed workers or request queue. More than one worker
 permits concurrent calls on the shared provider; it does not serialize them.
 Projection, ordinary and frozen search, direct `Engine::embed_text`, and

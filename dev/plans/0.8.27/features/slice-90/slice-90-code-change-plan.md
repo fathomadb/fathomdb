@@ -275,9 +275,11 @@ Outcome translation must remain stage-aware:
 - provider panics remain distinct from retryable embed errors.
 
 Update the PR-9 tests deliberately. The old circuit-breaker oracle is no longer
-the contract. With default embed concurrency one, a permanently hung provider
+the contract. With explicit embed concurrency one, a permanently hung provider
 occupies the only slot, later dense work remains pending, and `drain` reports
-`EngineError::Scheduler` until that provider returns. Preserve and adapt the
+`EngineError::Scheduler` until that provider returns. At the selected default
+five, one hung call retains one slot while four other slots can make progress;
+five hung calls exhaust capacity. Preserve and adapt the
 valuable existing assertions for write liveness, no writer corruption, no late
 vector commit, finite threads, and recovery.
 

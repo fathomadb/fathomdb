@@ -278,8 +278,8 @@ Update or extend `projection_runtime.rs`, `pr9_embed_watchdog.rs`, and
 ### Intentional PR-9 oracle changes
 
 Replace the obsolete expectations that detached watchdog calls are abandoned
-and a session circuit breaker lets later work continue. Under the accepted
-default pool size one:
+and a session circuit breaker lets later work continue. Under an explicit
+pool size one:
 
 - a permanently hung provider occupies the only slot;
 - later dense work remains pending;
@@ -290,7 +290,9 @@ default pool size one:
 - the engine creates no unbounded detached threads.
 
 Retain a pool-size-two test showing one hung slot does not prevent the other
-slot from making bounded progress. Adapt the serialization test into exact
+slot from making bounded progress. The selected default five has the same
+fixed-slot rule: one hung call retains one slot, and five hung calls exhaust
+capacity. Adapt the serialization test into exact
 configured concurrency: peak one at size one and peak two at size two, never
 more than the configured pool.
 

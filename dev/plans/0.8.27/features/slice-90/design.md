@@ -395,8 +395,8 @@ mechanical disappearance as evidence.
 The breaker-open route is a separate fast-failure check, not a deadlock RED
 witness. Bound the mutant with a subprocess or cancellation-safe harness so
 Engine Drop cannot hang the test runner. Review the intentional PR-9 oracle
-delta: one hung default slot now leaves durable work pending and drain returns
-`Scheduler` until capacity recovers, instead of spending fabricated retries to
+delta: one hung explicit one-worker slot leaves durable work pending and drain
+returns `Scheduler` until capacity recovers, instead of spending fabricated retries to
 force terminal failure. Preserve write liveness, no late commit, finite thread
 counts and recovery tests; do not label this unchanged historical behavior.
 

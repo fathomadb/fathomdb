@@ -1376,6 +1376,29 @@ _KWARG_FIELDS = {
     "slow_threshold_ms",
 }
 
+_ENGINE_CONFIG_RANGES = {
+    "embedder_pool_size": (1, 64),
+    "scheduler_runtime_threads": (1, 64),
+    "provenance_row_cap": (0, 2**53 - 1),
+    "embedder_call_timeout_ms": (1, 2**32 - 1),
+    "slow_threshold_ms": (0, 2**53 - 1),
+}
+
+
+def _native_engine_config(config: EngineConfig) -> dict[str, int | None]:
+    if not isinstance(config, EngineConfig):
+        raise TypeError("config must be an EngineConfig")
+    native: dict[str, int | None] = {}
+    for name, (minimum, maximum) in _ENGINE_CONFIG_RANGES.items():
+        value = getattr(config, name)
+        if value is not None:
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"{name} must be an integer")
+            if not minimum <= value <= maximum:
+                raise ValueError(f"{name} must be in {minimum}..={maximum}")
+        native[name] = value
+    return native
+
 
 def _validate_ranked_result_limit(name: str, limit: object) -> int:
     """Return a public ranked-result limit or raise the SDK's typed error."""
@@ -1952,7 +1975,10 @@ class Engine:
             )
 
         resolved = config if config is not None else EngineConfig(**engine_config)
-        native = _NativeEngine.open(path, use_default_embedder=use_default_embedder)
+        native_config = _native_engine_config(resolved)
+        native = _NativeEngine.open(
+            path, use_default_embedder=use_default_embedder, config=native_config
+        )
         return cls(native, path=path, config=resolved)
 
     @property

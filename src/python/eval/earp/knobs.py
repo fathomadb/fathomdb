@@ -1,10 +1,8 @@
 """The knob catalog.
 
 Keyed on **whether a concrete SDK call path exists** -- never on whether a knob
-happens to be an `EngineConfig` field. Those are different questions, and
-conflating them writes a false statement about the SDK into a test:
-`slow_threshold_ms` is an `EngineConfig` field that `Engine.open` never
-forwards, yet it has its own live path and is therefore supported.
+happens to be an `EngineConfig` field. All five engine settings now reach native
+open; the slow threshold also retains its post-open setter.
 
 Completeness is asserted by two BOUNDED introspections -- over `EngineConfig`'s
 fields and over the search signatures -- each asserting coverage of a known
@@ -23,17 +21,14 @@ CATALOG: tuple[KnobEntry, ...] = (
         classification=KnobClass.SEMANTIC,
         call_path="Engine.open(use_default_embedder=)",
         witness="open_report.default_embedder",
-        reason="The only EngineConfig-adjacent setting that reaches native open.",
+        reason="Selects the pinned default embedder at native open.",
     ),
     KnobEntry(
         name="slow_threshold_ms",
         classification=KnobClass.RUNTIME,
-        call_path="Engine.set_slow_threshold_ms",
-        witness="open_report.slow_threshold_ms",
-        reason=(
-            "An EngineConfig field Engine.open never forwards, yet independently "
-            "supported through its own setter."
-        ),
+        call_path="Engine.open(config=).slow_threshold_ms",
+        witness="slow_operation_event",
+        reason="Open-time threshold and subsequent setter both reach native consumers.",
     ),
     KnobEntry(
         name="profiling",
@@ -44,31 +39,31 @@ CATALOG: tuple[KnobEntry, ...] = (
     ),
     KnobEntry(
         name="embedder_pool_size",
-        classification=KnobClass.UNSUPPORTED,
-        call_path=None,
-        witness=None,
-        reason="EngineConfig field; never forwarded to native open and no independent path.",
+        classification=KnobClass.RUNTIME,
+        call_path="Engine.open(config=).embedder_pool_size",
+        witness="embed_dispatch_capacity",
+        reason="Bounds engine-owned provider execution and waiting capacity.",
     ),
     KnobEntry(
         name="scheduler_runtime_threads",
-        classification=KnobClass.UNSUPPORTED,
-        call_path=None,
-        witness=None,
-        reason="EngineConfig field; never forwarded to native open and no independent path.",
+        classification=KnobClass.RUNTIME,
+        call_path="Engine.open(config=).scheduler_runtime_threads",
+        witness="projection_worker_connection_count",
+        reason="Selects projection workers and row admission capacity.",
     ),
     KnobEntry(
         name="provenance_row_cap",
-        classification=KnobClass.UNSUPPORTED,
-        call_path=None,
-        witness=None,
-        reason="EngineConfig field; never forwarded to native open and no independent path.",
+        classification=KnobClass.RUNTIME,
+        call_path="Engine.open(config=).provenance_row_cap",
+        witness="retained_provenance_rows",
+        reason="Controls provenance pruning; zero disables retention.",
     ),
     KnobEntry(
         name="embedder_call_timeout_ms",
-        classification=KnobClass.UNSUPPORTED,
-        call_path=None,
-        witness=None,
-        reason="EngineConfig field; never forwarded to native open and no independent path.",
+        classification=KnobClass.RUNTIME,
+        call_path="Engine.open(config=).embedder_call_timeout_ms",
+        witness="provider_deadline_outcome",
+        reason="Sets the absolute queue-plus-service provider deadline.",
     ),
     KnobEntry(
         name="rerank_depth",

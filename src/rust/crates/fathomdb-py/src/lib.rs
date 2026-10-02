@@ -64,7 +64,7 @@ use fathomdb_engine::{
     DependencySourceLookupV1, DependencyTraceDirectionV1 as RustDependencyTraceDirectionV1,
     DependencyTraceRequestV1 as RustDependencyTraceRequestV1, EmbedderChoice,
     EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
-    EngineError as RustEngineError, EngineOpenError,
+    EngineConfig as RustEngineConfig, EngineError as RustEngineError, EngineOpenError,
     EvidenceArtifactLifecycleV1 as RustEvidenceArtifactLifecycleV1,
     EvidenceContributionV1 as RustEvidenceContributionV1,
     EvidenceGraphOriginV1 as RustEvidenceGraphOriginV1,
@@ -114,7 +114,7 @@ use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyTypeError, PyValueError};
 use pyo3::panic::PanicException;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+use pyo3::types::{PyBool, PyDict, PyInt, PyList};
 
 // ===== Exceptions =====================================================
 //
@@ -2583,6 +2583,78 @@ fn embedder_event_to_py(py: Python<'_>, ev: &RustEmbedderEvent) -> Py<PyAny> {
 
 // ===== Engine =========================================================
 
+fn optional_engine_config_value(
+    config: &Bound<'_, PyDict>,
+    name: &str,
+    minimum: u64,
+    maximum: u64,
+) -> PyResult<Option<u64>> {
+    let Some(value) = config.get_item(name)? else {
+        return Ok(None);
+    };
+    if value.is_none() {
+        return Ok(None);
+    }
+    if value.is_instance_of::<PyBool>() || !value.is_instance_of::<PyInt>() {
+        return Err(PyTypeError::new_err(format!("{name} must be an integer")));
+    }
+    let integer = value
+        .extract::<i128>()
+        .map_err(|_| PyValueError::new_err(format!("{name} is outside the accepted range")))?;
+    if integer < i128::from(minimum) || integer > i128::from(maximum) {
+        return Err(PyValueError::new_err(format!("{name} must be in {minimum}..={maximum}")));
+    }
+    Ok(Some(integer as u64))
+}
+
+fn engine_config_from_py(config: Option<&Bound<'_, PyDict>>) -> PyResult<RustEngineConfig> {
+    let Some(config) = config else {
+        return Ok(RustEngineConfig::default());
+    };
+    for (key, _) in config.iter() {
+        let name = key
+            .extract::<String>()
+            .map_err(|_| PyTypeError::new_err("config keys must be strings"))?;
+        if !matches!(
+            name.as_str(),
+            "scheduler_runtime_threads"
+                | "embedder_pool_size"
+                | "embedder_call_timeout_ms"
+                | "provenance_row_cap"
+                | "slow_threshold_ms"
+        ) {
+            return Err(PyTypeError::new_err(format!("unknown engine config field: {name}")));
+        }
+    }
+    Ok(RustEngineConfig {
+        scheduler_runtime_threads: optional_engine_config_value(
+            config,
+            "scheduler_runtime_threads",
+            1,
+            64,
+        )?,
+        embedder_pool_size: optional_engine_config_value(config, "embedder_pool_size", 1, 64)?,
+        embedder_call_timeout_ms: optional_engine_config_value(
+            config,
+            "embedder_call_timeout_ms",
+            1,
+            u64::from(u32::MAX),
+        )?,
+        provenance_row_cap: optional_engine_config_value(
+            config,
+            "provenance_row_cap",
+            0,
+            (1_u64 << 53) - 1,
+        )?,
+        slow_threshold_ms: optional_engine_config_value(
+            config,
+            "slow_threshold_ms",
+            0,
+            (1_u64 << 53) - 1,
+        )?,
+    })
+}
+
 #[pyclass(module = "fathomdb._fathomdb", name = "Engine")]
 struct PyEngine {
     inner: Arc<RustEngine>,
@@ -2631,9 +2703,15 @@ impl PyWalSnapshotPause {
 #[pymethods]
 impl PyEngine {
     #[staticmethod]
-    #[pyo3(signature = (path, use_default_embedder = false))]
-    fn open(py: Python<'_>, path: String, use_default_embedder: bool) -> PyResult<Self> {
+    #[pyo3(signature = (path, use_default_embedder = false, config = None))]
+    fn open(
+        py: Python<'_>,
+        path: String,
+        use_default_embedder: bool,
+        config: Option<Bound<'_, PyDict>>,
+    ) -> PyResult<Self> {
         validate_ffi_string_py(&path)?;
+        let config = engine_config_from_py(config.as_ref())?;
         let opened = py
             .detach(|| {
                 catch_unwind(AssertUnwindSafe(|| {
@@ -2649,7 +2727,7 @@ impl PyEngine {
                     } else {
                         EmbedderChoice::None
                     };
-                    RustEngine::open_with_choice(path, choice)
+                    RustEngine::open_with_choice_and_config(path, choice, config)
                 }))
             })
             .map_err(|_| PanicException::new_err("engine panic during open"))?
@@ -5464,6 +5542,35 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn engine_config_from_py_preserves_each_requested_field_and_omission() {
+        Python::initialize();
+        Python::attach(|py| {
+            assert_eq!(engine_config_from_py(None).unwrap(), RustEngineConfig::default());
+            assert_eq!(
+                engine_config_from_py(Some(&PyDict::new(py))).unwrap(),
+                RustEngineConfig::default()
+            );
+
+            let requested = PyDict::new(py);
+            requested.set_item("scheduler_runtime_threads", 4).unwrap();
+            requested.set_item("embedder_pool_size", 3).unwrap();
+            requested.set_item("embedder_call_timeout_ms", 2_001).unwrap();
+            requested.set_item("provenance_row_cap", 0).unwrap();
+            requested.set_item("slow_threshold_ms", 7).unwrap();
+            assert_eq!(
+                engine_config_from_py(Some(&requested)).unwrap(),
+                RustEngineConfig {
+                    scheduler_runtime_threads: Some(4),
+                    embedder_pool_size: Some(3),
+                    embedder_call_timeout_ms: Some(2_001),
+                    provenance_row_cap: Some(0),
+                    slow_threshold_ms: Some(7),
+                }
+            );
+        });
+    }
+
     fn rewrite_schema_header(path: &std::path::Path, version: u32) {
         let mut bytes = std::fs::read(path).unwrap();
         bytes[60..64].copy_from_slice(&version.to_be_bytes());
@@ -5681,7 +5788,7 @@ mod tests {
         rewrite_schema_header(&path, 33);
 
         Python::attach(|py| {
-            let error = match PyEngine::open(py, path.to_string_lossy().into_owned(), false) {
+            let error = match PyEngine::open(py, path.to_string_lossy().into_owned(), false, None) {
                 Ok(_) => panic!("Python open must refuse schema 33"),
                 Err(error) => error,
             };

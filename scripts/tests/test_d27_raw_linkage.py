@@ -93,6 +93,19 @@ class RawLinkageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "raw metric mismatch"):
             verifier.verify_raw_linkage(receipt, PROTOCOL, self.raw_path)
 
+    def test_v2_report_only_swap_still_rejects_forged_delta(self):
+        protocol = json.loads((ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol-v2.json").read_text())
+        changed = copy.deepcopy(self.raw)
+        changed[0]["environment_samples"][0]["swap_pages_in"] = 65
+        changed[0]["environment_end"]["swap_pages_in"] = 129
+        self.raw_path.write_text("".join(json.dumps(item) + "\n" for item in changed))
+        receipt = copy.deepcopy(self.receipt)
+        receipt["per_repetition_metrics"]["projection_heavy"][0]["swap_pages_in_delta"] = 129
+        verifier.verify_raw_linkage(receipt, protocol, self.raw_path)
+        receipt["per_repetition_metrics"]["projection_heavy"][0]["swap_pages_in_delta"] = 128
+        with self.assertRaisesRegex(ValueError, "raw metric mismatch"):
+            verifier.verify_raw_linkage(receipt, protocol, self.raw_path)
+
     def test_complete_entry_and_candidate_accept_bounded_swap_with_aggregate_movement(self):
         protocol_path = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
         artifacts = {}
@@ -134,9 +147,9 @@ class RawLinkageTests(unittest.TestCase):
 
         candidate_raw = copy.deepcopy(self.raw)
         for item in candidate_raw:
-            item["configuration_observation"] = {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 1}
+            item["configuration_observation"] = {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 2}
             item["projection_admission_observation"] = {"source": "engine", "active_plus_queued_high_water": 4}
-            item["engine_thread_inventory"] = 12
+            item["engine_thread_inventory"] = 13
             item["connection_inventory"] = "live=writer:1,readers:8,dispatcher:1,workers:2,probes:0"
             item["embed_dispatch_events"] = []
             for index, operation in enumerate(item["operations"]):
@@ -247,11 +260,11 @@ class RawLinkageTests(unittest.TestCase):
 
     def test_candidate_cannot_use_unlinked_queue_numbers(self):
         raw = copy.deepcopy(self.raw[0])
-        raw["configuration_observation"] = {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 1}
+        raw["configuration_observation"] = {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 2}
         raw["projection_admission_high_water"] = 4
         raw["embed_requests_waiting_high_water"] = 0
         raw["embed_queue_wait_ns"] = [0]
-        raw["engine_thread_inventory"] = 12
+        raw["engine_thread_inventory"] = 13
         raw["connection_inventory"] = "live=writer:1,readers:8,dispatcher:1,workers:2,probes:0"
         with self.assertRaisesRegex(ValueError, "dispatch trace"):
             runner.summarize_raw(raw, "candidate")
@@ -290,9 +303,9 @@ class RawLinkageTests(unittest.TestCase):
 
     def test_candidate_dispatch_trace_is_derived_and_linked(self):
         raw = copy.deepcopy(self.raw[0])
-        raw["configuration_observation"] = {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 1}
+        raw["configuration_observation"] = {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 2}
         raw["projection_admission_observation"] = {"source": "engine", "active_plus_queued_high_water": 4}
-        raw["engine_thread_inventory"] = 12
+        raw["engine_thread_inventory"] = 13
         raw["connection_inventory"] = "live=writer:1,readers:8,dispatcher:1,workers:2,probes:0"
         events = []
         for index, operation in enumerate(raw["operations"]):

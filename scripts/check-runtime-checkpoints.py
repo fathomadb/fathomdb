@@ -31,7 +31,7 @@ SLICE90_RECEIPTS = {
     "code_review": SLICE90_EVIDENCE / "code-review.md",
     "verification": SLICE90_EVIDENCE / "review-verification.md",
 }
-MATRIX_CELLS = ("2/1", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
+MATRIX_CELLS = ("2/1", "2/5", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
 RELEASE_SELECTORS = (
     "AC-011a",
     "AC-011b",
@@ -48,6 +48,17 @@ RELEASE_SELECTORS = (
 INSTALLED_BINDINGS = ("Python", "Node")
 MATRIX_COMMAND_RE = re.compile(r"\b(?:cargo test|pytest|node|npm|python3?)\b")
 MATRIX_RESULT_RE = re.compile(r"\b[1-9][0-9]* passed\b")
+AC073_RECEIPT = SLICE90_EVIDENCE / "ac073-stress-receipt.json"
+AC073_EXECUTION = SLICE90_EVIDENCE / "ac073-execution.json"
+AC073_EU7 = SLICE90_EVIDENCE / "ac073-eu7.json"
+AC073_LOG = SLICE90_EVIDENCE / "ac073-run.log"
+AC073_COMMAND = (
+    "env CARGO_TARGET_DIR={bundle}/target AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
+    "EU7_LATENCY_SAMPLES=1000 EU7_STRESS_PER_THREAD=250 "
+    "FATHOMDB_EU7_OUTPUT={bundle}/eu7.json cargo test --release "
+    "-p fathomdb-engine --features operator,embed-cuda --test eu7_real_corpus_ac "
+    "eu7_real_corpus_ac_validation -- --exact --ignored --nocapture --test-threads=1"
+)
 
 
 class Validation:
@@ -292,6 +303,185 @@ class Validation:
         ):
             self.fail(location, f"{name} receipt lacks candidate-bound review evidence")
 
+    def validate_ac073_stress(self, location: str, evidence: str, candidate_sha: str) -> bool:
+        marker = re.fullmatch(
+            r"stress receipt=(\S+) sha256=([0-9a-f]{64}) "
+            r"combined-exit=101 AC-075=superseded-by-tc5",
+            evidence,
+        )
+        if marker is None or marker.group(1) != AC073_RECEIPT.as_posix():
+            self.fail(location, "AC-073 stress receipt marker invalid")
+            return False
+        receipt_path = self.safe_path(location, marker.group(1))
+        if receipt_path is None:
+            return False
+        try:
+            receipt_bytes = receipt_path.read_bytes()
+            receipt = json.loads(receipt_bytes)
+            if hashlib.sha256(receipt_bytes).hexdigest() != marker.group(2):
+                raise ValueError("receipt SHA-256 mismatch")
+            expected_keys = {
+                "schema_version", "candidate_sha", "selector_exit", "ac073_stress",
+                "ac075", "stress_p99_ms", "stress_bound_ms", "source_receipt",
+                "source_receipt_sha256", "raw_log", "raw_log_sha256",
+                "execution_manifest", "execution_manifest_sha256", "retained_ac075_result",
+            }
+            if not isinstance(receipt, dict) or set(receipt) != expected_keys:
+                raise ValueError("receipt shape mismatch")
+            if (
+                receipt["schema_version"] != "fathomdb.slice90-ac073-stress/v1"
+                or receipt["candidate_sha"] != candidate_sha
+                or type(receipt["selector_exit"]) is not int
+                or receipt["selector_exit"] != 101
+                or receipt["ac073_stress"] != "pass"
+                or receipt["ac075"] != "superseded-by-tc5"
+            ):
+                raise ValueError("candidate or combined selector outcome mismatch")
+            if (
+                receipt["source_receipt"] != AC073_EU7.as_posix()
+                or receipt["raw_log"] != AC073_LOG.as_posix()
+            ):
+                raise ValueError("raw evidence path mismatch")
+            eu7_path = self.safe_path(location, receipt["source_receipt"])
+            log_path = self.safe_path(location, receipt["raw_log"])
+            if eu7_path is None or log_path is None:
+                return False
+            eu7_bytes = eu7_path.read_bytes()
+            log_bytes = log_path.read_bytes()
+            if (
+                hashlib.sha256(eu7_bytes).hexdigest() != receipt["source_receipt_sha256"]
+                or hashlib.sha256(log_bytes).hexdigest() != receipt["raw_log_sha256"]
+            ):
+                raise ValueError("raw artifact SHA-256 mismatch")
+            eu7 = json.loads(eu7_bytes)
+            log = log_bytes.decode("utf-8")
+            config = eu7["config"]
+            stress = eu7["ac_019_real_dev_box"]
+            recall = eu7["ac_013b_real_dev_box"]
+            if (
+                config["n_values_requested"] != [7667]
+                or type(config["real_corpus_docs"]) is not int
+                or config["real_corpus_docs"] < 7667
+                or not isinstance(stress, list) or len(stress) != 1
+                or not isinstance(recall, list) or len(recall) != 1
+            ):
+                raise ValueError("EU7 corpus or result shape mismatch")
+            stress = stress[0]
+            recall = recall[0]
+            p99 = receipt["stress_p99_ms"]
+            bound = receipt["stress_bound_ms"]
+            if (
+                type(p99) is not int or type(bound) is not int
+                or p99 < 0 or bound <= 0 or p99 > bound
+                or stress.get("n") != 7667
+                or stress.get("padded_with_synthetic_distractors") is not False
+                or stress.get("passed") is not True
+                or stress.get("p99_ms") != p99
+                or stress.get("bound_ms") != bound
+            ):
+                raise ValueError("AC-073 stress metric or bound mismatch")
+            retained = receipt["retained_ac075_result"]
+            if (
+                not isinstance(retained, dict)
+                or set(retained) != {"verdict", "recall_at_10", "ci_95"}
+                or retained["verdict"] != "fail"
+                or retained["recall_at_10"] != recall.get("recall_at_10")
+                or retained["ci_95"] != [recall.get("ci_lo"), recall.get("ci_hi")]
+                or recall.get("passes_ci_gate_0_8_0_one_sided") is not False
+                or recall.get("ci_hi", 1) >= recall.get("current_floor_0_90", 0)
+            ):
+                raise ValueError("AC-075 superseded failure mismatch")
+            numbers = re.findall(r"^EU7_NUMBERS .*", log, flags=re.MULTILINE)
+            if (
+                len(numbers) != 1
+                or re.search(r"\bn=7667\b", numbers[0]) is None
+                or re.search(r"\bpadded=false\b", numbers[0]) is None
+                or re.search(rf"\bstress_p99_ms={p99}\b", numbers[0]) is None
+                or re.search(rf"\bstress_bound_ms={bound}\b", numbers[0]) is None
+                or re.search(r"\bac019=true\b", numbers[0]) is None
+                or "EU7_WROTE " not in log
+                or "AC-075 recall verdict" not in log
+                or "test result: FAILED. 0 passed; 1 failed" not in log
+                or "SKIP" in log
+            ):
+                raise ValueError("EU7 raw log does not retain AC-073 PASS and AC-075 failure")
+            if not self.validate_ac073_execution(location, receipt, candidate_sha, log):
+                return False
+        except (OSError, UnicodeError, ValueError, KeyError, TypeError, IndexError) as error:
+            self.fail(location, f"AC-073 stress receipt invalid: {error}")
+            return False
+        return True
+
+    def validate_ac073_execution(
+        self, location: str, receipt: dict, candidate_sha: str, log: str
+    ) -> bool:
+        if receipt["execution_manifest"] != AC073_EXECUTION.as_posix():
+            self.fail(location, "AC-073 execution manifest path mismatch")
+            return False
+        manifest_path = self.safe_path(location, receipt["execution_manifest"])
+        if manifest_path is None:
+            return False
+        try:
+            manifest_bytes = manifest_path.read_bytes()
+            if hashlib.sha256(manifest_bytes).hexdigest() != receipt["execution_manifest_sha256"]:
+                raise ValueError("manifest SHA-256 mismatch")
+            manifest = json.loads(manifest_bytes)
+            expected_keys = {
+                "schema_version", "candidate_sha", "pre_source_sha", "post_source_sha",
+                "pre_clean", "post_clean", "command", "selector_exit", "bundle_dir",
+                "binary_relative_path", "executed_binary_path", "binary_sha256",
+                "source_receipt_sha256", "raw_log_sha256",
+            }
+            if not isinstance(manifest, dict) or set(manifest) != expected_keys:
+                raise ValueError("manifest shape mismatch")
+            if (
+                manifest["schema_version"] != "fathomdb.slice90-ac073-execution/v1"
+                or any(manifest[key] != candidate_sha for key in
+                       ("candidate_sha", "pre_source_sha", "post_source_sha"))
+                or manifest["pre_clean"] is not True
+                or manifest["post_clean"] is not True
+                or type(manifest["selector_exit"]) is not int
+                or manifest["selector_exit"] != receipt["selector_exit"]
+                or manifest["source_receipt_sha256"] != receipt["source_receipt_sha256"]
+                or manifest["raw_log_sha256"] != receipt["raw_log_sha256"]
+            ):
+                raise ValueError("candidate, command, or raw artifact binding mismatch")
+            raw_bundle = manifest["bundle_dir"]
+            if not isinstance(raw_bundle, str) or not raw_bundle:
+                raise ValueError("bundle directory missing")
+            bundle = Path(raw_bundle)
+            if not bundle.is_absolute() or ".." in bundle.parts or bundle.resolve() != bundle:
+                raise ValueError("bundle directory must be canonical and absolute")
+            if manifest["command"] != AC073_COMMAND.format(bundle=bundle):
+                raise ValueError("candidate command binding mismatch")
+            relative = manifest["binary_relative_path"]
+            if (
+                not isinstance(relative, str)
+                or re.fullmatch(r"target/release/deps/eu7_real_corpus_ac-[A-Za-z0-9]+", relative)
+                is None
+            ):
+                raise ValueError("test executable path mismatch")
+            binary = bundle / relative
+            if not binary.is_file() or binary.is_symlink():
+                raise ValueError("sealed test executable missing")
+            digest = manifest["binary_sha256"]
+            if not isinstance(digest, str) or HASH_RE.fullmatch(digest) is None:
+                raise ValueError("test executable SHA-256 invalid")
+            if hashlib.sha256(binary.read_bytes()).hexdigest() != digest:
+                raise ValueError("sealed test executable SHA-256 mismatch")
+            executed = manifest["executed_binary_path"]
+            if (
+                not isinstance(executed, str)
+                or executed != str(binary)
+            ):
+                raise ValueError("executed test executable path differs from sealed binary")
+            if log.count(f"Running tests/eu7_real_corpus_ac.rs ({executed})") != 1:
+                raise ValueError("raw log does not identify sealed test executable")
+        except (OSError, UnicodeError, ValueError, KeyError, TypeError) as error:
+            self.fail(location, f"AC-073 execution invalid: {error}")
+            return False
+        return True
+
     def validate_performance(
         self, location: str, path: Path, candidate_sha: str
     ) -> None:
@@ -356,10 +546,16 @@ class Validation:
                     or columns[1] != "PASS"
                     or columns[2] != candidate_sha
                     or MATRIX_COMMAND_RE.search(columns[3]) is None
-                    or MATRIX_RESULT_RE.search(columns[4]) is None
+                    or (
+                        not (name == "AC-073" and columns[4].startswith("stress receipt="))
+                        and MATRIX_RESULT_RE.search(columns[4]) is None
+                    )
                 ):
                     self.fail(location, f"incomplete candidate-bound {label}: {name}")
                     continue
+                if name == "AC-073" and columns[4].startswith("stress receipt="):
+                    if not self.validate_ac073_stress(location, columns[4], candidate_sha):
+                        continue
                 seen.add(name)
             for name in names:
                 if name not in seen:
@@ -399,13 +595,13 @@ class Validation:
             self.fail(location, f"cannot parse D27 candidate receipt: {error}")
             return
         protocol_path = (
-            self.root / SLICE90_EVIDENCE / "d27-runtime-qualification-protocol.json"
+            self.root / SLICE90_EVIDENCE / "d27-runtime-qualification-protocol-v2.json"
         )
         if not protocol_path.is_file():
             protocol_path = (
                 Path(__file__).resolve().parents[1]
                 / SLICE90_EVIDENCE
-                / "d27-runtime-qualification-protocol.json"
+                / "d27-runtime-qualification-protocol-v2.json"
             )
         expected_protocol = hashlib.sha256(protocol_path.read_bytes()).hexdigest()
         if (

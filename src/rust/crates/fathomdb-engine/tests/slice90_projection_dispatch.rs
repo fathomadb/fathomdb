@@ -216,10 +216,19 @@ fn retained_batch_child() {
     let opened = Engine::open_with_choice_and_config(
         database,
         EmbedderChoice::Caller(embedder.clone()),
-        EngineConfig { embedder_call_timeout_ms: Some(50), ..EngineConfig::default() },
+        EngineConfig {
+            embedder_pool_size: Some(1),
+            embedder_call_timeout_ms: Some(50),
+            ..EngineConfig::default()
+        },
     )
     .expect("open");
     let engine = opened.engine;
+    assert_eq!(
+        engine.config().embedder_pool_size,
+        Some(1),
+        "retained-slot fixture uses one worker"
+    );
     engine.configure_vector_kind_for_test("doc").expect("vector kind");
     engine.set_projection_retry_delays_for_test(&[]);
     engine.set_projection_scheduler_frozen_for_test(true);

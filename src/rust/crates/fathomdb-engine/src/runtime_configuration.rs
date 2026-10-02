@@ -17,7 +17,7 @@ const MAX_SAFE_INTEGER: u64 = (1_u64 << 53) - 1;
 pub struct EngineConfig {
     /// Projection orchestration threads, `1..=64`; default `2`.
     pub scheduler_runtime_threads: Option<u64>,
-    /// Provider dispatch workers, `1..=64`; default `1`.
+    /// Provider dispatch workers, `1..=64`; default `5`.
     pub embedder_pool_size: Option<u64>,
     /// Absolute provider-call deadline in milliseconds, `1..=u32::MAX`; default `30_000`.
     pub embedder_call_timeout_ms: Option<u64>,
@@ -72,7 +72,7 @@ impl ResolvedRuntimeConfiguration {
             1,
             64,
         )?;
-        let embedder = checked_value("embedder_pool_size", requested.embedder_pool_size, 1, 1, 64)?;
+        let embedder = checked_value("embedder_pool_size", requested.embedder_pool_size, 5, 1, 64)?;
         let embedder_call_timeout_ms = checked_value(
             "embedder_call_timeout_ms",
             requested.embedder_call_timeout_ms,
@@ -160,7 +160,8 @@ mod tests {
     #[test]
     fn omission_and_explicit_zero_keep_their_distinct_meaning() {
         let default = ResolvedRuntimeConfiguration::resolve(&EngineConfig::default()).unwrap();
-        assert_eq!((default.scheduler_runtime_threads, default.embedder_pool_size), (2, 1));
+        assert_eq!((default.scheduler_runtime_threads, default.embedder_pool_size), (2, 5));
+        assert_eq!(default.embed_waiting_capacity, 20);
         assert_eq!(default.embedder_call_timeout_ms, 30_000);
         assert_eq!((default.provenance_row_cap, default.slow_threshold_ms), (1_000_000, 100));
         let zero = ResolvedRuntimeConfiguration::resolve(&EngineConfig {

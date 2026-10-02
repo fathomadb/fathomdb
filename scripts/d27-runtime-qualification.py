@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Validate D27 raw qualification receipts against the frozen protocol.
 
-The workload emitter is a separate Rust test so that the same source file can
-be compiled in the historical and candidate engine checkouts. This verifier
-never changes an observed value or treats unavailable entry metrics as zero.
+The workload emitter is a separate Rust test. This verifier never changes an
+observed value or treats unavailable entry metrics as zero.
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import importlib.util
 import json
@@ -19,6 +19,8 @@ import statistics
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
+PROTOCOL_V2 = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol-v2.json"
+LEGACY_PROTOCOL_SHA256 = "b835f79a426a038e3528a9cf820177876451a02c3defad7aa0c545ebf642441b"
 DIRECTIONS = ("projection_heavy", "foreground_heavy")
 HISTORICAL_ONLY = frozenset(("embed_queue_wait", "embed_requests_waiting"))
 
@@ -72,7 +74,7 @@ def verify_raw_linkage(receipt: dict, protocol: dict, raw_path: Path) -> None:
                 break
         require(direction is not None, "raw repetition order mismatch")
         runner.validate_raw_contract(item, protocol, direction, repetition, receipt["phase"])
-        by_direction[direction].append(runner.summarize_raw(item, receipt["phase"]))
+        by_direction[direction].append(runner.summarize_raw(item, receipt["phase"], protocol))
     for direction in DIRECTIONS:
         expected = receipt["per_repetition_metrics"][direction]
         require(by_direction[direction] == expected, f"raw metric mismatch: {direction}")
@@ -83,8 +85,14 @@ def validate_entry_for_candidate(entry: dict, protocol: dict, protocol_path: Pat
     require(artifacts is not None and set(artifacts) == {"runner", "binary", "corpus", "raw"} and all(isinstance(path, Path) for path in artifacts.values()), "entry artifacts are required")
     require(isinstance(entry, dict), "entry receipt is required")
     require(entry.get("phase") == "entry", "candidate comparison needs an entry receipt")
-    verify_raw_linkage(entry, protocol, artifacts["raw"])
-    validated = validate_receipt(entry, protocol, protocol_path, artifacts)
+    entry_protocol, entry_protocol_path = protocol, protocol_path
+    if protocol.get("schema_version") == 2:
+        require(entry.get("protocol_sha256") == LEGACY_PROTOCOL_SHA256,
+                "successor comparison requires strict original historical protocol")
+        entry_protocol_path = PROTOCOL
+        entry_protocol = json.loads(PROTOCOL.read_text())
+    verify_raw_linkage(entry, entry_protocol, artifacts["raw"])
+    validated = validate_receipt(entry, entry_protocol, entry_protocol_path, artifacts)
     require(entry.get("aggregate_metrics") == validated["aggregate_metrics"], "entry aggregate differs from raw recomputation")
     return validated
 
@@ -103,7 +111,21 @@ def validate_receipt(
     entry aggregate supplied as ``entry``.
     """
     require(protocol == json.loads(protocol_path.read_text()), "frozen protocol content mismatch")
-    require(protocol.get("schema_version") == 1, "unsupported protocol schema")
+    version = protocol.get("schema_version")
+    require(version in (1, 2), "unsupported protocol schema")
+    if version == 2:
+        require(protocol_path.resolve() == PROTOCOL_V2.resolve(), "unsupported successor protocol path")
+        require(sha256(PROTOCOL) == LEGACY_PROTOCOL_SHA256, "historical protocol changed")
+        legacy = json.loads(PROTOCOL.read_text())
+        stable, successor = copy.deepcopy(legacy), copy.deepcopy(protocol)
+        for value in (stable, successor):
+            value.pop("schema_version")
+            value.pop("swap_policy")
+            value["comparison_rule"].pop("invalid_environment")
+        require(stable == successor, "successor protocol changed a non-swap rule")
+        require(protocol["swap_policy"].get("mode") == "report_only" and
+                "max_total_pages_per_repetition" not in protocol["swap_policy"],
+                "unsupported successor swap policy")
     for name, field in (
         ("runner", "runner_sha256"),
         ("binary", "binary_sha256"),
@@ -112,6 +134,10 @@ def validate_receipt(
     ):
         require(receipt.get(field) == sha256(artifacts[name]), f"{field}: sha256 mismatch")
     require(receipt.get("protocol_sha256") == sha256(protocol_path), "protocol_sha256: sha256 mismatch")
+    if version == 2:
+        embedded_protocol = b"\n--PROTOCOL--\n" + protocol_path.read_bytes()
+        require(artifacts["runner"].read_bytes().endswith(embedded_protocol),
+                "runner bundle embedded protocol mismatch")
 
     phase = receipt.get("phase")
     require(phase in ("entry", "candidate"), "phase must be entry or candidate")
@@ -122,7 +148,12 @@ def validate_receipt(
         require(entry is not None and entry.get("status") == "PASS", "candidate requires validated PASS entry")
         require(receipt.get("source_sha") != protocol["entry_engine_candidate_sha"], "candidate must differ from entry candidate")
         require(receipt.get("corpus_sha256") == entry.get("corpus_sha256"), "candidate corpus sha256 mismatch")
-        require(receipt.get("protocol_sha256") == entry.get("protocol_sha256"), "candidate protocol sha256 mismatch")
+        if version == 2:
+            require(entry.get("protocol_sha256") == LEGACY_PROTOCOL_SHA256,
+                    "candidate historical protocol sha256 mismatch")
+        else:
+            require(receipt.get("protocol_sha256") == entry.get("protocol_sha256"),
+                    "candidate protocol sha256 mismatch")
         require(not receipt.get("historical_unavailable"), "candidate cannot mark dispatch metrics unavailable")
 
     runner = receipt.get("runner_inventory", {})
@@ -161,7 +192,8 @@ def validate_receipt(
                 value = run.get(key)
                 require(isinstance(value, int) and not isinstance(value, bool) and value >= 0, f"{label} {key}: missing or negative")
                 swap_deltas.append(value)
-            require(sum(swap_deltas) <= protocol["swap_policy"]["max_total_pages_per_repetition"], f"{label}: combined swap movement exceeds cap")
+            if version == 1:
+                require(sum(swap_deltas) <= protocol["swap_policy"]["max_total_pages_per_repetition"], f"{label}: combined swap movement exceeds cap")
             for count in metrics["counts"]:
                 number(run.get("counts", {}).get(count), f"{label} {count}")
             for high_water in metrics["high_water"]:

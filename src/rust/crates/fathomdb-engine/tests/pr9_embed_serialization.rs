@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::ProjectionStatus;
-use fathomdb_engine::{Engine, PreparedWrite};
+use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, PreparedWrite};
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
@@ -61,14 +61,19 @@ fn fixture_path(name: &str) -> (TempDir, std::path::PathBuf) {
     (dir, path)
 }
 
-/// The default provider pool has one slot even with two projection workers.
+/// A configured one-slot provider pool serializes two projection workers.
 #[test]
-fn default_provider_pool_has_one_active_slot() {
+fn one_slot_provider_pool_has_one_active_call() {
     let (_dir, path) = fixture_path("pr9_serialize");
     let max_in_flight = Arc::new(AtomicUsize::new(0));
     let embedder =
         Arc::new(ConcurrencyProbeEmbedder::new(max_in_flight.clone(), Duration::from_millis(50)));
-    let opened = Engine::open_with_embedder_for_test(&path, embedder).expect("open");
+    let opened = Engine::open_with_choice_and_config(
+        &path,
+        EmbedderChoice::Caller(embedder),
+        EngineConfig { embedder_pool_size: Some(1), ..EngineConfig::default() },
+    )
+    .expect("open");
     let engine = opened.engine;
     engine.configure_vector_kind_for_test("doc").expect("vector kind");
 

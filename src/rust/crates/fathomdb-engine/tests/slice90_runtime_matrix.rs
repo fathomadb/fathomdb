@@ -75,8 +75,11 @@ fn release(provider: &HeldEmbedder) {
 fn engine_threads() -> BTreeMap<&'static str, usize> {
     let mut counts = BTreeMap::from([("embed", 0), ("projection", 0), ("reader", 0)]);
     for task in std::fs::read_dir("/proc/self/task").expect("task inventory") {
-        let name =
-            std::fs::read_to_string(task.expect("task").path().join("comm")).expect("thread name");
+        let name = match std::fs::read_to_string(task.expect("task").path().join("comm")) {
+            Ok(name) => name,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => panic!("thread name: {error}"),
+        };
         let role = if name.starts_with("fathomdb-embed") {
             Some("embed")
         } else if name.starts_with("fathomdb-projec") {
@@ -179,6 +182,67 @@ fn document() -> PreparedWrite {
         valid_from: None,
         valid_until: None,
     }
+}
+
+#[test]
+fn default_engine_has_exact_five_worker_resources_and_twenty_waiting_slots() {
+    let _lock = MATRIX_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let dir = TempDir::new().expect("directory");
+    let path = dir.path().join("default-2-5.sqlite");
+    let baseline = engine_threads();
+    let (embedder, entered) = provider();
+    let opened = Engine::open_with_choice_and_config(
+        &path,
+        EmbedderChoice::Caller(embedder.clone()),
+        EngineConfig::default(),
+    )
+    .expect("default real-engine open");
+    let engine = Arc::new(opened.engine);
+    assert_eq!(engine.config(), &EngineConfig::default());
+    await_threads(&expected_threads(&baseline, 2, 5));
+    assert_live_connections(&engine, 2);
+
+    engine.begin_d27_observation_for_test(Instant::now());
+    let mut callers = Vec::new();
+    for index in 0..5 {
+        let foreground = Arc::clone(&engine);
+        callers.push(thread::spawn(move || foreground.embed_text(&format!("active-{index}"))));
+    }
+    for _ in 0..5 {
+        entered.recv_timeout(Duration::from_secs(2)).expect("default provider entered");
+    }
+    assert_eq!(embedder.peak.load(Ordering::SeqCst), 5);
+    for index in 0..20 {
+        let foreground = Arc::clone(&engine);
+        callers.push(thread::spawn(move || foreground.embed_text(&format!("waiting-{index}"))));
+    }
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        let observed = engine.d27_observation_for_test().expect("engine observation");
+        let waiting = observed
+            .embed_dispatch_events
+            .iter()
+            .filter(|event| event.queued && event.started_ns.is_none())
+            .count();
+        if waiting == 20 {
+            assert_eq!(observed.configuration_observation.source, "engine");
+            assert_eq!(observed.configuration_observation.scheduler_runtime_threads, 2);
+            assert_eq!(observed.configuration_observation.embedder_pool_size, 5);
+            break;
+        }
+        assert!(Instant::now() < deadline, "default waiting capacity: expected 20, got {waiting}");
+        thread::sleep(Duration::from_millis(10));
+    }
+    assert!(matches!(engine.embed_text("overflow"), Err(EngineError::Overloaded)));
+    release(&embedder);
+    for caller in callers {
+        assert!(
+            matches!(caller.join().expect("caller"), Ok(vector) if vector == [1.0; DIMENSION as usize])
+        );
+    }
+    engine.close().expect("default close");
+    await_threads(&baseline);
+    await_database_descriptors(&path, 0);
 }
 
 #[test]

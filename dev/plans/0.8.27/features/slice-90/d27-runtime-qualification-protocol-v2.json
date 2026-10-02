@@ -1,0 +1,118 @@
+{
+  "schema_version": 2,
+  "release": "0.8.27",
+  "slice": 90,
+  "entry_engine_candidate_sha": "7a2f9bf90783f545603516502bac0016d4b93a14",
+  "runner": {
+    "host": "windchill3",
+    "host_pid_namespace": "pid:[4026531836]",
+    "host_pid_one_comm": "systemd",
+    "pid_one_namespace_link_policy": "the PID 1 namespace link may be blank when host procfs returns no target or denies readlink with EACCES/EPERM, but a nonblank link must match host_pid_namespace; self host namespace, PID 1 /proc and ps identity, runner PID corroboration, and unrestricted procfs are all mandatory; missing PID 1 identity remains invalid",
+    "operating_system": "Linux x86_64",
+    "minimum_online_cpus": 8,
+    "minimum_memory_gib": 16,
+    "database_storage": "local NVMe",
+    "cpu_governor": "performance",
+    "competing_process_policy": "no build, test, evaluation, model-serving, or database workload during a repetition",
+    "build": "cargo test --release",
+    "features": ["test-hooks"]
+  },
+  "swap_policy": {
+    "counter_source": "host /proc/vmstat pswpin and pswpout (pages)",
+    "mode": "report_only",
+    "rule": "within each entire child repetition, both counters must be present, nonnegative and monotonic at every sample; retain both start-to-end deltas in raw-linked per-repetition metrics; host-wide movement is reported and does not by itself invalidate a repetition",
+    "scope": "from the runner observation immediately before each workload child starts through the observation immediately after it exits, including corpus seed/setup, warmup, measurement, drain and close; compilation and corpus generation outside the child are excluded; no prior invalid attempt is promoted"
+  },
+  "fixture": {
+    "generator": "d27_runtime_qualification_v1",
+    "seed": "0xd02790c0ffee0001",
+    "initial_canonical_nodes": 10000,
+    "body_bytes": 512,
+    "vocabulary_size": 1024,
+    "vector_dimension": 384,
+    "provider_service_time_ms": 2,
+    "provider_result": "deterministic unit-normalized vector derived from FNV-1a(input, seed)",
+    "corpus_identity": "the entry run records sha256 over newline-delimited canonical generated records; every checkpoint/final run must match that sha256 byte-for-byte"
+  },
+  "execution": {
+    "warmup_seconds": 10,
+    "measurement_seconds": 60,
+    "repetitions": 3,
+    "repetition_order": [
+      "entry_projection_heavy_1",
+      "entry_foreground_heavy_1",
+      "entry_projection_heavy_2",
+      "entry_foreground_heavy_2",
+      "entry_projection_heavy_3",
+      "entry_foreground_heavy_3"
+    ],
+    "checkpoint_and_final_order": "identical to entry with entry_ replaced by candidate_",
+    "operation_epoch_size": 10,
+    "projection_heavy_epoch": {
+      "canonical_writes": 4,
+      "foreground_hybrid_queries": 4,
+      "direct_embeds": 2
+    },
+    "foreground_heavy_epoch": {
+      "canonical_writes": 1,
+      "foreground_hybrid_queries": 7,
+      "direct_embeds": 2
+    },
+    "client_concurrency": {
+      "canonical_writes": 1,
+      "foreground_hybrid_queries": 4,
+      "direct_embeds": 1
+    },
+    "stop_rule": "after 60 seconds, stop admission at the next completed 10-operation epoch and drain accepted work"
+  },
+  "metrics": {
+    "throughput_rates_per_second": [
+      "canonical_commits",
+      "projection_completions",
+      "foreground_hybrid_queries",
+      "direct_embeds"
+    ],
+    "latency_percentiles": [50, 95, 99],
+    "latency_classes": ["canonical_commit", "projection_freshness", "foreground_hybrid_query", "direct_embed", "close"],
+    "candidate_only_latency_classes": ["embed_queue_wait"],
+    "counts": ["admitted", "completed", "timed_out", "overloaded", "provider_error", "invalid_vector", "panic"],
+    "high_water": ["projection_rows_active_plus_queued", "embed_requests_waiting", "durable_projection_backlog"],
+    "inventory": ["provider_concurrency", "engine_threads", "sqlite_connections", "residual_workers_after_close"],
+    "historical_unavailable": ["embed_queue_wait", "embed_requests_waiting", "fixed_embed_workers", "embed_dispatch_admission", "embed_dispatch_deadline", "embed_dispatch_cancellation", "sqlite_connections"],
+    "environment": ["binary_sha256", "protocol_sha256", "corpus_sha256", "rustc", "kernel", "cpu_model", "online_cpus", "cpu_governor", "memory_available", "load_average", "swap_pages_in", "swap_pages_out", "pid_namespace", "pid_one_namespace", "pid_one_comm", "ps_pid_one_comm", "procfs_hidepid", "runner_pid", "proc_self_pid", "ps_self_pid", "competing_processes", "database_device"]
+  },
+  "starvation_rule": {
+    "window_seconds": 5,
+    "rule": "while a class has admitted unfinished work, every non-overlapping five-second window must contain at least one completion for canonical writes, projections, foreground queries, and direct embeds; both workload directions must pass"
+  },
+  "comparison_rule": {
+    "center": "median of three repetitions",
+    "noise": "entry_MAD = median(abs(entry_repetition_value - entry_median)) across the three entry repetitions",
+    "evaluation_scope": "compare each named throughput rate and each shared latency class/percentile independently within projection_heavy and foreground_heavy; candidate-only dispatch and resource metrics are mandatory correctness evidence, never entry comparisons; no metric or direction may offset another",
+    "throughput_floor": "for each throughput rate and direction: candidate_median >= entry_median - max(0.10 * entry_median, 3 * entry_MAD)",
+    "latency_ceiling": "for each latency class, percentile, and direction: candidate_median <= entry_median + max(0.15 * entry_median, 3 * entry_MAD)",
+    "precision": "derive rates and latency values from raw monotonic nanoseconds as binary64 values; do not round before evaluating a comparison",
+    "hard_requirements": [
+      "all pre-existing acceptance thresholds pass unchanged",
+      "the starvation rule passes in both directions",
+      "queue and projection admission never exceed the accepted configuration-derived bounds",
+      "thread and SQLite inventories equal the accepted configuration-derived counts",
+      "close leaves zero engine-owned residual workers except a contractually reported hung provider call with no database ownership"
+    ],
+    "invalid_environment": "any runner mismatch, corpus/protocol hash mismatch, process monitor outside host PID namespace or without unrestricted host /proc visibility including matching runner PID in /proc/self and ps, non-performance governor, competing workload, missing/nonmonotonic swap counter within a repetition, or missing applicable raw metric invalidates that repetition rather than counting as pass or fail; historical_unavailable metrics are explicitly unavailable at entry, never imputed as zero"
+  },
+  "required_receipt_fields": [
+    "source_sha",
+    "binary_sha256",
+    "protocol_sha256",
+    "corpus_sha256",
+    "raw_output_sha256",
+    "runner_inventory",
+    "environment_start",
+    "environment_end",
+    "per_repetition_metrics",
+    "aggregate_metrics",
+    "decision_rule_evaluation",
+    "status"
+  ]
+}

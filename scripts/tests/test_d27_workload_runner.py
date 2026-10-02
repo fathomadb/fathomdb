@@ -10,6 +10,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "d27-runtime-runner.py"
 PROTOCOL = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
+PROTOCOL_V2 = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol-v2.json"
 spec = importlib.util.spec_from_file_location("d27_runtime_runner", SCRIPT)
 runner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
@@ -32,6 +33,11 @@ class D27RunnerTests(unittest.TestCase):
             self.assertTrue(all(len(row["body"].encode()) == 512 for row in rows))
             self.assertEqual(len({word for row in rows for word in row["body"].split()}), 1024)
 
+    def test_v2_runner_bundle_contains_exact_selected_protocol_bytes(self):
+        bundled = runner.runner_bundle_bytes(PROTOCOL_V2)
+        self.assertIn(b"\n--PROTOCOL--\n" + PROTOCOL_V2.read_bytes(), bundled)
+        self.assertNotIn(b"\n--PROTOCOL--\n" + PROTOCOL.read_bytes(), bundled)
+
     def test_order_and_ratios_are_not_silently_changed(self):
         expected = self.protocol["execution"]["repetition_order"]
         self.assertEqual(runner.repetition_order(self.protocol, "entry"), expected)
@@ -46,13 +52,26 @@ class D27RunnerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "warmup"):
             runner.validate_raw_contract(raw, self.protocol, "projection_heavy", 1)
 
-    def test_candidate_requires_default_resolved_worker_pair(self):
+    def test_candidate_requires_engine_observed_default_sweep_pair(self):
         raw = {"direction": "projection_heavy", "repetition": 1, "warmup_seconds": 10,
                "measurement_seconds": 60, "epoch_size": 10,
                "operation_counts": {"canonical_writes": 4, "foreground_hybrid_queries": 4, "direct_embeds": 2},
-               "configuration_observation": {"source": "engine", "scheduler_runtime_threads": 4, "embedder_pool_size": 4}}
-        with self.assertRaisesRegex(ValueError, "default.*2/1"):
-            runner.validate_raw_contract(raw, self.protocol, "projection_heavy", 1, "candidate")
+               "configuration_observation": {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 2}}
+        for workers in (2, 64):
+            with self.subTest(workers=workers):
+                raw["configuration_observation"]["embedder_pool_size"] = workers
+                runner.validate_raw_contract(raw, self.protocol, "projection_heavy", 1, "candidate")
+        for observation in (
+            {"source": "engine", "scheduler_runtime_threads": 4, "embedder_pool_size": 2},
+            {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 1},
+            {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 65},
+            {"source": "engine", "scheduler_runtime_threads": 2},
+            {"source": "caller", "scheduler_runtime_threads": 2, "embedder_pool_size": 2},
+            {"source": "engine", "scheduler_runtime_threads": True, "embedder_pool_size": 2},
+        ):
+            with self.subTest(observation=observation), self.assertRaisesRegex(ValueError, "candidate configuration"):
+                raw["configuration_observation"] = observation
+                runner.validate_raw_contract(raw, self.protocol, "projection_heavy", 1, "candidate")
 
     def test_candidate_trace_rejects_missing_duplicate_and_unowned_requests(self):
         raw = {"operations": [

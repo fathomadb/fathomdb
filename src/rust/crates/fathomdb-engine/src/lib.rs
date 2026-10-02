@@ -669,6 +669,7 @@ pub struct Engine {
     #[cfg(feature = "test-hooks")]
     erasure_before_primary_lock_hook: Mutex<Option<Box<dyn Fn() + Send>>>,
     closed: AtomicBool,
+    close_lock: Mutex<()>,
     lock: Mutex<Option<File>>,
     connection: Mutex<Option<Connection>>,
     reader_pool: ReaderWorkerPool,
@@ -770,8 +771,135 @@ impl Drop for OpenEmbedDispatchGuard {
     fn drop(&mut self) {
         if let Some(dispatch) = self.0.take() {
             dispatch.close();
-            let _ = dispatch.join_until(Instant::now() + Duration::from_secs(30));
+            let _ = dispatch.join_after_quiescence();
         }
+    }
+}
+
+struct OpenPostProbeGuard {
+    connection: Option<Connection>,
+    readers: Option<Vec<Connection>>,
+    projection_runtime: Option<ProjectionRuntime>,
+    #[allow(clippy::vec_box)]
+    profile_contexts: Vec<Box<ProfileContext>>,
+    lock: Option<File>,
+    #[cfg(any(test, feature = "test-hooks"))]
+    writer_registration: Option<ManagedConnectionRegistration>,
+    embed_dispatch: Arc<EmbedDispatcher>,
+    #[cfg(test)]
+    profile_release_observer: Option<Arc<ProfileReleaseObserver>>,
+}
+
+struct OpenPostProbeParts {
+    connection: Connection,
+    readers: Vec<Connection>,
+    projection_runtime: ProjectionRuntime,
+    profile_contexts: ProfileContexts,
+    lock: File,
+    #[cfg(any(test, feature = "test-hooks"))]
+    writer_registration: ManagedConnectionRegistration,
+}
+
+impl OpenPostProbeGuard {
+    fn new(
+        connection: Connection,
+        readers: Vec<Connection>,
+        lock: File,
+        embed_dispatch: Arc<EmbedDispatcher>,
+    ) -> Self {
+        Self {
+            connection: Some(connection),
+            readers: Some(readers),
+            projection_runtime: None,
+            profile_contexts: Vec::new(),
+            lock: Some(lock),
+            #[cfg(any(test, feature = "test-hooks"))]
+            writer_registration: None,
+            embed_dispatch,
+            #[cfg(test)]
+            profile_release_observer: None,
+        }
+    }
+
+    fn connection(&self) -> &Connection {
+        self.connection.as_ref().expect("open writer connection")
+    }
+
+    fn install_profiles(
+        &mut self,
+        subscribers: &Arc<lifecycle::SubscriberRegistry>,
+        profiling_enabled: &Arc<AtomicBool>,
+        slow_threshold_ms: &Arc<AtomicU64>,
+    ) {
+        install_profile_callback(
+            self.connection.as_ref().expect("open writer connection"),
+            subscribers,
+            profiling_enabled,
+            slow_threshold_ms,
+            &mut self.profile_contexts,
+        );
+        for reader in self.readers.as_ref().expect("open readers") {
+            install_profile_callback(
+                reader,
+                subscribers,
+                profiling_enabled,
+                slow_threshold_ms,
+                &mut self.profile_contexts,
+            );
+        }
+    }
+
+    fn into_parts(mut self) -> OpenPostProbeParts {
+        #[cfg(test)]
+        let profile_contexts = ProfileContexts::from(std::mem::take(&mut self.profile_contexts));
+        #[cfg(not(test))]
+        let profile_contexts = std::mem::take(&mut self.profile_contexts);
+        OpenPostProbeParts {
+            connection: self.connection.take().expect("open writer connection"),
+            readers: self.readers.take().expect("open readers"),
+            projection_runtime: self.projection_runtime.take().expect("open projection runtime"),
+            profile_contexts,
+            lock: self.lock.take().expect("open admission lock"),
+            #[cfg(any(test, feature = "test-hooks"))]
+            writer_registration: self.writer_registration.take().expect("writer registration"),
+        }
+    }
+}
+
+impl Drop for OpenPostProbeGuard {
+    fn drop(&mut self) {
+        if self.connection.is_none() {
+            return;
+        }
+        self.embed_dispatch.close();
+        if let Some(runtime) = self.projection_runtime.take() {
+            runtime.stop();
+        }
+        if let Some(readers) = self.readers.as_ref() {
+            for reader in readers {
+                uninstall_profile_callback(reader);
+            }
+        }
+        self.readers.take();
+        if let Some(connection) = self.connection.as_ref() {
+            uninstall_profile_callback(connection);
+        }
+        self.connection.take();
+        #[cfg(any(test, feature = "test-hooks"))]
+        self.writer_registration.take();
+        #[cfg(test)]
+        if let Some(observer) = self.profile_release_observer.take() {
+            let mut contexts = ProfileContexts {
+                contexts: std::mem::take(&mut self.profile_contexts),
+                observer: Some(observer),
+            };
+            contexts.clear();
+        } else {
+            self.profile_contexts.clear();
+        }
+        #[cfg(not(test))]
+        self.profile_contexts.clear();
+        self.lock.take();
     }
 }
 
@@ -1208,6 +1336,80 @@ struct AdmissionLockedHookForTest {
 
 #[cfg(test)]
 static ADMISSION_LOCKED_HOOK_FOR_TEST: Mutex<Option<AdmissionLockedHookForTest>> = Mutex::new(None);
+
+#[cfg(test)]
+struct PostProbeStartupFaultForTest {
+    path: PathBuf,
+    observed: std::sync::mpsc::Sender<PostProbeStartupObservationForTest>,
+}
+
+#[cfg(test)]
+struct PostProbeStartupObservationForTest {
+    accounting: embed_dispatch::DispatchAccounting,
+    registry: Arc<ManagedConnectionRegistry>,
+    profiles_at_fault: usize,
+    profile_releases: Arc<ProfileReleaseObserver>,
+}
+
+#[cfg(test)]
+static POST_PROBE_STARTUP_FAULT_FOR_TEST: Mutex<Option<PostProbeStartupFaultForTest>> =
+    Mutex::new(None);
+
+#[cfg(test)]
+struct PostProbeVisibilityFaultForTest {
+    path: PathBuf,
+    observed: std::sync::mpsc::Sender<(
+        embed_dispatch::DispatchAccounting,
+        Arc<ManagedConnectionRegistry>,
+    )>,
+}
+
+#[cfg(test)]
+static POST_PROBE_VISIBILITY_FAULT_FOR_TEST: Mutex<Option<PostProbeVisibilityFaultForTest>> =
+    Mutex::new(None);
+
+#[cfg(test)]
+fn install_post_probe_visibility_fault_for_test(
+    path: PathBuf,
+    observed: std::sync::mpsc::Sender<(
+        embed_dispatch::DispatchAccounting,
+        Arc<ManagedConnectionRegistry>,
+    )>,
+) {
+    *POST_PROBE_VISIBILITY_FAULT_FOR_TEST.lock().expect("visibility fault hook lock") =
+        Some(PostProbeVisibilityFaultForTest { path, observed });
+}
+
+#[cfg(test)]
+fn take_post_probe_visibility_fault_for_test(
+    path: &Path,
+) -> Option<PostProbeVisibilityFaultForTest> {
+    let mut hook = POST_PROBE_VISIBILITY_FAULT_FOR_TEST.lock().expect("visibility fault hook lock");
+    if hook.as_ref().is_some_and(|candidate| candidate.path == path) {
+        hook.take()
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+fn install_post_probe_startup_fault_for_test(
+    path: PathBuf,
+    observed: std::sync::mpsc::Sender<PostProbeStartupObservationForTest>,
+) {
+    *POST_PROBE_STARTUP_FAULT_FOR_TEST.lock().expect("startup fault hook lock") =
+        Some(PostProbeStartupFaultForTest { path, observed });
+}
+
+#[cfg(test)]
+fn take_post_probe_startup_fault_for_test(path: &Path) -> Option<PostProbeStartupFaultForTest> {
+    let mut hook = POST_PROBE_STARTUP_FAULT_FOR_TEST.lock().expect("startup fault hook lock");
+    if hook.as_ref().is_some_and(|candidate| candidate.path == path) {
+        hook.take()
+    } else {
+        None
+    }
+}
 
 #[cfg(test)]
 fn install_admission_locked_hook_for_test(path: PathBuf, rendezvous: Arc<Barrier>) {
@@ -3004,10 +3206,13 @@ impl Engine {
                 report.dense_disabled = veq.dense_disabled;
                 report.dense_disabled_reason = veq.reason.clone();
 
+                let mut startup =
+                    OpenPostProbeGuard::new(connection, readers, lock, Arc::clone(&embed_dispatch));
+
                 let dense_runtime_usable =
                     usable_dense_runtime(runtime_embedder.as_deref(), veq.dense_disabled);
                 let boot_graft_enqueued = if dense_runtime_usable {
-                    boot_graft_declared_vector_backfill(&connection).map_err(|_| {
+                    boot_graft_declared_vector_backfill(startup.connection()).map_err(|_| {
                         EngineOpenError::Io {
                             message: "could not graft declared vector projection on boot"
                                 .to_string(),
@@ -3017,22 +3222,40 @@ impl Engine {
                     false
                 };
 
-                let next_cursor = load_next_cursor(&connection);
-                let read_visibility_generation =
-                    frozen_read::load_visibility_generation(&connection).map_err(|_| {
-                        EngineOpenError::Io {
-                            message: "could not load frozen-read visibility generation".to_string(),
-                        }
-                    })?;
+                let next_cursor = load_next_cursor(startup.connection());
+                #[cfg(test)]
+                if let Some(fault) = take_post_probe_visibility_fault_for_test(&canonical_path) {
+                    startup.embed_dispatch.set_drain_budget_ms_for_test(40);
+                    startup
+                        .connection()
+                        .execute_batch(
+                            "DELETE FROM _fathomdb_read_visibility_state WHERE singleton=1",
+                        )
+                        .expect("inject missing visibility singleton");
+                    fault
+                        .observed
+                        .send((
+                            startup.embed_dispatch.accounting().expect("provider accounting"),
+                            Arc::clone(&managed_connections),
+                        ))
+                        .expect("report visibility fault");
+                }
+                let read_visibility_generation = frozen_read::load_visibility_generation(
+                    startup.connection(),
+                )
+                .map_err(|_| EngineOpenError::Io {
+                    message: "could not load frozen-read visibility generation".to_string(),
+                })?;
                 let subscribers = Arc::new(lifecycle::SubscriberRegistry::new());
                 let profiling_enabled = Arc::new(AtomicBool::new(false));
                 let slow_threshold_ms = Arc::new(AtomicU64::new(resolved_config.slow_threshold_ms));
                 let wal_attribution = Arc::new(WalAttributionCollector::new());
                 wal_attribution.register(WalAttributionRole::Writer, 0);
                 #[cfg(any(test, feature = "test-hooks"))]
-                let writer_connection_registration =
-                    managed_connections.register(WalAttributionRole::Writer, 0);
-                let mut profile_contexts: Vec<Box<ProfileContext>> = Vec::new();
+                {
+                    startup.writer_registration =
+                        Some(managed_connections.register(WalAttributionRole::Writer, 0));
+                }
                 let scheduler_embedder =
                     if dense_runtime_usable { runtime_embedder.clone() } else { None };
                 let projection_runtime = ProjectionRuntime::new(
@@ -3047,26 +3270,34 @@ impl Engine {
                     #[cfg(any(test, feature = "test-hooks"))]
                     Arc::clone(&managed_connections),
                 )?;
-
-                install_profile_callback(
-                    &connection,
-                    &subscribers,
-                    &profiling_enabled,
-                    &slow_threshold_ms,
-                    &mut profile_contexts,
-                );
-                for reader in &readers {
-                    install_profile_callback(
-                        reader,
-                        &subscribers,
-                        &profiling_enabled,
-                        &slow_threshold_ms,
-                        &mut profile_contexts,
-                    );
-                }
+                startup.projection_runtime = Some(projection_runtime);
+                startup.install_profiles(&subscribers, &profiling_enabled, &slow_threshold_ms);
 
                 #[cfg(test)]
-                let profile_contexts = ProfileContexts::from(profile_contexts);
+                if let Some(fault) = take_post_probe_startup_fault_for_test(&canonical_path) {
+                    embed_dispatch.set_drain_budget_ms_for_test(40);
+                    let profile_releases = Arc::new(ProfileReleaseObserver {
+                        registry: Arc::clone(&managed_connections),
+                        live_workers: Arc::new(AtomicUsize::new(0)),
+                        releases: Mutex::new(Vec::new()),
+                        custody: Mutex::new(Vec::new()),
+                    });
+                    fault
+                        .observed
+                        .send(PostProbeStartupObservationForTest {
+                            accounting: embed_dispatch.accounting().expect("provider accounting"),
+                            registry: Arc::clone(&managed_connections),
+                            profiles_at_fault: startup.profile_contexts.len(),
+                            profile_releases: Arc::clone(&profile_releases),
+                        })
+                        .expect("report injected startup fault");
+                    startup.profile_release_observer = Some(profile_releases);
+                    return Err(EngineOpenError::Io {
+                        message: "injected post-probe startup failure".to_owned(),
+                    });
+                }
+
+                let parts = startup.into_parts();
                 let opened = OpenedEngine {
                     engine: Self {
                         path: canonical_path.clone(),
@@ -3089,10 +3320,11 @@ impl Engine {
                         #[cfg(feature = "test-hooks")]
                         erasure_before_primary_lock_hook: Mutex::new(None),
                         closed: AtomicBool::new(false),
-                        lock: Mutex::new(Some(lock)),
-                        connection: Mutex::new(Some(connection)),
+                        close_lock: Mutex::new(()),
+                        lock: Mutex::new(Some(parts.lock)),
+                        connection: Mutex::new(Some(parts.connection)),
                         reader_pool: ReaderWorkerPool::new(
-                            readers,
+                            parts.readers,
                             Arc::clone(&wal_attribution),
                             #[cfg(any(test, feature = "test-hooks"))]
                             Arc::clone(&managed_connections),
@@ -3104,20 +3336,18 @@ impl Engine {
                         runtime_embedder,
                         embed_dispatch,
                         runtime_embedder_identity: embedder_identity,
-                        projection_runtime,
+                        projection_runtime: parts.projection_runtime,
                         wal_attribution,
                         #[cfg(any(test, feature = "test-hooks"))]
                         managed_connections,
                         #[cfg(any(test, feature = "test-hooks"))]
-                        writer_connection_registration: Mutex::new(Some(
-                            writer_connection_registration,
-                        )),
+                        writer_connection_registration: Mutex::new(Some(parts.writer_registration)),
                         #[cfg(any(test, feature = "test-hooks"))]
                         actual_checkpoint_observations: Mutex::new(None),
                         #[cfg(any(test, feature = "test-hooks"))]
                         binding_native_state_observations: Mutex::new(None),
                         provenance_row_cap: AtomicU64::new(resolved_config.provenance_row_cap),
-                        profile_contexts: Mutex::new(profile_contexts),
+                        profile_contexts: Mutex::new(parts.profile_contexts),
                         reader_lookaside_rcs,
                         telemetry: Mutex::new(None),
                         telemetry_enabled: AtomicBool::new(false),
@@ -4192,8 +4422,14 @@ impl Engine {
             .collect()
     }
 
+    /// Stop admission, quiesce all SQLite owners, then drain provider workers.
+    /// Active database work can extend the total duration; the provider drain
+    /// uses one 30-second deadline shared by concurrent and repeated calls.
+    /// Returns [`EngineError::Scheduler`] while a provider worker remains.
     pub fn close(&self) -> Result<(), EngineError> {
         self.closed.store(true, Ordering::SeqCst);
+        self.embed_dispatch.close();
+        let _close_guard = self.close_lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         self.projection_runtime.stop();
         // Uninstall profile callbacks before dropping the connections so
         // SQLite cannot fire one last callback against a profile context
@@ -4220,7 +4456,11 @@ impl Engine {
         if let Ok(mut lock) = self.lock.lock() {
             lock.take();
         }
-        Ok(())
+        if self.embed_dispatch.join_after_quiescence() {
+            Ok(())
+        } else {
+            Err(EngineError::Scheduler)
+        }
     }
 
     /// Block until in-flight writes drain or `timeout_ms` elapses.
@@ -8017,6 +8257,18 @@ unsafe extern "C" fn profile_callback_trampoline(
 
 #[cfg(test)]
 mod slice20_fix1_tests;
+
+#[cfg(test)]
+mod slice90_close_tests;
+
+#[cfg(test)]
+mod slice90_concurrent_close_tests;
+
+#[cfg(test)]
+mod slice90_close_review_tests;
+
+#[cfg(test)]
+mod slice90_post_probe_real_error_tests;
 
 #[cfg(test)]
 mod tests {

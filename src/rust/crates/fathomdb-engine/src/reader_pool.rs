@@ -10,7 +10,7 @@ pub(crate) struct ReaderWorkerPool {
     senders: Vec<SyncSender<ReaderRequest>>,
     handles: Mutex<Option<Vec<JoinHandle<()>>>>,
     next: AtomicUsize,
-    shutdown: AtomicBool,
+    shutdown: Arc<AtomicBool>,
     live_workers: Arc<AtomicUsize>,
 }
 
@@ -494,10 +494,12 @@ pub struct CacheStatusReply {
 /// without a runtime mutex.
 const READER_WORKER_CHANNEL_CAPACITY: usize = 4;
 
+#[allow(clippy::too_many_arguments)]
 fn reader_worker_loop(
     mut connection: Connection,
     rx: Receiver<ReaderRequest>,
     live_workers: Arc<AtomicUsize>,
+    shutdown: Arc<AtomicBool>,
     worker_idx: usize,
     wal_attribution: Arc<WalAttributionCollector>,
     ready: SyncSender<()>,
@@ -520,6 +522,9 @@ fn reader_worker_loop(
     let _guard = LiveGuard(live_workers);
 
     while let Ok(request) = rx.recv() {
+        if shutdown.load(Ordering::Acquire) {
+            break;
+        }
         match request {
             ReaderRequest::Shutdown => break,
             #[cfg(feature = "tc5-benchmark")]
@@ -917,6 +922,10 @@ fn read_cache_status(
 }
 
 impl ReaderWorkerPool {
+    #[cfg(test)]
+    pub(crate) fn shutdown_started_for_test(&self) -> bool {
+        self.shutdown.load(Ordering::SeqCst)
+    }
     pub(crate) fn new(
         connections: Vec<Connection>,
         wal_attribution: Arc<WalAttributionCollector>,
@@ -925,12 +934,14 @@ impl ReaderWorkerPool {
         >,
     ) -> Self {
         let live_workers = Arc::new(AtomicUsize::new(0));
+        let shutdown = Arc::new(AtomicBool::new(false));
         let mut senders = Vec::with_capacity(connections.len());
         let mut handles = Vec::with_capacity(connections.len());
         let (ready_tx, ready_rx) = mpsc::sync_channel(connections.len());
         for (idx, connection) in connections.into_iter().enumerate() {
             let (tx, rx) = mpsc::sync_channel::<ReaderRequest>(READER_WORKER_CHANNEL_CAPACITY);
             let live = Arc::clone(&live_workers);
+            let worker_shutdown = Arc::clone(&shutdown);
             let attribution = Arc::clone(&wal_attribution);
             let ready = ready_tx.clone();
             #[cfg(any(test, feature = "test-hooks"))]
@@ -942,6 +953,7 @@ impl ReaderWorkerPool {
                         connection,
                         rx,
                         live,
+                        worker_shutdown,
                         idx,
                         attribution,
                         ready,
@@ -961,7 +973,7 @@ impl ReaderWorkerPool {
             senders,
             handles: Mutex::new(Some(handles)),
             next: AtomicUsize::new(0),
-            shutdown: AtomicBool::new(false),
+            shutdown,
             live_workers,
         }
     }
@@ -1208,7 +1220,9 @@ impl ReaderWorkerPool {
             return;
         }
         for sender in &self.senders {
-            let _ = sender.send(ReaderRequest::Shutdown);
+            // The worker checks shutdown before taking another queued request.
+            // A full queue cannot place this wake-up behind ordinary work.
+            let _ = sender.try_send(ReaderRequest::Shutdown);
         }
         if let Ok(mut slot) = self.handles.lock() {
             if let Some(handles) = slot.take() {

@@ -442,6 +442,22 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("stage3_start_sha missing after engine source change", result.stdout)
 
+    def test_binding_commit_cannot_contain_engine_source_change(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        source = self.root / "src/rust/crates/fathomdb-engine/src"
+        source.mkdir(parents=True)
+        (source / "open.rs").write_text("// structural move in binding\n")
+        subprocess.run(["git", "-C", str(self.root), "add", "src"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "commit", "--amend", "--no-edit", "-q"], check=True)
+        checkpoint["binding_sha"] = subprocess.run(
+            ["git", "-C", str(self.root), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        self.write_state(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("engine source changed between checkpoint candidate and binding", result.stdout)
+
     def test_performance_requires_named_selectors_and_installed_bindings(self) -> None:
         checkpoint = self.pass_checkpoint()
         path = self.root / EVIDENCE_DIR / "runtime-performance-qualification.md"

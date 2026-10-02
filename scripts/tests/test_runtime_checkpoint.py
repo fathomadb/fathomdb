@@ -275,9 +275,16 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         return checkpoint
 
     def test_complete_pass_checkpoint_accepts_required_matrix_and_d27(self) -> None:
-        self.pass_checkpoint()
+        checkpoint = self.pass_checkpoint()
+        self.write_ac073_stress_receipt(checkpoint)
         result = self.run_gate()
         self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_ac073_generic_pass_mutant_cannot_bypass_stress_receipt(self) -> None:
+        self.pass_checkpoint()
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("AC-073 stress receipt required", result.stdout)
 
     def test_v2_candidate_rejects_legacy_entry_with_wrong_protocol_hash(self) -> None:
         checkpoint = self.pass_checkpoint()

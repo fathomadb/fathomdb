@@ -92,8 +92,16 @@ binding source, and the allocated Slice 100 pre-entry plan.
     sample for counter validity, and retains raw-linked deltas; earlier
     invalid attempts are not reused. `seq-298` supersedes the prior GPU-driver
     ruling: the newly installed version is authorized, but the loaded kernel
-    module and NVML still differ at the latest unsandboxed check. A successful
+    module and NVML differed at the pre-reboot unsandboxed check. A successful
     GPU gate is required before claiming that route passed.
+11. **The host reboot cleared GPU preflight.** On 2026-10-01 after reboot,
+    `nvidia-smi`, the loaded kernel module, and the installed module all report
+    driver 580.178.04. The strict GPU feature gate can now execute, but only
+    its completed result and the official hidden-surface capture can qualify
+    the route. The historical D27 entry separately passed the reviewed
+    bounded-swap protocol in six repetitions, but the reboot cleared its
+    `/tmp` raw bundle. Rerun the entry into persistent storage before the
+    candidate comparison.
 
 ## Evaluation and scope decision
 

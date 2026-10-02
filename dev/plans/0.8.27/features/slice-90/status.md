@@ -18,8 +18,8 @@ remains the D27 performance reference. Slice 85 recovery code is already in
 release ancestry,
 but its official public/hidden comparison and GPU evidence are outstanding and
 release state still binds the earlier Slice 85 candidate. The local public
-capture now has enough disk to rerun; GPU preflight remains unqualified pending
-the newly installed driver becoming the running kernel module.
+capture now has enough disk to rerun. After the host reboot, GPU preflight
+reports the authorized running driver version; the full GPU gates are running.
 
 The reviewed plan is committed at `77b019c39`. The public source surface was
 captured at that commit: 13 rows passed, with the capture saved at
@@ -108,8 +108,11 @@ and raw output `32966c5c5154c980f6cda1b727a978066b77a34d726e4de227fbf7cc7d66442f
 Every repetition passed environment validation; the foreground-heavy swap
 in/out deltas were (1, 0), (9, 0), (0, 0) pages and projection-heavy deltas
 were (0, 0), (6, 0), (2, 0). The standalone verifier reproduced the receipt
-byte for byte. This qualifies the historical reference only. Candidate
-measurement and the runtime checkpoint remain pending.
+byte for byte. The subsequent host reboot cleared `/tmp`, including that
+receipt and its raw artifacts. The recorded hashes preserve the audit trail,
+but a fresh historical run with retained raw output is required before the
+candidate comparison. Candidate measurement and the runtime checkpoint remain
+pending.
 
 The local NVIDIA kernel module is 580.173.02 while NVML is 580.178.04.
 Per HITL `seq-296`, this mismatch cannot be resolved for Slice 90: proceed
@@ -121,8 +124,11 @@ GPU or hidden-surface PASS. That ruling was superseded at `seq-298`: the newly
 installed driver version is authorized, but the unsandboxed 2026-10-01 check
 still found loaded kernel module 580.173.02, installed module 580.178.04 and
 NVML 580.178. `nvidia-smi` exited 18. Desktop processes currently hold the GPU
-devices, so a module reload is not safe during this session. GPU gates must be
-rerun after the running module changes; no PASS is claimed.
+devices, so a module reload was not safe during that session. After the host
+reboot, `nvidia-smi`, `/proc/driver/nvidia/version`, and `modinfo` all report
+580.178.04. The GPU inventory includes two RTX 3090 cards and one K620. This
+clears the driver/NVML preflight blocker; the strict feature-complete and
+official hidden-surface gates still need successful results before GPU PASS.
 
 Runtime Batch 2a was merged at `559deb531` from clean implementation commit
 `50b485873`. Its RED commit `9294cf73f` reproduced the returned-error
@@ -220,7 +226,7 @@ checks. Two-phase close remains Batch 2g and is underway in an isolated
 worktree; this merge does not claim the runtime checkpoint.
 
 Next: correct and independently review two-phase close, review and merge both
-binding-forwarding batches, then finish runtime qualification against the now
-valid historical D27 entry. The candidate-bound checkpoint and structural
+binding-forwarding batches, then rerun the historical D27 entry into persistent
+storage and finish runtime qualification. The candidate-bound checkpoint and structural
 Phase 3 remain pending. Report the remaining GPU and Slice 85 recovery
 evidence as its actual result. Slice 90 remains IN_PROGRESS.

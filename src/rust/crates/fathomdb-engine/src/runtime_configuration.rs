@@ -17,7 +17,7 @@ const MAX_SAFE_INTEGER: u64 = (1_u64 << 53) - 1;
 pub struct EngineConfig {
     /// Projection orchestration threads, `1..=64`; default `2`.
     pub scheduler_runtime_threads: Option<u64>,
-    /// Provider dispatch workers, `1..=64`; default `1`.
+    /// Provider dispatch workers, `1..=64`; default `5`.
     pub embedder_pool_size: Option<u64>,
     /// Absolute provider-call deadline in milliseconds, `1..=u32::MAX`; default `30_000`.
     pub embedder_call_timeout_ms: Option<u64>,

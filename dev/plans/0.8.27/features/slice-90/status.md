@@ -9,8 +9,8 @@ target_release: 0.8.27
 Requirements, acceptance criteria, design and TDD batches are reconciled in
 the [plan](plan.md). Independent design review passed after the recorded
 corrections. Runtime Batches 2a–2f, two-phase close, and Python/Node forwarding
-are merged and independently reviewed; the runtime checkpoint
-and final Slice 90 verification are not yet claimed.
+are merged and independently reviewed; the stage-2 runtime checkpoint is
+PASS and final Slice 90 verification is not yet claimed.
 
 The frozen operational source entry was `release/0.8.27` at `e689000d4` or a
 documentation-only descendant before Phase 2 semantic edits. Historical `7a2f9bf9`
@@ -439,8 +439,8 @@ as PASS for the release decision. The raw third campaign and exact rejected
 outcome remain at
 `/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-v2-candidate-2e94aaf4f-third-affinity`.
 The strict passing retry remains the machine-valid D27 checkpoint receipt;
-the earlier valid latency FAIL remains in the record. The runtime checkpoint
-awaits binding of its candidate-bound receipts.
+the earlier valid latency FAIL remains in the record. The candidate-bound
+receipts are bound at `4a98a1e80`; the structured runtime checkpoint is PASS.
 
 Published crates.io `fathomdb-engine` 0.8.26 then completed an equivalent
 six-repetition workload with the same corpus, deterministic provider,
@@ -503,7 +503,9 @@ strict security and all 130 registered test suites with none skipped or
 excluded. Candidate-bound stage-2 review, verification and performance
 receipts are recorded. The performance receipt binds the exact strict passing
 D27 retry and records the third-run HITL ruling with the unchanged verifier
-miss. The runtime checkpoint awaits receipt and release-state binding;
-structural Phase 3 has not begun. Final GPU and official public/hidden surface
+miss. The structured runtime checkpoint binds exact candidate `2e94aaf4f`,
+receipt commit `4a98a1e80`, and three PASS receipt hashes in release state;
+`scripts/check-runtime-checkpoints.py` passes. Structural Phase 3 has not
+begun. Final GPU and official public/hidden surface
 captures and Slice 85 recovery comparison remain after the checkpoint.
 Slice 90 remains IN_PROGRESS.

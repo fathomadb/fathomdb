@@ -9,86 +9,737 @@
   "origin_main_schema_version": 34,
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
   "prework_closeout": {
-    "slices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    "slices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
     "planning_sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1",
     "closeout_sha": "73c53ffd98c56fb5d46941a195f951daac2d32b2",
     "design_review": "PASS",
     "verification": "PASS"
   },
   "ladder": [
-    {"slice": 0, "short": "ENVIRONMENT", "title": "environment and project-infrastructure evidence", "depends_on": [], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-0.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "evidence": "The existing release branch/worktree, exact base, local capabilities, unavailable routes, isolation boundaries, and later-slice setup needs are recorded without changing tools or environments."},
-    {"slice": 1, "short": "DEPENDENCIES", "title": "dependency and pinning sweep", "depends_on": [0], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-1.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "evidence": "Current manifests, locks, advisories, pins, Actions, and evidence limitations are dispositioned; only the bounded smol-toml remediation and two comment corrections enter Slice 10."},
-    {"slice": 2, "short": "CRUFT", "title": "repository and documentation cruft review", "depends_on": [1], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-2.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "evidence": "Relevant material is classified as keep, correct/deprecate, archive-in-place, or delete-after-reader-proof; prework removes nothing."},
-    {"slice": 3, "short": "DRAFT-CONTRACTS", "title": "release-local needs, requirements, acceptance, and allocation", "depends_on": [2], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-3.md", "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "evidence": "Release-local N27/R27/AC27 contracts cover correction-safe erasure and behavior-preserving decomposition without changing the locked global acceptance register."},
-    {"slice": 4, "short": "ARCHITECTURE", "title": "architecture and code-alignment review", "depends_on": [3], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-4.md", "dev/plans/0.8.27/prework/prework-design-review.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "evidence": "The plan is grounded in the shipped schema-34 implementation, existing semantic modules, binding seams, and current-owner design authority; stale line maps and experiment branches are not execution authority."},
-    {"slice": 5, "short": "VERIFICATION", "title": "verification-adequacy review", "depends_on": [4], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-5.md", "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md", "dev/plans/0.8.27/prework/prework-design-review.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "evidence": "Existing tests and missing oracles are traced with exact two-phase erasure, retained proof identity, surface-comparator, feature-route, artifact, and non-vacuity obligations."},
-    {"slice": 6, "short": "DOCUMENTATION", "title": "stale documentation evidence", "depends_on": [5], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-6.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "evidence": "Current public/developer truth, stale mutable citations, lifecycle ownership, and historical/generated evidence are inventoried and narrowly allocated."},
-    {"slice": 7, "short": "BUILD-DELIVERY", "title": "build and delivery failure evidence", "depends_on": [6], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-7.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "evidence": "Recurring disk, environment, ptrace, action-comment, benign-digest, package, platform, and tag-policy evidence is separated into focused open work versus closed regression coverage."},
-    {"slice": 8, "short": "RESERVED", "title": "reserved prework slot", "depends_on": [7], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-8.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "evidence": "The reserved slot remains empty; no unassigned work or inferred authority was introduced."},
-    {"slice": 9, "short": "PREWORK-CLOSEOUT", "title": "proposal rulings, plan reconciliation, and next-slice preparation", "depends_on": [8], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/prework/slice-9.md", "dev/plans/0.8.27/prework/proposal-register.md", "dev/plans/0.8.27/prework/prework-design-review.md", "dev/plans/0.8.27/prework/prework-verification.md", "dev/plans/0.8.27-prework-slices-0-9.md"], "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1", "closeout_sha": "73c53ffd98c56fb5d46941a195f951daac2d32b2", "evidence": "Every proposal has a disposition, scope/navigation/lifecycle records agree, the Slice 10 inputs passed independent design review, independent closeout verification passed, and the active release state points to uncommissioned Slice 10."},
-    {"slice": 10, "short": "PREPARATION", "title": "bounded repository preparation", "depends_on": [9], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/features/slice-10/plan.md", "dev/plans/0.8.27/features/slice-10/design.md", "dev/plans/0.8.27/features/slice-10/design-review.md", "dev/plans/0.8.27/features/slice-10/tdd-chronology.md", "dev/plans/0.8.27/features/slice-10/code-review.md", "dev/plans/0.8.27/features/slice-10/review-verification.md", "dev/plans/0.8.27/features/slice-10/status.md"], "sha": "3097d191511d81a221b038ccd2e14f074dcafa6d", "closeout_sha": "ee1b0fbe99f7592b6ed3af061a4d11934ad3b0df", "evidence": "The bounded preparation package corrects public and planning truth, resolves the smol-toml advisory through the upstream markdownlint cohort, preserves all Action SHAs while fixing two comments, derives the performance digest exception from one exact authority with credential-shaped adversarial coverage, and records owned Slice 30 comparator/storage prerequisites. Independent design, code/security, and focused verification pass. The capable-executor canonical gate passed strict security 0/0/0 and 118/119 registered suites at closeout ee1b0fbe; the only skip was the documented TypeScript environment absence, with no suite excluded."},
-    {"slice": 20, "short": "ERASURE", "title": "correction-safe source erasure", "depends_on": [10], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/features/slice-20/plan.md", "dev/plans/0.8.27/features/slice-20/design.md", "dev/plans/0.8.27/features/slice-20/design-review.md", "dev/plans/0.8.27/features/slice-20/tdd-chronology.md", "dev/plans/0.8.27/features/slice-20/memex-consumer-oracle.py", "dev/plans/0.8.27/features/slice-20/code-review.md", "dev/plans/0.8.27/features/slice-20/review-verification.md", "dev/plans/0.8.27/features/slice-20/status.md"], "sha": "b455bb73fb2b04c91f50e6e5dbdc16752325453b", "closeout_sha": "c9eec2247be9c95ca509b7520b1fa6a15ba27958", "evidence": "Correction-safe erasure: erase_source and purge validate and redact actuation receipts before removing completed correction closures, in the same immediate transaction; purge covers every erased revision and spares its own proof row. Adversarial requirements, test, and code review closed every finding with RED/GREEN tests, including purge-after-correction, purge-after-dependents, bare-supersession rows, and closure-reaching binding smokes. Product implementation remains b455bb73. The later whole-work review replaced the manual stale-module workaround with a clean-HEAD, locked-wheel, nonce-bound Python artifact gate at 6ba3be95; its full Python suite passed 1,533 tests with 27 documented skips."},
-    {"slice": 30, "short": "COMPARATOR", "title": "current inventory and real-surface comparison guardrails", "depends_on": [20], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/features/slice-30/plan.md", "dev/plans/0.8.27/features/slice-30/design.md", "dev/plans/0.8.27/features/slice-30/design-review.md", "dev/plans/0.8.27/features/slice-30/tdd-chronology.md", "dev/plans/0.8.27/features/slice-30/baseline.json", "dev/plans/0.8.27/features/slice-30/inventory.md", "dev/plans/0.8.27/features/slice-30/code-review.md", "dev/plans/0.8.27/features/slice-30/review-verification.md", "dev/plans/0.8.27/features/slice-30/status.md"], "sha": "6ba3be95cd043570da1deafbe4e2f78c878d8a87", "closeout_sha": "c9eec2247be9c95ca509b7520b1fa6a15ba27958", "evidence": "The deterministic 13-row comparator covers exact Rust feature surfaces, Python exports and registrations, hermetic production NAPI declarations, resolved TypeScript declarations, and package/runtime exports. Whole-work adversarial review closed stale Python-native provenance, NAPI debug leakage, multiline cfg ownership, distinct-filesystem capacity, scratch ownership, and fixture-cleanup gaps through committed RED/GREEN cycles. Baseline source def7d894 is tracked at 00a2c3e6 with SHA-256 06212f66; a clean 2967593c capture compared equal with empty metadata and row diffs. Independent design, code, and focused verification passed. The canonical gate passed 123/124 suites; after correcting its sole obsolete packaging assertion at 6ba3be95, the full Python suite passed 1,533 tests with 27 documented skips."},
-    {"slice": 40, "short": "ENGINE-FOUNDATION", "title": "engine foundation and test seams", "depends_on": [30], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/features/slice-40/plan.md", "dev/plans/0.8.27/features/slice-40/design.md", "dev/plans/0.8.27/features/slice-40/design-review.md", "dev/plans/0.8.27/features/slice-40/tdd-chronology.md", "dev/plans/0.8.27/features/slice-40/code-review.md", "dev/plans/0.8.27/features/slice-40/review-verification.md", "dev/plans/0.8.27/features/slice-40/status.md"], "sha": "fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae", "closeout_sha": "8dcee1ba7eccdf03fcf89a8e623282274d0d70aa", "evidence": "Private errors, identity, temporal, and test-hook foundations preserve Engine at crate root, every public path and feature gate, locked correction-safe erasure, and later-domain boundaries. Four batch captures and a fresh final 13-row capture compare equal to the immutable Slice 30 baseline with empty metadata and row diffs. Relocation-sensitive removal and C1 gates were corrected through reviewed RED/GREEN fixtures without weakening their contracts. Independent design/code review and verification pass; the canonical gate passed 124/124 with security 0/0/0, and full-workspace Clippy/check passed."},
-    {"slice": 50, "short": "ENGINE-ERASURE", "title": "engine erasure, lifecycle, dependency, and provenance domains", "depends_on": [40], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/features/slice-50/plan.md", "dev/plans/0.8.27/features/slice-50/design.md", "dev/plans/0.8.27/features/slice-50/design-review.md", "dev/plans/0.8.27/features/slice-50/tdd-chronology.md", "dev/plans/0.8.27/features/slice-50/code-review.md", "dev/plans/0.8.27/features/slice-50/review-verification.md", "dev/plans/0.8.27/features/slice-50/status.md"], "sha": "1f5b8614813b5a363ec5f81fcb580d48da4a4e8f", "closeout_sha": "4752b86158c61d97644eb714bca3796d83108d81", "evidence": "Private lifecycle, provenance, dependency, and erasure domains preserve rooted Engine and public paths while closing nonterminal soft-closure residue inside existing erasure transactions. Genuine RED/GREEN tests, two independent code-review closures, and independent verification passed. The immutable public surface is equal; hidden structural rows and release probe are equal with only reviewed additive test inventory; the canonical gate passed 127/127 with security 0/0/0; workspace Clippy/check and the candidate-bound Python receipt passed."},
-    {"slice": 60, "short": "ENGINE-WRITE", "title": "engine write, ingest, consolidation, and actuation domains", "depends_on": [50], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/features/slice-60/plan.md", "dev/plans/0.8.27/features/slice-60/design.md", "dev/plans/0.8.27/features/slice-60/design-review.md", "dev/plans/0.8.27/features/slice-60/adversarial-review.md", "dev/plans/0.8.27/features/slice-60/tdd-chronology.md", "dev/plans/0.8.27/features/slice-60/code-review.md", "dev/plans/0.8.27/features/slice-60/review-verification.md", "dev/plans/0.8.27/features/slice-60/status.md"], "sha": "d5a5bd39b3ee8a04bd080df451204564c6849bd1", "closeout_sha": "74b1cf45ea98d69482a52ced1c422c00e819b0d6", "evidence": "Private write, write-validation, write-commit, provider, ingest, and consolidation domains preserve rooted Engine and public paths. Post-closeout adversarial review added real refusal coverage for both tx.commit exits, then owner follow-up proved and fixed test-hook carry-over after validation and non-hook commit failures. The final boundary suite passed 15/15 debug and 14/14 release with test-hooks. The 13-row public surface is equal; all eight hidden structural rows and the 41-item release probe are equal; test inventory has zero removals or changes and only reviewed additions; target coverage is 261 targets with 53 feature-complete-only. The full canonical gate passed 127/127 with no skips or exclusions; the 2026-09-26 unconfined executor ran AC-037 live and security passed 0/0/0. Workspace Clippy/check and the candidate-bound Python receipt passed."},
-    {"slice": 70, "short": "ENGINE-PROJECTION", "title": "engine projection, embedding, and reranking domains", "depends_on": [60], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/features/slice-70/plan.md", "dev/plans/0.8.27/features/slice-70/design.md", "dev/plans/0.8.27/features/slice-70/design-review.md", "dev/plans/0.8.27/features/slice-70/tdd-chronology.md", "dev/plans/0.8.27/features/slice-70/code-review.md", "dev/plans/0.8.27/features/slice-70/review-verification.md", "dev/plans/0.8.27/features/slice-70/status.md"], "sha": "36fc2352cf243e022315ea302368d9424096aebd", "closeout_sha": "e3ab55f683cf797ea020fcd8dea2eb927d6ec86c", "evidence": "Private vector-storage, vector-equivalence, mean, embedding, projection-registry, projection-runtime, projection-worker, projection-commit, projection-rebuild, and rerank modules plus the extended projection_generation status reads preserve rooted Engine, every public path, and ProjectionRuntimeShared's shape; lib.rs shrank from 25,899 to 19,001 lines in ten verbatim batches with identical focused route counts. A new non-vacuous residue suite proves failed projection commits leave no terminal, sidecar, vec0, or failure audit; the pre-existing red slice35 audit was repaired and re-keyed, the manifest extractor hardened, and the C1 and Windows WAL guards retargeted path-only. Design review (two cycles), Opus code review, and Sonnet verification pass. The public surface equals the Slice 30 baseline and the hidden surface is additive only. The canonical gate passed after the WAL-guard retarget, and strict security passed 0/0/0 with both AC-037 live netns layers through a temporary per-binary AppArmor userns profile for /usr/bin/unshare; workspace Clippy/check and the candidate-bound Python receipt pass; the feature-complete gate passed 349/357 with 8 documented ignores on the RTX 3090 executor, including CUDA-selection and tolerance evidence."},
-    {"slice": 80, "short": "ENGINE-READ", "title": "engine read, search, graph, and evidence domains", "depends_on": [70], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.27/features/slice-80/plan.md", "dev/plans/0.8.27/features/slice-80/design.md", "dev/plans/0.8.27/features/slice-80/design-review.md", "dev/plans/0.8.27/features/slice-80/tdd-chronology.md", "dev/plans/0.8.27/features/slice-80/code-review.md", "dev/plans/0.8.27/features/slice-80/review-verification.md", "dev/plans/0.8.27/features/slice-80/status.md"], "sha": "b7403958a3839d371c1672335c517fa762a451cf", "closeout_sha": "e8e603b7bc5fd3a87616382ffd82273f04931f4f", "historical_sha": "e9631b9761d292a4115d1beee95678801512f4f2", "historical_closeout_sha": "bca0c99d46e0111c1bd3906d78a77668801463bc", "authoritative_binding": "PASS", "evidence": "Product extraction is complete and independent three-cycle review PASS is bound at b7403958 with closeout e8e603b7; historical e9631b97/bca0c99d bindings remain historical. Production changes ended at 0efa62c544af00858aa6975944e8f36c99f13218 and have focused test, Clippy, and rustdoc surface-diff evidence. Follow-up 1d7f826c strengthens the fixed one-seed/one-target/zero-or-one-evidence result property to exact generated canonical JSON-value equality plus typed round-trip; the body-loss encoder mutant fails the new assertion and exact restoration passes. The gpt-5.6-terra canonical, native, and public/hidden receipts apply only to historical 3e60cc5d and do not verify later production. At exact e9631b97, public capture was blocked by less than 100 GB free, hidden capture by nvidia-smi exit 9, and agent-verify by an advanced-ref versus historical-ref fixture; there is no post-fix full canonical PASS or official post-fix surface capture. At live 24813b8e with src identical to 31e78529/e9631b97, unconfined security including AC-036 and both AC-037 layers passed 0/0/0 and test-rust passed in 516820 ms; 127 suites were registered, 125 ran, 123 passed, 2 failed only for the missing local fathomdb._fathomdb module and consequent native receipt, 2 skipped, and 0 were excluded. Slice 85 must first establish a successful exact baseline canonical run, native receipt, and official public/hidden captures on a capable host, then install the audited final API/carrier homes and compiler-plus-syn shrink-only dependency gate. The 66e27983 and 24813b8e AC-037 results are historical/diagnostic only; Slice 150 alone qualifies the exact final candidate."},
-    {"slice": 85, "short": "ENGINE-BOUNDARIES", "title": "engine carrier ownership and dependency-boundary enforcement", "depends_on": [80], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/features/slice-85/plan.md", "dev/plans/0.8.27/features/slice-85/runtime-closure-review.md", "dev/plans/0.8.27/features/slice-85/design-review.md", "dev/plans/0.8.27/features/slice-85/baseline-verification.md", "dev/plans/0.8.27/features/slice-85/tdd-chronology.md", "dev/plans/0.8.27/features/slice-85/code-review.md", "dev/plans/0.8.27/features/slice-85/review-verification.md", "dev/plans/0.8.27/features/slice-85/status.md", "dev/plans/0.8.27/features/slice-90/independent-findings-resolution.md"], "sha": "7a2f9bf90783f545603516502bac0016d4b93a14", "closeout_sha": "8cd3389dadba89925d51440b83d05044e87d2090", "commissioning_sha": "4c75bfec2985f4001690673cc5b38dfdce2081bf", "commissioning_decision": "slice-85-execution (seq-294)", "authoritative_binding": "PASS", "baseline_receipts": {"agent_verify": "PASS; 125/127 registered suites passed, 2 documented skips, 0 failures, 0 exclusions", "native_module_sha256": "60be05b662c3502216abdfa0326e71fd9cceaec6e1807d7632ed001a90298790", "public_capture_sha256": "002edebe5025ff03ffa50f2fb0cb4cac4a6c2ba249769cf1ecb2600ae5ad7791", "hidden_capture_sha256": "3c4de75e6885666f3e9fd927f597c70923089a970bf0e5e915fb34ece47c0ae2"}, "candidate_receipts": {"targeted_verification": "PASS; boundary gate plus production mutants, focused default/release/test-hooks/tc5 checks, owned read/graph/filter/WAL suites, actionlint integration, and independent Terra verification", "native_module_sha256": "c27a160d3bc1b43794e88aef809cbf456a0d26bd17ace424d86d565ac904b1e2", "native_receipt_sha256": "af6ad82360e3c070afa865c3fc74422aae44dede4bb6532e35f7d4bccb86bc0f", "public_capture_sha256": "23e115e409915e422d2b51a0dacbda13ac480333d16fbd7de4f2e1fc37cb1689", "hidden_capture_sha256": "00f56fc810f1a1568a125b5203f7459da8d3b3190a9e316d348aa9f4064afc38"}, "evidence": "Reviewed ownership moves and the compiler-plus-syn boundary gate are bound at 7a2f9bf9. Independent Sol high code review and Terra high targeted verification pass. The 13-row public surface is exactly equal to the commissioning baseline; hidden structural rows and release probe are equal with one additive boundary test across 13 test-inventory rows. The candidate-bound native receipt passes. Per owner direction no full canonical gate was required, and no AC-037 qualification is claimed; Slice 150 retains the exact-final-candidate live run."},
-    {"slice": 90, "short": "ENGINE-RUNTIME", "title": "engine open, configuration, runtime, operator, and facade closure", "depends_on": [85], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/features/slice-90/design.md", "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json", "dev/plans/0.8.27/features/slice-90/independent-findings-resolution.md", "dev/plans/0.8.27/features/slice-90/option-b-successor-adr-scaffold.md", "dev/adr/ADR-0.8.27-engine-owned-runtime-topology.md"], "sha": null, "runtime_checkpoint": {"status": "PENDING", "candidate_sha": null, "binding_sha": null, "stage3_start_sha": null, "receipts": {"performance": {"path": "dev/plans/0.8.27/features/slice-90/runtime-performance-qualification.md", "status": "PENDING", "candidate_sha": null, "sha256": null}, "code_review": {"path": "dev/plans/0.8.27/features/slice-90/code-review.md", "status": "PENDING", "candidate_sha": null, "sha256": null}, "verification": {"path": "dev/plans/0.8.27/features/slice-90/review-verification.md", "status": "PENDING", "candidate_sha": null, "sha256": null}}}},
-    {"slice": 100, "short": "PYO3", "title": "PyO3 binding decomposition", "depends_on": [90], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/features/slice-100/design.md"], "sha": null},
-    {"slice": 110, "short": "NAPI", "title": "napi-rs binding decomposition", "depends_on": [100], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/features/slice-110/design.md", "dev/plans/0.8.27/features/slice-110/binding-closure-review.md"], "sha": null},
-    {"slice": 114, "short": "ENGINE-CONFIG-AUDIT", "title": "engine configuration, constants, and documentation audit", "depends_on": [110], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
-    {"slice": 115, "short": "ENGINE-PERF-DATA", "title": "engine performance data-collection and lightweight profiling", "depends_on": [114], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
-    {"slice": 120, "short": "TYPESCRIPT", "title": "TypeScript SDK decomposition", "depends_on": [115], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
-    {"slice": 130, "short": "PYTHON", "title": "Python SDK decomposition", "depends_on": [120], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
-    {"slice": 135, "short": "PERFORMANCE-BASELINE", "title": "0.8.26 performance preservation and improvement qualification", "depends_on": [130], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
-    {"slice": 140, "short": "DOC-CONVERGENCE", "title": "documentation and structural convergence", "depends_on": [135], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
-    {"slice": 150, "short": "QUALIFICATION", "title": "integrated release qualification", "depends_on": [140], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md"], "sha": null}
+    {
+      "slice": 0,
+      "short": "ENVIRONMENT",
+      "title": "environment and project-infrastructure evidence",
+      "depends_on": [],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/prework/slice-0.md"
+      ],
+      "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1",
+      "evidence": "The existing release branch/worktree, exact base, local capabilities, unavailable routes, isolation boundaries, and later-slice setup needs are recorded without changing tools or environments."
+    },
+    {
+      "slice": 1,
+      "short": "DEPENDENCIES",
+      "title": "dependency and pinning sweep",
+      "depends_on": [
+        0
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/prework/slice-1.md"
+      ],
+      "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1",
+      "evidence": "Current manifests, locks, advisories, pins, Actions, and evidence limitations are dispositioned; only the bounded smol-toml remediation and two comment corrections enter Slice 10."
+    },
+    {
+      "slice": 2,
+      "short": "CRUFT",
+      "title": "repository and documentation cruft review",
+      "depends_on": [
+        1
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/prework/slice-2.md"
+      ],
+      "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1",
+      "evidence": "Relevant material is classified as keep, correct/deprecate, archive-in-place, or delete-after-reader-proof; prework removes nothing."
+    },
+    {
+      "slice": 3,
+      "short": "DRAFT-CONTRACTS",
+      "title": "release-local needs, requirements, acceptance, and allocation",
+      "depends_on": [
+        2
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/prework/slice-3.md",
+        "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md"
+      ],
+      "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1",
+      "evidence": "Release-local N27/R27/AC27 contracts cover correction-safe erasure and behavior-preserving decomposition without changing the locked global acceptance register."
+    },
+    {
+      "slice": 4,
+      "short": "ARCHITECTURE",
+      "title": "architecture and code-alignment review",
+      "depends_on": [
+        3
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/prework/slice-4.md",
+        "dev/plans/0.8.27/prework/prework-design-review.md"
+      ],
+      "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1",
+      "evidence": "The plan is grounded in the shipped schema-34 implementation, existing semantic modules, binding seams, and current-owner design authority; stale line maps and experiment branches are not execution authority."
+    },
+    {
+      "slice": 5,
+      "short": "VERIFICATION",
+      "title": "verification-adequacy review",
+      "depends_on": [
+        4
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/prework/slice-5.md",
+        "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md",
+        "dev/plans/0.8.27/prework/prework-design-review.md"
+      ],
+      "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1",
+      "evidence": "Existing tests and missing oracles are traced with exact two-phase erasure, retained proof identity, surface-comparator, feature-route, artifact, and non-vacuity obligations."
+    },
+    {
+      "slice": 6,
+      "short": "DOCUMENTATION",
+      "title": "stale documentation evidence",
+      "depends_on": [
+        5
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/prework/slice-6.md"
+      ],
+      "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1",
+      "evidence": "Current public/developer truth, stale mutable citations, lifecycle ownership, and historical/generated evidence are inventoried and narrowly allocated."
+    },
+    {
+      "slice": 7,
+      "short": "BUILD-DELIVERY",
+      "title": "build and delivery failure evidence",
+      "depends_on": [
+        6
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/prework/slice-7.md"
+      ],
+      "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1",
+      "evidence": "Recurring disk, environment, ptrace, action-comment, benign-digest, package, platform, and tag-policy evidence is separated into focused open work versus closed regression coverage."
+    },
+    {
+      "slice": 8,
+      "short": "RESERVED",
+      "title": "reserved prework slot",
+      "depends_on": [
+        7
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/prework/slice-8.md"
+      ],
+      "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1",
+      "evidence": "The reserved slot remains empty; no unassigned work or inferred authority was introduced."
+    },
+    {
+      "slice": 9,
+      "short": "PREWORK-CLOSEOUT",
+      "title": "proposal rulings, plan reconciliation, and next-slice preparation",
+      "depends_on": [
+        8
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/prework/slice-9.md",
+        "dev/plans/0.8.27/prework/proposal-register.md",
+        "dev/plans/0.8.27/prework/prework-design-review.md",
+        "dev/plans/0.8.27/prework/prework-verification.md",
+        "dev/plans/0.8.27-prework-slices-0-9.md"
+      ],
+      "sha": "a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1",
+      "closeout_sha": "73c53ffd98c56fb5d46941a195f951daac2d32b2",
+      "evidence": "Every proposal has a disposition, scope/navigation/lifecycle records agree, the Slice 10 inputs passed independent design review, independent closeout verification passed, and the active release state points to uncommissioned Slice 10."
+    },
+    {
+      "slice": 10,
+      "short": "PREPARATION",
+      "title": "bounded repository preparation",
+      "depends_on": [
+        9
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/features/slice-10/plan.md",
+        "dev/plans/0.8.27/features/slice-10/design.md",
+        "dev/plans/0.8.27/features/slice-10/design-review.md",
+        "dev/plans/0.8.27/features/slice-10/tdd-chronology.md",
+        "dev/plans/0.8.27/features/slice-10/code-review.md",
+        "dev/plans/0.8.27/features/slice-10/review-verification.md",
+        "dev/plans/0.8.27/features/slice-10/status.md"
+      ],
+      "sha": "3097d191511d81a221b038ccd2e14f074dcafa6d",
+      "closeout_sha": "ee1b0fbe99f7592b6ed3af061a4d11934ad3b0df",
+      "evidence": "The bounded preparation package corrects public and planning truth, resolves the smol-toml advisory through the upstream markdownlint cohort, preserves all Action SHAs while fixing two comments, derives the performance digest exception from one exact authority with credential-shaped adversarial coverage, and records owned Slice 30 comparator/storage prerequisites. Independent design, code/security, and focused verification pass. The capable-executor canonical gate passed strict security 0/0/0 and 118/119 registered suites at closeout ee1b0fbe; the only skip was the documented TypeScript environment absence, with no suite excluded."
+    },
+    {
+      "slice": 20,
+      "short": "ERASURE",
+      "title": "correction-safe source erasure",
+      "depends_on": [
+        10
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/features/slice-20/plan.md",
+        "dev/plans/0.8.27/features/slice-20/design.md",
+        "dev/plans/0.8.27/features/slice-20/design-review.md",
+        "dev/plans/0.8.27/features/slice-20/tdd-chronology.md",
+        "dev/plans/0.8.27/features/slice-20/memex-consumer-oracle.py",
+        "dev/plans/0.8.27/features/slice-20/code-review.md",
+        "dev/plans/0.8.27/features/slice-20/review-verification.md",
+        "dev/plans/0.8.27/features/slice-20/status.md"
+      ],
+      "sha": "b455bb73fb2b04c91f50e6e5dbdc16752325453b",
+      "closeout_sha": "c9eec2247be9c95ca509b7520b1fa6a15ba27958",
+      "evidence": "Correction-safe erasure: erase_source and purge validate and redact actuation receipts before removing completed correction closures, in the same immediate transaction; purge covers every erased revision and spares its own proof row. Adversarial requirements, test, and code review closed every finding with RED/GREEN tests, including purge-after-correction, purge-after-dependents, bare-supersession rows, and closure-reaching binding smokes. Product implementation remains b455bb73. The later whole-work review replaced the manual stale-module workaround with a clean-HEAD, locked-wheel, nonce-bound Python artifact gate at 6ba3be95; its full Python suite passed 1,533 tests with 27 documented skips."
+    },
+    {
+      "slice": 30,
+      "short": "COMPARATOR",
+      "title": "current inventory and real-surface comparison guardrails",
+      "depends_on": [
+        20
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/features/slice-30/plan.md",
+        "dev/plans/0.8.27/features/slice-30/design.md",
+        "dev/plans/0.8.27/features/slice-30/design-review.md",
+        "dev/plans/0.8.27/features/slice-30/tdd-chronology.md",
+        "dev/plans/0.8.27/features/slice-30/baseline.json",
+        "dev/plans/0.8.27/features/slice-30/inventory.md",
+        "dev/plans/0.8.27/features/slice-30/code-review.md",
+        "dev/plans/0.8.27/features/slice-30/review-verification.md",
+        "dev/plans/0.8.27/features/slice-30/status.md"
+      ],
+      "sha": "6ba3be95cd043570da1deafbe4e2f78c878d8a87",
+      "closeout_sha": "c9eec2247be9c95ca509b7520b1fa6a15ba27958",
+      "evidence": "The deterministic 13-row comparator covers exact Rust feature surfaces, Python exports and registrations, hermetic production NAPI declarations, resolved TypeScript declarations, and package/runtime exports. Whole-work adversarial review closed stale Python-native provenance, NAPI debug leakage, multiline cfg ownership, distinct-filesystem capacity, scratch ownership, and fixture-cleanup gaps through committed RED/GREEN cycles. Baseline source def7d894 is tracked at 00a2c3e6 with SHA-256 06212f66; a clean 2967593c capture compared equal with empty metadata and row diffs. Independent design, code, and focused verification passed. The canonical gate passed 123/124 suites; after correcting its sole obsolete packaging assertion at 6ba3be95, the full Python suite passed 1,533 tests with 27 documented skips."
+    },
+    {
+      "slice": 40,
+      "short": "ENGINE-FOUNDATION",
+      "title": "engine foundation and test seams",
+      "depends_on": [
+        30
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/features/slice-40/plan.md",
+        "dev/plans/0.8.27/features/slice-40/design.md",
+        "dev/plans/0.8.27/features/slice-40/design-review.md",
+        "dev/plans/0.8.27/features/slice-40/tdd-chronology.md",
+        "dev/plans/0.8.27/features/slice-40/code-review.md",
+        "dev/plans/0.8.27/features/slice-40/review-verification.md",
+        "dev/plans/0.8.27/features/slice-40/status.md"
+      ],
+      "sha": "fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae",
+      "closeout_sha": "8dcee1ba7eccdf03fcf89a8e623282274d0d70aa",
+      "evidence": "Private errors, identity, temporal, and test-hook foundations preserve Engine at crate root, every public path and feature gate, locked correction-safe erasure, and later-domain boundaries. Four batch captures and a fresh final 13-row capture compare equal to the immutable Slice 30 baseline with empty metadata and row diffs. Relocation-sensitive removal and C1 gates were corrected through reviewed RED/GREEN fixtures without weakening their contracts. Independent design/code review and verification pass; the canonical gate passed 124/124 with security 0/0/0, and full-workspace Clippy/check passed."
+    },
+    {
+      "slice": 50,
+      "short": "ENGINE-ERASURE",
+      "title": "engine erasure, lifecycle, dependency, and provenance domains",
+      "depends_on": [
+        40
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/features/slice-50/plan.md",
+        "dev/plans/0.8.27/features/slice-50/design.md",
+        "dev/plans/0.8.27/features/slice-50/design-review.md",
+        "dev/plans/0.8.27/features/slice-50/tdd-chronology.md",
+        "dev/plans/0.8.27/features/slice-50/code-review.md",
+        "dev/plans/0.8.27/features/slice-50/review-verification.md",
+        "dev/plans/0.8.27/features/slice-50/status.md"
+      ],
+      "sha": "1f5b8614813b5a363ec5f81fcb580d48da4a4e8f",
+      "closeout_sha": "4752b86158c61d97644eb714bca3796d83108d81",
+      "evidence": "Private lifecycle, provenance, dependency, and erasure domains preserve rooted Engine and public paths while closing nonterminal soft-closure residue inside existing erasure transactions. Genuine RED/GREEN tests, two independent code-review closures, and independent verification passed. The immutable public surface is equal; hidden structural rows and release probe are equal with only reviewed additive test inventory; the canonical gate passed 127/127 with security 0/0/0; workspace Clippy/check and the candidate-bound Python receipt passed."
+    },
+    {
+      "slice": 60,
+      "short": "ENGINE-WRITE",
+      "title": "engine write, ingest, consolidation, and actuation domains",
+      "depends_on": [
+        50
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/features/slice-60/plan.md",
+        "dev/plans/0.8.27/features/slice-60/design.md",
+        "dev/plans/0.8.27/features/slice-60/design-review.md",
+        "dev/plans/0.8.27/features/slice-60/adversarial-review.md",
+        "dev/plans/0.8.27/features/slice-60/tdd-chronology.md",
+        "dev/plans/0.8.27/features/slice-60/code-review.md",
+        "dev/plans/0.8.27/features/slice-60/review-verification.md",
+        "dev/plans/0.8.27/features/slice-60/status.md"
+      ],
+      "sha": "d5a5bd39b3ee8a04bd080df451204564c6849bd1",
+      "closeout_sha": "74b1cf45ea98d69482a52ced1c422c00e819b0d6",
+      "evidence": "Private write, write-validation, write-commit, provider, ingest, and consolidation domains preserve rooted Engine and public paths. Post-closeout adversarial review added real refusal coverage for both tx.commit exits, then owner follow-up proved and fixed test-hook carry-over after validation and non-hook commit failures. The final boundary suite passed 15/15 debug and 14/14 release with test-hooks. The 13-row public surface is equal; all eight hidden structural rows and the 41-item release probe are equal; test inventory has zero removals or changes and only reviewed additions; target coverage is 261 targets with 53 feature-complete-only. The full canonical gate passed 127/127 with no skips or exclusions; the 2026-09-26 unconfined executor ran AC-037 live and security passed 0/0/0. Workspace Clippy/check and the candidate-bound Python receipt passed."
+    },
+    {
+      "slice": 70,
+      "short": "ENGINE-PROJECTION",
+      "title": "engine projection, embedding, and reranking domains",
+      "depends_on": [
+        60
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/features/slice-70/plan.md",
+        "dev/plans/0.8.27/features/slice-70/design.md",
+        "dev/plans/0.8.27/features/slice-70/design-review.md",
+        "dev/plans/0.8.27/features/slice-70/tdd-chronology.md",
+        "dev/plans/0.8.27/features/slice-70/code-review.md",
+        "dev/plans/0.8.27/features/slice-70/review-verification.md",
+        "dev/plans/0.8.27/features/slice-70/status.md"
+      ],
+      "sha": "36fc2352cf243e022315ea302368d9424096aebd",
+      "closeout_sha": "e3ab55f683cf797ea020fcd8dea2eb927d6ec86c",
+      "evidence": "Private vector-storage, vector-equivalence, mean, embedding, projection-registry, projection-runtime, projection-worker, projection-commit, projection-rebuild, and rerank modules plus the extended projection_generation status reads preserve rooted Engine, every public path, and ProjectionRuntimeShared's shape; lib.rs shrank from 25,899 to 19,001 lines in ten verbatim batches with identical focused route counts. A new non-vacuous residue suite proves failed projection commits leave no terminal, sidecar, vec0, or failure audit; the pre-existing red slice35 audit was repaired and re-keyed, the manifest extractor hardened, and the C1 and Windows WAL guards retargeted path-only. Design review (two cycles), Opus code review, and Sonnet verification pass. The public surface equals the Slice 30 baseline and the hidden surface is additive only. The canonical gate passed after the WAL-guard retarget, and strict security passed 0/0/0 with both AC-037 live netns layers through a temporary per-binary AppArmor userns profile for /usr/bin/unshare; workspace Clippy/check and the candidate-bound Python receipt pass; the feature-complete gate passed 349/357 with 8 documented ignores on the RTX 3090 executor, including CUDA-selection and tolerance evidence."
+    },
+    {
+      "slice": 80,
+      "short": "ENGINE-READ",
+      "title": "engine read, search, graph, and evidence domains",
+      "depends_on": [
+        70
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/0.8.27/features/slice-80/plan.md",
+        "dev/plans/0.8.27/features/slice-80/design.md",
+        "dev/plans/0.8.27/features/slice-80/design-review.md",
+        "dev/plans/0.8.27/features/slice-80/tdd-chronology.md",
+        "dev/plans/0.8.27/features/slice-80/code-review.md",
+        "dev/plans/0.8.27/features/slice-80/review-verification.md",
+        "dev/plans/0.8.27/features/slice-80/status.md"
+      ],
+      "sha": "b7403958a3839d371c1672335c517fa762a451cf",
+      "closeout_sha": "e8e603b7bc5fd3a87616382ffd82273f04931f4f",
+      "historical_sha": "e9631b9761d292a4115d1beee95678801512f4f2",
+      "historical_closeout_sha": "bca0c99d46e0111c1bd3906d78a77668801463bc",
+      "authoritative_binding": "PASS",
+      "evidence": "Product extraction is complete and independent three-cycle review PASS is bound at b7403958 with closeout e8e603b7; historical e9631b97/bca0c99d bindings remain historical. Production changes ended at 0efa62c544af00858aa6975944e8f36c99f13218 and have focused test, Clippy, and rustdoc surface-diff evidence. Follow-up 1d7f826c strengthens the fixed one-seed/one-target/zero-or-one-evidence result property to exact generated canonical JSON-value equality plus typed round-trip; the body-loss encoder mutant fails the new assertion and exact restoration passes. The gpt-5.6-terra canonical, native, and public/hidden receipts apply only to historical 3e60cc5d and do not verify later production. At exact e9631b97, public capture was blocked by less than 100 GB free, hidden capture by nvidia-smi exit 9, and agent-verify by an advanced-ref versus historical-ref fixture; there is no post-fix full canonical PASS or official post-fix surface capture. At live 24813b8e with src identical to 31e78529/e9631b97, unconfined security including AC-036 and both AC-037 layers passed 0/0/0 and test-rust passed in 516820 ms; 127 suites were registered, 125 ran, 123 passed, 2 failed only for the missing local fathomdb._fathomdb module and consequent native receipt, 2 skipped, and 0 were excluded. Slice 85 must first establish a successful exact baseline canonical run, native receipt, and official public/hidden captures on a capable host, then install the audited final API/carrier homes and compiler-plus-syn shrink-only dependency gate. The 66e27983 and 24813b8e AC-037 results are historical/diagnostic only; Slice 150 alone qualifies the exact final candidate."
+    },
+    {
+      "slice": 85,
+      "short": "ENGINE-BOUNDARIES",
+      "title": "engine carrier ownership and dependency-boundary enforcement",
+      "depends_on": [
+        80
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "design_refs": [
+        "dev/plans/plan-0.8.27.md",
+        "dev/plans/0.8.27/features/slice-85/plan.md",
+        "dev/plans/0.8.27/features/slice-85/runtime-closure-review.md",
+        "dev/plans/0.8.27/features/slice-85/design-review.md",
+        "dev/plans/0.8.27/features/slice-85/baseline-verification.md",
+        "dev/plans/0.8.27/features/slice-85/tdd-chronology.md",
+        "dev/plans/0.8.27/features/slice-85/code-review.md",
+        "dev/plans/0.8.27/features/slice-85/review-verification.md",
+        "dev/plans/0.8.27/features/slice-85/status.md",
+        "dev/plans/0.8.27/features/slice-90/independent-findings-resolution.md"
+      ],
+      "sha": "7a2f9bf90783f545603516502bac0016d4b93a14",
+      "closeout_sha": "8cd3389dadba89925d51440b83d05044e87d2090",
+      "commissioning_sha": "4c75bfec2985f4001690673cc5b38dfdce2081bf",
+      "commissioning_decision": "slice-85-execution (seq-294)",
+      "authoritative_binding": "PASS",
+      "baseline_receipts": {
+        "agent_verify": "PASS; 125/127 registered suites passed, 2 documented skips, 0 failures, 0 exclusions",
+        "native_module_sha256": "60be05b662c3502216abdfa0326e71fd9cceaec6e1807d7632ed001a90298790",
+        "public_capture_sha256": "002edebe5025ff03ffa50f2fb0cb4cac4a6c2ba249769cf1ecb2600ae5ad7791",
+        "hidden_capture_sha256": "3c4de75e6885666f3e9fd927f597c70923089a970bf0e5e915fb34ece47c0ae2"
+      },
+      "candidate_receipts": {
+        "targeted_verification": "PASS; boundary gate plus production mutants, focused default/release/test-hooks/tc5 checks, owned read/graph/filter/WAL suites, actionlint integration, and independent Terra verification",
+        "native_module_sha256": "c27a160d3bc1b43794e88aef809cbf456a0d26bd17ace424d86d565ac904b1e2",
+        "native_receipt_sha256": "af6ad82360e3c070afa865c3fc74422aae44dede4bb6532e35f7d4bccb86bc0f",
+        "public_capture_sha256": "23e115e409915e422d2b51a0dacbda13ac480333d16fbd7de4f2e1fc37cb1689",
+        "hidden_capture_sha256": "00f56fc810f1a1568a125b5203f7459da8d3b3190a9e316d348aa9f4064afc38"
+      },
+      "evidence": "Reviewed ownership moves and the compiler-plus-syn boundary gate are bound at 7a2f9bf9. Independent Sol high code review and Terra high targeted verification pass. The 13-row public surface is exactly equal to the commissioning baseline; hidden structural rows and release probe are equal with one additive boundary test across 13 test-inventory rows. The candidate-bound native receipt passes. Per owner direction no full canonical gate was required, and no AC-037 qualification is claimed; Slice 150 retains the exact-final-candidate live run."
+    },
+    {
+      "slice": 90,
+      "short": "ENGINE-RUNTIME",
+      "title": "engine open, configuration, runtime, operator, and facade closure",
+      "depends_on": [
+        85
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/plans/plan-0.8.27.md",
+        "dev/plans/0.8.27/features/slice-90/design.md",
+        "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json",
+        "dev/plans/0.8.27/features/slice-90/independent-findings-resolution.md",
+        "dev/plans/0.8.27/features/slice-90/option-b-successor-adr-scaffold.md",
+        "dev/adr/ADR-0.8.27-engine-owned-runtime-topology.md"
+      ],
+      "sha": null,
+      "runtime_checkpoint": {
+        "status": "PASS",
+        "candidate_sha": "2e94aaf4f57399a5ded8fc39b9100e33fe09dbcd",
+        "binding_sha": "4a98a1e80fad28de09c6f9d18ae01c62c7603658",
+        "stage3_start_sha": null,
+        "receipts": {
+          "performance": {
+            "path": "dev/plans/0.8.27/features/slice-90/runtime-performance-qualification.md",
+            "status": "PASS",
+            "candidate_sha": "2e94aaf4f57399a5ded8fc39b9100e33fe09dbcd",
+            "sha256": "5c5da3e80d494ad49a436a3738ba7fc9adbccf7e17672fe2a67465dfbdfe3407"
+          },
+          "code_review": {
+            "path": "dev/plans/0.8.27/features/slice-90/code-review.md",
+            "status": "PASS",
+            "candidate_sha": "2e94aaf4f57399a5ded8fc39b9100e33fe09dbcd",
+            "sha256": "f0ca6ab553474e4bfeb53e90f2e6ffae6b9be99fecb04ece23015965e5e7e820"
+          },
+          "verification": {
+            "path": "dev/plans/0.8.27/features/slice-90/review-verification.md",
+            "status": "PASS",
+            "candidate_sha": "2e94aaf4f57399a5ded8fc39b9100e33fe09dbcd",
+            "sha256": "55fde74dc34e7bc091952aac84f62c7ab42c9a8dfc68728a961640535eb3acbb"
+          }
+        }
+      }
+    },
+    {
+      "slice": 100,
+      "short": "PYO3",
+      "title": "PyO3 binding decomposition",
+      "depends_on": [
+        90
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/plans/plan-0.8.27.md",
+        "dev/plans/0.8.27/features/slice-100/design.md"
+      ],
+      "sha": null
+    },
+    {
+      "slice": 110,
+      "short": "NAPI",
+      "title": "napi-rs binding decomposition",
+      "depends_on": [
+        100
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/plans/plan-0.8.27.md",
+        "dev/plans/0.8.27/features/slice-110/design.md",
+        "dev/plans/0.8.27/features/slice-110/binding-closure-review.md"
+      ],
+      "sha": null
+    },
+    {
+      "slice": 114,
+      "short": "ENGINE-CONFIG-AUDIT",
+      "title": "engine configuration, constants, and documentation audit",
+      "depends_on": [
+        110
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/plans/plan-0.8.27.md"
+      ],
+      "sha": null
+    },
+    {
+      "slice": 115,
+      "short": "ENGINE-PERF-DATA",
+      "title": "engine performance data-collection and lightweight profiling",
+      "depends_on": [
+        114
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/plans/plan-0.8.27.md"
+      ],
+      "sha": null
+    },
+    {
+      "slice": 120,
+      "short": "TYPESCRIPT",
+      "title": "TypeScript SDK decomposition",
+      "depends_on": [
+        115
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/plans/plan-0.8.27.md"
+      ],
+      "sha": null
+    },
+    {
+      "slice": 130,
+      "short": "PYTHON",
+      "title": "Python SDK decomposition",
+      "depends_on": [
+        120
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/plans/plan-0.8.27.md"
+      ],
+      "sha": null
+    },
+    {
+      "slice": 135,
+      "short": "PERFORMANCE-BASELINE",
+      "title": "0.8.26 performance preservation and improvement qualification",
+      "depends_on": [
+        130
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/plans/plan-0.8.27.md"
+      ],
+      "sha": null
+    },
+    {
+      "slice": 140,
+      "short": "DOC-CONVERGENCE",
+      "title": "documentation and structural convergence",
+      "depends_on": [
+        135
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/plans/plan-0.8.27.md"
+      ],
+      "sha": null
+    },
+    {
+      "slice": 150,
+      "short": "QUALIFICATION",
+      "title": "integrated release qualification",
+      "depends_on": [
+        140
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/plans/plan-0.8.27.md",
+        "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md"
+      ],
+      "sha": null
+    }
   ],
   "landed": [],
   "next_slice": 90,
-  "remaining_ladder": [90, 100, 110, 114, 115, 120, 130, 135, 140, 150],
+  "remaining_ladder": [
+    90,
+    100,
+    110,
+    114,
+    115,
+    120,
+    130,
+    135,
+    140,
+    150
+  ],
   "decisions": {
     "unruled": [
-      {"id": "release-0.8.27-publication", "title": "Authorize tagging and publication only after the full release ladder and qualification gates pass."}
+      {
+        "id": "release-0.8.27-publication",
+        "title": "Authorize tagging and publication only after the full release ladder and qualification gates pass."
+      }
     ],
     "ruled": [
-      {"id": "direct-execution", "title": "Execute 0.8.27 prework directly in the existing release worktree without Steward or Orchestrator roles.", "source": "repository owner 2026-09-21"},
-      {"id": "prework-slices-0-9", "title": "Complete prework Slices 0 through 9, including requirements, acceptance, design review, verification planning, and durable status records.", "source": "repository owner 2026-09-21"},
-      {"id": "F27-01", "title": "Keep correction-safe erasure as the 0.8.27 publication blocker and do not preselect its implementation cause.", "source": "0.8.27 prework proposal register"},
-      {"id": "D27-deferred", "title": "Move D27-01, D27-02, and D27-04 to D28-05, D28-06, and D28-07; merge both D27-03 components into D28-03 with their proof gates intact.", "source": "0.8.27 prework proposal register"},
-      {"id": "semantic-refactor", "title": "Place the bounded five-facade behavior-preserving semantic decomposition after F27-01 in 0.8.27; reject wholesale experiment-branch merges and line-count correctness gates.", "source": "0.8.27 prework proposal register"},
-      {"id": "slice-10-execution", "title": "Complete the reviewed bounded Slice 10 preparation plan and present the remaining HITL review items interactively; do not authorize Slice 20, tags, registries, or publication.", "source": "seq-291"},
-      {"id": "slice-20-execution", "title": "Authorize the reviewed correction-safe source-erasure implementation only; do not authorize later slices, tags, registries, or publication.", "source": "seq-292"},
-      {"id": "slice-30-execution", "title": "Complete reviewed Slice 30 requirements, design, TDD implementation, code review, independent verification, status, and cleanup without Steward or Orchestrator roles.", "source": "repository owner 2026-09-22"},
-      {"id": "slice-40-execution", "title": "Complete reviewed Slice 40 requirements, design, TDD implementation, code review, independent verification, status, and cleanup in the existing release worktree without Steward or Orchestrator roles.", "source": "repository owner 2026-09-22"},
-      {"id": "slice-50-execution", "title": "Complete reviewed Slice 50 requirements, design, TDD implementation, code review, independent verification, status, and cleanup in a worktree without Steward or Orchestrator roles.", "source": "repository owner 2026-09-25"},
-      {"id": "slice-60-execution", "title": "Complete reviewed Slice 60 requirements, acceptance, design, TDD implementation, code review, independent verification, status, and cleanup in the release worktree without Steward or Orchestrator roles.", "source": "repository owner 2026-09-25"},
-      {"id": "slice-70-execution", "title": "Complete reviewed Slice 70 requirements, acceptance, design, TDD implementation, code review, independent verification, status, and cleanup in the release worktree without Steward or Orchestrator roles.", "source": "repository owner 2026-09-26"},
-      {"id": "slice-80-execution", "title": "Complete reviewed Slice 80 requirements, acceptance, design, TDD implementation, gpt-5.6-sol high code review, gpt-5.6-terra final verification, status, and cleanup in the existing release worktree without Steward or Orchestrator roles.", "source": "repository owner 2026-09-27"},
-      {"id": "slice-85-planning-only", "title": "Plan Slice 85 for engine carrier ownership and dependency-boundary enforcement, but do not commission or implement it.", "source": "repository owner 2026-09-27"},
-      {"id": "slice-85-execution", "title": "Authorize Slice 85 implementation within the independently reviewed engine-boundaries plan after the exact-baseline AC27-85F agent-verify, candidate-bound native, public-surface, and hidden-surface receipts pass; supersede the planning-only prohibition. Do not authorize Slice 90, tags, registries, or publication.", "source": "seq-294"},
-      {"id": "D27-runtime-topology", "title": "Select Option B: preserve the current synchronous primary-writer, projection-worker, and commit_gate ownership model and require a narrow successor defining real configurable engine orchestration and embed-dispatch capacities, universal inference deadlines, operation-specific timeout outcomes, and bounded shutdown; do not implement the literal historical Tokio task and dedicated-writer topology. Slice 90 must codify, review, implement, and test the successor contract.", "source": "seq-293"},
-      {"id": "D27-successor-adr-acceptance", "title": "Accept the reviewed Option B successor as the binding Slice 90 runtime contract, including the 1..=64 scheduler/embed ceilings, default-one embed concurrency and stated hung-provider stall posture, distinct embed waiting and projection admission bounds, EngineConfig/open_with_choice_and_config, typed configuration errors, Number-safe binding caps, EngineError::Scheduler for incomplete embed drain, and clause-level supersession map.", "source": "seq-295"},
-      {"id": "slice-90-default-embed-capacity-remediation", "title": "Test higher default embed worker counts and select the lowest count that passes the unchanged frozen D27 comparison, AC-081, and named release performance gates; retain the four-times-worker waiting-queue formula and frozen protocol/corpus, and record the chosen default in an ADR successor before structural Phase 3.", "source": "seq-299"},
-      {"id": "slice-90-current-host-gpu", "title": "The newly installed windchill3 NVIDIA driver version is authorized; verify the running module and rerun GPU gates before claiming PASS. This supersedes the unresolved-mismatch ruling at seq-296.", "source": "seq-298"},
-      {"id": "slice-90-d27-bounded-swap", "title": "Use a reviewed bounded-swap D27 rule on windchill3, applied identically to historical and candidate runs; supersede zero-swap invalidation only after protocol review.", "source": "seq-297"},
-      {"id": "final-candidate-ac-037-at-slice-150", "title": "Treat the 66e27983 and 24813b8e AC-037 results as historical or diagnostic only; Slice 150 alone must qualify the exact final candidate through the AC-037 runbook.", "source": "repository owner 2026-09-27"},
-      {"id": "slice-50-hidden-surface-oracle", "title": "Add hidden-items rustdoc surface rows (default, test-hooks, slice72-test-hooks, operator+test-hooks) with a supplementary baseline at e3358800 before Slice 50 starts (TC-3e54ed95).", "source": "repository owner 2026-09-23"},
-      {"id": "hidden-surface-extra-rows", "title": "Extend the hidden-surface oracle to nine rows: add engine migration-test-hooks, engine tc5-benchmark, engine default release-profile, facade default, and facade operator.", "source": "repository owner 2026-09-23"},
-      {"id": "hidden-surface-release-probe", "title": "Replace the unbuildable release-profile rustdoc row with per-site cfg predicates in every signature plus a release compile probe for debug_assertions-gated items (eight rustdoc rows plus the probe).", "source": "repository owner 2026-09-23"},
-      {"id": "hidden-surface-effective-and-inventory", "title": "Sign hidden-surface entries with effective cfg and hidden values (not per site), add per-feature-set test-inventory rows, and retire the oracle, its fixtures, and baselines once Slice 150 qualification passes.", "source": "repository owner 2026-09-23"},
-      {"id": "feature-complete-test-coverage", "title": "Cover every test target: add a static test-target list and inventory rows for every required-feature set (retired at Slice 150), plus two permanent pieces, a feature-complete test gate that downloads model weights and uses the GPU so every target runs and passes, and a fast-tier check that every test target is run by some gate. NVIDIA tools, GPU access, and model-weight downloads are authorized.", "source": "repository owner 2026-09-23"},
-      {"id": "slice-140-gate-test-seams", "title": "Gate the always-compiled doc-hidden engine test seams out of default builds in Slice 140 with a CHANGELOG Removed entry enforced by AC-050c (TC-a0f90fa0).", "source": "repository owner 2026-09-23"}
+      {
+        "id": "direct-execution",
+        "title": "Execute 0.8.27 prework directly in the existing release worktree without Steward or Orchestrator roles.",
+        "source": "repository owner 2026-09-21"
+      },
+      {
+        "id": "prework-slices-0-9",
+        "title": "Complete prework Slices 0 through 9, including requirements, acceptance, design review, verification planning, and durable status records.",
+        "source": "repository owner 2026-09-21"
+      },
+      {
+        "id": "F27-01",
+        "title": "Keep correction-safe erasure as the 0.8.27 publication blocker and do not preselect its implementation cause.",
+        "source": "0.8.27 prework proposal register"
+      },
+      {
+        "id": "D27-deferred",
+        "title": "Move D27-01, D27-02, and D27-04 to D28-05, D28-06, and D28-07; merge both D27-03 components into D28-03 with their proof gates intact.",
+        "source": "0.8.27 prework proposal register"
+      },
+      {
+        "id": "semantic-refactor",
+        "title": "Place the bounded five-facade behavior-preserving semantic decomposition after F27-01 in 0.8.27; reject wholesale experiment-branch merges and line-count correctness gates.",
+        "source": "0.8.27 prework proposal register"
+      },
+      {
+        "id": "slice-10-execution",
+        "title": "Complete the reviewed bounded Slice 10 preparation plan and present the remaining HITL review items interactively; do not authorize Slice 20, tags, registries, or publication.",
+        "source": "seq-291"
+      },
+      {
+        "id": "slice-20-execution",
+        "title": "Authorize the reviewed correction-safe source-erasure implementation only; do not authorize later slices, tags, registries, or publication.",
+        "source": "seq-292"
+      },
+      {
+        "id": "slice-30-execution",
+        "title": "Complete reviewed Slice 30 requirements, design, TDD implementation, code review, independent verification, status, and cleanup without Steward or Orchestrator roles.",
+        "source": "repository owner 2026-09-22"
+      },
+      {
+        "id": "slice-40-execution",
+        "title": "Complete reviewed Slice 40 requirements, design, TDD implementation, code review, independent verification, status, and cleanup in the existing release worktree without Steward or Orchestrator roles.",
+        "source": "repository owner 2026-09-22"
+      },
+      {
+        "id": "slice-50-execution",
+        "title": "Complete reviewed Slice 50 requirements, design, TDD implementation, code review, independent verification, status, and cleanup in a worktree without Steward or Orchestrator roles.",
+        "source": "repository owner 2026-09-25"
+      },
+      {
+        "id": "slice-60-execution",
+        "title": "Complete reviewed Slice 60 requirements, acceptance, design, TDD implementation, code review, independent verification, status, and cleanup in the release worktree without Steward or Orchestrator roles.",
+        "source": "repository owner 2026-09-25"
+      },
+      {
+        "id": "slice-70-execution",
+        "title": "Complete reviewed Slice 70 requirements, acceptance, design, TDD implementation, code review, independent verification, status, and cleanup in the release worktree without Steward or Orchestrator roles.",
+        "source": "repository owner 2026-09-26"
+      },
+      {
+        "id": "slice-80-execution",
+        "title": "Complete reviewed Slice 80 requirements, acceptance, design, TDD implementation, gpt-5.6-sol high code review, gpt-5.6-terra final verification, status, and cleanup in the existing release worktree without Steward or Orchestrator roles.",
+        "source": "repository owner 2026-09-27"
+      },
+      {
+        "id": "slice-85-planning-only",
+        "title": "Plan Slice 85 for engine carrier ownership and dependency-boundary enforcement, but do not commission or implement it.",
+        "source": "repository owner 2026-09-27"
+      },
+      {
+        "id": "slice-85-execution",
+        "title": "Authorize Slice 85 implementation within the independently reviewed engine-boundaries plan after the exact-baseline AC27-85F agent-verify, candidate-bound native, public-surface, and hidden-surface receipts pass; supersede the planning-only prohibition. Do not authorize Slice 90, tags, registries, or publication.",
+        "source": "seq-294"
+      },
+      {
+        "id": "D27-runtime-topology",
+        "title": "Select Option B: preserve the current synchronous primary-writer, projection-worker, and commit_gate ownership model and require a narrow successor defining real configurable engine orchestration and embed-dispatch capacities, universal inference deadlines, operation-specific timeout outcomes, and bounded shutdown; do not implement the literal historical Tokio task and dedicated-writer topology. Slice 90 must codify, review, implement, and test the successor contract.",
+        "source": "seq-293"
+      },
+      {
+        "id": "D27-successor-adr-acceptance",
+        "title": "Accept the reviewed Option B successor as the binding Slice 90 runtime contract, including the 1..=64 scheduler/embed ceilings, default-one embed concurrency and stated hung-provider stall posture, distinct embed waiting and projection admission bounds, EngineConfig/open_with_choice_and_config, typed configuration errors, Number-safe binding caps, EngineError::Scheduler for incomplete embed drain, and clause-level supersession map.",
+        "source": "seq-295"
+      },
+      {
+        "id": "slice-90-default-embed-capacity-remediation",
+        "title": "Test higher default embed worker counts and select the lowest count that passes the unchanged frozen D27 comparison, AC-081, and named release performance gates; retain the four-times-worker waiting-queue formula and frozen protocol/corpus, and record the chosen default in an ADR successor before structural Phase 3.",
+        "source": "seq-299"
+      },
+      {
+        "id": "slice-90-current-host-gpu",
+        "title": "The newly installed windchill3 NVIDIA driver version is authorized; verify the running module and rerun GPU gates before claiming PASS. This supersedes the unresolved-mismatch ruling at seq-296.",
+        "source": "seq-298"
+      },
+      {
+        "id": "slice-90-d27-bounded-swap",
+        "title": "Use a reviewed bounded-swap D27 rule on windchill3, applied identically to historical and candidate runs; supersede zero-swap invalidation only after protocol review.",
+        "source": "seq-297"
+      },
+      {
+        "id": "final-candidate-ac-037-at-slice-150",
+        "title": "Treat the 66e27983 and 24813b8e AC-037 results as historical or diagnostic only; Slice 150 alone must qualify the exact final candidate through the AC-037 runbook.",
+        "source": "repository owner 2026-09-27"
+      },
+      {
+        "id": "slice-50-hidden-surface-oracle",
+        "title": "Add hidden-items rustdoc surface rows (default, test-hooks, slice72-test-hooks, operator+test-hooks) with a supplementary baseline at e3358800 before Slice 50 starts (TC-3e54ed95).",
+        "source": "repository owner 2026-09-23"
+      },
+      {
+        "id": "hidden-surface-extra-rows",
+        "title": "Extend the hidden-surface oracle to nine rows: add engine migration-test-hooks, engine tc5-benchmark, engine default release-profile, facade default, and facade operator.",
+        "source": "repository owner 2026-09-23"
+      },
+      {
+        "id": "hidden-surface-release-probe",
+        "title": "Replace the unbuildable release-profile rustdoc row with per-site cfg predicates in every signature plus a release compile probe for debug_assertions-gated items (eight rustdoc rows plus the probe).",
+        "source": "repository owner 2026-09-23"
+      },
+      {
+        "id": "hidden-surface-effective-and-inventory",
+        "title": "Sign hidden-surface entries with effective cfg and hidden values (not per site), add per-feature-set test-inventory rows, and retire the oracle, its fixtures, and baselines once Slice 150 qualification passes.",
+        "source": "repository owner 2026-09-23"
+      },
+      {
+        "id": "feature-complete-test-coverage",
+        "title": "Cover every test target: add a static test-target list and inventory rows for every required-feature set (retired at Slice 150), plus two permanent pieces, a feature-complete test gate that downloads model weights and uses the GPU so every target runs and passes, and a fast-tier check that every test target is run by some gate. NVIDIA tools, GPU access, and model-weight downloads are authorized.",
+        "source": "repository owner 2026-09-23"
+      },
+      {
+        "id": "slice-140-gate-test-seams",
+        "title": "Gate the always-compiled doc-hidden engine test seams out of default builds in Slice 140 with a CHANGELOG Removed entry enforced by AC-050c (TC-a0f90fa0).",
+        "source": "repository owner 2026-09-23"
+      }
     ]
   },
   "release_readiness": null,
   "published": null,
   "generated_views": [
-    {"id": "status-live-open-count", "file": "dev/plans/runs/STATUS-0.8.27.md", "location": "Open decisions", "renders": "the count of unruled decisions"},
-    {"id": "plan-immediate-next", "file": "dev/plans/plan-0.8.27.md", "location": "Immediate next slice", "renders": "the next slice and remaining ladder"},
-    {"id": "status-current-state", "file": "dev/plans/runs/STATUS-0.8.27.md", "location": "Current state", "renders": "the next slice and release-branch completion set"},
-    {"id": "status-next-action", "file": "dev/plans/runs/STATUS-0.8.27.md", "location": "Immediate next action", "renders": "the lifecycle-aware next action"}
+    {
+      "id": "status-live-open-count",
+      "file": "dev/plans/runs/STATUS-0.8.27.md",
+      "location": "Open decisions",
+      "renders": "the count of unruled decisions"
+    },
+    {
+      "id": "plan-immediate-next",
+      "file": "dev/plans/plan-0.8.27.md",
+      "location": "Immediate next slice",
+      "renders": "the next slice and remaining ladder"
+    },
+    {
+      "id": "status-current-state",
+      "file": "dev/plans/runs/STATUS-0.8.27.md",
+      "location": "Current state",
+      "renders": "the next slice and release-branch completion set"
+    },
+    {
+      "id": "status-next-action",
+      "file": "dev/plans/runs/STATUS-0.8.27.md",
+      "location": "Immediate next action",
+      "renders": "the lifecycle-aware next action"
+    }
   ]
 }

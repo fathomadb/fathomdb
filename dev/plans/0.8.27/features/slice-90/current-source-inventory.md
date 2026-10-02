@@ -160,3 +160,9 @@ and from retained raw observations. Then implement the narrow GREEN rule,
 verify the actual unsandboxed host preflight without building or running the
 workload, and obtain independent design and code re-review. Do not change
 swap, competitor, workload or median/MAD rules.
+
+After reboot, `readlink` on `/proc/1/ns/pid` raises `EACCES` for the ordinary
+host user even in escalated execution; `strace` confirms the kernel result.
+The reviewed design permits this exact permission result to use the existing
+blank-link representation only when the separately read PID 1 identity and
+all other host-view checks pass. Other readlink failures remain invalid.

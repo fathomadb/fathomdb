@@ -578,6 +578,19 @@ run; old invalid attempts keep their original protocol hash and cannot be
 promoted. HITL `seq-298` authorizes the newly installed GPU driver version,
 but GPU PASS still requires a successful gate on the running host module.
 
+After the 2026-10-01 reboot, windchill3's kernel returns `EACCES` for the
+unprivileged readlink of `/proc/1/ns/pid` under `ptrace_scope=1`. The same
+host view still reports the pinned initial PID namespace for the runner,
+`systemd` as PID 1 from both `/proc/1/comm` and `ps`, `hidepid=0`, matching
+runner PID via `os.getpid()`, `/proc/self` and `ps`, and a complete competitor
+scan. Treat only `EACCES` or `EPERM` on that one link as the protocol's blank
+unavailable-link value. Read PID 1's name independently so the link error
+cannot erase it. Missing PID 1 identity, any other link error, a mismatched
+nonblank namespace, or any failed host-view corroboration remains invalid.
+Apply this identically to entry and candidate; retain the new protocol and
+runner hashes, raw observations and independent review. No swap, competitor,
+workload or median/MAD rule changes.
+
 The durable qualification receipt names the exact stage-2 candidate, optimized
 build and features, hardware/software, dataset/workload, warm-up, repetitions,
 raw or reproducible outputs, entry candidate and comparison method. A miss at

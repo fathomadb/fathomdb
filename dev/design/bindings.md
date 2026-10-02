@@ -100,7 +100,7 @@ Each binding owns the dispatch model for its language. The protocol that connect
 Async invariants A–D from ADR-0.6.0-async-surface manifest in every binding. The invariants themselves are owned by that ADR; this file commits only the _binding-side_ assertion that no binding exposes an escape hatch:
 
 - **Invariant A (scheduler post-commit).** Cite ADR-async-surface § Decision. Bindings expose no escape hatch: bindings do not introduce additional locking around `write`, do not pre-dispatch scheduler work from the caller thread, and do not provide a "skip-scheduler" path.
-- **Invariant B (engine-owned embedder thread).** Cite ADR-async-surface § Decision. Bindings expose no escape hatch: embedder calls always run on the engine-owned embedder pool, never on the binding's caller thread (Python GIL-holder, TS libuv worker, CLI main thread).
+- **Invariant B (engine-owned embedder thread).** Production Engine inference (open-time equivalence probes, projection, ordinary and frozen search, and direct `embed_text`) runs on the engine-owned embed dispatcher, never on the binding's caller thread. Provider warmup and standalone SDK embedding utilities are outside this dispatch contract.
 - **Invariant C (embedder-protocol no-reentrancy).** The Rust provider trait forbids re-entering the same engine. Python and TypeScript currently offer default-or-none engine embedder selection, not custom provider injection or a reentrancy flag.
 - **Invariant D (eager model warmup + per-call deadline).** Model warmup remains synchronous during `Engine.open`. Production inference uses the engine's configured absolute queue-plus-service deadline (default 30s); bindings offer no bypass. `OpenReport` records warmup duration as specified by `design/engine.md`.
 

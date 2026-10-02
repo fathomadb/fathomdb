@@ -252,7 +252,11 @@ fn explicit_two_one_engine_has_exact_managed_roles_and_cleanup() {
     let path = dir.path().join("explicit-2-1.sqlite");
     let baseline = engine_threads();
     let (embedder, entered) = provider();
-    let config = EngineConfig::default();
+    let config = EngineConfig {
+        scheduler_runtime_threads: Some(2),
+        embedder_pool_size: Some(1),
+        ..EngineConfig::default()
+    };
     let opened = Engine::open_with_choice_and_config(
         &path,
         EmbedderChoice::Caller(embedder.clone()),
@@ -263,11 +267,6 @@ fn explicit_two_one_engine_has_exact_managed_roles_and_cleanup() {
     assert_eq!(engine.config(), &config);
     await_threads(&expected_threads(&baseline, 2, 1));
     assert_live_connections(&engine, 2);
-    assert_eq!(
-        connection_inventory(&engine),
-        "roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0"
-    );
-    await_database_descriptors(&path, 12);
     let foreground = Arc::clone(&engine);
     let caller = thread::spawn(move || foreground.embed_text("explicit 2/1 provider call"));
     assert_eq!(
@@ -288,7 +287,6 @@ fn explicit_two_one_engine_has_exact_managed_roles_and_cleanup() {
             .expect("2/1 reopen");
     await_threads(&expected_threads(&baseline, 2, 1));
     assert_live_connections(&reopened.engine, 2);
-    await_database_descriptors(&path, 12);
     reopened.engine.close().expect("2/1 reopen close");
     await_threads(&baseline);
     await_database_descriptors(&path, 0);

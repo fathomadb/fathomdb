@@ -652,6 +652,7 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
 
         checkpoint = self.pass_checkpoint()
         candidate = checkpoint["candidate_sha"]
+        self.write_ac073_stress_receipt(checkpoint)
 
         (self.root / "stage3.txt").write_text("stage3\n", encoding="utf-8")
         git("add", "stage3.txt")

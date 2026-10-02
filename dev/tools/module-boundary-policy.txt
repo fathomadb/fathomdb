@@ -50,6 +50,7 @@ reported identity
 reported ingest
 reported lifecycle
 reported mean
+reported open
 reported pagination
 reported pagination::tests
 reported projection_commit

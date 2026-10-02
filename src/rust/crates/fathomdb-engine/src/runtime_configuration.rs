@@ -72,7 +72,7 @@ impl ResolvedRuntimeConfiguration {
             1,
             64,
         )?;
-        let embedder = checked_value("embedder_pool_size", requested.embedder_pool_size, 4, 1, 64)?;
+        let embedder = checked_value("embedder_pool_size", requested.embedder_pool_size, 5, 1, 64)?;
         let embedder_call_timeout_ms = checked_value(
             "embedder_call_timeout_ms",
             requested.embedder_call_timeout_ms,

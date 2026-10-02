@@ -129,6 +129,10 @@ reboot, `nvidia-smi`, `/proc/driver/nvidia/version`, and `modinfo` all report
 580.178.04. The GPU inventory includes two RTX 3090 cards and one K620. This
 clears the driver/NVML preflight blocker; the strict feature-complete and
 official hidden-surface gates still need successful results before GPU PASS.
+HITL `seq-300` clarifies the final-candidate rule: use and test whichever
+NVIDIA driver version is installed on windchill3 at the time of that run,
+record its observed version, and continue the remaining work without a
+fixed-version prerequisite. The version above is a historical observation.
 
 Runtime Batch 2a was merged at `559deb531` from clean implementation commit
 `50b485873`. Its RED commit `9294cf73f` reproduced the returned-error

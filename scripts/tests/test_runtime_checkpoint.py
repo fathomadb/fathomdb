@@ -280,25 +280,32 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
 
     def test_v2_candidate_rejects_legacy_entry_with_wrong_protocol_hash(self) -> None:
-        self.pass_checkpoint()
+        checkpoint = self.pass_checkpoint()
         bundle = self.root / "evidence/entry"
         receipt = json.loads((bundle / "receipt.json").read_text())
         receipt["protocol_sha256"] = hashlib.sha256(
             (REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol-v2.json").read_bytes()
         ).hexdigest()
         (bundle / "receipt.json").write_text(json.dumps(receipt))
+        self._rebind_entry_bundle(checkpoint)
         result = self.run_gate()
         self.assertNotEqual(result.returncode, 0, result.stdout)
-        self.assertIn("D27", result.stdout)
+        self.assertIn("strict original historical protocol", result.stdout)
 
     def test_v2_candidate_rejects_legacy_entry_with_modified_raw(self) -> None:
-        self.pass_checkpoint()
+        checkpoint = self.pass_checkpoint()
         bundle = self.root / "evidence/entry"
         raw = bundle / "raw-output.jsonl"
-        raw.write_bytes(raw.read_bytes().replace(b'"environment_valid": true', b'"environment_valid": false', 1))
+        rows = [json.loads(line) for line in raw.read_text().splitlines()]
+        rows[0]["operations"][0]["completed_ns"] += 100
+        raw.write_text("".join(json.dumps(row) + "\n" for row in rows))
+        receipt = json.loads((bundle / "receipt.json").read_text())
+        receipt["raw_output_sha256"] = hashlib.sha256(raw.read_bytes()).hexdigest()
+        (bundle / "receipt.json").write_text(json.dumps(receipt))
+        self._rebind_entry_bundle(checkpoint)
         result = self.run_gate()
         self.assertNotEqual(result.returncode, 0, result.stdout)
-        self.assertIn("D27", result.stdout)
+        self.assertIn("D27 strict validation failed", result.stdout)
 
     def test_pass_performance_requires_every_matrix_cell(self) -> None:
         self.pass_checkpoint(cells=MATRIX_CELLS[:-1])
@@ -840,6 +847,18 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
                 lines[index] = f"| {EVIDENCE_DIR / 'd27-candidate-receipt.json'} | {digest} | PASS |"
             if line.startswith("| candidate | evidence/candidate |"):
                 lines[index] = f"| candidate | evidence/candidate | {digest} |"
+        path.write_text("\n".join(lines) + "\n")
+        checkpoint["receipts"]["performance"]["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        self._commit_rebound(checkpoint)
+
+    def _rebind_entry_bundle(self, checkpoint: dict[str, object]) -> None:
+        bundle = self.root / "evidence/entry/receipt.json"
+        digest = hashlib.sha256(bundle.read_bytes()).hexdigest()
+        path = self.root / EVIDENCE_DIR / "runtime-performance-qualification.md"
+        lines = path.read_text().splitlines()
+        for index, line in enumerate(lines):
+            if line.startswith("| entry | evidence/entry |"):
+                lines[index] = f"| entry | evidence/entry | {digest} |"
         path.write_text("\n".join(lines) + "\n")
         checkpoint["receipts"]["performance"]["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
         self._commit_rebound(checkpoint)

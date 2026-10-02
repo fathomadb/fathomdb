@@ -384,8 +384,8 @@ def dispatch_from_raw(raw: dict, embed_workers: int) -> dict:
             if sequence not in operations or operations[sequence]["class"] not in ("foreground_hybrid_query", "direct_embed"):
                 raise ValueError("dispatch trace foreground owner invalid")
             operation = operations[sequence]
-            if not operation["admitted_ns"] <= admitted <= operation["completed_ns"]:
-                raise ValueError("dispatch trace foreground admission outside operation interval")
+            if not operation["admitted_ns"] <= admitted <= terminal <= operation["completed_ns"]:
+                raise ValueError("dispatch trace foreground request outside operation interval")
             covered_foreground.add(sequence)
         elif "projection_cursors" in owner and "operation_sequence" not in owner:
             cursors = owner["projection_cursors"]

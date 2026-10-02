@@ -79,6 +79,16 @@ class D27RunnerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "foreground.*interval"):
             runner.dispatch_from_raw(raw, 1)
 
+    def test_candidate_trace_rejects_foreground_terminal_after_operation_completion(self):
+        raw = {"operations": [{"sequence": 1, "class": "direct_embed", "cursor": None,
+                               "admitted_ns": 1, "completed_ns": 5}],
+               "provider_peak_concurrency": 1,
+               "embed_dispatch_events": [{"source": "engine", "request_id": 1,
+                                           "owner": {"operation_sequence": 1},
+                                           "admitted_ns": 2, "started_ns": 3, "terminal_ns": 6}]}
+        with self.assertRaisesRegex(ValueError, "foreground.*interval"):
+            runner.dispatch_from_raw(raw, 1)
+
     def test_candidate_sqlite_inventory_requires_exact_live_roles(self):
         accepted = "live=writer:1,readers:8,dispatcher:1,workers:2,probes:0"
         self.assertEqual(runner.candidate_sqlite_inventory(accepted, 2), 12)

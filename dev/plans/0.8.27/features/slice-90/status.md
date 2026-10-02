@@ -404,11 +404,37 @@ The checkpoint receipt needs a reviewed, test-first way to bind the AC-073
 stress PASS and retain the unrelated superseded AC-075 failure without a
 false combined-selector PASS claim.
 
-Next: finish the remaining exact release selectors, accept the default-capacity
-ADR successor if they pass, reconcile the implementation and public contract,
-then rerun candidate-bound D27, installed binding, review and verification
-receipts. `scripts/check-runtime-checkpoints.py` validates the current
-PENDING object; the stage-2 checkpoint is not PASS. Structural Phase 3 remains
-blocked. Finish root-owner moves, final verification, exact final GPU and
-surface captures, and Slice 85 recovery comparison after that checkpoint.
+The repository owner then directed a relaxation of the host-wide D27 swap
+cap because other host activity cannot be contained. The original v1 protocol
+and six-run historical entry remain byte-identical. The test-first v2
+successor at `2e94aaf4f` makes swap movement report-only while still requiring
+present, nonnegative, monotonic counters and raw-linked deltas. Its semantic
+diff is confined to the swap rule. The exact historical v1 entry and raw
+artifacts revalidate under the original stricter rule before a v2 candidate
+comparison; no failed or incomplete historical rebuild was promoted. An
+independent `gpt-6-sol` high review passed this proof bridge.
+
+Two six-repetition v2 campaigns on clean source `2e94aaf4f` were fully
+environment-valid and conflict under the unchanged median/MAD performance
+rule. The first failed projection-heavy canonical-commit p95 at 7.1435 ms
+against a 5.5604 ms ceiling; its projection-heavy repetitions moved 8, 52,
+and 143 host swap pages. Its raw bundle is
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-v2-candidate-2e94aaf4f`.
+The single retry passed with projection-heavy canonical-commit p95 median
+5.0637 ms and direct-embed p95 median 2.1161 ms; its projection-heavy
+repetitions moved 382, 10, and 39 host swap pages. The retry receipt is
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-v2-candidate-2e94aaf4f-retry/receipt.json`
+(SHA-256 `52a20f29cb3bbb19a0ec159dace4a3cfbd74307c2dd3234cf59dbbfc820ad9b1`).
+Neither result erases the other. The protocol has no rule for adjudicating
+conflicting complete campaigns, so D27 qualification and the runtime
+checkpoint remain PENDING pending a reviewed disposition. The repository
+owner has been asked to choose the adjudication approach.
+
+The exact `2e94aaf4f` source passed the full unconfined `agent-verify` gate:
+lint, typecheck, strict security with zero violations/blockers/downgrades,
+and 130/130 registered test suites. Its stage-2 configuration matrix,
+official AC-081 and named selectors, installed Python/Node packages,
+candidate-bound review, and Terra verification are in progress. Structural
+Phase 3 has not begun. The final GPU and official public/hidden surface
+captures and Slice 85 recovery comparison remain after the checkpoint.
 Slice 90 remains IN_PROGRESS.

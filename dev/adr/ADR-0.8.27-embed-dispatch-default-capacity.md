@@ -4,17 +4,17 @@ date: 2026-10-02
 target_release: 0.8.27
 desc: Select the smallest qualified default embed-dispatch worker count while retaining bounded admission and the synchronous engine topology.
 blast_radius: engine default configuration; Rust, Python, and TypeScript open behavior; runtime and performance qualification
-status: proposed (HITL selection rule seq-299; remaining named selectors pending)
+status: proposed (HITL selection rule seq-299; conflicting valid D27 campaigns pending disposition)
 ---
 
 # ADR-0.8.27 — Embed-dispatch default capacity
 
 **Status:** proposed. The repository owner authorized a measured selection rule
 at `seq-299`: test higher default embed worker counts and choose the lowest
-count that passes the unchanged frozen D27 comparison, AC-081, and named
-release performance gates. The five-worker candidate has passed D27 and AC-081;
-the remaining named selectors are pending. This ADR becomes accepted only when
-those selectors pass and the exact selected source is recorded below.
+count that passes D27, AC-081, and named release performance gates. The
+five-worker candidate passed AC-081, but two valid D27 campaigns on the exact
+source conflict. This ADR remains proposed until that conflict is resolved,
+the remaining selectors pass, and the selected source is recorded below.
 
 ## Context
 
@@ -30,8 +30,10 @@ bound saturated.
 The remedy must preserve the accepted `1..=64` configuration range, the
 `4 * embedder_pool_size` waiting-queue formula, nonblocking admission,
 operation-specific overload outcomes, absolute deadlines, fixed-worker
-shutdown, and the existing synchronous SQLite ownership topology. The frozen
-D27 protocol, corpus, workload, and comparison rule are unchanged.
+shutdown, and the existing synchronous SQLite ownership topology. The D27
+corpus, workload, and comparison rule are unchanged. At the owner's direction,
+the successor v2 protocol reports host-wide swap movement without using it
+to invalidate a run; the original v1 protocol and historical entry are retained.
 
 ## Proposed decision
 
@@ -43,17 +45,23 @@ provider, and allows 20 waiting requests. Without a provider it starts no
 embed worker or request queue. `scheduler_runtime_threads` remains two by
 default. No queue, executor, deadline, or provider-failure rule changes.
 
-The choice is based on the first full six-repetition candidate comparison to
-pass the frozen D27 rule after lower-count failures. The two-worker run at
+The proposed count is the lowest to pass a six-repetition candidate comparison
+after lower-count failures. The two-worker run at
 `781b2f5e0`, three-worker proof at `2a62b14c7`, and four-worker run at
 `c03a398f8` each completed all six environment-valid repetitions and failed
 direct-embed latency. The three-worker direct-embed p95 medians were 4.139 ms
 under projection-heavy load and 4.141 ms under foreground-heavy load. An
 earlier three-worker attempt was invalidated by host swap and is not counted.
 Five workers at `ad31c3a61` passed six
-valid D27 repetitions. Its direct-embed p95 medians were 2.116 ms under
+valid D27 repetitions under v1. Its direct-embed p95 medians were 2.116 ms under
 projection-heavy load and 2.120 ms under foreground-heavy load. The same
 exact source passed AC-081a/b in seven fresh official runs and AC-081c.
+The later exact source `2e94aaf4f` passed AC-081a/b in seven fresh official
+runs and AC-081c. Under the reviewed v2 swap rule, its first complete,
+environment-valid D27 campaign failed projection-heavy canonical-commit p95
+(7.1435 ms versus 5.5604 ms); one complete retry passed (5.0637 ms). No
+predeclared rule resolves these conflicting valid campaigns. Both are retained,
+and the runtime checkpoint remains pending their disposition.
 
 ## Supersession and consequences
 
@@ -80,6 +88,12 @@ The retained historical D27 entry is
 The five-worker comparison is
 `/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-default5-retry-ad31c3a61/receipt.json`
 (SHA-256 `29e5206e02751ac83d2a28fa5cf9b85bf98e164cc3270c0cdf88cef5a5b4d185`).
+The conflicting v2 campaigns on exact source `2e94aaf4f` are retained at
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-v2-candidate-2e94aaf4f`
+and
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-v2-candidate-2e94aaf4f-retry/receipt.json`.
+The passing retry receipt SHA-256 is
+`52a20f29cb3bbb19a0ec159dace4a3cfbd74307c2dd3234cf59dbbfc820ad9b1`.
 The retained failed three-worker proof is
 `/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-default3-proof-2a62b14c7/raw-output.jsonl`;
 all six attempts in that bundle are environment-valid and the unchanged
@@ -99,6 +113,7 @@ as `superseded-by-tc5`. The exact named-selector report is
 The combined selector is not reported as PASS. A reviewed checkpoint receipt
 must bind the AC-073 stress evidence and the retained AC-075 outcome.
 
-Installed-binding parity, independent code review, and Terra verification
-remain before acceptance and the runtime checkpoint. No structural Phase 3
-source move may begin before that checkpoint passes.
+Exact-source named selectors, installed-binding parity, independent code
+review, Terra verification, and D27 conflict disposition remain before
+acceptance and the runtime checkpoint. No structural Phase 3 source move may
+begin before that checkpoint passes.

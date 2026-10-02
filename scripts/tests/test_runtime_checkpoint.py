@@ -381,6 +381,18 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("stage3_start_sha must identify first engine source change", result.stdout)
 
+    def test_malformed_d27_metric_group_fails_without_traceback(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        path = self.root / EVIDENCE_DIR / "d27-candidate-receipt.json"
+        receipt = json.loads(path.read_text())
+        receipt["per_repetition_metrics"]["projection_heavy"][0]["throughput"] = "PASS"
+        path.write_text(json.dumps(receipt))
+        self._rebind_performance(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("D27 candidate projection_heavy repetition 1 throughput is incomplete", result.stdout)
+        self.assertNotIn("Traceback", result.stdout)
+
     def _commit_rebound(self, checkpoint: dict[str, object]) -> None:
         subprocess.run(["git", "-C", str(self.root), "add", "dev/plans/0.8.27/features/slice-90"], check=True)
         subprocess.run(["git", "-C", str(self.root), "commit", "-qm", "rebind receipts"], check=True)

@@ -32,6 +32,16 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def runner_bundle_bytes(protocol_path: Path) -> bytes:
+    """Bind the runner, workload, verifier and selected protocol bytes as one artifact."""
+    return (
+        Path(__file__).read_bytes()
+        + b"\n--RUST--\n" + WORKLOAD.read_bytes()
+        + b"\n--VERIFIER--\n" + VERIFIER.read_bytes()
+        + b"\n--PROTOCOL--\n" + protocol_path.read_bytes()
+    )
+
+
 def generate_corpus(protocol: dict, path: Path) -> None:
     """Write the frozen 10,000-record, 512-byte, 1,024-token corpus."""
     fixture = protocol["fixture"]
@@ -582,7 +592,7 @@ def main() -> int:
     corpus = output / "corpus.jsonl"
     generate_corpus(protocol, corpus)
     runner_bundle = output / "runner.bundle"
-    runner_bundle.write_bytes(Path(__file__).read_bytes() + b"\n--RUST--\n" + WORKLOAD.read_bytes() + b"\n--VERIFIER--\n" + VERIFIER.read_bytes())
+    runner_bundle.write_bytes(runner_bundle_bytes(protocol_path))
     build_dir = output / "build"
     build_dir.mkdir(exist_ok=True)
     binary = build_binary(build_manifest(source, build_dir), output)

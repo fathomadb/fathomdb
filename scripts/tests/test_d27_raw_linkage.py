@@ -137,12 +137,12 @@ class RawLinkageTests(unittest.TestCase):
             item["configuration_observation"] = {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 1}
             item["projection_admission_observation"] = {"source": "engine", "active_plus_queued_high_water": 4}
             item["engine_thread_inventory"] = 12
-            item["connection_inventory"] = 'Ok("creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0")'
+            item["connection_inventory"] = "live=writer:1,readers:8,dispatcher:1,workers:2,probes:0"
             item["embed_dispatch_events"] = []
             for index, operation in enumerate(item["operations"]):
                 owner = {"projection_cursors": [operation["cursor"]]} if operation["class"] == "canonical_write" else {"operation_sequence": operation["sequence"]}
-                start = 2_100_000 + index * 100_000
-                item["embed_dispatch_events"].append({"source": "engine", "request_id": index, "owner": owner, "admitted_ns": start, "started_ns": start + 10_000, "terminal_ns": start + 80_000, "outcome": "completed"})
+                start = 1_100_000 + index * 50_000
+                item["embed_dispatch_events"].append({"source": "engine", "request_id": index, "owner": owner, "admitted_ns": start, "started_ns": start + 10_000, "terminal_ns": start + 40_000, "outcome": "completed"})
         candidate = receipt_for("candidate", candidate_raw, "1" * 40)
         verifier.verify_raw_linkage(candidate, PROTOCOL, self.raw_path)
         candidate = verifier.validate_receipt(candidate, PROTOCOL, protocol_path, artifacts, entry)
@@ -252,7 +252,7 @@ class RawLinkageTests(unittest.TestCase):
         raw["embed_requests_waiting_high_water"] = 0
         raw["embed_queue_wait_ns"] = [0]
         raw["engine_thread_inventory"] = 12
-        raw["connection_inventory"] = "Ok(\"creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0\")"
+        raw["connection_inventory"] = "live=writer:1,readers:8,dispatcher:1,workers:2,probes:0"
         with self.assertRaisesRegex(ValueError, "dispatch trace"):
             runner.summarize_raw(raw, "candidate")
 
@@ -293,12 +293,12 @@ class RawLinkageTests(unittest.TestCase):
         raw["configuration_observation"] = {"source": "engine", "scheduler_runtime_threads": 2, "embedder_pool_size": 1}
         raw["projection_admission_observation"] = {"source": "engine", "active_plus_queued_high_water": 4}
         raw["engine_thread_inventory"] = 12
-        raw["connection_inventory"] = "Ok(\"creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0\")"
+        raw["connection_inventory"] = "live=writer:1,readers:8,dispatcher:1,workers:2,probes:0"
         events = []
         for index, operation in enumerate(raw["operations"]):
             owner = {"projection_cursors": [operation["cursor"]]} if operation["class"] == "canonical_write" else {"operation_sequence": operation["sequence"]}
-            start = 2_100_000 + index * 100_000
-            events.append({"source": "engine", "request_id": index, "owner": owner, "admitted_ns": start, "started_ns": start + 10_000, "terminal_ns": start + 80_000, "outcome": "completed"})
+            start = 1_100_000 + index * 50_000
+            events.append({"source": "engine", "request_id": index, "owner": owner, "admitted_ns": start, "started_ns": start + 10_000, "terminal_ns": start + 40_000, "outcome": "completed"})
         raw["embed_dispatch_events"] = events
         summary = runner.summarize_raw(raw, "candidate")
         self.assertEqual(summary["high_water"]["embed_requests_waiting"], 1)

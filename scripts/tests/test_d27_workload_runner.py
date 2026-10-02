@@ -56,8 +56,8 @@ class D27RunnerTests(unittest.TestCase):
 
     def test_candidate_trace_rejects_missing_duplicate_and_unowned_requests(self):
         raw = {"operations": [
-            {"sequence": 1, "class": "direct_embed", "cursor": None},
-            {"sequence": 2, "class": "canonical_write", "cursor": 7, "outcome": "completed"}],
+            {"sequence": 1, "class": "direct_embed", "cursor": None, "admitted_ns": 0, "completed_ns": 10},
+            {"sequence": 2, "class": "canonical_write", "cursor": 7, "outcome": "completed", "admitted_ns": 0, "completed_ns": 10}],
             "provider_peak_concurrency": 1}
         direct = {"source": "engine", "request_id": 1, "owner": {"operation_sequence": 1},
                   "admitted_ns": 1, "started_ns": 2, "terminal_ns": 3}
@@ -69,9 +69,32 @@ class D27RunnerTests(unittest.TestCase):
             with self.subTest(error=error), self.assertRaisesRegex(ValueError, error):
                 runner.dispatch_from_raw({**raw, "embed_dispatch_events": events}, 1)
 
+    def test_candidate_trace_rejects_foreground_dispatch_after_operation_completion(self):
+        raw = {"operations": [{"sequence": 1, "class": "direct_embed", "cursor": None,
+                               "admitted_ns": 1, "completed_ns": 5}],
+               "provider_peak_concurrency": 1,
+               "embed_dispatch_events": [{"source": "engine", "request_id": 1,
+                                           "owner": {"operation_sequence": 1},
+                                           "admitted_ns": 6, "started_ns": 7, "terminal_ns": 8}]}
+        with self.assertRaisesRegex(ValueError, "foreground.*interval"):
+            runner.dispatch_from_raw(raw, 1)
+
+    def test_candidate_sqlite_inventory_requires_exact_live_roles(self):
+        accepted = "live=writer:1,readers:8,dispatcher:1,workers:2,probes:0"
+        self.assertEqual(runner.candidate_sqlite_inventory(accepted, 2), 12)
+        for invalid in ("creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0",
+                        "live=writer:2,readers:7,dispatcher:1,workers:2,probes:0",
+                        "live=writer:1,readers:7,dispatcher:2,workers:2,probes:0",
+                        "live=writer:1,readers:8,dispatcher:1,workers:1,probes:1"):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(ValueError, "SQLite.*inventory"):
+                runner.candidate_sqlite_inventory(invalid, 2)
+
     def test_candidate_workload_uses_engine_observation_hooks(self):
         source = (ROOT / "scripts/d27_runtime_workload.rs").read_text()
         self.assertIn("Engine::open_with_choice_and_config", source)
+        self.assertIn("EngineConfig::default()", source)
+        self.assertNotIn("scheduler_runtime_threads: Some(2)", source)
+        self.assertNotIn("embedder_pool_size: Some(1)", source)
         self.assertIn("begin_d27_observation_for_test", source)
         self.assertIn("d27_observation_for_test", source)
 

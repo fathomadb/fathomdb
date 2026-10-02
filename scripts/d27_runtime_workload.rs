@@ -225,7 +225,7 @@ fn d27_runtime_qualification() {
     let opened = Engine::open_with_choice_and_config(
         &database,
         EmbedderChoice::Caller(provider.clone()),
-        EngineConfig { scheduler_runtime_threads: Some(2), embedder_pool_size: Some(1), ..EngineConfig::default() },
+        EngineConfig::default(),
     ).expect("open");
     let engine = Arc::new(opened.engine);
     engine.configure_vector_kind_for_test("doc").expect("vector kind");

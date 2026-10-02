@@ -383,6 +383,9 @@ def dispatch_from_raw(raw: dict, embed_workers: int) -> dict:
             sequence = owner["operation_sequence"]
             if sequence not in operations or operations[sequence]["class"] not in ("foreground_hybrid_query", "direct_embed"):
                 raise ValueError("dispatch trace foreground owner invalid")
+            operation = operations[sequence]
+            if not operation["admitted_ns"] <= admitted <= operation["completed_ns"]:
+                raise ValueError("dispatch trace foreground admission outside operation interval")
             covered_foreground.add(sequence)
         elif "projection_cursors" in owner and "operation_sequence" not in owner:
             cursors = owner["projection_cursors"]
@@ -477,6 +480,16 @@ def check_raw_observations(raw: dict, phase: str) -> None:
             raise ValueError("embed queue observation differs from dispatch trace")
 
 
+def candidate_sqlite_inventory(observation: str, scheduler_threads: int) -> int:
+    """Require the exact live engine-owned handle roles for the resolved scheduler."""
+    if not isinstance(observation, str):
+        raise ValueError("SQLite connection inventory missing")
+    match = re.fullmatch(r"live=writer:(\d+),readers:(\d+),dispatcher:(\d+),workers:(\d+),probes:(\d+)", observation)
+    if match is None or tuple(map(int, match.groups())) != (1, 8, 1, scheduler_threads, 0):
+        raise ValueError("SQLite connection inventory mismatch")
+    return 10 + scheduler_threads
+
+
 def summarize_raw(raw: dict, phase: str) -> dict:
     """Derive unrounded rates and latency percentiles from monotonic ns."""
     check_raw_observations(raw, phase)
@@ -517,13 +530,7 @@ def summarize_raw(raw: dict, phase: str) -> dict:
     high_water = {"durable_projection_backlog": raw["projection_backlog_high_water"]}
     inventory = {"provider_concurrency": raw["provider_peak_concurrency"], "engine_threads": raw["engine_thread_inventory"], "residual_workers_after_close": raw["residual_workers_after_close"]}
     if phase == "candidate":
-        conn_match = re.search(r"(?:live|creation)=writer:(\d+),readers:(\d+),dispatcher:(\d+),workers:(\d+),probes:(\d+)", raw["connection_inventory"])
-        if not conn_match:
-            raise ValueError("missing SQLite inventory")
-        connections = sum(int(value) for value in conn_match.groups())
-        if connections != 1 + 1 + raw["configuration_observation"]["scheduler_runtime_threads"] + 8:
-            raise ValueError("SQLite connection inventory mismatch")
-        inventory["sqlite_connections"] = connections
+        inventory["sqlite_connections"] = candidate_sqlite_inventory(raw.get("connection_inventory"), raw["configuration_observation"]["scheduler_runtime_threads"])
         high_water["projection_rows_active_plus_queued"] = raw["projection_admission_observation"]["active_plus_queued_high_water"]
         high_water["embed_requests_waiting"] = dispatch["waiting_peak"]
     return {

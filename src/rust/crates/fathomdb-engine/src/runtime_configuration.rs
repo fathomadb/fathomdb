@@ -1,10 +1,138 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use std::sync::Mutex;
 
 use super::{
     DEFAULT_EMBED_TIMEOUT_MS, DEFAULT_PROVENANCE_ROW_CAP, DEFAULT_SLOW_THRESHOLD_MS,
     PROJECTION_COMMIT_BATCH,
 };
+
+/// SQLite runtime mode selected before FathomDB opens its first connection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RuntimeSqliteMode {
+    /// Disable SQLite's process-global memory statistics and heap-limit
+    /// enforcement to remove their shared allocator lock from read traffic.
+    Performance,
+    /// Enable SQLite's process-global memory statistics and heap-limit
+    /// enforcement for diagnostic applications.
+    Diagnostics,
+}
+
+/// Effective process-wide SQLite runtime configuration.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RuntimeConfiguration {
+    pub sqlite_mode: RuntimeSqliteMode,
+}
+
+/// Startup configuration failure. Changing modes requires a process restart.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RuntimeConfigurationError {
+    /// SQLite was already initialized before FathomDB could configure it.
+    TooLate,
+    /// The runtime is already configured in a different mode.
+    Conflict { requested: RuntimeSqliteMode, effective: RuntimeSqliteMode },
+    /// SQLite rejected configuration or initialization with this result code.
+    SqliteFailure { code: i32 },
+}
+
+impl Display for RuntimeConfigurationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TooLate => write!(f, "SQLite runtime configuration is too late; restart required"),
+            Self::Conflict { requested, effective } => write!(
+                f,
+                "SQLite runtime is already configured as {effective:?}, not {requested:?}; restart required"
+            ),
+            Self::SqliteFailure { code } => {
+                write!(f, "SQLite runtime configuration failed with code {code}")
+            }
+        }
+    }
+}
+
+impl Error for RuntimeConfigurationError {}
+
+#[derive(Clone, Copy, Debug)]
+enum RuntimeState {
+    Unconfigured,
+    Configured(RuntimeConfiguration),
+    Failed(RuntimeConfigurationError),
+}
+
+static SQLITE_RUNTIME_STATE: Mutex<RuntimeState> = Mutex::new(RuntimeState::Unconfigured);
+
+/// Configure the SQLite runtime before opening any FathomDB Engine.
+///
+/// Repeating the same mode is idempotent. Selecting a different mode or
+/// configuring after any SQLite initialization fails without shutdown or
+/// reconfiguration. The setting applies to the SQLite image linked into this
+/// artifact and persists for the process lifetime.
+pub fn configure_runtime(
+    sqlite_mode: RuntimeSqliteMode,
+) -> Result<RuntimeConfiguration, RuntimeConfigurationError> {
+    configure_runtime_locked(Some(sqlite_mode))
+}
+
+pub(crate) fn configure_runtime_for_open() -> Result<RuntimeConfiguration, RuntimeConfigurationError>
+{
+    configure_runtime_locked(None)
+}
+
+fn configure_runtime_locked(
+    requested: Option<RuntimeSqliteMode>,
+) -> Result<RuntimeConfiguration, RuntimeConfigurationError> {
+    let mut state = SQLITE_RUNTIME_STATE.lock().map_err(|_| {
+        RuntimeConfigurationError::SqliteFailure { code: rusqlite::ffi::SQLITE_ERROR }
+    })?;
+    match *state {
+        RuntimeState::Configured(effective) => {
+            if requested.is_none_or(|mode| mode == effective.sqlite_mode) {
+                return Ok(effective);
+            }
+            return Err(RuntimeConfigurationError::Conflict {
+                requested: requested.expect("checked Some"),
+                effective: effective.sqlite_mode,
+            });
+        }
+        RuntimeState::Failed(error) => return Err(error),
+        RuntimeState::Unconfigured => {}
+    }
+
+    let mode = requested.unwrap_or(RuntimeSqliteMode::Performance);
+    let memstatus = match mode {
+        RuntimeSqliteMode::Performance => 0_i32,
+        RuntimeSqliteMode::Diagnostics => 1_i32,
+    };
+    let config_rc =
+        unsafe { rusqlite::ffi::sqlite3_config(rusqlite::ffi::SQLITE_CONFIG_MEMSTATUS, memstatus) };
+    if config_rc != rusqlite::ffi::SQLITE_OK {
+        let error = if config_rc == rusqlite::ffi::SQLITE_MISUSE {
+            RuntimeConfigurationError::TooLate
+        } else {
+            RuntimeConfigurationError::SqliteFailure { code: config_rc }
+        };
+        *state = RuntimeState::Failed(error);
+        return Err(error);
+    }
+    let initialize_rc = unsafe { rusqlite::ffi::sqlite3_initialize() };
+    if initialize_rc != rusqlite::ffi::SQLITE_OK {
+        let error = RuntimeConfigurationError::SqliteFailure { code: initialize_rc };
+        *state = RuntimeState::Failed(error);
+        return Err(error);
+    }
+    let effective = RuntimeConfiguration { sqlite_mode: mode };
+    *state = RuntimeState::Configured(effective);
+    Ok(effective)
+}
+
+pub(crate) fn effective_runtime_configuration() -> RuntimeConfiguration {
+    match *SQLITE_RUNTIME_STATE.lock().expect("SQLite runtime state") {
+        RuntimeState::Configured(configuration) => configuration,
+        RuntimeState::Unconfigured | RuntimeState::Failed(_) => {
+            unreachable!("an opened Engine always has a configured SQLite runtime")
+        }
+    }
+}
 
 const MAX_SAFE_INTEGER: u64 = (1_u64 << 53) - 1;
 
@@ -28,7 +156,7 @@ pub struct EngineConfig {
 }
 
 /// Invalid per-engine settings. Process-wide SQLite mode failures use
-/// [`super::RuntimeConfigurationError`] instead.
+/// [`RuntimeConfigurationError`] instead.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EngineConfigurationError {
     /// A requested value is outside its inclusive accepted range.

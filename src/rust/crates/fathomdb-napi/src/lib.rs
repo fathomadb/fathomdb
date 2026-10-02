@@ -5056,12 +5056,6 @@ impl Engine {
     }
 
     #[napi]
-    pub async fn binding_connection_inventory_for_test(&self) -> Result<String> {
-        let engine = Arc::clone(&self.inner);
-        call_engine(move || engine.binding_connection_inventory_for_test()).await
-    }
-
-    #[napi]
     pub async fn configure_vector_kind_for_test(&self, kind: String) -> Result<()> {
         validate_ffi_string_napi(&kind)?;
         let engine = Arc::clone(&self.inner);
@@ -5074,6 +5068,17 @@ impl Engine {
         validate_ffi_string_napi(&text)?;
         let engine = Arc::clone(&self.inner);
         call_engine(move || engine.write_vector_for_test(&kind, &text).map(|_| ())).await
+    }
+}
+
+#[cfg(feature = "test-hooks")]
+#[napi]
+impl Engine {
+    /// Return private managed-connection facts for installed-binding tests.
+    #[napi]
+    pub async fn binding_connection_inventory_for_test(&self) -> Result<String> {
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.binding_connection_inventory_for_test()).await
     }
 }
 

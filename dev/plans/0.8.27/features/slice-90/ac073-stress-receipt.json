@@ -1,0 +1,23 @@
+{
+  "ac073_stress": "pass",
+  "ac075": "superseded-by-tc5",
+  "candidate_sha": "2e94aaf4f57399a5ded8fc39b9100e33fe09dbcd",
+  "execution_manifest": "dev/plans/0.8.27/features/slice-90/ac073-execution.json",
+  "execution_manifest_sha256": "c70a5150d227073ba886c2dc62708ed27f22afe269a80a87512110311f5c15b5",
+  "raw_log": "dev/plans/0.8.27/features/slice-90/ac073-run.log",
+  "raw_log_sha256": "81570e2feb6495a2bda199479779ba53d20b2850b5da0226893189a39df4ca9c",
+  "retained_ac075_result": {
+    "ci_95": [
+      0.744,
+      0.799
+    ],
+    "recall_at_10": 0.773,
+    "verdict": "fail"
+  },
+  "schema_version": "fathomdb.slice90-ac073-stress/v1",
+  "selector_exit": 101,
+  "source_receipt": "dev/plans/0.8.27/features/slice-90/ac073-eu7.json",
+  "source_receipt_sha256": "9ee1d409f773bab376187686b64ab4f8d279f2a8aaa02be5380e88cb94d0cc78",
+  "stress_bound_ms": 513,
+  "stress_p99_ms": 493
+}

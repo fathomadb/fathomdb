@@ -160,8 +160,8 @@ mod tests {
     #[test]
     fn omission_and_explicit_zero_keep_their_distinct_meaning() {
         let default = ResolvedRuntimeConfiguration::resolve(&EngineConfig::default()).unwrap();
-        assert_eq!((default.scheduler_runtime_threads, default.embedder_pool_size), (2, 4));
-        assert_eq!(default.embed_waiting_capacity, 16);
+        assert_eq!((default.scheduler_runtime_threads, default.embedder_pool_size), (2, 5));
+        assert_eq!(default.embed_waiting_capacity, 20);
         assert_eq!(default.embedder_call_timeout_ms, 30_000);
         assert_eq!((default.provenance_row_cap, default.slow_threshold_ms), (1_000_000, 100));
         let zero = ResolvedRuntimeConfiguration::resolve(&EngineConfig {

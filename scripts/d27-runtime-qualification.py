@@ -71,7 +71,7 @@ def verify_raw_linkage(receipt: dict, protocol: dict, raw_path: Path) -> None:
                 repetition = int(name[len(prefix):])
                 break
         require(direction is not None, "raw repetition order mismatch")
-        runner.validate_raw_contract(item, protocol, direction, repetition)
+        runner.validate_raw_contract(item, protocol, direction, repetition, receipt["phase"])
         by_direction[direction].append(runner.summarize_raw(item, receipt["phase"]))
     for direction in DIRECTIONS:
         expected = receipt["per_repetition_metrics"][direction]

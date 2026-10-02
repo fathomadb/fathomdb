@@ -251,6 +251,10 @@ pub(crate) fn projection_dispatcher_loop(
             Ok((jobs, _)) if !jobs.is_empty() => {
                 if let Ok(mut state) = shared.state.lock() {
                     state.queued_jobs = state.queued_jobs.saturating_add(jobs.len());
+                    #[cfg(feature = "test-hooks")]
+                    shared
+                        .embed_dispatch
+                        .observe_projection_admission(state.active_jobs + state.queued_jobs);
                     for job in &jobs {
                         state.in_flight.insert(job.cursor);
                     }
@@ -548,6 +552,15 @@ fn embed_projection_batch(
     }
     let bodies: Vec<String> = jobs.iter().map(|job| job.body.clone()).collect();
     let vectors = loop {
+        #[cfg(feature = "test-hooks")]
+        let owner = Some(crate::embed_dispatch::d27_observation::Owner::Projection {
+            projection_cursors: jobs.iter().map(|job| job.cursor).collect(),
+        });
+        #[cfg(feature = "test-hooks")]
+        let result = crate::embed_dispatch::d27_observation::with_owner(owner, || {
+            shared.embed_dispatch.submit_batch(bodies.clone()).and_then(EmbedReply::wait)
+        });
+        #[cfg(not(feature = "test-hooks"))]
         let result = shared.embed_dispatch.submit_batch(bodies.clone()).and_then(EmbedReply::wait);
         match result {
             Ok(EmbedOutput::Batch(vectors)) => break vectors,
@@ -692,6 +705,14 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
         if shared.state.lock().map(|state| state.stopping).unwrap_or(true) {
             return ProjectionOutcome::Deferred;
         }
+        #[cfg(feature = "test-hooks")]
+        let result = crate::embed_dispatch::d27_observation::with_owner(
+            Some(crate::embed_dispatch::d27_observation::Owner::Projection {
+                projection_cursors: vec![job.cursor],
+            }),
+            || shared.embed_dispatch.submit_text(job.body.clone()).and_then(EmbedReply::wait),
+        );
+        #[cfg(not(feature = "test-hooks"))]
         let result = shared.embed_dispatch.submit_text(job.body.clone()).and_then(EmbedReply::wait);
         let vector = match result {
             Ok(EmbedOutput::One(vector)) => vector,

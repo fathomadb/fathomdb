@@ -551,13 +551,21 @@ fn reader_worker_loop(
                 let SearchReaderRequest { work, respond } = *request;
                 #[cfg(feature = "tc5-benchmark")]
                 tc5_benchmark::record_search_route();
-                let result = read_search_work_in_tx(
-                    &mut connection,
-                    work,
-                    NoEvidenceCapture,
-                    &wal_attribution,
-                    worker_idx,
-                );
+                #[cfg(feature = "test-hooks")]
+                let owner = work.d27_owner.clone();
+                let search = || {
+                    read_search_work_in_tx(
+                        &mut connection,
+                        work,
+                        NoEvidenceCapture,
+                        &wal_attribution,
+                        worker_idx,
+                    )
+                };
+                #[cfg(feature = "test-hooks")]
+                let result = crate::embed_dispatch::d27_observation::with_owner(owner, search);
+                #[cfg(not(feature = "test-hooks"))]
+                let result = search();
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
                 // Receiver may have been dropped if the caller went
                 // away; nothing to do in that case.

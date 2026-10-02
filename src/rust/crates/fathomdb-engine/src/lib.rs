@@ -1229,6 +1229,43 @@ static POST_PROBE_STARTUP_FAULT_FOR_TEST: Mutex<Option<PostProbeStartupFaultForT
     Mutex::new(None);
 
 #[cfg(test)]
+struct PostProbeVisibilityFaultForTest {
+    path: PathBuf,
+    observed: std::sync::mpsc::Sender<(
+        embed_dispatch::DispatchAccounting,
+        Arc<ManagedConnectionRegistry>,
+    )>,
+}
+
+#[cfg(test)]
+static POST_PROBE_VISIBILITY_FAULT_FOR_TEST: Mutex<Option<PostProbeVisibilityFaultForTest>> =
+    Mutex::new(None);
+
+#[cfg(test)]
+fn install_post_probe_visibility_fault_for_test(
+    path: PathBuf,
+    observed: std::sync::mpsc::Sender<(
+        embed_dispatch::DispatchAccounting,
+        Arc<ManagedConnectionRegistry>,
+    )>,
+) {
+    *POST_PROBE_VISIBILITY_FAULT_FOR_TEST.lock().expect("visibility fault hook lock") =
+        Some(PostProbeVisibilityFaultForTest { path, observed });
+}
+
+#[cfg(test)]
+fn take_post_probe_visibility_fault_for_test(
+    path: &Path,
+) -> Option<PostProbeVisibilityFaultForTest> {
+    let mut hook = POST_PROBE_VISIBILITY_FAULT_FOR_TEST.lock().expect("visibility fault hook lock");
+    if hook.as_ref().is_some_and(|candidate| candidate.path == path) {
+        hook.take()
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
 fn install_post_probe_startup_fault_for_test(
     path: PathBuf,
     observed: std::sync::mpsc::Sender<PostProbeStartupObservationForTest>,
@@ -3056,6 +3093,22 @@ impl Engine {
                 };
 
                 let next_cursor = load_next_cursor(&connection);
+                #[cfg(test)]
+                if let Some(fault) = take_post_probe_visibility_fault_for_test(&canonical_path) {
+                    embed_dispatch.set_drain_budget_ms_for_test(40);
+                    connection
+                        .execute_batch(
+                            "DELETE FROM _fathomdb_read_visibility_state WHERE singleton=1",
+                        )
+                        .expect("inject missing visibility singleton");
+                    fault
+                        .observed
+                        .send((
+                            embed_dispatch.accounting().expect("provider accounting"),
+                            Arc::clone(&managed_connections),
+                        ))
+                        .expect("report visibility fault");
+                }
                 let read_visibility_generation =
                     frozen_read::load_visibility_generation(&connection).map_err(|_| {
                         EngineOpenError::Io {
@@ -8104,6 +8157,9 @@ mod slice90_concurrent_close_tests;
 
 #[cfg(test)]
 mod slice90_close_review_tests;
+
+#[cfg(test)]
+mod slice90_post_probe_real_error_tests;
 
 #[cfg(test)]
 mod tests {

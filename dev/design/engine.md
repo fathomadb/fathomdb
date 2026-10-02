@@ -198,6 +198,12 @@ Drop/finalizer paths are best-effort safety nets and must not panic. Bindings
 preserve a bounded provider drain even when application code omits an explicit
 close; explicit close remains the only path that can report shutdown failure.
 
+During open, the post-probe startup guard owns the writer, unopened reader
+connections, projection runtime, profile contexts, and admission lock until the
+engine takes them. A startup error stops the runtime, uninstalls callbacks,
+releases SQLite owners and the lock, then drains provider-only workers under
+the same one-deadline rule. Cleanup does not replace the original open error.
+
 Historical dedicated-writer-thread, caller `row_id`, per-kind vector-table,
 single-cursor-per-batch, restore, and public migration-on-open descriptions are
 retained in Git history but are not current 0.8.26 authority.

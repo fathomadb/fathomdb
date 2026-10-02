@@ -9,7 +9,7 @@ target_release: 0.8.27
 Candidate SHA: 2e94aaf4f57399a5ded8fc39b9100e33fe09dbcd
 Verdict: PASS
 Reviewer: gpt-5.6-terra
-Evidence: Independent read-only verification at clean merged tree 9b04d0b25568c0f484a84bbada8aad69f7db7a4e reran 48 D27/checkpoint tests, validated the sealed AC-073 receipt, and audited source and artifact identity.
+Evidence: Independent read-only verification at clean merged tree 9b04d0b25568c0f484a84bbada8aad69f7db7a4e passed 48 D27/checkpoint tests, validated the sealed AC-073 receipt, and audited source and artifact identity.
 
 Terra confirmed byte-identical production engine source between the measured
 candidate and merged tree, reran the 48 lightweight D27/checkpoint tests with

@@ -153,7 +153,7 @@ Slice-0 gate before Slices 15 and 25 open.
 | # | Category | Candidate decision | HITL verdict | ADR file |
 | - | -------- | ------------------ | ------------ | -------- |
 | 56 | architecture | Preserve synchronous primary-writer/projection-worker/commit-gate ownership; add bounded engine-owned projection orchestration and embed dispatch with universal deadlines, typed configuration and two-phase shutdown | accepted (HITL `seq-295`, following direction `seq-293`) | ADR-0.8.27-engine-owned-runtime-topology.md |
-| 57 | architecture | Select the lowest passing default embed-dispatch worker count under the D27 comparison and unchanged release performance gates | proposed selection of five under HITL rule `seq-299`; conflicting valid D27 campaigns pending disposition | ADR-0.8.27-embed-dispatch-default-capacity.md |
+| 57 | architecture | Select the lowest passing default embed-dispatch worker count under the D27 comparison and unchanged release performance gates | accepted five under HITL rule `seq-299` and 2026-10-02 targeted throughput ruling; strict D27 retry PASS, third-run 0.4125 commits/s shortfall accepted, earlier latency FAIL retained | ADR-0.8.27-embed-dispatch-default-capacity.md |
 
 ## Categories
 

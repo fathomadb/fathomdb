@@ -425,10 +425,36 @@ The single retry passed with projection-heavy canonical-commit p95 median
 repetitions moved 382, 10, and 39 host swap pages. The retry receipt is
 `/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-v2-candidate-2e94aaf4f-retry/receipt.json`
 (SHA-256 `52a20f29cb3bbb19a0ec159dace4a3cfbd74307c2dd3234cf59dbbfc820ad9b1`).
-Neither result erases the other. The protocol has no rule for adjudicating
-conflicting complete campaigns, so D27 qualification and the runtime
-checkpoint remain PENDING pending a reviewed disposition. The repository
-owner has been asked to choose the adjudication approach.
+Neither result erases the other. The third complete, environment-valid v2
+campaign on the same source used CPU affinity `2-11,14-23`; 19 sampled workload
+threads carried that mask. The mask constrained the process and its children,
+but did not exclude other host activity from those cores; the historical
+entry used all 24 logical CPUs. The third campaign's projection-heavy
+canonical-commit p95 median passed at 4.8958 ms against 5.5604 ms. Its
+canonical throughput median was 33.1802 commits/s against the unchanged
+33.5926 commits/s floor, a 0.4125 commits/s (1.23%) shortfall. The strict
+verifier rejected it on throughput and produced no PASS receipt. On
+2026-10-02, the repository owner explicitly accepted that absolute shortfall
+as PASS for the release decision. The raw third campaign and exact rejected
+outcome remain at
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-v2-candidate-2e94aaf4f-third-affinity`.
+The strict passing retry remains the machine-valid D27 checkpoint receipt;
+the earlier valid latency FAIL remains in the record. The runtime checkpoint
+awaits binding of its candidate-bound receipts.
+
+Published crates.io `fathomdb-engine` 0.8.26 then completed an equivalent
+six-repetition workload with the same corpus, deterministic provider,
+warm-up, measurement, operation mix and 20-logical-CPU affinity mask as the
+third candidate campaign. Its projection-heavy median was 36.6958 canonical
+commits/s and 4.5476 ms canonical-commit p95, versus the third candidate's
+33.1802 commits/s and 4.8958 ms: absolute differences of 3.5156 commits/s
+and 0.3482 ms. It lacks the new D27 dispatch and exact SQLite-role telemetry,
+so this is comparable diagnostic evidence, not a strict D27 receipt. Published
+PyPI and npm 0.8.26 artifacts were downloaded and passed isolated open/close
+smokes. The registry package hashes, six raw runs and comparability limits
+are indexed at
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/registry-0.8.26-equivalent/registry-artifacts.json`
+(SHA-256 `23464d1e2d36c1a412d0732a51c3c1115bf6d460094b790c889d385fdd904d0f`).
 
 The exact `2e94aaf4f` source passed the full unconfined `agent-verify` gate:
 lint, typecheck, strict security with zero violations/blockers/downgrades,
@@ -475,9 +501,9 @@ without mismatch. Terra did not rerun the host-heavy gates. The full
 unconfined merged-tree `agent-verify` independently passed lint, typecheck,
 strict security and all 130 registered test suites with none skipped or
 excluded. Candidate-bound stage-2 review, verification and performance
-receipt drafts are recorded; the performance receipt remains PENDING solely
-because of the two valid D27 campaigns. Their disposition is required before
-binding the runtime checkpoint. The runtime checkpoint is PENDING;
+receipts are recorded. The performance receipt binds the exact strict passing
+D27 retry and records the third-run HITL ruling with the unchanged verifier
+miss. The runtime checkpoint awaits receipt and release-state binding;
 structural Phase 3 has not begun. Final GPU and official public/hidden surface
 captures and Slice 85 recovery comparison remain after the checkpoint.
 Slice 90 remains IN_PROGRESS.

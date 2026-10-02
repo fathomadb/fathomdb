@@ -642,10 +642,16 @@ sample, with exact raw-linked deltas. The original v1 protocol, corpus and
 six-repetition historical entry stay frozen; the v2 verifier revalidates that
 entry and its raw artifacts under the original stricter v1 swap rule before
 comparison. All other invalidators and the median/MAD rule remain unchanged.
-Two complete, environment-valid v2 campaigns on exact source `2e94aaf4f`
-conflict: the first misses projection-heavy canonical-commit p95, while one
-retry passes. Both remain evidence; their disposition is required before the
-runtime checkpoint can pass.
+Three complete, environment-valid v2 campaigns on exact source `2e94aaf4f`
+are retained: the first misses projection-heavy canonical-commit p95, the
+second strictly passes, and the third passes that latency ceiling while
+missing projection-heavy canonical throughput by 0.4125 commits/s against the
+frozen floor. The 2026-10-02 HITL ruling accepts that absolute third-run
+throughput shortfall as PASS for the release decision. The strict verifier
+still records its miss, the earlier latency miss remains visible, and the
+strictly passing retry supplies the machine-valid checkpoint receipt. This
+targeted ruling does not change the formula or create a general tolerance for
+future candidates.
 
 The durable qualification receipt names the exact stage-2 candidate, optimized
 build and features, hardware/software, dataset/workload, warm-up, repetitions,

@@ -1,0 +1,652 @@
+{
+  "aggregate_metrics": {
+    "foreground_heavy": {
+      "latency_ms": {
+        "canonical_commit": {
+          "50": {
+            "mad": 0.00401499999999988,
+            "median": 2.665336
+          },
+          "95": {
+            "mad": 0.013963099999999784,
+            "median": 6.8810970000000005
+          },
+          "99": {
+            "mad": 1.1077329000000873,
+            "median": 24.42872429999998
+          }
+        },
+        "close": {
+          "50": {
+            "mad": 0.668565000000001,
+            "median": 27.105854
+          },
+          "95": {
+            "mad": 0.668565000000001,
+            "median": 27.105854
+          },
+          "99": {
+            "mad": 0.668565000000001,
+            "median": 27.105854
+          }
+        },
+        "direct_embed": {
+          "50": {
+            "mad": 0.0002744999999997333,
+            "median": 2.0925925
+          },
+          "95": {
+            "mad": 0.00019265000000023846,
+            "median": 2.12063435
+          },
+          "99": {
+            "mad": 0.002435380000000542,
+            "median": 2.1320151099999998
+          }
+        },
+        "foreground_hybrid_query": {
+          "50": {
+            "mad": 0.3146899999999988,
+            "median": 88.691861
+          },
+          "95": {
+            "mad": 0.9562881000000232,
+            "median": 115.50539090000001
+          },
+          "99": {
+            "mad": 0.5406260699999734,
+            "median": 139.68945328000004
+          }
+        },
+        "projection_freshness": {
+          "50": {
+            "mad": 0.0029279999999998196,
+            "median": 7.628897
+          },
+          "95": {
+            "mad": 0.12267760000000116,
+            "median": 10.529587399999999
+          },
+          "99": {
+            "mad": 0.050011929999996596,
+            "median": 11.081251839999998
+          }
+        }
+      },
+      "throughput": {
+        "canonical_commits": {
+          "mad": 0.026842639878046803,
+          "median": 6.483844887199879
+        },
+        "direct_embeds": {
+          "mad": 0.05368527975609361,
+          "median": 12.967689774399759
+        },
+        "foreground_hybrid_queries": {
+          "mad": 0.18789847914632674,
+          "median": 45.386914210399155
+        },
+        "projection_completions": {
+          "mad": 0.026842639878046803,
+          "median": 6.483844887199879
+        }
+      }
+    },
+    "projection_heavy": {
+      "latency_ms": {
+        "canonical_commit": {
+          "50": {
+            "mad": 0.046009500000000036,
+            "median": 1.5465955
+          },
+          "95": {
+            "mad": 0.010051949999999366,
+            "median": 5.063740899999999
+          },
+          "99": {
+            "mad": 0.2190054700000097,
+            "median": 10.176185429999999
+          }
+        },
+        "close": {
+          "50": {
+            "mad": 1.1482369999999946,
+            "median": 85.357527
+          },
+          "95": {
+            "mad": 1.1482369999999946,
+            "median": 85.357527
+          },
+          "99": {
+            "mad": 1.1482369999999946,
+            "median": 85.357527
+          }
+        },
+        "direct_embed": {
+          "50": {
+            "mad": 0.00017449999999952226,
+            "median": 2.0912155
+          },
+          "95": {
+            "mad": 0.0011548500000002626,
+            "median": 2.116092
+          },
+          "99": {
+            "mad": 0.0013598599999999905,
+            "median": 2.1297326
+          }
+        },
+        "foreground_hybrid_query": {
+          "50": {
+            "mad": 2.0107824999999906,
+            "median": 99.17787
+          },
+          "95": {
+            "mad": 0.5787053500000354,
+            "median": 130.54194510000002
+          },
+          "99": {
+            "mad": 5.2840423800000735,
+            "median": 162.08499781999998
+          }
+        },
+        "projection_freshness": {
+          "50": {
+            "mad": 0.20841549999999742,
+            "median": 16.9735305
+          },
+          "95": {
+            "mad": 0.49057144999999736,
+            "median": 23.858113899999996
+          },
+          "99": {
+            "mad": 0.7086440399999887,
+            "median": 26.814782119999997
+          }
+        }
+      },
+      "throughput": {
+        "canonical_commits": {
+          "mad": 0.706363901628194,
+          "median": 38.7541592190556
+        },
+        "direct_embeds": {
+          "mad": 0.353181950814097,
+          "median": 19.3770796095278
+        },
+        "foreground_hybrid_queries": {
+          "mad": 0.706363901628194,
+          "median": 38.7541592190556
+        },
+        "projection_completions": {
+          "mad": 0.706363901628194,
+          "median": 38.7541592190556
+        }
+      }
+    }
+  },
+  "binary_sha256": "bb49bafe5e1c67773caa593b0c146fff23f7b37a8e92760af4735de2f7a6bc1d",
+  "corpus_sha256": "a4eeb2a7c714d0d450e7ecd41bf7bb45a83f97c30d3adc513629eeca836a685d",
+  "decision_rule_evaluation": {
+    "rule": "D27 frozen median/MAD",
+    "status": "PASS"
+  },
+  "environment_end": {
+    "competing_processes": [],
+    "cpu_governor": "performance",
+    "cpu_model": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+    "database_device": "/dev/nvme1n1p1",
+    "kernel": "7.0.0-38-generic",
+    "load_average": [
+      3.6796875,
+      3.607421875,
+      3.57861328125
+    ],
+    "memory_available_kib": 58204716,
+    "online_cpus": 24,
+    "pid_namespace": "pid:[4026531836]",
+    "pid_one_comm": "systemd",
+    "pid_one_namespace": "",
+    "proc_self_pid": 2744896,
+    "procfs_hidepid": "0",
+    "ps_pid_one_comm": "systemd",
+    "ps_self_pid": 2744896,
+    "runner_pid": 2744896,
+    "swap_pages_in": 106871,
+    "swap_pages_out": 563929
+  },
+  "environment_start": {
+    "competing_processes": [],
+    "cpu_governor": "performance",
+    "cpu_model": "AMD Ryzen Threadripper PRO 5945WX 12-Cores",
+    "database_device": "/dev/nvme1n1p1",
+    "kernel": "7.0.0-38-generic",
+    "load_average": [
+      1.05029296875,
+      3.060546875,
+      3.43994140625
+    ],
+    "memory_available_kib": 58224356,
+    "online_cpus": 24,
+    "pid_namespace": "pid:[4026531836]",
+    "pid_one_comm": "systemd",
+    "pid_one_namespace": "",
+    "proc_self_pid": 2744896,
+    "procfs_hidepid": "0",
+    "ps_pid_one_comm": "systemd",
+    "ps_self_pid": 2744896,
+    "runner_pid": 2744896,
+    "swap_pages_in": 106350,
+    "swap_pages_out": 563929
+  },
+  "historical_unavailable": [],
+  "per_repetition_metrics": {
+    "foreground_heavy": [
+      {
+        "counts": {
+          "admitted": 3910,
+          "completed": 3910,
+          "invalid_vector": 0,
+          "overloaded": 0,
+          "panic": 0,
+          "provider_error": 0,
+          "timed_out": 0
+        },
+        "environment_valid": true,
+        "high_water": {
+          "durable_projection_backlog": 1,
+          "embed_requests_waiting": 5,
+          "projection_rows_active_plus_queued": 1
+        },
+        "inventory": {
+          "engine_threads": 16,
+          "provider_concurrency": 5,
+          "residual_workers_after_close": 0,
+          "sqlite_connections": 12
+        },
+        "latency_ms": {
+          "canonical_commit": {
+            "50": 2.661321,
+            "95": 6.8810970000000005,
+            "99": 25.53645720000007
+          },
+          "close": {
+            "50": 27.105854,
+            "95": 27.105854,
+            "99": 27.105854
+          },
+          "direct_embed": {
+            "50": 2.095205,
+            "95": 2.1208270000000002,
+            "99": 2.1344504900000003
+          },
+          "embed_queue_wait": {
+            "50": 0.015549,
+            "95": 0.026671000000000004,
+            "99": 0.03843500999999995
+          },
+          "foreground_hybrid_query": {
+            "50": 88.272625,
+            "95": 114.54910279999999,
+            "99": 135.8092509599996
+          },
+          "projection_freshness": {
+            "50": 7.631825,
+            "95": 10.652265,
+            "99": 11.4411812
+          }
+        },
+        "starvation_pass": true,
+        "swap_pages_in_delta": 48,
+        "swap_pages_out_delta": 0,
+        "throughput": {
+          "canonical_commits": 6.510687527077926,
+          "direct_embeds": 13.021375054155852,
+          "foreground_hybrid_queries": 45.57481268954548,
+          "projection_completions": 6.510687527077926
+        }
+      },
+      {
+        "counts": {
+          "admitted": 3900,
+          "completed": 3900,
+          "invalid_vector": 0,
+          "overloaded": 0,
+          "panic": 0,
+          "provider_error": 0,
+          "timed_out": 0
+        },
+        "environment_valid": true,
+        "high_water": {
+          "durable_projection_backlog": 1,
+          "embed_requests_waiting": 4,
+          "projection_rows_active_plus_queued": 1
+        },
+        "inventory": {
+          "engine_threads": 16,
+          "provider_concurrency": 5,
+          "residual_workers_after_close": 0,
+          "sqlite_connections": 12
+        },
+        "latency_ms": {
+          "canonical_commit": {
+            "50": 2.665336,
+            "95": 6.867133900000001,
+            "99": 22.98285727
+          },
+          "close": {
+            "50": 27.774419,
+            "95": 27.774419,
+            "99": 27.774419
+          },
+          "direct_embed": {
+            "50": 2.092318,
+            "95": 2.11778805,
+            "99": 2.12928222
+          },
+          "embed_queue_wait": {
+            "50": 0.0139765,
+            "95": 0.025549,
+            "99": 0.03407401
+          },
+          "foreground_hybrid_query": {
+            "50": 89.006551,
+            "95": 115.50539090000001,
+            "99": 140.23007935
+          },
+          "projection_freshness": {
+            "50": 7.597944999999999,
+            "95": 10.266367650000001,
+            "99": 11.031239910000002
+          }
+        },
+        "starvation_pass": true,
+        "swap_pages_in_delta": 13,
+        "swap_pages_out_delta": 0,
+        "throughput": {
+          "canonical_commits": 6.483844887199879,
+          "direct_embeds": 12.967689774399759,
+          "foreground_hybrid_queries": 45.386914210399155,
+          "projection_completions": 6.483844887199879
+        }
+      },
+      {
+        "counts": {
+          "admitted": 3870,
+          "completed": 3870,
+          "invalid_vector": 0,
+          "overloaded": 0,
+          "panic": 0,
+          "provider_error": 0,
+          "timed_out": 0
+        },
+        "environment_valid": true,
+        "high_water": {
+          "durable_projection_backlog": 1,
+          "embed_requests_waiting": 4,
+          "projection_rows_active_plus_queued": 1
+        },
+        "inventory": {
+          "engine_threads": 16,
+          "provider_concurrency": 5,
+          "residual_workers_after_close": 0,
+          "sqlite_connections": 12
+        },
+        "latency_ms": {
+          "canonical_commit": {
+            "50": 2.676291,
+            "95": 7.1095697,
+            "99": 24.42872429999998
+          },
+          "close": {
+            "50": 25.614828,
+            "95": 25.614828,
+            "99": 25.614828
+          },
+          "direct_embed": {
+            "50": 2.0925925,
+            "95": 2.12063435,
+            "99": 2.1320151099999998
+          },
+          "embed_queue_wait": {
+            "50": 0.015479,
+            "95": 0.026094950000000002,
+            "99": 0.0351077
+          },
+          "foreground_hybrid_query": {
+            "50": 88.691861,
+            "95": 119.6222696,
+            "99": 139.68945328000004
+          },
+          "projection_freshness": {
+            "50": 7.628897,
+            "95": 10.529587399999999,
+            "99": 11.081251839999998
+          }
+        },
+        "starvation_pass": true,
+        "swap_pages_in_delta": 11,
+        "swap_pages_out_delta": 0,
+        "throughput": {
+          "canonical_commits": 6.440979471693541,
+          "direct_embeds": 12.881958943387081,
+          "foreground_hybrid_queries": 45.08685630185479,
+          "projection_completions": 6.440979471693541
+        }
+      }
+    ],
+    "projection_heavy": [
+      {
+        "counts": {
+          "admitted": 5490,
+          "completed": 5490,
+          "invalid_vector": 0,
+          "overloaded": 0,
+          "panic": 0,
+          "provider_error": 0,
+          "timed_out": 0
+        },
+        "environment_valid": true,
+        "high_water": {
+          "durable_projection_backlog": 4,
+          "embed_requests_waiting": 4,
+          "projection_rows_active_plus_queued": 4
+        },
+        "inventory": {
+          "engine_threads": 16,
+          "provider_concurrency": 5,
+          "residual_workers_after_close": 0,
+          "sqlite_connections": 12
+        },
+        "latency_ms": {
+          "canonical_commit": {
+            "50": 1.592605,
+            "95": 5.2905475,
+            "99": 10.395190900000008
+          },
+          "close": {
+            "50": 60.724703,
+            "95": 60.724703,
+            "99": 60.724703
+          },
+          "direct_embed": {
+            "50": 2.0896495,
+            "95": 2.11493715,
+            "99": 2.1357884799999995
+          },
+          "embed_queue_wait": {
+            "50": 0.0113615,
+            "95": 0.024327000000000005,
+            "99": 0.03462950999999999
+          },
+          "foreground_hybrid_query": {
+            "50": 103.08579950000001,
+            "95": 147.0263265,
+            "99": 167.36904020000006
+          },
+          "projection_freshness": {
+            "50": 17.326105,
+            "95": 25.206435499999998,
+            "99": 28.75094500000001
+          }
+        },
+        "starvation_pass": true,
+        "swap_pages_in_delta": 382,
+        "swap_pages_out_delta": 0,
+        "throughput": {
+          "canonical_commits": 36.59724650917618,
+          "direct_embeds": 18.29862325458809,
+          "foreground_hybrid_queries": 36.59724650917618,
+          "projection_completions": 36.59724650917618
+        }
+      },
+      {
+        "counts": {
+          "admitted": 5820,
+          "completed": 5820,
+          "invalid_vector": 0,
+          "overloaded": 0,
+          "panic": 0,
+          "provider_error": 0,
+          "timed_out": 0
+        },
+        "environment_valid": true,
+        "high_water": {
+          "durable_projection_backlog": 4,
+          "embed_requests_waiting": 4,
+          "projection_rows_active_plus_queued": 4
+        },
+        "inventory": {
+          "engine_threads": 16,
+          "provider_concurrency": 5,
+          "residual_workers_after_close": 0,
+          "sqlite_connections": 12
+        },
+        "latency_ms": {
+          "canonical_commit": {
+            "50": 1.5465955,
+            "95": 5.05368895,
+            "99": 9.78820156
+          },
+          "close": {
+            "50": 85.357527,
+            "95": 85.357527,
+            "99": 85.357527
+          },
+          "direct_embed": {
+            "50": 2.0912155,
+            "95": 2.11754585,
+            "99": 2.12837274
+          },
+          "embed_queue_wait": {
+            "50": 0.011121,
+            "95": 0.02355405,
+            "99": 0.03128349000000001
+          },
+          "foreground_hybrid_query": {
+            "50": 99.17787,
+            "95": 130.54194510000002,
+            "99": 147.27598332000002
+          },
+          "projection_freshness": {
+            "50": 16.765115,
+            "95": 23.36754245,
+            "99": 26.106138080000008
+          }
+        },
+        "starvation_pass": true,
+        "swap_pages_in_delta": 10,
+        "swap_pages_out_delta": 0,
+        "throughput": {
+          "canonical_commits": 38.7541592190556,
+          "direct_embeds": 19.3770796095278,
+          "foreground_hybrid_queries": 38.7541592190556,
+          "projection_completions": 38.7541592190556
+        }
+      },
+      {
+        "counts": {
+          "admitted": 5930,
+          "completed": 5930,
+          "invalid_vector": 0,
+          "overloaded": 0,
+          "panic": 0,
+          "provider_error": 0,
+          "timed_out": 0
+        },
+        "environment_valid": true,
+        "high_water": {
+          "durable_projection_backlog": 4,
+          "embed_requests_waiting": 5,
+          "projection_rows_active_plus_queued": 4
+        },
+        "inventory": {
+          "engine_threads": 16,
+          "provider_concurrency": 5,
+          "residual_workers_after_close": 0,
+          "sqlite_connections": 12
+        },
+        "latency_ms": {
+          "canonical_commit": {
+            "50": 1.461634,
+            "95": 5.063740899999999,
+            "99": 10.176185429999999
+          },
+          "close": {
+            "50": 86.505764,
+            "95": 86.505764,
+            "99": 86.505764
+          },
+          "direct_embed": {
+            "50": 2.0913899999999996,
+            "95": 2.116092,
+            "99": 2.1297326
+          },
+          "embed_queue_wait": {
+            "50": 0.0114015,
+            "95": 0.024316,
+            "99": 0.032698500000000005
+          },
+          "foreground_hybrid_query": {
+            "50": 97.16708750000001,
+            "95": 129.96323974999999,
+            "99": 162.08499781999998
+          },
+          "projection_freshness": {
+            "50": 16.9735305,
+            "95": 23.858113899999996,
+            "99": 26.814782119999997
+          }
+        },
+        "starvation_pass": true,
+        "swap_pages_in_delta": 39,
+        "swap_pages_out_delta": 0,
+        "throughput": {
+          "canonical_commits": 39.460523120683796,
+          "direct_embeds": 19.730261560341898,
+          "foreground_hybrid_queries": 39.460523120683796,
+          "projection_completions": 39.460523120683796
+        }
+      }
+    ]
+  },
+  "phase": "candidate",
+  "protocol_sha256": "2eccd71e2d8314e09be09a49bb631f5795b9571ddb65cb29bb4116130c371fd5",
+  "raw_output_sha256": "fabcc6a4373502bc46913985d342c5960f30b3882d9fd86bfd8ded4056a5bceb",
+  "runner_inventory": {
+    "build": "cargo test --release",
+    "database_device": "/dev/nvme1n1p1",
+    "database_storage": "local NVMe",
+    "features": [
+      "test-hooks"
+    ],
+    "host": "windchill3",
+    "memory_gib": 62.64260482788086,
+    "online_cpus": 24,
+    "operating_system": "Linux x86_64",
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)"
+  },
+  "runner_sha256": "8d599d0ecd941ad67d9f3e4c5e4a6b20c549a7898d6aff4f33bbe90d2b507aa6",
+  "source_sha": "2e94aaf4f57399a5ded8fc39b9100e33fe09dbcd",
+  "status": "PASS"
+}

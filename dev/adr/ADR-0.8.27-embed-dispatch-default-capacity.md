@@ -4,17 +4,19 @@ date: 2026-10-02
 target_release: 0.8.27
 desc: Select the smallest qualified default embed-dispatch worker count while retaining bounded admission and the synchronous engine topology.
 blast_radius: engine default configuration; Rust, Python, and TypeScript open behavior; runtime and performance qualification
-status: proposed (HITL selection rule seq-299; conflicting valid D27 campaigns pending disposition)
+status: accepted (HITL selection rule seq-299 and 2026-10-02 throughput ruling)
 ---
 
 # ADR-0.8.27 — Embed-dispatch default capacity
 
-**Status:** proposed. The repository owner authorized a measured selection rule
+**Status:** accepted. The repository owner authorized a measured selection rule
 at `seq-299`: test higher default embed worker counts and choose the lowest
 count that passes D27, AC-081, and named release performance gates. The
-five-worker candidate passed AC-081, but two valid D27 campaigns on the exact
-source conflict. This ADR remains proposed until that conflict is resolved
-and the selected source is recorded below.
+five-worker exact candidate `2e94aaf4f` passed AC-081 and one strict D27 v2
+campaign. On 2026-10-02, the owner accepted the third valid D27 campaign's
+0.4125 commits/s projection-heavy throughput shortfall as PASS for this
+release. The strict verifier's result and an earlier latency miss remain in
+the evidence; neither raw result is rewritten.
 
 ## Context
 
@@ -35,9 +37,9 @@ corpus, workload, and comparison rule are unchanged. At the owner's direction,
 the successor v2 protocol reports host-wide swap movement without using it
 to invalidate a run; the original v1 protocol and historical entry are retained.
 
-## Proposed decision
+## Decision
 
-Set the omitted `embedder_pool_size` default to **five** after all named release
+Set the omitted `embedder_pool_size` default to **five**. All named release
 selectors pass on the exact candidate. Explicit values remain `1..=64`; callers
 can still select one worker. The default starts five embed-dispatch workers
 when a provider is attached, permits up to five simultaneous calls to that
@@ -45,7 +47,7 @@ provider, and allows 20 waiting requests. Without a provider it starts no
 embed worker or request queue. `scheduler_runtime_threads` remains two by
 default. No queue, executor, deadline, or provider-failure rule changes.
 
-The proposed count is the lowest to pass a six-repetition candidate comparison
+Five is the lowest count to pass a six-repetition candidate comparison
 after lower-count failures. The two-worker run at
 `781b2f5e0`, three-worker proof at `2a62b14c7`, and four-worker run at
 `c03a398f8` each completed all six environment-valid repetitions and failed
@@ -59,13 +61,18 @@ exact source passed AC-081a/b in seven fresh official runs and AC-081c.
 The later exact source `2e94aaf4f` passed AC-081a/b in seven fresh official
 runs and AC-081c. Under the reviewed v2 swap rule, its first complete,
 environment-valid D27 campaign failed projection-heavy canonical-commit p95
-(7.1435 ms versus 5.5604 ms); one complete retry passed (5.0637 ms). No
-predeclared rule resolves these conflicting valid campaigns. Both are retained,
-and the runtime checkpoint remains pending their disposition.
+(7.1435 ms versus 5.5604 ms); one complete retry strictly passed (5.0637 ms).
+A third environment-valid campaign used an affinity mask on 20 of the 24
+logical CPUs. Its canonical-commit p95 median passed at 4.8958 ms, but its
+projection-heavy canonical throughput median was 33.1802 commits/s versus
+the frozen 33.5926 commits/s floor. The unchanged strict verifier reported
+FAIL; the owner accepted this absolute 0.4125 commits/s shortfall for the
+release decision. The historical source was not affinity-constrained. All
+three candidate campaigns remain visible.
 
 ## Supersession and consequences
 
-On acceptance, this ADR supersedes only the default-one and default-one
+This ADR supersedes only the default-one and default-one
 hung-provider posture clauses in the engine-owned runtime topology ADR. The
 five-worker default allows other slots to progress when one provider call is
 permanently hung, until all five slots are occupied. Such a call still retains
@@ -94,6 +101,8 @@ and
 `/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-v2-candidate-2e94aaf4f-retry/receipt.json`.
 The passing retry receipt SHA-256 is
 `52a20f29cb3bbb19a0ec159dace4a3cfbd74307c2dd3234cf59dbbfc820ad9b1`.
+The third campaign's raw data and rejected strict verdict are retained at
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-v2-candidate-2e94aaf4f-third-affinity`.
 The retained failed three-worker proof is
 `/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-default3-proof-2a62b14c7/raw-output.jsonl`;
 all six attempts in that bundle are environment-valid and the unchanged
@@ -125,6 +134,8 @@ the combined selector is not claimed as PASS.
 
 Independent `gpt-6-sol` high code review and Terra verification passed on the
 merged exact-source stage-2 candidate; their candidate-bound receipts are in
-the Slice 90 plan directory. D27 conflict disposition remains before ADR
-acceptance and the runtime checkpoint. No structural Phase 3 source move may
-begin before that checkpoint passes.
+the Slice 90 plan directory. The strict passing D27 retry is the checkpoint's
+machine-validated receipt. The owner's targeted third-run ruling is recorded
+without changing the frozen median/MAD rule or promoting the rejected raw run
+to a strict PASS receipt. No structural Phase 3 source move may begin before
+the checkpoint passes.

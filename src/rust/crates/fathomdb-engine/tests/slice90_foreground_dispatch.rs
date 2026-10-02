@@ -34,6 +34,20 @@ struct QueryHeld {
 #[derive(Debug)]
 struct FallibleEmbedder;
 
+#[derive(Debug)]
+struct ShortServiceEmbedder;
+
+impl Embedder for ShortServiceEmbedder {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("short-service", "rev-a", 8)
+    }
+
+    fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
+        thread::sleep(Duration::from_micros(100));
+        Ok(vec![1.0; 8])
+    }
+}
+
 impl Embedder for FallibleEmbedder {
     fn identity(&self) -> EmbedderIdentity {
         EmbedderIdentity::new("fallible-foreground", "rev-a", 8)
@@ -77,6 +91,47 @@ fn document(body: &str) -> PreparedWrite {
         valid_from: None,
         valid_until: None,
     }
+}
+
+#[test]
+fn eight_reader_burst_keeps_vector_only_search_results() {
+    let directory = tempfile::tempdir().expect("test directory");
+    let database = directory.path().join("eight-reader-burst.sqlite");
+    let engine = Engine::open_with_choice_and_config(
+        database,
+        EmbedderChoice::Caller(Arc::new(ShortServiceEmbedder)),
+        EngineConfig::default(),
+    )
+    .expect("open")
+    .engine;
+    engine.configure_vector_kind_for_test("note").expect("vector kind");
+    engine.write(&[document("opaque body")]).expect("write vector-only fixture");
+    engine.drain(2_000).expect("drain projection");
+    assert!(!engine.search("semantic-0").expect("sequential search").results.is_empty());
+
+    let engine = Arc::new(engine);
+    let barrier = Arc::new(Barrier::new(8));
+    let readers: Vec<_> = (0..8)
+        .map(|_| {
+            let engine = Arc::clone(&engine);
+            let barrier = Arc::clone(&barrier);
+            thread::spawn(move || {
+                let mut empty = 0;
+                for _ in 0..8 {
+                    barrier.wait();
+                    empty += usize::from(
+                        engine.search("semantic-0").expect("burst search").results.is_empty(),
+                    );
+                }
+                empty
+            })
+        })
+        .collect();
+    let empty: usize = readers.into_iter().map(|reader| reader.join().expect("reader")).sum();
+    assert_eq!(
+        empty, 0,
+        "bounded dispatch must preserve vector-only search under an eight-reader burst"
+    );
 }
 
 impl Embedder for FirstCallHeld {

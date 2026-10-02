@@ -53,9 +53,9 @@ AC073_EXECUTION = SLICE90_EVIDENCE / "ac073-execution.json"
 AC073_EU7 = SLICE90_EVIDENCE / "ac073-eu7.json"
 AC073_LOG = SLICE90_EVIDENCE / "ac073-run.log"
 AC073_COMMAND = (
-    "env AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
+    "env CARGO_TARGET_DIR={bundle} AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
     "EU7_LATENCY_SAMPLES=1000 EU7_STRESS_PER_THREAD=250 "
-    "FATHOMDB_EU7_OUTPUT=<run-dir>/eu7.json cargo test --release "
+    "FATHOMDB_EU7_OUTPUT={bundle}/eu7.json cargo test --release "
     "-p fathomdb-engine --features operator,embed-cuda --test eu7_real_corpus_ac "
     "eu7_real_corpus_ac_validation -- --exact --ignored --nocapture --test-threads=1"
 )
@@ -440,7 +440,6 @@ class Validation:
                        ("candidate_sha", "pre_source_sha", "post_source_sha"))
                 or manifest["pre_clean"] is not True
                 or manifest["post_clean"] is not True
-                or manifest["command"] != AC073_COMMAND
                 or type(manifest["selector_exit"]) is not int
                 or manifest["selector_exit"] != receipt["selector_exit"]
                 or manifest["source_receipt_sha256"] != receipt["source_receipt_sha256"]
@@ -453,6 +452,8 @@ class Validation:
             bundle = Path(raw_bundle)
             if not bundle.is_absolute() or ".." in bundle.parts or bundle.resolve() != bundle:
                 raise ValueError("bundle directory must be canonical and absolute")
+            if manifest["command"] != AC073_COMMAND.format(bundle=bundle):
+                raise ValueError("candidate command binding mismatch")
             relative = manifest["binary_relative_path"]
             if (
                 not isinstance(relative, str)
@@ -471,10 +472,10 @@ class Validation:
             executed = manifest["executed_binary_path"]
             if (
                 not isinstance(executed, str)
-                or not Path(executed).is_absolute()
-                or not executed.endswith("/" + relative)
-                or log.count(f"Running tests/eu7_real_corpus_ac.rs ({executed})") != 1
+                or executed != str(binary)
             ):
+                raise ValueError("executed test executable path differs from sealed binary")
+            if log.count(f"Running tests/eu7_real_corpus_ac.rs ({executed})") != 1:
                 raise ValueError("raw log does not identify sealed test executable")
         except (OSError, UnicodeError, ValueError, KeyError, TypeError) as error:
             self.fail(location, f"AC-073 execution invalid: {error}")

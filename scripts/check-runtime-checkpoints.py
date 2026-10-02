@@ -5,10 +5,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
-import math
 import re
-import statistics
 import subprocess
 import sys
 from pathlib import Path
@@ -128,188 +127,137 @@ class Validation:
             else None
         )
 
-    @staticmethod
-    def finite_nonnegative(value: object) -> bool:
-        if not isinstance(value, (float, int)) or isinstance(value, bool):
-            return False
-        try:
-            return math.isfinite(value) and value >= 0
-        except OverflowError:
-            return False
-
-    @staticmethod
-    def metric_at(run: dict, group: str, name: str, percentile: str | None) -> object:
-        values = run.get(group)
-        if not isinstance(values, dict):
+    def d27_bundle(
+        self, location: str, raw_dir: str, expected_digest: str
+    ) -> tuple[dict, dict[str, Path]] | None:
+        directory = Path(raw_dir)
+        if ".." in directory.parts:
+            self.fail(location, "D27 artifact bundle path cannot contain '..'")
             return None
-        value = values.get(name)
-        if percentile is None:
-            return value
-        return value.get(percentile) if isinstance(value, dict) else None
-
-    def validate_d27_receipt(
-        self, location: str, receipt: object, protocol: dict, candidate_sha: str
-    ) -> None:
-        if not isinstance(receipt, dict):
-            self.fail(location, "D27 candidate receipt must be an object")
-            return
-        required = set(protocol["required_receipt_fields"]) | {"phase", "runner_sha256"}
-        if not required <= set(receipt):
+        if not directory.is_absolute():
+            directory = self.root / directory
+        if not directory.is_dir():
             self.fail(
-                location,
-                f"D27 candidate receipt missing fields: {sorted(required - set(receipt))}",
+                location, f"D27 artifact bundle directory does not exist: {raw_dir}"
             )
-            return
-        if (receipt["phase"], receipt["source_sha"], receipt["status"]) != (
-            "candidate",
-            candidate_sha,
-            "PASS",
-        ):
-            self.fail(
-                location,
-                "D27 candidate qualification is not PASS for checkpoint candidate",
-            )
-        for field in (
-            "binary_sha256",
-            "runner_sha256",
-            "protocol_sha256",
-            "corpus_sha256",
-            "raw_output_sha256",
-        ):
-            if (
-                not isinstance(receipt[field], str)
-                or HASH_RE.fullmatch(receipt[field]) is None
-            ):
-                self.fail(location, f"D27 candidate {field} must be a SHA-256")
+            return None
+        receipt_path = directory / "receipt.json"
+        try:
+            receipt_bytes = receipt_path.read_bytes()
+            receipt = json.loads(receipt_bytes)
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            self.fail(location, f"D27 artifact bundle receipt is unreadable: {error}")
+            return None
         if (
-            not isinstance(receipt["runner_inventory"], dict)
-            or not receipt["runner_inventory"]
+            not isinstance(receipt, dict)
+            or hashlib.sha256(receipt_bytes).hexdigest() != expected_digest
         ):
-            self.fail(location, "D27 candidate runner inventory is empty")
-        for boundary in ("environment_start", "environment_end"):
-            if not isinstance(receipt[boundary], dict) or not receipt[boundary]:
-                self.fail(location, f"D27 candidate {boundary} is empty")
-        if receipt["decision_rule_evaluation"] != {
-            "status": "PASS",
-            "rule": "D27 frozen median/MAD",
-        }:
-            self.fail(location, "D27 candidate frozen decision rule is not PASS")
+            self.fail(location, "D27 artifact bundle receipt SHA-256 mismatch")
+            return None
+        binary_matches = [
+            path
+            for path in (directory / "target/release/deps").glob(
+                "d27_runtime_workload-*"
+            )
+            if path.is_file()
+            and hashlib.sha256(path.read_bytes()).hexdigest()
+            == receipt.get("binary_sha256")
+        ]
+        if len(binary_matches) != 1:
+            self.fail(
+                location, "D27 artifact bundle needs one hash-matched test binary"
+            )
+            return None
+        artifacts = {
+            "runner": directory / "runner.bundle",
+            "binary": binary_matches[0],
+            "corpus": directory / "corpus.jsonl",
+            "raw": directory / "raw-output.jsonl",
+        }
+        missing = [name for name, path in artifacts.items() if not path.is_file()]
+        if missing:
+            self.fail(location, f"D27 artifact bundle missing {missing}")
+            return None
+        return receipt, artifacts
 
-        metrics = protocol["metrics"]
-        repetitions = receipt["per_repetition_metrics"]
-        aggregate = receipt["aggregate_metrics"]
-        if not isinstance(repetitions, dict) or set(repetitions) != {
-            "projection_heavy",
-            "foreground_heavy",
-        }:
-            self.fail(location, "D27 candidate repetition directions are incomplete")
-            return
-        if not isinstance(aggregate, dict) or set(aggregate) != set(repetitions):
-            self.fail(location, "D27 candidate aggregate directions are incomplete")
-            return
-        for direction, runs in repetitions.items():
-            if (
-                not isinstance(runs, list)
-                or len(runs) != protocol["execution"]["repetitions"]
-                or any(not isinstance(run, dict) for run in runs)
-            ):
+    def validate_d27_bundles(
+        self,
+        location: str,
+        sections: dict[str, list[str]],
+        candidate_receipt: dict,
+        candidate_receipt_bytes: bytes,
+        candidate_sha: str,
+        protocol_path: Path,
+    ) -> None:
+        rows = [
+            [part.strip() for part in line.strip("|").split("|")]
+            for line in sections.get("D27 artifact bundles", [])
+            if line.startswith("|")
+        ]
+        bundles = {}
+        for phase in ("entry", "candidate"):
+            matches = [row for row in rows if len(row) == 3 and row[0] == phase]
+            if len(matches) != 1 or HASH_RE.fullmatch(matches[0][2]) is None:
                 self.fail(
-                    location, f"D27 candidate {direction} requires three repetitions"
+                    location,
+                    f"D27 artifact bundle requires one {phase} row with receipt SHA-256",
                 )
-                continue
-            for index, run in enumerate(runs, 1):
-                label = f"D27 candidate {direction} repetition {index}"
-                if (
-                    run.get("environment_valid") is not True
-                    or run.get("starvation_pass") is not True
-                ):
-                    self.fail(location, f"{label} environment or starvation failed")
-                swaps = (
-                    run.get("swap_pages_in_delta"),
-                    run.get("swap_pages_out_delta"),
+                return
+            bundle = self.d27_bundle(location, matches[0][1], matches[0][2])
+            if bundle is None:
+                return
+            bundles[phase] = bundle
+        entry_receipt, entry_artifacts = bundles["entry"]
+        bundle_candidate, candidate_artifacts = bundles["candidate"]
+        if (
+            bundle_candidate != candidate_receipt
+            or (
+                Path(candidate_artifacts["runner"]).parent / "receipt.json"
+            ).read_bytes()
+            != candidate_receipt_bytes
+        ):
+            self.fail(location, "D27 candidate receipt differs from artifact bundle")
+            return
+        if candidate_receipt.get("source_sha") != candidate_sha:
+            self.fail(
+                location,
+                "D27 candidate receipt source differs from checkpoint candidate",
+            )
+            return
+        spec = importlib.util.spec_from_file_location(
+            "d27_checkpoint_verifier",
+            Path(__file__).resolve().parent / "d27-runtime-qualification.py",
+        )
+        if spec is None or spec.loader is None:
+            self.fail(location, "D27 strict verifier cannot be loaded")
+            return
+        verifier = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(verifier)
+        try:
+            protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+            entry = verifier.validate_entry_for_candidate(
+                entry_receipt, protocol, protocol_path, entry_artifacts
+            )
+            verifier.verify_raw_linkage(
+                candidate_receipt, protocol, candidate_artifacts["raw"]
+            )
+            validated = verifier.validate_receipt(
+                candidate_receipt, protocol, protocol_path, candidate_artifacts, entry
+            )
+            if validated != candidate_receipt:
+                raise ValueError(
+                    "candidate aggregate or decision rule differs from raw recomputation"
                 )
-                if (
-                    any(
-                        not isinstance(value, int)
-                        or isinstance(value, bool)
-                        or value < 0
-                        for value in swaps
-                    )
-                    or sum(swaps)
-                    > protocol["swap_policy"]["max_total_pages_per_repetition"]
-                ):
-                    self.fail(location, f"{label} swap deltas invalid")
-                for field, names in (
-                    ("counts", metrics["counts"]),
-                    ("high_water", metrics["high_water"]),
-                    ("inventory", metrics["inventory"]),
-                    ("throughput", metrics["throughput_rates_per_second"]),
-                ):
-                    values = run.get(field)
-                    if not isinstance(values, dict) or any(
-                        not self.finite_nonnegative(values.get(name)) for name in names
-                    ):
-                        self.fail(location, f"{label} {field} is incomplete")
-                latency = run.get("latency_ms")
-                if not isinstance(latency, dict) or any(
-                    not isinstance(latency.get(name), dict)
-                    or any(
-                        not self.finite_nonnegative(latency[name].get(str(p)))
-                        for p in metrics["latency_percentiles"]
-                    )
-                    for name in metrics["latency_classes"]
-                    + metrics["candidate_only_latency_classes"]
-                ):
-                    self.fail(location, f"{label} latency is incomplete")
-            direction_aggregate = aggregate.get(direction)
-            if not isinstance(direction_aggregate, dict):
-                self.fail(location, f"D27 candidate {direction} aggregate is empty")
-                continue
-            for group, names in (
-                ("throughput", metrics["throughput_rates_per_second"]),
-                ("latency_ms", metrics["latency_classes"]),
-            ):
-                values = direction_aggregate.get(group)
-                if not isinstance(values, dict):
-                    self.fail(
-                        location,
-                        f"D27 candidate {direction} aggregate {group} is empty",
-                    )
-                    continue
-                for name in names:
-                    percentiles = (
-                        (str(p) for p in metrics["latency_percentiles"])
-                        if group == "latency_ms"
-                        else (None,)
-                    )
-                    for percentile in percentiles:
-                        center = (
-                            values.get(name)
-                            if percentile is None
-                            else values.get(name, {}).get(percentile)
-                            if isinstance(values.get(name), dict)
-                            else None
-                        )
-                        observed = [
-                            self.metric_at(run, group, name, percentile) for run in runs
-                        ]
-                        if not isinstance(center, dict) or any(
-                            not self.finite_nonnegative(value) for value in observed
-                        ):
-                            self.fail(
-                                location,
-                                f"D27 candidate {direction} aggregate {group}.{name} is incomplete",
-                            )
-                            continue
-                        median = statistics.median(observed)
-                        mad = statistics.median(
-                            abs(value - median) for value in observed
-                        )
-                        if center != {"median": median, "mad": mad}:
-                            self.fail(
-                                location,
-                                f"D27 candidate {direction} aggregate {group}.{name} differs from repetitions",
-                            )
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            IndexError,
+            AttributeError,
+            OSError,
+            json.JSONDecodeError,
+        ) as error:
+            self.fail(location, f"D27 candidate: D27 strict validation failed: {error}")
 
     def validate_text_receipt(
         self, location: str, name: str, path: Path, candidate_sha: str
@@ -439,11 +387,12 @@ class Validation:
         if not artifact.is_file():
             self.fail(location, "D27 candidate receipt file does not exist")
             return
-        if matches[0][1] != hashlib.sha256(artifact.read_bytes()).hexdigest():
+        candidate_receipt_bytes = artifact.read_bytes()
+        if matches[0][1] != hashlib.sha256(candidate_receipt_bytes).hexdigest():
             self.fail(location, "D27 candidate receipt sha256 mismatch")
             return
         try:
-            receipt = json.loads(artifact.read_text(encoding="utf-8"))
+            receipt = json.loads(candidate_receipt_bytes)
         except (OSError, UnicodeError, json.JSONDecodeError) as error:
             self.fail(location, f"cannot parse D27 candidate receipt: {error}")
             return
@@ -466,11 +415,13 @@ class Validation:
                 "D27 candidate qualification is not PASS for checkpoint candidate and protocol",
             )
             return
-        self.validate_d27_receipt(
+        self.validate_d27_bundles(
             location,
+            sections,
             receipt,
-            json.loads(protocol_path.read_text(encoding="utf-8")),
+            candidate_receipt_bytes,
             candidate_sha,
+            protocol_path,
         )
 
     def validate_receipt(
@@ -709,6 +660,9 @@ class Validation:
         state_paths = sorted((self.root / "dev" / "plans").glob("release-state-*.json"))
         if not state_paths:
             self.fail("dev/plans", "no release-state files found")
+        required_state = self.root / "dev/plans/release-state-0.8.27.json"
+        if not required_state.is_file():
+            self.fail("dev/plans", "required release-state-0.8.27.json is missing")
         for state_path in state_paths:
             try:
                 state = json.loads(state_path.read_text(encoding="utf-8"))
@@ -727,16 +681,22 @@ class Validation:
             for entry in ladder:
                 if isinstance(entry, dict) and "runtime_checkpoint" in entry:
                     self.validate_checkpoint(state_path, entry)
-            if state_path.name == "release-state-0.8.27.json" and any(
-                isinstance(entry, dict)
-                and entry.get("slice") == 90
-                and "runtime_checkpoint" not in entry
-                for entry in ladder
-            ):
-                self.fail(
-                    str(state_path.relative_to(self.root)),
-                    "slice 90 runtime_checkpoint missing",
-                )
+            if state_path == required_state:
+                slice90 = [
+                    entry
+                    for entry in ladder
+                    if isinstance(entry, dict) and entry.get("slice") == 90
+                ]
+                if len(slice90) != 1:
+                    self.fail(
+                        str(state_path.relative_to(self.root)),
+                        "exactly one Slice 90 entry is required",
+                    )
+                elif "runtime_checkpoint" not in slice90[0]:
+                    self.fail(
+                        str(state_path.relative_to(self.root)),
+                        "slice 90 runtime_checkpoint missing",
+                    )
         if self.checked == 0:
             self.fail("dev/plans", "zero structured checkpoints discovered")
         if self.errors:

@@ -481,7 +481,7 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         self._rebind_performance(checkpoint)
         result = self.run_gate()
         self.assertNotEqual(result.returncode, 0, result.stdout)
-        self.assertIn("D27 candidate projection_heavy repetition 1 throughput is incomplete", result.stdout)
+        self.assertIn("D27 strict validation failed", result.stdout)
         self.assertNotIn("Traceback", result.stdout)
 
     def test_fabricated_d27_hashes_without_raw_bundle_are_rejected(self) -> None:
@@ -545,10 +545,16 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
     def _rebind_performance(self, checkpoint: dict[str, object]) -> None:
         path = self.root / EVIDENCE_DIR / "runtime-performance-qualification.md"
         d27 = self.root / EVIDENCE_DIR / "d27-candidate-receipt.json"
+        bundle_receipt = self.root / "evidence/candidate/receipt.json"
+        if bundle_receipt.is_file():
+            bundle_receipt.write_bytes(d27.read_bytes())
+        digest = hashlib.sha256(d27.read_bytes()).hexdigest()
         lines = path.read_text().splitlines()
         for index, line in enumerate(lines):
             if line.startswith(f"| {EVIDENCE_DIR / 'd27-candidate-receipt.json'} |"):
-                lines[index] = f"| {EVIDENCE_DIR / 'd27-candidate-receipt.json'} | {hashlib.sha256(d27.read_bytes()).hexdigest()} | PASS |"
+                lines[index] = f"| {EVIDENCE_DIR / 'd27-candidate-receipt.json'} | {digest} | PASS |"
+            if line.startswith("| candidate | evidence/candidate |"):
+                lines[index] = f"| candidate | evidence/candidate | {digest} |"
         path.write_text("\n".join(lines) + "\n")
         checkpoint["receipts"]["performance"]["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
         self._commit_rebound(checkpoint)

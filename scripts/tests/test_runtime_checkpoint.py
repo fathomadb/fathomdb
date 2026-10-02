@@ -164,6 +164,9 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
                          "corpus": bundle / "corpus.jsonl", "raw": bundle / "raw-output.jsonl"}
             for name, path in artifacts.items():
                 path.write_bytes(b"fixture-" + name.encode())
+            artifacts["runner"].write_bytes(
+                b"fixture-runner\n--PROTOCOL--\n" + protocol_path.read_bytes()
+            )
             raw = []
             metrics = {"projection_heavy": [], "foreground_heavy": []}
             for name in D27_RUNNER.repetition_order(PROTOCOL, phase):

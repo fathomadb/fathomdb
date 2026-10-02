@@ -26,6 +26,7 @@ reported data_plane_integrity
 reported dependency
 reported dependency_closure
 reported dependency_trace
+reported embed_dispatch
 reported embedding
 reported erasure
 admitted errors
@@ -68,10 +69,16 @@ admitted root
 reported root::gpu_allocation_witness_opt_in_tests
 reported root::mean_centering_internals_for_test
 reported root::tests
+reported runtime_configuration
+reported runtime_configuration::tests
 governed search
 governed search_api
 governed search_types
 reported slice20_fix1_tests
+reported slice90_close_review_tests
+reported slice90_close_tests
+reported slice90_concurrent_close_tests
+reported slice90_post_probe_real_error_tests
 governed structural_state
 reported tc5_benchmark
 reported tc5_benchmark::route_trap_tests
@@ -94,11 +101,13 @@ field actual_checkpoint_observations root
 field actuation_after_initial_lookup_delay_ms root
 field actuation_failure_after_operation root
 field binding_native_state_observations root
+field close_lock root
 field closed root
 field connection root
 field counters root
 field dense_disabled root
 field dense_disabled_reason root
+field embed_dispatch embed_dispatch
 field erasure_before_primary_lock_hook root
 field explanation_open_nonce telemetry
 field explanation_sequence telemetry
@@ -120,6 +129,8 @@ field provenance_row_cap root
 field read_visibility_generation root
 field reader_lookaside_rcs root
 field reader_pool reader_pool
+field requested_config runtime_configuration
+field resolved_config runtime_configuration
 field runtime_embedder root
 field runtime_embedder_identity root
 field slow_threshold_ms root

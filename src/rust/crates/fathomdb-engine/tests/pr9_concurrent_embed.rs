@@ -1,9 +1,8 @@
 //! Sustained real-corpus seed through the production projection provider pool.
 //!
-//! The default engine configuration runs two projection workers and one fixed
-//! provider worker. Earlier PR-9 measurement established that concurrent
-//! Candle forwards do not corrupt results; the Slice 90 default keeps one
-//! provider slot and makes higher concurrency an explicit engine setting.
+//! The default engine configuration runs two projection workers and five fixed
+//! provider workers. Earlier PR-9 measurement established that concurrent
+//! Candle forwards do not corrupt results.
 //!
 //! This opt-in end-to-end test seeds at least 10K real docs, checks bounded
 //! drain, full vector coverage, finite unit-norm vectors, and a direct
@@ -83,7 +82,7 @@ fn sustained_seed_default_pool_completes_and_is_correct() {
         (0..target_n).map(|i| real_bodies[i % real_bodies.len()].clone()).collect();
     eprintln!("PR9_SETUP target_n={target_n} real_docs={} (cycled to fill)", real_bodies.len());
 
-    // Bare CandleBgeEmbedder with the engine's default one-slot provider pool.
+    // Bare CandleBgeEmbedder with the engine's default provider pool.
     // Reused below as the single-threaded
     // ground-truth encoder for the determinism spot-check.
     let embedder: Arc<dyn Embedder> =

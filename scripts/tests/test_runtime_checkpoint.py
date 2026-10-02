@@ -16,7 +16,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GATE = REPO_ROOT / "scripts" / "check-runtime-checkpoints.py"
 EVIDENCE_DIR = Path("dev/plans/0.8.27/features/slice-90")
-MATRIX_CELLS = ("2/1", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
+MATRIX_CELLS = ("2/1", "2/5", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
 PROTOCOL = json.loads((REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json").read_text())
 RELEASE_SELECTORS = ("AC-011a", "AC-011b", "AC-017", "AC-018", "AC-029", "AC-072", "AC-073", "AC-076", "AC-081a", "AC-081b", "AC-081c")
 
@@ -128,7 +128,7 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
             "projection_completions": completions, "close_result": "Ok(())",
             "close_start_ns": 20_000_000_000, "close_end_ns": 20_001_000_000,
             "residual_workers_after_close": 0, "projection_backlog_high_water": 1,
-            "engine_thread_inventory": 12, "provider_peak_concurrency": 1,
+            "engine_thread_inventory": 12 if phase == "entry" else 16, "provider_peak_concurrency": 1,
             "environment_start": observation, "environment_end": observation,
             "environment_samples": [observation], "environment_valid": True,
             "connection_inventory": "Err(Storage)",
@@ -137,7 +137,7 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
             raw.update(
                 connection_inventory="live=writer:1,readers:8,dispatcher:1,workers:2,probes:0",
                 configuration_observation={"source": "engine", "scheduler_runtime_threads": 2,
-                                           "embedder_pool_size": 1},
+                                           "embedder_pool_size": 5},
                 projection_admission_observation={"source": "engine", "active_plus_queued_high_water": 1},
                 embed_dispatch_events=events,
                 embed_requests_waiting_high_water=1,
@@ -264,6 +264,110 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         result = self.run_gate()
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("missing matrix cell: 2/no-provider", result.stdout)
+
+    def test_pass_performance_requires_default_five_matrix_cell(self) -> None:
+        self.pass_checkpoint(cells=tuple(cell for cell in MATRIX_CELLS if cell != "2/5"))
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("missing matrix cell: 2/5", result.stdout)
+
+    def write_ac073_stress_receipt(self, checkpoint: dict[str, object]) -> tuple[Path, Path, Path]:
+        candidate = checkpoint["candidate_sha"]
+        eu7_path = self.root / EVIDENCE_DIR / "ac073-eu7.json"
+        log_path = self.root / EVIDENCE_DIR / "ac073-run.log"
+        receipt_path = self.root / EVIDENCE_DIR / "ac073-stress-receipt.json"
+        eu7_path.write_text(json.dumps({
+            "config": {"n_values_requested": [7667], "real_corpus_docs": 18472},
+            "ac_019_real_dev_box": [{"n": 7667, "padded_with_synthetic_distractors": False,
+                                     "baseline_p99_ms": 49, "p99_ms": 418, "bound_ms": 491,
+                                     "passed": True}],
+            "ac_013b_real_dev_box": [{"n": 7667, "recall_at_10": 0.772,
+                                      "ci_lo": 0.743, "ci_hi": 0.798,
+                                      "current_floor_0_90": 0.9,
+                                      "passes_ci_gate_0_8_0_one_sided": False}],
+        }))
+        log_path.write_text(
+            "EU7_SETUP real_docs=18472 queries=100 n_values=[7667] bootstrap=1000 "
+            "latency_samples=1000 stress_per_thread=250\n"
+            "EU7_NUMBERS n=7667 padded=false stress_p99_ms=418 stress_bound_ms=491 "
+            "ac013=true ac019=true\n"
+            "EU7_WROTE /tmp/eu7.json\n"
+            "AC-075 recall verdict: recall_ci_hi 0.7980 < floor 0.9\n"
+            "FAILED\n"
+            "test result: FAILED. 0 passed; 1 failed; 0 ignored\n"
+        )
+        receipt = {
+            "schema_version": "fathomdb.slice90-ac073-stress/v1",
+            "candidate_sha": candidate,
+            "selector_exit": 101,
+            "ac073_stress": "pass",
+            "ac075": "superseded-by-tc5",
+            "stress_p99_ms": 418,
+            "stress_bound_ms": 491,
+            "source_receipt": str(EVIDENCE_DIR / "ac073-eu7.json"),
+            "source_receipt_sha256": hashlib.sha256(eu7_path.read_bytes()).hexdigest(),
+            "raw_log": str(EVIDENCE_DIR / "ac073-run.log"),
+            "raw_log_sha256": hashlib.sha256(log_path.read_bytes()).hexdigest(),
+            "retained_ac075_result": {"verdict": "fail", "recall_at_10": 0.772,
+                                            "ci_95": [0.743, 0.798]},
+        }
+        receipt_path.write_text(json.dumps(receipt))
+        self.rebind_ac073(checkpoint, receipt_path)
+        return receipt_path, eu7_path, log_path
+
+    def rebind_ac073(self, checkpoint: dict[str, object], receipt_path: Path) -> None:
+        path = self.root / EVIDENCE_DIR / "runtime-performance-qualification.md"
+        lines = path.read_text().splitlines()
+        for index, line in enumerate(lines):
+            if line.startswith("| AC-073 |"):
+                lines[index] = (
+                    f"| AC-073 | PASS | {checkpoint['candidate_sha']} | "
+                    "cargo test --release -p fathomdb-engine eu7_real_corpus_ac_validation | "
+                    f"stress receipt={EVIDENCE_DIR / 'ac073-stress-receipt.json'} "
+                    f"sha256={hashlib.sha256(receipt_path.read_bytes()).hexdigest()} "
+                    "combined-exit=101 AC-075=superseded-by-tc5 |"
+                )
+        path.write_text("\n".join(lines) + "\n")
+        self._rebind_performance(checkpoint)
+
+    def test_ac073_stress_receipt_preserves_combined_failure(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        self.write_ac073_stress_receipt(checkpoint)
+        result = self.run_gate()
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_ac073_stress_receipt_rejects_rehashed_stress_failure(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        receipt_path, eu7_path, _ = self.write_ac073_stress_receipt(checkpoint)
+        eu7 = json.loads(eu7_path.read_text())
+        eu7["ac_019_real_dev_box"][0]["p99_ms"] = 492
+        eu7["ac_019_real_dev_box"][0]["passed"] = False
+        eu7_path.write_text(json.dumps(eu7))
+        receipt = json.loads(receipt_path.read_text())
+        receipt["stress_p99_ms"] = 492
+        receipt["source_receipt_sha256"] = hashlib.sha256(eu7_path.read_bytes()).hexdigest()
+        receipt_path.write_text(json.dumps(receipt))
+        self.rebind_ac073(checkpoint, receipt_path)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("AC-073 stress", result.stdout)
+
+    def test_ac073_stress_exception_does_not_apply_to_ac072(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        receipt_path, _, _ = self.write_ac073_stress_receipt(checkpoint)
+        path = self.root / EVIDENCE_DIR / "runtime-performance-qualification.md"
+        content = path.read_text()
+        content = content.replace("| AC-072 | PASS |", "| AC-072 | PASS |", 1).replace(
+            "| 1 passed; unchanged selector |\n| AC-073 |",
+            f"| stress receipt={EVIDENCE_DIR / 'ac073-stress-receipt.json'} "
+            f"sha256={hashlib.sha256(receipt_path.read_bytes()).hexdigest()} "
+            "combined-exit=101 AC-075=superseded-by-tc5 |\n| AC-073 |", 1,
+        )
+        path.write_text(content)
+        self._rebind_performance(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("incomplete candidate-bound named selector: AC-072", result.stdout)
 
     def test_pass_performance_requires_candidate_d27_qualification(self) -> None:
         self.pass_checkpoint(d27=False)

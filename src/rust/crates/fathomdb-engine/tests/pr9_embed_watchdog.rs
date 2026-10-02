@@ -120,7 +120,11 @@ fn hung_embed_retains_slot_and_pending_work_recovers() {
     let opened = Engine::open_with_choice_and_config(
         &path,
         EmbedderChoice::Caller(embedder.clone()),
-        EngineConfig { embedder_call_timeout_ms: Some(80), ..EngineConfig::default() },
+        EngineConfig {
+            embedder_pool_size: Some(1),
+            embedder_call_timeout_ms: Some(80),
+            ..EngineConfig::default()
+        },
     )
     .expect("open");
     let engine = opened.engine;
@@ -147,7 +151,11 @@ fn timed_out_embed_does_not_corrupt_subsequent_writes() {
     let opened = Engine::open_with_choice_and_config(
         &path,
         EmbedderChoice::Caller(embedder.clone()),
-        EngineConfig { embedder_call_timeout_ms: Some(80), ..EngineConfig::default() },
+        EngineConfig {
+            embedder_pool_size: Some(1),
+            embedder_call_timeout_ms: Some(80),
+            ..EngineConfig::default()
+        },
     )
     .expect("open");
     let engine = opened.engine;

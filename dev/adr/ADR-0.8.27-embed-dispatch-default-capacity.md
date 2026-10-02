@@ -123,6 +123,8 @@ AC-075 recall failure (0.773, CI high 0.799 below 0.90). The stress receipt
 and exact execution manifest are retained in the Slice 90 plan directory;
 the combined selector is not claimed as PASS.
 
-Independent code review, Terra verification, and D27 conflict disposition
-remain before acceptance and the runtime checkpoint. No structural Phase 3
-source move may begin before that checkpoint passes.
+Independent `gpt-6-sol` high code review and Terra verification passed on the
+merged exact-source stage-2 candidate; their candidate-bound receipts are in
+the Slice 90 plan directory. D27 conflict disposition remains before ADR
+acceptance and the runtime checkpoint. No structural Phase 3 source move may
+begin before that checkpoint passes.

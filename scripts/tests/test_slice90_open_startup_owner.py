@@ -26,10 +26,19 @@ def owner_errors(root: str, owner: str) -> list[str]:
     declaration = r"^(?:(?:pub(?:\([^)]*\))?) )?"
     root_functions = re.compile(
         declaration + r"fn ((?:probe_(?:open|database|wal)\w*|edge_vector_prune\w*|"
-        r"prune_orphaned_edge_vector\w*))\(",
+        r"prune_orphaned_edge_vector\w*|classify_wal_sidecar\w*|"
+        r"reject_legacy_shape\w*|validate_dependency_generation_on_open\w*|"
+        r"table_exists\w*))\(",
         re.M,
     )
     for match in root_functions.finditer(root):
+        errors.append(f"root still defines open startup::{match.group(1)}")
+    root_carriers = re.compile(
+        declaration
+        + r"(?:const|enum) ((?:EDGE_VECTOR_PRUNE_MARKER_KEY|WalSidecarHeader)\w*)\b",
+        re.M,
+    )
+    for match in root_carriers.finditer(root):
         errors.append(f"root still defines open startup::{match.group(1)}")
 
     for name in FUNCTIONS:
@@ -46,7 +55,10 @@ def owner_errors(root: str, owner: str) -> list[str]:
         ("enum", "WalSidecarHeader"),
     ):
         pattern = re.compile(declaration + kind + " " + name + r"\b", re.M)
-        if pattern.search(root):
+        if (
+            pattern.search(root)
+            and f"root still defines open startup::{name}" not in errors
+        ):
             errors.append(f"root still defines open startup::{name}")
         if len(pattern.findall(owner)) != 1:
             errors.append(f"open owner does not define one {name}")
@@ -82,6 +94,33 @@ pub(crate) fn probe_open_new() {}""",
             ),
             ["root still defines open startup::probe_open_new"],
         )
+
+    def test_unlisted_root_admission_families_fail_with_complete_owner(self) -> None:
+        owner = (ENGINE_SRC / "open.rs").read_text()
+        self.assertEqual(owner_errors("", owner), [])
+        for name in (
+            "classify_wal_sidecar_new",
+            "reject_legacy_shape_new",
+            "validate_dependency_generation_on_open_new",
+            "table_exists_new",
+        ):
+            with self.subTest(name=name):
+                self.assertEqual(
+                    owner_errors(f"fn {name}() {{}}", owner),
+                    [f"root still defines open startup::{name}"],
+                )
+        for declaration, name in (
+            (
+                'const EDGE_VECTOR_PRUNE_MARKER_KEY_NEW: &str = "x";',
+                "EDGE_VECTOR_PRUNE_MARKER_KEY_NEW",
+            ),
+            ("enum WalSidecarHeaderNew {}", "WalSidecarHeaderNew"),
+        ):
+            with self.subTest(name=name):
+                self.assertEqual(
+                    owner_errors(declaration, owner),
+                    [f"root still defines open startup::{name}"],
+                )
 
     def test_missing_owner_item_fails(self) -> None:
         owner = (ENGINE_SRC / "open.rs").read_text()

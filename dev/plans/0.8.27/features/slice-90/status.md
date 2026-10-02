@@ -16,12 +16,11 @@ The frozen operational source entry was `release/0.8.27` at `e689000d4` or a
 documentation-only descendant before Phase 2 semantic edits. Historical `7a2f9bf9`
 remains the D27 performance reference. Slice 85 recovery code is already in
 release ancestry,
-but its official public/hidden comparison and GPU evidence are outstanding and
-release state still binds the earlier Slice 85 candidate. The local public
-capture now has enough disk to rerun. After the host reboot, GPU preflight
-reports the authorized running driver version. The first strict GPU feature
-gate reached the CUDA tests but did not pass because of a stale allowlist name;
-that name is corrected, and the final strict gate remains pending.
+but its historical-candidate public/hidden comparison is outstanding and
+release state still binds the earlier Slice 85 candidate. The host reboot
+loaded the authorized driver; the first strict GPU feature gate reached CUDA
+tests but did not pass because of a stale allowlist name. A later corrected
+gate and current-source captures are recorded below.
 
 The reviewed plan is committed at `77b019c39`. The public source surface was
 captured at that commit: 13 rows passed, with the capture saved at
@@ -304,22 +303,62 @@ behavior whose original implementation has separate RED/GREEN history; the
 zero/default test's temporary mutation was observed by the implementer but
 does not have a retained executed-mutant transcript.
 
-The candidate D27 test-hooks observation seam and nondefault runtime matrix
-are under independent review in separate worktrees. One-second candidate
-smokes in both contention directions passed strict owner, timing, queue and
-resource validation, but are not qualification receipts. Sol review found
-candidate-proof gaps in default resolution, live SQLite role validation, and
-foreground dispatch timing; these are being corrected before merge. The
-matrix's focused real-engine cases pass at `1/1`, `2/2`, `4/4`, `64/64` and
-`2/no-provider`; exact provider-backed SQLite role assertions await the D27
-test hook. The runtime checkpoint receipt guard is being strengthened in a
-separate isolated worktree. No candidate D27 comparison or stage-2 checkpoint
-PASS is claimed.
+The reviewed D27 test-hooks observation seam, exact live SQLite role checks,
+five nondefault matrix cells, and strengthened checkpoint verifier are merged
+through `2d3979286`. The final one-line checkpoint fixture integration fix was
+independently reviewed by Sol and verified by Terra, then merged at
+`0ac1efb24`; 24 focused checkpoint tests and the current PENDING-state gate
+pass. The matrix and checkpoint task worktrees and branches are removed. The
+D27 candidate worktree remains clean for performance remediation.
 
-Next: close the D27 review findings, merge the candidate observation and matrix
-witnesses after independent verification, run the six-repetition candidate
-comparison and named release performance selectors, installed binding checks,
-and exact stage-2 checkpoint. Structural Phase 3 remains blocked on that
-checkpoint. Then complete root-owner moves, final verification, GPU and Slice
-85 recovery evidence, and candidate-bound closeout. Slice 90 remains
-IN_PROGRESS.
+The strict six-repetition D27 candidate comparison against the retained
+historical entry (receipt SHA-256
+`74c5ee0b43188dd2f2af138eb84dd67aa281034017693e095c82327c6dadc129`)
+ran at `2d3979286` with the frozen protocol and corpus. All six repetitions
+were environment-valid, but the comparison failed latency ceilings; the raw
+bundle is under
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-candidate-stage2-retry-2d3979286`.
+Provider service p50 stayed about 2.06 ms while the default single shared
+worker introduced 4–6 ms direct-embed queue wait at p50 and about 8.2 ms at
+p95. Projection-heavy freshness p50 was 21.52 ms against a 19.75 ms ceiling;
+foreground-heavy direct-embed p95 was about 10.31 ms against 2.38 ms. No D27
+PASS receipt exists. An earlier six-run attempt was invalidated by a competing
+test process and is retained separately.
+
+The unconfined full `agent-verify` on `2d3979286` passed lint, typecheck,
+strict security and 129 of 130 test suites; only the checkpoint fixture's old
+SQLite inventory failed after the D27 hook merge. That fixture is corrected at
+`0ac1efb24` and its focused tests pass; no new full-suite PASS is claimed.
+At `0ac1efb24`, unchanged AC-011a/b, AC-017, AC-018, AC-029 and AC-081c
+selectors pass. The first AC-081a/b seven-run campaign stopped on its first
+real selector because synchronized vector-only searches returned empty after
+bounded embed admission saturated. A committed eight-reader RED regression at
+`e51268ab1` reproduces this in an isolated worktree. The accepted ADR's
+one-worker/four-waiting-slot nonblocking contract permits at most five of the
+eight simultaneous requests, so scheduling alone cannot green that selector.
+No runtime semantic change or ADR successor is merged; the capacity ruling is
+pending.
+
+Current-source installed Python wheel checks pass 31 Python 3.12 cases and a
+real Python 3.10.20 open/close. Node 25 production and witness installed
+packages both pass. Their retained evidence is under
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/python-wheel-0ac1efb`
+and
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/node-0ac1efb`.
+The corrected strict GPU gate passed 351 tests, 8
+planned ignores, 0 failures in 21 runs (summary SHA-256
+`f50ff66032f2ac7fdcf56dc4be1393bcbca527fb228a7199565d169ac9b8ebf3`).
+Official current-source public and hidden captures passed 13 and 33 rows;
+their SHA-256 digests are
+`e414b2c3a99c855b10b52149155476a3fbbd8619dcda84f4913b0c3860e26e48`
+and `62cc86e14193cd2f41d7bef02ff67fe507e5eda629cb1073cd45624556b4f55f`.
+These are stage-2 current-source evidence, not final post-extraction receipts.
+
+Next: resolve the accepted default-capacity contract through a HITL ruling and,
+if changed, an ADR successor; green AC-081 and the frozen D27 comparison, then
+run the remaining exact release selectors and candidate-bound installed and
+review receipts. `scripts/check-runtime-checkpoints.py` validates the current
+PENDING object; the stage-2 checkpoint is not PASS. Structural Phase 3 remains
+blocked. Finish root-owner moves, final verification, exact final GPU and
+surface captures, and Slice 85 recovery comparison after that checkpoint.
+Slice 90 remains IN_PROGRESS.

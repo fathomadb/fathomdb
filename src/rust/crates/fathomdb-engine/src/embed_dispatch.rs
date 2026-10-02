@@ -11,6 +11,180 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+#[cfg(feature = "test-hooks")]
+#[allow(dead_code)] // Standalone dispatcher tests include this module without Engine.
+pub(crate) mod d27_observation {
+    //! Private, opt-in D27 observation carried by existing engine workers.
+
+    use serde::Serialize;
+    use std::cell::RefCell;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Mutex;
+    use std::time::Instant;
+
+    /// Measured work that caused a provider dispatch.
+    #[derive(Clone, Debug, Serialize)]
+    #[serde(untagged)]
+    pub enum Owner {
+        /// A foreground search or direct embed operation.
+        Foreground { operation_sequence: usize },
+        /// One batch or per-job projection request.
+        Projection { projection_cursors: Vec<u64> },
+    }
+
+    thread_local! { static OWNER: RefCell<Option<Owner>> = const { RefCell::new(None) }; }
+
+    pub(crate) fn current_owner() -> Option<Owner> {
+        OWNER.with(|owner| owner.borrow().clone())
+    }
+
+    pub(crate) fn with_owner<R>(owner: Option<Owner>, work: impl FnOnce() -> R) -> R {
+        struct Restore(Option<Owner>);
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                OWNER.with(|slot| *slot.borrow_mut() = self.0.take());
+            }
+        }
+        let previous = OWNER.with(|slot| slot.replace(owner));
+        let _restore = Restore(previous);
+        work()
+    }
+
+    /// Engine-owned lifecycle of one admitted provider request.
+    #[derive(Clone, Debug, Serialize)]
+    pub struct DispatchEvent {
+        /// This record is emitted by the engine dispatch worker.
+        pub source: &'static str,
+        /// Unique request identity within this engine observation.
+        pub request_id: u64,
+        /// Measured foreground sequence or canonical projection cursor set.
+        pub owner: Option<Owner>,
+        /// Monotonic admission instant relative to the measurement origin.
+        pub admitted_ns: u128,
+        /// Whether the request entered the bounded queue.
+        pub queued: bool,
+        /// Monotonic worker-start instant, absent if the request never started.
+        pub started_ns: Option<u128>,
+        /// Monotonic terminal instant, present when the request finished.
+        pub terminal_ns: Option<u128>,
+    }
+
+    /// Resolved worker topology from the engine open.
+    #[derive(Clone, Debug, Serialize)]
+    pub struct ConfigurationObservation {
+        /// This fact is read from the engine's resolved configuration.
+        pub source: &'static str,
+        /// Projection orchestration threads.
+        pub scheduler_runtime_threads: usize,
+        /// Provider dispatch workers.
+        pub embedder_pool_size: usize,
+    }
+
+    /// Engine projection admission high-water observation.
+    #[derive(Clone, Debug, Serialize)]
+    pub struct ProjectionAdmissionObservation {
+        /// This fact is updated by the projection dispatcher.
+        pub source: &'static str,
+        /// Maximum concurrent active plus queued projection rows.
+        pub active_plus_queued_high_water: usize,
+    }
+
+    /// Test-only snapshot of the resolved runtime and observed work.
+    #[derive(Clone, Debug, Serialize)]
+    pub struct D27Observation {
+        /// Resolved configuration from the engine open.
+        pub configuration_observation: ConfigurationObservation,
+        /// Maximum projection admission observed by the engine.
+        pub projection_admission_observation: ProjectionAdmissionObservation,
+        /// Admitted provider requests recorded by the engine.
+        pub embed_dispatch_events: Vec<DispatchEvent>,
+    }
+
+    pub(crate) struct Collector {
+        origin: Instant,
+        high_water: AtomicUsize,
+        events: Mutex<Vec<DispatchEvent>>,
+    }
+
+    impl Collector {
+        pub(crate) fn new(origin: Instant) -> Self {
+            Self { origin, high_water: AtomicUsize::new(0), events: Mutex::new(Vec::new()) }
+        }
+
+        pub(crate) fn now_ns(&self) -> u128 {
+            self.origin.elapsed().as_nanos()
+        }
+
+        pub(crate) fn admit(&self, owner: Option<Owner>) -> u64 {
+            let mut events = self.events.lock().unwrap_or_else(|e| e.into_inner());
+            let id = events.len() as u64 + 1;
+            let event = DispatchEvent {
+                source: "engine",
+                request_id: id,
+                owner,
+                admitted_ns: self.now_ns(),
+                queued: false,
+                started_ns: None,
+                terminal_ns: None,
+            };
+            events.push(event);
+            id
+        }
+
+        pub(crate) fn start(&self, id: u64) {
+            let now = self.now_ns();
+            if let Some(event) =
+                self.events.lock().unwrap_or_else(|e| e.into_inner()).get_mut((id - 1) as usize)
+            {
+                event.started_ns = Some(now);
+            }
+        }
+
+        pub(crate) fn queued(&self, id: u64) {
+            if let Some(event) =
+                self.events.lock().unwrap_or_else(|e| e.into_inner()).get_mut((id - 1) as usize)
+            {
+                event.queued = true;
+            }
+        }
+
+        pub(crate) fn terminal(&self, id: u64) {
+            let now = self.now_ns();
+            if let Some(event) =
+                self.events.lock().unwrap_or_else(|e| e.into_inner()).get_mut((id - 1) as usize)
+            {
+                if event.terminal_ns.is_none() {
+                    event.terminal_ns = Some(now);
+                }
+            }
+        }
+
+        pub(crate) fn projection_admitted(&self, count: usize) {
+            self.high_water.fetch_max(count, Ordering::Relaxed);
+        }
+
+        pub(crate) fn snapshot(&self, scheduler: usize, embedder: usize) -> D27Observation {
+            D27Observation {
+                configuration_observation: ConfigurationObservation {
+                    source: "engine",
+                    scheduler_runtime_threads: scheduler,
+                    embedder_pool_size: embedder,
+                },
+                projection_admission_observation: ProjectionAdmissionObservation {
+                    source: "engine",
+                    active_plus_queued_high_water: self.high_water.load(Ordering::Relaxed),
+                },
+                embed_dispatch_events: self
+                    .events
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone(),
+            }
+        }
+    }
+}
+#[cfg(feature = "test-hooks")]
+use d27_observation::Collector;
 use fathomdb_embedder_api::{Embedder, EmbedderError, Vector};
 
 pub(crate) enum DispatchError {
@@ -93,6 +267,8 @@ struct ReplyState {
     deadline: Instant,
     value: Mutex<ReplyValue>,
     ready: Condvar,
+    #[cfg(feature = "test-hooks")]
+    observation: Option<(Arc<Collector>, u64)>,
     #[cfg(test)]
     start_pause: Mutex<Option<StartPause>>,
 }
@@ -105,13 +281,39 @@ struct StartPause {
 }
 
 impl ReplyState {
-    fn new(deadline: Instant) -> Self {
+    fn new(
+        deadline: Instant,
+        #[cfg(feature = "test-hooks")] observation: Option<(Arc<Collector>, u64)>,
+    ) -> Self {
         Self {
             deadline,
             value: Mutex::new(ReplyValue { phase: ReplyPhase::Queued, outcome: None }),
             ready: Condvar::new(),
+            #[cfg(feature = "test-hooks")]
+            observation,
             #[cfg(test)]
             start_pause: Mutex::new(None),
+        }
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn observe_start(&self) {
+        if let Some((collector, id)) = &self.observation {
+            collector.start(*id);
+        }
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn observe_queued(&self) {
+        if let Some((collector, id)) = &self.observation {
+            collector.queued(*id);
+        }
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn observe_terminal(&self) {
+        if let Some((collector, id)) = &self.observation {
+            collector.terminal(*id);
         }
     }
 
@@ -128,11 +330,15 @@ impl ReplyState {
             };
             value.phase = ReplyPhase::Finished;
             value.outcome = Some(Err(error));
+            #[cfg(feature = "test-hooks")]
+            self.observe_terminal();
             self.ready.notify_all();
             return false;
         }
         value.phase = ReplyPhase::Finished;
         value.outcome = Some(outcome);
+        #[cfg(feature = "test-hooks")]
+        self.observe_terminal();
         self.ready.notify_all();
         true
     }
@@ -153,10 +359,14 @@ impl ReplyState {
             } else if now >= self.deadline {
                 value.phase = ReplyPhase::Finished;
                 value.outcome = Some(Err(DispatchError::QueuedExpired));
+                #[cfg(feature = "test-hooks")]
+                self.observe_terminal();
                 self.ready.notify_all();
                 false
             } else {
                 value.phase = ReplyPhase::Started;
+                #[cfg(feature = "test-hooks")]
+                self.observe_start();
                 true
             }
         };
@@ -175,6 +385,8 @@ impl ReplyState {
         if now >= self.deadline && matches!(value.phase, ReplyPhase::Queued) {
             value.phase = ReplyPhase::Finished;
             value.outcome = Some(Err(DispatchError::QueuedExpired));
+            #[cfg(feature = "test-hooks")]
+            self.observe_terminal();
             self.ready.notify_all();
             return true;
         }
@@ -195,6 +407,8 @@ impl ReplyState {
                     DispatchError::StartedTimeout
                 };
                 value.phase = ReplyPhase::Finished;
+                #[cfg(feature = "test-hooks")]
+                self.observe_terminal();
                 self.ready.notify_all();
                 return Err(error);
             }
@@ -261,6 +475,8 @@ struct Shared {
     timeout_ms: AtomicU64,
     state: Mutex<QueueState>,
     changed: Condvar,
+    #[cfg(feature = "test-hooks")]
+    observation: Mutex<Option<Arc<Collector>>>,
 }
 
 impl Shared {
@@ -322,6 +538,8 @@ impl EmbedDispatcher {
                 late_panics: 0,
             }),
             changed: Condvar::new(),
+            #[cfg(feature = "test-hooks")]
+            observation: Mutex::new(None),
         });
         let mut handles = Vec::with_capacity(pool_size);
         for index in 0..pool_size {
@@ -368,19 +586,73 @@ impl EmbedDispatcher {
         };
         let deadline =
             Instant::now() + Duration::from_millis(shared.timeout_ms.load(Ordering::Relaxed));
-        let reply = Arc::new(ReplyState::new(deadline));
         let mut state = shared.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        #[cfg(feature = "test-hooks")]
+        let observation =
+            shared.observation.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(
+                |collector| {
+                    (Arc::clone(collector), collector.admit(d27_observation::current_owner()))
+                },
+            );
+        let reply = Arc::new(ReplyState::new(
+            deadline,
+            #[cfg(feature = "test-hooks")]
+            observation,
+        ));
         if state.closing {
+            #[cfg(feature = "test-hooks")]
+            reply.resolve(Err(DispatchError::Closing));
             return Err(DispatchError::Closing);
         }
         let now = Instant::now();
         state.waiting.retain(|request| !request.reply.expired_or_finished(now));
         if state.waiting.len() == shared.queue_capacity {
+            #[cfg(feature = "test-hooks")]
+            reply.resolve(Err(DispatchError::Saturated));
             return Err(DispatchError::Saturated);
         }
+        #[cfg(feature = "test-hooks")]
+        reply.observe_queued();
         state.waiting.push_back(Request { body, reply: Arc::clone(&reply) });
         shared.changed.notify_one();
         Ok(EmbedReply { reply })
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[allow(dead_code)] // Standalone dispatcher tests include this module without Engine.
+    pub(crate) fn begin_d27_observation(&self, origin: Instant) {
+        if let Some(shared) = &self.shared {
+            *shared.observation.lock().unwrap_or_else(|e| e.into_inner()) =
+                Some(Arc::new(Collector::new(origin)));
+        }
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[allow(dead_code)] // Standalone dispatcher tests include this module without Engine.
+    pub(crate) fn d27_observation(
+        &self,
+        scheduler: usize,
+        embedder: usize,
+    ) -> Option<d27_observation::D27Observation> {
+        self.shared
+            .as_ref()?
+            .observation
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|collector| collector.snapshot(scheduler, embedder))
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[allow(dead_code)] // Standalone dispatcher tests include this module without Engine.
+    pub(crate) fn observe_projection_admission(&self, count: usize) {
+        if let Some(shared) = &self.shared {
+            if let Some(collector) =
+                shared.observation.lock().unwrap_or_else(|e| e.into_inner()).as_ref()
+            {
+                collector.projection_admitted(count);
+            }
+        }
     }
 
     pub(crate) fn close(&self) {

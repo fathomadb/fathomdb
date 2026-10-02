@@ -275,9 +275,51 @@ The standalone verifier reproduced the receipt byte for byte. The previous
 `/tmp` result remains historical audit only. The D27 implementation worktree
 and branch were removed after merge.
 
-Next: finish runtime contract docs and owner-level consuming-effect tests;
-run the D27 configuration matrix, candidate comparison, named release
-performance selectors, installed binding checks, and exact stage-2 checkpoint.
-Structural Phase 3 remains blocked on that checkpoint. Then complete the
-root-owner moves, final verification, GPU and Slice 85 recovery evidence, and
-candidate-bound closeout. Slice 90 remains IN_PROGRESS.
+Runtime contract documentation and its narrow clarification were merged at
+`bb72eee8e` after independent design review and Markdown verification. The
+NAPI test-hook cfg correction was merged at `80770ab68` after independent code
+review and Terra verification. The module-boundary policy now classifies 78
+modules, including the new runtime owners; its correction was merged at
+`2fdd64c3d` after independent review and 34 gate self-tests.
+
+The merged source passed the lint and typecheck stages of `agent-verify`. The
+unchanged strict security gate passed outside the sandbox, including the
+ptrace-dependent AC-036 and live AC-037 paths. A full host `agent-test.sh
+--tier=all` run exercised all 130 registered suites: 128 passed, and Rust and
+Python failed. Rust's only two failures were stale close expectations that
+required successful close before a held provider returned. Python's 21
+failures came from missing declared `networkx`/`scipy` test packages and a
+subprocess import path; after local test-environment repair, all 36 focused
+Python cases covering those failures passed. These findings do not constitute
+a full-suite PASS.
+
+The owner-level provenance, slow-threshold, and close qualification tests were
+merged at `db6cbaac4` after corrected independent Sol review and Terra
+verification. A measured 1–99 ms SQL statement distinguishes explicit zero
+from the 100 ms default on both slow-signal channels; a held projection
+provider test proves database admission is released before the provider
+returns, while close remains pending. The 21 focused tests passed again on the
+merged release source. These are later qualification assertions for runtime
+behavior whose original implementation has separate RED/GREEN history; the
+zero/default test's temporary mutation was observed by the implementer but
+does not have a retained executed-mutant transcript.
+
+The candidate D27 test-hooks observation seam and nondefault runtime matrix
+are under independent review in separate worktrees. One-second candidate
+smokes in both contention directions passed strict owner, timing, queue and
+resource validation, but are not qualification receipts. Sol review found
+candidate-proof gaps in default resolution, live SQLite role validation, and
+foreground dispatch timing; these are being corrected before merge. The
+matrix's focused real-engine cases pass at `1/1`, `2/2`, `4/4`, `64/64` and
+`2/no-provider`; exact provider-backed SQLite role assertions await the D27
+test hook. The runtime checkpoint receipt guard is being strengthened in a
+separate isolated worktree. No candidate D27 comparison or stage-2 checkpoint
+PASS is claimed.
+
+Next: close the D27 review findings, merge the candidate observation and matrix
+witnesses after independent verification, run the six-repetition candidate
+comparison and named release performance selectors, installed binding checks,
+and exact stage-2 checkpoint. Structural Phase 3 remains blocked on that
+checkpoint. Then complete root-owner moves, final verification, GPU and Slice
+85 recovery evidence, and candidate-bound closeout. Slice 90 remains
+IN_PROGRESS.

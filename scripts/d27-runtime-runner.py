@@ -52,7 +52,7 @@ def repetition_order(protocol: dict, phase: str) -> list[str]:
     return [item if phase == "entry" else item.replace("entry_", "candidate_", 1) for item in entry]
 
 
-def validate_raw_contract(raw: dict, protocol: dict, direction: str, repetition: int) -> None:
+def validate_raw_contract(raw: dict, protocol: dict, direction: str, repetition: int, phase: str = "entry") -> None:
     """Reject a workload that changed duration, order, epoch size, or ratios."""
     execution = protocol["execution"]
     if raw.get("direction") != direction or raw.get("repetition") != repetition:
@@ -63,6 +63,10 @@ def validate_raw_contract(raw: dict, protocol: dict, direction: str, repetition:
         raise ValueError("measurement duration mismatch")
     if raw.get("epoch_size") != execution["operation_epoch_size"]:
         raise ValueError("epoch size mismatch")
+    if phase == "candidate":
+        observed = raw.get("configuration_observation", {})
+        if (observed.get("scheduler_runtime_threads"), observed.get("embedder_pool_size")) != (2, 1):
+            raise ValueError("candidate default comparison requires resolved 2/1 worker pair")
     counts = raw.get("operation_counts", {})
     target = execution[f"{direction}_epoch"]
     epochs = counts.get("canonical_writes", 0) // target["canonical_writes"]
@@ -373,10 +377,15 @@ def dispatch_from_raw(raw: dict, embed_workers: int) -> dict:
         if not isinstance(admitted, int) or not isinstance(terminal, int) or admitted < 0 or terminal < admitted or (started is not None and (not isinstance(started, int) or not admitted <= started <= terminal)):
             raise ValueError("dispatch trace timestamp invalid")
         owner = event.get("owner", {})
+        if not isinstance(owner, dict):
+            raise ValueError("dispatch trace owner missing")
         if "operation_sequence" in owner and "projection_cursors" not in owner:
             sequence = owner["operation_sequence"]
             if sequence not in operations or operations[sequence]["class"] not in ("foreground_hybrid_query", "direct_embed"):
                 raise ValueError("dispatch trace foreground owner invalid")
+            operation = operations[sequence]
+            if not operation["admitted_ns"] <= admitted <= terminal <= operation["completed_ns"]:
+                raise ValueError("dispatch trace foreground request outside operation interval")
             covered_foreground.add(sequence)
         elif "projection_cursors" in owner and "operation_sequence" not in owner:
             cursors = owner["projection_cursors"]
@@ -386,8 +395,12 @@ def dispatch_from_raw(raw: dict, embed_workers: int) -> dict:
         else:
             raise ValueError("dispatch trace owner missing")
         queue_exit = started if started is not None else terminal
-        waits.append(queue_exit - admitted)
-        queued_intervals.append((admitted, queue_exit))
+        queued = event.get("queued", True)
+        if not isinstance(queued, bool) or (not queued and started is not None):
+            raise ValueError("dispatch trace queue admission invalid")
+        if queued:
+            waits.append(queue_exit - admitted)
+            queued_intervals.append((admitted, queue_exit))
         if started is not None:
             running_intervals.append((started, terminal))
     required_foreground = {sequence for sequence, op in operations.items() if op["class"] in ("foreground_hybrid_query", "direct_embed")}
@@ -453,6 +466,8 @@ def check_raw_observations(raw: dict, phase: str) -> None:
         embed_workers = observed.get("embedder_pool_size")
         if not isinstance(scheduler, int) or not 1 <= scheduler <= 64 or not isinstance(embed_workers, int) or not 1 <= embed_workers <= 64:
             raise ValueError("candidate configuration observation invalid")
+        if (scheduler, embed_workers) != (2, 1):
+            raise ValueError("candidate default comparison requires resolved 2/1 worker pair")
         dispatch = dispatch_from_raw(raw, embed_workers)
         projection = raw.get("projection_admission_observation")
         if not isinstance(projection, dict) or projection.get("source") != "engine" or not isinstance(projection.get("active_plus_queued_high_water"), int):
@@ -463,6 +478,16 @@ def check_raw_observations(raw: dict, phase: str) -> None:
             raise ValueError("engine thread inventory mismatch")
         if raw.get("embed_requests_waiting_high_water") is not None and raw["embed_requests_waiting_high_water"] != dispatch["waiting_peak"]:
             raise ValueError("embed queue observation differs from dispatch trace")
+
+
+def candidate_sqlite_inventory(observation: str, scheduler_threads: int) -> int:
+    """Require the exact live engine-owned handle roles for the resolved scheduler."""
+    if not isinstance(observation, str):
+        raise ValueError("SQLite connection inventory missing")
+    match = re.fullmatch(r"live=writer:(\d+),readers:(\d+),dispatcher:(\d+),workers:(\d+),probes:(\d+)", observation)
+    if match is None or tuple(map(int, match.groups())) != (1, 8, 1, scheduler_threads, 0):
+        raise ValueError("SQLite connection inventory mismatch")
+    return 10 + scheduler_threads
 
 
 def summarize_raw(raw: dict, phase: str) -> dict:
@@ -505,13 +530,7 @@ def summarize_raw(raw: dict, phase: str) -> dict:
     high_water = {"durable_projection_backlog": raw["projection_backlog_high_water"]}
     inventory = {"provider_concurrency": raw["provider_peak_concurrency"], "engine_threads": raw["engine_thread_inventory"], "residual_workers_after_close": raw["residual_workers_after_close"]}
     if phase == "candidate":
-        conn_match = re.search(r"creation=writer:(\d+),readers:(\d+),dispatcher:(\d+),workers:(\d+),probes:(\d+)", raw["connection_inventory"])
-        if not conn_match:
-            raise ValueError("missing SQLite inventory")
-        connections = sum(int(value) for value in conn_match.groups())
-        if connections != 1 + 1 + raw["configuration_observation"]["scheduler_runtime_threads"] + 8:
-            raise ValueError("SQLite connection inventory mismatch")
-        inventory["sqlite_connections"] = connections
+        inventory["sqlite_connections"] = candidate_sqlite_inventory(raw.get("connection_inventory"), raw["configuration_observation"]["scheduler_runtime_threads"])
         high_water["projection_rows_active_plus_queued"] = raw["projection_admission_observation"]["active_plus_queued_high_water"]
         high_water["embed_requests_waiting"] = dispatch["waiting_peak"]
     return {
@@ -578,7 +597,7 @@ def main() -> int:
         all_raw.append(raw)
         raw_output.write_text("".join(json.dumps(item, sort_keys=True, separators=(",", ":")) + "\n" for item in all_raw))
         try:
-            validate_raw_contract(raw, protocol, direction, repetition)
+            validate_raw_contract(raw, protocol, direction, repetition, args.phase)
             metrics[direction].append(summarize_raw(raw, args.phase))
         except Exception as error:
             invalidation = {

@@ -8,6 +8,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
 SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
 ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
+CONNECTION_SOURCE="${CONNECTION_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/connection_runtime.rs}"
 WAL_ATTRIBUTION_SOURCE="${WAL_ATTRIBUTION_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/wal_attribution.rs}"
 # Reader-pool ownership and completion live in their extracted module.
 READER_POOL_SOURCE="${READER_POOL_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/reader_pool.rs}"
@@ -383,15 +384,20 @@ for marker in \
     "$marker" \
     "runtime-probe ladder bookkeeping is cfg(test)-only: $marker"
 done
-assert_contains "$(<"$ENGINE_SOURCE")" \
+assert_contains "$(<"$CONNECTION_SOURCE")" \
   'fn open_managed_connection' \
-  "source centralizes Engine-managed SQLite opens through the audited factory"
+  "connection owner centralizes Engine-managed SQLite opens through the audited factory"
+assert_absent "$(<"$ENGINE_SOURCE")" \
+  'fn open_managed_connection' \
+  "root no longer defines the audited connection factory"
 PRODUCTION_ENGINE_SOURCE="$(sed '/^mod tests {$/,$d' "$ENGINE_SOURCE")"
+PRODUCTION_CONNECTION_SOURCE="$(sed '/^mod tests {$/,$d' "$CONNECTION_SOURCE")"
 FACTORY_DIRECT_OPENS="$(grep -Fc 'Connection::open(' <<<"$PRODUCTION_ENGINE_SOURCE" || true)"
+FACTORY_DIRECT_OPENS=$((FACTORY_DIRECT_OPENS + $(grep -Fc 'Connection::open(' <<<"$PRODUCTION_CONNECTION_SOURCE" || true)))
 if [ "$FACTORY_DIRECT_OPENS" -eq 1 ]; then
   pass "only the audited factory directly opens Engine SQLite connections"
 else
-  fail "Engine production source has $FACTORY_DIRECT_OPENS direct SQLite opens; expected the one audited factory"
+  fail "Engine and connection production sources have $FACTORY_DIRECT_OPENS direct SQLite opens; expected the one audited factory"
 fi
 assert_contains "$(<"$PY_CONTROL")" \
   '--observe-baseline-first-erase' \
@@ -698,6 +704,45 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "fixture proves ENGINE_SOURCE is independently injectable"
   else
     fail "fixture did not reject the wrong engine owner: $wrong_engine_owner_out"
+  fi
+
+  set +e
+  old_connection_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$ENGINE_SOURCE" bash "$0" 2>&1)"
+  old_connection_owner_rc=$?
+  set -e
+  if [ "$old_connection_owner_rc" -ne 0 ] \
+    && grep -Fq 'connection owner centralizes Engine-managed SQLite opens' <<<"$old_connection_owner_out"; then
+    pass "fixture rejects the old root as connection factory owner"
+  else
+    fail "fixture did not reject the old connection owner: $old_connection_owner_out"
+  fi
+
+  MISSING_CONNECTION_FACTORY="$TMPROOT/connection-without-factory.rs"
+  sed 's/fn open_managed_connection(/fn removed_managed_connection(/' \
+    "$CONNECTION_SOURCE" >"$MISSING_CONNECTION_FACTORY"
+  set +e
+  missing_connection_factory_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$MISSING_CONNECTION_FACTORY" bash "$0" 2>&1)"
+  missing_connection_factory_rc=$?
+  set -e
+  if [ "$missing_connection_factory_rc" -ne 0 ] \
+    && grep -Fq 'connection owner centralizes Engine-managed SQLite opens' <<<"$missing_connection_factory_out"; then
+    pass "fixture rejects a missing audited connection factory"
+  else
+    fail "fixture did not reject a missing connection factory: $missing_connection_factory_out"
+  fi
+
+  EXTRA_DIRECT_CONNECTION_OPEN="$TMPROOT/connection-with-extra-open.rs"
+  cp "$CONNECTION_SOURCE" "$EXTRA_DIRECT_CONNECTION_OPEN"
+  printf '\nfn unaudited_open() { let _ = Connection::open("/tmp/unaudited"); }\n' >>"$EXTRA_DIRECT_CONNECTION_OPEN"
+  set +e
+  extra_direct_open_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$EXTRA_DIRECT_CONNECTION_OPEN" bash "$0" 2>&1)"
+  extra_direct_open_rc=$?
+  set -e
+  if [ "$extra_direct_open_rc" -ne 0 ] \
+    && grep -Fq 'direct SQLite opens; expected the one audited factory' <<<"$extra_direct_open_out"; then
+    pass "fixture rejects an extra direct SQLite open in the connection owner"
+  else
+    fail "fixture did not reject an extra direct SQLite open: $extra_direct_open_out"
   fi
 
   MISSING_ERASURE_OWNER="$TMPROOT/erasure-without-completion-owner.rs"

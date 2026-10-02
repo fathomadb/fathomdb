@@ -1247,6 +1247,7 @@ impl Drop for ReaderWorkerPool {
         self.shutdown();
     }
 }
+use crate::connection_runtime::uninstall_profile_callback;
 use crate::errors::EngineError;
 use crate::evidence::{self, EvidenceSearchResultV1};
 use crate::filter::{Predicate, SearchFilter};
@@ -1273,7 +1274,6 @@ use crate::search_types::{Explanation, GraphFrontierStats, SearchHit, SoftFallba
 #[cfg(feature = "tc5-benchmark")]
 use crate::tc5_benchmark;
 use crate::temporal::{BoundaryCrossing, ReadView};
-use crate::uninstall_profile_callback;
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::wal_attribution::{
     native_connection_state_for_test, unavailable_native_connection_state_for_test,

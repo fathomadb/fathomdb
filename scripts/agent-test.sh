@@ -173,6 +173,7 @@ run_tier_suite fast test-slice50-evidence-matrix python3 scripts/tests/test_slic
 run_tier_suite fast test-dependency-policy bash scripts/tests/test_check_dependency_policy.sh
 run_tier_suite fast test-module-boundary-gate bash scripts/tests/test_module_boundary_gate.sh
 run_tier_suite fast test-slice90-runtime-configuration-owner python3 scripts/tests/test_slice90_runtime_configuration_owner.py
+run_tier_suite fast test-slice90-connection-runtime-owner python3 scripts/tests/test_slice90_connection_runtime_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

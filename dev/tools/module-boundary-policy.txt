@@ -22,6 +22,7 @@ configuration-case helpers test-hooks,operator,default-embedder,default-reranker
 reported actuation
 reported actuation::tests
 reported consolidation
+reported connection_runtime
 reported data_plane_integrity
 reported dependency
 reported dependency_closure

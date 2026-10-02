@@ -146,6 +146,17 @@ fn projection_wait_cancels_on_close_and_reopen_recovers_pending_row() {
     engine.configure_vector_kind_for_test("doc").expect("vector kind");
     let receipt = engine.write(&[node("pending across close")]).expect("write");
     entered_rx.recv_timeout(Duration::from_secs(2)).expect("provider entered");
+    let mut lock_path = database.as_os_str().to_os_string();
+    lock_path.push(".lock");
+    let lock_path = std::path::PathBuf::from(lock_path);
+    let initial_probe = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&lock_path)
+        .expect("open initial database admission lock probe");
+    let initially_locked =
+        matches!(initial_probe.try_lock(), Err(std::fs::TryLockError::WouldBlock));
+    drop(initial_probe);
 
     let (closed, closed_rx) = mpsc::channel();
     let closing = Arc::clone(&engine);
@@ -163,14 +174,32 @@ fn projection_wait_cancels_on_close_and_reopen_recovers_pending_row() {
         std::thread::yield_now();
     };
     let held_result = closed_rx.recv_timeout(Duration::from_millis(200));
+    let lock_probe = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&lock_path)
+        .expect("open database admission lock");
+    let admission_started = Instant::now();
+    let admission = loop {
+        match lock_probe.try_lock() {
+            Ok(()) => break Ok(()),
+            Err(_) if admission_started.elapsed() < Duration::from_secs(2) => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(error) => break Err(error),
+        }
+    };
+    drop(lock_probe);
     release.send(()).expect("release old provider call");
     let close_result = closed_rx.recv_timeout(Duration::from_secs(2)).expect("close after release");
     close_thread.join().expect("close thread");
     assert!(close_started, "close did not stop admission while the provider was held");
+    assert!(initially_locked, "admission lock probe must conflict before close");
     assert!(
         matches!(held_result, Err(mpsc::RecvTimeoutError::Timeout)),
         "close may not claim completion while the provider is held: {held_result:?}"
     );
+    assert!(admission.is_ok(), "database admission lock before provider release: {admission:?}");
     assert!(close_result.is_ok(), "close after provider release: {close_result:?}");
 
     let reopened =

@@ -172,6 +172,33 @@ export interface EngineConfig {
   readonly slowThresholdMs?: number;
 }
 
+const ENGINE_CONFIG_LIMITS = {
+  embedderPoolSize: [1, 64],
+  schedulerRuntimeThreads: [1, 64],
+  provenanceRowCap: [0, Number.MAX_SAFE_INTEGER],
+  embedderCallTimeoutMs: [1, 0xffff_ffff],
+  slowThresholdMs: [0, Number.MAX_SAFE_INTEGER],
+} as const;
+
+function snapshotEngineConfig(value: unknown): EngineConfig {
+  if (value === undefined) return Object.freeze({});
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("engineConfig must be an object");
+  }
+  const config = { ...value } as Record<string, unknown>;
+  for (const [field, [min, max]] of Object.entries(ENGINE_CONFIG_LIMITS)) {
+    const requested = config[field];
+    if (requested === undefined) continue;
+    if (typeof requested !== "number") {
+      throw new TypeError(`engineConfig.${field} must be a number`);
+    }
+    if (!Number.isSafeInteger(requested) || requested < min || requested > max) {
+      throw new RangeError(`engineConfig.${field} must be a safe integer in ${min}..=${max}`);
+    }
+  }
+  return Object.freeze(config) as EngineConfig;
+}
+
 export interface EngineOpenOptions {
   engineConfig?: EngineConfig;
   /**
@@ -2562,9 +2589,13 @@ export class Engine {
 
   static async open(path: string, options: EngineOpenOptions = {}): Promise<Engine> {
     validateFfiString(path);
-    const config = Object.freeze({ ...(options.engineConfig ?? {}) });
-    const nativeOptions =
-      options.engineConfig === undefined ? options : { ...options, engineConfig: config };
+    // Read caller-owned accessors once so native open receives the validated snapshot.
+    const requestedConfig = options.engineConfig;
+    const config = snapshotEngineConfig(requestedConfig);
+    const useDefaultEmbedder = options.useDefaultEmbedder;
+    const nativeOptions = requestedConfig === undefined
+      ? { useDefaultEmbedder }
+      : { useDefaultEmbedder, engineConfig: config };
     const inner = await intercept(() => native.Engine.open(path, nativeOptions));
     return new Engine(inner, config);
   }

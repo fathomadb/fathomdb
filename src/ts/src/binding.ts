@@ -775,6 +775,8 @@ export interface NativeEngine {
   // EU-6 test-hooks-gated seam. Present only when the napi binding is
   // built with `--features test-hooks`; the TS surface forwards calls
   // unconditionally and the runtime fails fast if absent.
+  requestedEngineConfigForTest?(): NativeEngineConfig;
+  bindingConnectionInventoryForTest?(): Promise<string>;
   configureVectorKindForTest?(kind: string): Promise<void>;
   writeVectorForTest?(kind: string, text: string): Promise<void>;
   setLegacyProjectionSearchSubobjectsForTest?(name: string): Promise<void>;

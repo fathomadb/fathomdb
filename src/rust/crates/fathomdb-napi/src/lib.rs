@@ -52,7 +52,7 @@ use fathomdb_engine::{
     DependencyTraceDirectionV1 as RustDependencyTraceDirectionV1,
     DependencyTraceRequestV1 as RustDependencyTraceRequestV1, EmbedderChoice,
     EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
-    EngineError as RustEngineError, EngineOpenError,
+    EngineConfig as RustEngineConfig, EngineError as RustEngineError, EngineOpenError,
     EvidenceArtifactLifecycleV1 as RustEvidenceArtifactLifecycleV1,
     EvidenceContributionV1 as RustEvidenceContributionV1,
     EvidenceGraphOriginV1 as RustEvidenceGraphOriginV1,
@@ -2557,11 +2557,74 @@ pub struct AttachSubscriberOptions {
 
 #[napi(object)]
 pub struct EngineConfig {
-    pub embedder_pool_size: Option<u32>,
-    pub scheduler_runtime_threads: Option<u32>,
-    pub provenance_row_cap: Option<u32>,
-    pub embedder_call_timeout_ms: Option<u32>,
-    pub slow_threshold_ms: Option<u32>,
+    pub embedder_pool_size: Option<f64>,
+    pub scheduler_runtime_threads: Option<f64>,
+    pub provenance_row_cap: Option<f64>,
+    pub embedder_call_timeout_ms: Option<f64>,
+    pub slow_threshold_ms: Option<f64>,
+}
+
+fn checked_config_number(
+    field: &str,
+    value: Option<f64>,
+    min: u64,
+    max: u64,
+) -> Result<Option<u64>> {
+    value
+        .map(|number| {
+            if !number.is_finite()
+                || number.fract() != 0.0
+                || number < min as f64
+                || number > max as f64
+                || number > ((1_u64 << 53) - 1) as f64
+            {
+                return Err(typed_error(
+                    CODE_INVALID_ARGUMENT,
+                    format!("engine configuration {field} must be an integer in {min}..={max}"),
+                    JsonValue::Null,
+                ));
+            }
+            Ok(number as u64)
+        })
+        .transpose()
+}
+
+impl EngineConfig {
+    fn into_rust(self) -> Result<RustEngineConfig> {
+        const MAX_SAFE: u64 = (1_u64 << 53) - 1;
+        Ok(RustEngineConfig {
+            embedder_pool_size: checked_config_number(
+                "embedder_pool_size",
+                self.embedder_pool_size,
+                1,
+                64,
+            )?,
+            scheduler_runtime_threads: checked_config_number(
+                "scheduler_runtime_threads",
+                self.scheduler_runtime_threads,
+                1,
+                64,
+            )?,
+            provenance_row_cap: checked_config_number(
+                "provenance_row_cap",
+                self.provenance_row_cap,
+                0,
+                MAX_SAFE,
+            )?,
+            embedder_call_timeout_ms: checked_config_number(
+                "embedder_call_timeout_ms",
+                self.embedder_call_timeout_ms,
+                1,
+                u64::from(u32::MAX),
+            )?,
+            slow_threshold_ms: checked_config_number(
+                "slow_threshold_ms",
+                self.slow_threshold_ms,
+                0,
+                MAX_SAFE,
+            )?,
+        })
+    }
 }
 
 #[napi(object)]
@@ -2607,14 +2670,17 @@ impl Engine {
     #[napi(factory)]
     pub async fn open(path: String, options: Option<EngineOpenOptions>) -> Result<Engine> {
         validate_ffi_string_napi(&path)?;
+        let (config, use_default_embedder) = match options {
+            Some(options) => (options.engine_config, options.use_default_embedder.unwrap_or(false)),
+            None => (None, false),
+        };
+        let config = config.map(EngineConfig::into_rust).transpose()?.unwrap_or_default();
         // EU-6: `useDefaultEmbedder: true` → EmbedderChoice::Default
         // (engine materialises the pinned bge-small embedder via the
         // EU-3 loader); `false`/unset → EmbedderChoice::None (engine
         // opens; vector writes fail EmbedderNotConfigured). Caller-
         // supplied custom embedders are deferred per
         // ADR-0.6.0-embedder-protocol Invariant 3.
-        let use_default_embedder =
-            options.as_ref().and_then(|o| o.use_default_embedder).unwrap_or(false);
         let join_result = tokio::task::spawn_blocking(move || {
             catch_unwind(AssertUnwindSafe(|| {
                 let choice = if use_default_embedder {
@@ -2622,7 +2688,7 @@ impl Engine {
                 } else {
                     EmbedderChoice::None
                 };
-                RustEngine::open_with_choice(path, choice)
+                RustEngine::open_with_choice_and_config(path, choice, config)
             }))
         })
         .await;
@@ -4970,6 +5036,31 @@ fn translate_admin_schema(item: &JsonValue) -> Result<PreparedWrite> {
 #[cfg(any(test, feature = "test-hooks"))]
 #[napi]
 impl Engine {
+    #[napi]
+    pub fn requested_engine_config_for_test(&self) -> Result<EngineConfig> {
+        let engine = Arc::clone(&self.inner);
+        call_engine_sync(move || {
+            let requested = engine.config();
+            Ok(EngineConfig {
+                embedder_pool_size: requested.embedder_pool_size.map(|value| value as f64),
+                scheduler_runtime_threads: requested
+                    .scheduler_runtime_threads
+                    .map(|value| value as f64),
+                provenance_row_cap: requested.provenance_row_cap.map(|value| value as f64),
+                embedder_call_timeout_ms: requested
+                    .embedder_call_timeout_ms
+                    .map(|value| value as f64),
+                slow_threshold_ms: requested.slow_threshold_ms.map(|value| value as f64),
+            })
+        })
+    }
+
+    #[napi]
+    pub async fn binding_connection_inventory_for_test(&self) -> Result<String> {
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.binding_connection_inventory_for_test()).await
+    }
+
     #[napi]
     pub async fn configure_vector_kind_for_test(&self, kind: String) -> Result<()> {
         validate_ffi_string_napi(&kind)?;

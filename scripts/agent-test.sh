@@ -176,6 +176,7 @@ run_tier_suite fast test-slice90-runtime-configuration-owner python3 scripts/tes
 run_tier_suite fast test-slice90-connection-runtime-owner python3 scripts/tests/test_slice90_connection_runtime_owner.py
 run_tier_suite fast test-slice90-open-admission-owner python3 scripts/tests/test_slice90_open_admission_owner.py
 run_tier_suite fast test-slice90-open-methods-owner python3 scripts/tests/test_slice90_open_methods_owner.py
+run_tier_suite fast test-slice90-open-startup-owner python3 scripts/tests/test_slice90_open_startup_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

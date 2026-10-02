@@ -1091,3 +1091,267 @@ impl Engine {
         Ok((connection, readers, report, lookaside_rcs))
     }
 }
+
+/// 0.8.20 Slice 15c (TC-33) fix-6 — `_fathomdb_open_state` key set once the
+/// one-time edge-vector prune commits durably (written in the SAME transaction
+/// as the vec0 DELETEs). Gating repair on this marker's ABSENCE — not on
+/// crossing the step-23 boundary — makes it crash-retryable: the step-23
+/// migration commits `user_version = 23` (edges dropped, sidecar cleared) in its
+/// own transaction, and the prune runs in a later transaction on open. A crash
+/// in that window leaves a durable `user_version = 23` with orphaned vec0 rows;
+/// a boundary-crossing gate (`before < 23`) would skip the prune forever on the
+/// next open (it sees `before == 23`). The marker is absent on any DB upgraded
+/// before this fix shipped, so the prune runs once and cleans the lingering
+/// orphans; thereafter the paired vec0/sidecar insert+delete keeps the invariant
+/// so no new orphans arise.
+const EDGE_VECTOR_PRUNE_MARKER_KEY: &str = "tc33_edge_vector_prune_complete";
+
+/// 0.8.20 Slice 15c (TC-33) fix-6 — has the one-time edge-vector prune committed
+/// durably on this DB? Keys off the [`EDGE_VECTOR_PRUNE_MARKER_KEY`] row written
+/// inside the prune transaction; its absence means the prune never ran (a DB
+/// upgraded before this fix shipped, or a crash between the step-23 commit and
+/// the prune commit) and must (re-)run.
+///
+/// A MISSING `_fathomdb_open_state` table is reported as "complete" (skip the
+/// prune) — that table is created by migration step 1, so its absence means the
+/// DB never ran our migrations (a synthetic/foreign shape rejected downstream);
+/// the prune must not run, and must not mask those errors, on it. Mirrors
+/// [`search_index_tokenizer_reproject_complete`].
+fn edge_vector_prune_complete(connection: &Connection) -> rusqlite::Result<bool> {
+    match connection.query_row(
+        "SELECT value FROM _fathomdb_open_state WHERE key = ?1",
+        [EDGE_VECTOR_PRUNE_MARKER_KEY],
+        |row| row.get::<_, String>(0),
+    ) {
+        Ok(value) => Ok(value == "1"),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(false),
+        Err(rusqlite::Error::SqliteFailure(_, Some(ref message)))
+            if message.contains("no such table") =>
+        {
+            Ok(true)
+        }
+        Err(err) => Err(err),
+    }
+}
+
+/// 0.8.20 Slice 15c (TC-33) fix-6 — delete every `vector_default` (vec0) row that
+/// has NO `_fathomdb_vector_rows` sidecar entry, then record the durable
+/// completion marker, all in one `BEGIN IMMEDIATE` transaction (crash-retryable:
+/// a crash before COMMIT leaves no marker and the next open re-runs).
+///
+/// A vec0 row and its sidecar row are written and deleted TOGETHER (same
+/// transaction) on every steady-state path, so a sidecar-less vec0 row is ONLY
+/// ever produced by the step-23 recreate, which drops the edge rows and their
+/// sidecar entries but cannot reach the engine-created vec0 table. So this
+/// targets exactly the dropped edges' orphans and touches NOTHING on a healthy
+/// corpus. Node vec0 rows keep their sidecar entry, so they are never pruned —
+/// node recall is unaffected.
+///
+/// The orphans are gathered with plain scans (both proven vec0 forms — a full
+/// `SELECT rowid FROM vector_default` and per-`rowid` `DELETE`) and diffed in
+/// Rust, rather than relying on a compound `DELETE ... WHERE rowid NOT IN (...)`
+/// over the virtual table.
+fn prune_orphaned_edge_vectors(connection: &Connection) -> rusqlite::Result<()> {
+    connection.execute_batch("BEGIN IMMEDIATE")?;
+    let result = (|| {
+        let sidecar: std::collections::HashSet<i64> = {
+            let mut statement =
+                connection.prepare("SELECT write_cursor FROM _fathomdb_vector_rows")?;
+            let rows = statement.query_map([], |row| row.get::<_, i64>(0))?;
+            let mut set = std::collections::HashSet::new();
+            for r in rows {
+                set.insert(r?);
+            }
+            set
+        };
+        let vec_rowids: Vec<i64> = {
+            let mut statement = connection.prepare("SELECT rowid FROM vector_default")?;
+            let rows = statement.query_map([], |row| row.get::<_, i64>(0))?;
+            let mut out = Vec::new();
+            for r in rows {
+                out.push(r?);
+            }
+            out
+        };
+        for rowid in vec_rowids {
+            if !sidecar.contains(&rowid) {
+                // vec0 rowid IS the canonical write_cursor; delete by rowid (the
+                // proven vec0 delete form, as `prune_edge_projection_shadows`),
+                // through the one TC-76-safe vec0-delete primitive.
+                delete_vector_partition_row(connection, rowid)?;
+            }
+        }
+        connection.execute(
+            "INSERT INTO _fathomdb_open_state(key, value) VALUES(?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![EDGE_VECTOR_PRUNE_MARKER_KEY, "1"],
+        )?;
+        Ok(())
+    })();
+    match result {
+        Ok(()) => connection.execute_batch("COMMIT"),
+        Err(err) => {
+            let _ = connection.execute_batch("ROLLBACK");
+            Err(err)
+        }
+    }
+}
+
+pub(crate) fn probe_open_integrity(connection: &Connection) -> Result<(), EngineOpenError> {
+    // `SELECT COUNT(*) FROM sqlite_schema` forces a full traversal of the
+    // sqlite_schema b-tree; this surfaces page-1 b-tree corruption that a
+    // bare `PRAGMA schema_version` (which only reads the schema cookie
+    // out of the file header) would miss.
+    connection
+        .query_row("SELECT COUNT(*) FROM sqlite_schema", [], |row| row.get::<_, i64>(0))
+        .map(|_| ())
+        .map_err(|err| map_open_sqlite_error(err, OpenStage::SchemaProbe))
+}
+
+pub(crate) fn probe_database_header(connection: &Connection) -> Result<(), EngineOpenError> {
+    connection
+        .query_row("PRAGMA application_id", [], |row| row.get::<_, i64>(0))
+        .map(|_| ())
+        .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))
+}
+
+/// Pre-`pragma WAL` sidecar validation. SQLite silently discards a WAL
+/// file whose header magic is wrong or whose advertised page size is
+/// outside `[512, SQLITE_MAX_PAGE_SIZE]`, which would cause us to lose
+/// committed frames at open time. AC-035a requires that we instead
+/// refuse to open with `Corruption(WalReplayFailure)` rather than
+/// silently rebuild from a truncated WAL.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum WalSidecarHeader {
+    AbsentOrShort,
+    Valid,
+    Malformed { offset: u64 },
+}
+
+pub(crate) fn classify_wal_sidecar(db_path: &Path) -> Result<WalSidecarHeader, EngineOpenError> {
+    let mut wal_path = db_path.as_os_str().to_owned();
+    wal_path.push("-wal");
+    let wal_path = PathBuf::from(wal_path);
+    // Bounded read: the WAL header is fixed-layout in the first 32
+    // bytes (magic + format + page-size + checkpoint-seq + salts +
+    // checksums); frame data starts at offset 32 and is irrelevant to
+    // the magic + page-size pre-check. A `std::fs::read` of the whole
+    // sidecar would force an unclean-shutdown open path to allocate
+    // and copy the entire WAL into memory before SQLite touches
+    // recovery — a real latency + RSS regression on AC-035.
+    use std::io::Read;
+    let mut file = match std::fs::File::open(&wal_path) {
+        Ok(file) => file,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(WalSidecarHeader::AbsentOrShort)
+        }
+        Err(_) => {
+            return Err(EngineOpenError::Io {
+                message: "database WAL sidecar is not accessible".to_string(),
+            })
+        }
+    };
+    let mut bytes = [0u8; 32];
+    if let Err(error) = file.read_exact(&mut bytes) {
+        if error.kind() == std::io::ErrorKind::UnexpectedEof {
+            // A short (< 32-byte) sidecar carries no committed frames;
+            // SQLite treats it as empty and re-initializes WAL state.
+            return Ok(WalSidecarHeader::AbsentOrShort);
+        }
+        return Err(EngineOpenError::Io {
+            message: "database WAL sidecar could not be read".to_string(),
+        });
+    }
+    let magic = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+    let page_size = u32::from_be_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]);
+    // WAL_MAGIC mask per SQLite `walIndexRecover`: low bit distinguishes
+    // big-endian vs little-endian checksum encoding; the rest of the
+    // magic is fixed.
+    const WAL_MAGIC_MASK: u32 = 0xFFFF_FFFE;
+    const WAL_MAGIC: u32 = 0x377F_0682;
+    const SQLITE_MAX_PAGE_SIZE: u32 = 65536;
+    let magic_ok = (magic & WAL_MAGIC_MASK) == WAL_MAGIC;
+    let page_size_ok =
+        page_size.is_power_of_two() && (512..=SQLITE_MAX_PAGE_SIZE).contains(&page_size);
+    if magic_ok && page_size_ok {
+        return Ok(WalSidecarHeader::Valid);
+    }
+    Ok(WalSidecarHeader::Malformed { offset: if !magic_ok { 0 } else { 8 } })
+}
+
+fn probe_wal_sidecar(db_path: &Path) -> Result<(), EngineOpenError> {
+    let WalSidecarHeader::Malformed { offset } = classify_wal_sidecar(db_path)? else {
+        return Ok(());
+    };
+    Err(EngineOpenError::Corruption(CorruptionDetail {
+        kind: CorruptionKind::WalReplayFailure,
+        stage: OpenStage::WalReplay,
+        locator: CorruptionLocator::FileOffset { offset },
+        recovery_hint: RecoveryHint {
+            code: "E_CORRUPT_WAL_REPLAY",
+            doc_anchor: "design/recovery.md#wal-replay-failures",
+        },
+    }))
+}
+
+pub(crate) fn reject_legacy_shape(connection: &Connection) -> Result<(), EngineOpenError> {
+    let has_legacy_table = table_exists(connection, "fathom_nodes")
+        || table_exists(connection, "fathom_edges")
+        || table_exists(connection, "fathom_chunks");
+    if !has_legacy_table {
+        return Ok(());
+    }
+
+    let seen =
+        connection.query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0)).unwrap_or(0);
+    Err(EngineOpenError::IncompatibleSchemaVersion { seen, supported: SCHEMA_VERSION })
+}
+
+pub(crate) fn validate_dependency_generation_on_open(
+    connection: &Connection,
+    schema_version: u32,
+) -> Result<(), EngineOpenError> {
+    if schema_version < SOURCE_DEPENDENCY_SCHEMA_VERSION {
+        return Ok(());
+    }
+    let valid = (|| -> Result<bool, rusqlite::Error> {
+        let value: String = connection.query_row(
+            "SELECT value FROM _fathomdb_open_state WHERE key=?1",
+            [DEPENDENCY_GENERATION_KEY],
+            |row| row.get(0),
+        )?;
+        let Some(generation) = canonical_dependency_generation(&value) else {
+            return Ok(false);
+        };
+        let max_generation: i64 = connection.query_row(
+            "SELECT COALESCE(MAX(registered_dependency_generation), 0) \
+             FROM _fathomdb_source_dependencies",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok(max_generation >= 0 && generation >= max_generation as u64)
+    })()
+    .unwrap_or(false);
+    if valid {
+        return Ok(());
+    }
+    Err(EngineOpenError::Corruption(CorruptionDetail {
+        kind: CorruptionKind::SchemaInconsistent,
+        stage: OpenStage::SchemaProbe,
+        locator: CorruptionLocator::TableRow { table: "_fathomdb_open_state", rowid: 0 },
+        recovery_hint: RecoveryHint {
+            code: "E_CORRUPT_SCHEMA",
+            doc_anchor: "design/recovery.md#schema-inconsistent",
+        },
+    }))
+}
+
+fn table_exists(connection: &Connection, table: &str) -> bool {
+    connection
+        .query_row(
+            "SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?1",
+            [table],
+            |_row| Ok(()),
+        )
+        .is_ok()
+}

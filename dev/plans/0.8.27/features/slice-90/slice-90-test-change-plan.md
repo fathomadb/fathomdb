@@ -154,7 +154,7 @@ Add table-driven cases for all five fields:
 | Field | Valid cases | Invalid cases | Required effect oracle |
 | --- | --- | --- | --- |
 | `scheduler_runtime_threads` | omitted/default, 1, 2, 4, 64 | 0, 65, native overflow | Exact projection worker/connection count and `N * PROJECTION_COMMIT_BATCH` admission. |
-| `embedder_pool_size` | omitted/default, 1, 2, 4, 64 | 0, 65, native overflow | Exact provider concurrency and queue capacity `4 * N`; no provider means no workers/queue. |
+| `embedder_pool_size` | omitted/default 5, explicit 1, 2, 4, 64 | 0, 65, native overflow | Exact provider concurrency and queue capacity `4 * N`; no provider means no workers/queue. |
 | `embedder_call_timeout_ms` | default, 1, representative, `u32::MAX` | 0, `u32::MAX + 1`, overflow | One queue-plus-service deadline used by every production provider path. |
 | `provenance_row_cap` | default, 0, 1, representative, `2^53-1` | above `2^53-1`, overflow | Real write and actuation commits retain/prune rows according to the configured cap; zero keeps existing disable semantics. |
 | `slow_threshold_ms` | default, 0, representative, `2^53-1` | above `2^53-1`, overflow | Operation and SQLite-statement slow events use the open-time value; setter changes effective threshold only. |
@@ -424,7 +424,10 @@ measured foreground sequence and committed projection cursor must have at
 least one valid engine-owned request. Retries and per-job fallback may produce
 multiple requests per owner. Review the typed hook-to-JSON handoff so a
 fabricated `source: "engine"` label cannot stand in for engine evidence.
-Candidate raw with a nondefault pair must fail the `2/1` comparison check.
+Candidate raw without an engine-observed scheduler count of two, or with an
+embed count outside the approved `2..=64` sweep, must fail the default
+comparison check. The workload opens the engine's defaults; candidate-bound
+tests and the receipt pin the selected default `2/5`.
 Preserve raw admission/start/terminal instants,
 resolved worker counts, projection admission high-water and exact live
 thread/SQLite inventories. The retained historical bundle is revalidated from
@@ -455,7 +458,8 @@ Run the frozen D27 matrix:
 
 | Cell | Purpose |
 | --- | --- |
-| `2/1` | Default compatibility, entry comparison, and all release performance gates. |
+| `2/5` | Selected default, entry comparison, and all release performance gates. |
+| `2/1` | Explicit prior default, one-slot overload and cleanup behavior. |
 | `1/1` | Minimum-bound progress, backpressure, timeout, reopen, and cleanup. |
 | `2/2` | Real provider overlap, mixed foreground/projection contention, and isolation. |
 | `4/4` | Representative larger override and bounded resource scaling. |

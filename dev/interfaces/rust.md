@@ -50,7 +50,7 @@ rewriting that snapshot. The older open methods select default settings.
 | Field | Accepted inclusive range | Default |
 | --- | --- | --- |
 | `scheduler_runtime_threads` | `1..=64` | `2` |
-| `embedder_pool_size` | `1..=64` | `1` |
+| `embedder_pool_size` | `1..=64` | `5` |
 | `embedder_call_timeout_ms` | `1..=u32::MAX` | `30_000` ms |
 | `provenance_row_cap` | `0..=2^53-1` | `1_000_000` rows |
 | `slow_threshold_ms` | `0..=2^53-1` | `100` ms |

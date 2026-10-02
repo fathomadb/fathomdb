@@ -181,7 +181,8 @@ Implementation shape:
 Validation contract:
 
 - `scheduler_runtime_threads`: default 2, range `1..=64`.
-- `embedder_pool_size`: default 1, range `1..=64`.
+- `embedder_pool_size`: selected default 5 under HITL `seq-299`, range `1..=64`;
+  explicit 1 retains the one-slot behavior.
 - `embedder_call_timeout_ms`: default 30,000, range `1..=u32::MAX`.
 - `provenance_row_cap`: default 1,000,000, range `0..=2^53-1`.
 - `slow_threshold_ms`: default 100, range `0..=2^53-1`.
@@ -423,9 +424,9 @@ backpressure, and observable failure/fallback.
 Before the candidate D27 run, add the smallest `test-hooks` engine observation
 seam that supplies its already-required candidate fields. RED self-tests reject
 the current default-only candidate workload and absent configuration,
-projection-admission and dispatch witnesses. GREEN opens the default `2/1`
-engine with the configured caller provider, rejects another worker pair in the
-comparison verifier, carries measured operation/cursor identity through
+projection-admission and dispatch witnesses. GREEN opens the engine's default
+configuration with the caller provider, checks the engine-observed resolved
+pair against the approved sweep range, carries measured operation/cursor identity through
 foreground reader work and projection batch/per-job dispatch, and records
 engine-owned admission/start/terminal times and resolved resource facts.
 Tests and review prove the workload serializes typed hook records rather than
@@ -450,7 +451,8 @@ corrections, not a change to the production 30-second drain budget.
 
 Run and retain the D27 matrix:
 
-- default `2/1` with all performance gates;
+- selected default `2/5` with all performance gates;
+- explicit prior default `2/1` with capacity, overload and cleanup coverage;
 - minimum `1/1`;
 - concurrent `2/2`;
 - representative override `4/4`;

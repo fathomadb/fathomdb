@@ -98,6 +98,7 @@ reported test_hooks::slice72_test_hooks
 reported vector_equivalence
 reported vector_storage
 governed wal_attribution
+reported wal_runtime
 reported write
 reported write_commit
 reported write_validation

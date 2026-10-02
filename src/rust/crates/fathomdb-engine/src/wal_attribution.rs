@@ -511,7 +511,7 @@ pub(super) fn format_active_wal_roles(roles: &[(WalAttributionRole, usize)]) -> 
         .collect::<Vec<_>>()
         .join(",")
 }
-use crate::{TruncateWalReport, TruncateWalStatus};
+use crate::wal_runtime::{TruncateWalReport, TruncateWalStatus};
 #[cfg(any(test, feature = "test-hooks"))]
 use rusqlite::{Connection, TransactionState};
 use std::collections::BTreeMap;

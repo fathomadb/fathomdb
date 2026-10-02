@@ -49,8 +49,16 @@ INSTALLED_BINDINGS = ("Python", "Node")
 MATRIX_COMMAND_RE = re.compile(r"\b(?:cargo test|pytest|node|npm|python3?)\b")
 MATRIX_RESULT_RE = re.compile(r"\b[1-9][0-9]* passed\b")
 AC073_RECEIPT = SLICE90_EVIDENCE / "ac073-stress-receipt.json"
+AC073_EXECUTION = SLICE90_EVIDENCE / "ac073-execution.json"
 AC073_EU7 = SLICE90_EVIDENCE / "ac073-eu7.json"
 AC073_LOG = SLICE90_EVIDENCE / "ac073-run.log"
+AC073_COMMAND = (
+    "env AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
+    "EU7_LATENCY_SAMPLES=1000 EU7_STRESS_PER_THREAD=250 "
+    "FATHOMDB_EU7_OUTPUT=<run-dir>/eu7.json cargo test --release "
+    "-p fathomdb-engine --features operator,embed-cuda --test eu7_real_corpus_ac "
+    "eu7_real_corpus_ac_validation -- --exact --ignored --nocapture --test-threads=1"
+)
 
 
 class Validation:
@@ -316,7 +324,7 @@ class Validation:
                 "schema_version", "candidate_sha", "selector_exit", "ac073_stress",
                 "ac075", "stress_p99_ms", "stress_bound_ms", "source_receipt",
                 "source_receipt_sha256", "raw_log", "raw_log_sha256",
-                "retained_ac075_result",
+                "execution_manifest", "execution_manifest_sha256", "retained_ac075_result",
             }
             if not isinstance(receipt, dict) or set(receipt) != expected_keys:
                 raise ValueError("receipt shape mismatch")
@@ -397,8 +405,79 @@ class Validation:
                 or "SKIP" in log
             ):
                 raise ValueError("EU7 raw log does not retain AC-073 PASS and AC-075 failure")
+            if not self.validate_ac073_execution(location, receipt, candidate_sha, log):
+                return False
         except (OSError, UnicodeError, ValueError, KeyError, TypeError, IndexError) as error:
             self.fail(location, f"AC-073 stress receipt invalid: {error}")
+            return False
+        return True
+
+    def validate_ac073_execution(
+        self, location: str, receipt: dict, candidate_sha: str, log: str
+    ) -> bool:
+        if receipt["execution_manifest"] != AC073_EXECUTION.as_posix():
+            self.fail(location, "AC-073 execution manifest path mismatch")
+            return False
+        manifest_path = self.safe_path(location, receipt["execution_manifest"])
+        if manifest_path is None:
+            return False
+        try:
+            manifest_bytes = manifest_path.read_bytes()
+            if hashlib.sha256(manifest_bytes).hexdigest() != receipt["execution_manifest_sha256"]:
+                raise ValueError("manifest SHA-256 mismatch")
+            manifest = json.loads(manifest_bytes)
+            expected_keys = {
+                "schema_version", "candidate_sha", "pre_source_sha", "post_source_sha",
+                "pre_clean", "post_clean", "command", "selector_exit", "bundle_dir",
+                "binary_relative_path", "executed_binary_path", "binary_sha256",
+                "source_receipt_sha256", "raw_log_sha256",
+            }
+            if not isinstance(manifest, dict) or set(manifest) != expected_keys:
+                raise ValueError("manifest shape mismatch")
+            if (
+                manifest["schema_version"] != "fathomdb.slice90-ac073-execution/v1"
+                or any(manifest[key] != candidate_sha for key in
+                       ("candidate_sha", "pre_source_sha", "post_source_sha"))
+                or manifest["pre_clean"] is not True
+                or manifest["post_clean"] is not True
+                or manifest["command"] != AC073_COMMAND
+                or type(manifest["selector_exit"]) is not int
+                or manifest["selector_exit"] != receipt["selector_exit"]
+                or manifest["source_receipt_sha256"] != receipt["source_receipt_sha256"]
+                or manifest["raw_log_sha256"] != receipt["raw_log_sha256"]
+            ):
+                raise ValueError("candidate, command, or raw artifact binding mismatch")
+            raw_bundle = manifest["bundle_dir"]
+            if not isinstance(raw_bundle, str) or not raw_bundle:
+                raise ValueError("bundle directory missing")
+            bundle = Path(raw_bundle)
+            if not bundle.is_absolute() or ".." in bundle.parts or bundle.resolve() != bundle:
+                raise ValueError("bundle directory must be canonical and absolute")
+            relative = manifest["binary_relative_path"]
+            if (
+                not isinstance(relative, str)
+                or re.fullmatch(r"target/release/deps/eu7_real_corpus_ac-[A-Za-z0-9]+", relative)
+                is None
+            ):
+                raise ValueError("test executable path mismatch")
+            binary = bundle / relative
+            if not binary.is_file() or binary.is_symlink():
+                raise ValueError("sealed test executable missing")
+            digest = manifest["binary_sha256"]
+            if not isinstance(digest, str) or HASH_RE.fullmatch(digest) is None:
+                raise ValueError("test executable SHA-256 invalid")
+            if hashlib.sha256(binary.read_bytes()).hexdigest() != digest:
+                raise ValueError("sealed test executable SHA-256 mismatch")
+            executed = manifest["executed_binary_path"]
+            if (
+                not isinstance(executed, str)
+                or not Path(executed).is_absolute()
+                or not executed.endswith("/" + relative)
+                or log.count(f"Running tests/eu7_real_corpus_ac.rs ({executed})") != 1
+            ):
+                raise ValueError("raw log does not identify sealed test executable")
+        except (OSError, UnicodeError, ValueError, KeyError, TypeError) as error:
+            self.fail(location, f"AC-073 execution invalid: {error}")
             return False
         return True
 

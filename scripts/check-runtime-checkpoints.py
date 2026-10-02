@@ -399,13 +399,13 @@ class Validation:
                 or re.search(rf"\bstress_p99_ms={p99}\b", numbers[0]) is None
                 or re.search(rf"\bstress_bound_ms={bound}\b", numbers[0]) is None
                 or re.search(r"\bac019=true\b", numbers[0]) is None
-                or "EU7_WROTE " not in log
+                or len(re.findall(r"^EU7_WROTE .+$", log, flags=re.MULTILINE)) != 1
                 or "AC-075 recall verdict" not in log
                 or "test result: FAILED. 0 passed; 1 failed" not in log
                 or "SKIP" in log
             ):
                 raise ValueError("EU7 raw log does not retain AC-073 PASS and AC-075 failure")
-            if not self.validate_ac073_execution(location, receipt, candidate_sha, log):
+            if not self.validate_ac073_execution(location, receipt, candidate_sha, log, eu7_bytes):
                 return False
         except (OSError, UnicodeError, ValueError, KeyError, TypeError, IndexError) as error:
             self.fail(location, f"AC-073 stress receipt invalid: {error}")
@@ -413,7 +413,8 @@ class Validation:
         return True
 
     def validate_ac073_execution(
-        self, location: str, receipt: dict, candidate_sha: str, log: str
+        self, location: str, receipt: dict, candidate_sha: str, log: str,
+        eu7_bytes: bytes,
     ) -> bool:
         if receipt["execution_manifest"] != AC073_EXECUTION.as_posix():
             self.fail(location, "AC-073 execution manifest path mismatch")
@@ -454,6 +455,11 @@ class Validation:
                 raise ValueError("bundle directory must be canonical and absolute")
             if manifest["command"] != AC073_COMMAND.format(bundle=bundle):
                 raise ValueError("candidate command binding mismatch")
+            output = bundle / "eu7.json"
+            if re.findall(r"^EU7_WROTE (.+)$", log, flags=re.MULTILINE) != [str(output)]:
+                raise ValueError("EU7 output path differs from fixed command")
+            if not output.is_file() or output.is_symlink() or output.read_bytes() != eu7_bytes:
+                raise ValueError("EU7 bundle output differs from retained receipt")
             relative = manifest["binary_relative_path"]
             if (
                 not isinstance(relative, str)

@@ -465,8 +465,19 @@ receipt proof gaps: D27 v2 now binds the entire runner/workload/verifier
 bundle to exact Git source, and AC-073 binds the logged output to the sealed
 bundle file and retained JSON. The reviewed fix passed 48 focused Python
 tests; the historical v1 entry and candidate raw data remain unchanged.
-Candidate-bound receipt assembly, final broad verification, Terra verification
-and the D27 conflict disposition remain. The runtime checkpoint is PENDING;
+The final stage-2 Sol high review passed at merged tree `9b04d0b25` with no
+remaining material code or proof finding. Independent Terra read-only
+verification at that tree passed 48 focused D27/checkpoint tests, validated
+the sealed AC-073 receipt, revalidated historical v1 and candidate v2 D27
+data, and checked 25 stage-2 log hashes. The later merged explicit `2/1`
+matrix run passed; its hash made the manifest 26/26, independently rechecked
+without mismatch. Terra did not rerun the host-heavy gates. The full
+unconfined merged-tree `agent-verify` independently passed lint, typecheck,
+strict security and all 130 registered test suites with none skipped or
+excluded. Candidate-bound stage-2 review, verification and performance
+receipt drafts are recorded; the performance receipt remains PENDING solely
+because of the two valid D27 campaigns. Their disposition is required before
+binding the runtime checkpoint. The runtime checkpoint is PENDING;
 structural Phase 3 has not begun. Final GPU and official public/hidden surface
 captures and Slice 85 recovery comparison remain after the checkpoint.
 Slice 90 remains IN_PROGRESS.

@@ -15,7 +15,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 GATE = REPO_ROOT / "scripts" / "check-runtime-checkpoints.py"
 EVIDENCE_DIR = Path("dev/plans/0.8.27/features/slice-90")
 MATRIX_CELLS = ("2/1", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
-PROTOCOL = json.loads((EVIDENCE_DIR if False else REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json").read_text())
+PROTOCOL = json.loads((REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json").read_text())
+RELEASE_SELECTORS = ("AC-011a", "AC-011b", "AC-017", "AC-018", "AC-029", "AC-072", "AC-073", "AC-076", "AC-081a", "AC-081b", "AC-081c")
 
 
 class RuntimeCheckpointGateTest(unittest.TestCase):
@@ -122,7 +123,15 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
             "# Runtime performance qualification\n\n"
             "## Configuration matrix\n\n"
             "| Cell | Status | Candidate SHA | Command | Evidence |\n| --- | --- | --- | --- | --- |\n"
-            f"{rows}\n{qualification}"
+            f"{rows}\n\n"
+            "## Named release selectors\n\n"
+            "| Selector | Status | Candidate SHA | Command | Evidence |\n| --- | --- | --- | --- | --- |\n"
+            + "\n".join(f"| {selector} | PASS | {candidate} | cargo test -p fathomdb-engine {selector} | 1 passed; unchanged selector |" for selector in RELEASE_SELECTORS)
+            + "\n\n## Installed bindings\n\n"
+            "| Language | Status | Candidate SHA | Command | Evidence |\n| --- | --- | --- | --- | --- |\n"
+            f"| Python | PASS | {candidate} | python3 -m pytest installed_binding | 36 passed; clean consumer install |\n"
+            f"| Node | PASS | {candidate} | npm test -- installed_binding | 18 passed; clean consumer install |\n"
+            + qualification
         )
 
     def pass_checkpoint(self, *, cells: tuple[str, ...] = MATRIX_CELLS, d27: bool = True) -> dict[str, object]:
@@ -341,6 +350,20 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         result = self.run_gate()
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("stage3_start_sha missing after engine source change", result.stdout)
+
+    def test_performance_requires_named_selectors_and_installed_bindings(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        path = self.root / EVIDENCE_DIR / "runtime-performance-qualification.md"
+        content = path.read_text()
+        content = content.replace("| AC-072 | PASS", "| AC-072 | PENDING")
+        content = content.replace("| Node | PASS", "| Node | PENDING")
+        path.write_text(content)
+        checkpoint["receipts"]["performance"]["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        self._commit_rebound(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("missing named selector: AC-072", result.stdout)
+        self.assertIn("missing installed binding: Node", result.stdout)
 
     def _commit_rebound(self, checkpoint: dict[str, object]) -> None:
         subprocess.run(["git", "-C", str(self.root), "add", "dev/plans/0.8.27/features/slice-90"], check=True)

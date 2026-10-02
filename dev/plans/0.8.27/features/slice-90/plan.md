@@ -123,6 +123,15 @@ binding source, and the allocated Slice 100 pre-entry plan.
     The remaining runtime docs still contain stale executor and error claims;
     update them against the accepted ADR and actual implementation before the
     runtime checkpoint.
+14. **The candidate workload and owner effects need explicit witnesses.** The
+    historical D27 bundle is valid, but the current workload's default-only
+    open omits the candidate configuration, projection-admission and dispatch
+    records required by its strict verifier. The reviewed design adds only a
+    test-hooks engine observation seam and keeps the frozen corpus, operation
+    mix, timing and comparison rule. Open-time provenance-cap and slow-event
+    effects also need direct owner tests; a parked-provider close test retains
+    the pre-2g expected result. The six configuration cells and checkpoint
+    receipt-content guard remain required before structural Phase 3.
 
 ## Evaluation and scope decision
 

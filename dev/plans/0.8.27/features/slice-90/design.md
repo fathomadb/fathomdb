@@ -538,6 +538,39 @@ shutdown and batch-fallback conditions. The receipt also proves that
 `provenance_row_cap` and `slow_threshold_ms` have their accepted zero/default/
 nondefault consuming effects without changing unrelated runtime capacity.
 
+The historical bundle is complete under the shared protocol and corpus hashes.
+Candidate-only measurement fields need a narrow test-hooks observation seam;
+they cannot be filled from the requested config echo, provider-local counters,
+thread-count guesses or the workload's operation timestamps. The candidate
+workload opens the real engine with `EngineConfig` and a caller provider,
+selects the default `2/1` comparison cell explicitly, and retains the frozen
+corpus, operation mix, timing and repetition order. The verifier rejects a
+nondefault worker pair in this comparison; other pairs belong to the separate
+configuration matrix. A read-only engine collector
+records the resolved worker counts, projection admission high-water mark and
+dispatch request lifecycle. Each dispatch record has a unique engine request
+identity, monotonic admission/start/terminal instants, and an engine-carried
+owner: one measured foreground operation sequence or the measured canonical
+cursor set for a projection batch or per-job fallback. The test-only owner
+context must cross foreground reader-work handoffs and both projection routes.
+Start collection after the warm-up drain; continue through the measured drain
+so every measured foreground sequence and committed projection cursor is
+covered by at least one valid request. Retries and per-job fallback may yield
+multiple requests for one owner; no event may be unowned. The workload
+serializes typed engine-hook records without inventing missing values. A JSON
+`source` label alone is not provenance proof: focused tests and independent
+source review must establish that every serialized record came from the hook.
+The verifier checks unique request IDs, owner coverage, timestamp order,
+interval and capacity bounds, provider concurrency, engine thread
+and SQLite inventories, and zero residual workers. The seam is absent from
+ordinary builds and cannot add an executor, database owner or replacement
+thread. Candidate runner/source hashes may differ from the retained historical
+bundle; each validates against its own artifacts, while both require identical
+protocol and corpus hashes. A changed measurement protocol or corpus would
+require a fresh historical run before comparison. A self-test pins that
+candidate-only fields do not alter historical raw recomputation or the
+median/MAD formula.
+
 Before 2a or any other semantic runtime edit, land the measurement-only D27
 harness, independently review its conformance to the frozen protocol, and run
 it against engine candidate `7a2f9bf90783f545603516502bac0016d4b93a14` in

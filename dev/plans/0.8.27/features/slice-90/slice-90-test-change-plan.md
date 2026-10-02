@@ -417,6 +417,31 @@ source import or workspace-linked native library is a failure, not evidence.
 
 ## Batch 9: performance and resource qualification
 
+Pin candidate-only instrumentation with test-first fixtures before the costly
+run: the default-only workload must fail the candidate observation check;
+missing or duplicate engine request IDs and unowned records must fail; each
+measured foreground sequence and committed projection cursor must have at
+least one valid engine-owned request. Retries and per-job fallback may produce
+multiple requests per owner. Review the typed hook-to-JSON handoff so a
+fabricated `source: "engine"` label cannot stand in for engine evidence.
+Candidate raw with a nondefault pair must fail the `2/1` comparison check.
+Preserve raw admission/start/terminal instants,
+resolved worker counts, projection admission high-water and exact live
+thread/SQLite inventories. The retained historical bundle is revalidated from
+its own hashed artifacts under the common protocol and corpus. The candidate
+runner bundle may differ because it adds observations, without changing the
+historical workload or comparison formula. A self-test confirms candidate-only
+fields do not change historical recomputation or median/MAD evaluation.
+
+For open-time configuration effects, RED tests must fail if either the
+configured provenance cap or slow threshold is ignored at open. Prove cap
+zero/one/nondefault through real writes and post-sweep retention, and slow operation plus
+SQLite-statement signals at configured zero/nondefault thresholds, followed by
+the setter changing only effective state. A crate-local shortened drain-budget
+fixture must show prompt database quiescence, zero SQLite owners and a truthful
+`Scheduler` result while the provider remains held; then release it and prove
+successful final close/reopen. Keep the production 30-second budget unchanged.
+
 Before rerunning D27, independently review the HITL `seq-297` amendment.
 RED/GREEN tests pin 128-page combined swap movement as valid, 129 pages as
 invalid, missing or decreasing counters at any sample as invalid, and exact

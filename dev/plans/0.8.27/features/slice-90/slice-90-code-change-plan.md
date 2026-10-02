@@ -420,6 +420,34 @@ the same semantic correction. Each field must name spelling, units, default,
 range, zero and omission behavior, mutability, precedence, consumer,
 backpressure, and observable failure/fallback.
 
+Before the candidate D27 run, add the smallest `test-hooks` engine observation
+seam that supplies its already-required candidate fields. RED self-tests reject
+the current default-only candidate workload and absent configuration,
+projection-admission and dispatch witnesses. GREEN opens the default `2/1`
+engine with the configured caller provider, rejects another worker pair in the
+comparison verifier, carries measured operation/cursor identity through
+foreground reader work and projection batch/per-job dispatch, and records
+engine-owned admission/start/terminal times and resolved resource facts.
+Tests and review prove the workload serializes typed hook records rather than
+fabricating an `engine` JSON label. Do not infer a
+request trace from provider counters or operation overlap, alter the frozen
+workload mix, or add a production observer thread. Revalidate the retained
+historical raw bundle against its own hashes and the common protocol/corpus;
+the candidate's instrumentation-only runner bundle can have a different hash.
+Pin unchanged historical recomputation and median/MAD evaluation in a
+self-test.
+
+Add real open-time consuming-effect tests for provenance retention and slow
+operation/SQLite-statement signals, including zero and setter-after-open
+behavior. For cap one, assert retention after its hysteresis sweep, not exactly
+one row after each write. Correct the parked-provider projection-close oracle
+with a crate-local test-only shortened embed-drain budget after SQLite
+quiescence: assert `Scheduler` while the provider remains held, zero SQLite
+owners, then release it and prove final close/reopen recovery. The external
+fixture can coordinate release asynchronously and assert that close does not
+claim completion while the provider is held. These are focused RED/GREEN
+corrections, not a change to the production 30-second drain budget.
+
 Run and retain the D27 matrix:
 
 - default `2/1` with all performance gates;

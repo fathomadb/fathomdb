@@ -213,7 +213,11 @@ fn direct_embed_saturation_and_queued_expiry_are_overloaded() {
         Engine::open_with_choice_and_config(
             database,
             EmbedderChoice::Caller(provider.clone()),
-            EngineConfig { embedder_call_timeout_ms: Some(120), ..EngineConfig::default() },
+            EngineConfig {
+                embedder_pool_size: Some(1),
+                embedder_call_timeout_ms: Some(120),
+                ..EngineConfig::default()
+            },
         )
         .expect("open")
         .engine,

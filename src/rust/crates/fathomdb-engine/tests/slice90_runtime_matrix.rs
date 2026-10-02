@@ -246,6 +246,55 @@ fn default_engine_has_exact_five_worker_resources_and_twenty_waiting_slots() {
 }
 
 #[test]
+fn explicit_two_one_engine_has_exact_managed_roles_and_cleanup() {
+    let _lock = MATRIX_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let dir = TempDir::new().expect("directory");
+    let path = dir.path().join("explicit-2-1.sqlite");
+    let baseline = engine_threads();
+    let (embedder, entered) = provider();
+    let config = EngineConfig::default();
+    let opened = Engine::open_with_choice_and_config(
+        &path,
+        EmbedderChoice::Caller(embedder.clone()),
+        config.clone(),
+    )
+    .expect("2/1 real-engine open");
+    let engine = Arc::new(opened.engine);
+    assert_eq!(engine.config(), &config);
+    await_threads(&expected_threads(&baseline, 2, 1));
+    assert_live_connections(&engine, 2);
+    assert_eq!(
+        connection_inventory(&engine),
+        "roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0"
+    );
+    await_database_descriptors(&path, 12);
+    let foreground = Arc::clone(&engine);
+    let caller = thread::spawn(move || foreground.embed_text("explicit 2/1 provider call"));
+    assert_eq!(
+        entered.recv_timeout(Duration::from_secs(2)).expect("provider entered"),
+        "explicit 2/1 provider call"
+    );
+    release(&embedder);
+    assert!(
+        matches!(caller.join().expect("caller"), Ok(vector) if vector == [1.0; DIMENSION as usize])
+    );
+    assert_eq!(embedder.peak.load(Ordering::SeqCst), 1);
+    engine.close().expect("2/1 close");
+    await_threads(&baseline);
+    await_database_descriptors(&path, 0);
+    drop(engine);
+    let reopened =
+        Engine::open_with_choice_and_config(&path, EmbedderChoice::Caller(embedder), config)
+            .expect("2/1 reopen");
+    await_threads(&expected_threads(&baseline, 2, 1));
+    assert_live_connections(&reopened.engine, 2);
+    await_database_descriptors(&path, 12);
+    reopened.engine.close().expect("2/1 reopen close");
+    await_threads(&baseline);
+    await_database_descriptors(&path, 0);
+}
+
+#[test]
 fn configured_engine_matrix_has_exact_live_resources_and_reopen_cleanup() {
     let _lock = MATRIX_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let dir = TempDir::new().expect("directory");

@@ -632,7 +632,20 @@ cannot erase it. Missing PID 1 identity, any other link error, a mismatched
 nonblank namespace, or any failed host-view corroboration remains invalid.
 Apply this identically to entry and candidate; retain the new protocol and
 runner hashes, raw observations and independent review. No swap, competitor,
-workload or median/MAD rule changes.
+workload or median/MAD rule changes at this step.
+
+The owner subsequently directed a report-only rule for host-wide swap
+movement because unrelated host activity cannot be contained. The reviewed
+`d27-runtime-qualification-protocol-v2.json` applies that rule to new candidate
+runs. Counters must still be present, nonnegative and monotonic at every
+sample, with exact raw-linked deltas. The original v1 protocol, corpus and
+six-repetition historical entry stay frozen; the v2 verifier revalidates that
+entry and its raw artifacts under the original stricter v1 swap rule before
+comparison. All other invalidators and the median/MAD rule remain unchanged.
+Two complete, environment-valid v2 campaigns on exact source `2e94aaf4f`
+conflict: the first misses projection-heavy canonical-commit p95, while one
+retry passes. Both remain evidence; their disposition is required before the
+runtime checkpoint can pass.
 
 The durable qualification receipt names the exact stage-2 candidate, optimized
 build and features, hardware/software, dataset/workload, warm-up, repetitions,

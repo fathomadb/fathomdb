@@ -454,7 +454,13 @@ raw-to-receipt deltas. Complete entry and candidate receipts with in-bound
 nonzero per-child movement must validate, replacing the old six-repetition
 global zero-swap check. The same rule applies to entry and candidate. Other
 host invalidators remain strict. Old invalid attempts remain tied to their old
-protocol hashes and cannot qualify retroactively.
+protocol hashes and cannot qualify retroactively. The later owner-directed v2
+successor makes host swap movement report-only for new candidate runs while
+retaining present, nonnegative, monotonic counters and raw-linked deltas.
+The frozen six-run historical entry is revalidated under its original v1
+protocol before comparison. Tests reject an altered historical receipt or
+raw artifact. A complete valid D27 failure and a complete valid retry on the
+same source remain separate evidence pending an explicit disposition.
 
 Run the frozen D27 matrix:
 

@@ -124,6 +124,11 @@ fails.
   historical entry and candidate comparison remain required before the runtime
   checkpoint or structural Phase 3. Never use a post-change measurement as
   the baseline.
+- The later owner-directed report-only host swap successor is versioned as
+  `d27-runtime-qualification-protocol-v2.json`; the original v1 entry and its
+  128-page rule remain frozen and must validate before any v2 candidate
+  comparison. Preserve both complete, conflicting v2 campaigns on exact
+  source `2e94aaf4f` until their disposition is recorded.
 
 ## Phase 2: runtime correction
 

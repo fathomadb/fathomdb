@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -17,6 +19,17 @@ EVIDENCE_DIR = Path("dev/plans/0.8.27/features/slice-90")
 MATRIX_CELLS = ("2/1", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
 PROTOCOL = json.loads((REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json").read_text())
 RELEASE_SELECTORS = ("AC-011a", "AC-011b", "AC-017", "AC-018", "AC-029", "AC-072", "AC-073", "AC-076", "AC-081a", "AC-081b", "AC-081c")
+
+
+def load_script(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+D27_RUNNER = load_script("checkpoint_d27_runner", REPO_ROOT / "scripts/d27-runtime-runner.py")
+D27_VERIFIER = load_script("checkpoint_d27_verifier", REPO_ROOT / "scripts/d27-runtime-qualification.py")
 
 
 class RuntimeCheckpointGateTest(unittest.TestCase):
@@ -74,50 +87,128 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         result = self.run_gate()
         self.assertEqual(result.returncode, 0, result.stdout)
 
+    @staticmethod
+    def raw_repetition(phase: str, direction: str, repetition: int) -> dict:
+        counts = PROTOCOL["execution"][f"{direction}_epoch"]
+        classes = (["canonical_write"] * counts["canonical_writes"]
+                   + ["foreground_hybrid_query"] * counts["foreground_hybrid_queries"]
+                   + ["direct_embed"] * counts["direct_embeds"])
+        operations = []
+        completions = []
+        events = []
+        for sequence, kind in enumerate(classes):
+            admitted = 1_000_000_000 + sequence * 1_000_000
+            completed = admitted + 100_000
+            operation = {"class": kind, "sequence": sequence, "admitted_ns": admitted,
+                         "completed_ns": completed, "outcome": "completed"}
+            if kind == "canonical_write":
+                operation["cursor"] = f"cursor-{sequence}"
+                completions.append({"cursor": operation["cursor"], "committed_ns": completed,
+                                    "observed_ns": completed + 100_000})
+                owner = {"projection_cursors": [operation["cursor"]]}
+            else:
+                owner = {"operation_sequence": sequence}
+            operations.append(operation)
+            events.append({"source": "engine", "request_id": sequence,
+                           "admitted_ns": admitted + 100, "started_ns": admitted + 1_000,
+                           "terminal_ns": admitted + 2_000, "owner": owner})
+        observation = {
+            "pid_namespace": PROTOCOL["runner"]["host_pid_namespace"],
+            "pid_one_namespace": PROTOCOL["runner"]["host_pid_namespace"],
+            "pid_one_comm": "systemd", "ps_pid_one_comm": "systemd", "procfs_hidepid": "0",
+            "runner_pid": 4242, "proc_self_pid": 4242, "ps_self_pid": 4242,
+            "cpu_governor": "performance", "competing_processes": [],
+            "swap_pages_in": 0, "swap_pages_out": 0, "database_device": "/dev/nvme0n1",
+        }
+        raw = {
+            "direction": direction, "repetition": repetition, "smoke": False,
+            "warmup_seconds": 10, "measurement_seconds": 60, "epoch_size": 10,
+            "measurement_elapsed_ns": 60_000_000_000,
+            "operation_counts": counts, "operations": operations,
+            "projection_completions": completions, "close_result": "Ok(())",
+            "close_start_ns": 20_000_000_000, "close_end_ns": 20_001_000_000,
+            "residual_workers_after_close": 0, "projection_backlog_high_water": 1,
+            "engine_thread_inventory": 12, "provider_peak_concurrency": 1,
+            "environment_start": observation, "environment_end": observation,
+            "environment_samples": [observation], "environment_valid": True,
+            "connection_inventory": "Err(Storage)",
+        }
+        if phase == "candidate":
+            raw.update(
+                connection_inventory="creation=writer:1,readers:1,dispatcher:2,workers:8,probes:0",
+                configuration_observation={"source": "engine", "scheduler_runtime_threads": 2,
+                                           "embedder_pool_size": 1},
+                projection_admission_observation={"source": "engine", "active_plus_queued_high_water": 1},
+                embed_dispatch_events=events,
+                embed_requests_waiting_high_water=1,
+            )
+        return raw
+
+    def write_d27_bundles(self, candidate: str) -> tuple[str, str, str]:
+        protocol_path = REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json"
+        protocol_hash = hashlib.sha256(protocol_path.read_bytes()).hexdigest()
+        entry_receipt = None
+        paths = {}
+        for phase in ("entry", "candidate"):
+            bundle = self.root / "evidence" / phase
+            binary = bundle / "target/release/deps/d27_runtime_workload-test"
+            binary.parent.mkdir(parents=True)
+            artifacts = {"runner": bundle / "runner.bundle", "binary": binary,
+                         "corpus": bundle / "corpus.jsonl", "raw": bundle / "raw-output.jsonl"}
+            for name, path in artifacts.items():
+                path.write_bytes(b"fixture-" + name.encode())
+            raw = []
+            metrics = {"projection_heavy": [], "foreground_heavy": []}
+            for name in D27_RUNNER.repetition_order(PROTOCOL, phase):
+                direction = "projection_heavy" if "projection_heavy" in name else "foreground_heavy"
+                repetition = int(name[-1])
+                item = self.raw_repetition(phase, direction, repetition)
+                raw.append(item)
+                metrics[direction].append(D27_RUNNER.summarize_raw(item, phase))
+            artifacts["raw"].write_text("".join(json.dumps(item) + "\n" for item in raw))
+            receipt = {
+                "phase": phase,
+                "source_sha": PROTOCOL["entry_engine_candidate_sha"] if phase == "entry" else candidate,
+                "status": "PASS", "protocol_sha256": protocol_hash,
+                "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+                "runner_sha256": hashlib.sha256(artifacts["runner"].read_bytes()).hexdigest(),
+                "corpus_sha256": hashlib.sha256(artifacts["corpus"].read_bytes()).hexdigest(),
+                "raw_output_sha256": hashlib.sha256(artifacts["raw"].read_bytes()).hexdigest(),
+                "runner_inventory": {"host": "windchill3", "operating_system": "Linux x86_64",
+                                     "online_cpus": 8, "memory_gib": 16, "database_storage": "local NVMe",
+                                     "build": "cargo test --release", "features": ["test-hooks"]},
+                "environment_start": raw[0]["environment_start"],
+                "environment_end": raw[-1]["environment_end"],
+                "per_repetition_metrics": metrics,
+                "aggregate_metrics": {}, "decision_rule_evaluation": {},
+                "historical_unavailable": PROTOCOL["metrics"]["historical_unavailable"] if phase == "entry" else [],
+            }
+            D27_VERIFIER.verify_raw_linkage(receipt, PROTOCOL, artifacts["raw"])
+            receipt = D27_VERIFIER.validate_receipt(receipt, PROTOCOL, protocol_path, artifacts, entry_receipt)
+            (bundle / "receipt.json").write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
+            paths[phase] = bundle
+            if phase == "entry":
+                entry_receipt = receipt
+        candidate_receipt = self.root / EVIDENCE_DIR / "d27-candidate-receipt.json"
+        candidate_receipt.write_bytes((paths["candidate"] / "receipt.json").read_bytes())
+        return (str(paths["entry"].relative_to(self.root)),
+                str(paths["candidate"].relative_to(self.root)),
+                hashlib.sha256(candidate_receipt.read_bytes()).hexdigest())
+
     def write_performance(self, candidate: str, cells: tuple[str, ...] = MATRIX_CELLS, d27: bool = True) -> str:
         rows = "\n".join(f"| {cell} | PASS | {candidate} | cargo test -p fathomdb-engine slice90_matrix_{cell.replace('/', '_').replace('-', '_')} | 3 passed; exact resource inventory and cleanup |" for cell in cells)
         qualification = ""
         if d27:
             d27_path = EVIDENCE_DIR / "d27-candidate-receipt.json"
-            per_repetition = {}
-            aggregates = {}
-            for direction in ("projection_heavy", "foreground_heavy"):
-                run = {
-                    "environment_valid": True, "starvation_pass": True,
-                    "swap_pages_in_delta": 0, "swap_pages_out_delta": 0,
-                    "counts": {name: 1 for name in PROTOCOL["metrics"]["counts"]},
-                    "high_water": {name: 1 for name in PROTOCOL["metrics"]["high_water"]},
-                    "inventory": {name: 1 for name in PROTOCOL["metrics"]["inventory"]},
-                    "throughput": {name: 10.0 for name in PROTOCOL["metrics"]["throughput_rates_per_second"]},
-                    "latency_ms": {name: {str(p): 1.0 for p in PROTOCOL["metrics"]["latency_percentiles"]}
-                                   for name in PROTOCOL["metrics"]["latency_classes"] + PROTOCOL["metrics"]["candidate_only_latency_classes"]},
-                }
-                per_repetition[direction] = [run.copy() for _ in range(3)]
-                aggregates[direction] = {
-                    "throughput": {name: {"median": 10.0, "mad": 0.0} for name in PROTOCOL["metrics"]["throughput_rates_per_second"]},
-                    "latency_ms": {name: {str(p): {"median": 1.0, "mad": 0.0} for p in PROTOCOL["metrics"]["latency_percentiles"]}
-                                   for name in PROTOCOL["metrics"]["latency_classes"]},
-                }
-            d27_receipt = {
-                "phase": "candidate",
-                "source_sha": candidate,
-                "status": "PASS",
-                "protocol_sha256": hashlib.sha256((REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json").read_bytes()).hexdigest(),
-                "binary_sha256": "a" * 64, "runner_sha256": "b" * 64,
-                "corpus_sha256": "c" * 64, "raw_output_sha256": "d" * 64,
-                "runner_inventory": {"host": "windchill3"},
-                "environment_start": {"cpu_governor": "performance"},
-                "environment_end": {"cpu_governor": "performance"},
-                "per_repetition_metrics": per_repetition,
-                "decision_rule_evaluation": {"status": "PASS", "rule": "D27 frozen median/MAD"},
-                "aggregate_metrics": aggregates,
-            }
-            artifact = self.root / d27_path
-            artifact.write_text(json.dumps(d27_receipt), encoding="utf-8")
+            entry_bundle, candidate_bundle, candidate_digest = self.write_d27_bundles(candidate)
             qualification = (
                 "\n## D27 candidate qualification\n\n"
                 "| Receipt path | SHA-256 | Status |\n| --- | --- | --- |\n"
-                f"| {d27_path} | {hashlib.sha256(artifact.read_bytes()).hexdigest()} | PASS |\n"
+                f"| {d27_path} | {candidate_digest} | PASS |\n\n"
+                "## D27 artifact bundles\n\n"
+                "| Phase | Bundle directory | Receipt SHA-256 |\n| --- | --- | --- |\n"
+                f"| entry | {entry_bundle} | {hashlib.sha256((self.root / entry_bundle / 'receipt.json').read_bytes()).hexdigest()} |\n"
+                f"| candidate | {candidate_bundle} | {candidate_digest} |\n"
             )
         return (
             "# Runtime performance qualification\n\n"
@@ -395,9 +486,37 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
 
     def test_fabricated_d27_hashes_without_raw_bundle_are_rejected(self) -> None:
         self.pass_checkpoint()
+        shutil.rmtree(self.root / "evidence")
         result = self.run_gate()
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("D27 artifact bundle", result.stdout)
+
+    def test_changed_candidate_raw_with_rehashed_receipt_is_rejected(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        bundle = self.root / "evidence/candidate"
+        raw_path = bundle / "raw-output.jsonl"
+        rows = [json.loads(line) for line in raw_path.read_text().splitlines()]
+        rows[0]["operations"][0]["completed_ns"] += 100
+        raw_path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+        receipt = json.loads((bundle / "receipt.json").read_text())
+        receipt["raw_output_sha256"] = hashlib.sha256(raw_path.read_bytes()).hexdigest()
+        encoded = json.dumps(receipt, indent=2, sort_keys=True) + "\n"
+        (bundle / "receipt.json").write_text(encoded)
+        (self.root / EVIDENCE_DIR / "d27-candidate-receipt.json").write_text(encoded)
+        digest = hashlib.sha256(encoded.encode()).hexdigest()
+        path = self.root / EVIDENCE_DIR / "runtime-performance-qualification.md"
+        lines = path.read_text().splitlines()
+        for index, line in enumerate(lines):
+            if line.startswith(f"| {EVIDENCE_DIR / 'd27-candidate-receipt.json'} |"):
+                lines[index] = f"| {EVIDENCE_DIR / 'd27-candidate-receipt.json'} | {digest} | PASS |"
+            if line.startswith("| candidate | evidence/candidate |"):
+                lines[index] = f"| candidate | evidence/candidate | {digest} |"
+        path.write_text("\n".join(lines) + "\n")
+        checkpoint["receipts"]["performance"]["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        self._commit_rebound(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("D27 strict validation failed", result.stdout)
 
     def test_unrelated_checkpoint_cannot_mask_missing_slice90_state_file(self) -> None:
         state = {"release": "9.9.9", "ladder": [{"slice": 90, "runtime_checkpoint": self.pending_checkpoint()}]}

@@ -9,6 +9,7 @@ never changes an observed value or treats unavailable entry metrics as zero.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import importlib.util
 import json
@@ -19,6 +20,8 @@ import statistics
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
+PROTOCOL_V2 = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol-v2.json"
+LEGACY_PROTOCOL_SHA256 = "b835f79a426a038e3528a9cf820177876451a02c3defad7aa0c545ebf642441b"
 DIRECTIONS = ("projection_heavy", "foreground_heavy")
 HISTORICAL_ONLY = frozenset(("embed_queue_wait", "embed_requests_waiting"))
 
@@ -72,7 +75,7 @@ def verify_raw_linkage(receipt: dict, protocol: dict, raw_path: Path) -> None:
                 break
         require(direction is not None, "raw repetition order mismatch")
         runner.validate_raw_contract(item, protocol, direction, repetition, receipt["phase"])
-        by_direction[direction].append(runner.summarize_raw(item, receipt["phase"]))
+        by_direction[direction].append(runner.summarize_raw(item, receipt["phase"], protocol))
     for direction in DIRECTIONS:
         expected = receipt["per_repetition_metrics"][direction]
         require(by_direction[direction] == expected, f"raw metric mismatch: {direction}")
@@ -103,7 +106,21 @@ def validate_receipt(
     entry aggregate supplied as ``entry``.
     """
     require(protocol == json.loads(protocol_path.read_text()), "frozen protocol content mismatch")
-    require(protocol.get("schema_version") == 1, "unsupported protocol schema")
+    version = protocol.get("schema_version")
+    require(version in (1, 2), "unsupported protocol schema")
+    if version == 2:
+        require(protocol_path.resolve() == PROTOCOL_V2.resolve(), "unsupported successor protocol path")
+        require(sha256(PROTOCOL) == LEGACY_PROTOCOL_SHA256, "historical protocol changed")
+        legacy = json.loads(PROTOCOL.read_text())
+        stable, successor = copy.deepcopy(legacy), copy.deepcopy(protocol)
+        for value in (stable, successor):
+            value.pop("schema_version")
+            value.pop("swap_policy")
+            value["comparison_rule"].pop("invalid_environment")
+        require(stable == successor, "successor protocol changed a non-swap rule")
+        require(protocol["swap_policy"].get("mode") == "report_only" and
+                "max_total_pages_per_repetition" not in protocol["swap_policy"],
+                "unsupported successor swap policy")
     for name, field in (
         ("runner", "runner_sha256"),
         ("binary", "binary_sha256"),
@@ -161,7 +178,8 @@ def validate_receipt(
                 value = run.get(key)
                 require(isinstance(value, int) and not isinstance(value, bool) and value >= 0, f"{label} {key}: missing or negative")
                 swap_deltas.append(value)
-            require(sum(swap_deltas) <= protocol["swap_policy"]["max_total_pages_per_repetition"], f"{label}: combined swap movement exceeds cap")
+            if version == 1:
+                require(sum(swap_deltas) <= protocol["swap_policy"]["max_total_pages_per_repetition"], f"{label}: combined swap movement exceeds cap")
             for count in metrics["counts"]:
                 number(run.get("counts", {}).get(count), f"{label} {count}")
             for high_water in metrics["high_water"]:

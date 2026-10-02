@@ -595,13 +595,13 @@ class Validation:
             self.fail(location, f"cannot parse D27 candidate receipt: {error}")
             return
         protocol_path = (
-            self.root / SLICE90_EVIDENCE / "d27-runtime-qualification-protocol.json"
+            self.root / SLICE90_EVIDENCE / "d27-runtime-qualification-protocol-v2.json"
         )
         if not protocol_path.is_file():
             protocol_path = (
                 Path(__file__).resolve().parents[1]
                 / SLICE90_EVIDENCE
-                / "d27-runtime-qualification-protocol.json"
+                / "d27-runtime-qualification-protocol-v2.json"
             )
         expected_protocol = hashlib.sha256(protocol_path.read_bytes()).hexdigest()
         if (

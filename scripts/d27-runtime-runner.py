@@ -19,11 +19,12 @@ import threading
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
+PROTOCOL_V2 = ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol-v2.json"
 WORKLOAD = ROOT / "scripts/d27_runtime_workload.rs"
 VERIFIER = ROOT / "scripts/d27-runtime-qualification.py"
 HOST_PID_NAMESPACE = "pid:[4026531836]"
 HOST_PID_ONE_COMM = "systemd"
-SWAP_MAX_TOTAL_PAGES = json.loads(PROTOCOL.read_text())["swap_policy"]["max_total_pages_per_repetition"]
+LEGACY_PROTOCOL = json.loads(PROTOCOL.read_text())
 
 
 def sha256(path: Path) -> str:
@@ -242,8 +243,9 @@ def process_view_invalidators(observation: dict, label: str) -> list[str]:
     return reasons
 
 
-def environment_invalidators(raw: dict) -> list[str]:
+def environment_invalidators(raw: dict, protocol: dict | None = None) -> list[str]:
     """Name each observed reason that makes a repetition non-comparable."""
+    protocol = protocol or LEGACY_PROTOCOL
     before = raw.get("environment_start", {})
     after = raw.get("environment_end", {})
     samples = raw.get("environment_samples")
@@ -279,8 +281,12 @@ def environment_invalidators(raw: dict) -> list[str]:
             reasons.append(f"{label} database_device={device!r}; expected local NVMe {before.get('database_device')!r}")
     if all(isinstance(before.get(key), int) and not isinstance(before.get(key), bool) and isinstance(after.get(key), int) and not isinstance(after.get(key), bool) and after[key] >= before[key] for key in ("swap_pages_in", "swap_pages_out")):
         incoming, outgoing = swap_deltas(raw)
-        if incoming + outgoing > SWAP_MAX_TOTAL_PAGES:
-            reasons.append(f"combined swap movement {incoming + outgoing} pages exceeds {SWAP_MAX_TOTAL_PAGES}")
+        if protocol["schema_version"] == 1:
+            limit = protocol["swap_policy"]["max_total_pages_per_repetition"]
+            if incoming + outgoing > limit:
+                reasons.append(f"combined swap movement {incoming + outgoing} pages exceeds {limit}")
+        elif protocol["schema_version"] != 2 or protocol["swap_policy"].get("mode") != "report_only":
+            reasons.append("unsupported swap policy")
     return reasons
 
 
@@ -425,11 +431,11 @@ def dispatch_from_raw(raw: dict, embed_workers: int) -> dict:
     return {"queue_wait_ns": waits, "waiting_peak": waiting_peak, "provider_peak": provider_peak}
 
 
-def check_raw_observations(raw: dict, phase: str) -> None:
+def check_raw_observations(raw: dict, phase: str, protocol: dict | None = None) -> None:
     """Prove the raw stream has the claimed work and projection completions."""
     if raw.get("smoke"):
         raise ValueError("smoke run cannot qualify")
-    reasons = environment_invalidators(raw)
+    reasons = environment_invalidators(raw, protocol)
     if reasons:
         raise ValueError("invalid repetition environment: " + "; ".join(reasons))
     if raw.get("environment_valid") is not True:
@@ -492,9 +498,9 @@ def candidate_sqlite_inventory(observation: str, scheduler_threads: int) -> int:
     return 10 + scheduler_threads
 
 
-def summarize_raw(raw: dict, phase: str) -> dict:
+def summarize_raw(raw: dict, phase: str, protocol: dict | None = None) -> dict:
     """Derive unrounded rates and latency percentiles from monotonic ns."""
-    check_raw_observations(raw, phase)
+    check_raw_observations(raw, phase, protocol)
     swap_pages_in_delta, swap_pages_out_delta = swap_deltas(raw)
     operations = raw["operations"]
     duration = raw["measurement_elapsed_ns"] / 1e9
@@ -553,11 +559,15 @@ def main() -> int:
     parser.add_argument("--source", type=Path, required=True, help="clean historical or candidate checkout")
     parser.add_argument("--phase", choices=("entry", "candidate"), required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--protocol", type=Path, default=PROTOCOL)
     parser.add_argument("--entry", type=Path, help="validated entry receipt for candidate comparison")
     for name in ("runner", "binary", "corpus", "raw"):
         parser.add_argument(f"--entry-{name}", type=Path)
     args = parser.parse_args()
-    protocol = json.loads(PROTOCOL.read_text())
+    protocol_path = args.protocol.resolve()
+    if protocol_path not in (PROTOCOL.resolve(), PROTOCOL_V2.resolve()):
+        raise ValueError("D27 protocol path must be a tracked reviewed version")
+    protocol = json.loads(protocol_path.read_text())
     source = args.source.resolve()
     source_sha = git_sha(source)
     if args.phase == "entry" and source_sha != protocol["entry_engine_candidate_sha"]:
@@ -592,7 +602,7 @@ def main() -> int:
         raw["environment_start"] = before
         raw["environment_end"] = after
         raw["environment_samples"] = samples
-        reasons = environment_invalidators(raw)
+        reasons = environment_invalidators(raw, protocol)
         raw["environment_valid"] = not reasons
         attempt = output / f"{name}.attempt.json"
         attempt.write_text(json.dumps(raw, indent=2, sort_keys=True) + "\n")
@@ -600,12 +610,12 @@ def main() -> int:
         raw_output.write_text("".join(json.dumps(item, sort_keys=True, separators=(",", ":")) + "\n" for item in all_raw))
         try:
             validate_raw_contract(raw, protocol, direction, repetition, args.phase)
-            metrics[direction].append(summarize_raw(raw, args.phase))
+            metrics[direction].append(summarize_raw(raw, args.phase, protocol))
         except Exception as error:
             invalidation = {
                 "status": "INVALID_ENVIRONMENT" if reasons else "INVALID_REPETITION",
                 "source_sha": source_sha,
-                "protocol_sha256": sha256(PROTOCOL),
+                "protocol_sha256": sha256(protocol_path),
                 "binary_sha256": sha256(binary),
                 "attempt_sha256": sha256(attempt),
                 "raw_output_sha256": sha256(raw_output),
@@ -617,7 +627,7 @@ def main() -> int:
     end_environment = environment()
     receipt = {
         "phase": args.phase, "source_sha": source_sha, "binary_sha256": sha256(binary),
-        "runner_sha256": sha256(runner_bundle), "protocol_sha256": sha256(PROTOCOL),
+        "runner_sha256": sha256(runner_bundle), "protocol_sha256": sha256(protocol_path),
         "corpus_sha256": sha256(corpus), "raw_output_sha256": sha256(raw_output),
         "runner_inventory": runner_inventory(), "environment_start": start_environment,
         "environment_end": end_environment, "per_repetition_metrics": metrics,
@@ -633,8 +643,8 @@ def main() -> int:
     verifier.verify_raw_linkage(receipt, protocol, raw_output)
     if args.phase == "candidate":
         entry_artifacts = {name: getattr(args, f"entry_{name}") for name in ("runner", "binary", "corpus", "raw")}
-        entry = verifier.validate_entry_for_candidate(entry, protocol, PROTOCOL, entry_artifacts)
-    receipt = verifier.validate_receipt(receipt, protocol, PROTOCOL, {"runner": runner_bundle, "binary": binary, "corpus": corpus, "raw": raw_output}, entry)
+        entry = verifier.validate_entry_for_candidate(entry, protocol, protocol_path, entry_artifacts)
+    receipt = verifier.validate_receipt(receipt, protocol, protocol_path, {"runner": runner_bundle, "binary": binary, "corpus": corpus, "raw": raw_output}, entry)
     (output / "receipt.json").write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
     print(output / "receipt.json")
     return 0

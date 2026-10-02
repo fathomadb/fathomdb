@@ -354,10 +354,38 @@ their SHA-256 digests are
 and `62cc86e14193cd2f41d7bef02ff67fe507e5eda629cb1073cd45624556b4f55f`.
 These are stage-2 current-source evidence, not final post-extraction receipts.
 
-Next: resolve the accepted default-capacity contract through a HITL ruling and,
-if changed, an ADR successor; green AC-081 and the frozen D27 comparison, then
-run the remaining exact release selectors and candidate-bound installed and
-review receipts. `scripts/check-runtime-checkpoints.py` validates the current
+HITL `seq-299` authorized testing higher default embed-worker counts and
+selecting the lowest count that passes the unchanged frozen D27 comparison,
+AC-081, and named release performance gates. The `4 * N` embed waiting bound,
+frozen protocol, corpus, workload, and comparison remain unchanged. The
+test-first two-worker candidate at `781b2f5e0` completed six valid D27
+repetitions and failed projection-heavy direct-embed p50; its direct-embed p95
+median was about 6.18 ms in both directions. The three-worker run at
+`e0c3a1b16` had one valid repetition with direct-embed p95 4.14 ms, then was
+invalidated by 1,617 swap pages in its next repetition. It is diagnostic,
+not a six-run verdict. The four-worker candidate at `c03a398f8` completed
+six valid repetitions and failed projection-heavy direct-embed p95, with
+about 4.12 ms p95 in both directions.
+
+The five-worker candidate at `ad31c3a61` passed the frozen six-repetition
+D27 comparison against the retained historical entry after one invalid swap
+attempt. Its valid receipt is
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-default5-retry-ad31c3a61/receipt.json`
+(SHA-256 `29e5206e02751ac83d2a28fa5cf9b85bf98e164cc3270c0cdf88cef5a5b4d185`);
+direct-embed p95 medians were 2.116 ms under projection-heavy load and 2.120
+ms under foreground-heavy load. The same exact source passed the unchanged
+AC-081a/b seven-run campaign and AC-081c. The official campaign summary is
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/ac081-default5-ad31c3a61/summary.txt`
+(SHA-256 `00a4313dc52ae5cb9c1939e6c220901581d530adad691467c63ce09c8d1084ab`).
+This is a provisional default selection until every named selector passes.
+The proposed ADR successor is
+`dev/adr/ADR-0.8.27-embed-dispatch-default-capacity.md`; it is not yet
+accepted, and the runtime checkpoint remains PENDING.
+
+Next: finish the remaining exact release selectors, accept the default-capacity
+ADR successor if they pass, reconcile the implementation and public contract,
+then rerun candidate-bound D27, installed binding, review and verification
+receipts. `scripts/check-runtime-checkpoints.py` validates the current
 PENDING object; the stage-2 checkpoint is not PASS. Structural Phase 3 remains
 blocked. Finish root-owner moves, final verification, exact final GPU and
 surface captures, and Slice 85 recovery comparison after that checkpoint.

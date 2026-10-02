@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 GATE = REPO_ROOT / "scripts" / "check-runtime-checkpoints.py"
 EVIDENCE_DIR = Path("dev/plans/0.8.27/features/slice-90")
 MATRIX_CELLS = ("2/1", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
+PROTOCOL = json.loads((EVIDENCE_DIR if False else REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json").read_text())
 
 
 class RuntimeCheckpointGateTest(unittest.TestCase):
@@ -73,18 +74,42 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
 
     def write_performance(self, candidate: str, cells: tuple[str, ...] = MATRIX_CELLS, d27: bool = True) -> str:
-        rows = "\n".join(f"| {cell} | PASS | candidate-bound result |" for cell in cells)
+        rows = "\n".join(f"| {cell} | PASS | {candidate} | cargo test -p fathomdb-engine slice90_matrix_{cell.replace('/', '_').replace('-', '_')} | 3 passed; exact resource inventory and cleanup |" for cell in cells)
         qualification = ""
         if d27:
             d27_path = EVIDENCE_DIR / "d27-candidate-receipt.json"
-            protocol = REPO_ROOT / "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol.json"
+            per_repetition = {}
+            aggregates = {}
+            for direction in ("projection_heavy", "foreground_heavy"):
+                run = {
+                    "environment_valid": True, "starvation_pass": True,
+                    "swap_pages_in_delta": 0, "swap_pages_out_delta": 0,
+                    "counts": {name: 1 for name in PROTOCOL["metrics"]["counts"]},
+                    "high_water": {name: 1 for name in PROTOCOL["metrics"]["high_water"]},
+                    "inventory": {name: 1 for name in PROTOCOL["metrics"]["inventory"]},
+                    "throughput": {name: 10.0 for name in PROTOCOL["metrics"]["throughput_rates_per_second"]},
+                    "latency_ms": {name: {str(p): 1.0 for p in PROTOCOL["metrics"]["latency_percentiles"]}
+                                   for name in PROTOCOL["metrics"]["latency_classes"] + PROTOCOL["metrics"]["candidate_only_latency_classes"]},
+                }
+                per_repetition[direction] = [run.copy() for _ in range(3)]
+                aggregates[direction] = {
+                    "throughput": {name: {"median": 10.0, "mad": 0.0} for name in PROTOCOL["metrics"]["throughput_rates_per_second"]},
+                    "latency_ms": {name: {str(p): {"median": 1.0, "mad": 0.0} for p in PROTOCOL["metrics"]["latency_percentiles"]}
+                                   for name in PROTOCOL["metrics"]["latency_classes"]},
+                }
             d27_receipt = {
                 "phase": "candidate",
                 "source_sha": candidate,
                 "status": "PASS",
-                "protocol_sha256": hashlib.sha256(protocol.read_bytes()).hexdigest(),
-                "decision_rule_evaluation": {"status": "PASS"},
-                "aggregate_metrics": {"projection_heavy": {}, "foreground_heavy": {}},
+                "protocol_sha256": hashlib.sha256((REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json").read_bytes()).hexdigest(),
+                "binary_sha256": "a" * 64, "runner_sha256": "b" * 64,
+                "corpus_sha256": "c" * 64, "raw_output_sha256": "d" * 64,
+                "runner_inventory": {"host": "windchill3"},
+                "environment_start": {"cpu_governor": "performance"},
+                "environment_end": {"cpu_governor": "performance"},
+                "per_repetition_metrics": per_repetition,
+                "decision_rule_evaluation": {"status": "PASS", "rule": "D27 frozen median/MAD"},
+                "aggregate_metrics": aggregates,
             }
             artifact = self.root / d27_path
             artifact.write_text(json.dumps(d27_receipt), encoding="utf-8")
@@ -96,7 +121,7 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         return (
             "# Runtime performance qualification\n\n"
             "## Configuration matrix\n\n"
-            "| Cell | Status | Evidence |\n| --- | --- | --- |\n"
+            "| Cell | Status | Candidate SHA | Command | Evidence |\n| --- | --- | --- | --- | --- |\n"
             f"{rows}\n{qualification}"
         )
 
@@ -114,7 +139,13 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         checkpoint = self.pending_checkpoint()
         for name, receipt in checkpoint["receipts"].items():  # type: ignore[union-attr]
             path = self.root / str(receipt["path"])
-            body = self.write_performance(candidate, cells, d27) if name == "performance" else f"{name}\n"
+            if name == "performance":
+                body = self.write_performance(candidate, cells, d27)
+            else:
+                reviewer = "gpt-6-sol high" if name == "code_review" else "Terra"
+                body = (f"# {name}\n\nCandidate SHA: {candidate}\nVerdict: PASS\nReviewer: {reviewer}\n"
+                        "Evidence: Independent review of the exact candidate found no open findings; "
+                        "focused runtime and checkpoint tests passed with complete receipts.\n")
             path.write_text(body, encoding="utf-8")
             receipt.update(status="PASS", candidate_sha=candidate, sha256=hashlib.sha256(path.read_bytes()).hexdigest())
         git("add", "dev/plans/0.8.27/features/slice-90")
@@ -253,6 +284,80 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         result = self.run_gate()
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("binding commit must be an ancestor", result.stdout)
+
+    def test_unrelated_checkpoint_cannot_mask_missing_slice90_checkpoint(self) -> None:
+        state = {"release": "0.8.27", "ladder": [{"slice": 90, "status": "PLANNED"},
+                  {"slice": 80, "runtime_checkpoint": self.pending_checkpoint()}]}
+        (self.root / "dev/plans/release-state-0.8.27.json").write_text(json.dumps(state))
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("slice 90 runtime_checkpoint missing", result.stdout)
+
+    def test_minimal_d27_pass_payload_is_rejected(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        path = self.root / EVIDENCE_DIR / "d27-candidate-receipt.json"
+        receipt = json.loads(path.read_text())
+        receipt["aggregate_metrics"] = {"projection_heavy": {}, "foreground_heavy": {}}
+        path.write_text(json.dumps(receipt))
+        self._rebind_performance(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("D27 candidate", result.stdout)
+
+    def test_one_word_review_and_verification_are_rejected(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        for name in ("code_review", "verification"):
+            path = self.root / checkpoint["receipts"][name]["path"]
+            path.write_text("PASS\n")
+            checkpoint["receipts"][name]["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        self._commit_rebound(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("code_review receipt lacks candidate-bound review evidence", result.stdout)
+        self.assertIn("verification receipt lacks candidate-bound review evidence", result.stdout)
+
+    def test_duplicate_or_placeholder_matrix_rows_are_rejected(self) -> None:
+        checkpoint = self.pass_checkpoint(cells=MATRIX_CELLS + ("2/1",))
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("duplicate matrix cell: 2/1", result.stdout)
+
+        path = self.root / EVIDENCE_DIR / "runtime-performance-qualification.md"
+        content = path.read_text().replace("| PASS | " + checkpoint["candidate_sha"], "| PASS | " + "f" * 40, 1)
+        path.write_text(content)
+        self._rebind_performance(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("matrix cell candidate mismatch", result.stdout)
+
+    def test_structural_source_change_requires_stage3_start_sha(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        source = self.root / "src/rust/crates/fathomdb-engine/src"
+        source.mkdir(parents=True)
+        (source / "open.rs").write_text("// structural move\n")
+        subprocess.run(["git", "-C", str(self.root), "add", "src"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "commit", "-qm", "first structural move"], check=True)
+        self.write_state(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("stage3_start_sha missing after engine source change", result.stdout)
+
+    def _commit_rebound(self, checkpoint: dict[str, object]) -> None:
+        subprocess.run(["git", "-C", str(self.root), "add", "dev/plans/0.8.27/features/slice-90"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "commit", "-qm", "rebind receipts"], check=True)
+        checkpoint["binding_sha"] = subprocess.run(["git", "-C", str(self.root), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+        self.write_state(checkpoint)
+
+    def _rebind_performance(self, checkpoint: dict[str, object]) -> None:
+        path = self.root / EVIDENCE_DIR / "runtime-performance-qualification.md"
+        d27 = self.root / EVIDENCE_DIR / "d27-candidate-receipt.json"
+        lines = path.read_text().splitlines()
+        for index, line in enumerate(lines):
+            if line.startswith(f"| {EVIDENCE_DIR / 'd27-candidate-receipt.json'} |"):
+                lines[index] = f"| {EVIDENCE_DIR / 'd27-candidate-receipt.json'} | {hashlib.sha256(d27.read_bytes()).hexdigest()} | PASS |"
+        path.write_text("\n".join(lines) + "\n")
+        checkpoint["receipts"]["performance"]["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        self._commit_rebound(checkpoint)
 
 
 if __name__ == "__main__":

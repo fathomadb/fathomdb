@@ -400,6 +400,7 @@ CONTRACT, PIN, ROOT, LIST_SOURCES = sys.argv[1], sys.argv[2], sys.argv[3], sys.a
 # path-#4 evaporation and stop testing what it claims).
 # ---------------------------------------------------------------------------
 ENG = "src/rust/crates/fathomdb-engine/src/lib.rs"
+OPEN = "src/rust/crates/fathomdb-engine/src/open.rs"
 SEARCH_TYPES = "src/rust/crates/fathomdb-engine/src/search_types.rs"
 ERR = "src/rust/crates/fathomdb-engine/src/errors.rs"
 IDENTITY = "src/rust/crates/fathomdb-engine/src/identity.rs"
@@ -629,6 +630,8 @@ def crate_manifest_for(test_path):
 # `fts_tokenizer_shared` does for the sibling tokenizer clause: both constants
 # must exist as declarations, must carry the same string, and that string must be
 # the pinned one.
+# Slice 90 moved the engine's same named constant into its private open owner;
+# the owner remains the engine's shipped default subject for this relation.
 #
 # THE FIX-5 RE-AUDIT of all 26 CHECKABLE clauses against this question found NO
 # second instance — every other probe's file is the crate the clause names (see
@@ -1012,7 +1015,7 @@ ASSERTIONS = {
         ("in_item", ENG, "struct", "ProjectionVector",
          r"pub\s+embedder\s*:\s*Option\s*<\s*String\s*>"),
         ("const_str_agree",
-         ((ENG, "DEFAULT_EMBEDDER_NAME"), (EMB, "DEFAULT_EMBEDDER_NAME")),
+         ((OPEN, "DEFAULT_EMBEDDER_NAME"), (EMB, "DEFAULT_EMBEDDER_NAME")),
          "fathomdb-bge-small-en-v1.5"),
     ],
     # fix-4, codex §9 round 4 [P2] — THE FINDING. The obligation is RELATIONAL:

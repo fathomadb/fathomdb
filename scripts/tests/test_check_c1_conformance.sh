@@ -1426,7 +1426,7 @@ expect_out 'DOCUMENTED STATEMENT' "the doc_text failure says what kind of probe 
 
 # 12af-1 — codex's own demonstration, verbatim: the ENGINE's default flips.
 ENGINE_DEFAULT_ROOT="$(make_root engine-default-embedder-flipped)"
-python3 - "$ENGINE_DEFAULT_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$ENGINE_DEFAULT_ROOT/src/rust/crates/fathomdb-engine/src/open.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -1438,7 +1438,7 @@ PY
 run_checker --contract "$CLEAN_CONTRACT" --pin "$REAL_PIN" --root "$ENGINE_DEFAULT_ROOT"
 expect_rc 1 "flipping the ENGINE's shipped DEFAULT_EMBEDDER_NAME HARD-fails the default-embedder clause"
 expect_out 'C1-TE-DEFAULT-EMBEDDER' "the engine-default flip NAMES the clause id"
-expect_out 'fathomdb-engine/src/lib\.rs::DEFAULT_EMBEDDER_NAME' \
+expect_out 'fathomdb-engine/src/open\.rs::DEFAULT_EMBEDDER_NAME' \
   "the engine-default flip NAMES the ENGINE constant (the subject the clause is about)"
 expect_out 'some-other-model' "the engine-default flip NAMES the value it found"
 expect_routes_to_steward "the engine-default-embedder clause failure"
@@ -1446,7 +1446,7 @@ expect_routes_to_steward "the engine-default-embedder clause failure"
 # 12af-2 — the engine's constant RENAMED AWAY. A probe pointed at the other crate
 # could not see this at all; a probe bound to the named constant must.
 ENGINE_DEFAULT_GONE_ROOT="$(make_root engine-default-embedder-renamed)"
-python3 - "$ENGINE_DEFAULT_GONE_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$ENGINE_DEFAULT_GONE_ROOT/src/rust/crates/fathomdb-engine/src/open.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -1460,6 +1460,24 @@ expect_rc 1 "RENAMING the engine's shipped-default constant away HARD-fails the 
 expect_out 'C1-TE-DEFAULT-EMBEDDER' "the renamed-constant failure NAMES the clause id"
 expect_out 'no DECLARATION' "the renamed-constant failure says the declaration is gone"
 
+# The old root location cannot substitute for the moved semantic owner.
+ENGINE_OLD_ROOT_DECOY_ROOT="$(make_root engine-default-old-root-decoy)"
+python3 - "$ENGINE_OLD_ROOT_DECOY_ROOT/src/rust/crates/fathomdb-engine/src/open.rs" \
+          "$ENGINE_OLD_ROOT_DECOY_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+import sys
+owner, root = sys.argv[1:]
+declaration = 'pub(crate) const DEFAULT_EMBEDDER_NAME: &str = "fathomdb-bge-small-en-v1.5";'
+owner_text = open(owner, encoding="utf-8").read()
+assert owner_text.count(declaration) == 1
+open(owner, "w", encoding="utf-8").write(owner_text.replace(declaration, "", 1))
+with open(root, "a", encoding="utf-8") as output:
+    output.write('\nconst DEFAULT_EMBEDDER_NAME: &str = "fathomdb-bge-small-en-v1.5";\n')
+PY
+run_checker --contract "$CLEAN_CONTRACT" --pin "$REAL_PIN" --root "$ENGINE_OLD_ROOT_DECOY_ROOT"
+expect_rc 1 "an old-root decoy cannot replace the missing open-owner shipped default"
+expect_out 'fathomdb-engine/src/open\.rs' "the missing-owner failure names the semantic open owner"
+expect_out 'no DECLARATION' "the missing-owner failure ignores the old-root decoy"
+
 # 12af-3 — BOTH crates flipped CONSISTENTLY. The relation holds, so only the
 # PINNED VALUE stands between this tree and a green: the contract names the
 # CLS-corrected bge-small default, and changing it is a contract-relevant change.
@@ -1470,7 +1488,7 @@ expect_out 'no DECLARATION' "the renamed-constant failure says the declaration i
 # REGRESSION half — the fix replaced that probe, and the value assertion it
 # carried must not have been lost in the replacement.
 BOTH_FLIPPED_ROOT="$(make_root default-embedder-both-crates-flipped)"
-python3 - "$BOTH_FLIPPED_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" \
+python3 - "$BOTH_FLIPPED_ROOT/src/rust/crates/fathomdb-engine/src/open.rs" \
           "$BOTH_FLIPPED_ROOT/src/rust/crates/fathomdb-embedder/src/candle_bge.rs" <<'PY'
 import sys
 for p in sys.argv[1:]:
@@ -1490,7 +1508,7 @@ expect_out 'pinned contract value' "the both-crates flip says the pinned value i
 # satisfied by a decoy carrying the pinned value while the real constant flipped.
 # Every declaration of the name is collected and they must all agree.
 DECOY_CONST_ROOT="$(make_root default-embedder-decoy-const)"
-python3 - "$DECOY_CONST_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$DECOY_CONST_ROOT/src/rust/crates/fathomdb-engine/src/open.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -2061,6 +2079,8 @@ run_checker --list-sources
 expect_rc 0 "--list-sources exits 0"
 expect_out 'file\s+src/rust/crates/fathomdb-engine/src/lib.rs' \
   "--list-sources names the engine source the assertions read"
+expect_out 'file\s+src/rust/crates/fathomdb-engine/src/open.rs' \
+  "--list-sources names the open owner of the engine default"
 expect_out 'file\s+src/rust/crates/fathomdb-engine/src/search_types.rs' \
   "--list-sources names the engine search-types source the assertions read"
 expect_out 'file\s+src/rust/crates/fathomdb-engine/src/errors.rs' \

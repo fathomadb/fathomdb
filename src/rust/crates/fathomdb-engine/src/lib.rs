@@ -334,6 +334,8 @@ use open::{
     probe_open_integrity, reject_legacy_shape, validate_dependency_generation_on_open, ShmSnapshot,
     WalSidecarHeader,
 };
+#[cfg(test)]
+use open::{parse_gpu_allocation_witness_opt_in, LoaderInfo};
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::error::Error;
@@ -380,26 +382,6 @@ use sha2::Digest;
 #[cfg(not(feature = "operator"))]
 use sha2::Digest as _;
 use sha2::Sha256;
-
-// EU-5b lock-flip: the engine's default embedder identity is now the
-// pinned bge-small variant. Pre-existing 0.7.0 workspaces opened with
-// `EmbedderChoice::Default` will fail-closed on identity mismatch per
-// ADR-0.6.0-vector-identity-embedder-owned; callers can still hold an
-// older noop profile by supplying `EmbedderChoice::Caller(NoopEmbedder)`.
-const DEFAULT_EMBEDDER_NAME: &str = "fathomdb-bge-small-en-v1.5";
-const DEFAULT_EMBEDDER_REVISION: &str = "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a";
-const DEFAULT_EMBEDDER_DIMENSION: u32 = 384;
-
-/// Identity name of the bge-small embedder. `OpenReport.embedder_mean_centering_required`
-/// is `true` iff the live embedder identity reports this name. NoopEmbedder
-/// is `false`. Lifted out as a constant so the EU-5b lock-flip (when the
-/// engine's default identity becomes bge-small) is a single-line change.
-///
-/// TODO(EU-5b): when `DEFAULT_EMBEDDER_NAME` flips to this constant, the
-/// Default path will populate `embedder_mean_centering_required = true`
-/// without further engine work. Caller-supplied bge-small (rare today)
-/// already does the right thing.
-const BGE_SMALL_EMBEDDER_NAME: &str = "fathomdb-bge-small-en-v1.5";
 
 /// REQ-006a / AC-007a default slow-statement threshold. Mutated at runtime
 /// via [`Engine::set_slow_threshold_ms`].
@@ -594,14 +576,6 @@ const EDGE_FACT_KIND: &str = "edge_fact";
 /// reader connections are pooled and never serialize behind one
 /// connection. AC-021 exercises 8 concurrent readers.
 const READER_POOL_SIZE: usize = 8;
-
-static EXPLANATION_OPEN_NONCE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-
-fn mint_explanation_open_nonce() -> u128 {
-    let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
-    let sequence = EXPLANATION_OPEN_NONCE_SEQUENCE.fetch_add(1, Ordering::Relaxed) as u128;
-    time.rotate_left(17) ^ sequence
-}
 
 #[cfg(all(feature = "test-hooks", target_os = "linux"))]
 fn process_current_rss_bytes() -> u64 {
@@ -1071,109 +1045,6 @@ impl std::fmt::Debug for Engine {
 }
 
 use wal_attribution::*;
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OpenReport {
-    pub schema_version_before: u32,
-    pub schema_version_after: u32,
-    pub migration_steps: Vec<MigrationStepReport>,
-    pub embedder_warmup_ms: u64,
-    pub query_backend: &'static str,
-    pub default_embedder: EmbedderIdentity,
-    /// Total wall time the loader spent materializing default-embedder
-    /// weights — covers HF GETs, sha256 verification, atomic rename,
-    /// parent-dir fsync (POSIX), and cache directory writes. This is
-    /// the "engine open paid by the embedder" envelope, useful for SLA
-    /// budgeting; it is intentionally wider than just the bytes-flowing
-    /// time so callers see the full first-use cost.
-    ///
-    /// `Some(ms)` when network bytes flowed (`bytes_downloaded > 0`);
-    /// `None` for caller-supplied embedders (loader bypassed) and on
-    /// full cache hits (no bytes flowed). For pure per-file network
-    /// analysis, use the `DefaultEmbedderDownload` events on
-    /// [`embedder_events`](Self::embedder_events) — each event carries
-    /// the file's bytes + sha256 + cache path.
-    pub embedder_download_ms: Option<u64>,
-    /// Structured loader events (`dev/design/embedder.md` §7). Empty for
-    /// caller-supplied embedders; populated from `LoadedWeights.events`
-    /// for the Default path.
-    pub embedder_events: Vec<EmbedderEvent>,
-    /// Static identity capability (`dev/design/embedder.md` §0.6). True
-    /// iff the live embedder identity is the bge-small default, which is
-    /// the only identity that ships with the EU-5a2 mean-centering apply
-    /// paths. `false` for `fathomdb-noop` and for any other
-    /// caller-supplied identity. EU-5b's identity flip makes the Default
-    /// path return `true` here.
-    pub embedder_mean_centering_required: bool,
-    /// Dynamic workspace state (`dev/design/embedder.md` §0.6). True iff
-    /// `_fathomdb_embedder_profiles.mean_vec IS NOT NULL` for the default
-    /// profile. EU-5a2 reads from the schema column added in migration
-    /// step 10; the value is dimension-validated (§0.2) at open time
-    /// and fails closed via `EmbedderIdentityMismatch` on drift.
-    pub embedder_mean_vec_pinned: bool,
-    /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-6) — degraded-open
-    /// observability. `true` iff the open-time #5 self-check re-embedded the 45
-    /// committed probes and found a divergence beyond the frozen D4 floor (a
-    /// Phase-1 mean-centered `embedding_bin` sign flip OR a Phase-2 un-centered
-    /// L2 over `VECTOR_EQUIVALENCE_L2_EPSILON`). When `true`, `Engine::open`
-    /// SUCCEEDED but every vector-dependent arm refuses at query time with
-    /// `EngineError::VectorEquivalenceMismatch`; the text-only/FTS-only path stays
-    /// serviceable. The state is RE-DERIVED at every open (the probe re-runs), so
-    /// a reopen with a still-divergent backend stays degraded (never silently
-    /// re-enables dense) and a reopen with a matching backend clears it.
-    pub dense_disabled: bool,
-    /// R-VEQ-6 — human-readable reason for `dense_disabled` (which representation
-    /// tripped: P1 flip count or P2 L2). `None` when `dense_disabled == false`.
-    pub dense_disabled_reason: Option<String>,
-    /// Strict CPU/CUDA policy resolution used to construct the default
-    /// embedder. `None` when the caller supplied an embedder or selected none.
-    /// A present report is the one selection passed into default-embedder
-    /// construction; forced CUDA failures return
-    /// [`EngineOpenError::EmbedDevicePolicy`] rather than report CPU.
-    pub embedder_device_resolution: Option<DeviceResolution>,
-    /// Independent CPU/CUDA selection for the optional cross-encoder. This is
-    /// never inferred from embedding-device state and makes no claim about
-    /// database candidate retrieval or scoring.
-    pub reranker_device_resolution: Option<RerankerDeviceResolution>,
-    /// 0.8.23 Slice 80.6 (D-80.6-6, AC80-6, R80-13) — the in-process GPU
-    /// allocation witness, when one was measured during this open.
-    ///
-    /// This carries the *retained record* of `fathomdb-embedder`'s
-    /// `fathomdb.tegra-gpu-allocation-witness/v1`: the ordinal Candle actually
-    /// retained, the driver-API UUID, and every raw number the verdict used
-    /// (`free_before_bytes`, `free_after_bytes`, `total_bytes`, `delta_bytes`,
-    /// `delta_floor_bytes`, plus the deliberate control allocation), so a
-    /// reader re-derives the verdict rather than trusting it (R80-13). Its
-    /// point is that the *installed artifact's own process* holds the
-    /// evidence, rather than a sibling Rust process — which is what makes
-    /// AC80-6's "in-process" clause as strong on Tegra as on x86_64.
-    ///
-    /// `None` is the normal case and means **no witness was measured** — never
-    /// "a witness measured nothing". A zero, negative, or below-floor delta is
-    /// a typed failure inside the witness (R80-12) and fails the open, so a
-    /// zero-valued record is not reachable through this field.
-    ///
-    /// Populated only by an opted-in default-embedder open
-    /// ([`ENV_GPU_ALLOCATION_WITNESS`]) on a CUDA-capable artifact whose
-    /// device policy actually selected CUDA. It is deliberately opt-in: the
-    /// witness holds a multi-gigabyte deliberate control allocation and loads
-    /// the model a second time, which is evidence-run behavior and must not be
-    /// imposed on ordinary opens (§ 12 non-goals).
-    pub embedder_gpu_allocation_witness: Option<GpuAllocationWitness>,
-}
-
-#[derive(Debug)]
-pub struct OpenedEngine {
-    pub engine: Engine,
-    pub report: OpenReport,
-}
-
-impl OpenedEngine {
-    /// Return the process-wide SQLite configuration effective for this open.
-    pub fn runtime_configuration(&self) -> RuntimeConfiguration {
-        effective_runtime_configuration()
-    }
-}
 
 #[cfg(test)]
 struct AdmissionLockedHookForTest {
@@ -1655,117 +1526,6 @@ pub fn inspect_data_plane_integrity(
     })
 }
 
-/// EU-5b — loader-supplied open-time telemetry threaded into
-/// `OpenReport.embedder_download_ms` and `OpenReport.embedder_events`.
-#[derive(Clone, Debug)]
-struct LoaderInfo {
-    download_ms: Option<u64>,
-    events: Vec<EmbedderEvent>,
-    device_resolution: DeviceResolution,
-    /// 0.8.23 Slice 80.6 (D-80.6-6) — the opted-in in-process GPU allocation
-    /// witness. `None` for every path that measured none.
-    gpu_allocation_witness: Option<GpuAllocationWitness>,
-}
-
-/// 0.8.23 Slice 80.6 (D-80.6-6) — opt-in switch for the in-process GPU
-/// allocation witness carried on [`OpenReport::embedder_gpu_allocation_witness`].
-///
-/// Opt-in rather than automatic, and deliberately so. Producing the witness
-/// costs a second load of the pinned model plus the multi-gigabyte deliberate
-/// control allocation D-80.5-3 requires in order to prove the shared iGPU
-/// memory counter is live and attributable. That is evidence-run behavior;
-/// imposing it on every CUDA open would be exactly the runtime-contract change
-/// § 12 of `dev/design/0.8.23-aarch64-tegra.md` rules out.
-///
-/// `1`/`true` enable it; unset, empty, `0`/`false` disable it. Any other value
-/// is **rejected at open time** rather than read as "off", so a typo cannot
-/// silently turn the evidence off — the same fail-closed posture R80-12 puts
-/// on the witness itself.
-pub const ENV_GPU_ALLOCATION_WITNESS: &str = "FATHOMDB_GPU_ALLOCATION_WITNESS";
-
-/// Parse [`ENV_GPU_ALLOCATION_WITNESS`]. Pure, so every arm is testable on a
-/// host with no GPU and on a build with no CUDA.
-#[cfg(any(feature = "default-embedder", test))]
-fn parse_gpu_allocation_witness_opt_in(raw: Option<&str>) -> Result<bool, String> {
-    match raw.map(str::trim) {
-        None | Some("") => Ok(false),
-        Some(value) => match value.to_ascii_lowercase().as_str() {
-            "1" | "true" => Ok(true),
-            "0" | "false" => Ok(false),
-            other => Err(format!(
-                "{ENV_GPU_ALLOCATION_WITNESS} must be 1/true or 0/false, got {other:?}"
-            )),
-        },
-    }
-}
-
-/// Measure the in-process GPU allocation witness when the operator asked for
-/// one, and only then.
-///
-/// The contract is deliberately binary: opted in means this open carries a
-/// witness or it fails, and not opted in means `None`. There is no third
-/// outcome where the field is `None` while the operator believes a witness was
-/// taken, because that is how a missing measurement becomes indistinguishable
-/// from a measurement of zero (R80-12).
-#[cfg(feature = "default-embedder")]
-fn witness_gpu_allocation_if_requested(
-    device_resolution: &DeviceResolution,
-) -> Result<Option<GpuAllocationWitness>, EngineOpenError> {
-    let raw = std::env::var(ENV_GPU_ALLOCATION_WITNESS).ok();
-    let requested = parse_gpu_allocation_witness_opt_in(raw.as_deref())
-        .map_err(|message| EngineOpenError::Embedder(RuntimeEmbedderError::Failed { message }))?;
-    if !requested {
-        return Ok(None);
-    }
-    run_requested_gpu_allocation_witness(device_resolution).map(Some)
-}
-
-/// Name a refusal rather than degrading to `None`, carrying the witness's own
-/// stable failure tag so the caller reads the same vocabulary the retained
-/// record uses.
-#[cfg(feature = "default-embedder")]
-fn gpu_allocation_witness_refusal(tag: &str, detail: &str) -> EngineOpenError {
-    EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
-        message: format!(
-            "{ENV_GPU_ALLOCATION_WITNESS} was requested but no GPU allocation witness \
-             could be produced ({tag}): {detail}"
-        ),
-    })
-}
-
-#[cfg(all(feature = "default-embedder", feature = "embed-cuda"))]
-fn run_requested_gpu_allocation_witness(
-    device_resolution: &DeviceResolution,
-) -> Result<GpuAllocationWitness, EngineOpenError> {
-    use fathomdb_embedder::{AllocationWitnessConfig, EffectiveEmbedDevice};
-
-    let ordinal = match &device_resolution.effective_device {
-        EffectiveEmbedDevice::Cuda(info) => info.ordinal,
-        EffectiveEmbedDevice::Cpu => {
-            return Err(gpu_allocation_witness_refusal(
-                "cpu_fallback",
-                "the embedder device policy resolved to CPU, so there is no GPU \
-                 allocation to witness",
-            ));
-        }
-    };
-    fathomdb_embedder::run_default_embedder_allocation_witness(AllocationWitnessConfig {
-        ordinal,
-        ..AllocationWitnessConfig::default()
-    })
-    .map_err(|error| gpu_allocation_witness_refusal(error.as_str(), &error.to_string()))
-}
-
-#[cfg(all(feature = "default-embedder", not(feature = "embed-cuda")))]
-fn run_requested_gpu_allocation_witness(
-    _device_resolution: &DeviceResolution,
-) -> Result<GpuAllocationWitness, EngineOpenError> {
-    Err(gpu_allocation_witness_refusal(
-        "cuda_not_compiled",
-        "this artifact has no CUDA provider compiled in",
-    ))
-}
-
 #[cfg(test)]
 mod gpu_allocation_witness_opt_in_tests {
     use super::{parse_gpu_allocation_witness_opt_in, ENV_GPU_ALLOCATION_WITNESS};
@@ -1896,39 +1656,7 @@ pub struct CounterSnapshot {
 }
 
 pub use lifecycle::Subscription;
-
-/// Caller-facing selector for the embedder used by an opened engine
-/// (`dev/design/embedder.md` §0).
-#[derive(Clone)]
-pub enum EmbedderChoice {
-    /// Use the engine's default embedder. With the `default-embedder`
-    /// Cargo feature enabled, this materializes a `CandleBgeEmbedder`
-    /// via the EU-3 loader at `Engine::open`; on first use the loader
-    /// downloads pinned bge-small-en-v1.5 weights from HuggingFace per
-    /// `ADR-0.7.1-default-embedder-weight-fetch`. Without the feature,
-    /// this returns `EmbedderError::Failed` directing the caller to
-    /// rebuild with `--features default-embedder` or supply
-    /// `EmbedderChoice::Caller`.
-    Default,
-    /// Caller supplies the embedder instance. The supplied embedder's
-    /// `identity()` becomes the workspace's default-profile identity.
-    Caller(Arc<dyn Embedder>),
-    /// Caller supplies an embedder plus its already-resolved device outcome.
-    ///
-    /// The resolution is recorded in [`OpenReport::embedder_device_resolution`]
-    /// exactly once. This is for opt-in embedders, such as ONNX Runtime, whose
-    /// final CUDA/CPU outcome is known only after their own construction.
-    CallerWithDeviceResolution {
-        /// The caller-supplied runtime embedder.
-        embedder: Arc<dyn Embedder>,
-        /// The embedder's final CPU/CUDA resolution.
-        device_resolution: DeviceResolution,
-    },
-    /// No embedder configured. Engine opens; subsequent vector writes
-    /// fail with `EngineError::EmbedderNotConfigured`. Useful for
-    /// read-only or canonical-only flows.
-    None,
-}
+pub use open::{EmbedderChoice, OpenReport, OpenedEngine, ENV_GPU_ALLOCATION_WITNESS};
 
 /// Doctor `check-integrity` invocation flags. `quick` and `round_trip`
 /// are accepted in 0.6.0 but treated as default; only `full` activates
@@ -5854,154 +5582,6 @@ fn order_canonical_first(mut objects: Vec<SchemaObject>) -> Vec<SchemaObject> {
     }
     canonical.extend(objects);
     canonical
-}
-
-fn default_embedder_identity() -> EmbedderIdentity {
-    EmbedderIdentity::new(
-        DEFAULT_EMBEDDER_NAME,
-        DEFAULT_EMBEDDER_REVISION,
-        DEFAULT_EMBEDDER_DIMENSION,
-    )
-}
-
-fn check_embedder_profile(
-    connection: &Connection,
-    supplied: &EmbedderIdentity,
-) -> Result<bool, EngineOpenError> {
-    // Returns `true` iff `_fathomdb_embedder_profiles.mean_vec IS NOT NULL`
-    // for the default profile (and its byte length matches `4 * dimension`
-    // per `dev/design/embedder.md` §0.2). EU-5a2: column lands in step 10.
-    let mut statement = match connection.prepare(
-        "SELECT name, revision, dimension, mean_vec FROM _fathomdb_embedder_profiles WHERE profile = 'default'",
-    ) {
-        Ok(statement) => statement,
-        Err(_) => return Ok(false),
-    };
-    let mut rows = statement.query([]).map_err(|_| {
-        EngineOpenError::Corruption(CorruptionDetail {
-            kind: CorruptionKind::EmbedderIdentityDrift,
-            stage: OpenStage::EmbedderIdentity,
-            locator: CorruptionLocator::OpaqueSqliteError { sqlite_extended_code: 0 },
-            recovery_hint: RecoveryHint {
-                code: "E_CORRUPT_EMBEDDER_IDENTITY",
-                doc_anchor: "design/recovery.md#embedder-identity-drift",
-            },
-        })
-    })?;
-
-    let Some(row) = rows.next().map_err(|_| {
-        EngineOpenError::Corruption(CorruptionDetail {
-            kind: CorruptionKind::EmbedderIdentityDrift,
-            stage: OpenStage::EmbedderIdentity,
-            locator: CorruptionLocator::OpaqueSqliteError { sqlite_extended_code: 0 },
-            recovery_hint: RecoveryHint {
-                code: "E_CORRUPT_EMBEDDER_IDENTITY",
-                doc_anchor: "design/recovery.md#embedder-identity-drift",
-            },
-        })
-    })?
-    else {
-        connection
-            .execute(
-                "INSERT INTO _fathomdb_embedder_profiles(profile, name, revision, dimension)
-                 VALUES(?1, ?2, ?3, ?4)",
-                params![
-                    DEFAULT_VECTOR_PROFILE,
-                    supplied.name,
-                    supplied.revision,
-                    supplied.dimension
-                ],
-            )
-            .map_err(|_| EngineOpenError::Io {
-                message: "could not persist embedder profile".to_string(),
-            })?;
-        return Ok(false);
-    };
-
-    let stored_name = row.get::<_, String>(0).map_err(|_| {
-        EngineOpenError::Corruption(CorruptionDetail {
-            kind: CorruptionKind::EmbedderIdentityDrift,
-            stage: OpenStage::EmbedderIdentity,
-            locator: CorruptionLocator::TableRow { table: "_fathomdb_embedder_profiles", rowid: 0 },
-            recovery_hint: RecoveryHint {
-                code: "E_CORRUPT_EMBEDDER_IDENTITY",
-                doc_anchor: "design/recovery.md#embedder-identity-drift",
-            },
-        })
-    })?;
-    let stored_revision = row.get::<_, String>(1).map_err(|_| {
-        EngineOpenError::Corruption(CorruptionDetail {
-            kind: CorruptionKind::EmbedderIdentityDrift,
-            stage: OpenStage::EmbedderIdentity,
-            locator: CorruptionLocator::TableRow { table: "_fathomdb_embedder_profiles", rowid: 0 },
-            recovery_hint: RecoveryHint {
-                code: "E_CORRUPT_EMBEDDER_IDENTITY",
-                doc_anchor: "design/recovery.md#embedder-identity-drift",
-            },
-        })
-    })?;
-    let dimension = row.get::<_, u32>(2).map_err(|_| {
-        EngineOpenError::Corruption(CorruptionDetail {
-            kind: CorruptionKind::EmbedderIdentityDrift,
-            stage: OpenStage::EmbedderIdentity,
-            locator: CorruptionLocator::TableRow { table: "_fathomdb_embedder_profiles", rowid: 0 },
-            recovery_hint: RecoveryHint {
-                code: "E_CORRUPT_EMBEDDER_IDENTITY",
-                doc_anchor: "design/recovery.md#embedder-identity-drift",
-            },
-        })
-    })?;
-
-    let stored = EmbedderIdentity::new(stored_name, stored_revision, dimension);
-
-    if stored.name != supplied.name || stored.revision != supplied.revision {
-        return Err(EngineOpenError::EmbedderIdentityMismatch {
-            stored,
-            supplied: supplied.clone(),
-        });
-    }
-    if dimension != supplied.dimension {
-        return Err(EngineOpenError::EmbedderDimensionMismatch {
-            stored: dimension,
-            supplied: supplied.dimension,
-        });
-    }
-
-    // EU-5a2 / `dev/design/embedder.md` §0.2 invariant: if `mean_vec` is
-    // populated, byte length MUST equal `4 * dimension`. Debug builds
-    // assert; release builds fail closed via EmbedderIdentityMismatch
-    // (the same fail-closed channel the rest of profile drift takes).
-    let mean_vec: Option<Vec<u8>> = row.get::<_, Option<Vec<u8>>>(3).map_err(|_| {
-        EngineOpenError::Corruption(CorruptionDetail {
-            kind: CorruptionKind::EmbedderIdentityDrift,
-            stage: OpenStage::EmbedderIdentity,
-            locator: CorruptionLocator::TableRow { table: "_fathomdb_embedder_profiles", rowid: 0 },
-            recovery_hint: RecoveryHint {
-                code: "E_CORRUPT_EMBEDDER_IDENTITY",
-                doc_anchor: "design/recovery.md#embedder-identity-drift",
-            },
-        })
-    })?;
-    let pinned = match mean_vec {
-        Some(bytes) => {
-            let expected_len = (dimension as usize).saturating_mul(4);
-            // `dev/design/embedder.md` §0.2 invariant: when populated,
-            // `mean_vec` byte length MUST equal `4 * dimension`. Fail
-            // closed via the existing identity-drift channel in both
-            // debug and release builds — tests deliberately poke
-            // malformed values to exercise this branch.
-            if bytes.len() != expected_len {
-                return Err(EngineOpenError::EmbedderIdentityMismatch {
-                    stored,
-                    supplied: supplied.clone(),
-                });
-            }
-            true
-        }
-        None => false,
-    };
-
-    Ok(pinned)
 }
 
 /// EXP-S (0.8.14 Slice 5, D2) — the set of coexisting indexes a `row_kind`

@@ -1,4 +1,5 @@
 use super::*;
+use crate::open::BGE_SMALL_EMBEDDER_NAME;
 
 /// EU-5a2 — streaming f64 accumulator for the mean-centering pipeline,
 /// per `dev/design/embedder.md` §0.3 (f64 chosen to bound numerical

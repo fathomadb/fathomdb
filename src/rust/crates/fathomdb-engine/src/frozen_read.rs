@@ -959,13 +959,14 @@ mod tests {
                    profile,name,revision,dimension,mean_vec\
                  ) VALUES('default',?1,?2,?3,NULL)",
                 rusqlite::params![
-                    crate::DEFAULT_EMBEDDER_NAME,
-                    crate::DEFAULT_EMBEDDER_REVISION,
-                    crate::DEFAULT_EMBEDDER_DIMENSION
+                    crate::open::DEFAULT_EMBEDDER_NAME,
+                    crate::open::DEFAULT_EMBEDDER_REVISION,
+                    crate::open::DEFAULT_EMBEDDER_DIMENSION
                 ],
             )
             .unwrap();
-        crate::ensure_vector_partition(&mut connection, crate::DEFAULT_EMBEDDER_DIMENSION).unwrap();
+        crate::ensure_vector_partition(&mut connection, crate::open::DEFAULT_EMBEDDER_DIMENSION)
+            .unwrap();
         crate::projection_generation::bootstrap(&mut connection, 32, false).unwrap();
         let (old_id, declaration): (String, String) = connection
             .query_row(
@@ -1042,13 +1043,14 @@ mod tests {
                    profile,name,revision,dimension,mean_vec\
                  ) VALUES('default',?1,?2,?3,NULL)",
                 rusqlite::params![
-                    crate::DEFAULT_EMBEDDER_NAME,
-                    crate::DEFAULT_EMBEDDER_REVISION,
-                    crate::DEFAULT_EMBEDDER_DIMENSION
+                    crate::open::DEFAULT_EMBEDDER_NAME,
+                    crate::open::DEFAULT_EMBEDDER_REVISION,
+                    crate::open::DEFAULT_EMBEDDER_DIMENSION
                 ],
             )
             .unwrap();
-        crate::ensure_vector_partition(&mut connection, crate::DEFAULT_EMBEDDER_DIMENSION).unwrap();
+        crate::ensure_vector_partition(&mut connection, crate::open::DEFAULT_EMBEDDER_DIMENSION)
+            .unwrap();
         crate::projection_generation::bootstrap(&mut connection, 32, false).unwrap();
         connection
             .execute(

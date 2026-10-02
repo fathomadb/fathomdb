@@ -18,6 +18,7 @@ GATE = REPO_ROOT / "scripts" / "check-runtime-checkpoints.py"
 EVIDENCE_DIR = Path("dev/plans/0.8.27/features/slice-90")
 MATRIX_CELLS = ("2/1", "2/5", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
 PROTOCOL = json.loads((REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol-v2.json").read_text())
+LEGACY_PROTOCOL_PATH = REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json"
 RELEASE_SELECTORS = ("AC-011a", "AC-011b", "AC-017", "AC-018", "AC-029", "AC-072", "AC-073", "AC-076", "AC-081a", "AC-081b", "AC-081c")
 AC073_COMMAND = (
     "env CARGO_TARGET_DIR={bundle}/target AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
@@ -153,10 +154,11 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
 
     def write_d27_bundles(self, candidate: str) -> tuple[str, str, str]:
         protocol_path = REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol-v2.json"
-        protocol_hash = hashlib.sha256(protocol_path.read_bytes()).hexdigest()
         entry_receipt = None
         paths = {}
         for phase in ("entry", "candidate"):
+            phase_protocol_path = LEGACY_PROTOCOL_PATH if phase == "entry" else protocol_path
+            phase_protocol = json.loads(phase_protocol_path.read_text())
             bundle = self.root / "evidence" / phase
             binary = bundle / "target/release/deps/d27_runtime_workload-test"
             binary.parent.mkdir(parents=True)
@@ -165,21 +167,21 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
             for name, path in artifacts.items():
                 path.write_bytes(b"fixture-" + name.encode())
             artifacts["runner"].write_bytes(
-                b"fixture-runner\n--PROTOCOL--\n" + protocol_path.read_bytes()
+                b"fixture-runner\n--PROTOCOL--\n" + phase_protocol_path.read_bytes()
             )
             raw = []
             metrics = {"projection_heavy": [], "foreground_heavy": []}
-            for name in D27_RUNNER.repetition_order(PROTOCOL, phase):
+            for name in D27_RUNNER.repetition_order(phase_protocol, phase):
                 direction = "projection_heavy" if "projection_heavy" in name else "foreground_heavy"
                 repetition = int(name[-1])
                 item = self.raw_repetition(phase, direction, repetition)
                 raw.append(item)
-                metrics[direction].append(D27_RUNNER.summarize_raw(item, phase))
+                metrics[direction].append(D27_RUNNER.summarize_raw(item, phase, phase_protocol))
             artifacts["raw"].write_text("".join(json.dumps(item) + "\n" for item in raw))
             receipt = {
                 "phase": phase,
                 "source_sha": PROTOCOL["entry_engine_candidate_sha"] if phase == "entry" else candidate,
-                "status": "PASS", "protocol_sha256": protocol_hash,
+                "status": "PASS", "protocol_sha256": hashlib.sha256(phase_protocol_path.read_bytes()).hexdigest(),
                 "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
                 "runner_sha256": hashlib.sha256(artifacts["runner"].read_bytes()).hexdigest(),
                 "corpus_sha256": hashlib.sha256(artifacts["corpus"].read_bytes()).hexdigest(),
@@ -191,10 +193,18 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
                 "environment_end": raw[-1]["environment_end"],
                 "per_repetition_metrics": metrics,
                 "aggregate_metrics": {}, "decision_rule_evaluation": {},
-                "historical_unavailable": PROTOCOL["metrics"]["historical_unavailable"] if phase == "entry" else [],
+                "historical_unavailable": phase_protocol["metrics"]["historical_unavailable"] if phase == "entry" else [],
             }
-            D27_VERIFIER.verify_raw_linkage(receipt, PROTOCOL, artifacts["raw"])
-            receipt = D27_VERIFIER.validate_receipt(receipt, PROTOCOL, protocol_path, artifacts, entry_receipt)
+            D27_VERIFIER.verify_raw_linkage(receipt, phase_protocol, artifacts["raw"])
+            if phase == "candidate":
+                entry_receipt = D27_VERIFIER.validate_entry_for_candidate(
+                    entry_receipt, PROTOCOL, protocol_path,
+                    {"runner": paths["entry"] / "runner.bundle",
+                     "binary": paths["entry"] / "target/release/deps/d27_runtime_workload-test",
+                     "corpus": paths["entry"] / "corpus.jsonl",
+                     "raw": paths["entry"] / "raw-output.jsonl"},
+                )
+            receipt = D27_VERIFIER.validate_receipt(receipt, phase_protocol, phase_protocol_path, artifacts, entry_receipt)
             (bundle / "receipt.json").write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
             paths[phase] = bundle
             if phase == "entry":
@@ -268,6 +278,27 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         self.pass_checkpoint()
         result = self.run_gate()
         self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_v2_candidate_rejects_legacy_entry_with_wrong_protocol_hash(self) -> None:
+        self.pass_checkpoint()
+        bundle = self.root / "evidence/entry"
+        receipt = json.loads((bundle / "receipt.json").read_text())
+        receipt["protocol_sha256"] = hashlib.sha256(
+            (REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol-v2.json").read_bytes()
+        ).hexdigest()
+        (bundle / "receipt.json").write_text(json.dumps(receipt))
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("D27", result.stdout)
+
+    def test_v2_candidate_rejects_legacy_entry_with_modified_raw(self) -> None:
+        self.pass_checkpoint()
+        bundle = self.root / "evidence/entry"
+        raw = bundle / "raw-output.jsonl"
+        raw.write_bytes(raw.read_bytes().replace(b'"environment_valid": true', b'"environment_valid": false', 1))
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("D27", result.stdout)
 
     def test_pass_performance_requires_every_matrix_cell(self) -> None:
         self.pass_checkpoint(cells=MATRIX_CELLS[:-1])

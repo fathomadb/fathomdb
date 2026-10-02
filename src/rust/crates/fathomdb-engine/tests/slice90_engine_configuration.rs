@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 #[cfg(debug_assertions)]
 use fathomdb_engine::lifecycle::{
-    Event, EventCategory, EventSource, Phase, SlowStatement, Subscriber,
+    Event, EventCategory, EventSource, Phase, ProfileRecord, SlowStatement, Subscriber,
 };
 use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, EngineOpenError, PreparedWrite};
 use fathomdb_schema::SQLITE_SUFFIX;
@@ -181,6 +181,7 @@ fn open_time_provenance_nondefault_cap_sweeps_then_allows_hysteresis() {
 struct SlowCapture {
     events: Mutex<Vec<Event>>,
     statements: Mutex<Vec<SlowStatement>>,
+    profiles: Mutex<Vec<ProfileRecord>>,
 }
 
 #[cfg(debug_assertions)]
@@ -194,6 +195,10 @@ impl Subscriber for SlowCapture {
     fn on_slow_statement(&self, statement: &SlowStatement) {
         self.statements.lock().unwrap().push(statement.clone());
     }
+
+    fn on_profile(&self, record: &ProfileRecord) {
+        self.profiles.lock().unwrap().push(*record);
+    }
 }
 
 #[cfg(debug_assertions)]
@@ -206,7 +211,7 @@ fn run_slow_statement(engine: &Engine, n: u64) {
 }
 
 #[cfg(debug_assertions)]
-fn calibrated_slow_cte_n(engine: &Engine) -> u64 {
+fn calibrated_cte_n(engine: &Engine, target_ms: u64) -> u64 {
     const PROBE_N: u64 = 1_000_000;
     let mut best = Duration::MAX;
     for _ in 0..2 {
@@ -214,8 +219,83 @@ fn calibrated_slow_cte_n(engine: &Engine) -> u64 {
         run_slow_statement(engine, PROBE_N);
         best = best.min(started.elapsed());
     }
-    let n = (PROBE_N as f64 * 500.0 / (best.as_secs_f64() * 1000.0).max(0.1)) as u64;
-    n.clamp(100_000, 50_000_000)
+    let n = (PROBE_N as f64 * target_ms as f64 / (best.as_secs_f64() * 1000.0).max(0.1)) as u64;
+    n.clamp(5_000, 50_000_000)
+}
+
+#[cfg(debug_assertions)]
+#[test]
+fn open_time_zero_emits_below_default_threshold_on_both_slow_channels() {
+    let dir = TempDir::new().unwrap();
+    let zero_config = EngineConfig { slow_threshold_ms: Some(0), ..EngineConfig::default() };
+    let zero = Engine::open_with_choice_and_config(
+        database_path(&dir, "below-default-zero"),
+        EmbedderChoice::None,
+        zero_config.clone(),
+    )
+    .expect("open zero threshold")
+    .engine;
+    let default = Engine::open_with_choice_and_config(
+        database_path(&dir, "below-default-omitted"),
+        EmbedderChoice::None,
+        EngineConfig::default(),
+    )
+    .expect("open default threshold")
+    .engine;
+    let mut cte_n = calibrated_cte_n(&default, 20);
+    zero.set_profiling(true).unwrap();
+    default.set_profiling(true).unwrap();
+    let zero_capture = Arc::new(SlowCapture::default());
+    let default_capture = Arc::new(SlowCapture::default());
+    let _zero_subscription = zero.subscribe(zero_capture.clone());
+    let _default_subscription = default.subscribe(default_capture.clone());
+
+    let mut measured = None;
+    for _ in 0..8 {
+        zero_capture.events.lock().unwrap().clear();
+        zero_capture.statements.lock().unwrap().clear();
+        zero_capture.profiles.lock().unwrap().clear();
+        default_capture.events.lock().unwrap().clear();
+        default_capture.statements.lock().unwrap().clear();
+        default_capture.profiles.lock().unwrap().clear();
+
+        let started = Instant::now();
+        run_slow_statement(&zero, cte_n);
+        let zero_elapsed = started.elapsed();
+        let started = Instant::now();
+        run_slow_statement(&default, cte_n);
+        let default_elapsed = started.elapsed();
+        let zero_profiles = zero_capture.profiles.lock().unwrap();
+        let default_profiles = default_capture.profiles.lock().unwrap();
+        assert_eq!(zero_profiles.len(), 1, "one profiled zero-threshold statement");
+        assert_eq!(default_profiles.len(), 1, "one profiled default-threshold statement");
+        let zero_ms = zero_profiles[0].wall_clock_ms;
+        let default_ms = default_profiles[0].wall_clock_ms;
+        drop(zero_profiles);
+        drop(default_profiles);
+        measured = Some((zero_ms, default_ms, zero_elapsed, default_elapsed));
+        if (1..100).contains(&zero_ms)
+            && (1..100).contains(&default_ms)
+            && zero_elapsed < Duration::from_millis(100)
+            && default_elapsed < Duration::from_millis(100)
+        {
+            assert_eq!(zero_capture.events.lock().unwrap().len(), 1);
+            assert_eq!(zero_capture.statements.lock().unwrap().len(), 1);
+            assert!(default_capture.events.lock().unwrap().is_empty());
+            assert!(default_capture.statements.lock().unwrap().is_empty());
+            assert_eq!(zero.config(), &zero_config);
+            assert_eq!(default.config(), &EngineConfig::default());
+            zero.close().unwrap();
+            default.close().unwrap();
+            return;
+        }
+        if zero_ms == 0 || default_ms == 0 {
+            cte_n = cte_n.saturating_mul(2).min(50_000_000);
+        } else if zero_ms >= 100 || default_ms >= 100 {
+            cte_n = (cte_n / 2).max(5_000);
+        }
+    }
+    panic!("could not measure a statement and operation below 100ms: {measured:?}");
 }
 
 #[cfg(debug_assertions)]
@@ -239,7 +319,7 @@ fn open_time_slow_threshold_controls_operation_and_sqlite_events_until_setter_ch
     )
     .expect("open high threshold")
     .engine;
-    let cte_n = calibrated_slow_cte_n(&high);
+    let cte_n = calibrated_cte_n(&high, 500);
     let zero_capture = Arc::new(SlowCapture::default());
     let high_capture = Arc::new(SlowCapture::default());
     let _zero_subscription = zero.subscribe(zero_capture.clone());

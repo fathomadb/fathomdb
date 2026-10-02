@@ -1,5 +1,14 @@
 use super::*;
-use crate::wal_runtime::{ERASURE_WAL_TRUNCATE_ATTEMPTS, ERASURE_WAL_TRUNCATE_BACKOFF_MS};
+
+/// 0.8.20 Slice 5b (R-20-E5) — how many times an erasure verb re-tries
+/// `PRAGMA wal_checkpoint(TRUNCATE)` before refusing with
+/// [`EngineError::ErasureIncomplete`]. Deliberately small: a concurrent reader
+/// pinning a WAL snapshot can hold it for an unbounded time, and an erasure verb
+/// must fail loudly rather than block a caller indefinitely.
+pub(crate) const ERASURE_WAL_TRUNCATE_ATTEMPTS: u32 = 5;
+/// 0.8.20 Slice 5b (R-20-E5) — pause between WAL-truncation attempts
+/// (~100 ms total budget across [`ERASURE_WAL_TRUNCATE_ATTEMPTS`]).
+pub(crate) const ERASURE_WAL_TRUNCATE_BACKOFF_MS: u64 = 25;
 
 /// Phase 9 Pack B excise report (AC-028a/b/c). Counts are post-excise
 /// totals; `projections_invalidated` reports the shadow-row invalidation

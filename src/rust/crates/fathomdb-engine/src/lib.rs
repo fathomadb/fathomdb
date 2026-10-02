@@ -4859,6 +4859,7 @@ mod slice90_post_probe_real_error_tests;
 
 #[cfg(test)]
 mod tests {
+    use super::erasure::ERASURE_WAL_TRUNCATE_ATTEMPTS;
     use super::reader_pool::ReaderRequest;
     use super::vector_storage::KIND_TO_SOURCE_TYPE_CASE_SQL;
     use super::{
@@ -4870,7 +4871,7 @@ mod tests {
         ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, ProjectionRuntime,
         ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole, RuntimeProbeConnection,
         SearchHit, SoftFallbackBranch, SourceId, WalAttributionCollector, WalAttributionRole,
-        ERASURE_WAL_TRUNCATE_ATTEMPTS, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+        PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,

@@ -19,6 +19,13 @@ EVIDENCE_DIR = Path("dev/plans/0.8.27/features/slice-90")
 MATRIX_CELLS = ("2/1", "2/5", "1/1", "2/2", "4/4", "64/64", "2/no-provider")
 PROTOCOL = json.loads((REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol.json").read_text())
 RELEASE_SELECTORS = ("AC-011a", "AC-011b", "AC-017", "AC-018", "AC-029", "AC-072", "AC-073", "AC-076", "AC-081a", "AC-081b", "AC-081c")
+AC073_COMMAND = (
+    "env AGENT_LONG=1 EU7_N_VALUES=7667 EU7_QUERIES=100 EU7_BOOTSTRAP=1000 "
+    "EU7_LATENCY_SAMPLES=1000 EU7_STRESS_PER_THREAD=250 "
+    "FATHOMDB_EU7_OUTPUT=<run-dir>/eu7.json cargo test --release "
+    "-p fathomdb-engine --features operator,embed-cuda --test eu7_real_corpus_ac "
+    "eu7_real_corpus_ac_validation -- --exact --ignored --nocapture --test-threads=1"
+)
 
 
 def load_script(name: str, path: Path):
@@ -276,6 +283,13 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         eu7_path = self.root / EVIDENCE_DIR / "ac073-eu7.json"
         log_path = self.root / EVIDENCE_DIR / "ac073-run.log"
         receipt_path = self.root / EVIDENCE_DIR / "ac073-stress-receipt.json"
+        manifest_path = self.root / EVIDENCE_DIR / "ac073-execution.json"
+        bundle = self.root / "evidence" / "ac073-bundle"
+        binary_relative = Path("target/release/deps/eu7_real_corpus_ac-test")
+        binary = bundle / binary_relative
+        binary.parent.mkdir(parents=True)
+        binary.write_bytes(b"frozen EU7 candidate test binary")
+        executed_binary = self.root / binary_relative
         eu7_path.write_text(json.dumps({
             "config": {"n_values_requested": [7667], "real_corpus_docs": 18472},
             "ac_019_real_dev_box": [{"n": 7667, "padded_with_synthetic_distractors": False,
@@ -287,6 +301,7 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
                                       "passes_ci_gate_0_8_0_one_sided": False}],
         }))
         log_path.write_text(
+            f"     Running tests/eu7_real_corpus_ac.rs ({executed_binary})\n"
             "EU7_SETUP real_docs=18472 queries=100 n_values=[7667] bootstrap=1000 "
             "latency_samples=1000 stress_per_thread=250\n"
             "EU7_NUMBERS n=7667 padded=false stress_p99_ms=418 stress_bound_ms=491 "
@@ -296,6 +311,23 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
             "FAILED\n"
             "test result: FAILED. 0 passed; 1 failed; 0 ignored\n"
         )
+        manifest = {
+            "schema_version": "fathomdb.slice90-ac073-execution/v1",
+            "candidate_sha": candidate,
+            "pre_source_sha": candidate,
+            "post_source_sha": candidate,
+            "pre_clean": True,
+            "post_clean": True,
+            "command": AC073_COMMAND,
+            "selector_exit": 101,
+            "bundle_dir": str(bundle),
+            "binary_relative_path": binary_relative.as_posix(),
+            "executed_binary_path": str(executed_binary),
+            "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+            "source_receipt_sha256": hashlib.sha256(eu7_path.read_bytes()).hexdigest(),
+            "raw_log_sha256": hashlib.sha256(log_path.read_bytes()).hexdigest(),
+        }
+        manifest_path.write_text(json.dumps(manifest))
         receipt = {
             "schema_version": "fathomdb.slice90-ac073-stress/v1",
             "candidate_sha": candidate,
@@ -308,6 +340,8 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
             "source_receipt_sha256": hashlib.sha256(eu7_path.read_bytes()).hexdigest(),
             "raw_log": str(EVIDENCE_DIR / "ac073-run.log"),
             "raw_log_sha256": hashlib.sha256(log_path.read_bytes()).hexdigest(),
+            "execution_manifest": str(EVIDENCE_DIR / "ac073-execution.json"),
+            "execution_manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
             "retained_ac075_result": {"verdict": "fail", "recall_at_10": 0.772,
                                             "ci_95": [0.743, 0.798]},
         }
@@ -351,6 +385,63 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         result = self.run_gate()
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("AC-073 stress", result.stdout)
+
+    def test_ac073_stress_rejects_rehashed_wrong_candidate_execution(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        receipt_path, _, _ = self.write_ac073_stress_receipt(checkpoint)
+        manifest_path = self.root / EVIDENCE_DIR / "ac073-execution.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["pre_source_sha"] = "0" * 40
+        manifest_path.write_text(json.dumps(manifest))
+        receipt = json.loads(receipt_path.read_text())
+        receipt["execution_manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        receipt_path.write_text(json.dumps(receipt))
+        self.rebind_ac073(checkpoint, receipt_path)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("AC-073 execution", result.stdout)
+
+    def test_ac073_stress_rejects_missing_sealed_binary(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        self.write_ac073_stress_receipt(checkpoint)
+        manifest = json.loads((self.root / EVIDENCE_DIR / "ac073-execution.json").read_text())
+        (Path(manifest["bundle_dir"]) / manifest["binary_relative_path"]).unlink()
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("AC-073 execution", result.stdout)
+
+    def test_ac073_stress_rejects_changed_command_and_dirty_checkout(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        receipt_path, _, _ = self.write_ac073_stress_receipt(checkpoint)
+        manifest_path = self.root / EVIDENCE_DIR / "ac073-execution.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["command"] = manifest["command"].replace("EU7_N_VALUES=7667", "EU7_N_VALUES=100")
+        manifest["post_clean"] = False
+        manifest_path.write_text(json.dumps(manifest))
+        receipt = json.loads(receipt_path.read_text())
+        receipt["execution_manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        receipt_path.write_text(json.dumps(receipt))
+        self.rebind_ac073(checkpoint, receipt_path)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("AC-073 execution", result.stdout)
+
+    def test_ac073_stress_rejects_binary_path_not_in_raw_log(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        receipt_path, _, log_path = self.write_ac073_stress_receipt(checkpoint)
+        log_path.write_text(log_path.read_text().replace("eu7_real_corpus_ac-test", "other-test"))
+        manifest_path = self.root / EVIDENCE_DIR / "ac073-execution.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["raw_log_sha256"] = hashlib.sha256(log_path.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest))
+        receipt = json.loads(receipt_path.read_text())
+        receipt["raw_log_sha256"] = manifest["raw_log_sha256"]
+        receipt["execution_manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        receipt_path.write_text(json.dumps(receipt))
+        self.rebind_ac073(checkpoint, receipt_path)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("AC-073 execution", result.stdout)
 
     def test_ac073_stress_exception_does_not_apply_to_ac072(self) -> None:
         checkpoint = self.pass_checkpoint()

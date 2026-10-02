@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Validate D27 raw qualification receipts against the frozen protocol.
 
-The workload emitter is a separate Rust test so that the same source file can
-be compiled in the historical and candidate engine checkouts. This verifier
-never changes an observed value or treats unavailable entry metrics as zero.
+The workload emitter is a separate Rust test. This verifier never changes an
+observed value or treats unavailable entry metrics as zero.
 """
 
 from __future__ import annotations
@@ -86,8 +85,14 @@ def validate_entry_for_candidate(entry: dict, protocol: dict, protocol_path: Pat
     require(artifacts is not None and set(artifacts) == {"runner", "binary", "corpus", "raw"} and all(isinstance(path, Path) for path in artifacts.values()), "entry artifacts are required")
     require(isinstance(entry, dict), "entry receipt is required")
     require(entry.get("phase") == "entry", "candidate comparison needs an entry receipt")
-    verify_raw_linkage(entry, protocol, artifacts["raw"])
-    validated = validate_receipt(entry, protocol, protocol_path, artifacts)
+    entry_protocol, entry_protocol_path = protocol, protocol_path
+    if protocol.get("schema_version") == 2:
+        require(entry.get("protocol_sha256") == LEGACY_PROTOCOL_SHA256,
+                "successor comparison requires strict original historical protocol")
+        entry_protocol_path = PROTOCOL
+        entry_protocol = json.loads(PROTOCOL.read_text())
+    verify_raw_linkage(entry, entry_protocol, artifacts["raw"])
+    validated = validate_receipt(entry, entry_protocol, entry_protocol_path, artifacts)
     require(entry.get("aggregate_metrics") == validated["aggregate_metrics"], "entry aggregate differs from raw recomputation")
     return validated
 
@@ -143,7 +148,12 @@ def validate_receipt(
         require(entry is not None and entry.get("status") == "PASS", "candidate requires validated PASS entry")
         require(receipt.get("source_sha") != protocol["entry_engine_candidate_sha"], "candidate must differ from entry candidate")
         require(receipt.get("corpus_sha256") == entry.get("corpus_sha256"), "candidate corpus sha256 mismatch")
-        require(receipt.get("protocol_sha256") == entry.get("protocol_sha256"), "candidate protocol sha256 mismatch")
+        if version == 2:
+            require(entry.get("protocol_sha256") == LEGACY_PROTOCOL_SHA256,
+                    "candidate historical protocol sha256 mismatch")
+        else:
+            require(receipt.get("protocol_sha256") == entry.get("protocol_sha256"),
+                    "candidate protocol sha256 mismatch")
         require(not receipt.get("historical_unavailable"), "candidate cannot mark dispatch metrics unavailable")
 
     runner = receipt.get("runner_inventory", {})

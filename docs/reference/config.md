@@ -35,7 +35,7 @@ cross-binding symmetry pinned by `dev/design/bindings.md` § 6.
 | Knob | Python | TypeScript | Range | Default | Runtime effect |
 | --- | --- | --- | --- | --- | --- |
 | Projection workers | `scheduler_runtime_threads` | `schedulerRuntimeThreads` | `1..=64` | `2` | Starts that many projection workers and worker-owned SQLite connections; projection admission is `64 × workers`. |
-| Embedder workers | `embedder_pool_size` | `embedderPoolSize` | `1..=64` | `1` | Bounds simultaneous provider calls; the waiting queue holds `4 × workers`. With no provider, no embedder worker or queue starts. |
+| Embedder workers | `embedder_pool_size` | `embedderPoolSize` | `1..=64` | `5` | Bounds simultaneous provider calls; the waiting queue holds `4 × workers`. With no provider, no embedder worker or queue starts. |
 | Embedder deadline | `embedder_call_timeout_ms` | `embedderCallTimeoutMs` | `1..=4,294,967,295` ms | `30,000` ms | One deadline covers queue wait plus provider service on production embedding paths. |
 | Provenance retention | `provenance_row_cap` | `provenanceRowCap` | `0..=2^53-1` rows | `1,000,000` rows | Bounds retained provenance rows; `0` disables retention. |
 | Slow event threshold | `slow_threshold_ms` | `slowThresholdMs` | `0..=2^53-1` ms | `100` ms | Governs operation and SQLite-statement slow signals; `0` accepts every positive duration. |

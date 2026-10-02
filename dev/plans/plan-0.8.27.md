@@ -862,7 +862,11 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     `EngineConfig`/configured-open public delta, typed configuration error,
     Number-safe binding caps and `Scheduler` incomplete-drain outcome are a
     separate HITL decision accepted at `seq-295`. The binding authority is
-    `dev/adr/ADR-0.8.27-engine-owned-runtime-topology.md`.
+    `dev/adr/ADR-0.8.27-engine-owned-runtime-topology.md`. HITL `seq-299`
+    subsequently authorized selection of the lowest default embed capacity
+    passing the frozen D27 comparison and unchanged release gates; the
+    measured default and its narrow supersession are recorded in
+    `dev/adr/ADR-0.8.27-embed-dispatch-default-capacity.md`.
     The dedicated design records current substrates/widths, exact consumers,
     item-specific owners and required effect tests. The revised
     `features/slice-90/option-b-successor-adr-scaffold.md` is the reviewed design
@@ -900,8 +904,9 @@ Carried from Slice 70 (`features/slice-70/status.md`):
     engine component; it does not defer or reopen Slice 90's functional runtime
     contract.
   - **Runtime compatibility and performance action:** before the stage-2
-    checkpoint, qualify the exact candidate under the default `2/1`, minimum
-    `1/1`, concurrent `2/2`, representative `4/4`, and ceiling `64/64`
+    checkpoint, qualify the exact candidate under the selected default `2/5`,
+    explicit prior `2/1`, minimum `1/1`, concurrent `2/2`, representative
+    `4/4`, and ceiling `64/64`
     scheduler/embed matrices. Every accepted value must prove its consuming
     effect, correctness, resource bounds, cleanup and fault behavior. Only the
     default carries release performance promises; the ceiling run is an exact

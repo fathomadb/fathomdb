@@ -169,7 +169,7 @@ mode failures remain `EngineOpenError::RuntimeConfiguration`.
 | Setting | Accepted values; default | Consuming effect |
 | --- | --- | --- |
 | `scheduler_runtime_threads` | `1..=64`; `2` | Exact projection worker and worker-owned connection count; active plus queued projection rows and each scan are bounded by `64 * workers`. |
-| `embedder_pool_size` | `1..=64`; `1` | Exact provider worker count and simultaneous-call ceiling; waiting queue holds `4 * workers`. Without a provider there is no embed worker or queue. |
+| `embedder_pool_size` | `1..=64`; `5` | Exact provider worker count and simultaneous-call ceiling; waiting queue holds `4 * workers`. Without a provider there is no embed worker or queue. |
 | `embedder_call_timeout_ms` | `1..=u32::MAX`; `30_000` ms | One absolute queue-plus-service deadline per call or batch across all production inference routes. |
 | `provenance_row_cap` | `0..=2^53-1`; `1_000_000` rows | Bounds retained provenance after write and actuation commits; zero disables retention. |
 | `slow_threshold_ms` | `0..=2^53-1`; `100` ms | Operation and SQLite-statement slow signals when elapsed time is strictly greater than the threshold. Zero accepts every positive duration. |

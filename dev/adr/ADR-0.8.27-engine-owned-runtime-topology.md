@@ -12,6 +12,12 @@ status: accepted (HITL seq-295)
 **Status:** accepted by owner ruling `seq-295`, following the architectural
 direction selected at `seq-293`.
 
+The default-one embed capacity and corresponding one-slot hung-provider posture
+are superseded by
+[`ADR-0.8.27-embed-dispatch-default-capacity`](ADR-0.8.27-embed-dispatch-default-capacity.md)
+once its measured selection is accepted. The original decision remains below
+as the record of the accepted stage-2 starting contract.
+
 ## Context
 
 The accepted 0.6.0 ADRs described Tokio orchestration, a CPU-count embed pool,

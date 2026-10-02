@@ -135,7 +135,7 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         }
         if phase == "candidate":
             raw.update(
-                connection_inventory="creation=writer:1,readers:1,dispatcher:2,workers:8,probes:0",
+                connection_inventory="live=writer:1,readers:8,dispatcher:1,workers:2,probes:0",
                 configuration_observation={"source": "engine", "scheduler_runtime_threads": 2,
                                            "embedder_pool_size": 1},
                 projection_admission_observation={"source": "engine", "active_plus_queued_high_water": 1},

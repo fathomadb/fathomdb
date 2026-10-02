@@ -104,7 +104,9 @@ class Validation:
         )
         return result.stdout if result.returncode == 0 else None
 
-    def first_engine_change_after(self, binding_sha: str) -> str | None:
+    def first_engine_change_after(
+        self, older_sha: str, newer_sha: str = "HEAD"
+    ) -> str | None:
         result = subprocess.run(
             [
                 "git",
@@ -112,7 +114,7 @@ class Validation:
                 str(self.root),
                 "rev-list",
                 "--reverse",
-                f"{binding_sha}..HEAD",
+                f"{older_sha}..{newer_sha}",
                 "--",
                 "src/rust/crates/fathomdb-engine/src",
             ],
@@ -577,6 +579,16 @@ class Validation:
                 self.fail(
                     location,
                     "checkpoint candidate must be an ancestor of its binding commit",
+                )
+            if (
+                checkpoint_commits_exist
+                and self.is_ancestor(candidate_sha, binding_sha)
+                and self.first_engine_change_after(candidate_sha, binding_sha)
+                is not None
+            ):
+                self.fail(
+                    location,
+                    "engine source changed between checkpoint candidate and binding",
                 )
             if checkpoint_commits_exist and not self.is_ancestor(binding_sha, "HEAD"):
                 self.fail(

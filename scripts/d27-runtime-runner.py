@@ -52,6 +52,18 @@ def repetition_order(protocol: dict, phase: str) -> list[str]:
     return [item if phase == "entry" else item.replace("entry_", "candidate_", 1) for item in entry]
 
 
+def candidate_default_worker_pair(raw: dict) -> tuple[int, int]:
+    """Require engine-observed defaults within the approved worker-count sweep."""
+    observed = raw.get("configuration_observation")
+    if not isinstance(observed, dict) or observed.get("source") != "engine":
+        raise ValueError("candidate configuration observation missing")
+    scheduler = observed.get("scheduler_runtime_threads")
+    embed_workers = observed.get("embedder_pool_size")
+    if type(scheduler) is not int or scheduler != 2 or type(embed_workers) is not int or not 2 <= embed_workers <= 64:
+        raise ValueError("candidate configuration observation outside approved default sweep")
+    return scheduler, embed_workers
+
+
 def validate_raw_contract(raw: dict, protocol: dict, direction: str, repetition: int, phase: str = "entry") -> None:
     """Reject a workload that changed duration, order, epoch size, or ratios."""
     execution = protocol["execution"]
@@ -64,9 +76,7 @@ def validate_raw_contract(raw: dict, protocol: dict, direction: str, repetition:
     if raw.get("epoch_size") != execution["operation_epoch_size"]:
         raise ValueError("epoch size mismatch")
     if phase == "candidate":
-        observed = raw.get("configuration_observation", {})
-        if (observed.get("scheduler_runtime_threads"), observed.get("embedder_pool_size")) != (2, 1):
-            raise ValueError("candidate default comparison requires resolved 2/1 worker pair")
+        candidate_default_worker_pair(raw)
     counts = raw.get("operation_counts", {})
     target = execution[f"{direction}_epoch"]
     epochs = counts.get("canonical_writes", 0) // target["canonical_writes"]
@@ -459,15 +469,7 @@ def check_raw_observations(raw: dict, phase: str) -> None:
     if phase == "entry" and raw.get("connection_inventory") != "Err(Storage)":
         raise ValueError("historical SQLite inventory must retain observed Err(Storage)")
     if phase == "candidate":
-        observed = raw.get("configuration_observation")
-        if not isinstance(observed, dict) or observed.get("source") != "engine":
-            raise ValueError("candidate configuration observation missing")
-        scheduler = observed.get("scheduler_runtime_threads")
-        embed_workers = observed.get("embedder_pool_size")
-        if not isinstance(scheduler, int) or not 1 <= scheduler <= 64 or not isinstance(embed_workers, int) or not 1 <= embed_workers <= 64:
-            raise ValueError("candidate configuration observation invalid")
-        if (scheduler, embed_workers) != (2, 1):
-            raise ValueError("candidate default comparison requires resolved 2/1 worker pair")
+        scheduler, embed_workers = candidate_default_worker_pair(raw)
         dispatch = dispatch_from_raw(raw, embed_workers)
         projection = raw.get("projection_admission_observation")
         if not isinstance(projection, dict) or projection.get("source") != "engine" or not isinstance(projection.get("active_plus_queued_high_water"), int):

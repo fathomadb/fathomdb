@@ -15,6 +15,7 @@ import json
 import math
 from pathlib import Path
 import statistics
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +33,33 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             hasher.update(chunk)
     return hasher.hexdigest()
+
+
+def source_runner_bundle(source_sha: str, runner_path: Path) -> bytes:
+    """Rebuild the runner bundle from the exact recorded source commit."""
+    source_root = ROOT
+    discovered = subprocess.run(
+        ["git", "-C", str(runner_path.parent), "rev-parse", "--show-toplevel"],
+        check=False, capture_output=True, text=True,
+    )
+    if discovered.returncode == 0:
+        source_root = Path(discovered.stdout.strip())
+    paths = (
+        "scripts/d27-runtime-runner.py",
+        "scripts/d27_runtime_workload.rs",
+        "scripts/d27-runtime-qualification.py",
+        "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol-v2.json",
+    )
+    parts = []
+    for path in paths:
+        result = subprocess.run(
+            ["git", "-C", str(source_root), "show", f"{source_sha}:{path}"],
+            check=False, capture_output=True,
+        )
+        require(result.returncode == 0, f"runner bundle source missing: {source_sha}:{path}")
+        parts.append(result.stdout)
+    return (parts[0] + b"\n--RUST--\n" + parts[1] + b"\n--VERIFIER--\n"
+            + parts[2] + b"\n--PROTOCOL--\n" + parts[3])
 
 
 def require(condition: bool, message: str) -> None:
@@ -138,6 +166,9 @@ def validate_receipt(
         embedded_protocol = b"\n--PROTOCOL--\n" + protocol_path.read_bytes()
         require(artifacts["runner"].read_bytes().endswith(embedded_protocol),
                 "runner bundle embedded protocol mismatch")
+        require(isinstance(receipt.get("source_sha"), str), "runner bundle source sha missing")
+        require(artifacts["runner"].read_bytes() == source_runner_bundle(receipt["source_sha"], artifacts["runner"]),
+                "runner bundle source mismatch")
 
     phase = receipt.get("phase")
     require(phase in ("entry", "candidate"), "phase must be entry or candidate")

@@ -166,9 +166,26 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
                          "corpus": bundle / "corpus.jsonl", "raw": bundle / "raw-output.jsonl"}
             for name, path in artifacts.items():
                 path.write_bytes(b"fixture-" + name.encode())
-            artifacts["runner"].write_bytes(
-                b"fixture-runner\n--PROTOCOL--\n" + phase_protocol_path.read_bytes()
-            )
+            if phase == "candidate":
+                source_files = (
+                    "scripts/d27-runtime-runner.py",
+                    "scripts/d27_runtime_workload.rs",
+                    "scripts/d27-runtime-qualification.py",
+                    str(EVIDENCE_DIR / "d27-runtime-qualification-protocol-v2.json"),
+                )
+                parts = [subprocess.run(
+                    ["git", "-C", str(self.root), "show", f"{candidate}:{path}"],
+                    check=True, capture_output=True,
+                ).stdout for path in source_files]
+                artifacts["runner"].write_bytes(
+                    parts[0] + b"\n--RUST--\n" + parts[1]
+                    + b"\n--VERIFIER--\n" + parts[2]
+                    + b"\n--PROTOCOL--\n" + parts[3]
+                )
+            else:
+                artifacts["runner"].write_bytes(
+                    b"fixture-runner\n--PROTOCOL--\n" + phase_protocol_path.read_bytes()
+                )
             raw = []
             metrics = {"projection_heavy": [], "foreground_heavy": []}
             for name in D27_RUNNER.repetition_order(phase_protocol, phase):
@@ -253,9 +270,15 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         git("config", "user.email", "runtime-checkpoint@example.invalid")
         git("config", "user.name", "Runtime Checkpoint Test")
         (self.root / "candidate.txt").write_text("candidate\n", encoding="utf-8")
-        git("add", "candidate.txt")
+        (self.root / "scripts").mkdir()
+        for name in ("d27-runtime-runner.py", "d27_runtime_workload.rs", "d27-runtime-qualification.py"):
+            shutil.copyfile(REPO_ROOT / "scripts" / name, self.root / "scripts" / name)
+        shutil.copyfile(REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol-v2.json",
+                        self.root / EVIDENCE_DIR / "d27-runtime-qualification-protocol-v2.json")
+        git("add", "candidate.txt", "scripts", str(EVIDENCE_DIR / "d27-runtime-qualification-protocol-v2.json"))
         git("commit", "-qm", "candidate")
         candidate = git("rev-parse", "HEAD")
+        (self.root / EVIDENCE_DIR / "d27-runtime-qualification-protocol-v2.json").unlink()
         checkpoint = self.pending_checkpoint()
         for name, receipt in checkpoint["receipts"].items():  # type: ignore[union-attr]
             path = self.root / str(receipt["path"])
@@ -314,6 +337,21 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("D27 strict validation failed", result.stdout)
 
+    def test_v2_rejects_rehashed_runner_bundle_with_stale_source_prefix(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        self.write_ac073_stress_receipt(checkpoint)
+        bundle = self.root / "evidence/candidate"
+        runner = bundle / "runner.bundle"
+        receipt = json.loads((bundle / "receipt.json").read_text())
+        runner.write_bytes(b"stale runner, workload, verifier\n--PROTOCOL--\n"
+                           + (REPO_ROOT / EVIDENCE_DIR / "d27-runtime-qualification-protocol-v2.json").read_bytes())
+        receipt["runner_sha256"] = hashlib.sha256(runner.read_bytes()).hexdigest()
+        (self.root / EVIDENCE_DIR / "d27-candidate-receipt.json").write_text(json.dumps(receipt))
+        self._rebind_performance(checkpoint)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("runner bundle source mismatch", result.stdout)
+
     def test_pass_performance_requires_every_matrix_cell(self) -> None:
         self.pass_checkpoint(cells=MATRIX_CELLS[:-1])
         result = self.run_gate()
@@ -348,13 +386,15 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
                                       "current_floor_0_90": 0.9,
                                       "passes_ci_gate_0_8_0_one_sided": False}],
         }))
+        bundle.mkdir(parents=True, exist_ok=True)
+        (bundle / "eu7.json").write_bytes(eu7_path.read_bytes())
         log_path.write_text(
             f"     Running tests/eu7_real_corpus_ac.rs ({executed_binary})\n"
             "EU7_SETUP real_docs=18472 queries=100 n_values=[7667] bootstrap=1000 "
             "latency_samples=1000 stress_per_thread=250\n"
             "EU7_NUMBERS n=7667 padded=false stress_p99_ms=418 stress_bound_ms=491 "
             "ac013=true ac019=true\n"
-            "EU7_WROTE /tmp/eu7.json\n"
+            f"EU7_WROTE {bundle / 'eu7.json'}\n"
             "AC-075 recall verdict: recall_ci_hi 0.7980 < floor 0.9\n"
             "FAILED\n"
             "test result: FAILED. 0 passed; 1 failed; 0 ignored\n"
@@ -417,6 +457,33 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         self.write_ac073_stress_receipt(checkpoint)
         result = self.run_gate()
         self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_ac073_stress_rejects_rehashed_wrong_output_path(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        receipt_path, _, log_path = self.write_ac073_stress_receipt(checkpoint)
+        log_path.write_text(log_path.read_text().replace(
+            "EU7_WROTE " + str(self.root / "evidence/ac073-bundle/eu7.json"),
+            "EU7_WROTE /tmp/eu7.json"))
+        manifest_path = self.root / EVIDENCE_DIR / "ac073-execution.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["raw_log_sha256"] = hashlib.sha256(log_path.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest))
+        receipt = json.loads(receipt_path.read_text())
+        receipt["raw_log_sha256"] = manifest["raw_log_sha256"]
+        receipt["execution_manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        receipt_path.write_text(json.dumps(receipt))
+        self.rebind_ac073(checkpoint, receipt_path)
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("EU7 output path", result.stdout)
+
+    def test_ac073_stress_rejects_divergent_bundle_output(self) -> None:
+        checkpoint = self.pass_checkpoint()
+        self.write_ac073_stress_receipt(checkpoint)
+        (self.root / "evidence/ac073-bundle/eu7.json").write_bytes(b"different output")
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("EU7 bundle output", result.stdout)
 
     def test_ac073_stress_receipt_rejects_rehashed_stress_failure(self) -> None:
         checkpoint = self.pass_checkpoint()

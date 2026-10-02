@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 
@@ -98,10 +99,32 @@ class D27ReceiptTests(unittest.TestCase):
                 repetition["swap_pages_out_delta"] = 64
         with self.assertRaisesRegex(ValueError, "combined swap movement exceeds cap"):
             self.validate(receipt)
+        entry = self.validate()
+        receipt["phase"] = "candidate"
+        receipt["source_sha"] = "2e94aaf4f57399a5ded8fc39b9100e33fe09dbcd"
+        receipt["historical_unavailable"] = []
+        for repetitions in receipt["per_repetition_metrics"].values():
+            for repetition in repetitions:
+                repetition["high_water"]["embed_requests_waiting"] = 0
+                repetition["latency_ms"]["embed_queue_wait"] = {"50": 1.0, "95": 1.0, "99": 1.0}
+                repetition["inventory"]["sqlite_connections"] = 12
         receipt["protocol_sha256"] = digest(PROTOCOL_V2.read_bytes())
-        self.artifacts["runner"].write_bytes(b"runner\n--PROTOCOL--\n" + PROTOCOL_V2.read_bytes())
+        source_files = (
+            "scripts/d27-runtime-runner.py",
+            "scripts/d27_runtime_workload.rs",
+            "scripts/d27-runtime-qualification.py",
+            "dev/plans/0.8.27/features/slice-90/d27-runtime-qualification-protocol-v2.json",
+        )
+        parts = [subprocess.run(
+            ["git", "-C", str(ROOT), "show", f"{receipt['source_sha']}:{path}"],
+            check=True, capture_output=True,
+        ).stdout for path in source_files]
+        self.artifacts["runner"].write_bytes(
+            parts[0] + b"\n--RUST--\n" + parts[1] + b"\n--VERIFIER--\n"
+            + parts[2] + b"\n--PROTOCOL--\n" + parts[3]
+        )
         receipt["runner_sha256"] = digest(self.artifacts["runner"].read_bytes())
-        validated = d27.validate_receipt(receipt, successor, PROTOCOL_V2, self.artifacts)
+        validated = d27.validate_receipt(receipt, successor, PROTOCOL_V2, self.artifacts, entry)
         self.assertEqual(validated["status"], "PASS")
 
     def test_v2_rejects_rehashed_bundle_with_wrong_embedded_protocol(self):

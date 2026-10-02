@@ -74,6 +74,7 @@ reported root::mean_centering_internals_for_test
 reported root::tests
 reported runtime_configuration
 reported runtime_configuration::tests
+reported runtime_lifecycle
 governed search
 governed search_api
 governed search_types

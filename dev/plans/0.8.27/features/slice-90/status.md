@@ -363,7 +363,12 @@ repetitions and failed projection-heavy direct-embed p50; its direct-embed p95
 median was about 6.18 ms in both directions. The three-worker run at
 `e0c3a1b16` had one valid repetition with direct-embed p95 4.14 ms, then was
 invalidated by 1,617 swap pages in its next repetition. It is diagnostic,
-not a six-run verdict. The four-worker candidate at `c03a398f8` completed
+not a six-run verdict. A fresh three-worker proof on `2a62b14c7` completed
+six valid repetitions and failed projection-heavy direct-embed p95; the p95
+medians were 4.139 ms under projection-heavy load and 4.141 ms under
+foreground-heavy load. Its raw bundle is
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-default3-proof-2a62b14c7`.
+The four-worker candidate at `c03a398f8` completed
 six valid repetitions and failed projection-heavy direct-embed p95, with
 about 4.12 ms p95 in both directions.
 
@@ -381,6 +386,23 @@ This is a provisional default selection until every named selector passes.
 The proposed ADR successor is
 `dev/adr/ADR-0.8.27-embed-dispatch-default-capacity.md`; it is not yet
 accepted, and the runtime checkpoint remains PENDING.
+
+On exact clean source `ad31c3a61`, the unchanged named selectors passed
+AC-011a at 1,263.671 commits/s against 1,000, AC-011b at 306.721 against
+100, AC-017, AC-018 (22 ms drain), AC-029, the official three-run AC-072
+campaign (p50 71 ms, p99 78/78/79 ms), and AC-076 (p50 1 ms, p99 3 ms).
+The CUDA EU7 run on 7,667 real documents measured AC-073 mixed-tail stress
+p99 418 ms within its same-run 491 ms bound. The unchanged combined selector
+exited 101 because AC-075 vector-stage recall was 0.772 with CI high 0.798
+against its old 0.90 floor, exactly matching the earlier Slice 85 receipt
+that marks AC-075 `superseded-by-tc5`. Do not report the combined selector as
+PASS. Raw evidence and an exact verdict report are under
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/named-selectors-default5-ad31c3a61`;
+the report SHA-256 is
+`1c83338b90dcbf6c870f108f665bf704cb462970a68ec84da18a9a253f612230`.
+The checkpoint receipt needs a reviewed, test-first way to bind the AC-073
+stress PASS and retain the unrelated superseded AC-075 failure without a
+false combined-selector PASS claim.
 
 Next: finish the remaining exact release selectors, accept the default-capacity
 ADR successor if they pass, reconcile the implementation and public contract,

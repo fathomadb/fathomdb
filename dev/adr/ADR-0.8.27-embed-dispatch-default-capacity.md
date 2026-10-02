@@ -45,11 +45,12 @@ default. No queue, executor, deadline, or provider-failure rule changes.
 
 The choice is based on the first full six-repetition candidate comparison to
 pass the frozen D27 rule after lower-count failures. The two-worker run at
-`781b2f5e0` and four-worker run at `c03a398f8` each completed all six
-environment-valid repetitions and failed direct-embed latency. Three workers
-had one valid repetition with 4.14 ms direct-embed p95 and 2.05 ms queue-wait
-p95; its next repetition exceeded the frozen host-swap validity limit, so it
-does not supply a six-run verdict. Five workers at `ad31c3a61` passed six
+`781b2f5e0`, three-worker proof at `2a62b14c7`, and four-worker run at
+`c03a398f8` each completed all six environment-valid repetitions and failed
+direct-embed latency. The three-worker direct-embed p95 medians were 4.139 ms
+under projection-heavy load and 4.141 ms under foreground-heavy load. An
+earlier three-worker attempt was invalidated by host swap and is not counted.
+Five workers at `ad31c3a61` passed six
 valid D27 repetitions. Its direct-embed p95 medians were 2.116 ms under
 projection-heavy load and 2.120 ms under foreground-heavy load. The same
 exact source passed AC-081a/b in seven fresh official runs and AC-081c.
@@ -79,11 +80,25 @@ The retained historical D27 entry is
 The five-worker comparison is
 `/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-default5-retry-ad31c3a61/receipt.json`
 (SHA-256 `29e5206e02751ac83d2a28fa5cf9b85bf98e164cc3270c0cdf88cef5a5b4d185`).
+The retained failed three-worker proof is
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/d27-default3-proof-2a62b14c7/raw-output.jsonl`;
+all six attempts in that bundle are environment-valid and the unchanged
+comparison reports `projection_heavy direct_embed p95 above latency ceiling`.
 The exact AC-081 campaign summary is
 `/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/ac081-default5-ad31c3a61/summary.txt`
 (SHA-256 `00a4313dc52ae5cb9c1939e6c220901581d530adad691467c63ce09c8d1084ab`).
 
-Named release selector results, installed-binding parity, independent code
-review, and Terra verification must be added before acceptance and the runtime
-checkpoint. No structural Phase 3 source move may begin before that checkpoint
-passes.
+On exact five-worker source `ad31c3a61`, AC-011a/b, AC-017, AC-018, AC-029,
+AC-072, and AC-076 passed unchanged. The CUDA EU7 run measured AC-073
+mixed-tail stress p99 418 ms within its same-run 491 ms bound. Its combined
+selector exited 101 on the unchanged AC-075 recall assertion (0.772,
+95% CI high 0.798 below 0.90), the same result already retained by Slice 85
+as `superseded-by-tc5`. The exact named-selector report is
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/named-selectors-default5-ad31c3a61/report.txt`
+(SHA-256 `1c83338b90dcbf6c870f108f665bf704cb462970a68ec84da18a9a253f612230`).
+The combined selector is not reported as PASS. A reviewed checkpoint receipt
+must bind the AC-073 stress evidence and the retained AC-075 outcome.
+
+Installed-binding parity, independent code review, and Terra verification
+remain before acceptance and the runtime checkpoint. No structural Phase 3
+source move may begin before that checkpoint passes.

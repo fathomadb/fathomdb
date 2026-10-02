@@ -393,6 +393,30 @@ class RuntimeCheckpointGateTest(unittest.TestCase):
         self.assertIn("D27 candidate projection_heavy repetition 1 throughput is incomplete", result.stdout)
         self.assertNotIn("Traceback", result.stdout)
 
+    def test_fabricated_d27_hashes_without_raw_bundle_are_rejected(self) -> None:
+        self.pass_checkpoint()
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("D27 artifact bundle", result.stdout)
+
+    def test_unrelated_checkpoint_cannot_mask_missing_slice90_state_file(self) -> None:
+        state = {"release": "9.9.9", "ladder": [{"slice": 90, "runtime_checkpoint": self.pending_checkpoint()}]}
+        (self.root / "dev/plans/release-state-9.9.9.json").write_text(json.dumps(state))
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("required release-state-0.8.27.json is missing", result.stdout)
+
+    def test_duplicate_slice90_entries_are_rejected(self) -> None:
+        checkpoint = self.pending_checkpoint()
+        state = {"release": "0.8.27", "ladder": [
+            {"slice": 90, "runtime_checkpoint": checkpoint},
+            {"slice": 90, "runtime_checkpoint": checkpoint},
+        ]}
+        (self.root / "dev/plans/release-state-0.8.27.json").write_text(json.dumps(state))
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("exactly one Slice 90 entry", result.stdout)
+
     def _commit_rebound(self, checkpoint: dict[str, object]) -> None:
         subprocess.run(["git", "-C", str(self.root), "add", "dev/plans/0.8.27/features/slice-90"], check=True)
         subprocess.run(["git", "-C", str(self.root), "commit", "-qm", "rebind receipts"], check=True)

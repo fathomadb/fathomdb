@@ -464,3 +464,35 @@ pub(crate) fn commit_projection_outcomes(
     }
     Ok(())
 }
+
+impl Engine {
+    /// Attempt worker-success publication with an explicitly captured epoch.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn publish_projection_success_for_test(
+        &self,
+        cursor: u64,
+        kind: &str,
+        generation_id: ProjectionGenerationId,
+    ) -> Result<(), EngineError> {
+        self.ensure_open()?;
+        let vector =
+            vec![0.25_f32; self.projection_runtime.shared.embedder_identity.dimension as usize];
+        let blob = encode_vector_blob(&vector);
+        let outcome = ProjectionOutcome::Success {
+            cursor,
+            kind: kind.to_string(),
+            blob: blob.clone(),
+            bin_blob: blob,
+            generation_id,
+        };
+        let mut connection = open_runtime_connection(
+            &self.projection_runtime.shared.path,
+            ManagedConnectionCategory::ProjectionWorker,
+            &self.projection_runtime.shared.managed_connections,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        commit_projection_outcomes(&mut connection, &[outcome], &self.projection_runtime.shared, 0)
+            .map_err(|_| EngineError::Storage)
+    }
+}

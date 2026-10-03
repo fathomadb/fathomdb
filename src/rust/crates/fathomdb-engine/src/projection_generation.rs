@@ -1864,6 +1864,51 @@ impl Engine {
     }
 }
 
+impl Engine {
+    /// Mint a configuration-origin generation without changing declarations.
+    ///
+    /// This test hook isolates the worker's captured-generation publication
+    /// fence. Production transitions remain owned by configuration/rebuild.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn transition_projection_generation_for_test(
+        &self,
+    ) -> Result<ProjectionGenerationId, EngineError> {
+        self.ensure_open()?;
+        let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = guard.as_mut().ok_or(EngineError::Closing)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        let generation = transition(&tx, ProjectionGenerationOriginV1::Configuration)?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        Ok(generation)
+    }
+
+    /// Return the number of uncached generation-status full-owner scans.
+    ///
+    /// The counter increments at the sole call site immediately before
+    /// `status_in_snapshot`, whose completion summary aggregates every eligible
+    /// node and edge owner. Cache hits do not increment it.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn projection_generation_status_full_owner_scan_count_for_test(&self) -> u64 {
+        self.projection_generation_status_full_owner_scan_count.load(Ordering::Relaxed)
+    }
+
+    /// Return `EXPLAIN QUERY PLAN` details for the production status queries.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn projection_generation_status_query_plans_for_test(
+        &self,
+    ) -> Result<Vec<String>, EngineError> {
+        self.ensure_open()?;
+        let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = guard.as_ref().ok_or(EngineError::Closing)?;
+        status_query_plans_for_test(connection)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

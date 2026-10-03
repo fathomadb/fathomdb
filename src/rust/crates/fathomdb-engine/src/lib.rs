@@ -342,7 +342,6 @@ pub use test_hooks::{
 #[cfg(debug_assertions)]
 pub use test_hooks::{ProjectionWorkerPauseReadyError, ProjectionWorkerTransactionPauseForTest};
 use vector_equivalence::{run_vector_equivalence_probe, usable_dense_runtime};
-use vector_storage::DEFAULT_VECTOR_PROFILE;
 use vector_storage::{
     actual_vector_attr_columns, decode_attr_vec0_column, decode_vector_blob,
     default_profile_dimension, delete_vector_partition_row, encode_vector_blob,
@@ -825,80 +824,6 @@ impl Engine {
         Ok(())
     }
 
-    /// Mint a configuration-origin generation without changing declarations.
-    ///
-    /// This test hook isolates the worker's captured-generation publication
-    /// fence. Production transitions remain owned by configuration/rebuild.
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn transition_projection_generation_for_test(
-        &self,
-    ) -> Result<ProjectionGenerationId, EngineError> {
-        self.ensure_open()?;
-        let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = guard.as_mut().ok_or(EngineError::Closing)?;
-        let tx = connection
-            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-            .map_err(|_| EngineError::Storage)?;
-        let generation =
-            projection_generation::transition(&tx, ProjectionGenerationOriginV1::Configuration)?;
-        tx.commit().map_err(|_| EngineError::Storage)?;
-        Ok(generation)
-    }
-
-    /// Return the number of uncached generation-status full-owner scans.
-    ///
-    /// The counter increments at the sole call site immediately before
-    /// `status_in_snapshot`, whose completion summary aggregates every eligible
-    /// node and edge owner. Cache hits do not increment it.
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn projection_generation_status_full_owner_scan_count_for_test(&self) -> u64 {
-        self.projection_generation_status_full_owner_scan_count.load(Ordering::Relaxed)
-    }
-
-    /// Return `EXPLAIN QUERY PLAN` details for the production status queries.
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn projection_generation_status_query_plans_for_test(
-        &self,
-    ) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
-        let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = guard.as_ref().ok_or(EngineError::Closing)?;
-        projection_generation::status_query_plans_for_test(connection)
-    }
-
-    /// Attempt worker-success publication with an explicitly captured epoch.
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn publish_projection_success_for_test(
-        &self,
-        cursor: u64,
-        kind: &str,
-        generation_id: ProjectionGenerationId,
-    ) -> Result<(), EngineError> {
-        self.ensure_open()?;
-        let vector =
-            vec![0.25_f32; self.projection_runtime.shared.embedder_identity.dimension as usize];
-        let blob = encode_vector_blob(&vector);
-        let outcome = ProjectionOutcome::Success {
-            cursor,
-            kind: kind.to_string(),
-            blob: blob.clone(),
-            bin_blob: blob,
-            generation_id,
-        };
-        let mut connection = open_runtime_connection(
-            &self.projection_runtime.shared.path,
-            ManagedConnectionCategory::ProjectionWorker,
-            &self.projection_runtime.shared.managed_connections,
-        )
-        .map_err(|_| EngineError::Storage)?;
-        commit_projection_outcomes(&mut connection, &[outcome], &self.projection_runtime.shared, 0)
-            .map_err(|_| EngineError::Storage)
-    }
-
     #[doc(hidden)]
     pub fn set_provenance_row_cap_for_test(&self, cap: Option<u64>) {
         self.provenance_row_cap.store(cap.unwrap_or(0), Ordering::Relaxed);
@@ -936,85 +861,6 @@ impl Engine {
                 rusqlite::Error::QueryReturnedNoRows => Ok(None),
                 _ => Err(EngineError::Storage),
             })
-    }
-
-    #[doc(hidden)]
-    pub fn configure_vector_kind_for_test(&self, kind: &str) -> Result<(), EngineError> {
-        self.ensure_open()?;
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        connection
-            .execute(
-                "INSERT OR REPLACE INTO _fathomdb_vector_kinds(kind, profile, created_at)
-                 VALUES(?1, ?2, 0)",
-                params![kind, DEFAULT_VECTOR_PROFILE],
-            )
-            .map_err(|_| EngineError::Storage)?;
-        Ok(())
-    }
-
-    /// Install the pre-Slice-23 inert vector-subobject shape for compatibility tests.
-    ///
-    /// The mutation and a matching projection-generation transition are atomic,
-    /// so tests can exercise legacy reconciliation without manufacturing the
-    /// declaration-digest corruption that Slice 40 must reject.
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn set_legacy_projection_vector_declared_for_test(
-        &self,
-        name: &str,
-    ) -> Result<(), EngineError> {
-        self.ensure_open()?;
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let tx = connection
-            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-            .map_err(|_| EngineError::Storage)?;
-        let changed = tx
-            .execute(
-                "UPDATE _fathomdb_projection_registry SET vector_declared = 1 WHERE name = ?1",
-                [name],
-            )
-            .map_err(|_| EngineError::Storage)?;
-        if changed != 1 {
-            return Err(EngineError::Storage);
-        }
-        projection_generation::transition(&tx, ProjectionGenerationOriginV1::Configuration)?;
-        tx.commit().map_err(|_| EngineError::Storage)
-    }
-
-    /// Install the inert pre-Slice-23 FTS/vector subobject shape for tests.
-    ///
-    /// The named row must already be a plain filterable declaration. The
-    /// registry mutation and matching generation transition are atomic, so the
-    /// fixture exercises inert-shape handling without bypassing current
-    /// projection-generation authority.
-    #[cfg(any(debug_assertions, feature = "test-hooks"))]
-    #[doc(hidden)]
-    pub fn set_legacy_projection_search_subobjects_for_test(
-        &self,
-        name: &str,
-    ) -> Result<(), EngineError> {
-        self.ensure_open()?;
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let tx = connection
-            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-            .map_err(|_| EngineError::Storage)?;
-        let changed = tx
-            .execute(
-                "UPDATE _fathomdb_projection_registry \
-                 SET fts_tokenizer='', vector_declared=1 \
-                 WHERE name=?1 AND roles='filterable' \
-                   AND fts_tokenizer IS NULL AND vector_declared=0",
-                [name],
-            )
-            .map_err(|_| EngineError::Storage)?;
-        if changed != 1 {
-            return Err(EngineError::Storage);
-        }
-        projection_generation::transition(&tx, ProjectionGenerationOriginV1::Configuration)?;
-        tx.commit().map_err(|_| EngineError::Storage)
     }
 
     /// EXP-S (0.8.14 Slice 5, D1) — write one canonical node row carrying an

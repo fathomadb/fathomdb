@@ -2275,3 +2275,84 @@ fn projection_registry_cache_snapshot(
     };
     Ok((attributes, property_fts))
 }
+
+impl Engine {
+    #[doc(hidden)]
+    pub fn configure_vector_kind_for_test(&self, kind: &str) -> Result<(), EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        connection
+            .execute(
+                "INSERT OR REPLACE INTO _fathomdb_vector_kinds(kind, profile, created_at)
+                 VALUES(?1, ?2, 0)",
+                params![kind, DEFAULT_VECTOR_PROFILE],
+            )
+            .map_err(|_| EngineError::Storage)?;
+        Ok(())
+    }
+
+    /// Install the pre-Slice-23 inert vector-subobject shape for compatibility tests.
+    ///
+    /// The mutation and a matching projection-generation transition are atomic,
+    /// so tests can exercise legacy reconciliation without manufacturing the
+    /// declaration-digest corruption that Slice 40 must reject.
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub fn set_legacy_projection_vector_declared_for_test(
+        &self,
+        name: &str,
+    ) -> Result<(), EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        let changed = tx
+            .execute(
+                "UPDATE _fathomdb_projection_registry SET vector_declared = 1 WHERE name = ?1",
+                [name],
+            )
+            .map_err(|_| EngineError::Storage)?;
+        if changed != 1 {
+            return Err(EngineError::Storage);
+        }
+        projection_generation::transition(&tx, ProjectionGenerationOriginV1::Configuration)?;
+        tx.commit().map_err(|_| EngineError::Storage)
+    }
+
+    /// Install the inert pre-Slice-23 FTS/vector subobject shape for tests.
+    ///
+    /// The named row must already be a plain filterable declaration. The
+    /// registry mutation and matching generation transition are atomic, so the
+    /// fixture exercises inert-shape handling without bypassing current
+    /// projection-generation authority.
+    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn set_legacy_projection_search_subobjects_for_test(
+        &self,
+        name: &str,
+    ) -> Result<(), EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        let changed = tx
+            .execute(
+                "UPDATE _fathomdb_projection_registry \
+                 SET fts_tokenizer='', vector_declared=1 \
+                 WHERE name=?1 AND roles='filterable' \
+                   AND fts_tokenizer IS NULL AND vector_declared=0",
+                [name],
+            )
+            .map_err(|_| EngineError::Storage)?;
+        if changed != 1 {
+            return Err(EngineError::Storage);
+        }
+        projection_generation::transition(&tx, ProjectionGenerationOriginV1::Configuration)?;
+        tx.commit().map_err(|_| EngineError::Storage)
+    }
+}

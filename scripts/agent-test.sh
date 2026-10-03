@@ -199,6 +199,7 @@ run_tier_suite fast test-slice90-lifecycle-events-owner python3 scripts/tests/te
 run_tier_suite fast test-slice90-error-mapping-owner python3 scripts/tests/test_slice90_error_mapping_owner.py
 run_tier_suite fast test-slice90-vector-constants-owner python3 scripts/tests/test_slice90_vector_constants_owner.py
 run_tier_suite fast test-slice90-erasure-bookkeeping-owner python3 scripts/tests/test_slice90_erasure_bookkeeping_owner.py
+run_tier_suite fast test-slice90-record-lifecycle-owner python3 scripts/tests/test_slice90_record_lifecycle_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

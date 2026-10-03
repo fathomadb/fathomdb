@@ -1,5 +1,26 @@
 use super::*;
 
+/// OPP-12 Phase-1 (0.8.19 Slice 10) — drain budget the `transition`/`purge`
+/// lifecycle verbs use to settle in-flight projection work before mutating.
+/// Same 30 s budget as `REBUILD_DRAIN_TIMEOUT_MS`, but not `operator`-gated
+/// (the lifecycle verbs are always-on governed surface).
+pub(crate) const LIFECYCLE_DRAIN_TIMEOUT_MS: u64 = 30_000;
+/// OPP-12 Phase-1 (0.8.19 Slice 10) — whether `(from, to)` is one of the four
+/// legal `transition`-verb moves (design §2 table): `pending→active` (promote),
+/// `pending→deleted` (reject), `active→deleted` (soft-delete), `deleted→active`
+/// (undelete). Every other pair — self-loops, any move to `Purged` (purge-only)
+/// or `Pending` (create-only), or from `Purged` — is illegal via `transition`.
+#[must_use]
+pub(crate) fn is_legal_transition_move(from: LifecycleState, to: LifecycleState) -> bool {
+    matches!(
+        (from, to),
+        (LifecycleState::Pending, LifecycleState::Active)
+            | (LifecycleState::Pending, LifecycleState::Deleted)
+            | (LifecycleState::Active, LifecycleState::Deleted)
+            | (LifecycleState::Deleted, LifecycleState::Active)
+    )
+}
+
 /// OPP-12 record-lifecycle Phase-1 (0.8.19 Slice 5) — the existence axis.
 ///
 /// One mutually-exclusive typed enum stored as TEXT in the `canonical_nodes.state`

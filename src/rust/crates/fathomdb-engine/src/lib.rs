@@ -423,11 +423,6 @@ use sha2::Digest;
 use sha2::Digest as _;
 use sha2::Sha256;
 
-/// OPP-12 Phase-1 (0.8.19 Slice 10) — drain budget the `transition`/`purge`
-/// lifecycle verbs use to settle in-flight projection work before mutating.
-/// Same 30 s budget as `REBUILD_DRAIN_TIMEOUT_MS`, but not `operator`-gated
-/// (the lifecycle verbs are always-on governed surface).
-const LIFECYCLE_DRAIN_TIMEOUT_MS: u64 = 30_000;
 /// 0.8.20 Slice 15c (TC-33) fix-6 — schema version at which the
 /// `canonical_edges` INTEGER-epoch recreate (migration step 23) runs. A DB
 /// migrated to (or past) this version has had every edge row DROPPED with NO
@@ -621,22 +616,6 @@ pub struct Slice45MintStageTiming {
     pub snapshot_validation_ns: u128,
     pub binding_ns: u128,
     pub token_codec_ns: u128,
-}
-
-/// OPP-12 Phase-1 (0.8.19 Slice 10) — whether `(from, to)` is one of the four
-/// legal `transition`-verb moves (design §2 table): `pending→active` (promote),
-/// `pending→deleted` (reject), `active→deleted` (soft-delete), `deleted→active`
-/// (undelete). Every other pair — self-loops, any move to `Purged` (purge-only)
-/// or `Pending` (create-only), or from `Purged` — is illegal via `transition`.
-#[must_use]
-fn is_legal_transition_move(from: LifecycleState, to: LifecycleState) -> bool {
-    matches!(
-        (from, to),
-        (LifecycleState::Pending, LifecycleState::Active)
-            | (LifecycleState::Pending, LifecycleState::Deleted)
-            | (LifecycleState::Active, LifecycleState::Deleted)
-            | (LifecycleState::Deleted, LifecycleState::Active)
-    )
 }
 
 pub use lifecycle::Subscription;

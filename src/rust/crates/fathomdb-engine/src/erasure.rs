@@ -1,4 +1,5 @@
 use super::*;
+use crate::record_lifecycle::LIFECYCLE_DRAIN_TIMEOUT_MS;
 
 /// 0.8.20 Slice 5b (R-20-E5) — how many times an erasure verb re-tries
 /// `PRAGMA wal_checkpoint(TRUNCATE)` before refusing with

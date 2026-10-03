@@ -182,6 +182,43 @@ fn batch_is_admin(batch: &[PreparedWrite]) -> bool {
 }
 
 impl Engine {
+    /// 0.8.16 Slice 5 / F9 (R-F9-1) — set the caller-supplied `importance` ranking
+    /// scalar on the `canonical_nodes` row identified by `write_cursor` (the
+    /// interim id `SearchHit.id` carries). Validates `importance ∈ [0.0, 1.0]`,
+    /// mirroring the existing `canonical_edges.confidence` write-path check —
+    /// an out-of-range value is a deterministic [`EngineError::WriteValidation`].
+    ///
+    /// The 3-way sentinel: NOT calling this leaves the column `NULL` (never
+    /// assigned = graceful-absent, ranks NEUTRAL); `0.0` is the explicit floor;
+    /// `(0.0, 1.0]` is an explicit importance. Importance is a caller-supplied
+    /// scalar — the engine does NOT compute graph-centrality importance (ADR §4
+    /// non-goal). Engine-internal minimal surface for this keystone; SDK (Py/TS)
+    /// exposure is a Slice-40 concern.
+    pub fn write_node_importance(
+        &self,
+        write_cursor: u64,
+        importance: f64,
+    ) -> Result<(), EngineError> {
+        if !importance.is_finite() || !(0.0..=1.0).contains(&importance) {
+            return Err(EngineError::WriteValidation);
+        }
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        dependency_closure::maintain_before_writer(connection)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        dependency_closure::guard_no_pending_physical(&tx)?;
+        tx.execute(
+            "UPDATE canonical_nodes SET importance = ?1 WHERE write_cursor = ?2",
+            params![importance, write_cursor],
+        )
+        .map_err(|_| EngineError::Storage)?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        Ok(())
+    }
+
     pub fn write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
         let category = if batch_is_admin(batch) {
             lifecycle::EventCategory::Admin

@@ -5,6 +5,8 @@ from pathlib import Path
 import re
 import unittest
 
+from rust_source_lex import rust_mask
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
@@ -23,47 +25,6 @@ METHOD_DECL = re.compile(
     r"^    (?:(?:pub(?:\([^)]*\))?) )?fn ((?:check_integrity|safe_export)\w*)\(",
     re.M,
 )
-
-
-def mask_comments(source: str) -> str:
-    """Keep offsets while removing legal comments outside quoted strings."""
-    result = list(source)
-    index = 0
-    while index < len(source):
-        if source[index] == '"':
-            index += 1
-            while index < len(source):
-                if source[index] == "\\":
-                    index += 2
-                elif source[index] == '"':
-                    index += 1
-                    break
-                else:
-                    index += 1
-            continue
-        if source.startswith("//", index):
-            end = source.find("\n", index)
-            end = len(source) if end < 0 else end
-            result[index:end] = " " * (end - index)
-            index = end
-            continue
-        if source.startswith("/*", index):
-            start = index
-            depth = 1
-            index += 2
-            while index < len(source) and depth:
-                if source.startswith("/*", index):
-                    depth += 1
-                    index += 2
-                elif source.startswith("*/", index):
-                    depth -= 1
-                    index += 2
-                else:
-                    index += 1
-            result[start:index] = "".join("\n" if char == "\n" else " " for char in source[start:index])
-            continue
-        index += 1
-    return "".join(result)
 
 
 def attribute_end(source: str, start: int) -> int | None:
@@ -96,7 +57,7 @@ def attribute_end(source: str, start: int) -> int | None:
 
 
 def source_prelude(source: str, start: int) -> list[str]:
-    prefix = mask_comments(source[:start])
+    prefix = rust_mask(source[:start], literals=False)
     cursor = len(prefix.rstrip())
     attrs = []
     while cursor:
@@ -298,6 +259,25 @@ class OperatorIntegrityOwnerTest(unittest.TestCase):
         attr = '#[cfg_attr(\n    all(feature = "default-embedder", test),\n    cfg(test)\n)]'
         mutant = root.replace("mod operator;", attr + "\n/* nested /* comment */ gap */\nmod operator;", 1)
         self.assertIn("root gates operator owner module", owner_errors(mutant, owner))
+        for literal in ('r#"quote " /*"#', 'r###"quote " /*"###',
+                        'br##"quote " /*"##'):
+            with self.subTest(literal=literal):
+                kind = "&[u8]" if literal.startswith("br") else "&str"
+                prefix = f'const RAW_STRING_WITNESS: {kind} = {literal};\n'
+                gated_root = root.replace("mod operator;", prefix + attr + "\n/* end */\nmod operator;", 1)
+                self.assertIn("root gates operator owner module", owner_errors(gated_root, owner))
+                gated_impl = owner.replace("impl Engine {", prefix + attr + "\n/* end */\nimpl Engine {", 1)
+                self.assertIn("operator owner lacks cfg(operator) Engine::check_integrity",
+                              owner_errors(root, gated_impl))
+                marker = '    #[cfg(feature = "operator")]\n    pub fn check_integrity('
+                gated_method = owner.replace(
+                    marker,
+                    f'    {prefix}'
+                    '    ' + attr + '\n    /* end */\n' + marker,
+                    1,
+                )
+                self.assertIn("operator owner lacks cfg(operator) Engine::check_integrity",
+                              owner_errors(root, gated_method))
 
     def test_equivalent_multiline_operator_gate_remains_valid(self) -> None:
         root, owner = self.sources()

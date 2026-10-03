@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import unittest
 
-from rust_source_lex import rust_mask
+from rust_source_lex import brace_depth, has_cfg_attribute, outer_attributes
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -27,54 +27,6 @@ METHOD_DECL = re.compile(
 )
 
 
-def attribute_end(source: str, start: int) -> int | None:
-    """Return the end of one balanced outer attribute, including nested cfg calls."""
-    if not source.startswith("#[", start):
-        return None
-    closes = {"[": "]", "(": ")", "{": "}"}
-    stack = []
-    quoted = False
-    index = start + 1
-    while index < len(source):
-        char = source[index]
-        if quoted:
-            if char == "\\":
-                index += 2
-                continue
-            if char == '"':
-                quoted = False
-        elif char == '"':
-            quoted = True
-        elif char in closes:
-            stack.append(closes[char])
-        elif char in "])}":
-            if not stack or stack.pop() != char:
-                return None
-            if not stack:
-                return index + 1
-        index += 1
-    return None
-
-
-def source_prelude(source: str, start: int) -> list[str]:
-    prefix = rust_mask(source[:start], literals=False)
-    cursor = len(prefix.rstrip())
-    attrs = []
-    while cursor:
-        candidate = prefix.rfind("#[", 0, cursor)
-        while candidate >= 0 and attribute_end(prefix, candidate) != cursor:
-            candidate = prefix.rfind("#[", 0, candidate)
-        if candidate < 0:
-            break
-        attrs.append(re.sub(r"\s+", "", prefix[candidate:cursor]))
-        cursor = len(prefix[:candidate].rstrip())
-    return attrs
-
-
-def gates_item(attrs: list[str]) -> bool:
-    return any(attr.startswith(("#[cfg(", "#[cfg_attr(")) for attr in attrs)
-
-
 def owner_errors(root: str, owner: str, others: dict[str, str] | None = None) -> list[str]:
     errors = []
     if others is None:
@@ -84,7 +36,7 @@ def owner_errors(root: str, owner: str, others: dict[str, str] | None = None) ->
             if path not in (SRC / "lib.rs", SRC / "operator.rs")
         }
     root_module = re.search(r"(?m)^mod operator;$", root)
-    if root_module is None or gates_item(source_prelude(root, root_module.start())):
+    if root_module is None or has_cfg_attribute(outer_attributes(root, root_module.start())):
         errors.append("root gates operator owner module")
     root_types = re.compile(
         r"^(?:(?:pub(?:\([^)]*\))?) )?(?:struct|enum) "
@@ -128,10 +80,11 @@ def owner_errors(root: str, owner: str, others: dict[str, str] | None = None) ->
                 (impl for impl in owner_impls if impl.start() < declaration.start() < impl.end()),
                 None,
             )
-            attrs = source_prelude(owner, declaration.start())
+            attrs = outer_attributes(owner, declaration.start())
             valid = (
                 enclosing is not None
-                and not source_prelude(owner, enclosing.start())
+                and brace_depth(owner, enclosing.start()) == 0
+                and not outer_attributes(owner, enclosing.start())
                 and attrs == ['#[cfg(feature="operator")]']
                 and declaration.group(0).startswith(f"    pub fn {name}(")
                 and not re.search(r"^#!\[cfg(?:_attr)?\(", owner, re.M)
@@ -278,6 +231,16 @@ class OperatorIntegrityOwnerTest(unittest.TestCase):
                 )
                 self.assertIn("operator owner lacks cfg(operator) Engine::check_integrity",
                               owner_errors(root, gated_method))
+
+    def test_enclosing_cfg_module_cannot_hide_integrity_methods(self) -> None:
+        root, owner = self.sources()
+        first = re.search(r"(?ms)^impl Engine \{.*?^}", owner)
+        self.assertIsNotNone(first)
+        wrapped = (owner[:first.start()] + '#[cfg(feature = "test-hooks")]\n'
+                   'mod gated_integrity {\nuse super::*;\n' + first.group() + '\n}\n' +
+                   owner[first.end():])
+        self.assertIn("operator owner lacks cfg(operator) Engine::check_integrity",
+                      owner_errors(root, wrapped))
 
     def test_equivalent_multiline_operator_gate_remains_valid(self) -> None:
         root, owner = self.sources()

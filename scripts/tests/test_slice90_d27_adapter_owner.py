@@ -5,12 +5,13 @@ from pathlib import Path
 import re
 import unittest
 
-from rust_source_lex import rust_code_tokens
+from rust_source_lex import brace_depth, outer_attributes as prelude, rust_code_tokens
 
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
 HOOKS = '#[cfg(feature = "test-hooks")]'
+HOOKS_NORMALIZED = '#[cfg(feature="test-hooks")]'
 METHODS = (
     "begin_d27_observation_for_test",
     "with_d27_foreground_owner_for_test",
@@ -33,17 +34,6 @@ def core_dependency_escape(core: str) -> bool:
         if token == "crate" and tokens[index - 2:index + 2] != ["pub", "(", "crate", ")"]:
             return True
     return False
-
-
-def prelude(source: str, start: int) -> list[str]:
-    attrs = []
-    for line in reversed(source[:start].splitlines()):
-        line = line.strip()
-        if line.startswith("#["):
-            attrs.append(line)
-        elif line and not line.startswith(("///", "//")):
-            break
-    return attrs
 
 
 def inventory() -> tuple[str, dict[str, str], str]:
@@ -76,6 +66,8 @@ def owner_errors(root: str, modules: dict[str, str], standalone: str) -> list[st
         errors.append("embed_dispatch hides adapter edges in a macro")
     impls = list(IMPL.finditer(owner))
     for impl in impls:
+        if brace_depth(owner, impl.start()) != 0:
+            errors.append("embed_dispatch nests Engine impl")
         if any(CFG.match(attr) for attr in prelude(owner, impl.start())):
             errors.append("embed_dispatch gates Engine impl")
     for name in METHODS:
@@ -89,7 +81,7 @@ def owner_errors(root: str, modules: dict[str, str], standalone: str) -> list[st
         if not declaration.lstrip().startswith("pub fn "):
             errors.append(f"embed_dispatch changes Engine::{name} visibility")
         attrs = prelude(impl.group(), match.start())
-        if [attr for attr in attrs if CFG.match(attr)] != [HOOKS] or "#[doc(hidden)]" in attrs:
+        if [attr for attr in attrs if CFG.match(attr)] != [HOOKS_NORMALIZED] or "#[doc(hidden)]" in attrs:
             errors.append(f"embed_dispatch changes Engine::{name} attrs")
     if not core:
         errors.append("embed_dispatch lacks standalone core")
@@ -102,7 +94,7 @@ def owner_errors(root: str, modules: dict[str, str], standalone: str) -> list[st
     if not root_module or any(CFG.match(attr) for attr in prelude(root, root_module.start())):
         errors.append("root gates embed_dispatch module")
     reexport = re.search(r"(?m)^pub use embed_dispatch::d27_observation::D27Observation;$", root)
-    if not reexport or [attr for attr in prelude(root, reexport.start()) if CFG.match(attr)] != [HOOKS]:
+    if not reexport or [attr for attr in prelude(root, reexport.start()) if CFG.match(attr)] != [HOOKS_NORMALIZED]:
         errors.append("root changes public D27Observation path or gate")
     if not re.search(r'(?m)^#\[path = "\.\./src/embed_dispatch/core\.rs"\]$\nmod embed_dispatch;$', standalone):
         errors.append("standalone dispatcher test does not include Engine-free core")
@@ -134,7 +126,9 @@ class D27AdapterOwnerTest(unittest.TestCase):
         self.assertEqual(owner_errors(root, modules, standalone), [])
         owner = modules["embed_dispatch.rs"]
         for attr in ('#[cfg(feature = "operator")]',
-                     '#[cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]'):
+                     '#[cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]',
+                     '#[cfg_attr(\n    all(feature = "default-embedder", test),\n'
+                     '    cfg(feature = "test-hooks")\n)]'):
             for name in METHODS:
                 changed = owner.replace("    pub fn " + name, "    " + attr + "\n    pub fn " + name, 1)
                 self.assertIn(f"embed_dispatch changes Engine::{name} attrs",
@@ -145,6 +139,12 @@ class D27AdapterOwnerTest(unittest.TestCase):
             self.assertIn("embed_dispatch gates whole owner module",
                           owner_errors(root, modules | {"embed_dispatch.rs": "#!" + attr[1:] + "\n" + owner}, standalone))
             changed_root = root.replace("mod embed_dispatch;", attr + "\nmod embed_dispatch;", 1)
+            self.assertIn("root gates embed_dispatch module", owner_errors(changed_root, modules, standalone))
+            prefix = 'const RAW_GATE_WITNESS: &str = r###"quote " /*"###;\n'
+            changed = owner.replace("impl Engine {", prefix + attr + "\n/* end */\nimpl Engine {", 1)
+            self.assertIn("embed_dispatch gates Engine impl",
+                          owner_errors(root, modules | {"embed_dispatch.rs": changed}, standalone))
+            changed_root = root.replace("mod embed_dispatch;", prefix + attr + "\n/* end */\nmod embed_dispatch;", 1)
             self.assertIn("root gates embed_dispatch module", owner_errors(changed_root, modules, standalone))
         changed = modules | {"embed_dispatch/core.rs": modules["embed_dispatch/core.rs"] + "\nfn hidden_edge(_: crate::Engine) {}\n"}
         self.assertIn("standalone dispatch core depends on Engine or another runtime owner",
@@ -187,6 +187,17 @@ class D27AdapterOwnerTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             owner_errors(root, modules | {"embed_dispatch/core.rs": modules["embed_dispatch/core.rs"] +
                                           "\nconst BAD: u8 = b'unterminated;\n"}, standalone)
+
+    def test_cfg_module_ancestor_cannot_hide_adapter(self) -> None:
+        root, modules, standalone = inventory()
+        owner = modules["embed_dispatch.rs"]
+        impl = IMPL.search(owner)
+        self.assertIsNotNone(impl)
+        wrapped = (owner[:impl.start()] + '#[cfg(feature = "operator")]\n'
+                   'mod gated_adapter {\nuse super::*;\n' + impl.group() + '\n}\n' +
+                   owner[impl.end():])
+        self.assertIn("embed_dispatch nests Engine impl",
+                      owner_errors(root, modules | {"embed_dispatch.rs": wrapped}, standalone))
         changed = standalone.replace("../src/embed_dispatch/core.rs", "../src/embed_dispatch.rs", 1)
         self.assertIn("standalone dispatcher test does not include Engine-free core",
                       owner_errors(root, modules, changed))

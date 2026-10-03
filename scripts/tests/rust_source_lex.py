@@ -96,3 +96,59 @@ def rust_mask(source: str, *, literals: bool) -> str:
 def rust_code_tokens(source: str) -> list[str]:
     """Return identifiers and punctuation outside comments and literals."""
     return re.findall(r"[A-Za-z_][A-Za-z_0-9]*|::|[^\s]", rust_mask(source, literals=True))
+
+
+def _attribute_end(code: str, start: int) -> int | None:
+    if not code.startswith("#[", start):
+        return None
+    stack = []
+    matching = {"[": "]", "(": ")", "{": "}"}
+    for index in range(start + 1, len(code)):
+        char = code[index]
+        if char in matching:
+            stack.append(matching[char])
+        elif char in "])}":
+            if not stack or stack.pop() != char:
+                return None
+            if not stack:
+                return index + 1
+    return None
+
+
+def outer_attributes(source: str, start: int) -> list[str]:
+    """Return contiguous outer attributes before an item, nearest first.
+
+    Literal contents do not participate in delimiter matching. Comments and
+    whitespace between attributes and the item do not end the prelude.
+    """
+    prefix = source[:start]
+    code = rust_mask(prefix, literals=True)
+    comments = rust_mask(prefix, literals=False)
+    cursor = len(code.rstrip())
+    attrs = []
+    while cursor:
+        candidate = code.rfind("#[", 0, cursor)
+        while candidate >= 0 and _attribute_end(code, candidate) != cursor:
+            candidate = code.rfind("#[", 0, candidate)
+        if candidate < 0:
+            break
+        attrs.append(re.sub(r"\s+", "", comments[candidate:cursor]))
+        cursor = len(code[:candidate].rstrip())
+    return attrs
+
+
+def has_cfg_attribute(attrs: list[str]) -> bool:
+    return any(attr.startswith(("#[cfg(", "#[cfg_attr(")) for attr in attrs)
+
+
+def brace_depth(source: str, start: int) -> int:
+    """Count live Rust braces before a declaration, ignoring literal decoys."""
+    depth = 0
+    for token in rust_code_tokens(source[:start]):
+        if token == "{":
+            depth += 1
+        elif token == "}":
+            depth -= 1
+            if depth < 0:
+                raise ValueError("unbalanced Rust braces")
+    return depth

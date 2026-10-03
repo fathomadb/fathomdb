@@ -56,6 +56,9 @@ test passes. No production change followed the final code review.
   passed; this slice adds no platform-specific production branch. Final
   release-wide platform qualification remains assigned to Slice 150.
 
-The final full repository gate and human ruling on the proposed heartbeat
-successor remain pending. The code candidate and both wheel feature routes
-are otherwise fixed; no release publication is in scope.
+The clean `812242a16` full repository gate passed on a ptrace-capable executor:
+lint, typecheck, strict security with zero violations/blockers/downgrades, and
+178/180 registered test suites passed. Two environment-dependent suites were
+skipped, with none excluded. Final `gpt-6-sol` high code review and Terra
+candidate-specific verification both passed. The human ruling on the proposed
+heartbeat successor remains pending; no release publication is in scope.

@@ -25,18 +25,93 @@ METHOD_DECL = re.compile(
 )
 
 
-def source_prelude(source: str, start: int, indent: str) -> list[str]:
-    prefix = re.sub(r"/\*.*?\*/|//[^\n]*", "", source[:start], flags=re.S)
-    lines = prefix.splitlines()
-    attrs = []
-    for line in reversed(lines):
-        if not line.strip():
+def mask_comments(source: str) -> str:
+    """Keep offsets while removing legal comments outside quoted strings."""
+    result = list(source)
+    index = 0
+    while index < len(source):
+        if source[index] == '"':
+            index += 1
+            while index < len(source):
+                if source[index] == "\\":
+                    index += 2
+                elif source[index] == '"':
+                    index += 1
+                    break
+                else:
+                    index += 1
             continue
-        if line.startswith(indent + "#["):
-            attrs.append(line.strip())
-        else:
+        if source.startswith("//", index):
+            end = source.find("\n", index)
+            end = len(source) if end < 0 else end
+            result[index:end] = " " * (end - index)
+            index = end
+            continue
+        if source.startswith("/*", index):
+            start = index
+            depth = 1
+            index += 2
+            while index < len(source) and depth:
+                if source.startswith("/*", index):
+                    depth += 1
+                    index += 2
+                elif source.startswith("*/", index):
+                    depth -= 1
+                    index += 2
+                else:
+                    index += 1
+            result[start:index] = "".join("\n" if char == "\n" else " " for char in source[start:index])
+            continue
+        index += 1
+    return "".join(result)
+
+
+def attribute_end(source: str, start: int) -> int | None:
+    """Return the end of one balanced outer attribute, including nested cfg calls."""
+    if not source.startswith("#[", start):
+        return None
+    closes = {"[": "]", "(": ")", "{": "}"}
+    stack = []
+    quoted = False
+    index = start + 1
+    while index < len(source):
+        char = source[index]
+        if quoted:
+            if char == "\\":
+                index += 2
+                continue
+            if char == '"':
+                quoted = False
+        elif char == '"':
+            quoted = True
+        elif char in closes:
+            stack.append(closes[char])
+        elif char in "])}":
+            if not stack or stack.pop() != char:
+                return None
+            if not stack:
+                return index + 1
+        index += 1
+    return None
+
+
+def source_prelude(source: str, start: int) -> list[str]:
+    prefix = mask_comments(source[:start])
+    cursor = len(prefix.rstrip())
+    attrs = []
+    while cursor:
+        candidate = prefix.rfind("#[", 0, cursor)
+        while candidate >= 0 and attribute_end(prefix, candidate) != cursor:
+            candidate = prefix.rfind("#[", 0, candidate)
+        if candidate < 0:
             break
+        attrs.append(re.sub(r"\s+", "", prefix[candidate:cursor]))
+        cursor = len(prefix[:candidate].rstrip())
     return attrs
+
+
+def gates_item(attrs: list[str]) -> bool:
+    return any(attr.startswith(("#[cfg(", "#[cfg_attr(")) for attr in attrs)
 
 
 def owner_errors(root: str, owner: str, others: dict[str, str] | None = None) -> list[str]:
@@ -47,6 +122,9 @@ def owner_errors(root: str, owner: str, others: dict[str, str] | None = None) ->
             for path in SRC.rglob("*.rs")
             if path not in (SRC / "lib.rs", SRC / "operator.rs")
         }
+    root_module = re.search(r"(?m)^mod operator;$", root)
+    if root_module is None or gates_item(source_prelude(root, root_module.start())):
+        errors.append("root gates operator owner module")
     root_types = re.compile(
         r"^(?:(?:pub(?:\([^)]*\))?) )?(?:struct|enum) "
         r"((?:CheckIntegrity|Section|Finding|IntegrityReport|SafeExport)\w*)\b",
@@ -89,11 +167,11 @@ def owner_errors(root: str, owner: str, others: dict[str, str] | None = None) ->
                 (impl for impl in owner_impls if impl.start() < declaration.start() < impl.end()),
                 None,
             )
-            attrs = source_prelude(owner, declaration.start(), "    ")
+            attrs = source_prelude(owner, declaration.start())
             valid = (
                 enclosing is not None
-                and not source_prelude(owner, enclosing.start(), "")
-                and attrs == ['#[cfg(feature = "operator")]']
+                and not source_prelude(owner, enclosing.start())
+                and attrs == ['#[cfg(feature="operator")]']
                 and declaration.group(0).startswith(f"    pub fn {name}(")
                 and not re.search(r"^#!\[cfg(?:_attr)?\(", owner, re.M)
             )
@@ -179,7 +257,9 @@ class OperatorIntegrityOwnerTest(unittest.TestCase):
             )),
         )
         for attr in ('#[cfg(test)]',
-                     '#[cfg_attr(feature = "default-embedder", cfg(test))]'):
+                     '#[cfg_attr(feature = "default-embedder", cfg(test))]',
+                     '#[cfg(\n    all(\n        feature = "operator",\n        test,\n    )\n)]',
+                     '#[cfg_attr(\n    all(feature = "default-embedder", test),\n    cfg(test)\n)]'):
             for comment in ('// legal comment', '/* legal block comment */',
                             '/* legal\n   block comment */', '/// legal doc comment'):
                 with self.subTest(attr=attr, comment=comment):
@@ -212,6 +292,22 @@ class OperatorIntegrityOwnerTest(unittest.TestCase):
                         {"evidence.rs": other + f"\nimpl Engine {{\n    fn {name}(&self) {{}}\n}}\n"},
                     ),
                 )
+
+    def test_root_module_gate_with_multiline_attribute(self) -> None:
+        root, owner = self.sources()
+        attr = '#[cfg_attr(\n    all(feature = "default-embedder", test),\n    cfg(test)\n)]'
+        mutant = root.replace("mod operator;", attr + "\n/* nested /* comment */ gap */\nmod operator;", 1)
+        self.assertIn("root gates operator owner module", owner_errors(mutant, owner))
+
+    def test_equivalent_multiline_operator_gate_remains_valid(self) -> None:
+        root, owner = self.sources()
+        multiline = '#[cfg(\n    feature = "operator"\n)]'
+        changed = owner.replace(
+            '    #[cfg(feature = "operator")]\n    pub fn check_integrity(',
+            '    ' + multiline + '\n    /* explanatory gap */\n    pub fn check_integrity(',
+            1,
+        )
+        self.assertEqual(owner_errors(root, changed), [])
 
     def test_fast_tier_registration(self) -> None:
         self.assertIn(

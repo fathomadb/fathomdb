@@ -2,8 +2,8 @@ use super::*;
 
 /// Which shadow-state surface a [`RebuildReport`] describes.
 /// `Projections` covers the full FTS5 + vec0 + projection-terminal
-/// rebuild emitted by [`Engine::rebuild_projections`]. `Vec0` covers
-/// the vec0-only path emitted by [`Engine::rebuild_vec0`].
+/// rebuild emitted by `Engine::rebuild_projections`. `Vec0` covers
+/// the vec0-only path emitted by `Engine::rebuild_vec0`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RebuildKind {
     Projections,

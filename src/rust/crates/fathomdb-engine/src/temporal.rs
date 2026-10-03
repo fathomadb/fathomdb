@@ -1,5 +1,14 @@
 use super::*;
 
+/// 0.8.20 Slice 15c (TC-33) fix-6 — schema version at which the
+/// `canonical_edges` INTEGER-epoch recreate (migration step 23) runs. A DB
+/// migrated to (or past) this version has had every edge row DROPPED with NO
+/// DATA MIGRATION, and the migration removed the dropped edges'
+/// `_fathomdb_vector_rows` sidecar rows. The vec0 `vector_default` shadow it
+/// mirrors is engine-created and dim-parameterized, so the migration cannot
+/// touch it; the engine prunes the now-orphaned vec0 rows on open.
+pub(crate) const EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION: u32 = 23;
+
 /// 0.8.20 Slice 10b (R-20-RV / R-20-NV) — the **read view**: the single knob
 /// that decides which `canonical_nodes` rows a read verb may see.
 ///

@@ -423,15 +423,6 @@ use sha2::Digest;
 use sha2::Digest as _;
 use sha2::Sha256;
 
-/// 0.8.20 Slice 15c (TC-33) fix-6 — schema version at which the
-/// `canonical_edges` INTEGER-epoch recreate (migration step 23) runs. A DB
-/// migrated to (or past) this version has had every edge row DROPPED with NO
-/// DATA MIGRATION, and the migration removed the dropped edges'
-/// `_fathomdb_vector_rows` sidecar rows. The vec0 `vector_default` shadow it
-/// mirrors is engine-created and dim-parameterized, so the migration cannot
-/// touch it; the engine prunes the now-orphaned vec0 rows on open.
-const EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION: u32 = 23;
-
 #[cfg(test)]
 const PROJECTION_WORKERS: usize = 2;
 const DEFAULT_EMBED_TIMEOUT_MS: u64 = 30_000;

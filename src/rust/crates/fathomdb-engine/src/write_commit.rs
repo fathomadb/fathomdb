@@ -1,4 +1,5 @@
 use super::*;
+use crate::erasure::{ERASURE_AUDIT_COLLECTIONS, ERASURE_PENDING_REDACTION_COLLECTION};
 
 #[derive(Debug)]
 pub(crate) enum CommitBatchError {

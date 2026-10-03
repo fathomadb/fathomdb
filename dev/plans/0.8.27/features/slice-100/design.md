@@ -78,7 +78,7 @@ approved contract correction requires a specific signature delta.
 
 This entry correction implements the useful existing subscriber method under
 [`ADR-0.8.27-python-subscriber-delivery`](../../../../adr/ADR-0.8.27-python-subscriber-delivery.md),
-a proposed successor to the unmet 0.6.0 Python heartbeat promise. The engine
+the accepted successor to the unmet 0.6.0 Python heartbeat promise. The engine
 emits structured events, profiles, slow statements and debug stress failures.
 The native method currently drops its logger and interval. Subscriber delivery
 is a separate behavior change before any mechanical extraction.

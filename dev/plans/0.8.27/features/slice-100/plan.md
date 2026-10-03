@@ -36,7 +36,7 @@ entry comparison (`git diff 63091b624..c149584bc`) and assigned work yield:
    from `attach_logging_subscriber`, but the native method still discards both
    arguments. The engine has `subscribe` and synchronous callbacks, but no
    heartbeat emission or operation ID. A separate bounded-delivery successor
-   is proposed before moving code, after the callback architecture review.
+   is required before moving code, after the callback architecture review.
 6. Source readers include `dev/tools/surface_comparator.py`, the Slice 50
    hook inventory, Windows WAL guard, Slice 70 embedding-doc gate, stub and
    Python source citations. Re-enumerate readers before each move, then prove
@@ -49,7 +49,7 @@ entry comparison (`git diff 63091b624..c149584bc`) and assigned work yield:
 **Evaluation:** keep R27-100A–E and the draft's semantic owner map. No new
 public verb, async facade, schema, dependency upgrade, free-threaded mode,
 Python SDK rewrite or NAPI work is needed. Amend R27-100C to require bounded, fault-contained subscriber delivery
-under the proposed accepted successor, with no synthetic heartbeat;
+under the accepted successor, with no synthetic heartbeat;
 amend R27-100D to bind only affected feature/platform routes to this candidate.
 The work remains one slice with small, sequential batches. An unavailable
 required route blocks completion rather than being recorded as a pass.
@@ -63,11 +63,12 @@ required route blocks completion rather than being recorded as a pass.
 | R27-100C | FFI behavior and lifetime are correct. | AC27-100C: real-native tests prove blocking GIL progress, ownership through concurrent close, panic/error/hostile-input precedence and unchanged DB on invalid write; bounded subscriber delivery, overload, replacement, callback failure/reentrancy and close behavior meet the reviewed successor design. |
 | R27-100D | Artifact proof uses the shipped path. | AC27-100D: fresh isolated wheels at the candidate exercise default and affected feature routes, with imports inside the venv, abi3 floor, test hook presence/absence and configuration efficacy. Required platform-only compilation has candidate-bound receipts. |
 | R27-100E | All Slice 100 work closes before 110. | AC27-100E: scanner guards, repository verification, independent code review and independent read-only verification pass on the final candidate; state/status record zero remaining Slice 100 obligations and advance the ladder. |
+| R27-100F | Active architecture and design authority explains the subscriber correction and its limits. | AC27-100F: the active data-plane architecture, binding/lifecycle/engine designs and affected interfaces describe the actual SQLite/rusqlite/PyO3 callback path, rationale, latency and race boundaries, weak logger/close behavior, loss limits, and heartbeat/operation-ID distinction; a subsequent `gpt-6-sol` high design review passes without claiming unimplemented TypeScript or CLI delivery. |
 
 ## Design and change control
 
 The [Slice 100 design](design.md) owns semantic module boundaries and exact
-behavior constraints. The entry subscriber addendum there and the proposed subscriber ADR own
+behavior constraints. The entry subscriber addendum there and the accepted subscriber ADR own
 the bounded adapter and delivery policy. The public Python reference and
 EARP knob catalog are updated with the changed signature and live behavior. An accepted successor is required
 before closeout because the old locked design promises Python heartbeats. Review this code-grounded

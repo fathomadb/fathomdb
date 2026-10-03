@@ -457,9 +457,10 @@ returns `Ok(())` when the engine-owned background projection queue reaches a
 quiescent state before `timeout_ms`, and returns a typed runtime error when the
 timeout elapses first.
 
-`subscribe` owns host-subscriber attachment and may carry heartbeat-cadence
-options. The payload semantics remain owned by `design/lifecycle.md` and
-`design/migrations.md`.
+`subscribe` owns host-subscriber attachment. The current method takes a
+subscriber only; it has no heartbeat-cadence option and does not itself
+produce operation heartbeats. The payload semantics remain owned by
+`design/lifecycle.md` and `design/migrations.md`.
 
 ## Companion embedder contract
 

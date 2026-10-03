@@ -123,7 +123,7 @@ surface. The lifecycle contract requires periodic liveness while an operation
 remains in flight; per-binding spelling and default interval are owned by the
 interface and binding surfaces rather than by this file.
 
-For the Python logger adapter, the proposed
+For the Python logger adapter, the accepted
 [`ADR-0.8.27-python-subscriber-delivery`](../adr/ADR-0.8.27-python-subscriber-delivery.md)
 narrows that promise: the current engine has no operation-scoped heartbeat
 producer, and the Python adapter does not invent one. Its bounded records are
@@ -155,6 +155,28 @@ When no subscriber is registered, the engine writes nothing of its own:
 This is load-bearing for AC-002. The engine may retain internal state needed to
 serve snapshots and profiles, but it must not create a side-channel output
 artifact on its own.
+
+### Callback execution boundary
+
+The engine subscriber registry already receives events, profiles,
+slow-statement signals and debug stress-failure contexts. It snapshots the
+subscribers before dispatch and does not hold its registry lock while invoking
+one. Some dispatches originate in SQLite's `sqlite3_profile` C callback, while
+the executing path still owns a `rusqlite` connection and possibly a writer or
+reader resource. The registry catches a Rust subscriber panic at each dispatch
+so it cannot unwind across that C frame. This protects process robustness;
+individual Rust subscribers still bear responsibility for keeping their
+callbacks short.
+
+The Python binding's logger delivery is a separate, bounded transport. It
+queues owned records without invoking Python on an engine or SQLite thread.
+Loss under overload is reported as a transport warning when the worker can
+deliver again. A Python LogRecord is therefore a best-effort diagnostic, not
+an exact response-cycle or transaction oracle. `Engine.counters()` remains a
+pull surface, and durable operation receipts remain owned by their producing
+domains. The adapter's lifetime, reentry and close rules are in
+[`bindings.md`](bindings.md) § 8 and the accepted
+[`ADR-0.8.27-python-subscriber-delivery`](../adr/ADR-0.8.27-python-subscriber-delivery.md).
 
 ### Diagnostic source and category
 
@@ -263,7 +285,8 @@ the concrete method name and parameter spelling.
 The following controls exist in 0.6.0 but are not named here:
 
 - slow-threshold setter on the engine instrumentation surface
-- subscriber/feedback registration surface that may carry heartbeat cadence
+- subscriber registration through `Engine::subscribe`; the current engine
+  method has no heartbeat-cadence argument
 
 This file owns the semantics of those controls. The interface docs own the
 binding-visible names.

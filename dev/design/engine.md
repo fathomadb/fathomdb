@@ -208,6 +208,20 @@ Step 6 is load-bearing: readers drain before the primary writer connection so
 SQLite's last-handle checkpointer runs on that connection, and the admission
 lock remains held until every owned SQLite resource is gone.
 
+Each `sqlite3_profile` callback holds a pointer to a stable, engine-owned
+context. Reader workers uninstall their callbacks before releasing their
+connections; the primary callback is uninstalled before the primary
+connection closes; only then are the contexts freed. The Python logging
+adapter's delivery worker is binding-owned, not an engine worker. Explicit
+`PyEngine.close()` disables and detaches its subscription before native close;
+native close does not wait for an arbitrary Python handler. On implicit
+`PyEngine` destruction, Rust field drop order may release the native engine
+before the logging slot detaches. The Python adapter's profile callback in
+that path can only enqueue a record; the logging slot then disables and
+detaches it when dropped. The callback transport and reentry rules are owned by
+[`bindings.md`](bindings.md) § 8; the engine subscriber's panic boundary is
+owned by [`lifecycle.md`](lifecycle.md).
+
 An unfinished provider worker owns no SQLite state. `close` returns
 `EngineError::Scheduler` while one remains, and a later call succeeds after it
 exits. Concurrent calls share the teardown and deadline; repeated close and

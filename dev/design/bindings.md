@@ -3,7 +3,7 @@ title: Bindings Subsystem Design
 date: 2026-04-29
 target_release: 0.6.0
 desc: Cross-language binding strategy (Python, TypeScript, CLI) — concerns that span all bindings collectively, distinct from per-surface signatures owned by interfaces/{python,ts,cli}.md
-blast_radius: src/rust/crates/fathomdb (Rust facade); src/rust/crates/fathomdb-embedder-api (semver-pinned trait crate; REQ-047 link-time check); src/python/ (PyO3 cdylib); src/ts/ (napi-rs cdylib); src/rust/crates/fathomdb-cli (binary); interfaces/{python,ts,cli,rust,wire}.md (per-surface signatures); design/errors.md (variant→class matrix owner); design/release.md (CI smoke gate owner); ADR-error-taxonomy + ADR-async-surface + ADR-python-api-shape + ADR-typescript-api-shape + ADR-cli-scope + ADR-embedder-protocol + ADR-prepared-write-shape + ADR-corruption-open-behavior; dev/design-logging-and-tracing.md (Tier 1/2 carryovers cited in § 8); build pipelines (pip + npm)
+blast_radius: src/rust/crates/fathomdb (Rust facade); src/rust/crates/fathomdb-embedder-api (semver-pinned trait crate; REQ-047 link-time check); src/python/ (PyO3 cdylib); src/ts/ (napi-rs cdylib); src/rust/crates/fathomdb-cli (binary); interfaces/{python,ts,cli,rust,wire}.md (per-surface signatures); design/errors.md (variant→class matrix owner); design/release.md (CI smoke gate owner); ADR-error-taxonomy + ADR-async-surface + ADR-python-api-shape + ADR-typescript-api-shape + ADR-cli-scope + ADR-embedder-protocol + ADR-prepared-write-shape + ADR-corruption-open-behavior; design/lifecycle.md (event and profile payload authority); build pipelines (pip + npm)
 status: locked
 ---
 
@@ -202,11 +202,66 @@ The corruption-on-open path (ADR-0.6.0-corruption-open-behavior § 5; AC-035c) M
 
 ## 8. Logging / tracing subscriber attachment
 
-The engine emits structured tracing events (per `dev/design-logging-and-tracing.md` Tier 1/2 carryovers). Binding adapters attach a host subscriber:
+The engine emits structured lifecycle and diagnostic events (payload authority
+in [`lifecycle.md`](lifecycle.md)). Binding adapters attach a host subscriber:
 
 - Python: caller registers a `logging`-backed adapter via a binding-provided helper that maps tracing events into Python `LogRecord`s. The adapter is bounded and best-effort under overload per `ADR-0.8.27-python-subscriber-delivery`; it reports dropped records when delivery resumes. It never calls Python from an engine or SQLite callback thread.
-- TypeScript: caller registers a callback invoked per event.
-- CLI: when run in human-facing mode, attaches a console subscriber; when run in machine-facing `--json` mode, emits the verb-owned JSON shape from `interfaces/cli.md` / `design/recovery.md`. `doctor check-integrity` is a single JSON object; other verbs own their own machine-readable contract.
+- TypeScript: the `attachSubscriber` surface exists, but native callback
+  delivery is still inert at this candidate; Slice 110 owns its disposition.
+- CLI: a console subscriber in human-facing mode remains the intended design,
+  but the current CLI has no engine subscriber attachment. Machine-facing
+  `--json` output uses the verb-owned shape from `interfaces/cli.md` and
+  `design/recovery.md`. `doctor check-integrity` is a single JSON object;
+  other verbs own their own machine-readable contract.
+
+The engine subscriber seam predates 0.8.27, and Python already exposed
+`attach_logging_subscriber`; its native implementation silently discarded the
+logger and interval. Slice 100 makes Python delivery functional. It does not
+add a database mutation hook, a user-defined SQLite function, or a general
+callback framework. Rust `Subscriber` remains the engine-owned collection
+interface; the Python logger is only a diagnostic consumer.
+
+On a profiled statement, the call path is `rusqlite` connection execution →
+SQLite `sqlite3_profile` C callback → engine subscriber registry → Python
+adapter queue. The callback may run before the connection, reader worker, or
+writer path has released its owned resources. The registry snapshots the
+subscriber list, invokes it without the registry mutex, and catches Rust
+subscriber panics so they cannot unwind across SQLite's C frame. The Python
+adapter only copies an owned record and attempts a short queue insertion on
+that producer thread. It never acquires the GIL or calls a Python handler
+there. A dedicated delivery worker resolves a weak logger reference and calls
+`logger.log(level, message, extra={"fathomdb": payload})`.
+
+The queue holds at most 4096 records per attachment. A full or contended
+queue drops a new record and increments a saturating loss count; the worker
+reports it with a warning record and then permits normal records to proceed.
+This is the required tradeoff for a bounded adapter that cannot wait for an
+arbitrarily slow handler. Capacity bounds record count, not payload bytes:
+the copied SQL text and debug error context have no separate byte cap.
+Logging filters, formatting, I/O and exceptions
+remain caller-controlled. Handler exceptions are contained and later records
+are attempted. A handler that calls back into a FathomDB database operation
+on the delivery thread receives `InvalidArgumentError` before engine dispatch;
+this blocks recursive search/profile cycles. The worker holds no engine or
+queue lock while invoking Python.
+
+Each Python Engine has one active logger attachment. Replacement disables and
+clears the old queue before installing the new attachment; an already running
+old callback may finish. The subscription is detached through its RAII handle.
+Close and logger collection stop new delivery without waiting for a blocked
+handler. At most one retiring worker may coexist with the active worker;
+further replacement while it is blocked raises `OverloadedError` and leaves
+the active logger intact. Before the first attachment, there is no Python
+delivery worker or queue. A detached worker may outlive replacement or close
+until its already running handler returns; close never waits for it.
+
+Engine events do not currently carry a public operation ID or an
+operation-scoped heartbeat producer. A binding timer would establish only
+that its worker is alive, not that SQLite, projection or a provider operation
+is progressing. The former Python interval argument is therefore removed by
+the accepted successor ADR. Durable actuation operation IDs are idempotency
+keys, not diagnostic correlation IDs. A future progress/heartbeat API needs
+an engine-owned producer and a separately reviewed event contract.
 
 Across bindings, the _engine event payload_ is wire-stable: same field names,
 same types, same lifecycle phase tag enum (AC-001). The host adapter MAY
@@ -220,13 +275,21 @@ target them precisely; the engine never emits a host-named field directly.
 Within the host record, the stable `fathomdb` payload key carries one of these
 surface shapes:
 
-- response-cycle event: `phase` plus producer-owned operation context
-- diagnostic event: `source`, `category`, and producer-owned detail payload
+- engine event: `phase`, `source`, `category`, and optional `code`; no current
+  operation identity field
 - counter snapshot: `counter_snapshot`
 - profile record: `profile_record`
+- slow-statement signal: `slow_statement`
 - stress-failure payload: `stress_failure`
 - migration step event: `migration_step`
 - Python adapter overload: `dropped_records`
+
+The current Python adapter delivers engine events, profiles, slow-statement
+signals, debug stress failures, and overload warnings. Counter snapshots are
+pulled through `Engine.counters`; the adapter does not fabricate a counter or
+migration-step LogRecord when the engine has not supplied one. The envelope
+list above names cross-surface payload families, not a guarantee that every
+producer emits every family on every operation.
 
 Ownership split:
 

@@ -25,7 +25,7 @@ Normalized comparison finds no added or removed native name, package export,
 class module identity or signature other than
 `Engine.attach_logging_subscriber(self, /, logger, heartbeat_interval_ms=None)`
 becoming `Engine.attach_logging_subscriber(self, /, logger)`. That delta is the
-reviewed correction in the proposed successor ADR. The final runtime ledger
+reviewed correction in the accepted successor ADR. The final runtime ledger
 binds source commit `731130c22` and the default candidate wheel SHA-256.
 
 The Slice 50 hook inventory, Slice 70 embedding documentation guard and Windows

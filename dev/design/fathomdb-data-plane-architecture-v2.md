@@ -89,6 +89,49 @@ The Rust workspace has ten members:
 the native crates. Only documented facade/binding APIs are public contracts;
 engine module/file boundaries remain internal and may change.
 
+### 0.8.27 Python diagnostic transport addendum
+
+This addendum records the Slice 100 implementation under the accepted
+[`ADR-0.8.27-python-subscriber-delivery`](../adr/ADR-0.8.27-python-subscriber-delivery.md).
+The v2.2 approval and reconciliation dates in this document's header apply to
+the earlier data-plane profile; the subscriber successor was separately
+accepted on 2026-10-03 after review of this addendum.
+
+FathomDB is a local, SQLite-backed data plane. Observability must not put
+caller-supplied Python code on a connection-owning thread. A statement can
+complete while the primary writer, a projection worker, or a pooled reader
+still owns its `rusqlite` connection. SQLite's `sqlite3_profile` C callback
+may then dispatch through the engine subscriber registry if profiling is
+enabled or the statement crosses the slow threshold.
+The registry snapshots subscribers without holding its lock across callbacks
+and contains each Rust subscriber panic before unwinding could cross SQLite's
+C boundary.
+
+The Slice 100 Python adapter copies an event, profile, slow-statement signal,
+or debug stress-failure context into a bounded queue at each engine subscriber
+callback, including the SQLite profile boundary. A
+separate worker resolves the caller-owned logger weakly and invokes
+`logger.log`. Python filters and handlers can block or fail, so they run off
+the SQLite path; full or contended queues count dropped records instead of
+waiting. A handler cannot reenter a FathomDB database operation through the
+binding on its delivery thread. Replacement and close detach the engine
+subscription without waiting
+for a blocked handler. These choices bound queued record count, avoid
+recursive reader and profile callbacks, and keep handler latency out of
+normal database calls. Payload bytes, including slow-statement SQL text, have
+no separate hard cap.
+
+This route serves opt-in diagnostics, not durable evidence, transaction
+completion, or operation progress. The engine event has phase, source,
+category, and optional code, but no operation identity. The actuation
+`operation_id` elsewhere in the data plane is a persisted idempotency key; it
+is not a logging correlation ID. A timer in the Python adapter therefore
+cannot truthfully report operation progress. The Slice 100 successor
+[`ADR-0.8.27-python-subscriber-delivery`](../adr/ADR-0.8.27-python-subscriber-delivery.md)
+removes the formerly inert Python heartbeat interval. The
+transport mechanics and exact payloads are owned by
+[`bindings.md`](bindings.md) and [`lifecycle.md`](lifecycle.md).
+
 ### Open, storage, and concurrency
 
 `Engine::open` configures the process SQLite runtime before admission. A

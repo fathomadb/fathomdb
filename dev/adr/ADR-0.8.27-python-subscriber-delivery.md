@@ -4,10 +4,14 @@ date: 2026-10-03
 target_release: 0.8.27
 desc: Bound Python logger delivery to protect SQLite operation availability
 blast_radius: PyO3 subscriber adapter; Python native stub and SDK; lifecycle and binding design; subscriber fault containment
-status: proposed
+status: accepted
 ---
 
 # ADR-0.8.27 — Bounded Python subscriber delivery
+
+Accepted by repository-owner direction on 2026-10-03, conditioned on updating
+the active architecture and design documentation before Slice 100 closeout.
+Those updates received an independent `gpt-6-sol` high design review and passed.
 
 ## Context
 

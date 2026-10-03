@@ -46,11 +46,12 @@ Use the typed dev-loop verbs (Phase 2). Each emits **concise output on pass, str
 
 Markdown lint covers **every `**/*.md`** except the ignore list in `.markdownlint-cli2.jsonc` (build output, `dev/archive/`, `dev/plans/runs/`, `dev/plans/prompts/`, `dev/experiments/`, `.claude/`, `docs/`). `docs/` is linted separately by `scripts/agent-lint-docs.sh`. `scripts/agent-lint-md.sh` also runs the plans/design/findings/anchor linters and `scripts/check-release-state-views.sh`. Auto-fix: **`npm run format:md` only** — it wraps `markdownlint-cli2 --fix` in the CommonMark-AST neutrality guard (`dev/tools/md_neutrality_guard.py`). ⛔ **Never run `prettier` on markdown, and never run `markdownlint-cli2 --fix` unguarded** — both are documented corruptors (prettier rewrites `*` → `_`; raw `--fix` mangles `#`-prefixed prose and schemeless hosts). See `dev/tools/md-fix-corruption-ledger.md`.
 
-- After each meaningful edit, run the narrowest authoritative gate for that edit:
-  - if the edit changes only Markdown files, run `./scripts/agent-verify.sh --scope=markdown` (the canonical wrapper around `scripts/agent-lint-md.sh`);
-  - if the edit changes source, tests, scripts, configuration, manifests, workflows, generated state, or any mixture of Markdown and non-Markdown files, run the full `./scripts/agent-verify.sh`;
-  - before PR handoff, merge, release, or any full-green claim, run the full `./scripts/agent-verify.sh` regardless of the edit type. Do not ship a PR with verify failing.
-- The Markdown scope deliberately skips broad lint, typecheck, security, and test gates; it is evidence for a Markdown-only edit, not a full-worktree green claim.
+- After each meaningful edit, run checks that match the changed files:
+  - for Markdown-only changes, run `./scripts/agent-lint-md.sh`; public `docs/` changes also run `./scripts/agent-lint-docs.sh`;
+  - for other non-code-only changes, including release-state metadata, configuration, manifests, and workflows, run their applicable scoped validators; do not run the full verifier solely because these files changed;
+  - for source, test, or executable-script changes, or a mixture containing them, run the full `./scripts/agent-verify.sh`;
+  - run the full gate when an explicit release qualification or full-green claim requires it. Do not ship a PR with its applicable checks failing.
+- A scoped pass is evidence for the changed files, not a full-worktree green claim.
 - AC-036 in the full verifier uses `strace` and therefore needs a ptrace-capable executor; if a sandbox denies `PTRACE_TRACEME`, rerun the unchanged strict gate unconfined rather than disabling it.
 - Full verification preflights a checkout-owned `.venv` with pip and pinned developer tools. Run it from the target checkout; never borrow another checkout's virtual environment. If a worktree lacks its own setup, report the preflight failure rather than running later tests under system Python.
 

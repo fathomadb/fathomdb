@@ -9,9 +9,9 @@ planning_baseline: 9f8ee4509d2b3dee1667ae091119ceaa30bbca6e
 
 Insert this bounded slice after completed Slice 100 and before Slice 110. It
 preserves the late 0.8.26 Tegra build work in the 0.8.27 candidate and checks
-whether a reported 0.8.26 Windows `erase_source` failure persists. This plan
-commissions neither a source change nor publication. The two tracks share an intake and closeout but
-have separate behavioral tests and evidence.
+whether historical Windows `erase_source` and `purge` failures persist. This
+plan commissions neither a source change nor publication. The two tracks share
+an intake and closeout but have separate behavioral tests and evidence.
 
 ## Entry evidence and change since the release plan
 
@@ -44,10 +44,29 @@ after the browser required sign-in. The account describes failures on the
 separate Memex `windows-portability` worktree at `d92610c5` contains its
 tracked FathomDB-only reproducer, draft upstream issue, and W12 verification
 under `dev/plans/0.6.0/features/windows-portability/`. Those are available
-read-only as consumer evidence, not a FathomDB fix or merge source. Obtain the
-original Windows logs and wheel hashes before binding the measurements. Only
-`erase_source` has a FathomDB-only reproducer; `purge` and operator
-`excise_source` remain untested for this incident.
+read-only as consumer evidence, not a FathomDB fix or merge source. The
+retained raw evidence was subsequently located in the ignored local directory
+`~/projects/memex/data/windows-erase-wal-evidence/`. Its `README.md`,
+`FINDINGS-0.8.26-windows-erase-wal-checkpoint.md`, `ei-digest.tsv`, and
+`ei-failing-tests.tsv` index 507 retained `.log` paths, including 98 hard-link
+duplicates, October Windows VM runs, and earlier FathomDB attribution
+artifacts. Do not add the
+ignored data to this repository. The index records 1,154 `wal_checkpoint`
+error occurrences across FathomDB 0.8.22–0.8.26 logs: 1,024 for
+`erase_source` and 130 for `purge`. These are log occurrences, not independent
+trials or a measured failure rate. Some older per-attempt VM artifacts expired
+or were removed; verify the retained receipts and exact wheel provenance before
+binding historical measurements. Only `erase_source` has a focused
+FathomDB-only reproducer. The retained consumer CI logs also show `purge`
+failures; the clearest retained `purge` receipt is from 0.8.22, while the
+focused 0.8.26 VM study exercised `erase_source`. Operator `excise_source`
+has no incident-shaped spontaneous-failure reproducer yet. In the evidence
+directory, `local-vm/2026-10-03-fixes-and-reopen/vm-full2.log` shows the
+installed 0.8.26 package and a WAL BUSY failure at lines 63 and 335, followed
+by repeated same-engine failures. The retained
+`key-evidence/representative-ci-logs/github-actions_memex_run-32031624116-job-95393023450-Test-windows-amd64.log`
+shows the 0.8.22 package and `purge` BUSY at lines 231 and 818–822. No exact
+0.8.26 wheel SHA256 was found in the retained evidence.
 
 The owner-reported 0.8.26 reproducer opened a fresh database for each trial,
 wrote 50 `src-a` and one `src-b` Note, optionally did a materialized read or
@@ -56,8 +75,10 @@ refusals in 2/40 no-read, 5/40 read, and 2/20 page trials, versus 0/40 Linux
 read and 0/40 Linux page trials. The account reports 0/11 stuck erasures
 recovered by same-engine retry over up to 40 seconds, 8/8 recovered by
 close/reopen, and one later W12 run with renewed BUSY after reopening. The
-Memex draft says 0/12 for the first measure; reconcile that discrepancy from
-raw receipts. The tracked reproducer counts any `ErasureIncompleteError` and
+five rows in the retained findings table sum to 11 first failures; a Memex
+draft issue says 12 without a surviving raw trial output to substantiate the
+extra case. Keep 0/11 as the documented count and flag 0/12 as unverified.
+The tracked reproducer counts any `ErasureIncompleteError` and
 does not itself assert the stage, row survivors, physical WAL state, retry
 outcome, or wheel identity. Strengthen a separate 0.8.27 copy without changing
 the historical script or treating its narrative as an oracle.
@@ -89,11 +110,23 @@ underlying checkpoint behavior.
 | R27-103A | The 0.8.26 post-publication Tegra work is accounted for. | AC27-103A: an exact five-commit inventory maps each changed file to carried behavior, version-specific adaptation, or justified historical-only exclusion; the four Candle patch revisions, lockfile sources, and CUDA contract agree. |
 | R27-103B | A 0.8.27 Tegra wheel is buildable and installable on the supported classic Jetson target without losing the driverless CPU path. | AC27-103B: an exact-candidate host-native `0.8.27+tegra` wheel passes the declared glibc floor, no unresolved CUDA runtime symbols or dynamic CUDA/NVIDIA dependency, clean-venv installed import outside the source tree with CUDA library paths removed, and installed CPU/auto/forced-CUDA smokes with an in-process allocation witness. A source-tree import or a 0.8.26 artifact is not a pass. |
 | R27-103C | The Tegra Pages operator route remains guarded and version truthful. | AC27-103C: local tests reject an unsupported `gh run list` flag, a mismatched remote SHA/version, and an unverified workflow result; the default route requires an installed Pages smoke, while an explicit skip cannot count as completed publication. The runbook distinguishes the 0.8.26 post-release route from an unpublished 0.8.27 candidate. Publication remains separately authorized. |
-| R27-103D | The reported 0.8.26 failure is compared with the actual 0.8.27 candidate before it is called a current defect. | AC27-103D: preserve the 0.8.26 registry wheel identity and raw logs; run the same real-database no-read/read/page scenarios on an exact 0.8.27 installed-wheel SHA/hash with bounded repeated Windows and Linux controls. Record each public verb/binding, typed stage/detail, checkpoint BUSY/frame counts, reader/connection state, committed rows and WAL bytes before/after, same-engine and reopen retry, exact write fence, and zero-count completion. Observe the real erase checkpoint without a raw pre-erase checkpoint. Classify persistence, nonreproduction, or inconclusive evidence; a clean 40-trial batch alone cannot prove absence. |
+| R27-103D | The reported 0.8.22–0.8.26 failures are compared with the actual 0.8.27 candidate before they are called current defects. | AC27-103D: inventory the retained local logs and verify the 0.8.26 registry wheel identity; run the same real-database no-read/read/page `erase_source` scenarios on an exact 0.8.27 installed-wheel SHA/hash with bounded repeated Windows and Linux controls. Add focused `purge` and operator `excise_source` controls using the historical CI shapes without treating log occurrences as trial counts. Record each public verb/binding, typed stage/detail, checkpoint BUSY/frame counts, reader/connection state, committed rows and WAL bytes before/after, same-engine and reopen retry, exact write fence, and zero-count completion. Observe the real erase checkpoint without a raw pre-erase checkpoint. Classify persistence, nonreproduction, or inconclusive evidence; a clean 40-trial batch alone cannot prove absence. |
 | R27-103E | Any failure that persists on 0.8.27 is attributed and handled without weakening erasure guarantees. | AC27-103E: if AC27-103D shows a current violation or sticky same-engine BUSY, isolate the holder or lock with controlled tests before selecting a remedy; commit a genuine failing Windows test before the smallest fix, then prove exact deletion/survivors, durable retry, independent-reopen physical absence, and truthful errors/reports. If 0.8.27 does not reproduce with adequate evidence, record a reviewed no-code disposition and its limits. An unresolved persistent store-wide write block prevents Slice 103 closeout. Any public closure-discovery, auto-finish, write-fence, or report change needs a separately accepted successor ADR and interface update. |
 | R27-103F | The next refactor starts from a verified candidate. | AC27-103F: focused Tegra and Windows tests, relevant Linux/SDK regressions, the required repository gate, independent code review, and read-only verification bind to the final 0.8.27 source SHA; no unresolved Slice 103 requirement is deferred into Slice 110 or the final release gate. |
 
 `dev/acceptance.md` remains locked; these IDs are release-local.
+
+## Coordination
+
+Run Tegra continuity and Windows erasure diagnosis as separate workstreams
+from the same verified 0.8.27 baseline. Each file-mutating implementer gets
+an isolated worktree and review; the release checkout remains the single
+integration and release-state writer. The Windows workstream first examines
+the retained 0.8.26-and-earlier evidence, then measures an exact 0.8.27
+candidate before proposing a fix. The Tegra workstream ports the five
+post-publication commits by behavior and proves a new 0.8.27 artifact. Merge
+only reviewed changes, then rerun the combined platform and repository gates
+at one final candidate SHA before closing Slice 103.
 
 ## Execution order
 
@@ -101,9 +134,10 @@ underlying checkpoint behavior.
    0.8.26 five-commit range. Save a changed-file disposition against the live
    0.8.27 tree, including lockfile and test-runner conflicts. Obtain the
    owner-pasted Windows account and Memex `windows-portability` repro and
-   verification at `d92610c5`; obtain the original VM logs, wheel identities,
-   and any off-repo patch, recording hashes and provenance. Resolve the draft
-   issue's 11-versus-12 stuck-erasure discrepancy from raw evidence.
+   verification at `d92610c5`; inventory the ignored local evidence directory
+   above, its retained VM/CI logs, wheel identities, and any off-repo patch,
+   recording hashes and provenance. Retain the 11-versus-12 discrepancy as an
+   explicit evidence limitation unless the missing trial receipt is recovered.
 2. **Design and RED.** Review the Candle change and existing Tegra/driverless
    constraints before changing the pin. Add or adapt tests that fail for the
    missing static-runtime, installed-wheel, publisher, and Windows behavior.
@@ -118,8 +152,10 @@ underlying checkpoint behavior.
    Zero candidate refusals without a direct mechanism witness means "not
    reproduced within this sample," never "proved fixed"; if the 0.8.26
    control also fails to reproduce, classify the comparison inconclusive.
-   The Windows oracle uses a real database and the public operation, with
-   outcome classes and post-commit effects specified before a fix is chosen.
+   Add `purge` and operator `excise_source` scenarios after the focused
+   `erase_source` control, preserving their distinct argument and closure
+   contracts. The Windows oracle uses a real database and the public operation,
+   with outcome classes and post-commit effects specified before a fix is chosen.
    A five-attempt WAL BUSY refusal with durable deletion and retry obligation
    may be expected behavior; require a demonstrated contract violation before
    authorizing a remedy. Do not perturb the WAL with pre-erase raw checkpoints.

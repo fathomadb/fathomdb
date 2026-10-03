@@ -28,10 +28,11 @@ binding, not a claim of post-fix full canonical or surface verification.
 
 Slice 100 is complete. Slice 103 is planned between it and Slice 110 to carry
 forward post-publication 0.8.26 Tegra build support and check whether the
-reported 0.8.26 Windows `erase_source` failure persists on 0.8.27. The Tegra
-source is fetched at `8c4fdfa9`; the owner supplied the Windows account and a
-Memex `windows-portability` reproducer is locally available, but original VM
-logs and an exact 0.8.27 candidate comparison are pending. See the
+reported historical Windows `erase_source` and `purge` failures persist on
+0.8.27. The Tegra source is fetched at `8c4fdfa9`; the owner supplied the
+Windows account, and the Memex reproducer and ignored local VM/CI evidence
+are available. Wheel provenance and an exact 0.8.27 candidate comparison are
+pending. See the
 [Slice 103 plan](../0.8.27/features/slice-103/plan.md).
 
 Slice 132 is planned after Slice 130 and before performance qualification. It

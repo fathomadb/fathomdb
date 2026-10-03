@@ -695,58 +695,6 @@ impl Engine {
 
     #[cfg(debug_assertions)]
     #[doc(hidden)]
-    pub fn reader_worker_count_for_test(&self) -> usize {
-        self.reader_pool.worker_count()
-    }
-
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn live_reader_worker_count_for_test(&self) -> usize {
-        self.reader_pool.live_count()
-    }
-
-    /// Return the worker index that the next round-robin read dispatch will use.
-    /// This test-only witness does not mutate scheduling state.
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn next_reader_worker_index_for_test(&self) -> usize {
-        self.reader_pool.next_worker_index()
-    }
-
-    /// Pack 6.G G.1 — return the `sqlite3_db_config(LOOKASIDE)` rc
-    /// captured for each reader worker at open time, in worker index
-    /// order. SQLITE_OK (= 0) means the lookaside was configured
-    /// before any allocation happened on the connection.
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn reader_lookaside_config_rcs_for_test(&self) -> Vec<i32> {
-        self.reader_lookaside_rcs.clone()
-    }
-
-    /// Pack 6.G G.1 — query each reader worker's
-    /// `SQLITE_DBSTATUS_LOOKASIDE_USED` counter. A value > 0 means at
-    /// least one allocation was satisfied from the per-connection
-    /// lookaside arena (proof the configuration was honored before the
-    /// first prepare).
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn reader_lookaside_used_per_worker_for_test(&self) -> Vec<i32> {
-        self.reader_pool.lookaside_used_per_worker()
-    }
-
-    /// Pack 6.G G.3.5 — broadcast a debug-only `CacheStatus` request to
-    /// every reader worker and collect per-worker
-    /// `SQLITE_DBSTATUS_CACHE_HIT` / `_CACHE_MISS` / `_CACHE_USED`
-    /// values. Counters are monotonic (reset flag = 0); callers compute
-    /// pre/post deltas explicitly.
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn cache_status_per_worker_for_test(&self, label: &str) -> Vec<CacheStatusReply> {
-        self.reader_pool.cache_status_per_worker(label)
-    }
-
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
     pub fn force_next_commit_failure_for_test(&self) {
         self.force_next_commit_failure.store(true, Ordering::SeqCst);
     }
@@ -1067,58 +1015,6 @@ impl Engine {
         }
         projection_generation::transition(&tx, ProjectionGenerationOriginV1::Configuration)?;
         tx.commit().map_err(|_| EngineError::Storage)
-    }
-
-    /// OPP-12 Phase-1 (0.8.19 Slice 10) — read the writer connection's
-    /// `PRAGMA secure_delete` (design §3 gap-4). `true` iff the standing
-    /// connection-open PRAGMA is in effect, so `purge` freelist erasure is
-    /// complete without a per-purge `VACUUM`.
-    #[doc(hidden)]
-    pub fn secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
-        self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let value: i64 = connection
-            .query_row("PRAGMA secure_delete", [], |r| r.get(0))
-            .map_err(|_| EngineError::Storage)?;
-        Ok(value != 0)
-    }
-
-    /// OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — `true` iff EVERY
-    /// reader-pool connection reports `PRAGMA secure_delete = ON`. Broadcasts a
-    /// per-worker probe; proves the standing flag is set on the non-writer
-    /// connections (which perform projection/vector-rewrite DELETEs), closing
-    /// the GDPR-erasure leak codex flagged.
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn reader_secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
-        self.ensure_open()?;
-        let per_worker = self.reader_pool.secure_delete_per_worker();
-        if per_worker.is_empty() {
-            return Err(EngineError::Storage);
-        }
-        Ok(per_worker.iter().all(|&v| v == 1))
-    }
-
-    /// OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — `true` iff a freshly
-    /// opened projection/runtime connection (`open_runtime_connection`) reports
-    /// `PRAGMA secure_delete = ON`. The runtime connection performs the
-    /// vector-rewrite/projection DELETEs, so its freed pages must be scrubbed too.
-    #[doc(hidden)]
-    pub fn runtime_secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
-        self.ensure_open()?;
-        let connection = open_runtime_connection(
-            &self.path,
-            #[cfg(any(test, feature = "test-hooks"))]
-            ManagedConnectionCategory::RuntimeProbe,
-            #[cfg(any(test, feature = "test-hooks"))]
-            &self.managed_connections,
-        )
-        .map_err(|_| EngineError::Storage)?;
-        let value: i64 = connection
-            .query_row("PRAGMA secure_delete", [], |r| r.get(0))
-            .map_err(|_| EngineError::Storage)?;
-        Ok(value != 0)
     }
 
     /// EXP-S (0.8.14 Slice 5, D1) — write one canonical node row carrying an

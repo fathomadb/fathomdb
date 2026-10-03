@@ -390,3 +390,51 @@ unsafe extern "C" fn profile_callback_trampoline(
         ctx.subscribers.dispatch_slow_statement(&signal);
     }
 }
+
+impl Engine {
+    /// Pack 6.G G.1 — return the `sqlite3_db_config(LOOKASIDE)` rc
+    /// captured for each reader worker at open time, in worker index
+    /// order. SQLITE_OK (= 0) means the lookaside was configured
+    /// before any allocation happened on the connection.
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub fn reader_lookaside_config_rcs_for_test(&self) -> Vec<i32> {
+        self.reader_lookaside_rcs.clone()
+    }
+
+    /// OPP-12 Phase-1 (0.8.19 Slice 10) — read the writer connection's
+    /// `PRAGMA secure_delete` (design §3 gap-4). `true` iff the standing
+    /// connection-open PRAGMA is in effect, so `purge` freelist erasure is
+    /// complete without a per-purge `VACUUM`.
+    #[doc(hidden)]
+    pub fn secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let value: i64 = connection
+            .query_row("PRAGMA secure_delete", [], |r| r.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        Ok(value != 0)
+    }
+
+    /// OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — `true` iff a freshly
+    /// opened projection/runtime connection (`open_runtime_connection`) reports
+    /// `PRAGMA secure_delete = ON`. The runtime connection performs the
+    /// vector-rewrite/projection DELETEs, so its freed pages must be scrubbed too.
+    #[doc(hidden)]
+    pub fn runtime_secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
+        self.ensure_open()?;
+        let connection = open_runtime_connection(
+            &self.path,
+            #[cfg(any(test, feature = "test-hooks"))]
+            ManagedConnectionCategory::RuntimeProbe,
+            #[cfg(any(test, feature = "test-hooks"))]
+            &self.managed_connections,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        let value: i64 = connection
+            .query_row("PRAGMA secure_delete", [], |r| r.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        Ok(value != 0)
+    }
+}

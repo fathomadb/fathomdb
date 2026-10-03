@@ -1,6 +1,51 @@
 use super::*;
 use crate::erasure::{ERASURE_AUDIT_COLLECTIONS, ERASURE_PENDING_REDACTION_COLLECTION};
 
+pub(crate) fn load_next_cursor(connection: &Connection) -> u64 {
+    let nodes = max_cursor(connection, "canonical_nodes").unwrap_or(0);
+    let edges = max_cursor(connection, "canonical_edges").unwrap_or(0);
+    let mutations = max_cursor(connection, "operational_mutations").unwrap_or(0);
+    let state = max_cursor(connection, "operational_state").unwrap_or(0);
+    // TC-33: schema step 23 RECREATES `canonical_edges` (no data migration), so
+    // the edge rows that used to hold the high-water mark are gone. Without this
+    // term the allocator can hand out a cursor a PREVIOUS edge already used —
+    // and stale `_fathomdb_projection_terminal` / `_fathomdb_vector_rows` / vec0
+    // rows still key on it, so a brand-new row would be treated as
+    // already-projected and never get indexed. Step 23 stashes the pre-drop
+    // maximum here; folding it in keeps cursors monotonic across the migration.
+    let reserved = reserved_write_cursor(connection);
+    let closure_boundary = connection
+        .query_row(
+            "SELECT COALESCE(MAX(admitted_write_boundary),0) \
+             FROM _fathomdb_dependency_closures",
+            [],
+            |row| row.get::<_, u64>(0),
+        )
+        .unwrap_or(0);
+    nodes.max(edges).max(mutations).max(state).max(reserved).max(closure_boundary)
+}
+
+/// The write-cursor high-water mark reserved by schema step 23, or 0 when the
+/// key is absent (fresh DB, or a DB that never had edges). Never fails the
+/// caller: a missing/unparseable value degrades to 0, which is the pre-TC-33
+/// behaviour.
+pub(crate) fn reserved_write_cursor(connection: &Connection) -> u64 {
+    connection
+        .query_row(
+            "SELECT value FROM _fathomdb_open_state WHERE key = ?1",
+            params![fathomdb_schema::RESERVED_WRITE_CURSOR_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .unwrap_or(0)
+}
+
+pub(crate) fn max_cursor(connection: &Connection, table: &str) -> rusqlite::Result<u64> {
+    let sql = format!("SELECT COALESCE(MAX(write_cursor), 0) FROM {table}");
+    connection.query_row(&sql, [], |row| row.get::<_, u64>(0))
+}
+
 #[derive(Debug)]
 pub(crate) enum CommitBatchError {
     Sql(rusqlite::Error),

@@ -5,6 +5,7 @@ use crate::lifecycle::emit_open_error_event;
 use crate::reader_pool::READER_POOL_SIZE;
 use crate::temporal::EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION;
 use crate::vector_storage::DEFAULT_VECTOR_PROFILE;
+use crate::write_commit::load_next_cursor;
 
 struct OpenEmbedDispatchGuard(Option<Arc<EmbedDispatcher>>);
 

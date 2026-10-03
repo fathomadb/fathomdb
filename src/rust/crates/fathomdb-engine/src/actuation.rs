@@ -1,5 +1,6 @@
 use super::*;
 use crate::record_lifecycle::is_legal_transition_move;
+use crate::write_commit::load_next_cursor;
 use rusqlite::{params, OptionalExtension};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;

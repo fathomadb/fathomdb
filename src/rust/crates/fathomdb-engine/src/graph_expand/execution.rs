@@ -21,6 +21,7 @@ use crate::search_types::StructuralLifecycleStateV1;
 use crate::structural_state::structural_dependency_state;
 use crate::temporal::FrozenView;
 use crate::wal_attribution::WalAttributionCollector;
+use crate::write_commit::load_next_cursor;
 use fathomdb_query::compile_text_query;
 use rusqlite::{Connection, OptionalExtension};
 
@@ -718,7 +719,7 @@ pub(crate) fn read_graph_expand_in_tx(
             &tx,
             projection_runtime_state,
             view.edge_now(),
-            crate::load_next_cursor(&tx),
+            load_next_cursor(&tx),
         )?;
         {
             let (source_origin, source_readiness) = {

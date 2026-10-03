@@ -12,7 +12,9 @@ use rusqlite::{Connection, OptionalExtension};
 use sha2::{Digest, Sha256};
 
 #[cfg(feature = "operator")]
-use crate::{current_epoch_seconds, load_next_cursor, Engine, EngineError};
+use crate::write_commit::load_next_cursor;
+#[cfg(feature = "operator")]
+use crate::{current_epoch_seconds, Engine, EngineError};
 
 const SCHEMA_VERSION: u32 = 1;
 const MAX_WORK_UNITS: u32 = 10_000;

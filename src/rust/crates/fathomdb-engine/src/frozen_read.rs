@@ -8,9 +8,9 @@ use sha2::{Digest, Sha256};
 use crate::dependency::load_dependency_generation;
 use crate::errors::EngineError;
 use crate::filter::SearchFilter;
-use crate::load_next_cursor;
 use crate::projection_commit::load_projection_cursor;
 use crate::temporal::{current_epoch_seconds, ReadView};
+use crate::write_commit::load_next_cursor;
 
 pub(crate) const FROZEN_READ_SCHEMA_VERSION: u32 = 1;
 const TOKEN_PREFIX: &str = "fdbfr1";

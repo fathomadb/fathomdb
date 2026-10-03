@@ -9,10 +9,11 @@ use serde::{
 };
 use sha2::{Digest, Sha256};
 
+use crate::write_commit::load_next_cursor;
 use crate::{
-    edge_fts_hit_passes_filter, frozen_read, load_dependency_generation, load_next_cursor,
-    projection_generation, text_hit_passes_filter, valid_caller_identity, Engine, EngineError,
-    FrozenReadContextV1, LifecycleState, ReadContextV1,
+    edge_fts_hit_passes_filter, frozen_read, load_dependency_generation, projection_generation,
+    text_hit_passes_filter, valid_caller_identity, Engine, EngineError, FrozenReadContextV1,
+    LifecycleState, ReadContextV1,
 };
 
 const SCHEMA_VERSION: u32 = 1;

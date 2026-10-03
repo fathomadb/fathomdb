@@ -2442,7 +2442,6 @@ use crate::fusion::{
 };
 use crate::graph_expand::{self, search_expand_on_snapshot, SearchExpandResult};
 use crate::identity::{derive_stable_id, IdSpace};
-use crate::load_next_cursor;
 use crate::mean::{identity_requires_mean_centering, read_pinned_mean_vec, subtract_mean};
 use crate::projection_commit::load_projection_cursor;
 use crate::projection_generation::{
@@ -2467,6 +2466,7 @@ use crate::test_hooks::{
     evidence_linearization_hooks, frozen_after_validation_hook, reader_search_hook,
 };
 use crate::wal_attribution::WalAttributionCollector;
+use crate::write_commit::load_next_cursor;
 use fathomdb_embedder::RerankerDevicePolicyError;
 use fathomdb_embedder_api::EmbedderIdentity;
 use fathomdb_query::compile_text_query;

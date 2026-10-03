@@ -2,10 +2,11 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::sync::Mutex;
 
+use super::embed_dispatch::DEFAULT_EMBED_TIMEOUT_MS;
 use super::projection_runtime::PROJECTION_COMMIT_BATCH;
 use super::provenance::DEFAULT_PROVENANCE_ROW_CAP;
 use super::telemetry::DEFAULT_SLOW_THRESHOLD_MS;
-use super::{Engine, DEFAULT_EMBED_TIMEOUT_MS};
+use super::Engine;
 
 /// SQLite runtime mode selected before FathomDB opens its first connection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

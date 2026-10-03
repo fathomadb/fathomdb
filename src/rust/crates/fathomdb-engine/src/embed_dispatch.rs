@@ -11,6 +11,9 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+#[allow(dead_code)] // Standalone dispatcher tests include this module without runtime configuration.
+pub(crate) const DEFAULT_EMBED_TIMEOUT_MS: u64 = 30_000;
+
 #[cfg(feature = "test-hooks")]
 #[allow(dead_code)] // Standalone dispatcher tests include this module without Engine.
 pub(crate) mod d27_observation {

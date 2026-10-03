@@ -425,7 +425,6 @@ use sha2::Sha256;
 
 #[cfg(test)]
 const PROJECTION_WORKERS: usize = 2;
-const DEFAULT_EMBED_TIMEOUT_MS: u64 = 30_000;
 
 pub struct Engine {
     path: PathBuf,

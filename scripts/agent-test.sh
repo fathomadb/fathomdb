@@ -208,6 +208,7 @@ run_tier_suite fast test-slice90-mean-carriers-owner python3 scripts/tests/test_
 run_tier_suite fast test-slice90-engine-config-owner python3 scripts/tests/test_slice90_engine_config_owner.py
 run_tier_suite fast test-slice90-write-importance-owner python3 scripts/tests/test_slice90_write_importance_owner.py
 run_tier_suite fast test-slice90-read-importance-owner python3 scripts/tests/test_slice90_read_importance_owner.py
+run_tier_suite fast test-slice90-embed-timeout-owner python3 scripts/tests/test_slice90_embed_timeout_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

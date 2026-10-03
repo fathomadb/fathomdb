@@ -135,6 +135,9 @@ pub use dependency_closure::{
     ClosureCauseV1, ClosureLookupV1, ClosureOperationId, ClosurePhaseV1, ClosureProofV1,
     ClosureRootV1, ClosureStatusV1, DependencyClosureError, DependencyClosureErrorReason,
 };
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use dependency_trace::DependencyTraceMeasurement;
 pub use dependency_trace::{
     decode_dependency_trace_result_v1, encode_dependency_trace_result_v1,
     DependencyTraceDirectionV1, DependencyTraceEdgeV1, DependencyTraceErrorReasonV1,
@@ -475,9 +478,6 @@ const LIFECYCLE_DRAIN_TIMEOUT_MS: u64 = 30_000;
 /// touch it; the engine prunes the now-orphaned vec0 rows on open.
 const EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION: u32 = 23;
 
-const DEPENDENCY_GENERATION_KEY: &str = "_fathomdb_dependency_generation";
-const SOURCE_DEPENDENCY_SCHEMA_VERSION: u32 = 28;
-const DEPENDENCY_LOOKUP_LIMIT: usize = 100;
 /// 0.8.20 Slice 5b (R-20-E6) — the sentinel that replaces an erased
 /// `result_stable_ids` element in the telemetry sink. Positional alignment with
 /// the parallel `result_ids` array is preserved, so a redacted sink stays
@@ -776,18 +776,6 @@ pub struct Slice45FrozenStageTiming {
     pub cursor_authentication_ns: u128,
     pub token_authentication_ns: u128,
     pub snapshot_binding_ns: u128,
-}
-
-/// Test-only bounded trace measurement captured around the trace call itself.
-#[cfg(feature = "test-hooks")]
-#[derive(Clone, Debug)]
-#[doc(hidden)]
-pub struct DependencyTraceMeasurement {
-    pub vm_steps: u64,
-    pub elapsed: Duration,
-    pub peak_rss_delta_bytes: u64,
-    pub response_bytes: Vec<u8>,
-    pub bound_exceeded: bool,
 }
 
 /// Test-only Slice 45 attribution for frozen-context minting.
@@ -2598,19 +2586,6 @@ impl Engine {
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         load_default_profile(connection).map_err(|_| EngineError::Storage)
-    }
-
-    /// Trace one reciprocal source-to-derived dependency page under an authenticated frozen view.
-    ///
-    /// The read is one SQLite snapshot, never mutates durable state, and returns no partial page.
-    pub fn trace_dependency(
-        &self,
-        request: DependencyTraceRequestV1,
-    ) -> Result<DependencyTraceResultV1, EngineError> {
-        self.ensure_open()?;
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        dependency_trace::execute(connection, request)
     }
 
     /// Query-plan details for both indexed dependency-trace directions.

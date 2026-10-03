@@ -1,4 +1,6 @@
 use std::fmt::{Display, Formatter};
+#[cfg(feature = "test-hooks")]
+use std::time::Duration;
 
 use rusqlite::{Connection, OptionalExtension};
 use serde::{
@@ -9,7 +11,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     edge_fts_hit_passes_filter, frozen_read, load_dependency_generation, load_next_cursor,
-    projection_generation, text_hit_passes_filter, valid_caller_identity, EngineError,
+    projection_generation, text_hit_passes_filter, valid_caller_identity, Engine, EngineError,
     FrozenReadContextV1, LifecycleState, ReadContextV1,
 };
 
@@ -1508,4 +1510,35 @@ pub fn encode_dependency_trace_root_for_test(root: &str) -> Result<Vec<u8>, Engi
 #[cfg(feature = "test-hooks")]
 pub fn decode_dependency_trace_root_for_test(bytes: &[u8]) -> Result<String, EngineError> {
     String::from_utf8(bytes.to_vec()).map_err(|_| EngineError::WriteValidation)
+}
+
+pub(crate) const DEPENDENCY_GENERATION_KEY: &str = "_fathomdb_dependency_generation";
+pub(crate) const SOURCE_DEPENDENCY_SCHEMA_VERSION: u32 = 28;
+pub(crate) const DEPENDENCY_LOOKUP_LIMIT: usize = 100;
+
+/// Test-only bounded trace measurement captured around the trace call itself.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Debug)]
+#[doc(hidden)]
+pub struct DependencyTraceMeasurement {
+    pub vm_steps: u64,
+    pub elapsed: Duration,
+    pub peak_rss_delta_bytes: u64,
+    pub response_bytes: Vec<u8>,
+    pub bound_exceeded: bool,
+}
+
+impl Engine {
+    /// Trace one reciprocal source-to-derived dependency page under an authenticated frozen view.
+    ///
+    /// The read is one SQLite snapshot, never mutates durable state, and returns no partial page.
+    pub fn trace_dependency(
+        &self,
+        request: DependencyTraceRequestV1,
+    ) -> Result<DependencyTraceResultV1, EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        crate::dependency_trace::execute(connection, request)
+    }
 }

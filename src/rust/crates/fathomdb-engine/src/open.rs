@@ -1,4 +1,5 @@
 use super::*;
+use crate::dependency_trace::{DEPENDENCY_GENERATION_KEY, SOURCE_DEPENDENCY_SCHEMA_VERSION};
 
 struct OpenEmbedDispatchGuard(Option<Arc<EmbedDispatcher>>);
 

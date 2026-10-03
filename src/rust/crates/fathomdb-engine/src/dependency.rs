@@ -1,4 +1,5 @@
 use super::*;
+use crate::dependency_trace::{DEPENDENCY_GENERATION_KEY, DEPENDENCY_LOOKUP_LIMIT};
 
 /// Closed registration request for one canonical-source-to-derived relation.
 #[derive(Clone, Debug, Eq, PartialEq)]

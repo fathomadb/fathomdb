@@ -46,7 +46,17 @@ Use the typed dev-loop verbs (Phase 2). Each emits **concise output on pass, str
 
 Markdown lint covers **every `**/*.md`** except the ignore list in `.markdownlint-cli2.jsonc` (build output, `dev/archive/`, `dev/plans/runs/`, `dev/plans/prompts/`, `dev/experiments/`, `.claude/`, `docs/`). `docs/` is linted separately by `scripts/agent-lint-docs.sh`. `scripts/agent-lint-md.sh` also runs the plans/design/findings/anchor linters and `scripts/check-release-state-views.sh`. Auto-fix: **`npm run format:md` only** — it wraps `markdownlint-cli2 --fix` in the CommonMark-AST neutrality guard (`dev/tools/md_neutrality_guard.py`). ⛔ **Never run `prettier` on markdown, and never run `markdownlint-cli2 --fix` unguarded** — both are documented corruptors (prettier rewrites `*` → `_`; raw `--fix` mangles `#`-prefixed prose and schemeless hosts). See `dev/tools/md-fix-corruption-ledger.md`.
 
-Run `./scripts/agent-verify.sh` after every meaningful edit. Do not ship a PR with verify failing. AC-036 uses `strace` and therefore needs a ptrace-capable executor; if a sandbox denies `PTRACE_TRACEME`, rerun the unchanged strict gate unconfined rather than disabling it.
+Run checks that match the changed files. For non-code-only edits, including
+documentation, plans, and release-state metadata, run the relevant scoped
+validators; do not run the full `./scripts/agent-verify.sh` solely because
+these files changed. Markdown changes use `./scripts/agent-lint-md.sh`; public
+`docs/` changes also use `./scripts/agent-lint-docs.sh`. Release-state changes
+use `./scripts/check-release-state-views.sh`. Validate other non-code files
+with their applicable checks. Run the full `./scripts/agent-verify.sh` for
+source, test, or executable-script changes and when an explicit release gate
+requires it. A scoped pass is not a full-workspace green claim. AC-036 in the
+full gate uses `strace` and needs a ptrace-capable executor; if a sandbox denies
+`PTRACE_TRACEME`, rerun the unchanged strict gate unconfined.
 
 The broader CI gate is `./scripts/check.sh` (adds mkdocs build); the agent-loop gate is `scripts/agent-verify.sh`. Long-run test variants (e.g. AC-021 60 s window, AC-059b ~1000-iteration cursor-race fixture) are exercised only via `scripts/check.sh` with `AGENT_LONG=1`; `scripts/agent-verify.sh` skips them for runtime budget.
 

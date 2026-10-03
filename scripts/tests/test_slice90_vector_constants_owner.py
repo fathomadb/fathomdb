@@ -38,6 +38,18 @@ def attrs(source: str, start: int) -> list[str]:
 
 def owner_errors(root: str, storage: str, equivalence: str, open_source: str, registry: str) -> list[str]:
     errors = [f"root still defines vector constant {name}" for name in ROOT_FAMILY.findall(root)]
+    errors.extend(
+        f"vector_storage wrongly defines {name}"
+        for name in ROOT_FAMILY.findall(storage)
+        if name.startswith("VECTOR_EQUIVALENCE_")
+    )
+    errors.extend(
+        f"vector_equivalence wrongly defines {name}"
+        for name in ROOT_FAMILY.findall(equivalence)
+        if name.startswith("DEFAULT_VECTOR_")
+    )
+    for label, source in (("open", open_source), ("registry", registry)):
+        errors.extend(f"{label} wrongly defines {name}" for name in ROOT_FAMILY.findall(source))
     for module_name in ("vector_storage", "vector_equivalence"):
         module = re.search(r"^mod " + module_name + r";", root, re.M)
         if not module or attrs(root, module.start()):
@@ -102,6 +114,38 @@ class VectorConstantsOwnerTest(unittest.TestCase):
                 f"root still defines vector constant {name}",
                 owner_errors(root + "\n" + declaration, storage, equivalence, open_source, registry),
             )
+
+    def test_complete_owner_rejects_wrong_owner_constant_families(self) -> None:
+        root, storage, equivalence, open_source, registry = self.sources()
+        self.assertEqual(owner_errors(root, storage, equivalence, open_source, registry), [])
+        for declaration, name in (
+            ("const VECTOR_EQUIVALENCE_L2_EPSILON: f32 = 0.5;", "VECTOR_EQUIVALENCE_L2_EPSILON"),
+            ("pub(crate) const VECTOR_EQUIVALENCE_NEW: u64 = 7;", "VECTOR_EQUIVALENCE_NEW"),
+        ):
+            altered = storage + "\n" + declaration
+            self.assertIn(
+                f"vector_storage wrongly defines {name}",
+                owner_errors(root, altered, equivalence, open_source, registry),
+            )
+        for declaration, name in (
+            ('const DEFAULT_VECTOR_PROFILE: &str = "wrong";', "DEFAULT_VECTOR_PROFILE"),
+            ('pub(crate) const DEFAULT_VECTOR_NEW: &str = "wrong";', "DEFAULT_VECTOR_NEW"),
+        ):
+            altered = equivalence + "\n" + declaration
+            self.assertIn(
+                f"vector_equivalence wrongly defines {name}",
+                owner_errors(root, storage, altered, open_source, registry),
+            )
+        altered = open_source + '\nconst DEFAULT_VECTOR_PROFILE_NEW: &str = "wrong";'
+        self.assertIn(
+            "open wrongly defines DEFAULT_VECTOR_PROFILE_NEW",
+            owner_errors(root, storage, equivalence, altered, registry),
+        )
+        altered = registry + "\npub(crate) const VECTOR_EQUIVALENCE_NEW: u64 = 7;"
+        self.assertIn(
+            "registry wrongly defines VECTOR_EQUIVALENCE_NEW",
+            owner_errors(root, storage, equivalence, open_source, altered),
+        )
 
     def test_cfg_and_exact_value_mutants(self) -> None:
         root, storage, equivalence, open_source, registry = self.sources()

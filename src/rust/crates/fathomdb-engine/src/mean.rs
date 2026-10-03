@@ -1,6 +1,30 @@
 use super::*;
 use crate::open::BGE_SMALL_EMBEDDER_NAME;
 
+/// 0.7.2 PR-2b — result of `Engine::recompute_mean` (the manual
+/// `doctor recompute-mean` path) and of the shared in-transaction
+/// recompute core. `drift_cos_before` is the cosine between the freshly
+/// derived corpus mean and the previously-pinned mean (1.0 when nothing
+/// was pinned yet, i.e. a first pin). `mean_was_pinned` distinguishes a
+/// refresh of an existing mean from an initial pin. See
+/// `dev/design/embedder.md` §0.3.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MeanRecomputeReport {
+    pub dim: u32,
+    pub old_doc_count: u64,
+    pub doc_count_requantized: u64,
+    pub drift_cos_before: f32,
+    pub mean_was_pinned: bool,
+    pub elapsed_ms: u64,
+}
+
+/// EU-5a2 — number of documents required before the workspace's
+/// `_fathomdb_embedder_profiles.mean_vec` is pinned for the default
+/// profile. Per `dev/design/embedder.md` §0.3 (compute-once-on-first-
+/// ingest lifecycle). Public-visible so the EU-5a2 machinery test can
+/// assert the value.
+pub const MEAN_VEC_PIN_THRESHOLD: u64 = 256;
+
 /// EU-5a2 — streaming f64 accumulator for the mean-centering pipeline,
 /// per `dev/design/embedder.md` §0.3 (f64 chosen to bound numerical
 /// drift across `MEAN_VEC_PIN_THRESHOLD` adds). Owned by the projection

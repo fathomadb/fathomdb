@@ -221,6 +221,7 @@ use mean::{
     identity_requires_mean_centering, read_pinned_mean_vec, recover_mean_vec_pin,
     run_pin_and_requantize_pass, run_requantize_pass, subtract_mean, MeanAccumulator,
 };
+pub use mean::{MeanRecomputeReport, MEAN_VEC_PIN_THRESHOLD};
 #[cfg(feature = "operator")]
 pub use operator::{inspect_data_plane_integrity, recover_truncate_wal};
 pub use operator::{
@@ -605,23 +606,6 @@ pub struct Slice45MintStageTiming {
 
 pub use lifecycle::Subscription;
 pub use open::{EmbedderChoice, OpenReport, OpenedEngine, ENV_GPU_ALLOCATION_WITNESS};
-
-/// 0.7.2 PR-2b — result of [`Engine::recompute_mean`] (the manual
-/// `doctor recompute-mean` path) and of the shared in-transaction
-/// recompute core. `drift_cos_before` is the cosine between the freshly
-/// derived corpus mean and the previously-pinned mean (1.0 when nothing
-/// was pinned yet, i.e. a first pin). `mean_was_pinned` distinguishes a
-/// refresh of an existing mean from an initial pin. See
-/// `dev/design/embedder.md` §0.3.
-#[derive(Clone, Debug, PartialEq)]
-pub struct MeanRecomputeReport {
-    pub dim: u32,
-    pub old_doc_count: u64,
-    pub doc_count_requantized: u64,
-    pub drift_cos_before: f32,
-    pub mean_was_pinned: bool,
-    pub elapsed_ms: u64,
-}
 
 impl Engine {
     /// Return the immutable settings requested at open. Omitted fields remain
@@ -1520,7 +1504,7 @@ impl Engine {
                 runtime.mean_accumulator.lock().map_err(|_| EngineError::Storage)?;
             if let Some(acc) = accumulator.as_mut() {
                 acc.add(&vector);
-                if acc.count() >= MEAN_VEC_PIN_THRESHOLD {
+                if acc.count() >= mean::MEAN_VEC_PIN_THRESHOLD {
                     let mean = acc.materialize();
                     *accumulator = None;
                     Some(mean)
@@ -2048,13 +2032,6 @@ impl Engine {
         Ok(())
     }
 }
-
-/// EU-5a2 — number of documents required before the workspace's
-/// `_fathomdb_embedder_profiles.mean_vec` is pinned for the default
-/// profile. Per `dev/design/embedder.md` §0.3 (compute-once-on-first-
-/// ingest lifecycle). Public-visible so the EU-5a2 machinery test can
-/// assert the value.
-pub const MEAN_VEC_PIN_THRESHOLD: u64 = 256;
 
 /// EU-5a2 — test-visible re-exports of the mean-centering internals.
 /// Per the handoff RED tests; the production accumulator and re-quantize

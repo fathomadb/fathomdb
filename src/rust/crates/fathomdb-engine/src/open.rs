@@ -2,6 +2,7 @@ use super::*;
 use crate::dependency_trace::{DEPENDENCY_GENERATION_KEY, SOURCE_DEPENDENCY_SCHEMA_VERSION};
 use crate::errors::{map_migration_error, map_open_sqlite_error};
 use crate::lifecycle::emit_open_error_event;
+use crate::mean::MEAN_VEC_PIN_THRESHOLD;
 use crate::reader_pool::READER_POOL_SIZE;
 use crate::temporal::EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION;
 use crate::vector_storage::DEFAULT_VECTOR_PROFILE;

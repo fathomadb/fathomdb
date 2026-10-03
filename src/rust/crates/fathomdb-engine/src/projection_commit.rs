@@ -1,4 +1,5 @@
 use super::*;
+use crate::mean::MEAN_VEC_PIN_THRESHOLD;
 use crate::projection_runtime::PROJECTION_CURSOR_KEY;
 
 fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {

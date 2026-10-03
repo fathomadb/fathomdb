@@ -219,6 +219,7 @@ run_tier_suite fast test-slice90-projection-metadata-test-seams-owner python3 sc
 run_tier_suite fast test-slice90-vector-storage-test-seams-owner python3 scripts/tests/test_slice90_vector_storage_test_seams_owner.py
 run_tier_suite fast test-slice90-canonical-row-test-seams-owner python3 scripts/tests/test_slice90_canonical_row_test_seams_owner.py
 run_tier_suite fast test-slice90-writer-control-test-seams-owner python3 scripts/tests/test_slice90_writer_control_test_seams_owner.py
+run_tier_suite fast test-slice90-final-observation-test-seams-owner python3 scripts/tests/test_slice90_final_observation_test_seams_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

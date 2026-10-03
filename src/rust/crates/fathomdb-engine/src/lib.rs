@@ -591,15 +591,6 @@ pub use lifecycle::Subscription;
 pub use open::{EmbedderChoice, OpenReport, OpenedEngine, ENV_GPU_ALLOCATION_WITNESS};
 
 impl Engine {
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn explain_graph_evidence_preflights_for_test(&self) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        evidence::explain_intrinsic_preflights_for_test(connection)
-    }
-
     /// Start the private D27 collector after the warm-up drain.
     #[cfg(feature = "test-hooks")]
     pub fn begin_d27_observation_for_test(&self, origin: Instant) {
@@ -749,23 +740,6 @@ impl Engine {
         Ok(())
     }
 
-    /// EU-5b test seam — drain MeanVecPinned events queued by the
-    /// projection-commit pin transaction since the last drain. Production
-    /// callers consume these via `OpenReport.embedder_events`; this seam
-    /// exists so the EU-5b RED test can observe the live emission.
-    #[doc(hidden)]
-    pub fn drain_mean_centering_events_for_test(&self) -> Result<Vec<EmbedderEvent>, EngineError> {
-        self.ensure_open()?;
-        let mut events = self
-            .projection_runtime
-            .shared
-            .pending_events
-            .lock()
-            .map_err(|_| EngineError::Storage)?;
-        let out = std::mem::take(&mut *events);
-        Ok(out)
-    }
-
     /// 0.8.20 Slice 15e — run an arbitrary read-only SELECT on the ENGINE
     /// connection (which has the vec0 extension loaded, unlike a bare
     /// `Connection::open`) and collect column 0 as `i64`. Lets a test run a
@@ -795,64 +769,12 @@ impl Engine {
         rows.collect::<rusqlite::Result<Vec<String>>>().map_err(|_| EngineError::Storage)
     }
 
-    #[doc(hidden)]
-    pub fn default_embedder_profile_for_test(&self) -> Result<EmbedderIdentity, EngineError> {
-        self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        load_default_profile(connection).map_err(|_| EngineError::Storage)
-    }
-
-    /// Enumerate schema objects for the no-reverse-table contract test.
-    #[cfg(feature = "test-hooks")]
-    pub fn schema_objects_for_test(&self) -> Result<Vec<String>, EngineError> {
-        self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let mut statement = connection
-            .prepare("SELECT name FROM sqlite_master ORDER BY name")
-            .map_err(|_| EngineError::Storage)?;
-        let objects = statement
-            .query_map([], |row| row.get(0))
-            .map_err(|_| EngineError::Storage)?
-            .collect::<rusqlite::Result<Vec<_>>>()
-            .map_err(|_| EngineError::Storage)?;
-        // Slice 25's accepted actuation receipt lookup index predates the
-        // Slice 55 no-new-reverse-state rule and is outside dependency trace.
-        Ok(objects
-            .into_iter()
-            .filter(|name| name != "_fathomdb_actuation_receipt_refs_reverse")
-            .collect())
-    }
-
     fn ensure_open(&self) -> Result<(), EngineError> {
         if self.closed.load(Ordering::SeqCst) {
             return Err(EngineError::Closing);
         }
 
         Ok(())
-    }
-}
-
-#[cfg(feature = "test-hooks")]
-fn record_writer_pragma_witness_for_test(connection: &Connection) {
-    let observation = (|| -> rusqlite::Result<serde_json::Value> {
-        Ok(serde_json::json!({
-            "role": "writer",
-            "journal_mode": connection.pragma_query_value(
-                None,
-                "journal_mode",
-                |row| row.get::<_, String>(0),
-            )?,
-            "synchronous": connection.pragma_query_value(
-                None,
-                "synchronous",
-                |row| row.get::<_, i64>(0),
-            )?,
-        }))
-    })();
-    if let Ok(observation) = observation {
-        append_json_witness_for_test("FATHOMDB_WRITER_PRAGMA_WITNESS_FOR_TEST", &observation);
     }
 }
 

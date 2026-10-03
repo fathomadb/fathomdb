@@ -3,9 +3,9 @@ use std::fmt::{Display, Formatter};
 use rusqlite::{Connection, OptionalExtension};
 
 use crate::{
-    frozen_read, ArtifactRevisionId, CanonicalHash, DependencyId, EngineError, FrozenReadContextV1,
-    LifecycleState, ProjectionGenerationId, SearchResult, SoftFallbackBranch, SourceDependencyV1,
-    SourceLocator, SourceRevisionId,
+    frozen_read, ArtifactRevisionId, CanonicalHash, DependencyId, Engine, EngineError,
+    FrozenReadContextV1, LifecycleState, ProjectionGenerationId, SearchResult, SoftFallbackBranch,
+    SourceDependencyV1, SourceLocator, SourceRevisionId,
 };
 
 const SCHEMA_VERSION: u32 = 1;
@@ -2659,6 +2659,17 @@ impl PayloadCursor<'_> {
             1 => Ok(Some(self.f64()?)),
             _ => Err(EvidenceErrorV1::unavailable().into()),
         }
+    }
+}
+
+impl Engine {
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn explain_graph_evidence_preflights_for_test(&self) -> Result<Vec<String>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        explain_intrinsic_preflights_for_test(connection)
     }
 }
 

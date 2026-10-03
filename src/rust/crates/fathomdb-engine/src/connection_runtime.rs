@@ -438,3 +438,25 @@ impl Engine {
         Ok(value != 0)
     }
 }
+
+#[cfg(feature = "test-hooks")]
+pub(super) fn record_writer_pragma_witness_for_test(connection: &Connection) {
+    let observation = (|| -> rusqlite::Result<serde_json::Value> {
+        Ok(serde_json::json!({
+            "role": "writer",
+            "journal_mode": connection.pragma_query_value(
+                None,
+                "journal_mode",
+                |row| row.get::<_, String>(0),
+            )?,
+            "synchronous": connection.pragma_query_value(
+                None,
+                "synchronous",
+                |row| row.get::<_, i64>(0),
+            )?,
+        }))
+    })();
+    if let Ok(observation) = observation {
+        append_json_witness_for_test("FATHOMDB_WRITER_PRAGMA_WITNESS_FOR_TEST", &observation);
+    }
+}

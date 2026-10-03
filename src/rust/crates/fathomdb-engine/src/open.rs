@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(feature = "test-hooks")]
+use crate::connection_runtime::record_writer_pragma_witness_for_test;
 use crate::dependency_trace::{DEPENDENCY_GENERATION_KEY, SOURCE_DEPENDENCY_SCHEMA_VERSION};
 use crate::errors::{map_migration_error, map_open_sqlite_error};
 use crate::lifecycle::emit_open_error_event;
@@ -2060,4 +2062,14 @@ pub(crate) fn sqlite_uri(path: &Path, query: &str) -> String {
     uri.push('?');
     uri.push_str(query);
     uri
+}
+
+impl Engine {
+    #[doc(hidden)]
+    pub fn default_embedder_profile_for_test(&self) -> Result<EmbedderIdentity, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        load_default_profile(connection).map_err(|_| EngineError::Storage)
+    }
 }

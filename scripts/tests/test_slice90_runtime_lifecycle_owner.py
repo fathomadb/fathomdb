@@ -12,7 +12,6 @@ METHODS = ("close", "drain", "drain_for_non_embedding_mutation")
 OTHER_OWNER_DRAINS = {
     "drain_actual_checkpoint_observations_for_test",
     "drain_binding_native_state_observations_for_test",
-    "drain_mean_centering_events_for_test",
     "drain_embedder_events",
 }
 
@@ -57,6 +56,7 @@ class RuntimeLifecycleOwnerTest(unittest.TestCase):
             ("close_new", "pub "),
             ("drain_new", "pub(crate) "),
             ("drain_for_non_embedding_mutation_new", ""),
+            ("drain_mean_centering_events_for_test", "pub "),
         ):
             with self.subTest(method=method):
                 injected = f"\nimpl Engine {{\n    {visibility}fn {method}(&self) {{}}\n}}\n"

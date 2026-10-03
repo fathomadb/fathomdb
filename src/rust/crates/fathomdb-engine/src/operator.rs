@@ -576,3 +576,27 @@ fn order_canonical_first(mut objects: Vec<SchemaObject>) -> Vec<SchemaObject> {
     canonical.extend(objects);
     canonical
 }
+
+impl Engine {
+    /// Enumerate schema objects for the no-reverse-table contract test.
+    #[cfg(feature = "test-hooks")]
+    pub fn schema_objects_for_test(&self) -> Result<Vec<String>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let mut statement = connection
+            .prepare("SELECT name FROM sqlite_master ORDER BY name")
+            .map_err(|_| EngineError::Storage)?;
+        let objects = statement
+            .query_map([], |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|_| EngineError::Storage)?;
+        // Slice 25's accepted actuation receipt lookup index predates the
+        // Slice 55 no-new-reverse-state rule and is outside dependency trace.
+        Ok(objects
+            .into_iter()
+            .filter(|name| name != "_fathomdb_actuation_receipt_refs_reverse")
+            .collect())
+    }
+}

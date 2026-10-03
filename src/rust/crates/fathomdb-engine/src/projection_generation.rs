@@ -1,15 +1,16 @@
 use std::fmt::{Display, Formatter};
 use std::sync::atomic::Ordering;
 
+use crate::embedding::embedder_required_for;
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::{Digest, Sha256};
 
 use super::{
-    connection_has_pending_projection_work, current_epoch_seconds, embedder_required_for,
-    load_projection_registry, pending_embedding_work, unsupported_vector_kinds,
-    valid_caller_identity, DenseReadiness, EmbeddingReadiness, EmbeddingReadinessState, Engine,
-    EngineError, ProjectionRuntimeStatus, ProjectionRuntimeStatusEntry,
-    ProjectionRuntimeUnavailabilityReason, ProjectionStatusDenseReadiness, StoredProjection,
+    connection_has_pending_projection_work, current_epoch_seconds, load_projection_registry,
+    pending_embedding_work, unsupported_vector_kinds, valid_caller_identity, DenseReadiness,
+    EmbeddingReadiness, EmbeddingReadinessState, Engine, EngineError, ProjectionRuntimeStatus,
+    ProjectionRuntimeStatusEntry, ProjectionRuntimeUnavailabilityReason,
+    ProjectionStatusDenseReadiness, StoredProjection,
 };
 
 const PREFIX: &str = "pgen1:";

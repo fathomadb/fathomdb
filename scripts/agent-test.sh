@@ -189,6 +189,7 @@ run_tier_suite fast test-slice90-operator-recovery-owner python3 scripts/tests/t
 run_tier_suite fast test-slice90-provenance-trace-owner python3 scripts/tests/test_slice90_provenance_trace_owner.py
 run_tier_suite fast test-slice90-dependency-trace-owner python3 scripts/tests/test_slice90_dependency_trace_owner.py
 run_tier_suite fast test-slice90-data-plane-integrity-owner python3 scripts/tests/test_slice90_data_plane_integrity_owner.py
+run_tier_suite fast test-slice90-embedding-owner python3 scripts/tests/test_slice90_embedding_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

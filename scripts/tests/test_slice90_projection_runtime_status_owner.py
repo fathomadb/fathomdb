@@ -43,7 +43,7 @@ def owner_errors(root: str, owner: str, search: str, commit: str, worker: str) -
         errors.append(f"root still implements runtime::{name}")
     for name in re.findall(r"^(?:pub(?:\([^)]*\))?\s+)?const\s+(" + CONST_FAMILY + r")\b", root, re.M):
         errors.append(f"root still defines runtime::{name}")
-    for name in re.findall(r"^fn\s+(projection_status\w*)\s*\(", root, re.M):
+    for name in re.findall(r"^(?:pub(?:\([^)]*\))?\s+)?fn\s+(projection_status\w*)\s*\(", root, re.M):
         errors.append(f"root still defines runtime helper {name}")
     for name, kind in TYPES.items():
         found = list(re.finditer(r"^pub " + kind + " " + name + r"\b", owner, re.M))
@@ -108,6 +108,8 @@ class ProjectionRuntimeStatusOwnerTest(unittest.TestCase):
             ("impl ProjectionRuntimeStatus { fn extra(&self) {} }", "root still implements runtime::ProjectionRuntimeStatus"),
             ("impl SomeTrait for ProjectionStatusDenseReadiness {}", "root still implements runtime::ProjectionStatusDenseReadiness"),
             ("fn projection_status_new() {}", "root still defines runtime helper projection_status_new"),
+            ("pub(crate) fn projection_status_new() {}", "root still defines runtime helper projection_status_new"),
+            ("pub fn projection_status_new() {}", "root still defines runtime helper projection_status_new"),
             ("const PROJECTION_CURSOR_KEY_NEW: &str = \"x\";", "root still defines runtime::PROJECTION_CURSOR_KEY_NEW"),
             ("pub(crate) const PROJECTION_RUNTIME_STARTUP_TIMEOUT_NEW: u64 = 1;", "root still defines runtime::PROJECTION_RUNTIME_STARTUP_TIMEOUT_NEW"),
         ):

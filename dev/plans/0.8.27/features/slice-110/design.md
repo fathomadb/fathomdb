@@ -6,9 +6,10 @@ target_release: 0.8.27
 
 # Slice 110 NAPI decomposition
 
-Prospective design only; uncommissioned. Entry requires completed Slice 100
-and the preserved Slice 90 configuration handoff. All native Node obligations
-close here before Slice 120. No Slice 111 is allocated: sequential contract,
+Prospective design only; uncommissioned. Entry requires completed Slice 103,
+the Slice 100 binding handoff, and the preserved Slice 90 configuration
+handoff. All native Node obligations close here before Slice 120. No Slice
+111 is allocated: sequential contract,
 move and artifact batches provide the necessary technical boundaries.
 
 ## Substrate, authority and scope

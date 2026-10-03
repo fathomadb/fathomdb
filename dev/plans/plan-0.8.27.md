@@ -25,6 +25,12 @@ The release covers:
 - `src/ts/src/index.ts`; and
 - `src/python/fathomdb/engine.py`.
 
+Slice 103 adds bounded housekeeping and consistency work between the native
+binding slices: carry forward the post-publication 0.8.26 Tegra build support
+and determine whether the reported 0.8.26 Windows erasure failure persists on
+the 0.8.27 candidate. Its
+[`execution plan`](0.8.27/features/slice-103/plan.md) owns that addition.
+
 The shared structural vocabulary is:
 
 ```text
@@ -162,8 +168,10 @@ feature-matrix, artifact, and slice-specific testing instructions.
 
 - Slice 20 is fix-to-spec: commit genuine failing tests, preserve the RED
   oracle, and fix production code without changing those tests.
-- Slices 40–130 are normally behavior-preserving: establish the pre-move
-  result, move code mechanically, regain green, and only then simplify it.
+- The decomposition work in Slices 40–130 is normally behavior-preserving:
+  establish the pre-move result, move code mechanically, regain green, and
+  only then simplify it. A Windows defect reproduced in Slice 103 uses the
+  separate RED-to-GREEN correction rule.
 - A new characterization test may pass initially. Prove it is non-vacuous by
   temporarily injecting a plausible defect, observing failure, and reverting
   the defect.
@@ -356,9 +364,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 110** (`NAPI`) — napi-rs binding decomposition
+**IMMEDIATE NEXT: Slice 103** (`HOUSEKEEPING`) — Tegra build continuity and Windows erasure consistency
 
-**Remaining ladder:** 110 → 114 → 115 → 120 → 130 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 103 → 110 → 114 → 115 → 120 → 130 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1025,12 +1033,25 @@ Slice 140 work. The following runtime-owned work remains in Slice 90:
 records the PyO3 decomposition, bounded Python subscriber correction,
 accepted heartbeat successor, installed-wheel evidence, and independent
 review and verification. Python SDK decomposition remains Slice 130. Slice
-110 may begin from this completed handoff.
+103 may begin from this completed handoff.
+
+### Slice 103 — housekeeping and consistency
+
+**PLANNED; uncommissioned.** Execute the
+[`Slice 103 plan`](0.8.27/features/slice-103/plan.md) before Slice 110. Review
+the five post-publication 0.8.26 Tegra commits against the current 0.8.27
+tree, carry forward the static CUDA runtime, installed-wheel and guarded
+operator-route work with version-truthful documentation, and prove the
+candidate on a classic Jetson. Compare the owner-reported 0.8.26 Windows
+`erase_source` failure with an exact 0.8.27 installed candidate on a real
+Windows database. Attribute and fix only failures that persist, using
+RED-to-GREEN tests. Neither source branch is blanket merge
+authority; no Pages publication or release tag is authorized here.
 
 ### Slice 110 — napi-rs binding decomposition
 
 **PLANNED; uncommissioned.** Execute the prospective
-[`Slice 110 design`](0.8.27/features/slice-110/design.md) after Slice 100 closes.
+[`Slice 110 design`](0.8.27/features/slice-110/design.md) after Slice 103 closes.
 Use shared vocabulary only where responsibilities match; preserve NAPI's
 language-specific conversion, registration and async boundaries. The design
 requires exact native/runtime/declaration inventories, resolved executor and

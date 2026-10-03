@@ -40,8 +40,19 @@ def owner_errors(root: str, owner: str, dependency: str, opened: str) -> list[st
             errors.append(f"dependency trace lacks one {name}")
     if len(re.findall(r'^#\[cfg\(feature = "test-hooks"\)\]\n#\[derive\(Clone, Debug\)\]\n#\[doc\(hidden\)\]\npub struct DependencyTraceMeasurement\b', owner, re.M)) != 1:
         errors.append("dependency trace lacks gated measurement carrier")
-    if len(re.findall(r"^    pub fn trace_dependency\(", owner, re.M)) != 1:
+    trace_methods = list(re.finditer(r"^    pub fn trace_dependency\(", owner, re.M))
+    if len(trace_methods) != 1:
         errors.append("dependency trace lacks Engine::trace_dependency")
+    else:
+        preceding = []
+        for line in reversed(owner[: trace_methods[0].start()].splitlines()):
+            stripped = line.strip()
+            if stripped.startswith(("///", "#[")) or not stripped:
+                preceding.append(stripped)
+            else:
+                break
+        if any(line.startswith(("#[cfg(", "#[cfg_attr(")) for line in preceding):
+            errors.append("dependency trace gates always-on Engine::trace_dependency")
     if not re.search(r'^#\[cfg\(feature = "test-hooks"\)\]\n#\[doc\(hidden\)\]\npub use dependency_trace::DependencyTraceMeasurement;', root, re.M):
         errors.append("root lacks gated measurement reexport")
     if "use crate::dependency_trace::{DEPENDENCY_GENERATION_KEY, DEPENDENCY_LOOKUP_LIMIT};" not in dependency:
@@ -83,6 +94,15 @@ class DependencyTraceOwnerTest(unittest.TestCase):
         altered = owner.replace('#[cfg(feature = "test-hooks")]\n#[derive(Clone, Debug)]\n#[doc(hidden)]\npub struct DependencyTraceMeasurement', '#[derive(Clone, Debug)]\n#[doc(hidden)]\npub struct DependencyTraceMeasurement', 1)
         self.assertNotEqual(altered, owner)
         self.assertIn("dependency trace lacks gated measurement carrier", owner_errors(root, altered, dependency, opened))
+        for feature in ("test-hooks", "operator"):
+            altered = owner.replace(
+                "    pub fn trace_dependency(",
+                f'    #[cfg(feature = "{feature}")]\n    pub fn trace_dependency(',
+                1,
+            )
+            with self.subTest(feature=feature):
+                self.assertNotEqual(altered, owner)
+                self.assertIn("dependency trace gates always-on Engine::trace_dependency", owner_errors(root, altered, dependency, opened))
         altered = root.replace("pub use dependency_trace::DependencyTraceMeasurement;", "", 1)
         self.assertNotEqual(altered, root)
         self.assertIn("root lacks gated measurement reexport", owner_errors(altered, owner, dependency, opened))

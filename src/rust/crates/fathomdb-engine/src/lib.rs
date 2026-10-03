@@ -100,6 +100,13 @@ mod runtime_configuration;
 mod runtime_lifecycle;
 mod search;
 mod search_api;
+#[doc(hidden)]
+pub use search_api::slice35_ranked_eligibility_sql_for_test;
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use search_api::take_slice71_search_statement_trace_for_test;
+#[doc(hidden)]
+pub use search_api::vector_phase1_sql_for_test;
 mod search_types;
 mod structural_state;
 #[cfg(feature = "tc5-benchmark")]
@@ -180,9 +187,7 @@ pub use evidence::{
     ResolvedGraphEvidenceV1,
 };
 pub(crate) use filter::{
-    append_edge_eligibility_sql, append_node_eligibility_sql, body_fts_rank_sql,
-    build_vector_phase1_sql, edge_fts_hit_passes_filter, edge_fts_rank_sql, property_fts_rank_sql,
-    text_hit_passes_filter,
+    append_node_eligibility_sql, edge_fts_hit_passes_filter, text_hit_passes_filter,
 };
 pub use filter::{ComparisonOp, Filter, FilterTerm, Predicate, ScalarValue, SearchFilter};
 pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};
@@ -294,10 +299,7 @@ use runtime_configuration::{
 #[cfg(test)]
 pub(crate) use search::retain_complete_rank_boundary_candidates;
 #[cfg(feature = "test-hooks")]
-pub(crate) use search::{
-    append_json_witness_for_test, record_slice71_profile_statement_for_test,
-    slice71_search_statement_trace,
-};
+pub(crate) use search::{append_json_witness_for_test, record_slice71_profile_statement_for_test};
 pub(crate) use search::{prepare_search_statement, CapturedGraphOrigin};
 pub use search_types::{
     Bm25fFieldWeights, Bm25fQueryPlan, Explanation, GraphFrontierStats, PerHitExplain, QueryTrace,
@@ -651,31 +653,6 @@ impl Engine {
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
-    }
-
-    /// G0 Phase-2 (BLOCK-1) test seam — runs the graph-arm retrieval path and
-    /// returns the frontier meter (`GraphFrontierStats`) for `query`. Mirrors the
-    /// sanctioned `set_vector_stage_only_for_test` / `_configure_vector_kind_for_test`
-    /// pattern: kept OFF the governed surface (test/eval-only), so the meter never
-    /// appears on `SearchResult`. Used by the recall harness to prove the
-    /// doc-seeded frontier is empty (`resolved_seed_rate == 0.0`) and, post-C1, the
-    /// 0→>0 flip.
-    pub fn _graph_frontier_stats_for_test(
-        &self,
-        query: &str,
-    ) -> Result<GraphFrontierStats, EngineError> {
-        self.search_inner_with_stats(
-            query,
-            None,
-            0,
-            true,
-            0.3,
-            0,
-            false,
-            ReadView::default(),
-            DEFAULT_SEARCH_RESULT_LIMIT,
-        )
-        .map(|(_result, stats)| stats)
     }
 
     /// Test-only stage attribution for the Slice 45 performance receipt.
@@ -1480,48 +1457,6 @@ impl Engine {
         Ok(out)
     }
 
-    /// Test seam that raises vector-candidate fanout for recall tests.
-    ///
-    /// This does not alter the caller-requested final result limit or the
-    /// caller-visible result cardinality. Production uses the default and
-    /// never consults an environment variable.
-    #[doc(hidden)]
-    pub fn set_search_limit_for_test(&self, limit: usize) {
-        self.projection_runtime.shared.search_limit_override.store(limit, Ordering::SeqCst);
-    }
-
-    /// Slice 10 / G12-recency test seam — flip the dedicated recency-reweight
-    /// flag (off by default). The reweight runs AFTER bit-KNN on the fused hits;
-    /// it is never a vec0 predicate and is NOT `fusion_mode`.
-    #[doc(hidden)]
-    pub fn set_recency_reweight_enabled_for_test(&self, enabled: bool) {
-        self.projection_runtime.shared.recency_reweight_enabled.store(enabled, Ordering::SeqCst);
-    }
-
-    /// 0.8.16 Slice 5 / F9 test seam — flip the dedicated importance/confidence
-    /// reweight flag (off by default). The reweight runs AFTER bit-KNN + RRF on
-    /// the fused hits (multiplicative-on-fused, `NULL ⇒ neutral`); it is never a
-    /// vec0 predicate and is NOT `fusion_mode`. Mirrors
-    /// `set_recency_reweight_enabled_for_test`.
-    #[doc(hidden)]
-    pub fn set_importance_reweight_enabled_for_test(&self, enabled: bool) {
-        self.projection_runtime.shared.importance_reweight_enabled.store(enabled, Ordering::SeqCst);
-    }
-
-    /// GA-2 / Slice-40 (◆ B-1) measurement seam — make `search()` return the
-    /// pre-fusion VECTOR-branch ranking (the ANN+ bit-KNN K=192 + f32 rerank
-    /// signal) instead of the unconditional RRF-fused result, so the eu7 recall
-    /// gate (AC-075) can measure ANN-quantization FIDELITY — vector top-10 vs
-    /// the exact-f32 VECTOR top-10 ground truth — in isolation. Off by default;
-    /// never set on any production path. This is NOT a `fusion_mode` knob:
-    /// production RRF fusion stays unconditional and `fuse_rrf`/`rerank_fused`/
-    /// recency are unchanged. Mirrors `set_recency_reweight_enabled_for_test`
-    /// (release-available, since eu7 runs in `--release`).
-    #[doc(hidden)]
-    pub fn set_vector_stage_only_for_test(&self, enabled: bool) {
-        self.projection_runtime.shared.vector_stage_only_for_test.store(enabled, Ordering::SeqCst);
-    }
-
     #[doc(hidden)]
     pub fn vector_row_count_for_test(&self) -> Result<u64, EngineError> {
         self.ensure_open()?;
@@ -1831,51 +1766,6 @@ impl Engine {
 
         Ok(())
     }
-}
-
-/// Test seam — exposes [`build_vector_phase1_sql`] at the production
-/// `SEARCH_RERANK_LIMIT` so `pr_g10_filtered_knn.rs` can pin the `filter=None`
-/// byte-identity and the appended predicates.
-#[doc(hidden)]
-#[must_use]
-pub fn vector_phase1_sql_for_test(filter: Option<&SearchFilter>) -> String {
-    build_vector_phase1_sql(filter, SEARCH_RERANK_LIMIT)
-}
-
-/// Test seam pinning production ranked SQL around the shared eligibility
-/// compiler. Eligibility must precede ranking and any SQL candidate limit.
-#[doc(hidden)]
-#[must_use]
-pub fn slice35_ranked_eligibility_sql_for_test(
-    filter: &SearchFilter,
-) -> [(&'static str, String); 3] {
-    let mut body_params = vec![rusqlite::types::Value::Text("fixture".to_string())];
-    let body_filter = append_node_eligibility_sql(Some(filter), "cn", &mut body_params);
-    let mut edge_params = vec![
-        rusqlite::types::Value::Text("fixture".to_string()),
-        rusqlite::types::Value::Integer(0),
-    ];
-    let edge_filter = append_edge_eligibility_sql(Some(filter), "ce", &mut edge_params);
-    let mut property_params = vec![
-        rusqlite::types::Value::Text("owner".to_string()),
-        rusqlite::types::Value::Text("fixture".to_string()),
-    ];
-    let property_filter = append_node_eligibility_sql(Some(filter), "n", &mut property_params);
-    [
-        ("body_fts", body_fts_rank_sql("", "", &body_filter, " LIMIT 10")),
-        ("edge_fts", edge_fts_rank_sql("", &edge_filter)),
-        ("property_fts", property_fts_rank_sql("", &property_filter)),
-    ]
-}
-
-/// Return and clear the normalized Slice 71 search-statement trace.
-#[cfg(feature = "test-hooks")]
-#[doc(hidden)]
-pub fn take_slice71_search_statement_trace_for_test() -> Vec<String> {
-    slice71_search_statement_trace()
-        .lock()
-        .map(|mut trace| std::mem::take(&mut *trace))
-        .unwrap_or_default()
 }
 
 #[cfg(feature = "test-hooks")]

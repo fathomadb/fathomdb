@@ -5,6 +5,8 @@ from pathlib import Path
 import re
 import unittest
 
+from rust_source_lex import brace_depth, has_cfg_attribute, outer_attributes
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
@@ -12,23 +14,17 @@ TYPES = ("EmbeddingReadinessState", "EmbeddingOperation", "EmbedderRequired", "E
 METHODS = ("usable_dense_runtime", "drain_embedder_events")
 
 
-def prelude(source: str, start: int) -> list[str]:
-    lines = []
-    for line in reversed(source[:start].splitlines()):
-        stripped = line.strip()
-        if stripped.startswith(("///", "#[")) or not stripped:
-            lines.append(stripped)
-        else:
-            break
-    return lines
-
-
 def gates(source: str, start: int) -> bool:
-    return any(re.match(r"#\[\s*cfg(?:_attr)?\b", line) for line in prelude(source, start))
+    return has_cfg_attribute(outer_attributes(source, start))
 
 
 def owner_errors(root: str, owner: str, generation: str, worker: str) -> list[str]:
     errors = []
+    root_module = re.search(r"(?m)^mod embedding;$", root)
+    if root_module is None or gates(root, root_module.start()):
+        errors.append("root gates embedding owner module")
+    if re.search(r"(?m)^\s*#!\[\s*cfg(?:_attr)?\b", owner):
+        errors.append("embedding gates whole owner module")
     for name in re.findall(r"^(?:pub(?:\([^)]*\))? )?(?:struct|enum|type|trait) ((?:Embedding|EmbedderRequired)\w*)\b", root, re.M):
         errors.append(f"root still defines embedding::{name}")
     for name in re.findall(r"^impl[^\n{]*\b((?:Embedding|EmbedderRequired)\w*)\b[^\n{]*\{", root, re.M):
@@ -46,10 +42,18 @@ def owner_errors(root: str, owner: str, generation: str, worker: str) -> list[st
             errors.append(f"embedding lacks one {name}")
         elif gates(owner, found[0].start()):
             errors.append(f"embedding gates always-on {name}")
+    owner_impls = list(re.finditer(r"(?ms)^impl Engine \{.*?^}", owner))
+    for impl in owner_impls:
+        if brace_depth(owner, impl.start()) != 0:
+            errors.append("embedding nests Engine impl")
+        if gates(owner, impl.start()):
+            errors.append("embedding gates Engine impl")
     for name in METHODS:
         visibility = "pub " if name == "drain_embedder_events" else "pub\\(crate\\) "
         found = list(re.finditer(r"^    " + visibility + "fn " + name + r"\(", owner, re.M))
         if len(found) != 1:
+            errors.append(f"embedding lacks one Engine::{name}")
+        elif not any(impl.start() < found[0].start() < impl.end() for impl in owner_impls):
             errors.append(f"embedding lacks one Engine::{name}")
         elif gates(owner, found[0].start()):
             errors.append(f"embedding gates always-on Engine::{name}")
@@ -138,6 +142,33 @@ class EmbeddingOwnerTest(unittest.TestCase):
 
     def test_fast_tier_registration(self) -> None:
         self.assertIn("fast test-slice90-embedding-owner", (ROOT / "scripts/agent-test.sh").read_text())
+
+    def test_comment_gap_and_ancestor_cfg_mutants(self) -> None:
+        root, owner, generation, worker = self.sources()
+        self.assertEqual(owner_errors(root, owner, generation, worker), [])
+        marker = "    pub fn drain_embedder_events("
+        for attr in ('#[cfg(feature = "operator")]',
+                     '#[cfg_attr(\n    all(feature = "default-embedder", test),\n    cfg(test)\n)]'):
+            altered = owner.replace(marker, '    ' + attr + '\n    // attribution\n' + marker, 1)
+            self.assertIn("embedding gates always-on Engine::drain_embedder_events",
+                          owner_errors(root, altered, generation, worker))
+            altered = owner.replace("impl Engine {", attr + "\n/* gap */\nimpl Engine {", 1)
+            self.assertIn("embedding gates Engine impl", owner_errors(root, altered, generation, worker))
+        first = re.search(r"(?ms)^impl Engine \{.*?^}", owner)
+        self.assertIsNotNone(first)
+        wrapped = (owner[:first.start()] + '#[cfg(feature = "operator")]\n'
+                   'mod gated_embedding {\nuse super::*;\n' + first.group() + '\n}\n' +
+                   owner[first.end():])
+        self.assertIn("embedding nests Engine impl", owner_errors(root, wrapped, generation, worker))
+        for attr in ('#![cfg(feature = "operator")]',
+                     '#![cfg_attr(feature = "default-embedder", cfg(test))]'):
+            self.assertIn("embedding gates whole owner module",
+                          owner_errors(root, attr + "\n" + owner, generation, worker))
+        raw = 'const RAW_WITNESS: &str = r###"quote " /*"###;\n'
+        gated_root = root.replace("mod embedding;", raw + '#[cfg(feature = "operator")]\n'
+                                  '/* end */\nmod embedding;', 1)
+        self.assertIn("root gates embedding owner module",
+                      owner_errors(gated_root, owner, generation, worker))
 
 
 if __name__ == "__main__":

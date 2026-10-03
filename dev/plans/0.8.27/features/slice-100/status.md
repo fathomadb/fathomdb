@@ -1,11 +1,11 @@
 ---
-title: FathomDB 0.8.27 Slice 100 - candidate status
-status: IN_PROGRESS
+title: FathomDB 0.8.27 Slice 100 - completion status
+status: COMPLETE
 target_release: 0.8.27
 planning_baseline: c149584bcc259594856433a0963ea126c633a634
 ---
 
-# Slice 100 candidate status
+# Slice 100 completion status
 
 Slice 90 is closed at the entry baseline. The [plan](plan.md) reconciles the
 pre-entry draft with Slice 90, assigned binding work, allocated draft items and
@@ -43,6 +43,16 @@ environment-dependent suites were skipped; none was excluded. Final independent
 code review and Terra verification passed on that candidate.
 
 The successor [ADR](../../../../adr/ADR-0.8.27-python-subscriber-delivery.md)
-remains proposed pending the required human ruling on the old heartbeat
-promise. Slice 100 stays open until the ADR ruling is recorded and the
-release-state closeout is merged into `release/0.8.27`.
+is accepted under the repository owner's 2026-10-03 direction, conditioned on
+reviewed active architecture and design updates. The
+[data-plane architecture](../../../../design/fathomdb-data-plane-architecture-v2.md),
+[binding design](../../../../design/bindings.md),
+[lifecycle design](../../../../design/lifecycle.md), and
+[engine design](../../../../design/engine.md) now document the actual
+SQLite/rusqlite/PyO3 callback stack, delivery and loss bounds, lifetime,
+reentry, latency, and heartbeat/operation-ID rationale. A subsequent
+`gpt-6-sol` high design review passed with no remaining findings. This closes
+R27-100F/AC27-100F and all Slice 100 obligations. The branch fast-forwarded
+into `release/0.8.27` at `89c0a7c7054fe2a95909db65750656b5c65606f3`;
+the release state advances to Slice 110. The temporary Slice 100 worktree and
+branch are removed after this record is committed.

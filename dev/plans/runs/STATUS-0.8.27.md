@@ -11,7 +11,7 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 100 (PYO3), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 110 (NAPI), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) · 100 (`731130c22a40bfed3f50e9f205500d5080022cc7`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
 
 Prework Slices 0-9, bounded preparation Slice 10, correction-safe erasure
 Slice 20, real-surface comparator Slice 30, and engine-foundation Slice 40 are
@@ -30,7 +30,7 @@ binding, not a claim of post-fix full canonical or surface verification.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 100 (PYO3)** — PyO3 binding decomposition. **Remaining ladder:** 100 → 110 → 114 → 115 → 120 → 130 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 110 (NAPI)** — napi-rs binding decomposition. **Remaining ladder:** 110 → 114 → 115 → 120 → 130 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -74,6 +74,7 @@ binding and stage-3 ancestry. See the
 | 80 | Engine read, search, graph, and evidence | Complete at reviewed candidate `b7403958` and closeout `e8e603b7`. `e9631b97`/`bca0c99d` remain historical. Production changes ended at `0efa62c5`; no post-fix canonical PASS or official post-fix public/hidden capture is claimed. |
 | 85 | Engine carrier ownership and dependency-boundary enforcement | Complete on `release/0.8.27` per release state at reviewed candidate `7a2f9bf9` and closeout `8cd3389d`, from commissioned baseline `4c75bfec`. Design review cycle 1 then failed the enforcement half (boundary gate), cycle 2 of the FIX-1 head found residual gate gaps (D-14..D-22), cycle 3 of the FIX-2 head found macro-hidden edges and smaller gaps (D-23..D-27), and cycle 4 of the FIX-3 head found a renamed or re-pathed `include!` and qualified-self serde paths (D-28, D-29); FIX-1 through FIX-4 are recorded in `features/slice-85/tdd-chronology.md`, and FIX-4 was confirmed by a green mutation-script run. A test review of the FIX-4 head then returned PASS-WITH-FIXES (T-1..T-8); test FIX-1 is recorded in the same chronology. Test review cycle 2 then returned FAIL (T-9..T-12); test FIX-2 is recorded in the same chronology and was confirmed by a green 218-assertion mutation run and the feature-gated engine runs. Test review cycle 3 then returned FAIL (T-13..T-15); test FIX-3 is recorded in the same chronology and was confirmed by a green 222-assertion mutation run. Test review cycle 4 then returned FAIL (T-16); test FIX-4, recorded in the same chronology and confirmed by a green 240-assertion mutation run, awaits candidate rebinding. |
 | 90 | Engine open, configuration, runtime, operator, and facade closure | Complete on `release/0.8.27` at reviewed source candidate `1398c821d`. The stage-2 runtime checkpoint, final Sol code review, final independent Terra verification, 180/180 full gate, strict GPU gate, frozen D27 comparison, named performance gates, installed bindings, Windows MSVC routes, and official public/hidden comparisons pass. The AC-073 stress PASS and superseded AC-075 combined-selector failure remain distinct. See [Slice 90 status](../0.8.27/features/slice-90/status.md) and [final verification](../0.8.27/features/slice-90/final-review-verification.md). |
+| 100 | PyO3 binding decomposition and subscriber correction | Complete at production candidate `731130c22` and reviewed documentation/ADR closeout `89c0a7c70`. The source/runtime inventory, installed wheels, focused subscriber tests, independent Sol code and design reviews, Terra verification, affected platform routes, and strict full gate pass. The full gate reports 178/180 suites with two environment skips and zero security findings. See [Slice 100 status](../0.8.27/features/slice-100/status.md) and [verification](../0.8.27/features/slice-100/review-verification.md). |
 
 ## Verification boundary
 
@@ -221,16 +222,12 @@ grant/revert evidence.
   projector and operator handoffs, effective configuration behavior, and
   retained reader-connection and shared search-control ownership. The
   accepted Option B successor and stage-2 checkpoint are implemented and
-  verified. There is no Slice 91 allocation. Slice 100 is planned and needs
-  separate commissioning.
-- Prospective [Slice 100](../0.8.27/features/slice-100/design.md) and
-  [Slice 110](../0.8.27/features/slice-110/design.md) designs now require exact
-  native ownership/registration inventories, contract disposition, installed
-  artifact and feature/platform proof, and zero outstanding obligations at
-  each exit. Slice 90 supplies completed configuration behavior; 100/110
-  decompose the native bindings. The existing no-op subscribers and NAPI
-  executor/ADR mismatch need explicit closure within their owning binding
-  slices. These are planned obligations, not implementation findings claimed
-  fixed. No Slice 111 is allocated; Slice 120 still depends on completed 110.
-- No temporary branch or worktree was created for prework; the existing
-  `release/0.8.27` worktree remains the active release workspace.
+  verified. There is no Slice 91 allocation. Slice 100 is complete on the
+  release branch with the Python subscriber defect corrected and its accepted
+  ADR reflected in active architecture and design documentation.
+- [Slice 110](../0.8.27/features/slice-110/design.md) remains planned and
+  requires an exact native ownership/registration inventory, contract
+  disposition, installed artifact and feature/platform proof, and zero
+  outstanding obligations at exit. Its NAPI executor/ADR mismatch remains
+  within Slice 110. No Slice 111 is allocated; Slice 120 depends on completed
+  110.

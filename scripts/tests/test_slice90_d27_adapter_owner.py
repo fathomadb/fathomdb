@@ -82,8 +82,9 @@ def owner_errors(root: str, modules: dict[str, str], standalone: str) -> list[st
     if not core:
         errors.append("embed_dispatch lacks standalone core")
     else:
-        body = re.sub(r"(?m)//[^\n]*", "", core)
-        if re.search(r"\b(?:Engine|Connection|ProjectionRuntime)\b|\brusqlite\b|\bcrate::(?:open|operator|projection|read_api|search)", body):
+        body = re.sub(r"/\*.*?\*/|//[^\n]*", "", core, flags=re.S)
+        if re.search(r"\b(?:Engine|Connection|ProjectionRuntime|rusqlite)\b|"
+                     r"\b(?:crate|super)::|\buse\s+crate\b", body):
             errors.append("standalone dispatch core depends on Engine or another runtime owner")
         if "macro_rules!" in body:
             errors.append("standalone dispatch core hides edges in a macro")
@@ -136,6 +137,17 @@ class D27AdapterOwnerTest(unittest.TestCase):
             changed_root = root.replace("mod embed_dispatch;", attr + "\nmod embed_dispatch;", 1)
             self.assertIn("root gates embed_dispatch module", owner_errors(changed_root, modules, standalone))
         changed = modules | {"embed_dispatch/core.rs": modules["embed_dispatch/core.rs"] + "\nfn hidden_edge(_: crate::Engine) {}\n"}
+        self.assertIn("standalone dispatch core depends on Engine or another runtime owner",
+                      owner_errors(root, changed, standalone))
+        for path in ("connection_runtime", "reader_pool", "wal_runtime"):
+            with self.subTest(path=path):
+                edge = (f'\n#[cfg(not(test))]\n#[allow(unused_imports)]\n'
+                        f'use crate::{path} as hidden_runtime;\n')
+                changed = modules | {"embed_dispatch/core.rs": modules["embed_dispatch/core.rs"] + edge}
+                self.assertIn("standalone dispatch core depends on Engine or another runtime owner",
+                              owner_errors(root, changed, standalone))
+        changed = modules | {"embed_dispatch/core.rs": modules["embed_dispatch/core.rs"] +
+                   "\n#[allow(unused_imports)] use super::d27_observation as hidden_adapter;\n"}
         self.assertIn("standalone dispatch core depends on Engine or another runtime owner",
                       owner_errors(root, changed, standalone))
         changed = standalone.replace("../src/embed_dispatch/core.rs", "../src/embed_dispatch.rs", 1)

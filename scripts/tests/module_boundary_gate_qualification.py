@@ -38,6 +38,10 @@ case("descendant", "forbidden dependency graph_expand::codec -> search_api",
      ("graph_expand/codec.rs", "#[allow(unused_imports)] use crate::search_api as recovery_descendant;"))
 case("dispatch-core-projection", "forbidden dependency embed_dispatch::core -> projection_runtime",
      ("embed_dispatch/core.rs", "#[allow(unused_imports)] use crate::projection_runtime as recovery_core_projection;"), kind="parser")
+for owner in ("connection_runtime", "reader_pool", "wal_runtime"):
+    case(f"dispatch-core-{owner}", f"forbidden dependency embed_dispatch::core -> {owner}",
+         ("embed_dispatch/core.rs", f'#[cfg(not(test))] #[allow(unused_imports)] use crate::{owner} as recovery_core_{owner};'),
+         kind="parser")
 case("callable-reference", "forbidden dependency read -> reader_pool",
      ("reader_pool.rs", "pub(crate) fn recovery_callable() {}"),
      ("read.rs", "fn recovery_reference() { let _ = crate::reader_pool::recovery_callable; }"))

@@ -160,8 +160,10 @@ class D27AdapterOwnerTest(unittest.TestCase):
                    "\n#[allow(unused_imports)] use super::d27_observation as hidden_adapter;\n"}
         self.assertIn("standalone dispatch core depends on Engine or another runtime owner",
                       owner_errors(root, changed, standalone))
-        for literal in ('"/*"', 'b"/*"', 'r#"/*"#', 'r###"quote " /*"###',
-                        'br##"quote " /*"##', "'x'", "b'x'"):
+        long_raw = 'r' + '#' * 17 + '"quote " /*"' + '#' * 17
+        for literal in ('"/*"', 'b"/*"', 'c"/*"', 'r#"/*"#', 'r###"quote " /*"###',
+                        'br##"quote " /*"##', 'cr##"quote " /*"##', long_raw,
+                        "'x'", "b'x'"):
             with self.subTest(literal=literal):
                 edge = (f'\nfn literal_witness() {{ let _ = {literal}; }}\n'
                         "fn lifetime_identity<'a>(value: &'a str) -> &'a str { value }\n"
@@ -175,6 +177,8 @@ class D27AdapterOwnerTest(unittest.TestCase):
             '\n// use crate::runtime_lifecycle as commented;\n'
             '/* use crate::reader_pool as commented; /* nested */ */\n'
             'const PATH_TEXT: &str = r#"crate::wal_runtime"#;\n'
+            f'fn literal_controls() {{ let _ = {long_raw}; let _ = c"/*"; '
+            'let _ = cr##"quote " /*"##; }\n'
         )
         self.assertEqual(owner_errors(root, modules | {"embed_dispatch/core.rs": harmless}, standalone), [])
         with self.assertRaises(ValueError):

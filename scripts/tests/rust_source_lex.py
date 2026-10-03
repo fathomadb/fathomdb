@@ -40,7 +40,7 @@ def rust_mask(source: str, *, literals: bool) -> str:
                 raise ValueError("unterminated Rust block comment")
             result[start:index] = _blank(source[start:index])
             continue
-        raw = re.match(r'(?:br|r)(?P<hashes>#{0,16})"', source[index:])
+        raw = re.match(r'(?:br|cr|r)(?P<hashes>#*)"', source[index:])
         if raw and (index == 0 or not (source[index - 1].isalnum() or source[index - 1] == "_")):
             terminator = '"' + raw.group("hashes")
             end = source.find(terminator, index + raw.end())
@@ -51,9 +51,10 @@ def rust_mask(source: str, *, literals: bool) -> str:
                 result[index:end] = _blank(source[index:end])
             index = end
             continue
-        if source.startswith('b"', index) or source[index] == '"':
+        prefixed_string = source.startswith(('b"', 'c"'), index)
+        if prefixed_string or source[index] == '"':
             start = index
-            index += 2 if source.startswith('b"', index) else 1
+            index += 2 if prefixed_string else 1
             while index < len(source):
                 if source[index] == "\\":
                     index += 2

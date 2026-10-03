@@ -251,7 +251,7 @@ use projection_worker::{
 pub(crate) use provenance::ProvenanceRole;
 pub use provenance::{
     ProvenanceCompleteness, ProvenanceError, ProvenanceErrorReason, ProvenancedEdgeV1,
-    ProvenancedNodeV1, SourceLocator, WriteProvenanceV1,
+    ProvenancedNodeV1, SourceLocator, TraceEvent, TraceReport, WriteProvenanceV1,
 };
 pub(crate) use provider::{ProviderSession, ProviderTask};
 #[cfg(feature = "test-hooks")]
@@ -478,7 +478,6 @@ const EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION: u32 = 23;
 const DEPENDENCY_GENERATION_KEY: &str = "_fathomdb_dependency_generation";
 const SOURCE_DEPENDENCY_SCHEMA_VERSION: u32 = 28;
 const DEPENDENCY_LOOKUP_LIMIT: usize = 100;
-const DEFAULT_PROVENANCE_ROW_CAP: u64 = 1_000_000;
 /// 0.8.20 Slice 5b (R-20-E6) — the sentinel that replaces an erased
 /// `result_stable_ids` element in the telemetry sink. Positional alignment with
 /// the parallel `result_ids` array is preserved, so a redacted sink stays
@@ -836,24 +835,6 @@ pub struct CounterSnapshot {
 
 pub use lifecycle::Subscription;
 pub use open::{EmbedderChoice, OpenReport, OpenedEngine, ENV_GPU_ALLOCATION_WITNESS};
-
-/// Phase 9 Pack B trace report (AC-042). One event per canonical row
-/// attributable to the requested `source_id`, ordered by `write_cursor`
-/// ascending.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TraceReport {
-    pub source_ref: String,
-    pub events: Vec<TraceEvent>,
-}
-
-/// Single canonical-row tracing record. `table` is one of
-/// `"canonical_nodes"` or `"canonical_edges"`.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TraceEvent {
-    pub write_cursor: u64,
-    pub kind: String,
-    pub table: &'static str,
-}
 
 /// Which shadow-state surface a [`RebuildReport`] describes.
 /// `Projections` covers the full FTS5 + vec0 + projection-terminal
@@ -2617,62 +2598,6 @@ impl Engine {
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
         load_default_profile(connection).map_err(|_| EngineError::Storage)
-    }
-
-    /// Phase 9 Pack B / AC-042 source trace. Returns the canonical-row
-    /// id set produced by `source_id`, ordered by `write_cursor`. Empty
-    /// string is not a valid `source_id`; rows with NULL `source_id`
-    /// are excluded from every result.
-    #[cfg(feature = "operator")]
-    pub fn trace_source_ref(&self, source_id: &str) -> Result<TraceReport, EngineError> {
-        self.ensure_open()?;
-        if source_id.is_empty() {
-            return Err(EngineError::WriteValidation);
-        }
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-
-        let mut events: Vec<TraceEvent> = Vec::new();
-        let mut nodes = connection
-            .prepare(
-                "SELECT write_cursor, kind FROM canonical_nodes WHERE source_id = ?1
-                 ORDER BY write_cursor",
-            )
-            .map_err(|_| EngineError::Storage)?;
-        let node_rows = nodes
-            .query_map([source_id], |row| {
-                Ok(TraceEvent {
-                    write_cursor: row.get::<_, i64>(0)? as u64,
-                    kind: row.get::<_, String>(1)?,
-                    table: "canonical_nodes",
-                })
-            })
-            .map_err(|_| EngineError::Storage)?;
-        for row in node_rows {
-            events.push(row.map_err(|_| EngineError::Storage)?);
-        }
-
-        let mut edges = connection
-            .prepare(
-                "SELECT write_cursor, kind FROM canonical_edges WHERE source_id = ?1
-                 ORDER BY write_cursor",
-            )
-            .map_err(|_| EngineError::Storage)?;
-        let edge_rows = edges
-            .query_map([source_id], |row| {
-                Ok(TraceEvent {
-                    write_cursor: row.get::<_, i64>(0)? as u64,
-                    kind: row.get::<_, String>(1)?,
-                    table: "canonical_edges",
-                })
-            })
-            .map_err(|_| EngineError::Storage)?;
-        for row in edge_rows {
-            events.push(row.map_err(|_| EngineError::Storage)?);
-        }
-
-        events.sort_by_key(|e| e.write_cursor);
-        Ok(TraceReport { source_ref: source_id.to_string(), events })
     }
 
     /// Trace one reciprocal source-to-derived dependency page under an authenticated frozen view.

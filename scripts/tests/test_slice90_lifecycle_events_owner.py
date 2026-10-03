@@ -34,6 +34,11 @@ def owner_errors(root: str, owner: str, open_source: str, worker: str) -> list[s
     module = re.search(r"^pub mod lifecycle;", root, re.M)
     if not module or attrs(root, module.start()):
         errors.append("root lacks ungated lifecycle module")
+    engine_impls = list(re.finditer(r"^impl Engine \{", owner, re.M))
+    if not engine_impls:
+        errors.append("lifecycle lacks Engine impl")
+    elif any(attrs(owner, impl.start()) for impl in engine_impls):
+        errors.append("lifecycle gates Engine impl")
     for name in METHODS:
         visibility = "pub" if name == "subscribe" else "pub(crate)"
         found = list(re.finditer(r"^    " + re.escape(visibility) + r" fn " + name + r"\(", owner, re.M))
@@ -95,6 +100,10 @@ class LifecycleEventsOwnerTest(unittest.TestCase):
     def test_cfg_and_cfg_attr_mutants(self) -> None:
         root, owner, open_source, worker = self.sources()
         self.assertEqual(owner_errors(root, owner, open_source, worker), [])
+        for attr in ('#[cfg(feature = "operator")]', '#[cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]'):
+            altered = owner.replace("impl Engine {", attr + "\nimpl Engine {", 1)
+            self.assertNotEqual(altered, owner)
+            self.assertIn("lifecycle gates Engine impl", owner_errors(root, altered, open_source, worker))
         for name in METHODS:
             marker = f"    {'pub' if name == 'subscribe' else 'pub(crate)'} fn {name}("
             for attr in ('#[cfg(feature = "operator")]', '#[cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]'):

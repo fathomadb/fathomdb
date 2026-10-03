@@ -283,10 +283,6 @@ pub use provenance::{
     ProvenancedNodeV1, SourceLocator, TraceEvent, TraceReport, WriteProvenanceV1,
 };
 pub(crate) use provider::{ProviderSession, ProviderTask};
-#[cfg(feature = "test-hooks")]
-pub(crate) use read::{
-    canonical_page_query, OPERATIONAL_STATE_PAGE_SQL, OPERATIONAL_STATE_POINT_SQL,
-};
 pub use read::{NodeRecord, OpStoreRow, OperationalStateRecordV1};
 #[cfg(debug_assertions)]
 pub use reader_pool::CacheStatusReply;
@@ -639,59 +635,6 @@ impl Engine {
         &self.path
     }
 
-    /// Test-only `EXPLAIN QUERY PLAN` output for the three Slice 45 read shapes.
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn slice45_page_query_plans_for_test(
-        &self,
-        kind: &str,
-    ) -> Result<Vec<(String, Vec<String>)>, EngineError> {
-        self.ensure_open()?;
-        let connection = open_managed_connection(
-            &self.path,
-            ManagedConnectionCategory::RuntimeProbe,
-            &self.managed_connections,
-        )
-        .map_err(|_| EngineError::Storage)?;
-        let (canonical_sql, canonical_binds) =
-            canonical_page_query(kind, &ReadView::default(), &SearchFilter::default(), 0, 100)
-                .map_err(|_| EngineError::Storage)?;
-        let plans = [
-            ("canonical_page", canonical_sql, canonical_binds),
-            (
-                "operational_point",
-                OPERATIONAL_STATE_POINT_SQL.to_string(),
-                vec![
-                    rusqlite::types::Value::Text("state".to_string()),
-                    rusqlite::types::Value::Text("key".to_string()),
-                ],
-            ),
-            (
-                "operational_page",
-                OPERATIONAL_STATE_PAGE_SQL.to_string(),
-                vec![
-                    rusqlite::types::Value::Text("state".to_string()),
-                    rusqlite::types::Value::Integer(0),
-                    rusqlite::types::Value::Integer(101),
-                ],
-            ),
-        ];
-        plans
-            .into_iter()
-            .map(|(name, sql, binds)| {
-                let mut statement = connection
-                    .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
-                    .map_err(|_| EngineError::Storage)?;
-                let details = statement
-                    .query_map(rusqlite::params_from_iter(binds.iter()), |row| row.get(3))
-                    .map_err(|_| EngineError::Storage)?
-                    .collect::<Result<Vec<String>, _>>()
-                    .map_err(|_| EngineError::Storage)?;
-                Ok((name.to_string(), details))
-            })
-            .collect()
-    }
-
     #[cfg(debug_assertions)]
     #[doc(hidden)]
     pub fn force_next_commit_failure_for_test(&self) {
@@ -861,121 +804,6 @@ impl Engine {
                 rusqlite::Error::QueryReturnedNoRows => Ok(None),
                 _ => Err(EngineError::Storage),
             })
-    }
-
-    /// EXP-S (0.8.14 Slice 5, D1) — write one canonical node row carrying an
-    /// explicit structural `row_kind` (leaf/coverage/graph), routing the index
-    /// projection through the SAME `row_kind -> index-target` dispatch seam
-    /// (`project_canonical_node_row`) as the production `leaf` write path.
-    ///
-    /// This is the internal-only writer for `coverage`/`graph` rows (there is no
-    /// public SDK surface for `row_kind` in 0.8.14). Cursor assignment preserves
-    /// the `rowid == write_cursor == cursor` determinism identity. When the row
-    /// projects into an async vector index, the worker pool is notified so the
-    /// embed is scheduled exactly as for a normal write.
-    #[doc(hidden)]
-    pub fn write_canonical_row_with_kind_for_test(
-        &self,
-        kind: &str,
-        body: &str,
-        row_kind: RowKind,
-    ) -> Result<WriteReceipt, EngineError> {
-        self.ensure_open()?;
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-
-        // R-20-E3 / design §4 item 6 — this writer BYPASSES `PreparedWrite`, so
-        // the `SourceId` newtype cannot reach it; before 0.8.20 it inserted a
-        // literal NULL `source_id` and produced a row that no `excise_source`
-        // call could reach. Engine-derived rows instead take a reserved
-        // `_engine:*` provenance, keyed by the structural role that produced
-        // them, so they are both erasable and distinguishable from caller data.
-        let engine_provenance = SourceId::engine_derived(row_kind.as_str());
-
-        // 0.8.20 Slice 20c — same late enrolment the governed write path takes
-        // (`Engine::batch_vector_kinds_needing_enrolment`), so this internal writer does not
-        // silently diverge into the false-ready barrier for `coverage` rows. The
-        // live-embedder precondition is checked here, as that caller does; the
-        // `row_kind` gate keeps `graph` rows out of the vector registry.
-        //
-        // fix-2 (codex §9 [P2]) — including the un-stranding half, so this door
-        // cannot diverge from the other one either. fix-5 (codex §9 round 4 [P2])
-        // — and both halves commit as ONE transaction, via the same shared
-        // `enrol_and_unstrand`.
-        let unstranded = if self.usable_dense_runtime()
-            && self.vector_kind_needs_enrolment(connection, kind, row_kind)?
-        {
-            self.enrol_and_unstrand(connection, &[kind])?
-        } else {
-            false
-        };
-
-        let cursor = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
-        let enqueued = {
-            let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
-            // 0.8.20 Slice 15b (TC-34) — this writer takes NO validity window, and
-            // that is deliberate rather than an oversight. It is a `#[doc(hidden)]`
-            // test-only writer for the internal `coverage`/`graph` row kinds, which
-            // have no public SDK surface at all (see the doc comment above); the
-            // caller-facing authoring path is `PreparedWrite::Node`, handled in
-            // `commit_batch`. Omitting the columns binds NULL — the migration
-            // step-22 default and the UNBOUNDED reading — so engine-derived rows
-            // stay valid at every instant, which is the only correct answer for a
-            // structural row that no caller can address a window to.
-            tx.execute(
-                "INSERT INTO canonical_nodes(write_cursor, kind, body, source_id, logical_id, row_kind)
-                 VALUES(?1, ?2, ?3, ?4, NULL, ?5)",
-                params![cursor, kind, body, engine_provenance.as_str(), row_kind.as_str()],
-            )
-            .map_err(|_| EngineError::Storage)?;
-            let enqueued = project_canonical_node_row(
-                &tx,
-                cursor,
-                kind,
-                body,
-                row_kind,
-                ProjectionPass::Write,
-                // This #[doc(hidden)] writer inserts with the column DEFAULT
-                // `state = 'active'` (no state column in its INSERT), so the row
-                // is always active and its attributes project.
-                true,
-            )
-            .map_err(|_| EngineError::Storage)?;
-            advance_projection_cursor(&tx).map_err(|_| EngineError::Storage)?;
-            tx.commit().map_err(|_| EngineError::Storage)?;
-            enqueued
-        };
-        self.next_cursor.store(cursor, Ordering::SeqCst);
-        if enqueued || unstranded {
-            self.projection_runtime.notify_new_work();
-        }
-        Ok(WriteReceipt { cursor, row_cursors: vec![cursor], dangling_edge_endpoints: 0 })
-    }
-
-    /// EXP-S (0.8.14 Slice 5, D1) — select the active canonical rows carrying a
-    /// given `row_kind`, returning their `write_cursor`s in cursor order. Proves
-    /// the engine can query/select rows by the structural `row_kind` axis.
-    #[doc(hidden)]
-    pub fn canonical_rows_with_row_kind_for_test(
-        &self,
-        row_kind: RowKind,
-    ) -> Result<Vec<u64>, EngineError> {
-        self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let mut stmt = connection
-            .prepare(
-                "SELECT write_cursor FROM canonical_nodes
-                 WHERE row_kind = ?1 AND superseded_at IS NULL
-                 ORDER BY write_cursor",
-            )
-            .map_err(|_| EngineError::Storage)?;
-        let cursors = stmt
-            .query_map(params![row_kind.as_str()], |row| row.get::<_, u64>(0))
-            .map_err(|_| EngineError::Storage)?
-            .collect::<rusqlite::Result<Vec<u64>>>()
-            .map_err(|_| EngineError::Storage)?;
-        Ok(cursors)
     }
 
     /// EU-5b test seam — drain MeanVecPinned events queued by the

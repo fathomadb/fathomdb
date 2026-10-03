@@ -504,3 +504,94 @@ impl Engine {
         Ok(WriteReceipt { cursor: last_cursor, row_cursors, dangling_edge_endpoints })
     }
 }
+
+impl Engine {
+    /// EXP-S (0.8.14 Slice 5, D1) — write one canonical node row carrying an
+    /// explicit structural `row_kind` (leaf/coverage/graph), routing the index
+    /// projection through the SAME `row_kind -> index-target` dispatch seam
+    /// (`project_canonical_node_row`) as the production `leaf` write path.
+    ///
+    /// This is the internal-only writer for `coverage`/`graph` rows (there is no
+    /// public SDK surface for `row_kind` in 0.8.14). Cursor assignment preserves
+    /// the `rowid == write_cursor == cursor` determinism identity. When the row
+    /// projects into an async vector index, the worker pool is notified so the
+    /// embed is scheduled exactly as for a normal write.
+    #[doc(hidden)]
+    pub fn write_canonical_row_with_kind_for_test(
+        &self,
+        kind: &str,
+        body: &str,
+        row_kind: RowKind,
+    ) -> Result<WriteReceipt, EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+
+        // R-20-E3 / design §4 item 6 — this writer BYPASSES `PreparedWrite`, so
+        // the `SourceId` newtype cannot reach it; before 0.8.20 it inserted a
+        // literal NULL `source_id` and produced a row that no `excise_source`
+        // call could reach. Engine-derived rows instead take a reserved
+        // `_engine:*` provenance, keyed by the structural role that produced
+        // them, so they are both erasable and distinguishable from caller data.
+        let engine_provenance = SourceId::engine_derived(row_kind.as_str());
+
+        // 0.8.20 Slice 20c — same late enrolment the governed write path takes
+        // (`Engine::batch_vector_kinds_needing_enrolment`), so this internal writer does not
+        // silently diverge into the false-ready barrier for `coverage` rows. The
+        // live-embedder precondition is checked here, as that caller does; the
+        // `row_kind` gate keeps `graph` rows out of the vector registry.
+        //
+        // fix-2 (codex §9 [P2]) — including the un-stranding half, so this door
+        // cannot diverge from the other one either. fix-5 (codex §9 round 4 [P2])
+        // — and both halves commit as ONE transaction, via the same shared
+        // `enrol_and_unstrand`.
+        let unstranded = if self.usable_dense_runtime()
+            && self.vector_kind_needs_enrolment(connection, kind, row_kind)?
+        {
+            self.enrol_and_unstrand(connection, &[kind])?
+        } else {
+            false
+        };
+
+        let cursor = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
+        let enqueued = {
+            let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+            // 0.8.20 Slice 15b (TC-34) — this writer takes NO validity window, and
+            // that is deliberate rather than an oversight. It is a `#[doc(hidden)]`
+            // test-only writer for the internal `coverage`/`graph` row kinds, which
+            // have no public SDK surface at all (see the doc comment above); the
+            // caller-facing authoring path is `PreparedWrite::Node`, handled in
+            // `commit_batch`. Omitting the columns binds NULL — the migration
+            // step-22 default and the UNBOUNDED reading — so engine-derived rows
+            // stay valid at every instant, which is the only correct answer for a
+            // structural row that no caller can address a window to.
+            tx.execute(
+                "INSERT INTO canonical_nodes(write_cursor, kind, body, source_id, logical_id, row_kind)
+                 VALUES(?1, ?2, ?3, ?4, NULL, ?5)",
+                params![cursor, kind, body, engine_provenance.as_str(), row_kind.as_str()],
+            )
+            .map_err(|_| EngineError::Storage)?;
+            let enqueued = project_canonical_node_row(
+                &tx,
+                cursor,
+                kind,
+                body,
+                row_kind,
+                ProjectionPass::Write,
+                // This #[doc(hidden)] writer inserts with the column DEFAULT
+                // `state = 'active'` (no state column in its INSERT), so the row
+                // is always active and its attributes project.
+                true,
+            )
+            .map_err(|_| EngineError::Storage)?;
+            advance_projection_cursor(&tx).map_err(|_| EngineError::Storage)?;
+            tx.commit().map_err(|_| EngineError::Storage)?;
+            enqueued
+        };
+        self.next_cursor.store(cursor, Ordering::SeqCst);
+        if enqueued || unstranded {
+            self.projection_runtime.notify_new_work();
+        }
+        Ok(WriteReceipt { cursor, row_cursors: vec![cursor], dangling_edge_endpoints: 0 })
+    }
+}

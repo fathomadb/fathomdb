@@ -1,11 +1,20 @@
+#[cfg(feature = "test-hooks")]
+use crate::connection_runtime::open_managed_connection;
 use crate::dependency_closure;
 use crate::errors::EngineError;
+#[cfg(feature = "test-hooks")]
+use crate::filter::SearchFilter;
 use crate::filter::{Filter, Predicate, PREDICATE_PATH_ALLOWLIST};
 use crate::frozen_read::FrozenReadContextV1;
 use crate::pagination::{self, PageRequestV1, PageV1};
+#[cfg(feature = "test-hooks")]
+use crate::read::{canonical_page_query, OPERATIONAL_STATE_PAGE_SQL, OPERATIONAL_STATE_POINT_SQL};
 use crate::read::{NodeRecord, OpStoreRow, OperationalStateRecordV1, PageReaderError};
 use crate::reader_pool::ReaderRequest;
 use crate::temporal::{current_epoch_seconds, ReadView};
+#[cfg(feature = "test-hooks")]
+use crate::wal_runtime::ManagedConnectionCategory;
+use crate::write_types::RowKind;
 use crate::Engine;
 use rusqlite::{params, OptionalExtension};
 use std::sync::mpsc::{self, Receiver};
@@ -297,5 +306,86 @@ impl Engine {
                 Err(EngineError::Storage)
             }
         }
+    }
+}
+
+impl Engine {
+    /// EXP-S (0.8.14 Slice 5, D1) — select the active canonical rows carrying a
+    /// given `row_kind`, returning their `write_cursor`s in cursor order. Proves
+    /// the engine can query/select rows by the structural `row_kind` axis.
+    #[doc(hidden)]
+    pub fn canonical_rows_with_row_kind_for_test(
+        &self,
+        row_kind: RowKind,
+    ) -> Result<Vec<u64>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let mut stmt = connection
+            .prepare(
+                "SELECT write_cursor FROM canonical_nodes
+                 WHERE row_kind = ?1 AND superseded_at IS NULL
+                 ORDER BY write_cursor",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let cursors = stmt
+            .query_map(params![row_kind.as_str()], |row| row.get::<_, u64>(0))
+            .map_err(|_| EngineError::Storage)?
+            .collect::<rusqlite::Result<Vec<u64>>>()
+            .map_err(|_| EngineError::Storage)?;
+        Ok(cursors)
+    }
+
+    /// Test-only `EXPLAIN QUERY PLAN` output for the three Slice 45 read shapes.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn slice45_page_query_plans_for_test(
+        &self,
+        kind: &str,
+    ) -> Result<Vec<(String, Vec<String>)>, EngineError> {
+        self.ensure_open()?;
+        let connection = open_managed_connection(
+            &self.path,
+            ManagedConnectionCategory::RuntimeProbe,
+            &self.managed_connections,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        let (canonical_sql, canonical_binds) =
+            canonical_page_query(kind, &ReadView::default(), &SearchFilter::default(), 0, 100)
+                .map_err(|_| EngineError::Storage)?;
+        let plans = [
+            ("canonical_page", canonical_sql, canonical_binds),
+            (
+                "operational_point",
+                OPERATIONAL_STATE_POINT_SQL.to_string(),
+                vec![
+                    rusqlite::types::Value::Text("state".to_string()),
+                    rusqlite::types::Value::Text("key".to_string()),
+                ],
+            ),
+            (
+                "operational_page",
+                OPERATIONAL_STATE_PAGE_SQL.to_string(),
+                vec![
+                    rusqlite::types::Value::Text("state".to_string()),
+                    rusqlite::types::Value::Integer(0),
+                    rusqlite::types::Value::Integer(101),
+                ],
+            ),
+        ];
+        plans
+            .into_iter()
+            .map(|(name, sql, binds)| {
+                let mut statement = connection
+                    .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+                    .map_err(|_| EngineError::Storage)?;
+                let details = statement
+                    .query_map(rusqlite::params_from_iter(binds.iter()), |row| row.get(3))
+                    .map_err(|_| EngineError::Storage)?
+                    .collect::<Result<Vec<String>, _>>()
+                    .map_err(|_| EngineError::Storage)?;
+                Ok((name.to_string(), details))
+            })
+            .collect()
     }
 }

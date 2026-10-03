@@ -19,8 +19,33 @@ HELPERS = (
 )
 
 
-def owner_errors(root: str, owner: str) -> list[str]:
+METHOD_DECL = re.compile(
+    r"^    (?:(?:pub(?:\([^)]*\))?) )?fn ((?:check_integrity|safe_export)\w*)\(",
+    re.M,
+)
+
+
+def source_prelude(source: str, start: int, indent: str) -> list[str]:
+    lines = source[:start].splitlines()
+    attrs = []
+    for line in reversed(lines):
+        if line.startswith(indent + "#["):
+            attrs.append(line.strip())
+        elif line.startswith(indent + "///"):
+            continue
+        else:
+            break
+    return attrs
+
+
+def owner_errors(root: str, owner: str, others: dict[str, str] | None = None) -> list[str]:
     errors = []
+    if others is None:
+        others = {
+            str(path.relative_to(SRC)): path.read_text()
+            for path in SRC.rglob("*.rs")
+            if path not in (SRC / "lib.rs", SRC / "operator.rs")
+        }
     root_types = re.compile(
         r"^(?:(?:pub(?:\([^)]*\))?) )?(?:struct|enum) "
         r"((?:CheckIntegrity|Section|Finding|IntegrityReport|SafeExport)\w*)\b",
@@ -53,14 +78,29 @@ def owner_errors(root: str, owner: str) -> list[str]:
         kind = "enum" if name == "Section" else "struct"
         if len(re.findall(r"^pub " + kind + " " + name + r"\b", owner, re.M)) != 1:
             errors.append(f"operator owner lacks one {name}")
-    owner_impls = re.findall(r"^impl Engine \{.*?^\}", owner, re.M | re.S)
-    if len(owner_impls) != 1:
-        errors.append("operator owner lacks one Engine impl")
-    owner_engine = owner_impls[0] if len(owner_impls) == 1 else ""
+    owner_impls = list(re.finditer(r"^impl Engine \{.*?^\}", owner, re.M | re.S))
     for name in METHODS:
-        pattern = r'^    #\[cfg\(feature = "operator"\)\]\n    pub fn ' + name + r"\("
-        if len(re.findall(pattern, owner_engine, re.M)) != 1:
+        declarations = [match for match in METHOD_DECL.finditer(owner) if match.group(1) == name]
+        valid = False
+        if len(declarations) == 1:
+            declaration = declarations[0]
+            enclosing = next(
+                (impl for impl in owner_impls if impl.start() < declaration.start() < impl.end()),
+                None,
+            )
+            attrs = source_prelude(owner, declaration.start(), "    ")
+            valid = (
+                enclosing is not None
+                and not source_prelude(owner, enclosing.start(), "")
+                and attrs == ['#[cfg(feature = "operator")]']
+                and declaration.group(0).startswith(f"    pub fn {name}(")
+                and not re.search(r"^#!\[cfg(?:_attr)?\(", owner, re.M)
+            )
+        if not valid:
             errors.append(f"operator owner lacks cfg(operator) Engine::{name}")
+    for path, source in others.items():
+        for match in METHOD_DECL.finditer(source):
+            errors.append(f"{path} still defines Engine::{match.group(1)}")
     for name in HELPERS:
         pattern = r'^#\[cfg\(feature = "operator"\)\]\nfn ' + name + r"\("
         if len(re.findall(pattern, owner, re.M)) != 1:
@@ -103,6 +143,54 @@ class OperatorIntegrityOwnerTest(unittest.TestCase):
             "root does not re-export operator::SafeExportArtifact",
             owner_errors(root.replace("SafeExportArtifact,", "RemovedSafeExportArtifact,", 1), owner),
         )
+
+    def test_multiple_engine_impls_and_method_mutants(self) -> None:
+        root, owner = self.sources()
+        self.assertEqual(owner_errors(root, owner), [])
+        for name in METHODS:
+            declaration = (
+                '\nimpl Engine {\n    #[cfg(feature = "operator")]\n'
+                f'    pub fn {name}(&self) {{}}\n}}\n'
+            )
+            with self.subTest(name=name, mutation="duplicate"):
+                self.assertIn(
+                    f"operator owner lacks cfg(operator) Engine::{name}",
+                    owner_errors(root, owner + declaration),
+                )
+            with self.subTest(name=name, mutation="removed"):
+                self.assertIn(
+                    f"operator owner lacks cfg(operator) Engine::{name}",
+                    owner_errors(root, owner.replace(f"pub fn {name}(", f"pub fn removed_{name}(", 1)),
+                )
+        self.assertIn(
+            "operator owner lacks cfg(operator) Engine::check_integrity",
+            owner_errors(root, owner.replace(
+                '    #[cfg(feature = "operator")]\n    pub fn check_integrity(',
+                '    #[cfg_attr(feature = "default-embedder", cfg(test))]\n'
+                '    #[cfg(feature = "operator")]\n    pub fn check_integrity(',
+                1,
+            )),
+        )
+        self.assertIn(
+            "operator owner lacks cfg(operator) Engine::safe_export",
+            owner_errors(root, owner.replace(
+                "impl Engine {", '#[cfg(test)]\nimpl Engine {', 1
+            )),
+        )
+
+    def test_wrong_owner_method_family_mutants(self) -> None:
+        root, owner = self.sources()
+        other = (SRC / "evidence.rs").read_text()
+        for name in ("check_integrity", "safe_export_new"):
+            with self.subTest(name=name):
+                self.assertIn(
+                    f"evidence.rs still defines Engine::{name}",
+                    owner_errors(
+                        root,
+                        owner,
+                        {"evidence.rs": other + f"\nimpl Engine {{\n    fn {name}(&self) {{}}\n}}\n"},
+                    ),
+                )
 
     def test_fast_tier_registration(self) -> None:
         self.assertIn(

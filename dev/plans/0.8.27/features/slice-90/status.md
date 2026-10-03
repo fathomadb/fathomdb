@@ -509,16 +509,22 @@ receipts are recorded. The performance receipt binds the exact strict passing
 D27 retry and records the third-run HITL ruling with the unchanged verifier
 miss. The structured runtime checkpoint binds exact candidate `2e94aaf4f`,
 receipt commit `4a98a1e80`, and three PASS receipt hashes in release state;
-`scripts/check-runtime-checkpoints.py` passes. Structural Phase 3 is in
-progress on the clean release branch. Reviewed ownership moves through
-projection rebuild and commit, telemetry, and lifecycle event dispatch have
-landed; the release branch passed its full verification gate at `48112e56f`
-with 152/152 suites and no skips or exclusions. The telemetry and lifecycle
-commits and the later errors/vector/erasure owner moves passed merged-tree full
-verification at `cd43fe1ce` with 157/157 suites, no skips or exclusions.
-Independent design review approved the remaining test-seam owner map, now
-recorded in `test-seam-owner-map.md`; those relocations have not yet landed.
-Remaining owner moves and the final root inventory precede final-candidate
-D27, default performance, installed binding, GPU, public/hidden
-surface, non-Linux, independent review, and Slice 85 recovery comparisons.
-Slice 90 remains IN_PROGRESS.
+`scripts/check-runtime-checkpoints.py` passes. Structural Phase 3 is landed on
+`release/0.8.27` through `1088df022`. The reviewed owner moves preserve the
+public paths and approved feature gates. The D27 dispatcher protocol now lives
+in its standalone Engine-free core, and its three test-only observation methods
+live in the ordinary `embed_dispatch` owner. The blob-bound
+`phase3-root-reconciliation.md` records the 43 retained storage fields, four
+approved root test helpers, the `#[cfg(test)]` worker fixture, and zero
+unmapped root production declarations. The independent Sol high review passed
+on the exact implementation tree, and the merged release branch passed the
+full unconfined verification gate at `1088df022`: 180/180 suites, zero skips
+or exclusions, and zero security violations, blockers, or downgrades.
+
+Final-candidate work remains: the distinct feature and non-Linux builds,
+installed Python and Node artifacts, the strict GPU gate on the driver installed
+on windchill3 at run time under HITL `seq-300`, repeated D27 and named default
+performance gates, resource and cleanup inventory, official public and hidden
+surface captures, Slice 85 recovery comparison, and exact-candidate independent
+review and verification. The historical stage-2 throughput ruling applies only
+to its recorded run. Slice 90 remains IN_PROGRESS.

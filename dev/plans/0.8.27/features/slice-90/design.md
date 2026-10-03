@@ -163,9 +163,8 @@ Independent design review approves this exact map before movement. No new
 production deferral to Slice 100/140 is permitted; existing Slice 140 test-gate
 work stays there without concealing production logic.
 
-The prospective item-specific disposition of the remaining root test seams is
-recorded in [test-seam-owner-map.md](test-seam-owner-map.md). Its named rows
-require independent design review before any of those seams move. Method
+The independently reviewed item-specific disposition of the remaining root
+test seams is recorded in [test-seam-owner-map.md](test-seam-owner-map.md). Method
 paths, cfg gates, documentation attributes and public re-exports remain exact;
 the three itemized root exception rows above and the public mean test module
 retain their paths.

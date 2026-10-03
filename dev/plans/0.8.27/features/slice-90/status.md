@@ -514,8 +514,11 @@ progress on the clean release branch. Reviewed ownership moves through
 projection rebuild and commit, telemetry, and lifecycle event dispatch have
 landed; the release branch passed its full verification gate at `48112e56f`
 with 152/152 suites and no skips or exclusions. The telemetry and lifecycle
-commits landed after that gate and are awaiting their merged-tree full gate.
-Remaining owner moves and the final root inventory precede the exact-final-
-candidate D27, default performance, installed binding, GPU, public/hidden
+commits and the later errors/vector/erasure owner moves passed merged-tree full
+verification at `cd43fe1ce` with 157/157 suites, no skips or exclusions.
+Independent design review approved the remaining test-seam owner map, now
+recorded in `test-seam-owner-map.md`; those relocations have not yet landed.
+Remaining owner moves and the final root inventory precede final-candidate
+D27, default performance, installed binding, GPU, public/hidden
 surface, non-Linux, independent review, and Slice 85 recovery comparisons.
 Slice 90 remains IN_PROGRESS.

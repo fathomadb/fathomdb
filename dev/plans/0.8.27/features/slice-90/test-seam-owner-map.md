@@ -1,12 +1,18 @@
 ---
-title: Slice 90 prospective root test-seam disposition amendment
-status: PROPOSED
+title: Slice 90 approved root test-seam disposition amendment
+status: ACCEPTED
 source_sha: e05de8be99d4b66a29cafe02e6b0682ebd1993ec
 ---
 
-# Slice 90 root test-seam disposition — prospective amendment
+# Slice 90 root test-seam disposition
 
-This draft supplements `dev/plans/0.8.27/features/slice-90/design.md` §§78–160. It is an item-specific proposal, not authority to move code until reviewed. Line numbers refer to `fathomdb-engine/src/lib.rs` at the fixed source SHA above. `current-source-inventory.md` is the entry census, not a final disposition map. A later HEAD requires a fresh symbol comparison before execution.
+This item-specific amendment supplements
+`dev/plans/0.8.27/features/slice-90/design.md` §§78–160. Independent
+`gpt-6-sol` high design review passed after correcting the arbitrary-writer-SQL
+fixtures and mean test module ownership. Line numbers refer to
+`fathomdb-engine/src/lib.rs` at the fixed source SHA above.
+`current-source-inventory.md` is the entry census, not a final disposition
+map. Confirm symbol identity against the implementation HEAD before each move.
 
 The later implementation commits through `e0f062c7` move only production
 constants outside this table; no listed test-seam declaration changed.
@@ -18,7 +24,7 @@ constants outside this table; no listed test-seam declaration changed.
 - Documentation codes: **H** has `#[doc(hidden)]`; **V** does not. Preserve `#[must_use]` and `#[allow(dead_code)]` where present. Existing free public functions need root `pub use` to keep `fathomdb_engine::function`; private helpers need no public re-export. The two public timing structs need root re-exports after relocation.
 - Physical `Engine` storage stays in root. The four search control atomics stay on `ProjectionRuntimeShared` in `projection_runtime`; moving setters changes method-body ownership only.
 
-## Proposed per-item disposition
+## Per-item disposition
 
 | Current `lib.rs` symbol and line | Gate/docs | Final implementation owner and source-grounded reason | Root path disposition |
 | --- | --- | --- | --- |
@@ -71,6 +77,9 @@ The `mean_centering_internals_for_test` module and its `AccumulatorHandle`, `new
 
 ## Review decisions and execution order
 
-The proposed choices above resolve the source-grounded overlaps without duplicating owner state. `write_vector_for_test` moves to `vector_storage` but remains the accepted direct-provider exception to runtime proof. The two arbitrary-SQL column fixtures remain as newly itemized root exceptions beside `execute_for_test` and `run_one_thread_poison_for_test`. The mean test module implementation moves to `mean` with its public root path re-exported. Independent review must approve this complete item map before implementation; a reviewer may reject any proposed owner, in which case that item needs a prospective ruling rather than an ad hoc move.
+These reviewed choices resolve the source-grounded overlaps without duplicating owner state. `write_vector_for_test` moves to `vector_storage` but remains the accepted direct-provider exception to runtime proof. The two arbitrary-SQL column fixtures remain as itemized root exceptions beside `execute_for_test` and `run_one_thread_poison_for_test`. The mean test module implementation moves to `mean` with its public root path re-exported. A later change to an owner requires prospective review rather than an ad hoc move.
 
-After review: (1) add these rows to the accepted design and final item inventory; (2) move one semantic owner group at a time, with public re-exports and identical cfg/docs; (3) verify qualified test identities, source scrapers, feature variants and module boundary checks per batch; (4) reconcile root to storage/composition/approved controls and explicit test exceptions. Do not infer a full-green claim from this draft.
+For each move, keep public re-exports and identical cfg/docs, verify qualified
+test identities, source scrapers, feature variants and module boundary checks,
+then reconcile root to storage, composition, approved controls and explicit
+test exceptions. This owner ruling is not a final-candidate verification claim.

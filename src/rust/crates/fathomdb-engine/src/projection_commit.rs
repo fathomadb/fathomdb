@@ -1,6 +1,37 @@
 use super::*;
 use crate::projection_runtime::PROJECTION_CURSOR_KEY;
 
+pub(crate) const PROJECTION_COMMIT_BATCH: usize = 64;
+
+fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
+    let unexpected: bool = connection
+        .prepare_cached(
+            "SELECT EXISTS(
+             SELECT 1 FROM sqlite_master
+             WHERE type='trigger'
+               AND tbl_name IN (
+                   '_fathomdb_vector_rows','_fathomdb_projection_terminal',
+                   '_fathomdb_embedder_profiles','operational_mutations',
+                   '_fathomdb_open_state','_fathomdb_read_visibility_state',
+                   'vector_default'
+               )
+               AND name NOT LIKE '_fathomdb_read_visibility_%'
+             UNION ALL
+             SELECT 1 FROM sqlite_temp_master
+             WHERE type='trigger'
+               AND tbl_name IN (
+                   '_fathomdb_vector_rows','_fathomdb_projection_terminal',
+                   '_fathomdb_embedder_profiles','operational_mutations',
+                   '_fathomdb_open_state','_fathomdb_read_visibility_state',
+                   'vector_default'
+               )
+               AND name NOT LIKE '_fathomdb_read_visibility_%'
+         )",
+        )?
+        .query_row([], |row| row.get(0))?;
+    Ok(!unexpected)
+}
+
 pub(crate) fn load_projection_cursor(connection: &Connection) -> rusqlite::Result<u64> {
     connection
         .query_row(

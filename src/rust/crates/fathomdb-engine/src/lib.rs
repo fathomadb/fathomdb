@@ -559,7 +559,6 @@ fn is_erasure_bookkeeping_collection(collection: &str) -> bool {
 #[cfg(test)]
 const PROJECTION_WORKERS: usize = 2;
 const DEFAULT_EMBED_TIMEOUT_MS: u64 = 30_000;
-const PROJECTION_COMMIT_BATCH: usize = 64;
 
 /// Reader pool size. Per `dev/design/engine.md` § Writer / reader split,
 /// reader connections are pooled and never serialize behind one
@@ -2527,35 +2526,6 @@ fn legacy_revision_id(
         None => revision_hash_field(&mut hasher, b"body:none"),
     }
     format!("_fdb:m:{}", hex_encode(&hasher.finalize()))
-}
-
-fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
-    let unexpected: bool = connection
-        .prepare_cached(
-            "SELECT EXISTS(
-             SELECT 1 FROM sqlite_master
-             WHERE type='trigger'
-               AND tbl_name IN (
-                   '_fathomdb_vector_rows','_fathomdb_projection_terminal',
-                   '_fathomdb_embedder_profiles','operational_mutations',
-                   '_fathomdb_open_state','_fathomdb_read_visibility_state',
-                   'vector_default'
-               )
-               AND name NOT LIKE '_fathomdb_read_visibility_%'
-             UNION ALL
-             SELECT 1 FROM sqlite_temp_master
-             WHERE type='trigger'
-               AND tbl_name IN (
-                   '_fathomdb_vector_rows','_fathomdb_projection_terminal',
-                   '_fathomdb_embedder_profiles','operational_mutations',
-                   '_fathomdb_open_state','_fathomdb_read_visibility_state',
-                   'vector_default'
-               )
-               AND name NOT LIKE '_fathomdb_read_visibility_%'
-         )",
-        )?
-        .query_row([], |row| row.get(0))?;
-    Ok(!unexpected)
 }
 
 fn load_next_cursor(connection: &Connection) -> u64 {

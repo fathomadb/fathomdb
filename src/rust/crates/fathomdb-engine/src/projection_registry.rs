@@ -1,4 +1,5 @@
 use super::*;
+use crate::vector_storage::{DEFAULT_VECTOR_PARTITION, DEFAULT_VECTOR_PROFILE};
 
 /// 0.8.20 Slice 15d (R-20-PR, C-1) — one member of a [`ProjectionSpec`]'s role
 /// set. **Exactly three members** (HITL-ratified S8, `api-surface.md:87`):

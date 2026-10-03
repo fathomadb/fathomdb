@@ -331,6 +331,7 @@ pub use test_hooks::{
 #[cfg(debug_assertions)]
 pub use test_hooks::{ProjectionWorkerPauseReadyError, ProjectionWorkerTransactionPauseForTest};
 use vector_equivalence::{run_vector_equivalence_probe, usable_dense_runtime};
+use vector_storage::DEFAULT_VECTOR_PROFILE;
 use vector_storage::{
     actual_vector_attr_columns, decode_attr_vec0_column, decode_vector_blob,
     default_profile_dimension, delete_vector_partition_row, encode_vector_blob,
@@ -422,49 +423,6 @@ use sha2::Digest;
 use sha2::Digest as _;
 use sha2::Sha256;
 
-const DEFAULT_VECTOR_PROFILE: &str = "default";
-const DEFAULT_VECTOR_PARTITION: &str = "vector_default";
-
-/// 0.8.18 Slice 5 (#5 vector-equivalence probe) — the committed 45-probe fixture
-/// (byte-identical to `fathomdb-embedder/tests/fixtures/candle_onnx_equivalence_probes.txt`;
-/// a drift-guard test pins the two copies equal). One probe per non-empty line;
-/// lines whose first non-whitespace char is `#` are comments.
-const VECTOR_EQUIVALENCE_PROBE_FIXTURE: &str = include_str!("vector_equivalence_probes.txt");
-
-/// 0.8.18 Slice 5 (#5 vector-equivalence probe) — the FROZEN D4 tolerance floor,
-/// **P2 component**: the un-centered Phase-2 L2 epsilon. `‖reembed − reference‖₂`
-/// (un-centered, `vec_distance_l2` semantics) strictly greater than this ⇒
-/// divergence ⇒ dense refused. Named constant so the final ε (HITL look at
-/// landing) is trivially tunable. The **P1 component** (Phase-1 mean-centered
-/// `embedding_bin` sign-flip count) has an *exact-zero* floor: ANY single flip on
-/// the 45 probes ⇒ divergence (see [`VECTOR_EQUIVALENCE_P1_FLIP_FLOOR`]).
-const VECTOR_EQUIVALENCE_L2_EPSILON: f32 = 1e-5;
-
-/// 0.8.18 Slice 5 — the FROZEN D4 tolerance floor, **P1 component**: the maximum
-/// tolerated Phase-1 mean-centered `embedding_bin` sign-flip count across all 45
-/// probes. `0` = exact: any single flip ⇒ divergence ⇒ dense refused.
-const VECTOR_EQUIVALENCE_P1_FLIP_FLOOR: u64 = 0;
-
-/// 0.8.20 Slice 22 (TC-68) — `_fathomdb_open_state` key holding the
-/// `probe_verification_fingerprint` of the last open at which the
-/// vector-equivalence probe actually RAN and PASSED on this workspace. An open
-/// whose freshly computed fingerprint equals this value reuses that verdict and
-/// performs ZERO probe embeds; anything else re-runs the full probe.
-///
-/// It lives in `_fathomdb_open_state` — the engine's existing open-time
-/// durable-marker KV table (migration step 1) — alongside
-/// `SEARCH_INDEX_TOKENIZER_REPROJECT_MARKER_KEY` and
-/// `EDGE_VECTOR_PRUNE_MARKER_KEY`, which is exactly this shape of state. So
-/// TC-68 adds **no** table, **no** migration step and **no** `SCHEMA_VERSION`
-/// bump: an old DB simply has no row here and re-runs the probe once.
-const VECTOR_EQUIVALENCE_VERDICT_CACHE_KEY: &str = "vector_equivalence_verified_fingerprint";
-
-/// 0.8.20 Slice 22 (TC-68) — recipe tag mixed into every verdict fingerprint.
-/// **Bump it whenever the SET of fingerprint inputs changes.** Every cached
-/// verdict in the field then stops matching and the probe re-runs once per
-/// workspace — the fail-SAFE direction, and the reason a stale recipe can never
-/// silently keep vouching for a narrower check than the current build performs.
-const VECTOR_EQUIVALENCE_FINGERPRINT_RECIPE: &str = "fathomdb-veq-verdict-v1";
 /// OPP-12 Phase-1 (0.8.19 Slice 10) — drain budget the `transition`/`purge`
 /// lifecycle verbs use to settle in-flight projection work before mutating.
 /// Same 30 s budget as `REBUILD_DRAIN_TIMEOUT_MS`, but not `operator`-gated

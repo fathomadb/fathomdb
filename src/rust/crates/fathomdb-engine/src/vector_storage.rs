@@ -1,5 +1,8 @@
 use super::*;
 
+pub(crate) const DEFAULT_VECTOR_PROFILE: &str = "default";
+pub(crate) const DEFAULT_VECTOR_PARTITION: &str = "vector_default";
+
 pub(crate) fn load_default_profile(connection: &Connection) -> rusqlite::Result<EmbedderIdentity> {
     connection.query_row(
         "SELECT name, revision, dimension FROM _fathomdb_embedder_profiles WHERE profile = ?1",

@@ -2,6 +2,7 @@ use super::*;
 use crate::dependency_trace::{DEPENDENCY_GENERATION_KEY, SOURCE_DEPENDENCY_SCHEMA_VERSION};
 use crate::errors::{map_migration_error, map_open_sqlite_error};
 use crate::lifecycle::emit_open_error_event;
+use crate::vector_storage::DEFAULT_VECTOR_PROFILE;
 
 struct OpenEmbedDispatchGuard(Option<Arc<EmbedDispatcher>>);
 

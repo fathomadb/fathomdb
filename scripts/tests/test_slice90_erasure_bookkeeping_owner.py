@@ -36,9 +36,9 @@ def attrs(source: str, start: int) -> list[str]:
     return found
 
 
-def owner_errors(root: str, owner: str, commit: str, wal: str) -> list[str]:
+def owner_errors(root: str, owner: str, commit: str, wal: str, telemetry: str) -> list[str]:
     errors = []
-    for label, source in (("root", root), ("write_commit", commit), ("wal_runtime", wal)):
+    for label, source in (("root", root), ("write_commit", commit), ("wal_runtime", wal), ("telemetry", telemetry)):
         errors.extend(f"{label} wrongly defines {name}" for name in CONST_FAMILY.findall(source))
         errors.extend(f"{label} wrongly defines {name}" for name in HELPER_FAMILY.findall(source))
     module = re.search(r"^mod erasure;", root, re.M)
@@ -74,14 +74,14 @@ def owner_errors(root: str, owner: str, commit: str, wal: str) -> list[str]:
 
 
 class ErasureBookkeepingOwnerTest(unittest.TestCase):
-    def sources(self) -> tuple[str, str, str, str]:
-        return tuple((SRC / name).read_text() for name in ("lib.rs", "erasure.rs", "write_commit.rs", "wal_runtime.rs"))
+    def sources(self) -> tuple[str, str, str, str, str]:
+        return tuple((SRC / name).read_text() for name in ("lib.rs", "erasure.rs", "write_commit.rs", "wal_runtime.rs", "telemetry.rs"))
 
     def test_current_source_has_one_owner(self) -> None:
         self.assertEqual(owner_errors(*self.sources()), [])
 
     def test_complete_owner_rejects_root_and_wrong_owner_families(self) -> None:
-        root, owner, commit, wal = self.sources()
+        root, owner, commit, wal, telemetry = self.sources()
         for name, (visibility, suffix) in CONSTANTS.items():
             root = re.sub(r"(?m)^const " + name + r".*\n", "", root, count=1)
             declaration = f"{visibility} {name}{suffix}"
@@ -93,7 +93,7 @@ class ErasureBookkeepingOwnerTest(unittest.TestCase):
         marker = "use crate::erasure::{ERASURE_AUDIT_COLLECTIONS, ERASURE_PENDING_REDACTION_COLLECTION};"
         if marker not in commit:
             commit += "\n" + marker
-        self.assertEqual(owner_errors(root, owner, commit, wal), [])
+        self.assertEqual(owner_errors(root, owner, commit, wal, telemetry), [])
         for label, source, declaration, name in (
             ("root", root, 'pub(crate) const REDACTED_STABLE_ID_NEW: &str = "x";', "REDACTED_STABLE_ID_NEW"),
             ("root", root, "fn is_erasure_bookkeeping_collection_new() {}", "is_erasure_bookkeeping_collection_new"),
@@ -102,16 +102,28 @@ class ErasureBookkeepingOwnerTest(unittest.TestCase):
             ("wal_runtime", wal, "pub fn is_erasure_bookkeeping_collection_new() {}", "is_erasure_bookkeeping_collection_new"),
         ):
             altered = source + "\n" + declaration
-            sources = {"root": root, "write_commit": commit, "wal_runtime": wal}
+            sources = {"root": root, "write_commit": commit, "wal_runtime": wal, "telemetry": telemetry}
             sources[label] = altered
             self.assertIn(
                 f"{label} wrongly defines {name}",
-                owner_errors(sources["root"], owner, sources["write_commit"], sources["wal_runtime"]),
+                owner_errors(sources["root"], owner, sources["write_commit"], sources["wal_runtime"], sources["telemetry"]),
+            )
+
+    def test_telemetry_rejects_redaction_sentinel_duplicates(self) -> None:
+        root, owner, commit, wal, telemetry = self.sources()
+        self.assertEqual(owner_errors(root, owner, commit, wal, telemetry), [])
+        for declaration, name in (
+            ('const REDACTED_STABLE_ID: &str = "wrong";', "REDACTED_STABLE_ID"),
+            ('pub(crate) const REDACTED_STABLE_ID_NEW: &str = "wrong";', "REDACTED_STABLE_ID_NEW"),
+        ):
+            self.assertIn(
+                f"telemetry wrongly defines {name}",
+                owner_errors(root, owner, commit, wal, telemetry + "\n" + declaration),
             )
 
     def test_owner_rejects_unlisted_same_family_declarations(self) -> None:
-        root, owner, commit, wal = self.sources()
-        self.assertEqual(owner_errors(root, owner, commit, wal), [])
+        root, owner, commit, wal, telemetry = self.sources()
+        self.assertEqual(owner_errors(root, owner, commit, wal, telemetry), [])
         for declaration, name in (
             ('const REDACTED_STABLE_ID_NEW: &str = "x";', "REDACTED_STABLE_ID_NEW"),
             ('pub(crate) const ERASURE_AUDIT_COLLECTIONS_NEW: &str = "x";', "ERASURE_AUDIT_COLLECTIONS_NEW"),
@@ -119,31 +131,31 @@ class ErasureBookkeepingOwnerTest(unittest.TestCase):
         ):
             self.assertIn(
                 f"erasure unexpectedly defines {name}",
-                owner_errors(root, owner + "\n" + declaration, commit, wal),
+                owner_errors(root, owner + "\n" + declaration, commit, wal, telemetry),
             )
 
     def test_cfg_and_exact_value_mutants(self) -> None:
-        root, owner, commit, wal = self.sources()
-        self.assertEqual(owner_errors(root, owner, commit, wal), [])
+        root, owner, commit, wal, telemetry = self.sources()
+        self.assertEqual(owner_errors(root, owner, commit, wal, telemetry), [])
         for name, (visibility, suffix) in CONSTANTS.items():
             declaration = f"{visibility} {name}{suffix}"
             for attr in ('#[cfg(feature = "operator")]', '#[cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]'):
                 altered = owner.replace(declaration, attr + "\n" + declaration, 1)
                 self.assertNotEqual(altered, owner)
-                self.assertIn(f"erasure gates {name}", owner_errors(root, altered, commit, wal))
+                self.assertIn(f"erasure gates {name}", owner_errors(root, altered, commit, wal, telemetry))
             altered = owner.replace(declaration, declaration.replace(suffix, ': u8 = 7;'), 1)
-            self.assertIn(f"erasure lacks exact {name}", owner_errors(root, altered, commit, wal))
+            self.assertIn(f"erasure lacks exact {name}", owner_errors(root, altered, commit, wal, telemetry))
         for attr in ('#[cfg(feature = "test-hooks")]', '#[cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]'):
             altered = owner.replace(OPERATOR_CFG + "\nfn is_erasure_bookkeeping_collection(", attr + "\nfn is_erasure_bookkeeping_collection(", 1)
             self.assertNotEqual(altered, owner)
-            self.assertIn("erasure changes is_erasure_bookkeeping_collection cfg", owner_errors(root, altered, commit, wal))
+            self.assertIn("erasure changes is_erasure_bookkeeping_collection cfg", owner_errors(root, altered, commit, wal, telemetry))
         altered = owner.replace(OPERATOR_CFG + "\nfn is_erasure_bookkeeping_collection(", OPERATOR_CFG + '\n#[cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]\nfn is_erasure_bookkeeping_collection(', 1)
-        self.assertIn("erasure changes is_erasure_bookkeeping_collection cfg", owner_errors(root, altered, commit, wal))
+        self.assertIn("erasure changes is_erasure_bookkeeping_collection cfg", owner_errors(root, altered, commit, wal, telemetry))
         for attr in ('#![cfg(feature = "operator")]', '#![cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]'):
-            self.assertIn("erasure gates whole owner module", owner_errors(root, attr + "\n" + owner, commit, wal))
+            self.assertIn("erasure gates whole owner module", owner_errors(root, attr + "\n" + owner, commit, wal, telemetry))
         for attr in ('#[cfg(feature = "operator")]', '#[cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]'):
             altered = root.replace("mod erasure;", attr + "\nmod erasure;", 1)
-            self.assertIn("root gates erasure module", owner_errors(altered, owner, commit, wal))
+            self.assertIn("root gates erasure module", owner_errors(altered, owner, commit, wal, telemetry))
 
     def test_fast_tier_registration(self) -> None:
         self.assertIn("fast test-slice90-erasure-bookkeeping-owner", (ROOT / "scripts/agent-test.sh").read_text())

@@ -32,8 +32,9 @@ reported historical Windows `erase_source` and `purge` failures persist on
 0.8.27. The Tegra source is fetched at `8c4fdfa9`; the owner supplied the
 Windows account, and the Memex reproducer and ignored local VM/CI evidence
 are available. Wheel provenance and an exact 0.8.27 candidate comparison are
-pending. See the
-[Slice 103 plan](../0.8.27/features/slice-103/plan.md).
+pending. Separate Tegra and Windows implementer worktrees can run in parallel;
+their reviewed results join at one final source SHA before Slice 103 closes.
+See the [Slice 103 plan](../0.8.27/features/slice-103/plan.md).
 
 Slice 132 is planned after Slice 130 and before performance qualification. It
 will make the Rust SDK equal in canonical capability to Python and TypeScript,

@@ -50,10 +50,9 @@ retained raw evidence was subsequently located in the ignored local directory
 `FINDINGS-0.8.26-windows-erase-wal-checkpoint.md`, `ei-digest.tsv`, and
 `ei-failing-tests.tsv` index 507 retained `.log` paths, including 98 hard-link
 duplicates, October Windows VM runs, and earlier FathomDB attribution
-artifacts. Do not add the
-ignored data to this repository. The index records 1,154 `wal_checkpoint`
-error occurrences across FathomDB 0.8.22–0.8.26 logs: 1,024 for
-`erase_source` and 130 for `purge`. These are log occurrences, not independent
+artifacts. Do not add the ignored data to this repository. The index records
+1,154 `wal_checkpoint` error occurrences across FathomDB 0.8.22–0.8.26 logs:
+1,024 for `erase_source` and 130 for `purge`. These are log occurrences, not independent
 trials or a measured failure rate. Some older per-attempt VM artifacts expired
 or were removed; verify the retained receipts and exact wheel provenance before
 binding historical measurements. Only `erase_source` has a focused
@@ -78,10 +77,10 @@ close/reopen, and one later W12 run with renewed BUSY after reopening. The
 five rows in the retained findings table sum to 11 first failures; a Memex
 draft issue says 12 without a surviving raw trial output to substantiate the
 extra case. Keep 0/11 as the documented count and flag 0/12 as unverified.
-The tracked reproducer counts any `ErasureIncompleteError` and
-does not itself assert the stage, row survivors, physical WAL state, retry
-outcome, or wheel identity. Strengthen a separate 0.8.27 copy without changing
-the historical script or treating its narrative as an oracle.
+The tracked reproducer counts any `ErasureIncompleteError` and does not itself
+assert the stage, row survivors, physical WAL state, retry outcome, or wheel
+identity. Strengthen a separate 0.8.27 copy without changing the historical
+script or treating its narrative as an oracle.
 
 The historical [0.8.23 Slice 65 status](../../../runs/STATUS-0.8.23.md)
 closed Windows WAL attribution as **UNATTRIBUTED / NO REMEDY** after both clean
@@ -112,77 +111,102 @@ underlying checkpoint behavior.
 | R27-103C | The Tegra Pages operator route remains guarded and version truthful. | AC27-103C: local tests reject an unsupported `gh run list` flag, a mismatched remote SHA/version, and an unverified workflow result; the default route requires an installed Pages smoke, while an explicit skip cannot count as completed publication. The runbook distinguishes the 0.8.26 post-release route from an unpublished 0.8.27 candidate. Publication remains separately authorized. |
 | R27-103D | The reported 0.8.22–0.8.26 failures are compared with the actual 0.8.27 candidate before they are called current defects. | AC27-103D: inventory the retained local logs and verify the 0.8.26 registry wheel identity; run the same real-database no-read/read/page `erase_source` scenarios on an exact 0.8.27 installed-wheel SHA/hash with bounded repeated Windows and Linux controls. Add focused `purge` and operator `excise_source` controls using the historical CI shapes without treating log occurrences as trial counts. Record each public verb/binding, typed stage/detail, checkpoint BUSY/frame counts, reader/connection state, committed rows and WAL bytes before/after, same-engine and reopen retry, exact write fence, and zero-count completion. Observe the real erase checkpoint without a raw pre-erase checkpoint. Classify persistence, nonreproduction, or inconclusive evidence; a clean 40-trial batch alone cannot prove absence. |
 | R27-103E | Any failure that persists on 0.8.27 is attributed and handled without weakening erasure guarantees. | AC27-103E: if AC27-103D shows a current violation or sticky same-engine BUSY, isolate the holder or lock with controlled tests before selecting a remedy; commit a genuine failing Windows test before the smallest fix, then prove exact deletion/survivors, durable retry, independent-reopen physical absence, and truthful errors/reports. If 0.8.27 does not reproduce with adequate evidence, record a reviewed no-code disposition and its limits. An unresolved persistent store-wide write block prevents Slice 103 closeout. Any public closure-discovery, auto-finish, write-fence, or report change needs a separately accepted successor ADR and interface update. |
-| R27-103F | The next refactor starts from a verified candidate. | AC27-103F: focused Tegra and Windows tests, relevant Linux/SDK regressions, the required repository gate, independent code review, and read-only verification bind to the final 0.8.27 source SHA; no unresolved Slice 103 requirement is deferred into Slice 110 or the final release gate. |
+| R27-103F | The two tracks join into one verified candidate before the next refactor. | AC27-103F: each track has verified branch commits, a durable output witness, an evidence receipt, and independent review, including a reviewed no-production-code Windows disposition if warranted. After both reviewed branches are integrated, rebuild and install the Tegra and Windows wheels from one final 0.8.27 source SHA; bind their hashes, focused platform tests, relevant Linux/SDK regressions, the required repository gate, combined-diff review, and read-only verification to that SHA. No unresolved Slice 103 requirement is deferred into Slice 110 or the final release gate. |
 
 `dev/acceptance.md` remains locked; these IDs are release-local.
 
-## Coordination
+## Parallel tracks and join
 
-Run Tegra continuity and Windows erasure diagnosis as separate workstreams
-from the same verified 0.8.27 baseline. Each file-mutating implementer gets
-an isolated worktree and review; the release checkout remains the single
-integration and release-state writer. The Windows workstream first examines
-the retained 0.8.26-and-earlier evidence, then measures an exact 0.8.27
-candidate before proposing a fix. The Tegra workstream ports the five
-post-publication commits by behavior and proves a new 0.8.27 artifact. Merge
-only reviewed changes, then rerun the combined platform and repository gates
-at one final candidate SHA before closing Slice 103.
+After step 1, steps 2 and 3 run concurrently as independent subagent briefs;
+neither waits for the other. Step 4 starts only when both tracks have returned
+reviewable results.
 
-## Execution order
+1. **Commission both tracks from one baseline.** The release coordinator
+   records the live `release/0.8.27` HEAD at commissioning, verifies the
+   release state, and prepares separate Tegra and Windows briefs and worktrees
+   at that exact commit. Run
+   `scripts/preflight.sh --worktree <path> --expect-closed 100 --plan dev/plans/plan-0.8.27.md`
+   on each before its implementer starts. The two implementer subagents may
+   work at the same time, each writing only in its own checkout and producing
+   its own branch, track-local evidence receipt, and structured output witness. They do not
+   edit the shared Slice 103 plan, release board, or release-state JSON. The
+   release checkout has one integration and state writer. Keep build outputs
+   and virtual environments isolated; do not run `pip install -e` or
+   `maturin develop` from an implementer worktree and rebind the shared main
+   environment. Coordinate use of any shared physical test host without
+   serializing the two implementation tracks. After source, test, or script
+   edits, each track runs the full `./scripts/agent-verify.sh` from its own
+   prepared checkout with an isolated virtual environment and installed wheel;
+   a missing toolchain or failed preflight is reported as a blocker, never a
+   pass. Retain the exact exit and diagnostics for review.
 
-1. **Freeze intake.** Record the 0.8.27 entry SHA and fetch/verify the exact
-   0.8.26 five-commit range. Save a changed-file disposition against the live
-   0.8.27 tree, including lockfile and test-runner conflicts. Obtain the
-   owner-pasted Windows account and Memex `windows-portability` repro and
-   verification at `d92610c5`; inventory the ignored local evidence directory
-   above, its retained VM/CI logs, wheel identities, and any off-repo patch,
-   recording hashes and provenance. Retain the 11-versus-12 discrepancy as an
-   explicit evidence limitation unless the missing trial receipt is recovered.
-2. **Design and RED.** Review the Candle change and existing Tegra/driverless
-   constraints before changing the pin. Add or adapt tests that fail for the
-   missing static-runtime, installed-wheel, publisher, and Windows behavior.
-   Run the unchanged 0.8.26 reproducer against its registry wheel as a
-   historical control, then adapt a separate candidate test to assert the
-   exact stage, physical/row effects, retry and store-wide write-fence state.
-   Compare the current 0.8.27 installed wheel before selecting a correction.
-   Freeze a bounded trial protocol before observing results: at least the
-   original 40/40/20 Windows no-read/read/page matrix on the 0.8.26 wheel,
-   followed by three such batches on the exact 0.8.27 wheel; retain the Linux
-   read/page controls. Any candidate WAL refusal establishes persistence.
-   Zero candidate refusals without a direct mechanism witness means "not
-   reproduced within this sample," never "proved fixed"; if the 0.8.26
-   control also fails to reproduce, classify the comparison inconclusive.
-   Add `purge` and operator `excise_source` scenarios after the focused
-   `erase_source` control, preserving their distinct argument and closure
-   contracts. The Windows oracle uses a real database and the public operation,
-   with outcome classes and post-commit effects specified before a fix is chosen.
-   A five-attempt WAL BUSY refusal with durable deletion and retry obligation
-   may be expected behavior; require a demonstrated contract violation before
-   authorizing a remedy. Do not perturb the WAL with pre-erase raw checkpoints.
-   Keep test files fixed during fix-to-spec.
-3. **Integrate narrow changes.** Port Tegra checks and guarded publication
-   tooling with 0.8.27-aware documentation. Reconcile all four Candle patches,
-   lock sources, CUDA checker, pinned-override tests, and both x86_64 and
-   AArch64 CUDA routes. Review any external Windows patch independently,
-   then implement only behavior needed to make a reproduced 0.8.27 RED case
-   green. If its changes overlap Slice 20/50 erasure owners, preserve their atomicity and
-   proof-row exceptions and update accepted interfaces or ADRs for any public
-   contract change.
-4. **Prove on targets.** Run contract mutation/refusal tests and build the
-   `0.8.27+tegra` wheel on the classic Jetson route; retain exact source,
-   toolchain, wheel hash, symbol/dependency inspection, installed import,
-   CPU/auto/CUDA and allocation-witness receipts. Run the Windows reproducer
-   and affected Rust/Python/Node routes on the standing Windows VM or another
-   named supported host, with exact candidate hash and unmodified failure
-   diagnostics. Then run affected Linux regressions and
-   `./scripts/agent-verify.sh`; use the full release gate where required by
-   the changed dependency and packaging surface.
-5. **Review and close.** Independently review the combined diff and verify
-   the exact candidate. Record each carried/excluded 0.8.26 file, Windows
-   diagnosis and disposition, test exits, platform receipts, and remaining
-   risks in Slice 103 status. Advance release state to Slice 110 only when all
-   acceptance rows pass. Keep any Pages dispatch, tag, push, registry write,
-   or public deployment behind the release's separate authorization.
+2. **Track T — Tegra continuity (R27-103A–C).** This implementer inventories
+   the exact five post-publication 0.8.26 commits against the frozen 0.8.27
+   baseline and records every changed file's carry/adapt/exclude disposition.
+   It owns the Candle/CUDA dependency and lockfile changes, Tegra artifact and
+   installed-wheel checks, guarded Pages route, associated tests, and
+   0.8.27-aware runbook. Review the existing driverless CPU contract and add
+   RED tests before porting behavior. Reconcile all four Candle patches,
+   x86_64 and AArch64 CUDA routes, and 0.8.27-only gate registrations. Build
+   and inspect a branch-local `0.8.27+tegra` wheel on the classic Jetson route;
+   record source SHA, toolchain, wheel hash, symbols/dependencies, clean-venv
+   import outside the source tree, and CPU/auto/forced-CUDA allocation smokes.
+   This receipt proves the track branch, not the later integrated candidate.
+   The Tegra track leaves engine erasure behavior to Track W.
+
+3. **Track W — Windows WAL and erasure (R27-103D–E).** This implementer reads
+   the Memex `windows-portability` reproducer at `d92610c5`, owner account,
+   and ignored local VM/CI evidence read-only. Inventory hashes, provenance,
+   and missing receipts; keep the 11-versus-12 discrepancy explicit unless
+   the extra trial is recovered. Freeze the outcome classes and bounded trial
+   protocol before running it. Use the unchanged 0.8.26 registry wheel as a
+   historical control, then build and install a hashed 0.8.27 Windows wheel
+   from this track's frozen-baseline branch. Run at least the original
+   40/40/20 no-read/read/page matrix on 0.8.26, followed by three such batches
+   on 0.8.27, with Linux read/page controls. Add focused `purge` and operator
+   `excise_source` scenarios with their distinct argument and closure contracts.
+   Any candidate WAL refusal establishes persistence; zero refusals without a
+   mechanism witness means only "not reproduced within this sample." If the
+   historical control also fails to reproduce, classify the comparison
+   inconclusive.
+
+   The Windows oracle uses a real database and public operations, recording
+   typed stage/detail, BUSY/frame counts, reader/connection state, committed
+   rows and WAL bytes before/after, exact write fence, same-engine and reopen
+   retry, and zero-count completion. Do not perturb the WAL with a raw
+   pre-erase checkpoint. A typed five-attempt BUSY refusal can be correct
+   fail-closed behavior; demonstrate the contract violation before changing
+   production code. If it persists, isolate the holder or lock, commit a RED
+   Windows test, review any external patch, then make the smallest fix while
+   preserving Slice 20/50 atomicity and proof-row exceptions. Keep test files
+   fixed during fix-to-spec. A public contract change requires a successor ADR
+   and interface update. If no production fix is supported, commit the
+   candidate reproducer/tests, return a findings receipt and no-production-code
+   disposition in the output witness, and have that disposition reviewed.
+   The Windows track leaves CUDA dependencies, the lockfile, and Pages
+   publication tooling to Track T; it flags any shared test-runner edit for
+   integration review.
+
+4. **Join and close (R27-103F).** Gate each branch with its own independent
+   code review and verify its commit(s), output witness, tests, and evidence
+   from git. Cherry-pick reviewed commits into the release checkout one track
+   at a time. If the second track conflicts with the advanced release HEAD,
+   commission an implementer fix branch from that HEAD for source/test changes;
+   the coordinator does not edit an implementer's worktree or resolve its code
+   by hand. Review the resolution and combined diff. Branch-local platform
+   receipts remain provisional. From one final integrated code commit SHA,
+   rebuild and install the Tegra and Windows wheels and repeat their required
+   platform checks with exact wheel hashes. Run affected Linux/SDK regressions,
+   `./scripts/agent-verify.sh`, and the full release gate required by the
+   dependency and packaging changes. Independently review the combined diff
+   and verify the same code SHA read-only. The coordinator records both track
+   dispositions, target receipts, test exits, and remaining risks in Slice 103
+   status, then advances release state to Slice 110 only when every acceptance
+   row passes. Record both the qualified code SHA and the later status/state
+   bookkeeping SHA; verify that the latter changes no source, tests, scripts,
+   dependencies, or build inputs. Any such change requires requalification.
+   Pages dispatch, tag, push, registry write, and public deployment retain
+   their separate release authorization.
 
 The already-published `v0.8.26` tag and generic artifacts remain historical
 evidence. Slice 103 does not reissue them or declare `0.8.27+tegra` published.

@@ -35,7 +35,10 @@ def owner_errors(root: str, owner: str) -> list[str]:
                 preceding.append(stripped)
             else:
                 break
-        if [line for line in preceding if line.startswith("#[cfg(")] != [cfg]:
+        if (
+            [line for line in preceding if re.match(r"#\[\s*cfg\s*\(", line)] != [cfg]
+            or any(re.match(r"#\[\s*cfg_attr\b", line) for line in preceding)
+        ):
             errors.append(f"data-plane owner has wrong cfg for Engine::{name}")
     return errors
 
@@ -74,6 +77,15 @@ class DataPlaneIntegrityOwnerTest(unittest.TestCase):
                 wrong = '    #[cfg(feature = "test-hooks")]\n' if name == "check_data_plane_integrity" else '    #[cfg(feature = "operator")]\n'
                 flipped = head + wrong + tail + method + suffix
                 self.assertIn(f"data-plane owner has wrong cfg for Engine::{name}", owner_errors(root, flipped))
+                conditional = (
+                    head
+                    + marker
+                    + '    #[cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]\n'
+                    + tail
+                    + method
+                    + suffix
+                )
+                self.assertIn(f"data-plane owner has wrong cfg for Engine::{name}", owner_errors(root, conditional))
 
     def test_fast_tier_registration(self) -> None:
         self.assertIn("fast test-slice90-data-plane-integrity-owner", (ROOT / "scripts/agent-test.sh").read_text())

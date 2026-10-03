@@ -46,6 +46,22 @@ def test_old_root_decoy_does_not_satisfy_moved_projector_owner(tmp_path: Path) -
         )
 
 
+def test_vector_writer_mutation_is_owned_by_vector_storage(tmp_path: Path) -> None:
+    site = audit.MutationSite("vector_storage.rs", "write_vector_for_test", "INSERT INTO", "vector_default")
+    assert site in audit.PRODUCTION_INVENTORY
+    assert audit.MutationSite("lib.rs", "write_vector_for_test", "INSERT INTO", "vector_default") not in audit.PRODUCTION_INVENTORY
+    (tmp_path / "lib.rs").write_text(
+        'fn write_vector_for_test() { let _ = "INSERT INTO vector_default("; }', encoding="utf-8"
+    )
+    (tmp_path / "vector_storage.rs").write_text("fn write_vector_for_test() {}", encoding="utf-8")
+    with pytest.raises(audit.VirtualMutationAuditError, match="unclassified"):
+        audit.validate_engine_tree(
+            tmp_path,
+            inventory=[site],
+            helper_callers={helper: Counter() for helper in audit.HELPERS},
+        )
+
+
 @pytest.mark.parametrize(
     ("relative_path", "source"),
     [

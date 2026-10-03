@@ -638,3 +638,204 @@ pub(crate) fn resolve_source_type(kind: &str) -> Result<&'static str, EngineErro
 pub(crate) fn kind_is_vector_committable(kind: &str) -> bool {
     resolve_source_type(kind).is_ok()
 }
+
+impl Engine {
+    #[doc(hidden)]
+    pub fn write_vector_for_test(
+        &self,
+        kind: &str,
+        text: &str,
+    ) -> Result<WriteReceipt, EngineError> {
+        self.ensure_open()?;
+        let embedder =
+            self.runtime_embedder.as_ref().cloned().ok_or(EngineError::EmbedderNotConfigured)?;
+
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        if !kind_is_vector_indexed(connection, kind)? {
+            return Err(EngineError::KindNotVectorIndexed);
+        }
+
+        let expected = default_profile_dimension(connection)?;
+        ensure_vector_partition(connection, expected).map_err(|_| EngineError::Storage)?;
+        let vector = embedder.embed(text).map_err(map_runtime_embedder_error)?;
+        let actual = u32::try_from(vector.len()).unwrap_or(u32::MAX);
+        if actual != expected {
+            return Err(EngineError::EmbedderDimensionMismatch { expected, actual });
+        }
+
+        let cursor = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
+        // EU-5a2 mean-centering apply path (write side). f32 BLOB stored
+        // is ALWAYS un-centered; the sign-quant input is the centered
+        // vector iff the identity is MC-required AND a `mean_vec` is
+        // pinned. NoopEmbedder identity (the only EU-5a2 live one) is
+        // NOT MC-required, so this is a no-op until EU-5b's flip.
+        let blob = encode_vector_blob(&vector);
+        let bin_blob = if identity_requires_mean_centering(&self.runtime_embedder_identity) {
+            match read_pinned_mean_vec(connection, self.runtime_embedder_identity.dimension)? {
+                Some(mean) => encode_vector_blob(&subtract_mean(&vector, &mean)),
+                None => blob.clone(),
+            }
+        } else {
+            blob.clone()
+        };
+        let source_type = resolve_source_type(kind)?;
+        let now_unix =
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+
+        // EU-5b — feed the streaming mean accumulator (if live) and detect
+        // a threshold-crossing pin. The mean materialization, pre-pin
+        // re-quantize, and `MeanVecPinned` event emission all happen in
+        // the SAME SQLite transaction as the row INSERT.
+        let pin_event = {
+            let runtime = &self.projection_runtime.shared;
+            let mut accumulator =
+                runtime.mean_accumulator.lock().map_err(|_| EngineError::Storage)?;
+            if let Some(acc) = accumulator.as_mut() {
+                acc.add(&vector);
+                if acc.count() >= mean::MEAN_VEC_PIN_THRESHOLD {
+                    let mean = acc.materialize();
+                    *accumulator = None;
+                    Some(mean)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        tx.execute(
+            "INSERT INTO _fathomdb_vector_rows(rowid, kind, write_cursor) VALUES(?1, ?2, ?3)",
+            params![cursor, kind, cursor],
+        )
+        .map_err(|_| EngineError::Storage)?;
+        // Slice 10 / G10 — `status` ships an empty-string sentinel only: vec0 TEXT
+        // metadata columns are NOT NULL-able ("Expected text for TEXT metadata
+        // column"), so the "no real population yet" state is `''`, not NULL.
+        //
+        // 0.8.20 Slice 15e — this test helper carries no JSON body, so every live
+        // `filterable` `attr_<hex>` column binds the `''` sentinel (an empty body
+        // extracts nothing). When the table has no attr columns the statement is
+        // byte-identical to the shipped form.
+        let (cols_sql, ph_sql, attr_vals) =
+            vector_attr_insert_fragments(&tx, "", 7).map_err(|_| EngineError::Storage)?;
+        let sql = format!(
+            "INSERT INTO vector_default(
+                rowid, embedding, embedding_bin, source_type, kind, created_at, status{cols_sql}
+             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, ''{ph_sql})"
+        );
+        let mut pv: Vec<rusqlite::types::Value> = vec![
+            rusqlite::types::Value::Integer(cursor as i64),
+            rusqlite::types::Value::Blob(blob.clone()),
+            rusqlite::types::Value::Blob(bin_blob.clone()),
+            rusqlite::types::Value::Text(source_type.to_string()),
+            rusqlite::types::Value::Text(kind.to_string()),
+            rusqlite::types::Value::Integer(now_unix),
+        ];
+        pv.extend(attr_vals);
+        tx.execute(&sql, rusqlite::params_from_iter(pv.iter()))
+            .map_err(|_| EngineError::Storage)?;
+
+        let mut emitted_event: Option<EmbedderEvent> = None;
+        if let Some(mean_vec) = pin_event {
+            let mean_bytes = encode_vector_blob(&mean_vec);
+            tx.execute(
+                "UPDATE _fathomdb_embedder_profiles SET mean_vec = ?1 WHERE profile = 'default'",
+                params![mean_bytes],
+            )
+            .map_err(|_| EngineError::Storage)?;
+            // Read all pre-pin (rowid, embedding) and re-quantize within
+            // the same tx. The just-inserted row above is also covered.
+            let rows: Vec<(i64, Vec<u8>)> = {
+                let mut statement = tx
+                    .prepare("SELECT rowid, embedding FROM vector_default ORDER BY rowid")
+                    .map_err(|_| EngineError::Storage)?;
+                let mapped = statement
+                    .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?)))
+                    .map_err(|_| EngineError::Storage)?;
+                let mut out = Vec::new();
+                for r in mapped {
+                    out.push(r.map_err(|_| EngineError::Storage)?);
+                }
+                out
+            };
+            let (doc_count, _) = run_pin_and_requantize_pass(&tx, &rows, &mean_vec)?;
+            emitted_event = Some(EmbedderEvent::MeanVecPinned {
+                dim: u32::try_from(mean_vec.len()).unwrap_or(u32::MAX),
+                doc_count,
+            });
+        }
+
+        tx.commit().map_err(|_| EngineError::Storage)?;
+
+        if let Some(ev) = emitted_event {
+            if let Ok(mut events) = self.projection_runtime.shared.pending_events.lock() {
+                events.push(ev);
+            }
+        }
+
+        self.next_cursor.store(cursor, Ordering::SeqCst);
+        // G8 — this path (embedder-profile pin) commits no canonical edges, so
+        // no endpoint can dangle.
+        Ok(WriteReceipt { cursor, row_cursors: vec![cursor], dangling_edge_endpoints: 0 })
+    }
+
+    #[doc(hidden)]
+    pub fn vector_row_count_for_test(&self) -> Result<u64, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        connection
+            .query_row("SELECT COUNT(*) FROM vector_default", [], |row| row.get::<_, u64>(0))
+            .map_err(|_| EngineError::Storage)
+    }
+
+    /// Test-only distinction between a physical vec0 row and its terminal
+    /// readiness record. Closure may terminalize an ineligible projection
+    /// without publishing vector bytes, so readiness alone is not a row oracle.
+    #[doc(hidden)]
+    pub fn has_vector_row_for_cursor_for_test(&self, cursor: u64) -> Result<bool, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM vector_default WHERE rowid = ?1)",
+                [i64::try_from(cursor).map_err(|_| EngineError::Storage)?],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(|_| EngineError::Storage)
+    }
+
+    #[doc(hidden)]
+    pub fn read_vector_blob_for_test(&self, rowid: i64) -> Result<Vec<u8>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        connection
+            .query_row("SELECT embedding FROM vector_default WHERE rowid = ?1", [rowid], |row| {
+                row.get::<_, Vec<u8>>(0)
+            })
+            .map_err(|_| EngineError::Storage)
+    }
+
+    /// 0.8.20 Slice 15e — read a row's raw `embedding_bin` blob bytes (the
+    /// sign-quantized vector). Used to prove the non-destructive reshape copies the
+    /// bits VERBATIM (condition #4): the pre-reshape and post-reshape bytes must be
+    /// byte-identical.
+    #[doc(hidden)]
+    pub fn read_vector_bin_for_test(&self, rowid: i64) -> Result<Vec<u8>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        connection
+            .query_row(
+                "SELECT embedding_bin FROM vector_default WHERE rowid = ?1",
+                [rowid],
+                |row| row.get::<_, Vec<u8>>(0),
+            )
+            .map_err(|_| EngineError::Storage)
+    }
+}

@@ -289,14 +289,13 @@ PRODUCTION_INVENTORY = [
         ("project_canonical_node_row", "INSERT INTO", "search_index_v2"),
     ]
 ] + [
-    MutationSite("lib.rs", "write_vector_for_test", "INSERT INTO", "vector_default")
-] + [
     MutationSite(
         "consolidation.rs", "prune_edge_projection_shadows", "DELETE FROM", "search_index_edges"
     )
 ] + [
     MutationSite("vector_storage.rs", function, verb, table)
     for function, verb, table in [
+        ("write_vector_for_test", "INSERT INTO", "vector_default"),
         ("delete_vector_partition_row", "DELETE FROM", "vector_default"),
         ("migrate_vector_partition_pack1_to_pack2", "DROP TABLE", "vector_default"),
         ("migrate_vector_partition_pack1_to_pack2", "INSERT INTO", "vector_default"),

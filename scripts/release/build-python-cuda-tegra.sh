@@ -268,6 +268,9 @@ fi
 RUNTIME_VENV="$STAGING_ROOT/runtime-venv"
 "$INTERPRETER" -m venv "$RUNTIME_VENV"
 "$RUNTIME_VENV/bin/python" -m pip install --disable-pip-version-check --no-deps "$WHEEL"
+# The staged source package is the current directory after Maturin builds; move
+# out of it so this import proves the installed wheel rather than that source.
+cd "$RUNTIME_VENV"
 if ! env -u LD_LIBRARY_PATH -u LIBRARY_PATH "$RUNTIME_VENV/bin/python" -c 'import fathomdb'; then
   fail 'the installed Tegra wheel must import without CUDA library search paths'
 fi

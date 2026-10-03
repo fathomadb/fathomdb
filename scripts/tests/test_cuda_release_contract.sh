@@ -207,6 +207,7 @@ required = (
     'readelf -d "$EXTENSION"',
     'libcudart',
     '-m venv "$RUNTIME_VENV"',
+    'cd "$RUNTIME_VENV"',
     'env -u LD_LIBRARY_PATH -u LIBRARY_PATH',
     'import fathomdb',
 )

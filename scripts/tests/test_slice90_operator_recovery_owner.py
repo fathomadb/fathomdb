@@ -24,14 +24,18 @@ SHARED_URI = ("read_only_sqlite_uri", "sqlite_uri")
 def owner_errors(root: str, operator: str, data_plane: str, opened: str) -> list[str]:
     errors = []
     family = (
-        r"(?:recover_truncate_wal|inspect_data_plane_integrity|data_plane_"
-        r"|immutable_sqlite_uri|validate_recovery_|recovery_schema_corruption)\w*"
+        r"(?:recover_truncate_wal|inspect_data_plane|data_plane_"
+        r"|immutable_sqlite_uri|validate_recovery_|recovery_)\w*"
     )
     for name in re.findall(r"^(?:pub(?:\([^)]*\))? )?fn (" + family + r")\(", root, re.M):
         errors.append(f"root still defines operator recovery {name}")
+    for name in re.findall(
+        r"^(?:pub(?:\([^)]*\))? )?fn ((?:read_only_sqlite_uri|sqlite_uri)\w*)\(",
+        root,
+        re.M,
+    ):
+        errors.append(f"root still defines shared URI helper {name}")
     for name in SHARED_URI:
-        if re.search(r"^fn " + name + r"\(", root, re.M):
-            errors.append(f"root still defines shared URI helper {name}")
         if len(re.findall(r"^pub\(crate\) fn " + name + r"\(", opened, re.M)) != 1:
             errors.append(f"open owner lacks one shared URI helper {name}")
     for name in PUBLIC + HELPERS:
@@ -74,8 +78,12 @@ class OperatorRecoveryOwnerTest(unittest.TestCase):
         for declaration, expected in (
             ("fn validate_recovery_new() {}", "root still defines operator recovery validate_recovery_new"),
             ("fn data_plane_new() {}", "root still defines operator recovery data_plane_new"),
+            ("fn inspect_data_plane_new() {}", "root still defines operator recovery inspect_data_plane_new"),
+            ("fn recovery_new() {}", "root still defines operator recovery recovery_new"),
             ("pub fn inspect_data_plane_integrity_new() {}", "root still defines operator recovery inspect_data_plane_integrity_new"),
             ("pub fn recover_truncate_wal_new() {}", "root still defines operator recovery recover_truncate_wal_new"),
+            ("fn read_only_sqlite_uri_new() {}", "root still defines shared URI helper read_only_sqlite_uri_new"),
+            ("fn sqlite_uri_new() {}", "root still defines shared URI helper sqlite_uri_new"),
         ):
             with self.subTest(declaration=declaration):
                 self.assertIn(expected, owner_errors(root + "\n" + declaration, operator, data_plane, opened))

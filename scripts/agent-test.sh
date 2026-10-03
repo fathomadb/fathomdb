@@ -210,6 +210,7 @@ run_tier_suite fast test-slice90-write-importance-owner python3 scripts/tests/te
 run_tier_suite fast test-slice90-read-importance-owner python3 scripts/tests/test_slice90_read_importance_owner.py
 run_tier_suite fast test-slice90-embed-timeout-owner python3 scripts/tests/test_slice90_embed_timeout_owner.py
 run_tier_suite fast test-slice90-mean-test-seams-owner python3 scripts/tests/test_slice90_mean_test_seams_owner.py
+run_tier_suite fast test-slice90-projection-runtime-test-seams-owner python3 scripts/tests/test_slice90_projection_runtime_test_seams_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

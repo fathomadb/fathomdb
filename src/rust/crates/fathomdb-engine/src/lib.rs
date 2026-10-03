@@ -259,8 +259,8 @@ use projection_registry::{
 #[cfg(test)]
 use projection_runtime::ProjectionRuntimeStartupFaultForTest;
 use projection_runtime::{
-    projection_status, ProjectionJob, ProjectionRuntime, ProjectionRuntimeShared,
-    ProjectionRuntimeStartupMessage, ProjectionRuntimeStartupReport, ProjectionRuntimeStartupRole,
+    ProjectionJob, ProjectionRuntime, ProjectionRuntimeShared, ProjectionRuntimeStartupMessage,
+    ProjectionRuntimeStartupReport, ProjectionRuntimeStartupRole,
 };
 use projection_worker::{
     connection_has_pending_projection_work, database_has_pending_projection_work,
@@ -653,31 +653,6 @@ impl Engine {
         &self.path
     }
 
-    #[cfg(debug_assertions)]
-    #[allow(dead_code)]
-    #[doc(hidden)]
-    pub fn pause_projection_worker_after_wal_transaction_for_test(
-        &self,
-    ) -> ProjectionWorkerTransactionPauseForTest {
-        self.projection_runtime.pause_projection_worker_after_wal_transaction_for_test()
-    }
-
-    /// Pause one captured-generation job while it remains in the worker queue.
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn pause_projection_worker_while_queued_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
-        self.projection_runtime.pause_projection_worker_while_queued_for_test()
-    }
-
-    /// Pause one computed job immediately before SQLite write-lock acquisition.
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn pause_projection_worker_before_write_lock_for_test(
-        &self,
-    ) -> (Arc<Barrier>, Arc<Barrier>) {
-        self.projection_runtime.pause_projection_worker_before_write_lock_for_test()
-    }
-
     /// G0 Phase-2 (BLOCK-1) test seam — runs the graph-arm retrieval path and
     /// returns the frontier meter (`GraphFrontierStats`) for `query`. Mirrors the
     /// sanctioned `set_vector_stage_only_for_test` / `_configure_vector_kind_for_test`
@@ -873,43 +848,6 @@ impl Engine {
         self.actuation_failure_after_operation.store(index, Ordering::SeqCst);
     }
 
-    /// Force the next background projection terminal commit to fail with a
-    /// synthetic SQLite busy error. Test-only seam for TC-91 rollback and
-    /// redispatch coverage; it does not affect the caller's write transaction.
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn force_next_projection_commit_failure_for_test(&self) {
-        self.projection_runtime.force_next_projection_commit_failure_for_test();
-    }
-
-    /// Force the next background projection terminal commit to fail with a
-    /// rusqlite-layer storage error. Test-only TC-91 diagnostic classifier seam.
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn force_next_projection_storage_failure_for_test(&self) {
-        self.projection_runtime.force_next_projection_storage_failure_for_test();
-    }
-
-    /// Pause a worker after a forced projection-commit error was reported and
-    /// before its state cleanup. TC-91 test-only shutdown/reopen rendezvous.
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn pause_projection_commit_failure_cleanup_for_test(
-        &self,
-        reported: Arc<Barrier>,
-        release: Arc<Barrier>,
-    ) {
-        self.projection_runtime.pause_projection_commit_failure_cleanup_for_test(reported, release);
-    }
-
-    /// Acknowledge after `Engine::close` marks the projection runtime stopping
-    /// and before it joins workers. TC-91 test-only shutdown rendezvous.
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn acknowledge_projection_stop_for_test(&self, acknowledged: Arc<Barrier>) {
-        self.projection_runtime.acknowledge_projection_stop_for_test(acknowledged);
-    }
-
     /// Execute an arbitrary SQL statement on the writer connection through
     /// the same wall-clock + slow-detect path as `write` / `search`.
     ///
@@ -1024,11 +962,6 @@ impl Engine {
         Ok(())
     }
 
-    #[doc(hidden)]
-    pub fn set_projection_scheduler_frozen_for_test(&self, frozen: bool) {
-        self.projection_runtime.set_frozen(frozen);
-    }
-
     /// Mint a configuration-origin generation without changing declarations.
     ///
     /// This test hook isolates the worker's captured-generation publication
@@ -1100,64 +1033,6 @@ impl Engine {
         )
         .map_err(|_| EngineError::Storage)?;
         commit_projection_outcomes(&mut connection, &[outcome], &self.projection_runtime.shared, 0)
-            .map_err(|_| EngineError::Storage)
-    }
-
-    /// Test-only snapshot of whether the dispatcher has a scan wake pending.
-    ///
-    /// This exists to prove pure observers do not notify the scheduler. It is
-    /// deliberately narrower than a scheduler control or diagnostic surface.
-    #[doc(hidden)]
-    pub fn projection_scheduler_pending_scan_for_test(&self) -> bool {
-        self.projection_runtime.pending_scan_for_test()
-    }
-
-    #[doc(hidden)]
-    pub fn set_projection_retry_delays_for_test(&self, delays_ms: &[u64]) {
-        self.projection_runtime.set_retry_delays_for_test(delays_ms);
-    }
-
-    /// Set the provider dispatch deadline for projection tests; production
-    /// requests use the validated engine-open configuration.
-    #[doc(hidden)]
-    pub fn set_embed_timeout_ms_for_test(&self, timeout_ms: u64) {
-        self.projection_runtime.set_embed_timeout_ms_for_test(timeout_ms);
-    }
-
-    #[doc(hidden)]
-    pub fn projection_status_for_test(
-        &self,
-        kind: &str,
-    ) -> Result<lifecycle::ProjectionStatus, EngineError> {
-        self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        projection_status(connection, kind)
-    }
-
-    #[doc(hidden)]
-    pub fn has_vector_for_cursor_for_test(&self, cursor: u64) -> Result<bool, EngineError> {
-        self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        terminal_state_for_cursor(connection, cursor)
-            .map(|state| matches!(state.as_deref(), Some("up_to_date")))
-            .map_err(|_| EngineError::Storage)
-    }
-
-    #[doc(hidden)]
-    pub fn projection_failure_count_for_test(&self, cursor: u64) -> Result<u64, EngineError> {
-        self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        connection
-            .query_row(
-                "SELECT COUNT(*) FROM operational_mutations
-                 WHERE collection_name = 'projection_failures'
-                   AND record_key = ?1",
-                [cursor.to_string()],
-                |row| row.get::<_, u64>(0),
-            )
             .map_err(|_| EngineError::Storage)
     }
 

@@ -282,13 +282,14 @@ def validate_engine_tree(
 
 
 PRODUCTION_INVENTORY = [
-    MutationSite("lib.rs", function, verb, table)
+    MutationSite("index_projector.rs", function, verb, table)
     for function, verb, table in [
         ("project_canonical_edge_row", "INSERT INTO", "search_index_edges"),
         ("project_canonical_node_row", "INSERT INTO", "search_index"),
         ("project_canonical_node_row", "INSERT INTO", "search_index_v2"),
-        ("write_vector_for_test", "INSERT INTO", "vector_default"),
     ]
+] + [
+    MutationSite("lib.rs", "write_vector_for_test", "INSERT INTO", "vector_default")
 ] + [
     MutationSite(
         "consolidation.rs", "prune_edge_projection_shadows", "DELETE FROM", "search_index_edges"
@@ -333,7 +334,7 @@ PRODUCTION_HELPER_CALLERS = {
             ("write_commit.rs", "apply_batch_in_transaction"): 2,
             ("consolidation.rs", "prune_edge_projection_shadows"): 1,
             ("mean.rs", "run_pin_and_requantize_pass"): 1,
-            ("lib.rs", "prune_orphaned_edge_vectors"): 1,
+            ("open.rs", "prune_orphaned_edge_vectors"): 1,
             ("projection_registry.rs", "delete_row_owned_projection"): 1,
         }
     ),
@@ -346,7 +347,7 @@ PRODUCTION_HELPER_CALLERS = {
     "truncate_row_projections_in": Counter(
         {
             ("projection_rebuild.rs", "rebuild_shadow_state"): 1,
-            ("lib.rs", "reproject_search_index_after_tokenizer_upgrade"): 1,
+            ("index_projector.rs", "reproject_search_index_after_tokenizer_upgrade"): 1,
             ("projection_registry.rs", "truncate_all_row_projections"): 1,
         }
     ),

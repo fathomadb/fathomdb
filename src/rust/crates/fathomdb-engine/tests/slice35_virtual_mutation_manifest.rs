@@ -3,6 +3,8 @@
 
 // Each file is followed by a sentinel `fn` so `function_body` never extends
 // a body across a file boundary.
+const ROOT_SOURCE: &str = include_str!("../src/lib.rs");
+const INDEX_PROJECTOR_SOURCE: &str = include_str!("../src/index_projector.rs");
 const SOURCE: &str = concat!(
     include_str!("../src/lib.rs"),
     "\nfn __slice35_source_boundary__() {}\n",
@@ -11,6 +13,8 @@ const SOURCE: &str = concat!(
     include_str!("../src/write_validation.rs"),
     "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/write_commit.rs"),
+    "\nfn __slice35_source_boundary__() {}\n",
+    include_str!("../src/index_projector.rs"),
     "\nfn __slice35_source_boundary__() {}\n",
     include_str!("../src/provider.rs"),
     "\nfn __slice35_source_boundary__() {}\n",
@@ -57,9 +61,9 @@ const SOURCE: &str = concat!(
     include_str!("../src/reader_pool.rs")
 );
 
-fn function_body(name: &str) -> &'static str {
-    let start = SOURCE.find(&format!("fn {name}(")).unwrap_or_else(|| panic!("missing {name}"));
-    let tail = &SOURCE[start + 1..];
+fn function_body_in<'a>(source: &'a str, name: &str) -> &'a str {
+    let start = source.find(&format!("fn {name}(")).unwrap_or_else(|| panic!("missing {name}"));
+    let tail = &source[start + 1..];
     let end = [
         "\nfn ",
         "\n    fn ",
@@ -71,15 +75,40 @@ fn function_body(name: &str) -> &'static str {
     .iter()
     .filter_map(|marker| tail.find(marker))
     .min()
-    .map_or(SOURCE.len(), |offset| start + 1 + offset);
-    &SOURCE[start..end]
+    .map_or(source.len(), |offset| start + 1 + offset);
+    &source[start..end]
 }
 
 fn contains_all(name: &str, needles: &[&str]) {
-    let body = function_body(name);
+    contains_all_in(SOURCE, name, needles);
+}
+
+fn contains_all_in(source: &str, name: &str, needles: &[&str]) {
+    let body = function_body_in(source, name);
     for needle in needles {
         assert!(body.contains(needle), "{name} lost required coupling {needle:?}");
     }
+}
+
+fn projector_owner_closed(root_source: &str, manifest_source: &str) -> bool {
+    !root_source.contains("fn project_canonical_node_row(")
+        && !root_source.contains("fn project_canonical_edge_row(")
+        && manifest_source.contains(INDEX_PROJECTOR_SOURCE)
+}
+
+#[test]
+fn moved_projector_source_is_part_of_the_closed_manifest() {
+    assert!(projector_owner_closed(ROOT_SOURCE, SOURCE));
+    assert_eq!(SOURCE.matches("fn project_canonical_node_row(").count(), 1);
+    assert_eq!(SOURCE.matches("fn project_canonical_edge_row(").count(), 1);
+
+    let old_root_decoy = format!(
+        "{ROOT_SOURCE}\nfn project_canonical_node_row() {{ let _ = \"INSERT INTO search_index(\"; }}"
+    );
+    assert!(old_root_decoy.contains("INSERT INTO search_index("));
+    assert!(old_root_decoy.contains("fn project_canonical_node_row("));
+    assert!(!projector_owner_closed(&old_root_decoy, SOURCE));
+    assert!(!projector_owner_closed(ROOT_SOURCE, &SOURCE.replace(INDEX_PROJECTOR_SOURCE, "")));
 }
 
 #[test]
@@ -118,7 +147,8 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
             "project_canonical_edge_row",
         ],
     );
-    contains_all(
+    contains_all_in(
+        INDEX_PROJECTOR_SOURCE,
         "project_canonical_node_row",
         &[
             "INSERT INTO search_index(",
@@ -126,7 +156,8 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
             "_fathomdb_projection_state",
         ],
     );
-    contains_all(
+    contains_all_in(
+        INDEX_PROJECTOR_SOURCE,
         "project_canonical_edge_row",
         &["INSERT INTO search_index_edges(", "_fathomdb_projection_state"],
     );

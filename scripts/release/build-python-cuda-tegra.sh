@@ -240,6 +240,39 @@ fi
 bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$TEGRA_FLOOR" "$EXTENSION"
 printf 'build-python-cuda-tegra: %s is within the declared tegra glibc floor %s\n' \
   "$(basename "$EXTENSION")" "$TEGRA_FLOOR"
+
+# A dynamic CUDA Runtime dependency violates the driverless CPU-loadability
+# contract, while unresolved CUDA Runtime symbols defer a broken link until
+# Python imports the extension. Prove both properties against the unpacked
+# wheel, before emitting an artifact that a downstream index could retain.
+if ! command -v nm >/dev/null 2>&1; then
+  fail 'nm is required to inspect Tegra CUDA Runtime imports'
+fi
+UNRESOLVED_CUDA_SYMBOLS="$(nm -D --undefined-only "$EXTENSION" | grep -E '^[[:space:]]*U[[:space:]]+cuda' || true)"
+if [ -n "$UNRESOLVED_CUDA_SYMBOLS" ]; then
+  printf 'build-python-cuda-tegra: unresolved CUDA Runtime symbols remain:\n%s\n' \
+    "$UNRESOLVED_CUDA_SYMBOLS" >&2
+  exit 1
+fi
+
+if ! command -v readelf >/dev/null 2>&1; then
+  fail 'readelf is required to inspect Tegra CUDA Runtime dependencies'
+fi
+DYNAMIC_CUDA_DEPENDENCIES="$(readelf -d "$EXTENSION" | grep -Ei 'Shared library: \[(libcuda|libcudart|libnvidia)' || true)"
+if [ -n "$DYNAMIC_CUDA_DEPENDENCIES" ]; then
+  printf 'build-python-cuda-tegra: dynamic CUDA/NVIDIA dependencies remain:\n%s\n' \
+    "$DYNAMIC_CUDA_DEPENDENCIES" >&2
+  exit 1
+fi
+
+RUNTIME_VENV="$STAGING_ROOT/runtime-venv"
+"$INTERPRETER" -m venv "$RUNTIME_VENV"
+"$RUNTIME_VENV/bin/python" -m pip install --disable-pip-version-check --no-deps "$WHEEL"
+if ! env -u LD_LIBRARY_PATH -u LIBRARY_PATH "$RUNTIME_VENV/bin/python" -c 'import fathomdb'; then
+  fail 'the installed Tegra wheel must import without CUDA library search paths'
+fi
+printf 'build-python-cuda-tegra: installed wheel imports without CUDA library search paths\n'
+
 # The abstract form is `python -m pip install $WHEEL`; render the concrete
 # wheel argument with Bash's reversible shell quoting for `--out` paths that
 # contain spaces or shell metacharacters.

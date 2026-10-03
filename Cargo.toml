@@ -68,7 +68,7 @@ fathomdb-schema       = { path = "src/rust/crates/fathomdb-schema",       versio
 # dynamic, while the kernel runtime is statically linked so a CPU-mode binding
 # can map on a host without libcudart.
 [patch.crates-io]
-candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee" }
-candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee" }
-candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee" }
-candle-transformers-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee" }
+candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
+candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
+candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
+candle-transformers-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }

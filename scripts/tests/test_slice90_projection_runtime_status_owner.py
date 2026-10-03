@@ -17,12 +17,13 @@ TYPES = {
 IMPLS = ("ProjectionRuntimeUnavailabilityReason", "ProjectionStatusDenseReadiness")
 CONSTANTS = (
     "PROJECTION_CURSOR_KEY",
+    "PROJECTION_COMMIT_BATCH",
     "PROJECTION_TEMPORAL_WAKE_POLL",
     "PROJECTION_RUNTIME_STARTUP_TIMEOUT",
     "DEFAULT_PROJECTION_RETRY_DELAYS_MS",
 )
 TYPE_FAMILY = r"(?:ProjectionRuntime(?:UnavailabilityReason|Status(?:Entry)?)|ProjectionStatusDenseReadiness)\w*"
-CONST_FAMILY = r"(?:PROJECTION_CURSOR_KEY|PROJECTION_TEMPORAL_WAKE_POLL|PROJECTION_RUNTIME_STARTUP_TIMEOUT|DEFAULT_PROJECTION_RETRY_DELAYS_MS)\w*"
+CONST_FAMILY = r"(?:PROJECTION_CURSOR_KEY|PROJECTION_COMMIT_BATCH|PROJECTION_TEMPORAL_WAKE_POLL|PROJECTION_RUNTIME_STARTUP_TIMEOUT|DEFAULT_PROJECTION_RETRY_DELAYS_MS)\w*"
 
 
 def gated(source: str, start: int) -> bool:
@@ -66,7 +67,7 @@ def owner_errors(root: str, owner: str, search: str, commit: str, worker: str) -
             elif gated(body, methods[0].start()):
                 errors.append(f"runtime gates always-on {name}::as_str")
     for name in CONSTANTS:
-        visibility = "pub\\(crate\\) " if name in ("PROJECTION_CURSOR_KEY", "PROJECTION_TEMPORAL_WAKE_POLL") else ""
+        visibility = "pub\\(crate\\) " if name in ("PROJECTION_CURSOR_KEY", "PROJECTION_COMMIT_BATCH", "PROJECTION_TEMPORAL_WAKE_POLL") else ""
         found = list(re.finditer(r"^" + visibility + "const " + name + r"\b", owner, re.M))
         if len(found) != 1:
             errors.append(f"runtime lacks one {name}")
@@ -111,6 +112,7 @@ class ProjectionRuntimeStatusOwnerTest(unittest.TestCase):
             ("pub(crate) fn projection_status_new() {}", "root still defines runtime helper projection_status_new"),
             ("pub fn projection_status_new() {}", "root still defines runtime helper projection_status_new"),
             ("const PROJECTION_CURSOR_KEY_NEW: &str = \"x\";", "root still defines runtime::PROJECTION_CURSOR_KEY_NEW"),
+            ("pub(crate) const PROJECTION_COMMIT_BATCH_NEW: usize = 1;", "root still defines runtime::PROJECTION_COMMIT_BATCH_NEW"),
             ("pub(crate) const PROJECTION_RUNTIME_STARTUP_TIMEOUT_NEW: u64 = 1;", "root still defines runtime::PROJECTION_RUNTIME_STARTUP_TIMEOUT_NEW"),
         ):
             with self.subTest(declaration=declaration):
@@ -124,7 +126,7 @@ class ProjectionRuntimeStatusOwnerTest(unittest.TestCase):
         markers += [(f"impl {name} {{", f"runtime gates always-on impl {name}") for name in IMPLS]
         markers += [
             (
-                ("pub(crate) " if name in ("PROJECTION_CURSOR_KEY", "PROJECTION_TEMPORAL_WAKE_POLL") else "") + f"const {name}",
+                ("pub(crate) " if name in ("PROJECTION_CURSOR_KEY", "PROJECTION_COMMIT_BATCH", "PROJECTION_TEMPORAL_WAKE_POLL") else "") + f"const {name}",
                 f"runtime gates always-on {name}",
             )
             for name in CONSTANTS

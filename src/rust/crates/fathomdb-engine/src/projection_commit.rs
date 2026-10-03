@@ -1,8 +1,6 @@
 use super::*;
 use crate::projection_runtime::PROJECTION_CURSOR_KEY;
 
-pub(crate) const PROJECTION_COMMIT_BATCH: usize = 64;
-
 fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
     let unexpected: bool = connection
         .prepare_cached(

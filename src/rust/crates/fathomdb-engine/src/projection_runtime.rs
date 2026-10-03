@@ -122,6 +122,7 @@ const PROJECTION_RUNTIME_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_PROJECTION_RETRY_DELAYS_MS: [u64; 3] = [1_000, 4_000, 16_000];
 pub(crate) const PROJECTION_TEMPORAL_WAKE_POLL: Duration = Duration::from_secs(1);
 pub(crate) const PROJECTION_CURSOR_KEY: &str = "projection_cursor";
+pub(crate) const PROJECTION_COMMIT_BATCH: usize = 64;
 
 #[derive(Clone, Debug)]
 pub(crate) struct ProjectionJob {

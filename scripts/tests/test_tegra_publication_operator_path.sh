@@ -17,6 +17,10 @@ require_text() {
   local path="$1" needle="$2" label="$3"
   if grep -Fq -- "$needle" "$path"; then printf 'PASS  %s\n' "$label"; else printf 'FAIL  %s\n' "$label" >&2; failed=1; fi
 }
+require_absent() {
+  local path="$1" needle="$2" label="$3"
+  if grep -Fq -- "$needle" "$path"; then printf 'FAIL  %s\n' "$label" >&2; failed=1; else printf 'PASS  %s\n' "$label"; fi
+}
 
 require_file "$PUBLISHER" 'exact-SHA Tegra publisher script exists'
 require_file "$RUNBOOK" 'public Tegra publication runbook exists'
@@ -30,6 +34,7 @@ if [ -f "$PUBLISHER" ]; then
   require_text "$PUBLISHER" 'git ls-remote' 'publisher refuses a SHA other than the remote release head'
   require_text "$PUBLISHER" 'gh run watch' 'publisher waits for CI completion'
   require_text "$PUBLISHER" 'smoke-tegra-pages-wheel.sh' 'publisher performs the installed Pages-wheel smoke'
+  require_absent "$PUBLISHER" '--event workflow_dispatch' 'publisher uses the supported gh run-list interface'
 fi
 if [ -f "$RUNBOOK" ]; then
   require_text "$RUNBOOK" 'publish-tegra-pages.sh' 'runbook names the one-command publisher'

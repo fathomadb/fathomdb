@@ -40,14 +40,14 @@ work="$(mktemp -d)"
 cleanup() { rm -rf "$work"; }
 trap cleanup EXIT
 workflow='Jetson Tegra CUDA evidence'
-gh run list --repo "$repository" --workflow "$workflow" --event workflow_dispatch --limit 100 \
+gh run list --repo "$repository" --workflow "$workflow" --limit 100 \
   --json databaseId > "$work/before.json"
 gh workflow run "$workflow" --repo "$repository" --ref "$branch" \
   -f "candidate_sha=$candidate_sha" -f "candidate_version=$candidate_version" -f publish_to_pages=true
 
 run_id=''
 for _ in $(seq 1 60); do
-  gh run list --repo "$repository" --workflow "$workflow" --event workflow_dispatch --limit 20 \
+  gh run list --repo "$repository" --workflow "$workflow" --limit 20 \
     --json databaseId,headBranch,headSha,status,conclusion,url > "$work/after.json"
   run_id="$(python3 - "$work/before.json" "$work/after.json" "$branch" "$candidate_sha" <<'PY'
 import json

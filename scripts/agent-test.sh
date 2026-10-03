@@ -212,6 +212,7 @@ run_tier_suite fast test-slice90-embed-timeout-owner python3 scripts/tests/test_
 run_tier_suite fast test-slice90-mean-test-seams-owner python3 scripts/tests/test_slice90_mean_test_seams_owner.py
 run_tier_suite fast test-slice90-projection-runtime-test-seams-owner python3 scripts/tests/test_slice90_projection_runtime_test_seams_owner.py
 run_tier_suite fast test-slice90-search-api-test-seams-owner python3 scripts/tests/test_slice90_search_api_test_seams_owner.py
+run_tier_suite fast test-slice90-frozen-timing-owner python3 scripts/tests/test_slice90_frozen_timing_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

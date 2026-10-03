@@ -190,6 +190,12 @@ pub(crate) use filter::{
     append_node_eligibility_sql, edge_fts_hit_passes_filter, text_hit_passes_filter,
 };
 pub use filter::{ComparisonOp, Filter, FilterTerm, Predicate, ScalarValue, SearchFilter};
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use frozen_read::Slice45FrozenStageTiming;
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use frozen_read::Slice45MintStageTiming;
 pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};
 pub use fusion::{
     apply_importance_reweight, apply_recency_reweight, fuse_rrf, fuse_three_arms, RECENCY_WEIGHT,
@@ -586,27 +592,6 @@ mod gpu_allocation_witness_opt_in_tests {
     }
 }
 
-/// Test-only Slice 45 attribution for authenticated frozen-page setup.
-#[cfg(feature = "test-hooks")]
-#[derive(Clone, Copy, Debug)]
-#[doc(hidden)]
-pub struct Slice45FrozenStageTiming {
-    pub cursor_authentication_ns: u128,
-    pub token_authentication_ns: u128,
-    pub snapshot_binding_ns: u128,
-}
-
-/// Test-only Slice 45 attribution for frozen-context minting.
-#[cfg(feature = "test-hooks")]
-#[derive(Clone, Copy, Debug)]
-#[doc(hidden)]
-pub struct Slice45MintStageTiming {
-    pub context_validation_ns: u128,
-    pub snapshot_validation_ns: u128,
-    pub binding_ns: u128,
-    pub token_codec_ns: u128,
-}
-
 pub use lifecycle::Subscription;
 pub use open::{EmbedderChoice, OpenReport, OpenedEngine, ENV_GPU_ALLOCATION_WITNESS};
 
@@ -653,53 +638,6 @@ impl Engine {
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
-    }
-
-    /// Test-only stage attribution for the Slice 45 performance receipt.
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn measure_slice45_frozen_stages_for_test(
-        &self,
-        context: &FrozenReadContextV1,
-        page: &PageRequestV1,
-    ) -> Result<Slice45FrozenStageTiming, EngineError> {
-        self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let started = Instant::now();
-        pagination::authenticate_cursor(connection, page)?;
-        let cursor_authentication_ns = started.elapsed().as_nanos();
-        let started = Instant::now();
-        let binding = frozen_read::authenticate(connection, context)?;
-        let token_authentication_ns = started.elapsed().as_nanos();
-        let started = Instant::now();
-        frozen_read::validate_snapshot(connection, &binding)?;
-        let snapshot_binding_ns = started.elapsed().as_nanos();
-        Ok(Slice45FrozenStageTiming {
-            cursor_authentication_ns,
-            token_authentication_ns,
-            snapshot_binding_ns,
-        })
-    }
-
-    /// Test-only stage attribution for one Slice 45 frozen-context mint.
-    #[cfg(feature = "test-hooks")]
-    #[doc(hidden)]
-    pub fn measure_slice45_mint_stages_for_test(
-        &self,
-        context: &ReadContextV1,
-    ) -> Result<Slice45MintStageTiming, EngineError> {
-        self.ensure_open()?;
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let (_, generation, timing) = frozen_read::mint_measured(connection, context)?;
-        self.read_visibility_generation.fetch_max(generation, Ordering::AcqRel);
-        Ok(Slice45MintStageTiming {
-            context_validation_ns: timing.context_validation_ns,
-            snapshot_validation_ns: timing.snapshot_validation_ns,
-            binding_ns: timing.binding_ns,
-            token_codec_ns: timing.token_codec_ns,
-        })
     }
 
     /// Test-only `EXPLAIN QUERY PLAN` output for the three Slice 45 read shapes.

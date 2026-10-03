@@ -1,5 +1,7 @@
 use std::fmt::{Display, Formatter};
 #[cfg(feature = "test-hooks")]
+use std::sync::atomic::Ordering;
+#[cfg(feature = "test-hooks")]
 use std::time::Instant;
 
 use rusqlite::{Connection, OptionalExtension};
@@ -8,9 +10,12 @@ use sha2::{Digest, Sha256};
 use crate::dependency::load_dependency_generation;
 use crate::errors::EngineError;
 use crate::filter::SearchFilter;
+#[cfg(feature = "test-hooks")]
+use crate::pagination::{self, PageRequestV1};
 use crate::projection_commit::load_projection_cursor;
 use crate::temporal::{current_epoch_seconds, ReadView};
 use crate::write_commit::load_next_cursor;
+use crate::Engine;
 
 pub(crate) const FROZEN_READ_SCHEMA_VERSION: u32 = 1;
 const TOKEN_PREFIX: &str = "fdbfr1";
@@ -811,6 +816,75 @@ pub(crate) fn page_context_digest(frozen: &FrozenReadContextV1) -> Result<[u8; 3
     Ok(digest(b"fathomdb.page-context.v1\0", &bytes))
 }
 
+/// Test-only Slice 45 attribution for authenticated frozen-page setup.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Copy, Debug)]
+#[doc(hidden)]
+pub struct Slice45FrozenStageTiming {
+    pub cursor_authentication_ns: u128,
+    pub token_authentication_ns: u128,
+    pub snapshot_binding_ns: u128,
+}
+
+/// Test-only Slice 45 attribution for frozen-context minting.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Copy, Debug)]
+#[doc(hidden)]
+pub struct Slice45MintStageTiming {
+    pub context_validation_ns: u128,
+    pub snapshot_validation_ns: u128,
+    pub binding_ns: u128,
+    pub token_codec_ns: u128,
+}
+
+impl Engine {
+    /// Test-only stage attribution for the Slice 45 performance receipt.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn measure_slice45_frozen_stages_for_test(
+        &self,
+        context: &FrozenReadContextV1,
+        page: &PageRequestV1,
+    ) -> Result<Slice45FrozenStageTiming, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let started = Instant::now();
+        pagination::authenticate_cursor(connection, page)?;
+        let cursor_authentication_ns = started.elapsed().as_nanos();
+        let started = Instant::now();
+        let binding = authenticate(connection, context)?;
+        let token_authentication_ns = started.elapsed().as_nanos();
+        let started = Instant::now();
+        validate_snapshot(connection, &binding)?;
+        let snapshot_binding_ns = started.elapsed().as_nanos();
+        Ok(Slice45FrozenStageTiming {
+            cursor_authentication_ns,
+            token_authentication_ns,
+            snapshot_binding_ns,
+        })
+    }
+
+    /// Test-only stage attribution for one Slice 45 frozen-context mint.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn measure_slice45_mint_stages_for_test(
+        &self,
+        context: &ReadContextV1,
+    ) -> Result<Slice45MintStageTiming, EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let (_, generation, timing) = mint_measured(connection, context)?;
+        self.read_visibility_generation.fetch_max(generation, Ordering::AcqRel);
+        Ok(Slice45MintStageTiming {
+            context_validation_ns: timing.context_validation_ns,
+            snapshot_validation_ns: timing.snapshot_validation_ns,
+            binding_ns: timing.binding_ns,
+            token_codec_ns: timing.token_codec_ns,
+        })
+    }
+}
 #[cfg(test)]
 mod tests {
     use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS};

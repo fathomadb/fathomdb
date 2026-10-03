@@ -1,4 +1,5 @@
 use super::*;
+use fathomdb_schema::MigrationError as SchemaMigrationError;
 
 /// Stable corruption-on-open detail carried by
 /// [`EngineOpenError::Corruption`].
@@ -483,3 +484,61 @@ impl EngineError {
 }
 
 impl Error for EngineError {}
+
+pub(crate) fn map_migration_error(err: SchemaMigrationError) -> EngineOpenError {
+    match err {
+        SchemaMigrationError::IncompatibleSchemaVersion { seen, supported } => {
+            EngineOpenError::IncompatibleSchemaVersion { seen, supported }
+        }
+        SchemaMigrationError::MigrationError(report) => EngineOpenError::MigrationError {
+            schema_version_before: report.schema_version_before,
+            schema_version_current: report.schema_version_current,
+            step_id: report.migration_steps.last().map_or(0, |step| step.step_id),
+        },
+        SchemaMigrationError::Storage { message } => {
+            EngineOpenError::Io { message: message.to_string() }
+        }
+    }
+}
+
+pub(crate) fn map_open_sqlite_error(err: rusqlite::Error, stage: OpenStage) -> EngineOpenError {
+    let Some(sqlite_error) = err.sqlite_error() else {
+        return EngineOpenError::Io { message: "could not open database".to_string() };
+    };
+    match sqlite_error.extended_code {
+        rusqlite::ffi::SQLITE_CORRUPT | rusqlite::ffi::SQLITE_NOTADB => {
+            EngineOpenError::Corruption(CorruptionDetail {
+                kind: match stage {
+                    OpenStage::WalReplay => CorruptionKind::WalReplayFailure,
+                    OpenStage::HeaderProbe => CorruptionKind::HeaderMalformed,
+                    OpenStage::SchemaProbe => CorruptionKind::SchemaInconsistent,
+                    OpenStage::EmbedderIdentity => CorruptionKind::EmbedderIdentityDrift,
+                    OpenStage::ProjectionGeneration => CorruptionKind::ProjectionGenerationDrift,
+                },
+                stage,
+                locator: CorruptionLocator::OpaqueSqliteError {
+                    sqlite_extended_code: sqlite_error.extended_code,
+                },
+                recovery_hint: RecoveryHint {
+                    code: match stage {
+                        OpenStage::WalReplay => "E_CORRUPT_WAL_REPLAY",
+                        OpenStage::HeaderProbe => "E_CORRUPT_HEADER",
+                        OpenStage::SchemaProbe => "E_CORRUPT_SCHEMA",
+                        OpenStage::EmbedderIdentity => "E_CORRUPT_EMBEDDER_IDENTITY",
+                        OpenStage::ProjectionGeneration => "E_CORRUPT_PROJECTION_GENERATION",
+                    },
+                    doc_anchor: match stage {
+                        OpenStage::WalReplay => "design/recovery.md#wal-replay-failures",
+                        OpenStage::HeaderProbe => "design/recovery.md#header-malformed",
+                        OpenStage::SchemaProbe => "design/recovery.md#schema-inconsistent",
+                        OpenStage::EmbedderIdentity => "design/recovery.md#embedder-identity-drift",
+                        OpenStage::ProjectionGeneration => {
+                            "design/recovery-0.8.25.md#projection-generation"
+                        }
+                    },
+                },
+            })
+        }
+        _ => EngineOpenError::Io { message: "could not open database".to_string() },
+    }
+}

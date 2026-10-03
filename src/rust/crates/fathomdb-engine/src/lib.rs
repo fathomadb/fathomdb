@@ -404,8 +404,7 @@ use fathomdb_embedder::{
 use fathomdb_embedder::MeanRecomputeTrigger;
 use fathomdb_embedder_api::{Embedder, EmbedderError as RuntimeEmbedderError, EmbedderIdentity};
 use fathomdb_schema::{
-    migrate_with_event_sink, MigrationError as SchemaMigrationError, MigrationStepReport,
-    LOCK_SUFFIX, MIGRATIONS, SCHEMA_VERSION,
+    migrate_with_event_sink, MigrationStepReport, LOCK_SUFFIX, MIGRATIONS, SCHEMA_VERSION,
 };
 // `CANONICAL_TABLES` is used only by the operator-gated `dump_row_counts`.
 #[cfg(feature = "operator")]
@@ -2343,22 +2342,6 @@ fn digest_record_identity(collection: &str, record_key: &str) -> String {
     hasher.finalize().iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn map_migration_error(err: SchemaMigrationError) -> EngineOpenError {
-    match err {
-        SchemaMigrationError::IncompatibleSchemaVersion { seen, supported } => {
-            EngineOpenError::IncompatibleSchemaVersion { seen, supported }
-        }
-        SchemaMigrationError::MigrationError(report) => EngineOpenError::MigrationError {
-            schema_version_before: report.schema_version_before,
-            schema_version_current: report.schema_version_current,
-            step_id: report.migration_steps.last().map_or(0, |step| step.step_id),
-        },
-        SchemaMigrationError::Storage { message } => {
-            EngineOpenError::Io { message: message.to_string() }
-        }
-    }
-}
-
 // Slice 15 stores no owner row for pre-step-27 content. Keep its deterministic
 // identity derivation internal until the opt-in Slice 50 evidence resolver
 // exposes it; default records and search hits remain unchanged.
@@ -2433,48 +2416,6 @@ fn reserved_write_cursor(connection: &Connection) -> u64 {
 fn max_cursor(connection: &Connection, table: &str) -> rusqlite::Result<u64> {
     let sql = format!("SELECT COALESCE(MAX(write_cursor), 0) FROM {table}");
     connection.query_row(&sql, [], |row| row.get::<_, u64>(0))
-}
-
-fn map_open_sqlite_error(err: rusqlite::Error, stage: OpenStage) -> EngineOpenError {
-    let Some(sqlite_error) = err.sqlite_error() else {
-        return EngineOpenError::Io { message: "could not open database".to_string() };
-    };
-    match sqlite_error.extended_code {
-        rusqlite::ffi::SQLITE_CORRUPT | rusqlite::ffi::SQLITE_NOTADB => {
-            EngineOpenError::Corruption(CorruptionDetail {
-                kind: match stage {
-                    OpenStage::WalReplay => CorruptionKind::WalReplayFailure,
-                    OpenStage::HeaderProbe => CorruptionKind::HeaderMalformed,
-                    OpenStage::SchemaProbe => CorruptionKind::SchemaInconsistent,
-                    OpenStage::EmbedderIdentity => CorruptionKind::EmbedderIdentityDrift,
-                    OpenStage::ProjectionGeneration => CorruptionKind::ProjectionGenerationDrift,
-                },
-                stage,
-                locator: CorruptionLocator::OpaqueSqliteError {
-                    sqlite_extended_code: sqlite_error.extended_code,
-                },
-                recovery_hint: RecoveryHint {
-                    code: match stage {
-                        OpenStage::WalReplay => "E_CORRUPT_WAL_REPLAY",
-                        OpenStage::HeaderProbe => "E_CORRUPT_HEADER",
-                        OpenStage::SchemaProbe => "E_CORRUPT_SCHEMA",
-                        OpenStage::EmbedderIdentity => "E_CORRUPT_EMBEDDER_IDENTITY",
-                        OpenStage::ProjectionGeneration => "E_CORRUPT_PROJECTION_GENERATION",
-                    },
-                    doc_anchor: match stage {
-                        OpenStage::WalReplay => "design/recovery.md#wal-replay-failures",
-                        OpenStage::HeaderProbe => "design/recovery.md#header-malformed",
-                        OpenStage::SchemaProbe => "design/recovery.md#schema-inconsistent",
-                        OpenStage::EmbedderIdentity => "design/recovery.md#embedder-identity-drift",
-                        OpenStage::ProjectionGeneration => {
-                            "design/recovery-0.8.25.md#projection-generation"
-                        }
-                    },
-                },
-            })
-        }
-        _ => EngineOpenError::Io { message: "could not open database".to_string() },
-    }
 }
 
 #[cfg(test)]

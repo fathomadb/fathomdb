@@ -1,4 +1,5 @@
 use super::*;
+use crate::errors::map_open_sqlite_error;
 use crate::open::{read_only_sqlite_uri, sqlite_uri};
 
 #[cfg(feature = "operator")]

@@ -6,7 +6,7 @@ date: 2026-09-29
 branch: slice-85-fix
 source_candidate: 294af94b5b0e9076ccb35956a3863ef12c5599af
 implementation_status: COMPLETE
-qualification_status: BLOCKED
+qualification_status: IN_PROGRESS
 ---
 
 # Slice 85 recovery receipt
@@ -188,26 +188,48 @@ Candidate-bound native receipt:
 Exact-source official public capture exited 2 before producing an inventory:
 `surface-comparator: cache/scratch filesystem requires at least 100000000000 free bytes`.
 At that attempt the host did not satisfy the 100 GB floor. Evidence is
-`/tmp/fathomdb-s85-recovery-public-capture.log`. On 2026-09-30 the current
-release worktree had 127 GB available; the public capture is now runnable but
-has not been repeated, so no comparison PASS is claimed.
+`/tmp/fathomdb-s85-recovery-public-capture.log`. That failed attempt remains
+part of the audit trail; the completed recapture is recorded below.
 
 Official hidden capture also exited 2 without an inventory. Its unchanged CUDA
 preflight was repeated unconfined to distinguish sandbox restrictions from host
-failure: the GPU inventory command exited 18. NVML reports a driver/library
+failure: the GPU inventory command exited 18. NVML reported a driver/library
 version mismatch (library 580.178). Evidence is
-`/tmp/fathomdb-s85-recovery-hidden-capture.log`. The hidden tool separately
-requires 20 GB; its observed blocker is CUDA preflight.
+`/tmp/fathomdb-s85-recovery-hidden-capture.log`. That earlier failure remains
+visible; the completed recapture and GPU execution follow.
 
-Consequently official public/hidden comparisons and the hidden release probe
-remain unverified. The intended internal privacy/test-hook delta is documented,
-but official inventories have not compared it. Immutable baselines, guards and
-hardware settings were not changed to obtain a pass. No GPU-runtime pass is
-claimed from feature compilation or successful CPU routes.
+## Exact-source recovery qualification on 2026-10-03
 
-Implementation is complete and reviewed; acceptance remains blocked on these
-named captures/comparisons and applicable moved GPU-route evidence on a capable
-executor. The original combined-run failure and two skipped suites remain
-explicit above. Release authority stays unchanged; recovery is not declared
-settled for Slice 90. Source ancestry does not supply missing qualification or
-release-state rebinding.
+The official public and hidden tools recaptured the exact pre-move candidate
+`4c75bfec2985f4001690673cc5b38dfdce2081bf`. Their SHA-256 digests match
+the recorded baseline digests above byte for byte. Both tools then captured
+the exact recovery source `294af94b5b0e9076ccb35956a3863ef12c5599af`.
+The public recovery manifest has SHA-256
+`bad6007f4afcdcb601fd7a870633a889084b7e1a615b0d0098683766b8a15252`;
+the hidden manifest has SHA-256
+`5aaa4a33f92f2689d7bf9b2c25f0b03ae1687191d50676525850f777fa4b1599`.
+The source checkouts were clean at capture.
+
+The official public diff has equal metadata and four changed Rust rows. Each
+adds 31 `ReaderSearchPauseForTest` hook items, with no removal or changed
+signature. The hidden diff has equal metadata. Its six Engine structural rows
+show the documented hidden Engine-owned reader-hook replacement: five items
+added, two removed and two changed per row. Fourteen test-target/inventory rows
+are additive only, and the hidden release probe and facade rows are unchanged.
+The source-specific diff and capture hashes are preserved in
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/final-1398c821d/slice85-recovery-comparison.json`.
+
+The strict feature-complete gate ran on exact clean recovery source
+`294af94b5` with the NVIDIA driver installed on windchill3 at execution. It
+passed 21 feature runs: 349 tests passed, eight planned ignores, no failures.
+The CUDA embedder/reranker, ONNX cross-backend, Engine embedder/reranker and
+Slice 72 GPU runtime sets all executed. Its summary SHA-256 is
+`1afcc653a010d03118dbe11450c94b2d5ed7527123ed5205a5618c24e7d8dae3`;
+raw logs are in the adjacent `slice85-recovery-gpu/` evidence directory.
+
+These measurements close the previously unavailable comparison and moved
+GPU-route evidence. The original combined verification FAIL and two skipped
+suites above remain unchanged; no full exact-recovery rerun replaces them.
+Release state still binds Slice 85 to `7a2f9bf9`. Rebinding the recovery source
+requires a separate owner instruction and is not inferred from ancestry or
+these qualification results.

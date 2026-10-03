@@ -15,9 +15,9 @@ PASS and final Slice 90 verification is not yet claimed.
 The frozen operational source entry was `release/0.8.27` at `e689000d4` or a
 documentation-only descendant before Phase 2 semantic edits. Historical `7a2f9bf9`
 remains the D27 performance reference. Slice 85 recovery code is already in
-release ancestry,
-but its historical-candidate public/hidden comparison is outstanding and
-release state still binds the earlier Slice 85 candidate. The host reboot
+release ancestry. Its historical-candidate public/hidden comparison has now
+been measured, while release state still binds the earlier Slice 85 candidate.
+The host reboot
 loaded the authorized driver; the first strict GPU feature gate reached CUDA
 tests but did not pass because of a stale allowlist name. A later corrected
 gate and current-source captures are recorded below.
@@ -127,8 +127,9 @@ NVML 580.178. `nvidia-smi` exited 18. Desktop processes currently hold the GPU
 devices, so a module reload was not safe during that session. After the host
 reboot, `nvidia-smi`, `/proc/driver/nvidia/version`, and `modinfo` all report
 580.178.04. The GPU inventory includes two RTX 3090 cards and one K620. This
-clears the driver/NVML preflight blocker; the strict feature-complete and
-official hidden-surface gates still need successful results before GPU PASS.
+cleared the driver/NVML preflight blocker; at that point the strict
+feature-complete and official hidden-surface gates still needed successful
+results before GPU PASS.
 HITL `seq-300` clarifies the final-candidate rule: use and test whichever
 NVIDIA driver version is installed on windchill3 at the time of that run,
 record its observed version, and continue the remaining work without a
@@ -386,10 +387,10 @@ ms under foreground-heavy load. The same exact source passed the unchanged
 AC-081a/b seven-run campaign and AC-081c. The official campaign summary is
 `/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/ac081-default5-ad31c3a61/summary.txt`
 (SHA-256 `00a4313dc52ae5cb9c1939e6c220901581d530adad691467c63ce09c8d1084ab`).
-This is a provisional default selection until every named selector passes.
-The proposed ADR successor is
-`dev/adr/ADR-0.8.27-embed-dispatch-default-capacity.md`; it is not yet
-accepted, and the runtime checkpoint remains PENDING.
+At that stage this was a provisional default selection until every named
+selector passed. The ADR successor
+`dev/adr/ADR-0.8.27-embed-dispatch-default-capacity.md` was not yet accepted,
+and the runtime checkpoint remained PENDING.
 
 On exact clean source `ad31c3a61`, the unchanged named selectors passed
 AC-011a at 1,263.671 commits/s against 1,000, AC-011b at 306.721 against
@@ -521,10 +522,43 @@ on the exact implementation tree, and the merged release branch passed the
 full unconfined verification gate at `1088df022`: 180/180 suites, zero skips
 or exclusions, and zero security violations, blockers, or downgrades.
 
-Final-candidate work remains: the distinct feature and non-Linux builds,
-installed Python and Node artifacts, the strict GPU gate on the driver installed
-on windchill3 at run time under HITL `seq-300`, repeated D27 and named default
-performance gates, resource and cleanup inventory, official public and hidden
-surface captures, Slice 85 recovery comparison, and exact-candidate independent
-review and verification. The historical stage-2 throughput ruling applies only
-to its recorded run. Slice 90 remains IN_PROGRESS.
+## Final code-candidate qualification on 2026-10-03
+
+The clean final code candidate is
+`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af` on `release/0.8.27`.
+The last two commits preserve the stage-2 public D27 observation type paths
+and close a negative boundary-check gap found by independent review. The new
+mutant fails before the guard and is rejected after it; the 104-configuration
+module-boundary gate passes. Independent `gpt-6-sol` high re-review passed the
+correction and final `gpt-6-sol` high code review passed the entire exact tree
+with no actionable finding. The final reviewer separately passed 226 owner
+guard tests. No further engine source edit followed that review.
+
+| Candidate-bound gate | Result |
+| --- | --- |
+| Full unconfined `scripts/agent-verify.sh` | **PASS**: 180/180 suites, zero skipped or excluded; strict security has zero violations, blockers and downgrades. |
+| Runtime resources and cleanup | **PASS**: all four `slice90_runtime_matrix` tests, including default `2/5`, explicit `2/1`, configured matrix and no-provider reopen. |
+| D27 default workload | **Strict PASS**: six repetitions under the reviewed v2 protocol against frozen historical entry; receipt SHA-256 `8e6ecba12087c41e76a242ec7578531ffbefa5c29aa7bb5067b7d02fcbaaaaf8`. The stage-2 third-campaign HITL exception was not reused. |
+| Named release selectors | **PASS**: AC-011a/b, AC-017, AC-018, AC-029, AC-076 and AC-081c. The sealed AC-072 campaign passed three cells (p50 70/70/70 ms, p99 78/77/77 ms). AC-081a/b passed seven fresh processes with sequential median 184.075 ms, concurrent median 65.339 ms and no warnings. |
+| AC-073 real corpus | **Stress PASS**: 7,667 real documents, no padding, mixed-tail p99 437 ms within the same-run 488 ms bound. The combined selector exited 101 solely on the separately superseded AC-075 vector-stage recall floor: 0.773, CI high 0.799 below 0.90. The failure is retained, not rewritten as a combined PASS. |
+| Installed bindings | **PASS**: exact wheel, PyO3 oracle and 31/31 isolated Python 3.12 cases; Node 25 installed production and witness consumers both passed. |
+| Linux and Windows features | **PASS**: nine Linux all-target feature routes, combined CUDA all-target typecheck, and three Windows 11 MSVC all-target routes from a guest hash-verified exact Git archive. |
+| Strict GPU gate | **PASS**: 21 feature runs, 353 tests passed, eight planned ignores, zero failures. At execution windchill3 reported driver 580.178.04 on both RTX 3090s; HITL `seq-300` permits whatever driver is installed at run time. |
+| Official surfaces | **PASS**: 13 public rows exactly equal to the stage-2 candidate with no metadata or row diff; 33 hidden rows have only additive test targets/inventory (14 rows), zero removals or changes, and no structural rustdoc or probe difference. |
+| Slice 85 recovery reconciliation | Exact pre-move recaptures match both recorded hashes. Official recovery diffs show only the documented hidden hook replacement and additive tests; exact recovery source `294af94b5` separately passed 21 GPU feature runs, 349 tests, eight planned ignores, zero failures. Historical Slice 85 authority remains bound to `7a2f9bf9`; no rebind is inferred. |
+
+The candidate-bound logs and SHA-256 inventory are preserved at
+`/home/coreyt/projects/fathomdb-worktrees/qualification-evidence/slice-90/final-1398c821d/final-evidence-manifest.json`.
+The exact Slice 85 baseline/recovery diff is preserved in the adjacent
+`slice85-recovery-comparison.json`. The full repository gate, surfaces, D27,
+installed bindings, GPU, Windows, resource matrix, and named performance
+selectors all passed without a post-review source edit.
+
+R27-90A–H, J and K have implementation and candidate-bound evidence above and
+in the reviewed owner inventory. AC27-90I still requires independent final
+read-only verification. The requested Terra model is unavailable to this
+agent; automatic approval review rejected a direct Terra CLI invocation.
+Stage-2 Terra verification does not cover this final structural tree. An
+owner decision on an independent available-model substitute is pending.
+Accordingly Slice 90 remains **IN_PROGRESS**, its release-state ladder entry
+remains `PLANNED` for acceptance purposes, and Slice 100 is not unblocked.

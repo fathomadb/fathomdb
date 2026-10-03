@@ -38,7 +38,7 @@ pub(crate) fn digest_record_identity(collection: &str, record_key: &str) -> Stri
 // identity derivation internal until the opt-in Slice 50 evidence resolver
 // exposes it; default records and search hits remain unchanged.
 #[allow(dead_code)]
-pub(crate) fn legacy_revision_id(
+fn legacy_revision_id(
     artifact_class: &str,
     cursor: u64,
     source_id: Option<&str>,
@@ -63,6 +63,16 @@ pub(crate) fn legacy_revision_id(
         None => revision_hash_field(&mut hasher, b"body:none"),
     }
     format!("_fdb:m:{}", hex_encode(&hasher.finalize()))
+}
+
+#[cfg(test)]
+pub(super) fn migrated_revision_id_for_test(
+    artifact_class: &str,
+    cursor: u64,
+    source_id: Option<&str>,
+    body: Option<&str>,
+) -> String {
+    legacy_revision_id(artifact_class, cursor, source_id, body)
 }
 
 /// C-2 (0.8.19 / OPP-12 record-lifecycle Phase-1, TC-8) — the **id-space** of a

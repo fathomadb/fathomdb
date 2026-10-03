@@ -2109,7 +2109,7 @@ mod slice90_post_probe_real_error_tests;
 #[cfg(test)]
 mod tests {
     use super::erasure::ERASURE_WAL_TRUNCATE_ATTEMPTS;
-    use super::identity::legacy_revision_id;
+    use super::identity::migrated_revision_id_for_test as legacy_revision_id;
     use super::reader_pool::{ReaderRequest, READER_POOL_SIZE};
     use super::vector_storage::KIND_TO_SOURCE_TYPE_CASE_SQL;
     use super::{

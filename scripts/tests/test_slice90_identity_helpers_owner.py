@@ -3,12 +3,17 @@
 
 from pathlib import Path
 import re
+import subprocess
+import sys
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
 NAMES = ("hex_encode", "hex_nibble", "digest_record_identity", "legacy_revision_id")
+TEST_ACCESSOR = "migrated_revision_id_for_test"
+TEST_ALIAS = "use super::identity::migrated_revision_id_for_test as legacy_revision_id;"
+TEST_IDENTITY = "fn legacy_revision_derivation_is_stable_and_tuple_sensitive_without_persisting_an_owner()"
 FAMILY = re.compile(
     r"^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?fn[ \t]+"
     r"((?:hex_encode|hex_nibble|digest_record_identity|legacy_revision_id)\w*)[ \t]*\(",
@@ -60,7 +65,7 @@ def owner_errors(root: str, owner: str, modules: dict[str, str]) -> list[str]:
     names = FAMILY.findall(owner)
     errors.extend(f"identity unexpectedly defines {name}" for name in names if name not in NAMES)
     for name in NAMES:
-        visibility = "fn" if name == "hex_nibble" else "pub(crate) fn"
+        visibility = "fn" if name in ("hex_nibble", "legacy_revision_id") else "pub(crate) fn"
         found = list(re.finditer(r"^" + re.escape(visibility) + r" " + name + r"\(", owner, re.M))
         if len(found) != 1 or names.count(name) != 1:
             errors.append(f"identity lacks one {name}")
@@ -69,6 +74,16 @@ def owner_errors(root: str, owner: str, modules: dict[str, str]) -> list[str]:
         expected_attrs = ['#[cfg(feature = "operator")]'] if name == "digest_record_identity" else []
         if actual_attrs != expected_attrs:
             errors.append(f"identity gates {name} incorrectly")
+    accessor = list(re.finditer(r"^pub\(super\) fn migrated_revision_id_for_test\(", owner, re.M))
+    if len(accessor) != 1 or attrs(owner, accessor[0].start()) != ["#[cfg(test)]"]:
+        errors.append("identity lacks exact test-only migrated revision accessor")
+    elif not re.search(
+        r"(?ms)^pub\(super\) fn migrated_revision_id_for_test\(\s*artifact_class: &str,\s*cursor: u64,\s*source_id: Option<&str>,\s*body: Option<&str>,\s*\) -> String \{\s*legacy_revision_id\(artifact_class, cursor, source_id, body\)\s*}",
+        owner,
+    ):
+        errors.append("identity test accessor does not forward unchanged")
+    if len(re.findall(r"(?m)^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?fn[ \t]+migrated_revision_id_for_test\b", owner)) != 1:
+        errors.append("identity has extra migrated revision accessor")
     for path, marker in CALLERS:
         if marker not in modules.get(path, ""):
             errors.append(f"{path} lacks identity owner path")
@@ -77,8 +92,8 @@ def owner_errors(root: str, owner: str, modules: dict[str, str]) -> list[str]:
             errors.append(f"{path} lacks identity owner call")
         if "super::hex_encode(" in modules.get(path, ""):
             errors.append(f"{path} still calls root hex")
-    if "use super::identity::legacy_revision_id;" not in root:
-        errors.append("root test module lacks identity owner path")
+    if TEST_ALIAS not in root or TEST_IDENTITY not in root:
+        errors.append("root test module loses identity alias or qualified test")
     return errors
 
 
@@ -92,12 +107,18 @@ class IdentityHelpersOwnerTest(unittest.TestCase):
             pattern = re.compile(r"(?ms)^fn " + name + r"\(.*?^}\n")
             match = pattern.search(root)
             if match:
-                visibility = "fn" if name == "hex_nibble" else "pub(crate) fn"
+                visibility = "fn" if name in ("hex_nibble", "legacy_revision_id") else "pub(crate) fn"
                 prefix = '#[cfg(feature = "operator")]\n' if name == "digest_record_identity" else ""
                 owner += "\n" + prefix + match.group().replace(f"fn {name}(", f"{visibility} {name}(", 1)
                 root = root[: match.start()] + root[match.end() :]
-        if "use super::identity::legacy_revision_id;" not in root:
-            root += "\nuse super::identity::legacy_revision_id;"
+        owner = owner.replace("pub(crate) fn legacy_revision_id(", "fn legacy_revision_id(", 1)
+        if f"fn {TEST_ACCESSOR}(" not in owner:
+            owner += "\n#[cfg(test)]\npub(super) fn migrated_revision_id_for_test(\n    artifact_class: &str,\n    cursor: u64,\n    source_id: Option<&str>,\n    body: Option<&str>,\n) -> String {\n    legacy_revision_id(artifact_class, cursor, source_id, body)\n}\n"
+        root = root.replace("use super::identity::legacy_revision_id;", TEST_ALIAS)
+        if TEST_ALIAS not in root:
+            root += "\n" + TEST_ALIAS
+        if TEST_IDENTITY not in root:
+            root += "\n" + TEST_IDENTITY
         for path, marker in CALLERS:
             if marker not in modules[path]:
                 modules[path] += "\n" + marker
@@ -137,6 +158,32 @@ class IdentityHelpersOwnerTest(unittest.TestCase):
             self.assertIn("root gates identity module", owner_errors(changed, owner, modules))
         for attr in ('#![cfg(feature = "operator")]', '#![cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]'):
             self.assertIn("identity gates whole owner module", owner_errors(root, attr + "\n" + owner, modules))
+
+    def test_security_visibility_and_test_identity_mutants(self) -> None:
+        root, owner, modules = source_inventory()
+        self.assertEqual(owner_errors(root, owner, modules), [])
+        for visibility in ("pub ", "pub(crate) ", "pub(super) "):
+            changed = owner.replace("fn legacy_revision_id(", visibility + "fn legacy_revision_id(", 1)
+            self.assertIn("identity lacks one legacy_revision_id", owner_errors(root, changed, modules))
+        for attr in ('#[cfg(feature = "operator")]', '#[cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]'):
+            changed = owner.replace("#[cfg(test)]\npub(super) fn migrated_revision_id_for_test(", attr + "\n#[cfg(test)]\npub(super) fn migrated_revision_id_for_test(", 1)
+            self.assertIn("identity lacks exact test-only migrated revision accessor", owner_errors(root, changed, modules))
+        changed = owner.replace("#[cfg(test)]\npub(super) fn migrated_revision_id_for_test(", "pub(super) fn migrated_revision_id_for_test(", 1)
+        self.assertIn("identity lacks exact test-only migrated revision accessor", owner_errors(root, changed, modules))
+        changed = owner.replace("legacy_revision_id(artifact_class, cursor, source_id, body)", 'String::new()', 1)
+        self.assertIn("identity test accessor does not forward unchanged", owner_errors(root, changed, modules))
+        changed = root.replace(TEST_ALIAS, "use super::identity::legacy_revision_id;", 1)
+        self.assertIn("root test module loses identity alias or qualified test", owner_errors(changed, owner, modules))
+
+    def test_ac050a_scanner_accepts_source(self) -> None:
+        scan = subprocess.run(
+            [sys.executable, str(ROOT / "scripts/security/ast_scan.py"), "--language", "rust"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(scan.returncode, 0, scan.stdout + scan.stderr)
 
     def test_fast_tier_registration(self) -> None:
         self.assertIn("fast test-slice90-identity-helpers-owner", (ROOT / "scripts/agent-test.sh").read_text())

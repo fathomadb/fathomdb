@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use super::projection_runtime::PROJECTION_COMMIT_BATCH;
 use super::provenance::DEFAULT_PROVENANCE_ROW_CAP;
 use super::telemetry::DEFAULT_SLOW_THRESHOLD_MS;
-use super::DEFAULT_EMBED_TIMEOUT_MS;
+use super::{Engine, DEFAULT_EMBED_TIMEOUT_MS};
 
 /// SQLite runtime mode selected before FathomDB opens its first connection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -260,6 +260,14 @@ fn checked_value(
         return Err(EngineConfigurationError::OutOfRange { field, value, min, max });
     }
     Ok(value)
+}
+
+impl Engine {
+    /// Return the immutable settings requested at open. Omitted fields remain
+    /// `None`; this does not reflect later effective-value setter calls.
+    pub fn config(&self) -> &EngineConfig {
+        &self.requested_config
+    }
 }
 
 #[cfg(test)]

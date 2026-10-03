@@ -608,12 +608,6 @@ pub use lifecycle::Subscription;
 pub use open::{EmbedderChoice, OpenReport, OpenedEngine, ENV_GPU_ALLOCATION_WITNESS};
 
 impl Engine {
-    /// Return the immutable settings requested at open. Omitted fields remain
-    /// `None`; this does not reflect later effective-value setter calls.
-    pub fn config(&self) -> &EngineConfig {
-        &self.requested_config
-    }
-
     #[cfg(feature = "test-hooks")]
     #[doc(hidden)]
     pub fn explain_graph_evidence_preflights_for_test(&self) -> Result<Vec<String>, EngineError> {

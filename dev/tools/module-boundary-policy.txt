@@ -28,7 +28,8 @@ reported dependency
 reported dependency_closure
 reported dependency_trace
 reported embed_dispatch
-reported embed_dispatch::d27_observation
+reported embed_dispatch::core
+reported embed_dispatch::core::d27_observation
 reported embedding
 reported erasure
 admitted errors
@@ -168,6 +169,9 @@ forbid-dependency read reader_pool
 forbid-dependency read search
 forbid-dependency filter search
 forbid-dependency frozen_read search
+forbid-dependency embed_dispatch::core open
+forbid-dependency embed_dispatch::core projection_runtime
+forbid-dependency embed_dispatch::core search
 forbid-dependency search reader_pool
 forbid-cycle search graph_expand
 forbid-cycle read reader_pool

@@ -1,6 +1,6 @@
 //! Executor-only tests for the bounded engine-owned embed dispatcher.
 
-#[path = "../src/embed_dispatch.rs"]
+#[path = "../src/embed_dispatch/core.rs"]
 mod embed_dispatch;
 
 use std::sync::atomic::{AtomicUsize, Ordering};

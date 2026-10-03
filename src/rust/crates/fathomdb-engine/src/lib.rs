@@ -591,36 +591,6 @@ pub use lifecycle::Subscription;
 pub use open::{EmbedderChoice, OpenReport, OpenedEngine, ENV_GPU_ALLOCATION_WITNESS};
 
 impl Engine {
-    /// Start the private D27 collector after the warm-up drain.
-    #[cfg(feature = "test-hooks")]
-    pub fn begin_d27_observation_for_test(&self, origin: Instant) {
-        self.embed_dispatch.begin_d27_observation(origin);
-    }
-
-    /// Run one measured foreground operation under its engine dispatch owner.
-    #[cfg(feature = "test-hooks")]
-    pub fn with_d27_foreground_owner_for_test<R>(
-        &self,
-        sequence: usize,
-        work: impl FnOnce() -> R,
-    ) -> R {
-        embed_dispatch::d27_observation::with_owner(
-            Some(embed_dispatch::d27_observation::Owner::Foreground {
-                operation_sequence: sequence,
-            }),
-            work,
-        )
-    }
-
-    /// Snapshot the engine-owned D27 records after measured projection drain.
-    #[cfg(feature = "test-hooks")]
-    pub fn d27_observation_for_test(&self) -> Option<D27Observation> {
-        self.embed_dispatch.d27_observation(
-            self.resolved_config.scheduler_runtime_threads,
-            self.resolved_config.embedder_pool_size,
-        )
-    }
-
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path

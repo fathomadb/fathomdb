@@ -36,6 +36,8 @@ for index, (owner, target) in enumerate([
          (file, f"#[allow(unused_imports)] use crate::{target} as recovery_direction_{index};"))
 case("descendant", "forbidden dependency graph_expand::codec -> search_api",
      ("graph_expand/codec.rs", "#[allow(unused_imports)] use crate::search_api as recovery_descendant;"))
+case("dispatch-core-projection", "forbidden dependency embed_dispatch::core -> projection_runtime",
+     ("embed_dispatch/core.rs", "#[allow(unused_imports)] use crate::projection_runtime as recovery_core_projection;"), kind="parser")
 case("callable-reference", "forbidden dependency read -> reader_pool",
      ("reader_pool.rs", "pub(crate) fn recovery_callable() {}"),
      ("read.rs", "fn recovery_reference() { let _ = crate::reader_pool::recovery_callable; }"))
@@ -104,6 +106,8 @@ case("extern-crate", "unsupported extern crate",
      ("search.rs", "extern crate self as recovery_crate;"), kind="parser")
 case("unparsed-macro", "unparsed macro body",
      ("search.rs", "fn recovery_opaque() { opaque!(=> crate::reader_pool::ReaderRequest); }"), kind="parser")
+case("dispatch-core-unparsed-macro", "unparsed macro body",
+     ("embed_dispatch/core.rs", "fn recovery_dispatch_opaque() { opaque!(=> crate::projection_runtime::ProjectionRuntime); }"), kind="parser")
 case("missing-owner", "owner assertion stale",
      ("@policy", "owner RecoveryMissing reader_pool"), kind="policy")
 case("stale-admission", "stale admit-type",

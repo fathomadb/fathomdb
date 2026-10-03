@@ -8,6 +8,10 @@
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, Weak};
+use std::time::Instant;
+
+use crate::errors::{CorruptionLocator, EngineOpenError};
+use crate::Engine;
 
 use crate::telemetry::CounterSnapshot;
 
@@ -312,5 +316,165 @@ impl Counters {
             cache_hit: self.cache_hit.load(Ordering::Relaxed),
             cache_miss: self.cache_miss.load(Ordering::Relaxed),
         }
+    }
+}
+
+impl Engine {
+    pub(crate) fn detect_slow(&self, started: Instant, category: EventCategory) {
+        let elapsed = started.elapsed();
+        let threshold = self.slow_threshold_ms.load(Ordering::Relaxed);
+        let threshold_duration = std::time::Duration::from_millis(threshold);
+        if elapsed > threshold_duration {
+            // `dev/design/lifecycle.md` § Slow and heartbeat policy: a slow
+            // operation produces TWO correlated facts. The
+            // statement-level slow-statement signal is dispatched by the
+            // sqlite3_profile callback (`profile_callback_trampoline`).
+            // This site emits the lifecycle `Phase::Slow` event for the
+            // outer operation envelope (AC-008).
+            self.emit_event(Phase::Slow, category, None);
+        }
+    }
+
+    pub(crate) fn emit_event(
+        &self,
+        phase: Phase,
+        category: EventCategory,
+        code: Option<&'static str>,
+    ) {
+        let event = Event { phase, source: EventSource::Engine, category, code };
+        self.subscribers.dispatch(&event);
+    }
+
+    /// Emit a `(SqliteInternal, Error, code: <SQLITE_*>)` lifecycle
+    /// event for a rusqlite error. Per `dev/design/lifecycle.md`
+    /// § Diagnostic source and category, SQLite-originated diagnostics
+    /// route through the same host subscriber as engine-originated
+    /// events with `source` preserved. AC-021 dispatches on
+    /// `code == "SQLITE_SCHEMA"`.
+    pub(crate) fn emit_sqlite_internal_error(&self, err: &rusqlite::Error) {
+        if let Some(code) = sqlite_extended_code_name(err) {
+            let event = Event {
+                phase: Phase::Failed,
+                source: EventSource::SqliteInternal,
+                category: EventCategory::Error,
+                code: Some(code),
+            };
+            self.subscribers.dispatch(&event);
+        }
+    }
+
+    /// Attach a host subscriber to engine events.
+    ///
+    /// Dropping the returned [`Subscription`] detaches the subscriber.
+    /// Payload shape owned by `dev/design/lifecycle.md` and
+    /// `dev/design/migrations.md`.
+    #[must_use]
+    pub fn subscribe(&self, subscriber: Arc<dyn Subscriber>) -> Subscription {
+        self.subscribers.attach(subscriber)
+    }
+}
+
+/// Map a rusqlite error to its stable SQLite extended-code name.
+///
+/// Returns `None` for non-`SqliteFailure` variants (e.g. JSON conversion
+/// failures, type mismatches at the rusqlite layer) — those are not
+/// SQLite-internal events and should not be surfaced under
+/// `EventSource::SqliteInternal`. The names returned here are the
+/// canonical `SQLITE_*` symbol names from `sqlite3.h` and are stable
+/// dispatch keys for AC-021 / AC-006 binding adapters.
+///
+/// Only the subset of codes the engine can reach in 0.6.0 is enumerated
+/// — bare-extended-code matching covers the rest with a stable
+/// `"SQLITE_UNKNOWN"` fallback so subscribers always see a typed code.
+///
+/// Diagnostic completeness for unmapped codes — **corrected 0.8.20 Slice 21a-2
+/// (TC-57)**. This comment used to claim that when the helper returns
+/// `"SQLITE_UNKNOWN"` the numeric extended code "is not lost — it remains on the
+/// underlying `rusqlite::Error::SqliteFailure` carried in the engine error chain
+/// that subscribers can inspect via `EngineError`'s `source()`". **That is
+/// false.** There is no such chain: `EngineError::Storage` is a UNIT variant with
+/// no payload and no `source()`, and `write_inner` drops the `rusqlite::Error`
+/// immediately after emitting the lifecycle event. So for an unmapped code the
+/// numeric value IS lost, and the only signal a host receives is the string
+/// `"SQLITE_UNKNOWN"`.
+///
+/// Concretely: `SQLITE_BUSY_SNAPSHOT` (517) matches none of the PRIMARY constants
+/// below — the match is on the EXTENDED value — so it reaches subscribers as
+/// `"SQLITE_UNKNOWN"` and is unrecoverable from the public API. Restructuring the
+/// error path so busy codes are distinguishable (and surfacing the numeric code as
+/// a typed payload field) is candidate R2 of
+/// `dev/design/0.8.20-tc57-write-race-characterization.md` §7, explicitly OUT of
+/// scope for the 21a-2 fix and recorded here rather than silently carried.
+pub(crate) fn sqlite_extended_code_name(err: &rusqlite::Error) -> Option<&'static str> {
+    let sqlite_error = err.sqlite_error()?;
+    let extended = sqlite_error.extended_code;
+    Some(match extended {
+        rusqlite::ffi::SQLITE_SCHEMA => "SQLITE_SCHEMA",
+        rusqlite::ffi::SQLITE_BUSY => "SQLITE_BUSY",
+        rusqlite::ffi::SQLITE_LOCKED => "SQLITE_LOCKED",
+        rusqlite::ffi::SQLITE_CORRUPT => "SQLITE_CORRUPT",
+        rusqlite::ffi::SQLITE_NOTADB => "SQLITE_NOTADB",
+        rusqlite::ffi::SQLITE_IOERR => "SQLITE_IOERR",
+        rusqlite::ffi::SQLITE_FULL => "SQLITE_FULL",
+        rusqlite::ffi::SQLITE_READONLY => "SQLITE_READONLY",
+        rusqlite::ffi::SQLITE_CONSTRAINT => "SQLITE_CONSTRAINT",
+        rusqlite::ffi::SQLITE_MISUSE => "SQLITE_MISUSE",
+        rusqlite::ffi::SQLITE_INTERRUPT => "SQLITE_INTERRUPT",
+        rusqlite::ffi::SQLITE_NOMEM => "SQLITE_NOMEM",
+        rusqlite::ffi::SQLITE_PERM => "SQLITE_PERM",
+        rusqlite::ffi::SQLITE_ABORT => "SQLITE_ABORT",
+        rusqlite::ffi::SQLITE_PROTOCOL => "SQLITE_PROTOCOL",
+        rusqlite::ffi::SQLITE_RANGE => "SQLITE_RANGE",
+        rusqlite::ffi::SQLITE_TOOBIG => "SQLITE_TOOBIG",
+        rusqlite::ffi::SQLITE_MISMATCH => "SQLITE_MISMATCH",
+        rusqlite::ffi::SQLITE_AUTH => "SQLITE_AUTH",
+        rusqlite::ffi::SQLITE_NOTFOUND => "SQLITE_NOTFOUND",
+        rusqlite::ffi::SQLITE_CANTOPEN => "SQLITE_CANTOPEN",
+        _ => "SQLITE_UNKNOWN",
+    })
+}
+
+fn sqlite_extended_code_name_from_int(extended: i32) -> &'static str {
+    match extended {
+        rusqlite::ffi::SQLITE_SCHEMA => "SQLITE_SCHEMA",
+        rusqlite::ffi::SQLITE_BUSY => "SQLITE_BUSY",
+        rusqlite::ffi::SQLITE_LOCKED => "SQLITE_LOCKED",
+        rusqlite::ffi::SQLITE_CORRUPT => "SQLITE_CORRUPT",
+        rusqlite::ffi::SQLITE_NOTADB => "SQLITE_NOTADB",
+        rusqlite::ffi::SQLITE_IOERR => "SQLITE_IOERR",
+        rusqlite::ffi::SQLITE_FULL => "SQLITE_FULL",
+        rusqlite::ffi::SQLITE_READONLY => "SQLITE_READONLY",
+        rusqlite::ffi::SQLITE_CONSTRAINT => "SQLITE_CONSTRAINT",
+        rusqlite::ffi::SQLITE_MISUSE => "SQLITE_MISUSE",
+        rusqlite::ffi::SQLITE_INTERRUPT => "SQLITE_INTERRUPT",
+        rusqlite::ffi::SQLITE_NOMEM => "SQLITE_NOMEM",
+        rusqlite::ffi::SQLITE_PERM => "SQLITE_PERM",
+        rusqlite::ffi::SQLITE_ABORT => "SQLITE_ABORT",
+        rusqlite::ffi::SQLITE_PROTOCOL => "SQLITE_PROTOCOL",
+        rusqlite::ffi::SQLITE_RANGE => "SQLITE_RANGE",
+        rusqlite::ffi::SQLITE_TOOBIG => "SQLITE_TOOBIG",
+        rusqlite::ffi::SQLITE_MISMATCH => "SQLITE_MISMATCH",
+        rusqlite::ffi::SQLITE_AUTH => "SQLITE_AUTH",
+        rusqlite::ffi::SQLITE_NOTFOUND => "SQLITE_NOTFOUND",
+        rusqlite::ffi::SQLITE_CANTOPEN => "SQLITE_CANTOPEN",
+        _ => "SQLITE_UNKNOWN",
+    }
+}
+
+pub(crate) fn emit_open_error_event(subscriber: &Arc<dyn Subscriber>, err: &EngineOpenError) {
+    if let EngineOpenError::Corruption(detail) = err {
+        let code = match detail.locator {
+            CorruptionLocator::OpaqueSqliteError { sqlite_extended_code } => {
+                Some(sqlite_extended_code_name_from_int(sqlite_extended_code))
+            }
+            _ => None,
+        };
+        let event = Event {
+            phase: Phase::Failed,
+            source: EventSource::SqliteInternal,
+            category: EventCategory::Corruption,
+            code,
+        };
+        subscriber.on_event(&event);
     }
 }

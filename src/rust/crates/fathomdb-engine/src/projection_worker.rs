@@ -1,5 +1,6 @@
 use super::*;
 use crate::embedding::EDGE_FACT_KIND;
+use crate::lifecycle::sqlite_extended_code_name;
 use crate::projection_runtime::PROJECTION_COMMIT_BATCH;
 use crate::projection_runtime::PROJECTION_TEMPORAL_WAKE_POLL;
 

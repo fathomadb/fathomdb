@@ -195,6 +195,7 @@ run_tier_suite fast test-slice90-projection-runtime-status-owner python3 scripts
 run_tier_suite fast test-slice90-projection-rebuild-owner python3 scripts/tests/test_slice90_projection_rebuild_owner.py
 run_tier_suite fast test-slice90-projection-commit-owner python3 scripts/tests/test_slice90_projection_commit_owner.py
 run_tier_suite fast test-slice90-telemetry-owner python3 scripts/tests/test_slice90_telemetry_owner.py
+run_tier_suite fast test-slice90-lifecycle-events-owner python3 scripts/tests/test_slice90_lifecycle_events_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

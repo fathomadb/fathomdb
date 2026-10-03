@@ -1,5 +1,6 @@
 use super::*;
 use crate::dependency_trace::{DEPENDENCY_GENERATION_KEY, SOURCE_DEPENDENCY_SCHEMA_VERSION};
+use crate::lifecycle::emit_open_error_event;
 
 struct OpenEmbedDispatchGuard(Option<Arc<EmbedDispatcher>>);
 

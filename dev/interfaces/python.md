@@ -169,10 +169,17 @@ These are public instance methods, not extra top-level SDK verbs:
 
 Subscriber attachment is provided by:
 
-- `engine.attach_logging_subscriber(logger, *, heartbeat_interval_ms=None)`
+- `engine.attach_logging_subscriber(logger)`
 
 The helper maps engine events into Python `logging.LogRecord`s with the stable
-`fathomdb` payload described by `design/bindings.md`.
+`fathomdb` payload described by `design/bindings.md`. The logger remains
+caller-owned and must expose a callable `log` method and support weak
+references. Delivery is opt-in and bounded; if a slow logger overruns the
+queue, later delivery includes a `fathomdb.dropped_records` warning. Logger
+exceptions do not change database operation results. A logger callback that
+reenters a FathomDB database operation receives `InvalidArgumentError` before
+dispatch. No binding-generated heartbeat or operation ID is promised by this
+helper; see `ADR-0.8.27-python-subscriber-delivery`.
 
 ## Caller-visible data shapes
 

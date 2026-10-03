@@ -290,13 +290,12 @@ CATALOG: tuple[KnobEntry, ...] = (
     ),
     KnobEntry(
         name="attach_logging_subscriber",
-        classification=KnobClass.UNSUPPORTED,
-        call_path=None,
-        witness=None,
+        classification=KnobClass.OBSERVABILITY,
+        call_path="Engine.attach_logging_subscriber(logger)",
+        witness="LogRecord.fathomdb",
         reason=(
-            "The call path EXISTS but is inert -- its own docstring defers subscriber "
-            "wiring to a later slice. This is the catalog's proof of purpose: a path "
-            "that exists and does nothing must still be present to be tested."
+            "Opt-in bounded engine and SQLite diagnostic delivery to a caller-owned "
+            "Python logger; overload is reported through dropped_records."
         ),
     ),
 )

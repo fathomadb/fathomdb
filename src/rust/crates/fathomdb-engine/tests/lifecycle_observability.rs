@@ -628,6 +628,27 @@ fn ac_005b_profile_record_typed_numeric_fields() {
     let _: i64 = record.cache_delta;
 }
 
+struct PanickingProfileSubscriber;
+
+impl Subscriber for PanickingProfileSubscriber {
+    fn on_event(&self, _event: &Event) {}
+
+    fn on_profile(&self, _record: &ProfileRecord) {
+        panic!("subscriber panic from SQLite profile callback");
+    }
+}
+
+#[test]
+fn sqlite_profile_subscriber_panic_does_not_abort_or_fail_search() {
+    let (_dir, engine) = fixture();
+    let _subscription = engine.subscribe(Arc::new(PanickingProfileSubscriber));
+    engine.set_profiling(true).expect("enable profiling");
+
+    let result = engine.search("hello");
+    assert!(result.is_ok(), "subscriber panic must not change the query result");
+    assert!(engine.search("again").is_ok(), "engine remains usable after callback panic");
+}
+
 // AC-006: SQLite-internal events surfaced with typed source tag.
 //
 // Page-1 magic-header bit-flip flavor: documented page-corruption tool

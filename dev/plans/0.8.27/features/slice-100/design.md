@@ -1,13 +1,12 @@
 ---
 title: FathomDB 0.8.27 Slice 100 — PyO3 decomposition
-status: PLANNED
+status: IN_REVIEW
 target_release: 0.8.27
 ---
 
 # Slice 100 PyO3 decomposition
 
-Prospective design only; uncommissioned. Entry requires completed Slice 90
-and its configuration handoff. All obligations below close within Slice 100
+Slice 90 closed at `c149584bc`; this is the entry design for Slice 100. All obligations below close within Slice 100
 before Slice 110. Python SDK decomposition remains Slice 130. Source-layout
 symmetry with NAPI and line-count targets are not acceptance criteria.
 
@@ -46,7 +45,7 @@ registration site. Missing/duplicate/stale entries fail; no remainder bucket.
 
 | Final private owner | Items and boundary |
 | --- | --- |
-| Root `lib.rs` | Crate attributes, module declarations, narrow internal imports and the single `_fathomdb` initializer with its explicit class/function/exception/alias registrations. Keep registration statements here so the existing lib-only comparator remains complete. No second initializer or duplicate class registration. |
+| Root `lib.rs` | Crate attributes, module declarations, shared private Rust/PyO3 imports and the single `_fathomdb` initializer with its explicit class/function/exception/alias registrations. Keep registration statements here so the existing lib-only comparator remains complete. No second initializer or duplicate class registration. |
 | `errors` | All exception declarations, exhaustive engine/open/runtime/device/graph error conversions, stable reason/code strings and structured exception attributes. Preserve exception inheritance, `__module__`, identity and panic distinction. |
 | `ffi` | `call_engine`, FFI string/range primitives and common Rust-to-Python execution helpers. Preserve validation before dispatch, detached-region scope, panic translation and attachment boundaries. Domain-specific conversion stays with its domain. |
 | `engine` | `PyEngine`, open/report/close/control methods and its one `#[pymethods]` implementation, including native method entrypoints. Preserve the Slice 90 config seam. Keep a single pymethods block under the existing feature set; do not enable `multiple-pymethods` solely for file aesthetics. Extract existing conversion/work helpers where cohesive, without copying registered wrappers or changing evaluation order. |
@@ -56,7 +55,8 @@ registration site. Missing/duplicate/stale entries fail; no remainder bucket.
 | `graph_evidence` | Graph expansion/traversal/boundary operations, graph/evidence request/result conversion and resolve helpers, associated receipts. Existing canonical JSON codecs remain engine-owned. |
 | `projection` | Configuration/registry/status/readiness functions and projection carrier conversions. Engine configuration forwarding remains distinct from projection configuration. |
 | `embedding` | Standalone rerank and CLS embedding entrypoints/helpers and singleton ownership. Preserve one singleton, empty-input behavior, error classes and build-feature refusal. |
-| `admin` | Runtime/admin configuration entrypoints, lifecycle/erasure/dependency operations and their domain conversion helpers, logging-subscriber adapter and controls. Split into cohesive private submodules when needed; every item remains named in the inventory. |
+| `admin` | Runtime/admin configuration entrypoints, lifecycle/erasure/dependency operations and their domain conversion helpers. |
+| `logging_subscriber` | Bounded queue, worker, weak logger lifetime, replacement/close slot and callback reentry guard for the existing Python logging attachment. |
 | `test_support` | Already gated native test functions and rendezvous carriers; Engine-registered test methods remain in its pymethods block. Preserve cfg and qualified tests; no production leak or gate broadening. |
 
 No new Python-visible helper or Rust-public seam is introduced for extraction.
@@ -73,6 +73,99 @@ accounted for. Stub edits are path/documentation-only unless a separately
 approved contract correction requires a specific signature delta.
 
 ## Contract characterization and corrections
+
+### Entry correction: bounded Python logging subscriber
+
+This entry correction implements the useful existing subscriber method under
+[`ADR-0.8.27-python-subscriber-delivery`](../../../../adr/ADR-0.8.27-python-subscriber-delivery.md),
+a proposed successor to the unmet 0.6.0 Python heartbeat promise. The engine
+emits structured events, profiles, slow statements and debug stress failures.
+The native method currently drops its logger and interval. Subscriber delivery
+is a separate behavior change before any mechanical extraction.
+
+FathomDB is a local SQLite-backed database. Its writer, reader and projection
+threads must never execute arbitrary Python logger code or wait for it to
+finish. `Engine::subscribe` remains the collection seam. Its registry takes a
+snapshot before invoking subscribers, but SQLite profile callbacks can run
+while a connection or writer transaction is owned. The adapter `Subscriber`
+methods copy owned payloads into a short-held bounded queue with `try_push`;
+they never enter Python, block on a full queue, perform I/O or hold a registry
+lock across host code. Capacity is 4096 records per attachment. Queue overflow
+drops the new record and increments a saturating loss counter. When the
+worker resumes, it reports the loss count through a warning LogRecord and
+allows a queued record to progress before another loss warning. No exact
+LogRecord count or response-cycle pairing is
+promised under overload; the engine's typed event emission remains exact.
+
+One delivery worker per attachment resolves a weak reference to the caller's
+`logging.Logger` and invokes `logger.log(level, message,
+extra={"fathomdb": payload})` using `Python::try_attach`. The caller retains
+the logger while it wants records; the weak reference avoids a rooted
+Engine/logger/handler cycle. The worker checks the weak reference on a bounded idle wake (at most
+once per second) as well as before delivery. If the logger disappears or
+Python is shutting down, it disables and detaches the adapter, then exits. INFO carries ordinary event
+phases and profiles; WARNING carries Slow, Failed, slow statements, debug
+stress failures and queue loss. `fathomdb` holds `phase`, `source`, `category`
+and optional `code` for events; `profile_record={wall_clock_ms, step_count,
+cache_delta}`, `slow_statement={statement, wall_clock_ms}` and
+`stress_failure={thread_group_id, op_kind, last_error_chain,
+projection_state}` preserve existing typed payload fields. The overload
+record uses `dropped_records`. Logger filters and levels remain caller-owned.
+Exceptions from `logger.log` are contained; they never change a database
+operation's result, and later records are attempted. The worker holds no
+engine, subscriber-slot or queue lock while calling Python.
+
+The worker sets a thread-local callback guard around `logger.log`. Every
+binding path that can enter database work through `call_engine` refuses
+reentry on that thread before dispatch, including search, write and close.
+Attachment also refuses reentry. This blocks a handler-initiated search whose
+reader workers would otherwise create recursive profile callbacks. Direct
+read-only value getters that do not enter SQLite may remain callable. The
+error is a typed `InvalidArgumentError` and is contained by the outer logger
+callback policy if the handler propagates it.
+
+`PyEngine` owns one attachment slot. Validate `logger.log` callable and
+weak-reference support before replacing an attachment. The successor method
+signature is `attach_logging_subscriber(logger)`; remove the misleading
+`heartbeat_interval_ms` argument from native, stub, SDK and interface in the
+same behavior change. There is no synthetic heartbeat or binding-generated
+public operation ID: neither can truthfully report SQLite/provider progress
+from the present `Event` shape. A host may display elapsed time around its
+own synchronous call. Future engine-owned operation progress needs its own
+accepted design, not a timer attached to logger delivery.
+
+The slot has Open/Closing/Closed states. Attachment and close linearize under
+a short-held mutex; attach after Closing starts raises `ClosingError`.
+Replacement disables the old adapter under the slot mutex before installing
+the new one. `try_push` checks enabled and inserts under the same queue mutex
+that `disable` uses to clear queued records; an already snapshotted callback
+cannot enqueue after disable. A record already dequeued by the old worker may
+finish delivery after the replacement point; queued records are cleared.
+The old RAII handle is taken out and dropped after releasing the slot mutex.
+The slot retains at most one retiring worker; a
+further replacement while that worker remains alive
+raises `OverloadedError` and leaves the current attachment intact. This
+bounds repeated replacement to at most one retired and one active worker.
+Close takes and disables the attachment before native close, releases the slot
+mutex across native close, and preserves native close's result, including
+`SchedulerError`. Repeated close does not resurrect the attachment. Drop
+performs the same cleanup. Already snapshotted callbacks see the disabled
+flag. Shutdown clears the queue and signals the worker; it never waits for a
+Python logger callback on the SQLite/provider teardown path. A hung handler
+may leave a daemon delivery worker until it returns; at most two workers may
+remain alive per Engine even after close. Tests cover idle logger
+collection, normal worker exit, replacement during an event, repeated
+replacement with a blocked callback, concurrent attach/close, callback
+failure, profile-enabled reentrant search, slow logger overflow and
+child-process shutdown.
+
+The common engine subscriber dispatch, particularly the `extern "C"` SQLite
+profile trampoline, contains subscriber panics before they can unwind across
+the C boundary. A panic in one Rust subscriber cannot abort the process or
+turn a successful database operation into a failure. This is covered by a
+real-SQLite panic subscriber test and leaves exact engine event emission
+unchanged. No generalized callback framework, engine progress timer, new
+public event field or SDK executor is introduced.
 
 Establish exact entry results before moves. New characterization tests must
 fail under a plausible temporary mutation and pass after exact restoration.
@@ -99,35 +192,10 @@ accepts them. Do not invent a new buffer or callback API. Exercise validation
 precedence (including frozen authentication before dynamic controls) and prove
 invalid writes leave the real database unchanged.
 
-At this baseline `attach_logging_subscriber` accepts and discards its logger
-and heartbeat arguments. This violates the delivery contract in the Python
-interface and bindings design; the existing surface test proves only call
-acceptance. A non-delivering interpretation cannot close this entry. Before
-extraction, deliver a separately tested fix to the accepted contract, or an
-accepted successor with its implementation and tests within Slice 100. An old
-"later slice" comment, new deferral, or merely proposed ADR cannot close it.
-
-The subscriber correction requires a code-grounded design review at the
-post-Slice-90 entry candidate before RED/GREEN. The present engine offers
-`Engine::subscribe` with a drop-detached `Subscription` and synchronous
-`Subscriber` callbacks, but it emits no `Heartbeat` events and its `Event`
-has no operation identity. The correction design must pin:
-
-- ownership of the Python logger and RAII subscription, replacement on a
-  second attachment, and close/drop detachment without use-after-free;
-- event/profile/slow-statement mapping to `logging.LogRecord` with the stable
-  `fathomdb` payload, Python attachment, callback error policy and reentrancy
-  that cannot hold engine registry locks across Python code;
-- the observed blocking operations and an operation-scoped heartbeat cadence,
-  or a reviewed engine event-identity/cadence change, including overlap,
-  terminal ordering, cancellation and shutdown; and
-- the meaning, default and validation of `heartbeat_interval_ms`, including
-  `None`, zero and overflow, plus deterministic delivery/lifetime tests.
-
-The correction cannot hide in a mechanical move. Any public event-shape or
-contract change needs an accepted ADR or interface/design update in the same
-change. This is scoped to the existing subscriber surface, not a general
-callback API.
+The existing subscriber no-op is a contract defect. The bounded adapter and
+successor signature above close it within this slice; a no-op or a new deferral
+does not. The successor must be accepted before Slice 100 closes. Tests first
+fail on the no-op and then pass against an installed corrected wheel.
 
 ## Artifacts and surface oracles
 
@@ -191,6 +259,6 @@ only owned scratch/artifact paths without disturbing shared environments.
 | --- | --- | --- |
 | R27-100A | Complete native ownership. | AC27-100A: source-derived entry/final item and registration inventories reconcile exactly; every item has one owner or named facade/root exception; no duplicate Engine, registration or unresolved remainder. |
 | R27-100B | Python contracts remain exact. | AC27-100B: immutable-plus-approved-delta and entry comparisons pass for wrapper/native/stub/runtime/package surfaces, exception identity, cfg and imports; module/GIL/ABI identities and singleton counts are unchanged. |
-| R27-100C | FFI execution and lifetime are safe. | AC27-100C: detached-blocking progress, ownership/close/failure, panic, hostile conversion and precedence witnesses pass against real installed native code; named contract discrepancies including the subscriber entry are closed with accepted authority and tests. |
+| R27-100C | FFI execution and lifetime are safe. | AC27-100C: detached-blocking progress, ownership/close/failure, panic, hostile conversion and precedence witnesses pass against real installed native code; the subscriber no-op is replaced by the reviewed bounded delivery contract, with real SQLite callback and overload witnesses. |
 | R27-100D | Artifact evidence is real. | AC27-100D: required candidate-bound wheel/platform/feature routes pass, imports resolve inside isolated installations, release hooks are absent and test hooks present, and configuration receipts remain effective. Source-only success or skipped required routes cannot close the slice. |
 | R27-100E | Complete before NAPI decomposition. | AC27-100E: scanner and repository-required gates pass, independent code review and read-only verification bind the final candidate, and zero Slice 100 obligations remain before Slice 110. Python SDK decomposition alone remains assigned to 130. |

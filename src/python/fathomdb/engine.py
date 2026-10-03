@@ -2853,20 +2853,16 @@ class Engine:
     def attach_logging_subscriber(
         self,
         logger: logging.Logger,
-        *,
-        heartbeat_interval_ms: int | None = None,
     ) -> None:
-        """Bind engine events into the supplied `logging.Logger`.
+        """Deliver best-effort engine diagnostics to a caller-owned logger.
 
-        Subscriber wiring lands in a later 0.6.x slice; the native call
-        accepts the parameters so callers can wire a logger against the
-        public surface.
+        Delivery uses a bounded queue. Slow or failing handlers cannot block a
+        database operation; overload may drop records. The logger must support
+        weak references and remain alive while records are wanted. A handler
+        cannot call back into database work on its delivery thread.
         """
 
-        self._native.attach_logging_subscriber(
-            logger,
-            heartbeat_interval_ms=heartbeat_interval_ms,
-        )
+        self._native.attach_logging_subscriber(logger)
 
 
 __all__ = ["Engine"]

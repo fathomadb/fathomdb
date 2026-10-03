@@ -15,7 +15,7 @@ GATE = ROOT / "src/python/tests/_test_hooks_gate.py"
 TYPING = ROOT / "src/python/tests/test_slice65_wal_attribution_typing.py"
 WINDOWS_GUARD = ROOT / "scripts/tests/test_windows_wal_attribution_ci_job.sh"
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
-PY_BINDING = ROOT / "src/rust/crates/fathomdb-py/src/lib.rs"
+PY_BINDING = ROOT / "src/rust/crates/fathomdb-py/src"
 INSTALLED = ROOT / "src/python/tests/test_slice65_wal_attribution_installed.py"
 
 
@@ -41,7 +41,7 @@ def main() -> None:
     expected = tuple((row["owner"], row["attribute"]) for row in rows)
     assert gate.TEST_HOOK_SYMBOLS == expected
     assert gate.load_test_hook_symbols(CONTRACT) == expected
-    assert gate.hook_surface_drift(PY_BINDING.read_text(encoding="utf-8")) == ((), ())
+    assert gate.hook_surface_drift(gate.read_binding_source(PY_BINDING)) == ((), ())
 
     typing = TYPING.read_text(encoding="utf-8")
     assert "_TEST_HOOKS = (" not in typing

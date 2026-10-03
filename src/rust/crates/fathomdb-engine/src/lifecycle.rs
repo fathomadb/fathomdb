@@ -6,6 +6,7 @@
 //! `dev/design/lifecycle.md`.
 
 use std::collections::BTreeMap;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Instant;
@@ -157,27 +158,28 @@ impl SubscriberRegistry {
     }
 
     pub(crate) fn dispatch(&self, event: &Event) {
-        for sub in self.snapshot() {
-            sub.on_event(event);
-        }
+        self.notify_each(|sub| sub.on_event(event));
     }
 
     pub(crate) fn dispatch_profile(&self, record: &ProfileRecord) {
-        for sub in self.snapshot() {
-            sub.on_profile(record);
-        }
+        self.notify_each(|sub| sub.on_profile(record));
     }
 
     pub(crate) fn dispatch_slow_statement(&self, signal: &SlowStatement) {
-        for sub in self.snapshot() {
-            sub.on_slow_statement(signal);
-        }
+        self.notify_each(|sub| sub.on_slow_statement(signal));
     }
 
     #[cfg(debug_assertions)]
     pub(crate) fn dispatch_stress_failure(&self, context: &StressFailureContext) {
+        self.notify_each(|sub| sub.on_stress_failure(context));
+    }
+
+    fn notify_each(&self, notify: impl Fn(&dyn Subscriber)) {
         for sub in self.snapshot() {
-            sub.on_stress_failure(context);
+            // SQLite profile callbacks cross an extern "C" boundary, where a
+            // subscriber unwind would abort the process. No registry lock is
+            // held while invoking host code.
+            let _ = catch_unwind(AssertUnwindSafe(|| notify(sub.as_ref())));
         }
     }
 

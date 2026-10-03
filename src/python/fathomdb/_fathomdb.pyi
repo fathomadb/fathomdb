@@ -595,7 +595,6 @@ class Engine:
     def attach_logging_subscriber(
         self,
         logger: Any,
-        heartbeat_interval_ms: int | None = ...,
     ) -> None: ...
 
 # Slice 20 (G5/G6) — graph traversal result types.

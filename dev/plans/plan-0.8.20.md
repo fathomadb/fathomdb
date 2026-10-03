@@ -24,7 +24,7 @@ target_release: 0.8.20
 |---|---|---|
 | **`SCHEMA_VERSION = 24` at the 0.8.20 base** | Historical base fact, verified at `d526d15c`; it is not a claim about the current checkout. | Current Slice-45 head is 25, pinned by `s24_precedes_the_nested_source_head_migration` in `src/rust/crates/fathomdb-schema/tests/step24_migration.rs`. |
 | manifests = **`0.8.9`** | every release since 0.8.9 was label-only ⇒ **0.8.20 is the first manifest bump `0.8.9 → 0.8.20`** | ✓ `src/python/pyproject.toml:7`, `src/ts/package.json:3` |
-| `transition` / `purge` **shipped in both SDKs** | 0.8.19 Phase-1 surface is live | ✓ `fn transition` / `fn purge` in `src/rust/crates/fathomdb-py/src/lib.rs`; `pub async fn transition` / `pub async fn purge` in `src/rust/crates/fathomdb-napi/src/lib.rs` |
+| `transition` / `purge` **shipped in both SDKs** | 0.8.19 Phase-1 surface is live | ✓ `fn transition` / `fn purge` in `src/rust/crates/fathomdb-py/src/admin.rs`; `pub async fn transition` / `pub async fn purge` in `src/rust/crates/fathomdb-napi/src/lib.rs` |
 | **Phase-2 surface = 100 % NET-NEW** | `ReadView`, `valid_from`, `valid_until`, `dense_readiness`, `configure_projections`, `ProjectionSpec`, `EntityTypeSpec`, `id_prefix` | ✓ **ZERO hits** across all crates |
 | `derive_logical_id` = `SHA256("{kind}:{name}")` | natural-key derivation, **not** an opaque surrogate | ✓ `fn derive_logical_id` in `src/rust/crates/fathomdb-engine/src/identity.rs` |
 | `search_index_v2` = **content-storing** FTS5 | holds the **body verbatim** (no `content=''`) | ✓ `fathomdb-schema/src/lib.rs:427` |
@@ -147,7 +147,7 @@ is incoherent). Anonymous content — **the dominant corpus class** — is erase
 ### 2.3 REQ-037 lawful-erasure carve-out · ✅ **HITL-APPROVED 2026-07-12**
 
 The project's real policy is **"RECOVERY-*NAMED* verbs are CLI-only"** — **not** "destructive ⇒ CLI-only".
-Proof: **`purge(logical_id)` is already an SDK verb** (`fn purge` in `src/rust/crates/fathomdb-py/src/lib.rs`, `pub async fn purge`
+Proof: **`purge(logical_id)` is already an SDK verb** (`fn purge` in `src/rust/crates/fathomdb-py/src/admin.rs`, `pub async fn purge`
 in `src/rust/crates/fathomdb-napi/src/lib.rs`, 0.8.19) *despite being named in
 REQ-037's forbidden list*, because **AC-041 tests only the REQ-054 five-name denylist**
 {`recover`,`restore`,`repair`,`fix`,`rebuild`} — and `purge` is not one of them.

@@ -86,8 +86,18 @@ TEST_HOOK_SYMBOLS = load_test_hook_symbols()
 
 _ATTRIBUTE_FUNCTION = re.compile(
     r"(?ms)^(?P<attributes>(?:[ \t]*#\[[^\n]*\]\n)*)"
-    r"[ \t]*fn\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)(?:<[^>]*>)?\s*\("
+    r"[ \t]*(?:pub(?:\([^)]*\))?\s+)?fn\s+"
+    r"(?P<name>[A-Za-z_][A-Za-z0-9_]*)(?:<[^>]*>)?\s*\("
 )
+
+
+def read_binding_source(binding_dir: Path) -> str:
+    """Read registration and implementation owners in source order."""
+
+    return "\n".join(
+        (binding_dir / name).read_text(encoding="utf-8")
+        for name in ("lib.rs", "engine.rs", "test_support.rs")
+    )
 
 
 def _has_test_hooks_cfg(attributes: str) -> bool:
@@ -158,7 +168,8 @@ def rust_test_hook_symbols(source: str) -> set[tuple[str | None, str]]:
 
     pyclass = re.compile(
         r"(?ms)^(?P<attributes>(?:[ \t]*#\[[^\n]*\]\n)*)"
-        r"[ \t]*struct\s+(?P<rust_name>[A-Za-z_][A-Za-z0-9_]*)"
+        r"[ \t]*(?:pub(?:\([^)]*\))?\s+)?struct\s+"
+        r"(?P<rust_name>[A-Za-z_][A-Za-z0-9_]*)"
     )
     for matched in pyclass.finditer(source):
         attributes = matched.group("attributes")
@@ -173,7 +184,7 @@ def rust_test_hook_symbols(source: str) -> set[tuple[str | None, str]]:
         methods = _slice_between(
             source,
             f'#[cfg(feature = "test-hooks")]\n#[pymethods]\nimpl {rust_name}',
-            "#[pymethods]\nimpl PyEngine",
+            "// ===== Test hooks",
         )
         symbols.update(_function_symbols(methods, python_name, require_cfg=False))
 

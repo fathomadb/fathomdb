@@ -45,6 +45,7 @@ from _test_hooks_gate import (
     probe_source,
     replace_native_module_from_wheel,
     hook_surface_drift,
+    read_binding_source,
     venv_belongs_to_source_tree,
     write_candidate_receipt_atomic,
 )
@@ -413,7 +414,7 @@ def test_probed_symbols_match_the_rust_cfg_gates() -> None:
         Path(__file__).resolve().parents[2]
         / "rust" / "crates" / "fathomdb-py" / "src" / "lib.rs"
     )
-    missing, unexpected = hook_surface_drift(lib_rs.read_text())
+    missing, unexpected = hook_surface_drift(read_binding_source(lib_rs.parent))
     assert not missing, f"Rust cfg exposes unprobed hooks: {[hook_symbol_name(*symbol) for symbol in missing]}"
     assert not unexpected, (
         "probe inventory names hooks not exposed by Rust cfg: "
@@ -428,7 +429,7 @@ def test_cfg_gated_python_callable_missing_from_inventory_is_rejected() -> None:
         Path(__file__).resolve().parents[2]
         / "rust" / "crates" / "fathomdb-py" / "src" / "lib.rs"
     )
-    source = lib_rs.read_text()
+    source = read_binding_source(lib_rs.parent)
     needle = """    #[cfg(feature = \"test-hooks\")]
     fn _checkpoint_at_rest_for_test"""
     mutation = """    #[cfg(feature = \"test-hooks\")]

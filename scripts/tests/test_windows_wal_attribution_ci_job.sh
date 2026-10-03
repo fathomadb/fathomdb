@@ -21,6 +21,8 @@ RUNTIME_SOURCE="${RUNTIME_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src
 PROJECTION_WORKER_SOURCE="${PROJECTION_WORKER_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/projection_worker.rs}"
 ERASURE_SOURCE="${ERASURE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/erasure.rs}"
 PY_SOURCE="${PY_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-py/src/lib.rs}"
+PY_ENGINE_SOURCE="${PY_ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-py/src/engine.rs}"
+PY_TEST_SUPPORT_SOURCE="${PY_TEST_SUPPORT_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-py/src/test_support.rs}"
 PY_CONTROL="${PY_CONTROL:-$REPO_ROOT/src/python/tests/test_slice65_wal_attribution_installed.py}"
 HOOK_CONTRACT="${HOOK_CONTRACT:-$REPO_ROOT/scripts/release/smoke/python-test-hooks-v1.json}"
 PASSED=0
@@ -300,27 +302,31 @@ for marker in \
   'unclassified_external'; do
   assert_contains "$(<"$SOURCE_TEST") $(<"$ENGINE_SOURCE") $(<"$WAL_RUNTIME_SOURCE") $(<"$READER_POOL_SOURCE") $(<"$PROJECTION_WORKER_SOURCE")" "$marker" "source retains $marker"
 done
-assert_contains "$(<"$PY_SOURCE")" \
+assert_contains "$(<"$PY_ENGINE_SOURCE")" \
   '_arm_next_reader_snapshot_pause_for_test' \
   'wal_attribution_checkpoint_records_for_test' \
   "installed binding exposes the rendezvous only in its test-hooks build"
-assert_contains "$(<"$PY_SOURCE")" \
+assert_contains "$(<"$PY_ENGINE_SOURCE")" \
   '_arm_next_reader_completion_pause_for_test' \
   '_wal_attribution_binding_inventory_for_test' \
   "installed binding exposes completion and direct-inventory hooks only in its test-hooks build"
-assert_contains "$(<"$PY_SOURCE")" \
+assert_contains "$(<"$PY_ENGINE_SOURCE")" \
   '_arm_binding_native_state_observation_for_test' \
   '_drain_binding_native_state_observations_for_test' \
   "installed binding exposes the private binding native-state observer only in its test-hooks build"
-assert_contains "$(<"$PY_SOURCE")" \
+assert_contains "$(<"$PY_ENGINE_SOURCE")" \
   '_wal_attribution_binding_native_state_inventory_for_test' \
+  "installed binding exposes complete native-state inventory"
+assert_contains "$(<"$PY_TEST_SUPPORT_SOURCE")" \
   'fn reader_native_state_for_test(&self)' \
-  "installed binding exposes complete native-state inventory and held-reader positive evidence"
-assert_contains "$(<"$PY_SOURCE")" \
+  "installed binding exposes held-reader positive evidence"
+assert_contains "$(<"$PY_TEST_SUPPORT_SOURCE")" \
   '_native_raw_wal_checkpoint_for_test' \
+  "native raw-checkpoint hook implementation remains gated"
+assert_contains "$(<"$PY_SOURCE")" \
   'wrap_pyfunction!(native_raw_wal_checkpoint_for_test, &m)' \
   "installed binding exposes the native child raw-checkpoint hook only in its test-hooks build"
-assert_contains "$(<"$PY_SOURCE")" \
+assert_contains "$(<"$PY_ENGINE_SOURCE")" \
   '_arm_actual_checkpoint_observation_for_test' \
   '_drain_actual_checkpoint_observations_for_test' \
   "installed serial exposes actual-checkpoint observation only in its test-hooks build"

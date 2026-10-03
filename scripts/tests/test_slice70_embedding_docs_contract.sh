@@ -147,11 +147,11 @@ require dev/interfaces/typescript.md 'Forced CUDA is an open rejection, never a 
 require src/rust/crates/fathomdb-py/Cargo.toml 'FATHOMDB_EMBED_DEVICE=cuda:N'
 require src/python/eval/p0a_batch_e2e.py 'FATHOMDB_EMBED_DEVICE=cuda:0'
 require src/rust/crates/fathomdb-embedder/examples/gpu_speedup.rs 'auto (unset; CPU-only artifacts report cuda_not_compiled'
-require src/rust/crates/fathomdb-py/src/lib.rs 'unset means `auto`'
+require src/rust/crates/fathomdb-py/src/embedding.rs 'unset means `auto`'
 
 reject src/rust/crates/fathomdb-py/Cargo.toml 'FATHOMDB_EMBED_DEVICE=cuda.'
 reject src/python/eval/p0a_batch_e2e.py 'FATHOMDB_EMBED_DEVICE=cuda or'
-reject src/rust/crates/fathomdb-py/src/lib.rs 'CPU default; `cuda:N`'
+reject src/rust/crates/fathomdb-py/src/embedding.rs 'CPU default; `cuda:N`'
 reject docs/reference/typescript-api.md 'build-time `embed-cuda` feature plus'
 reject docs/embedder.md 'fails open if it cannot be used'
 reject dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'The report retains the artifact CUDA toolkit/build target and driver/compute metadata as supplemental facts.'

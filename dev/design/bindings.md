@@ -204,7 +204,7 @@ The corruption-on-open path (ADR-0.6.0-corruption-open-behavior § 5; AC-035c) M
 
 The engine emits structured tracing events (per `dev/design-logging-and-tracing.md` Tier 1/2 carryovers). Binding adapters attach a host subscriber:
 
-- Python: caller registers a `logging`-backed adapter via a binding-provided helper that maps tracing events into Python `LogRecord`s.
+- Python: caller registers a `logging`-backed adapter via a binding-provided helper that maps tracing events into Python `LogRecord`s. The adapter is bounded and best-effort under overload per `ADR-0.8.27-python-subscriber-delivery`; it reports dropped records when delivery resumes. It never calls Python from an engine or SQLite callback thread.
 - TypeScript: caller registers a callback invoked per event.
 - CLI: when run in human-facing mode, attaches a console subscriber; when run in machine-facing `--json` mode, emits the verb-owned JSON shape from `interfaces/cli.md` / `design/recovery.md`. `doctor check-integrity` is a single JSON object; other verbs own their own machine-readable contract.
 
@@ -226,6 +226,7 @@ surface shapes:
 - profile record: `profile_record`
 - stress-failure payload: `stress_failure`
 - migration step event: `migration_step`
+- Python adapter overload: `dropped_records`
 
 Ownership split:
 

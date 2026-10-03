@@ -106,13 +106,12 @@ released, already concurrency-safe by construction:
 - **`Arc<dyn Embedder>` requires `Send + Sync`** — the engine is already designed to be shared across OS
   threads. Removing the GIL does not introduce a new race class into the engine; if the engine were
   GIL-dependent it would already be unsound under the existing `allow_threads` calls.
-- **The binding's `#[pyclass]` payloads are `frozen`** (`PyWriteReceipt`, `PySearchHit`, … all
-  `#[pyclass(frozen, get_all)]`) — immutable, FT-trivially-safe. `PyEngine` holds two `Arc`s and exposes
-  `&self` methods that only clone Arcs.
-- **The logging bridge is presently a no-op stub** — `attach_logging_subscriber` ignores its `logger`
-  (`:816`). The historical pyo3-log GIL-deadlock hazard (`dev/learnings.md`) is therefore **not live**
-  in the binding today; FT-support must keep it that way (or, when the subscriber is wired in a later
-  slice, design it FT-safe from the start).
+- **The binding's `#[pyclass]` payloads are mostly frozen** (`PyWriteReceipt`, `PySearchHit`, …).
+  `PyEngine` also owns the Slice 100 logging attachment slot; its mutex, queue and worker need a
+  fresh free-threaded audit before changing `gil_used = true`.
+- **The 0.8.8 logging bridge was a no-op stub.** Slice 100 in 0.8.27 wires a bounded Python logger
+  adapter with a dedicated worker, weak logger ownership and a reentry guard. The historical
+  pyo3-log GIL-deadlock hazard (`dev/learnings.md`) remains relevant to any free-threaded lift.
 
 **Implication:** the FT-safety audit is confined to the binding's marshalling layer + a few Python-object
 touchpoints (`setattr` on exception values under `Python::with_gil`/`attach`; `PyDict` building), plus
@@ -285,9 +284,9 @@ value, engine core is FT-safe by construction so EXP-FT-4 passes, and the bindin
   matrix blow-up (EXP-FT-5). This may dominate the decision.
 - **GPU embedder path under FT** (0.8.7 device seam) — concurrent threads dispatching to one CUDA device;
   the engine already serializes the embedder (§3), but verify the device seam holds N-thread access.
-- **Logging subscriber, when wired** — the currently-stub `attach_logging_subscriber` must be designed
-  FT-safe (no GIL-implicit serialization, no re-entrant pyo3-log deadlock) if/when it goes live, or it
-  reintroduces the historical hazard precisely where FT removes the GIL that masked it.
+- **Logging subscriber** — the Slice 100 bounded adapter is designed for the current
+  `gil_used = true` module. Re-audit its Python attachment, worker shutdown and callback guard
+  under a free-threaded interpreter before claiming FT support.
 - **`gil_used = false` is a promise.** Shipping it and later discovering a race is worse than never
   claiming it. EXP-FT-4's hardness is deliberate.
 

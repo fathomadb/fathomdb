@@ -1,183 +1,111 @@
 ---
 title: FathomDB 0.8.27 Slice 100 - PyO3 execution plan
-status: BLOCKED_PRE_ENTRY
+status: IN_PROGRESS
 target_release: 0.8.27
-planning_baseline: 5f9433c98
+planning_baseline: c149584bcc259594856433a0963ea126c633a634
 ---
 
 # Slice 100 execution plan
 
-## Entry and scope decision
+## Entry decision and changes since the draft
 
-This is a pre-entry reconciliation of the [draft design](design.md), not a
-commission or completion receipt. The release-state ladder makes Slice 100
-depend on Slice 90. At `5f9433c98`, Slice 90 is `PLANNED`, its stage-2 runtime
-checkpoint is `PENDING`, and `scripts/preflight.sh --expect-closed 90 --plan
-dev/plans/plan-0.8.27.md` fails. The Slice 90 worktree is a planning branch;
-its plan was merged, but no Slice 90 production handoff or closeout exists.
-Do not start native movement, characterize a supposedly final binding, or mark
-Slice 100 complete until the dependency and checkpoint gates pass against the
-actual release candidate. Planning may be reviewed ahead of that entry.
+Slice 90 is closed on `release/0.8.27` at `c149584bc`. The required preflight
+`./scripts/preflight.sh --expect-closed 90 --plan dev/plans/plan-0.8.27.md`
+passes. This plan supersedes the pre-entry assessment at `5f9433c98` and
+approves Slice 100 for execution, subject to the design review below.
 
-The outcome remains a behavior-preserving decomposition of the 5,943-line
-`fathomdb-py/src/lib.rs` into private semantic owners. Slice 100 also owns a
-separate, tested disposition of the native logging-subscriber contract. The
-Python SDK remains Slice 130; NAPI remains Slice 110; final release-wide
-platform/security qualification remains Slice 150. No schema, API, dependency,
-async model, or wheel metadata change is part of the structural move.
+The prospective design was drafted against `63091b624` before Slice 90. The
+entry comparison (`git diff 63091b624..c149584bc`) and assigned work yield:
 
-## Reconciliation since the draft
+1. Slice 90 completed the five effective configuration knobs, runtime
+   qualification, the installed Python/Node handoff, and engine runtime
+   closure. Its final status and release-state receipt are now inputs, not
+   work for Slice 100. The Python native source remains a single `lib.rs`
+   with the same one `_fathomdb` initializer and one `PyEngine` methods block.
+2. The native root now has Slice 90 configuration forwarding and associated
+   tests. Preserve its exact keyword/default/validation order and effective
+   behavior; the Python SDK configuration changes stay closed with 90.
+3. The Slice 110 binding-closure review still assigns PyO3 inventory,
+   installed-artifact joins, subscriber disposition, FFI/GIL/lifetime proof,
+   and scanner retargets here. NAPI subscriber and executor work stays in 110.
+4. The prework test approach requires real installed native artifacts,
+   registration/signature/error/ABI comparison and deterministic thread
+   witnesses. Slice 30's baseline remains immutable. The Slice 90 approved
+   deltas are carried separately into the entry comparison.
+5. The accepted Python interface and binding design promise LogRecord delivery
+   from `attach_logging_subscriber`, but the native method still discards both
+   arguments. The engine has `subscribe` and synchronous callbacks, but no
+   heartbeat emission or operation ID. A separate bounded-delivery successor
+   is proposed before moving code, after the callback architecture review.
+6. Source readers include `dev/tools/surface_comparator.py`, the Slice 50
+   hook inventory, Windows WAL guard, Slice 70 embedding-doc gate, stub and
+   Python source citations. Re-enumerate readers before each move, then prove
+   scanner retargets with a failing mutation before trusting a green result.
+7. Existing `src/python/tests`, in-crate `#[cfg(test)]`, release CI feature
+   selectors, and installed-wheel verification already cover much of the
+   acceptance set. Add focused tests only for missing behavior and proof;
+   preserve existing tests and their oracles during extraction.
 
-The prospective design was written at `ab8f43be2` on 2026-09-27 and used
-`63091b6249e5805ea71b44de59f0ac6703b786a9` as its reviewed source.
-At planning baseline `5f9433c98`:
-
-1. `git diff 63091b6..5f9433c98` has **no changes** to
-   `fathomdb-py`, `src/python`, `dev/design/bindings.md`, or
-   `dev/interfaces/python.md`. The 5,943-line native root and its no-op
-   `attach_logging_subscriber` are still the entry *candidate*, subject to
-   re-inventory after Slice 90.
-2. Slice 85 recovery and status reconciliation landed. They constrain the
-   engine boundary but assigned no new PyO3 work. The release branch also
-   merged the Slice 90 planning branch; that did not execute Slice 90.
-3. Slice 90's Option B runtime successor ADR is accepted. Its final design
-   requires effective five-knob configuration, installed Python/Node evidence,
-   an exact candidate-bound binding handoff, a stage-2 checkpoint, and no
-   unresolved runtime/projector/operator item. Slice 100 consumes that result;
-   it does not implement or requalify Slice 90's runtime correction.
-4. The Slice 110 binding-closure review assigned the PyO3 native item and
-   registration inventory, installed artifact joins, logging-subscriber
-   disposition, macro/class identity, FFI/GIL/lifetime witnesses, and scanner
-   retargets to Slice 100. These are retained. The NAPI subscriber and executor
-   discrepancy stay with Slice 110.
-5. The prework test approach assigns an actual installed PyO3 artifact,
-   registration/signature/error/ABI comparison, deterministic blocking-thread
-   tests, and stub-citation repair. Slice 30 owns the immutable surface
-   baseline and comparator; Slice 90 may add only reviewed configuration
-   deltas. Slice 150 owns exact final release qualification.
-6. The current source has one `#[pymodule(gil_used = true)]` initializer,
-   one `PyEngine` `#[pymethods]` block, `abi3-py310`, and explicit root
-   registrations. `ExpandedNode` and `SearchExpandResult` omit
-   `module = ...`; their installed runtime identity must be measured. The
-   native subscriber still discards both
-   arguments despite the delivery contract in the Python interface and
-   bindings design. `test_surface.py` currently proves only that the method
-   accepts a call, so it cannot close that discrepancy.
-7. Source readers at entry include `dev/tools/surface_comparator.py`,
-   `scripts/tests/test_windows_wal_attribution_ci_job.sh`,
-   `scripts/tests/test_slice50_hook_inventory.py`, and
-   `scripts/tests/test_slice70_embedding_docs_contract.sh`. The stub,
-   `src/python/fathomdb/types.py`, and
-   `src/python/tests/test_runtime_event_shape.py` also cite native source or
-   line numbers and need accurate citations after movement.
-   The full reader search must be repeated before each relevant move.
-
-**Decision:** retain the draft's owner map and R27-100A–E provisionally,
-subject to entry re-inventory and independent design approval. Keep
-the subscriber correction explicit and separate from mechanical extraction.
-Narrow qualification to the affected native feature/build routes and installed
-consumer contracts at the exact Slice 100 candidate; leave the broad final
-platform matrix to Slice 150. A supported route changed by this slice must
-still pass here, and missing required evidence cannot be described as a pass.
-The design records this proportional distinction. No new slice is needed.
-
-## Assigned native families and final owners
-
-| Entry family | Final private owner | Boundary |
-| --- | --- | --- |
-| Exception declarations and engine/open/domain error mapping | `errors` | Preserve class hierarchy, structured attributes and panic distinction. |
-| String extraction, shared validation and detached execution | `ffi` | Keep validation order and Python attachment boundaries. |
-| `PyEngine`, open/report/control, Engine methods and lifetime | `engine` | One class and one pymethods block; consume Slice 90 configuration. |
-| Identity, view, context, device and open-report carriers | `types` | Only genuinely shared carriers. |
-| Write, provenance, actuation, ingest and consolidation | `write` | No transaction or validation-order change. |
-| Read/page/frozen/search and filters | `read_search` | Preserve precedence and frozen authority. |
-| Graph traversal, expansion and evidence | `graph_evidence` | Engine-owned canonical codecs stay in the engine. |
-| Projection configuration, registry, status and readiness | `projection` | Keep engine configuration separate. |
-| Standalone rerank and CLS embed | `embedding` | Preserve feature refusal and singleton behavior. |
-| Runtime/admin, lifecycle, erasure, dependency and logging adapter | `admin` | Subscriber contract corrected in its own RED/GREEN batch. |
-| Gated native seams and rendezvous carriers | `test_support` | Preserve exact feature gates. |
-| Initializer and explicit registration statements | root `lib.rs` | One module initializer and complete comparator source. |
-
-Before extraction, generate a **named** entry ledger from every native item,
-attribute, cfg, registration, alias, stub and package export. Assign each item
-to exactly one owner above or record an individually justified root/facade
-exception. Reconcile final versus entry plus reviewed deltas; family rows are
-not a substitute for that ledger. After Slice 90, also inventory its exact
-configuration symbols and receipts. Avoid moving the single Engine pymethods
-block across multiple impls merely for visual symmetry.
+**Evaluation:** keep R27-100A–E and the draft's semantic owner map. No new
+public verb, async facade, schema, dependency upgrade, free-threaded mode,
+Python SDK rewrite or NAPI work is needed. Amend R27-100C to require bounded, fault-contained subscriber delivery
+under the proposed accepted successor, with no synthetic heartbeat;
+amend R27-100D to bind only affected feature/platform routes to this candidate.
+The work remains one slice with small, sequential batches. An unavailable
+required route blocks completion rather than being recorded as a pass.
 
 ## Requirements and acceptance
 
-`design.md` owns R27-100A–E/AC27-100A–E. Entry adds an operational gate to
-them: Slice 90's complete release-state record, PASS runtime checkpoint,
-final binding handoff and committed source must be ancestors of the Slice 100
-branch. The accepted logging contract is currently unmet. Delivery and payload
-authority is `dev/interfaces/python.md` and `dev/design/bindings.md`;
-in-flight heartbeat authority is `dev/design/lifecycle.md`. The Python
-interval default and validation must be specified in the interface during the
-correction. Before extraction,
-either deliver the smallest logging adapter that emits the documented payload
-and in-flight heartbeat, or obtain an accepted successor contract and
-implement/test it within Slice 100. A no-op method or proposed document cannot
-pass AC27-100C. Current engine events have no operation identity and no
-heartbeat emission, so the adapter design must identify observed operations,
-cadence/default/validation, concurrency, terminal ordering and shutdown before
-coding. Test callback ownership, reentrancy and failures under that design. No
-invented Python buffer or callback entrypoint is required.
+| ID | Need and requirement | Acceptance criterion |
+| --- | --- | --- |
+| R27-100A | Native ownership is explicit and complete. | AC27-100A: source-derived entry/final ledgers name every native item, cfg, registration and Python-visible identity, with one owner or reviewed root exception; one initializer and one Engine methods block remain. |
+| R27-100B | Python contracts survive extraction. | AC27-100B: installed runtime, package exports, stub declarations, signatures, class modules, exception identity, cfg and ABI match entry plus only reviewed contract deltas; the Slice 30 baseline is unchanged. |
+| R27-100C | FFI behavior and lifetime are correct. | AC27-100C: real-native tests prove blocking GIL progress, ownership through concurrent close, panic/error/hostile-input precedence and unchanged DB on invalid write; bounded subscriber delivery, overload, replacement, callback failure/reentrancy and close behavior meet the reviewed successor design. |
+| R27-100D | Artifact proof uses the shipped path. | AC27-100D: fresh isolated wheels at the candidate exercise default and affected feature routes, with imports inside the venv, abi3 floor, test hook presence/absence and configuration efficacy. Required platform-only compilation has candidate-bound receipts. |
+| R27-100E | All Slice 100 work closes before 110. | AC27-100E: scanner guards, repository verification, independent code review and independent read-only verification pass on the final candidate; state/status record zero remaining Slice 100 obligations and advance the ladder. |
 
-AC27-100A/B require exact named inventory and installed runtime comparison,
-including class `__module__`, signatures/defaults, exception identity,
-registrations, stub declarations, package exports, cfg and ABI. AC27-100C
-requires focused real-database and installed-native witnesses for changed
-entrypoints, GIL progress, detached ownership, close/failure, hostile input,
-panic recovery and precedence. AC27-100D requires candidate-bound wheels and
-installed checks for affected feature/build routes; platform-only routes
-that cannot be exercised locally need a named CI receipt for the same source
-candidate. AC27-100E requires source-reader guards, repository-required
-verification, independent code review and independent read-only verification
-of the final candidate, with zero open Slice 100 items before Slice 110.
+## Design and change control
+
+The [Slice 100 design](design.md) owns semantic module boundaries and exact
+behavior constraints. The entry subscriber addendum there and the proposed subscriber ADR own
+the bounded adapter and delivery policy. The public Python reference and
+EARP knob catalog are updated with the changed signature and live behavior. An accepted successor is required
+before closeout because the old locked design promises Python heartbeats. Review this code-grounded
+design with `gpt-6.1-sol` high **first**; any follow-up design review uses
+`gpt-6-sol` high. Resolve findings in the design before RED/GREEN. The Python
+interface and binding design receive the exact interval/error-policy amendment
+in the same change. No baseline is regenerated to excuse a difference.
 
 ## RED/GREEN implementation order
 
-1. Re-run preflight and read the Slice 90 handoff. Freeze exact source, package,
-   runtime and feature inventories, candidate SHA, affected route matrix,
-   focused existing-test map and scanner readers. Record actual installed
-   entry behavior, not merely Rust declarations.
-2. Add only missing fixed characterization tests. Demonstrate RED using a
-   plausible temporary mutation, restore production, and keep the test fixed.
-   For the subscriber discrepancy, first add RED tests for real `LogRecord`
-   event/profile/slow delivery, in-flight heartbeat, overlapping calls,
-   terminal/shutdown order, second-attach replacement, a raising logger,
-   reentrant logging, and callback lifetime. Validate `None`, zero,
-   negative and overflow intervals under the reviewed contract. The tests
-   must fail on the present no-op before implementing the correction and
-   getting GREEN.
-   Capture the corrected comparison point separately.
-3. Move errors/FFI, shared carriers and the Engine facade in reviewable
-   batches. Then move write, read/search, graph/evidence, projection,
-   embedding and admin families. Preserve API attributes, one initializer,
-   one Engine class/impl identity and validation order. After each batch,
-   run formatting, feature typechecks, focused binding tests, affected
-   surface rows and source-reader guards. Refactor only after GREEN.
-4. Reconcile registration/stub/package/source ledgers; run exact-candidate
-   installed wheels, affected feature routes and supported-platform build
-   receipts. Run `./scripts/agent-verify.sh` and additional blast-radius
-   checks required by the actual changes. Keep final broader release gates
-   with Slice 150 unless a Slice 100 change affects them directly.
-5. Obtain independent code review of the actual diff and read-only test
-   verification of the final candidate. Resolve findings with tests fixed;
-   rebind both reviews after any production correction. Record status and
-   evidence, integrate into the release branch, verify from Git, then remove
-   this temporary worktree and branch when safe.
+1. Freeze entry SHA, native item/registration and package/stub ledgers,
+   installed runtime identity and feature matrix. Enumerate all source readers
+   and full existing tests before claiming gaps. Record owner for every item.
+2. Add fixed subscriber tests and demonstrate RED against the no-op. Review and
+accept the bounded-delivery successor before relying on GREEN. Add only
+   missing FFI/GIL/lifetime/precedence witnesses. Implement bounded subscriber delivery
+   to GREEN as a separate, reviewable behavior commit. Capture
+   the corrected surface comparison point.
+3. Extract errors/FFI, carriers, Engine facade, write, read/search,
+   graph/evidence, projection, embedding, admin and test support in cohesive
+   batches. Keep one Engine methods block; move the block whole. Keep root
+   initializer registrations visible to the existing comparator. For each
+   batch: format, compile affected feature routes, run focused tests and
+   source scanners, and fix code without weakening tests. Retarget scanners
+   with a RED mutant before accepting their GREEN.
+4. Reconcile final ledgers against entry plus the subscriber delta. Build
+   wheels through `scripts/verify-release-python-wheel.sh` with new owned
+   wheel/venv paths; run installed consumer import/open/write/read/close,
+   configuration, exception and native-hook checks outside the checkout with
+   `PYTHONPATH` unset. Run the affected feature/platform matrix and
+   `./scripts/agent-verify.sh`. Broader final release qualification remains
+   Slice 150 unless this slice changes its route.
+5. Bind independent `gpt-6-sol` high code review and a separate read-only
+   tester/verifier to the final candidate. Resolve concrete findings with
+   tests fixed, rebind if production changes, then write the Slice status and
+   release-state record. Merge the branch into `release/0.8.27`, verify Git
+   state, and remove the temporary worktree and branch.
 
-## Current disposition
-
-The first independent design review found a concrete subscriber/heartbeat
-design gap and a qualification-scope mismatch. The prospective design now
-records both, but its subscriber mechanism still needs final code-grounded
-selection after Slice 90. Design approval and implementation are **blocked at
-entry**.
-No RED/GREEN, native artifact, code review or test-verifier claim is made by
-this planning record. The first dependent action is completion of Slice 90
-and its exact binding handoff, followed by source re-inventory and design
-review at the actual Slice 100 entry candidate.
+Keep batches reviewable and tests fixed. Neither line-count symmetry nor a new
+Python helper is an acceptance criterion. Do not use editable installs from a
+worktree; the shared `.venv` belongs to the canonical checkout.

@@ -123,6 +123,14 @@ surface. The lifecycle contract requires periodic liveness while an operation
 remains in flight; per-binding spelling and default interval are owned by the
 interface and binding surfaces rather than by this file.
 
+For the Python logger adapter, the proposed
+[`ADR-0.8.27-python-subscriber-delivery`](../adr/ADR-0.8.27-python-subscriber-delivery.md)
+narrows that promise: the current engine has no operation-scoped heartbeat
+producer, and the Python adapter does not invent one. Its bounded records are
+best-effort diagnostics, with explicit loss reporting under overload. The
+phase enum and the semantics of any Heartbeat emitted by a producing subsystem
+remain as stated above.
+
 ### Terminal-delivery posture
 
 Lifecycle feedback is guaranteed for in-process observed operations, not for

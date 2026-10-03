@@ -297,10 +297,14 @@ Toggle per-operation profiling.
 
 Set the slow-query threshold for profiling event emission.
 
-### `engine.attach_logging_subscriber(logger, *, heartbeat_interval_ms=None) -> None`
+### `engine.attach_logging_subscriber(logger) -> None`
 
 Bind engine events into a Python `logging.Logger`. Engine events are
-mapped to `logging.LogRecord` with the stable `fathomdb` payload.
+mapped to `logging.LogRecord` with the stable `fathomdb` payload. The logger
+is caller-owned. Delivery uses a bounded queue: a slow logger can lose
+records, and a `dropped_records` warning reports the count when it catches
+up. Logger failures do not fail database calls. Logger handlers cannot
+reenter FathomDB database operations. This helper does not emit heartbeats.
 
 ### Properties
 

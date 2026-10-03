@@ -1,0 +1,1449 @@
+{
+  "native": [
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "ActuationError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "ActuationReceiptV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "BoundaryCrossing",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "ClosingError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "ClosureProofV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "ClosureStatusV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "ConsolidateReceipt",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "ConsolidatorError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "CorruptionError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "CounterSnapshot",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "CudaDeviceInfo",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "CudaVisibleDevice",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "DatabaseLockedError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "DependencyClosureError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "DependencyError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "DependencyListV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "DependencyTraceError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "DeviceResolution",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "EffectiveEmbedDevice",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "EmbedDevicePolicyError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "EmbedderDimensionMismatchError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "EmbedderError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "EmbedderIdentity",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "EmbedderIdentityMismatchError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "EmbedderNotConfiguredError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "EmbedderRequiredError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "EmbeddingReadiness",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "actuate",
+          "signature": "(self, /, request)"
+        },
+        {
+          "name": "attach_logging_subscriber",
+          "signature": "(self, /, logger)"
+        },
+        {
+          "name": "close",
+          "signature": "(self, /)"
+        },
+        {
+          "name": "consolidate_with_provider",
+          "signature": "(self, /, cmd, axes)"
+        },
+        {
+          "name": "counters",
+          "signature": "(self, /)"
+        },
+        {
+          "name": "dense_disabled",
+          "signature": "(self, /)"
+        },
+        {
+          "name": "dense_disabled_reason",
+          "signature": "(self, /)"
+        },
+        {
+          "name": "dependencies_for_source",
+          "signature": "(self, /, request)"
+        },
+        {
+          "name": "dependency_for_derived",
+          "signature": "(self, /, request)"
+        },
+        {
+          "name": "drain",
+          "signature": "(self, /, timeout_s=0.0)"
+        },
+        {
+          "name": "embed",
+          "signature": "(self, /, text)"
+        },
+        {
+          "name": "enable_telemetry",
+          "signature": "(self, /, sink_path)"
+        },
+        {
+          "name": "freeze_read_context",
+          "signature": "(self, /, context)"
+        },
+        {
+          "name": "graph_expand",
+          "signature": "(self, /, request_json)"
+        },
+        {
+          "name": "ingest_with_extractor",
+          "signature": "(self, /, cmd, documents)"
+        },
+        {
+          "name": "last_telemetry_query_id",
+          "signature": "(self, /)"
+        },
+        {
+          "name": "open",
+          "signature": "(path, use_default_embedder=False, config=None)"
+        },
+        {
+          "name": "open_report",
+          "signature": "(self, /)"
+        },
+        {
+          "name": "read_dependency_closure",
+          "signature": "(self, /, request)"
+        },
+        {
+          "name": "record_feedback",
+          "signature": "(self, /, query_id, relevant_ids, irrelevant_ids, label_source)"
+        },
+        {
+          "name": "register_source_dependency",
+          "signature": "(self, /, request)"
+        },
+        {
+          "name": "resolve_evidence",
+          "signature": "(self, /, evidence_ref, context)"
+        },
+        {
+          "name": "resolve_graph_evidence",
+          "signature": "(self, /, evidence_ref, context)"
+        },
+        {
+          "name": "search",
+          "signature": "(self, /, query, source_type=None, kind=None, created_after=None, status=None, rerank_depth=0, use_graph_arm=False, alpha=None, pool_n=None, explain=False, attributes=None, view=None, limit=10)"
+        },
+        {
+          "name": "search_expand_frozen",
+          "signature": "(self, /, query, context, depth, limit=10)"
+        },
+        {
+          "name": "search_frozen",
+          "signature": "(self, /, query, context, rerank_depth=0, use_graph_arm=False, alpha=0.3, pool_n=0, explain=False, limit=10)"
+        },
+        {
+          "name": "search_projected_text",
+          "signature": "(self, /, query, name, source_type=None, kind=None, created_after=None, status=None, attributes=None, view=None, limit=10)"
+        },
+        {
+          "name": "search_text_only",
+          "signature": "(self, /, query, view=None, limit=10)"
+        },
+        {
+          "name": "search_with_evidence",
+          "signature": "(self, /, query, context, rerank_depth=0, use_graph_arm=False, alpha=0.3, pool_n=0, include_explanation=False, limit=10)"
+        },
+        {
+          "name": "set_profiling",
+          "signature": "(self, /, enabled)"
+        },
+        {
+          "name": "set_slow_threshold_ms",
+          "signature": "(self, /, value)"
+        },
+        {
+          "name": "trace_dependency",
+          "signature": "(self, /, root_revision_id, direction, context, max_relations=100, max_work_units=101)"
+        },
+        {
+          "name": "validate_frozen_read_context",
+          "signature": "(self, /, context)"
+        },
+        {
+          "name": "vector_equivalence_refusal_count",
+          "signature": "(self, /)"
+        },
+        {
+          "name": "write",
+          "signature": "(self, /, batch)"
+        }
+      ],
+      "module": "fathomdb._fathomdb",
+      "name": "Engine",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "EngineError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "EraseReport",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "ErasureIncompleteError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "EvidenceContributionV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "EvidenceError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "EvidenceProjectionOriginV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "EvidenceSearchResultV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "EvidenceSidecarEntryV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "builtins",
+      "name": "ExpandedNode",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "Explanation",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "ExtractorError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "FrozenReadContextV1",
+      "signature": "(effective_valid_at, context, token, schema_version=1)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "FrozenReadError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "GpuAllocationWitness",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "GraphExpansionError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "IdSpace",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "IllegalTransitionError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "IncompatibleSchemaVersionError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "IngestWithExtractorReceipt",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "InvalidArgumentError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "InvalidFilterError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "KindNotVectorIndexedError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "MigrationError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "MigrationStepReport",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "MutationProjectionStatusV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "NodePageV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "NodeRecord",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "NotLifecycleAddressableError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "OpStoreError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "OpStoreRow",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "OpenReport",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "OperationalStatePageV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "OperationalStateRecordV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "OverloadedError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "PageError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "PerHitExplain",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "ProjectionDelta",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "ProjectionDestructiveError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "ProjectionError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "ProjectionGenerationError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "ProjectionGenerationStatusV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "ProjectionRuntimeStatus",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "ProjectionRuntimeStatusEntry",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "ProjectionSpec",
+      "signature": "(name, roles, fts=False, fts_tokenizer=None, vector=False, vector_embedder=None, vector_dense_readiness=None, source=None)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "ProvenanceError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "QueryTrace",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "ReadContextV1",
+      "signature": "(view=None, source_type=None, kind=None, created_after=None, status=None, attributes=None, schema_version=1)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "ReadView",
+      "signature": "(include_superseded=False, include_inactive=False, include_out_of_window=False, valid_as_of=None)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "RerankerDevicePolicyError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "ResolvedEvidenceV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "RuntimeConfiguration",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "RuntimeConfigurationError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "SchedulerError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "SchemaValidationError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "builtins",
+      "name": "SearchExpandResult",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "SearchHit",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "SearchResult",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "SoftFallback",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "SourceDependencyV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "StorageError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "StructuralInclusionV1",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "VectorEquivalenceMismatchError",
+      "signature": "(*args, **kwargs)"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "VectorError",
+      "signature": null
+    },
+    {
+      "kind": "type",
+      "methods": [],
+      "module": "fathomdb._fathomdb",
+      "name": "WriteReceipt",
+      "signature": "()"
+    },
+    {
+      "kind": "type",
+      "methods": [
+        {
+          "name": "add_note",
+          "signature": null
+        },
+        {
+          "name": "with_traceback",
+          "signature": null
+        }
+      ],
+      "module": "_fathomdb",
+      "name": "WriteValidationError",
+      "signature": null
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "admin_configure",
+      "signature": "(engine, name, body)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "admin_configure_runtime",
+      "signature": "(sqlite_mode)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "configure_projections",
+      "signature": "(engine, specs, drop=None)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "crossed_boundary_since",
+      "signature": "(engine, since, view=None)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "embed_batch_cls",
+      "signature": "(texts)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "erase_source",
+      "signature": "(engine, source_id)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "graph_neighbors",
+      "signature": "(engine, logical_id, depth, direction, view=None)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "purge",
+      "signature": "(engine, logical_id)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_canonical_page",
+      "signature": "(engine, kind, context, limit, cursor=None, schema_version=1)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_collection",
+      "signature": "(engine, collection, after_id=None, limit=0)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_embedding_readiness",
+      "signature": "(engine)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_get",
+      "signature": "(engine, logical_id, view=None)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_get_many",
+      "signature": "(engine, logical_ids, view=None)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_list",
+      "signature": "(engine, kind, predicates=None, limit=100, view=None)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_list_filter",
+      "signature": "(engine, kind, terms=None, limit=100, view=None)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_mutation_projection_status",
+      "signature": "(engine, request)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_mutations",
+      "signature": "(engine, collection, after_id=None, limit=0)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_operational_state",
+      "signature": "(engine, collection, record_key, context=None)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_operational_state_page",
+      "signature": "(engine, collection, context, limit, cursor=None, schema_version=1)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_projection_generation_status",
+      "signature": "(engine)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_projection_status",
+      "signature": "(engine)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "read_projections",
+      "signature": "(engine)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "rerank",
+      "signature": "(query, passages, rerank_depth, alpha=None, pool_n=None)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "search_expand",
+      "signature": "(engine, query, depth, source_type=None, kind=None, created_after=None, status=None, search_limit=10)"
+    },
+    {
+      "kind": "builtin_function_or_method",
+      "module": "fathomdb._fathomdb",
+      "name": "transition",
+      "signature": "(engine, logical_id, to_state, reason=None)"
+    }
+  ],
+  "native_file": "/tmp/fathomdb-s100-final-venv/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+  "package_all": [
+    "ActuationBatchV1",
+    "ActuationOperationV1",
+    "ActuationReceiptV1",
+    "ConsolidateReceipt",
+    "CanonicalHash",
+    "CanonicalWriteProvenanceV1",
+    "CounterSnapshot",
+    "ClosureLookupV1",
+    "ClosureProofV1",
+    "ClosureStatusV1",
+    "CudaDeviceInfo",
+    "CudaVisibleDevice",
+    "DenseReadiness",
+    "DeviceResolution",
+    "DerivedWriteProvenanceV1",
+    "DependencyDerivedLookupV1",
+    "DependencyListV1",
+    "DependencySourceLookupV1",
+    "DependencyTraceError",
+    "DependencyTraceRequestV1",
+    "DependencyTraceEdgeV1",
+    "DependencyTraceNodeV1",
+    "DependencyTraceResultV1",
+    "EmbeddingOperation",
+    "EmbeddingReadiness",
+    "EmbeddingReadinessState",
+    "EffectiveEmbedDevice",
+    "EvidenceArtifactLifecycleV1",
+    "EvidenceContributionV1",
+    "EvidenceError",
+    "EvidenceGraphOriginV1",
+    "EvidenceProjectionOriginV1",
+    "EvidenceResolveRequestV1",
+    "EvidenceSearchRequestV1",
+    "EvidenceSearchResultV1",
+    "EvidenceSidecarEntryV1",
+    "Engine",
+    "EngineConfig",
+    "Filter",
+    "IngestWithExtractorReceipt",
+    "ExpandedNode",
+    "Explanation",
+    "FrozenReadContextV1",
+    "FrozenReadError",
+    "GpuAllocationWitness",
+    "CurrentGraphReadContextV1",
+    "FrozenGraphReadContextV1",
+    "GraphExpandRequestV1",
+    "GraphExpandResultV1",
+    "GraphEvidenceArtifactV1",
+    "GraphEvidenceResolveRequestV1",
+    "GraphEvidenceSidecarEntryV1",
+    "GraphEvidenceSidecarV1",
+    "GraphExpansionDegradationCodeV1",
+    "GraphExpansionError",
+    "GraphExpansionExplanationV1",
+    "GraphExplicitSeedV1",
+    "GraphOriginV1",
+    "GraphProjectionOriginV1",
+    "GraphProjectionReadinessV1",
+    "GraphQuerySeedV1",
+    "GraphReadContextV1",
+    "GraphReadModeV1",
+    "GraphSeedSourceV1",
+    "GraphSeedV1",
+    "GraphTargetExplanationV1",
+    "GraphTargetV1",
+    "ResolvedGraphEvidenceV1",
+    "IdSpace",
+    "NodeRecord",
+    "OpStoreRow",
+    "OperationalStateRecordV1",
+    "PageCursor",
+    "PageError",
+    "PageRequestV1",
+    "PageV1",
+    "PerHitExplain",
+    "ProjectionDelta",
+    "MutationProjectionStatusRequestV1",
+    "MutationProjectionStatusV1",
+    "ProjectionGenerationOriginV1",
+    "ProjectionGenerationStatusV1",
+    "ProjectionReadinessV1",
+    "ProjectionRuntimeStateV1",
+    "ProjectionRole",
+    "ProjectionRuntimeStatus",
+    "ProjectionRuntimeStatusEntry",
+    "ProjectionRuntimeUnavailabilityReason",
+    "ProjectionSpec",
+    "ProjectionStatusDenseReadiness",
+    "QueryTrace",
+    "ReadContextV1",
+    "ReadView",
+    "ResolvedEvidenceV1",
+    "ResolvedGraphSeedV1",
+    "SearchExpandResult",
+    "SearchFilter",
+    "SearchHit",
+    "SearchResult",
+    "SourceDependencyRegistrationV1",
+    "SourceDependencyV1",
+    "SourceLocator",
+    "Utf8BytesSourceLocator",
+    "WholeBodySourceLocator",
+    "SoftFallback",
+    "SoftFallbackBranch",
+    "StructuralInclusionV1",
+    "TraversalDirection",
+    "TraceNodeLifecycleV1",
+    "TraceReadBoundaryV1",
+    "WriteReceipt",
+    "WriteProvenanceV1",
+    "__version__",
+    "admin",
+    "embed_batch_cls",
+    "errors",
+    "graph",
+    "read",
+    "rerank"
+  ],
+  "package_file": "/tmp/fathomdb-s100-final-venv/lib/python3.12/site-packages/fathomdb/__init__.py",
+  "python": "3.12.3",
+  "schema_version": "fathomdb.slice100-final-runtime/v1"
+}

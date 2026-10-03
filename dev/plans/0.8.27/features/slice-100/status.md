@@ -1,50 +1,42 @@
 ---
-title: FathomDB 0.8.27 Slice 100 - pre-entry status
-status: BLOCKED_PRE_ENTRY
+title: FathomDB 0.8.27 Slice 100 - candidate status
+status: IN_PROGRESS
 target_release: 0.8.27
-planning_baseline: 5f9433c98
+planning_baseline: c149584bcc259594856433a0963ea126c633a634
 ---
 
-# Slice 100 status: blocked before implementation
+# Slice 100 candidate status
 
-On 2026-09-30, the release branch at `5f9433c98` still records Slice 90 as
-`PLANNED`, its runtime checkpoint as `PENDING`, and `next_slice` as 90. The
-repository preflight with `--expect-closed 90` fails. The Slice 90 planning
-branch was merged, but its runtime implementation, accepted binding handoff
-and closeout have not occurred. Slice 100 therefore cannot start production
-movement or be marked complete.
+Slice 90 is closed at the entry baseline. The [plan](plan.md) reconciles the
+pre-entry draft with Slice 90, assigned binding work, allocated draft items and
+current source. The [design](design.md) passed a first `gpt-6.1-sol` high review
+and subsequent `gpt-6-sol` high reviews. A separate `gpt-6-astra` medium
+architecture review of callbacks, SQLite/rusqlite call stacks, engine and SDK
+boundaries supported bounded asynchronous logger delivery, callback reentry
+rejection and panic containment. It rejected synthetic heartbeats and public
+operation IDs without engine-owned progress semantics.
 
-The [pre-entry plan](plan.md) enumerates changes since the prospective draft,
-retains R27-100A–E provisionally, and specifies entry inventory, ownership,
-RED/GREEN batches and candidate-bound review/verification. The
-[prospective design](design.md) now names the subscriber/heartbeat gap and
-narrows Slice 100 artifact evidence to affected routes, leaving final-release
-platform qualification to Slice 150.
+The production implementation and focused tests are ready for a clean candidate
+commit. The native subscriber no-op now delivers typed engine diagnostics to a
+Python logger through a bounded queue. The former
+`heartbeat_interval_ms` parameter is removed. SQLite profile dispatch contains
+subscriber panics. The PyO3 binding has explicit private owners while retaining
+one native module initializer and one `PyEngine` methods block. Source scanners
+and live citations follow the moved owners. The [inventory reconciliation](reconciliation.md)
+lists source and installed runtime comparisons.
 
-An independent `gpt-6-sol` high-reasoning design review found that the draft
-incorrectly permitted a non-delivering subscriber and lacked a heartbeat
-implementation design. After the correction, it passed this **pre-entry
-planning** record with a TDD wording fix, which was applied. It did not grant
-final Slice 100 design approval. A Sonnet read-only verification of the plan
-confirmed the release-state and source facts and identified citation,
-heartbeat-authority, and test-matrix details; those were added to the plan.
-The Sonnet process could not run Bash, so the Git and preflight facts are bound
-to the local commands below instead.
+Independent `gpt-6-sol` high code review passed after corrections to two live
+citations and the Windows WAL scanner. Independent Terra verification passed
+the installed default-wheel subscriber tests and identified a missing typed
+stress-payload adapter witness; that focused Rust/Python boundary test now
+passes. The Windows scanner passed 340 checks after its correction. The first
+full repository gate passed lint, typecheck, strict AC-036/AC-037 security and
+176 test suites; the two Python suites refused the dirty worktree as designed.
+They must be rerun against a clean committed candidate. No full-gate PASS is
+claimed yet.
 
-## Evidence and open work
-
-| Item | Result |
-| --- | --- |
-| `git diff 63091b6..5f9433c98` on PyO3, Python package and binding/interface authority | No changes. |
-| `scripts/preflight.sh` in release worktree | PASS general health. |
-| `scripts/preflight.sh --expect-closed 90 --plan dev/plans/plan-0.8.27.md` | FAIL: dependency Slice 90 not closed. |
-| `scripts/agent-lint-md.sh` and `scripts/agent-verify.sh --scope=markdown` in planning worktree | PASS after the reviewed plan and design edits. |
-| Full `scripts/agent-verify.sh` in planning worktree | Stopped at preflight: checkout-owned `.venv/bin/python` is absent; no source changes warrant creating a separate native environment before Slice 90. No full-gate PASS is claimed. |
-| Native characterization, RED/GREEN, installed wheels, code review and final test verification | Not started; dependent on Slice 90 and final design approval. |
-
-Before implementation, Slice 90 must close in release state with a PASS
-runtime checkpoint and candidate-bound binding handoff. Re-inventory the
-post-Slice-90 native source and select/review the subscriber delivery and
-heartbeat mechanism, including its interval contract. Then implement, test,
-review and verify the complete Slice 100 acceptance set. This record is not a
-Slice 100 completion receipt and does not advance `next_slice`.
+The successor [ADR](../../../../adr/ADR-0.8.27-python-subscriber-delivery.md)
+remains proposed pending the required human ruling on the old heartbeat
+promise. Slice 100 stays open until the clean-candidate Python suite and
+artifact receipts pass, the ADR ruling is recorded, and the release-state
+closeout is merged into `release/0.8.27`.

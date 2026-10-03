@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+"""Guard operator diagnostic reports and Engine method ownership."""
+
+from pathlib import Path
+import re
+import unittest
+
+
+ROOT = Path(__file__).resolve().parents[2]
+SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
+REPORT_TYPES = (
+    "VerifyEmbedderStatus",
+    "VerifyEmbedderReport",
+    "SchemaObject",
+    "DumpSchemaReport",
+    "TableRowCount",
+    "DumpRowCountsReport",
+    "OrphanProvenanceSource",
+    "OrphanProvenanceReport",
+    "DumpProfileReport",
+)
+METHODS = (
+    "verify_embedder",
+    "dump_schema",
+    "dump_row_counts",
+    "orphan_provenance",
+    "dump_profile",
+)
+HELPERS = ("read_schema_objects", "order_canonical_first")
+
+
+def owner_errors(root: str, owner: str) -> list[str]:
+    errors = []
+    families = re.compile(
+        r"^(?:(?:pub(?:\([^)]*\))?) )?(?:struct|enum) "
+        r"((?:VerifyEmbedder|SchemaObject|Dump|TableRowCount|"
+        r"OrphanProvenance)\w*)\b",
+        re.M,
+    )
+    for match in families.finditer(root):
+        errors.append(f"root still defines operator::{match.group(1)}")
+    root_impl = re.compile(
+        r"^impl[^\n{]*\b((?:VerifyEmbedder|SchemaObject|Dump|"
+        r"TableRowCount|OrphanProvenance)\w*)\b"
+        r"(?:\s*<[^>\n]*>)?\s*(?:\{|where\b)",
+        re.M,
+    )
+    for match in root_impl.finditer(root):
+        errors.append(f"root still defines operator::{match.group(1)}")
+    for name in re.findall(
+        r"^    (?:(?:pub(?:\([^)]*\))?) )?fn "
+        r"((?:verify_embedder|dump_|orphan_provenance)\w*)\(",
+        root,
+        re.M,
+    ):
+        errors.append(f"root still defines Engine::{name}")
+    for name in re.findall(r"^(?:(?:pub(?:\([^)]*\))?) )?fn ((?:read_schema_objects|order_canonical_first)\w*)\(", root, re.M):
+        errors.append(f"root still defines operator helper {name}")
+    for name in REPORT_TYPES:
+        kind = "enum" if name == "VerifyEmbedderStatus" else "struct"
+        if len(re.findall(r"^pub " + kind + " " + name + r"\b", owner, re.M)) != 1:
+            errors.append(f"operator owner lacks one {name}")
+    owner_impl = re.findall(r"^impl Engine \{.*?^\}", owner, re.M | re.S)
+    if len(owner_impl) != 1:
+        errors.append("operator owner lacks one Engine impl")
+    owner_methods = owner_impl[0] if len(owner_impl) == 1 else ""
+    for name in METHODS:
+        pattern = r'^    #\[cfg\(feature = "operator"\)\]\n    pub fn ' + name + r"\("
+        if len(re.findall(pattern, owner_methods, re.M)) != 1:
+            errors.append(f"operator owner lacks cfg(operator) Engine::{name}")
+    for name in HELPERS:
+        pattern = r'^#\[cfg\(feature = "operator"\)\]\nfn ' + name + r"\("
+        if len(re.findall(pattern, owner, re.M)) != 1:
+            errors.append(f"operator owner lacks cfg(operator) helper {name}")
+    exports = " ".join(re.findall(r"^pub use operator::\{(.*?)\};", root, re.M | re.S))
+    for name in REPORT_TYPES:
+        if not re.search(r"\b" + name + r"\b", exports):
+            errors.append(f"root does not re-export operator::{name}")
+    return errors
+
+
+class OperatorDiagnosticsOwnerTest(unittest.TestCase):
+    def sources(self) -> tuple[str, str]:
+        path = SRC / "operator.rs"
+        return (SRC / "lib.rs").read_text(), path.read_text() if path.exists() else ""
+
+    def test_current_source_has_one_operator_owner(self) -> None:
+        self.assertEqual(owner_errors(*self.sources()), [])
+
+    def test_unlisted_root_family_with_complete_owner(self) -> None:
+        root, owner = self.sources()
+        self.assertEqual(owner_errors(root, owner), [])
+        for declaration, expected in (
+            ("struct DumpNew;", "root still defines operator::DumpNew"),
+            ("enum VerifyEmbedderNew {}", "root still defines operator::VerifyEmbedderNew"),
+            ("impl Engine {\n    pub fn dump_new(&self) {}\n}", "root still defines Engine::dump_new"),
+            ("impl Engine {\n    pub fn orphan_provenance_new(&self) {}\n}", "root still defines Engine::orphan_provenance_new"),
+            ("fn read_schema_objects_new() {}", "root still defines operator helper read_schema_objects_new"),
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, owner_errors(root + "\n" + declaration, owner))
+
+    def test_cfg_mutant_and_missing_reexport_fail(self) -> None:
+        root, owner = self.sources()
+        old = '#[cfg(feature = "operator")]\n    pub fn dump_profile('
+        self.assertIn(old, owner)
+        self.assertIn(
+            "operator owner lacks cfg(operator) Engine::dump_profile",
+            owner_errors(root, owner.replace(old, '#[cfg(test)]\n    pub fn dump_profile(', 1)),
+        )
+        self.assertIn(
+            "root does not re-export operator::DumpProfileReport",
+            owner_errors(root.replace("DumpProfileReport,", "RemovedDumpProfileReport,", 1), owner),
+        )
+
+    def test_root_report_impl_family_is_rejected(self) -> None:
+        root, owner = self.sources()
+        self.assertEqual(owner_errors(root, owner), [])
+        for declaration, name in (
+            ("impl DumpProfileReport { fn extra(&self) {} }", "DumpProfileReport"),
+            ("impl VerifyEmbedderReport { fn extra(&self) {} }", "VerifyEmbedderReport"),
+            ("impl DumpNew { fn extra(&self) {} }", "DumpNew"),
+        ):
+            with self.subTest(name=name):
+                self.assertIn(
+                    f"root still defines operator::{name}",
+                    owner_errors(root + "\n" + declaration, owner),
+                )
+
+    def test_fast_tier_registration(self) -> None:
+        self.assertIn(
+            "run_tier_suite fast test-slice90-operator-diagnostics-owner "
+            "python3 scripts/tests/test_slice90_operator_diagnostics_owner.py",
+            (ROOT / "scripts/agent-test.sh").read_text(),
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

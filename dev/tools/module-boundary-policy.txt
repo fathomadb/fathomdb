@@ -52,6 +52,7 @@ reported ingest
 reported lifecycle
 reported mean
 reported open
+reported operator
 reported pagination
 reported pagination::tests
 reported projection_commit

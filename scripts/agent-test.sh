@@ -443,6 +443,7 @@ run_tier_suite fast test-windows-wal-attribution-ci-job bash scripts/tests/test_
 # immutable candidate checkout, nonpublishing boundary, and artifact evidence.
 run_tier_suite fast test-jetson-tegra-cuda-evidence-ci-job bash scripts/tests/test_jetson_tegra_cuda_evidence_ci_job.sh
 run_tier_suite fast test-tegra-pages-publisher-ci-job bash scripts/tests/test_tegra_pages_publisher_ci_job.sh
+run_tier_suite fast test-tegra-publication-operator-path bash scripts/tests/test_tegra_publication_operator_path.sh
 run_tier_suite fast test-tegra-pages-index bash scripts/tests/test_tegra_pages_index.sh
 run_tier_suite fast test-pages-site bash scripts/tests/test_pages_site.sh
 run_tier_suite fast test-tegra-pages-release-version bash scripts/tests/test_tegra_pages_release_version.sh

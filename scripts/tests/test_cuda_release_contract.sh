@@ -191,6 +191,35 @@ if missing:
 PY
 printf 'PASS  Slice 80.7 Tegra wrapper stamps and proves local-version metadata\n'
 
+# A Tegra wheel may not leave CUDA Runtime imports unresolved: the Python
+# loader otherwise accepts a wheel that fails on its first import unless a
+# host CUDA library happens to be preloaded. The wrapper must inspect the
+# extracted extension and prove a fresh wheel imports with build-time CUDA
+# paths removed.
+python3 - "$REPO_ROOT/scripts/release/build-python-cuda-tegra.sh" <<'PY'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+required = (
+    'nm -D --undefined-only "$EXTENSION"',
+    "grep -E '^[[:space:]]*U[[:space:]]+cuda'",
+    'readelf -d "$EXTENSION"',
+    'libcudart',
+    '-m venv "$RUNTIME_VENV"',
+    'cd "$RUNTIME_VENV"',
+    'env -u LD_LIBRARY_PATH -u LIBRARY_PATH',
+    'import fathomdb',
+)
+missing = [needle for needle in required if needle not in text]
+if missing:
+    raise SystemExit(
+        'Tegra wrapper lacks the static-CUDART artifact/import proof: '
+        + repr(missing)
+    )
+PY
+printf 'PASS  Tegra wrapper rejects unresolved or dynamically loaded CUDA Runtime symbols\n'
+
 SPACE_WHEEL='/tmp/fathomdb wheel;literal.whl'
 QUOTED_WHEEL="$(printf '%q' "$SPACE_WHEEL")"
 ROUND_TRIP="$(bash -c "set -- python -m pip install $QUOTED_WHEEL; printf '%s' \"\$5\"")"
@@ -494,7 +523,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee" }\n'
+needle = 'candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }\n'
 if text.count(needle) != 1:
     raise SystemExit("fixture no longer contains exactly one Candle NN source pin")
 path.write_text(text.replace(needle, "", 1))
@@ -508,7 +537,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=cf02edbc2ade01b4da42715e9e2a8f0364e5dcee#cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"'
+needle = 'source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=1aefdd008ad1c994635b688b8e6f2ae5a5a920ae#1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"'
 if text.count(needle) != 4:
     raise SystemExit("fixture no longer contains all four immutable Candle lock sources")
 path.write_text(text.replace(needle, 'source = "registry+https://github.com/rust-lang/crates.io-index"', 1))

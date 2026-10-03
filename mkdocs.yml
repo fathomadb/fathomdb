@@ -28,6 +28,7 @@ nav:
   - Operations:
       - Overview: operations/index.md
       - Immutable Integrity Inspection: operations/integrity-inspection.md
+      - Tegra Pages Publication: operations/tegra-pages-publication.md
       - Erasure: operations/erasure.md
       - Worktree and Branch Consolidation: operations/worktree-consolidation.md
   - Guides:

@@ -202,8 +202,17 @@ capacities remain distinct and exact.
 
 ### 2.3 Implement the bounded embed dispatcher
 
-Add a private `embed_dispatch.rs` with no dependency on `Engine`, SQLite,
-projection state, search state, or binding runtimes.
+Keep the private dispatcher protocol in `embed_dispatch/core.rs` with no
+dependency on `Engine`, SQLite, projection state, search state, or binding
+runtimes. The `embed_dispatch.rs` owner module re-exports the core's existing
+private API and holds the three approved `test-hooks` D27 `Engine` observation
+methods as ordinary Rust items. Their existing public paths, feature gates,
+docs and bodies remain exact; root keeps no method body or duplicate state.
+The standalone executor test includes the Engine-free core directly, retaining
+all behavioral assertions. This Phase 3 owner split keeps the D27 adapter
+visible to the Slice 85 module-boundary parser, which does not inspect local
+macro expansions. The Engine-free rule applies to the dispatcher protocol and
+standalone-includable core, not the test-only observation adapter.
 
 The minimal internal model should contain:
 

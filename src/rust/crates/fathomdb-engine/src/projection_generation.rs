@@ -533,7 +533,7 @@ fn declaration_digest(connection: &Connection) -> Result<String, EngineError> {
         put_scalar(&mut bytes, &value);
     }
     bytes.extend_from_slice(&u64::from(profile.3).to_be_bytes());
-    Ok(super::hex_encode(&Sha256::digest(bytes)))
+    Ok(crate::identity::hex_encode(&Sha256::digest(bytes)))
 }
 
 fn mint_id_from_candidates(

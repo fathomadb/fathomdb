@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(feature = "operator")]
+use crate::identity::hex_encode;
 
 #[cfg(feature = "operator")]
 mod data_plane;

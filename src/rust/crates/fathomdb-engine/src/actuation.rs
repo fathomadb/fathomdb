@@ -1,4 +1,5 @@
 use super::*;
+use crate::identity::hex_encode;
 use crate::record_lifecycle::is_legal_transition_move;
 use crate::write_commit::load_next_cursor;
 use rusqlite::{params, OptionalExtension};

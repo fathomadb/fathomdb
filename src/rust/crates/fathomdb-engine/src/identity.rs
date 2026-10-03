@@ -1,4 +1,69 @@
 use super::*;
+use crate::write_commit::revision_hash_field;
+
+pub(crate) fn hex_encode(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        out.push(hex_nibble(byte >> 4));
+        out.push(hex_nibble(byte & 0x0f));
+    }
+    out
+}
+
+fn hex_nibble(value: u8) -> char {
+    match value {
+        0..=9 => (b'0' + value) as char,
+        10..=15 => (b'a' + value - 10) as char,
+        _ => unreachable!(),
+    }
+}
+
+/// 0.8.20 Slice 5b (R-20-E7) — the audit handle for an erased op-store record:
+/// `SHA-256(collection + 0x1F + record_key)`, lowercase hex.
+///
+/// A record key is arbitrary caller-supplied text and may itself be the
+/// identifier being erased, so a durable audit row must not echo it. `0x1F`
+/// (ASCII unit separator) is the delimiter because it cannot appear in a
+/// well-formed collection name, keeping the pairing unambiguous.
+#[cfg(feature = "operator")]
+pub(crate) fn digest_record_identity(collection: &str, record_key: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(collection.as_bytes());
+    hasher.update([0x1f_u8]);
+    hasher.update(record_key.as_bytes());
+    hasher.finalize().iter().map(|b| format!("{b:02x}")).collect()
+}
+
+// Slice 15 stores no owner row for pre-step-27 content. Keep its deterministic
+// identity derivation internal until the opt-in Slice 50 evidence resolver
+// exposes it; default records and search hits remain unchanged.
+#[allow(dead_code)]
+pub(crate) fn legacy_revision_id(
+    artifact_class: &str,
+    cursor: u64,
+    source_id: Option<&str>,
+    body: Option<&str>,
+) -> String {
+    let mut hasher = Sha256::new();
+    revision_hash_field(&mut hasher, b"fathomdb:artifact-revision:migrated:v1");
+    revision_hash_field(&mut hasher, artifact_class.as_bytes());
+    revision_hash_field(&mut hasher, cursor.to_string().as_bytes());
+    match source_id {
+        Some(source_id) => {
+            revision_hash_field(&mut hasher, b"source-id:some");
+            revision_hash_field(&mut hasher, source_id.as_bytes());
+        }
+        None => revision_hash_field(&mut hasher, b"source-id:none"),
+    }
+    match body {
+        Some(body) => {
+            revision_hash_field(&mut hasher, b"body:some");
+            revision_hash_field(&mut hasher, body.as_bytes());
+        }
+        None => revision_hash_field(&mut hasher, b"body:none"),
+    }
+    format!("_fdb:m:{}", hex_encode(&hasher.finalize()))
+}
 
 /// C-2 (0.8.19 / OPP-12 record-lifecycle Phase-1, TC-8) — the **id-space** of a
 /// [`SearchHit::id`]. A closed, typed enum (NOT a magic-prefixed string) — the

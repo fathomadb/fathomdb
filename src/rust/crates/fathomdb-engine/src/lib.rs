@@ -344,8 +344,7 @@ pub(crate) use write::storage_write_shape;
 pub use write::{PreparedWrite, WriteReceipt};
 pub(crate) use write_commit::{
     advance_read_visibility, apply_batch_in_transaction, canonical_body_hash,
-    checked_locator_columns, commit_batch, revision_hash_field, CommitBatchError,
-    TriggerStateGuard,
+    checked_locator_columns, commit_batch, CommitBatchError, TriggerStateGuard,
 };
 pub use write_types::RowKind;
 pub(crate) use write_validation::{
@@ -2158,70 +2157,6 @@ fn record_writer_pragma_witness_for_test(connection: &Connection) {
     }
 }
 
-fn hex_encode(bytes: &[u8]) -> String {
-    let mut out = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        out.push(hex_nibble(byte >> 4));
-        out.push(hex_nibble(byte & 0x0f));
-    }
-    out
-}
-
-fn hex_nibble(value: u8) -> char {
-    match value {
-        0..=9 => (b'0' + value) as char,
-        10..=15 => (b'a' + value - 10) as char,
-        _ => unreachable!(),
-    }
-}
-
-/// 0.8.20 Slice 5b (R-20-E7) — the audit handle for an erased op-store record:
-/// `SHA-256(collection + 0x1F + record_key)`, lowercase hex.
-///
-/// A record key is arbitrary caller-supplied text and may itself be the
-/// identifier being erased, so a durable audit row must not echo it. `0x1F`
-/// (ASCII unit separator) is the delimiter because it cannot appear in a
-/// well-formed collection name, keeping the pairing unambiguous.
-#[cfg(feature = "operator")]
-fn digest_record_identity(collection: &str, record_key: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(collection.as_bytes());
-    hasher.update([0x1f_u8]);
-    hasher.update(record_key.as_bytes());
-    hasher.finalize().iter().map(|b| format!("{b:02x}")).collect()
-}
-
-// Slice 15 stores no owner row for pre-step-27 content. Keep its deterministic
-// identity derivation internal until the opt-in Slice 50 evidence resolver
-// exposes it; default records and search hits remain unchanged.
-#[allow(dead_code)]
-fn legacy_revision_id(
-    artifact_class: &str,
-    cursor: u64,
-    source_id: Option<&str>,
-    body: Option<&str>,
-) -> String {
-    let mut hasher = Sha256::new();
-    revision_hash_field(&mut hasher, b"fathomdb:artifact-revision:migrated:v1");
-    revision_hash_field(&mut hasher, artifact_class.as_bytes());
-    revision_hash_field(&mut hasher, cursor.to_string().as_bytes());
-    match source_id {
-        Some(source_id) => {
-            revision_hash_field(&mut hasher, b"source-id:some");
-            revision_hash_field(&mut hasher, source_id.as_bytes());
-        }
-        None => revision_hash_field(&mut hasher, b"source-id:none"),
-    }
-    match body {
-        Some(body) => {
-            revision_hash_field(&mut hasher, b"body:some");
-            revision_hash_field(&mut hasher, body.as_bytes());
-        }
-        None => revision_hash_field(&mut hasher, b"body:none"),
-    }
-    format!("_fdb:m:{}", hex_encode(&hasher.finalize()))
-}
-
 #[cfg(test)]
 mod slice20_fix1_tests;
 
@@ -2240,15 +2175,16 @@ mod slice90_post_probe_real_error_tests;
 #[cfg(test)]
 mod tests {
     use super::erasure::ERASURE_WAL_TRUNCATE_ATTEMPTS;
+    use super::identity::legacy_revision_id;
     use super::reader_pool::{ReaderRequest, READER_POOL_SIZE};
     use super::vector_storage::KIND_TO_SOURCE_TYPE_CASE_SQL;
     use super::{
         acquire_lock_without_metadata_mutation, derive_stable_id,
-        install_admission_locked_hook_for_test, legacy_revision_id,
-        native_connection_state_for_test, prepare_search_statement, resolve_source_type,
-        retain_complete_rank_boundary_candidates, DeviceResolution, EmbedderChoice, Engine,
-        EngineConfig, EngineError, EngineOpenError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
-        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, ProjectionRuntime,
+        install_admission_locked_hook_for_test, native_connection_state_for_test,
+        prepare_search_statement, resolve_source_type, retain_complete_rank_boundary_candidates,
+        DeviceResolution, EmbedderChoice, Engine, EngineConfig, EngineError, EngineOpenError,
+        IdSpace, IdSpaceKind, InitialState, LoaderInfo, ManagedConnectionRegistry,
+        NativeTransactionState, PreparedWrite, ProjectionRuntime,
         ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole, RuntimeProbeConnection,
         SearchHit, SoftFallbackBranch, SourceId, WalAttributionCollector, WalAttributionRole,
         PROJECTION_WORKERS, ROW_OWNED_PROJECTIONS,

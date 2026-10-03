@@ -1283,7 +1283,7 @@ fn closure_digest(parts: &[&str]) -> String {
         hasher.update((part.len() as u64).to_be_bytes());
         hasher.update(part.as_bytes());
     }
-    super::hex_encode(&hasher.finalize())
+    crate::identity::hex_encode(&hasher.finalize())
 }
 
 fn next_identity(

@@ -203,6 +203,7 @@ run_tier_suite fast test-slice90-record-lifecycle-owner python3 scripts/tests/te
 run_tier_suite fast test-slice90-temporal-epoch-owner python3 scripts/tests/test_slice90_temporal_epoch_owner.py
 run_tier_suite fast test-slice90-reader-pool-size-owner python3 scripts/tests/test_slice90_reader_pool_size_owner.py
 run_tier_suite fast test-slice90-write-cursor-owner python3 scripts/tests/test_slice90_write_cursor_owner.py
+run_tier_suite fast test-slice90-identity-helpers-owner python3 scripts/tests/test_slice90_identity_helpers_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

@@ -1,5 +1,6 @@
 use super::*;
 use crate::erasure::{ERASURE_AUDIT_COLLECTIONS, ERASURE_PENDING_REDACTION_COLLECTION};
+use crate::identity::hex_encode;
 
 pub(crate) fn load_next_cursor(connection: &Connection) -> u64 {
     let nodes = max_cursor(connection, "canonical_nodes").unwrap_or(0);

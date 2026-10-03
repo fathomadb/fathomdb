@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 100 - review and verification
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.27
 ---
 
@@ -60,5 +60,7 @@ The clean `812242a16` full repository gate passed on a ptrace-capable executor:
 lint, typecheck, strict security with zero violations/blockers/downgrades, and
 178/180 registered test suites passed. Two environment-dependent suites were
 skipped, with none excluded. Final `gpt-6-sol` high code review and Terra
-candidate-specific verification both passed. The human ruling on the proposed
-heartbeat successor remains pending; no release publication is in scope.
+candidate-specific verification both passed. The heartbeat successor was
+accepted after the active architecture and design updates passed subsequent
+independent review; see [Slice 100 status](status.md). Release publication is
+outside Slice 100.

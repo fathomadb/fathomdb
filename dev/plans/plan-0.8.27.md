@@ -1021,15 +1021,11 @@ Slice 140 work. The following runtime-owned work remains in Slice 90:
 
 ### Slice 100 — PyO3 binding decomposition
 
-**PLANNED; uncommissioned.** Execute the prospective
-[`Slice 100 design`](0.8.27/features/slice-100/design.md) after Slice 90's
-configuration handoff is complete. Decompose native errors, FFI execution,
-carriers and semantic operations while retaining one `_fathomdb` initializer
-and one native Engine identity. Exact source/registration inventories,
-GIL/lifetime/error tests, immutable-plus-reviewed-delta surface comparisons,
-fresh installed-wheel evidence and independent review/verification are exit
-requirements. Python SDK decomposition remains Slice 130. Zero open Slice
-100 obligations is a prerequisite for Slice 110.
+**COMPLETE on `release/0.8.27`.** The [Slice 100 status](0.8.27/features/slice-100/status.md)
+records the PyO3 decomposition, bounded Python subscriber correction,
+accepted heartbeat successor, installed-wheel evidence, and independent
+review and verification. Python SDK decomposition remains Slice 130. Slice
+110 may begin from this completed handoff.
 
 ### Slice 110 — napi-rs binding decomposition
 

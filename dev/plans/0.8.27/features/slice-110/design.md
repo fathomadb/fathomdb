@@ -70,12 +70,17 @@ or second native entrypoint is used to bridge a move.
 
 ## Pre-move contract disposition
 
-Two current facts require explicit reconciliation with accepted contracts:
-NAPI uses Tokio `spawn_blocking`, whereas the accepted async ADR/bindings
-design names ThreadsafeFunction with a binding-owned Rust handoff pool; and
-`attach_subscriber` currently discards callback/options and returns success.
-Neither a responsive event loop nor a callable subscriber method proves the
-named executor or event-delivery contract.
+The accepted
+[`ADR-0.8.27-engine-owned-runtime-topology`](../../../../adr/ADR-0.8.27-engine-owned-runtime-topology.md)
+expressly replaces the earlier async ADR's exact ThreadsafeFunction and
+binding-pool mechanisms. The current TypeScript interface and binding design
+name NAPI's Tokio `spawn_blocking` handoff. Record that authority and prove
+off-event-loop, error, ownership and close behavior; do not rebuild the old
+pool merely to match superseded wording. Separately, `attach_subscriber`
+currently discards callback/options and returns success. A callable method
+alone does not prove event delivery. The accepted Python subscriber successor
+explicitly leaves TypeScript's contract untouched, so review the TypeScript
+callback and heartbeat contract on its own terms before changing it.
 
 Before moving those owners, inspect current accepted successors and record
 which contract governs each. A finding closes only with evidence that the
@@ -191,7 +196,7 @@ owned temporary consumers/build files after recording receipts.
 | --- | --- | --- |
 | R27-110A | Complete semantic native ownership. | AC27-110A: entry/final source and export inventories reconcile with zero missing, duplicate, stale or unassigned items; each retained facade/root item has its specific macro/ownership reason. |
 | R27-110B | Native and package surfaces are preserved. | AC27-110B: runtime exports/prototypes, production NAPI and emitted TS declarations, package entrypoints and error envelopes equal the approved contract; debug-to-production generation removes hooks in both runtime and declaration oracles. |
-| R27-110C | Async and callback contracts are resolved and proven. | AC27-110C: executor/subscriber discrepancies have accepted, implemented dispositions; exact sync/Promise/error/panic, event-loop progress, in-flight ownership and cleanup tests pass on native artifacts. No callback or executor obligation remains for 120. |
+| R27-110C | Async and callback contracts are resolved and proven. | AC27-110C: the executor's accepted authority is recorded and its outcomes proven; the subscriber discrepancy has an accepted, implemented disposition; exact sync/Promise/error/panic, event-loop progress, in-flight ownership and cleanup tests pass on native artifacts. No callback or executor obligation remains for 120. |
 | R27-110D | Conversions and precedence remain exact. | AC27-110D: signature-derived numeric/string/object/buffer cases and existing properties pass, with exact field diagnostics and no database mutation on refusal. No convenience coercion or number representation change is hidden in extraction. |
 | R27-110E | Shipping-path evidence is complete. | AC27-110E: supported candidate-bound feature/platform builds and fresh thin-main/platform-pair installs pass; binary provenance, package contents, runtime imports and consumer typechecks are verified. Required skipped routes cannot close the slice. |
 | R27-110F | Native closure unblocks SDK decomposition. | AC27-110F: source-scraper/repository gates, exact-candidate code review and independent verification pass; inventory has zero open Slice 110 entries. Slice 120 receives the final native signatures, registration/runtime/declaration captures and packaged artifact receipts, with no native work deferred. |

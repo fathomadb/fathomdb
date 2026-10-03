@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 100 - native inventory reconciliation
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.27
 ---
 

@@ -12,7 +12,7 @@ use rusqlite::{Connection, OptionalExtension};
 use sha2::{Digest, Sha256};
 
 #[cfg(feature = "operator")]
-use crate::{current_epoch_seconds, load_next_cursor, EngineError};
+use crate::{current_epoch_seconds, load_next_cursor, Engine, EngineError};
 
 const SCHEMA_VERSION: u32 = 1;
 const MAX_WORK_UNITS: u32 = 10_000;
@@ -2438,4 +2438,48 @@ pub(crate) fn execute(
         findings,
         complete: true,
     })
+}
+
+impl Engine {
+    /// Query-plan details for bounded Slice 55 integrity owner and physical scans.
+    #[cfg(all(feature = "operator", feature = "test-hooks"))]
+    pub fn data_plane_integrity_query_plans_for_test(&self) -> Result<Vec<String>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let statements = crate::data_plane_integrity::candidate_queries_for_test();
+        let mut plans = Vec::new();
+        for sql in statements {
+            let mut statement = connection
+                .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+                .map_err(|_| EngineError::Storage)?;
+            plans.extend(
+                statement
+                    .query_map(rusqlite::params![0_i64, 101_i64], |row| row.get::<_, String>(3))
+                    .map_err(|_| EngineError::Storage)?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(|_| EngineError::Storage)?,
+            );
+        }
+        Ok(plans)
+    }
+
+    /// Candidate SQL executed by the bounded Slice 55 integrity scans.
+    #[cfg(all(feature = "operator", feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn data_plane_integrity_candidate_queries_for_test(&self) -> [&'static str; 12] {
+        crate::data_plane_integrity::candidate_queries_for_test()
+    }
+
+    /// Run bounded, read-only operator integrity checks in one SQLite snapshot.
+    #[cfg(feature = "operator")]
+    pub fn check_data_plane_integrity(
+        &self,
+        request: DataPlaneIntegrityRequestV1,
+    ) -> Result<DataPlaneIntegrityResultV1, EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        crate::data_plane_integrity::execute(connection, request)
+    }
 }

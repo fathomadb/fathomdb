@@ -47,6 +47,7 @@ reported graph_expand::graph_evidence_request_tests
 governed graph_expand::traversal
 governed graph_expand::types
 reported identity
+reported index_projector
 reported ingest
 reported lifecycle
 reported mean
@@ -101,6 +102,7 @@ governed wal_attribution
 reported wal_runtime
 reported write
 reported write_commit
+reported write_types
 reported write_validation
 field actual_checkpoint_observations root
 field actuation_after_initial_lookup_delay_ms root

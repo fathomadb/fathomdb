@@ -1,5 +1,37 @@
 use super::*;
 
+/// Which shadow-state surface a [`RebuildReport`] describes.
+/// `Projections` covers the full FTS5 + vec0 + projection-terminal
+/// rebuild emitted by [`Engine::rebuild_projections`]. `Vec0` covers
+/// the vec0-only path emitted by [`Engine::rebuild_vec0`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RebuildKind {
+    Projections,
+    Vec0,
+}
+
+/// Structured result of a rebuild operation. `rows_invalidated` is the
+/// total shadow-state rows truncated before re-derivation; `rows_rebuilt`
+/// is the count of rows the synchronous rebuild loop re-materialised
+/// (asynchronous re-enqueue work performed by the projection scheduler is
+/// not counted here). `projection_cursor_after` is the post-rebuild value
+/// of the projection cursor.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RebuildReport {
+    pub kind: RebuildKind,
+    pub rows_invalidated: u64,
+    pub rows_rebuilt: u64,
+    pub projection_cursor_after: u64,
+}
+
+/// Default drain budget for `rebuild_projections` / `rebuild_vec0`. The
+/// rebuild path freezes the scheduler before truncating shadow rows, so
+/// the only outstanding work is whatever workers were mid-flight when
+/// the call landed; 30 s is generous for normal job sizes and bounded
+/// for tests.
+#[cfg(feature = "operator")]
+const REBUILD_DRAIN_TIMEOUT_MS: u64 = 30_000;
+
 impl Engine {
     /// Operator regenerate workflow per `dev/design/projections.md`
     /// § Regenerate workflow. Drains in-flight projection work, then

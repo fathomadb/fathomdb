@@ -192,6 +192,7 @@ run_tier_suite fast test-slice90-data-plane-integrity-owner python3 scripts/test
 run_tier_suite fast test-slice90-embedding-owner python3 scripts/tests/test_slice90_embedding_owner.py
 run_tier_suite fast test-slice90-projection-registry-carriers-owner python3 scripts/tests/test_slice90_projection_registry_carriers_owner.py
 run_tier_suite fast test-slice90-projection-runtime-status-owner python3 scripts/tests/test_slice90_projection_runtime_status_owner.py
+run_tier_suite fast test-slice90-projection-rebuild-owner python3 scripts/tests/test_slice90_projection_rebuild_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

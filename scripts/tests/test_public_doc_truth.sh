@@ -16,7 +16,7 @@ make_fixture() {
     "$root/docs/install" "$root/docs/compatibility"
   cp "$REPO_ROOT/README.md" "$root/README.md"
   cp "$REPO_ROOT/Cargo.toml" "$root/Cargo.toml"
-  cp "$REPO_ROOT/dev/plans/release-state-0.8.25.json" "$root/dev/plans/"
+  cp "$REPO_ROOT/dev/plans/release-state-0.8.26.json" "$root/dev/plans/"
   cp "$REPO_ROOT/dev/platform-capabilities.json" "$root/dev/"
   cp "$REPO_ROOT/docs/index.md" "$root/docs/"
   cp "$REPO_ROOT/docs/getting-started/index.md" "$root/docs/getting-started/"
@@ -55,36 +55,36 @@ git -C "$FIXTURE" add dev/plans/release-state-0.8.22.json
 expect_pass "$FIXTURE" 'newest valid tracked published state wins over an older state'
 
 make_fixture "$FIXTURE"
-python3 - "$FIXTURE/dev/plans/release-state-0.8.26.json" <<'PY'
+python3 - "$FIXTURE/dev/plans/release-state-0.8.27.json" <<'PY'
 import json
 from pathlib import Path
 import sys
 
 state = {
-    "release": "0.8.26",
-    "board": "dev/plans/runs/STATUS-0.8.26.md",
+    "release": "0.8.27",
+    "board": "dev/plans/runs/STATUS-0.8.27.md",
     "published": None,
 }
 Path(sys.argv[1]).write_text(json.dumps(state) + "\n")
 PY
-git -C "$FIXTURE" add dev/plans/release-state-0.8.26.json
+git -C "$FIXTURE" add dev/plans/release-state-0.8.27.json
 expect_pass "$FIXTURE" 'newer unpublished state is ignored for public release truth'
 
 make_fixture "$FIXTURE"
-python3 - "$FIXTURE/dev/plans/release-state-0.8.26.json" <<'PY'
+python3 - "$FIXTURE/dev/plans/release-state-0.8.27.json" <<'PY'
 import json
 from pathlib import Path
 import sys
 
 state = {
-    "release": "0.8.26",
+    "release": "0.8.27",
     "release_kind": "released; publication complete",
-    "board": "dev/plans/runs/STATUS-0.8.26.md",
+    "board": "dev/plans/runs/STATUS-0.8.27.md",
     "published": None,
 }
 Path(sys.argv[1]).write_text(json.dumps(state) + "\n")
 PY
-git -C "$FIXTURE" add dev/plans/release-state-0.8.26.json
+git -C "$FIXTURE" add dev/plans/release-state-0.8.27.json
 expect_fail "$FIXTURE" 'publication-complete lifecycle without a receipt fails closed'
 
 make_fixture "$FIXTURE"
@@ -109,7 +109,7 @@ PY
 expect_pass "$FIXTURE" 'untracked future state cannot alter public release truth'
 
 make_fixture "$FIXTURE"
-python3 - "$FIXTURE/dev/plans/release-state-0.8.25.json" <<'PY'
+python3 - "$FIXTURE/dev/plans/release-state-0.8.26.json" <<'PY'
 import json
 from pathlib import Path
 import sys
@@ -127,7 +127,7 @@ PY
 expect_fail "$FIXTURE" 'rejects a malformed published tag record'
 
 make_fixture "$FIXTURE"
-python3 - "$FIXTURE/dev/plans/release-state-0.8.25.json" <<'PY'
+python3 - "$FIXTURE/dev/plans/release-state-0.8.26.json" <<'PY'
 import json
 from pathlib import Path
 import sys
@@ -140,7 +140,7 @@ PY
 expect_fail "$FIXTURE" 'rejects a syntactically ISO but invalid calendar date'
 
 make_fixture "$FIXTURE"
-sed -i 's/v0\.8\.25 is published/v0.8.25 is not yet published/' "$FIXTURE/README.md"
+sed -i 's/v0\.8\.26 is published/v0.8.26 is not yet published/' "$FIXTURE/README.md"
 expect_fail "$FIXTURE" 'rejects an unpublished claim for the published release'
 
 make_fixture "$FIXTURE"

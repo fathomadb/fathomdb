@@ -4,9 +4,9 @@ FathomDB is a local-first retrieval and graph-oriented data system
 designed for application and agent workloads. This site is the public
 documentation source for users, operators, and SDK consumers.
 
-> **Status: 0.8.25, pre-1.0 beta.** This site documents the **0.8.25**
+> **Status: 0.8.26, pre-1.0 beta.** This site documents the **0.8.26**
 > surface. FathomDB is pre-1.0: the surface is beta and may change
-> between micro releases. **v0.8.25 is published** to crates.io / PyPI /
+> between micro releases. **v0.8.26 is published** to crates.io / PyPI /
 > npm. Native Python and npm artifacts cover Linux x86_64/glibc and Linux
 > AArch64/glibc; npm installs use its `next` dist-tag. See
 > [Install](install/python.md) and the
@@ -41,7 +41,7 @@ documentation source for users, operators, and SDK consumers.
 - [Positions](positions/index.md) — consumer-relevant technical
   positions (SDK parity, recovery surface, tokenizer policy,
   embedder identity).
-- [0.8.25 release notes](release-notes/0.8.25.md) — current release overview.
+- [0.8.25 release notes](release-notes/0.8.25.md) — previous release overview.
   Earlier detailed changes are recorded in the repo
   [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md).
 

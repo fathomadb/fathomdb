@@ -1,7 +1,7 @@
 # Compatibility
 
 Supported platforms, toolchains, and version-alignment policy for the
-published **0.8.25** release.
+published **0.8.26** release.
 
 > **Pre-1.0 = beta.** FathomDB is on a pre-1.0 line. The surface may
 > change between micro releases; consult the
@@ -19,7 +19,7 @@ targets those three interpreters explicitly.
 
 Node **25.x**. CI, development, and the release build use exact Node **25.9.0**.
 The package declares `engines.node = ">=25 <26"`. Compatibility with other
-Node release lines is not part of the 0.8.25 contract.
+Node release lines is not part of the 0.8.26 contract.
 
 ## Supported Rust toolchain
 
@@ -28,7 +28,7 @@ and release jobs.
 
 ## Prebuilt artifacts — Linux x86_64 and AArch64 published
 
-⚠ **The published 0.8.25 wheel and npm platform binaries support Linux
+⚠ **The published 0.8.26 wheel and npm platform binaries support Linux
 `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` glibc.** Linux
 aarch64 is published for Python and npm. Do not expect the published npm
 package to install on macOS, Windows, or Linux musl.
@@ -59,17 +59,17 @@ same gate, not exempted from it: both numbers come from
 `scripts/check-glibc-floor-doc-truth.sh` fails if either claim on this page
 drifts from it.
 
-For a confirmed classic Jetson Orin only, 0.8.24 serves the exact
-`fathomdb==0.8.24+tegra` wheel from the interim first-party PEP 503 index:
+For a confirmed classic Jetson Orin only, 0.8.26 serves the exact
+`fathomdb==0.8.26+tegra` wheel from the interim first-party PEP 503 index:
 
 ```bash
 python -m pip install --isolated --no-cache-dir --only-binary=:all: \
   --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ \
-  'fathomdb==0.8.24+tegra'
+  'fathomdb==0.8.26+tegra'
 ```
 
 Do not use a floating requirement or `--extra-index-url`: pip merges candidate
-sets and does not prioritize indexes. The Pages route is interim 0.8.24
+sets and does not prioritize indexes. The Pages route is interim 0.8.26
 hosting, not a durable multi-version distribution decision. Use
 `fathomdb doctor platform --json` to distinguish classic Tegra from ARM64 SBSA
 before diagnosing an incompatible CUDA provider.
@@ -96,7 +96,7 @@ published Python and npm packages in this release.
 
 ## On-disk schema
 
-The published 0.8.25 line sets `SCHEMA_VERSION` to **33** (0.8.23 shipped
+The published 0.8.26 line sets `SCHEMA_VERSION` to **34** (0.8.23 shipped
 **26**, 0.8.21 shipped **25**, and 0.8.20 shipped **24**). Migration runs at
 `Engine.open` and only there.
 
@@ -109,7 +109,7 @@ after upgrading** rather than relying on an in-place upgrade.
 
 ## Versioning — two axes
 
-0.8.25 follows two-axis versioning:
+0.8.26 follows two-axis versioning:
 
 - **Axis W (workspace lockstep)** — the runtime / binding / CLI crates
   plus the Python and TypeScript packages all carry the same workspace
@@ -144,13 +144,13 @@ forward at open, subject to the step-23 edge caveat above.
 
 ## Performance posture
 
-The 0.8.25 release acceptance is complete. Its measurements are validation
+The 0.8.26 release acceptance is complete. Its measurements are validation
 evidence for the tested workloads and machines, not a general latency SLA.
 The historical AC-020 scaling-ratio gate was explicitly retired and replaced
 by independent absolute sequential, concurrent, and reader-independence
 budgets; those successor checks passed. The final bounded AC-012 rerun also
 passed. The exact dispositions and retained measurements are recorded in the
-[0.8.25 release status](https://github.com/fathomadb/fathomdb/blob/main/dev/plans/runs/STATUS-0.8.25.md).
+[0.8.26 release status](https://github.com/fathomadb/fathomdb/blob/main/dev/plans/runs/STATUS-0.8.26.md).
 
 Clients evaluating FathomDB for performance-sensitive workloads should still
 measure on their own corpus and hardware rather than treating a release-gate

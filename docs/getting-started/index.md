@@ -1,6 +1,6 @@
 # Getting Started
 
-> **Published release.** **v0.8.25 is published** to crates.io / PyPI /
+> **Published release.** **v0.8.26 is published** to crates.io / PyPI /
 > npm. Native Python and npm artifacts cover Linux x86_64/glibc and Linux
 > AArch64/glibc, and npm installs use its `next` dist-tag. FathomDB is pre-1.0 and
 > the surface is **beta**. See the
@@ -15,7 +15,7 @@
 - [Install — TypeScript / Node.js](../install/typescript.md)
 - [Install — Rust](../install/rust.md)
 
-## What ships in 0.8.25
+## What shipped in 0.8.25
 
 The Python and TypeScript governed SDK surfaces use equivalent idiomatic names
 and are pinned by `src/conformance/governed-surface-allowlist.json`. The Rust

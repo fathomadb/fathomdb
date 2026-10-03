@@ -30,6 +30,7 @@ nav:
       - Immutable Integrity Inspection: operations/integrity-inspection.md
       - Erasure: operations/erasure.md
       - Worktree and Branch Consolidation: operations/worktree-consolidation.md
+      - Tegra Pages Publication: operations/tegra-pages-publication.md
   - Guides:
       - Overview: guides/index.md
       - Structured Search Hits: guides/structured-search-hits.md

@@ -635,24 +635,6 @@ impl Engine {
         &self.path
     }
 
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn force_next_commit_failure_for_test(&self) {
-        self.force_next_commit_failure.store(true, Ordering::SeqCst);
-    }
-
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn set_actuation_after_initial_lookup_delay_ms_for_test(&self, value: u64) {
-        self.actuation_after_initial_lookup_delay_ms.store(value, Ordering::SeqCst);
-    }
-
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn force_actuation_failure_after_operation_for_test(&self, index: usize) {
-        self.actuation_failure_after_operation.store(index, Ordering::SeqCst);
-    }
-
     /// Execute an arbitrary SQL statement on the writer connection through
     /// the same wall-clock + slow-detect path as `write` / `search`.
     ///
@@ -765,45 +747,6 @@ impl Engine {
         };
         self.subscribers.dispatch_stress_failure(&context);
         Ok(())
-    }
-
-    #[doc(hidden)]
-    pub fn set_provenance_row_cap_for_test(&self, cap: Option<u64>) {
-        self.provenance_row_cap.store(cap.unwrap_or(0), Ordering::Relaxed);
-    }
-
-    #[doc(hidden)]
-    pub fn provenance_row_count_for_test(&self) -> Result<u64, EngineError> {
-        self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        connection
-            .query_row("SELECT COUNT(*) FROM operational_mutations", [], |row| row.get::<_, u64>(0))
-            .map_err(|_| EngineError::Storage)
-    }
-
-    #[doc(hidden)]
-    pub fn oldest_provenance_record_key_for_test(
-        &self,
-        collection: &str,
-    ) -> Result<Option<String>, EngineError> {
-        self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        connection
-            .query_row(
-                "SELECT record_key FROM operational_mutations
-                 WHERE collection_name = ?1
-                 ORDER BY id
-                 LIMIT 1",
-                [collection],
-                |row| row.get::<_, String>(0),
-            )
-            .map(Some)
-            .or_else(|err| match err {
-                rusqlite::Error::QueryReturnedNoRows => Ok(None),
-                _ => Err(EngineError::Storage),
-            })
     }
 
     /// EU-5b test seam — drain MeanVecPinned events queued by the

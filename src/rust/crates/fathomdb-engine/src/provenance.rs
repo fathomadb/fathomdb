@@ -304,3 +304,44 @@ impl Engine {
         Ok(TraceReport { source_ref: source_id.to_string(), events })
     }
 }
+
+impl Engine {
+    #[doc(hidden)]
+    pub fn set_provenance_row_cap_for_test(&self, cap: Option<u64>) {
+        self.provenance_row_cap.store(cap.unwrap_or(0), Ordering::Relaxed);
+    }
+
+    #[doc(hidden)]
+    pub fn provenance_row_count_for_test(&self) -> Result<u64, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        connection
+            .query_row("SELECT COUNT(*) FROM operational_mutations", [], |row| row.get::<_, u64>(0))
+            .map_err(|_| EngineError::Storage)
+    }
+
+    #[doc(hidden)]
+    pub fn oldest_provenance_record_key_for_test(
+        &self,
+        collection: &str,
+    ) -> Result<Option<String>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        connection
+            .query_row(
+                "SELECT record_key FROM operational_mutations
+                 WHERE collection_name = ?1
+                 ORDER BY id
+                 LIMIT 1",
+                [collection],
+                |row| row.get::<_, String>(0),
+            )
+            .map(Some)
+            .or_else(|err| match err {
+                rusqlite::Error::QueryReturnedNoRows => Ok(None),
+                _ => Err(EngineError::Storage),
+            })
+    }
+}

@@ -2450,6 +2450,20 @@ impl Engine {
     }
 }
 
+impl Engine {
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub fn set_actuation_after_initial_lookup_delay_ms_for_test(&self, value: u64) {
+        self.actuation_after_initial_lookup_delay_ms.store(value, Ordering::SeqCst);
+    }
+
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub fn force_actuation_failure_after_operation_for_test(&self, index: usize) {
+        self.actuation_failure_after_operation.store(index, Ordering::SeqCst);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

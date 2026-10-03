@@ -24,6 +24,8 @@ def attrs(source: str, start: int) -> list[str]:
 
 def owner_errors(root: str, owner: str, open_source: str, operator: str) -> list[str]:
     errors = []
+    if re.search(r"(?m)^[ \t]*#!\[\s*cfg(?:_attr)?\b", owner):
+        errors.append("errors gates whole owner module")
     for name in re.findall(
         r"^\s*(?:pub(?:\([^)]*\))?\s+)?fn\s+((?:map_open_sqlite_error|map_migration_error)\w*)\s*\(",
         root,
@@ -87,6 +89,9 @@ class ErrorMappingOwnerTest(unittest.TestCase):
     def test_cfg_and_cfg_attr_mutants(self) -> None:
         root, owner, open_source, operator = self.sources()
         self.assertEqual(owner_errors(root, owner, open_source, operator), [])
+        for attr in ('#![cfg(feature = "operator")]', '#![cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]'):
+            altered = attr + "\n" + owner
+            self.assertIn("errors gates whole owner module", owner_errors(root, altered, open_source, operator))
         for name in NAMES:
             marker = f"pub(crate) fn {name}("
             for attr in ('#[cfg(feature = "operator")]', '#[cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]'):

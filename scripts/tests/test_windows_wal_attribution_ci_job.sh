@@ -10,6 +10,9 @@ SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/era
 ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
 WAL_RUNTIME_SOURCE="${WAL_RUNTIME_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/wal_runtime.rs}"
 CONNECTION_SOURCE="${CONNECTION_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/connection_runtime.rs}"
+OPEN_SOURCE="${OPEN_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/open.rs}"
+PROJECTION_COMMIT_SOURCE="${PROJECTION_COMMIT_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/projection_commit.rs}"
+READ_API_SOURCE="${READ_API_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/read_api.rs}"
 WAL_ATTRIBUTION_SOURCE="${WAL_ATTRIBUTION_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/wal_attribution.rs}"
 # Reader-pool ownership and completion live in their extracted module.
 READER_POOL_SOURCE="${READER_POOL_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/reader_pool.rs}"
@@ -377,9 +380,20 @@ assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'fresh_writer_connection_open=' \
   "source records the live fresh writer connection fact"
-assert_contains "$(<"$ENGINE_SOURCE")" \
-  'ManagedConnectionCategory' \
-  "source classifies every Engine-managed SQLite open"
+if managed_owner_out="$(python3 "$SCRIPT_DIR/slice65_managed_connection_owners.py" \
+  "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" \
+  --override "lib.rs=$ENGINE_SOURCE" \
+  --override "wal_runtime.rs=$WAL_RUNTIME_SOURCE" \
+  --override "connection_runtime.rs=$CONNECTION_SOURCE" \
+  --override "open.rs=$OPEN_SOURCE" \
+  --override "projection_worker.rs=$PROJECTION_WORKER_SOURCE" \
+  --override "projection_commit.rs=$PROJECTION_COMMIT_SOURCE" \
+  --override "read_api.rs=$READ_API_SOURCE" \
+  --override "reader_pool.rs=$READER_POOL_SOURCE")"; then
+  pass "source classifies every Engine-managed SQLite open"
+else
+  fail "source classifies every Engine-managed SQLite open ($managed_owner_out)"
+fi
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'fn wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' \
   "engine source retains the WAL-attribution tests"
@@ -765,6 +779,110 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "fixture rejects an extra direct SQLite open in the connection owner"
   else
     fail "fixture did not reject an extra direct SQLite open: $extra_direct_open_out"
+  fi
+
+  WRONG_WRITER_ROLE="$TMPROOT/open-with-wrong-writer-role.rs"
+  OLD_ROOT_CATEGORY_DECOY="$TMPROOT/lib-with-old-category-token.rs"
+  python3 - "$OPEN_SOURCE" "$WRONG_WRITER_ROLE" "$ENGINE_SOURCE" "$OLD_ROOT_CATEGORY_DECOY" <<'PY'
+from pathlib import Path
+import sys
+
+open_source, wrong_open, root_source, root_decoy = map(Path, sys.argv[1:])
+source = open_source.read_text()
+assert source.count("ManagedConnectionCategory::Writer") == 1
+wrong_open.write_text(source.replace("ManagedConnectionCategory::Writer", "ManagedConnectionCategory::ReaderWorker", 1))
+root = root_source.read_text()
+assert "mod tests {" in root
+root_decoy.write_text(root.replace("mod tests {", 'const OLD_CATEGORY_TOKEN: &str = "ManagedConnectionCategory";\nmod tests {', 1))
+PY
+  set +e
+  wrong_writer_role_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 OPEN_SOURCE="$WRONG_WRITER_ROLE" ENGINE_SOURCE="$OLD_ROOT_CATEGORY_DECOY" bash "$0" 2>&1)"
+  wrong_writer_role_rc=$?
+  set -e
+  if [ "$wrong_writer_role_rc" -ne 0 ] \
+    && grep -Fq 'managed call inventory differs' <<<"$wrong_writer_role_out" \
+    && grep -Fq "('open.rs', 'open_managed_connection', 'Writer')" <<<"$wrong_writer_role_out"; then
+    pass "mutation rejects a wrong writer category despite an old-root category decoy"
+  else
+    fail "mutation missed a wrong writer category with old-root decoy: $wrong_writer_role_out"
+  fi
+
+  WRONG_CATEGORY_OWNER="$TMPROOT/reader-pool-with-writer-category.rs"
+  python3 - "$READER_POOL_SOURCE" "$WRONG_CATEGORY_OWNER" <<'PY'
+from pathlib import Path
+import sys
+
+source, output = map(Path, sys.argv[1:])
+text = source.read_text()
+declaration = "fn wrong_owner_open(path: &str, registry: &ManagedConnectionRegistry) { let _ = open_managed_connection(path, ManagedConnectionCategory::Writer, registry); }\n"
+output.write_text(text + "\n" + declaration)
+PY
+  set +e
+  wrong_category_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 READER_POOL_SOURCE="$WRONG_CATEGORY_OWNER" bash "$0" 2>&1)"
+  wrong_category_owner_rc=$?
+  set -e
+  if [ "$wrong_category_owner_rc" -ne 0 ] \
+    && grep -Fq 'managed call inventory differs' <<<"$wrong_category_owner_out" \
+    && grep -Fq "('reader_pool.rs', 'open_managed_connection', 'Writer')" <<<"$wrong_category_owner_out"; then
+    pass "mutation rejects a managed writer open in the wrong production owner"
+  else
+    fail "mutation missed a managed writer open in the wrong owner: $wrong_category_owner_out"
+  fi
+
+  MISSING_CATEGORY_REGISTRATION="$TMPROOT/connection-without-role-registration.rs"
+  sed '/managed_connections.record_open(category);/d' "$CONNECTION_SOURCE" >"$MISSING_CATEGORY_REGISTRATION"
+  set +e
+  missing_category_registration_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$MISSING_CATEGORY_REGISTRATION" bash "$0" 2>&1)"
+  missing_category_registration_rc=$?
+  set -e
+  if [ "$missing_category_registration_rc" -ne 0 ] \
+    && grep -Fq 'managed factory lacks typed category registration before SQLite open' <<<"$missing_category_registration_out"; then
+    pass "mutation rejects a managed factory that omits category registration"
+  else
+    fail "mutation missed missing category registration: $missing_category_registration_out"
+  fi
+
+  WRONG_RUNTIME_FORWARD="$TMPROOT/connection-with-wrong-runtime-category.rs"
+  python3 - "$CONNECTION_SOURCE" "$WRONG_RUNTIME_FORWARD" <<'PY'
+from pathlib import Path
+import sys
+
+source, output = map(Path, sys.argv[1:])
+text = source.read_text()
+assert text.count("        category,\n") == 1
+output.write_text(text.replace("        category,\n", "        ManagedConnectionCategory::ReaderWorker,\n", 1))
+PY
+  set +e
+  wrong_runtime_forward_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$WRONG_RUNTIME_FORWARD" bash "$0" 2>&1)"
+  wrong_runtime_forward_rc=$?
+  set -e
+  if [ "$wrong_runtime_forward_rc" -ne 0 ] \
+    && grep -Fq 'runtime opener does not forward typed category to managed factory' <<<"$wrong_runtime_forward_out"; then
+    pass "mutation rejects a runtime opener that discards its typed category"
+  else
+    fail "mutation missed a discarded runtime category: $wrong_runtime_forward_out"
+  fi
+
+  DIRECT_WORKER_OPEN="$TMPROOT/projection-worker-with-direct-open.rs"
+  python3 - "$PROJECTION_WORKER_SOURCE" "$DIRECT_WORKER_OPEN" <<'PY'
+from pathlib import Path
+import sys
+
+source, output = map(Path, sys.argv[1:])
+text = source.read_text()
+declaration = 'fn bypass_managed_factory() { let _ = Connection::open("/tmp/bypass"); }\n'
+output.write_text(text + "\n" + declaration)
+PY
+  set +e
+  direct_worker_open_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 PROJECTION_WORKER_SOURCE="$DIRECT_WORKER_OPEN" bash "$0" 2>&1)"
+  direct_worker_open_rc=$?
+  set -e
+  if [ "$direct_worker_open_rc" -ne 0 ] \
+    && grep -Fq 'direct SQLite open outside sole audited factory' <<<"$direct_worker_open_out" \
+    && grep -Fq 'projection_worker.rs' <<<"$direct_worker_open_out"; then
+    pass "mutation rejects a direct SQLite open in a moved production owner"
+  else
+    fail "mutation missed a direct SQLite open in the projection worker: $direct_worker_open_out"
   fi
 
   MISSING_ERASURE_OWNER="$TMPROOT/erasure-without-completion-owner.rs"

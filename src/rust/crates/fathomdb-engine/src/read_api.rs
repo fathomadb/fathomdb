@@ -1,14 +1,40 @@
+use crate::dependency_closure;
 use crate::errors::EngineError;
 use crate::filter::{Filter, Predicate, PREDICATE_PATH_ALLOWLIST};
 use crate::frozen_read::FrozenReadContextV1;
 use crate::pagination::{self, PageRequestV1, PageV1};
 use crate::read::{NodeRecord, OpStoreRow, OperationalStateRecordV1, PageReaderError};
 use crate::reader_pool::ReaderRequest;
-use crate::temporal::ReadView;
+use crate::temporal::{current_epoch_seconds, ReadView};
 use crate::Engine;
+use rusqlite::{params, OptionalExtension};
 use std::sync::mpsc::{self, Receiver};
 
 impl Engine {
+    /// 0.8.16 Slice 5 / F9 (R-F9-1) — read back the `importance` scalar for the
+    /// `canonical_nodes` row identified by `write_cursor`. `None` = SQL `NULL` =
+    /// never assigned (graceful-absent). The reciprocal read for
+    /// [`Engine::write_node_importance`].
+    pub fn node_importance(&self, write_cursor: u64) -> Result<Option<f64>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let eligibility =
+            dependency_closure::read_eligibility_sql("canonical_nodes", false, false, false, 2);
+        connection
+            .query_row(
+                &format!(
+                    "SELECT importance FROM canonical_nodes \
+                     WHERE write_cursor = ?1{eligibility} LIMIT 1"
+                ),
+                params![write_cursor, current_epoch_seconds()],
+                |r| r.get::<_, Option<f64>>(0),
+            )
+            .optional()
+            .map(Option::flatten)
+            .map_err(|_| EngineError::Storage)
+    }
+
     /// Test-only matched-shape canonical query without frozen-token or cursor work.
     #[cfg(feature = "test-hooks")]
     #[doc(hidden)]

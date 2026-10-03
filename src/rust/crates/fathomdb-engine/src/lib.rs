@@ -1632,30 +1632,6 @@ impl Engine {
         self.projection_runtime.shared.importance_reweight_enabled.store(enabled, Ordering::SeqCst);
     }
 
-    /// 0.8.16 Slice 5 / F9 (R-F9-1) — read back the `importance` scalar for the
-    /// `canonical_nodes` row identified by `write_cursor`. `None` = SQL `NULL` =
-    /// never assigned (graceful-absent). The reciprocal read for
-    /// [`Engine::write_node_importance`].
-    pub fn node_importance(&self, write_cursor: u64) -> Result<Option<f64>, EngineError> {
-        self.ensure_open()?;
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let eligibility =
-            dependency_closure::read_eligibility_sql("canonical_nodes", false, false, false, 2);
-        connection
-            .query_row(
-                &format!(
-                    "SELECT importance FROM canonical_nodes \
-                     WHERE write_cursor = ?1{eligibility} LIMIT 1"
-                ),
-                params![write_cursor, current_epoch_seconds()],
-                |r| r.get::<_, Option<f64>>(0),
-            )
-            .optional()
-            .map(Option::flatten)
-            .map_err(|_| EngineError::Storage)
-    }
-
     /// GA-2 / Slice-40 (◆ B-1) measurement seam — make `search()` return the
     /// pre-fusion VECTOR-branch ranking (the ANN+ bit-KNN K=192 + f32 rerank
     /// signal) instead of the unconditional RRF-fused result, so the eu7 recall

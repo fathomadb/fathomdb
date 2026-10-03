@@ -26,13 +26,14 @@ METHOD_DECL = re.compile(
 
 
 def source_prelude(source: str, start: int, indent: str) -> list[str]:
-    lines = source[:start].splitlines()
+    prefix = re.sub(r"/\*.*?\*/|//[^\n]*", "", source[:start], flags=re.S)
+    lines = prefix.splitlines()
     attrs = []
     for line in reversed(lines):
+        if not line.strip():
+            continue
         if line.startswith(indent + "#["):
             attrs.append(line.strip())
-        elif line.startswith(indent + "///"):
-            continue
         else:
             break
     return attrs
@@ -177,6 +178,26 @@ class OperatorIntegrityOwnerTest(unittest.TestCase):
                 "impl Engine {", '#[cfg(test)]\nimpl Engine {', 1
             )),
         )
+        for attr in ('#[cfg(test)]',
+                     '#[cfg_attr(feature = "default-embedder", cfg(test))]'):
+            for comment in ('// legal comment', '/* legal block comment */',
+                            '/* legal\n   block comment */', '/// legal doc comment'):
+                with self.subTest(attr=attr, comment=comment):
+                    changed = owner.replace("impl Engine {", attr + "\n" + comment + "\nimpl Engine {", 1)
+                    self.assertIn(
+                        "operator owner lacks cfg(operator) Engine::check_integrity",
+                        owner_errors(root, changed),
+                    )
+                    changed = owner.replace(
+                        '    #[cfg(feature = "operator")]\n    pub fn check_integrity(',
+                        '    #[cfg(feature = "operator")]\n    ' + attr + '\n    ' + comment +
+                        '\n    pub fn check_integrity(',
+                        1,
+                    )
+                    self.assertIn(
+                        "operator owner lacks cfg(operator) Engine::check_integrity",
+                        owner_errors(root, changed),
+                    )
 
     def test_wrong_owner_method_family_mutants(self) -> None:
         root, owner = self.sources()

@@ -173,6 +173,7 @@ forbid-dependency embed_dispatch::core open
 forbid-dependency embed_dispatch::core connection_runtime
 forbid-dependency embed_dispatch::core reader_pool
 forbid-dependency embed_dispatch::core wal_runtime
+forbid-dependency embed_dispatch::core runtime_lifecycle
 forbid-dependency embed_dispatch::core projection_runtime
 forbid-dependency embed_dispatch::core search
 forbid-dependency search reader_pool

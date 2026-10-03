@@ -5,6 +5,8 @@ from pathlib import Path
 import re
 import unittest
 
+from rust_source_lex import rust_code_tokens
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
@@ -21,6 +23,16 @@ FAMILY = re.compile(
 CORE_METHODS = {"begin_d27_observation", "d27_observation"}
 IMPL = re.compile(r"(?ms)^impl Engine \{.*?^}")
 CFG = re.compile(r"#\[\s*cfg(?:_attr)?\b")
+
+
+def core_dependency_escape(core: str) -> bool:
+    tokens = rust_code_tokens(core)
+    for index, token in enumerate(tokens):
+        if token in ("Engine", "Connection", "ProjectionRuntime", "rusqlite", "super"):
+            return True
+        if token == "crate" and tokens[index - 2:index + 2] != ["pub", "(", "crate", ")"]:
+            return True
+    return False
 
 
 def prelude(source: str, start: int) -> list[str]:
@@ -82,11 +94,9 @@ def owner_errors(root: str, modules: dict[str, str], standalone: str) -> list[st
     if not core:
         errors.append("embed_dispatch lacks standalone core")
     else:
-        body = re.sub(r"/\*.*?\*/|//[^\n]*", "", core, flags=re.S)
-        if re.search(r"\b(?:Engine|Connection|ProjectionRuntime|rusqlite)\b|"
-                     r"\b(?:crate|super)::|\buse\s+crate\b", body):
+        if core_dependency_escape(core):
             errors.append("standalone dispatch core depends on Engine or another runtime owner")
-        if "macro_rules!" in body:
+        if "macro_rules" in rust_code_tokens(core):
             errors.append("standalone dispatch core hides edges in a macro")
     root_module = re.search(r"(?m)^mod embed_dispatch;$", root)
     if not root_module or any(CFG.match(attr) for attr in prelude(root, root_module.start())):
@@ -150,6 +160,29 @@ class D27AdapterOwnerTest(unittest.TestCase):
                    "\n#[allow(unused_imports)] use super::d27_observation as hidden_adapter;\n"}
         self.assertIn("standalone dispatch core depends on Engine or another runtime owner",
                       owner_errors(root, changed, standalone))
+        for literal in ('"/*"', 'b"/*"', 'r#"/*"#', 'r###"quote " /*"###',
+                        'br##"quote " /*"##', "'x'", "b'x'"):
+            with self.subTest(literal=literal):
+                edge = (f'\nfn literal_witness() {{ let _ = {literal}; }}\n'
+                        "fn lifetime_identity<'a>(value: &'a str) -> &'a str { value }\n"
+                        '#[cfg(not(test))]\n#[allow(unused_imports)]\n'
+                        'use crate :: runtime_lifecycle as hidden_lifecycle;\n'
+                        '/* nested /* ignored */ end */\n')
+                changed = modules | {"embed_dispatch/core.rs": modules["embed_dispatch/core.rs"] + edge}
+                self.assertIn("standalone dispatch core depends on Engine or another runtime owner",
+                              owner_errors(root, changed, standalone))
+        harmless = modules["embed_dispatch/core.rs"] + (
+            '\n// use crate::runtime_lifecycle as commented;\n'
+            '/* use crate::reader_pool as commented; /* nested */ */\n'
+            'const PATH_TEXT: &str = r#"crate::wal_runtime"#;\n'
+        )
+        self.assertEqual(owner_errors(root, modules | {"embed_dispatch/core.rs": harmless}, standalone), [])
+        with self.assertRaises(ValueError):
+            owner_errors(root, modules | {"embed_dispatch/core.rs": modules["embed_dispatch/core.rs"] +
+                                          '\nconst BAD: &str = r#"unterminated;\n'}, standalone)
+        with self.assertRaises(ValueError):
+            owner_errors(root, modules | {"embed_dispatch/core.rs": modules["embed_dispatch/core.rs"] +
+                                          "\nconst BAD: u8 = b'unterminated;\n"}, standalone)
         changed = standalone.replace("../src/embed_dispatch/core.rs", "../src/embed_dispatch.rs", 1)
         self.assertIn("standalone dispatcher test does not include Engine-free core",
                       owner_errors(root, modules, changed))

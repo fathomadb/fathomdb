@@ -1,5 +1,10 @@
 use super::*;
 
+#[cfg(feature = "operator")]
+mod data_plane;
+#[cfg(feature = "operator")]
+pub use data_plane::{inspect_data_plane_integrity, recover_truncate_wal};
+
 /// Typed outcome of [`Engine::verify_embedder`]. Mismatches do not raise
 /// `EngineError`; the operator workflow needs to see the stored vs.
 /// supplied pair to decide on next action.

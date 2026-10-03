@@ -53,6 +53,7 @@ reported lifecycle
 reported mean
 reported open
 reported operator
+reported operator::data_plane
 reported pagination
 reported pagination::tests
 reported projection_commit

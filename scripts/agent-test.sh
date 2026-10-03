@@ -185,6 +185,7 @@ run_tier_suite fast test-slice90-wal-inventory-arms-owner python3 scripts/tests/
 run_tier_suite fast test-slice90-index-projector-owner python3 scripts/tests/test_slice90_index_projector_owner.py
 run_tier_suite fast test-slice90-operator-diagnostics-owner python3 scripts/tests/test_slice90_operator_diagnostics_owner.py
 run_tier_suite fast test-slice90-operator-integrity-owner python3 scripts/tests/test_slice90_operator_integrity_owner.py
+run_tier_suite fast test-slice90-operator-recovery-owner python3 scripts/tests/test_slice90_operator_recovery_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

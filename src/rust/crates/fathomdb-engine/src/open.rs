@@ -2029,3 +2029,27 @@ fn check_embedder_profile(
 
     Ok(pinned)
 }
+
+pub(crate) fn read_only_sqlite_uri(path: &Path) -> String {
+    sqlite_uri(path, "mode=ro")
+}
+
+pub(crate) fn sqlite_uri(path: &Path, query: &str) -> String {
+    let mut uri = String::from("file:");
+    for byte in path.as_os_str().as_encoded_bytes() {
+        match *byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' => {
+                uri.push(char::from(*byte))
+            }
+            byte => {
+                const HEX: &[u8; 16] = b"0123456789ABCDEF";
+                uri.push('%');
+                uri.push(char::from(HEX[usize::from(byte >> 4)]));
+                uri.push(char::from(HEX[usize::from(byte & 0x0f)]));
+            }
+        }
+    }
+    uri.push('?');
+    uri.push_str(query);
+    uri
+}

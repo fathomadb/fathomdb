@@ -710,11 +710,11 @@ impl Engine {
         Ok(())
     }
 
-    /// 0.8.20 Slice 15e — run an arbitrary read-only SELECT on the ENGINE
-    /// connection (which has the vec0 extension loaded, unlike a bare
-    /// `Connection::open`) and collect column 0 as `i64`. Lets a test run a
-    /// phase-1-style KNN `MATCH ... {attr clause}` and observe which `rowid`s
-    /// survive the pre-KNN filter.
+    /// 0.8.20 Slice 15e — prepare arbitrary SQL on the Engine writer connection
+    /// (which has the vec0 extension loaded, unlike a bare `Connection::open`)
+    /// and collect column 0 as `i64`. DML with `RETURNING` may mutate the
+    /// database. A test can run a phase-1-style KNN `MATCH ... {attr clause}`
+    /// and observe which `rowid`s survive the pre-KNN filter.
     #[doc(hidden)]
     pub fn query_i64_col_for_test(&self, sql: &str) -> Result<Vec<i64>, EngineError> {
         self.ensure_open()?;
@@ -726,8 +726,10 @@ impl Engine {
         rows.collect::<rusqlite::Result<Vec<i64>>>().map_err(|_| EngineError::Storage)
     }
 
-    /// 0.8.20 Slice 15e — as [`query_i64_col_for_test`] but collects column 0 as
-    /// `String` (e.g. an `attr_<hex>` metadata column's stored value).
+    /// 0.8.20 Slice 15e — prepare arbitrary SQL on the same writer connection
+    /// as [`query_i64_col_for_test`] and collect column 0 as `String` (e.g. an
+    /// `attr_<hex>` metadata column's stored value). DML with `RETURNING` may
+    /// mutate the database.
     #[doc(hidden)]
     pub fn query_text_col_for_test(&self, sql: &str) -> Result<Vec<String>, EngineError> {
         self.ensure_open()?;

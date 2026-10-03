@@ -1,6 +1,8 @@
 use super::*;
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::erasure::{ERASURE_WAL_TRUNCATE_ATTEMPTS, ERASURE_WAL_TRUNCATE_BACKOFF_MS};
+#[cfg(any(test, feature = "test-hooks"))]
+use crate::reader_pool::READER_POOL_SIZE;
 
 /// Test-only live-connection audit. Each long-lived Engine connection acquires
 /// one registration after its actual SQLite handle exists and drops it when the
@@ -69,7 +71,7 @@ impl ManagedConnectionRegistry {
     }
 
     pub(crate) fn exact_live(&self, worker_count: usize) -> bool {
-        let expected = native_state_expected_roles(worker_count);
+        let expected = native_state_expected_roles(READER_POOL_SIZE, worker_count);
         self.live.lock().map(|live| *live == expected).unwrap_or(false)
     }
 
@@ -583,7 +585,7 @@ impl Engine {
             }
         }
         facts.sort_by_key(|fact| (fact.role, fact.index));
-        let expected = native_state_expected_roles(worker_count);
+        let expected = native_state_expected_roles(READER_POOL_SIZE, worker_count);
         let actual = facts.iter().map(|fact| (fact.role, fact.index)).collect::<BTreeSet<_>>();
         let unique = facts.len() == actual.len();
         let managed = self.managed_connections.exact_live(worker_count);

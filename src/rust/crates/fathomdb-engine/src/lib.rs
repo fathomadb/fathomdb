@@ -427,11 +427,6 @@ use sha2::Sha256;
 const PROJECTION_WORKERS: usize = 2;
 const DEFAULT_EMBED_TIMEOUT_MS: u64 = 30_000;
 
-/// Reader pool size. Per `dev/design/engine.md` § Writer / reader split,
-/// reader connections are pooled and never serialize behind one
-/// connection. AC-021 exercises 8 concurrent readers.
-const READER_POOL_SIZE: usize = 8;
-
 pub struct Engine {
     path: PathBuf,
     requested_config: EngineConfig,
@@ -2290,7 +2285,7 @@ mod slice90_post_probe_real_error_tests;
 #[cfg(test)]
 mod tests {
     use super::erasure::ERASURE_WAL_TRUNCATE_ATTEMPTS;
-    use super::reader_pool::ReaderRequest;
+    use super::reader_pool::{ReaderRequest, READER_POOL_SIZE};
     use super::vector_storage::KIND_TO_SOURCE_TYPE_CASE_SQL;
     use super::{
         acquire_lock_without_metadata_mutation, derive_stable_id,
@@ -2301,7 +2296,7 @@ mod tests {
         ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, ProjectionRuntime,
         ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole, RuntimeProbeConnection,
         SearchHit, SoftFallbackBranch, SourceId, WalAttributionCollector, WalAttributionRole,
-        PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+        PROJECTION_WORKERS, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,

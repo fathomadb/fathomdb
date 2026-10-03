@@ -201,6 +201,7 @@ run_tier_suite fast test-slice90-vector-constants-owner python3 scripts/tests/te
 run_tier_suite fast test-slice90-erasure-bookkeeping-owner python3 scripts/tests/test_slice90_erasure_bookkeeping_owner.py
 run_tier_suite fast test-slice90-record-lifecycle-owner python3 scripts/tests/test_slice90_record_lifecycle_owner.py
 run_tier_suite fast test-slice90-temporal-epoch-owner python3 scripts/tests/test_slice90_temporal_epoch_owner.py
+run_tier_suite fast test-slice90-reader-pool-size-owner python3 scripts/tests/test_slice90_reader_pool_size_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

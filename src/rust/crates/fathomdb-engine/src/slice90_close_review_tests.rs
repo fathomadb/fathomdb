@@ -1,6 +1,7 @@
+use super::reader_pool::READER_POOL_SIZE;
 use super::{
     acquire_lock_without_metadata_mutation, install_post_probe_startup_fault_for_test,
-    EmbedderChoice, Engine, EngineConfig, EngineError, EngineOpenError, READER_POOL_SIZE,
+    EmbedderChoice, Engine, EngineConfig, EngineError, EngineOpenError,
 };
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use std::sync::{mpsc, Arc, Mutex};

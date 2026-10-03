@@ -1,3 +1,8 @@
+/// Reader pool size. Per `dev/design/engine.md` § Writer / reader split,
+/// reader connections are pooled and never serialize behind one
+/// connection. AC-021 exercises 8 concurrent readers.
+pub(crate) const READER_POOL_SIZE: usize = 8;
+
 /// Thread-affine reader worker pool (Pack 6 F.0).
 ///
 /// Per `dev/design/engine.md` § Writer / reader split, reader connections

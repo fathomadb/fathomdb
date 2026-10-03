@@ -509,7 +509,13 @@ receipts are recorded. The performance receipt binds the exact strict passing
 D27 retry and records the third-run HITL ruling with the unchanged verifier
 miss. The structured runtime checkpoint binds exact candidate `2e94aaf4f`,
 receipt commit `4a98a1e80`, and three PASS receipt hashes in release state;
-`scripts/check-runtime-checkpoints.py` passes. Structural Phase 3 has not
-begun. Final GPU and official public/hidden surface
-captures and Slice 85 recovery comparison remain after the checkpoint.
+`scripts/check-runtime-checkpoints.py` passes. Structural Phase 3 is in
+progress on the clean release branch. Reviewed ownership moves through
+projection rebuild and commit, telemetry, and lifecycle event dispatch have
+landed; the release branch passed its full verification gate at `48112e56f`
+with 152/152 suites and no skips or exclusions. The telemetry and lifecycle
+commits landed after that gate and are awaiting their merged-tree full gate.
+Remaining owner moves and the final root inventory precede the exact-final-
+candidate D27, default performance, installed binding, GPU, public/hidden
+surface, non-Linux, independent review, and Slice 85 recovery comparisons.
 Slice 90 remains IN_PROGRESS.

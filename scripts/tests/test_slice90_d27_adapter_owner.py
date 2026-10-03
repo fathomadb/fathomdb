@@ -27,6 +27,13 @@ CFG = re.compile(r"#\[\s*cfg(?:_attr)?\b")
 
 
 def core_dependency_escape(core: str) -> bool:
+    observation_import = re.compile(
+        r'(?m)^#\[cfg\(feature = "test-hooks"\)\]$\nuse super::d27_observation;$'
+    )
+    matches = list(observation_import.finditer(core))
+    if len(matches) != 1:
+        return True
+    core = core[:matches[0].start()] + core[matches[0].end():]
     tokens = rust_code_tokens(core)
     for index, token in enumerate(tokens):
         if token in ("Engine", "Connection", "ProjectionRuntime", "rusqlite", "super"):
@@ -62,6 +69,9 @@ def owner_errors(root: str, modules: dict[str, str], standalone: str) -> list[st
         errors.append("embed_dispatch gates whole owner module")
     if not re.search(r"(?m)^mod core;$", owner) or not re.search(r"(?m)^pub\(crate\) use core::\*;$", owner):
         errors.append("embed_dispatch does not expose one ordinary core module")
+    observation_module = re.search(r"(?m)^pub\(crate\) mod d27_observation;$", owner)
+    if not observation_module or [attr for attr in prelude(owner, observation_module.start()) if CFG.match(attr)] != [HOOKS_NORMALIZED]:
+        errors.append("embed_dispatch changes D27 observation type owner")
     if "macro_rules!" in owner:
         errors.append("embed_dispatch hides adapter edges in a macro")
     impls = list(IMPL.finditer(owner))
@@ -98,6 +108,8 @@ def owner_errors(root: str, modules: dict[str, str], standalone: str) -> list[st
         errors.append("root changes public D27Observation path or gate")
     if not re.search(r'(?m)^#\[path = "\.\./src/embed_dispatch/core\.rs"\]$\nmod embed_dispatch;$', standalone):
         errors.append("standalone dispatcher test does not include Engine-free core")
+    if not re.search(r'(?m)^#\[path = "\.\./src/embed_dispatch/d27_observation\.rs"\]$\nmod d27_observation;$', standalone):
+        errors.append("standalone dispatcher test does not include observation types")
     return errors
 
 
@@ -201,6 +213,10 @@ class D27AdapterOwnerTest(unittest.TestCase):
         changed = standalone.replace("../src/embed_dispatch/core.rs", "../src/embed_dispatch.rs", 1)
         self.assertIn("standalone dispatcher test does not include Engine-free core",
                       owner_errors(root, modules, changed))
+        changed = owner.replace('pub(crate) mod d27_observation;',
+                                'pub(crate) use core::d27_observation;', 1)
+        self.assertIn("embed_dispatch changes D27 observation type owner",
+                      owner_errors(root, modules | {"embed_dispatch.rs": changed}, standalone))
 
     def test_fast_registration(self) -> None:
         self.assertIn("fast test-slice90-d27-adapter-owner",

@@ -29,7 +29,7 @@ reported dependency_closure
 reported dependency_trace
 reported embed_dispatch
 reported embed_dispatch::core
-reported embed_dispatch::core::d27_observation
+reported embed_dispatch::d27_observation
 reported embedding
 reported erasure
 admitted errors

@@ -2,6 +2,8 @@
 
 mod core;
 pub(crate) use core::*;
+#[cfg(feature = "test-hooks")]
+pub(crate) mod d27_observation;
 
 #[cfg(feature = "test-hooks")]
 use crate::D27Observation;

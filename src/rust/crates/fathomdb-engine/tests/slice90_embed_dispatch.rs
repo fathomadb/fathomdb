@@ -1,5 +1,10 @@
 //! Executor-only tests for the bounded engine-owned embed dispatcher.
 
+#[cfg(feature = "test-hooks")]
+#[allow(dead_code)] // The standalone dispatcher tests exercise the collector, not owner scopes.
+#[path = "../src/embed_dispatch/d27_observation.rs"]
+mod d27_observation;
+
 #[path = "../src/embed_dispatch/core.rs"]
 mod embed_dispatch;
 

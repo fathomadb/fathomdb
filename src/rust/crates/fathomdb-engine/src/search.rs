@@ -2442,12 +2442,14 @@ use crate::fusion::{
 };
 use crate::graph_expand::{self, search_expand_on_snapshot, SearchExpandResult};
 use crate::identity::{derive_stable_id, IdSpace};
+use crate::load_next_cursor;
 use crate::mean::{identity_requires_mean_centering, read_pinned_mean_vec, subtract_mean};
 use crate::projection_commit::load_projection_cursor;
 use crate::projection_generation::{
     self, ProjectionGenerationOriginV1, ProjectionReadinessV1, ProjectionRuntimeStateV1,
 };
 use crate::projection_registry::load_projection_registry;
+use crate::projection_runtime::PROJECTION_CURSOR_KEY;
 use crate::reader_transaction::begin_attributed_reader_tx;
 use crate::rerank::try_rerank_fused;
 use crate::search_types::{
@@ -2465,7 +2467,6 @@ use crate::test_hooks::{
     evidence_linearization_hooks, frozen_after_validation_hook, reader_search_hook,
 };
 use crate::wal_attribution::WalAttributionCollector;
-use crate::{load_next_cursor, PROJECTION_CURSOR_KEY};
 use fathomdb_embedder::RerankerDevicePolicyError;
 use fathomdb_embedder_api::EmbedderIdentity;
 use fathomdb_query::compile_text_query;

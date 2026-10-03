@@ -1,5 +1,128 @@
 use super::*;
 
+/// The reason [`ProjectionRuntimeStatus::runtime_embedder_available`] is false.
+///
+/// This facade is deliberately distinct from the internal lifecycle
+/// `ProjectionStatus`: it describes this open engine session's ability to run
+/// the shared dense pipeline, not the terminal state of a canonical row.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProjectionRuntimeUnavailabilityReason {
+    /// A usable dense runtime is attached, so there is no unavailability.
+    None,
+    /// This engine session was opened without an attached embedder.
+    NoRuntime,
+    /// The attached embedder failed the existing vector-equivalence guard.
+    VectorEquivalenceDisabled,
+}
+
+impl ProjectionRuntimeUnavailabilityReason {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::NoRuntime => "no_runtime",
+            Self::VectorEquivalenceDisabled => "vector_equivalence_disabled",
+        }
+    }
+}
+
+/// The dense-readiness projection of [`ProjectionRuntimeStatusEntry`].
+///
+/// `NotDeclared` means that the declaration has no *effective* vector arm.
+/// The remaining states reuse the shared runtime/readiness facts, which are
+/// corpus-wide until the engine gains per-projection dense work tracking.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProjectionStatusDenseReadiness {
+    /// The declaration has no `searchable` + vector sub-object pair.
+    NotDeclared,
+    /// An effective vector arm exists but this session has no usable runtime.
+    Unavailable,
+    /// An effective vector arm has eligible outstanding shared dense work.
+    Embedding,
+    /// An effective vector arm's shared dense work is quiescent.
+    Ready,
+}
+
+impl ProjectionStatusDenseReadiness {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NotDeclared => "not_declared",
+            Self::Unavailable => "unavailable",
+            Self::Embedding => "embedding",
+            Self::Ready => "ready",
+        }
+    }
+}
+
+/// One declaration's current dense status in [`ProjectionRuntimeStatus`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProjectionRuntimeStatusEntry {
+    /// Declared projection name. Entries are returned in ascending name order.
+    pub name: String,
+    /// Current dense state for this declaration's effective vector arm.
+    pub dense_readiness: ProjectionStatusDenseReadiness,
+}
+
+/// A pure, current view of projection-runtime facts for one open engine session.
+///
+/// `runtime_embedder_available` and its reason describe the dense runtime, not
+/// whether any projection is declared. `projections` contains one entry per
+/// durable declaration, sorted by name. `vector_unsupported_kinds` is current
+/// and declaration-scoped: it is empty unless at least one declaration has an
+/// effective (`searchable` + vector) arm.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProjectionRuntimeStatus {
+    /// Whether an attached embedder passed the identity/equivalence safeguards.
+    pub runtime_embedder_available: bool,
+    /// `None` exactly when `runtime_embedder_available` is true.
+    pub runtime_unavailability_reason: ProjectionRuntimeUnavailabilityReason,
+    /// One sorted entry for every durable declaration.
+    pub projections: Vec<ProjectionRuntimeStatusEntry>,
+    /// Sorted, deduplicated permanently non-committable kinds for an effective arm.
+    pub vector_unsupported_kinds: Vec<String>,
+}
+
+pub(crate) fn projection_status(
+    connection: &Connection,
+    kind: &str,
+) -> Result<lifecycle::ProjectionStatus, EngineError> {
+    let latest = connection
+        .query_row(
+            "SELECT COALESCE(MAX(write_cursor), 0) FROM canonical_nodes WHERE kind = ?1",
+            [kind],
+            |row| row.get::<_, u64>(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    if latest == 0 {
+        return Ok(lifecycle::ProjectionStatus::UpToDate);
+    }
+    let pending: u64 = connection
+        .query_row(
+            "SELECT COUNT(*)
+             FROM canonical_nodes
+             LEFT JOIN _fathomdb_projection_terminal
+               ON _fathomdb_projection_terminal.write_cursor = canonical_nodes.write_cursor
+             WHERE canonical_nodes.kind = ?1
+               AND _fathomdb_projection_terminal.write_cursor IS NULL",
+            [kind],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    if pending > 0 {
+        return Ok(lifecycle::ProjectionStatus::Pending);
+    }
+    match terminal_state_for_cursor(connection, latest).map_err(|_| EngineError::Storage)? {
+        Some(state) if state == "failed" => Ok(lifecycle::ProjectionStatus::Failed),
+        _ => Ok(lifecycle::ProjectionStatus::UpToDate),
+    }
+}
+
+const PROJECTION_RUNTIME_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
+const DEFAULT_PROJECTION_RETRY_DELAYS_MS: [u64; 3] = [1_000, 4_000, 16_000];
+pub(crate) const PROJECTION_TEMPORAL_WAKE_POLL: Duration = Duration::from_secs(1);
+pub(crate) const PROJECTION_CURSOR_KEY: &str = "projection_cursor";
+
 #[derive(Clone, Debug)]
 pub(crate) struct ProjectionJob {
     pub(crate) cursor: u64,

@@ -1,4 +1,5 @@
 use super::*;
+use crate::projection_runtime::PROJECTION_CURSOR_KEY;
 
 pub(crate) fn load_projection_cursor(connection: &Connection) -> rusqlite::Result<u64> {
     connection

@@ -1,5 +1,6 @@
 use super::*;
 use crate::embedding::EDGE_FACT_KIND;
+use crate::projection_runtime::PROJECTION_TEMPORAL_WAKE_POLL;
 
 #[cfg(any(test, feature = "test-hooks"))]
 fn report_runtime_connection_inventory_for_test(

@@ -51,6 +51,7 @@ reported index_projector
 reported ingest
 reported lifecycle
 reported mean
+reported mean::mean_centering_internals_for_test
 reported open
 reported operator
 reported operator::data_plane
@@ -73,7 +74,6 @@ reported record_lifecycle
 reported rerank
 admitted root
 reported root::gpu_allocation_witness_opt_in_tests
-reported root::mean_centering_internals_for_test
 reported root::tests
 reported runtime_configuration
 reported runtime_configuration::tests

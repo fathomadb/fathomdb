@@ -25,6 +25,41 @@ pub struct MeanRecomputeReport {
 /// assert the value.
 pub const MEAN_VEC_PIN_THRESHOLD: u64 = 256;
 
+/// EU-5a2 — test-visible re-exports of the mean-centering internals.
+/// Per the handoff RED tests; the production accumulator and re-quantize
+/// pass are otherwise crate-private.
+#[doc(hidden)]
+pub mod mean_centering_internals_for_test {
+    use super::MeanAccumulator;
+    use crate::EmbedderEvent;
+
+    pub struct AccumulatorHandle(MeanAccumulator);
+
+    #[must_use]
+    pub fn new_mean_accumulator(dim: usize) -> AccumulatorHandle {
+        AccumulatorHandle(MeanAccumulator::new(dim))
+    }
+
+    pub fn accumulator_add(handle: &mut AccumulatorHandle, v: &[f32]) {
+        handle.0.add(v);
+    }
+
+    #[must_use]
+    pub fn accumulator_materialize(handle: &AccumulatorHandle) -> Vec<f32> {
+        handle.0.materialize()
+    }
+
+    #[must_use]
+    pub fn accumulator_count(handle: &AccumulatorHandle) -> u64 {
+        handle.0.count()
+    }
+
+    #[must_use]
+    pub fn run_requantize_pass(rows: &[(i64, Vec<u8>)], mean: &[f32]) -> (u64, Vec<EmbedderEvent>) {
+        super::run_requantize_pass(rows, mean)
+    }
+}
+
 /// EU-5a2 — streaming f64 accumulator for the mean-centering pipeline,
 /// per `dev/design/embedder.md` §0.3 (f64 chosen to bound numerical
 /// drift across `MEAN_VEC_PIN_THRESHOLD` adds). Owned by the projection
@@ -351,6 +386,15 @@ pub(crate) fn subtract_mean(v: &[f32], mean: &[f32]) -> Vec<f32> {
 }
 
 impl Engine {
+    /// 0.7.2 PR-2b test seam — arm a one-shot fault inside the NEXT
+    /// `recompute_mean` so it errors after the `mean_vec` UPDATE but before
+    /// the re-quantize completes. Proves the recompute tx rolls back whole.
+    #[doc(hidden)]
+    #[cfg(debug_assertions)]
+    pub fn force_next_recompute_failure_for_test(&self) {
+        self.projection_runtime.shared.force_recompute_failure.store(true, Ordering::SeqCst);
+    }
+
     /// 0.7.2 PR-2b — explicit `doctor recompute-mean` path. Re-derives the
     /// pinned corpus mean from the current `vector_default` rows and
     /// re-quantizes every row, SYNCHRONOUSLY in one transaction. ALWAYS

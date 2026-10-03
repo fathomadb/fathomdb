@@ -217,9 +217,11 @@ use index_projector::{
     search_index_tokenizer_reproject_complete, SEARCH_INDEX_TOKENIZER_SCHEMA_VERSION,
 };
 pub use ingest::{ExtractDocument, IngestWithExtractorReceipt};
+#[doc(hidden)]
+pub use mean::mean_centering_internals_for_test;
 use mean::{
     identity_requires_mean_centering, read_pinned_mean_vec, recover_mean_vec_pin,
-    run_pin_and_requantize_pass, run_requantize_pass, subtract_mean, MeanAccumulator,
+    run_pin_and_requantize_pass, subtract_mean, MeanAccumulator,
 };
 pub use mean::{MeanRecomputeReport, MEAN_VEC_PIN_THRESHOLD};
 #[cfg(feature = "operator")]
@@ -1645,15 +1647,6 @@ impl Engine {
         self.projection_runtime.shared.vector_stage_only_for_test.store(enabled, Ordering::SeqCst);
     }
 
-    /// 0.7.2 PR-2b test seam — arm a one-shot fault inside the NEXT
-    /// `recompute_mean` so it errors after the `mean_vec` UPDATE but before
-    /// the re-quantize completes. Proves the recompute tx rolls back whole.
-    #[doc(hidden)]
-    #[cfg(debug_assertions)]
-    pub fn force_next_recompute_failure_for_test(&self) {
-        self.projection_runtime.shared.force_recompute_failure.store(true, Ordering::SeqCst);
-    }
-
     #[doc(hidden)]
     pub fn vector_row_count_for_test(&self) -> Result<u64, EngineError> {
         self.ensure_open()?;
@@ -1962,40 +1955,6 @@ impl Engine {
         }
 
         Ok(())
-    }
-}
-
-/// EU-5a2 — test-visible re-exports of the mean-centering internals.
-/// Per the handoff RED tests; the production accumulator and re-quantize
-/// pass are otherwise crate-private.
-#[doc(hidden)]
-pub mod mean_centering_internals_for_test {
-    use super::{EmbedderEvent, MeanAccumulator};
-
-    pub struct AccumulatorHandle(MeanAccumulator);
-
-    #[must_use]
-    pub fn new_mean_accumulator(dim: usize) -> AccumulatorHandle {
-        AccumulatorHandle(MeanAccumulator::new(dim))
-    }
-
-    pub fn accumulator_add(handle: &mut AccumulatorHandle, v: &[f32]) {
-        handle.0.add(v);
-    }
-
-    #[must_use]
-    pub fn accumulator_materialize(handle: &AccumulatorHandle) -> Vec<f32> {
-        handle.0.materialize()
-    }
-
-    #[must_use]
-    pub fn accumulator_count(handle: &AccumulatorHandle) -> u64 {
-        handle.0.count()
-    }
-
-    #[must_use]
-    pub fn run_requantize_pass(rows: &[(i64, Vec<u8>)], mean: &[f32]) -> (u64, Vec<EmbedderEvent>) {
-        super::run_requantize_pass(rows, mean)
     }
 }
 

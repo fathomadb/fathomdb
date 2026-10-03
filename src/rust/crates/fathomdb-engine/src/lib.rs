@@ -105,6 +105,7 @@ mod structural_state;
 #[cfg(feature = "tc5-benchmark")]
 pub mod tc5_benchmark;
 mod telemetry;
+pub use telemetry::CounterSnapshot;
 mod temporal;
 mod test_hooks;
 mod vector_equivalence;
@@ -422,9 +423,6 @@ use sha2::Digest;
 use sha2::Digest as _;
 use sha2::Sha256;
 
-/// REQ-006a / AC-007a default slow-statement threshold. Mutated at runtime
-/// via [`Engine::set_slow_threshold_ms`].
-const DEFAULT_SLOW_THRESHOLD_MS: u64 = 100;
 const DEFAULT_VECTOR_PROFILE: &str = "default";
 const DEFAULT_VECTOR_PARTITION: &str = "vector_default";
 
@@ -564,44 +562,6 @@ const DEFAULT_EMBED_TIMEOUT_MS: u64 = 30_000;
 /// reader connections are pooled and never serialize behind one
 /// connection. AC-021 exercises 8 concurrent readers.
 const READER_POOL_SIZE: usize = 8;
-
-#[cfg(all(feature = "test-hooks", target_os = "linux"))]
-fn process_current_rss_bytes() -> u64 {
-    std::fs::read_to_string("/proc/self/status")
-        .ok()
-        .and_then(|status| {
-            status.lines().find_map(|line| {
-                line.strip_prefix("VmRSS:")
-                    .and_then(|value| value.split_whitespace().next())
-                    .and_then(|value| value.parse::<u64>().ok())
-            })
-        })
-        .unwrap_or(0)
-        .saturating_mul(1024)
-}
-
-#[cfg(all(feature = "test-hooks", not(target_os = "linux")))]
-fn process_current_rss_bytes() -> u64 {
-    0
-}
-
-#[cfg(all(feature = "test-hooks", target_os = "linux"))]
-fn process_peak_rss_bytes() -> u64 {
-    let mut usage = std::mem::MaybeUninit::<libc::rusage>::zeroed();
-    // SAFETY: `getrusage` initializes the supplied `rusage` on a zero return.
-    if unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) } == 0 {
-        // SAFETY: guarded by the successful `getrusage` return above.
-        let kilobytes = unsafe { usage.assume_init() }.ru_maxrss;
-        u64::try_from(kilobytes).unwrap_or(0).saturating_mul(1024)
-    } else {
-        0
-    }
-}
-
-#[cfg(all(feature = "test-hooks", not(target_os = "linux")))]
-fn process_peak_rss_bytes() -> u64 {
-    0
-}
 
 pub struct Engine {
     path: PathBuf,
@@ -794,22 +754,6 @@ fn is_legal_transition_move(from: LifecycleState, to: LifecycleState) -> bool {
             | (LifecycleState::Active, LifecycleState::Deleted)
             | (LifecycleState::Deleted, LifecycleState::Active)
     )
-}
-
-/// Snapshot of engine-internal counters returned by [`Engine::counters`].
-///
-/// Public key set is owned by `dev/design/lifecycle.md` § Public key set
-/// and locked by AC-004a. Reading a snapshot is non-perturbing per
-/// AC-004c. The 0.6.0 surface exposes exactly these seven fields.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct CounterSnapshot {
-    pub queries: u64,
-    pub writes: u64,
-    pub write_rows: u64,
-    pub errors_by_code: BTreeMap<String, u64>,
-    pub admin_ops: u64,
-    pub cache_hit: u64,
-    pub cache_miss: u64,
 }
 
 pub use lifecycle::Subscription;
@@ -1075,34 +1019,6 @@ impl Engine {
                 Ok((name.to_string(), details))
             })
             .collect()
-    }
-
-    /// Snapshot of engine-internal counters.
-    ///
-    /// Field set owned by `dev/design/lifecycle.md`.
-    #[must_use]
-    pub fn counters(&self) -> CounterSnapshot {
-        self.counters.snapshot()
-    }
-
-    /// Toggle response-cycle profiling.
-    ///
-    /// Per `dev/design/lifecycle.md` § Per-statement profiling, profiling
-    /// is an opt-in surface that is independently toggleable on a running
-    /// engine without restart. AC-005a locks runtime toggleability.
-    pub fn set_profiling(&self, enabled: bool) -> Result<(), EngineError> {
-        self.profiling_enabled.store(enabled, Ordering::Relaxed);
-        Ok(())
-    }
-
-    /// Set the threshold above which an operation is reported as slow.
-    ///
-    /// Per `dev/design/lifecycle.md` § Slow and heartbeat policy, the
-    /// threshold is runtime-configurable; mutating it changes detection
-    /// behavior on subsequent statements without restart (AC-007b).
-    pub fn set_slow_threshold_ms(&self, value: u64) -> Result<(), EngineError> {
-        self.slow_threshold_ms.store(value, Ordering::Relaxed);
-        Ok(())
     }
 
     /// Attach a host subscriber to engine events.
@@ -2221,11 +2137,11 @@ impl Engine {
                 }),
             )
             .map_err(|_| EngineError::Storage)?;
-        let rss_before = process_peak_rss_bytes();
+        let rss_before = telemetry::process_peak_rss_bytes();
         let started = Instant::now();
         let outcome = dependency_trace::execute(connection, request);
         let elapsed = started.elapsed();
-        let rss_after = process_peak_rss_bytes();
+        let rss_after = telemetry::process_peak_rss_bytes();
         connection
             .progress_handler(0, Option::<fn() -> bool>::None)
             .map_err(|_| EngineError::Storage)?;

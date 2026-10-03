@@ -48,7 +48,7 @@ pub(crate) fn count_graph_expand_sql_statement(event: rusqlite::trace::TraceEven
 #[cfg(feature = "test-hooks")]
 fn observe_current_rss_peak(test_controls: &GraphExpandReaderControlsForTest) {
     let Some(peak) = test_controls.rss_peak_bytes.as_ref() else { return };
-    let observed = crate::process_current_rss_bytes();
+    let observed = crate::telemetry::process_current_rss_bytes();
     let mut current = peak.load(AtomicOrdering::Relaxed);
     while observed > current {
         match peak.compare_exchange_weak(

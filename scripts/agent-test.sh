@@ -194,6 +194,7 @@ run_tier_suite fast test-slice90-projection-registry-carriers-owner python3 scri
 run_tier_suite fast test-slice90-projection-runtime-status-owner python3 scripts/tests/test_slice90_projection_runtime_status_owner.py
 run_tier_suite fast test-slice90-projection-rebuild-owner python3 scripts/tests/test_slice90_projection_rebuild_owner.py
 run_tier_suite fast test-slice90-projection-commit-owner python3 scripts/tests/test_slice90_projection_commit_owner.py
+run_tier_suite fast test-slice90-telemetry-owner python3 scripts/tests/test_slice90_telemetry_owner.py
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

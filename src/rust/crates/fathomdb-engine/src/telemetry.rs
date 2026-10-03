@@ -1,3 +1,60 @@
+/// REQ-006a / AC-007a default slow-statement threshold. Mutated at runtime
+/// via [`Engine::set_slow_threshold_ms`].
+pub(crate) const DEFAULT_SLOW_THRESHOLD_MS: u64 = 100;
+/// Snapshot of engine-internal counters returned by [`Engine::counters`].
+///
+/// Public key set is owned by `dev/design/lifecycle.md` § Public key set
+/// and locked by AC-004a. Reading a snapshot is non-perturbing per
+/// AC-004c. The 0.6.0 surface exposes exactly these seven fields.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CounterSnapshot {
+    pub queries: u64,
+    pub writes: u64,
+    pub write_rows: u64,
+    pub errors_by_code: BTreeMap<String, u64>,
+    pub admin_ops: u64,
+    pub cache_hit: u64,
+    pub cache_miss: u64,
+}
+
+#[cfg(all(feature = "test-hooks", target_os = "linux"))]
+pub(crate) fn process_current_rss_bytes() -> u64 {
+    std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|status| {
+            status.lines().find_map(|line| {
+                line.strip_prefix("VmRSS:")
+                    .and_then(|value| value.split_whitespace().next())
+                    .and_then(|value| value.parse::<u64>().ok())
+            })
+        })
+        .unwrap_or(0)
+        .saturating_mul(1024)
+}
+
+#[cfg(all(feature = "test-hooks", not(target_os = "linux")))]
+pub(crate) fn process_current_rss_bytes() -> u64 {
+    0
+}
+
+#[cfg(all(feature = "test-hooks", target_os = "linux"))]
+pub(crate) fn process_peak_rss_bytes() -> u64 {
+    let mut usage = std::mem::MaybeUninit::<libc::rusage>::zeroed();
+    // SAFETY: `getrusage` initializes the supplied `rusage` on a zero return.
+    if unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) } == 0 {
+        // SAFETY: guarded by the successful `getrusage` return above.
+        let kilobytes = unsafe { usage.assume_init() }.ru_maxrss;
+        u64::try_from(kilobytes).unwrap_or(0).saturating_mul(1024)
+    } else {
+        0
+    }
+}
+
+#[cfg(all(feature = "test-hooks", not(target_os = "linux")))]
+pub(crate) fn process_peak_rss_bytes() -> u64 {
+    0
+}
+
 /// 0.8.8 Slice 15 (OPP-9) — opt-in telemetry capture state (per `enable_telemetry`).
 /// Records query→result→feedback events to a local JSONL sink. Query text and
 /// `source_id` are never captured. `query_id = "q{nonce}-{seq}"` is fully
@@ -38,6 +95,34 @@ fn branch_str(branch: SoftFallbackBranch) -> &'static str {
 }
 
 impl Engine {
+    /// Snapshot of engine-internal counters.
+    ///
+    /// Field set owned by `dev/design/lifecycle.md`.
+    #[must_use]
+    pub fn counters(&self) -> CounterSnapshot {
+        self.counters.snapshot()
+    }
+
+    /// Toggle response-cycle profiling.
+    ///
+    /// Per `dev/design/lifecycle.md` § Per-statement profiling, profiling
+    /// is an opt-in surface that is independently toggleable on a running
+    /// engine without restart. AC-005a locks runtime toggleability.
+    pub fn set_profiling(&self, enabled: bool) -> Result<(), EngineError> {
+        self.profiling_enabled.store(enabled, Ordering::Relaxed);
+        Ok(())
+    }
+
+    /// Set the threshold above which an operation is reported as slow.
+    ///
+    /// Per `dev/design/lifecycle.md` § Slow and heartbeat policy, the
+    /// threshold is runtime-configurable; mutating it changes detection
+    /// behavior on subsequent statements without restart (AC-007b).
+    pub fn set_slow_threshold_ms(&self, value: u64) -> Result<(), EngineError> {
+        self.slow_threshold_ms.store(value, Ordering::Relaxed);
+        Ok(())
+    }
+
     /// 0.8.8 Slice 15 (OPP-9) — enable opt-in telemetry capture to a local JSONL
     /// `sink_path` (append-only). Off by default; once enabled, each `search`
     /// records a query→result event and `record_feedback` appends agent labels.
@@ -218,6 +303,7 @@ use crate::search_types::{SearchResult, SoftFallbackBranch};
 #[cfg(feature = "test-hooks")]
 use crate::test_hooks::explanation_finalization_hooks;
 use crate::Engine;
+use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;

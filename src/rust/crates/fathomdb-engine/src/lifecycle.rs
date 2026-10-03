@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 
-use crate::CounterSnapshot;
+use crate::telemetry::CounterSnapshot;
 
 /// Lifecycle phase tag.
 ///

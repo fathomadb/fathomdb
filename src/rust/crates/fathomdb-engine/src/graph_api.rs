@@ -135,9 +135,9 @@ impl Engine {
             let path = root.join(format!("arm-{index}.sqlite"));
             let opened = Engine::open(&path).map_err(|_| EngineError::Storage)?;
             opened.engine.seed_graph_expand_rss_fixture_for_test(work, unrelated)?;
-            let baseline = crate::process_current_rss_bytes();
+            let baseline = crate::telemetry::process_current_rss_bytes();
             let result = opened.engine.graph_expand(request)?;
-            let observed = crate::process_current_rss_bytes().saturating_sub(baseline);
+            let observed = crate::telemetry::process_current_rss_bytes().saturating_sub(baseline);
             samples.push(GraphExpandCurrentRssSampleForTest {
                 current_rss_delta_bytes: observed,
                 work_units: result.work_units,
@@ -238,7 +238,7 @@ impl Engine {
             let path = root.join("arm.sqlite");
             let opened = Engine::open(&path).map_err(|_| EngineError::Storage)?;
             opened.engine.seed_graph_expand_rss_fixture_for_test(work, unrelated)?;
-            let baseline = crate::process_current_rss_bytes();
+            let baseline = crate::telemetry::process_current_rss_bytes();
             if baseline == 0 {
                 return Err(EngineError::Storage);
             }
@@ -253,7 +253,7 @@ impl Engine {
                     ..GraphExpandReaderControlsForTest::default()
                 },
             )?;
-            let observed = crate::process_current_rss_bytes();
+            let observed = crate::telemetry::process_current_rss_bytes();
             let mut peak = rss_peak.load(AtomicOrdering::Relaxed);
             while observed > peak {
                 match rss_peak.compare_exchange_weak(
@@ -537,7 +537,7 @@ impl Engine {
         };
         #[cfg(feature = "test-hooks")]
         self.graph_expand_rss_baseline_bytes
-            .store(crate::process_current_rss_bytes(), AtomicOrdering::Relaxed);
+            .store(crate::telemetry::process_current_rss_bytes(), AtomicOrdering::Relaxed);
         let evidence_authority = match (&request.context, request.include_evidence) {
             (GraphReadContextV1::Frozen { context, .. }, true) => {
                 let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
@@ -563,7 +563,7 @@ impl Engine {
         #[cfg(feature = "test-hooks")]
         {
             let baseline = self.graph_expand_rss_baseline_bytes.load(AtomicOrdering::Relaxed);
-            let observed = crate::process_current_rss_bytes().saturating_sub(baseline);
+            let observed = crate::telemetry::process_current_rss_bytes().saturating_sub(baseline);
             self.graph_expand_rss_delta_bytes.store(observed, AtomicOrdering::Relaxed);
         }
         if request.include_explanation {

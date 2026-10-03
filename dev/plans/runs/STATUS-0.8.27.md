@@ -11,7 +11,7 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 90 (ENGINE-RUNTIME), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 100 (PYO3), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
 
 Prework Slices 0-9, bounded preparation Slice 10, correction-safe erasure
 Slice 20, real-surface comparator Slice 30, and engine-foundation Slice 40 are
@@ -30,7 +30,7 @@ binding, not a claim of post-fix full canonical or surface verification.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 90 (ENGINE-RUNTIME)** — engine open, configuration, runtime, operator, and facade closure. **Remaining ladder:** 90 → 100 → 110 → 114 → 115 → 120 → 130 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 100 (PYO3)** — PyO3 binding decomposition. **Remaining ladder:** 100 → 110 → 114 → 115 → 120 → 130 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -42,12 +42,11 @@ There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE
 `D27-runtime-topology` is ruled as Option B by HITL decision `seq-293`. That
 ruling selected the architectural direction. `seq-295` accepted the reviewed
 numeric, default, API, error, shutdown and supersession specifics in
-`ADR-0.8.27-engine-owned-runtime-topology.md`. Slice 90 retains the synchronous
-projection/commit ownership model and must implement and verify that successor
-before AC27-90B passes. Its stage-2 runtime checkpoint must be bound in release state
-(the structured `runtime_checkpoint` object with candidate/binding SHAs and
-hashed performance, code-review and read-only-verification receipts) before
-mechanical runtime moves start. The always-on checkpoint gate enforces that
+`ADR-0.8.27-engine-owned-runtime-topology.md`. Slice 90 implemented and
+verified that successor while retaining the synchronous projection/commit
+ownership model. Its stage-2 runtime checkpoint is bound in release state
+with candidate/binding SHAs and hashed performance, code-review and
+read-only-verification receipts. The always-on checkpoint gate enforces that
 binding and stage-3 ancestry. See the
 [code-grounded resolution](../0.8.27/features/slice-90/independent-findings-resolution.md).
 
@@ -74,6 +73,7 @@ binding and stage-3 ancestry. See the
 | 70 | Engine projection, embedding, and reranking | Complete at `36fc2352`; ten private modules preserve public paths and runtime shape. Canonical, security, feature-complete, workspace, and artifact gates pass. |
 | 80 | Engine read, search, graph, and evidence | Complete at reviewed candidate `b7403958` and closeout `e8e603b7`. `e9631b97`/`bca0c99d` remain historical. Production changes ended at `0efa62c5`; no post-fix canonical PASS or official post-fix public/hidden capture is claimed. |
 | 85 | Engine carrier ownership and dependency-boundary enforcement | Complete on `release/0.8.27` per release state at reviewed candidate `7a2f9bf9` and closeout `8cd3389d`, from commissioned baseline `4c75bfec`. Design review cycle 1 then failed the enforcement half (boundary gate), cycle 2 of the FIX-1 head found residual gate gaps (D-14..D-22), cycle 3 of the FIX-2 head found macro-hidden edges and smaller gaps (D-23..D-27), and cycle 4 of the FIX-3 head found a renamed or re-pathed `include!` and qualified-self serde paths (D-28, D-29); FIX-1 through FIX-4 are recorded in `features/slice-85/tdd-chronology.md`, and FIX-4 was confirmed by a green mutation-script run. A test review of the FIX-4 head then returned PASS-WITH-FIXES (T-1..T-8); test FIX-1 is recorded in the same chronology. Test review cycle 2 then returned FAIL (T-9..T-12); test FIX-2 is recorded in the same chronology and was confirmed by a green 218-assertion mutation run and the feature-gated engine runs. Test review cycle 3 then returned FAIL (T-13..T-15); test FIX-3 is recorded in the same chronology and was confirmed by a green 222-assertion mutation run. Test review cycle 4 then returned FAIL (T-16); test FIX-4, recorded in the same chronology and confirmed by a green 240-assertion mutation run, awaits candidate rebinding. |
+| 90 | Engine open, configuration, runtime, operator, and facade closure | Complete on `release/0.8.27` at reviewed source candidate `1398c821d`. The stage-2 runtime checkpoint, final Sol code review, final independent Terra verification, 180/180 full gate, strict GPU gate, frozen D27 comparison, named performance gates, installed bindings, Windows MSVC routes, and official public/hidden comparisons pass. The AC-073 stress PASS and superseded AC-075 combined-selector failure remain distinct. See [Slice 90 status](../0.8.27/features/slice-90/status.md) and [final verification](../0.8.27/features/slice-90/final-review-verification.md). |
 
 ## Verification boundary
 
@@ -206,7 +206,7 @@ grant/revert evidence.
 
 - This release starts at schema 34 and currently proposes no schema migration.
 - Publication is unauthorized.
-- Slices 30, 40, 50, 60, 70, 80, and 85 are complete. Slice 85 was commissioned
+- Slices 30, 40, 50, 60, 70, 80, 85, and 90 are complete. Slice 85 was commissioned
   by `seq-294` after its independent design review passed and its exact-candidate
   AC27-85F entry receipts passed at `4c75bfec`; it completed at `7a2f9bf9` with
   closeout `8cd3389d`. Later slices require separate commission. The
@@ -216,18 +216,13 @@ grant/revert evidence.
   the release's established bounded-decomposition method: narrower handler
   errors, item-level root nodes, complete inventory with scoped enforcement,
   and no whole-crate or line-count-driven ownership expansion.
-- The prospective [Slice 90 design](../0.8.27/features/slice-90/design.md)
-  assigns all runtime/projector/operator handoffs, requires closure of the configuration
-  gap through separately tested behavior work, and requires zero outstanding
-  Slice 90 obligations before Slice 100. Reader connection arms and the four
-  shared search-control fields have explicit retained-owner dispositions.
-  Slice 90 remains PLANNED. No Slice 91 is allocated; ordered reviewed batches
-  provide the needed boundaries within Slice 90. The independent findings
-  correction makes AC27-90B visibly gated by the ruled and codified Option B
-  successor: accepted pools are absent, so forwarding alone cannot close this
-  gap. `seq-295` and the accepted successor ADR close the design-approval
-  prerequisite; an explicit Slice 90 execution ruling and entry/checkpoint
-  work remain.
+- The [Slice 90 design](../0.8.27/features/slice-90/design.md) and
+  [completion record](../0.8.27/features/slice-90/status.md) cover runtime,
+  projector and operator handoffs, effective configuration behavior, and
+  retained reader-connection and shared search-control ownership. The
+  accepted Option B successor and stage-2 checkpoint are implemented and
+  verified. There is no Slice 91 allocation. Slice 100 is planned and needs
+  separate commissioning.
 - Prospective [Slice 100](../0.8.27/features/slice-100/design.md) and
   [Slice 110](../0.8.27/features/slice-110/design.md) designs now require exact
   native ownership/registration inventories, contract disposition, installed

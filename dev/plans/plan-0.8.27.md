@@ -356,9 +356,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 90** (`ENGINE-RUNTIME`) — engine open, configuration, runtime, operator, and facade closure
+**IMMEDIATE NEXT: Slice 100** (`PYO3`) — PyO3 binding decomposition
 
-**Remaining ladder:** 90 → 100 → 110 → 114 → 115 → 120 → 130 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 100 → 110 → 114 → 115 → 120 → 130 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 

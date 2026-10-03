@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.27 Slice 90 — implementation status
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.27
 ---
 
@@ -9,8 +9,9 @@ target_release: 0.8.27
 Requirements, acceptance criteria, design and TDD batches are reconciled in
 the [plan](plan.md). Independent design review passed after the recorded
 corrections. Runtime Batches 2a–2f, two-phase close, and Python/Node forwarding
-are merged and independently reviewed; the stage-2 runtime checkpoint is
-PASS and final Slice 90 verification is not yet claimed.
+are merged and independently reviewed. The stage-2 runtime checkpoint and
+final Slice 90 verification are PASS; the final code candidate is bound at
+`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`.
 
 The frozen operational source entry was `release/0.8.27` at `e689000d4` or a
 documentation-only descendant before Phase 2 semantic edits. Historical `7a2f9bf9`
@@ -554,11 +555,10 @@ The exact Slice 85 baseline/recovery diff is preserved in the adjacent
 installed bindings, GPU, Windows, resource matrix, and named performance
 selectors all passed without a post-review source edit.
 
-R27-90A–H, J and K have implementation and candidate-bound evidence above and
-in the reviewed owner inventory. AC27-90I still requires independent final
-read-only verification. The requested Terra model is unavailable to this
-agent; automatic approval review rejected a direct Terra CLI invocation.
-Stage-2 Terra verification does not cover this final structural tree. An
-owner decision on an independent available-model substitute is pending.
-Accordingly Slice 90 remains **IN_PROGRESS**, its release-state ladder entry
-remains `PLANNED` for acceptance purposes, and Slice 100 is not unblocked.
+R27-90A–K have implementation and candidate-bound evidence above and in the
+reviewed owner inventory. Independent `gpt-5.6-terra` high read-only
+verification returned **PASS** for the exact final code candidate with no
+actionable finding; see [final-review-verification.md](final-review-verification.md).
+The documentation successor `65f5e004d` has the same source tree. The
+remaining AC27-90I gate is therefore closed. Slice 90 is **COMPLETE_ON_RELEASE_BRANCH**;
+Slice 100 is the next planned slice and requires separate commissioning.

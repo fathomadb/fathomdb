@@ -5,6 +5,7 @@ refer to the original source. They are not a Rust parser: a malformed literal
 or comment fails closed rather than pretending the remaining text is code.
 """
 
+from functools import lru_cache
 import re
 
 
@@ -12,6 +13,7 @@ def _blank(source: str) -> str:
     return "".join("\n" if char == "\n" else " " for char in source)
 
 
+@lru_cache(maxsize=128)
 def rust_mask(source: str, *, literals: bool) -> str:
     """Mask nested comments, and optionally string/character literals."""
     result = list(source)
@@ -93,9 +95,10 @@ def rust_mask(source: str, *, literals: bool) -> str:
     return "".join(result)
 
 
-def rust_code_tokens(source: str) -> list[str]:
+def rust_code_tokens(source: str, *, end: int | None = None) -> list[str]:
     """Return identifiers and punctuation outside comments and literals."""
-    return re.findall(r"[A-Za-z_][A-Za-z_0-9]*|::|[^\s]", rust_mask(source, literals=True))
+    code = rust_mask(source, literals=True)
+    return re.findall(r"[A-Za-z_][A-Za-z_0-9]*|::|[^\s]", code[:end] if end is not None else code)
 
 
 def _attribute_end(code: str, start: int) -> int | None:
@@ -121,9 +124,8 @@ def outer_attributes(source: str, start: int) -> list[str]:
     Literal contents do not participate in delimiter matching. Comments and
     whitespace between attributes and the item do not end the prelude.
     """
-    prefix = source[:start]
-    code = rust_mask(prefix, literals=True)
-    comments = rust_mask(prefix, literals=False)
+    code = rust_mask(source, literals=True)[:start]
+    comments = rust_mask(source, literals=False)[:start]
     cursor = len(code.rstrip())
     attrs = []
     while cursor:
@@ -144,7 +146,7 @@ def has_cfg_attribute(attrs: list[str]) -> bool:
 def brace_depth(source: str, start: int) -> int:
     """Count live Rust braces before a declaration, ignoring literal decoys."""
     depth = 0
-    for token in rust_code_tokens(source[:start]):
+    for token in rust_code_tokens(source, end=start):
         if token == "{":
             depth += 1
         elif token == "}":
@@ -152,3 +154,20 @@ def brace_depth(source: str, start: int) -> int:
             if depth < 0:
                 raise ValueError("unbalanced Rust braces")
     return depth
+
+
+def braced_item_span(source: str, start: int) -> tuple[int, int]:
+    """Return the balanced body braces for an item beginning at ``start``."""
+    code = rust_mask(source, literals=True)
+    opening = code.find("{", start)
+    if opening < 0:
+        raise ValueError("Rust item has no body")
+    depth = 0
+    for index in range(opening, len(code)):
+        if code[index] == "{":
+            depth += 1
+        elif code[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return opening, index + 1
+    raise ValueError("unterminated Rust item body")

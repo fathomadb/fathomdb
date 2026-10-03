@@ -5,10 +5,13 @@ from pathlib import Path
 import re
 import unittest
 
+from rust_source_lex import brace_depth, braced_item_span, outer_attributes as prelude, rust_mask
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
 HOOKS = '#[cfg(feature = "test-hooks")]'
+HOOKS_NORMALIZED = '#[cfg(feature="test-hooks")]'
 OWNERS = {
     "evidence.rs": {"explain_graph_evidence_preflights_for_test": (HOOKS, True)},
     "embedding.rs": {"drain_mean_centering_events_for_test": (None, True)},
@@ -24,17 +27,6 @@ FAMILY = (
 DECL = re.compile(r"^[ \t]*(pub(?:\([^)]*\))?[ \t]+)?fn[ \t]+(" + FAMILY + r")\b", re.M)
 CFG = re.compile(r"#\[\s*cfg(?:_attr)?\b")
 IMPL = re.compile(r"(?ms)^impl Engine \{.*?^}")
-
-
-def prelude(source: str, start: int) -> list[str]:
-    attrs = []
-    for line in reversed(source[:start].splitlines()):
-        line = line.strip()
-        if line.startswith("#["):
-            attrs.append(line)
-        elif line and not line.startswith(("///", "//")):
-            break
-    return attrs
 
 
 def inventory() -> tuple[str, dict[str, str]]:
@@ -58,6 +50,8 @@ def owner_errors(root: str, modules: dict[str, str]) -> list[str]:
             errors.append(f"{path} gates whole owner module")
         impls = list(IMPL.finditer(source))
         for impl in impls:
+            if brace_depth(source, impl.start()) != 0:
+                errors.append(f"{path} nests Engine impl")
             if any(CFG.match(attr) for attr in prelude(source, impl.start())):
                 errors.append(f"{path} gates Engine impl")
         for name, (gate, hidden) in expected.items():
@@ -66,8 +60,10 @@ def owner_errors(root: str, modules: dict[str, str]) -> list[str]:
                 if len(found) != 1 or names.count(name) != 1:
                     errors.append(f"{path} lacks private {name}")
                     continue
+                if brace_depth(source, found[0].start()) != 0:
+                    errors.append(f"{path} nests {name}")
                 attrs = prelude(source, found[0].start())
-                if [attr for attr in attrs if CFG.match(attr)] != [HOOKS]:
+                if [attr for attr in attrs if CFG.match(attr)] != [HOOKS_NORMALIZED]:
                     errors.append(f"{path} changes {name} attrs")
                 continue
             found = [(match, impl) for impl in impls for match in DECL.finditer(impl.group())
@@ -77,7 +73,8 @@ def owner_errors(root: str, modules: dict[str, str]) -> list[str]:
                 continue
             match, impl = found[0]
             attrs = prelude(impl.group(), match.start())
-            if [attr for attr in attrs if CFG.match(attr)] != ([gate] if gate else []) or ("#[doc(hidden)]" in attrs) != hidden:
+            expected_gate = [HOOKS_NORMALIZED] if gate else []
+            if [attr for attr in attrs if CFG.match(attr)] != expected_gate or ("#[doc(hidden)]" in attrs) != hidden:
                 errors.append(f"{path} changes Engine::{name} attrs")
             if names.count(name) != 1:
                 errors.append(f"{path} duplicates Engine::{name}")
@@ -88,9 +85,16 @@ def owner_errors(root: str, modules: dict[str, str]) -> list[str]:
             errors.append(f"root gates {module_name} owner module")
     open_source = modules.get("open.rs", "")
     owner_import = re.search(r"(?m)^use crate::connection_runtime::record_writer_pragma_witness_for_test;", open_source)
-    if not owner_import or [attr for attr in prelude(open_source, owner_import.start()) if CFG.match(attr)] != [HOOKS]:
+    if not owner_import or [attr for attr in prelude(open_source, owner_import.start()) if CFG.match(attr)] != [HOOKS_NORMALIZED]:
         errors.append("open lacks private writer pragma owner import")
-    if open_source.count("record_writer_pragma_witness_for_test(&connection);") != 1:
+    open_locked = re.search(r"(?m)^    fn open_locked\(", open_source)
+    calls = []
+    if open_locked:
+        opening, ending = braced_item_span(open_source, open_locked.start())
+        code = rust_mask(open_source, literals=True)
+        call_pattern = re.compile(r"(?m)^[ \t]*record_writer_pragma_witness_for_test\s*\(&connection\)\s*;")
+        calls = [opening + match.start() for match in call_pattern.finditer(code[opening:ending])]
+    if len(calls) != 1 or prelude(open_source, calls[0]) != [HOOKS_NORMALIZED]:
         errors.append("open loses writer pragma observation call")
     return errors
 
@@ -181,6 +185,41 @@ class FinalObservationTestSeamsOwnerTest(unittest.TestCase):
         self.assertIn("open lacks private writer pragma owner import", owner_errors(root, modules | {"open.rs": changed}))
         changed = witness.replace("pub(super) fn " + FREE_NAME, "fn " + FREE_NAME, 1)
         self.assertIn(f"{FREE_OWNER} lacks private {FREE_NAME}", owner_errors(root, modules | {FREE_OWNER: changed}))
+
+    def test_enclosing_module_and_live_open_call_mutants(self) -> None:
+        root, modules = complete_fixture()
+        self.assertEqual(owner_errors(root, modules), [])
+        owner = modules["open.rs"]
+        impl = IMPL.search(owner)
+        self.assertIsNotNone(impl)
+        wrapped = (owner[:impl.start()] + '#[cfg(feature = "operator")]\n'
+                   'mod gated_test_seams {\nuse super::*;\n' + impl.group() + '\n}\n' +
+                   owner[impl.end():])
+        self.assertIn("open.rs nests Engine impl", owner_errors(root, modules | {"open.rs": wrapped}))
+        witness = modules[FREE_OWNER]
+        start = witness.index("pub(super) fn " + FREE_NAME)
+        wrapped = (witness[:start] + '#[cfg(feature = "operator")]\n'
+                   'mod gated_witness {\nuse super::*;\n' + witness[start:] + '\n}\n')
+        self.assertIn(f"{FREE_OWNER} nests {FREE_NAME}",
+                      owner_errors(root, modules | {FREE_OWNER: wrapped}))
+        open_source = modules["open.rs"]
+        live = "        record_writer_pragma_witness_for_test(&connection);"
+        self.assertIn(live, open_source)
+        decoy = open_source.replace(live, "        // record_writer_pragma_witness_for_test(&connection);", 1)
+        self.assertIn("open loses writer pragma observation call",
+                      owner_errors(root, modules | {"open.rs": decoy}))
+        for attr in ('#![cfg(feature = "operator")]',
+                     '#![cfg_attr(feature = "default-embedder", cfg(test))]'):
+            self.assertIn("open.rs gates whole owner module",
+                          owner_errors(root, modules | {"open.rs": attr + "\n" + owner}))
+        multiline = '#[cfg_attr(\n    all(feature = "default-embedder", test),\n    cfg(test)\n)]'
+        marker = "    pub fn default_embedder_profile_for_test("
+        changed = owner.replace(marker, '    ' + multiline + '\n    /* attr gap */\n' + marker, 1)
+        self.assertIn("open.rs changes Engine::default_embedder_profile_for_test attrs",
+                      owner_errors(root, modules | {"open.rs": changed}))
+        raw = 'const RAW_GATE_WITNESS: &str = r###"quote " /*"###;\n'
+        gated_root = root.replace("mod open;", raw + multiline + "\n/* end */\nmod open;", 1)
+        self.assertIn("root gates open owner module", owner_errors(gated_root, modules))
 
     def test_fast_registration(self) -> None:
         self.assertIn("fast test-slice90-final-observation-test-seams-owner",

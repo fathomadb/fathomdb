@@ -310,6 +310,30 @@ run_checker --contract "$CLEAN_CONTRACT" --pin "$REAL_PIN" --root "$CLEAN_ROOT"
 expect_rc 0 "an unmodified COPY of the contract + a copied source root passes"
 expect_out 'ok +c1-contract-conformance' "the copied-fixture pass says ok"
 
+# A stale root declaration cannot satisfy a registry-owner probe.
+OLD_ROOT_ROLE_DECOY_ROOT="$(make_root old-root-role-decoy)"
+cp "$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" \
+  "$OLD_ROOT_ROLE_DECOY_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs"
+python3 - "$OLD_ROOT_ROLE_DECOY_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" \
+  "$OLD_ROOT_ROLE_DECOY_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+import sys
+
+owner_path, root_path = sys.argv[1:]
+owner = open(owner_path, encoding="utf-8").read()
+root = open(root_path, encoding="utf-8").read()
+start = owner.index("pub enum ProjectionRole {")
+end = owner.index("\n}", start) + 2
+declaration = owner[start:end]
+owner = owner[:start] + owner[end:]
+root += "\n" + declaration + "\n"
+open(owner_path, "w", encoding="utf-8").write(owner)
+open(root_path, "w", encoding="utf-8").write(root)
+PY
+run_checker --contract "$CLEAN_CONTRACT" --pin "$REAL_PIN" --root "$OLD_ROOT_ROLE_DECOY_ROOT"
+expect_rc 1 "an old-root ProjectionRole decoy cannot replace its registry-owner declaration"
+expect_out 'C1-Q1-ROLE-SET' "the old-root decoy failure names the role-set clause"
+expect_out 'projection_registry.rs' "the old-root decoy failure names the registry owner"
+
 # === Arm 2a (REGRESSION): Rust URLs are strings, not line comments ==========
 #
 # The structural reader strips comments before blanking literals. A regex that
@@ -318,7 +342,7 @@ expect_out 'ok +c1-contract-conformance' "the copied-fixture pass says ok"
 # literal. This fixture keeps a URL literal immediately before ProjectionSpec,
 # so the C1 structural check must still see that subsequent contract subject.
 URL_LITERAL_ROOT="$(make_root url-literal-before-projection-spec)"
-python3 - "$URL_LITERAL_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$URL_LITERAL_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" <<'PY'
 import sys
 
 p = sys.argv[1]
@@ -347,7 +371,7 @@ expect_out 'ok +c1-contract-conformance' \
 # now accept it, while the later divergent fixtures prove the vocabulary remains
 # closed.
 THREE_VALUE_ROOT="$(make_root readiness-three-value-contract)"
-python3 - "$THREE_VALUE_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$THREE_VALUE_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" <<'PY'
 import sys
 
 p = sys.argv[1]
@@ -551,7 +575,7 @@ expect_no_out 'has MOVED' "a clause failure is not reported as a contract move"
 # 12b — a POSITIVE-PRESENCE clause. Remove a required symbol from the copied
 # source and the gate must fail, naming the clause.
 BAD_ROOT2="$(make_root symbol-removed)"
-python3 - "$BAD_ROOT2/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$BAD_ROOT2/src/rust/crates/fathomdb-engine/src/projection_registry.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -597,7 +621,7 @@ expect_out 'C1-AA-CRASH-HEAL-BOOT-REDERIVE' "the deleted-test failure NAMES the 
 
 # 12d — codex's own demonstration: an EXTRA DenseReadiness variant.
 VOCAB_ROOT="$(make_root readiness-third-variant)"
-python3 - "$VOCAB_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$VOCAB_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -617,7 +641,7 @@ expect_routes_to_steward "the readiness-vocabulary failure"
 # `pending` for the orthogonal admission axis, and the old probes could not see
 # this at all (they matched `DenseReadiness::Pending`, which never appears).
 SPELL_ROOT="$(make_root readiness-third-spelling)"
-python3 - "$SPELL_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$SPELL_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -635,7 +659,7 @@ expect_out 'pending' "the third-spelling failure NAMES the reserved token it fou
 # old probes blacklisted exactly two names (Vector, Fts), so any other name
 # passed.
 ROLE_ROOT="$(make_root fourth-projection-role)"
-python3 - "$ROLE_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$ROLE_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -796,7 +820,7 @@ expect_out 'C1-TE-CUSTOM-TOKENIZER-DEFERRED' "the schema-qualified-DDL failure N
 # the violation, and `pending` is precisely the token the clause reserves for the
 # orthogonal admission axis.
 GUARD_ROOT="$(make_root readiness-if-guard-spelling)"
-python3 - "$GUARD_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$GUARD_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -823,7 +847,7 @@ expect_routes_to_steward "the if-guard vocabulary failure"
 # so the clause's existing `absent` probe cannot fire: the only thing that can
 # catch it is a genuinely closed string vocabulary.
 ORPAT_ROOT="$(make_root role-or-pattern-spelling)"
-python3 - "$ORPAT_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$ORPAT_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -1040,10 +1064,13 @@ expect_out 'C1-TE-DEFAULT-TOKENIZER' "the deleted-tokenizer failure NAMES the cl
 # SearchHit no typed `id`, ProjectionVector no `embedder` and ProjectionFts no
 # `tokenizer`. The gate exited 0 on this tree.
 DECOY_FIELD_ROOT="$(make_root decoy-struct-fields)"
-python3 - "$DECOY_FIELD_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" \
-  "$DECOY_FIELD_ROOT/src/rust/crates/fathomdb-engine/src/search_types.rs" <<'PY'
+cp "$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" \
+  "$DECOY_FIELD_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs"
+python3 - "$DECOY_FIELD_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" \
+  "$DECOY_FIELD_ROOT/src/rust/crates/fathomdb-engine/src/search_types.rs" \
+  "$DECOY_FIELD_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
 import sys
-p, search_types_path = sys.argv[1:]
+p, search_types_path, root_path = sys.argv[1:]
 text = open(p, encoding="utf-8").read()
 search_types = open(search_types_path, encoding="utf-8").read()
 renames = [
@@ -1060,7 +1087,8 @@ for old, new in renames:
 old, new = "    pub id: IdSpace,", "    pub hit_id: IdSpace,"
 assert search_types.count(old) == 1, old
 search_types = search_types.replace(old, new, 1)
-text += """
+root_text = open(root_path, encoding="utf-8").read()
+root_text += """
 /// Fixture only (fix-4 SWEEP). A decoy carrying the exact text each clause's
 /// `present` probe looked for — in a struct the contract never names. With this
 /// present, every one of those seven probes holds while the SUBJECT struct of
@@ -1077,6 +1105,7 @@ pub struct FixtureFieldDecoy {
 """
 open(p, "w", encoding="utf-8").write(text)
 open(search_types_path, "w", encoding="utf-8").write(search_types)
+open(root_path, "w", encoding="utf-8").write(root_text)
 PY
 run_checker --contract "$CLEAN_CONTRACT" --pin "$REAL_PIN" --root "$DECOY_FIELD_ROOT"
 expect_rc 1 "fields moved OUT of their named structs (with a decoy) HARD-fail every affected clause"
@@ -1314,7 +1343,7 @@ const FIXTURE_DECOY_FN: &str =
 """
 open(p, "w", encoding="utf-8").write(text)
 PY
-python3 - "$STRING_DECOY_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+python3 - "$STRING_DECOY_ROOT/src/rust/crates/fathomdb-engine/src/projection_registry.rs" <<'PY'
 import sys
 p = sys.argv[1]
 text = open(p, encoding="utf-8").read()
@@ -2077,8 +2106,8 @@ expect_out 'Usage: scripts/check-c1-conformance.sh' "--help prints usage"
 
 run_checker --list-sources
 expect_rc 0 "--list-sources exits 0"
-expect_out 'file\s+src/rust/crates/fathomdb-engine/src/lib.rs' \
-  "--list-sources names the engine source the assertions read"
+expect_out 'file\s+src/rust/crates/fathomdb-engine/src/projection_registry.rs' \
+  "--list-sources names the projection registry owner the assertions read"
 expect_out 'file\s+src/rust/crates/fathomdb-engine/src/open.rs' \
   "--list-sources names the open owner of the engine default"
 expect_out 'file\s+src/rust/crates/fathomdb-engine/src/search_types.rs' \

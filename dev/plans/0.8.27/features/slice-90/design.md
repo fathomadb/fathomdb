@@ -119,8 +119,9 @@ private imports use the semantic owner. A change requires design review.
 | `read_schema_objects`, `order_canonical_first` | `operator`; schema inspection/export helpers. |
 | `EDGE_FACT_KIND` | `embedding`; this is the embedding-readiness kind discriminator in `embedder_required_for`, also read by `projection_worker` when deciding whether an absent provider can skip an edge fact. Keep one literal and let the worker import it from the owner. Its value and branches do not change. |
 | `MEAN_VEC_PIN_THRESHOLD` | `mean`; the public constant is the compute-once mean threshold consumed by open recovery, test vector writes and `projection_commit`. Keep its value, re-export the same root path, and import the single owner constant at its consumers. |
-| `Engine::execute_for_test` | Retain at root through Slice 90 as a Slice 140 test seam already allocated by Slice 80. It takes arbitrary SQL on the Engine writer handle and reports through the root `detect_slow`/lifecycle path; forcing it into a production domain would give that domain an unrelated test-only writer capability. Its `any(test, debug_assertions, test-hooks)` gate, public doc-hidden path and qualified test identity stay exact. Callers include lifecycle observability, fault-injection, integrity and dependency fixtures. |
+| `Engine::execute_for_test` | Retain at root through Slice 90 as a Slice 140 test seam already allocated by Slice 80. It takes arbitrary SQL on the Engine writer handle and reports through lifecycle event dispatch; forcing it into a production domain would give that domain an unrelated test-only writer capability. Its `any(test, debug_assertions, test-hooks)` gate, public doc-hidden path and qualified test identity stay exact. Callers include lifecycle observability, fault-injection, integrity and dependency fixtures. |
 | `Engine::run_one_thread_poison_for_test` | Retain at root through Slice 90 as a Slice 140 test seam already allocated by Slice 80. This debug-only composite fixture deliberately invokes public write and search paths, inspects projection status and dispatches a lifecycle stress-failure event. No single production owner owns that cross-domain fixture. Keep its `debug_assertions` gate, public doc-hidden path and qualified test identity exact. |
+| `Engine::query_i64_col_for_test`, `Engine::query_text_col_for_test` | Retain both at root through Slice 90 as Slice 140 writer-connection fixtures used by Slice 15e filterable-vector and later interaction tests. They accept arbitrary SQL, prepare it on the Engine writer connection with vec0 loaded, and collect column zero through `query_map`. The current implementation does not enforce read-only SQL; a statement with `RETURNING` can mutate. Placing this unrestricted writer capability in `read_api` would misstate its contract, while `write` does not own an arbitrary-SQL query interface. Preserve their ungated public doc-hidden paths and exact behavior. Correct the stale read-only Rust docstring when reconciling their final inventory. |
 
 All root constants already consumed by an extracted domain follow that
 specific domain: `DEFAULT_VECTOR_PROFILE`/`DEFAULT_VECTOR_PARTITION` to
@@ -161,6 +162,13 @@ helpers", unclassified production item, or general aesthetic exemption passes.
 Independent design review approves this exact map before movement. No new
 production deferral to Slice 100/140 is permitted; existing Slice 140 test-gate
 work stays there without concealing production logic.
+
+The prospective item-specific disposition of the remaining root test seams is
+recorded in [test-seam-owner-map.md](test-seam-owner-map.md). Its named rows
+require independent design review before any of those seams move. Method
+paths, cfg gates, documentation attributes and public re-exports remain exact;
+the three itemized root exception rows above and the public mean test module
+retain their paths.
 
 ## Configuration correction
 

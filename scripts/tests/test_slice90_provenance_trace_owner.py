@@ -12,11 +12,11 @@ SRC = ROOT / "src/rust/crates/fathomdb-engine/src"
 
 def owner_errors(root: str, owner: str, config: str) -> list[str]:
     errors = []
-    for name in re.findall(r"^pub (?:struct|enum) (Trace\w*)\b", root, re.M):
+    for name in re.findall(r"^(?:pub(?:\([^)]*\))? )?(?:struct|enum|type|trait) (Trace\w*)\b", root, re.M):
         errors.append(f"root still defines provenance::{name}")
     for name in re.findall(r"^impl[^\n{]*\b(Trace\w*)\b[^\n{]*\{", root, re.M):
         errors.append(f"root still implements provenance::{name}")
-    for name in re.findall(r"^    pub fn (trace_source_ref\w*)\(", root, re.M):
+    for name in re.findall(r"^    (?:pub(?:\([^)]*\))? )?fn (trace_source_ref\w*)\(", root, re.M):
         errors.append(f"root still defines Engine::{name}")
     for name in re.findall(r"^(?:pub(?:\([^)]*\))? )?const (DEFAULT_PROVENANCE\w*)\b", root, re.M):
         errors.append(f"root still defines provenance::{name}")
@@ -48,8 +48,14 @@ class ProvenanceTraceOwnerTest(unittest.TestCase):
         self.assertEqual(owner_errors(root, owner, config), [])
         for declaration, expected in (
             ("pub struct TraceNew;", "root still defines provenance::TraceNew"),
+            ("struct TracePrivate;", "root still defines provenance::TracePrivate"),
+            ("pub(crate) struct TraceCrate;", "root still defines provenance::TraceCrate"),
+            ("enum TracePrivateEnum { A }", "root still defines provenance::TracePrivateEnum"),
             ("impl TraceReport { fn extra(&self) {} }", "root still implements provenance::TraceReport"),
+            ("impl SomeTrait for TraceReport {}", "root still implements provenance::TraceReport"),
             ("impl Engine {\n    pub fn trace_source_ref_new(&self) {}\n}", "root still defines Engine::trace_source_ref_new"),
+            ("impl Engine {\n    fn trace_source_ref_private(&self) {}\n}", "root still defines Engine::trace_source_ref_private"),
+            ("impl Engine {\n    pub(crate) fn trace_source_ref_crate(&self) {}\n}", "root still defines Engine::trace_source_ref_crate"),
             ("const DEFAULT_PROVENANCE_NEW: u64 = 1;", "root still defines provenance::DEFAULT_PROVENANCE_NEW"),
         ):
             with self.subTest(declaration=declaration):

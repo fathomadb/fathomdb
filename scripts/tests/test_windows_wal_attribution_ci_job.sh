@@ -885,6 +885,86 @@ PY
     fail "mutation missed a direct SQLite open in the projection worker: $direct_worker_open_out"
   fi
 
+  for constructor in \
+    'open_with_flags("/tmp/bypass", rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)' \
+    'open_in_memory()'; do
+    DIRECT_WORKER_VARIANT="$TMPROOT/projection-worker-with-${constructor%%(*}.rs"
+    cp "$PROJECTION_WORKER_SOURCE" "$DIRECT_WORKER_VARIANT"
+    printf '\nfn bypass_managed_factory() { let _ = Connection::%s; }\n' "$constructor" >>"$DIRECT_WORKER_VARIANT"
+    set +e
+    direct_worker_variant_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 PROJECTION_WORKER_SOURCE="$DIRECT_WORKER_VARIANT" bash "$0" 2>&1)"
+    direct_worker_variant_rc=$?
+    set -e
+    if [ "$direct_worker_variant_rc" -ne 0 ] \
+      && grep -Fq 'direct SQLite open outside sole audited factory' <<<"$direct_worker_variant_out" \
+      && grep -Fq "'projection_worker.rs'" <<<"$direct_worker_variant_out"; then
+      pass "mutation rejects projection-worker Connection::$constructor"
+    else
+      fail "mutation missed projection-worker Connection::$constructor: $direct_worker_variant_out"
+    fi
+  done
+
+  WRONG_SCHEMA_PROBE="$TMPROOT/open-with-writable-schema-probe.rs"
+  python3 - "$OPEN_SOURCE" "$WRONG_SCHEMA_PROBE" <<'PY'
+from pathlib import Path
+import sys
+
+source, output = map(Path, sys.argv[1:])
+text = source.read_text()
+original = "read_only_sqlite_uri(path),\n        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY"
+assert text.count(original) == 1
+output.write_text(text.replace(original, original.replace("READ_ONLY", "READ_WRITE"), 1))
+PY
+  set +e
+  wrong_schema_probe_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 OPEN_SOURCE="$WRONG_SCHEMA_PROBE" bash "$0" 2>&1)"
+  wrong_schema_probe_rc=$?
+  set -e
+  if [ "$wrong_schema_probe_rc" -ne 0 ] \
+    && grep -Fq 'direct SQLite open outside sole audited factory' <<<"$wrong_schema_probe_out" \
+    && grep -Fq "('open.rs', 'read_effective_schema_version', 'open_with_flags'" <<<"$wrong_schema_probe_out"; then
+    pass "mutation rejects changing the exact read-only open schema probe"
+  else
+    fail "mutation missed a writable schema probe: $wrong_schema_probe_out"
+  fi
+
+  UNGATED_TEST_MODULE="$TMPROOT/lib-with-ungated-slice20-tests.rs"
+  python3 - "$ENGINE_SOURCE" "$UNGATED_TEST_MODULE" <<'PY'
+from pathlib import Path
+import sys
+
+source, output = map(Path, sys.argv[1:])
+text = source.read_text()
+original = "#[cfg(test)]\nmod slice20_fix1_tests;"
+assert text.count(original) == 1
+output.write_text(text.replace(original, "mod slice20_fix1_tests;", 1))
+PY
+  set +e
+  ungated_test_module_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$UNGATED_TEST_MODULE" bash "$0" 2>&1)"
+  ungated_test_module_rc=$?
+  set -e
+  if [ "$ungated_test_module_rc" -ne 0 ] \
+    && grep -Fq 'direct SQLite open outside sole audited factory' <<<"$ungated_test_module_out" \
+    && grep -Fq 'slice20_fix1_tests.rs' <<<"$ungated_test_module_out"; then
+    pass "mutation includes an external test module when its root cfg(test) gate is removed"
+  else
+    fail "mutation missed an ungated external test module: $ungated_test_module_out"
+  fi
+
+  ROOT_OPEN_AFTER_TEST_MODULE="$TMPROOT/lib-with-open-after-test-module.rs"
+  cp "$ENGINE_SOURCE" "$ROOT_OPEN_AFTER_TEST_MODULE"
+  printf '\nfn appended_bypass() { let _ = Connection::open_in_memory(); }\n' >>"$ROOT_OPEN_AFTER_TEST_MODULE"
+  set +e
+  root_open_after_test_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ROOT_OPEN_AFTER_TEST_MODULE" bash "$0" 2>&1)"
+  root_open_after_test_rc=$?
+  set -e
+  if [ "$root_open_after_test_rc" -ne 0 ] \
+    && grep -Fq 'direct SQLite open outside sole audited factory' <<<"$root_open_after_test_out" \
+    && grep -Fq "('lib.rs', 'appended_bypass', 'open_in_memory'" <<<"$root_open_after_test_out"; then
+    pass "mutation scans production declarations after a cfg(test) module"
+  else
+    fail "mutation missed a root open after its test module: $root_open_after_test_out"
+  fi
+
   MISSING_ERASURE_OWNER="$TMPROOT/erasure-without-completion-owner.rs"
   sed 's/fn complete_erasure_at_rest(/fn completion_owner_removed(/' \
     "$ERASURE_SOURCE" >"$MISSING_ERASURE_OWNER"

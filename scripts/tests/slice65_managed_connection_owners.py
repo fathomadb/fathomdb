@@ -26,20 +26,49 @@ CLASSIFIED_CALL = re.compile(
     r"(?:#\[cfg[^\]]*\]\s*)?(?:ManagedConnectionCategory::(\w+)|(category))\s*,",
     re.S,
 )
-RAW_OPEN = re.compile(r"(?<![A-Za-z0-9_])Connection::open(?:_[A-Za-z0-9]+)?\s*\(")
+RAW_OPEN = re.compile(r"(?<![A-Za-z0-9_])Connection::(open\w*)\s*\(")
+FUNCTION = re.compile(r"(?m)^(?:pub(?:\([^)]*\))?\s+)?fn\s+(\w+)\s*\(")
+RO_FLAGS = (
+    "rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY|"
+    "rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX|"
+    "rusqlite::OpenFlags::SQLITE_OPEN_URI,"
+)
+EXPECTED_RAW_OPENS = Counter({
+    ("connection_runtime.rs", "open_managed_connection", "open", "path"): 1,
+    ("open.rs", "read_effective_schema_version", "open_with_flags", "read_only_sqlite_uri(path)," + RO_FLAGS): 1,
+    ("operator/data_plane.rs", "recover_truncate_wal", "open_with_flags", "immutable_sqlite_uri(&canonical_path)," + RO_FLAGS): 1,
+    ("operator/data_plane.rs", "recover_truncate_wal", "open_with_flags", "sqlite_uri(&canonical_path,\"mode=rw\"),rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE|rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX|rusqlite::OpenFlags::SQLITE_OPEN_URI,"): 1,
+    ("operator/data_plane.rs", "validate_effective_recovery_schema", "open_with_flags", "read_only_sqlite_uri(path)," + RO_FLAGS): 1,
+    ("operator/data_plane.rs", "inspect_data_plane_integrity", "open_with_flags", "immutable_sqlite_uri(&canonical_path),OpenFlags::SQLITE_OPEN_READ_ONLY|OpenFlags::SQLITE_OPEN_NO_MUTEX|OpenFlags::SQLITE_OPEN_URI,"): 1,
+})
 
 
 def production(source: str) -> str:
-    source = re.split(r"(?m)^mod tests \{", source, maxsplit=1)[0]
+    source = re.sub(r"(?ms)^#\[cfg\(test\)\]\s*\nmod \w+ \{.*?^}\s*\n?", "", source)
     return re.sub(r"(?m)//[^\n]*", "", source)
 
 
 def source_inventory(src: Path, overrides: dict[str, Path] | None = None) -> dict[str, str]:
     overrides = overrides or {}
+    root = overrides.get("lib.rs", src / "lib.rs").read_text()
+    test_modules = set(re.findall(r"#\[cfg\(test\)\]\s*\nmod\s+(\w+);", root))
     return {
         path.relative_to(src).as_posix(): production(overrides.get(path.relative_to(src).as_posix(), path).read_text())
         for path in sorted(src.rglob("*.rs"))
+        if path.relative_to(src).as_posix() not in {f"{name}.rs" for name in test_modules}
     }
+
+
+def raw_call_args(source: str, start: int) -> str:
+    depth = 1
+    end = start
+    while depth:
+        if source[end] == "(":
+            depth += 1
+        elif source[end] == ")":
+            depth -= 1
+        end += 1
+    return re.sub(r"\s+", "", source[start:end - 1])
 
 
 def owner_errors(sources: dict[str, str]) -> list[str]:
@@ -68,7 +97,7 @@ def owner_errors(sources: dict[str, str]) -> list[str]:
         errors.append("runtime opener does not forward typed category to managed factory")
 
     calls = Counter()
-    raw_sites = []
+    raw_sites = Counter()
     for path, source in sources.items():
         matched_starts = set()
         for match in CLASSIFIED_CALL.finditer(source):
@@ -85,14 +114,17 @@ def owner_errors(sources: dict[str, str]) -> list[str]:
             if match.start() not in matched_starts:
                 errors.append(f"unclassified managed opener call in {path}")
         for match in RAW_OPEN.finditer(source):
-            line = source.count("\n", 0, match.start()) + 1
-            raw_sites.append((path, line))
+            functions = list(FUNCTION.finditer(source, 0, match.start()))
+            function = functions[-1].group(1) if functions else "<module>"
+            raw_sites[path, function, match.group(1), raw_call_args(source, match.end())] += 1
     if calls != EXPECTED_CALLS:
         missing = EXPECTED_CALLS - calls
         unexpected = calls - EXPECTED_CALLS
         errors.append(f"managed call inventory differs: missing={dict(missing)!r} unexpected={dict(unexpected)!r}")
-    if len(raw_sites) != 1 or raw_sites[0][0] != "connection_runtime.rs":
-        errors.append(f"direct SQLite open outside sole audited factory: {raw_sites!r}")
+    if raw_sites != EXPECTED_RAW_OPENS:
+        missing = EXPECTED_RAW_OPENS - raw_sites
+        unexpected = raw_sites - EXPECTED_RAW_OPENS
+        errors.append(f"direct SQLite open outside sole audited factory or scoped standalone probes: missing={dict(missing)!r} unexpected={dict(unexpected)!r}")
     return errors
 
 

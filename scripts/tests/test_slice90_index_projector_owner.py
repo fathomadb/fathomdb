@@ -37,6 +37,13 @@ def owner_errors(root: str, index: str, write_types: str) -> list[str]:
     )
     for match in root_declaration.finditer(root):
         errors.append(f"root still defines index::{match.group(1)}")
+    root_impl = re.compile(
+        r"^impl[^\n{]*\b((?:RowKind|IndexTargetSet)\w*)\b"
+        r"(?:\s*<[^>\n]*>)?\s*(?:\{|where\b)",
+        re.M,
+    )
+    for match in root_impl.finditer(root):
+        errors.append(f"root still defines index::{match.group(1)}")
     for name in INDEX_FUNCTIONS:
         pattern = r"^pub\(crate\) fn " + name + r"\("
         if len(re.findall(pattern, index, re.M)) != 1:
@@ -94,6 +101,22 @@ class IndexProjectorOwnerTest(unittest.TestCase):
             "root does not re-export write_types::RowKind",
             owner_errors(root.replace("pub use write_types::RowKind;", "", 1), index, write_types),
         )
+
+    def test_root_impl_families_are_rejected_with_complete_owners(self) -> None:
+        root, index, write_types = self.sources()
+        self.assertEqual(owner_errors(root, index, write_types), [])
+        for declaration, name in (
+            ("impl RowKind { fn extra(&self) {} }", "RowKind"),
+            ("impl IndexTargetSet { fn extra(&self) {} }", "IndexTargetSet"),
+            ("impl Default for IndexTargetSet { fn default() -> Self { unreachable!() } }", "IndexTargetSet"),
+            ("impl RowKindNew { fn extra(&self) {} }", "RowKindNew"),
+            ("impl IndexTargetSetNew { fn extra(&self) {} }", "IndexTargetSetNew"),
+        ):
+            with self.subTest(name=name):
+                self.assertIn(
+                    f"root still defines index::{name}",
+                    owner_errors(root + "\n" + declaration, index, write_types),
+                )
 
     def test_fast_tier_registration(self) -> None:
         self.assertIn(

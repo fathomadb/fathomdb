@@ -434,7 +434,7 @@ const VECTOR_EQUIVALENCE_P1_FLIP_FLOOR: u64 = 0;
 ///
 /// It lives in `_fathomdb_open_state` — the engine's existing open-time
 /// durable-marker KV table (migration step 1) — alongside
-/// [`SEARCH_INDEX_TOKENIZER_REPROJECT_MARKER_KEY`] and
+/// `SEARCH_INDEX_TOKENIZER_REPROJECT_MARKER_KEY` and
 /// `EDGE_VECTOR_PRUNE_MARKER_KEY`, which is exactly this shape of state. So
 /// TC-68 adds **no** table, **no** migration step and **no** `SCHEMA_VERSION`
 /// bump: an old DB simply has no row here and re-runs the probe once.

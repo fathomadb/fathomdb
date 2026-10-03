@@ -66,8 +66,12 @@ def owner_errors(root: str, storage: str, equivalence: str, open_source: str, re
                 errors.append(f"{owner_name} lacks exact {name}")
             elif attrs(source, found[0].start()):
                 errors.append(f"{owner_name} gates {name}")
+    profile_load = re.search(r"(?ms)^pub\(crate\) fn load_default_profile\(.*?^}", storage)
+    if not profile_load or "[DEFAULT_VECTOR_PROFILE]" not in profile_load.group():
+        errors.append("vector_storage lacks local default profile call")
+    if "use vector_storage::DEFAULT_VECTOR_PROFILE;" in root:
+        errors.append("root retains unused vector storage import")
     for label, source, marker in (
-        ("root", root, "use vector_storage::DEFAULT_VECTOR_PROFILE;"),
         ("open", open_source, "use crate::vector_storage::DEFAULT_VECTOR_PROFILE;"),
         ("registry", registry, "use crate::vector_storage::{DEFAULT_VECTOR_PARTITION, DEFAULT_VECTOR_PROFILE};"),
     ):
@@ -94,13 +98,10 @@ class VectorConstantsOwnerTest(unittest.TestCase):
             if f"const {name}{suffix}" not in equivalence:
                 equivalence += f"\nconst {name}{suffix}"
         for source_name, marker in (
-            ("root", "use vector_storage::DEFAULT_VECTOR_PROFILE;"),
             ("open", "use crate::vector_storage::DEFAULT_VECTOR_PROFILE;"),
             ("registry", "use crate::vector_storage::{DEFAULT_VECTOR_PARTITION, DEFAULT_VECTOR_PROFILE};"),
         ):
-            if source_name == "root" and marker not in root:
-                root += "\n" + marker
-            elif source_name == "open" and marker not in open_source:
+            if source_name == "open" and marker not in open_source:
                 open_source += "\n" + marker
             elif source_name == "registry" and marker not in registry:
                 registry += "\n" + marker
@@ -146,6 +147,19 @@ class VectorConstantsOwnerTest(unittest.TestCase):
             "registry wrongly defines VECTOR_EQUIVALENCE_NEW",
             owner_errors(root, storage, equivalence, open_source, altered),
         )
+
+    def test_old_root_import_decoy_cannot_replace_owner_local_profile_use(self) -> None:
+        root, storage, equivalence, open_source, registry = self.sources()
+        self.assertEqual(owner_errors(root, storage, equivalence, open_source, registry), [])
+        broken_storage = storage.replace("[DEFAULT_VECTOR_PROFILE]", '["default"]', 1)
+        self.assertNotEqual(broken_storage, storage)
+        decoy_root = root + "\nuse vector_storage::DEFAULT_VECTOR_PROFILE;\n"
+        errors = owner_errors(decoy_root, broken_storage, equivalence, open_source, registry)
+        self.assertIn("vector_storage lacks local default profile call", errors)
+        self.assertIn("root retains unused vector storage import", errors)
+        wrong_owner = equivalence + "\nconst DEFAULT_VECTOR_PROFILE: &str = \"default\";\n"
+        self.assertIn("vector_equivalence wrongly defines DEFAULT_VECTOR_PROFILE",
+                      owner_errors(root, storage, wrong_owner, open_source, registry))
 
     def test_cfg_and_exact_value_mutants(self) -> None:
         root, storage, equivalence, open_source, registry = self.sources()

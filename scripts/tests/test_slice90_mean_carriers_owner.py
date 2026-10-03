@@ -69,8 +69,9 @@ def owner_errors(root: str, owner: str, modules: dict[str, str]) -> list[str]:
     for path in ("open.rs", "projection_commit.rs"):
         if "use crate::mean::MEAN_VEC_PIN_THRESHOLD;" not in modules.get(path, ""):
             errors.append(f"{path} lacks mean owner path")
-    if "mean::MEAN_VEC_PIN_THRESHOLD" not in root:
-        errors.append("root test vector write lacks mean owner path")
+    vector_write = re.search(r"(?ms)^    pub fn write_vector_for_test\(.*?^    }", modules.get("vector_storage.rs", ""))
+    if not vector_write or "mean::MEAN_VEC_PIN_THRESHOLD" not in vector_write.group():
+        errors.append("vector_storage test vector write lacks mean owner path")
     return errors
 
 
@@ -92,7 +93,6 @@ class MeanCarriersOwnerTest(unittest.TestCase):
             root += "\n" + REEXPORT
         for path in ("open.rs", "projection_commit.rs"):
             modules[path] += "\nuse crate::mean::MEAN_VEC_PIN_THRESHOLD;"
-        root += "\nmean::MEAN_VEC_PIN_THRESHOLD"
         self.assertEqual(owner_errors(root, owner, modules), [])
         for declaration, name in (
             ("struct MeanRecomputeReportNew;", "MeanRecomputeReportNew"),
@@ -123,6 +123,22 @@ class MeanCarriersOwnerTest(unittest.TestCase):
             self.assertIn("root gates mean module", owner_errors(changed, owner, modules))
         for attr in ('#![cfg(feature = "operator")]', '#![cfg_attr(feature = "default-embedder", cfg(feature = "test-hooks"))]'):
             self.assertIn("mean gates whole owner module", owner_errors(root, attr + "\n" + owner, modules))
+
+    def test_old_root_vector_writer_decoy_cannot_replace_storage_owner_path(self) -> None:
+        root, owner, modules = source_inventory()
+        self.assertEqual(owner_errors(root, owner, modules), [])
+        storage = modules["vector_storage.rs"]
+        broken_storage = storage.replace("mean::MEAN_VEC_PIN_THRESHOLD", "MEAN_VEC_PIN_THRESHOLD", 1)
+        self.assertNotEqual(broken_storage, storage)
+        decoy_root = root + "\nfn write_vector_for_test() { let _ = mean::MEAN_VEC_PIN_THRESHOLD; }\n"
+        errors = owner_errors(decoy_root, owner, modules | {"vector_storage.rs": broken_storage})
+        self.assertIn("vector_storage test vector write lacks mean owner path", errors)
+        wrong_owner = modules | {"future_owner.rs": "fn write_vector_for_test() { let _ = mean::MEAN_VEC_PIN_THRESHOLD; }"}
+        self.assertIn("vector_storage test vector write lacks mean owner path",
+                      owner_errors(root, owner, wrong_owner | {"vector_storage.rs": broken_storage}))
+        literal_storage = storage.replace("mean::MEAN_VEC_PIN_THRESHOLD", "256", 1)
+        self.assertIn("vector_storage test vector write lacks mean owner path",
+                      owner_errors(root, owner, modules | {"vector_storage.rs": literal_storage}))
 
     def test_fast_tier_registration(self) -> None:
         self.assertIn("fast test-slice90-mean-carriers-owner", (ROOT / "scripts/agent-test.sh").read_text())

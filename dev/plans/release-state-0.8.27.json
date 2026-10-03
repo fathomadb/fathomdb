@@ -43,19 +43,22 @@
     {"slice": 115, "short": "ENGINE-PERF-DATA", "title": "engine performance data-collection and lightweight profiling", "depends_on": [114], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
     {"slice": 120, "short": "TYPESCRIPT", "title": "TypeScript SDK decomposition", "depends_on": [115], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
     {"slice": 130, "short": "PYTHON", "title": "Python SDK decomposition", "depends_on": [120], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
-    {"slice": 135, "short": "PERFORMANCE-BASELINE", "title": "0.8.26 performance preservation and improvement qualification", "depends_on": [130], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
+    {"slice": 132, "short": "RUST-SDK-PARITY", "title": "Rust SDK canonical-surface parity", "depends_on": [130], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/features/slice-132/plan.md"], "sha": null},
+    {"slice": 135, "short": "PERFORMANCE-BASELINE", "title": "0.8.26 performance preservation and improvement qualification", "depends_on": [132], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
     {"slice": 140, "short": "DOC-CONVERGENCE", "title": "documentation and structural convergence", "depends_on": [135], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md"], "sha": null},
     {"slice": 150, "short": "QUALIFICATION", "title": "integrated release qualification", "depends_on": [140], "status": "PLANNED", "design_refs": ["dev/plans/plan-0.8.27.md", "dev/plans/0.8.27/prework/0.8.27-refactor-test-approach.md"], "sha": null}
   ],
   "landed": [],
   "next_slice": 103,
-  "remaining_ladder": [103, 110, 114, 115, 120, 130, 135, 140, 150],
+  "remaining_ladder": [103, 110, 114, 115, 120, 130, 132, 135, 140, 150],
   "decisions": {
     "unruled": [
-      {"id": "release-0.8.27-publication", "title": "Authorize tagging and publication only after the full release ladder and qualification gates pass."}
+      {"id": "release-0.8.27-publication", "title": "Authorize tagging and publication only after the full release ladder and qualification gates pass."},
+      {"id": "slice-132-external-provider-disposition", "title": "After auditing concrete external use of fathomdb-engine and fathomdb-embedder-api, decide whether their published provider/plugin contract remains a supported extension boundary or is deprecated/retired. Any concrete reason to retain custom-provider reachability from the default fathomdb SDK requires a specific HITL exception; Python and TypeScript will not add custom embedders."}
     ],
     "ruled": [
       {"id": "direct-execution", "title": "Execute 0.8.27 prework directly in the existing release worktree without Steward or Orchestrator roles.", "source": "repository owner 2026-09-21"},
+      {"id": "slice-132-one-rust-sdk-parity-direction", "title": "Use fathomdb as the one Rust application SDK, with canonical capability parity to Python and TypeScript and idiomatic language form. Do not create a second Rust SDK crate or add custom embedders to Python/TypeScript; remove custom-provider reachability from default fathomdb unless a concrete need receives a specific HITL exception.", "source": "repository owner 2026-10-03"},
       {"id": "prework-slices-0-9", "title": "Complete prework Slices 0 through 9, including requirements, acceptance, design review, verification planning, and durable status records.", "source": "repository owner 2026-09-21"},
       {"id": "F27-01", "title": "Keep correction-safe erasure as the 0.8.27 publication blocker and do not preselect its implementation cause.", "source": "0.8.27 prework proposal register"},
       {"id": "D27-deferred", "title": "Move D27-01, D27-02, and D27-04 to D28-05, D28-06, and D28-07; merge both D27-03 components into D28-03 with their proof gates intact.", "source": "0.8.27 prework proposal register"},

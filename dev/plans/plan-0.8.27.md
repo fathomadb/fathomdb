@@ -31,6 +31,14 @@ and determine whether the reported 0.8.26 Windows erasure failure persists on
 the 0.8.27 candidate. Its
 [`execution plan`](0.8.27/features/slice-103/plan.md) owns that addition.
 
+Slice 132 follows the Python SDK decomposition. It defines and closes the
+Rust SDK's canonical-surface parity with Python and TypeScript, after a HITL
+decision distinguishes equivalent product operations from language idioms,
+CLI-only operator capabilities, and the separately published provider/plugin
+contract. `fathomdb` is the one Rust application SDK; its
+[`planning gate`](0.8.27/features/slice-132/plan.md) owns that decision and no
+contract change begins before it.
+
 The shared structural vocabulary is:
 
 ```text
@@ -366,7 +374,7 @@ user actually commissioned.
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 103** (`HOUSEKEEPING`) — Tegra build continuity and Windows erasure consistency
 
-**Remaining ladder:** 103 → 110 → 114 → 115 → 120 → 130 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 103 → 110 → 114 → 115 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1125,6 +1133,28 @@ Test root and documented imports, contractual `__all__`, callable signatures,
 exception identities, stub/type-checker agreement, and public examples or
 doctests. Keep deep database semantics in Rust and use thin Python parity
 checks. No test may depend on a particular helper file.
+
+### Slice 132 — Rust SDK canonical-surface parity
+
+**PLANNED; HITL scope decision required before commissioning.** The Rust facade
+is currently a separately governed consumer contract: the public position and
+Rust interface deliberately require parity-in-intent rather than membership
+identity with Python/TypeScript. It also lacks facade re-exports for
+`SearchHit`, `IdSpace`, and `IdSpaceKind`; Python and TypeScript have standalone
+passage rerank and CLS batch-embedding operations that Rust does not expose as
+matching facade entries. The current whole-Engine re-export also leaves
+Rust-only caller-supplied provider reachability, which the owner directs Slice
+132 to remove from the default SDK unless a concrete need is demonstrated.
+
+Execute the [Slice 132 plan](0.8.27/features/slice-132/plan.md) only after HITL
+accepts a successor contract. Build one canonical operation, result/error-type,
+and capability inventory from live source and installed artifacts. Make every
+accepted product capability available through each SDK, with language-native
+method, naming, ownership, and async choices where those do not alter behavior.
+Do not pull CLI-only recovery/operator functions into an SDK or preserve or
+retire the published plugin protocol without an explicit successor. The scope
+decision must disposition every Rust-only capability and every Python/TypeScript
+operation missing from Rust; absent a decision, Slice 132 remains planned.
 
 ### Slice 135 — 0.8.26 performance preservation and improvement qualification
 

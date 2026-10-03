@@ -34,15 +34,23 @@ Memex `windows-portability` reproducer is locally available, but original VM
 logs and an exact 0.8.27 candidate comparison are pending. See the
 [Slice 103 plan](../0.8.27/features/slice-103/plan.md).
 
+Slice 132 is planned after Slice 130 and before performance qualification. It
+will make the Rust SDK equal in canonical capability to Python and TypeScript,
+while retaining language-native API form and the separately governed CLI and
+published provider/plugin boundaries. `fathomdb` remains the one Rust SDK;
+custom-provider reachability leaves its default surface unless concrete external
+need receives a HITL exception. Its scope requires a successor decision before
+implementation.
+
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 103 (HOUSEKEEPING)** — Tegra build continuity and Windows erasure consistency. **Remaining ladder:** 103 → 110 → 114 → 115 → 120 → 130 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 103 (HOUSEKEEPING)** — Tegra build continuity and Windows erasure consistency. **Remaining ladder:** 103 → 110 → 114 → 115 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
-There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->ONE<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
+There is <!-- BEGIN GENERATED release-state:0.8.27:status-live-open-count -->TWO<!-- END GENERATED release-state:0.8.27:status-live-open-count --> live open decisions:
 
 - authorize tagging/publication only after the complete ladder and release
   qualification pass.
@@ -242,3 +250,9 @@ grant/revert evidence.
   outstanding obligations at exit. Its NAPI executor/ADR mismatch remains
   within Slice 110. No Slice 111 is allocated; Slice 120 depends on completed
   110.
+- [Slice 132](../0.8.27/features/slice-132/plan.md) follows Slice 130 and
+  requires a HITL-approved successor to the current Rust parity-in-intent
+  contract. It inventories canonical operations, types, and capabilities across
+  all three SDKs before changing any surface. `fathomdb` is the one Rust SDK;
+  external provider/plugin compatibility remains a separately ruled boundary.
+  Slice 135 depends on its closure.

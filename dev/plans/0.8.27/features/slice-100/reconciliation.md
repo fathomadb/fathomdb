@@ -26,7 +26,7 @@ class module identity or signature other than
 `Engine.attach_logging_subscriber(self, /, logger, heartbeat_interval_ms=None)`
 becoming `Engine.attach_logging_subscriber(self, /, logger)`. That delta is the
 reviewed correction in the proposed successor ADR. The final runtime ledger
-will be rebound to the clean committed candidate wheel at closeout.
+binds source commit `731130c22` and the default candidate wheel SHA-256.
 
 The Slice 50 hook inventory, Slice 70 embedding documentation guard and Windows
 WAL attribution guard were retargeted to their actual source owners. Their

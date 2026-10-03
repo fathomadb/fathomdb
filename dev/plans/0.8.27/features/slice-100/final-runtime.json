@@ -1,4 +1,8 @@
 {
+  "features": [
+    "pyo3/extension-module",
+    "default-embedder"
+  ],
   "native": [
     {
       "kind": "type",
@@ -1321,7 +1325,7 @@
       "signature": "(engine, logical_id, to_state, reason=None)"
     }
   ],
-  "native_file": "/tmp/fathomdb-s100-final-venv/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+  "native_file": "/tmp/fathomdb-s100-candidate-venv-731130c/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
   "package_all": [
     "ActuationBatchV1",
     "ActuationOperationV1",
@@ -1443,7 +1447,9 @@
     "read",
     "rerank"
   ],
-  "package_file": "/tmp/fathomdb-s100-final-venv/lib/python3.12/site-packages/fathomdb/__init__.py",
+  "package_file": "/tmp/fathomdb-s100-candidate-venv-731130c/lib/python3.12/site-packages/fathomdb/__init__.py",
   "python": "3.12.3",
-  "schema_version": "fathomdb.slice100-final-runtime/v1"
+  "schema_version": "fathomdb.slice100-final-runtime/v1",
+  "source_sha": "731130c22a40bfed3f50e9f205500d5080022cc7",
+  "wheel_sha256": "b061b8f99cfdd550ef7f1170311c0c337f4f9804556226a8ea46e68a87d91b76"
 }

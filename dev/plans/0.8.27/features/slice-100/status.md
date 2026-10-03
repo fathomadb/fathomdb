@@ -16,8 +16,8 @@ boundaries supported bounded asynchronous logger delivery, callback reentry
 rejection and panic containment. It rejected synthetic heartbeats and public
 operation IDs without engine-owned progress semantics.
 
-The production implementation and focused tests are ready for a clean candidate
-commit. The native subscriber no-op now delivers typed engine diagnostics to a
+The production implementation and focused tests are committed at
+`731130c22a40bfed3f50e9f205500d5080022cc7`. The native subscriber no-op now delivers typed engine diagnostics to a
 Python logger through a bounded queue. The former
 `heartbeat_interval_ms` parameter is removed. SQLite profile dispatch contains
 subscriber panics. The PyO3 binding has explicit private owners while retaining
@@ -32,11 +32,13 @@ stress-payload adapter witness; that focused Rust/Python boundary test now
 passes. The Windows scanner passed 340 checks after its correction. The first
 full repository gate passed lint, typecheck, strict AC-036/AC-037 security and
 176 test suites; the two Python suites refused the dirty worktree as designed.
-They must be rerun against a clean committed candidate. No full-gate PASS is
-claimed yet.
+The two Python routes then passed against the clean committed candidate:
+1,574 tests passed, 27 were skipped, and the native receipt matched its SHA.
+The [review and verification record](review-verification.md) binds the default
+and test-hooks wheel hashes. A single full-gate PASS is still pending.
 
 The successor [ADR](../../../../adr/ADR-0.8.27-python-subscriber-delivery.md)
 remains proposed pending the required human ruling on the old heartbeat
-promise. Slice 100 stays open until the clean-candidate Python suite and
-artifact receipts pass, the ADR ruling is recorded, and the release-state
+promise. Slice 100 stays open until the final full gate passes, the ADR ruling
+is recorded, and the release-state
 closeout is merged into `release/0.8.27`.

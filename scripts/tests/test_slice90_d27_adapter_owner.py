@@ -26,6 +26,16 @@ IMPL = re.compile(r"(?ms)^impl Engine \{.*?^}")
 CFG = re.compile(r"#\[\s*cfg(?:_attr)?\b")
 
 
+def runtime_dependency_escape(source: str) -> bool:
+    tokens = rust_code_tokens(source)
+    for index, token in enumerate(tokens):
+        if token in ("Engine", "Connection", "ProjectionRuntime", "rusqlite", "super"):
+            return True
+        if token == "crate" and tokens[index - 2:index + 2] != ["pub", "(", "crate", ")"]:
+            return True
+    return False
+
+
 def core_dependency_escape(core: str) -> bool:
     observation_import = re.compile(
         r'(?m)^#\[cfg\(feature = "test-hooks"\)\]$\nuse super::d27_observation;$'
@@ -34,13 +44,7 @@ def core_dependency_escape(core: str) -> bool:
     if len(matches) != 1:
         return True
     core = core[:matches[0].start()] + core[matches[0].end():]
-    tokens = rust_code_tokens(core)
-    for index, token in enumerate(tokens):
-        if token in ("Engine", "Connection", "ProjectionRuntime", "rusqlite", "super"):
-            return True
-        if token == "crate" and tokens[index - 2:index + 2] != ["pub", "(", "crate", ")"]:
-            return True
-    return False
+    return runtime_dependency_escape(core)
 
 
 def inventory() -> tuple[str, dict[str, str], str]:
@@ -100,6 +104,9 @@ def owner_errors(root: str, modules: dict[str, str], standalone: str) -> list[st
             errors.append("standalone dispatch core depends on Engine or another runtime owner")
         if "macro_rules" in rust_code_tokens(core):
             errors.append("standalone dispatch core hides edges in a macro")
+    observation = modules.get("embed_dispatch/d27_observation.rs", "")
+    if not observation or runtime_dependency_escape(observation):
+        errors.append("standalone D27 observation depends on Engine or another runtime owner")
     root_module = re.search(r"(?m)^mod embed_dispatch;$", root)
     if not root_module or any(CFG.match(attr) for attr in prelude(root, root_module.start())):
         errors.append("root gates embed_dispatch module")
@@ -116,6 +123,19 @@ def owner_errors(root: str, modules: dict[str, str], standalone: str) -> list[st
 class D27AdapterOwnerTest(unittest.TestCase):
     def test_current_source_has_exact_owner_and_standalone_core(self) -> None:
         self.assertEqual(owner_errors(*inventory()), [])
+
+    def test_observation_module_rejects_runtime_owner_import(self) -> None:
+        root, modules, standalone = inventory()
+        observation = modules["embed_dispatch/d27_observation.rs"]
+        changed = modules | {
+            "embed_dispatch/d27_observation.rs": observation +
+            '\n#[cfg(not(test))] #[allow(unused_imports)] '
+            'use crate::runtime_lifecycle as hidden_runtime;\n'
+        }
+        self.assertIn(
+            "standalone D27 observation depends on Engine or another runtime owner",
+            owner_errors(root, changed, standalone),
+        )
 
     def test_complete_owner_rejects_root_wrong_owner_and_hidden_adapter(self) -> None:
         root, modules, standalone = inventory()

@@ -176,6 +176,13 @@ forbid-dependency embed_dispatch::core wal_runtime
 forbid-dependency embed_dispatch::core runtime_lifecycle
 forbid-dependency embed_dispatch::core projection_runtime
 forbid-dependency embed_dispatch::core search
+forbid-dependency embed_dispatch::d27_observation open
+forbid-dependency embed_dispatch::d27_observation connection_runtime
+forbid-dependency embed_dispatch::d27_observation reader_pool
+forbid-dependency embed_dispatch::d27_observation wal_runtime
+forbid-dependency embed_dispatch::d27_observation runtime_lifecycle
+forbid-dependency embed_dispatch::d27_observation projection_runtime
+forbid-dependency embed_dispatch::d27_observation search
 forbid-dependency search reader_pool
 forbid-cycle search graph_expand
 forbid-cycle read reader_pool

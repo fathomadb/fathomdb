@@ -53,6 +53,7 @@ impl SubscriberState {
             old.attachment.detach();
         }
         self.active = Some(Active { attachment, _subscription: subscription });
+        self.active.as_ref().unwrap().attachment.active.store(true, Ordering::Release);
     }
 
     pub(crate) fn close(&mut self) {
@@ -66,7 +67,7 @@ impl SubscriberState {
 impl Attachment {
     pub(crate) fn new(env: Env, callback: JsFunction) -> Result<Arc<Self>> {
         let attachment = Arc::new(Self {
-            active: AtomicBool::new(true),
+            active: AtomicBool::new(false),
             dropped: AtomicU64::new(0),
             callback_faults: AtomicU64::new(0),
             queue: Mutex::new(Queue::default()),
@@ -176,21 +177,21 @@ impl Attachment {
         }
         // SQLite profile callbacks must never wait for a JS-thread lock.
         let Ok(slot) = self.handle.try_lock() else {
-            self.dropped.fetch_add(1, Ordering::Relaxed);
+            self.count_drop();
             return;
         };
         let Some(handle) = *slot else {
             return;
         };
         let Ok(mut queue) = self.queue.try_lock() else {
-            self.dropped.fetch_add(1, Ordering::Relaxed);
+            self.count_drop();
             return;
         };
         if !self.active.load(Ordering::Acquire) {
             return;
         }
         if queue.records.len() == CAPACITY {
-            self.dropped.fetch_add(1, Ordering::Relaxed);
+            self.count_drop();
             return;
         }
         queue.records.push_back(record);
@@ -234,7 +235,7 @@ impl Attachment {
             if !self.active.load(Ordering::Acquire) {
                 break;
             }
-            record["droppedRecordsTotal"] = json!(self.dropped.load(Ordering::Relaxed).to_string());
+            self.disclose_drops(&mut record);
             let outcome =
                 catch_unwind(AssertUnwindSafe(|| unsafe { call_listener(env, callback, &record) }));
             if !matches!(outcome, Ok(true)) {
@@ -242,20 +243,31 @@ impl Attachment {
                 unsafe { clear_exception(env) };
             }
         }
-        let remaining = {
-            let mut queue = self.queue.lock().unwrap_or_else(|poison| poison.into_inner());
-            // Clearing and re-setting under one queue lock closes the gap
-            // between a producer enqueue and continuation scheduling.
-            queue.wake_pending = false;
-            if self.active.load(Ordering::Acquire) && !queue.records.is_empty() {
-                queue.wake_pending = true;
-                true
-            } else {
-                false
-            }
-        };
-        if remaining {
+        if self.finish_drain() {
             self.schedule_continuation();
+        }
+    }
+
+    fn disclose_drops(&self, record: &mut Value) {
+        record["droppedRecordsTotal"] = json!(self.dropped.load(Ordering::Relaxed).to_string());
+    }
+
+    fn count_drop(&self) {
+        let _ = self.dropped.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+            Some(value.saturating_add(1))
+        });
+    }
+
+    fn finish_drain(&self) -> bool {
+        let mut queue = self.queue.lock().unwrap_or_else(|poison| poison.into_inner());
+        // Clearing and re-setting under one queue lock closes the gap
+        // between a producer enqueue and continuation scheduling.
+        queue.wake_pending = false;
+        if self.active.load(Ordering::Acquire) && !queue.records.is_empty() {
+            queue.wake_pending = true;
+            true
+        } else {
+            false
         }
     }
 }
@@ -447,10 +459,81 @@ mod tests {
         let attachment = unattached_for_queue_test();
         {
             let mut queue = attachment.queue.lock().unwrap();
-            queue.records.resize(CAPACITY, Value::Null);
+            queue.records.resize(CAPACITY, json!({"kind": "event"}));
         }
         attachment.on_event(&event());
         assert_eq!(attachment.queue.lock().unwrap().records.len(), CAPACITY);
         assert_eq!(attachment.dropped.load(Ordering::Relaxed), 1);
+        let mut resumed = attachment.queue.lock().unwrap().records.pop_front().unwrap();
+        attachment.disclose_drops(&mut resumed);
+        assert_eq!(resumed["droppedRecordsTotal"], "1");
+    }
+
+    #[test]
+    fn dropped_record_count_saturates_without_wrapping() {
+        let attachment = unattached_for_queue_test();
+        attachment.dropped.store(u64::MAX, Ordering::Relaxed);
+        let held = attachment.queue.lock().unwrap();
+        attachment.on_event(&event());
+        drop(held);
+        assert_eq!(attachment.dropped.load(Ordering::Relaxed), u64::MAX);
+    }
+
+    #[test]
+    fn enqueue_on_either_side_of_empty_drain_transition_has_a_wakeup() {
+        let attachment = unattached_for_queue_test();
+        attachment.queue.lock().unwrap().wake_pending = true;
+        let producer = Arc::clone(&attachment);
+        std::thread::spawn(move || producer.on_event(&event())).join().unwrap();
+        assert!(attachment.finish_drain(), "pre-transition enqueue needs continuation");
+        assert!(attachment.queue.lock().unwrap().wake_pending);
+
+        {
+            let mut queue = attachment.queue.lock().unwrap();
+            queue.records.clear();
+        }
+        assert!(!attachment.finish_drain(), "empty drain clears wake_pending");
+        let producer = Arc::clone(&attachment);
+        std::thread::spawn(move || producer.on_event(&event())).join().unwrap();
+        let queue = attachment.queue.lock().unwrap();
+        assert_eq!(queue.records.len(), 1);
+        assert!(queue.wake_pending, "post-transition enqueue must schedule its own wakeup");
+    }
+
+    #[test]
+    fn replacement_silences_old_before_arming_new_generation() {
+        let dir = tempfile::tempdir().unwrap();
+        let opened = fathomdb_engine::Engine::open(dir.path().join("replacement.sqlite")).unwrap();
+        let old = unattached_for_queue_test();
+        let new = unattached_for_queue_test();
+        new.active.store(false, Ordering::Release);
+        let mut state = SubscriberState {
+            closing: false,
+            active: Some(Active {
+                _subscription: opened.engine.subscribe(old.clone()),
+                attachment: old.clone(),
+            }),
+        };
+        let next_subscription = opened.engine.subscribe(new.clone());
+        // Registry snapshots can contain both generations during replacement.
+        // Only the old one may accept records before the transition.
+        std::thread::scope(|scope| {
+            scope.spawn(|| old.on_event(&event()));
+            scope.spawn(|| new.on_event(&event()));
+        });
+        assert_eq!(old.queue.lock().unwrap().records.len(), 1);
+        assert_eq!(new.queue.lock().unwrap().records.len(), 0);
+
+        state.replace(new.clone(), next_subscription);
+        std::thread::scope(|scope| {
+            scope.spawn(|| old.on_event(&event()));
+            scope.spawn(|| new.on_event(&event()));
+        });
+        assert!(!old.active.load(Ordering::Acquire));
+        assert!(new.active.load(Ordering::Acquire));
+        assert_eq!(old.queue.lock().unwrap().records.len(), 0);
+        assert_eq!(new.queue.lock().unwrap().records.len(), 1);
+        state.close();
+        opened.engine.close().unwrap();
     }
 }

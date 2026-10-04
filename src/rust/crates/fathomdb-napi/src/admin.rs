@@ -56,16 +56,6 @@ pub async fn admin_configure(
 }
 
 #[napi(object)]
-pub struct CounterSnapshot {
-    pub queries: i64,
-    pub writes: i64,
-    pub write_rows: i64,
-    pub admin_ops: i64,
-    pub cache_hit: i64,
-    pub cache_miss: i64,
-}
-
-#[napi(object)]
 pub struct EngineConfig {
     pub embedder_pool_size: Option<f64>,
     pub scheduler_runtime_threads: Option<f64>,

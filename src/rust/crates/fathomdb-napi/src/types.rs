@@ -1,5 +1,15 @@
 use super::*;
 
+#[napi(object)]
+pub struct CounterSnapshot {
+    pub queries: i64,
+    pub writes: i64,
+    pub write_rows: i64,
+    pub admin_ops: i64,
+    pub cache_hit: i64,
+    pub cache_miss: i64,
+}
+
 /// 0.8.8 EXP-OBS (Slice 10) — the explanation sidecar (mirror of engine
 /// `Explanation`): a query-level [`QueryTrace`] + a per-hit breakdown parallel to
 /// (and in the same order as) `SearchResult.results`.

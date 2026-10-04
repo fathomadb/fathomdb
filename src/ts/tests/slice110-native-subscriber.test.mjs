@@ -96,6 +96,55 @@ test("a same-callback reentry can schedule engine work", async () => {
   }
 });
 
+test("callback-triggered replacement silences the current generation", async () => {
+  const engine = await native.Engine.open(dbPath());
+  let oldCalls = 0;
+  let newCalls = 0;
+  try {
+    engine.attachSubscriber(event => {
+      oldCalls++;
+      if (event.kind === "event" && event.phase === "started") {
+        engine.attachSubscriber(() => { newCalls++; });
+      }
+    });
+    await write(engine);
+    await tick();
+    assert.equal(oldCalls, 1, "queued old-generation records must be silenced");
+    const afterFirst = newCalls;
+    await write(engine);
+    await tick();
+    assert.equal(oldCalls, 1);
+    assert.ok(newCalls > afterFirst);
+  } finally {
+    await engine.close();
+  }
+});
+
+test("callback-triggered close detaches before scheduling engine shutdown", async () => {
+  const engine = await native.Engine.open(dbPath());
+  let closePromise;
+  let calls = 0;
+  engine.attachSubscriber(event => {
+    calls++;
+    if (event.kind === "event" && event.phase === "finished" && !closePromise) {
+      closePromise = engine.close();
+      assert.equal(typeof closePromise.then, "function");
+      assert.throws(() => engine.attachSubscriber(() => {}), /FDB_CLOSING/);
+    }
+  });
+  try {
+    await write(engine);
+    await tick();
+    assert.ok(closePromise, "callback must have entered close");
+    await closePromise;
+    const afterClose = calls;
+    await tick();
+    assert.equal(calls, afterClose, "no callback may start after close entry");
+  } finally {
+    await engine.close();
+  }
+});
+
 test("live subscriber and pending wakeup do not keep Node alive", () => {
   const binary = process.env.FATHOMDB_NATIVE_BINARY;
   assert.ok(binary);

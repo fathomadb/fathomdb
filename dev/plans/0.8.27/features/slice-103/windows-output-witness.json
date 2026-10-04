@@ -45,7 +45,9 @@
     "wheel_sha256": "7a94e26f78b040ce95aa79ada69ffac6f6d369280f300ec15da0c713d7bd5a1c"
   },
   "integrated_gate": {
-    "source_sha": "f148aca86d4149e11b85d146b969064f4683677c",
+    "delta": "docs-only Slice 90 lib_rs_blob hash correction",
+    "gate_source_sha": "9764dd6c1",
+    "product_code_sha": "f148aca86d4149e11b85d146b969064f4683677c",
     "status": "running-by-release-orchestrator"
   },
   "integrated_source_sha": "f148aca86d4149e11b85d146b969064f4683677c",

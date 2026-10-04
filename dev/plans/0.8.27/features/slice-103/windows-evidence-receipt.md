@@ -161,8 +161,9 @@ it is **unqualified**, not a green gate. The exact
 partial log is
 [agent-verify-75093d59e-unqualified.log](windows-evidence/agent-verify-75093d59e-unqualified.log),
 SHA256 `7fd6bb2c7463ece7c0330349a3f114e806f2a64691be5dac4a899aac9bbdfb68`.
-The separate release-orchestrator strict gate runs on clean integrated HEAD
-`f148aca86` and supplies the authoritative final repository result. The
+The release orchestrator restarted the strict gate on clean `9764dd6c1`,
+a docs-only descendant of `f148aca86` with identical product/build inputs;
+that gate supplies the authoritative final repository result. The
 process-local W environment used `PYTHONPATH=src/python`,
 `CARGO_TARGET_DIR=<Track W>/target`, `CARGO_INCREMENTAL=0`, and
 `core.excludesFile=/tmp/fathomdb-s103w-git-excludes` containing only

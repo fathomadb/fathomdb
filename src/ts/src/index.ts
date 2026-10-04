@@ -2518,15 +2518,38 @@ export interface CounterSnapshot {
   cacheMiss: number;
 }
 
-export interface SubscriberEvent {
-  [key: string]: unknown;
-}
+export type SubscriberEvent =
+  | {
+      kind: "event";
+      phase: "started" | "slow" | "heartbeat" | "finished" | "failed";
+      source: "engine" | "sqlite_internal";
+      category: "writer" | "search" | "admin" | "error" | "corruption" | "recovery" | "io";
+      code?: string;
+      droppedRecordsTotal: string;
+    }
+  | {
+      kind: "profile";
+      wallClockMs: string;
+      stepCount: string;
+      cacheDelta: string;
+      droppedRecordsTotal: string;
+    }
+  | {
+      kind: "slowStatement";
+      statement: string;
+      wallClockMs: string;
+      droppedRecordsTotal: string;
+    }
+  | {
+      kind: "stressFailure";
+      threadGroupId: string;
+      opKind: string;
+      lastErrorChain: string[];
+      projectionState: string;
+      droppedRecordsTotal: string;
+    };
 
 export type SubscriberCallback = (event: SubscriberEvent) => void;
-
-export interface AttachSubscriberOptions {
-  heartbeatIntervalMs?: number;
-}
 
 export interface AdminConfigureOptions {
   name: string;
@@ -3440,8 +3463,8 @@ export class Engine {
     interceptSync(() => this.#native.setSlowThresholdMs(value));
   }
 
-  attachSubscriber(callback: SubscriberCallback, options: AttachSubscriberOptions = {}): void {
-    interceptSync(() => this.#native.attachSubscriber(callback, options));
+  attachSubscriber(callback: SubscriberCallback): void {
+    interceptSync(() => this.#native.attachSubscriber(callback));
   }
 
   /** @internal — handle to the napi-rs binding, used by `admin.configure`. */

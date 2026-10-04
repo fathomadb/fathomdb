@@ -45,7 +45,6 @@ import {
   type ProjectionRuntimeUnavailabilityReason,
   type ProjectionStatusDenseReadiness,
   type SubscriberCallback,
-  type AttachSubscriberOptions,
   type AdminConfigureOptions,
   FathomDbError,
   // ...typed classes below the root, see errors reference
@@ -306,12 +305,17 @@ Toggle per-operation profiling.
 
 Set the slow-query threshold for profiling event emission.
 
-### `engine.attachSubscriber(callback, options?) -> void`
+### `engine.attachSubscriber(callback) -> void`
 
-Bind engine events to a callback. `callback: (event:
-SubscriberEvent) => void` receives the stable `fathomdb` payload
-described in `dev/design/bindings.md`. `options.heartbeatIntervalMs`
-is optional.
+Bind diagnostics to a callback on the JavaScript thread. The callback receives
+a tagged `SubscriberEvent`: `event`, `profile`, `slowStatement`, or
+`stressFailure`. Diagnostic integer fields and `droppedRecordsTotal` are
+decimal strings. Delivery is best-effort with a bounded 4096-record queue;
+the cumulative drop count on later records reports overload. Attaching again
+replaces the listener; closing the engine detaches it. Synchronous listener
+exceptions do not change the engine operation result. An async listener must
+handle its own rejected Promise. The binding does not generate heartbeats or
+operation IDs.
 
 ### Properties
 

@@ -206,8 +206,11 @@ The engine emits structured lifecycle and diagnostic events (payload authority
 in [`lifecycle.md`](lifecycle.md)). Binding adapters attach a host subscriber:
 
 - Python: caller registers a `logging`-backed adapter via a binding-provided helper that maps tracing events into Python `LogRecord`s. The adapter is bounded and best-effort under overload per `ADR-0.8.27-python-subscriber-delivery`; it reports dropped records when delivery resumes. It never calls Python from an engine or SQLite callback thread.
-- TypeScript: the `attachSubscriber` surface exists, but native callback
-  delivery is still inert at this candidate; Slice 110 owns its disposition.
+- TypeScript: `attachSubscriber(callback)` installs one replaceable host
+  listener. The N-API adapter keeps a bounded owned record queue and sends
+  coalesced wakeups to the JavaScript thread. Its callback, overload,
+  replacement, close, and process-exit behavior is specified by
+  `ADR-0.8.27-typescript-subscriber-delivery`.
 - CLI: a console subscriber in human-facing mode remains the intended design,
   but the current CLI has no engine subscriber attachment. Machine-facing
   `--json` output uses the verb-owned shape from `interfaces/cli.md` and

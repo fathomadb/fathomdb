@@ -12,6 +12,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadPlatformBinding } from "./platform.js";
+import type { SubscriberCallback } from "./index.js";
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -567,10 +568,6 @@ interface NativeCounterSnapshot {
   cacheMiss: number;
 }
 
-interface NativeAttachSubscriberOptions {
-  heartbeatIntervalMs?: number;
-}
-
 interface NativeEngineConfig {
   embedderPoolSize?: number;
   schedulerRuntimeThreads?: number;
@@ -749,7 +746,7 @@ export interface NativeEngine {
   openReport(): NativeOpenReport;
   setProfiling(enabled: boolean): void;
   setSlowThresholdMs(value: number): void;
-  attachSubscriber(callback: unknown, options?: NativeAttachSubscriberOptions): void;
+  attachSubscriber(callback: SubscriberCallback): void;
   // G11 (Slice 15) — BYO-LLM ingest.
   ingestWithExtractor(
     cmd: string[],

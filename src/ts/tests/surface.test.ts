@@ -357,7 +357,7 @@ test("instrumentation stubs return canonical types", async () => {
     assert.ok(snap !== undefined);
     engine.setProfiling(true);
     engine.setSlowThresholdMs(100);
-    engine.attachSubscriber(() => undefined, {});
+    engine.attachSubscriber(() => undefined);
   } finally {
     await engine.close();
   }

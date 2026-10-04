@@ -179,10 +179,16 @@ These are public instance methods, not extra top-level SDK verbs:
 
 Subscriber attachment is provided by:
 
-- `engine.attachSubscriber(callback, { heartbeatIntervalMs? })`
+- `engine.attachSubscriber(callback)`
 
-`callback` receives the stable `fathomdb` payload described in
-`design/bindings.md`.
+`callback` receives a tagged `SubscriberEvent` (`event`, `profile`,
+`slowStatement`, or `stressFailure`) on the JavaScript thread. Diagnostic
+integer fields and `droppedRecordsTotal` are decimal strings. Delivery is
+bounded and best-effort: the binding may drop records under overload; the
+cumulative drop count on later records discloses that loss. Synchronous
+listener exceptions are contained. The returned Promise of an async listener
+is caller-owned. A new attachment replaces the prior one, and close detaches
+delivery at call entry. No binding heartbeat timer or operation ID is emitted.
 
 ## Caller-visible data shapes
 

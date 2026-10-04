@@ -847,6 +847,20 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
+    fn windows_trailing_component_cannot_change_database_identity() {
+        use super::connection_runtime::sqlite_windows_path_has_trailing_dot_or_space;
+
+        assert!(sqlite_windows_path_has_trailing_dot_or_space(Path::new(r"\\?\C:\ci\db.")));
+        assert!(sqlite_windows_path_has_trailing_dot_or_space(Path::new(
+            r"\\?\C:\ci\dir \db.sqlite"
+        )));
+        assert!(!sqlite_windows_path_has_trailing_dot_or_space(Path::new(
+            r"\\?\C:\ci\safe\db.sqlite"
+        )));
+    }
+
+    #[cfg(windows)]
+    #[test]
     fn local_canonical_path_does_not_strand_idle_wal_readers() {
         for database in 0..3 {
             let dir = TempDir::new().expect("tempdir");

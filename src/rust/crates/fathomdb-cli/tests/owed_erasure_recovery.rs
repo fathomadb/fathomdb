@@ -204,13 +204,31 @@ fn doctor_reports_owed_closure_and_remediation_round_trips_with_spaces() {
 #[test]
 fn offline_recovery_completes_proven_erasure_and_clears_write_fence() {
     let (_dir, path, closure_id) = governed_owed_fixture();
+    // The original erasure already completed once to construct a valid zero
+    // proof. Recreate its erased bytes in an unrelated, then deleted WAL row
+    // so this test measures the recovery checkpoint rather than a clean WAL.
+    let raw = Connection::open(&path).unwrap();
+    raw.execute_batch(
+        "PRAGMA wal_autocheckpoint=0; PRAGMA secure_delete=ON; \
+         CREATE TABLE _recovery_probe(body TEXT); \
+         INSERT INTO _recovery_probe(body) VALUES('source-erasure-sentinel'); \
+         DELETE FROM _recovery_probe",
+    )
+    .unwrap();
+    let wal_path = PathBuf::from(format!("{}-wal", path.display()));
+    let wal_before = std::fs::read(&wal_path).expect("pre-recovery WAL");
+    assert!(
+        wal_before
+            .windows("source-erasure-sentinel".len())
+            .any(|window| window == b"source-erasure-sentinel"),
+        "fixture must place erased bytes in WAL before recovery"
+    );
     let output =
         command(&["recover", "--accept-data-loss", "--complete-erasures", path.to_str().unwrap()]);
     assert_eq!(output.status.code(), Some(exit_code::RECOVERY_ACCEPTED_LOSS), "{output:#?}");
     assert_eq!(body(&output)["status"], "done");
     assert_eq!(closure_phase(&path, &closure_id), "complete");
     let database_bytes = std::fs::read(&path).unwrap();
-    let wal_path = PathBuf::from(format!("{}-wal", path.display()));
     let wal_bytes = std::fs::read(&wal_path).unwrap_or_default();
     for erased in ["source-erasure-sentinel", "derived-secret"] {
         assert!(!database_bytes.windows(erased.len()).any(|window| window == erased.as_bytes()));
@@ -225,6 +243,7 @@ fn offline_recovery_completes_proven_erasure_and_clears_write_fence() {
         )
         .unwrap();
     assert_eq!(survivor, "unrelated-survivor-sentinel");
+    drop(raw);
     let reopened = Engine::open(&path).unwrap();
     reopened
         .engine

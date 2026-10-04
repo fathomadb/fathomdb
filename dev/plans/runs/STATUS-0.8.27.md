@@ -38,10 +38,13 @@ evidence, and limits. No publication is authorized here.
 
 Slice 110 product code is merged at `87670f61d`. Independent code review,
 local Linux, Windows, and selected-GPU CUDA installed Node packages, Terra
-verification, and the strict 182/182 repository gate pass. The
-[Slice 110 status](../0.8.27/features/slice-110/status.md) records the exact
-artifacts and remaining Linux arm64/Tegra and macOS qualification. The slice
-remains in progress; Slice 120 is blocked.
+verification, and the strict 182/182 repository gate pass. Hosted Linux
+arm64 GNU and both macOS installed Node package rows also pass. The
+[Slice 110 status](../0.8.27/features/slice-110/status.md) records exact
+artifacts and the remaining Tegra forced-CUDA runtime failure. The freshly
+rebooted Orin passed its CPU and CUDA package checks, but forced CUDA remained
+intermittent at the first tensor allocation. Slice 110 remains in progress;
+Slice 114 cannot start and Slice 120 remains downstream.
 
 Slice 132 is planned after Slice 130 and before performance qualification. It
 will make the Rust SDK equal in canonical capability to Python and TypeScript,
@@ -256,9 +259,11 @@ grant/revert evidence.
   proof are recorded; it does not authorize publication.
 - [Slice 110](../0.8.27/features/slice-110/status.md) is in progress. Native
   ownership, the subscriber contract, local Linux, Windows and CUDA/reranker
-  installed packages, and the strict repository gate pass. Required
-  arm64/Tegra and macOS package rows remain open. No Slice 111 is allocated;
-  Slice 120 depends on completed 110.
+  installed packages, hosted Linux arm64 GNU and both macOS package rows, and
+  the strict repository gate pass. The rebooted Orin still intermittently
+  refuses forced CUDA at Candle's first tensor allocation. The Tegra runtime
+  row is open; Slice 114 is next only after Slice 110 closes, and Slice 120
+  remains downstream.
 - [Slice 132](../0.8.27/features/slice-132/plan.md) follows Slice 130 and
   requires a HITL-approved successor to the current Rust parity-in-intent
   contract. It inventories canonical operations, types, and capabilities across

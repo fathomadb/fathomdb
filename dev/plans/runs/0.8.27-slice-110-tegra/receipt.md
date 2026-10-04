@@ -135,6 +135,98 @@ thread-placement, Node failure, and tegrastats evidence hashes are
 
 ## Scope control
 
+## Post-reboot requalification — candidate `c2f39b29`
+
+The Jetson was updated and freshly rebooted at `2026-10-04T14:12:55Z`.
+This repeat used current release head `c2f39b29d3af4f485470424ade3504504390acf6`;
+reviewed product code `87670f61d` is an ancestor. The source archive SHA-256 is
+`a1c9479115b7081d0a79f2d9705fbd96d6014d18f21b1aa078e2cfa40075b333`; the
+lockfile hash is `36ed30648b87f581f4abb608ff1774dbcd5a79e7b3c94524d2bcf55749eb5709`.
+
+The rebooted host is L4T R36.5.2, kernel `5.15.199-tegra`, driver 540.5.0,
+CUDA 12.6.68, GCC 11.4.0, and Rust/Cargo 1.95.0. The candidate used Node
+`v25.9.0` archive SHA-256
+`8fb4283301b8c720fc9f18bffff0f659e72cc14d0cf207a3bb411808aaa73a57` and
+npm 11.12.1. Before the runs it had 58 GiB available RAM, zero visible NVIDIA
+compute processes, and unset `CUDA_VISIBLE_DEVICES`.
+
+The CPU artifact and fresh installed consumer repeat PASS: the 17/44 runtime
+surface, no test hooks, subscriber delivery, close/reopen, typed refusal,
+typecheck, and 384-dimensional CPU embedding all pass. The CPU `.node` hash
+is `7601325d16e6639e44a179c0913f870bddba427750cf392dd42004cce3457a8f` and
+the new CPU platform tarball hash is
+`3baf963379ecc4dd5500250d0c98a2c9e74a9f152f023c4525f555bffd2ed3f5`.
+
+The matching CUDA/reranker artifact also builds and packages successfully.
+Its `.node` hash is
+`f2f389ea49b9668ef6bcef29087dfd9ae20ba1f5b8f4ef1c8522884740ab02e6`,
+and the installed binary has that hash. The new CUDA platform tarball hash is
+`1b66f74c1fc69ed95d6811ab6bf5074ac7c5527fd53b14327762850fa4c8844f`.
+It retains the same direct `NEEDED` set and no `RPATH` or `RUNPATH`.
+
+The first CUDA build attempt failed before artifact creation because the host
+update left the CUDA toolkit `bin` directory off `PATH`. CUDARC reported:
+
+```text
+`nvcc --version` failed.
+Err(Os { code: 2, kind: NotFound, message: "No such file or directory" })
+```
+
+The identical build passed with `PATH=/usr/local/cuda-12.6/bin:$PATH`; no
+product source changed. CUDARC invokes `nvcc` by name even when `CUDACXX` and
+`CUDA_PATH` are set. This records this host setup fact and does not establish
+a defect in a repository wrapper.
+
+Forced-CUDA Node 25 runtime remains **OPEN** after the reboot. Five clean
+external-consumer processes, each with forced CUDA embedding and reranking,
+produced 1 PASS and 4 typed `CudaProbeFailed` refusals. The successful process
+produced a 384-dimensional CUDA embedding, non-null rerank scores, and an
+in-process allocation witness: 111,144,960-byte delta above its
+67,108,864-byte floor, plus a 1,076,256,768-byte control delta. The repeated
+GPU evidence hash is
+`bc611ba059a079a0fca6815032098ebfdbac9d10c48810705da2504cc50bb035`.
+
+The failures occurred with about 60.2 GB `MemAvailable`, no visible compute
+processes, and Orin GPU memory still unsupported (`N/A`) through `nvidia-smi`.
+The host cannot demonstrate the witness's sole-consumer precondition; four
+fresh-process refusals prevent qualification.
+
+A read-only localization check passed 10 / 10 direct loads of the installed
+platform module, then passed only 3 / 10 forced-CUDA
+`Engine.open(useDefaultEmbedder: true)` calls with no embed, rerank, or
+witness work. Its evidence hash is
+`ae76960e78240ecb232ac03a6395d8baae9992fca0bc795be4063022fd3573ef`.
+The instability is after native-module loading in the CUDA open/probe path.
+The earlier candidate-bound diagnostic exposed the underlying CUDARC
+`DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")`; rebooted runs retain
+the same public refusal without changing source to re-instrument it.
+
+A V8 heap comparison did not identify a remedy: 10 forced opens each yielded
+default 2 / 10 pass, `--max-old-space-size=256` 3 / 10, and
+`--max-old-space-size=512` 2 / 10. The small difference is not reliable
+evidence that V8 heap reservation causes the CUDA probe failure.
+
+A final temporary instrumentation distinguished the probe stages while keeping
+`FATHOMDB_RERANK_DEVICE=cpu`: `Device::new_cuda(0)` passed, then the first
+`Tensor::zeros(1, DType::F32, &device)` failed with the exact driver error
+`DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")`. The preceding clean
+process passed; the failing process had 58.1 GB `MemAvailable`, and concurrent
+`tegrastats` showed RAM `5504/62828MB`, `36x4MB` largest free blocks, swap
+`0/31414MB`, and GPU frequency 0%. This identifies the minimal CUDA tensor
+allocation, rather than driver discovery, device creation, NAPI module load,
+or reranker probing, as the failure stage. It remains a platform-runtime
+finding: the evidence does not justify a product fix.
+
+The temporary source was restored to SHA-256
+`c1089fa0c9e79ef95909c0ed9597443f75144f6d324f7de2ec018f10e3f0d0b1`.
+Stage diagnostic and V8 evidence hashes are
+`64d6de2811f1c388f779dfbf5d620497177692e838553a67f3fea8d351b96526` and
+`723fdf6bd23cd3c4461c8672e97b639fbd8f035b50945cbe66039e67afba47e0`.
+
+The CPU and CUDA package rows remain PASS. The forced Node CUDA runtime row
+remains OPEN pending reliable clean-process evidence on a host that can show
+the required GPU-memory condition.
+
 No product or release-state file changed. This receipt records the independent
 Tegra investigation only; the isolated remote build and consumer directories
 are agent-owned temporary material.

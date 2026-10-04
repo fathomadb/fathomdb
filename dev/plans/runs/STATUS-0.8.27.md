@@ -37,10 +37,11 @@ remains outside the qualified support claim. See the
 evidence, and limits. No publication is authorized here.
 
 Slice 110 product code is merged at `87670f61d`. Independent code review,
-local Linux and Windows installed Node packages, Terra verification, and the
-strict 182/182 repository gate pass. The [Slice 110 status](../0.8.27/features/slice-110/status.md)
-records the exact artifacts and remaining Linux arm64/Tegra, macOS, and CUDA
-qualification. The slice remains in progress; Slice 120 is blocked.
+local Linux, Windows, and selected-GPU CUDA installed Node packages, Terra
+verification, and the strict 182/182 repository gate pass. The
+[Slice 110 status](../0.8.27/features/slice-110/status.md) records the exact
+artifacts and remaining Linux arm64/Tegra and macOS qualification. The slice
+remains in progress; Slice 120 is blocked.
 
 Slice 132 is planned after Slice 130 and before performance qualification. It
 will make the Rust SDK equal in canonical capability to Python and TypeScript,
@@ -254,9 +255,9 @@ grant/revert evidence.
   release branch. Its exact-code Tegra and Windows wheels and erasure recovery
   proof are recorded; it does not authorize publication.
 - [Slice 110](../0.8.27/features/slice-110/status.md) is in progress. Native
-  ownership, the subscriber contract, local Linux and Windows installed
-  packages, and the strict repository gate pass. Required arm64/Tegra, macOS,
-  and CUDA/reranker package rows remain open. No Slice 111 is allocated;
+  ownership, the subscriber contract, local Linux, Windows and CUDA/reranker
+  installed packages, and the strict repository gate pass. Required
+  arm64/Tegra and macOS package rows remain open. No Slice 111 is allocated;
   Slice 120 depends on completed 110.
 - [Slice 132](../0.8.27/features/slice-132/plan.md) follows Slice 130 and
   requires a HITL-approved successor to the current Rust parity-in-intent

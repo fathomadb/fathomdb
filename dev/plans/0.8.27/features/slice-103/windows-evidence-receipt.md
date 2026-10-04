@@ -1,8 +1,8 @@
 # Slice 103 Track W Windows erasure evidence
 
-Status on 2026-10-03: the Windows defect reproduced, the local-drive fix
+Status on 2026-10-04: the Windows defect reproduced, the local-drive fix
 is implemented, and an installed **0.8.27** Windows wheel from integrated code
-SHA `f148aca86d4149e11b85d146b969064f4683677c` passed final platform
+SHA `c2e80ff7683fe856a4cf372a088897c3450b0b9a` passed final platform
 controls. The frozen and fixed branch wheels carry metadata `0.8.26` and are
 identified only by hashes. Cross-platform Slice closeout and the integrated
 repository gate remain the release orchestrator's responsibility.

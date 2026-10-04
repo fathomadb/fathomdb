@@ -125,6 +125,63 @@ pub(crate) fn sqlite_runtime_path(path: &Path) -> &Path {
     }
 }
 
+#[cfg(windows)]
+pub(crate) fn sqlite_local_verbatim_path_requires_patched_vfs(
+    path: &Path,
+    sqlite_version: i32,
+    patched_vfs: bool,
+) -> bool {
+    let path_text = path.to_string_lossy();
+    let bytes = path_text.as_bytes();
+    let local_verbatim_drive = bytes.len() >= 7
+        && &bytes[..4] == b"\\\\?\\"
+        && bytes[4].is_ascii_alphabetic()
+        && bytes[5] == b':'
+        && bytes[6] == b'\\';
+    local_verbatim_drive
+        && sqlite_runtime_path(path) == path
+        && sqlite_version < 3_053_003
+        && !patched_vfs
+}
+
+#[cfg(windows)]
+pub(crate) fn ensure_sqlite_local_verbatim_path_safe(path: &Path) -> Result<(), EngineOpenError> {
+    // SQLite can drop a trailing dot while the engine lock keeps it, splitting
+    // the requested database and lock-file identities.
+    if sqlite_windows_path_has_trailing_dot_or_space(path) {
+        return Err(EngineOpenError::Io {
+            message: "Windows database path has a trailing dot or space component".to_string(),
+        });
+    }
+    let patched_vfs = unsafe {
+        rusqlite::ffi::sqlite3_compileoption_used(c"FATHOMDB_WIN_VERBATIM_SHM_SAFE".as_ptr()) != 0
+    };
+    if sqlite_local_verbatim_path_requires_patched_vfs(
+        path,
+        rusqlite::version_number(),
+        patched_vfs,
+    ) {
+        return Err(EngineOpenError::Io {
+            message: "SQLite cannot safely open this local Windows database path".to_string(),
+        });
+    }
+    Ok(())
+}
+
+#[cfg(windows)]
+pub(crate) fn sqlite_windows_path_has_trailing_dot_or_space(path: &Path) -> bool {
+    use std::os::windows::ffi::OsStrExt;
+    use std::path::Component;
+
+    path.components().any(|component| {
+        if let Component::Normal(name) = component {
+            matches!(name.encode_wide().last(), Some(46 | 32))
+        } else {
+            false
+        }
+    })
+}
+
 pub(crate) fn open_runtime_connection(
     path: &Path,
     #[cfg(any(test, feature = "test-hooks"))] category: ManagedConnectionCategory,

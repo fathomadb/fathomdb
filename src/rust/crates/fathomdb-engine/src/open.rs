@@ -363,8 +363,14 @@ pub(crate) fn admit_current_database(path: &Path) -> Result<(), EngineOpenError>
 }
 
 pub(crate) fn canonical_database_path(path: &Path) -> Result<PathBuf, EngineOpenError> {
+    #[cfg(windows)]
+    crate::connection_runtime::ensure_sqlite_local_verbatim_path_safe(path)?;
     match path.canonicalize() {
-        Ok(canonical) => return Ok(canonical),
+        Ok(canonical) => {
+            #[cfg(windows)]
+            crate::connection_runtime::ensure_sqlite_local_verbatim_path_safe(&canonical)?;
+            return Ok(canonical);
+        }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(_) => {
             return Err(EngineOpenError::Io {
@@ -400,7 +406,10 @@ pub(crate) fn canonical_database_path(path: &Path) -> Result<PathBuf, EngineOpen
         message: "database path has no file name".to_string(),
     })?;
 
-    Ok(canonical_parent.join(file_name))
+    let canonical = canonical_parent.join(file_name);
+    #[cfg(windows)]
+    crate::connection_runtime::ensure_sqlite_local_verbatim_path_safe(&canonical)?;
+    Ok(canonical)
 }
 
 pub(crate) struct PendingDatabaseLock {

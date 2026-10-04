@@ -22,6 +22,16 @@ product mutation or migration events. There is no public automatic-upgrade
 route; the custom migration seam is private to explicitly feature-gated engine
 tests and is not forwarded by the facade.
 
+On Windows, database paths with a component ending in a dot or space are
+refused before database creation because SQLite can resolve them to a
+different filename than the engine lock. Local verbatim drive paths that
+cannot be safely converted to a short drive path require SQLite 3.53.3 or the
+bundled FathomDB Windows VFS correction; otherwise `Engine::open*` returns
+`EngineOpenError::Io` before database creation. This applies to published Rust
+crate consumers whose dependency resolver selects an uncorrected SQLite
+3.53.2. The bundled FathomDB build supports long local drive paths. SQLite
+WAL on a network filesystem remains unsupported.
+
 ## SQLite runtime configuration (0.8.25 Slice 79)
 
 `fathomdb::admin::configure_runtime(RuntimeSqliteMode)` is a synchronous,

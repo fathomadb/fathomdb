@@ -20,6 +20,11 @@ non-empty database is admitted only when its effective committed
 `IncompatibleSchemaVersionError` before product mutation. Python exposes no
 automatic-upgrade or custom-migration route.
 
+On Windows, `Engine.open` refuses a path component ending in a dot or space
+before database creation because SQLite may resolve it to a different file.
+The bundled Windows wheel supports long local drive paths through its corrected
+SQLite VFS. SQLite WAL on a network filesystem remains unsupported.
+
 ## Runtime surface
 
 The **core** runtime verbs available to Python callers are:

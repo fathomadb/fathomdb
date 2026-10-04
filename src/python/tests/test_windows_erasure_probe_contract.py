@@ -4,7 +4,10 @@ from pathlib import Path
 import runpy
 
 
-PROBE = Path(__file__).with_name("windows_erasure_probe.py")
+PROBE = (
+    Path(__file__).resolve().parents[3]
+    / "dev/plans/0.8.27/features/slice-103/windows_erasure_probe.py"
+)
 
 
 def _passes(record: dict) -> bool:

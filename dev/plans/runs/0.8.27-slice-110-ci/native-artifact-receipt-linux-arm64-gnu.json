@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    {
+      "kind": "wheel",
+      "name": "fathomdb-0.8.26-cp310-abi3-manylinux_2_28_aarch64.whl",
+      "sha256": "5a217ae0dac9420c91d8bc953102f1e42af45bf52b7a5bc067df33a080f59327",
+      "size": 7146946
+    },
+    {
+      "kind": "napi",
+      "name": "fathomdb.linux-arm64-gnu.node",
+      "sha256": "a33f0b0b26df365c45ef1aedf494e3c4836edf35f3609eb30ef3d16680c8966e",
+      "size": 21385224
+    }
+  ],
+  "candidate_sha": "366e1bc3d4e4df2a8bb8cd9268ccfdae0e02b08a",
+  "command": "native-artifact-runtime-validation",
+  "label": "linux-arm64-gnu",
+  "outcome": "pass",
+  "runner": "GitHub Actions 1000007397:Linux:ARM64",
+  "schema_version": "fathomdb.native-artifact-receipt/v1",
+  "target": "aarch64-unknown-linux-gnu",
+  "toolchains": {
+    "node": "25.9.0",
+    "python": "3.11",
+    "rust": "1.95.0"
+  }
+}

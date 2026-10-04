@@ -10,7 +10,8 @@ The reviewed product-code commit is
 `87670f61d48e6552edcb2a64f7ddb2dacf2863e1` on `release/0.8.27`.
 The release-note gate fix at `06e34759f55dbede47b9b7ccb2c000dd5edac9b4`
 changes no product code. Slice 110 remains **in progress** because required
-arm64/Tegra and macOS package rows are not yet qualified. Slice 120 is not
+Tegra forced-CUDA runtime evidence is not yet qualified. Hosted Linux arm64
+GNU and both macOS package rows have passed. Slice 120 is not
 unblocked.
 
 ## Acceptance
@@ -21,8 +22,8 @@ unblocked.
 | AC27-110B | PASS for the tested routes: production native runtime has the frozen 17 exports and 44 Engine prototype names; the generated declaration differs only in the accepted subscriber callback signature and removal of `AttachSubscriberOptions`. Test-hook generation adds exactly its expected hooks; a later production build removes them from declarations and runtime. The fresh Linux and Windows installed pairs preserve the package loader and consumer type surface. |
 | AC27-110C | PASS locally: the accepted [subscriber ADR](../../../../adr/ADR-0.8.27-typescript-subscriber-delivery.md) is implemented. RED witnesses preceded the callback delivery, replacement race, queue overflow and Windows wrapper fixes. The native suite passes 7/7; NAPI Rust unit tests pass 22/22. A production-artifact writer callback ran on the JS thread before its 8 MB write settled; concurrent close and repeated close settled. Existing FFI panic, conversion and lifecycle suites passed in the full gate. |
 | AC27-110D | PASS locally: existing native/SDK validation and FFI tests cover numeric bounds, invalid strings, panic/error conversion and no-mutation refusals. The no-default-embedder artifact rejected `useDefaultEmbedder: true` without creating a database, then opened and closed normally without that option. |
-| AC27-110E | **OPEN:** exact-source Linux x64 GNU, Windows x64 MSVC, and Linux x64 CUDA/reranker installed Node package pairs passed. The CUDA pair selected and computed on a named RTX 3090, and the same pair passed driverless CPU fallback and forced-device refusal. Linux arm64 GNU/Tegra and macOS x64/arm64 candidate-bound installed Node rows remain unrun. |
-| AC27-110F | **OPEN with local gates passing:** gpt-6-sol high code review passed at the product commit; Terra independently verified local source, artifact and Linux CPU package evidence. Strict `agent-verify` passed 182/182 suites, zero skipped or excluded, and security 0 violations/0 blockers/0 downgrades at `06e34759`. Platform completion and final native handoff still control exit. |
+| AC27-110E | **OPEN only for Tegra GPU runtime:** exact-source Linux x64 GNU, Windows x64 MSVC, Linux x64 CUDA/reranker, hosted Linux arm64 GNU, and macOS x64/arm64 installed Node package pairs passed. The Linux x64 CUDA pair computed on a named RTX 3090 and passed driverless CPU fallback and forced-device refusal. On the Jetson AGX Orin, fresh CPU and CUDA-capable package pairs install and pass their CPU, subscriber and type-surface checks, but forced CUDA intermittently fails a minimal allocation with `CUDA_ERROR_OUT_OF_MEMORY`; one successful run is not qualification. |
+| AC27-110F | **OPEN with code/repository gates passing:** gpt-6-sol high code review passed at the product commit; Terra independently verified local source, artifact and Linux CPU package evidence and the later Tegra investigation. Strict local `agent-verify` passed 182/182 suites, zero skipped or excluded, and security 0 violations/0 blockers/0 downgrades at `06e34759`. Hosted platform job receipts are retained. The CI workflow's separate heavy verifier failed its missing-tool preflight before testing, and its self-hosted Windows row remained queued; neither is represented as a green CI conclusion. Tegra GPU runtime and final native handoff still control exit. |
 
 ## Candidate-bound artifacts and checks
 
@@ -71,6 +72,26 @@ unblocked.
   CPU embedding/reranking and both forced-CUDA refusal cases. Only the exact
   pinned embedder and reranker model directories were mounted read-only;
   all six model file hashes matched the release contract.
+- Hosted Linux arm64 GNU, macOS arm64 and macOS x64: the exact-candidate
+  nonpublishing [CI run](https://github.com/fathomadb/fathomdb/actions/runs/37220605280)
+  at `366e1bc3d4e4df2a8bb8cd9268ccfdae0e02b08a` passed the native
+  build, fresh thin-main/platform-pair install and runtime smoke for all
+  three rows. The retained [CI receipt](../../../runs/0.8.27-slice-110-ci/receipt.md)
+  links each job and its JSON artifact hash. Native SHA-256 values are Linux
+  arm64 GNU `a33f0b0b26df365c45ef1aedf494e3c4836edf35f3609eb30ef3d16680c8966e`,
+  macOS arm64 `3679d3d4b4b299748d9e2270fb8395dd7db04d2daf26317298ece4371cd51ac8`,
+  and macOS x64 `d156a09c2db0976c57fc109482978b1459924538a3419899e0a715f6b19d9e83`.
+- Classic Jetson AGX Orin: the exact candidate's CPU and CUDA-capable NAPI
+  artifacts built and installed as matching package pairs. The
+  [Tegra receipt](../../../runs/0.8.27-slice-110-tegra/receipt.md) records
+  artifact hashes, 17/44 production surface, external typecheck and
+  subscriber, CPU embedding/reranking, and the forced-CUDA blocker. A
+  temporary diagnostic exposed `CUDA_ERROR_OUT_OF_MEMORY` at the minimal
+  Candle probe; sequential fresh-process attempts passed 5/10 on Node 24
+  and 3/10 on pinned Node 25, while the prior Python wheel passed 5/5.
+  Standalone Candle probes passed 10/10 on main and spawned Rust threads.
+  Host RAM was available, but the shared Orin's GPU free-memory counters are
+  unsupported; a sole-GPU-consumer precondition was not established.
 - The complete `./scripts/agent-verify.sh` used
   `CARGO_PROFILE_TEST_OPT_LEVEL=3 AC013_VECTOR_DIM=384` on a ptrace-capable
   executor. The prior 0.8.27 AC-013 plain-debug latency condition is not
@@ -94,8 +115,9 @@ not change the open platform acceptance rows.
 
 ## Remaining action
 
-Run candidate-bound native/package checks for Linux arm64 GNU on Tegra and
-macOS x64 and arm64, then record their exact artifacts, toolchains and
-results. Only after those rows
-pass may release state mark Slice 110 complete and advance its `next_slice`.
+Obtain a reliable installed Node forced-CUDA run and allocation witness on a
+reserved Orin, or resolve the measured NAPI/Candle CUDA allocation fault with
+a reviewed contract-preserving fix and rerun its affected rows. Hosted Linux
+arm64 GNU and both macOS rows are complete. Only after the Tegra row passes
+may release state mark Slice 110 complete and advance its `next_slice`.
 No tag, publication or deployment was performed.

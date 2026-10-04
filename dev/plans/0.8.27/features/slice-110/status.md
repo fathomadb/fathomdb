@@ -85,6 +85,13 @@ signature delta is the one in the subscriber ADR; `close()` still returns
 `Promise<void>`. Slice 120 should use these final declarations and the
 installed package receipts after the remaining platform rows pass.
 
+The active data-plane architecture, binding and lifecycle designs now explain
+the as-built NAPI ownership split, separate Promise and subscriber paths, and
+the reasons for the queue, wakeup, close and heartbeat decisions. The
+post-implementation design review and its wording correction are recorded in
+[design-review.md](design-review.md). This documentation reconciliation does
+not change the open platform acceptance rows.
+
 ## Remaining action
 
 Run candidate-bound native/package checks for Linux arm64 GNU on Tegra and

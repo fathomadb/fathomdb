@@ -132,6 +132,50 @@ removes the formerly inert Python heartbeat interval. The
 transport mechanics and exact payloads are owned by
 [`bindings.md`](bindings.md) and [`lifecycle.md`](lifecycle.md).
 
+### 0.8.27 TypeScript native boundary addendum
+
+Slice 110 decomposes `fathomdb-napi` by responsibility while retaining one
+native `Engine` class and the existing generated JavaScript registration
+identity. `engine.rs` owns that class and its Arc-backed lifetime;
+`execution.rs` owns the Tokio `spawn_blocking` and panic boundary; domain
+modules own their N-API objects and conversions; `errors.rs` owns the typed
+error envelope. `shared.rs` holds narrowly shared translation helpers,
+`subscriber.rs` owns the host callback transport, and the root composes and
+re-exports the modules for napi-rs registration. These are private Rust
+boundaries, not additional JavaScript entrypoints. Keeping one registration
+identity matters because napi-rs generates exports from attributes: moving
+source text between files is safe only when the loaded runtime and generated
+declarations still name the same objects and methods. The reviewed
+[Slice 110 design](../plans/0.8.27/features/slice-110/design.md) and its
+inventory record that reconciliation.
+
+Ordinary Promise-returning calls retain the accepted Tokio `spawn_blocking`
+handoff. It keeps blocking SQLite and engine work off the JavaScript event
+loop while an Arc retains the engine through in-flight work. This binding
+handoff is separate from the engine-owned scheduler and embed dispatcher;
+adding another binding pool would create a competing capacity control without
+changing the engine's ownership rules. N-API conversion and synchronous
+accessors remain on their respective call boundaries, with panic and typed
+error conversion owned by the binding.
+
+Host diagnostics need a different route. An engine event can originate inside
+SQLite's profile C callback while a connection is owned, so invoking
+JavaScript or waiting for its listener there risks deadlock and couples query
+latency to application code. The TypeScript adapter therefore copies records
+into a bounded, best-effort Rust queue and uses a coalesced N-API wakeup to
+deliver at most 64 records per JavaScript turn. It owns callback faults,
+overload accounting, attachment replacement and environment teardown; none
+changes the engine's durable write or receipt semantics. The queue bounds
+record count, not diagnostic payload bytes. `close()` disables
+delivery synchronously at JavaScript call entry, then returns its existing
+`Promise<void>` for the engine close. This ordering prevents a callback from
+being newly delivered after close begins even when engine close later fails.
+The [accepted subscriber ADR](../adr/ADR-0.8.27-typescript-subscriber-delivery.md)
+owns the exact queue, handle and payload rules. The TypeScript binding removes
+its formerly inert heartbeat option because no operation-scoped engine
+heartbeat producer exists; a binding timer would only show that the timer ran.
+An actual future engine heartbeat event can still be forwarded.
+
 ### Open, storage, and concurrency
 
 `Engine::open` configures the process SQLite runtime before admission. A

@@ -51,9 +51,11 @@ before movement. Preserve one Engine class and one export per existing name.
 
 | Final private owner | Items and boundary |
 | --- | --- |
-| Root `lib.rs` | Crate attributes and module declarations, only macro-required registration/composition items and exact Rust re-exports when needed. Attribute-generated exports are reconciled against runtime/declarations, not assumed to follow a moved source file. |
+| Root `lib.rs` | Crate attributes, module declarations and the exact imports/re-exports needed for napi-rs registration and shared Rust visibility. Attribute-generated exports are reconciled against runtime/declarations, not assumed to follow a moved source file. |
 | `errors` | `typed_error`, error-code constants, exhaustive engine/open/runtime/device/graph mappings, panic envelope and stable structured payload helpers. No duplicate error class/envelope implementation in Rust or TypeScript. |
+| `shared` | Narrowly shared translation helpers consumed by multiple domain modules. Internal reuse belongs here rather than duplicating validation or making a second public facade. |
 | `execution` | `call_engine`, `call_engine_sync`, blocking handoff/join and panic policy, and any approved callback/executor implementation from the disposition below. Engine-owned configuration and host handoff scheduling remain distinct. |
+| `subscriber` | Rust-owned diagnostic queue, N-API wakeup, callback trampoline, attachment replacement and teardown. This host callback route is separate from ordinary engine-call execution. |
 | `engine` | Engine Arc/report ownership, its single native class implementation, open/close/report/control and method entrypoints. Preserve macro-cohesive impl blocks where required by the current napi-rs build; no speculative macro/dependency change just to scatter methods. |
 | `types` | Shared identity/view/context/device/open-report native objects and their conversions; domain-only objects belong with their domain and are individually named in the inventory. |
 | `write` | Write/provenance/actuation translation, receipts, ingest and consolidation operations and input conversions. Split cohesive families into private submodules without changing validation order. |
@@ -61,7 +63,7 @@ before movement. Preserve one Engine class and one export per existing name.
 | `graph_evidence` | Graph/traversal/boundary/evidence operations, request translation, result/sidecar conversion and resolve helpers. Canonical codecs remain engine-owned. |
 | `projection` | Projection config/registry/status/readiness objects, conversions and entrypoints. Keep runtime EngineConfig separate from projection specifications. |
 | `embedding` | Standalone rerank/CLS embedding entrypoints, device helpers and singletons, with existing feature refusal and empty-input behavior. |
-| `admin` | Runtime/admin configuration, lifecycle/erasure/dependency entrypoints, controls and subscriber facade. Domain families have cohesive private submodules and exact item entries. |
+| `admin` | Runtime/admin configuration, lifecycle/erasure/dependency entrypoints and controls. Domain families have cohesive private modules and exact item entries; the Engine method for attachment remains with the single Engine class. |
 | `test_support` | Existing cfg-gated panic and diagnostic hooks/helpers. Engine-registered hooks stay attached to that class. Exact gate/test identity is preserved; production exports must not gain hooks. |
 
 The TypeScript `binding.ts`, `platform.ts`, `errors.ts`, generated native
@@ -100,6 +102,45 @@ The queue/wakeup state transition, TSFN-handle mutex protocol and JS-facing
 synchronous close-entry ordering are normative in that successor. RED tests
 must include a producer/empty-drain race and callback-triggered replacement
 and close, not only serial delivery.
+
+### As-built ownership and rationale
+
+The implementation at `87670f61d48e6552edcb2a64f7ddb2dacf2863e1`
+reconciles all 465 frozen source items. The private `shared` module holds
+helpers needed across domain modules, and `subscriber` is its own module:
+callback delivery has a different thread, lock and teardown contract from
+ordinary `execution::call_engine`. Keeping it out of `execution` prevents the
+Promise handoff from becoming a general callback executor. The single
+`Engine` class and its methods remain together in `engine.rs`; domain modules
+own related objects, conversions and free entrypoints. `lib.rs` composes
+and re-exports those modules so napi-rs's attribute-generated registration
+still produces one native identity. A Rust `pub use` in that root is an
+internal registration/visibility tool, not an authorization for a new
+JavaScript API. The production artifact preserves 17 runtime exports and 44
+Engine prototype names; only the separately accepted subscriber signature
+changes its generated declaration.
+
+Blocking engine calls continue through Tokio `spawn_blocking` with an Arc
+retained until completion. This keeps SQLite work off the event loop without
+adding a second capacity control beside the engine-owned scheduler and embed
+dispatcher. In contrast, a subscriber may receive an event from SQLite's C
+profile callback while a connection is held. The Rust-owned bounded queue
+therefore does not execute JavaScript or wait on that producer thread; a raw,
+data-free N-API wakeup moves delivery to the JavaScript thread. Coalescing
+and the 64-record drain cap bound wakeups and each event-loop turn. A
+generation gate, callback-fault containment and synchronous detachment at
+close entry protect replacement, reentry and shutdown. The accepted
+[subscriber ADR](../../../../adr/ADR-0.8.27-typescript-subscriber-delivery.md)
+owns exact failure and payload semantics. Its removed heartbeat option is a
+contract correction: the current engine cannot supply operation-scoped
+progress, so the old binding option could only create a false signal.
+
+The checked native build wrapper now launches its installed local napi-rs CLI
+through Node on Windows. Directly spawning `npm.cmd` under the pinned Node
+25.9.0 runtime failed with `EINVAL`; using the local CLI preserves the locked
+tool version and avoids shell quoting or command lookup differences. The
+Linux/macOS path retains the existing npm invocation. This correction is in
+the shipping path, not an SDK surface change.
 
 Before moving those owners, inspect current accepted successors and record
 which contract governs each. A finding closes only with evidence that the

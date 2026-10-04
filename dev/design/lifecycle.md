@@ -131,6 +131,13 @@ best-effort diagnostics, with explicit loss reporting under overload. The
 phase enum and the semantics of any Heartbeat emitted by a producing subsystem
 remain as stated above.
 
+The accepted
+[`ADR-0.8.27-typescript-subscriber-delivery`](../adr/ADR-0.8.27-typescript-subscriber-delivery.md)
+applies the same producer distinction to TypeScript: its formerly inert
+heartbeat option is removed. The adapter forwards an actual Heartbeat event
+if a producing subsystem emits one, but a JavaScript timer cannot attest to
+engine progress and therefore does not create one.
+
 ### Terminal-delivery posture
 
 Lifecycle feedback is guaranteed for in-process observed operations, not for
@@ -177,6 +184,16 @@ pull surface, and durable operation receipts remain owned by their producing
 domains. The adapter's lifetime, reentry and close rules are in
 [`bindings.md`](bindings.md) § 8 and the accepted
 [`ADR-0.8.27-python-subscriber-delivery`](../adr/ADR-0.8.27-python-subscriber-delivery.md).
+
+The TypeScript adapter likewise transports owned records out of the engine
+callback before invoking a host listener. Its bounded Rust queue, coalesced
+N-API wakeup and per-turn drain keep SQLite callback threads nonblocking and
+limit JavaScript event-loop occupancy. Drops are disclosed by a cumulative
+decimal-string count on later records; listener exceptions are contained.
+These are best-effort diagnostics, not a durability or transaction-completion
+oracle. Its exact lifetime and callback rules are in [`bindings.md`](bindings.md)
+§ 8 and the accepted
+[`ADR-0.8.27-typescript-subscriber-delivery`](../adr/ADR-0.8.27-typescript-subscriber-delivery.md).
 
 ### Diagnostic source and category
 

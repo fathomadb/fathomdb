@@ -26,3 +26,15 @@ The review also confirmed the `spawn_blocking` authority, the one-Engine
 identity, the separate subscriber correction, and the clean thin-main plus
 platform-pair packaging scope. The required cross-platform rows remain exit
 gates; their availability is not inferred from this design verdict.
+
+## As-built architecture documentation review
+
+After implementation, a separate `gpt-6-sol` high read-only design review
+compared the new TypeScript addendum in the active
+[architecture](../../../../design/fathomdb-data-plane-architecture-v2.md),
+the [binding](../../../../design/bindings.md) and
+[lifecycle](../../../../design/lifecycle.md) designs, and this slice design
+against the code and accepted subscriber ADR. It found one wording issue:
+the queue caps record count, not diagnostic payload bytes. That wording was
+corrected. The reviewer found no other architecture or design mismatch in
+the additions. This review does not qualify the remaining platform rows.

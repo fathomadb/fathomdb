@@ -97,6 +97,13 @@ Each binding owns the dispatch model for its language. The protocol that connect
 | TypeScript | Promise surface (Path 2) | NAPI moves blocking engine calls to Tokio `spawn_blocking`; the TypeScript wrapper returns Promises. This binding handoff is separate from the engine-owned projection and embed executors. | ADR-0.6.0-typescript-api-shape; ADR-0.8.27-engine-owned-runtime-topology |
 | CLI        | Sync subcommand entry; binary returns process exit code per ADR-0.6.0-cli-scope. | Direct sync call into Rust; same engine as SDK.                                                                                                                                                                                                                                                | ADR-0.6.0-cli-scope                                                       |
 
+For TypeScript, the engine Arc outlives each scheduled blocking call, and
+typed engine errors and caught panics cross back through the Promise. This
+keeps SQLite work off the JavaScript thread without making the binding's
+executor a second engine scheduler. Synchronous N-API conversion errors and
+accessors retain their immediate-throw behavior. Subscriber callbacks use the
+separate transport in § 8 because they must run on the JavaScript thread.
+
 Async invariants A–D from ADR-0.6.0-async-surface manifest in every binding. The invariants themselves are owned by that ADR; this file commits only the _binding-side_ assertion that no binding exposes an escape hatch:
 
 - **Invariant A (scheduler post-commit).** Cite ADR-async-surface § Decision. Bindings expose no escape hatch: bindings do not introduce additional locking around `write`, do not pre-dispatch scheduler work from the caller thread, and do not provide a "skip-scheduler" path.
@@ -211,11 +218,25 @@ in [`lifecycle.md`](lifecycle.md)). Binding adapters attach a host subscriber:
   coalesced wakeups to the JavaScript thread. Its callback, overload,
   replacement, close, and process-exit behavior is specified by
   `ADR-0.8.27-typescript-subscriber-delivery`.
+
 - CLI: a console subscriber in human-facing mode remains the intended design,
   but the current CLI has no engine subscriber attachment. Machine-facing
   `--json` output uses the verb-owned shape from `interfaces/cli.md` and
   `design/recovery.md`. `doctor check-integrity` is a single JSON object;
   other verbs own their own machine-readable contract.
+
+The TypeScript queue separates collection from delivery because engine events
+can arise while SQLite owns a connection, including inside a C profile
+callback. An arbitrary JavaScript listener must not run or block there.
+Coalesced data-free wakeups avoid owning a record in N-API's queue; the pinned
+napi-rs helper does not reclaim a boxed record on failed enqueue. A bounded
+Rust queue and per-turn drain cap bound queued record count and each
+event-loop turn, while cumulative loss reporting makes overload visible.
+Diagnostic payload bytes have no separate cap. Close detaches at
+call entry before scheduling engine shutdown, preserving the public
+`Promise<void>` shape and preventing new listener calls after close begins.
+No binding heartbeat timer is installed: the current engine provides no
+operation-scoped progress signal for one to report truthfully.
 
 The engine subscriber seam predates 0.8.27, and Python already exposed
 `attach_logging_subscriber`; its native implementation silently discarded the

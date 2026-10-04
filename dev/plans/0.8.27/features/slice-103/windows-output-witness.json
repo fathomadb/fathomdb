@@ -1,0 +1,82 @@
+{
+  "schema": "fathomdb.slice-103.track-w.output/v1",
+  "status": "preparatory-open",
+  "requirements": {
+    "R27-103D": "open-windows-candidate-unmeasured",
+    "R27-103E": "open-no-attributed-current-violation-or-disposition"
+  },
+  "branch": "llm/slice-103-windows",
+  "frozen_source_sha": "8fb6fdac9d2f1655a62355e0ca8af51d42dd1fb7",
+  "preparatory_head_sha": "00e27eafa9da613a17c7922b822c814ba05f0e9c",
+  "probe_sha256": "9f9a5e39a9590f447df4406dc4ebc9d71c4f785ca98dd3d89fac496db113a129",
+  "probe_review": "independent-pass-at-preparatory-head",
+  "test_chronology": {
+    "red_commit": "21c911582",
+    "red_result": "5 failed: record_passes absent",
+    "green_commit": "31a3d99ce",
+    "normal_suite_commit": "00e27eafa",
+    "focused_result": "5 passed"
+  },
+  "full_gate": {
+    "command": "./scripts/agent-verify.sh",
+    "exit": 0,
+    "test_suites_passed": 178,
+    "test_suites_registered": 180,
+    "test_suites_skipped": 2,
+    "security_violations": 0,
+    "security_blockers": 0,
+    "security_downgrades": 0,
+    "log_path": "/tmp/fathomdb-s103w-agent-verify-probe-v3.log",
+    "log_sha256": "170278bb3b4818ae2217bcc06e23222252c2e4154171d2c081513c10b233ebec",
+    "environment": {
+      "PYTHONPATH": "src/python",
+      "CARGO_TARGET_DIR": "<Track W worktree>/target",
+      "CARGO_INCREMENTAL": "0",
+      "git_core_excludes_file": "/tmp/fathomdb-s103w-git-excludes (contents: target/)",
+      "ptrace": "unconfined for strict AC-036"
+    }
+  },
+  "historical_windows_control": {
+    "registry_version": "0.8.26",
+    "wheel_sha256": "7a94e26f78b040ce95aa79ada69ffac6f6d369280f300ec15da0c713d7bd5a1c",
+    "installed_extension_sha256": "afb2f4ff6ede39c2b46716be836b2ab3ca785c8c42a71e1c09ebbdd8263d1569",
+    "vm_script_sha256": "f42de8f282d9d3fb919635a0e38eec3357aa779444d8b82d6c9d3a15b0fd2f2c",
+    "tracked_script_sha256": "fb3731ba86fb8b7560d5e349b9d5855b965def157f4f1e5157934462c267bb73",
+    "tracked_script_exact_windows_rerun": "pending-transfer-approval",
+    "first_refusals": {
+      "noread": "3/40",
+      "read": "3/40",
+      "page": "2/20",
+      "total": "8/100"
+    },
+    "log_paths": [
+      "C:/ci/s103w/hist026-noread.log",
+      "C:/ci/s103w/hist026-read.log",
+      "C:/ci/s103w/hist026-page.log"
+    ]
+  },
+  "linux_controls": {
+    "baseline_wheel_sha256": "57c98d7698ff60654f3504f6e8476df62128f91b5622f693679c3177538eb477",
+    "historical_read_first_refusals": "0/40",
+    "historical_page_first_refusals": "0/40",
+    "reviewed_retry_probe_read": "40/40 passed; 0 first refusals",
+    "reviewed_retry_probe_page": "40/40 passed; 0 first refusals",
+    "governed_purge": "20/20 passed; 0 refusals",
+    "operator_excise_source": "exit 64, one node; repeat exit 64, zero nodes"
+  },
+  "pending_vm_transfer": {
+    "destination": "gh-runner-wonl-win11:C:/ci/s103w/",
+    "frozen_source_archive_sha256": "cd54328dd89fd807f09e4708e1e6f339882e012c576ce5d5b4773df15065ebe1",
+    "tracked_memex_script_sha256": "fb3731ba86fb8b7560d5e349b9d5855b965def157f4f1e5157934462c267bb73",
+    "reviewed_probe_sha256": "9f9a5e39a9590f447df4406dc4ebc9d71c4f785ca98dd3d89fac496db113a129",
+    "approval": "pending"
+  },
+  "next_required_work": [
+    "Verify exact transferred hashes and build/install branch-source Windows wheel in a fresh environment",
+    "Rerun exact tracked historical script and execute three candidate 40/40/20 Windows batches",
+    "Run focused Windows purge and operator excise_source controls",
+    "Capture actual-operation checkpoint and managed native state in separate diagnostic arm",
+    "Decide attribution, RED test, remedy or reviewed no-production-code disposition",
+    "Requalify final integrated source SHA on Windows and Linux"
+  ]
+}

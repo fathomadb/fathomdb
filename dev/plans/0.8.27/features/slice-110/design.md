@@ -1,20 +1,23 @@
 ---
 title: FathomDB 0.8.27 Slice 110 — NAPI decomposition
-status: PLANNED
+status: IN_PROGRESS
 target_release: 0.8.27
 ---
 
 # Slice 110 NAPI decomposition
 
-Prospective design only; uncommissioned. Entry requires completed Slice 103,
-the Slice 100 binding handoff, and the preserved Slice 90 configuration
-handoff. All native Node obligations close here before Slice 120. No Slice
+Commissioned at clean `release/0.8.27` entry `9340a824` after completed
+Slice 103, the Slice 100 binding handoff, and the preserved Slice 90
+configuration handoff. The [entry reconciliation](plan.md) records changes
+since this design's historical review baseline. All native Node obligations
+close here before Slice 120. No Slice
 111 is allocated: sequential contract,
 move and artifact batches provide the necessary technical boundaries.
 
 ## Substrate, authority and scope
 
-Reviewed baseline: `63091b6249e5805ea71b44de59f0ac6703b786a9`.
+Historical reviewed baseline: `63091b6249e5805ea71b44de59f0ac6703b786a9`.
+Actual execution baseline: `9340a8246e39127c255b55a3f97b674553eb6908`.
 `fathomdb-napi/src/lib.rs` contains native objects, conversions, errors,
 functions and the Engine class. Cargo uses napi-rs 2, N-API 8, async/Tokio and
 serde-json. `call_engine` uses Tokio `spawn_blocking` plus `catch_unwind`;
@@ -82,6 +85,21 @@ currently discards callback/options and returns success. A callable method
 alone does not prove event delivery. The accepted Python subscriber successor
 explicitly leaves TypeScript's contract untouched, so review the TypeScript
 callback and heartbeat contract on its own terms before changing it.
+
+The accepted [TypeScript subscriber successor](../../../../adr/ADR-0.8.27-typescript-subscriber-delivery.md)
+selects one replaceable attachment per Engine. An owned, nonblocking 4096-record
+queue carries diagnostics; a coalesced raw N-API wakeup carries a null data
+pointer and drains at most 64 records per JS turn. This avoids the pinned
+napi-rs helper's rejected-payload leak and contains JavaScript exceptions and
+Rust panics through a C callback trampoline. It reports
+cumulative drops, permits lock-free reentry and removes the untruthful binding
+heartbeat option. Keep its public signature/payload delta separate from
+mechanical module movement.
+
+The queue/wakeup state transition, TSFN-handle mutex protocol and JS-facing
+synchronous close-entry ordering are normative in that successor. RED tests
+must include a producer/empty-drain race and callback-triggered replacement
+and close, not only serial delivery.
 
 Before moving those owners, inspect current accepted successors and record
 which contract governs each. A finding closes only with evidence that the

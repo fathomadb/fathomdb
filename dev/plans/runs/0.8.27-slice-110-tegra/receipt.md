@@ -267,7 +267,13 @@ evidence does not yet choose between those stages or identify an external
 memory owner. The temporary source was restored byte-for-byte to SHA-256
 `c1089fa0c9e79ef95909c0ed9597443f75144f6d324f7de2ec018f10e3f0d0b1`;
 the packaged consumer binary hash above was restored after diagnostics.
+The [five-run log](idle-host-evidence/controlled-gpu-rerun.txt),
+[valid memory probe](idle-host-evidence/memory-before-after-failure-v2.txt),
+[same-process allocator log](idle-host-evidence/allocator-probe-runs.txt),
+[package hashes](idle-host-evidence/installed-artifacts.sha256), and
+[probe source](idle-host-evidence/cuda-mem-info.c) are retained with this
+receipt.
 
 No product code changed during these diagnostics. This receipt records the
 independent Tegra investigation; the isolated remote build and consumer
-directories are agent-owned temporary material.
+directories can be removed after the retained evidence is verified.

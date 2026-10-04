@@ -202,10 +202,7 @@ import sys
 
 text = Path(sys.argv[1]).read_text()
 required = (
-    'nm -D --undefined-only "$EXTENSION"',
-    "grep -E '^[[:space:]]*U[[:space:]]+cuda'",
-    'readelf -d "$EXTENSION"',
-    'libcudart',
+    'check-tegra-wheel-linkage.sh" "$EXTENSION"',
     '-m venv "$RUNTIME_VENV"',
     'cd "$RUNTIME_VENV"',
     'env -u LD_LIBRARY_PATH -u LIBRARY_PATH',

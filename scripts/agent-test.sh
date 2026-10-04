@@ -404,6 +404,7 @@ run_tier_suite fast test-release-contract-truth bash scripts/tests/test_release_
 # (D-80.6-1), and reject a contract that splits the shared nvcc pin or
 # re-points an x86_64 selector at the Tegra axis.
 run_tier_suite fast test-cuda-release-contract bash scripts/tests/test_cuda_release_contract.sh
+run_tier_suite fast test-tegra-wheel-linkage bash scripts/tests/test_tegra_wheel_linkage.sh
 run_tier_suite fast test-cuda-unmerged-candidate-provenance bash scripts/tests/test_cuda_unmerged_candidate_provenance.sh
 run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
 

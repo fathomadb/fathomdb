@@ -116,7 +116,8 @@ was zero. Windows focused `purge` and operator controls remain pending.
   `00e27eafa9da613a17c7922b822c814ba05f0e9c` exited **0**. It reported
   `agent-test.sh: 178/180 suites passed (skipped=2 excluded=0)` and security
   `0 violation(s), 0 blocker(s), 0 downgrade(s)`, including strict AC-036/037.
-  Full log: `/tmp/fathomdb-s103w-agent-verify-probe-v3.log`, SHA256
+  Committed full log:
+  [agent-verify-00e27eafa.log](windows-evidence/agent-verify-00e27eafa.log), SHA256
   `170278bb3b4818ae2217bcc06e23222252c2e4154171d2c081513c10b233ebec`.
   The process-local environment set `PYTHONPATH=src/python`,
   `CARGO_TARGET_DIR=<Track W worktree>/target`, `CARGO_INCREMENTAL=0`, and

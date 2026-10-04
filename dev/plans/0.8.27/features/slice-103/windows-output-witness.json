@@ -26,7 +26,7 @@
     "security_violations": 0,
     "security_blockers": 0,
     "security_downgrades": 0,
-    "log_path": "/tmp/fathomdb-s103w-agent-verify-probe-v3.log",
+    "log_path": "dev/plans/0.8.27/features/slice-103/windows-evidence/agent-verify-00e27eafa.log",
     "log_sha256": "170278bb3b4818ae2217bcc06e23222252c2e4154171d2c081513c10b233ebec",
     "environment": {
       "PYTHONPATH": "src/python",

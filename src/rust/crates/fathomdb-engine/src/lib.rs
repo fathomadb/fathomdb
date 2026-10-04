@@ -827,6 +827,26 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
+    fn unpatched_sqlite_refuses_unsimplifiable_local_verbatim_paths() {
+        use super::connection_runtime::sqlite_local_verbatim_path_requires_patched_vfs;
+
+        let short = Path::new(r"\\?\C:\ci\safe\db.sqlite");
+        let reserved = Path::new(r"\\?\C:\ci\NUL.txt");
+        let trailing_dot = Path::new(r"\\?\C:\ci\trailing.");
+        let long = format!(r"\\?\C:\{}\db.sqlite", "segment1234\\".repeat(27));
+        let unc = Path::new(r"\\server\share\db.sqlite");
+
+        assert!(!sqlite_local_verbatim_path_requires_patched_vfs(short, 3_053_002, false));
+        for path in [reserved, trailing_dot, Path::new(&long)] {
+            assert!(sqlite_local_verbatim_path_requires_patched_vfs(path, 3_053_002, false));
+            assert!(!sqlite_local_verbatim_path_requires_patched_vfs(path, 3_053_002, true));
+            assert!(!sqlite_local_verbatim_path_requires_patched_vfs(path, 3_053_003, false));
+        }
+        assert!(!sqlite_local_verbatim_path_requires_patched_vfs(unc, 3_053_002, false));
+    }
+
+    #[cfg(windows)]
+    #[test]
     fn local_canonical_path_does_not_strand_idle_wal_readers() {
         for database in 0..3 {
             let dir = TempDir::new().expect("tempdir");

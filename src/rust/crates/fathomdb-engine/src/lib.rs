@@ -806,6 +806,27 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
+    fn sqlite_runtime_path_simplifies_only_safe_local_drive_paths() {
+        use super::connection_runtime::sqlite_runtime_path;
+
+        let short = Path::new(r"\\?\C:\ci\safe\db.sqlite");
+        assert_eq!(sqlite_runtime_path(short), Path::new(r"C:\ci\safe\db.sqlite"));
+        assert!(super::open::sqlite_uri(short, "mode=ro").starts_with("file:C%3A"));
+
+        let reserved = Path::new(r"\\?\C:\ci\NUL.txt");
+        assert_eq!(sqlite_runtime_path(reserved), reserved);
+        let trailing_dot = Path::new(r"\\?\C:\ci\trailing.");
+        assert_eq!(sqlite_runtime_path(trailing_dot), trailing_dot);
+        let unc = Path::new(r"\\server\share\db.sqlite");
+        assert_eq!(sqlite_runtime_path(unc), unc);
+
+        let long = format!(r"\\?\C:\{}\db.sqlite", "segment1234\\".repeat(27));
+        assert!(long.len() > 260);
+        assert_eq!(sqlite_runtime_path(Path::new(&long)), Path::new(&long));
+    }
+
+    #[cfg(windows)]
+    #[test]
     fn local_canonical_path_does_not_strand_idle_wal_readers() {
         for database in 0..3 {
             let dir = TempDir::new().expect("tempdir");

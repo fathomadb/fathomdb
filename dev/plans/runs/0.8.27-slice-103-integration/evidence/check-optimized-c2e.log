@@ -1,0 +1,1688 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.12s
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+    Checking fathomdb-tests v0.0.0 (/home/coreyt/projects/fathomdb-worktrees/release-0.8.27/target/tests/trybuild/fathomdb)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.11s
+
+
+test tests/ui/unprovenanced_public_write.rs ... ok
+
+
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 14 tests
+..............
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+
+running 28 tests
+............................
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.12s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+
+running 16 tests
+................
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 12 tests
+............
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 23 tests
+....iiiii....i...i.....
+test result: ok. 16 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out; finished in 0.74s
+
+
+running 14 tests
+..............
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 21 tests
+.....................
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 96 tests
+....................................................................................... 87/96
+.........
+test result: ok. 96 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.35s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+running 9 tests
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+
+running 12 tests
+[stub_harness] stub harness started
+[stub_harness] unknown protocol: fathomdb.consolidate.v1
+.....[stub_consolidate_harness] stub consolidate harness started
+[stub_consolidate_harness] sent ready: model=stub-consolidate-v1
+.[stub_consolidate_harness] stub consolidate harness started
+[stub_consolidate_harness] sent ready: model=stub-consolidate-v1
+[stub_consolidate_harness] sent result for request_id=req-0: 2 verdicts
+.[stub_consolidate_harness] stub consolidate harness started
+[stub_consolidate_harness] sent ready: model=stub-consolidate-v1
+[stub_consolidate_harness] sent result for request_id=req-0: 2 verdicts
+.[stub_consolidate_harness] stub consolidate harness started
+[stub_consolidate_harness] sent ready: model=stub-consolidate-v1
+[stub_consolidate_harness] sent result for request_id=req-0: 2 verdicts
+.[stub_consolidate_harness] stub consolidate harness started
+[stub_consolidate_harness] sent ready: model=stub-consolidate-v1
+[stub_consolidate_harness] sent result for request_id=req-0: 2 verdicts
+...
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+
+running 1 test
+[stub_consolidate_harness] stub consolidate harness started
+[stub_consolidate_harness] sent ready: model=stub-consolidate-v1
+[stub_consolidate_harness] sent result for request_id=req-0: 2 verdicts
+[stub_consolidate_harness] sent result for request_id=req-1: 2 verdicts
+[stub_consolidate_harness] sent result for request_id=req-2: 2 verdicts
+[stub_consolidate_harness] sent result for request_id=req-3: 2 verdicts
+[stub_consolidate_harness] sent result for request_id=req-4: 2 verdicts
+[stub_consolidate_harness] sent result for request_id=req-5: 2 verdicts
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.22s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 14 tests
+i.............
+test result: ok. 13 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.59s
+
+
+running 3 tests
+i.i
+test result: ok. 1 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 16.07s
+
+
+running 1 test
+[elps_conformance_stub] Loaded 8 golden cases: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8']
+[elps_conformance_stub] stub harness started
+[elps_conformance_stub] sending ready
+[elps_conformance_stub] sending result for source_doc_id='d1' request_id=req-0: 2 entities, 1 edges
+[elps_conformance_stub] Loaded 8 golden cases: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8']
+[elps_conformance_stub] stub harness started
+[elps_conformance_stub] sending ready
+[elps_conformance_stub] sending result for source_doc_id='d2' request_id=req-0: 2 entities, 1 edges
+[elps_conformance_stub] Loaded 8 golden cases: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8']
+[elps_conformance_stub] stub harness started
+[elps_conformance_stub] sending ready
+[elps_conformance_stub] sending result for source_doc_id='d3' request_id=req-0: 3 entities, 2 edges
+[elps_conformance_stub] Loaded 8 golden cases: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8']
+[elps_conformance_stub] stub harness started
+[elps_conformance_stub] sending ready
+[elps_conformance_stub] sending result for source_doc_id='d4' request_id=req-0: 0 entities, 0 edges
+[elps_conformance_stub] Loaded 8 golden cases: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8']
+[elps_conformance_stub] stub harness started
+[elps_conformance_stub] sending ready
+[elps_conformance_stub] sending result for source_doc_id='d5' request_id=req-0: 2 entities, 1 edges
+[elps_conformance_stub] Loaded 8 golden cases: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8']
+[elps_conformance_stub] stub harness started
+[elps_conformance_stub] sending ready
+[elps_conformance_stub] sending result for source_doc_id='d6' request_id=req-0: 2 entities, 1 edges
+[elps_conformance_stub] Loaded 8 golden cases: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8']
+[elps_conformance_stub] stub harness started
+[elps_conformance_stub] sending ready
+[elps_conformance_stub] sending result for source_doc_id='d7' request_id=req-0: 2 entities, 1 edges
+[elps_conformance_stub] Loaded 8 golden cases: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8']
+[elps_conformance_stub] stub harness started
+[elps_conformance_stub] sending ready
+[elps_conformance_stub] sending result for source_doc_id='d8' request_id=req-0: 5 entities, 2 edges
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+
+running 10 tests
+..........
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+
+running 15 tests
+...............
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+
+running 9 tests
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+running 10 tests
+..........
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 11 tests
+...........
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 16 tests
+................
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 24 tests
+i.......................
+test result: ok. 23 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.49s
+
+
+running 7 tests
+....iii
+test result: ok. 4 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 60.74s
+
+
+running 5 tests
+[elps_harness] starting (model=claude-haiku base_url=http://localhost:4000/v1 stub=True)
+.[multidoc_echo_harness] started (mode=foreign)
+.[multidoc_echo_harness] started (mode=valid)
+.[provenance_omitting_harness] started (source_doc_id will be omitted from every element)
+.[provenance_omitting_harness] started (source_doc_id will be omitted from every element)
+.
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+
+running 25 tests
+............iiii.....iiii
+test result: ok. 17 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 562.94s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.05s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 9 tests
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+
+running 9 tests
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.28s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+
+running 10 tests
+..........
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+
+running 13 tests
+.........i...
+test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.06s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+
+running 2 tests
+[provenance_omitting_harness] started (source_doc_id will be omitted from every element)
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+
+running 4 tests
+...[stub_consolidate_harness] stub consolidate harness started
+[stub_consolidate_harness] sent ready: model=stub-consolidate-v1
+[stub_consolidate_harness] sent result for request_id=req-0: 2 verdicts
+.
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 12 tests
+............
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+
+
+running 12 tests
+............
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+
+running 21 tests
+[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 4 entities, 2 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 5 entities, 3 edges
+[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 5 entities, 3 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 4 entities, 2 edges
+[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 4 entities, 2 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.......[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+..[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 5 entities, 3 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 0 entities, 0 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.45s
+
+
+running 12 tests
+............
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+
+running 9 tests
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+
+running 24 tests
+........................
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+
+
+running 13 tests
+.............
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.45s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 18 tests
+..................
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.11s
+
+
+running 12 tests
+............
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+
+running 15 tests
+...............
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.22s
+
+
+running 14 tests
+..............
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s
+
+
+running 8 tests
+.....[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+...
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+
+running 27 tests
+...........................
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.51s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.19s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+
+running 1 test
+i
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test: characterize_current_v1_edge_actuation, ignore_message: explicit Slice 35 characterization run
+
+
+running 14 tests
+..............
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 19 tests
+...................
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+
+running 13 tests
+.............
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 10 tests
+..........
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.12s
+
+
+running 13 tests
+.............
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 23 tests
+.......................
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.46s
+
+
+running 18 tests
+..................
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.28s
+
+
+running 3 tests
+[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 9 tests
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 14 tests
+..............
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.90s
+
+
+running 10 tests
+..........
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.96s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+
+
+running 4 tests
+i.i.
+test result: ok. 2 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.21s
+
+
+running 11 tests
+[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+....[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.05s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 8 tests
+[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+...
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 8 tests
+[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.[stub_harness] stub harness started
+[stub_harness] sending ready: model=stub-v1
+[stub_harness] sending result for request_id=req-0: 2 entities, 1 edges
+.
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.49s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+
+running 13 tests
+.............
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+running 7 tests
+i...iii
+test result: ok. 3 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.36s
+
+
+running 6 tests
+ii..i.
+test result: ok. 3 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 2.87s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 15 tests
+...............
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.92s
+
+
+running 24 tests
+........................
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+
+running 11 tests
+...........
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.87s
+
+
+running 17 tests
+.................
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+running 19 tests
+...................
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 12 tests
+............
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 30 tests
+..............................
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 9 tests
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+Listing 'src/python/fathomdb'...
+Listing 'src/python/tests'...
+Listing 'src/python/tests/earp'...
+Listing 'src/python/tests/earp/fixtures'...
+Compiling 'src/python/tests/earp/test_answer_arm.py'...
+Compiling 'src/python/tests/earp/test_characterization.py'...
+Compiling 'src/python/tests/earp/test_comparison.py'...
+Compiling 'src/python/tests/earp/test_config_resolver.py'...
+Compiling 'src/python/tests/earp/test_diagnostic_runner.py'...
+Compiling 'src/python/tests/earp/test_gold_basis.py'...
+Compiling 'src/python/tests/earp/test_limit_adoption.py'...
+Compiling 'src/python/tests/earp/test_metrics_parity.py'...
+Compiling 'src/python/tests/earp/test_pricing.py'...
+Compiling 'src/python/tests/earp/test_projection_matrix.py'...
+Compiling 'src/python/tests/earp/test_stats.py'...
+Compiling 'src/python/tests/earp/test_writer.py'...
+Compiling 'src/python/tests/smoke_slice55_installed.py'...
+Compiling 'src/python/tests/test_apnews_corpus.py'...
+Compiling 'src/python/tests/test_autoe_judge.py'...
+Compiling 'src/python/tests/test_autoe_pilot_run.py'...
+Compiling 'src/python/tests/test_baselines_084.py'...
+Compiling 'src/python/tests/test_ce_rerank_probe.py'...
+Compiling 'src/python/tests/test_coinstallation_guard.py'...
+Compiling 'src/python/tests/test_consumer_boundary.py'...
+Compiling 'src/python/tests/test_corpus_eval_qa.py'...
+Compiling 'src/python/tests/test_d0b_parity_run.py'...
+Compiling 'src/python/tests/test_d0b_powered_recall.py'...
+Compiling 'src/python/tests/test_decision_rule_083.py'...
+Compiling 'src/python/tests/test_decision_rule_084.py'...
+Compiling 'src/python/tests/test_embed.py'...
+Compiling 'src/python/tests/test_erase_source.py'...
+Compiling 'src/python/tests/test_errors.py'...
+Compiling 'src/python/tests/test_exp_cov1.py'...
+Compiling 'src/python/tests/test_exp_cov_census.py'...
+Compiling 'src/python/tests/test_exp_obs_explain_parity.py'...
+Compiling 'src/python/tests/test_f9_explain_wrapper_propagation.py'...
+Compiling 'src/python/tests/test_ffi_safety.py'...
+Compiling 'src/python/tests/test_filter_unification.py'...
+Compiling 'src/python/tests/test_functional_graph.py'...
+Compiling 'src/python/tests/test_functional_graph_arm.py'...
+Compiling 'src/python/tests/test_functional_reranker.py'...
+Compiling 'src/python/tests/test_functional_retrieve.py'...
+Compiling 'src/python/tests/test_functional_search.py'...
+Compiling 'src/python/tests/test_gap_decomposition_rule.py'...
+Compiling 'src/python/tests/test_gap_decomposition_run.py'...
+Compiling 'src/python/tests/test_gold_pipeline.py'...
+Compiling 'src/python/tests/test_graph_01.py'...
+Compiling 'src/python/tests/test_graph_search_expand_wrapper.py'...
+Compiling 'src/python/tests/test_idspace_parity.py'...
+Compiling 'src/python/tests/test_interfaces_doc.py'...
+Compiling 'src/python/tests/test_m1_answerer_retry.py'...
+Compiling 'src/python/tests/test_m1_baseline.py'...
+Compiling 'src/python/tests/test_m1_decision_rule.py'...
+Compiling 'src/python/tests/test_m1_graph_build.py'...
+Compiling 'src/python/tests/test_m1_power_sim.py'...
+Compiling 'src/python/tests/test_m1_ppr.py'...
+Compiling 'src/python/tests/test_m1_verdict.py'...
+Compiling 'src/python/tests/test_md_generator_hygiene.py'...
+Compiling 'src/python/tests/test_mem0_persist.py'...
+Compiling 'src/python/tests/test_native_stub_surface.py'...
+Compiling 'src/python/tests/test_no_recovery_surface.py'...
+Compiling 'src/python/tests/test_openreport.py'...
+Compiling 'src/python/tests/test_opp12_existence_axis.py'...
+Compiling 'src/python/tests/test_opp12_lifecycle_verbs.py'...
+Compiling 'src/python/tests/test_opp3_eval_support.py'...
+Compiling 'src/python/tests/test_option2_elps_pipeline.py'...
+Compiling 'src/python/tests/test_option3_lme_pipeline.py'...
+Compiling 'src/python/tests/test_p0a_answer_scorer.py'...
+Compiling 'src/python/tests/test_p0a_batch_e2e.py'...
+Compiling 'src/python/tests/test_p0a_scorer.py'...
+Compiling 'src/python/tests/test_property_template.py'...
+Compiling 'src/python/tests/test_provenance_mandatory.py'...
+Compiling 'src/python/tests/test_pyright_narrowing.py'...
+Compiling 'src/python/tests/test_python_gate_contract.py'...
+Compiling 'src/python/tests/test_r2_harness.py'...
+Compiling 'src/python/tests/test_r6_enrichment.py'...
+Compiling 'src/python/tests/test_read_list.py'...
+Compiling 'src/python/tests/test_release_surface.py'...
+Compiling 'src/python/tests/test_rerank_accuracy_rule.py'...
+Compiling 'src/python/tests/test_rerank_accuracy_run.py'...
+Compiling 'src/python/tests/test_runtime_event_shape.py'...
+Compiling 'src/python/tests/test_s15a_embedder_probe.py'...
+Compiling 'src/python/tests/test_s15b_d2_proxy.py'...
+Compiling 'src/python/tests/test_save_time_validation.py'...
+Compiling 'src/python/tests/test_scaffold.py'...
+Compiling 'src/python/tests/test_sdk_surface_parity_oracle.py'...
+Compiling 'src/python/tests/test_slice100_logging_subscriber.py'...
+Compiling 'src/python/tests/test_slice10_read_view.py'...
+Compiling 'src/python/tests/test_slice15_byo_llm_surface.py'...
+Compiling 'src/python/tests/test_slice15_consolidate_surface.py'...
+Compiling 'src/python/tests/test_slice15_identity_provenance.py'...
+Compiling 'src/python/tests/test_slice15b_node_validity_write.py'...
+Compiling 'src/python/tests/test_slice15b_search_validity.py'...
+Compiling 'src/python/tests/test_slice15d_projection_registry.py'...
+Compiling 'src/python/tests/test_slice18_retrieval_result_limits.py'...
+Compiling 'src/python/tests/test_slice20_dense_readiness.py'...
+Compiling 'src/python/tests/test_slice20_fix1_integrity.py'...
+Compiling 'src/python/tests/test_slice20_fix2_revision_grammar.py'...
+Compiling 'src/python/tests/test_slice20_graph_evidence.py'...
+Compiling 'src/python/tests/test_slice20_source_dependencies.py'...
+Compiling 'src/python/tests/test_slice20c_flush_barrier.py'...
+Compiling 'src/python/tests/test_slice22_projection_status.py'...
+Compiling 'src/python/tests/test_slice23_text_limit_prefix_stability.py'...
+Compiling 'src/python/tests/test_slice25_actuation.py'...
+Compiling 'src/python/tests/test_slice25_fix1.py'...
+Compiling 'src/python/tests/test_slice30_dependency_closure.py'...
+Compiling 'src/python/tests/test_slice30_embedding_readiness.py'...
+Compiling 'src/python/tests/test_slice35_frozen_binding_parity.py'...
+Compiling 'src/python/tests/test_slice35_frozen_read.py'...
+Compiling 'src/python/tests/test_slice35_frozen_validation.py'...
+Compiling 'src/python/tests/test_slice40_projection_generation.py'...
+Compiling 'src/python/tests/test_slice45_nested_source_projections.py'...
+Compiling 'src/python/tests/test_slice45_pagination.py'...
+Compiling 'src/python/tests/test_slice50_evidence.py'...
+Compiling 'src/python/tests/test_slice55_trace_explanation.py'...
+Compiling 'src/python/tests/test_slice55_wrapper_compat.py'...
+Compiling 'src/python/tests/test_slice60_fix1_graph_expand.py'...
+Compiling 'src/python/tests/test_slice60_fix2_graph_expand.py'...
+Compiling 'src/python/tests/test_slice60_fix3_graph_expand.py'...
+Compiling 'src/python/tests/test_slice60_graph_expand.py'...
+Compiling 'src/python/tests/test_slice65_wal_attribution_installed.py'...
+Compiling 'src/python/tests/test_slice65_wal_attribution_typing.py'...
+Compiling 'src/python/tests/test_slice79_runtime_configuration.py'...
+Compiling 'src/python/tests/test_slice90_engine_config.py'...
+Compiling 'src/python/tests/test_surface.py'...
+Compiling 'src/python/tests/test_tc31_source_id_every_hit.py'...
+Compiling 'src/python/tests/test_tc67_unsupported_vector_kind_report.py'...
+Compiling 'src/python/tests/test_telemetry_parity.py'...
+Compiling 'src/python/tests/test_test_hooks_gate.py'...
+Compiling 'src/python/tests/test_tier2_coverage.py'...
+Compiling 'src/python/tests/test_typed_errors.py'...
+Compiling 'src/python/tests/test_use_default_embedder.py'...
+Compiling 'src/python/tests/test_vector_equivalence_probe.py'...
+Compiling 'src/python/tests/test_verify_embed_db.py'...
+Compiling 'src/python/tests/test_windows_erasure_probe_contract.py'...
+Compiling 'src/python/tests/test_workflow_yaml.py'...
+npm notice run fathomdb@0.8.26 typecheck
+npm notice run tsc --noEmit -p tsconfig.json
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/coreyt/projects/fathomdb-worktrees/release-0.8.27/site
+INFO    -  Documentation built in 0.29 seconds

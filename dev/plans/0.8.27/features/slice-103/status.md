@@ -30,14 +30,14 @@ slice can close and the release state can advance to Slice 110.
 - Independent combined source review: PASS at the integrated code commit.
 - Strict `./scripts/agent-verify.sh`: PASS, 182/182 suites, zero skips or
   exclusions, strict security zero violations, blockers, and downgrades.
-  Exact log `/tmp/fathomdb-s103-integrated-verify-c2e.log`, SHA-256
+  Exact [log](../../../runs/0.8.27-slice-103-integration/evidence/agent-verify-c2e.log), SHA-256
   `62f0ef19dd8881b32b8ed460548fe7fd67fc09b53cfbfffea3642fcdf6f49a17`.
 - Broader `./scripts/check.sh`: PASS on a ptrace-capable executor with
   `CARGO_PROFILE_TEST_OPT_LEVEL=3 AC013_VECTOR_DIM=384`. These are the
   documented optimized AC-013 performance settings. The 25-test long-run
   group passed 17 tests, with 8 intentionally ignored, in 562.94 seconds;
-  TypeScript typecheck and strict MkDocs build passed. Exact log
-  `/tmp/fathomdb-s103-integrated-check-optimized-unconfined-c2e.log`,
+  TypeScript typecheck and strict MkDocs build passed. Exact
+  [log](../../../runs/0.8.27-slice-103-integration/evidence/check-optimized-c2e.log),
   SHA-256 `ba6da3810696f2f1d01d4fc13420171e45de442a1c153fc4fb50d20e4e680cbd`.
   The plain debug-profile invocation exceeds the pre-existing AC-013 latency
   budget on both Slice 103 and pre-Slice-103 source; the canonical isolated

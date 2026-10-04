@@ -86,6 +86,16 @@ fn governed_owed_fixture() -> (TempDir, PathBuf, String) {
                     CanonicalHash::sha256(hash).unwrap(),
                 ),
             ),
+            PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "unrelated-survivor-sentinel".into(),
+                source_id: SourceId::new("other-source").unwrap(),
+                logical_id: Some("unrelated-survivor".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            },
         ])
         .unwrap();
     opened
@@ -199,6 +209,22 @@ fn offline_recovery_completes_proven_erasure_and_clears_write_fence() {
     assert_eq!(output.status.code(), Some(exit_code::RECOVERY_ACCEPTED_LOSS), "{output:#?}");
     assert_eq!(body(&output)["status"], "done");
     assert_eq!(closure_phase(&path, &closure_id), "complete");
+    let database_bytes = std::fs::read(&path).unwrap();
+    let wal_path = PathBuf::from(format!("{}-wal", path.display()));
+    let wal_bytes = std::fs::read(&wal_path).unwrap_or_default();
+    for erased in ["source-erasure-sentinel", "derived-secret"] {
+        assert!(!database_bytes.windows(erased.len()).any(|window| window == erased.as_bytes()));
+        assert!(!wal_bytes.windows(erased.len()).any(|window| window == erased.as_bytes()));
+    }
+    let survivor: String = Connection::open(&path)
+        .unwrap()
+        .query_row(
+            "SELECT body FROM canonical_nodes WHERE logical_id='unrelated-survivor'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(survivor, "unrelated-survivor-sentinel");
     let reopened = Engine::open(&path).unwrap();
     reopened
         .engine

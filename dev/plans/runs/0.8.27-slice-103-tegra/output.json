@@ -40,7 +40,22 @@
   "tests": {
     "cuda_checker": 0,
     "cuda_contract": 0,
-    "full_verifier": null,
+    "full_verifier": {
+      "candidate_sha": "744656d68cb9f2c42633c8a0a028cdd99d21e3c0",
+      "excluded": 0,
+      "exit_code": 0,
+      "failed": 0,
+      "log": "evidence/verify-full.log",
+      "log_sha256": "ded3eb2a69f53da2f46049cb32f5772cf19efaf6dfb196cd4d4169d429b32bb4",
+      "passed": 182,
+      "registered": 182,
+      "skipped": 0,
+      "test_environment": {
+        "editable_install": false,
+        "isolated_venv_cpu_wheel_sha256": "be931480e0b1ecf90e96ec44e0a0ce270f64be3258ea9637ebc99fe7f8c805bd",
+        "pythonpath": "checkout src/python (process-local)"
+      }
+    },
     "markdown_lint": 0,
     "operator_path": 0,
     "prior_clean_head_verifier": {

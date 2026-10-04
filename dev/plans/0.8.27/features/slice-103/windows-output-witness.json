@@ -5,8 +5,9 @@
     "exit": 130,
     "partial_log_path": "dev/plans/0.8.27/features/slice-103/windows-evidence/agent-verify-75093d59e-unqualified.log",
     "partial_log_sha256": "7fd6bb2c7463ece7c0330349a3f114e806f2a64691be5dac4a899aac9bbdfb68",
-    "reason": "dynamic test-preflight-release-state failed after release ref advanced to f148, then run interrupted",
+    "reason": "two failures: stale Slice 90 lib_rs_blob inventory and dynamic release-ref preflight after release advanced to f148; then interrupted",
     "security": "0 violations, 0 blockers, 0 downgrades",
+    "slice90_remedy": "doc-only 9764dd6c1; focused 8-test suite exit 0",
     "status": "unqualified"
   },
   "final_windows": {
@@ -20,6 +21,11 @@
       "noread": "40/40 exit 0",
       "page": "20/20 exit 0",
       "read": "40/40 exit 0"
+    },
+    "public_probe_first_refusals": {
+      "noread": "0/40",
+      "page": "0/20",
+      "read": "0/40"
     },
     "source_archive_sha256": "ff2a32fe02bd8d30e54c3768461d931567988d007f0b30d9a95e1228b1c478a4",
     "staged_archive_sha256": "758fe20d99e9b3268c804681e5c707eca0a4bffd87446f3121ee73b1012d9413",

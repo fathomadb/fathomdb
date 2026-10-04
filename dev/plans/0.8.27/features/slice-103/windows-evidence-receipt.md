@@ -150,10 +150,14 @@ and integrated same-SHA qualification.
 
 The clean-HEAD full `./scripts/agent-verify.sh` at `75093d59e` reached the
 normal test suite with security `0 violation(s), 0 blocker(s), 0 downgrade(s)`.
-Its dynamic `test-preflight-release-state` fixture failed after the release
-branch advanced to integrated `f148aca86`: this isolated W HEAD was no longer
-a descendant of the current release ref. The run was stopped with exit 130
-after that known failure; it is **unqualified**, not a green gate. The exact
+Two fast-suite tests failed. `test-slice90-root-reconciliation` found a stale
+`lib_rs_blob` inventory after the W tests changed `lib.rs`; the release
+orchestrator corrected only that Markdown hash at `9764dd6c1`, and its
+focused 8-test suite then passed. The dynamic `test-preflight-release-state`
+fixture also failed after the release branch advanced to integrated
+`f148aca86`: isolated W HEAD was no longer a descendant of the current
+release ref. The run was stopped with exit 130 after both recorded failures;
+it is **unqualified**, not a green gate. The exact
 partial log is
 [agent-verify-75093d59e-unqualified.log](windows-evidence/agent-verify-75093d59e-unqualified.log),
 SHA256 `7fd6bb2c7463ece7c0330349a3f114e806f2a64691be5dac4a899aac9bbdfb68`.
@@ -185,7 +189,8 @@ The Windows VM verified both archive hashes, built and freshly installed
 Installed `_fathomdb.pyd` SHA256 was
 `34a639bddfffa5f406806b28e78a06e8f57cc56d533bdbf0c6583c7d98de864f`.
 The reviewed public probe ran **40/40 no-read, 40/40 read, 20/20 page** with
-all process exits 0, including independent-reopen absence, survivor retention,
+all process exits 0 and **zero first refusals** in each mode, including
+independent-reopen absence, survivor retention,
 zero-count second completion, and post-completion write. VM logs
 `f148-probe-{noread,read,page}.jsonl` SHA256 respectively:
 `9b4dfae3112e29a1af3831d1093a515424ec5f580e1c868fa7af4c92f436920d`,

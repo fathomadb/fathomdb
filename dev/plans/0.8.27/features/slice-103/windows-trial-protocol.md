@@ -47,6 +47,21 @@ protocol, not a change to the Slice 103 plan or a production remedy.
    the existing operation hook or a clearly identified test-only build; its
    timing-sensitive runs remain separate from ordinary installed-wheel runs.
 
+The candidate probe has two explicit arms. The default `retry` arm records
+the first outcome and WAL file size, then retries immediately and at bounded
+delays without an intervening SQLite read or write; after closing and
+reopening it retries before any external SQLite read. The `diagnostic` arm
+also samples canonical rows, pending closure rows, and a write-fence attempt
+after the first outcome. Those observations can change retry timing, so its
+retry results are labeled timing-sensitive and are not rate controls. Both
+arms fail their process exit when completion remains unresolved, the second
+identical completion is absent or nonzero, erased rows remain on independent
+reopen, the survivor disappears, or a post-completion write fails. A
+write-fence refusal is required only when an owed physical dependency closure
+is actually present; the anonymous-Note fixture can legitimately have no
+such closure and permit an unrelated write. The unchanged Memex script alone
+is the historical rate control.
+
 ## Decision rules
 
 - A current candidate WAL refusal establishes persistence of the reported

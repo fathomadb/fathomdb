@@ -51,6 +51,47 @@ def report_fields(report: Any) -> dict[str, Any]:
     }
 
 
+def completed(record: dict[str, Any]) -> bool:
+    return (
+        record.get("first", {}).get("ok") is True
+        or any(item.get("ok") is True for item in record.get("same_engine_retries", []))
+        or record.get("reopen_retry", {}).get("ok") is True
+    )
+
+
+def record_assertions(record: dict[str, Any]) -> dict[str, bool]:
+    zero = record.get("zero_count_completion", {})
+    rows = record.get("final_rows", [])
+    pending_fence = True
+    if (
+        record.get("arm") == "diagnostic"
+        and record.get("first", {}).get("ok") is False
+        and record.get("pending_after_first")
+    ):
+        fence = record.get("write_fence", {})
+        pending_fence = fence.get("ok") is False and fence.get("error", {}).get("stage") == (
+            "dependency_closure"
+        )
+    return {
+        "completed": completed(record),
+        "zero_count_completion": all(
+            zero.get(field) == 0
+            for field in ("nodes_excised", "edges_excised", "projections_invalidated")
+        ),
+        "erased_rows_absent": all(row["source_id"] != "src-a" for row in rows),
+        "survivor_present": any(
+            row["source_id"] == "src-b" and "keep" in row["body"] for row in rows
+        ),
+        "post_completion_write": record.get("post_completion_write", {}).get("ok") is True,
+        "pending_closure_write_fence": pending_fence,
+        "no_pending_closure_after_completion": not record.get("pending_after_all_attempts"),
+    }
+
+
+def record_passes(record: dict[str, Any]) -> bool:
+    return all(record_assertions(record).values())
+
+
 def stored_rows(path: Path) -> list[dict[str, str]]:
     # This post-operation read uses a short-lived separate connection. It can
     # change timing, so the unchanged historical script remains the rate control.
@@ -74,12 +115,13 @@ def pending_physical(path: Path) -> list[dict[str, str]]:
         ]
 
 
-def one_trial(mode: str, batch: int, trial: int) -> dict[str, Any]:
+def one_trial(mode: str, arm: str, batch: int, trial: int) -> dict[str, Any]:
     root = Path(tempfile.mkdtemp(prefix="fdb-s103w-"))
     db = root / "memory.db"
     record: dict[str, Any] = {
         "platform": sys.platform,
         "mode": mode,
+        "arm": arm,
         "batch": batch,
         "trial": trial,
         "verb": "erase_source",
@@ -106,6 +148,8 @@ def one_trial(mode: str, batch: int, trial: int) -> dict[str, Any]:
             page = read.canonical_page(engine, "Note", frozen, PageRequestV1(50, None))
             rows = [*page.items]
             record["materialized_read_count"] = len(rows)
+        if arm == "diagnostic":
+            record["rows_before_erase"] = stored_rows(db)
         record["wal_before_erase_bytes"] = wal_bytes(db)
         try:
             first = engine.erase_source("src-a")
@@ -113,19 +157,22 @@ def one_trial(mode: str, batch: int, trial: int) -> dict[str, Any]:
         except Exception as exc:  # Keep the exact typed failure in evidence.
             record["first"] = {"ok": False, "error": error_fields(exc)}
         record["wal_after_erase_bytes"] = wal_bytes(db)
-        record["rows_after_first"] = stored_rows(db)
-        record["pending_after_first"] = pending_physical(db)
+        if arm == "diagnostic":
+            record["rows_after_first"] = stored_rows(db)
+            record["pending_after_first"] = pending_physical(db)
 
         if not record["first"]["ok"]:
-            try:
-                engine.write([{"kind": "Note", "body": "fenced", "source_id": "src-c"}])
-                record["write_fence"] = {"ok": True}
-            except Exception as exc:
-                record["write_fence"] = {"ok": False, "error": error_fields(exc)}
-            record["rows_after_fence_probe"] = stored_rows(db)
+            if arm == "diagnostic":
+                try:
+                    engine.write([{"kind": "Note", "body": "fenced", "source_id": "src-c"}])
+                    record["write_fence"] = {"ok": True}
+                except Exception as exc:
+                    record["write_fence"] = {"ok": False, "error": error_fields(exc)}
+                record["rows_after_fence_probe"] = stored_rows(db)
             record["same_engine_retries"] = []
-            for delay in (0.05, 0.25, 1.0, 2.0):
-                time.sleep(delay)
+            for delay in (0.0, 0.05, 0.25, 1.0, 2.0):
+                if delay:
+                    time.sleep(delay)
                 try:
                     result = engine.erase_source("src-a")
                     record["same_engine_retries"].append(
@@ -139,7 +186,6 @@ def one_trial(mode: str, batch: int, trial: int) -> dict[str, Any]:
         engine.close()
 
         engine = fathomdb.Engine.open(str(db), use_default_embedder=False)
-        record["rows_after_reopen"] = stored_rows(db)
         if not record["first"]["ok"] and not any(
             item["ok"] for item in record.get("same_engine_retries", [])
         ):
@@ -149,29 +195,27 @@ def one_trial(mode: str, batch: int, trial: int) -> dict[str, Any]:
             except Exception as exc:
                 record["reopen_retry"] = {"ok": False, "error": error_fields(exc)}
         else:
-            result = engine.erase_source("src-a")
-            record["zero_count_completion"] = report_fields(result)
-        if record.get("reopen_retry", {}).get("ok"):
-            result = engine.erase_source("src-a")
-            record["zero_count_completion"] = report_fields(result)
+            record["reopen_retry"] = {"not_needed": True}
+        if completed(record):
+            try:
+                result = engine.erase_source("src-a")
+                record["zero_count_completion"] = report_fields(result)
+            except Exception as exc:
+                record["zero_count_completion_error"] = error_fields(exc)
         record["wal_after_reopen_bytes"] = wal_bytes(db)
-        try:
-            engine.write([{"kind": "Note", "body": "after-completion", "source_id": "src-c"}])
-            record["post_completion_write"] = {"ok": True}
-        except Exception as exc:
-            record["post_completion_write"] = {"ok": False, "error": error_fields(exc)}
-        record["final_rows"] = stored_rows(db)
+        if completed(record) and "zero_count_completion" in record:
+            try:
+                engine.write(
+                    [{"kind": "Note", "body": "after-completion", "source_id": "src-c"}]
+                )
+                record["post_completion_write"] = {"ok": True}
+            except Exception as exc:
+                record["post_completion_write"] = {"ok": False, "error": error_fields(exc)}
+        record["wal_after_all_attempts_bytes"] = wal_bytes(db)
         engine.close()
-        record["assertions"] = {
-            "erased_rows_absent": all(
-                row["source_id"] != "src-a" for row in record["final_rows"]
-            ),
-            "survivor_present": any(
-                row["source_id"] == "src-b" and "keep" in row["body"]
-                for row in record["final_rows"]
-            ),
-            "post_completion_write": record["post_completion_write"]["ok"],
-        }
+        record["final_rows"] = stored_rows(db)
+        record["pending_after_all_attempts"] = pending_physical(db)
+        record["assertions"] = record_assertions(record)
         return record
     finally:
         engine.close()
@@ -182,19 +226,21 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("trials", type=int)
     parser.add_argument("mode", choices=("noread", "read", "page"))
+    parser.add_argument("--arm", choices=("retry", "diagnostic"), default="retry")
     parser.add_argument("--batch", type=int, default=1)
     args = parser.parse_args()
     failures = 0
     for trial in range(args.trials):
         try:
-            record = one_trial(args.mode, args.batch, trial)
-            if not all(record["assertions"].values()):
+            record = one_trial(args.mode, args.arm, args.batch, trial)
+            if not record_passes(record):
                 failures += 1
         except Exception as exc:
             failures += 1
             record = {
                 "platform": sys.platform,
                 "mode": args.mode,
+                "arm": args.arm,
                 "batch": args.batch,
                 "trial": trial,
                 "probe_failure": error_fields(exc),

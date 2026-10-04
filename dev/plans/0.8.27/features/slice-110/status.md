@@ -23,7 +23,7 @@ still fails forced CUDA intermittently, so Slice 114 cannot start and Slice
 | AC27-110B | PASS for the tested routes: production native runtime has the frozen 17 exports and 44 Engine prototype names; the generated declaration differs only in the accepted subscriber callback signature and removal of `AttachSubscriberOptions`. Test-hook generation adds exactly its expected hooks; a later production build removes them from declarations and runtime. The fresh Linux and Windows installed pairs preserve the package loader and consumer type surface. |
 | AC27-110C | PASS locally: the accepted [subscriber ADR](../../../../adr/ADR-0.8.27-typescript-subscriber-delivery.md) is implemented. RED witnesses preceded the callback delivery, replacement race, queue overflow and Windows wrapper fixes. The native suite passes 7/7; NAPI Rust unit tests pass 22/22. A production-artifact writer callback ran on the JS thread before its 8 MB write settled; concurrent close and repeated close settled. Existing FFI panic, conversion and lifecycle suites passed in the full gate. |
 | AC27-110D | PASS locally: existing native/SDK validation and FFI tests cover numeric bounds, invalid strings, panic/error conversion and no-mutation refusals. The no-default-embedder artifact rejected `useDefaultEmbedder: true` without creating a database, then opened and closed normally without that option. |
-| AC27-110E | **OPEN only for Tegra GPU runtime:** exact-source Linux x64 GNU, Windows x64 MSVC, Linux x64 CUDA/reranker, hosted Linux arm64 GNU, and macOS x64/arm64 installed Node package pairs passed. The Linux x64 CUDA pair computed on a named RTX 3090 and passed driverless CPU fallback and forced-device refusal. On the freshly rebooted Jetson AGX Orin, fresh CPU and CUDA-capable package pairs install and pass their CPU, subscriber and type-surface checks. Forced CUDA succeeded only 1/5 complete clean-process runs and 3/10 focused opens. Temporary stage diagnostics locate `CUDA_ERROR_OUT_OF_MEMORY` at Candle's first `Tensor::zeros` after `Device::new_cuda` succeeds. One successful GPU allocation witness is not reliable qualification. |
+| AC27-110E | **OPEN only for Tegra GPU runtime:** exact-source Linux x64 GNU, Windows x64 MSVC, Linux x64 CUDA/reranker, hosted Linux arm64 GNU, and macOS x64/arm64 installed Node package pairs passed. The Linux x64 CUDA pair computed on a named RTX 3090 and passed driverless CPU fallback and forced-device refusal. On the freshly rebooted Jetson AGX Orin, fresh CPU and CUDA-capable package pairs install and pass their CPU, subscriber and type-surface checks. Forced CUDA succeeded only 1/5 complete clean-process runs and 3/10 focused opens; a later idle-host repeat passed 3/5. Temporary diagnostics locate `CUDA_ERROR_OUT_OF_MEMORY` at Candle's first `Tensor::zeros` after `Device::new_cuda` succeeds. Driver accounting showed about 53.8 GB free across a failure; same-process raw synchronous allocation succeeded while stream allocation/zero failed. The runtime is still intermittent and not qualified. |
 | AC27-110F | **OPEN with code/repository gates passing:** gpt-6-sol high code review passed at the product commit; Terra independently verified local source, artifact and Linux CPU package evidence and the later Tegra investigation. Strict local `agent-verify` passed 182/182 suites, zero skipped or excluded, and security 0 violations/0 blockers/0 downgrades at `06e34759`. Hosted platform job receipts are retained. The CI workflow's separate heavy verifier failed its missing-tool preflight before testing, and its self-hosted Windows row remained queued; neither is represented as a green CI conclusion. Tegra GPU runtime and final native handoff still control exit. |
 
 ## Candidate-bound artifacts and checks
@@ -101,10 +101,17 @@ still fails forced CUDA intermittently, so Slice 114 cannot start and Slice
   `Tensor::zeros(1, DType::F32, ...)` fail with
   `CUDA_ERROR_OUT_OF_MEMORY`. Its diagnostic source was restored before the
   receipt was committed. Host RAM was available and no GPU process was
-  visible, but the shared Orin's GPU free-memory counters are unsupported;
-  a sole-GPU-consumer precondition was not established. Constraining the V8
-  heap did not improve the pass rate. The linked receipt binds both attempts
-  to exact candidate, artifact, and toolchain hashes.
+  visible. `nvidia-smi` does not report Orin GPU memory, but a later valid
+  CUDA Driver API probe measured about 53.8 GB free across a failed open.
+  After Memex CI finished, a controlled idle-host installed-package repeat
+  passed 3/5 complete forced-CUDA runs and failed 2/5 at open. No named GPU
+  compute process or accessible GPU-device owner was found; system and
+  contiguous-memory counters were stable across failures. Same-process raw
+  four-byte synchronous CUDA allocation succeeded while Candle's four-byte
+  stream allocation/zero path failed. The latter still combines allocation
+  and memset, so the exact failing substage is unresolved. Constraining the
+  V8 heap did not improve the earlier pass rate. The linked receipt binds
+  all three attempts to exact candidate, artifact, and toolchain hashes.
 - The complete `./scripts/agent-verify.sh` used
   `CARGO_PROFILE_TEST_OPT_LEVEL=3 AC013_VECTOR_DIM=384` on a ptrace-capable
   executor. The prior 0.8.27 AC-013 plain-debug latency condition is not
@@ -129,10 +136,10 @@ not change the open platform acceptance rows.
 ## Remaining action
 
 Obtain reliable repeated installed Node forced-CUDA opens and GPU allocation
-witnesses on a reserved Orin. If the same first-allocation failure persists,
-isolate the Candle/CUDARC stream allocation and memory-pool behavior before
-proposing a reviewed, contract-preserving fix; forced CUDA must continue to
-refuse rather than fall back to CPU when unavailable. Hosted Linux arm64 GNU
+witnesses on a reserved Orin. Split the CUDARC stream allocation from its
+asynchronous memset, then review any contract-preserving repair against the
+actual model path; forced CUDA must continue to refuse rather than fall back
+to CPU when unavailable. Hosted Linux arm64 GNU
 and both macOS rows are complete. Only after the Tegra row passes may release
 state mark Slice 110 complete and advance its `next_slice` to Slice 114.
 No tag, publication or deployment was performed.

@@ -43,7 +43,10 @@ arm64 GNU and both macOS installed Node package rows also pass. The
 [Slice 110 status](../0.8.27/features/slice-110/status.md) records exact
 artifacts and the remaining Tegra forced-CUDA runtime failure. The freshly
 rebooted Orin passed its CPU and CUDA package checks, but forced CUDA remained
-intermittent at the first tensor allocation. Slice 110 remains in progress;
+intermittent at the first tensor allocation even after Memex CI finished.
+A driver probe showed about 53.8 GB free at failure and no named competing
+CUDA process; the stream allocation/zero path remains under investigation.
+Slice 110 remains in progress;
 Slice 114 cannot start and Slice 120 remains downstream.
 
 Slice 132 is planned after Slice 130 and before performance qualification. It

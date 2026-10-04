@@ -224,9 +224,50 @@ Stage diagnostic and V8 evidence hashes are
 `723fdf6bd23cd3c4461c8672e97b639fbd8f035b50945cbe66039e67afba47e0`.
 
 The CPU and CUDA package rows remain PASS. The forced Node CUDA runtime row
-remains OPEN pending reliable clean-process evidence on a host that can show
-the required GPU-memory condition.
+remains OPEN pending reliable clean-process evidence and an explanation or
+repair of the first CUDA allocation failure.
 
-No product or release-state file changed. This receipt records the independent
-Tegra investigation only; the isolated remote build and consumer directories
-are agent-owned temporary material.
+## Idle-host memory attribution and allocator check
+
+After Memex CI run 37235196745 completed, its Jetson jobs had passed and no
+Memex worker or pytest process remained on the host. A fresh external Node 25
+consumer installed the same reviewed `c2f39b29` source with npm 11.12.1,
+Rust 1.95.0 and CUDA 12.6.68. The main package SHA-256 was
+`4c71a9a951776ffba54cc48a92ee5820ecc0772f2a5c53978b5758d9694e3227`,
+the CUDA platform package was
+`9d744536f406706880e57b93f379a50401575ac03c86d9c8e5efe63839085c40`,
+and its restored installed `.node` was
+`929f7dbfa950c1ba8fbb3760b365dfa9b33e6887696e9ef9d984f9542df8ff80`.
+The five-run installed-package log SHA-256 is
+`4986dfce91a03af0afa8bfa341237550dba3ed561c8df06e7f31e6fbf59d46c8`.
+
+Three of five clean forced-CUDA open, embed, rerank and allocation-witness runs
+passed; two refused during open with typed `CudaProbeFailed`. At the failing
+attempt, a context-retaining CUDA Driver API probe measured free memory
+`53,818,724,352` then `53,831,561,216` bytes, out of
+`65,879,896,064` total. `MemAvailable` and `MemFree` were steady at about
+52.9 GB and 47.0 GB, and `CmaFree` stayed `256,060` KiB across all five
+starts. `nvidia-smi` named no compute process; accessible GPU-device file
+descriptors named none. The graphical desktop, Airlock and Codex processes
+were present, but available telemetry attributes no CUDA allocation to them.
+The valid free-memory probe log SHA-256 is
+`6e6afd09ae49e1e195f741a6b365a45d2c94099f8b99f44ae633013f6dc0bddb`.
+
+A temporary same-process probe localized the misleading out-of-memory result:
+in five failing Node opens, `Device::new_cuda(0)` succeeded, then the first
+`Tensor::zeros(1, F32, ...)` returned `CUDA_ERROR_OUT_OF_MEMORY`. In each
+failure, raw CUDARC `malloc_sync(4)` and `free_sync` succeeded on the same
+thread and context, while `CudaStream::alloc_zeros::<u8>(4)` failed with the
+same error. Its log SHA-256 is
+`7da5444bda5c65c062c876a94e2bd0664dec57390b5502b42edb982a3ef8bbbd`.
+This rules out aggregate GPU capacity and an ordinary four-byte synchronous
+allocation as the cause. It narrows the fault to the stream allocation/zero
+path; `alloc_zeros` combines asynchronous allocation and memset, so the
+evidence does not yet choose between those stages or identify an external
+memory owner. The temporary source was restored byte-for-byte to SHA-256
+`c1089fa0c9e79ef95909c0ed9597443f75144f6d324f7de2ec018f10e3f0d0b1`;
+the packaged consumer binary hash above was restored after diagnostics.
+
+No product code changed during these diagnostics. This receipt records the
+independent Tegra investigation; the isolated remote build and consumer
+directories are agent-owned temporary material.

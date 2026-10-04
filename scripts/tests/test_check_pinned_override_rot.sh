@@ -115,8 +115,43 @@ PY
   printf '%s' "$fixture"
 }
 
+seed_sqlite_fixture() {
+  local fixture="$1"
+  if [ "$fixture" = "$REPO_ROOT" ] || [ -e "$fixture/.omit-sqlite-patch" ]; then
+    return
+  fi
+  mkdir -p "$fixture/third_party/libsqlite3-sys-0.38.1/sqlite3"
+  if [ ! -e "$fixture/third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c" ]; then
+    cp "$REPO_ROOT/third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c" \
+      "$fixture/third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c"
+    cp "$REPO_ROOT/third_party/libsqlite3-sys-0.38.1/Cargo.toml" \
+      "$fixture/third_party/libsqlite3-sys-0.38.1/Cargo.toml"
+    cp "$REPO_ROOT/third_party/libsqlite3-sys-0.38.1/LICENSE" \
+      "$fixture/third_party/libsqlite3-sys-0.38.1/LICENSE"
+  fi
+  python3 - "$fixture" <<'PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+manifest = root / "Cargo.toml"
+if manifest.exists():
+    text = manifest.read_text(encoding="utf-8")
+    patch = 'libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }\n'
+    if patch not in text and "[patch.crates-io]\n" in text:
+        text = text.replace("[patch.crates-io]\n", "[patch.crates-io]\n" + patch, 1)
+        manifest.write_text(text, encoding="utf-8")
+lock = root / "Cargo.lock"
+if lock.exists():
+    text = lock.read_text(encoding="utf-8")
+    if 'name = "libsqlite3-sys"' not in text:
+        lock.write_text(text + '\n[[package]]\nname = "libsqlite3-sys"\nversion = "0.38.1"\n', encoding="utf-8")
+PY
+}
+
 run_fixture() {
   local fixture="$1"
+  seed_sqlite_fixture "$fixture"
   set +e
   OUT="$(bash "$CHECKER" --root "$fixture" 2>&1)"
   RC=$?
@@ -134,6 +169,7 @@ make_and_run_fixture() {
 # with the fixture's digest; ordinary fixtures always use the real anchor.
 run_fixture_with_reanchored_snapshot() {
   local fixture="$1"
+  seed_sqlite_fixture "$fixture"
   local fixture_checker="$fixture/check-pinned-override-rot.py"
   python3 - "$REPO_ROOT/scripts/check-pinned-override-rot.py" "$fixture" "$fixture_checker" <<'PY'
 import hashlib

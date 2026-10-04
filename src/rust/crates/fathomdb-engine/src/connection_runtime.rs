@@ -101,7 +101,8 @@ pub(crate) fn open_managed_connection(
 ) -> rusqlite::Result<Connection> {
     #[cfg(any(test, feature = "test-hooks"))]
     managed_connections.record_open(category);
-    Connection::open(sqlite_runtime_path(path))
+    let path = sqlite_runtime_path(path);
+    Connection::open(path)
 }
 
 pub(crate) fn sqlite_runtime_path(path: &Path) -> &Path {

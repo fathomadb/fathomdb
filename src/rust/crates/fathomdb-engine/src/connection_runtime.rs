@@ -153,19 +153,23 @@ pub(crate) fn ensure_sqlite_local_verbatim_path_safe(path: &Path) -> Result<(), 
             message: "Windows database path has a trailing dot or space component".to_string(),
         });
     }
-    let patched_vfs = unsafe {
-        rusqlite::ffi::sqlite3_compileoption_used(c"FATHOMDB_WIN_VERBATIM_SHM_SAFE".as_ptr()) != 0
-    };
     if sqlite_local_verbatim_path_requires_patched_vfs(
         path,
         rusqlite::version_number(),
-        patched_vfs,
+        sqlite_local_verbatim_vfs_is_patched(),
     ) {
         return Err(EngineOpenError::Io {
             message: "SQLite cannot safely open this local Windows database path".to_string(),
         });
     }
     Ok(())
+}
+
+#[cfg(windows)]
+pub(crate) fn sqlite_local_verbatim_vfs_is_patched() -> bool {
+    unsafe {
+        rusqlite::ffi::sqlite3_compileoption_used(c"FATHOMDB_WIN_VERBATIM_SHM_SAFE".as_ptr()) != 0
+    }
 }
 
 #[cfg(windows)]

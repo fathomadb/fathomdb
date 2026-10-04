@@ -861,7 +861,33 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
+    fn engine_open_refuses_trailing_dot_before_database_or_lock_creation() {
+        let dir = TempDir::new().expect("tempdir");
+        let parent = dir.path().canonicalize().expect("canonical directory");
+        let requested = parent.join("trailing.");
+        let normalized_alias = parent.join("trailing");
+        let lock = super::open::lock_path(&requested);
+
+        let error = match Engine::open(&requested) {
+            Ok(_) => panic!("trailing-dot path opened"),
+            Err(error) => error,
+        };
+        assert!(
+            matches!(error, EngineOpenError::Io { message } if message.contains("trailing dot or space component"))
+        );
+        assert!(!requested.exists());
+        assert!(!normalized_alias.exists());
+        assert!(!lock.exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
     fn local_canonical_path_does_not_strand_idle_wal_readers() {
+        if !super::connection_runtime::sqlite_local_verbatim_vfs_is_patched()
+            && rusqlite::version_number() < 3_053_003
+        {
+            return;
+        }
         for database in 0..3 {
             let dir = TempDir::new().expect("tempdir");
             let path = canonical_database_path(&dir.path().join(format!("wal-{database}.sqlite")))

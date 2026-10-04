@@ -9,9 +9,10 @@ planning_baseline: 9f8ee4509d2b3dee1667ae091119ceaa30bbca6e
 
 Insert this bounded slice after completed Slice 100 and before Slice 110. It
 preserves the late 0.8.26 Tegra build work in the 0.8.27 candidate and checks
-whether historical Windows `erase_source` and `purge` failures persist. This
-plan commissions neither a source change nor publication. The two tracks share
-an intake and closeout but have separate behavioral tests and evidence.
+whether historical Windows `erase_source` and `purge` failures persist. The
+owner subsequently approved a doctor/recover route for owed physical erasures
+within this slice. The Tegra, Windows, and recovery tracks share a closeout but
+have separate behavioral tests and evidence. Publication is not authorized.
 
 ## Entry evidence and change since the release plan
 
@@ -111,15 +112,17 @@ underlying checkpoint behavior.
 | R27-103C | The Tegra Pages operator route remains guarded and version truthful. | AC27-103C: local tests reject an unsupported `gh run list` flag, a mismatched remote SHA/version, and an unverified workflow result; the default route requires an installed Pages smoke, while an explicit skip cannot count as completed publication. The runbook distinguishes the 0.8.26 post-release route from an unpublished 0.8.27 candidate. Publication remains separately authorized. |
 | R27-103D | The reported 0.8.22–0.8.26 failures are compared with the actual 0.8.27 candidate before they are called current defects. | AC27-103D: inventory the retained local logs and verify the 0.8.26 registry wheel identity; run the same real-database no-read/read/page `erase_source` scenarios on an exact 0.8.27 installed-wheel SHA/hash with bounded repeated Windows and Linux controls. Add focused `purge` and operator `excise_source` controls using the historical CI shapes without treating log occurrences as trial counts. Record each public verb/binding, typed stage/detail, checkpoint BUSY/frame counts, reader/connection state, committed rows and WAL bytes before/after, same-engine and reopen retry, exact write fence, and zero-count completion. Observe the real erase checkpoint without a raw pre-erase checkpoint. Classify persistence, nonreproduction, or inconclusive evidence; a clean 40-trial batch alone cannot prove absence. |
 | R27-103E | Any failure that persists on 0.8.27 is attributed and handled without weakening erasure guarantees. | AC27-103E: if AC27-103D shows a current violation or sticky same-engine BUSY, isolate the holder or lock with controlled tests before selecting a remedy; commit a genuine failing Windows test before the smallest fix, then prove exact deletion/survivors, durable retry, independent-reopen physical absence, and truthful errors/reports. If 0.8.27 does not reproduce with adequate evidence, record a reviewed no-code disposition and its limits. An unresolved persistent store-wide write block prevents Slice 103 closeout. Any public closure-discovery, auto-finish, write-fence, or report change needs a separately accepted successor ADR and interface update. |
-| R27-103F | The two tracks join into one verified candidate before the next refactor. | AC27-103F: each track has verified branch commits, a durable output witness, an evidence receipt, and independent review, including a reviewed no-production-code Windows disposition if warranted. After both reviewed branches are integrated, rebuild and install the Tegra and Windows wheels from one final 0.8.27 source SHA; bind their hashes, focused platform tests, relevant Linux/SDK regressions, the required repository gate, combined-diff review, and read-only verification to that SHA. No unresolved Slice 103 requirement is deferred into Slice 110 or the final release gate. |
+| R27-103F | The three tracks join into one verified candidate before the next refactor. | AC27-103F: each track has verified branch commits, a durable output witness, an evidence receipt, and independent review, including a reviewed no-production-code Windows disposition if warranted. After all reviewed branches are integrated, rebuild and install the Tegra and Windows wheels from one final 0.8.27 source SHA; bind their hashes, focused platform tests, relevant Linux/SDK regressions, the required repository gate, combined-diff review, and read-only verification to that SHA. No unresolved Slice 103 requirement is deferred into Slice 110 or the final release gate. |
+| R27-103G | Operators can detect and complete owed physical erasures without knowing the original purge or erase argument. | AC27-103G: `doctor check-integrity` emits a read-only `E_ERASURE_INCOMPLETE` finding per owed `purged`/`source_erased` closure with opaque id, cause, phase, blocker, sequence, WAL frames, a documentation anchor, and a remediation argv that round-trips through the real parser with the original database path. Source identity is redacted. `recover --accept-data-loss --complete-erasures <db_path>` requires the existing acknowledgement, takes the canonical lock, uses the `--truncate-wal` admission rules and one recovery-only read-write connection, validates physical zero, completes telemetry redaction only with the correct attached sink, truncates the WAL, and marks only fully discharged closures complete. Missing sink or failed validation leaves the closure owed and exits 70; open-store or checkpoint BUSY exits 71; completed recovery exits 64. A successor ADR and `dev/interfaces/cli.md` plus `dev/design/recovery.md` updates land with the implementation. RED tests precede code, including a governed blocked-store fixture and command round-trip. |
 
 `dev/acceptance.md` remains locked; these IDs are release-local.
 
 ## Parallel tracks and join
 
 After step 1, steps 2 and 3 run concurrently as independent subagent briefs;
-neither waits for the other. Step 4 starts only when both tracks have returned
-reviewable results.
+neither waits for the other. The owner-approved recovery addition in step 4
+starts from the advanced release HEAD in a third worktree. Step 5 starts only
+when all three tracks have returned reviewable results.
 
 1. **Commission both tracks from one baseline.** The release coordinator
    records the live `release/0.8.27` HEAD at commissioning, verifies the
@@ -187,10 +190,22 @@ reviewable results.
    publication tooling to Track T; it flags any shared test-runner edit for
    integration review.
 
-4. **Join and close (R27-103F).** Gate each branch with its own independent
+4. **Track R — owed-erasure diagnosis and recovery (R27-103G).** Use a
+   worktree from the advanced `release/0.8.27` HEAD, separate from Track W's
+   frozen baseline. Record the owner's approval in a successor dependency
+   closure ADR before changing the public contract. First commit failing
+   real-database and parser round-trip tests. Implement the doctor finding and
+   offline recover action in the existing CLI roots, sharing physical-zero
+   validation and erasure-at-rest logic without opening an Engine reader pool
+   or projection runtime. Keep telemetry obligations owed when the correct
+   sink is unavailable. Update the CLI interface and recovery design with the
+   exact finding, report, and exit behavior. Produce a branch receipt and
+   witness, run the full repository verifier, and obtain independent review.
+
+5. **Join and close (R27-103F).** Gate each branch with its own independent
    code review and verify its commit(s), output witness, tests, and evidence
    from git. Cherry-pick reviewed commits into the release checkout one track
-   at a time. If the second track conflicts with the advanced release HEAD,
+   at a time. If a later track conflicts with the advanced release HEAD,
    commission an implementer fix branch from that HEAD for source/test changes;
    the coordinator does not edit an implementer's worktree or resolve its code
    by hand. Review the resolution and combined diff. Branch-local platform
@@ -199,7 +214,7 @@ reviewable results.
    platform checks with exact wheel hashes. Run affected Linux/SDK regressions,
    `./scripts/agent-verify.sh`, and the full release gate required by the
    dependency and packaging changes. Independently review the combined diff
-   and verify the same code SHA read-only. The coordinator records both track
+   and verify the same code SHA read-only. The coordinator records all track
    dispositions, target receipts, test exits, and remaining risks in Slice 103
    status, then advances release state to Slice 110 only when every acceptance
    row passes. Record both the qualified code SHA and the later status/state
@@ -207,6 +222,14 @@ reviewable results.
    dependencies, or build inputs. Any such change requires requalification.
    Pages dispatch, tag, push, registry write, and public deployment retain
    their separate release authorization.
+
+The owner's approved recovery addition is implemented in its own worktree from
+the advanced release HEAD. It must pass independent review and the full
+repository verifier before joining the release checkout. `R27-103F` closes
+only after this third track and the Windows path result are integrated and the
+final platform artifacts are rebuilt from one code SHA. Automatic completion
+at `Engine::open` is not part of `R27-103G`; it requires its own failing test
+and contract decision if the Windows evidence makes it necessary.
 
 The already-published `v0.8.26` tag and generic artifacts remain historical
 evidence. Slice 103 does not reissue them or declare `0.8.27+tegra` published.

@@ -1,6 +1,7 @@
 use super::*;
 #[cfg(feature = "test-hooks")]
 use crate::connection_runtime::record_writer_pragma_witness_for_test;
+use crate::connection_runtime::sqlite_runtime_path;
 use crate::dependency_trace::{DEPENDENCY_GENERATION_KEY, SOURCE_DEPENDENCY_SCHEMA_VERSION};
 use crate::errors::{map_migration_error, map_open_sqlite_error};
 use crate::lifecycle::emit_open_error_event;
@@ -2046,7 +2047,7 @@ pub(crate) fn read_only_sqlite_uri(path: &Path) -> String {
 
 pub(crate) fn sqlite_uri(path: &Path, query: &str) -> String {
     let mut uri = String::from("file:");
-    for byte in path.as_os_str().as_encoded_bytes() {
+    for byte in sqlite_runtime_path(path).as_os_str().as_encoded_bytes() {
         match *byte {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' => {
                 uri.push(char::from(*byte))

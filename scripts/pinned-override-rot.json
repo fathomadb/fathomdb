@@ -9,7 +9,7 @@
   },
   "scope": {
     "npm": "All root package.json overrides are governed. Each must have a matching npm_overrides record with a rationale and a complete per-pin advisory_ids mapping. R2 deliberately fails closed for any live override: npm's lockfile records the override result, not a mechanically reproducible no-override resolution.",
-    "cargo": "This checker does not implement a general Cargo override grammar. The only supported Cargo exception is the root [patch.crates-io] Candle 0.10.2 cohort declared by cargo_candle_exception. The cohort includes candle-kernels because its build script owns the static CUDART linkage required for CPU-mode artifacts to load without libcudart. Any other [patch], [replace], or direct Git dependency hard-fails as unsupported. Root .cargo/config.toml and .cargo/config are also parsed: any [patch] table or unparseable candidate hard-fails; ordinary non-patch config remains allowed. Adding a new Cargo exception requires an explicit guard redesign.",
+    "cargo": "This checker admits only the root Candle 0.10.2 Git cohort and the exact local libsqlite3-sys 0.38.1 SQLite Windows WAL path backport. It authenticates the local crate version, license, Cargo.lock package source, and amended SQLite amalgamation digest. Any other [patch], [replace], or direct Git dependency hard-fails as unsupported. Root .cargo/config.toml and .cargo/config reject patch tables and unparseable candidates. The local patch affects workspace builds; it does not propagate through a published Rust crate.",
     "governed_commit_pins": "scripts/governed-surface-pin.json pins repository contract content, not an external dependency version. Its commit/hash integrity is enforced by scripts/check-governed-surface-pin.sh; it has no package-advisory semantics and is explicitly not reinterpreted here."
   },
   "npm_overrides": [],
@@ -31,5 +31,15 @@
       "scope": "outside the checked-in npm advisory snapshot",
       "rationale": "This is not a claim that the external Rust source has or lacks a vulnerability. The checked-in GitHub advisory snapshot covers only governed npm overrides; any revision change requires a fresh human advisory review."
     }
+  },
+  "cargo_sqlite_exception": {
+    "manifest": "Cargo.toml",
+    "mechanism": "patch.crates-io",
+    "package": "libsqlite3-sys",
+    "path": "third_party/libsqlite3-sys-0.38.1",
+    "version": "0.38.1",
+    "amalgamation_sha256": "153d0e416b3beb5ccbd8447ef46c12462ac988295f0ef3e4af88475eba23b36f",
+    "rationale": "SQLite 3.53.2 misclassifies Win32 long DOS-device local-drive paths as UNC and can strand WAL read locks. This exact local crate preserves the published 0.38.1 package and bundled SQLite 3.53.2, backporting only the upstream 3.53.3 winIsUNCPath correction. The approved root patch is restricted to that hashed source; published Rust-crate consumers require a separate remedy because root patches do not propagate.",
+    "vendor_tree_sha256": "5081187f42871172080ee096b7692937ad41723db8995496388dcdaa26a94bec"
   }
 }

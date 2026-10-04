@@ -101,7 +101,28 @@ pub(crate) fn open_managed_connection(
 ) -> rusqlite::Result<Connection> {
     #[cfg(any(test, feature = "test-hooks"))]
     managed_connections.record_open(category);
-    Connection::open(path)
+    Connection::open(sqlite_runtime_path(path))
+}
+
+pub(crate) fn sqlite_runtime_path(path: &Path) -> &Path {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+
+        let simplified = dunce::simplified(path);
+        // SQLite also creates sidecars beside the database. Keep enough of the
+        // legacy Win32 path budget for those suffixes; special and long paths
+        // retain their verbatim form for the bundled VFS correction.
+        if simplified.as_os_str().encode_wide().count() <= 248 {
+            simplified
+        } else {
+            path
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        path
+    }
 }
 
 pub(crate) fn open_runtime_connection(

@@ -842,24 +842,44 @@ mod tests {
             let start = Arc::new(Barrier::new(9));
             let done = Arc::new(Barrier::new(9));
             let stop = Arc::new(AtomicBool::new(false));
+            let errors = Arc::new(Mutex::new(Vec::<String>::new()));
             let readers: Vec<_> = (0..8)
                 .map(|_| {
-                    let (path, start, done, stop) =
-                        (path.clone(), Arc::clone(&start), Arc::clone(&done), Arc::clone(&stop));
+                    let (path, start, done, stop, errors) = (
+                        path.clone(),
+                        Arc::clone(&start),
+                        Arc::clone(&done),
+                        Arc::clone(&stop),
+                        Arc::clone(&errors),
+                    );
                     thread::spawn(move || {
-                        let reader = Connection::open(path).expect("reader");
-                        reader.busy_timeout(Duration::from_secs(5)).expect("busy timeout");
+                        let reader = Connection::open(path).and_then(|reader| {
+                            reader.busy_timeout(Duration::from_secs(5))?;
+                            Ok(reader)
+                        });
                         loop {
                             start.wait();
                             if stop.load(Ordering::SeqCst) {
                                 break;
                             }
-                            for _ in 0..40 {
-                                let _: i64 = reader
-                                    .query_row("SELECT COUNT(*) FROM t", [], |row| row.get(0))
-                                    .expect("read");
+                            match &reader {
+                                Ok(reader) => {
+                                    for _ in 0..40 {
+                                        let result: rusqlite::Result<i64> =
+                                            reader.query_row("SELECT COUNT(*) FROM t", [], |row| {
+                                                row.get(0)
+                                            });
+                                        if let Err(error) = result {
+                                            errors.lock().unwrap().push(error.to_string());
+                                            break;
+                                        }
+                                    }
+                                    if !reader.is_autocommit() {
+                                        errors.lock().unwrap().push("reader not autocommit".into());
+                                    }
+                                }
+                                Err(error) => errors.lock().unwrap().push(error.to_string()),
                             }
-                            assert!(reader.is_autocommit());
                             done.wait();
                         }
                     })
@@ -867,40 +887,63 @@ mod tests {
                 .collect();
             let mut refusal = None;
             for cycle in 0..50 {
-                writer
-                    .execute("INSERT INTO t(body) VALUES (?1)", ["x".repeat(2000)])
-                    .expect("pre-read write");
+                if let Err(error) =
+                    writer.execute("INSERT INTO t(body) VALUES (?1)", ["x".repeat(2000)])
+                {
+                    errors.lock().unwrap().push(error.to_string());
+                    break;
+                }
                 start.wait();
                 for _ in 0..5 {
-                    writer
-                        .execute("INSERT INTO t(body) VALUES (?1)", ["y".repeat(2000)])
-                        .expect("concurrent write");
+                    if let Err(error) =
+                        writer.execute("INSERT INTO t(body) VALUES (?1)", ["y".repeat(2000)])
+                    {
+                        errors.lock().unwrap().push(error.to_string());
+                        break;
+                    }
                 }
                 done.wait();
-                writer.busy_timeout(Duration::ZERO).expect("zero timeout");
+                if !errors.lock().unwrap().is_empty() {
+                    break;
+                }
+                if let Err(error) = writer.busy_timeout(Duration::ZERO) {
+                    errors.lock().unwrap().push(error.to_string());
+                    break;
+                }
                 let mut checkpoint = (1_i64, -1_i64, -1_i64);
                 for _ in 0..5 {
-                    checkpoint = writer
-                        .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
-                            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-                        })
-                        .expect("checkpoint result");
+                    match writer.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+                    }) {
+                        Ok(report) => checkpoint = report,
+                        Err(error) => {
+                            errors.lock().unwrap().push(error.to_string());
+                            break;
+                        }
+                    }
                     if checkpoint.0 == 0 {
                         break;
                     }
                     thread::sleep(Duration::from_millis(25));
                 }
+                if !errors.lock().unwrap().is_empty() {
+                    break;
+                }
                 if checkpoint.0 != 0 {
                     refusal = Some((cycle, checkpoint));
                     break;
                 }
-                writer.busy_timeout(Duration::from_secs(5)).expect("busy timeout");
+                if let Err(error) = writer.busy_timeout(Duration::from_secs(5)) {
+                    errors.lock().unwrap().push(error.to_string());
+                    break;
+                }
             }
             stop.store(true, Ordering::SeqCst);
             start.wait();
             for reader in readers {
                 reader.join().expect("reader joins");
             }
+            assert!(errors.lock().unwrap().is_empty(), "SQLite worker errors: {errors:?}");
             assert!(
                 refusal.is_none(),
                 "idle local-path WAL readers stranded a checkpoint: {refusal:?}"

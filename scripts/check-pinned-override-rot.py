@@ -67,6 +67,13 @@ CANDLE_PACKAGES = (
 CANDLE_GIT = "https://github.com/coreyt/candle-fathomdb.git"
 CANDLE_REV = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
 CANDLE_VERSION = "0.10.2"
+SQLITE_MANIFEST = "Cargo.toml"
+SQLITE_MECHANISM = "patch.crates-io"
+SQLITE_PACKAGE = "libsqlite3-sys"
+SQLITE_PATH = "third_party/libsqlite3-sys-0.38.1"
+SQLITE_VERSION = "0.38.1"
+SQLITE_AMALGAMATION_SHA256 = "153d0e416b3beb5ccbd8447ef46c12462ac988295f0ef3e4af88475eba23b36f"
+SQLITE_VENDOR_TREE_SHA256 = "5081187f42871172080ee096b7692937ad41723db8995496388dcdaa26a94bec"
 
 
 def read_json(path: Path, label: str) -> dict[str, Any]:
@@ -185,6 +192,26 @@ def validate_candle_exception(metadata: dict[str, Any]) -> None:
         raise Unverified("cargo_candle_exception.advisory_posture.rationale must be a non-empty string")
 
 
+def validate_sqlite_exception(metadata: dict[str, Any]) -> None:
+    """Authenticate the exact local SQLite backport and its bounded scope."""
+    exception = metadata.get("cargo_sqlite_exception")
+    if not isinstance(exception, dict):
+        raise Unverified("metadata has no cargo_sqlite_exception object")
+    expected = {
+        "manifest": SQLITE_MANIFEST,
+        "mechanism": SQLITE_MECHANISM,
+        "package": SQLITE_PACKAGE,
+        "path": SQLITE_PATH,
+        "version": SQLITE_VERSION,
+        "amalgamation_sha256": SQLITE_AMALGAMATION_SHA256,
+        "vendor_tree_sha256": SQLITE_VENDOR_TREE_SHA256,
+    }
+    for key, value in expected.items():
+        if exception.get(key) != value:
+            raise Unverified(f"cargo_sqlite_exception.{key} must equal the checker-owned SQLite exception")
+    nonempty_string(exception.get("rationale"), "cargo_sqlite_exception.rationale")
+
+
 def advisory_snapshot_path(root: Path, metadata: dict[str, Any]) -> Path:
     snapshot = metadata.get("advisory_snapshot")
     if not isinstance(snapshot, dict):
@@ -265,6 +292,7 @@ def validate_metadata(metadata: dict[str, Any], advisories: list[dict[str, Any]]
         raise Unverified("metadata schema_version must be 4")
     records = records_by_package(metadata)
     validate_candle_exception(metadata)
+    validate_sqlite_exception(metadata)
     scope = metadata.get("scope")
     if not isinstance(scope, dict):
         raise Unverified("metadata has no scope object")
@@ -331,6 +359,7 @@ def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
                 "package": package,
                 "git": None,
                 "rev": None,
+                "path": None,
             }
             if isinstance(spec, dict):
                 git = spec.get("git")
@@ -339,6 +368,9 @@ def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
                     pin["git"] = git
                 if isinstance(rev, str):
                     pin["rev"] = rev
+                path = spec.get("path")
+                if isinstance(path, str):
+                    pin["path"] = path
             found.append(pin)
 
         for section_name in ("patch", "replace"):
@@ -399,7 +431,7 @@ def cargo_lock_sources(lockfile_path: Path) -> dict[tuple[str, str], set[str]]:
         version = nonempty_string(package.get("version"), f"Cargo.lock package[{index}].version")
         source = package.get("source")
         if source is None:
-            continue
+            source = "<local>"
         if not isinstance(source, str):
             raise Unverified(f"Cargo.lock package[{index}].source must be a string")
         sources.setdefault((name, version), set()).add(source)
@@ -407,10 +439,12 @@ def cargo_lock_sources(lockfile_path: Path) -> dict[tuple[str, str], set[str]]:
 
 
 def validate_cargo_pins(root: Path) -> list[str]:
-    """Allow exactly FathomDB's root Candle patch cohort and nothing else."""
+    """Allow only the reviewed root Candle cohort and local SQLite backport."""
     pins = cargo_governed_pins(root)
     failures = cargo_config_failures(root)
     expected = {(CANDLE_MANIFEST, CANDLE_MECHANISM, package) for package in CANDLE_PACKAGES}
+    sqlite_key = (SQLITE_MANIFEST, SQLITE_MECHANISM, SQLITE_PACKAGE)
+    expected.add(sqlite_key)
     found: set[tuple[str, str, str]] = set()
     for pin in pins:
         label = cargo_pin_label(pin)
@@ -419,9 +453,13 @@ def validate_cargo_pins(root: Path) -> list[str]:
             failures.append(f"unsupported Cargo override/git source {label}")
             continue
         if key in found:
-            failures.append(f"duplicate approved Candle patch {pin['package']}")
+            failures.append(f"duplicate approved Cargo patch {pin['package']}")
             continue
         found.add(key)
+        if key == sqlite_key:
+            if pin["path"] != SQLITE_PATH or pin["git"] is not None or pin["rev"] is not None:
+                failures.append("SQLite patch is not the approved local path source")
+            continue
         git = pin["git"]
         rev = pin["rev"]
         if git != CANDLE_GIT:
@@ -429,13 +467,54 @@ def validate_cargo_pins(root: Path) -> list[str]:
         if rev != CANDLE_REV:
             failures.append(f"Candle patch {pin['package']} revision is not the approved immutable revision")
     for manifest, mechanism, package in sorted(expected - found):
-        failures.append(f"missing approved Candle patch {package}")
+        if package == SQLITE_PACKAGE:
+            failures.append(f"missing approved SQLite patch {package}")
+        else:
+            failures.append(f"missing approved Candle patch {package}")
     lock_sources = cargo_lock_sources(root / "Cargo.lock") if found else {}
     expected_source = f"git+{CANDLE_GIT}?rev={CANDLE_REV}#{CANDLE_REV}"
     for package in CANDLE_PACKAGES:
         key = (CANDLE_MANIFEST, CANDLE_MECHANISM, package)
         if key in found and expected_source not in lock_sources.get((package, CANDLE_VERSION), set()):
             failures.append(f"Candle patch {package} has no matching Cargo.lock source")
+    if sqlite_key in found:
+        if "<local>" not in lock_sources.get((SQLITE_PACKAGE, SQLITE_VERSION), set()):
+            failures.append("SQLite patch has no matching local Cargo.lock package")
+        source_dir = (root / SQLITE_PATH).resolve()
+        if not source_dir.is_relative_to(root.resolve()):
+            failures.append("SQLite patch escapes the repository root")
+        else:
+            manifest_path = source_dir / "Cargo.toml"
+            try:
+                parsed = _import_tomllib("inspect SQLite vendor manifest").loads(
+                    manifest_path.read_text(encoding="utf-8")
+                )
+            except (OSError, ValueError) as exc:
+                raise Unverified(f"cannot read SQLite vendor manifest {manifest_path}: {exc}") from exc
+            if parsed.get("package", {}).get("name") != SQLITE_PACKAGE or parsed.get("package", {}).get("version") != SQLITE_VERSION:
+                failures.append("SQLite vendor manifest package/version drift")
+            if not (source_dir / "LICENSE").is_file():
+                failures.append("SQLite vendor license is missing")
+            amalgamation = source_dir / "sqlite3/sqlite3.c"
+            try:
+                digest = hashlib.sha256(amalgamation.read_bytes()).hexdigest()
+            except OSError as exc:
+                raise Unverified(f"cannot read SQLite amalgamation {amalgamation}: {exc}") from exc
+            if digest != SQLITE_AMALGAMATION_SHA256:
+                failures.append("SQLite vendored amalgamation SHA-256 drift")
+            tree = hashlib.sha256()
+            paths = sorted(
+                path for path in source_dir.rglob("*")
+                if path.is_file() and path.name != "FATHOMDB-PATCH.md"
+            )
+            for path in paths:
+                if not path.resolve().is_relative_to(source_dir):
+                    failures.append("SQLite vendor tree contains an external symlink")
+                    continue
+                tree.update(path.relative_to(source_dir).as_posix().encode() + b"\0")
+                tree.update(hashlib.sha256(path.read_bytes()).digest())
+            if tree.hexdigest() != SQLITE_VENDOR_TREE_SHA256:
+                failures.append("SQLite vendor tree SHA-256 drift")
     return failures
 
 
@@ -507,7 +586,7 @@ def main() -> int:
             print(f"FAIL  pinned-override-rot: {failure}", file=sys.stderr)
         return 1
     print(
-        "ok pinned-override-rot: governed npm overrides and the approved Candle patch cohort have exact provenance"
+        "ok pinned-override-rot: governed npm overrides and approved Candle/SQLite patches have exact provenance"
     )
     return 0
 

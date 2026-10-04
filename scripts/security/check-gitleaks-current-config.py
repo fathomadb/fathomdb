@@ -17,6 +17,23 @@ except ModuleNotFoundError:  # 0.8.23 Slice 80.3: Python 3.10 fallback (Ubuntu
 
 EXPECTED_ALLOWLISTS = [
     {
+        "description": "Vendored SQLite extension API field names are C identifiers",
+        "condition": "AND",
+        "regexTarget": "match",
+        "paths": [
+            r"^third_party/libsqlite3-sys-0\.38\.1/(?:sqlite3|sqlcipher)/"
+            r"(?:sqlite3ext\.h|sqlite3\.c)$"
+        ],
+        "regexes": [r"^sqlite3_api->(?:column_bytes16|soft_heap_limit64|hard_heap_limit64)$"],
+    },
+    {
+        "description": "Vendored SQLite FTS5 row identifier is not a credential",
+        "condition": "AND",
+        "regexTarget": "match",
+        "paths": [r"^third_party/libsqlite3-sys-0\.38\.1/(?:sqlite3|sqlcipher)/sqlite3\.c$"],
+        "regexes": [r"^iKey==FTS5_AVERAGES_ROWID\s*$"],
+    },
+    {
         "description": "CUDA tokenizer digest map is artifact-integrity metadata",
         "condition": "AND",
         "regexTarget": "match",
@@ -186,7 +203,7 @@ def main() -> int:
         print(str(exc), file=sys.stderr)
         return 1
     expected_allowlists = EXPECTED_ALLOWLISTS.copy()
-    expected_allowlists.insert(1, performance)
+    expected_allowlists.insert(3, performance)
     expected = {
         "title": "FathomDB current-tree Gitleaks policy",
         "extend": {"useDefault": True},

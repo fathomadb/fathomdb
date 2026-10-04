@@ -7,6 +7,20 @@ useDefault = true
 id = "generic-api-key"
 
 [[rules.allowlists]]
+description = "Vendored SQLite extension API field names are C identifiers"
+condition = "AND"
+regexTarget = "match"
+paths = ['''^third_party/libsqlite3-sys-0\.38\.1/(?:sqlite3|sqlcipher)/(?:sqlite3ext\.h|sqlite3\.c)$''']
+regexes = ['''^sqlite3_api->(?:column_bytes16|soft_heap_limit64|hard_heap_limit64)$''']
+
+[[rules.allowlists]]
+description = "Vendored SQLite FTS5 row identifier is not a credential"
+condition = "AND"
+regexTarget = "match"
+paths = ['''^third_party/libsqlite3-sys-0\.38\.1/(?:sqlite3|sqlcipher)/sqlite3\.c$''']
+regexes = ['''^iKey==FTS5_AVERAGES_ROWID\s*$''']
+
+[[rules.allowlists]]
 description = "CUDA tokenizer digest map is artifact-integrity metadata"
 condition = "AND"
 regexTarget = "match"

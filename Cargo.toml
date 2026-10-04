@@ -68,6 +68,7 @@ fathomdb-schema       = { path = "src/rust/crates/fathomdb-schema",       versio
 # dynamic, while the kernel runtime is statically linked so a CPU-mode binding
 # can map on a host without libcudart.
 [patch.crates-io]
+libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }
 candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
 candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }
 candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae" }

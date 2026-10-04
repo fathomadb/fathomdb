@@ -120,14 +120,10 @@ seed_sqlite_fixture() {
   if [ "$fixture" = "$REPO_ROOT" ] || [ -e "$fixture/.omit-sqlite-patch" ]; then
     return
   fi
-  mkdir -p "$fixture/third_party/libsqlite3-sys-0.38.1/sqlite3"
+  mkdir -p "$fixture/third_party/libsqlite3-sys-0.38.1"
   if [ ! -e "$fixture/third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c" ]; then
-    cp "$REPO_ROOT/third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c" \
-      "$fixture/third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c"
-    cp "$REPO_ROOT/third_party/libsqlite3-sys-0.38.1/Cargo.toml" \
-      "$fixture/third_party/libsqlite3-sys-0.38.1/Cargo.toml"
-    cp "$REPO_ROOT/third_party/libsqlite3-sys-0.38.1/LICENSE" \
-      "$fixture/third_party/libsqlite3-sys-0.38.1/LICENSE"
+    cp -a "$REPO_ROOT/third_party/libsqlite3-sys-0.38.1/." \
+      "$fixture/third_party/libsqlite3-sys-0.38.1/"
   fi
   python3 - "$fixture" <<'PY'
 from pathlib import Path
@@ -138,7 +134,7 @@ manifest = root / "Cargo.toml"
 if manifest.exists():
     text = manifest.read_text(encoding="utf-8")
     patch = 'libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }\n'
-    if patch not in text and "[patch.crates-io]\n" in text:
+    if 'libsqlite3-sys = ' not in text and "[patch.crates-io]\n" in text:
         text = text.replace("[patch.crates-io]\n", "[patch.crates-io]\n" + patch, 1)
         manifest.write_text(text, encoding="utf-8")
 lock = root / "Cargo.lock"
@@ -458,6 +454,50 @@ if [ "$RC" -ne 0 ]; then
   fail "approved Candle patch cohort must pass, got rc=$RC output=$OUT"
 fi
 pass 'approved FathomDB Candle patch cohort passes'
+
+sqlite_missing="$(make_candle_fixture sqlite-missing approved)"
+touch "$sqlite_missing/.omit-sqlite-patch"
+run_fixture "$sqlite_missing"
+expect_failure 'missing approved SQLite patch libsqlite3-sys' \
+  'missing local SQLite backport is rejected'
+
+sqlite_drift="$(make_candle_fixture sqlite-drift approved)"
+run_fixture "$sqlite_drift"
+if [ "$RC" -ne 0 ]; then
+  fail "exact local SQLite backport must pass, got rc=$RC output=$OUT"
+fi
+printf '\n' >>"$sqlite_drift/third_party/libsqlite3-sys-0.38.1/sqlite3/sqlite3.c"
+run_fixture "$sqlite_drift"
+expect_failure 'SQLite vendored amalgamation SHA-256 drift' \
+  'modified local SQLite amalgamation is rejected'
+
+sqlite_build="$(make_candle_fixture sqlite-build approved)"
+run_fixture "$sqlite_build"
+if [ "$RC" -ne 0 ]; then
+  fail "exact local SQLite vendor tree must pass, got rc=$RC output=$OUT"
+fi
+printf '\n' >>"$sqlite_build/third_party/libsqlite3-sys-0.38.1/build.rs"
+run_fixture "$sqlite_build"
+expect_failure 'SQLite vendor tree SHA-256 drift' \
+  'modified SQLite build script is rejected'
+
+sqlite_path="$(make_candle_fixture sqlite-path approved)"
+run_fixture "$sqlite_path"
+if [ "$RC" -ne 0 ]; then
+  fail "exact local SQLite path must pass, got rc=$RC output=$OUT"
+fi
+python3 - "$sqlite_path/Cargo.toml" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+path.write_text(path.read_text().replace(
+    'libsqlite3-sys = { path = "third_party/libsqlite3-sys-0.38.1" }',
+    'libsqlite3-sys = { path = "third_party/unreviewed-sqlite" }',
+))
+PY
+run_fixture "$sqlite_path"
+expect_failure 'SQLite patch is not the approved local path source' \
+  'SQLite patch path drift is rejected'
 
 make_and_run_candle_fixture missing missing
 if [ "$RC" -ne 1 ]; then

@@ -209,10 +209,11 @@ debug-only raw-SQL `execute_for_test` — were reachable. Per the signed Option 
   (`governed_surface_method_absence_proof`, default build;
   `release_surface_raw_sql_absence_proof`, release build) — the only mechanism
   that can assert a method does *not* resolve.
-- **`operator` feature (ON — `fathomdb-cli` enables it)** — un-gates the 12
+- **`operator` feature (ON — `fathomdb-cli` enables it)** — un-gates the
   operator/recovery methods (`rebuild_*`, `excise_source`, `dump_*`,
   `trace_source_ref`, `truncate_wal`, `verify_embedder`, `check_integrity`,
-  `safe_export`, `recompute_mean`) + the 20 operator-seam re-exports below. The
+  `pending_erasures`, `safe_export`, `recompute_mean`) and the operator-seam
+  re-exports below. The
   CLI (`fathomdb recover`/`doctor`) is the operator substrate. **Gating, not
   deletion**: engine behavior is byte-identical with the feature on.
 
@@ -1137,7 +1138,7 @@ types without renaming them.
 
 ## Recovery / operator seam re-exports
 
-With the `operator` feature, the facade exports two path-scoped free functions:
+With the `operator` feature, the facade exports path-scoped free functions:
 
 - `inspect_data_plane_integrity(path, DataPlaneIntegrityRequestV1) ->
   Result<DataPlaneIntegrityResultV1, EngineError>` validates first, acquires the
@@ -1156,8 +1157,18 @@ With the `operator` feature, the facade exports two path-scoped free functions:
   `TruncateWalReport::discarded_corrupt_wal` is true only when the locked header
   classification was malformed and SQLite returned `Done`; it is false for
   absent/healthy WAL and `Busy`.
+- `recover_complete_erasures(path: impl Into<PathBuf>) ->
+  Result<CompleteErasuresReport, EngineOpenError>` shares the offline
+  admission and lock path, validates all owed physical zero proofs, refuses
+  unavailable original telemetry obligations, and uses one read-write
+  recovery connection for the truncate checkpoint before marking closures
+  complete. A busy checkpoint leaves them owed.
 
-Both functions and their operator-specific reports are absent when `operator`
+The operator-gated `Engine::pending_erasures()` returns content-free
+`PendingErasure` records for doctor diagnosis; it does not expose source
+identity or alter closure state.
+
+These functions and their operator-specific reports are absent when `operator`
 is disabled.
 
 The `fathomdb` facade re-exports the following recovery and reporting types
@@ -1165,7 +1176,7 @@ from `fathomdb-engine` so that `fathomdb-cli` (the only public consumer of
 these types) compiles against the public Rust surface, not engine internals.
 These are CLI-only ergonomic types; they are NOT exposed as runtime SDK
 verbs (recovery remains CLI-only — see Non-presence below). **Since Slice 27
-fix-1 these 20 re-exports — and the `Engine` methods that produce them — are
+fix-1 these re-exports — and the `Engine` methods that produce them — are
 gated behind the `operator` cargo feature** (which `fathomdb-cli` enables), so
 they are absent from the default facade surface (see § Method-level boundary).
 
@@ -1189,6 +1200,8 @@ Re-exported types (canonical spellings, locked 2026-05-12; extended
 - `DumpProfileReport`
 - `TruncateWalReport`
 - `TruncateWalStatus`
+- `CompleteErasuresReport`
+- `PendingErasure`
 
 Engine methods backing these types are owned by `design/recovery.md` and
 listed in `dev/plans/0.6.0-implementation.md` (Phase 10a + Phase 10b-A).

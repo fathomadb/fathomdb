@@ -640,6 +640,54 @@ pub(crate) fn validate_physical_closures(
     Ok(())
 }
 
+#[cfg(feature = "operator")]
+pub(crate) struct PendingPhysicalClosure {
+    pub(crate) id: ClosureOperationId,
+    pub(crate) cause: String,
+    pub(crate) phase: String,
+    pub(crate) blocker: Option<String>,
+    pub(crate) sequence: u64,
+}
+
+#[cfg(feature = "operator")]
+pub(crate) fn pending_physical_closures(
+    connection: &Connection,
+) -> Result<Vec<PendingPhysicalClosure>, EngineError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT closure_operation_id,cause,phase,blocker_code,closure_sequence \
+             FROM _fathomdb_dependency_closures \
+             WHERE cause IN ('purged','source_erased') AND phase!='complete' \
+             ORDER BY closure_sequence",
+        )
+        .map_err(|_| EngineError::Storage)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, i64>(4)?,
+            ))
+        })
+        .map_err(|_| EngineError::Storage)?;
+    rows.map(|row| {
+        let (id, cause, phase, blocker, sequence) = row.map_err(|_| EngineError::Storage)?;
+        if !valid_closure_id(&id) || sequence <= 0 {
+            return Err(EngineError::Storage);
+        }
+        Ok(PendingPhysicalClosure {
+            id: ClosureOperationId(id),
+            cause,
+            phase,
+            blocker,
+            sequence: sequence as u64,
+        })
+    })
+    .collect()
+}
+
 pub(crate) fn mark_physical_incomplete(
     connection: &Connection,
     ids: &[ClosureOperationId],

@@ -132,9 +132,33 @@ fn closure_phase(path: &Path, id: &str) -> String {
         .unwrap()
 }
 
+fn closure_and_queue_state(connection: &Connection, id: &str) -> (String, String, String, i64) {
+    connection
+        .query_row(
+            "SELECT phase,blocker_code,proof_json,\
+                    (SELECT COUNT(*) FROM operational_mutations \
+                     WHERE collection_name='erasure_pending_redaction') \
+             FROM _fathomdb_dependency_closures WHERE closure_operation_id=?1",
+            [id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .unwrap()
+}
+
 #[test]
 fn doctor_reports_owed_closure_and_remediation_round_trips_with_spaces() {
     let (_dir, path, closure_id) = governed_owed_fixture();
+    let raw = Connection::open(&path).unwrap();
+    raw.execute_batch("PRAGMA wal_autocheckpoint=0").unwrap();
+    raw.execute(
+        "UPDATE _fathomdb_dependency_closures SET blocker_code='wal_checkpoint' \
+         WHERE closure_operation_id=?1",
+        [&closure_id],
+    )
+    .unwrap();
+    let wal_path = PathBuf::from(format!("{}-wal", path.display()));
+    let wal_before = std::fs::read(&wal_path).expect("live WAL fixture");
+    let state_before = closure_and_queue_state(&raw, &closure_id);
     let output = command(&["doctor", "check-integrity", "--json", path.to_str().unwrap()]);
     assert_eq!(output.status.code(), Some(exit_code::DOCTOR_FOUND_ISSUES), "{output:#?}");
     let report = body(&output);
@@ -163,6 +187,8 @@ fn doctor_reports_owed_closure_and_remediation_round_trips_with_spaces() {
     assert!(format!("{args:?}").contains("complete_erasures: true"));
     assert_eq!(args.db_path, path);
     assert_eq!(closure_phase(&path, &closure_id), "incomplete", "doctor must be read only");
+    assert_eq!(closure_and_queue_state(&raw, &closure_id), state_before);
+    assert_eq!(std::fs::read(&wal_path).unwrap(), wal_before, "finding must not checkpoint WAL");
 }
 
 #[test]
@@ -209,6 +235,23 @@ fn recovery_requires_acknowledgement_and_refuses_while_engine_open() {
 fn missing_original_telemetry_sink_preserves_owed_closure() {
     let (_dir, path, closure_id) = governed_owed_fixture();
     let connection = Connection::open(&path).unwrap();
+    let boundary: i64 = connection
+        .query_row(
+            "SELECT admitted_write_boundary FROM _fathomdb_dependency_closures \
+             WHERE closure_operation_id=?1",
+            [&closure_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    connection
+        .execute(
+            "INSERT INTO operational_mutations(
+           collection_name,record_key,op_kind,payload_json,schema_id,write_cursor
+         ) VALUES('erasure_pending_redaction','erase_source','append',
+                  '{\"erased_stable_ids\":[\"l:owed\"]}',NULL,?1)",
+            [boundary],
+        )
+        .unwrap();
     connection
         .execute(
             "UPDATE _fathomdb_dependency_closures \
@@ -218,8 +261,124 @@ fn missing_original_telemetry_sink_preserves_owed_closure() {
         .unwrap();
     drop(connection);
 
+    let before = closure_and_queue_state(&Connection::open(&path).unwrap(), &closure_id);
+    let diagnosis = command(&["doctor", "check-integrity", "--json", path.to_str().unwrap()]);
+    assert_eq!(diagnosis.status.code(), Some(exit_code::DOCTOR_FOUND_ISSUES));
+    let findings = body(&diagnosis)["logical"]["findings"].as_array().unwrap().clone();
+    let finding = findings.iter().find(|finding| finding["closure_id"] == closure_id).unwrap();
+    assert!(
+        finding["remediation"]["argv"].is_null(),
+        "offline action cannot finish telemetry: {finding}"
+    );
+    assert!(finding["detail"].as_str().unwrap().contains("original telemetry sink"));
+
     let output =
         command(&["recover", "--accept-data-loss", "--complete-erasures", path.to_str().unwrap()]);
     assert_eq!(output.status.code(), Some(exit_code::UNRECOVERABLE), "{output:#?}");
     assert_eq!(closure_phase(&path, &closure_id), "incomplete");
+    assert_eq!(closure_and_queue_state(&Connection::open(&path).unwrap(), &closure_id), before);
+}
+
+#[test]
+fn doctor_sees_telemetry_queue_before_blocker_is_recorded() {
+    let (_dir, path, closure_id) = governed_owed_fixture();
+    let connection = Connection::open(&path).unwrap();
+    let boundary: i64 = connection
+        .query_row(
+            "SELECT admitted_write_boundary FROM _fathomdb_dependency_closures \
+         WHERE closure_operation_id=?1",
+            [&closure_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    connection
+        .execute(
+            "INSERT INTO operational_mutations(
+           collection_name,record_key,op_kind,payload_json,schema_id,write_cursor
+         ) VALUES('erasure_pending_redaction','erase_source','append',
+                  '{\"erased_stable_ids\":[\"l:owed\"]}',NULL,?1)",
+            [boundary],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_dependency_closures \
+         SET phase='at_rest_pending',blocker_code=NULL WHERE closure_operation_id=?1",
+            [&closure_id],
+        )
+        .unwrap();
+    drop(connection);
+
+    let diagnosis = command(&["doctor", "check-integrity", "--json", path.to_str().unwrap()]);
+    assert_eq!(diagnosis.status.code(), Some(exit_code::DOCTOR_FOUND_ISSUES));
+    let findings = body(&diagnosis)["logical"]["findings"].as_array().unwrap().clone();
+    let finding = findings.iter().find(|finding| finding["closure_id"] == closure_id).unwrap();
+    assert_eq!(finding["blocker"], "telemetry_redaction");
+    assert!(finding["remediation"]["argv"].is_null(), "queue is still owed: {finding}");
+    assert!(finding["detail"].as_str().unwrap().contains("original telemetry sink"));
+}
+
+#[test]
+fn no_owed_closure_does_not_truncate_unrelated_wal() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("clean.sqlite");
+    let opened = Engine::open(&path).unwrap();
+    opened.engine.close().unwrap();
+    drop(opened);
+    let raw = Connection::open(&path).unwrap();
+    raw.execute_batch("PRAGMA wal_autocheckpoint=0; CREATE TABLE _recovery_probe(value INTEGER)")
+        .unwrap();
+    let wal_path = PathBuf::from(format!("{}-wal", path.display()));
+    let wal_before = std::fs::read(&wal_path).expect("unrelated WAL fixture");
+
+    let output =
+        command(&["recover", "--accept-data-loss", "--complete-erasures", path.to_str().unwrap()]);
+    assert_eq!(output.status.code(), Some(exit_code::OK), "{output:#?}");
+    assert_eq!(body(&output)["status"], "clean");
+    assert_eq!(std::fs::read(&wal_path).unwrap(), wal_before, "unrelated WAL must be untouched");
+}
+
+#[test]
+fn malformed_wal_refusal_does_not_open_writer_or_change_sidecars() {
+    for len in [16, 32] {
+        let (_dir, path, _closure_id) = governed_owed_fixture();
+        let wal_path = PathBuf::from(format!("{}-wal", path.display()));
+        let shm_path = PathBuf::from(format!("{}-shm", path.display()));
+        std::fs::write(&wal_path, vec![0xff; len]).unwrap();
+        let db_before = std::fs::read(&path).unwrap();
+        let wal_before = std::fs::read(&wal_path).unwrap();
+        let shm_before = std::fs::read(&shm_path).ok();
+
+        let output = command(&[
+            "recover",
+            "--accept-data-loss",
+            "--complete-erasures",
+            path.to_str().unwrap(),
+        ]);
+        assert_eq!(output.status.code(), Some(exit_code::UNRECOVERABLE), "{output:#?}");
+        assert_eq!(std::fs::read(&path).unwrap(), db_before);
+        assert_eq!(std::fs::read(&wal_path).unwrap(), wal_before);
+        assert_eq!(std::fs::read(&shm_path).ok(), shm_before);
+    }
+}
+
+#[test]
+fn invalid_physical_zero_proof_refuses_without_completing_closure() {
+    let (_dir, path, closure_id) = governed_owed_fixture();
+    let connection = Connection::open(&path).unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_dependency_closures \
+             SET admitted_dependency_generation=0 WHERE closure_operation_id=?1",
+            [&closure_id],
+        )
+        .unwrap();
+    let before = closure_and_queue_state(&connection, &closure_id);
+    drop(connection);
+
+    let output =
+        command(&["recover", "--accept-data-loss", "--complete-erasures", path.to_str().unwrap()]);
+    assert_eq!(output.status.code(), Some(exit_code::UNRECOVERABLE), "{output:#?}");
+    assert_eq!(closure_phase(&path, &closure_id), "incomplete");
+    assert_eq!(closure_and_queue_state(&Connection::open(&path).unwrap(), &closure_id), before);
 }

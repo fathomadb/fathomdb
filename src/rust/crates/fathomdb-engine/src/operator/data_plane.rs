@@ -47,7 +47,28 @@ fn immutable_sqlite_uri(path: &Path) -> String {
 pub fn recover_truncate_wal(
     path: impl Into<PathBuf>,
 ) -> Result<TruncateWalReport, EngineOpenError> {
-    let requested_path = path.into();
+    let (connection, _lock, malformed_wal) = open_recovery_connection(path.into(), true)?;
+    let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = connection
+        .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
+        .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
+    let status = if busy == 0 { TruncateWalStatus::Done } else { TruncateWalStatus::Busy };
+
+    Ok(TruncateWalReport {
+        status,
+        busy: busy.max(0) as u32,
+        log_frames: log_frames.max(0) as u32,
+        checkpointed_frames: checkpointed_frames.max(0) as u32,
+        discarded_corrupt_wal: malformed_wal && status == TruncateWalStatus::Done,
+    })
+}
+
+#[cfg(feature = "operator")]
+fn open_recovery_connection(
+    requested_path: PathBuf,
+    allow_malformed_wal: bool,
+) -> Result<(Connection, File, bool), EngineOpenError> {
     let canonical_path = canonical_database_path(&requested_path)?;
     validate_recovery_database_file(&canonical_path)?;
 
@@ -109,6 +130,22 @@ pub fn recover_truncate_wal(
         validate_recovery_schema_invariants(&validation, main_file_schema_version)?;
     }
     drop(validation);
+    let wal_short_nonempty =
+        match std::fs::metadata(data_plane_sidecar_path(&canonical_path, "-wal")) {
+            Ok(metadata) => metadata.len() > 0 && metadata.len() < 32,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+            Err(_) => {
+                return Err(EngineOpenError::Io {
+                    message: "database WAL is not accessible".to_string(),
+                })
+            }
+        };
+    if (malformed_wal || wal_short_nonempty) && !allow_malformed_wal {
+        return Err(EngineOpenError::Io {
+            message: "owed erasure completion requires a valid WAL; use forensic recovery"
+                .to_string(),
+        });
+    }
     if !malformed_wal {
         validate_effective_recovery_schema(&canonical_path)?;
     }
@@ -127,19 +164,81 @@ pub fn recover_truncate_wal(
     connection
         .busy_timeout(Duration::ZERO)
         .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
+    Ok((connection, _lock, malformed_wal))
+}
+
+/// Offline, operator-only completion of previously admitted physical erasures.
+///
+/// The single recovery connection holds the canonical product lock. Existing
+/// zero proofs are revalidated before any checkpoint. A telemetry-redaction
+/// obligation cannot be discharged here without an authenticated original
+/// sink, so it remains owed and the call refuses without claiming completion.
+///
+/// # Errors
+///
+/// Returns [`EngineOpenError`] for admission, proof, or telemetry refusal.
+#[cfg(feature = "operator")]
+pub fn recover_complete_erasures(
+    path: impl Into<PathBuf>,
+) -> Result<CompleteErasuresReport, EngineOpenError> {
+    let (connection, _lock, _) = open_recovery_connection(path.into(), false)?;
+    let pending = dependency_closure::pending_physical_closures(&connection).map_err(|_| {
+        EngineOpenError::Io { message: "could not read owed physical closures".to_string() }
+    })?;
+    let ids = pending.iter().map(|row| row.id.clone()).collect::<Vec<_>>();
+    dependency_closure::validate_physical_closures(&connection, &ids).map_err(|_| {
+        EngineOpenError::Io { message: "owed erasure physical-zero validation failed".to_string() }
+    })?;
+    let pending_redactions: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM operational_mutations \
+             WHERE collection_name=?1",
+            [erasure::ERASURE_PENDING_REDACTION_COLLECTION],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineOpenError::Io {
+            message: "could not inspect telemetry redaction obligations".to_string(),
+        })?;
+    if pending_redactions != 0
+        || pending.iter().any(|row| row.blocker.as_deref() == Some("telemetry_redaction"))
+    {
+        return Err(EngineOpenError::Io {
+            message: "original telemetry sink is unavailable; erasure remains owed".to_string(),
+        });
+    }
+    if ids.is_empty() {
+        return Ok(CompleteErasuresReport {
+            status: TruncateWalStatus::Done,
+            closure_ids: Vec::new(),
+            busy: 0,
+            log_frames: 0,
+            checkpointed_frames: 0,
+        });
+    }
+
     let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = connection
         .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?))
         })
         .map_err(|error| map_open_sqlite_error(error, OpenStage::WalReplay))?;
-    let status = if busy == 0 { TruncateWalStatus::Done } else { TruncateWalStatus::Busy };
-
-    Ok(TruncateWalReport {
-        status,
-        busy: busy.max(0) as u32,
+    if busy != 0 {
+        return Ok(CompleteErasuresReport {
+            status: TruncateWalStatus::Busy,
+            closure_ids: ids.iter().map(|id| id.as_str().to_owned()).collect(),
+            busy: busy.max(0) as u32,
+            log_frames: log_frames.max(0) as u32,
+            checkpointed_frames: checkpointed_frames.max(0) as u32,
+        });
+    }
+    dependency_closure::complete_physical_closures(&connection, &ids).map_err(|_| {
+        EngineOpenError::Io { message: "owed erasure final validation failed".to_string() }
+    })?;
+    Ok(CompleteErasuresReport {
+        status: TruncateWalStatus::Done,
+        closure_ids: ids.iter().map(|id| id.as_str().to_owned()).collect(),
+        busy: 0,
         log_frames: log_frames.max(0) as u32,
         checkpointed_frames: checkpointed_frames.max(0) as u32,
-        discarded_corrupt_wal: malformed_wal && status == TruncateWalStatus::Done,
     })
 }
 

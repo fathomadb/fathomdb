@@ -203,13 +203,14 @@ pub use fathomdb_engine::{
 //     the same posture as `dump-mutations` (Slice 34).
 #[cfg(feature = "operator")]
 pub use fathomdb_engine::{
-    inspect_data_plane_integrity, recover_truncate_wal, CheckIntegrityOpts,
-    DataPlaneIntegrityBoundaryV1, DataPlaneIntegrityCheckCountV1, DataPlaneIntegrityCheckV1,
-    DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityErrorV1, DataPlaneIntegrityFindingCodeV1,
-    DataPlaneIntegrityFindingV1, DataPlaneIntegrityRequestV1, DataPlaneIntegrityResultV1,
-    DataPlaneIntegritySeverityV1, DumpProfileReport, DumpRowCountsReport, DumpSchemaReport,
-    ExciseRecordReport, Finding, IntegrityReport, MeanRecomputeReport, OrphanProvenanceReport,
-    OrphanProvenanceSource, RebuildKind, RebuildReport, SafeExportArtifact, SchemaObject, Section,
+    inspect_data_plane_integrity, recover_complete_erasures, recover_truncate_wal,
+    CheckIntegrityOpts, CompleteErasuresReport, DataPlaneIntegrityBoundaryV1,
+    DataPlaneIntegrityCheckCountV1, DataPlaneIntegrityCheckV1, DataPlaneIntegrityErrorReasonV1,
+    DataPlaneIntegrityErrorV1, DataPlaneIntegrityFindingCodeV1, DataPlaneIntegrityFindingV1,
+    DataPlaneIntegrityRequestV1, DataPlaneIntegrityResultV1, DataPlaneIntegritySeverityV1,
+    DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, ExciseRecordReport, Finding,
+    IntegrityReport, MeanRecomputeReport, OrphanProvenanceReport, OrphanProvenanceSource,
+    PendingErasure, RebuildKind, RebuildReport, SafeExportArtifact, SchemaObject, Section,
     TableRowCount, TraceEvent, TraceReport, TruncateWalReport, TruncateWalStatus,
     VerifyEmbedderReport, VerifyEmbedderStatus,
 };

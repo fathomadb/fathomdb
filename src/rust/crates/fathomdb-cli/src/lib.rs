@@ -47,11 +47,12 @@ use std::{
 
 use clap::{Args, Parser, Subcommand};
 use fathomdb::{
-    inspect_data_plane_integrity, recover_truncate_wal, CheckIntegrityOpts, CorruptionLocator,
-    DataPlaneIntegrityCheckV1, DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityRequestV1,
-    DataPlaneIntegrityResultV1, DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Engine,
-    EngineError, EngineOpenError, ExciseRecordReport, ExciseReport, Finding, IntegrityReport,
-    MeanRecomputeReport, OrphanProvenanceReport, RebuildKind, RebuildReport, SafeExportArtifact,
+    inspect_data_plane_integrity, recover_complete_erasures, recover_truncate_wal,
+    CheckIntegrityOpts, CompleteErasuresReport, CorruptionLocator, DataPlaneIntegrityCheckV1,
+    DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityRequestV1, DataPlaneIntegrityResultV1,
+    DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Engine, EngineError, EngineOpenError,
+    ExciseRecordReport, ExciseReport, Finding, IntegrityReport, MeanRecomputeReport,
+    OrphanProvenanceReport, PendingErasure, RebuildKind, RebuildReport, SafeExportArtifact,
     SchemaObject, Section, TraceReport, TruncateWalReport, TruncateWalStatus, VerifyEmbedderReport,
     VerifyEmbedderStatus,
 };
@@ -122,6 +123,10 @@ pub struct RecoverArgs {
     /// Truncate the SQLite WAL after replay.
     #[arg(long)]
     pub truncate_wal: bool,
+
+    /// Complete owed physical erasures after offline proof and WAL truncation.
+    #[arg(long)]
+    pub complete_erasures: bool,
 
     /// Rebuild the `vec0` shadow tables from canonical state.
     #[arg(long)]
@@ -497,6 +502,22 @@ fn run_recover(args: RecoverArgs) -> i32 {
         return exit_code::UNRECOVERABLE;
     }
 
+    if args.complete_erasures {
+        return match recover_complete_erasures(&args.db_path) {
+            Ok(report) => {
+                println!("{}", complete_erasures_report_json(&report));
+                if report.closure_ids.is_empty() {
+                    return exit_code::OK;
+                }
+                match report.status {
+                    TruncateWalStatus::Done => exit_code::RECOVERY_ACCEPTED_LOSS,
+                    TruncateWalStatus::Busy => exit_code::LOCK_HELD,
+                }
+            }
+            Err(error) => emit_engine_open_error("complete-erasures", &error),
+        };
+    }
+
     if args.rebuild_projections {
         return wire_recover(&args.db_path, "rebuild-projections", |e| {
             e.rebuild_projections().map(|r| rebuild_report_json("rebuild-projections", &r))
@@ -552,7 +573,9 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
                 round_trip: args.round_trip,
             };
             run_doctor_verb(&args.db_path, "check-integrity", |e| {
-                e.check_integrity(opts).map(|r| integrity_report_outcome(&r))
+                let report = e.check_integrity(opts)?;
+                let pending = e.pending_erasures()?;
+                Ok(integrity_report_with_erasures(&report, &pending, &args.db_path, e.path()))
             })
         }
         DoctorCommand::DataPlaneIntegrity(args) => {
@@ -1596,6 +1619,80 @@ fn integrity_report_outcome(report: &IntegrityReport) -> (Value, CliOutcome) {
     (body, outcome)
 }
 
+fn integrity_report_with_erasures(
+    report: &IntegrityReport,
+    pending: &[PendingErasure],
+    requested_path: &Path,
+    canonical_path: &Path,
+) -> (Value, CliOutcome) {
+    let (mut body, mut outcome) = integrity_report_outcome(report);
+    if !pending.is_empty() {
+        let frames = wal_frames_without_checkpoint(canonical_path);
+        let findings = body["logical"]["findings"].as_array_mut().expect("logical findings array");
+        for closure in pending {
+            let telemetry_blocked = closure.blocker.as_deref() == Some("telemetry_redaction");
+            let detail = if telemetry_blocked {
+                "The original telemetry sink is required. Reattach that sink and retry the exact originating erasure; this offline command cannot discharge its redaction."
+            } else {
+                "Physical erasure remains owed. Stop the application before recovery."
+            };
+            let remediation = if telemetry_blocked {
+                json!({"argv": null})
+            } else {
+                json!({"argv": [
+                    "fathomdb", "recover", "--accept-data-loss", "--complete-erasures",
+                    requested_path.to_string_lossy()
+                ]})
+            };
+            findings.push(json!({
+                "code": "E_ERASURE_INCOMPLETE",
+                "stage": "PhysicalErasure",
+                "locator": {"kind": "table_row", "table": "_fathomdb_dependency_closures", "rowid": 0},
+                "doc_anchor": "design/recovery.md#erasure-incomplete",
+                "detail": detail,
+                "closure_id": closure.closure_id,
+                "cause": closure.cause,
+                "phase": closure.phase,
+                "blocker": closure.blocker.as_deref().unwrap_or("wal_checkpoint"),
+                "sequence": closure.sequence,
+                "wal_frames": frames,
+                "source_id": "[redacted]",
+                "remediation": remediation,
+            }));
+        }
+        body["logical"]["status"] = json!("findings");
+        outcome = CliOutcome::Findings;
+    }
+    (body, outcome)
+}
+
+fn wal_frames_without_checkpoint(path: &Path) -> Option<u64> {
+    let mut sidecar = path.as_os_str().to_os_string();
+    sidecar.push("-wal");
+    let wal = PathBuf::from(sidecar);
+    let mut file = match std::fs::File::open(wal) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Some(0),
+        Err(_) => return None,
+    };
+    let len = file.metadata().ok()?.len();
+    if len == 0 {
+        return Some(0);
+    }
+    let mut header = [0u8; 12];
+    file.read_exact(&mut header).ok()?;
+    let magic = u32::from_be_bytes(header[0..4].try_into().ok()?);
+    if ![0x377f0682, 0x377f0683].contains(&magic) {
+        return None;
+    }
+    let page_size = u32::from_be_bytes(header[8..12].try_into().ok()?);
+    let page_size = if page_size == 1 { 65_536 } else { page_size };
+    if !(512..=65_536).contains(&page_size) || !page_size.is_power_of_two() || len < 32 {
+        return None;
+    }
+    Some((len - 32) / (u64::from(page_size) + 24))
+}
+
 fn section_json(section: &Section) -> Value {
     match section {
         Section::Clean => json!({ "status": "clean", "findings": [] }),
@@ -1788,6 +1885,28 @@ fn truncate_wal_report_json(r: &TruncateWalReport) -> Value {
         "log_frames": r.log_frames,
         "checkpointed_frames": r.checkpointed_frames,
         "discarded_corrupt_wal": r.discarded_corrupt_wal,
+    })
+}
+
+fn complete_erasures_report_json(r: &CompleteErasuresReport) -> Value {
+    let status = if r.closure_ids.is_empty() {
+        "clean"
+    } else if r.status == TruncateWalStatus::Done {
+        "done"
+    } else {
+        "busy"
+    };
+    json!({
+        "verb": "complete-erasures",
+        "status": status,
+        "closure_ids": r.closure_ids,
+        "closures": r.closure_ids.iter().map(|id| json!({
+            "closure_id": id,
+            "status": status,
+        })).collect::<Vec<_>>(),
+        "busy": r.busy,
+        "log_frames": r.log_frames,
+        "checkpointed_frames": r.checkpointed_frames,
     })
 }
 

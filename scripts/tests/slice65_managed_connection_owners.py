@@ -36,8 +36,9 @@ RO_FLAGS = (
 EXPECTED_RAW_OPENS = Counter({
     ("connection_runtime.rs", "open_managed_connection", "open", "path"): 1,
     ("open.rs", "read_effective_schema_version", "open_with_flags", "read_only_sqlite_uri(path)," + RO_FLAGS): 1,
-    ("operator/data_plane.rs", "recover_truncate_wal", "open_with_flags", "immutable_sqlite_uri(&canonical_path)," + RO_FLAGS): 1,
-    ("operator/data_plane.rs", "recover_truncate_wal", "open_with_flags", "sqlite_uri(&canonical_path,\"mode=rw\"),rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE|rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX|rusqlite::OpenFlags::SQLITE_OPEN_URI,"): 1,
+    # Slice 103 shares WAL admission across truncate and owed-erasure recovery.
+    ("operator/data_plane.rs", "open_recovery_connection", "open_with_flags", "immutable_sqlite_uri(&canonical_path)," + RO_FLAGS): 1,
+    ("operator/data_plane.rs", "open_recovery_connection", "open_with_flags", "sqlite_uri(&canonical_path,\"mode=rw\"),rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE|rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX|rusqlite::OpenFlags::SQLITE_OPEN_URI,"): 1,
     ("operator/data_plane.rs", "validate_effective_recovery_schema", "open_with_flags", "read_only_sqlite_uri(path)," + RO_FLAGS): 1,
     ("operator/data_plane.rs", "inspect_data_plane_integrity", "open_with_flags", "immutable_sqlite_uri(&canonical_path),OpenFlags::SQLITE_OPEN_READ_ONLY|OpenFlags::SQLITE_OPEN_NO_MUTEX|OpenFlags::SQLITE_OPEN_URI,"): 1,
 })

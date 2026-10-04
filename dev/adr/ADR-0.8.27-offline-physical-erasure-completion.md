@@ -20,7 +20,9 @@ operator. The closure ids and zero proofs remain in the database.
 
 The owner approved a narrow operator-only exception for Slice 103. `doctor
 check-integrity` reports each owed physical closure without exposing its source
-identity and recommends an exact `recover` command. `recover
+identity and recommends an exact `recover` command for WAL checkpoint
+obligations. A telemetry obligation instead directs the operator to reattach
+the original sink and retry the originating erasure. `recover
 --accept-data-loss --complete-erasures <db_path>` runs offline under the
 canonical product lock with one read-write SQLite connection and no Engine
 reader pool or projection runtime. It uses the existing WAL recovery admission
@@ -41,4 +43,6 @@ queue solely because the database rows are gone.
 - `doctor` stays read-only. An owed closure exits 65.
 - Successful offline completion exits 64; held lock or busy checkpoint exits
   71; invalid zero proof or unavailable original telemetry sink exits 70.
+- An invocation with no owed physical closure is a no-op that exits 0 without
+  truncating unrelated WAL contents.
 - Automatic completion at `Engine::open` is outside this decision.

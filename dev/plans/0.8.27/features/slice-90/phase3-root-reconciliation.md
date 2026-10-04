@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: b2f01b3f95bab83a263bd1f2a1df742e07a72a69
+lib_rs_blob: fdf4bcbb9dc75501ba4d197bb019e3182b3eed27
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -14,6 +14,11 @@ The fast-tier `test-slice90-root-reconciliation` guard checks the root item
 closure, the retained method gates, the test-only worker fixture, and selected
 public re-exports. This is a source inventory, not a final qualification or
 performance receipt.
+
+Slice 103 added operator-only owed-erasure recovery re-exports in the root
+composition, changing its blob from `b2f01b3f95bab83a263bd1f2a1df742e07a72a69`
+to the value above. The 43 root storage fields and approved root method
+inventory remain unchanged.
 
 ## Remaining root declarations
 

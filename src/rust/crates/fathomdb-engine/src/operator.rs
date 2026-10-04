@@ -5,7 +5,41 @@ use crate::identity::hex_encode;
 #[cfg(feature = "operator")]
 mod data_plane;
 #[cfg(feature = "operator")]
+pub use data_plane::recover_complete_erasures;
+#[cfg(feature = "operator")]
 pub use data_plane::{inspect_data_plane_integrity, recover_truncate_wal};
+
+/// Outcome of offline completion of owed physical erasures.
+#[cfg(feature = "operator")]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompleteErasuresReport {
+    /// `Done` only after checkpoint and closure completion; `Busy` remains owed.
+    pub status: TruncateWalStatus,
+    /// Opaque ids of closures considered by this invocation.
+    pub closure_ids: Vec<String>,
+    /// SQLite checkpoint busy indicator.
+    pub busy: u32,
+    /// WAL frames observed by the checkpoint.
+    pub log_frames: u32,
+    /// Frames copied into the main database by the checkpoint.
+    pub checkpointed_frames: u32,
+}
+
+/// Content-free operator diagnosis of one owed physical dependency closure.
+#[cfg(feature = "operator")]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PendingErasure {
+    /// Opaque closure identifier, sufficient for the operator report.
+    pub closure_id: String,
+    /// `purged` or `source_erased`.
+    pub cause: String,
+    /// Durable closure phase.
+    pub phase: String,
+    /// Boundary still owed, if recorded.
+    pub blocker: Option<String>,
+    /// Monotonic closure sequence.
+    pub sequence: u64,
+}
 
 /// Typed outcome of [`Engine::verify_embedder`]. Mismatches do not raise
 /// `EngineError`; the operator workflow needs to see the stored vs.
@@ -189,6 +223,42 @@ impl Engine {
             logical: logical_section(connection),
             semantic: semantic_section(connection),
         })
+    }
+
+    /// Read owed physical closures without disclosing their source identities.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EngineError`] if the engine is closed or the closure table
+    /// cannot be read. This operator-only read does not change durable state.
+    #[cfg(feature = "operator")]
+    pub fn pending_erasures(&self) -> Result<Vec<PendingErasure>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let queue_pending: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM operational_mutations WHERE collection_name=?1",
+                [erasure::ERASURE_PENDING_REDACTION_COLLECTION],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        dependency_closure::pending_physical_closures(connection)?
+            .into_iter()
+            .map(|pending| {
+                Ok(PendingErasure {
+                    closure_id: pending.id.as_str().to_owned(),
+                    cause: pending.cause,
+                    phase: pending.phase,
+                    blocker: if queue_pending > 0 {
+                        Some("telemetry_redaction".to_string())
+                    } else {
+                        pending.blocker
+                    },
+                    sequence: pending.sequence,
+                })
+            })
+            .collect()
     }
 
     /// Doctor bit-preserving export. Runs `VACUUM INTO` to produce a

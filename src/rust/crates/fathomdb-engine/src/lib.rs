@@ -236,12 +236,16 @@ use mean::{
 };
 pub use mean::{MeanRecomputeReport, MEAN_VEC_PIN_THRESHOLD};
 #[cfg(feature = "operator")]
+pub use operator::recover_complete_erasures;
+#[cfg(feature = "operator")]
 pub use operator::{inspect_data_plane_integrity, recover_truncate_wal};
 pub use operator::{
     CheckIntegrityOpts, DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Finding,
     IntegrityReport, OrphanProvenanceReport, OrphanProvenanceSource, SafeExportArtifact,
     SchemaObject, Section, TableRowCount, VerifyEmbedderReport, VerifyEmbedderStatus,
 };
+#[cfg(feature = "operator")]
+pub use operator::{CompleteErasuresReport, PendingErasure};
 pub use pagination::{PageCursor, PageError, PageErrorReason, PageRequestV1, PageV1};
 use projection_commit::{
     advance_projection_cursor, commit_projection_outcomes, load_projection_cursor,

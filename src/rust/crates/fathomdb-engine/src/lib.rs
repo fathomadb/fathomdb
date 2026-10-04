@@ -773,6 +773,8 @@ mod slice90_post_probe_real_error_tests;
 mod tests {
     use super::erasure::ERASURE_WAL_TRUNCATE_ATTEMPTS;
     use super::identity::migrated_revision_id_for_test as legacy_revision_id;
+    #[cfg(windows)]
+    use super::open::canonical_database_path;
     use super::reader_pool::{ReaderRequest, READER_POOL_SIZE};
     use super::vector_storage::KIND_TO_SOURCE_TYPE_CASE_SQL;
     use super::{
@@ -801,6 +803,89 @@ mod tests {
     use std::thread;
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
+
+    #[cfg(windows)]
+    #[test]
+    fn local_canonical_path_does_not_strand_idle_wal_readers() {
+        for database in 0..3 {
+            let dir = TempDir::new().expect("tempdir");
+            let path = canonical_database_path(&dir.path().join(format!("wal-{database}.sqlite")))
+                .expect("canonical local database path");
+            assert!(path.to_string_lossy().starts_with(r"\\?\"));
+            let writer = Connection::open(&path).expect("writer");
+            writer.busy_timeout(Duration::from_secs(5)).expect("busy timeout");
+            writer.pragma_update(None, "journal_mode", "WAL").expect("WAL mode");
+            writer
+                .execute_batch("CREATE TABLE t (id INTEGER PRIMARY KEY, body TEXT)")
+                .expect("table");
+            let start = Arc::new(Barrier::new(9));
+            let done = Arc::new(Barrier::new(9));
+            let stop = Arc::new(AtomicBool::new(false));
+            let readers: Vec<_> = (0..8)
+                .map(|_| {
+                    let (path, start, done, stop) =
+                        (path.clone(), Arc::clone(&start), Arc::clone(&done), Arc::clone(&stop));
+                    thread::spawn(move || {
+                        let reader = Connection::open(path).expect("reader");
+                        reader.busy_timeout(Duration::from_secs(5)).expect("busy timeout");
+                        loop {
+                            start.wait();
+                            if stop.load(Ordering::SeqCst) {
+                                break;
+                            }
+                            for _ in 0..40 {
+                                let _: i64 = reader
+                                    .query_row("SELECT COUNT(*) FROM t", [], |row| row.get(0))
+                                    .expect("read");
+                            }
+                            assert!(reader.is_autocommit());
+                            done.wait();
+                        }
+                    })
+                })
+                .collect();
+            let mut refusal = None;
+            for cycle in 0..50 {
+                writer
+                    .execute("INSERT INTO t(body) VALUES (?1)", ["x".repeat(2000)])
+                    .expect("pre-read write");
+                start.wait();
+                for _ in 0..5 {
+                    writer
+                        .execute("INSERT INTO t(body) VALUES (?1)", ["y".repeat(2000)])
+                        .expect("concurrent write");
+                }
+                done.wait();
+                writer.busy_timeout(Duration::ZERO).expect("zero timeout");
+                let mut checkpoint = (1_i64, -1_i64, -1_i64);
+                for _ in 0..5 {
+                    checkpoint = writer
+                        .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+                        })
+                        .expect("checkpoint result");
+                    if checkpoint.0 == 0 {
+                        break;
+                    }
+                    thread::sleep(Duration::from_millis(25));
+                }
+                if checkpoint.0 != 0 {
+                    refusal = Some((cycle, checkpoint));
+                    break;
+                }
+                writer.busy_timeout(Duration::from_secs(5)).expect("busy timeout");
+            }
+            stop.store(true, Ordering::SeqCst);
+            start.wait();
+            for reader in readers {
+                reader.join().expect("reader joins");
+            }
+            assert!(
+                refusal.is_none(),
+                "idle local-path WAL readers stranded a checkpoint: {refusal:?}"
+            );
+        }
+    }
 
     #[test]
     fn current_opener_holds_lock_before_admission_classification() {

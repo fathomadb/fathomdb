@@ -12,7 +12,7 @@
   },
   "final_windows": {
     "governed_purge": "5/5, WAL zero, survivor only",
-    "installed_extension_sha256": "34a639bddfffa5f406806b28e78a06e8f57cc56d533bdbf0c6583c7d98de864f",
+    "installed_extension_sha256": "9255961e624e46d3317a84a943d29099073c50aaf96f97535c29e2c8bd6317b5",
     "metadata_only_changed_files": 11,
     "metadata_overlay_command": "scripts/set-version.sh --workspace 0.8.27 in disposable source copy",
     "operator_excise_source": "exit 64 count 1; repeat exit 64 count 0; WAL zero; survivor only",
@@ -27,10 +27,19 @@
       "page": "0/20",
       "read": "0/40"
     },
-    "source_archive_sha256": "ff2a32fe02bd8d30e54c3768461d931567988d007f0b30d9a95e1228b1c478a4",
-    "staged_archive_sha256": "758fe20d99e9b3268c804681e5c707eca0a4bffd87446f3121ee73b1012d9413",
+    "source_archive_sha256": "c09999b35619296e151e6a22a89476bac11ab1af1a8456df36e0fa7c32deaf0d",
+    "staged_archive_sha256": "dd12cd6c8cbbf74b3ad29d15aa5f24241f2b24eec1269f301013184c32f982a4",
     "wheel": "fathomdb-0.8.27-cp310-abi3-win_amd64.whl",
-    "wheel_sha256": "e152fb260a22bef8fb840d33351f96e98fdb360d02bcb1608c8a2f1dcfccfe1e"
+    "wheel_sha256": "c372e8fd1fdcd5d46cd80d85443efa2c245a638a85add65dc2d4344fb79348dd",
+    "source_commit": "c2e80ff7683fe856a4cf372a088897c3450b0b9a",
+    "cli_sha256": "af5218cd9336ec55ecc6c032ded6ac09cf8f87928b5de841378efbf0770a30b5",
+    "probe_logs_sha256": {
+      "noread": "9dd4bbe7e1d25e746281c29a81d54fc38c5340ddbfafc50c16cb41e8f0e01ae5",
+      "read": "e43cd1ee536182eab3b58c00f8bb4858dcbc48a3de75de56676a8a3a91dae8fd",
+      "page": "1a94f1c3cefa93475c47d3048f5f3a5760affb698a439e5c44e47ddabf9a1f4b"
+    },
+    "focused_log_sha256": "8b6ebd8a431968575e3953e961790be1a060ce438e4d0557769ed95d8693a97e",
+    "path_log_sha256": "21bdb6756f0769116d54582e714019cb9a3452d437d0b5143b0ffa7c949b192c"
   },
   "frozen_source_sha": "8fb6fdac9d2f1655a62355e0ca8af51d42dd1fb7",
   "historical_windows": {
@@ -45,12 +54,11 @@
     "wheel_sha256": "7a94e26f78b040ce95aa79ada69ffac6f6d369280f300ec15da0c713d7bd5a1c"
   },
   "integrated_gate": {
-    "delta": "docs-only Slice 90 lib_rs_blob hash correction",
-    "gate_source_sha": "9764dd6c1",
-    "product_code_sha": "f148aca86d4149e11b85d146b969064f4683677c",
-    "status": "running-by-release-orchestrator"
+    "status": "orchestrator-owned; exact c2e or doc-only descendant gate pending",
+    "previous_gate_source_sha": "9764dd6c1",
+    "previous_product_code_sha": "f148aca86d4149e11b85d146b969064f4683677c"
   },
-  "integrated_source_sha": "f148aca86d4149e11b85d146b969064f4683677c",
+  "integrated_source_sha": "c2e80ff7683fe856a4cf372a088897c3450b0b9a",
   "linux_controls": {
     "candidate_probe_page": "40/40 passed",
     "candidate_probe_read": "40/40 passed",
@@ -92,5 +100,9 @@
     "total_first_refusals": "15/300",
     "wheel_sha256": "bc9bc2706a3d02bb08e4f88ed90a1ff506d6dff7e1dd3d404f62689b59ab885c"
   },
-  "vm_evidence_root": "gh-runner-wonl-win11:C:/ci/s103w/"
+  "vm_evidence_root": "gh-runner-wonl-win11:C:/ci/s103w/",
+  "previous_integrated_windows": {
+    "code_sha": "f148aca86d4149e11b85d146b969064f4683677c",
+    "wheel_sha256": "e152fb260a22bef8fb840d33351f96e98fdb360d02bcb1608c8a2f1dcfccfe1e"
+  }
 }

@@ -169,7 +169,7 @@ process-local W environment used `PYTHONPATH=src/python`,
 `core.excludesFile=/tmp/fathomdb-s103w-git-excludes` containing only
 `target/`; it ran unconfined for ptrace-dependent AC-036.
 
-## Final integrated Windows wheel
+## Earlier integrated Windows wheel
 
 A read-only `git archive` of release HEAD `f148aca86` has SHA256
 `ff2a32fe02bd8d30e54c3768461d931567988d007f0b30d9a95e1228b1c478a4`.
@@ -208,6 +208,67 @@ survivor alone after reopen. Operator `recover --accept-data-loss
 WAL zero and survivor alone. `f148-focused.json` SHA256
 `7a6b2df4e489d671e7311c3cbe4bafff1011ea2ff7c2dcc4de97b6cf54603e75`.
 
-Final remaining work: the release orchestrator records the exact-f148 strict
-repository gate, final Tegra wheel and cross-platform review, then closes
-R27-103D/E and Slice 103 only when those combined receipts pass.
+This f148 artifact was superseded by the exact-code c2e80ff rebuild below.
+
+## Final exact-code Windows wheel
+
+The integrated product source commit is
+`c2e80ff7683fe856a4cf372a088897c3450b0b9a`. A read-only `git archive`
+from that commit produced `/tmp/fathomdb-s103w-c2e80ff-source.tar.gz` SHA256
+`c09999b35619296e151e6a22a89476bac11ab1af1a8456df36e0fa7c32deaf0d`.
+The disposable copy changed only the same 11 Axis-W version files through
+`scripts/set-version.sh --workspace 0.8.27`; `--check-files` passed. Its staged
+archive SHA256 was
+`dd12cd6c8cbbf74b3ad29d15aa5f24241f2b24eec1269f301013184c32f982a4`.
+The staged `Cargo.toml`, `Cargo.lock`, and Python `pyproject.toml` hashes were
+respectively `6951a118b7097bd28bbaf8508a6c6a514b929c16df1f525608be3489ead5ed05`,
+`92a6397983c477fd0531eaa66aae23cf65b21cc4607c5c33b123b4715888f401`,
+and `0a2e0af2b79c136c36c7e2058b563c9d3ea369bac2f50ce7154e8b8d8046c891`.
+The VM independently verified both archive hashes before extraction and build.
+The exact-hash build script `C:/ci/s103w/c2e-build.ps1` SHA256
+`601f8d6e762700868cec304f7b22e5e255f09cb4fceb6fe2921c01d4fb1c04bd`
+used the existing Windows cache and `maturin 1.9.6`. Build exit 0 produced
+`fathomdb-0.8.27-cp310-abi3-win_amd64.whl` SHA256
+`c372e8fd1fdcd5d46cd80d85443efa2c245a638a85add65dc2d4344fb79348dd`;
+`c2e-wheel-build.log` SHA256
+`dfd37466172c024e35cb85bc90ad93bf8e698c325759713e488c2a4c59892a05`.
+
+The wheel was installed with `pip --no-index --no-deps` into fresh
+`C:/ci/s103w/venvc2e`. Installed metadata was `0.8.27` and installed
+`_fathomdb.pyd` SHA256 was
+`9255961e624e46d3317a84a943d29099073c50aaf96f97535c29e2c8bd6317b5`.
+The unchanged reviewed probe SHA256
+`9f9a5e39a9590f447df4406dc4ebc9d71c4f785ca98dd3d89fac496db113a129`
+passed **40/40 no-read, 40/40 read, 20/20 page**, all exits 0 and zero
+first refusals. Each trial had true completion, erased-row absence, survivor
+retention, no pending closure, zero-count second completion, and successful
+post-completion write. The three VM logs `c2e-probe-{noread,read,page}.jsonl`
+had SHA256 respectively
+`9dd4bbe7e1d25e746281c29a81d54fc38c5340ddbfafc50c16cb41e8f0e01ae5`,
+`e43cd1ee536182eab3b58c00f8bb4858dcbc48a3de75de56676a8a3a91dae8fd`,
+and `1a94f1c3cefa93475c47d3048f5f3a5760affb698a439e5c44e47ddabf9a1f4b`.
+The qualification script `c2e-qualify.ps1` SHA256
+`3d2860aba360a404c1cc0bbd93d0e2100e1253c2a5e4dc774af7b40ecc077b14`
+exited 0.
+
+The same staged source built `fathomdb.exe` SHA256
+`af5218cd9336ec55ecc6c032ded6ac09cf8f87928b5de841378efbf0770a30b5`;
+`c2e-cli-build.log` SHA256
+`931f256f6cb75a93a71a9b81c3f43e5d458b87d399f8d9c9b050be18db1e19c3`.
+The installed wheel passed the long-path and `NUL.txt` open/close controls and
+refused trailing-dot/space paths before requested DB, alias, or lock creation;
+`c2e-wheel-path.log` exit 0, SHA256
+`21bdb6756f0769116d54582e714019cb9a3452d437d0b5143b0ffa7c949b192c`.
+Governed deleted-first `purge` passed 5/5 with WAL zero and only the survivor
+after reopen. Operator `recover --accept-data-loss --excise-source src-a --json`
+returned exit 64/count 1, then exit 64/count 0, with WAL zero and only the
+survivor; `c2e-focused.json` exit 0, SHA256
+`8b6ebd8a431968575e3953e961790be1a060ce438e4d0557769ed95d8693a97e`.
+The path and focused fixtures changed only their disposable evidence paths
+from f148 to c2e; their SHA256 values were respectively
+`8833cad02154c46b626e8e8f7ea35cc0d4d7c431f0f3027e80a2d07ec3d65f5e`
+and `aa63ec28fe6a2d6624ca147422ec1b27c007a18c570425789dda914aaef70528`.
+
+This qualifies the installed Windows local-drive artifact at c2e80ff. True UNC
+and mapped network paths remain outside the tested support boundary; the
+cross-platform gate and Slice 103 closeout are owned by the release orchestrator.

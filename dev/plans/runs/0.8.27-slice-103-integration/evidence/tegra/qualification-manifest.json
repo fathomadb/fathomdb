@@ -1,0 +1,181 @@
+{
+  "bundle": {
+    "bytes": 74259878,
+    "path": "/tmp/fathomdb-slice-103-final-c2e80ff76.bundle",
+    "remote_hash_verified": true,
+    "sha256": "6a0e06fc5510b1d57354a25b3c04dfe59074a7151171ce1aae65a817a25174ac"
+  },
+  "candidate_sha": "c2e80ff7683fe856a4cf372a088897c3450b0b9a",
+  "checks_exit": {
+    "assert-only": 0,
+    "auto-smoke": 0,
+    "build-wheel": 0,
+    "cpu-smoke": 0,
+    "cuda-smoke": 0,
+    "extension-nm": 0,
+    "extension-readelf": 0,
+    "glibc-floor": 0,
+    "independent-check": 0,
+    "installed-import": 0,
+    "installed-import-provenance": 0,
+    "linkage-check": 0,
+    "remote-cleanup-proof": 0,
+    "runtime-install": 0,
+    "verify-gpu-witness": 0
+  },
+  "evidence_sha256": {
+    "assert-only.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "assert-only.log": "b5cea7820c1e492a9851f11c312adf99b5d66718160c47291164f3e62696593b",
+    "auto-open-report.json": "9eebc4e048cfdae74935aa4c05b85bc9341888c8074e861bf731eb3295238688",
+    "auto-smoke.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "auto-smoke.log": "9eebc4e048cfdae74935aa4c05b85bc9341888c8074e861bf731eb3295238688",
+    "build-wheel-first-path-failure.exit": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "build-wheel-first-path-failure.log": "187a1dbd6fe54c51d86b805d956495858be22a1224359311319e886d9a81dd05",
+    "build-wheel.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "build-wheel.log": "08bf9c070d045bb83b5e1cb3732c9cedd381f281375a65e2540c9572054f5228",
+    "cpu-open-report.json": "352a287fbc2360bf985e9c076694a48508a3b41988eb8811a0f926b235458cca",
+    "cpu-smoke.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "cpu-smoke.log": "352a287fbc2360bf985e9c076694a48508a3b41988eb8811a0f926b235458cca",
+    "cuda-open-report.json": "5102540fc20670fd9b411c6a849bf118a1403551bd23a5072b8e8bec863db4f8",
+    "cuda-smoke.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "cuda-smoke.log": "5102540fc20670fd9b411c6a849bf118a1403551bd23a5072b8e8bec863db4f8",
+    "extension-nm-stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "extension-nm-undefined.txt": "0f342451f0b93ab50884087d7642a32aaba834034722d9ff1ef848f5f6b3a871",
+    "extension-nm.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "extension-path.txt": "bfd69a053d6480e78ae00000888b18a380ad72c47256fceab3c0b340874703e3",
+    "extension-readelf-dynamic.txt": "fa7483220b840f10df14f9cfa1de46251fc9e2ff27901bda89b79d6c511a2a78",
+    "extension-readelf-stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "extension-readelf.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "fathomdb-0.8.27+tegra-cp310-abi3-linux_aarch64.whl": "91bed0411962741b9443afb4bd7df5506893d1c2fc06dae8ca1d2afaeb4c3ffb",
+    "glibc-floor.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "glibc-floor.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "host-facts.log": "54926479ccd634c0fdfa39201080b61cda537f6a8f64613f35cea7b3ff7ab746",
+    "independent-check.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "independent-check.log": "01892b7c7a34430692dc734f5d11522ff9142ee523374581fe4da1c785def773",
+    "installed-import-first-quoting-failure.exit": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "installed-import-first-quoting-failure.log": "611d56030327fe4e2b5fae5ac328517fb60cd839053ff86ed340fd4bfc42e064",
+    "installed-import-provenance.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "installed-import-provenance.log": "87ec47bc00cfd842dead3f5807bcf52bf80c2b38e08b3f08b464bab425af05bb",
+    "installed-import.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "installed-import.log": "926326fac3cb718cc971eb2eb13d39377029faac7104d177e28d80cac99dc802",
+    "installed-smoke.py": "17901e14a7c621c693422f5cb04e4f5363b94f25f83f2291bc1533356e7d7743",
+    "linkage-check.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "linkage-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "qualification-summary.txt": "565d88b2d629f06ae0e5395fef502ab59ffdf0d5431c4e736c2a7ee2b8a2ffe4",
+    "raw-linkage.sha256": "14469526f2b927659e7a440b89d97212a9d6a79370e5060c6c621877fbdfce6d",
+    "remote-cleanup-proof.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "remote-cleanup-proof.log": "1cd3ff218ae6fac4df5ade1de3b50adf6c8652da3ff1edd9c6580b9cb4e78c12",
+    "runtime-install.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "runtime-install.log": "c9da5da3ca34943971914186c6276d6e969208cfb0a09ac178c60f577c5d6f61",
+    "tegra-gpu-allocation-witness.json": "a59c47181abc36bc28b847b910663ac87fcd99d78cb3665d565404e7e3e78d41",
+    "tegra-gpu-allocation-witness.sha256": "092f0456a320b4f6c512b1eeb5b039af7b27581d9ee512b1f759932ab68b7a63",
+    "verify-gpu-witness.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "verify-gpu-witness.log": "3807083d1387a527cd74b14ca752730b5467fed8f959b4c443e73067d07d70a8",
+    "wheel-version.txt": "7945609c43723f32a7657556fd0718ce264bd5c6a4e3c64990497c20d21ad73f",
+    "wheel.bytes": "93556a29fa42a085e5aa49b0bcb8ee944929924fcf26bf8eae5f1c9cfdaf18d7",
+    "wheel.sha256": "82ab57656d6cabcc315a186c542d50a06a6ad7229ced5b2f2ef52aa4f1505596"
+  },
+  "gpu_witness": {
+    "allocation_delta_bytes": 143622144,
+    "allocation_floor_bytes": 67108864,
+    "compute_capability": "8.7",
+    "control_delta_bytes": 1077559296,
+    "device_uuid": "GPU-bbbe9f37-7028-556a-930b-54e5f3b67a82",
+    "sha256": "a59c47181abc36bc28b847b910663ac87fcd99d78cb3665d565404e7e3e78d41",
+    "vector_dim": 384,
+    "verifier": "verify-tegra-gpu-witness.py --nvidia-smi"
+  },
+  "host": {
+    "address": "10.83.10.13",
+    "kind": "classic Jetson Orin (nvgpu)",
+    "machine": "aarch64",
+    "maturin": "1.14.1",
+    "python": "3.12.13"
+  },
+  "independent_recalculation": {
+    "local_linkage_checker_exit": 0,
+    "local_witness_verifier_exit": 0,
+    "nm_output_byte_identical_to_jetson": true,
+    "readelf_output_byte_identical_to_jetson": true,
+    "wheel_hash_matched": true
+  },
+  "installed_runtime": {
+    "auto": {
+      "candidate_sha": "c2e80ff7683fe856a4cf372a088897c3450b0b9a",
+      "effective_device": "cuda",
+      "embedded_vector_dim": 384,
+      "installed_package": "/home/coreyt/projects/fathomdb-worktrees/slice-103-final-c2e80ff76/target/tegra-runtime-venv/lib/python3.12/site-packages/fathomdb/__init__.py",
+      "policy": "auto",
+      "version": "0.8.27+tegra",
+      "witness_present": false
+    },
+    "cpu": {
+      "candidate_sha": "c2e80ff7683fe856a4cf372a088897c3450b0b9a",
+      "effective_device": "cpu",
+      "embedded_vector_dim": 384,
+      "installed_package": "/home/coreyt/projects/fathomdb-worktrees/slice-103-final-c2e80ff76/target/tegra-runtime-venv/lib/python3.12/site-packages/fathomdb/__init__.py",
+      "policy": "cpu",
+      "version": "0.8.27+tegra",
+      "witness_present": false
+    },
+    "forced_cuda": {
+      "candidate_sha": "c2e80ff7683fe856a4cf372a088897c3450b0b9a",
+      "effective_device": "cuda",
+      "embedded_vector_dim": 384,
+      "installed_package": "/home/coreyt/projects/fathomdb-worktrees/slice-103-final-c2e80ff76/target/tegra-runtime-venv/lib/python3.12/site-packages/fathomdb/__init__.py",
+      "policy": "cuda:0",
+      "version": "0.8.27+tegra",
+      "witness_present": true
+    },
+    "import_path": "/home/coreyt/projects/fathomdb-worktrees/slice-103-final-c2e80ff76/target/tegra-runtime-venv/lib/python3.12/site-packages/fathomdb/__init__.py",
+    "provenance": {
+      "excluded_env_present": {
+        "LD_LIBRARY_PATH": false,
+        "LIBRARY_PATH": false,
+        "PYTHONPATH": false
+      },
+      "package": "/home/coreyt/projects/fathomdb-worktrees/slice-103-final-c2e80ff76/target/tegra-runtime-venv/lib/python3.12/site-packages/fathomdb/__init__.py",
+      "version": "0.8.27+tegra"
+    }
+  },
+  "limitations": {
+    "driverless_host_import_measured": false,
+    "driverless_loadability_basis": "installed import with CUDA library paths removed plus no dynamic CUDA/NVIDIA NEEDED entries",
+    "pages_dispatched": false,
+    "sole_gpu_consumer_externally_attested": false
+  },
+  "remote_cleanup": {
+    "both_absent_verified": true,
+    "bundle": "/tmp/fathomdb-slice-103-final-c2e80ff76.bundle",
+    "checkout": "/home/coreyt/projects/fathomdb-worktrees/slice-103-final-c2e80ff76",
+    "proof": "remote-cleanup-proof.log"
+  },
+  "schema_version": "fathomdb.slice-103.tegra-final-qualification/v1",
+  "sequencing_failures": {
+    "first_build": "Cargo omitted from noninteractive SSH PATH; corrected without source change",
+    "first_installed_import": "shell quoting SyntaxError; corrected without wheel or source change"
+  },
+  "source_pyproject_base_version": "0.8.26",
+  "staged_base_version_override": "0.8.27",
+  "static_linkage": {
+    "dynamic_cuda_nvidia_dependencies": 0,
+    "needed": [
+      "libstdc++.so.6",
+      "libgcc_s.so.1",
+      "libm.so.6",
+      "libc.so.6",
+      "ld-linux-aarch64.so.1"
+    ],
+    "nm_output_sha256": "0f342451f0b93ab50884087d7642a32aaba834034722d9ff1ef848f5f6b3a871",
+    "readelf_output_sha256": "fa7483220b840f10df14f9cfa1de46251fc9e2ff27901bda89b79d6c511a2a78",
+    "unresolved_cuda_runtime_symbols": 0
+  },
+  "wheel": {
+    "bytes": 9063350,
+    "filename": "fathomdb-0.8.27+tegra-cp310-abi3-linux_aarch64.whl",
+    "glibc_floor": "2.35",
+    "metadata_version": "0.8.27+tegra",
+    "platform_tag": "linux_aarch64",
+    "sha256": "91bed0411962741b9443afb4bd7df5506893d1c2fc06dae8ca1d2afaeb4c3ffb"
+  }
+}

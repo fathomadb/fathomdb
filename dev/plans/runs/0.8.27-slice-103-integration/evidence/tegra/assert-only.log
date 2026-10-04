@@ -1,0 +1,12 @@
+Cuda compilation tools, release 12.6, V12.6.68
+gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+maturin 1.14.1
+build-python-cuda-tegra: CUDA_PATH=/usr/local/cuda-12.6
+build-python-cuda-tegra: CC=/usr/bin/gcc CXX=/usr/bin/g++
+build-python-cuda-tegra: CUDA_COMPUTE_CAP=87
+build-python-cuda-tegra: LIBRARY_PATH=/usr/local/cuda-12.6/targets/aarch64-linux/lib
+build-python-cuda-tegra: LD_LIBRARY_PATH=/usr/local/cuda-12.6/targets/aarch64-linux/lib
+build-python-cuda-tegra: features=pyo3/extension-module,embed-cuda
+build-python-cuda-tegra: base-version=0.8.27
+build-python-cuda-tegra: assertions passed; --assert-only, not building

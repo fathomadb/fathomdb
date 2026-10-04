@@ -11,7 +11,7 @@ file and regenerate; keep evidence and qualification prose here.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 103 (HOUSEKEEPING), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) · 100 (`731130c22a40bfed3f50e9f205500d5080022cc7`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.27:status-current-state -->**Next is Slice 110 (NAPI), PLANNED.** Completed on local `release/0.8.27` per release state: 0 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 1 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 2 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 3 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 4 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 5 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 6 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 7 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 8 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 9 (`a3e6cff6f25493096b4b4ca9b76ee560cb6f7ef1`) · 10 (`3097d191511d81a221b038ccd2e14f074dcafa6d`) · 20 (`b455bb73fb2b04c91f50e6e5dbdc16752325453b`) · 30 (`6ba3be95cd043570da1deafbe4e2f78c878d8a87`) · 40 (`fdd7fb646b0fb922b9b8fea134ef7ce7e71a5aae`) · 50 (`1f5b8614813b5a363ec5f81fcb580d48da4a4e8f`) · 60 (`d5a5bd39b3ee8a04bd080df451204564c6849bd1`) · 70 (`36fc2352cf243e022315ea302368d9424096aebd`) · 80 (`b7403958a3839d371c1672335c517fa762a451cf`) · 85 (`7a2f9bf90783f545603516502bac0016d4b93a14`) · 90 (`1398c821dd26b7945bb2f6fbfa02b68cd4daa8af`) · 100 (`731130c22a40bfed3f50e9f205500d5080022cc7`) · 103 (`c2e80ff7683fe856a4cf372a088897c3450b0b9a`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.27:status-current-state -->
 
 Prework Slices 0-9, bounded preparation Slice 10, correction-safe erasure
 Slice 20, real-surface comparator Slice 30, and engine-foundation Slice 40 are
@@ -26,15 +26,15 @@ implementation into private semantic modules. Its independent three-cycle
 rereview is bound at `b7403958`, with closeout `e8e603b7`. This is a review
 binding, not a claim of post-fix full canonical or surface verification.
 
-Slice 100 is complete. Slice 103 is planned between it and Slice 110 to carry
-forward post-publication 0.8.26 Tegra build support and check whether the
-reported historical Windows `erase_source` and `purge` failures persist on
-0.8.27. The Tegra source is fetched at `8c4fdfa9`; the owner supplied the
-Windows account, and the Memex reproducer and ignored local VM/CI evidence
-are available. Wheel provenance and an exact 0.8.27 candidate comparison are
-pending. Separate Tegra and Windows implementer worktrees can run in parallel;
-their reviewed results join at one final source SHA before Slice 103 closes.
-See the [Slice 103 plan](../0.8.27/features/slice-103/plan.md).
+Slice 100 and Slice 103 are complete. Slice 103 carried forward Tegra build
+support, fixed the reproduced Windows local-drive WAL defect, and added
+operator discovery and offline completion of owed erasures. The integrated
+code SHA is `c2e80ff7683fe856a4cf372a088897c3450b0b9a`. Installed Windows
+and Jetson wheels, independent review, strict repository verification, and
+the broader release check passed against that code. True network-share WAL
+remains outside the qualified support claim. See the
+[Slice 103 status](../0.8.27/features/slice-103/status.md) for artifact hashes,
+evidence, and limits. No publication is authorized here.
 
 Slice 132 is planned after Slice 130 and before performance qualification. It
 will make the Rust SDK equal in canonical capability to Python and TypeScript,
@@ -48,7 +48,7 @@ implementation.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 103 (HOUSEKEEPING)** — Tegra build continuity and Windows erasure consistency. **Remaining ladder:** 103 → 110 → 114 → 115 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.27:status-next-action -->**Commission Slice 110 (NAPI)** — napi-rs binding decomposition. **Remaining ladder:** 110 → 114 → 115 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:status-next-action --> |
 
 ## Open decisions
 
@@ -93,6 +93,7 @@ binding and stage-3 ancestry. See the
 | 85 | Engine carrier ownership and dependency-boundary enforcement | Complete on `release/0.8.27` per release state at reviewed candidate `7a2f9bf9` and closeout `8cd3389d`, from commissioned baseline `4c75bfec`. Design review cycle 1 then failed the enforcement half (boundary gate), cycle 2 of the FIX-1 head found residual gate gaps (D-14..D-22), cycle 3 of the FIX-2 head found macro-hidden edges and smaller gaps (D-23..D-27), and cycle 4 of the FIX-3 head found a renamed or re-pathed `include!` and qualified-self serde paths (D-28, D-29); FIX-1 through FIX-4 are recorded in `features/slice-85/tdd-chronology.md`, and FIX-4 was confirmed by a green mutation-script run. A test review of the FIX-4 head then returned PASS-WITH-FIXES (T-1..T-8); test FIX-1 is recorded in the same chronology. Test review cycle 2 then returned FAIL (T-9..T-12); test FIX-2 is recorded in the same chronology and was confirmed by a green 218-assertion mutation run and the feature-gated engine runs. Test review cycle 3 then returned FAIL (T-13..T-15); test FIX-3 is recorded in the same chronology and was confirmed by a green 222-assertion mutation run. Test review cycle 4 then returned FAIL (T-16); test FIX-4, recorded in the same chronology and confirmed by a green 240-assertion mutation run, awaits candidate rebinding. |
 | 90 | Engine open, configuration, runtime, operator, and facade closure | Complete on `release/0.8.27` at reviewed source candidate `1398c821d`. The stage-2 runtime checkpoint, final Sol code review, final independent Terra verification, 180/180 full gate, strict GPU gate, frozen D27 comparison, named performance gates, installed bindings, Windows MSVC routes, and official public/hidden comparisons pass. The AC-073 stress PASS and superseded AC-075 combined-selector failure remain distinct. See [Slice 90 status](../0.8.27/features/slice-90/status.md) and [final verification](../0.8.27/features/slice-90/final-review-verification.md). |
 | 100 | PyO3 binding decomposition and subscriber correction | Complete at production candidate `731130c22` and reviewed documentation/ADR closeout `89c0a7c70`. The source/runtime inventory, installed wheels, focused subscriber tests, independent Sol code and design reviews, Terra verification, affected platform routes, and strict full gate pass. The full gate reports 178/180 suites with two environment skips and zero security findings. See [Slice 100 status](../0.8.27/features/slice-100/status.md) and [verification](../0.8.27/features/slice-100/review-verification.md). |
+| 103 | Tegra build continuity, Windows WAL, and owed erasure recovery | Complete at integrated code `c2e80ff76`. The exact-code installed Windows and Jetson wheels, independent review, 182/182 strict suites, and the broader release check pass. See [Slice 103 status](../0.8.27/features/slice-103/status.md). |
 
 ## Verification boundary
 
@@ -243,9 +244,9 @@ grant/revert evidence.
   verified. There is no Slice 91 allocation. Slice 100 is complete on the
   release branch with the Python subscriber defect corrected and its accepted
   ADR reflected in active architecture and design documentation.
-- [Slice 103](../0.8.27/features/slice-103/plan.md) is a planned, bounded
-  addition. Its Tegra proof and Windows diagnosis must close before the NAPI
-  refactor starts; it does not authorize publication.
+- [Slice 103](../0.8.27/features/slice-103/status.md) is complete on the
+  release branch. Its exact-code Tegra and Windows wheels and erasure recovery
+  proof are recorded; it does not authorize publication.
 - [Slice 110](../0.8.27/features/slice-110/design.md) remains planned and
   requires an exact native ownership/registration inventory, contract
   disposition, installed artifact and feature/platform proof, and zero

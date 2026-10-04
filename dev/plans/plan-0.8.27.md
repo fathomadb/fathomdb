@@ -372,9 +372,9 @@ user actually commissioned.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.27:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 103** (`HOUSEKEEPING`) — Tegra build continuity and Windows erasure consistency
+**IMMEDIATE NEXT: Slice 110** (`NAPI`) — napi-rs binding decomposition
 
-**Remaining ladder:** 103 → 110 → 114 → 115 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
+**Remaining ladder:** 110 → 114 → 115 → 120 → 130 → 132 → 135 → 140 → 150.<!-- END GENERATED release-state:0.8.27:plan-immediate-next -->
 
 ## Slice ladder: features and refactoring
 
@@ -1045,16 +1045,13 @@ review and verification. Python SDK decomposition remains Slice 130. Slice
 
 ### Slice 103 — housekeeping and consistency
 
-**PLANNED; uncommissioned.** Execute the
-[`Slice 103 plan`](0.8.27/features/slice-103/plan.md) before Slice 110. Review
-the five post-publication 0.8.26 Tegra commits against the current 0.8.27
-tree, carry forward the static CUDA runtime, installed-wheel and guarded
-operator-route work with version-truthful documentation, and prove the
-candidate on a classic Jetson. Compare the owner-reported 0.8.26 Windows
-`erase_source` failure with an exact 0.8.27 installed candidate on a real
-Windows database. Attribute and fix only failures that persist, using
-RED-to-GREEN tests. Neither source branch is blanket merge
-authority; no Pages publication or release tag is authorized here.
+**COMPLETE on `release/0.8.27`.** The
+[`Slice 103 status`](0.8.27/features/slice-103/status.md) binds the reviewed
+Tegra, Windows WAL, and owed-erasure recovery work to integrated code
+`c2e80ff7683fe856a4cf372a088897c3450b0b9a`. The exact-code installed
+Windows and Jetson wheels, strict repository verifier, and broader release
+check passed. The accepted recovery successor ADR and CLI contract landed
+with the code. No Pages publication or release tag is authorized here.
 
 ### Slice 110 — napi-rs binding decomposition
 

@@ -1,0 +1,6 @@
+source_sha=c2e80ff7683fe856a4cf372a088897c3450b0b9a
+source_status=
+Linux ubuntu 5.15.199-tegra #1 SMP PREEMPT Thu Jul 16 11:27:38 PDT 2026 aarch64 aarch64 aarch64 GNU/Linux
+Orin (nvgpu), bbbe9f37-7028-556a-930b-54e5f3b67a82, 540.5.0
+Python 3.12.13
+maturin 1.14.1

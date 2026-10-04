@@ -1,0 +1,4 @@
+cwd=/home/coreyt/projects/fathomdb-worktrees/slice-103-final-c2e80ff76/target/tegra-runtime-venv
++ env -u LD_LIBRARY_PATH -u LIBRARY_PATH -u PYTHONPATH /home/coreyt/projects/fathomdb-worktrees/slice-103-final-c2e80ff76/target/tegra-runtime-venv/bin/python -I -
+{"excluded_env_present": {"LD_LIBRARY_PATH": false, "LIBRARY_PATH": false, "PYTHONPATH": false}, "package": "/home/coreyt/projects/fathomdb-worktrees/slice-103-final-c2e80ff76/target/tegra-runtime-venv/lib/python3.12/site-packages/fathomdb/__init__.py", "version": "0.8.27+tegra"}
++ set +x

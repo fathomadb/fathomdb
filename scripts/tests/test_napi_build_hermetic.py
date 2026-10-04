@@ -53,11 +53,7 @@ def main() -> None:
     assert plan["temporary_directory"] == str(requested_tmp.resolve())
     assert plan["clean"][:2] == ["cargo", "clean"]
     assert "fathomdb-napi" in plan["clean"] and "--release" in plan["clean"]
-    assert plan["build"] == [
-        "npm",
-        "exec",
-        "--",
-        "napi",
+    expected_napi_args = [
         "build",
         "--platform",
         "--release",
@@ -68,6 +64,27 @@ def main() -> None:
         "--js",
         "false",
     ]
+    if sys.platform == "win32":
+        assert Path(plan["build"][0]).name == "node.exe"
+        assert plan["build"][2:] == expected_napi_args
+    else:
+        assert plan["build"] == ["npm", "exec", "--", "napi", *expected_napi_args]
+    windows_plan_environment = dict(environment)
+    windows_plan_environment["FATHOMDB_NAPI_BUILD_PRINT_PLATFORM"] = "win32"
+    windows_plan = subprocess.run(
+        ["node", str(WRAPPER), "--print-plan"],
+        cwd=TS_ROOT,
+        env=windows_plan_environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    windows_build = json.loads(windows_plan.stdout)["build"]
+    assert Path(windows_build[0]).name in {"node", "node.exe"}
+    assert windows_build[1].endswith("@napi-rs/cli/scripts/index.js") or windows_build[1].endswith(
+        "@napi-rs\\cli\\scripts\\index.js"
+    )
+    assert windows_build[2:] == expected_napi_args
     for name in ("TMPDIR", "TMP", "TEMP"):
         assert plan["environment"][name] == str(requested_tmp.resolve())
     assert set(plan["environment"]) == {"TMPDIR", "TMP", "TEMP"}

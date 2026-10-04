@@ -7,6 +7,9 @@ import { resolve } from "node:path";
 
 const requestedTemporaryDirectory = process.env.FATHOMDB_NAPI_BUILD_TMPDIR;
 const printPlan = process.argv.includes("--print-plan");
+const plannedPlatform = printPlan && process.env.FATHOMDB_NAPI_BUILD_PRINT_PLATFORM === "win32"
+  ? "win32"
+  : process.platform;
 const ownsTemporaryDirectory = requestedTemporaryDirectory === undefined;
 const temporaryDirectory = requestedTemporaryDirectory
   ? resolve(requestedTemporaryDirectory)
@@ -23,11 +26,7 @@ const clean = [
   "fathomdb-napi",
   "--release",
 ];
-const build = [
-  "npm",
-  "exec",
-  "--",
-  "napi",
+const napiArguments = [
   "build",
   "--platform",
   "--release",
@@ -38,6 +37,13 @@ const build = [
   "--js",
   "false",
 ];
+const build = plannedPlatform === "win32"
+  ? [
+      process.execPath,
+      resolve(import.meta.dirname, "..", "node_modules", "@napi-rs", "cli", "scripts", "index.js"),
+      ...napiArguments,
+    ]
+  : ["npm", "exec", "--", "napi", ...napiArguments];
 const environment = {
   ...process.env,
   TMPDIR: temporaryDirectory,
@@ -64,8 +70,7 @@ if (printPlan) {
 mkdirSync(temporaryDirectory, { recursive: true });
 
 function run(command) {
-  const executable = process.platform === "win32" && command[0] === "npm" ? "npm.cmd" : command[0];
-  const completed = spawnSync(executable, command.slice(1), {
+  const completed = spawnSync(command[0], command.slice(1), {
     cwd: resolve(import.meta.dirname, ".."),
     env: environment,
     stdio: "inherit",

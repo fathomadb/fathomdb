@@ -123,19 +123,25 @@ test("callback-triggered replacement silences the current generation", async () 
 test("callback-triggered close detaches before scheduling engine shutdown", async () => {
   const engine = await native.Engine.open(dbPath());
   let closePromise;
+  let attachAfterCloseError;
   let calls = 0;
   engine.attachSubscriber(event => {
     calls++;
     if (event.kind === "event" && event.phase === "finished" && !closePromise) {
       closePromise = engine.close();
-      assert.equal(typeof closePromise.then, "function");
-      assert.throws(() => engine.attachSubscriber(() => {}), /FDB_CLOSING/);
+      try {
+        engine.attachSubscriber(() => {});
+      } catch (error) {
+        attachAfterCloseError = error;
+      }
     }
   });
   try {
     await write(engine);
     await tick();
     assert.ok(closePromise, "callback must have entered close");
+    assert.equal(typeof closePromise.then, "function");
+    assert.match(String(attachAfterCloseError), /FDB_CLOSING/);
     await closePromise;
     const afterClose = calls;
     await tick();

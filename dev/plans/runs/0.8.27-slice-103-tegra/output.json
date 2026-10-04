@@ -6,7 +6,7 @@
   },
   "baseline_sha": "8fb6fdac9d2f1655a62355e0ca8af51d42dd1fb7",
   "branch": "llm/slice-103-tegra",
-  "code_sha": "a8c7e2f12ab049073dee00887414c6400f164194",
+  "code_sha": "86ab7d61992b122e0820fbe062d92321e051c3b7",
   "integrated_sha_rebuild_required": true,
   "pages_dispatched": false,
   "receipt": "dev/plans/runs/0.8.27-slice-103-tegra/receipt.md",
@@ -20,6 +20,18 @@
     "glibc_floor": "2.35",
     "host": "10.83.10.13 classic Orin",
     "installed_import": true,
+    "raw_linkage_evidence": {
+      "nm": {
+        "exit_code": 0,
+        "path": "evidence/extension-nm-undefined.txt",
+        "sha256": "0f342451f0b93ab50884087d7642a32aaba834034722d9ff1ef848f5f6b3a871"
+      },
+      "readelf": {
+        "exit_code": 0,
+        "path": "evidence/extension-readelf-dynamic.txt",
+        "sha256": "b9f740dc8e277c0cfc727b343bfb023f4f9f9c6f60b158a3fad8b30e5584c2e5"
+      }
+    },
     "sha256": "35ba47501ce20cbb7b05edf897c226d167aca0272c02bf48fe28c0270093873c",
     "source_sha": "a8c7e2f12ab049073dee00887414c6400f164194",
     "unresolved_cuda_symbols": 0,
@@ -31,6 +43,23 @@
     "full_verifier": null,
     "markdown_lint": 0,
     "operator_path": 0,
+    "prior_clean_head_verifier": {
+      "code_sha": "fc44d9e5d95885530b5d10b2a6ff891c7d3300b2",
+      "elapsed_seconds": 1041,
+      "exit_code": 1,
+      "failed": 1,
+      "failed_suites": {
+        "test-python": 1
+      },
+      "passed": 180,
+      "python_cases": {
+        "failed": 9,
+        "passed": 1562,
+        "skipped": 30
+      },
+      "reason": "isolated Python environment did not provide src/python to subprocess imports",
+      "registered": 181
+    },
     "prior_full_verifier": {
       "elapsed_seconds": 1452,
       "exit_code": 1,

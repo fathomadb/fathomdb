@@ -2,7 +2,7 @@
 
 - Source baseline: `8fb6fdac9d2f1655a62355e0ca8af51d42dd1fb7` on `release/0.8.27`.
 - Track branch: `llm/slice-103-tegra`.
-- Implemented code commit: `a8c7e2f12ab049073dee00887414c6400f164194`.
+- Reviewed branch code and gate commit: `86ab7d61992b122e0820fbe062d92321e051c3b7`. The host-native wheel was built from the earlier source commit `a8c7e2f12ab049073dee00887414c6400f164194`.
 - Historical comparison: `b35212f678626e09ea7293e00ee337288ce74ff1..8c4fdfa9bb263552d7ffc1c019bc553169e2d266` on `origin/release/0.8.26`.
 - This receipt is branch-local evidence. Integrated-candidate qualification remains for the coordinator.
 
@@ -51,7 +51,10 @@ The current branch has an additional offline, independently pinned Candle overri
 - Full `agent-verify.sh` second exited 1 at Cargo lint because the sandbox could not resolve GitHub for the new Candle pin.
 - Full `agent-verify.sh` third, capable run exited 1 at the stale governed Candle override pin; this is the RED gate for the follow-up fix.
 - GREEN `test_check_pinned_override_rot.sh`: exit 0.
-- Full `agent-verify.sh` fourth, capable run exited 1 after 1,452 seconds: 179/181 registered test suites passed; Rust, TypeScript, lint, typecheck, and security passed. `test-python` exited 4 and `test-python-native-receipt` exited 1 because the test-hook candidate gate required a clean checkout while the governed-pin and receipt files were still uncommitted. The failure was environmental sequencing, and those files are being committed before the final unchanged full rerun.
+- Full `agent-verify.sh` fourth, capable run exited 1 after 1,452 seconds: 179/181 registered test suites passed; Rust, TypeScript, lint, typecheck, and security passed. `test-python` exited 4 and `test-python-native-receipt` exited 1 because the test-hook candidate gate required a clean checkout while the governed-pin and receipt files were still uncommitted. Those files were committed as `fc44d9e5` before the clean-head rerun.
+- Full `agent-verify.sh` fifth, clean-head run at `fc44d9e5d95885530b5d10b2a6ff891c7d3300b2` exited 1 after 1,041 seconds: 180/181 registered suites passed, including the native candidate receipt. Python had 9 subprocess import failures (`ModuleNotFoundError` for `fathomdb` or `eval`), 1,562 passes, and 30 skips because the isolated venv invocation lacked the checkout's `src/python` path. A process-local `PYTHONPATH="$PWD/src/python"` resolves both imports without an editable install.
+- RED `test_tegra_wheel_linkage.sh`: exit 1 because the fail-closed checker did not exist. RED `test_cuda_release_contract.sh`: exit 1 because the wrapper did not invoke it.
+- GREEN `test_tegra_wheel_linkage.sh`: exit 0, including CUDA registration, cuBLAS, `nm` failure, and `readelf` failure fixtures. GREEN `test_cuda_release_contract.sh`: exit 0. ShellCheck and Bash syntax checks: exit 0.
 
 ## Host-native build
 
@@ -62,3 +65,5 @@ Installed `Engine.open(..., use_default_embedder=True)` smokes in this venv retu
 The host has a CUDA driver, so this receipt's clean installed import and zero dynamic CUDA/NVIDIA dependencies support the driverless CPU-loadability contract structurally; it is not a measured import on a driverless Jetson. This wheel is bound to `a8c7e2f12` and remains provisional relative to the follow-up governed-pin commit and the eventual integrated SHA. The coordinator must rebuild and repeat the platform checks from the final integrated code SHA.
 
 The branch-local smoke reports and canonical allocation witness are retained under `evidence/`; `evidence/build-wheel.log` is the exact host-native build transcript. The witness JSON SHA-256 is `75b0c4d1d3bba2318287247a9a1f69385db9ed43f925ce059bff50d3b0c4d655`.
+
+Raw extracted-extension inspection is retained as `evidence/extension-nm-undefined.txt` (`nm -D --undefined-only`, exit 0, SHA-256 `0f342451f0b93ab50884087d7642a32aaba834034722d9ff1ef848f5f6b3a871`) and `evidence/extension-readelf-dynamic.txt` (`readelf -d`, exit 0, SHA-256 `b9f740dc8e277c0cfc727b343bfb023f4f9f9c6f60b158a3fad8b30e5584c2e5`). The dynamic output lists only `libstdc++`, `libgcc_s`, `libm`, `libc`, and `ld-linux-aarch64`; no CUDA/NVIDIA dependency appears. These raw results belong to the `a8c7e2f12` wheel. The stricter checker at `86ab7d619` was verified by regression fixtures and must be applied again to the final integrated-SHA wheel.

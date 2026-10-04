@@ -8,6 +8,20 @@ released section MUST list every removed public symbol under a `### Removed` hea
 the removal-detect linter (`scripts/security/check-removal-changelog.sh`,
 AC-050c) gates merges against this invariant.
 
+## 0.8.27 — unreleased
+
+**Publication status: pending.** This release has not been tagged or published.
+
+### Changed
+
+- The TypeScript native subscriber delivers bounded engine diagnostics to its
+  callback and detaches during replacement and close.
+
+### Removed
+
+- `AttachSubscriberOptions` from the native and TypeScript binding surfaces;
+  the inert heartbeat option has no replacement.
+
 ## 0.8.26 — 2026-09-19
 
 **Publication status: published.** Annotated tag `v0.8.26` resolves to

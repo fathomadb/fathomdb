@@ -23,7 +23,7 @@
       "candle-transformers-fathomdb"
     ],
     "git": "https://github.com/coreyt/candle-fathomdb.git",
-    "rev": "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee",
+    "rev": "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae",
     "version": "0.10.2",
     "rationale": "FathomDB-maintained Candle 0.10.2 preserves the Linux AArch64 CPU Gemm/F16 fallback. This immutable source revision keeps CUDA driver discovery dynamic and links the CUDART runtime statically in candle-kernels, so CPU-mode distributable artifacts can map without libcuda.so.1 or libcudart. Core, kernels, nn, and transformers remain one source cohort so their public types and linkage boundary stay unified.",
     "advisory_posture": {

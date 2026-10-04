@@ -65,7 +65,7 @@ CANDLE_PACKAGES = (
     "candle-transformers-fathomdb",
 )
 CANDLE_GIT = "https://github.com/coreyt/candle-fathomdb.git"
-CANDLE_REV = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"
+CANDLE_REV = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
 CANDLE_VERSION = "0.10.2"
 
 

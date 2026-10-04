@@ -71,5 +71,8 @@ review, and the repository gates qualify that code commit. Slice 110 is next.
 The source commit remains the qualification anchor. Later receipt and
 release-state commits must be documentation-only; any change to source,
 tests, scripts, dependencies, or build inputs requires requalification.
+The Slice 103 closeout record was committed at
+`a4eb9f6e2a25adefc41d10c6f1cb3f38f3ba5b5c`; the release state records
+that bookkeeping SHA separately from the code SHA.
 No Pages dispatch, tag, push, registry publication, or deployment belongs to
 this slice closeout.

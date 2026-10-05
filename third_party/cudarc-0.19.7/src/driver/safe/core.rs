@@ -2985,30 +2985,117 @@ mod fathomdb_alloc_fallback {
         Some(ctx)
     }
 
+    fn pool_query_must_not_run() -> Result<sys::CUmemoryPool, DriverError> {
+        panic!("the default pool must not be queried when pools are unsupported")
+    }
+
     #[test]
     fn async_alloc_requires_pool_support_and_an_obtainable_default_pool() {
-        use sys::CUresult::{
-            CUDA_ERROR_INVALID_CONTEXT, CUDA_ERROR_NOT_SUPPORTED, CUDA_ERROR_OUT_OF_MEMORY,
-        };
-        let pool = Ok(std::ptr::null_mut());
+        let pool = || Ok(std::ptr::null_mut());
 
-        assert!(use_async_alloc(1, &pool));
-        assert!(use_async_alloc(2, &pool));
-        // The Tegra failure: pools are reported, the default pool is not.
-        assert!(!use_async_alloc(
-            1,
-            &Err(DriverError(CUDA_ERROR_OUT_OF_MEMORY))
-        ));
-        assert!(!use_async_alloc(
-            1,
-            &Err(DriverError(CUDA_ERROR_NOT_SUPPORTED))
-        ));
-        assert!(!use_async_alloc(
-            1,
-            &Err(DriverError(CUDA_ERROR_INVALID_CONTEXT))
-        ));
-        assert!(!use_async_alloc(0, &pool));
-        assert!(!use_async_alloc(-1, &pool));
+        assert_eq!(async_alloc_decision(1, pool), Ok(true));
+        assert_eq!(async_alloc_decision(2, pool), Ok(true));
+        assert_eq!(async_alloc_decision(0, pool_query_must_not_run), Ok(false));
+        assert_eq!(async_alloc_decision(-1, pool_query_must_not_run), Ok(false));
+    }
+
+    #[test]
+    fn only_pool_unavailable_errors_select_the_synchronous_allocator() {
+        use sys::CUresult::{CUDA_ERROR_NOT_SUPPORTED, CUDA_ERROR_OUT_OF_MEMORY};
+        // The measured Tegra failure: pools are reported, the default pool
+        // cannot be created.
+        assert_eq!(
+            async_alloc_decision(1, || Err(DriverError(CUDA_ERROR_OUT_OF_MEMORY))),
+            Ok(false)
+        );
+        // The device states it has no usable default pool.
+        assert_eq!(
+            async_alloc_decision(1, || Err(DriverError(CUDA_ERROR_NOT_SUPPORTED))),
+            Ok(false)
+        );
+    }
+
+    #[test]
+    fn unrelated_pool_query_errors_are_propagated_not_downgraded() {
+        use sys::CUresult::{
+            CUDA_ERROR_ILLEGAL_ADDRESS, CUDA_ERROR_INVALID_CONTEXT, CUDA_ERROR_INVALID_DEVICE,
+            CUDA_ERROR_LAUNCH_FAILED, CUDA_ERROR_UNKNOWN,
+        };
+        for code in [
+            CUDA_ERROR_INVALID_CONTEXT,
+            CUDA_ERROR_INVALID_DEVICE,
+            // Sticky errors from earlier asynchronous work surface on any call.
+            CUDA_ERROR_ILLEGAL_ADDRESS,
+            CUDA_ERROR_LAUNCH_FAILED,
+            CUDA_ERROR_UNKNOWN,
+        ] {
+            assert_eq!(
+                async_alloc_decision(1, || Err(DriverError(code))),
+                Err(DriverError(code)),
+                "{code:?} must not select an allocator"
+            );
+        }
+    }
+
+    #[test]
+    fn every_wrapper_of_a_device_reuses_the_first_decision() {
+        let modes = AllocModeByDevice::new();
+        assert_eq!(modes.get_or_decide(0, || Ok(false)), Ok(false));
+        // A later wrapper of device 0 whose own probe would say "async" must
+        // still agree with the first, or buffers moved between wrappers with
+        // `leak`/`upgrade_device_ptr` would be freed by the wrong API.
+        assert_eq!(
+            modes.get_or_decide(0, || panic!("device 0 was already decided")),
+            Ok(false)
+        );
+        assert_eq!(modes.get_or_decide(0, || Ok(true)), Ok(false));
+        // Devices are decided independently.
+        assert_eq!(modes.get_or_decide(1, || Ok(true)), Ok(true));
+        assert_eq!(modes.get_or_decide(1, || Ok(false)), Ok(true));
+        assert_eq!(modes.get_or_decide(0, || Ok(true)), Ok(false));
+    }
+
+    #[test]
+    fn a_failed_decision_is_not_remembered() {
+        use sys::CUresult::CUDA_ERROR_ILLEGAL_ADDRESS;
+        let modes = AllocModeByDevice::new();
+        assert_eq!(
+            modes.get_or_decide(0, || Err(DriverError(CUDA_ERROR_ILLEGAL_ADDRESS))),
+            Err(DriverError(CUDA_ERROR_ILLEGAL_ADDRESS))
+        );
+        assert_eq!(modes.get_or_decide(0, || Ok(true)), Ok(true));
+        assert_eq!(modes.get_or_decide(0, || Ok(false)), Ok(true));
+    }
+
+    #[test]
+    fn concurrent_wrappers_of_a_device_agree() {
+        let modes = Arc::new(AllocModeByDevice::new());
+        let handles: Vec<_> = (0..16)
+            .map(|i| {
+                let modes = modes.clone();
+                std::thread::spawn(move || modes.get_or_decide(7, || Ok(i % 2 == 0)).unwrap())
+            })
+            .collect();
+        let decisions: Vec<bool> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+        assert!(
+            decisions.iter().all(|&d| d == decisions[0]),
+            "racing wrappers disagreed: {decisions:?}"
+        );
+    }
+
+    #[test]
+    fn wrappers_of_one_device_share_the_allocator() {
+        if !unsafe { sys::is_culib_present() } || CudaContext::device_count().unwrap_or(0) < 1 {
+            std::eprintln!("SKIP fathomdb_alloc_fallback: no CUDA driver or device");
+            return;
+        }
+        let first = CudaContext::new(0).unwrap();
+        let second = CudaContext::new(0).unwrap();
+        assert_eq!(first.has_async_alloc(), second.has_async_alloc());
+        assert_eq!(
+            PROCESS_ALLOC_MODE.get_or_decide(first.cu_device, || panic!("already decided")),
+            Ok(first.has_async_alloc())
+        );
     }
 
     #[test]
@@ -3030,7 +3117,10 @@ mod fathomdb_alloc_fallback {
             .attribute(sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED)
             .unwrap();
         let pool = unsafe { result::device::get_default_mem_pool(ctx.cu_device) };
-        assert_eq!(ctx.has_async_alloc(), use_async_alloc(pools, &pool));
+        assert_eq!(
+            Ok(ctx.has_async_alloc()),
+            async_alloc_decision(pools, || pool)
+        );
     }
 
     #[test]

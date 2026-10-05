@@ -12,7 +12,14 @@
 //!
 //! The layout must exist before the first CUDA call in the process, so this
 //! file holds exactly one test and nothing else in this binary touches CUDA.
-//! Hosts without a visible CUDA device print a SKIP notice and return.
+//!
+//! The test asserts that the layout really makes the default pool unavailable
+//! and that the context fell back to synchronous allocation, so it can never
+//! pass without exercising the fallback. That outcome is only established for
+//! integrated (Tegra) GPUs; on aarch64 Linux hosts without a CUDA driver, without
+//! a device, or whose `cuda:0` is a discrete GPU, it prints a SKIP notice naming
+//! the reason and returns (or panics under `FATHOMDB_REQUIRE_LIVE=1`, which
+//! promises a provisioned Tegra GPU).
 //!
 //! Run it on a Jetson with:
 //!
@@ -25,9 +32,12 @@
 
 use std::ffi::{c_int, c_long, c_void};
 
-use candle_core::cuda::cudarc::driver::result;
+use candle_core::cuda::cudarc::driver::{result, sys, DriverError};
 use candle_core::{DType, Device, Tensor};
 use fathomdb_embedder::{resolve_default_embedder_device_from_env, EffectiveEmbedDevice};
+
+#[path = "support/live.rs"]
+mod live;
 
 const GIB: usize = 1 << 30;
 const PAGE: usize = 4096;
@@ -75,19 +85,54 @@ fn map_address_space_blockers() {
     }
 }
 
+/// Why this host is outside the measured target, or `None` when `cuda:0` is an
+/// integrated (Tegra) GPU.
+fn non_target_reason() -> Option<String> {
+    // SAFETY: only probes for the driver library; loads nothing on failure.
+    if !unsafe { sys::is_culib_present() } {
+        return Some("no CUDA driver library".to_owned());
+    }
+    match result::init() {
+        Ok(()) => {}
+        Err(DriverError(sys::CUresult::CUDA_ERROR_NO_DEVICE)) => {
+            return Some("no CUDA device".to_owned());
+        }
+        Err(error) => panic!("cuInit failed with the blockers in place: {error:?}"),
+    }
+    let count = result::device::get_count().expect("cuDeviceGetCount");
+    if count < 1 {
+        return Some("no CUDA device".to_owned());
+    }
+    let device = result::device::get(0).expect("cuDeviceGet(0)");
+    // SAFETY: `device` was just returned by the initialized driver.
+    let integrated = unsafe {
+        result::device::get_attribute(
+            device,
+            sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_INTEGRATED,
+        )
+    }
+    .expect("CU_DEVICE_ATTRIBUTE_INTEGRATED");
+    (integrated == 0).then(|| {
+        "cuda:0 is a discrete GPU; the fragmented-layout pool failure is only \
+         established on integrated (Tegra) GPUs"
+            .to_owned()
+    })
+}
+
 #[test]
 fn forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable() {
     // Must precede every CUDA call in this process (the driver lays out its
     // GPU virtual-address reservations during `cuInit`).
     map_address_space_blockers();
 
+    if let Some(reason) = non_target_reason() {
+        live::require_live_or_skip(&format!("SKIP tegra_fragmented_va_cuda: {reason}"));
+        return;
+    }
+
     std::env::set_var("FATHOMDB_EMBED_DEVICE", "cuda:0");
     let resolution = match resolve_default_embedder_device_from_env() {
         Ok(resolution) => resolution,
-        Err(error) if error.kind() == "no_visible_cuda_device" => {
-            eprintln!("SKIP tegra_fragmented_va_cuda: no visible CUDA device ({error})");
-            return;
-        }
         Err(error) => {
             // The typed refusal deliberately drops the driver error, so repeat
             // the probe's two Candle calls to show the cause.
@@ -113,16 +158,14 @@ fn forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable() {
     let async_alloc = cuda.cuda_stream().context().has_async_alloc();
     eprintln!("default memory pool: {pool:?}; stream-ordered allocation: {async_alloc}");
     assert_eq!(
-        async_alloc,
-        pool.is_ok(),
-        "a context must allocate asynchronously exactly when its default pool is available"
+        pool,
+        Err(DriverError(sys::CUresult::CUDA_ERROR_OUT_OF_MEMORY)),
+        "the blockers must leave the default memory pool unavailable on this Tegra device"
     );
-    if pool.is_ok() {
-        eprintln!(
-            "NOTE tegra_fragmented_va_cuda: the default pool fit this layout, so the \
-             synchronous fallback was not exercised on this device"
-        );
-    }
+    assert!(
+        !async_alloc,
+        "a context whose default pool is unavailable must allocate synchronously"
+    );
 
     let lhs = Tensor::from_vec(vec![1f32, 2., 3., 4.], (2, 2), &device).expect("upload lhs");
     let rhs = Tensor::from_vec(vec![5f32, 6., 7., 8.], (2, 2), &device).expect("upload rhs");

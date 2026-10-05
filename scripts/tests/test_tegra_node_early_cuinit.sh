@@ -25,8 +25,9 @@
 #     agent-test loop builds only a CPU debug addon, so it skips here;
 #   - cuda:0 is an integrated GPU with 60-64 GiB of device memory (the
 #     measured Jetson AGX Orin 64 GB). Another Jetson has a different driver
-#     reservation size, so the heap size that defeats cuInit there is unknown;
-#   - the default embedder's model is cached or downloadable.
+#     reservation size, so the heap size that defeats cuInit there is unknown.
+# The default embedder's model must also be cached or downloadable. That is
+# not checked up front: a run that cannot load it fails, never skips.
 #
 # Env: FATHOMDB_TEGRA_NODE_PACKAGE (required), FATHOMDB_TEGRA_EARLY_CUINIT_RUNS
 # (default 3), FATHOMDB_TEGRA_EARLY_CUINIT_HEAP_OBJECTS (default 1000000).

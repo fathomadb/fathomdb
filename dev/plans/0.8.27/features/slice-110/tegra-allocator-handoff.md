@@ -18,29 +18,47 @@ sections after this one are the pre-fix handoff, kept as history.
   `CUDA_ERROR_OUT_OF_MEMORY` with about 53 GB free; `cuMemAlloc` works. cudarc
   0.19.7 chose stream-ordered allocation from the pool attribute alone.
 - **Fix.** `third_party/cudarc-0.19.7` (vendored published crate, governed
-  `[patch.crates-io]`) uses stream-ordered allocation only when the default
-  pool can be obtained. Only pool-unavailable errors select the synchronous
+  `[patch.crates-io]`) changes behaviour only in aarch64 Linux builds. Every
+  other target compiles upstream's allocator logic. On aarch64 Linux it uses
+  stream-ordered allocation only when the default pool can be obtained. Only pool-unavailable errors select the synchronous
   allocator, and others fail context creation. The decision is made once per
-  device per process, so every context wrapper agrees. Zero-byte synchronous
-  requests return null.
+  device per process, so every context wrapper agrees. A cached decision
+  stays valid, because the default pool survived context teardown in 40 / 40
+  measured processes. Zero-byte synchronous requests return null.
   See its `FATHOMDB-PATCH.md` and `fathomdb-alloc-fallback.patch`.
 - **Tests.** `fathomdb-embedder` test `tegra_fragmented_va_cuda` reproduces
   the layout in-process and drives the real Candle probe (red 6 / 6, green
   11 / 11). After review fix 1 it also asserts, on integrated GPUs only, that
   the default pool is unavailable and that the context allocates
-  synchronously (12 / 12). `scripts/tests/test_vendored_cudarc.sh` runs the
-  vendored unit tests (fast tier, 11 tests).
+  synchronously (12 / 12). Since review fix 2 it asserts only on an integrated
+  GPU with the AGX Orin 64 GB's memory and skips elsewhere (12 / 12 on the
+  final code). `scripts/tests/test_vendored_cudarc.sh` runs the vendored unit
+  tests (fast tier, 15 tests covering both the on-target and the off-target
+  rule).
 - **Verification.** 100 / 100 fresh forced-CUDA open/embed/rerank/witness Node
   processes passed (Node 25, 24 and 26; in-tree and installed package);
   forced CPU passed 6 / 6. After review fix 1, a rebuilt artifact passed
   10 / 10 in-tree and 10 / 10 installed on Node 25, with forced CPU 3 / 3 in
-  each form. Counts, hashes and the Python wheel result are in
+  each form. After review fix 2 and the aarch64-only gating, the same
+  10 + 10 / 3 + 3 check passed again. The rebuilt Tegra Python wheel passed
+  10 / 10 (5 normal, 5 fragmented). Counts, hashes and the Python wheel result
+  are in
   the [receipt](../../../runs/0.8.27-slice-110-tegra/receipt.md#allocator-root-cause-and-fix).
 - **Still open.** `cuInit` itself can fail in very heap-heavy processes (25
   of 68 in the explicit-pool experiment's 400k-object variants); the
-  synchronous path is about 2.1–2.4 times slower per steady embed; Slice 110
+  synchronous path is about 1.9–2.4 times slower per steady embed; Slice 110
   stays IN_PROGRESS until independent review. Do not change release state
   before then.
+
+> **Revisit obligation (user-directed).** The aarch64-Linux-only cudarc
+> allocator workaround, and the early `cuInit` that will follow in this slice,
+> must be revisited at the **next micro release** and **loudly at the next
+> minor release**. Check four things: whether NVIDIA has fixed the
+> default-pool/`cuInit` address-space behaviour in a newer L4T/CUDA; whether
+> upstream cudarc gained a fallback or pool API, so the vendored copy can be
+> dropped; whether V8/Node changed the ARM64 mmap hint mask; and the planned
+> explicit-pool work to recover stream-ordered speed. Tracked as todos-ledger
+> `TC-9fef1b7c-4442-4c77-b925-992f338c9aac` (seq 270).
 
 ## Pre-fix handoff
 

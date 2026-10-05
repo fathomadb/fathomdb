@@ -1,0 +1,12 @@
+# Tegra wheel (review fix 2 / aarch64-only gating) smoke: python_smoke.py, fresh process per run,
+# odd runs normal layout, even runs fragmented (blockers at 38/68/98 GiB).
+{"layout": "normal", "outcome": "pass", "open_ms": 1381.2, "device": "cuda", "witness_delta": 111394816}
+{"layout": "fragment", "outcome": "pass", "open_ms": 1387.3, "device": "cuda", "witness_delta": 147456000}
+{"layout": "normal", "outcome": "pass", "open_ms": 1390.8, "device": "cuda", "witness_delta": 112693248}
+{"layout": "fragment", "outcome": "pass", "open_ms": 1413.5, "device": "cuda", "witness_delta": 147324928}
+{"layout": "normal", "outcome": "pass", "open_ms": 1394.4, "device": "cuda", "witness_delta": 112447488}
+{"layout": "fragment", "outcome": "pass", "open_ms": 1395.1, "device": "cuda", "witness_delta": 146698240}
+{"layout": "normal", "outcome": "pass", "open_ms": 1389.9, "device": "cuda", "witness_delta": 111398912}
+{"layout": "fragment", "outcome": "pass", "open_ms": 1391.8, "device": "cuda", "witness_delta": 146550784}
+{"layout": "normal", "outcome": "pass", "open_ms": 1384.3, "device": "cuda", "witness_delta": 111149056}
+{"layout": "fragment", "outcome": "pass", "open_ms": 1390.2, "device": "cuda", "witness_delta": 146046976}

@@ -316,8 +316,10 @@ product correctly refused with typed `FDB_EMBED_DEVICE_POLICY` /
 `third_party/cudarc-0.19.7` is the published crate (Cargo.lock checksum
 `1cea5f10a99e025c1b44ae2354c2d8326b25ddbd0baf76bde8e55cfd4018a2cc`), routed
 by a root `[patch.crates-io]` entry and governed by the pin-rot gate (exact
-path, local lock entry, licenses, patch note and tree digest). Its only change,
-in `src/driver/safe/core.rs`:
+path, local lock entry, licenses, patch note and tree digest). Its only changed
+file is `src/driver/safe/core.rs`. Since review fix 2, the changes below
+compile only for aarch64 Linux. Every other target compiles upstream 0.19.7's
+allocator logic unchanged (see [Scope](#review-fix-2-and-aarch64-linux-scope)):
 
 - a device uses stream-ordered allocation only if pools are supported **and**
   `cuDeviceGetDefaultMemPool` succeeds. Only `CUDA_ERROR_OUT_OF_MEMORY` and
@@ -335,8 +337,10 @@ in `src/driver/safe/core.rs`:
 `FATHOMDB-PATCH.md` and `fathomdb-alloc-fallback.patch` (applies with
 `patch -p1` to the published crate and reproduces the tree) sit in the vendor
 directory for upstreaming. cudarc 0.17.8 (`ug-cuda`) still resolves from
-crates.io. The forced-CUDA refusal contract is unchanged; its fake-provider
-tests run in the full gate.
+crates.io. The forced-CUDA refusal contract is unchanged. Its fake-provider
+tests are default-feature workspace tests. They were also run directly in
+review fix 2: `device_policy` passed 7 / 7 and `slice71_reranker_policy`
+8 / 8.
 
 ### Red and green
 
@@ -345,7 +349,7 @@ tests run in the full gate.
 | `fathomdb-embedder` test `tegra_fragmented_va_cuda` (fragmented layout, real Candle probe, tensor round trip, zero-element tensors) | 6 / 6 runs fail: `cuda_probe_failed`; direct probe `DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")` | 11 / 11 pass; default pool `CUDA_ERROR_OUT_OF_MEMORY`, context on the synchronous path. After review fix 1, which also asserts both, 12 / 12 |
 | Vendored unit tests (`scripts/tests/test_vendored_cudarc.sh`) | zero-length sync allocation fails with `CUDA_ERROR_INVALID_VALUE`; selection tests do not compile | 5 / 5 pass |
 | Review fix 1 vendored tests (once-per-device decision, pool-error triage) | do not compile; against a stub with the previous semantics 5 of 11 fail (unrelated errors downgraded, wrappers re-decide, failed and racing decisions disagree) | 11 / 11 pass |
-| Upstream cudarc driver tests, same features, raw-context tests excluded | 54 pass, 2 fail | 60 pass (54 + 5 new + 1 timing test), 1 fail |
+| Upstream cudarc driver tests, same features, raw-context tests excluded (measured before review fix 1; not rerun since) | 54 pass, 2 fail | 60 pass (54 + 5 new + 1 timing test), 1 fail |
 
 The two upstream failures on the published crate are `test_pinned_copy_is_faster`
 (a timing assertion that passed on the patched run) and
@@ -368,8 +372,9 @@ tree; its resolved binary matched the built hash.
 | In-tree `dist/` | 30 / 30 | 10 / 10 | 10 / 10 | 3 / 3 |
 | Installed package | 30 / 30 | 10 / 10 | 10 / 10 | 3 / 3 |
 
-The product does not report which allocator a context chose, so the path is
-inferred from steady embed latency, which is bimodal: 72 of the 100 CUDA runs
+The product does not report which allocator a context chose. In every Node
+series in this receipt, the synchronous / stream-ordered split is **inferred**
+from steady embed latency, which is bimodal: 72 of the 100 CUDA runs
 were synchronous (24.5–32.7 ms steady median) and 28 stream-ordered
 (8.8–17.3 ms). Medians: synchronous 25.7 ms, stream-ordered 10.9 ms in-tree
 and 12.4 ms installed, so the fallback costs about 2.1–2.4 times per steady
@@ -413,6 +418,8 @@ the installed package passed 10 / 10 (5 and 5). Forced CPU passed 3 / 3 in each
 form. All runs produced the same embedding values, and every witness delta was
 105–140 MiB ([analysis-fix1.txt](fix-verification/analysis-fix1.txt)). Steady
 embed medians were 25.5 / 25.7 ms synchronous and 11.4 / 13.1 ms stream-ordered.
+After review fix 1, the lint verb, the guard and the targeted suites were
+rerun. The full `agent-verify` was not.
 
 | Artifact (review fix 1) | SHA-256 |
 | --- | --- |
@@ -420,25 +427,86 @@ embed medians were 25.5 / 25.7 ms synchronous and 11.4 / 13.1 ms stream-ordered.
 | CUDA/rerank platform tarball | `4a9ec6973b38d471b9eb90a2a87c927191517de9395d37fb47d2a0494f319743` |
 | Main tarball (contents identical to the table above) | `9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257` |
 
-The Tegra Python wheel below was built before review fix 1. It was not rebuilt.
+### Review fix 2 and aarch64 Linux scope
+
+The second review raised a concern and allowed a push with follow-ups. The user
+also narrowed the fallback's scope.
+
+- **A cached "stream-ordered" decision.** The concern was that the decision
+  could outlive the context that justified it. This was measured in plain C
+  ([pool-teardown-evidence](pool-teardown-evidence/results.md)). The default
+  pool survived primary-context release to refcount 0 and non-primary destroy
+  in 40 / 40 processes, in open and free-gap layouts. The driver unmapped
+  nothing. With every window hole blocked, re-retain returned the same handle
+  and `cuMemAllocAsync` worked; 5 / 5 controls showed that the probe detects an
+  unavailable pool. There is no behaviour change; the code comment and the
+  patch note now state this measured claim. The free-gap runs refute
+  "the driver makes all window reservations in `cuInit`": the pool `mmap`ed a
+  new 20.47 GiB range. They confirm that an explicit pool survives teardown.
+- **`from_raw_context` ownership.** The doc now says that a `bind_to_thread`
+  failure after the wrapper exists destroys the context on drop. Upstream
+  behaves the same way.
+- **Regression test.** It asserts only on the measured target: an integrated
+  `cuda:0` with 60–64 GiB of device memory, the AGX Orin 64 GB. Elsewhere it
+  skips with a reason. A refused blocker `mmap` fails it only on the measured
+  target. 12 / 12 runs passed on the final code.
+- **aarch64 Linux only.** By user scope change, the default-pool probe, the
+  pool-error triage, the per-device table, the constructor cleanup and the
+  null zero-length handling compile only for
+  `cfg(all(target_os = "linux", target_arch = "aarch64"))`. Off-target
+  selection equals upstream's rule whatever the pool query would return; the
+  pure tests check this. Red came first: 29 compile errors, then 2 of 15 tests
+  failing against a flag-ignoring stub; green is 15 / 15. The Jetson used here
+  has no x86_64 standard library. The off-target branch was therefore compiled,
+  clippy-checked and unit-tested on this GPU from a copy with the cfg predicate
+  flipped (12 / 12, upstream rule). A real x86_64 build is left to CI.
+
+Final verification on commit `c7e3f2748`:
+
+- **Node CUDA artifact:** rebuilt with the same recipe. On Node 25.9.0, fresh
+  processes passed 10 / 10 in-tree and 10 / 10 installed, with 7 synchronous
+  and 3 stream-ordered in each form (inferred). Forced CPU passed 3 / 3 in each
+  form, all with the same embedding values
+  ([analysis-fix2.txt](fix-verification/analysis-fix2.txt)).
+- **Tegra Python wheel:** rebuilt and smoked, below.
+
+| Artifact (review fix 2) | SHA-256 |
+| --- | --- |
+| CUDA/rerank `.node` (built and installed) | `057eed2b344862592cfdd7fe7eec885dc66bd466a59c2b15d090bd30d05c4db0` |
+| CUDA/rerank platform tarball | `a56119d4b1415e31bc21898e076402b7587b3c48fb3c0ee5ce05045cadc7480b` |
+| Main tarball (contents unchanged) | `9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257` |
+| Tegra Python wheel | `29df2ead4bc4f3c0fc336a25755f73af919191fbc6aa0084305acba6de135a86` |
 
 ### Blast radius
 
 The vendored cudarc is compiled only where Candle's CUDA backend is: the Node
-`embed-cuda`/`rerank-cuda` artifact, the Python CUDA wheels (x86_64 manylinux
-and the host-native Tegra wheel), the CLI with `embed-cuda`/`rerank-cuda`, and
-the TC-5 CUDA benchmark. CPU, Metal and no-feature builds do not compile it.
-On devices whose default pool is available, including discrete GPUs, the
-selection keeps upstream's stream-ordered path. The additions are one
-`cuDeviceGetDefaultMemPool` call per device per process and a constructor
-error, rather than a silent downgrade, if that call fails for a reason other
-than pool unavailability. Root patches do not propagate:
-downstream Rust builds of the published crates with `embed-cuda` still resolve
-the unpatched crates.io cudarc.
+`embed-cuda`/`rerank-cuda` artifact, the Python CUDA wheels, the CLI with
+`embed-cuda`/`rerank-cuda`, and the TC-5 CUDA benchmark. CPU, Metal and
+no-feature builds do not compile it.
+
+- **Behaviour changes only in aarch64 Linux CUDA builds.** In practice these
+  are the host-native Tegra Python wheel and Node/CLI builds made on a Jetson.
+  There, devices whose default pool is available keep upstream's
+  stream-ordered path. The additions are:
+  - one `cuDeviceGetDefaultMemPool` call per device per process;
+  - a constructor error, rather than a silent downgrade, if that call fails
+    for a reason other than pool unavailability.
+- **Every other target sees no behaviour change at all.** This covers the
+  x86_64 manylinux CUDA wheel, Linux x64 and Windows CUDA Node builds, and
+  discrete GPUs off aarch64 Linux. They compile upstream's allocator logic.
+- **Root patches do not propagate.** Downstream Rust builds of the published
+  crates with `embed-cuda` still resolve the unpatched crates.io cudarc.
 
 ### Tegra Python wheel
 
-`scripts/release/build-python-cuda-tegra.sh` built
+**Final (review fix 2, aarch64-only gating).** The wheel was rebuilt on commit
+`c7e3f2748` with the same script, interpreter and maturin 1.14.1, and
+`cargo tree` resolved the vendored cudarc. It was installed offline into a
+fresh scratch venv. All 10 fresh processes passed (5 normal, 5 fragmented),
+each on the `cuda` effective device, with witness deltas of 106–141 MiB
+([python-smoke-fix2.txt](fix-verification/python-smoke-fix2.txt)).
+
+**Before review fix 1.** `scripts/release/build-python-cuda-tegra.sh` built
 `fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl` (sha256
 `d7d1b651a1fb6120b7d0e6d85fa73f1bd8418f2336ec8beaa67143ef2efcdc73`) with
 maturin 1.14.1; `cargo tree` for that build resolved the vendored cudarc. The
@@ -465,7 +533,13 @@ needs the process to be the only GPU consumer.
   400k-object variants 25 of 68 processes created no CUDA context
   ([analysis](explicit-pool-experiment/analysis.txt)). The allocator fallback
   does not address it; forced CUDA still refuses with the typed error there.
-- The synchronous path is about 2.1–2.4 times slower per steady embed.
+- The synchronous path is about 1.9–2.4 times slower per steady embed. This
+  range comes from the steady-embed medians of all three Node rounds:
+  25.4–26.7 ms synchronous against 10.9–13.9 ms stream-ordered.
+- **Revisit obligation.** At the user's direction, this aarch64-Linux-only
+  allocator workaround, and the early `cuInit` that will follow in this slice,
+  must be revisited at the next micro release and loudly at the next minor
+  release (todos ledger `TC-9fef1b7c-4442-4c77-b925-992f338c9aac`, seq 270).
 - The Slice 110 runtime row is fixed for the allocator failure but remains
   **IN_PROGRESS** pending independent review.
 
@@ -478,4 +552,7 @@ and the NVIDIA report draft. Local paths in scripts were replaced by
 `*.sh.txt` because they are run records with redacted paths, not maintained
 scripts. Not committed (left on the Jetson host): `maps-all.tar.xz`, all raw
 per-run logs (`logs*/`, `c-logs/`, `cuinit-threshold/`, `replay/`), the
-`strace` output, and the build logs.
+`strace` output, and the build logs. The review fix 2
+[pool-teardown-evidence](pool-teardown-evidence/results.md) keeps the probe,
+the runner, the counted `RESULT` lines and one sample log per series; the
+other per-run logs are omitted.

@@ -532,28 +532,34 @@ fragmented, `cuDeviceGetDefaultMemPool` and every `cuMemAllocAsync` return
 `CUDA_ERROR_OUT_OF_MEMORY` with more than 50 GB free, while synchronous
 `cuMemAlloc` works. Three 4 KiB `PROT_NONE` pages at 38, 68 and 98 GiB, mapped
 before `cuInit`, reproduced it in every measured run (20 / 20 plain C runs,
-23 / 23 regression-test runs). Node/V8 heaps fragment the
+35 / 35 regression-test runs). Node/V8 heaps fragment the
 window by accident, so Node forced-CUDA opens failed intermittently while a
 plain Python process usually passed.
 
 - Upstream cudarc selects stream-ordered allocation from the pool attribute
   alone and its decision field is crate-private. The vendored
   `third_party/cudarc-0.19.7` therefore allocates synchronously when the
-  default pool is unavailable (`CUDA_ERROR_OUT_OF_MEMORY` or
-  `CUDA_ERROR_NOT_SUPPORTED`; other errors fail context creation). It decides
+  default pool is unavailable. This is compiled only for aarch64 Linux; other
+  targets keep upstream's logic. The pool counts as unavailable on
+  `CUDA_ERROR_OUT_OF_MEMORY` or `CUDA_ERROR_NOT_SUPPORTED`; other errors fail
+  context creation. It decides
   once per device per process, so every context wrapper of a device frees with
-  the same API. It also returns a null pointer for zero-byte synchronous
+  the same API. That is sound because the default pool, once obtained,
+  survived context teardown in 40 / 40 measured processes
+  (`dev/plans/runs/0.8.27-slice-110-tegra/pool-teardown-evidence/`). It also returns a null pointer for zero-byte synchronous
   requests, which `cuMemAlloc` rejects. Its `FATHOMDB-PATCH.md` records the
   delta.
 - The regression test is
   `src/rust/crates/fathomdb-embedder/tests/tegra_fragmented_va_cuda.rs`. On an
-  integrated GPU it asserts that the blockers make the default pool unavailable
-  and that the context allocates synchronously; elsewhere it skips with a
-  notice. The
+  integrated GPU with the AGX Orin 64 GB's 60–64 GiB of device memory it
+  asserts that the blockers make the default pool unavailable and that the
+  context allocates synchronously. Smaller Jetsons need a smaller pool (about
+  a third of memory, inferred) that may fit, so there and elsewhere the test
+  skips with a notice. The
   C reproducer and the address-space measurements are in
   `dev/plans/runs/0.8.27-slice-110-tegra/driver-isolation-evidence/`.
 - The fallback is slower: a steady default-embedder embed took about 25 ms
-  against about 10 ms on the stream-ordered path.
+  against about 11–14 ms on the stream-ordered path (about 1.9–2.4 times).
 - Root `[patch.crates-io]` entries do not propagate. A downstream Rust build
   of the published crates with `embed-cuda` resolves unpatched cudarc and
   keeps the failure.
@@ -562,6 +568,15 @@ plain Python process usually passed.
   4 GiB hole is left in the window. In the Slice 110 explicit-pool
   experiment's 400k-object variants, 25 of 68 processes created no CUDA
   context. The allocator fallback cannot help there.
+- **Revisit obligation (user-directed):** revisit this aarch64-Linux-only
+  allocator workaround, and the early `cuInit` planned in Slice 110, at the
+  **next micro release** and **loudly at the next minor release**. Check
+  whether a newer L4T/CUDA fixes the default-pool/`cuInit` address-space
+  behaviour (rerun `minimal_repro.c` and `pool_teardown.c`); whether upstream
+  cudarc gained a fallback or pool API, so the vendored copy can be dropped;
+  whether V8/Node changed the ARM64 mmap hint mask; and the planned
+  explicit-pool work to recover stream-ordered speed. Tracked as todos-ledger
+  `TC-9fef1b7c-4442-4c77-b925-992f338c9aac`.
 
 ## 8. CI, runners, and known gaps
 

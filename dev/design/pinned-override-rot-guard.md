@@ -66,7 +66,8 @@ come, so a pin outlives its reason and silently holds the tree back.
   admitted only at their exact path, version, licenses, local `Cargo.lock`
   package, and checker-owned vendored-tree digest: `libsqlite3-sys` 0.38.1
   with the SQLite Windows WAL path backport (plus its amalgamation digest),
-  and `cudarc` 0.19.7 with the Tegra allocator fallback (plus its upstream
+  and `cudarc` 0.19.7 with the Tegra allocator fallback, compiled only for
+  aarch64 Linux (plus its upstream
   crate checksum and patch note). Any other Cargo `[patch]`, `[replace]`, or
   direct Git dependency fails as unsupported rather than being interpreted by
   a general package-ID parser. Repository `.cargo/config.toml` and

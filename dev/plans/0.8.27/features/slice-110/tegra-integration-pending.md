@@ -163,6 +163,19 @@ candidate evidence, not a merge or Slice 110 closure.
   both device resolutions reporting CPU. The witness requires
   `FATHOMDB_GPU_ALLOCATION_WITNESS=1`; without that opt-in, its `null` report
   field is expected and is not a CUDA failure.
+- A follow-up CUDA run on the same candidate built a host-native Python wheel
+  with `embed-cuda,rerank-cuda`, installed it into an isolated Python 3.12
+  environment, and passed forced CUDA open, embedding, reranking and
+  allocation-witness checks in four fresh processes (4/4). The wheel SHA-256
+  was `08bb82395d866cf92b274da9a7cccb5f20bdf88bd43420e893215ef34159aee3`.
+  Every run selected CUDA for both components, recorded a 134,217,728-byte
+  GPU delta on the named RTX 3090, returned 384 embedding values and reranked
+  two passages with finite scores. The installed Node package repeated the
+  same CUDA checks in three more fresh processes (3/3, 6/6 across the two
+  Node rounds). With `CUDA_VISIBLE_DEVICES=-1`, both installed consumers
+  refused forced `cuda:0` with `NoVisibleCudaDevice` (1/1 each), rather than
+  falling back to CPU. The Python wheel is a host-only regression artifact
+  built with maturin 1.14.0; it is not the release manylinux wheel.
 - The full `agent-verify` attempt stopped at preflight because this
   worktree lacks `.venv/bin/python`. No full-gate result is claimed. The
   checkout must be prepared for a final source gate without an editable

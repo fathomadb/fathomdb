@@ -685,6 +685,48 @@ The embedder's new `cuInit` record compiles into it but is never read there.
   failed `clippy -D warnings` with `rerank-cuda` on the Jetson, at the slice
   baseline too. It now carries the same `allow` as the embedder's helper.
 
+### Full `agent-verify` (early-cuInit round)
+
+This was run on commit `97bc934e9`, with the same two host adjustments as
+review fix 2: `TERM` unset, and the untracked omitted evidence hidden through
+an environment-scoped `core.excludesFile`. The checkout's config was not
+changed.
+
+`./scripts/agent-verify.sh` **failed at the lint step and stopped**. As at
+the baseline, the only failing lint check was `check-runtime-checkpoints`:
+the Slice 90 D27 bundle is missing on this host. Every earlier lint step
+passed, including shell, workspace clippy, rustfmt, migrations, pin-rot,
+ruff and actionlint. The Markdown checks that come after the failing one
+were run directly, and all passed for the changed files: traceability,
+architecture authority, design lifecycle, plan anchors, release-state views,
+the `docs/` lint and the offline link check. The later verbs were then run
+directly:
+
+- typecheck rc=0;
+- `STRICT=1 AC037_LIVE_OPTIONAL=1 agent-security.sh` rc=0, with AC-036;
+- `agent-test.sh --tier=all`: 184 suites registered, 178 passed and 6
+  failed. The new suite brings the count from 183 to 184. On this run it
+  printed SKIP and passed, because `FATHOMDB_TEGRA_NODE_PACKAGE` was unset.
+
+The 6 failing suites are the same 6 as in review fix 2, with the same causes:
+`test-preflight-release-state`, `test-pypi-publish-roundtrip`,
+`test-check-release-state-views` (arm R5), `test-shell-pipefail-guards` (its
+arm 4), `test-rust` and `test-python`.
+
+- `test-rust` failed only in `fathomdb-py --lib`, because `libpython3.13` was
+  not on the loader path. With that directory added, the same binary passed
+  19 / 19.
+- `test-python` had 1565 passed and 10 failed. Nine are subprocess tests that
+  cannot import the package (seven `fathomdb`, two `eval`), because no
+  editable install may be made from a worktree. One is the `classic_tegra`
+  platform probe. The logging-subscriber timing test that failed in review
+  fix 2 passed this time.
+
+No failure involves a file changed in this round. Workspace clippy in the
+lint verb uses default features. Clippy with `embed-cuda`, `rerank-cuda` and
+both, for the embedder and the napi crate, was run separately on the Jetson
+and is clean.
+
 ### Open limitations
 
 - **Late import.** If the JavaScript heap grows before fathomdb is loaded,

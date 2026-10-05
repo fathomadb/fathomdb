@@ -496,7 +496,8 @@ footprint. It is recorded *in* the witness so the verdict stays re-derivable
 ### 7.5 Driver access path
 
 The CUDA driver API is reached through cudarc 0.19.7 re-exported by the pinned
-Candle fork:
+Candle fork. The workspace resolves that cudarc from the vendored, patched copy
+in `third_party/cudarc-0.19.7` (§ 7.7):
 
 ```rust
 candle_core::cuda::cudarc::driver::result::mem_get_info()
@@ -520,6 +521,40 @@ follow that idiom rather than inventing a second one.
 
 `auto` **does** select CUDA. A CPU resolution under `auto` on a CUDA-compiled
 artifact is a failure, not a pass.
+
+### 7.7 The default memory pool needs contiguous address space
+
+Measured on this Orin (L4T R36.5.2, driver 540.5.0, CUDA 12.6) in Slice 110.
+The driver reports `CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED`, but the
+device's default memory pool needs **one contiguous 20960 MiB range of the
+process's virtual address space inside [8 GiB, 128 GiB)**. When that window is
+fragmented, `cuDeviceGetDefaultMemPool` and every `cuMemAllocAsync` return
+`CUDA_ERROR_OUT_OF_MEMORY` with more than 50 GB free, while synchronous
+`cuMemAlloc` works. Three 4 KiB `PROT_NONE` pages at 38, 68 and 98 GiB, mapped
+before `cuInit`, reproduce it deterministically. Node/V8 heaps fragment the
+window by accident, so Node forced-CUDA opens failed intermittently while a
+plain Python process usually passed.
+
+- Upstream cudarc selects stream-ordered allocation from the pool attribute
+  alone and its decision field is crate-private. The vendored
+  `third_party/cudarc-0.19.7` therefore allocates synchronously when the
+  default pool cannot be obtained, and returns a null pointer for zero-byte
+  synchronous requests, which `cuMemAlloc` rejects. Its `FATHOMDB-PATCH.md`
+  records the delta.
+- The regression test is
+  `src/rust/crates/fathomdb-embedder/tests/tegra_fragmented_va_cuda.rs`; the
+  C reproducer and the address-space measurements are in
+  `dev/plans/runs/0.8.27-slice-110-tegra/driver-isolation-evidence/`.
+- The fallback is slower: a steady default-embedder embed took about 25 ms
+  against about 10 ms on the stream-ordered path.
+- Root `[patch.crates-io]` entries do not propagate. A downstream Rust build
+  of the published crates with `embed-cuda` resolves unpatched cudarc and
+  keeps the failure.
+- **Not fixed:** in very heap-heavy Node processes `cuInit` itself can fail
+  with `CUDA_ERROR_OUT_OF_MEMORY` before any allocation, apparently when no
+  4 GiB hole is left in the window. In the Slice 110 explicit-pool
+  experiment's 400k-object variants, 25 of 68 processes created no CUDA
+  context. The allocator fallback cannot help there.
 
 ## 8. CI, runners, and known gaps
 

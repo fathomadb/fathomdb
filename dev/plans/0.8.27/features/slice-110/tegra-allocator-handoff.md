@@ -6,6 +6,37 @@ target_release: 0.8.27
 
 # Slice 110 Tegra CUDA allocator handoff
 
+## Outcome (allocator fix, pending review)
+
+The intermittent refusal is root-caused and fixed on this branch; the
+sections after this one are the pre-fix handoff, kept as history.
+
+- **Root cause.** The Orin driver reports memory-pool support, but the
+  device's default pool needs one contiguous 20960 MiB range of process
+  address space inside [8 GiB, 128 GiB). Node heaps fragment that window, so
+  `cuDeviceGetDefaultMemPool` and `cuMemAllocAsync` return
+  `CUDA_ERROR_OUT_OF_MEMORY` with about 53 GB free; `cuMemAlloc` works. cudarc
+  0.19.7 chose stream-ordered allocation from the pool attribute alone.
+- **Fix.** `third_party/cudarc-0.19.7` (vendored published crate, governed
+  `[patch.crates-io]`) uses stream-ordered allocation only when the default
+  pool can be obtained and returns null for zero-byte synchronous requests.
+  See its `FATHOMDB-PATCH.md` and `fathomdb-alloc-fallback.patch`.
+- **Tests.** `fathomdb-embedder` test `tegra_fragmented_va_cuda` reproduces
+  the layout in-process and drives the real Candle probe (red 6 / 6, green
+  11 / 11). `scripts/tests/test_vendored_cudarc.sh` runs the vendored unit
+  tests (fast tier).
+- **Verification.** 100 / 100 fresh forced-CUDA open/embed/rerank/witness Node
+  processes passed (Node 25, 24 and 26; in-tree and installed package);
+  forced CPU passed 6 / 6. Counts, hashes and the Python wheel result are in
+  the [receipt](../../../runs/0.8.27-slice-110-tegra/receipt.md#allocator-root-cause-and-fix).
+- **Still open.** `cuInit` itself can fail in very heap-heavy processes (25
+  of 68 in the explicit-pool experiment's 400k-object variants); the
+  synchronous path is about 2.1–2.4 times slower per steady embed; Slice 110
+  stays IN_PROGRESS until independent review. Do not change release state
+  before then.
+
+## Pre-fix handoff
+
 This note is for the local agent continuing Slice 110. The work branch
 `llm/slice110-tegra-allocator-fix` starts from `release/0.8.27` at
 `1a6cd4938017f2cd3a5a05b8692bf40fd09fe86f`. Verify the actual branch and
@@ -15,7 +46,7 @@ Slice 110 remains **IN_PROGRESS** only because the installed Jetson Node
 forced-CUDA runtime row is intermittent. Do not advance release state or
 represent one successful run as qualification.
 
-## What is proven
+### What is proven
 
 - The NAPI decomposition and subscriber contract passed independent review,
   local `agent-verify` (182/182 suites), and exact installed package checks on
@@ -57,7 +88,7 @@ represent one successful run as qualification.
   heap limit comparison did not improve Node pass rate. No retry, CPU fallback,
   or production allocator change has been made.
 
-## Evidence and next experiment
+### Evidence and next experiment
 
 The [Tegra receipt](../../../runs/0.8.27-slice-110-tegra/receipt.md) binds
 source, toolchain, artifacts and all attempt counts. The retained

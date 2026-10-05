@@ -13,9 +13,11 @@
 | --- | --- | --- |
 | Node 25 thin-main and installed CPU package | PASS | Fresh external consumer, runtime surface, subscriber, reopen, typecheck, and CPU embedding all pass. |
 | Tegra `embed-cuda,rerank-cuda` package build and installed package | PASS | The host-native CUDA package builds and a fresh external consumer passes the same package, surface, subscriber, reopen, and typecheck checks. Forced CPU embedding and reranking through this CUDA-capable package also pass. |
-| Node NAPI forced-CUDA runtime | OPEN | Fresh processes intermittently fail the minimal CUDA probe with `CUDA_ERROR_OUT_OF_MEMORY`; a single successful open is not a qualification. |
+| Node NAPI forced-CUDA runtime | FIXED for the allocator failure; pending independent review | Root cause and fix: [allocator fallback](#allocator-root-cause-and-fix). With the fix, 100 / 100 fresh forced-CUDA processes passed open, embed, rerank and the allocation witness (Node 25, 24 and 26; in-tree and installed). Open limitations: `cuInit` failure in very heap-heavy processes and a slower fallback path. |
 
-The open row is a runtime-capacity/availability finding, not a claim that the
+The sections before [the allocator fix](#allocator-root-cause-and-fix) record
+the investigation while this row was OPEN; their OPEN wording is historical.
+The open row was a runtime-capacity/availability finding, not a claim that the
 artifact lacks CUDA. It preserves the architecture's policy boundary: the
 JavaScript thin main keeps the stable public API, while the platform package
 owns the native binary and CUDA capability. The package can be built and
@@ -277,3 +279,159 @@ receipt.
 No product code changed during these diagnostics. This receipt records the
 independent Tegra investigation; the isolated remote build and consumer
 directories can be removed after the retained evidence is verified.
+
+## Allocator root cause and fix
+
+**Branch:** `llm/slice110-tegra-allocator-fix`. Product-code fix commit:
+`954ddd760` (vendored cudarc); the failing tests precede it at `78a7fc01b`
+and `1fed05e5b`. Same host, driver, toolkit and toolchain as above (Node
+25.9.0, 24.15.0 and 26.10.0 under nvm; Rust 1.95.0; NVCC 12.6.68).
+
+### Root cause
+
+The driver reports `CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED`, but the
+device's default memory pool needs one contiguous 20960 MiB range of the
+process's virtual address space inside [8 GiB, 128 GiB). Node/V8 scatters heap
+pages through that window. When no such range is left,
+`cuDeviceGetDefaultMemPool` and every `cuMemAllocAsync` return
+`CUDA_ERROR_OUT_OF_MEMORY` with about 53 GB free, while synchronous
+`cuMemAlloc` works. A plain C program reproduces it 20 / 20 by mapping three
+4 KiB `PROT_NONE` pages at 38, 68 and 98 GiB before `cuInit`, and passes 20 / 20
+without them. A placement rule (pool available iff the largest driver
+reservation is at least 30.6 GiB or the largest hole in the window is at least
+20960 MiB) matched 2149 / 2149 C runs and 63 / 63 earlier Node runs. See
+[driver-isolation-evidence/results.md](driver-isolation-evidence/results.md),
+[minimal_repro.c](driver-isolation-evidence/minimal_repro.c) and the unposted
+[NVIDIA report draft](driver-isolation-evidence/nvidia-report-draft.md).
+
+cudarc 0.19.7 (pulled in by the Candle fork) decides stream-ordered versus
+synchronous allocation once per context from the pool attribute alone, with no
+fallback, and the field is crate-private. Candle's first `Tensor::zeros` in
+the CUDA probe therefore failed whenever the layout was fragmented, and the
+product correctly refused with typed `FDB_EMBED_DEVICE_POLICY` /
+`cuda_probe_failed`.
+
+### Fix
+
+`third_party/cudarc-0.19.7` is the published crate (Cargo.lock checksum
+`1cea5f10a99e025c1b44ae2354c2d8326b25ddbd0baf76bde8e55cfd4018a2cc`), routed
+by a root `[patch.crates-io]` entry and governed by the pin-rot gate (exact
+path, local lock entry, licenses, patch note and tree digest). Its only change,
+in `src/driver/safe/core.rs`:
+
+- a context uses stream-ordered allocation only if pools are supported **and**
+  `cuDeviceGetDefaultMemPool` succeeds; otherwise `cuMemAlloc`. The decision
+  is made once per context in all four constructors, with no environment
+  switch, and every alloc and free branch reads it;
+- zero-byte synchronous requests return a null pointer (`cuMemAlloc(0)` is
+  `CUDA_ERROR_INVALID_VALUE`, `cuMemAllocAsync(0)` returns null), and a null
+  pointer is never passed to `cuMemFree`.
+
+`FATHOMDB-PATCH.md` and `fathomdb-alloc-fallback.patch` (applies with
+`patch -p1` to the published crate and reproduces the tree) sit in the vendor
+directory for upstreaming. cudarc 0.17.8 (`ug-cuda`) still resolves from
+crates.io. The forced-CUDA refusal contract is unchanged; its fake-provider
+tests run in the full gate.
+
+### Red and green
+
+| Check | Before the fix | After the fix |
+| --- | --- | --- |
+| `fathomdb-embedder` test `tegra_fragmented_va_cuda` (fragmented layout, real Candle probe, tensor round trip, zero-element tensors) | 6 / 6 runs fail: `cuda_probe_failed`; direct probe `DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")` | 11 / 11 pass; default pool `CUDA_ERROR_OUT_OF_MEMORY`, context on the synchronous path |
+| Vendored unit tests (`scripts/tests/test_vendored_cudarc.sh`) | zero-length sync allocation fails with `CUDA_ERROR_INVALID_VALUE`; selection tests do not compile | 5 / 5 pass |
+| Upstream cudarc driver tests, same features, raw-context tests excluded | 54 pass, 2 fail | 60 pass (54 + 5 new + 1 timing test), 1 fail |
+
+The two upstream failures on the published crate are `test_pinned_copy_is_faster`
+(a timing assertion that passed on the patched run) and
+`test_unified_memory_host` (fails on both). The excluded `from_raw_context` and
+non-primary-context tests crash with `SIGSEGV` on the published crate as well.
+
+### Full-path Node verification
+
+Fresh processes, one at a time, under the shared GPU lock, with
+`FATHOMDB_EMBED_DEVICE=cuda:0`, `FATHOMDB_RERANK_DEVICE=cuda:0` and
+`FATHOMDB_GPU_ALLOCATION_WITNESS=1`. Each run opens with the default embedder,
+checks the open report and witness, embeds 11 times, reranks twice and
+closes. The installed form packed the thin main and the
+`fathomdb-linux-arm64-gnu` platform package and installed both offline, with
+lifecycle scripts disabled, into a fresh consumer directory outside the source
+tree; its resolved binary matched the built hash.
+
+| Form | Node 25.9.0 | Node 24.15.0 | Node 26.10.0 | Forced CPU (Node 25) |
+| --- | --- | --- | --- | --- |
+| In-tree `dist/` | 30 / 30 | 10 / 10 | 10 / 10 | 3 / 3 |
+| Installed package | 30 / 30 | 10 / 10 | 10 / 10 | 3 / 3 |
+
+The product does not report which allocator a context chose, so the path is
+inferred from steady embed latency, which is bimodal: 72 of the 100 CUDA runs
+were synchronous (24.5–32.7 ms steady median) and 28 stream-ordered
+(8.8–17.3 ms). Medians: synchronous 25.7 ms, stream-ordered 10.9 ms in-tree
+and 12.4 ms installed, so the fallback costs about 2.1–2.4 times per steady
+embed. First embed was 59–62 ms against 47 ms; open time was unchanged at about
+1.4 s. Every witness delta cleared the 64 MiB floor (105–164 MiB). All 100
+CUDA embeddings had identical leading values, as did all six CPU ones.
+Runner, consumer, analysis and hashes are in
+[fix-verification](fix-verification/); the committed `run-series.sh` is the
+shellcheck-clean form of the runner used, with the same behaviour.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| CUDA/rerank `.node` (built and installed) | `dd625fd7de9e3d352fad3bc9718f2af26e29872164abe817ce76771d05aac5ce` |
+| CUDA/rerank platform tarball | `b4f41e454255bd767ad515e7b50df8c28f748a83e012c4b645edecdab2cca794` |
+| Main tarball | `5c7ab8b1779041ee393a9d1cee1e882a731220f778f7c164caee9b354b2a133b` |
+
+### Blast radius
+
+The vendored cudarc is compiled only where Candle's CUDA backend is: the Node
+`embed-cuda`/`rerank-cuda` artifact, the Python CUDA wheels (x86_64 manylinux
+and the host-native Tegra wheel), the CLI with `embed-cuda`/`rerank-cuda`, and
+the TC-5 CUDA benchmark. CPU, Metal and no-feature builds do not compile it.
+On devices whose default pool is available, including discrete GPUs, the
+selection keeps upstream's stream-ordered path; the only addition is one
+`cuDeviceGetDefaultMemPool` call per context. Root patches do not propagate:
+downstream Rust builds of the published crates with `embed-cuda` still resolve
+the unpatched crates.io cudarc.
+
+### Tegra Python wheel
+
+`scripts/release/build-python-cuda-tegra.sh` built
+`fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl` (sha256
+`d7d1b651a1fb6120b7d0e6d85fa73f1bd8418f2336ec8beaa67143ef2efcdc73`) with
+maturin 1.14.1; `cargo tree` for that build resolved the vendored cudarc. The
+wheel was installed into a scratch venv (never `pip install -e` from the
+worktree) and driven by `fix-verification/python_smoke.py`, which forces
+`cuda:0` with the allocation witness on, opens, writes and searches. With
+`fragment` it maps the same three PROT_NONE blockers before importing
+fathomdb. On a quiet host, all 10 fresh processes passed (5 normal, 5
+fragmented), each reporting the `cuda` effective device, with witness deltas
+of 105–140 MiB
+([python-smoke-quiet.txt](fix-verification/python-smoke-quiet.txt)).
+
+An earlier series of 10 ran while a heavy cargo test was using the same
+unified memory, and 8 passed. Both failures were the witness's
+`insufficient_delta` check (one fragmented, one normal), not device
+resolution. The witness reads a system-wide `cuMemGetInfo` counter, so it
+needs the process to be the only GPU consumer.
+
+### Open limitations
+
+- In very heap-heavy Node processes `cuInit` itself can fail with
+  `CUDA_ERROR_OUT_OF_MEMORY` before any context exists, apparently when no
+  4 GiB hole is left in the window. In the explicit-pool experiment's
+  400k-object variants 25 of 68 processes created no CUDA context
+  ([analysis](explicit-pool-experiment/analysis.txt)). The allocator fallback
+  does not address it; forced CUDA still refuses with the typed error there.
+- The synchronous path is about 2.1–2.4 times slower per steady embed.
+- The Slice 110 runtime row is fixed for the allocator failure but remains
+  **IN_PROGRESS** pending independent review.
+
+### Evidence retained and omitted
+
+The four experiment directories are committed after pruning, following the
+idle-host curation: reproducer sources, analysis scripts, patches, summaries
+and the NVIDIA report draft. Local paths in scripts were replaced by
+`<worktree>` and `<scratch>`. The earlier series drivers are archived as
+`*.sh.txt` because they are run records with redacted paths, not maintained
+scripts. Not committed (left on the Jetson host): `maps-all.tar.xz`, all raw
+per-run logs (`logs*/`, `c-logs/`, `cuinit-threshold/`, `replay/`), the
+`strace` output, and the build logs.

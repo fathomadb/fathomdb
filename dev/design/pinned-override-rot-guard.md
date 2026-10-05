@@ -56,13 +56,18 @@ come, so a pin outlives its reason and silently holds the tree back.
   cannot be evaluated by a future reader. The existing `comment-overrides`
   convention is the shape; the guard should require *a* rationale, not a
   particular prose style.
-- **R4 — the Candle exception is reproducible and explicitly bounded.** The
-  only supported Cargo exception is the root `[patch.crates-io]` cohort for
-  `candle-core-fathomdb`, `candle-nn-fathomdb`, and
-  `candle-transformers-fathomdb`. All three must use the one checker-owned
-  coreyt/candle-fathomdb immutable revision, version `0.10.2`, and exact
-  `git+…?rev=…#…` `Cargo.lock` source. A missing member, split revision, or
-  lock-source disagreement fails. Any other Cargo `[patch]`, `[replace]`, or
+- **R4 — the Cargo exceptions are reproducible and explicitly bounded.** The
+  only supported Cargo exceptions are three root `[patch.crates-io]` entries.
+  The Candle cohort (`candle-core-fathomdb`, `candle-kernels`,
+  `candle-nn-fathomdb`, `candle-transformers-fathomdb`) must use the one
+  checker-owned coreyt/candle-fathomdb immutable revision, version `0.10.2`,
+  and exact `git+…?rev=…#…` `Cargo.lock` source; a missing member, split
+  revision, or lock-source disagreement fails. Two local vendor copies are
+  admitted only at their exact path, version, licenses, local `Cargo.lock`
+  package, and checker-owned vendored-tree digest: `libsqlite3-sys` 0.38.1
+  with the SQLite Windows WAL path backport (plus its amalgamation digest),
+  and `cudarc` 0.19.7 with the Tegra allocator fallback (plus its upstream
+  crate checksum and patch note). Any other Cargo `[patch]`, `[replace]`, or
   direct Git dependency fails as unsupported rather than being interpreted by
   a general package-ID parser. Repository `.cargo/config.toml` and
   `.cargo/config` are also fail-closed: any `[patch]` table or an unparseable
@@ -87,13 +92,16 @@ vulnerable". It does **not** answer "is this pin still the right pin", which is
 R2, nor does it distinguish a vulnerability the pin *caused* from one it merely
 failed to prevent. Use `npm audit` as one input; do not stop there.
 
-**Scope beyond npm, deliberately.** The root Candle patch cohort is in scope;
-Cargo override grammar is not. `cargo_candle_exception` records the single
+**Scope beyond npm, deliberately.** The root Cargo patches are in scope;
+Cargo override grammar is not. `cargo_candle_exception` records the Git
 exception and its `external-source-unassessed` advisory posture: the checked-in
 npm GitHub Advisory snapshot does not support a Rust vulnerability assertion.
 It is not a substitute for a Rust advisory scan and must never be phrased as
 "no known vulnerabilities"; changing the immutable revision requires a fresh
-human advisory review and a deliberate guard redesign. `scripts/governed-
+human advisory review and a deliberate guard redesign.
+`cargo_sqlite_exception` and `cargo_cudarc_exception` record the two local
+vendor copies; changing either tree changes its digest and needs the checker
+constant and metadata updated together. `scripts/governed-
 surface-pin.json` pins repository contract content rather than an external
 dependency version, so its integrity remains owned by
 `scripts/check-governed-surface-pin.sh`.
@@ -108,9 +116,11 @@ dependency version, so its integrity remains owned by
 - Red-first is required: the test must construct a pin that has become
   vulnerable and prove the guard fails on it. Re-pinning js-yaml back to 4.2.0
   in a fixture is the exact historical case and makes the regression concrete.
-- Cargo fixtures must prove the narrow exception: the approved three-package
-  Candle cohort passes, but a missing/split/revision/lock drift fails and any
-  `[replace]` or direct Git dependency is unsupported.
+- Cargo fixtures must prove the narrow exceptions: the approved four-package
+  Candle cohort passes, but a missing/split/revision/lock drift fails; a
+  missing, re-pathed, or modified SQLite or cudarc vendor copy fails, as does
+  an unlicensed or registry-locked cudarc copy; and any `[replace]` or direct
+  Git dependency is unsupported.
 - The guard runs where it can act — this is cheap and static, so it belongs in
   the fast, always-on tier alongside the other governance gates, not behind the
   ~35-minute `verify`.

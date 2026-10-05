@@ -1,0 +1,9 @@
+# Built from commit 954ddd760 (vendored cudarc allocator fix), Node 25.9.0 /
+# npm 11.12.1, Rust 1.95.0, NVCC 12.6.68, CUDA_COMPUTE_CAP=87,
+# features embed-cuda,rerank-cuda. The installed consumer's resolved
+# fathomdb-linux-arm64-gnu binary had the same hash as the built one.
+dd625fd7de9e3d352fad3bc9718f2af26e29872164abe817ce76771d05aac5ce  fathomdb.linux-arm64-gnu.node
+b4f41e454255bd767ad515e7b50df8c28f748a83e012c4b645edecdab2cca794  fathomdb-linux-arm64-gnu-0.8.26.tgz
+5c7ab8b1779041ee393a9d1cee1e882a731220f778f7c164caee9b354b2a133b  fathomdb-0.8.26.tgz
+# Tegra Python wheel: scripts/release/build-python-cuda-tegra.sh, maturin 1.14.1.
+d7d1b651a1fb6120b7d0e6d85fa73f1bd8418f2336ec8beaa67143ef2efcdc73  fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl

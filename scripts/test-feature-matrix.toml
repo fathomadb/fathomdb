@@ -114,10 +114,6 @@ features = ["default-reranker"]
 
 [[extra]]
 crate = "fathomdb-embedder"
-features = ["embed-cuda"]
-
-[[extra]]
-crate = "fathomdb-embedder"
 features = ["rerank-cuda"]
 
 [[extra]]

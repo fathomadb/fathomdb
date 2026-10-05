@@ -7,3 +7,10 @@ b4f41e454255bd767ad515e7b50df8c28f748a83e012c4b645edecdab2cca794  fathomdb-linux
 5c7ab8b1779041ee393a9d1cee1e882a731220f778f7c164caee9b354b2a133b  fathomdb-0.8.26.tgz
 # Tegra Python wheel: scripts/release/build-python-cuda-tegra.sh, maturin 1.14.1.
 d7d1b651a1fb6120b7d0e6d85fa73f1bd8418f2336ec8beaa67143ef2efcdc73  fathomdb-0.8.26+tegra-cp310-abi3-linux_aarch64.whl
+# Review fix 1: rebuilt from commit 671c2349a (one allocator decision per
+# device, strict pool-error triage) with the same toolchain and features; the
+# installed consumer's binary had the same hash. The main tarball's extracted
+# contents are identical to the one above; only the archive bytes differ.
+855ded8b20d30ea0d968546a56439c6d35b7dfef591584611dd55f1fcfee470a  fathomdb.linux-arm64-gnu.node
+4a9ec6973b38d471b9eb90a2a87c927191517de9395d37fb47d2a0494f319743  fathomdb-linux-arm64-gnu-0.8.26.tgz
+9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257  fathomdb-0.8.26.tgz

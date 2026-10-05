@@ -19,15 +19,22 @@ sections after this one are the pre-fix handoff, kept as history.
   0.19.7 chose stream-ordered allocation from the pool attribute alone.
 - **Fix.** `third_party/cudarc-0.19.7` (vendored published crate, governed
   `[patch.crates-io]`) uses stream-ordered allocation only when the default
-  pool can be obtained and returns null for zero-byte synchronous requests.
+  pool can be obtained. Only pool-unavailable errors select the synchronous
+  allocator, and others fail context creation. The decision is made once per
+  device per process, so every context wrapper agrees. Zero-byte synchronous
+  requests return null.
   See its `FATHOMDB-PATCH.md` and `fathomdb-alloc-fallback.patch`.
 - **Tests.** `fathomdb-embedder` test `tegra_fragmented_va_cuda` reproduces
   the layout in-process and drives the real Candle probe (red 6 / 6, green
-  11 / 11). `scripts/tests/test_vendored_cudarc.sh` runs the vendored unit
-  tests (fast tier).
+  11 / 11). After review fix 1 it also asserts, on integrated GPUs only, that
+  the default pool is unavailable and that the context allocates
+  synchronously (12 / 12). `scripts/tests/test_vendored_cudarc.sh` runs the
+  vendored unit tests (fast tier, 11 tests).
 - **Verification.** 100 / 100 fresh forced-CUDA open/embed/rerank/witness Node
   processes passed (Node 25, 24 and 26; in-tree and installed package);
-  forced CPU passed 6 / 6. Counts, hashes and the Python wheel result are in
+  forced CPU passed 6 / 6. After review fix 1, a rebuilt artifact passed
+  10 / 10 in-tree and 10 / 10 installed on Node 25, with forced CPU 3 / 3 in
+  each form. Counts, hashes and the Python wheel result are in
   the [receipt](../../../runs/0.8.27-slice-110-tegra/receipt.md#allocator-root-cause-and-fix).
 - **Still open.** `cuInit` itself can fail in very heap-heavy processes (25
   of 68 in the explicit-pool experiment's 400k-object variants); the

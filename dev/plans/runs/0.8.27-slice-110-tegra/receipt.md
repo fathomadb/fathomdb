@@ -319,10 +319,15 @@ by a root `[patch.crates-io]` entry and governed by the pin-rot gate (exact
 path, local lock entry, licenses, patch note and tree digest). Its only change,
 in `src/driver/safe/core.rs`:
 
-- a context uses stream-ordered allocation only if pools are supported **and**
-  `cuDeviceGetDefaultMemPool` succeeds; otherwise `cuMemAlloc`. The decision
-  is made once per context in all four constructors, with no environment
-  switch, and every alloc and free branch reads it;
+- a device uses stream-ordered allocation only if pools are supported **and**
+  `cuDeviceGetDefaultMemPool` succeeds. Only `CUDA_ERROR_OUT_OF_MEMORY` and
+  `CUDA_ERROR_NOT_SUPPORTED` from that query select `cuMemAlloc`; any other
+  error is returned from the constructor instead of downgrading the device.
+  The first successful decision for a device is recorded once per process and
+  read by all four constructors. Every wrapper of the device, foreign contexts
+  included, therefore agrees, and a pointer moved with `leak` /
+  `upgrade_device_ptr` is freed by the API that allocated it. There is no
+  environment switch, and every alloc and free branch reads the decision;
 - zero-byte synchronous requests return a null pointer (`cuMemAlloc(0)` is
   `CUDA_ERROR_INVALID_VALUE`, `cuMemAllocAsync(0)` returns null), and a null
   pointer is never passed to `cuMemFree`.
@@ -337,8 +342,9 @@ tests run in the full gate.
 
 | Check | Before the fix | After the fix |
 | --- | --- | --- |
-| `fathomdb-embedder` test `tegra_fragmented_va_cuda` (fragmented layout, real Candle probe, tensor round trip, zero-element tensors) | 6 / 6 runs fail: `cuda_probe_failed`; direct probe `DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")` | 11 / 11 pass; default pool `CUDA_ERROR_OUT_OF_MEMORY`, context on the synchronous path |
+| `fathomdb-embedder` test `tegra_fragmented_va_cuda` (fragmented layout, real Candle probe, tensor round trip, zero-element tensors) | 6 / 6 runs fail: `cuda_probe_failed`; direct probe `DriverError(CUDA_ERROR_OUT_OF_MEMORY, "out of memory")` | 11 / 11 pass; default pool `CUDA_ERROR_OUT_OF_MEMORY`, context on the synchronous path. After review fix 1, which also asserts both, 12 / 12 |
 | Vendored unit tests (`scripts/tests/test_vendored_cudarc.sh`) | zero-length sync allocation fails with `CUDA_ERROR_INVALID_VALUE`; selection tests do not compile | 5 / 5 pass |
+| Review fix 1 vendored tests (once-per-device decision, pool-error triage) | do not compile; against a stub with the previous semantics 5 of 11 fail (unrelated errors downgraded, wrappers re-decide, failed and racing decisions disagree) | 11 / 11 pass |
 | Upstream cudarc driver tests, same features, raw-context tests excluded | 54 pass, 2 fail | 60 pass (54 + 5 new + 1 timing test), 1 fail |
 
 The two upstream failures on the published crate are `test_pinned_copy_is_faster`
@@ -380,6 +386,42 @@ shellcheck-clean form of the runner used, with the same behaviour.
 | CUDA/rerank platform tarball | `b4f41e454255bd767ad515e7b50df8c28f748a83e012c4b645edecdab2cca794` |
 | Main tarball | `5c7ab8b1779041ee393a9d1cee1e882a731220f778f7c164caee9b354b2a133b` |
 
+### Review fix 1
+
+The first independent review blocked on three points, and all three are
+addressed:
+
+- Wrappers of one device could disagree about the allocator, so a buffer
+  moved between them could be freed by the wrong API. The decision is now made
+  once per device per process.
+- Every default-pool error selected the synchronous allocator, including a
+  sticky error from earlier asynchronous work. Now only the pool-unavailable
+  errors do.
+- The regression test could pass without exercising the fallback.
+
+The regression test now runs only when `cuda:0` is an integrated (Tegra) GPU
+and asserts that the blockers leave the default pool at
+`CUDA_ERROR_OUT_OF_MEMORY` and that the context allocates synchronously.
+Elsewhere on aarch64 Linux it prints a SKIP notice naming the reason, or
+panics under `FATHOMDB_REQUIRE_LIVE=1`. The three-page layout made the pool
+unavailable in every run on this Orin, 12 of 12 after the change. The patch
+note explains why the leaked handle carries no allocator provenance.
+
+The Node CUDA artifact was rebuilt with the same recipe. On Node 25.9.0 in
+fresh processes, in-tree passed 10 / 10 (8 synchronous, 2 stream-ordered) and
+the installed package passed 10 / 10 (5 and 5). Forced CPU passed 3 / 3 in each
+form. All runs produced the same embedding values, and every witness delta was
+105–140 MiB ([analysis-fix1.txt](fix-verification/analysis-fix1.txt)). Steady
+embed medians were 25.5 / 25.7 ms synchronous and 11.4 / 13.1 ms stream-ordered.
+
+| Artifact (review fix 1) | SHA-256 |
+| --- | --- |
+| CUDA/rerank `.node` (built and installed) | `855ded8b20d30ea0d968546a56439c6d35b7dfef591584611dd55f1fcfee470a` |
+| CUDA/rerank platform tarball | `4a9ec6973b38d471b9eb90a2a87c927191517de9395d37fb47d2a0494f319743` |
+| Main tarball (contents identical to the table above) | `9e32a716f7a9e86b0ae56daa07e5b4da523967c1697b7e48524d21bd06a24257` |
+
+The Tegra Python wheel below was built before review fix 1. It was not rebuilt.
+
 ### Blast radius
 
 The vendored cudarc is compiled only where Candle's CUDA backend is: the Node
@@ -387,8 +429,10 @@ The vendored cudarc is compiled only where Candle's CUDA backend is: the Node
 and the host-native Tegra wheel), the CLI with `embed-cuda`/`rerank-cuda`, and
 the TC-5 CUDA benchmark. CPU, Metal and no-feature builds do not compile it.
 On devices whose default pool is available, including discrete GPUs, the
-selection keeps upstream's stream-ordered path; the only addition is one
-`cuDeviceGetDefaultMemPool` call per context. Root patches do not propagate:
+selection keeps upstream's stream-ordered path. The additions are one
+`cuDeviceGetDefaultMemPool` call per device per process and a constructor
+error, rather than a silent downgrade, if that call fails for a reason other
+than pool unavailability. Root patches do not propagate:
 downstream Rust builds of the published crates with `embed-cuda` still resolve
 the unpatched crates.io cudarc.
 

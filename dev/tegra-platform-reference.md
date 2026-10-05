@@ -531,18 +531,25 @@ process's virtual address space inside [8 GiB, 128 GiB)**. When that window is
 fragmented, `cuDeviceGetDefaultMemPool` and every `cuMemAllocAsync` return
 `CUDA_ERROR_OUT_OF_MEMORY` with more than 50 GB free, while synchronous
 `cuMemAlloc` works. Three 4 KiB `PROT_NONE` pages at 38, 68 and 98 GiB, mapped
-before `cuInit`, reproduce it deterministically. Node/V8 heaps fragment the
+before `cuInit`, reproduced it in every measured run (20 / 20 plain C runs,
+23 / 23 regression-test runs). Node/V8 heaps fragment the
 window by accident, so Node forced-CUDA opens failed intermittently while a
 plain Python process usually passed.
 
 - Upstream cudarc selects stream-ordered allocation from the pool attribute
   alone and its decision field is crate-private. The vendored
   `third_party/cudarc-0.19.7` therefore allocates synchronously when the
-  default pool cannot be obtained, and returns a null pointer for zero-byte
-  synchronous requests, which `cuMemAlloc` rejects. Its `FATHOMDB-PATCH.md`
-  records the delta.
+  default pool is unavailable (`CUDA_ERROR_OUT_OF_MEMORY` or
+  `CUDA_ERROR_NOT_SUPPORTED`; other errors fail context creation). It decides
+  once per device per process, so every context wrapper of a device frees with
+  the same API. It also returns a null pointer for zero-byte synchronous
+  requests, which `cuMemAlloc` rejects. Its `FATHOMDB-PATCH.md` records the
+  delta.
 - The regression test is
-  `src/rust/crates/fathomdb-embedder/tests/tegra_fragmented_va_cuda.rs`; the
+  `src/rust/crates/fathomdb-embedder/tests/tegra_fragmented_va_cuda.rs`. On an
+  integrated GPU it asserts that the blockers make the default pool unavailable
+  and that the context allocates synchronously; elsewhere it skips with a
+  notice. The
   C reproducer and the address-space measurements are in
   `dev/plans/runs/0.8.27-slice-110-tegra/driver-isolation-evidence/`.
 - The fallback is slower: a steady default-embedder embed took about 25 ms
